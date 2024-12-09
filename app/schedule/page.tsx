@@ -16,7 +16,7 @@ export default function SchedulePage() {
 	const [events, setEvents] = useState<Event[]>([])
 	const [authLoading, setAuthLoading] = useState<boolean>(true)
 	const [isAuthorized, setIsAuthorized] = useState<boolean | null>(() => {
-		const storedToken = localStorage.getItem('gapi_token')
+		const storedToken = window.localStorage.getItem('gapi_token')
 		return storedToken ? null : false // null, если токен есть, чтобы триггерить инициализацию
 	})
 
@@ -47,7 +47,7 @@ export default function SchedulePage() {
 				process.env.NEXT_PUBLIC_SCOPES!
 			)
 
-			const storedToken = localStorage.getItem('gapi_token')
+			const storedToken = window.localStorage.getItem('gapi_token')
 			if (storedToken) {
 				await googleApiService.current.initializeClientWithToken(
 					storedToken,
@@ -123,7 +123,7 @@ export default function SchedulePage() {
 	}
 
 	const handleLogout = () => {
-		localStorage.removeItem('gapi_token')
+		window.localStorage.removeItem('gapi_token')
 		setIsAuthorized(false)
 		setEvents([])
 	}
