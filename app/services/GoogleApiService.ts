@@ -135,6 +135,7 @@ class GoogleApiService {
       if (typeof error === 'object' && error !== null && 'status' in error) {
         const apiError = error as ApiError;
         if (apiError.status === 401) {
+          alert('Unauthorized, please log in again.')
           console.error('Unauthorized, please log in again.');
           throw new Error('Unauthorized');
         }

@@ -74,6 +74,7 @@ export default function SchedulePage() {
 	const fetchEvents = useCallback(async () => {
 		setLoadingEvents(true)
 		setEvents([])
+
 		try {
 			let fetchedEvents
 			if (selectedEventSummary) {
@@ -107,8 +108,16 @@ export default function SchedulePage() {
 		start: DateValue | null
 		end: DateValue | null
 	}) => {
+		// Проверяем, изменился ли диапазон дат
+		if (
+			dateRange.start?.toString() === range.start?.toString() &&
+			dateRange.end?.toString() === range.end?.toString()
+		) {
+			return
+		}
+
+		setEvents([])
 		setDateRange(range)
-		fetchEvents()
 	}
 
 	useEffect(() => {
@@ -164,17 +173,14 @@ export default function SchedulePage() {
 			.join('\n')
 	}
 
-	// Показ экрана загрузки, если проверка авторизации ещё выполняется
 	if (authLoading || isAuthorized === null) {
 		return <LoadingScreen message='Loading Google API...' />
 	}
 
-	// Если пользователь не авторизован, показать кнопку авторизации
 	if (!isAuthorized) {
 		return <AuthButton onClick={handleAuthClick} isAuthorized={isAuthorized} />
 	}
 
-	// Если авторизован, показать основное содержимое
 	return (
 		<I18nProvider locale='ru-RU'>
 			<div className='container mx-auto max-h-dvh relative'>
