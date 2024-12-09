@@ -15,11 +15,8 @@ import { LogOutIcon } from '@/components/icons'
 export default function SchedulePage() {
 	const [events, setEvents] = useState<Event[]>([])
 	const [authLoading, setAuthLoading] = useState<boolean>(true)
-	const [isAuthorized, setIsAuthorized] = useState<boolean | null>(() => {
-		const storedToken = window.localStorage.getItem('gapi_token')
-		return storedToken ? null : false // null, если токен есть, чтобы триггерить инициализацию
-	})
-
+	const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null) // null означает, что проверка в процессе
+	const [clientInitialized, setClientInitialized] = useState<boolean>(false) // Новый стейт для отслеживания инициализации клиента
 	const [loadingEvents, setLoadingEvents] = useState<boolean>(true)
 	const [selectedEventSummary, setSelectedEventSummary] = useState<
 		string | null
@@ -47,7 +44,15 @@ export default function SchedulePage() {
 				process.env.NEXT_PUBLIC_SCOPES!
 			)
 
-			const storedToken = window.localStorage.getItem('gapi_token')
+			const storedToken =
+				typeof window !== 'undefined'
+					? window.localStorage.getItem('gapi_token')
+					: null
+			await googleApiService.current.initializeClient(isAuthorized => {
+				setIsAuthorized(isAuthorized)
+			})
+			setClientInitialized(true) // Клиент успешно инициализирован
+
 			if (storedToken) {
 				await googleApiService.current.initializeClientWithToken(
 					storedToken,
@@ -56,9 +61,7 @@ export default function SchedulePage() {
 					}
 				)
 			} else {
-				await googleApiService.current.initializeClient(isAuthorized => {
-					setIsAuthorized(isAuthorized)
-				})
+				setIsAuthorized(false)
 			}
 		} catch (error) {
 			console.error('Error during authorization:', error)
@@ -70,7 +73,7 @@ export default function SchedulePage() {
 
 	const fetchEvents = useCallback(async () => {
 		setLoadingEvents(true)
-		setEvents([]) // Очищаем список событий перед загрузкой
+		setEvents([])
 		try {
 			let fetchedEvents
 			if (selectedEventSummary) {
@@ -119,11 +122,17 @@ export default function SchedulePage() {
 	}, [isAuthorized, fetchEvents])
 
 	const handleAuthClick = () => {
-		googleApiService.current?.requestAccessToken()
+		if (clientInitialized) {
+			googleApiService.current?.requestAccessToken()
+		} else {
+			console.error('Google API client is not initialized yet')
+		}
 	}
 
 	const handleLogout = () => {
-		window.localStorage.removeItem('gapi_token')
+		if (typeof window !== 'undefined') {
+			window.localStorage.removeItem('gapi_token')
+		}
 		setIsAuthorized(false)
 		setEvents([])
 	}
@@ -133,11 +142,10 @@ export default function SchedulePage() {
 		const dateMap: { [key: string]: number[] } = {}
 
 		events.forEach(event => {
-			// Проверяем, что дата определена
 			const rawDate = event.start.dateTime || event.start.date
-			if (!rawDate) return // Пропускаем события без даты
+			if (!rawDate) return
 
-			const date = new Date(rawDate) // Преобразуем в объект Date
+			const date = new Date(rawDate)
 			const month = date.toLocaleString('en-US', { month: 'long' })
 			const day = date.getDate()
 
@@ -147,66 +155,65 @@ export default function SchedulePage() {
 			dateMap[month].push(day)
 		})
 
-		// Сортируем дни в каждом месяце
 		for (const month in dateMap) {
 			dateMap[month].sort((a, b) => a - b)
 		}
 
-		// Форматируем вывод
 		return Object.entries(dateMap)
 			.map(([month, days]) => `${days.join(', ')} - ${month}`)
 			.join('\n')
 	}
 
-	if (authLoading) {
+	// Показ экрана загрузки, если проверка авторизации ещё выполняется
+	if (authLoading || isAuthorized === null) {
 		return <LoadingScreen message='Loading Google API...' />
 	}
 
+	// Если пользователь не авторизован, показать кнопку авторизации
+	if (!isAuthorized) {
+		return <AuthButton onClick={handleAuthClick} isAuthorized={isAuthorized} />
+	}
+
+	// Если авторизован, показать основное содержимое
 	return (
 		<I18nProvider locale='ru-RU'>
 			<div className='container mx-auto max-h-dvh relative'>
-				{isAuthorized === false ? (
-					<AuthButton onClick={handleAuthClick} isAuthorized={isAuthorized} />
-				) : (
-					<>
-						<Button
-							isIconOnly
-							className='absolute top-0 end-0 translate-x-[calc(100%_+_16px)]'
-							onClick={handleLogout}
+				<Button
+					isIconOnly
+					className='absolute top-0 end-0 translate-x-[calc(100%_+_16px)]'
+					onClick={handleLogout}
+				>
+					<LogOutIcon className='size-4' />
+				</Button>
+				<Card className='flex flex-col gap-y-4 p-6 shadow-md h-full max-h-dvh'>
+					<div className='flex gap-x-4 items-center'>
+						{selectedEventSummary && (
+							<Chip
+								className='cursor-pointer'
+								onClose={() => handleEventNameClick(selectedEventSummary)}
+							>
+								{selectedEventSummary}
+							</Chip>
+						)}
+						<DateRangeSelector
+							dateRange={dateRange}
+							onChange={handleDateRangeChange}
+						/>
+					</div>
+					{selectedEventSummary && (
+						<Snippet
+							symbol=''
+							classNames={{ pre: 'whitespace-pre-line text-left' }}
 						>
-							<LogOutIcon className='size-4' />
-						</Button>
-						<Card className='flex flex-col gap-y-4 p-6 shadow-md h-full max-h-dvh'>
-							<div className='flex gap-x-4 items-center'>
-								{selectedEventSummary && (
-									<Chip
-										className='cursor-pointer'
-										onClose={() => handleEventNameClick(selectedEventSummary)}
-									>
-										{selectedEventSummary}
-									</Chip>
-								)}
-								<DateRangeSelector
-									dateRange={dateRange}
-									onChange={handleDateRangeChange}
-								/>
-							</div>
-							{selectedEventSummary && (
-								<Snippet
-									symbol=''
-									classNames={{ pre: 'whitespace-pre-line text-left' }}
-								>
-									{formatDatesByMonth()}
-								</Snippet>
-							)}
-							<EventTable
-								events={events}
-								loading={loadingEvents}
-								onEventNameClick={handleEventNameClick}
-							/>
-						</Card>
-					</>
-				)}
+							{formatDatesByMonth()}
+						</Snippet>
+					)}
+					<EventTable
+						events={events}
+						loading={loadingEvents}
+						onEventNameClick={handleEventNameClick}
+					/>
+				</Card>
 			</div>
 		</I18nProvider>
 	)
