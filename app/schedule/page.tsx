@@ -183,16 +183,13 @@ export default function SchedulePage() {
 
 	return (
 		<I18nProvider locale='ru-RU'>
-			<div className='container mx-auto max-h-dvh relative'>
-				<Button
-					isIconOnly
-					className='absolute top-0 end-0 translate-x-[calc(100%_+_16px)]'
-					onClick={handleLogout}
-				>
-					<LogOutIcon className='size-4' />
-				</Button>
+			<div className='container mx-auto max-h-dvh'>
 				<Card className='flex flex-col gap-y-4 p-6 shadow-md h-full max-h-dvh'>
-					<div className='flex gap-x-4 items-center'>
+					<div className='flex items-center flex-wrap gap-4 justify-between'>
+						<DateRangeSelector
+							dateRange={dateRange}
+							onChange={handleDateRangeChange}
+						/>
 						{selectedEventSummary && (
 							<Chip
 								className='cursor-pointer'
@@ -201,10 +198,9 @@ export default function SchedulePage() {
 								{selectedEventSummary}
 							</Chip>
 						)}
-						<DateRangeSelector
-							dateRange={dateRange}
-							onChange={handleDateRangeChange}
-						/>
+						<Button isIconOnly onClick={handleLogout}>
+							<LogOutIcon className='size-4' />
+						</Button>
 					</div>
 					{selectedEventSummary && (
 						<Snippet

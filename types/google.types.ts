@@ -9,7 +9,8 @@ export type TokenClient = {
 export type Event = {
     id: string
     summary?: string
-    start: { dateTime?: string; date?: string }
+    start: { dateTime: string; date: string }
+    end: { dateTime: string; date: string }
     htmlLink?: string
 }
 

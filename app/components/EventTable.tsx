@@ -33,6 +33,7 @@ const EventTable: FC<EventTableProps> = ({
 				<TableHeader>
 					<TableColumn>Index</TableColumn>
 					<TableColumn>Date</TableColumn>
+					<TableColumn>Time</TableColumn>
 					<TableColumn>Event Name</TableColumn>
 					<TableColumn>Link</TableColumn>
 				</TableHeader>
@@ -40,7 +41,7 @@ const EventTable: FC<EventTableProps> = ({
 					{loading
 						? Array.from({ length: 5 }).map((_, index) => (
 								<TableRow key={index}>
-									{Array.from({ length: 4 }).map((_, cellIndex) => (
+									{Array.from({ length: 5 }).map((_, cellIndex) => (
 										<TableCell key={cellIndex}>
 											<Skeleton className='rounded-lg'>
 												<div
@@ -58,15 +59,29 @@ const EventTable: FC<EventTableProps> = ({
 								</TableRow>
 						  ))
 						: events?.map((event, index) => {
-								const startDate = event.start.dateTime || event.start.date
-								const formattedDate = startDate
-									? new Date(startDate).toLocaleDateString()
+								const start = event.start.dateTime
+								const end = event.end.dateTime
+
+								const formattedDate = start
+									? new Date(start).toLocaleDateString()
 									: 'Unknown date'
+
+								const formattedTime = (time: string) =>
+									time
+										? new Date(time).toLocaleTimeString('en-US', {
+												hour: '2-digit',
+												minute: '2-digit',
+												hour12: false, // Для 24-часового формата
+										  })
+										: 'Unknown date'
 
 								return (
 									<TableRow key={event.id}>
 										<TableCell>{index + 1}</TableCell>
 										<TableCell>{formattedDate}</TableCell>
+										<TableCell>
+											{formattedTime(start)}-{formattedTime(end)}
+										</TableCell>
 										<TableCell
 											onClick={() => onEventNameClick(event.summary || '')}
 											className='hover:bg-foreground-200 rounded-lg cursor-pointer transition-background'

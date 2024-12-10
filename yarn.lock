@@ -185,6 +185,22 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@maxim_mazurok/gapi.client.calendar-v3@latest":
+  version "0.0.20241128"
+  resolved "https://registry.npmmirror.com/@maxim_mazurok/gapi.client.calendar-v3/-/gapi.client.calendar-v3-0.0.20241128.tgz#7694d65503738d9bf9ee97fe4834a4215211e288"
+  integrity sha512-yKUKYjuKzkDHr4+kJL2YySmBAYv6Zm42UWznfQWQzUrj/j71szfwdIUSlqVNewhMbhO6AxcwegBdgizah2EVNw==
+  dependencies:
+    "@types/gapi.client" "*"
+    "@types/gapi.client.discovery-v1" "*"
+
+"@maxim_mazurok/gapi.client.discovery-v1@latest":
+  version "0.1.20200806"
+  resolved "https://registry.npmmirror.com/@maxim_mazurok/gapi.client.discovery-v1/-/gapi.client.discovery-v1-0.1.20200806.tgz#1bdb82fadd659a159765178993dff6dbcb5968bc"
+  integrity sha512-Wl6UfmZVDdWbY3PUu8E2ULk9RPLjnMqp/iOA4tcK8Ne+U/GmlnWP/e34IaZNGArfl7iXJNOG+/3Rj9L9jQyF9Q==
+  dependencies:
+    "@types/gapi.client" "*"
+    "@types/gapi.client.discovery-v1" "*"
+
 "@next/env@14.2.16":
   version "14.2.16"
   resolved "https://registry.npmmirror.com/@next/env/-/env-14.2.16.tgz#44638942a26da6e982cca37a07f43101407ac4d8"
@@ -2689,6 +2705,25 @@
   version "3.10.9"
   resolved "https://registry.yarnpkg.com/@tanstack/virtual-core/-/virtual-core-3.10.9.tgz#55710c92b311fdaa8d8c66682a0dbdd684bc77c4"
   integrity sha512-kBknKOKzmeR7lN+vSadaKWXaLS0SZZG+oqpQ/k80Q6g9REn6zRHS/ZYdrIzHnpHgy/eWs00SujveUN/GJT2qTw==
+
+"@types/gapi.client.calendar@^3.0.12":
+  version "3.0.12"
+  resolved "https://registry.npmmirror.com/@types/gapi.client.calendar/-/gapi.client.calendar-3.0.12.tgz#42ccf73fa248219c8f992e0cef7fdac51d2ac800"
+  integrity sha512-3H4hubmAuOkYHGSoVkxYAz6zg2g5LhQ1Y0/GLDIt1AkebKZgGiK+5JNFq4Nn2qDkjFh8pMY3TLIC/J5ueMd6YA==
+  dependencies:
+    "@maxim_mazurok/gapi.client.calendar-v3" latest
+
+"@types/gapi.client.discovery-v1@*":
+  version "0.0.4"
+  resolved "https://registry.npmmirror.com/@types/gapi.client.discovery-v1/-/gapi.client.discovery-v1-0.0.4.tgz#92818a15931430751ed50d2381d0081fd0cefc20"
+  integrity sha512-uevhRumNE65F5mf2gABLaReOmbFSXONuzFZjNR3dYv6BmkHg+wciubHrfBAsp3554zNo3Dcg6dUAlwMqQfpwjQ==
+  dependencies:
+    "@maxim_mazurok/gapi.client.discovery-v1" latest
+
+"@types/gapi.client@*":
+  version "1.0.8"
+  resolved "https://registry.npmmirror.com/@types/gapi.client/-/gapi.client-1.0.8.tgz#8e02c57493b014521f2fa3359166c01dc2861cd7"
+  integrity sha512-qJQUmmumbYym3Amax0S8CVzuSngcXsC1fJdwRS2zeW5lM63zXkw4wJFP+bG0jzgi0R6EsJKoHnGNVTDbOyG1ng==
 
 "@types/google.accounts@^0.0.15":
   version "0.0.15"
