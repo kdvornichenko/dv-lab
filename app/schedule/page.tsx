@@ -198,7 +198,7 @@ export default function SchedulePage() {
 								{selectedEventSummary}
 							</Chip>
 						)}
-						<Button isIconOnly onClick={handleLogout}>
+						<Button isIconOnly onClick={handleLogout} onTouchEnd={handleLogout}>
 							<LogOutIcon className='size-4' />
 						</Button>
 					</div>
