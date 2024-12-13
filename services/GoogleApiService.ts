@@ -1,5 +1,7 @@
 import { DateValue } from '@internationalized/date';
 import { ApiError, Event, TokenClient } from '@/types/google.types';
+import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import useGoogleApiStore from '@/store/googleApi.store';
 
 class GoogleApiService {
   private tokenClient: TokenClient | null = null;
@@ -11,71 +13,73 @@ class GoogleApiService {
     private SCOPES: string
   ) { }
 
-  initializeClient(callback: (isAuthorized: boolean) => void) {
-    console.log('Initializing Google API client...');
-    Promise.all([this.loadGoogleAPIScript(), this.loadGoogleIdentityScript()])
-      .then(() => {
-        window.gapi.load('client', async () => {
-          await window.gapi.client.init({
-            apiKey: this.API_KEY,
-            discoveryDocs: [this.DISCOVERY_DOC || ''],
-          });
+  async initializeClient(
+    callback: (isAuthorized: boolean) => void,
+    router: AppRouterInstance
+  ) {
+    try {
+      await Promise.all([this.loadGoogleAPIScript(), this.loadGoogleIdentityScript()]);
 
-          this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: this.CLIENT_ID,
-            scope: this.SCOPES || '',
-            callback: resp => {
-              if (resp.error) {
-                console.error('Authorization error:', resp.error);
-                callback(false);
-                return;
-              }
-              console.log('Authorized successfully');
+      window.gapi.load('client', async () => {
+        await window.gapi.client.init({
+          apiKey: this.API_KEY,
+          discoveryDocs: [this.DISCOVERY_DOC || ''],
+        });
+
+        this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: this.CLIENT_ID,
+          scope: this.SCOPES || '',
+          callback: resp => {
+            if (resp.error) {
+              console.error('Authorization error:', resp.error);
+              callback(false);
+              router.push('/login');
+            } else {
               localStorage.setItem('gapi_token', resp.access_token);
               callback(true);
-            },
-          });
-
-          console.log('Google API client initialized');
+            }
+          },
         });
-      })
-      .catch(error => {
-        console.error('Error initializing Google API client:', error);
-        callback(false);
       });
+    } catch (error) {
+      callback(false);
+      router.push('/login');
+    }
   }
 
-  initializeClientWithToken(token: string, callback: (isAuthorized: boolean) => void) {
-    console.log('Initializing Google API client with token...');
-    Promise.all([this.loadGoogleAPIScript(), this.loadGoogleIdentityScript()])
-      .then(() => {
-        window.gapi.load('client', async () => {
-          await window.gapi.client.init({
-            apiKey: this.API_KEY,
-            discoveryDocs: [this.DISCOVERY_DOC || ''],
-          });
-          window.gapi.client.setToken({ access_token: token });
-          console.log('Token set successfully');
-          callback(true);
-        });
-      })
-      .catch(error => {
-        console.error('Error initializing client with token:', error);
-        callback(false);
-      });
-  }
+  async initializeClientWithToken(
+    token: string,
+    callback: (isAuthorized: boolean) => void,
+    router: AppRouterInstance
+  ) {
 
+    try {
+      await Promise.all([this.loadGoogleAPIScript(), this.loadGoogleIdentityScript()]);
+      window.gapi.load('client', async () => {
+        await window.gapi.client.init({
+          apiKey: this.API_KEY,
+          discoveryDocs: [this.DISCOVERY_DOC || ''],
+        });
+        window.gapi.client.setToken({ access_token: token });
+        console.log('Token set successfully');
+        callback(true);
+      });
+    } catch (error) {
+      console.error('Error initializing client with token:', error);
+      callback(false);
+      router.push('/login');
+    } finally {
+    }
+  }
 
   private loadGoogleAPIScript(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (typeof window.gapi !== 'undefined') {
-        console.log('Google API script already loaded.');
         return resolve();
       }
       const script = document.createElement('script');
       script.src = 'https://apis.google.com/js/api.js';
       script.onload = () => {
-        console.log('Google API script loaded');
         resolve();
       };
       script.onerror = () => reject(new Error('Failed to load Google API script'));
@@ -86,13 +90,11 @@ class GoogleApiService {
   private loadGoogleIdentityScript(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (typeof window.google !== 'undefined' && window.google.accounts) {
-        console.log('Google Identity Services script already loaded.');
         return resolve();
       }
       const script = document.createElement('script');
       script.src = 'https://accounts.google.com/gsi/client';
       script.onload = () => {
-        console.log('Google Identity Services script loaded');
         resolve();
       };
       script.onerror = () => reject(new Error('Failed to load Google Identity Services script'));
@@ -101,15 +103,22 @@ class GoogleApiService {
   }
 
   requestAccessToken() {
+    const { setAlert } = useGoogleApiStore.getState();
+
     if (!this.tokenClient) {
       console.error('Token client not initialized');
+      setAlert('Token client not initialized! Wait 5 sec...')
       return;
     }
     console.log('Requesting access token...');
     this.tokenClient.requestAccessToken();
   }
 
-  async fetchEvents(dateRange: { start: DateValue | null; end: DateValue | null }): Promise<Event[]> {
+  async fetchEvents(
+    dateRange: { start: DateValue | null; end: DateValue | null },
+    router: AppRouterInstance
+  ): Promise<Event[]> {
+
     try {
       console.log('Fetching events from Google Calendar...');
 
@@ -135,18 +144,23 @@ class GoogleApiService {
       if (typeof error === 'object' && error !== null && 'status' in error) {
         const apiError = error as ApiError;
         if (apiError.status === 401) {
-          alert('Unauthorized, please log in again.')
-          console.error('Unauthorized, please log in again.');
+          console.error('Unauthorized, redirecting to login...');
+          router.push('/login');
           throw new Error('Unauthorized');
         }
       }
       console.error('Unknown error:', error);
       throw error;
+    } finally {
     }
   }
 
-  async fetchEventsBySummaryAndDateRange(summary: string, dateRange: { start: DateValue | null; end: DateValue | null }): Promise<Event[]> {
-    const allEvents = await this.fetchEvents(dateRange);
+  async fetchEventsBySummaryAndDateRange(
+    summary: string,
+    dateRange: { start: DateValue | null; end: DateValue | null },
+    router: AppRouterInstance
+  ): Promise<Event[]> {
+    const allEvents = await this.fetchEvents(dateRange, router);
     return allEvents.filter(event => event.summary === summary);
   }
 }

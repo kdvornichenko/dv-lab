@@ -5,19 +5,16 @@ import { Button, Card, Chip, Snippet } from '@nextui-org/react'
 import { I18nProvider } from '@react-aria/i18n'
 import { DateValue, parseDate } from '@internationalized/date'
 import { Event } from '@/types/google.types'
-import GoogleApiService from '../services/GoogleApiService'
-import LoadingScreen from '../components/LoadingScreen'
-import AuthButton from '../components/AuthButton'
+import GoogleApiService from '../../services/GoogleApiService'
 import DateRangeSelector from '../components/DateRangeSelector'
 import EventTable from '../components/EventTable'
 import { LogOutIcon } from '@/components/icons'
+import { useRouter } from 'next/navigation'
+import useFetchStore from '@/store/schedule.store'
 
 export default function SchedulePage() {
 	const [events, setEvents] = useState<Event[]>([])
-	const [authLoading, setAuthLoading] = useState<boolean>(true)
-	const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null) // null означает, что проверка в процессе
-	const [clientInitialized, setClientInitialized] = useState<boolean>(false) // Новый стейт для отслеживания инициализации клиента
-	const [loadingEvents, setLoadingEvents] = useState<boolean>(true)
+	const { setLoading } = useFetchStore()
 	const [selectedEventSummary, setSelectedEventSummary] = useState<
 		string | null
 	>(null)
@@ -33,46 +30,10 @@ export default function SchedulePage() {
 	}>(getTodayRange())
 
 	const googleApiService = useRef<GoogleApiService | null>(null)
-
-	const initializeAuthorization = useCallback(async () => {
-		try {
-			setAuthLoading(true)
-			googleApiService.current = new GoogleApiService(
-				process.env.NEXT_PUBLIC_CLIENT_ID!,
-				process.env.NEXT_PUBLIC_API_KEY!,
-				process.env.NEXT_PUBLIC_DISCOVERY_DOC!,
-				process.env.NEXT_PUBLIC_SCOPES!
-			)
-
-			const storedToken =
-				typeof window !== 'undefined'
-					? window.localStorage.getItem('gapi_token')
-					: null
-			await googleApiService.current.initializeClient(isAuthorized => {
-				setIsAuthorized(isAuthorized)
-			})
-			setClientInitialized(true) // Клиент успешно инициализирован
-
-			if (storedToken) {
-				await googleApiService.current.initializeClientWithToken(
-					storedToken,
-					isAuthorized => {
-						setIsAuthorized(isAuthorized)
-					}
-				)
-			} else {
-				setIsAuthorized(false)
-			}
-		} catch (error) {
-			console.error('Error during authorization:', error)
-			setIsAuthorized(false)
-		} finally {
-			setAuthLoading(false)
-		}
-	}, [])
+	const router = useRouter()
 
 	const fetchEvents = useCallback(async () => {
-		setLoadingEvents(true)
+		setLoading(true)
 		setEvents([])
 
 		try {
@@ -81,18 +42,61 @@ export default function SchedulePage() {
 				fetchedEvents =
 					await googleApiService.current?.fetchEventsBySummaryAndDateRange(
 						selectedEventSummary,
-						dateRange
+						dateRange,
+						router // Передаем router
 					)
 			} else {
-				fetchedEvents = await googleApiService.current?.fetchEvents(dateRange)
+				fetchedEvents = await googleApiService.current?.fetchEvents(
+					dateRange,
+					router // Передаем router
+				)
 			}
 			setEvents(fetchedEvents || [])
 		} catch (error) {
 			console.error('Error fetching events:', error)
 		} finally {
-			setLoadingEvents(false)
+			setLoading(false)
 		}
-	}, [dateRange, selectedEventSummary])
+	}, [dateRange, selectedEventSummary, router, setLoading])
+
+	useEffect(() => {
+		const initializeGoogleClient = async () => {
+			const storedToken =
+				typeof window !== 'undefined'
+					? window.localStorage.getItem('gapi_token')
+					: null
+
+			if (!storedToken) {
+				router.push('/login')
+				return
+			}
+
+			googleApiService.current = new GoogleApiService(
+				process.env.NEXT_PUBLIC_CLIENT_ID!,
+				process.env.NEXT_PUBLIC_API_KEY!,
+				process.env.NEXT_PUBLIC_DISCOVERY_DOC!,
+				process.env.NEXT_PUBLIC_SCOPES!
+			)
+
+			try {
+				await googleApiService.current.initializeClientWithToken(
+					storedToken,
+					isAuthorized => {
+						if (!isAuthorized) {
+							router.push('/login')
+						} else {
+							fetchEvents()
+						}
+					},
+					router
+				)
+			} catch {
+				router.push('/login')
+			}
+		}
+
+		initializeGoogleClient()
+	}, [router, fetchEvents])
 
 	const handleEventNameClick = (summary: string) => {
 		if (selectedEventSummary === summary) {
@@ -108,7 +112,6 @@ export default function SchedulePage() {
 		start: DateValue | null
 		end: DateValue | null
 	}) => {
-		// Проверяем, изменился ли диапазон дат
 		if (
 			dateRange.start?.toString() === range.start?.toString() &&
 			dateRange.end?.toString() === range.end?.toString()
@@ -118,23 +121,11 @@ export default function SchedulePage() {
 
 		setEvents([])
 		setDateRange(range)
-	}
 
-	useEffect(() => {
-		initializeAuthorization()
-	}, [initializeAuthorization])
-
-	useEffect(() => {
-		if (isAuthorized) {
+		if (googleApiService.current) {
 			fetchEvents()
-		}
-	}, [isAuthorized, fetchEvents])
-
-	const handleAuthClick = () => {
-		if (clientInitialized) {
-			googleApiService.current?.requestAccessToken()
 		} else {
-			console.error('Google API client is not initialized yet')
+			console.error('Google API service is not initialized')
 		}
 	}
 
@@ -142,11 +133,9 @@ export default function SchedulePage() {
 		if (typeof window !== 'undefined') {
 			window.localStorage.removeItem('gapi_token')
 		}
-		setIsAuthorized(false)
-		setEvents([])
+		router.push('/login')
 	}
 
-	// Функция для форматирования дат
 	const formatDatesByMonth = () => {
 		const dateMap: { [key: string]: number[] } = {}
 
@@ -173,14 +162,6 @@ export default function SchedulePage() {
 			.join('\n')
 	}
 
-	if (authLoading || isAuthorized === null) {
-		return <LoadingScreen message='Loading Google API...' />
-	}
-
-	if (!isAuthorized) {
-		return <AuthButton onClick={handleAuthClick} isAuthorized={isAuthorized} />
-	}
-
 	return (
 		<I18nProvider locale='ru-RU'>
 			<div className='container mx-auto max-h-dvh'>
@@ -198,7 +179,7 @@ export default function SchedulePage() {
 								{selectedEventSummary}
 							</Chip>
 						)}
-						<Button isIconOnly onClick={handleLogout} onTouchEnd={handleLogout}>
+						<Button isIconOnly onClick={handleLogout}>
 							<LogOutIcon className='size-4' />
 						</Button>
 					</div>
@@ -210,11 +191,7 @@ export default function SchedulePage() {
 							{formatDatesByMonth()}
 						</Snippet>
 					)}
-					<EventTable
-						events={events}
-						loading={loadingEvents}
-						onEventNameClick={handleEventNameClick}
-					/>
+					<EventTable events={events} onEventNameClick={handleEventNameClick} />
 				</Card>
 			</div>
 		</I18nProvider>

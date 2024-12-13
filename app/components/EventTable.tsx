@@ -12,18 +12,16 @@ import {
 	Skeleton,
 } from '@nextui-org/react'
 import { Event } from '@/types/google.types'
+import useFetchStore from '@/store/schedule.store'
 
 interface EventTableProps {
 	events: Event[]
-	loading: boolean
 	onEventNameClick: (summary: string) => void
 }
 
-const EventTable: FC<EventTableProps> = ({
-	events,
-	loading,
-	onEventNameClick,
-}) => {
+const EventTable: FC<EventTableProps> = ({ events, onEventNameClick }) => {
+	const { isLoading } = useFetchStore()
+
 	return (
 		<>
 			<Table
@@ -38,7 +36,7 @@ const EventTable: FC<EventTableProps> = ({
 					<TableColumn>Link</TableColumn>
 				</TableHeader>
 				<TableBody>
-					{loading
+					{isLoading
 						? Array.from({ length: 5 }).map((_, index) => (
 								<TableRow key={index}>
 									{Array.from({ length: 5 }).map((_, cellIndex) => (
