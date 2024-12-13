@@ -14,7 +14,7 @@ import useFetchStore from '@/store/schedule.store'
 
 export default function SchedulePage() {
 	const [events, setEvents] = useState<Event[]>([])
-	const { setLoading } = useFetchStore()
+	const { isLoading, setIsLoading } = useFetchStore()
 	const [selectedEventSummary, setSelectedEventSummary] = useState<
 		string | null
 	>(null)
@@ -33,31 +33,26 @@ export default function SchedulePage() {
 	const router = useRouter()
 
 	const fetchEvents = useCallback(async () => {
-		setLoading(true)
-		setEvents([])
+		setIsLoading(true)
 
 		try {
-			let fetchedEvents
-			if (selectedEventSummary) {
-				fetchedEvents =
-					await googleApiService.current?.fetchEventsBySummaryAndDateRange(
+			const fetchedEvents = selectedEventSummary
+				? await googleApiService.current?.fetchEventsBySummaryAndDateRange(
 						selectedEventSummary,
 						dateRange,
-						router // Передаем router
-					)
-			} else {
-				fetchedEvents = await googleApiService.current?.fetchEvents(
-					dateRange,
-					router // Передаем router
-				)
-			}
+						router
+				  )
+				: await googleApiService.current?.fetchEvents(dateRange, router)
+
 			setEvents(fetchedEvents || [])
 		} catch (error) {
 			console.error('Error fetching events:', error)
 		} finally {
-			setLoading(false)
+			setTimeout(() => {
+				setIsLoading(false)
+			}, 500)
 		}
-	}, [dateRange, selectedEventSummary, router, setLoading])
+	}, [dateRange, selectedEventSummary, router, setIsLoading])
 
 	useEffect(() => {
 		const initializeGoogleClient = async () => {
@@ -119,7 +114,6 @@ export default function SchedulePage() {
 			return
 		}
 
-		setEvents([])
 		setDateRange(range)
 
 		if (googleApiService.current) {
@@ -191,7 +185,10 @@ export default function SchedulePage() {
 							{formatDatesByMonth()}
 						</Snippet>
 					)}
-					<EventTable events={events} onEventNameClick={handleEventNameClick} />
+					<EventTable
+						events={isLoading ? [] : events}
+						onEventNameClick={handleEventNameClick}
+					/>
 				</Card>
 			</div>
 		</I18nProvider>

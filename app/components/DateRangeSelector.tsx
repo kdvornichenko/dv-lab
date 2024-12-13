@@ -16,6 +16,7 @@ const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 			showMonthAndYearPickers
 			variant='bordered'
 			className='flex-1'
+			aria-labelledby='Date range selector'
 			calendarProps={{
 				classNames: {
 					headerWrapper: 'pt-4 bg-background',

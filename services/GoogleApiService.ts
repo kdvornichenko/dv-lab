@@ -151,7 +151,6 @@ class GoogleApiService {
       }
       console.error('Unknown error:', error);
       throw error;
-    } finally {
     }
   }
 

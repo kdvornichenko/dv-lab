@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface GoogleApiState {
     isLoading: boolean;
-    setLoading: (loading: boolean) => void;
+    setIsLoading: (loading: boolean) => void;
     isAlertActive: boolean;
     alertMessage: string | null;
     setAlert: (message: string) => void;
@@ -10,7 +10,7 @@ interface GoogleApiState {
 
 const useGoogleApiStore = create<GoogleApiState>((set) => ({
     isLoading: false,
-    setLoading: (loading) => set({ isLoading: loading }),
+    setIsLoading: (loading) => set({ isLoading: loading }),
 
     isAlertActive: false,
     alertMessage: null,
