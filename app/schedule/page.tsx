@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Card, Chip, Snippet } from '@nextui-org/react'
+import { Button, Card, Chip, Skeleton, Snippet } from '@nextui-org/react'
 import { I18nProvider } from '@react-aria/i18n'
 import { DateValue, parseDate } from '@internationalized/date'
 import { Event } from '@/types/google.types'
@@ -177,14 +177,19 @@ export default function SchedulePage() {
 							<LogOutIcon className='size-4' />
 						</Button>
 					</div>
-					{selectedEventSummary && (
-						<Snippet
-							symbol=''
-							classNames={{ pre: 'whitespace-pre-line text-left' }}
-						>
-							{formatDatesByMonth()}
-						</Snippet>
-					)}
+					{selectedEventSummary &&
+						(isLoading ? (
+							<Skeleton className='rounded-lg'>
+								<div className={`h-10 w-full rounded-lg bg-default-300`} />
+							</Skeleton>
+						) : (
+							<Snippet
+								symbol=''
+								classNames={{ pre: 'whitespace-pre-line text-left' }}
+							>
+								{formatDatesByMonth()}
+							</Snippet>
+						))}
 					<EventTable
 						events={isLoading ? [] : events}
 						onEventNameClick={handleEventNameClick}
