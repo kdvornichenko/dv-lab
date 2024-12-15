@@ -1,23 +1,26 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Card, Chip, Skeleton, Snippet } from '@nextui-org/react'
+import { Alert, Button, Card, Chip, Skeleton, Snippet } from '@nextui-org/react'
 import { I18nProvider } from '@react-aria/i18n'
 import { DateValue, parseDate } from '@internationalized/date'
 import { Event } from '@/types/google.types'
 import GoogleApiService from '../../services/GoogleApiService'
-import DateRangeSelector from '../components/DateRangeSelector'
-import EventTable from '../components/EventTable'
+import DateRangeSelector from '../../components/DateRangeSelector'
+import EventTable from '../../components/EventTable'
 import { LogOutIcon } from '@/components/icons'
 import { useRouter } from 'next/navigation'
 import useFetchStore from '@/store/schedule.store'
+import { useSession, signOut } from 'next-auth/react'
 
 export default function SchedulePage() {
+	const { data: session, status } = useSession()
 	const [events, setEvents] = useState<Event[]>([])
 	const { isLoading, setIsLoading } = useFetchStore()
 	const [selectedEventSummary, setSelectedEventSummary] = useState<
 		string | null
 	>(null)
+	const [isInitialized, setIsInitialized] = useState(false)
 
 	const getTodayRange = (): { start: DateValue; end: DateValue } => {
 		const today = parseDate(new Date().toISOString().split('T')[0])
@@ -32,9 +35,43 @@ export default function SchedulePage() {
 	const googleApiService = useRef<GoogleApiService | null>(null)
 	const router = useRouter()
 
-	const fetchEvents = useCallback(async () => {
-		setIsLoading(true)
+	// Инициализация Google API клиента
+	useEffect(() => {
+		const initializeClient = async () => {
+			if (status === 'authenticated' && session?.accessToken) {
+				googleApiService.current = new GoogleApiService(
+					process.env.GOOGLE_CLIENT_ID!,
+					process.env.NEXT_PUBLIC_API_KEY!,
+					process.env.NEXT_PUBLIC_DISCOVERY_DOC!,
+					process.env.NEXT_PUBLIC_SCOPES!
+				)
 
+				try {
+					await googleApiService.current.initializeClientWithSession(
+						session.accessToken
+					)
+					setIsInitialized(true) // Устанавливаем состояние после успешной инициализации
+				} catch (error) {
+					console.error('Error initializing Google API client:', error)
+					signOut()
+				}
+			} else if (status === 'unauthenticated') {
+				router.push('/login')
+			}
+		}
+
+		initializeClient()
+	}, [status, session, router])
+
+	// useEffect(() => {
+	// 	console.log(events)
+	// }, [events])
+
+	// Функция для фетчинга событий
+	const fetchEvents = useCallback(async () => {
+		if (!isInitialized || status !== 'authenticated') return
+
+		setIsLoading(true)
 		try {
 			const fetchedEvents = selectedEventSummary
 				? await googleApiService.current?.fetchEventsBySummaryAndDateRange(
@@ -48,59 +85,18 @@ export default function SchedulePage() {
 		} catch (error) {
 			console.error('Error fetching events:', error)
 		} finally {
-			setTimeout(() => {
-				setIsLoading(false)
-			}, 500)
+			setIsLoading(false)
 		}
-	}, [dateRange, selectedEventSummary, router, setIsLoading])
+	}, [dateRange, selectedEventSummary, router, isInitialized, status, setIsLoading])
 
 	useEffect(() => {
-		const initializeGoogleClient = async () => {
-			const storedToken =
-				typeof window !== 'undefined'
-					? window.localStorage.getItem('gapi_token')
-					: null
-
-			if (!storedToken) {
-				router.push('/login')
-				return
-			}
-
-			googleApiService.current = new GoogleApiService(
-				process.env.NEXT_PUBLIC_CLIENT_ID!,
-				process.env.NEXT_PUBLIC_API_KEY!,
-				process.env.NEXT_PUBLIC_DISCOVERY_DOC!,
-				process.env.NEXT_PUBLIC_SCOPES!
-			)
-
-			try {
-				await googleApiService.current.initializeClientWithToken(
-					storedToken,
-					isAuthorized => {
-						if (!isAuthorized) {
-							router.push('/login')
-						} else {
-							fetchEvents()
-						}
-					},
-					router
-				)
-			} catch {
-				router.push('/login')
-			}
+		if (isInitialized) {
+			fetchEvents()
 		}
-
-		initializeGoogleClient()
-	}, [router, fetchEvents])
+	}, [fetchEvents, isInitialized])
 
 	const handleEventNameClick = (summary: string) => {
-		if (selectedEventSummary === summary) {
-			setSelectedEventSummary(null)
-			fetchEvents()
-		} else {
-			setSelectedEventSummary(summary)
-			fetchEvents()
-		}
+		setSelectedEventSummary(prev => (prev === summary ? null : summary))
 	}
 
 	const handleDateRangeChange = (range: {
@@ -115,19 +111,10 @@ export default function SchedulePage() {
 		}
 
 		setDateRange(range)
-
-		if (googleApiService.current) {
-			fetchEvents()
-		} else {
-			console.error('Google API service is not initialized')
-		}
 	}
 
 	const handleLogout = () => {
-		if (typeof window !== 'undefined') {
-			window.localStorage.removeItem('gapi_token')
-		}
-		router.push('/login')
+		signOut()
 	}
 
 	const formatDatesByMonth = () => {
@@ -173,7 +160,7 @@ export default function SchedulePage() {
 								{selectedEventSummary}
 							</Chip>
 						)}
-						<Button isIconOnly onClick={handleLogout}>
+						<Button isIconOnly onPressEnd={handleLogout}>
 							<LogOutIcon className='size-4' />
 						</Button>
 					</div>
@@ -182,13 +169,22 @@ export default function SchedulePage() {
 							<Skeleton className='rounded-lg'>
 								<div className={`h-10 w-full rounded-lg bg-default-300`} />
 							</Skeleton>
-						) : (
+						) : formatDatesByMonth() ? (
 							<Snippet
 								symbol=''
 								classNames={{ pre: 'whitespace-pre-line text-left' }}
 							>
 								{formatDatesByMonth()}
 							</Snippet>
+						) : (
+							<div className='text-left'>
+								<Alert
+									classNames={{ base: 'items-center' }}
+									title='Events not found'
+									variant='faded'
+									color='primary'
+								/>
+							</div>
 						))}
 					<EventTable
 						events={isLoading ? [] : events}

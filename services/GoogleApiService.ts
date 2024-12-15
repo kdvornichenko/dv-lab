@@ -47,28 +47,28 @@ class GoogleApiService {
     }
   }
 
-  async initializeClientWithToken(
-    token: string,
-    callback: (isAuthorized: boolean) => void,
-    router: AppRouterInstance
-  ) {
-
+  async initializeClientWithSession(token: string) {
     try {
-      await Promise.all([this.loadGoogleAPIScript(), this.loadGoogleIdentityScript()]);
-      window.gapi.load('client', async () => {
-        await window.gapi.client.init({
-          apiKey: this.API_KEY,
-          discoveryDocs: [this.DISCOVERY_DOC || ''],
+      await this.loadGoogleAPIScript();
+
+      await new Promise<void>((resolve, reject) => {
+        window.gapi.load('client', async () => {
+          try {
+            await window.gapi.client.init({
+              apiKey: this.API_KEY,
+              discoveryDocs: [this.DISCOVERY_DOC || ''],
+            });
+            window.gapi.client.setToken({ access_token: token });
+            resolve();
+          } catch (err) {
+            console.error('Error during gapi client initialization:', err);
+            reject(err);
+          }
         });
-        window.gapi.client.setToken({ access_token: token });
-        console.log('Token set successfully');
-        callback(true);
       });
     } catch (error) {
-      console.error('Error initializing client with token:', error);
-      callback(false);
-      router.push('/login');
-    } finally {
+      console.error('Error initializing client with session token:', error);
+      throw error;
     }
   }
 
@@ -118,12 +118,10 @@ class GoogleApiService {
     dateRange: { start: DateValue | null; end: DateValue | null },
     router: AppRouterInstance
   ): Promise<Event[]> {
-
     try {
-      console.log('Fetching events from Google Calendar...');
-
       const timeMin = dateRange.start?.toDate('UTC').toISOString();
       let timeMax: string | undefined = undefined;
+
       if (dateRange.end) {
         const endDateJs = dateRange.end.toDate('UTC');
         const endDatePlusOne = new Date(endDateJs.getTime() + 24 * 60 * 60 * 1000);
