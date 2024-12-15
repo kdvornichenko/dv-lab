@@ -8,7 +8,11 @@ export default function LoginPage() {
 		<div className='container mx-auto max-h-dvh flex items-center justify-center'>
 			<Card className='flex flex-col gap-y-4 p-6 shadow-md'>
 				<h1 className='text-center'>Login to Your Account</h1>
-				<Button onPressEnd={() => signIn('google')}>Sign in with Google</Button>
+				<Button
+					onPressEnd={() => signIn('google', { callbackUrl: '/schedule' })}
+				>
+					Sign in with Google
+				</Button>
 			</Card>
 		</div>
 	)
