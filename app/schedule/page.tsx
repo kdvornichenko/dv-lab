@@ -12,6 +12,7 @@ import { LogOutIcon } from '@/components/icons'
 import { useRouter } from 'next/navigation'
 import useFetchStore from '@/store/schedule.store'
 import { useSession, signOut } from 'next-auth/react'
+import useGoogleApiStore from '@/store/googleApi.store'
 
 export default function SchedulePage() {
 	const { data: session, status } = useSession()
@@ -31,6 +32,7 @@ export default function SchedulePage() {
 		start: DateValue | null
 		end: DateValue | null
 	}>(getTodayRange())
+	const { setAlert } = useGoogleApiStore()
 
 	const googleApiService = useRef<GoogleApiService | null>(null)
 	const router = useRouter()
@@ -50,10 +52,10 @@ export default function SchedulePage() {
 					await googleApiService.current.initializeClientWithSession(
 						session.accessToken
 					)
-					setIsInitialized(true) // Устанавливаем состояние после успешной инициализации
+					setIsInitialized(true)
 				} catch (error) {
 					console.error('Error initializing Google API client:', error)
-					signOut()
+					setAlert(`Error initializing Google API client: ${error}`)
 				}
 			} else if (status === 'unauthenticated') {
 				router.push('/login')
@@ -61,7 +63,7 @@ export default function SchedulePage() {
 		}
 
 		initializeClient()
-	}, [status, session, router])
+	}, [status, session, router, setAlert])
 
 	// Функция для фетчинга событий
 	const fetchEvents = useCallback(async () => {
@@ -78,6 +80,7 @@ export default function SchedulePage() {
 			setEvents(fetchedEvents || [])
 		} catch (error) {
 			console.error('Error fetching events:', error)
+			setAlert(`Error fetching events: ${error}`)
 		} finally {
 			setIsLoading(false)
 		}
@@ -88,6 +91,7 @@ export default function SchedulePage() {
 		isInitialized,
 		status,
 		setIsLoading,
+		setAlert,
 	])
 
 	useEffect(() => {
