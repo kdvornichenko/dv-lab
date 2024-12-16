@@ -18,8 +18,8 @@ export default function SchedulePage() {
 	const [events, setEvents] = useState<Event[]>([])
 	const { isLoading, setIsLoading } = useFetchStore()
 	const [selectedEventSummary, setSelectedEventSummary] = useState<
-		string | null
-	>(null)
+		string | undefined
+	>(undefined)
 	const [isInitialized, setIsInitialized] = useState(false)
 
 	const getTodayRange = (): { start: DateValue; end: DateValue } => {
@@ -63,23 +63,17 @@ export default function SchedulePage() {
 		initializeClient()
 	}, [status, session, router])
 
-	// useEffect(() => {
-	// 	console.log(events)
-	// }, [events])
-
 	// Функция для фетчинга событий
 	const fetchEvents = useCallback(async () => {
 		if (!isInitialized || status !== 'authenticated') return
 
 		setIsLoading(true)
 		try {
-			const fetchedEvents = selectedEventSummary
-				? await googleApiService.current?.fetchEventsBySummaryAndDateRange(
-						selectedEventSummary,
-						dateRange,
-						router
-				  )
-				: await googleApiService.current?.fetchEvents(dateRange, router)
+			const fetchedEvents = await googleApiService.current?.fetchEvents(
+				dateRange,
+				router,
+				selectedEventSummary
+			)
 
 			setEvents(fetchedEvents || [])
 		} catch (error) {
@@ -87,7 +81,14 @@ export default function SchedulePage() {
 		} finally {
 			setIsLoading(false)
 		}
-	}, [dateRange, selectedEventSummary, router, isInitialized, status, setIsLoading])
+	}, [
+		dateRange,
+		selectedEventSummary,
+		router,
+		isInitialized,
+		status,
+		setIsLoading,
+	])
 
 	useEffect(() => {
 		if (isInitialized) {
@@ -96,7 +97,7 @@ export default function SchedulePage() {
 	}, [fetchEvents, isInitialized])
 
 	const handleEventNameClick = (summary: string) => {
-		setSelectedEventSummary(prev => (prev === summary ? null : summary))
+		setSelectedEventSummary(prev => (prev === summary ? undefined : summary))
 	}
 
 	const handleDateRangeChange = (range: {
@@ -111,10 +112,6 @@ export default function SchedulePage() {
 		}
 
 		setDateRange(range)
-	}
-
-	const handleLogout = () => {
-		signOut()
 	}
 
 	const formatDatesByMonth = () => {
@@ -160,7 +157,7 @@ export default function SchedulePage() {
 								{selectedEventSummary}
 							</Chip>
 						)}
-						<Button isIconOnly onPressEnd={handleLogout}>
+						<Button isIconOnly onPressEnd={() => signOut()}>
 							<LogOutIcon className='size-4' />
 						</Button>
 					</div>

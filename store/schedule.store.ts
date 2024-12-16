@@ -6,7 +6,7 @@ interface FetchState {
 }
 
 const useFetchStore = create<FetchState>((set) => ({
-    isLoading: false,
+    isLoading: true,
     setIsLoading: (loading) => set({ isLoading: loading }),
 }));
 

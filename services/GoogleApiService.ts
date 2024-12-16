@@ -116,7 +116,8 @@ class GoogleApiService {
 
   async fetchEvents(
     dateRange: { start: DateValue | null; end: DateValue | null },
-    router: AppRouterInstance
+    router: AppRouterInstance,
+    summary?: string
   ): Promise<Event[]> {
     try {
       const timeMin = dateRange.start?.toDate('UTC').toISOString();
@@ -135,30 +136,24 @@ class GoogleApiService {
         showDeleted: false,
         singleEvents: true,
         orderBy: 'startTime',
+        maxResults: 500,
+        q: summary
       });
 
-      return response.result.items as Event[];
+      const events = response.result.items;
+      const filteredEvents = events?.filter(event => event.summary === summary)
+
+      return (summary ? filteredEvents : events) as Event[];
     } catch (error) {
       if (typeof error === 'object' && error !== null && 'status' in error) {
         const apiError = error as ApiError;
         if (apiError.status === 401) {
-          console.error('Unauthorized, redirecting to login...');
           router.push('/login');
-          throw new Error('Unauthorized');
         }
       }
       console.error('Unknown error:', error);
       throw error;
     }
-  }
-
-  async fetchEventsBySummaryAndDateRange(
-    summary: string,
-    dateRange: { start: DateValue | null; end: DateValue | null },
-    router: AppRouterInstance
-  ): Promise<Event[]> {
-    const allEvents = await this.fetchEvents(dateRange, router);
-    return allEvents.filter(event => event.summary === summary);
   }
 }
 
