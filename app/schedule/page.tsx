@@ -11,11 +11,14 @@ import EventTable from '../../components/EventTable'
 import { LogOutIcon } from '@/components/icons'
 import { useRouter } from 'next/navigation'
 import useFetchStore from '@/store/schedule.store'
-import { useSession, signOut } from 'next-auth/react'
-import useGoogleApiStore from '@/store/googleApi.store'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+	process.env.NEXT_PUBLIC_SUPABASE_URL!,
+	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export default function SchedulePage() {
-	const { data: session, status } = useSession()
 	const [events, setEvents] = useState<Event[]>([])
 	const { isLoading, setIsLoading } = useFetchStore()
 	const [selectedEventSummary, setSelectedEventSummary] = useState<
@@ -32,7 +35,6 @@ export default function SchedulePage() {
 		start: DateValue | null
 		end: DateValue | null
 	}>(getTodayRange())
-	const { setAlert } = useGoogleApiStore()
 
 	const googleApiService = useRef<GoogleApiService | null>(null)
 	const router = useRouter()
@@ -40,34 +42,25 @@ export default function SchedulePage() {
 	// Инициализация Google API клиента
 	useEffect(() => {
 		const initializeClient = async () => {
-			if (status === 'authenticated' && session?.accessToken) {
-				googleApiService.current = new GoogleApiService(
-					process.env.GOOGLE_CLIENT_ID!,
-					process.env.NEXT_PUBLIC_API_KEY!,
-					process.env.NEXT_PUBLIC_DISCOVERY_DOC!,
-					process.env.NEXT_PUBLIC_SCOPES!
-				)
+			const { data: session, error } = await supabase.auth.getSession()
 
-				try {
-					await googleApiService.current.initializeClientWithSession(
-						session.accessToken
-					)
-					setIsInitialized(true)
-				} catch (error) {
-					console.error('Error initializing Google API client:', error)
-					setAlert(`Error initializing Google API client: ${error}`)
-				}
-			} else if (status === 'unauthenticated') {
+			if (error || !session?.session?.provider_token) {
+				console.error('User not authenticated or missing provider token.')
 				router.push('/login')
+				return
 			}
+
+			googleApiService.current = new GoogleApiService()
+
+			setIsInitialized(true)
 		}
 
 		initializeClient()
-	}, [status, session, router, setAlert])
+	}, [router])
 
 	// Функция для фетчинга событий
 	const fetchEvents = useCallback(async () => {
-		if (!isInitialized || status !== 'authenticated') return
+		if (!isInitialized) return
 
 		setIsLoading(true)
 		try {
@@ -76,23 +69,13 @@ export default function SchedulePage() {
 				router,
 				selectedEventSummary
 			)
-
 			setEvents(fetchedEvents || [])
 		} catch (error) {
 			console.error('Error fetching events:', error)
-			setAlert(`Error fetching events: ${error}`)
 		} finally {
 			setIsLoading(false)
 		}
-	}, [
-		dateRange,
-		selectedEventSummary,
-		router,
-		isInitialized,
-		status,
-		setIsLoading,
-		setAlert,
-	])
+	}, [dateRange, selectedEventSummary, router, isInitialized, setIsLoading])
 
 	useEffect(() => {
 		if (isInitialized) {
@@ -161,7 +144,12 @@ export default function SchedulePage() {
 								{selectedEventSummary}
 							</Chip>
 						)}
-						<Button isIconOnly onPressEnd={() => signOut()}>
+						<Button
+							isIconOnly
+							onPressEnd={() =>
+								supabase.auth.signOut().then(() => router.push('/login'))
+							}
+						>
 							<LogOutIcon className='size-4' />
 						</Button>
 					</div>

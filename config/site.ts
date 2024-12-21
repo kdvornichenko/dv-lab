@@ -12,6 +12,10 @@ export const siteConfig = {
       label: "Schedule",
       href: "/schedule",
     },
+    {
+      label: "Profile",
+      href: "/profile",
+    },
   ],
   navMenuItems: [
     {
@@ -21,6 +25,10 @@ export const siteConfig = {
     {
       label: "Schedule",
       href: "/schedule",
+    },
+    {
+      label: "Profile",
+      href: "/profile",
     },
   ],
 };
