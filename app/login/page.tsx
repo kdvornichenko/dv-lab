@@ -19,7 +19,7 @@ export default function LoginPage() {
 		const { error } = await supabase.auth.signInWithOAuth({
 			provider: 'google',
 			options: {
-				redirectTo: 'http://localhost:3000/',
+				redirectTo: `${window.location.origin}`,
 				scopes:
 					'openid email profile https://www.googleapis.com/auth/calendar.readonly',
 				queryParams: {
