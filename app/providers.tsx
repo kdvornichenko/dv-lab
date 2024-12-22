@@ -30,13 +30,20 @@ declare module '@react-types/shared' {
 export function Providers({ children, themeProps }: ProvidersProps) {
 	const router = useRouter()
 	const [user, setUser] = useState<User | null>(null)
+	const [loading, setLoading] = useState(true)
 
 	useEffect(() => {
 		const getUserProfile = async () => {
-			const {
-				data: { session },
-			} = await supabase.auth.getSession()
-			setUser(session?.user ?? null)
+			try {
+				const { data, error } = await supabase.auth.getSession()
+				if (error) throw error
+				setUser(data?.session?.user ?? null)
+			} catch (error) {
+				console.error('Ошибка при получении сессии:', error)
+				setUser(null)
+			} finally {
+				setLoading(false)
+			}
 		}
 
 		getUserProfile()
@@ -51,6 +58,10 @@ export function Providers({ children, themeProps }: ProvidersProps) {
 			authListener?.subscription.unsubscribe()
 		}
 	}, [])
+
+	if (loading) {
+		return <div>Загрузка...</div>
+	}
 
 	return (
 		<UserContext.Provider value={{ user, setUser }}>

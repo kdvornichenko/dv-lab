@@ -6,6 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Button, Card, Input, Avatar, Spacer } from '@nextui-org/react'
 
 export default function ProfilePage() {
 	const [profile, setProfile] = useState<User | null>(null)
@@ -15,7 +16,6 @@ export default function ProfilePage() {
 	const [formData, setFormData] = useState({ name: '' })
 	const router = useRouter()
 
-	// Проверка сессии на клиентской стороне
 	useEffect(() => {
 		const checkUser = async () => {
 			const {
@@ -35,49 +35,34 @@ export default function ProfilePage() {
 		checkUser()
 	}, [router])
 
-	// Загрузка профиля после загрузки `sessionUser`
 	useEffect(() => {
 		if (!sessionUser) return
-		const fetchOrCreateProfile = async () => {
-			try {
-				// Проверяем наличие записи в таблице `users`
-				const { data: userData, error: fetchError } = await supabase
-					.from('users')
-					.select('*')
-					.eq('uid', sessionUser.id)
-					.single()
 
-				if (fetchError && fetchError.code === 'PGRST116') {
-					if (!sessionUser) return
+		setLoading(true)
 
-					// Если запись не найдена, создаём новую
-					const { error: insertError } = await supabase.from('users').insert({
-						uid: sessionUser.id,
-						name: sessionUser.user_metadata?.name || '',
-						created_at: new Date().toISOString(),
-					})
-					if (insertError) throw insertError
+		const fetchUser = async () => {
+			await supabase
+				.from('users')
+				.select('*')
+				.eq('uid', sessionUser.id)
+				.then(user => {
+					if (user.data?.length === 0) insertUser()
+					else setProfile(user.data?.[0])
 
-					// Устанавливаем профиль после создания
-					setProfile({
-						uid: sessionUser.id,
-						name: sessionUser.user_metadata?.name || '',
-						created_at: new Date().toISOString(),
-					})
-				} else if (userData) {
-					// Если запись найдена, устанавливаем её
-					setProfile(userData)
-				} else {
-					console.error('Неизвестная ошибка при загрузке профиля')
-				}
-			} catch (error) {
-				console.error('Ошибка при загрузке или создании профиля:', error)
-			} finally {
-				setLoading(false) // Завершаем загрузку только после завершения всей обработки
-			}
+					setLoading(false)
+				})
 		}
 
-		fetchOrCreateProfile()
+		const insertUser = async () => {
+			await supabase.from('users').insert({
+				uid: sessionUser?.id,
+				name: sessionUser?.user_metadata?.name || '',
+				avatar: sessionUser?.user_metadata?.avatar_url || '',
+				created_at: new Date().toISOString(),
+			})
+		}
+
+		fetchUser()
 	}, [sessionUser])
 
 	const handleEditClick = () => {
@@ -107,36 +92,69 @@ export default function ProfilePage() {
 	}
 
 	return (
-		<div>
-			<h1>Личный кабинет</h1>
-			{loading ? (
-				<p>Загрузка...</p>
-			) : profile ? (
-				<div>
-					{editing ? (
-						<div>
-							<label>
-								Имя:
-								<input
-									type='text'
+		<div className='flex items-center justify-center min-h-screenpx-4 py-6'>
+			<Card className='p-4'>
+				{loading ? (
+					<div className='flex justify-center items-center'>Загрузка...</div>
+				) : profile ? (
+					<div className='flex flex-col items-center space-y-4'>
+						{/* Аватар */}
+						{profile.avatar ? (
+							<Avatar src={profile.avatar} size='lg' color='primary' />
+						) : (
+							<Avatar size='lg' color='primary' />
+						)}
+
+						{/* Имя пользователя */}
+						{editing ? (
+							<div className='w-full'>
+								<Input
+									fullWidth
+									label='Имя'
+									placeholder='Введите имя'
 									name='name'
 									value={formData.name}
 									onChange={handleInputChange}
+									variant='bordered'
 								/>
-							</label>
-							<button onClick={handleSaveClick}>Сохранить</button>
-							<button onClick={() => setEditing(false)}>Отмена</button>
-						</div>
-					) : (
-						<div>
-							<p>Имя: {profile.name}</p>
-							<button onClick={handleEditClick}>Редактировать</button>
-						</div>
-					)}
-				</div>
-			) : (
-				<p>Профиль не найден</p>
-			)}
+								<Spacer y={0.5} />
+								<div className='flex justify-end space-x-2'>
+									<Button color='success' onClick={handleSaveClick}>
+										Сохранить
+									</Button>
+									<Button color='danger' onClick={() => setEditing(false)}>
+										Отмена
+									</Button>
+								</div>
+							</div>
+						) : (
+							<>
+								<p className='text-xl font-semibold'>{profile.name}</p>
+								<Button variant='bordered' onClick={handleEditClick}>
+									Редактировать профиль
+								</Button>
+							</>
+						)}
+
+						{/* Кнопка выхода */}
+						<Button
+							color='danger'
+							onClick={async () => {
+								const { error } = await supabase.auth.signOut()
+								if (error) {
+									console.error('Ошибка при выходе:', error)
+								} else {
+									router.push('/login')
+								}
+							}}
+						>
+							Выйти
+						</Button>
+					</div>
+				) : (
+					<p className='text-center text-gray-500'>Профиль не найден</p>
+				)}
+			</Card>
 		</div>
 	)
 }
