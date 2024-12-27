@@ -119,10 +119,10 @@ export default function ProfilePage() {
 								/>
 								<Spacer y={0.5} />
 								<div className='flex justify-end space-x-2'>
-									<Button color='success' onClick={handleSaveClick}>
+									<Button color='success' onPressEnd={handleSaveClick}>
 										Сохранить
 									</Button>
-									<Button color='danger' onClick={() => setEditing(false)}>
+									<Button color='danger' onPressEnd={() => setEditing(false)}>
 										Отмена
 									</Button>
 								</div>
@@ -130,7 +130,7 @@ export default function ProfilePage() {
 						) : (
 							<>
 								<p className='text-xl font-semibold'>{profile.name}</p>
-								<Button variant='bordered' onClick={handleEditClick}>
+								<Button variant='bordered' onPressEnd={handleEditClick}>
 									Редактировать профиль
 								</Button>
 							</>
@@ -139,7 +139,7 @@ export default function ProfilePage() {
 						{/* Кнопка выхода */}
 						<Button
 							color='danger'
-							onClick={async () => {
+							onPressEnd={async () => {
 								const { error } = await supabase.auth.signOut()
 								if (error) {
 									console.error('Ошибка при выходе:', error)

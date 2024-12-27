@@ -42,12 +42,12 @@ export default function LoginPage() {
 			{user ? (
 				<>
 					<p>Привет, {user.email}</p>
-					<Button color='danger' onClick={handleLogout}>
+					<Button color='danger' onPressEnd={handleLogout}>
 						Выйти
 					</Button>
 				</>
 			) : (
-				<Button color='success' onClick={handleGoogleLogin}>
+				<Button color='success' onPressEnd={handleGoogleLogin}>
 					Войти через Google
 				</Button>
 			)}
