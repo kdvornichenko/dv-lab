@@ -6,7 +6,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js'
 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Button, Card, Input, Avatar, Spacer } from '@nextui-org/react'
+import { Button, Card, Input, Avatar } from '@nextui-org/react'
 
 export default function ProfilePage() {
 	const [profile, setProfile] = useState<User | null>(null)
