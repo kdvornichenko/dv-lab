@@ -46,8 +46,6 @@ export default function SchedulePage() {
 
 			if (error || !session?.session?.provider_token) {
 				console.error('User not authenticated or missing provider token.')
-				router.push('/login')
-				return
 			}
 
 			googleApiService.current = new GoogleApiService()

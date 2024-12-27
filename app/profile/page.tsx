@@ -81,6 +81,13 @@ export default function ProfilePage() {
 
 			setProfile(prev => prev && { ...prev, name: formData.name })
 			setEditing(false)
+
+			// Обновляем токен сессии
+			const { error: refreshError } = await supabase.auth.refreshSession()
+			if (refreshError) {
+				console.error('Ошибка обновления токена:', refreshError)
+				router.push('/login')
+			}
 		} catch (error) {
 			console.error('Ошибка при сохранении профиля:', error)
 		}
@@ -107,7 +114,7 @@ export default function ProfilePage() {
 
 						{/* Имя пользователя */}
 						{editing ? (
-							<div className='w-full'>
+							<div className='w-full flex flex-col gap-y-2'>
 								<Input
 									fullWidth
 									label='Имя'
@@ -117,8 +124,7 @@ export default function ProfilePage() {
 									onChange={handleInputChange}
 									variant='bordered'
 								/>
-								<Spacer y={0.5} />
-								<div className='flex justify-end space-x-2'>
+								<div className='flex justify-center gap-x-2'>
 									<Button color='success' onPressEnd={handleSaveClick}>
 										Сохранить
 									</Button>
@@ -137,19 +143,21 @@ export default function ProfilePage() {
 						)}
 
 						{/* Кнопка выхода */}
-						<Button
-							color='danger'
-							onPressEnd={async () => {
-								const { error } = await supabase.auth.signOut()
-								if (error) {
-									console.error('Ошибка при выходе:', error)
-								} else {
-									router.push('/login')
-								}
-							}}
-						>
-							Выйти
-						</Button>
+						{!editing && (
+							<Button
+								color='danger'
+								onPressEnd={async () => {
+									const { error } = await supabase.auth.signOut()
+									if (error) {
+										console.error('Ошибка при выходе:', error)
+									} else {
+										router.push('/login')
+									}
+								}}
+							>
+								Выйти
+							</Button>
+						)}
 					</div>
 				) : (
 					<p className='text-center text-gray-500'>Профиль не найден</p>
