@@ -1,4 +1,4 @@
-export default function ScheduleLayout({
+export default function WishlistLayout({
   children,
 }: {
   children: React.ReactNode;

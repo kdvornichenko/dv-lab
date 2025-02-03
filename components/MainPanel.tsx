@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 const MainPanel = () => {
-	const [isLoading, setIsLoading] = useState(false)
+	const [loadingHref, setLoadingHref] = useState<string | null>(null)
 	const router = useRouter()
 
 	const handleCardPress = (href: string) => {
-		setIsLoading(true)
+		setLoadingHref(href)
 		router.push(href)
+
+		setTimeout(() => setLoadingHref(null), 1000)
 	}
 
 	return sitePages.map(page => (
@@ -22,15 +24,16 @@ const MainPanel = () => {
 			onPress={() => handleCardPress(page.href)}
 			key={page.href}
 			className='relative'
+			isDisabled={!!loadingHref}
 		>
-			{isLoading && (
+			{loadingHref === page.href && (
 				<Spinner className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50' />
 			)}
 			<Image
-				alt='Schedule'
+				alt={page.label}
 				className='object-cover'
 				height={200}
-				src='/img/schedule.jpg'
+				src={`/img/${page.img}`}
 				width={200}
 			/>
 			<CardFooter className='before:bg-slate-950 border-slate-950/60 border-1 overflow-hidden py-3 absolute before:rounded-xl rounded-large bottom-1 w-[calc(100%_-_8px)] shadow-small ml-1 z-10'>
