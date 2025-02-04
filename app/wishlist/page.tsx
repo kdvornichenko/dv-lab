@@ -182,7 +182,7 @@ export default function WishlistPage() {
 											src={getImageUrl(item.id)}
 											alt={item.description}
 											width={'100%'}
-											className='rounded-lg object-cover mb-4 h-[50vw] w-full'
+											className='rounded-lg object-cover mb-4 h-[50vw] md:h-52 w-full'
 										/>
 										<h4 className='mt-auto font-semibold'>
 											{item.description}
