@@ -27,6 +27,7 @@
 		"@supabase/supabase-js": "^2.47.10",
 		"@types/gapi.client.calendar": "^3.0.12",
 		"@types/google.accounts": "^0.0.15",
+		"@vercel/analytics": "^1.4.1",
 		"@vercel/blob": "^0.27.1",
 		"@vercel/edge-config": "^1.4.0",
 		"axios": "^1.7.9",
