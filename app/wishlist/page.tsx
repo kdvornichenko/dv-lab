@@ -106,88 +106,97 @@ export default function WishlistPage() {
 	}
 
 	return (
-		<div className='p-4'>
-			<Modal isOpen={isModalOpen} onOpenChange={setIsModalOpen}>
-				<ModalContent>
-					<>
-						<ModalHeader className='flex flex-col gap-1'>
-							{selectedItem?.description}
-						</ModalHeader>
-						<ModalBody>
-							{selectedItem?.booked &&
-								'Если решили отменить бронирование, то напишите Кириллу'}
-						</ModalBody>
-						<ModalFooter className='flex flex-col gap-2'>
-							<div className='flex items-center gap-x-2'>
-								<Button
-									fullWidth
-									color={selectedItem?.booked ? 'primary' : 'warning'}
-									onPress={handleBookGift}
-									isDisabled={selectedItem?.booked || !!optimisticUpdate}
-									isLoading={!!optimisticUpdate}
-								>
-									{optimisticUpdate
-										? 'Обработка...'
-										: selectedItem?.booked
-										? 'Уже забронирован'
-										: 'Забронировать'}
-								</Button>
+		<div>
+			{blobs.length === 0 || items.length === 0 ? (
+				<Spinner className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50' />
+			) : (
+				<>
+					<Modal isOpen={isModalOpen} onOpenChange={setIsModalOpen}>
+						<ModalContent>
+							<>
+								<ModalHeader className='flex flex-col gap-1'>
+									{selectedItem?.description}
+								</ModalHeader>
+								<ModalBody>
+									{selectedItem?.booked &&
+										'Если решили отменить бронирование, то напишите Кириллу'}
+								</ModalBody>
+								<ModalFooter className='flex flex-col gap-2'>
+									<div className='flex items-center gap-x-2'>
+										<Button
+											fullWidth
+											color={selectedItem?.booked ? 'primary' : 'warning'}
+											onPress={handleBookGift}
+											isDisabled={selectedItem?.booked || !!optimisticUpdate}
+											isLoading={!!optimisticUpdate}
+										>
+											{optimisticUpdate
+												? 'Обработка...'
+												: selectedItem?.booked
+												? 'Уже забронирован'
+												: 'Забронировать'}
+										</Button>
 
-								{!selectedItem?.booked && (
-									<Button
-										fullWidth
-										as={Link}
-										href={selectedItem?.href}
-										target='_blank'
-										variant='flat'
-										color='default'
-										isDisabled={!!optimisticUpdate}
-									>
-										Где купить?
-									</Button>
+										{!selectedItem?.booked && (
+											<Button
+												fullWidth
+												as={Link}
+												href={selectedItem?.href}
+												target='_blank'
+												variant='flat'
+												color='default'
+												isDisabled={!!optimisticUpdate}
+											>
+												Где купить?
+											</Button>
+										)}
+									</div>
+								</ModalFooter>
+							</>
+						</ModalContent>
+					</Modal>
+
+					<div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 lg:gap-6'>
+						{items.map(item => (
+							<div key={item.id} className='relative'>
+								{(item.booked || optimisticUpdate === item.id) && (
+									<div className='absolute top-2 left-2 right-2 bg-red-500 text-white text-center py-1 rounded-lg z-10'>
+										Подарок забронирован
+									</div>
 								)}
-							</div>
-						</ModalFooter>
-					</>
-				</ModalContent>
-			</Modal>
 
-			<div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6'>
-				{items.map(item => (
-					<div key={item.id} className='relative'>
-						{(item.booked || optimisticUpdate === item.id) && (
-							<div className='absolute top-2 left-2 right-2 bg-red-500 text-white text-center py-1 rounded-lg z-10'>
-								Подарок забронирован
+								<Card
+									isPressable={!item.booked && !optimisticUpdate}
+									className={`h-full w-full transition-all opacity-100 ${
+										item.booked || optimisticUpdate
+											? 'opacity-50'
+											: 'hover:opacity-70'
+									}`}
+									onPress={() => {
+										setSelectedItem(item)
+										setIsModalOpen(true)
+									}}
+								>
+									<CardBody className='p-4 flex flex-col'>
+										<Image
+											src={getImageUrl(item.id)}
+											alt={item.description}
+											width={'100%'}
+											className='rounded-lg object-cover mb-4 h-[50vw] w-full'
+										/>
+										<h4 className='mt-auto font-semibold'>
+											{item.description}
+										</h4>
+										<h4 className='mt-1 text-md text-gray-400/50'>
+											{item.price}₽
+										</h4>
+									</CardBody>
+								</Card>
 							</div>
-						)}
-
-						<Card
-							isPressable={!item.booked && !optimisticUpdate}
-							className={`h-full transition-all opacity-100 ${
-								item.booked || optimisticUpdate
-									? 'opacity-50'
-									: 'hover:opacity-70'
-							}`}
-							onPress={() => {
-								setSelectedItem(item)
-								setIsModalOpen(true)
-							}}
-						>
-							<CardBody className='p-4 flex flex-col'>
-								<Image
-									src={getImageUrl(item.id)}
-									alt={item.description}
-									width={200}
-									height={200}
-									className='rounded-lg object-cover mb-4'
-								/>
-								<h4 className='mt-auto font-semibold'>{item.description}</h4>
-								<h4 className='mt-1 text-md text-gray-400/50'>{item.price}₽</h4>
-							</CardBody>
-						</Card>
+						))}
 					</div>
-				))}
-			</div>
+				</>
+			)}
 		</div>
 	)
 }
