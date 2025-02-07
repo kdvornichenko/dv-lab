@@ -1,7 +1,6 @@
 import React, { FC } from 'react'
-import { DateRangePicker, CalendarDate } from '@nextui-org/react'
-import { DateValue } from '@internationalized/date'
-
+import { CalendarDate, DateValue } from '@internationalized/date'
+import { DateRangePicker } from '@heroui/date-picker'
 interface DateRangeSelectorProps {
 	dateRange: { start: DateValue | null; end: DateValue | null }
 	onChange: (range: { start: DateValue | null; end: DateValue | null }) => void
@@ -42,7 +41,10 @@ const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 				start: dateRange.start as unknown as CalendarDate,
 				end: dateRange.end as unknown as CalendarDate,
 			}}
-			onChange={onChange}
+			onChange={(value) => onChange({
+				start: value?.start as DateValue | null,
+				end: value?.end as DateValue | null,
+			})}
 		/>
 	)
 }
