@@ -99,12 +99,6 @@ export default function WishlistPage() {
 		return foundBlob ? foundBlob.url : '/img/placeholder.jpg'
 	}
 
-	if (blobs.length === 0 || items.length === 0) {
-		return (
-			<Spinner className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50' />
-		)
-	}
-
 	return (
 		<div>
 			{blobs.length === 0 || items.length === 0 ? (
@@ -137,19 +131,17 @@ export default function WishlistPage() {
 												: 'Забронировать'}
 										</Button>
 
-										{!selectedItem?.booked && (
-											<Button
-												fullWidth
-												as={Link}
-												href={selectedItem?.href}
-												target='_blank'
-												variant='flat'
-												color='default'
-												isDisabled={!!optimisticUpdate}
-											>
-												Где купить?
-											</Button>
-										)}
+										<Button
+											fullWidth
+											as={Link}
+											href={selectedItem?.href}
+											target='_blank'
+											variant='flat'
+											color='default'
+											isDisabled={!!optimisticUpdate}
+										>
+											Где купить?
+										</Button>
 									</div>
 								</ModalFooter>
 							</>
@@ -166,7 +158,7 @@ export default function WishlistPage() {
 								)}
 
 								<Card
-									isPressable={!item.booked && !optimisticUpdate}
+									isPressable={!optimisticUpdate}
 									className={`h-full w-full transition-all opacity-100 ${
 										item.booked || optimisticUpdate
 											? 'opacity-50'
