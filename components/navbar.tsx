@@ -16,10 +16,7 @@ import clsx from 'clsx'
 
 import { siteConfig } from '@/config/site'
 import { ThemeSwitch } from '@/components/theme-switch'
-import {
-	SearchIcon,
-	Logo,
-} from '@/components/icons'
+import { SearchIcon, Logo, ProfileIcon } from '@/components/icons'
 
 export const Navbar = () => {
 	const searchInput = (
@@ -73,6 +70,11 @@ export const Navbar = () => {
 				className='hidden sm:flex basis-1/5 sm:basis-full'
 				justify='end'
 			>
+				<NavbarItem className='flex'>
+					<Link href='/profile' color='foreground'>
+						<ProfileIcon size={22} />
+					</Link>
+				</NavbarItem>
 				<NavbarItem className='hidden sm:flex gap-2'>
 					<ThemeSwitch />
 				</NavbarItem>
@@ -80,6 +82,10 @@ export const Navbar = () => {
 			</NavbarContent>
 
 			<NavbarContent className='sm:hidden basis-1 pl-4' justify='end'>
+				<Link href='/profile' size='lg'>
+					Profile
+				</Link>
+
 				<ThemeSwitch />
 				<NavbarMenuToggle />
 			</NavbarContent>

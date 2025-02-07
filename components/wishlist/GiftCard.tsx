@@ -44,14 +44,15 @@ export function GiftCard({
 						<DropdownTrigger>
 							<Button
 								isIconOnly
-								variant='light'
+								variant='faded'
 								size='sm'
 								className='min-w-unit-8 w-unit-8 h-unit-8'
 							>
-								<EllipsisVerticalIcon className='h-5 w-5' />
+								<EllipsisVerticalIcon className='h-5 w-5 rotate-90' />
 							</Button>
 						</DropdownTrigger>
 						<DropdownMenu
+
 							aria-label='Gift actions'
 							onAction={key => {
 								if (key === 'edit') onEdit?.(item)
