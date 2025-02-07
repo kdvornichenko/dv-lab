@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
 import { User } from '@supabase/supabase-js'
 import supabase from '@/libs/supabase/supabaseClient'
+import LoadingScreen from '@/components/LoadingScreen'
 
 export interface ProvidersProps {
 	children: React.ReactNode
@@ -16,6 +17,7 @@ export interface ProvidersProps {
 
 export const UserContext = createContext<{
 	user: User | null
+	loading: boolean
 	setUser: React.Dispatch<React.SetStateAction<User | null>>
 } | null>(null)
 
@@ -49,7 +51,7 @@ export function Providers({ children, themeProps }: ProvidersProps) {
 		getUserProfile()
 
 		const { data: authListener } = supabase.auth.onAuthStateChange(
-			(_event, session) => {
+			async (_event, session) => {
 				setUser(session?.user ?? null)
 			}
 		)
@@ -59,14 +61,12 @@ export function Providers({ children, themeProps }: ProvidersProps) {
 		}
 	}, [])
 
-	if (loading) {
-		return <div>Загрузка...</div>
-	}
-
 	return (
-		<UserContext.Provider value={{ user, setUser }}>
+		<UserContext.Provider value={{ user, loading, setUser }}>
 			<NextUIProvider navigate={router.push}>
-				<NextThemesProvider {...themeProps}>{children}</NextThemesProvider>
+				<NextThemesProvider {...themeProps}>
+					{loading ? <LoadingScreen message='Загрузка...' /> : children}
+				</NextThemesProvider>
 			</NextUIProvider>
 		</UserContext.Provider>
 	)
