@@ -5,7 +5,9 @@ export interface Item {
     href: string
     booked?: boolean
     image?: File
+    hidden?: boolean
 }
+
 
 export interface BlobObject {
     url: string

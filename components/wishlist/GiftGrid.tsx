@@ -10,6 +10,7 @@ interface GiftGridProps {
 	setIsModalOpen: (isOpen: boolean) => void
 	onEditItem: (item: Item) => void
 	onDeleteItem: (item: Item) => void
+	onHideItem: (item: Item) => void
 	isAdmin: boolean
 }
 
@@ -21,6 +22,7 @@ export function GiftGrid({
 	setIsModalOpen,
 	onEditItem,
 	onDeleteItem,
+	onHideItem,
 	isAdmin,
 }: GiftGridProps) {
 	const getImageUrl = (itemId: string) => {
@@ -48,8 +50,10 @@ export function GiftGrid({
 					}}
 					onEdit={onEditItem}
 					onDelete={onDeleteItem}
+					onHide={onHideItem}
 					isAdmin={isAdmin}
 				/>
+
 			))}
 		</div>
 	)

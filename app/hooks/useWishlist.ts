@@ -111,7 +111,7 @@ export function useWishlist() {
                 throw new Error('Ошибка обновления подарка')
             }
 
-            setItems(prev => prev.map(i => (i.id === item.id ? item : i)))
+            setItems(prev => prev.map(selectedItem => (selectedItem.id === item.id ? item : selectedItem)))
             setIsEditModalOpen(false)
         } catch (error) {
             console.error('Edit operation failed:', error)
@@ -136,7 +136,17 @@ export function useWishlist() {
                 throw new Error('Ошибка авторизации')
             }
 
-            const response = await fetch('/api/delete-item', {
+            const confirm = window.confirm('Вы уверены, что хотите удалить этот подарок? Отменить это действие невозможно.')
+
+            if (!confirm) return
+
+            setItems(prev =>
+                prev.filter(i =>
+                    i.id !== item.id
+                )
+            )
+
+            const response = await fetch('/api/hide-item', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -148,10 +158,42 @@ export function useWishlist() {
             if (!response.ok) {
                 throw new Error('Ошибка удаления подарка')
             }
-
-            setItems(prev => prev.filter(i => i.id !== item.id))
         } catch (error) {
             console.error('Delete operation failed:', error)
+            alert(error instanceof Error ? error.message : 'Произошла неизвестная ошибка')
+        }
+    }
+
+    const handleHideItem = async (item: Item) => {
+        try {
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+
+            if (sessionError || !session) {
+                throw new Error('Ошибка авторизации')
+            }
+
+            setItems(prev =>
+                prev.map(selectedItem =>
+                    selectedItem.id === item.id ? { ...selectedItem, hidden: selectedItem.hidden ? false : true } : selectedItem
+                )
+            )
+
+            const response = await fetch('/api/hide-item', {
+                method: 'POST',
+                headers: {
+
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({ itemId: item.id }),
+            })
+
+            if (!response.ok) {
+                throw new Error('Ошибка скрытия подарка')
+            }
+        } catch (error) {
+            console.error('Hide operation failed:', error)
             alert(error instanceof Error ? error.message : 'Произошла неизвестная ошибка')
         }
     }
@@ -167,11 +209,12 @@ export function useWishlist() {
         optimisticUpdate,
         handleBookGift,
         handleEditItem,
+        handleDeleteItem,
+        handleHideItem,
         setIsModalOpen,
         setIsEditModalOpen,
         setSelectedItem,
         setItems,
         getImageUrl,
-        handleDeleteItem,
     }
 } 

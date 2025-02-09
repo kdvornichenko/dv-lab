@@ -20,6 +20,7 @@ export default function WishlistPage() {
 		handleBookGift,
 		handleEditItem,
 		handleDeleteItem,
+		handleHideItem,
 		setIsModalOpen,
 		setIsEditModalOpen,
 		setSelectedItem,
@@ -59,6 +60,7 @@ export default function WishlistPage() {
 					setIsEditModalOpen(true)
 				}}
 				onDeleteItem={handleDeleteItem}
+				onHideItem={handleHideItem}
 				isAdmin={isAdmin}
 			/>
 		</div>
