@@ -1,17 +1,18 @@
-import React, { FC } from 'react';
-import { Spinner } from '@nextui-org/react';
+import React, { FC } from 'react'
+
+import { Loader2 } from 'lucide-react'
 
 interface LoadingScreenProps {
-  message: string;
+	message: string
 }
 
 const LoadingScreen: FC<LoadingScreenProps> = ({ message }) => {
-  return (
-    <div className='flex flex-col items-center justify-center h-screen'>
-      <Spinner size='lg' />
-      <p className='text-lg mt-4'>{message}</p>
-    </div>
-  );
-};
+	return (
+		<div className="flex h-screen flex-col items-center justify-center">
+			<Loader2 className="h-8 w-8 animate-spin" />
+			<p className="mt-4 text-lg">{message}</p>
+		</div>
+	)
+}
 
-export default LoadingScreen;
+export default LoadingScreen

@@ -1,14 +1,14 @@
-import '@/styles/globals.css'
-import { Metadata, Viewport } from 'next'
-import clsx from 'clsx'
-
-import { Providers } from './providers'
-
-import { siteConfig } from '@/config/site'
-import { fontSans } from '@/config/fonts'
-import { Navbar } from '@/components/navbar'
-
 import { Analytics } from '@vercel/analytics/react'
+
+import { Metadata, Viewport } from 'next'
+
+import { Navbar } from '@/components/navbar'
+import { fontSans } from '@/config/fonts'
+import { siteConfig } from '@/config/site'
+import { cn } from '@/lib/utils'
+
+import '../styles/globals.css'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
 	title: {
@@ -28,27 +28,16 @@ export const viewport: Viewport = {
 	],
 }
 
-export default function RootLayout({
-	children,
-}: {
-	children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html suppressHydrationWarning lang='en'>
+		<html suppressHydrationWarning lang="en">
 			<head />
-			<body
-				className={clsx(
-					'min-h-screen bg-background font-sans antialiased',
-					fontSans.variable
-				)}
-			>
+			<body className={cn('min-h-screen bg-background font-sans antialiased', fontSans.variable)}>
 				<Providers themeProps={{ attribute: 'class', defaultTheme: 'dark' }}>
 					<Analytics />
-					<div className='relative flex flex-col h-screen'>
+					<div className="relative flex h-screen flex-col">
 						<Navbar />
-						<main className='container mx-auto max-w-7xl pt-16 px-6 flex-grow'>
-							{children}
-						</main>
+						<main className="h-full w-full pt-20">{children}</main>
 					</div>
 				</Providers>
 			</body>

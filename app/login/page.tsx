@@ -1,14 +1,14 @@
 'use client'
 
 import { useContext } from 'react'
+
 import { UserContext } from '@/app/providers'
-import { Button } from '@nextui-org/react'
+import { Button } from '@/components/ui/button'
 import supabase from '@/libs/supabase/supabaseClient'
 
 export default function LoginPage() {
 	const userContext = useContext(UserContext)
 
-	// Проверяем, инициализирован ли контекст
 	if (!userContext) {
 		return <div>Загрузка...</div>
 	}
@@ -20,8 +20,7 @@ export default function LoginPage() {
 			provider: 'google',
 			options: {
 				redirectTo: `${window.location.origin}`,
-				scopes:
-					'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+				scopes: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
 				queryParams: {
 					access_type: 'offline',
 					prompt: 'consent',
@@ -38,16 +37,16 @@ export default function LoginPage() {
 	}
 
 	return (
-		<div className='max-w-xl w-full grid grid-rows-3 gap-y-4 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'>
+		<div className="absolute top-1/2 left-1/2 grid w-full max-w-xl -translate-x-1/2 -translate-y-1/2 grid-rows-3 gap-y-4">
 			{user ? (
 				<>
 					<p>Привет, {user.email}</p>
-					<Button color='danger' onPressEnd={handleLogout}>
+					<Button variant="destructive" onClick={handleLogout}>
 						Выйти
 					</Button>
 				</>
 			) : (
-				<Button color='success' onPressEnd={handleGoogleLogin}>
+				<Button className="bg-green-600 text-white hover:bg-green-700" onClick={handleGoogleLogin}>
 					Войти через Google
 				</Button>
 			)}

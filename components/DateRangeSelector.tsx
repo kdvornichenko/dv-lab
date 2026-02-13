@@ -1,51 +1,71 @@
-import React, { FC } from 'react'
-import { CalendarDate, DateValue } from '@internationalized/date'
-import { DateRangePicker } from '@heroui/date-picker'
+'use client'
+
+import { DateValue, parseDate } from '@internationalized/date'
+
+import React, { FC, useState } from 'react'
+import { DayPicker, DateRange } from 'react-day-picker'
+import 'react-day-picker/style.css'
+
+import { format } from 'date-fns'
+import { CalendarIcon } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+
 interface DateRangeSelectorProps {
 	dateRange: { start: DateValue | null; end: DateValue | null }
 	onChange: (range: { start: DateValue | null; end: DateValue | null }) => void
 }
 
-const DateRangeSelector: FC<DateRangeSelectorProps> = ({
-	dateRange,
-	onChange,
-}) => {
+function dateValueToDate(dv: DateValue | null): Date | undefined {
+	if (!dv) return undefined
+	return new Date(dv.toString())
+}
+
+function dateToDateValue(d: Date): DateValue {
+	const iso = d.toISOString().split('T')[0]
+	return parseDate(iso)
+}
+
+const DateRangeSelector: FC<DateRangeSelectorProps> = ({ dateRange, onChange }) => {
+	const [open, setOpen] = useState(false)
+
+	const selected: DateRange = {
+		from: dateValueToDate(dateRange.start),
+		to: dateValueToDate(dateRange.end),
+	}
+
+	const handleSelect = (range: DateRange | undefined) => {
+		if (!range) return
+		onChange({
+			start: range.from ? dateToDateValue(range.from) : null,
+			end: range.to ? dateToDateValue(range.to) : null,
+		})
+	}
+
+	const label =
+		selected.from && selected.to
+			? `${format(selected.from, 'dd.MM.yyyy')} - ${format(selected.to, 'dd.MM.yyyy')}`
+			: selected.from
+				? format(selected.from, 'dd.MM.yyyy')
+				: 'Выберите даты'
+
 	return (
-		<DateRangePicker
-			showMonthAndYearPickers
-			variant='bordered'
-			className='flex-1'
-			aria-labelledby='Date range selector'
-			calendarProps={{
-				classNames: {
-					headerWrapper: 'pt-4 bg-background',
-					prevButton: 'border-1 border-default-200 rounded-small',
-					nextButton: 'border-1 border-default-200 rounded-small',
-					gridHeader: 'bg-background shadow-none border-b-1 border-default-100',
-					cellButton: [
-						'data-[today=true]:bg-default-100 data-[selected=true]:bg-transparent rounded-small',
-						// start (pseudo)
-						'data-[range-start=true]:before:rounded-l-small',
-						'data-[selection-start=true]:before:rounded-l-small',
-						// end (pseudo)
-						'data-[range-end=true]:before:rounded-r-small',
-						'data-[selection-end=true]:before:rounded-r-small',
-						// start (selected)
-						'data-[selected=true]:data-[selection-start=true]:data-[range-selection=true]:rounded-small',
-						// end (selected)
-						'data-[selected=true]:data-[selection-end=true]:data-[range-selection=true]:rounded-small',
-					],
-				},
-			}}
-			value={{
-				start: dateRange.start as unknown as CalendarDate,
-				end: dateRange.end as unknown as CalendarDate,
-			}}
-			onChange={(value) => onChange({
-				start: value?.start as DateValue | null,
-				end: value?.end as DateValue | null,
-			})}
-		/>
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger asChild>
+				<Button
+					variant="outline"
+					className={cn('flex-1 justify-start text-left font-normal', !selected.from && 'text-muted-foreground')}
+				>
+					<CalendarIcon className="mr-2 h-4 w-4" />
+					{label}
+				</Button>
+			</PopoverTrigger>
+			<PopoverContent className="w-auto p-0" align="start">
+				<DayPicker mode="range" selected={selected} onSelect={handleSelect} numberOfMonths={1} />
+			</PopoverContent>
+		</Popover>
 	)
 }
 

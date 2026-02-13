@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(del \"G:\\\\dv-lab\\\\tailwind.config.js\")",
+      "Bash(del \"G:\\\\dv-lab\\\\components\\\\primitives.ts\")",
+      "Bash(npx shadcn@latest add:*)"
     ]
   }
 }

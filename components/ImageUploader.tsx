@@ -31,12 +31,7 @@ export default function ImageUploader({ itemId }: ImageUploaderProps) {
 
 	return (
 		<div>
-			<input
-				type='file'
-				onChange={handleUpload}
-				disabled={uploading}
-				accept='image/*'
-			/>
+			<input type="file" onChange={handleUpload} disabled={uploading} accept="image/*" />
 			{uploading && <p>Uploading...</p>}
 		</div>
 	)

@@ -1,30 +1,34 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Chip, Skeleton, Snippet } from '@nextui-org/react'
-import { I18nProvider } from '@react-aria/i18n'
 import { DateValue, parseDate } from '@internationalized/date'
-import { Event } from '@/types/google.types'
-import GoogleApiService from '../../services/GoogleApiService'
-import DateRangeSelector from '../../components/DateRangeSelector'
-import EventTable from '../../components/EventTable'
-import { LogOutIcon } from '@/components/icons'
-import { useRouter } from 'next/navigation'
-import useFetchStore from '@/store/schedule.store'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-	process.env.NEXT_PUBLIC_SUPABASE_URL!,
-	process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+
+import { Copy, X } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+
+import { LogOutIcon } from '@/components/icons'
+import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import useFetchStore from '@/store/schedule.store'
+import { Event } from '@/types/google.types'
+
+import DateRangeSelector from '../../components/DateRangeSelector'
+import EventTable from '../../components/EventTable'
+import GoogleApiService from '../../services/GoogleApiService'
+
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export default function SchedulePage() {
 	const [events, setEvents] = useState<Event[]>([])
 	const { isLoading, setIsLoading } = useFetchStore()
-	const [selectedEventSummary, setSelectedEventSummary] = useState<
-		string | undefined
-	>(undefined)
+	const [selectedEventSummary, setSelectedEventSummary] = useState<string | undefined>(undefined)
 	const [isInitialized, setIsInitialized] = useState(false)
+	const [copied, setCopied] = useState(false)
 
 	const getTodayRange = (): { start: DateValue; end: DateValue } => {
 		const today = parseDate(new Date().toISOString().split('T')[0])
@@ -39,7 +43,6 @@ export default function SchedulePage() {
 	const googleApiService = useRef<GoogleApiService | null>(null)
 	const router = useRouter()
 
-	// Инициализация Google API клиента
 	useEffect(() => {
 		const initializeClient = async () => {
 			const { data: session, error } = await supabase.auth.getSession()
@@ -56,17 +59,12 @@ export default function SchedulePage() {
 		initializeClient()
 	}, [router])
 
-	// Функция для фетчинга событий
 	const fetchEvents = useCallback(async () => {
 		if (!isInitialized) return
 
 		setIsLoading(true)
 		try {
-			const fetchedEvents = await googleApiService.current?.fetchEvents(
-				dateRange,
-				router,
-				selectedEventSummary
-			)
+			const fetchedEvents = await googleApiService.current?.fetchEvents(dateRange, router, selectedEventSummary)
 			setEvents(fetchedEvents || [])
 		} catch (error) {
 			console.error('Error fetching events:', error)
@@ -82,13 +80,10 @@ export default function SchedulePage() {
 	}, [fetchEvents, isInitialized])
 
 	const handleEventNameClick = (summary: string) => {
-		setSelectedEventSummary(prev => (prev === summary ? undefined : summary))
+		setSelectedEventSummary((prev) => (prev === summary ? undefined : summary))
 	}
 
-	const handleDateRangeChange = (range: {
-		start: DateValue | null
-		end: DateValue | null
-	}) => {
+	const handleDateRangeChange = (range: { start: DateValue | null; end: DateValue | null }) => {
 		if (
 			dateRange.start?.toString() === range.start?.toString() &&
 			dateRange.end?.toString() === range.end?.toString()
@@ -102,7 +97,7 @@ export default function SchedulePage() {
 	const formatDatesByMonth = () => {
 		const dateMap: { [key: string]: number[] } = {}
 
-		events.forEach(event => {
+		events.forEach((event) => {
 			const rawDate = event.start.dateTime || event.start.date
 			if (!rawDate) return
 
@@ -125,60 +120,56 @@ export default function SchedulePage() {
 			.join('\n')
 	}
 
+	const handleCopy = (text: string) => {
+		navigator.clipboard.writeText(text)
+		setCopied(true)
+		setTimeout(() => setCopied(false), 2000)
+	}
+
 	return (
-		<I18nProvider locale='ru-RU'>
-			<div className='container mx-auto max-h-dvh'>
-				<Card className='flex flex-col gap-y-4 p-6 shadow-md h-full max-h-dvh'>
-					<div className='flex items-center flex-wrap gap-4 justify-between'>
-						<DateRangeSelector
-							dateRange={dateRange}
-							onChange={handleDateRangeChange}
-						/>
+		<div className="container mx-auto max-h-dvh">
+			<Card className="h-full max-h-dvh">
+				<CardContent className="flex flex-col gap-y-4 p-6">
+					<div className="flex flex-wrap items-center justify-between gap-4">
+						<DateRangeSelector dateRange={dateRange} onChange={handleDateRangeChange} />
 						{selectedEventSummary && (
-							<Chip
-								className='cursor-pointer'
-								onClose={() => handleEventNameClick(selectedEventSummary)}
-							>
+							<Badge className="cursor-pointer" onClick={() => handleEventNameClick(selectedEventSummary)}>
 								{selectedEventSummary}
-							</Chip>
+								<X className="ml-1 h-3 w-3" />
+							</Badge>
 						)}
 						<Button
-							isIconOnly
-							onPressEnd={() =>
-								supabase.auth.signOut().then(() => router.push('/login'))
-							}
+							variant="ghost"
+							size="icon"
+							onClick={() => supabase.auth.signOut().then(() => router.push('/login'))}
 						>
-							<LogOutIcon className='size-4' />
+							<LogOutIcon className="size-4" />
 						</Button>
 					</div>
 					{selectedEventSummary &&
 						(isLoading ? (
-							<Skeleton className='rounded-lg'>
-								<div className={`h-10 w-full rounded-lg bg-default-300`} />
-							</Skeleton>
+							<Skeleton className="h-10 w-full rounded-lg" />
 						) : formatDatesByMonth() ? (
-							<Snippet
-								symbol=''
-								classNames={{ pre: 'whitespace-pre-line text-left' }}
-							>
-								{formatDatesByMonth()}
-							</Snippet>
-						) : (
-							<div className='text-left'>
-								<Alert
-									classNames={{ base: 'items-center' }}
-									title='Events not found'
-									variant='faded'
-									color='primary'
-								/>
+							<div className="relative rounded-lg border bg-muted p-4">
+								<pre className="text-left text-sm whitespace-pre-line">{formatDatesByMonth()}</pre>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="absolute top-2 right-2"
+									onClick={() => handleCopy(formatDatesByMonth())}
+								>
+									<Copy className="h-4 w-4" />
+								</Button>
+								{copied && <span className="absolute top-2 right-12 text-xs text-muted-foreground">Скопировано!</span>}
 							</div>
+						) : (
+							<Alert>
+								<AlertTitle>Events not found</AlertTitle>
+							</Alert>
 						))}
-					<EventTable
-						events={isLoading ? [] : events}
-						onEventNameClick={handleEventNameClick}
-					/>
-				</Card>
-			</div>
-		</I18nProvider>
+					<EventTable events={isLoading ? [] : events} onEventNameClick={handleEventNameClick} />
+				</CardContent>
+			</Card>
+		</div>
 	)
 }

@@ -1,14 +1,12 @@
-import { Item } from '@/types/wishlist.types'
 import { EllipsisVerticalIcon } from '@heroicons/react/24/outline'
-import {
-	Dropdown,
-	DropdownTrigger,
-	DropdownMenu,
-	DropdownItem,
-} from '@heroui/dropdown'
-import { Button } from '@heroui/button'
-import { Card, CardBody } from '@heroui/card'
-import { Image } from '@nextui-org/image'
+
+import Image from 'next/image'
+
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
+import { Item } from '@/types/wishlist.types'
 
 interface GiftCardProps {
 	item: Item
@@ -20,83 +18,61 @@ interface GiftCardProps {
 	isAdmin?: boolean
 }
 
-export function GiftCard({
-	item,
-	optimisticUpdate,
-	onSelect,
-	onEdit,
-	onDelete,
-	onHide,
-	isAdmin,
-}: GiftCardProps) {
+export function GiftCard({ item, optimisticUpdate, onSelect, onEdit, onDelete, onHide, isAdmin }: GiftCardProps) {
 	const imageUrl = item.image_url || '/img/placeholder.jpg'
 
 	return item.hidden && !isAdmin ? null : (
-		<div className='relative'>
-			<div className='absolute top-2 left-2 right-2 z-20 flex flex-col gap-2'>
+		<div className="relative">
+			<div className="absolute top-2 right-2 left-2 z-20 flex flex-col gap-2">
 				{(item.booked || (optimisticUpdate === item.id && !item.hidden)) && (
-					<div className='bg-success-500 text-white text-center py-1 rounded-lg '>
-						Подарок забронирован
-					</div>
+					<div className="rounded-lg bg-wishlist-pink py-1 text-center text-black">Подарок забронирован</div>
 				)}
 
 				{isAdmin && item.hidden && (
-					<div className='bg-warning-500 text-black text-center py-1 rounded-lg'>
-						Подарок скрыт
-					</div>
+					<div className="rounded-lg bg-yellow-500 py-1 text-center text-black">Подарок скрыт</div>
 				)}
 			</div>
 
 			{isAdmin && (
-				<div className='absolute top-2 right-2 z-20'>
-					<Dropdown>
-						<DropdownTrigger>
-							<Button
-								isIconOnly
-								variant='faded'
-								size='sm'
-								className='min-w-unit-8 w-unit-8 h-unit-8'
-							>
-								<EllipsisVerticalIcon className='h-5 w-5 rotate-90' />
+				<div className="absolute top-2 right-2 z-20">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="secondary" size="icon" className="h-8 w-8">
+								<EllipsisVerticalIcon className="h-5 w-5 rotate-90" />
 							</Button>
-						</DropdownTrigger>
-						<DropdownMenu
-							aria-label='Gift actions'
-							onAction={key => {
-								if (key === 'edit') onEdit?.(item)
-								if (key === 'delete') onDelete?.(item)
-								if (key === 'hide') onHide?.(item)
-							}}
-						>
-							<DropdownItem key='edit'>Редактировать</DropdownItem>
-							<DropdownItem key='hide' className='text-warning' color='warning'>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuItem onClick={() => onEdit?.(item)}>Редактировать</DropdownMenuItem>
+							<DropdownMenuItem className="text-yellow-500" onClick={() => onHide?.(item)}>
 								{item.hidden ? 'Показать' : 'Скрыть'}
-							</DropdownItem>
-							<DropdownItem key='delete' className='text-danger' color='danger'>
+							</DropdownMenuItem>
+							<DropdownMenuItem className="text-destructive" onClick={() => onDelete?.(item)}>
 								Удалить
-							</DropdownItem>
-						</DropdownMenu>
-					</Dropdown>
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			)}
 
 			<Card
-				isPressable={!optimisticUpdate}
-				className={`h-full w-full transition-all opacity-100 ${
-					item.booked || optimisticUpdate ? 'opacity-50' : 'hover:opacity-70'
-				}`}
-				onPress={onSelect}
+				className={cn(
+					'h-full w-full cursor-pointer bg-wishlist-yellow opacity-100 transition-all',
+					item.booked || optimisticUpdate ? 'opacity-50' : 'hover:opacity-70',
+					optimisticUpdate ? 'pointer-events-none' : ''
+				)}
+				onClick={onSelect}
 			>
-				<CardBody className='p-4 flex flex-col'>
+				<CardContent className="flex flex-col p-4">
 					<Image
 						src={imageUrl}
 						alt={item.description}
-						width={'100%'}
-						className='rounded-lg object-cover mb-4 h-[50vw] md:h-52 w-full'
+						width={400}
+						height={300}
+						className="mb-4 h-[50vw] w-full rounded-lg object-cover object-center md:h-80"
 					/>
-					<h4 className='mt-auto font-semibold'>{item.description}</h4>
-					<h4 className='mt-1 text-md text-gray-400/50'>{item.price}₽</h4>
-				</CardBody>
+					<h4 className="mt-auto text-2xl font-semibold text-black">{item.description}</h4>
+					<h4 className="mt-1 text-xl text-black">{item.price}₽</h4>
+				</CardContent>
 			</Card>
 		</div>
 	)

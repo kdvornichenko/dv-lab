@@ -1,12 +1,14 @@
 'use client'
 
-import React from 'react'
-import { Spinner } from '@nextui-org/react'
-import { Button } from '@nextui-org/react'
 import { PlusIcon } from '@heroicons/react/24/outline'
-import { GiftGrid } from '@/components/wishlist/GiftGrid'
+
+import { Loader2 } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
 import { AdminEditModal } from '@/components/wishlist/AdminEditModal'
 import { BookingModal } from '@/components/wishlist/BookingModal'
+import { GiftCard } from '@/components/wishlist/GiftCard'
+
 import { useWishlist } from '../hooks/useWishlist'
 
 export default function WishlistPage() {
@@ -31,9 +33,7 @@ export default function WishlistPage() {
 	} = useWishlist()
 
 	if (isLoading) {
-		return (
-			<Spinner className='absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50' />
-		)
+		return <Loader2 className="absolute top-1/2 left-1/2 z-50 h-8 w-8 -translate-x-1/2 -translate-y-1/2 animate-spin" />
 	}
 
 	return (
@@ -62,30 +62,31 @@ export default function WishlistPage() {
 			/>
 
 			{isAdmin && (
-				<div className='flex justify-end mb-4'>
-					<Button
-						color='primary'
-						startContent={<PlusIcon className='h-5 w-5' />}
-						onPress={() => setIsAddModalOpen(true)}
-					>
+				<div className="mb-4 flex justify-end">
+					<Button onClick={() => setIsAddModalOpen(true)}>
+						<PlusIcon className="mr-2 h-5 w-5" />
 						Добавить подарок
 					</Button>
 				</div>
 			)}
 
-			<GiftGrid
-				items={items}
-				optimisticUpdate={optimisticUpdate}
-				onSelectItem={setSelectedItem}
-				setIsModalOpen={setIsModalOpen}
-				onEditItem={item => {
-					setSelectedItem(item)
-					setIsEditModalOpen(true)
-				}}
-				onDeleteItem={handleDeleteItem}
-				onHideItem={handleHideItem}
-				isAdmin={isAdmin}
-			/>
+			<div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-6 xl:grid-cols-5">
+				{items.map((item) => (
+					<GiftCard
+						key={item.id}
+						item={item}
+						optimisticUpdate={optimisticUpdate}
+						onSelect={() => {
+							setSelectedItem(item)
+							setIsModalOpen(true)
+						}}
+						onEdit={handleEditItem}
+						onDelete={handleDeleteItem}
+						onHide={handleHideItem}
+						isAdmin={isAdmin}
+					/>
+				))}
+			</div>
 		</div>
 	)
 }

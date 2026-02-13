@@ -1,13 +1,13 @@
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 interface FetchState {
-    isLoading: boolean;
-    setIsLoading: (loading: boolean) => void;
+	isLoading: boolean
+	setIsLoading: (loading: boolean) => void
 }
 
 const useFetchStore = create<FetchState>((set) => ({
-    isLoading: true,
-    setIsLoading: (loading) => set({ isLoading: loading }),
-}));
+	isLoading: true,
+	setIsLoading: (loading) => set({ isLoading: loading }),
+}))
 
-export default useFetchStore;
+export default useFetchStore

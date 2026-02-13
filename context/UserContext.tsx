@@ -1,13 +1,9 @@
 'use client'
 
-import {
-	createContext,
-	useContext,
-	useState,
-	useEffect,
-	ReactNode,
-} from 'react'
 import { User } from '@supabase/supabase-js'
+
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+
 import supabase from '@/libs/supabase/supabaseClient'
 
 interface UserContextProps {
@@ -31,22 +27,16 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
 		getUserProfile()
 
-		const { data: authListener } = supabase.auth.onAuthStateChange(
-			(_event, session) => {
-				setUser(session?.user ?? null)
-			}
-		)
+		const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+			setUser(session?.user ?? null)
+		})
 
 		return () => {
 			authListener?.subscription.unsubscribe()
 		}
 	}, [])
 
-	return (
-		<UserContext.Provider value={{ user, setUser }}>
-			{children}
-		</UserContext.Provider>
-	)
+	return <UserContext.Provider value={{ user, setUser }}>{children}</UserContext.Provider>
 }
 
 export const useUser = () => {

@@ -1,18 +1,12 @@
 import React, { FC } from 'react'
-import {
-	Table,
-	TableHeader,
-	TableColumn,
-	TableBody,
-	TableRow,
-	TableCell,
-	Link,
-	Button,
-	LinkIcon,
-	Skeleton,
-} from '@nextui-org/react'
-import { Event } from '@/types/google.types'
+
+import { ExternalLink } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import useFetchStore from '@/store/schedule.store'
+import { Event } from '@/types/google.types'
 
 interface EventTableProps {
 	events: Event[]
@@ -22,22 +16,18 @@ interface EventTableProps {
 const EventTable: FC<EventTableProps> = ({ events, onEventNameClick }) => {
 	const { isLoading } = useFetchStore()
 
-	// Функция для форматирования времени
 	const formatTime = (time?: string): string =>
 		time
 			? new Date(time).toLocaleTimeString('en-US', {
 					hour: '2-digit',
 					minute: '2-digit',
-					hour12: false, // Для 24-часового формата
-			  })
+					hour12: false,
+				})
 			: 'Unknown time'
 
-	// Функция для отображения строки таблицы
 	const renderEventRow = (event: Event, index: number) => {
 		const { start, end, summary, id, htmlLink } = event
-		const formattedDate = start.dateTime
-			? new Date(start.dateTime).toLocaleDateString()
-			: 'Unknown date'
+		const formattedDate = start.dateTime ? new Date(start.dateTime).toLocaleDateString() : 'Unknown date'
 
 		return (
 			<TableRow key={id}>
@@ -48,55 +38,43 @@ const EventTable: FC<EventTableProps> = ({ events, onEventNameClick }) => {
 				</TableCell>
 				<TableCell
 					onClick={() => onEventNameClick(summary || '')}
-					className='hover:bg-foreground-200 rounded-lg cursor-pointer transition-background'
+					className="cursor-pointer rounded-lg transition-colors hover:bg-muted"
 				>
 					{summary || 'No title'}
 				</TableCell>
 				<TableCell>
-					<Link href={htmlLink} target='_blank'>
-						<Button isIconOnly aria-label='External Link to Calendar Event'>
-							<LinkIcon />
+					<a href={htmlLink} target="_blank" rel="noopener noreferrer">
+						<Button variant="ghost" size="icon" aria-label="External Link to Calendar Event">
+							<ExternalLink className="h-4 w-4" />
 						</Button>
-					</Link>
+					</a>
 				</TableCell>
 			</TableRow>
 		)
 	}
 
-	// Функция для отображения строки-заполнителя
 	const renderSkeletonRow = (_: unknown, index: number) => (
 		<TableRow key={index}>
 			{Array.from({ length: 5 }).map((_, cellIndex) => (
 				<TableCell key={cellIndex}>
-					<Skeleton className='rounded-lg'>
-						<div
-							className={`h-5 ${
-								cellIndex === 0 ? 'w-5' : cellIndex === 3 ? 'w-10' : 'w-20'
-							} rounded-lg bg-default-300`}
-						/>
-					</Skeleton>
+					<Skeleton className={`h-5 ${cellIndex === 0 ? 'w-5' : cellIndex === 3 ? 'w-10' : 'w-20'} rounded-lg`} />
 				</TableCell>
 			))}
 		</TableRow>
 	)
 
 	return (
-		<Table
-			className='h-full overflow-y-auto'
-			aria-label='Example table with events'
-		>
+		<Table className="h-full overflow-y-auto">
 			<TableHeader>
-				<TableColumn>Index</TableColumn>
-				<TableColumn>Date</TableColumn>
-				<TableColumn>Time</TableColumn>
-				<TableColumn>Event Name</TableColumn>
-				<TableColumn>Link</TableColumn>
+				<TableRow>
+					<TableHead>Index</TableHead>
+					<TableHead>Date</TableHead>
+					<TableHead>Time</TableHead>
+					<TableHead>Event Name</TableHead>
+					<TableHead>Link</TableHead>
+				</TableRow>
 			</TableHeader>
-			<TableBody>
-				{isLoading
-					? Array.from({ length: 5 }).map(renderSkeletonRow)
-					: events.map(renderEventRow)}
-			</TableBody>
+			<TableBody>{isLoading ? Array.from({ length: 5 }).map(renderSkeletonRow) : events.map(renderEventRow)}</TableBody>
 		</Table>
 	)
 }

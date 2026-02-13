@@ -1,14 +1,14 @@
 'use client'
 
-import type { ThemeProviderProps } from 'next-themes'
+import { User } from '@supabase/supabase-js'
 
 import { createContext, useEffect, useState } from 'react'
-import { NextUIProvider } from '@nextui-org/system'
-import { useRouter } from 'next/navigation'
+
+import type { ThemeProviderProps } from 'next-themes'
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
-import { User } from '@supabase/supabase-js'
-import supabase from '@/libs/supabase/supabaseClient'
+
 import LoadingScreen from '@/components/LoadingScreen'
+import supabase from '@/libs/supabase/supabaseClient'
 
 export interface ProvidersProps {
 	children: React.ReactNode
@@ -21,16 +21,7 @@ export const UserContext = createContext<{
 	setUser: React.Dispatch<React.SetStateAction<User | null>>
 } | null>(null)
 
-declare module '@react-types/shared' {
-	interface RouterConfig {
-		routerOptions: NonNullable<
-			Parameters<ReturnType<typeof useRouter>['push']>[1]
-		>
-	}
-}
-
 export function Providers({ children, themeProps }: ProvidersProps) {
-	const router = useRouter()
 	const [user, setUser] = useState<User | null>(null)
 	const [loading, setLoading] = useState(true)
 
@@ -50,11 +41,9 @@ export function Providers({ children, themeProps }: ProvidersProps) {
 
 		getUserProfile()
 
-		const { data: authListener } = supabase.auth.onAuthStateChange(
-			async (_event, session) => {
-				setUser(session?.user ?? null)
-			}
-		)
+		const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+			setUser(session?.user ?? null)
+		})
 
 		return () => {
 			authListener?.subscription.unsubscribe()
@@ -63,11 +52,9 @@ export function Providers({ children, themeProps }: ProvidersProps) {
 
 	return (
 		<UserContext.Provider value={{ user, loading, setUser }}>
-			<NextUIProvider navigate={router.push}>
-				<NextThemesProvider {...themeProps}>
-					{loading ? <LoadingScreen message='Загрузка...' /> : children}
-				</NextThemesProvider>
-			</NextUIProvider>
+			<NextThemesProvider {...themeProps}>
+				{loading ? <LoadingScreen message="Загрузка..." /> : children}
+			</NextThemesProvider>
 		</UserContext.Provider>
 	)
 }

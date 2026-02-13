@@ -1,13 +1,3 @@
-export default function ScheduleLayout({
-	children,
-}: {
-	children: React.ReactNode
-}) {
-	return (
-		<section className='flex flex-col items-center justify-center gap-4 py-4 md:py-10'>
-			<div className='inline-block text-center justify-center w-full'>
-				{children}
-			</div>
-		</section>
-	)
+export default function ScheduleLayout({ children }: { children: React.ReactNode }) {
+	return <section className="-mt-20 min-h-screen bg-wishlist-pink px-4 pt-20">{children}</section>
 }
