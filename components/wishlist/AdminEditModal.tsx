@@ -14,6 +14,7 @@ interface AdminEditModalProps {
 	onOpenChange: (open: boolean) => void
 	selectedItem: Item | null
 	onEditItem: (item: Item) => Promise<void>
+	isNew?: boolean
 }
 
 export function AdminEditModal({
@@ -21,6 +22,7 @@ export function AdminEditModal({
 	onOpenChange,
 	selectedItem,
 	onEditItem,
+	isNew,
 }: AdminEditModalProps) {
 	const [editingItem, setEditingItem] = useState<Item | null>(selectedItem)
 	const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -48,7 +50,7 @@ export function AdminEditModal({
 	return (
 		<Modal isOpen={isOpen} onOpenChange={onOpenChange} size='md'>
 			<ModalContent>
-				<ModalHeader>Редактировать подарок</ModalHeader>
+				<ModalHeader>{isNew ? 'Добавить подарок' : 'Редактировать подарок'}</ModalHeader>
 				<ModalBody className='gap-4 pb-6'>
 					{editingItem && (
 						<form onSubmit={handleSubmit} className='space-y-4'>
@@ -89,7 +91,7 @@ export function AdminEditModal({
 							/>
 							<div className='flex gap-2'>
 								<Button type='submit' color='primary'>
-									Сохранить
+									{isNew ? 'Добавить' : 'Сохранить'}
 								</Button>
 								<Button
 									color='danger'

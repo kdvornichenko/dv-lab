@@ -12,8 +12,6 @@ import { Image } from '@nextui-org/image'
 
 interface GiftCardProps {
 	item: Item
-	imageUrl: string
-
 	optimisticUpdate?: string | null
 	onSelect?: () => void
 	onEdit?: (item: Item) => void
@@ -24,7 +22,6 @@ interface GiftCardProps {
 
 export function GiftCard({
 	item,
-	imageUrl,
 	optimisticUpdate,
 	onSelect,
 	onEdit,
@@ -32,6 +29,8 @@ export function GiftCard({
 	onHide,
 	isAdmin,
 }: GiftCardProps) {
+	const imageUrl = item.image_url || '/img/placeholder.jpg'
+
 	return item.hidden && !isAdmin ? null : (
 		<div className='relative'>
 			<div className='absolute top-2 left-2 right-2 z-20 flex flex-col gap-2'>

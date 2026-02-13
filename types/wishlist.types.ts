@@ -1,15 +1,11 @@
 export interface Item {
     id: string
-    price: number
     description: string
+    price: number
     href: string
-    booked?: boolean
+    booked: boolean
+    hidden: boolean
+    image_url: string | null
+    created_at?: Date | null
     image?: File
-    hidden?: boolean
 }
-
-
-export interface BlobObject {
-    url: string
-    pathname: string
-} 

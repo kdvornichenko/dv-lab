@@ -1,16 +1,25 @@
 import { useState, useEffect } from 'react'
 
-import { Item, BlobObject } from '@/types/wishlist.types'
+import { Item } from '@/types/wishlist.types'
 import supabase from '@/libs/supabase/supabaseClient'
+import {
+    getWishlistItems,
+    bookWishlistItem,
+    updateWishlistItem,
+    addWishlistItem,
+    updateWishlistItemImageUrl,
+    deleteWishlistItem,
+    toggleWishlistItemHidden,
+} from '@/app/actions/wishlist'
 
 export function useWishlist() {
     const [items, setItems] = useState<Item[]>([])
-    const [blobs, setBlobs] = useState<BlobObject[]>([])
     const [selectedItem, setSelectedItem] = useState<Item | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [optimisticUpdate, setOptimisticUpdate] = useState<string | null>(null)
     const [isAdmin, setIsAdmin] = useState(false)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
@@ -18,7 +27,6 @@ export function useWishlist() {
             const { data: session, error } = await supabase.auth.getSession()
 
             if (error || !session?.session?.user?.email) {
-                console.error('User not authenticated')
                 return
             }
 
@@ -32,16 +40,8 @@ export function useWishlist() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [itemsResponse, blobsResponse] = await Promise.all([
-                    fetch('/api/config', { cache: 'no-store' }),
-                    fetch('/api/blobs', { cache: 'no-store' }),
-                ])
-
-                const itemsData = await itemsResponse.json()
-                const blobsData = await blobsResponse.json()
-
-                setItems(itemsData)
-                setBlobs(blobsData)
+                const data = await getWishlistItems()
+                setItems(data as Item[])
             } catch (error) {
                 console.error('Ошибка при загрузке данных:', error)
             } finally {
@@ -51,6 +51,23 @@ export function useWishlist() {
 
         fetchData()
     }, [])
+
+    const uploadImage = async (itemId: string, file: File): Promise<string> => {
+        const ext = file.name.split('.').pop()
+        const filePath = `${itemId}.${ext}`
+
+        const { error } = await supabase.storage
+            .from('wishlist-images')
+            .upload(filePath, file, { upsert: true })
+
+        if (error) throw error
+
+        const { data: urlData } = supabase.storage
+            .from('wishlist-images')
+            .getPublicUrl(filePath)
+
+        return urlData.publicUrl
+    }
 
     const handleBookGift = async () => {
         if (!selectedItem) return
@@ -63,17 +80,14 @@ export function useWishlist() {
                 )
             )
 
-            const response = await fetch('/api/book', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ itemId: selectedItem.id }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Ошибка бронирования')
-            }
+            await bookWishlistItem(selectedItem.id)
         } catch (error) {
             console.error('Ошибка:', error)
+            setItems(prev =>
+                prev.map(item =>
+                    item.id === selectedItem.id ? { ...item, booked: false } : item
+                )
+            )
         } finally {
             setOptimisticUpdate(null)
             setIsModalOpen(false)
@@ -83,35 +97,26 @@ export function useWishlist() {
 
     const handleEditItem = async (item: Item) => {
         try {
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+            let imageUrl = item.image_url
 
-            if (sessionError || !session) {
-                throw new Error('Ошибка авторизации')
-            }
-
-            const formData = new FormData()
-            formData.append('itemId', item.id)
-            formData.append('price', item.price.toString())
-            formData.append('description', item.description)
-            formData.append('href', item.href)
             if (item.image) {
-                formData.append('image', item.image)
+                imageUrl = await uploadImage(item.id, item.image)
             }
 
-            const response = await fetch('/api/edit-item', {
-                method: 'POST',
-                body: formData,
-                credentials: 'include',
-                headers: {
-                    Authorization: `Bearer ${session.access_token}`,
-                },
+            await updateWishlistItem(item.id, {
+                description: item.description,
+                price: item.price,
+                href: item.href,
+                image_url: imageUrl,
             })
 
-            if (!response.ok) {
-                throw new Error('Ошибка обновления подарка')
-            }
-
-            setItems(prev => prev.map(selectedItem => (selectedItem.id === item.id ? item : selectedItem)))
+            setItems(prev =>
+                prev.map(existing =>
+                    existing.id === item.id
+                        ? { ...existing, description: item.description, price: item.price, href: item.href, image_url: imageUrl }
+                        : existing
+                )
+            )
             setIsEditModalOpen(false)
         } catch (error) {
             console.error('Edit operation failed:', error)
@@ -119,45 +124,35 @@ export function useWishlist() {
         }
     }
 
-    const getImageUrl = (itemId: string) => {
-        const fileBlobs = blobs.filter(blob => !blob.pathname.endsWith('/'))
-        const foundBlob = fileBlobs.find(blob => {
-            const filename = blob.pathname.split('/').pop() || ''
-            return filename.startsWith(`${itemId}-`) || filename.startsWith(`${itemId}.`)
-        })
-        return foundBlob ? foundBlob.url : '/img/placeholder.jpg'
+    const handleAddItem = async (item: Item) => {
+        try {
+            const newItem = await addWishlistItem({
+                description: item.description,
+                price: item.price,
+                href: item.href,
+            })
+
+            let imageUrl: string | null = null
+            if (item.image) {
+                imageUrl = await uploadImage(newItem.id, item.image)
+                await updateWishlistItemImageUrl(newItem.id, imageUrl)
+            }
+
+            setItems(prev => [...prev, { ...newItem, image_url: imageUrl } as Item])
+            setIsAddModalOpen(false)
+        } catch (error) {
+            console.error('Add operation failed:', error)
+            alert(error instanceof Error ? error.message : 'Произошла неизвестная ошибка')
+        }
     }
 
     const handleDeleteItem = async (item: Item) => {
         try {
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-            if (sessionError || !session) {
-                throw new Error('Ошибка авторизации')
-            }
-
             const confirm = window.confirm('Вы уверены, что хотите удалить этот подарок? Отменить это действие невозможно.')
-
             if (!confirm) return
 
-            setItems(prev =>
-                prev.filter(i =>
-                    i.id !== item.id
-                )
-            )
-
-            const response = await fetch('/api/hide-item', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({ itemId: item.id }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Ошибка удаления подарка')
-            }
+            setItems(prev => prev.filter(i => i.id !== item.id))
+            await deleteWishlistItem(item.id)
         } catch (error) {
             console.error('Delete operation failed:', error)
             alert(error instanceof Error ? error.message : 'Произошла неизвестная ошибка')
@@ -166,32 +161,15 @@ export function useWishlist() {
 
     const handleHideItem = async (item: Item) => {
         try {
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-
-            if (sessionError || !session) {
-                throw new Error('Ошибка авторизации')
-            }
+            const newHidden = !item.hidden
 
             setItems(prev =>
-                prev.map(selectedItem =>
-                    selectedItem.id === item.id ? { ...selectedItem, hidden: selectedItem.hidden ? false : true } : selectedItem
+                prev.map(existing =>
+                    existing.id === item.id ? { ...existing, hidden: newHidden } : existing
                 )
             )
 
-            const response = await fetch('/api/hide-item', {
-                method: 'POST',
-                headers: {
-
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({ itemId: item.id }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Ошибка скрытия подарка')
-            }
+            await toggleWishlistItemHidden(item.id, newHidden)
         } catch (error) {
             console.error('Hide operation failed:', error)
             alert(error instanceof Error ? error.message : 'Произошла неизвестная ошибка')
@@ -200,21 +178,22 @@ export function useWishlist() {
 
     return {
         items,
-        blobs,
         isAdmin,
         isLoading,
         selectedItem,
         isModalOpen,
         isEditModalOpen,
+        isAddModalOpen,
         optimisticUpdate,
         handleBookGift,
         handleEditItem,
+        handleAddItem,
         handleDeleteItem,
         handleHideItem,
         setIsModalOpen,
         setIsEditModalOpen,
+        setIsAddModalOpen,
         setSelectedItem,
         setItems,
-        getImageUrl,
     }
-} 
+}
