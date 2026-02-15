@@ -20,6 +20,9 @@ interface GiftCardProps {
 
 export function GiftCard({ item, optimisticUpdate, onSelect, onEdit, onDelete, onHide, isAdmin }: GiftCardProps) {
 	const imageUrl = item.image_url || '/img/placeholder.jpg'
+	const handleEditSelect = () => {
+		window.setTimeout(() => onEdit?.(item), 0)
+	}
 
 	return item.hidden && !isAdmin ? null : (
 		<div className="relative">
@@ -35,14 +38,14 @@ export function GiftCard({ item, optimisticUpdate, onSelect, onEdit, onDelete, o
 
 			{isAdmin && (
 				<div className="absolute top-2 right-2 z-20">
-					<DropdownMenu>
+					<DropdownMenu modal={false}>
 						<DropdownMenuTrigger asChild>
 							<Button variant="secondary" size="icon" className="h-8 w-8">
 								<EllipsisVerticalIcon className="h-5 w-5 rotate-90" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent>
-							<DropdownMenuItem onClick={() => onEdit?.(item)}>Редактировать</DropdownMenuItem>
+							<DropdownMenuItem onSelect={handleEditSelect}>Редактировать</DropdownMenuItem>
 							<DropdownMenuItem className="text-yellow-500" onClick={() => onHide?.(item)}>
 								{item.hidden ? 'Показать' : 'Скрыть'}
 							</DropdownMenuItem>
