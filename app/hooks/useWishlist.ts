@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
 	getWishlistItems,
@@ -21,6 +21,7 @@ export function useWishlist() {
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 	const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 	const [isLoading, setIsLoading] = useState(true)
+	const isAddInFlightRef = useRef(false)
 
 	useEffect(() => {
 		const checkAuth = async () => {
@@ -113,6 +114,12 @@ export function useWishlist() {
 	}
 
 	const handleAddItem = async (item: Item) => {
+		if (isAddInFlightRef.current) {
+			return
+		}
+
+		isAddInFlightRef.current = true
+
 		try {
 			const newItem = await addWishlistItem({
 				description: item.description,
@@ -131,6 +138,8 @@ export function useWishlist() {
 		} catch (error) {
 			console.error('Add operation failed:', error)
 			alert(error instanceof Error ? error.message : 'Произошла неизвестная ошибка')
+		} finally {
+			isAddInFlightRef.current = false
 		}
 	}
 

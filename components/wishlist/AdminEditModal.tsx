@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ComponentProps } from 'react'
 
-import { ImageIcon, Upload } from 'lucide-react'
+import { ImageIcon, Loader2, Upload } from 'lucide-react'
 import Image from 'next/image'
 
 import { Button } from '@/components/ui/button'
@@ -21,10 +21,16 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 	const [editingItem, setEditingItem] = useState<Item | null>(selectedItem)
 	const [selectedFile, setSelectedFile] = useState<File | null>(null)
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+	const [isSubmitting, setIsSubmitting] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	const isSubmittingRef = useRef(false)
 
 	useEffect(() => {
-		if (!isOpen) return
+		if (!isOpen) {
+			isSubmittingRef.current = false
+			setIsSubmitting(false)
+			return
+		}
 
 		setEditingItem(selectedItem)
 		setSelectedFile(null)
@@ -44,7 +50,10 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 
 	const handleSubmit: NonNullable<ComponentProps<'form'>['onSubmit']> = async (e) => {
 		e.preventDefault()
-		if (!editingItem) return
+		if (!editingItem || isSubmittingRef.current) return
+
+		isSubmittingRef.current = true
+		setIsSubmitting(true)
 
 		try {
 			await onEditItem({
@@ -55,6 +64,9 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 			onOpenChange(false)
 		} catch (error) {
 			console.error('Ошибка при редактировании:', error)
+		} finally {
+			isSubmittingRef.current = false
+			setIsSubmitting(false)
 		}
 	}
 
@@ -69,7 +81,7 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 				</DialogHeader>
 				<div className="gap-4 pb-2">
 					{editingItem && (
-						<form onSubmit={handleSubmit} className="space-y-4">
+						<form onSubmit={handleSubmit} className="space-y-4" aria-busy={isSubmitting}>
 							<FieldGroup>
 								<Field>
 									<FieldLabel htmlFor="wishlist-description">Описание</FieldLabel>
@@ -79,6 +91,7 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 											className="bg-white placeholder:text-black/80"
 											placeholder="Описание"
 											value={editingItem.description}
+											disabled={isSubmitting}
 											onChange={(e) =>
 												setEditingItem({
 													...editingItem,
@@ -99,6 +112,7 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 											min={0}
 											placeholder="Цена"
 											value={editingItem.price.toString()}
+											disabled={isSubmitting}
 											onChange={(e) =>
 												setEditingItem({
 													...editingItem,
@@ -117,6 +131,7 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 											className="bg-white placeholder:text-black/80"
 											placeholder="Ссылка"
 											value={editingItem.href}
+											disabled={isSubmitting}
 											onChange={(e) => setEditingItem({ ...editingItem, href: e.target.value })}
 										/>
 									</FieldContent>
@@ -129,6 +144,7 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 											type="button"
 											variant="outline"
 											className="w-fit cursor-pointer bg-white hover:bg-wishlist-yellow-light hover:text-black"
+											disabled={isSubmitting}
 											onClick={() => fileInputRef.current?.click()}
 										>
 											<ImageIcon />
@@ -139,6 +155,7 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 											id="wishlist-image"
 											type="file"
 											accept="image/*"
+											disabled={isSubmitting}
 											hidden
 											onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
 										/>
@@ -160,11 +177,11 @@ export function AdminEditModal({ isOpen, onOpenChange, selectedItem, onEditItem,
 							</FieldGroup>
 
 							<div className="flex gap-2">
-								<Button type="submit">
-									<Upload />
-									{submitText}
+								<Button type="submit" disabled={isSubmitting}>
+									{isSubmitting ? <Loader2 className="animate-spin" /> : <Upload />}
+									{isSubmitting ? 'Сохраняем...' : submitText}
 								</Button>
-								<Button variant="destructive" type="button" onClick={() => onOpenChange(false)}>
+								<Button variant="destructive" type="button" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
 									Отмена
 								</Button>
 							</div>
