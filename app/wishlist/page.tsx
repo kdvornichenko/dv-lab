@@ -80,7 +80,10 @@ export default function WishlistPage() {
 							setSelectedItem(item)
 							setIsModalOpen(true)
 						}}
-						onEdit={handleEditItem}
+						onEdit={(item) => {
+							setSelectedItem(item)
+							setIsEditModalOpen(true)
+						}}
 						onDelete={handleDeleteItem}
 						onHide={handleHideItem}
 						isAdmin={isAdmin}
