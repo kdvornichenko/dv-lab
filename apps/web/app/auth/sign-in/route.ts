@@ -2,6 +2,8 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { localhostRedirectLocation } from '@/lib/canonical-localhost'
+
 import { GOOGLE_CALENDAR_REQUIRED_SCOPES } from '@teacher-crm/api-types'
 
 type SupabaseCookieToSet = {
@@ -25,12 +27,9 @@ function loginErrorRedirect(origin: string, code: string) {
 }
 
 function localCanonicalRedirect(request: NextRequest, requestUrl: URL) {
-	const requestedHost = request.headers.get('host')?.split(':')[0]
-	if (requestedHost !== '127.0.0.1') return null
-
-	const canonicalUrl = new URL(requestUrl)
-	canonicalUrl.hostname = 'localhost'
-	return NextResponse.redirect(canonicalUrl)
+	const canonicalLocation = localhostRedirectLocation(requestUrl, request.headers.get('host'))
+	if (!canonicalLocation) return null
+	return new Response(null, { headers: { Location: canonicalLocation }, status: 307 })
 }
 
 export async function GET(request: NextRequest) {

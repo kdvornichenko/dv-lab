@@ -2,6 +2,7 @@ import { createClient, type User } from '@supabase/supabase-js'
 
 import type { Context } from 'hono'
 import { createMiddleware } from 'hono/factory'
+import { createHash } from 'node:crypto'
 
 import {
 	buildPermissionSet,
@@ -14,7 +15,7 @@ import {
 } from '@teacher-crm/rbac'
 
 import { serverEnv } from '../config/env'
-import type { StoreScope } from '../services/memory-store'
+import type { StoreScope } from '../services/store-scope'
 
 export type ApiUser = {
 	id: string
@@ -30,6 +31,7 @@ declare module 'hono' {
 }
 
 let supabaseAuthClient: ReturnType<typeof createClient> | null = null
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function getSupabaseAuthClient() {
 	if (!serverEnv.SUPABASE_URL || !serverEnv.SUPABASE_ANON_KEY) return null
@@ -42,6 +44,15 @@ function getSupabaseAuthClient() {
 function bearerToken(value: string | undefined) {
 	if (!value?.startsWith('Bearer ')) return null
 	return value.slice('Bearer '.length).trim() || null
+}
+
+function devAuthUserId(value: string) {
+	const trimmedValue = value.trim()
+	if (uuidPattern.test(trimmedValue)) return trimmedValue.toLowerCase()
+
+	const digest = createHash('sha256').update(`teacher-crm-demo-user:${trimmedValue}`).digest('hex')
+	const variant = ((Number.parseInt(digest[16] ?? '8', 16) & 0x3) | 0x8).toString(16)
+	return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-5${digest.slice(13, 16)}-${variant}${digest.slice(17, 20)}-${digest.slice(20, 32)}`
 }
 
 function rolesFromUser(user: User): RoleKey[] {
@@ -92,7 +103,7 @@ export const optionalAuth = createMiddleware(async (context, next) => {
 	if (demoUserId && serverEnv.NODE_ENV !== 'production') {
 		const roles: RoleKey[] = ['teacher']
 		context.set('user', {
-			id: demoUserId,
+			id: devAuthUserId(demoUserId),
 			email: context.req.header('x-demo-email') ?? 'teacher@example.com',
 			roles,
 			permissions: Array.from(buildPermissionSet(roles)),

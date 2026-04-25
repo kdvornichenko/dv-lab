@@ -23,7 +23,7 @@
 		"watch": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --watch --clean=false",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"lint": "tsc -p tsconfig.json --noEmit",
-		"test": "node --import tsx src/ledger.test.ts",
+		"test": "node --import tsx src/ledger.test.ts && node --import tsx src/connection-url.test.ts",
 		"db:generate": "drizzle-kit generate --config=drizzle.config.ts",
 		"db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
 		"db:studio": "drizzle-kit studio --config=drizzle.config.ts"

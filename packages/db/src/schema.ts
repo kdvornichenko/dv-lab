@@ -11,6 +11,7 @@ import {
 	primaryKey,
 	text,
 	timestamp,
+	unique,
 	uniqueIndex,
 	uuid,
 } from 'drizzle-orm/pg-core'
@@ -67,7 +68,7 @@ export const students = pgTable(
 	(table) => ({
 		teacherStatusIdx: index('students_teacher_status_idx').on(table.teacherId, table.status),
 		nameSearchIdx: index('students_name_search_idx').on(table.teacherId, table.fullName),
-		teacherStudentUniq: uniqueIndex('students_teacher_id_id_uniq').on(table.teacherId, table.id),
+		teacherStudentUniq: unique('students_teacher_id_id_uniq').on(table.teacherId, table.id),
 	})
 )
 
@@ -89,7 +90,7 @@ export const lessons = pgTable(
 	},
 	(table) => ({
 		teacherStartsAtIdx: index('lessons_teacher_starts_at_idx').on(table.teacherId, table.startsAt),
-		teacherLessonUniq: uniqueIndex('lessons_teacher_id_id_uniq').on(table.teacherId, table.id),
+		teacherLessonUniq: unique('lessons_teacher_id_id_uniq').on(table.teacherId, table.id),
 	})
 )
 

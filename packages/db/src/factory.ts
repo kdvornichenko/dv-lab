@@ -2,6 +2,7 @@ import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
 import type { ConnectionOptions } from 'tls'
 
+import { postgresConnectionOptions } from './connection-url'
 import * as schema from './schema'
 
 export type DB = NodePgDatabase<typeof schema>
@@ -13,24 +14,15 @@ export type DbPoolOptions = {
 	ssl?: boolean | ConnectionOptions
 }
 
-function sslForConnectionString(connectionString: string): boolean | ConnectionOptions | undefined {
-	const parsed = new URL(connectionString)
-	const sslMode = parsed.searchParams.get('sslmode')
-
-	if (!sslMode) return undefined
-	if (sslMode === 'disable') return false
-	if (sslMode === 'verify-full') return true
-
-	return { rejectUnauthorized: false }
-}
-
 export function createDb(connectionString: string, poolOptions?: DbPoolOptions): { db: DB; pgPool: Pool } {
+	const connectionOptions = postgresConnectionOptions(connectionString)
+	const ssl = poolOptions?.ssl ?? connectionOptions.ssl
 	const pgPool = new Pool({
-		connectionString,
+		connectionString: connectionOptions.connectionString,
 		max: poolOptions?.max ?? 10,
 		idleTimeoutMillis: poolOptions?.idleTimeoutMillis ?? 30_000,
 		connectionTimeoutMillis: poolOptions?.connectionTimeoutMillis ?? 10_000,
-		ssl: poolOptions?.ssl ?? sslForConnectionString(connectionString),
+		ssl,
 	})
 
 	pgPool.on('error', (error) => {

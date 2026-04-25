@@ -1,25 +1,15 @@
 import type { CreateStudentInput, ListStudentsQuery, Student, UpdateStudentInput } from '@teacher-crm/api-types'
 import {
-	createDb,
-	findOrCreateTeacherProfile,
 	insertStudentRow,
 	listStudentRows,
 	updateStudentRow,
-	type DB,
 	type StudentRow,
 	type StudentUpdateValues,
 } from '@teacher-crm/db'
 
-import { databaseUrl } from '../config/env'
-import { memoryStore, type StoreScope } from './memory-store'
-
-let dbHandle: ReturnType<typeof createDb> | undefined
-
-function getDb(): DB | null {
-	if (!databaseUrl) return null
-	if (dbHandle === undefined) dbHandle = createDb(databaseUrl)
-	return dbHandle.db
-}
+import { getDb, teacherProfileId } from './db-context'
+import { memoryStore } from './memory-store'
+import type { StoreScope } from './store-scope'
 
 function emptyToNull(value: string | undefined) {
 	const next = value?.trim()
@@ -49,13 +39,6 @@ function mapStudentRow(row: StudentRow): Student {
 		createdAt: dateToIso(row.createdAt) ?? new Date().toISOString(),
 		updatedAt: dateToIso(row.updatedAt) ?? new Date().toISOString(),
 	}
-}
-
-async function teacherProfileId(db: DB, scope: StoreScope) {
-	return findOrCreateTeacherProfile(db, {
-		authUserId: scope.teacherId,
-		email: scope.email,
-	})
 }
 
 function toInsertValues(teacherId: string, input: CreateStudentInput) {

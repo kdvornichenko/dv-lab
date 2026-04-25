@@ -17,10 +17,7 @@ import {
 } from '@teacher-crm/api-types'
 import { calculateStudentBalances } from '@teacher-crm/db'
 
-export type StoreScope = {
-	teacherId: string
-	email?: string | null
-}
+import type { StoreScope } from './store-scope'
 
 type TeacherStoreState = {
 	students: Map<string, Student>
