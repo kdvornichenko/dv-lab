@@ -48,7 +48,10 @@ function rolesFromUser(user: User): RoleKey[] {
 	const appRoles = Array.isArray(user.app_metadata.roles) ? user.app_metadata.roles : []
 	const userRoles = Array.isArray(user.user_metadata.roles) ? user.user_metadata.roles : []
 	const roles = [...appRoles, ...userRoles].filter((role): role is string => typeof role === 'string')
-	return normaliseRoleKeys(roles)
+	const normalisedRoles = normaliseRoleKeys(roles)
+	if (normalisedRoles.length > 0) return normalisedRoles
+	if (serverEnv.NODE_ENV !== 'production') return ['teacher']
+	return []
 }
 
 function apiUserFromSupabase(user: User): ApiUser {

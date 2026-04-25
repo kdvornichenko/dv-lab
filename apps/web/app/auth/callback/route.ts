@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 type SupabaseCookieToSet = {
 	name: string
@@ -14,37 +14,27 @@ function safeNextPath(value: string | null) {
 	return value
 }
 
-function safeDecodeCookieValue(value: string) {
-	try {
-		return decodeURIComponent(value)
-	} catch {
-		return value
-	}
+function loginErrorRedirect(origin: string, code: string) {
+	const url = new URL('/login', origin)
+	url.searchParams.set('error', code)
+	return NextResponse.redirect(url)
 }
 
-function cookiesFromHeader(value: string | null) {
-	if (!value) return []
-
-	return value
-		.split(';')
-		.map((cookie) => {
-			const separatorIndex = cookie.indexOf('=')
-			if (separatorIndex === -1) return null
-			const name = cookie.slice(0, separatorIndex).trim()
-			const rawValue = cookie.slice(separatorIndex + 1).trim()
-			if (!name || !rawValue) return null
-			return { name, value: safeDecodeCookieValue(rawValue) }
-		})
-		.filter((cookie): cookie is { name: string; value: string } => Boolean(cookie))
-}
-
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
 	const requestUrl = new URL(request.url)
 	const code = requestUrl.searchParams.get('code')
 	const next = safeNextPath(requestUrl.searchParams.get('next'))
 
+	if (requestUrl.searchParams.has('error')) {
+		console.error('Google OAuth provider rejected the sign-in request', {
+			error: requestUrl.searchParams.get('error'),
+			errorDescription: requestUrl.searchParams.get('error_description'),
+		})
+		return loginErrorRedirect(requestUrl.origin, 'oauth_provider_rejected')
+	}
+
 	if (!code) {
-		return NextResponse.redirect(new URL('/login?error=missing_oauth_code', requestUrl.origin))
+		return loginErrorRedirect(requestUrl.origin, 'missing_oauth_code')
 	}
 
 	const redirectResponse = NextResponse.redirect(new URL(next, requestUrl.origin))
@@ -54,7 +44,7 @@ export async function GET(request: Request) {
 		{
 			cookies: {
 				getAll() {
-					return cookiesFromHeader(request.headers.get('cookie'))
+					return request.cookies.getAll()
 				},
 				setAll(cookiesToSet: SupabaseCookieToSet[]) {
 					cookiesToSet.forEach(({ name, value, options }) => redirectResponse.cookies.set(name, value, options))
@@ -65,7 +55,8 @@ export async function GET(request: Request) {
 	const { error } = await supabase.auth.exchangeCodeForSession(code)
 
 	if (error) {
-		return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, requestUrl.origin))
+		console.error('Supabase OAuth exchange failed', { message: error.message })
+		return loginErrorRedirect(requestUrl.origin, 'oauth_exchange_failed')
 	}
 
 	return redirectResponse

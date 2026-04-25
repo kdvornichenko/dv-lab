@@ -14,14 +14,26 @@ type LoginPageProps = {
 	}>
 }
 
+const loginErrorMessages: Record<string, string> = {
+	missing_oauth_code: 'Google did not return an authorization code. Start sign-in again.',
+	oauth_exchange_failed: 'Google sign-in completed, but the session could not be created. Start sign-in again.',
+	oauth_provider_rejected: 'Google rejected the sign-in request. Check the Google OAuth consent and redirect settings.',
+	oauth_start_failed: 'Google sign-in could not be started. Check the Supabase Google provider settings.',
+}
+
 function firstParam(value: string | string[] | undefined) {
 	if (Array.isArray(value)) return value[0]
 	return value
 }
 
+function loginErrorMessage(code: string | undefined) {
+	if (!code) return null
+	return loginErrorMessages[code] ?? 'Sign-in failed. Start sign-in again.'
+}
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
 	const params = await searchParams
-	const authError = firstParam(params?.error)
+	const authError = loginErrorMessage(firstParam(params?.error))
 	const supabase = await createClient()
 	const {
 		data: { user },
