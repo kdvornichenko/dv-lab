@@ -18,8 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 
-import type { CreateStudentInput } from '@teacher-crm/api-types'
-
+import { BILLING_MODE_OPTIONS, getBillingModeLabel, STUDENT_STATUS_OPTIONS } from './model'
 import type { StudentWithBalance } from './types'
 
 type StudentFormValues = {
@@ -33,6 +32,10 @@ type StudentFormValues = {
 	billingMode: StudentWithBalance['billingMode']
 }
 
+type StudentFormCommand = Omit<StudentFormValues, 'defaultLessonPrice'> & {
+	defaultLessonPrice: number
+}
+
 type StudentFormErrors = Partial<Record<keyof StudentFormValues | 'contact', string>>
 
 type StudentFormDialogProps = {
@@ -40,7 +43,7 @@ type StudentFormDialogProps = {
 	mode: 'create' | 'edit'
 	student?: StudentWithBalance | null
 	onOpenChange: (open: boolean) => void
-	onSubmit: (input: CreateStudentInput) => Promise<void>
+	onSubmit: (input: StudentFormCommand) => Promise<void>
 }
 
 const initialValues: StudentFormValues = {
@@ -78,14 +81,14 @@ function validate(values: StudentFormValues) {
 	if (!Number.isFinite(price) || price < 0) errors.defaultLessonPrice = 'Price must be zero or greater'
 	if (!values.email.trim() && !values.phone.trim()) errors.contact = 'Add email or phone'
 	if (!validateEmail(values.email.trim())) errors.email = 'Use a valid email address'
-	if (!['active', 'paused', 'archived'].includes(values.status)) errors.status = 'Choose a status'
-	if (!['per_lesson', 'monthly', 'package'].includes(values.billingMode)) errors.billingMode = 'Choose billing mode'
+	if (!STUDENT_STATUS_OPTIONS.includes(values.status)) errors.status = 'Choose a status'
+	if (!BILLING_MODE_OPTIONS.includes(values.billingMode)) errors.billingMode = 'Choose billing mode'
 	if (values.notes.length > 1000) errors.notes = 'Notes must be 1000 characters or fewer'
 
 	return errors
 }
 
-function toInput(values: StudentFormValues): CreateStudentInput {
+function toCommand(values: StudentFormValues): StudentFormCommand {
 	return {
 		fullName: values.fullName.trim(),
 		email: values.email.trim(),
@@ -126,7 +129,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 
 		setIsSubmitting(true)
 		try {
-			await onSubmit(toInput(values))
+			await onSubmit(toCommand(values))
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -179,9 +182,11 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="active">active</SelectItem>
-										<SelectItem value="paused">paused</SelectItem>
-										<SelectItem value="archived">archived</SelectItem>
+										{STUDENT_STATUS_OPTIONS.map((item) => (
+											<SelectItem key={item} value={item}>
+												{item}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 							</Field>
@@ -194,9 +199,11 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="per_lesson">per lesson</SelectItem>
-										<SelectItem value="monthly">monthly</SelectItem>
-										<SelectItem value="package">package</SelectItem>
+										{BILLING_MODE_OPTIONS.map((item) => (
+											<SelectItem key={item} value={item}>
+												{getBillingModeLabel(item)}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 							</Field>

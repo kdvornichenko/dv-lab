@@ -5,17 +5,29 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-import { formatTime, studentNames } from './model'
-import type { TeacherCrmState } from './types'
+import type { AttendanceRecord, CalendarSyncRecord, Lesson, Student } from '@teacher-crm/api-types'
+
+import { formatTime, getLessonAttendanceCount, isLessonAttendanceMarked, studentNames } from './model'
 
 type LessonsPanelProps = {
-	state: TeacherCrmState
+	lessons: Lesson[]
+	students: Student[]
+	attendance: AttendanceRecord[]
+	calendarSyncRecords: CalendarSyncRecord[]
 	onAddLesson: () => void
 	onMarkGroupAttended: (lessonId: string) => void
 	onSyncLesson: (lessonId: string) => void
 }
 
-export function LessonsPanel({ state, onAddLesson, onMarkGroupAttended, onSyncLesson }: LessonsPanelProps) {
+export function LessonsPanel({
+	lessons,
+	students,
+	attendance,
+	calendarSyncRecords,
+	onAddLesson,
+	onMarkGroupAttended,
+	onSyncLesson,
+}: LessonsPanelProps) {
 	return (
 		<Card id="lessons" className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
 			<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-[#EFE8DC]">
@@ -29,19 +41,17 @@ export function LessonsPanel({ state, onAddLesson, onMarkGroupAttended, onSyncLe
 				</Button>
 			</CardHeader>
 			<CardContent className="pt-4">
-				{state.lessons.length === 0 ? (
+				{lessons.length === 0 ? (
 					<div className="rounded-lg border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-5 text-sm text-[#6F6B63]">
 						No lessons scheduled. Add the next lesson to start the day plan.
 					</div>
 				) : (
 					<ScrollArea className="max-h-[430px] pr-3">
 						<div className="space-y-3">
-							{state.lessons.map((lesson) => {
-								const sync = state.calendarSyncRecords.find((record) => record.lessonId === lesson.id)
-								const attendanceCount = state.attendance.filter(
-									(record) => record.lessonId === lesson.id && record.status === 'attended'
-								).length
-								const isMarked = attendanceCount >= lesson.studentIds.length
+							{lessons.map((lesson) => {
+								const sync = calendarSyncRecords.find((record) => record.lessonId === lesson.id)
+								const attendanceCount = getLessonAttendanceCount(lesson, attendance)
+								const isMarked = isLessonAttendanceMarked(lesson, attendance)
 								return (
 									<div
 										key={lesson.id}
@@ -63,7 +73,7 @@ export function LessonsPanel({ state, onAddLesson, onMarkGroupAttended, onSyncLe
 													Calendar {sync?.status ?? 'not synced'}
 												</Badge>
 											</div>
-											<p className="mt-1 truncate text-sm text-[#6F6B63]">{studentNames(lesson, state.students)}</p>
+											<p className="mt-1 truncate text-sm text-[#6F6B63]">{studentNames(lesson, students)}</p>
 											<p className="mt-1 text-xs text-[#6F6B63]">
 												{lesson.durationMinutes} min{lesson.topic ? ` · ${lesson.topic}` : ''}
 											</p>

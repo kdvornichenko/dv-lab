@@ -26,17 +26,17 @@ const badgeVariants = cva(
 	}
 )
 
-function Badge({
-	className,
-	variant = 'default',
-	tone,
-	asChild = false,
-	...props
-}: React.ComponentProps<'span'> &
-	VariantProps<typeof badgeVariants> & {
-		asChild?: boolean
-		tone?: 'green' | 'amber' | 'neutral' | 'red' | 'blue'
-	}) {
+type BadgeTone = 'green' | 'amber' | 'neutral' | 'red' | 'blue'
+type BaseBadgeProps = React.ComponentProps<'span'> & {
+	asChild?: boolean
+}
+type BadgeProps = BaseBadgeProps &
+	(
+		| ({ tone: BadgeTone; variant?: never } & Omit<VariantProps<typeof badgeVariants>, 'variant'>)
+		| ({ tone?: never } & VariantProps<typeof badgeVariants>)
+	)
+
+function Badge({ className, variant = 'default', tone, asChild = false, ...props }: BadgeProps) {
 	const Comp = asChild ? Slot : 'span'
 
 	return (
@@ -44,7 +44,7 @@ function Badge({
 			data-slot="badge"
 			data-variant={variant}
 			className={cn(
-				badgeVariants({ variant }),
+				badgeVariants({ variant: tone ? 'outline' : variant }),
 				tone === 'green' && 'border-[#D8E5D8] bg-[#EEF5EF] text-[#3F7A4D]',
 				tone === 'amber' && 'border-[#EAD7B8] bg-[#F7EEDF] text-[#9A6A1F]',
 				tone === 'neutral' && 'border-[#E6E0D4] bg-[#FBFAF6] text-[#6F6B63]',

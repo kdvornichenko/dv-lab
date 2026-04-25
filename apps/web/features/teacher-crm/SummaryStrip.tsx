@@ -2,7 +2,7 @@ import { AlertTriangle, CalendarCheck, DollarSign, ReceiptText, Users } from 'lu
 
 import { Card } from '@/components/ui/card'
 
-import { formatMoney } from './model'
+import { formatUsdAmount } from './model'
 import type { TeacherCrmSummary } from './types'
 
 const items = [
@@ -27,7 +27,7 @@ export function SummaryStrip({ summary }: { summary: TeacherCrmSummary }) {
 			{items.map((item) => {
 				const Icon = item.icon
 				const rawValue = summary[item.key]
-				const value = item.key === 'monthIncome' ? formatMoney(rawValue) : rawValue
+				const value = item.key === 'monthIncome' ? formatUsdAmount(rawValue) : rawValue
 				return (
 					<Card key={item.key} className="rounded-lg border-[#E6E0D4] bg-white p-4 shadow-none">
 						<div className="flex items-start justify-between gap-3">

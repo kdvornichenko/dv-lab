@@ -4,15 +4,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-import type { TeacherCrmState } from './types'
+import type { CalendarConnection, CalendarSyncRecord } from '@teacher-crm/api-types'
 
-export function CalendarPanel({ state, onConnect }: { state: TeacherCrmState; onConnect: () => void }) {
-	const connection = state.calendarConnection
-	const failedSyncs = state.calendarSyncRecords.filter((record) => record.status === 'failed').length
-	const syncedEvents = state.calendarSyncRecords.filter((record) => record.status === 'synced').length
-	const hasCalendarGrant =
-		connection.tokenAvailable && connection.requiredScopes.every((scope) => connection.grantedScopes.includes(scope))
-	const connected = connection.status === 'connected' && hasCalendarGrant
+import { selectCalendarStatus } from './model'
+
+type CalendarPanelProps = {
+	connection: CalendarConnection
+	syncRecords: CalendarSyncRecord[]
+	onConnect: () => void
+}
+
+export function CalendarPanel({ connection, syncRecords, onConnect }: CalendarPanelProps) {
+	const calendarStatus = selectCalendarStatus(connection, syncRecords)
 
 	return (
 		<Card id="calendar" className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
@@ -31,21 +34,25 @@ export function CalendarPanel({ state, onConnect }: { state: TeacherCrmState; on
 							{connection.selectedCalendarName ?? 'Calendar is not selected'}
 						</p>
 					</div>
-					<Badge tone={connected ? 'green' : 'amber'}>{connection.status}</Badge>
+					<Badge tone={calendarStatus.connected ? 'green' : 'amber'}>{connection.status}</Badge>
 				</div>
 				<div className="grid grid-cols-2 gap-3 text-sm">
 					<div className="rounded-md border border-[#E6E0D4] bg-[#FBFAF6] p-3">
 						<p className="text-xs text-[#6F6B63]">Synced events</p>
-						<p className="mt-1 font-mono text-lg font-semibold tabular-nums text-[#181713]">{syncedEvents}</p>
+						<p className="mt-1 font-mono text-lg font-semibold tabular-nums text-[#181713]">
+							{calendarStatus.syncedEvents}
+						</p>
 					</div>
 					<div className="rounded-md border border-[#E6E0D4] bg-[#FBFAF6] p-3">
 						<p className="text-xs text-[#6F6B63]">Failed syncs</p>
-						<p className="mt-1 font-mono text-lg font-semibold tabular-nums text-[#181713]">{failedSyncs}</p>
+						<p className="mt-1 font-mono text-lg font-semibold tabular-nums text-[#181713]">
+							{calendarStatus.failedSyncs}
+						</p>
 					</div>
 				</div>
-				<Button className="w-full" variant={connected ? 'secondary' : 'primary'} onClick={onConnect}>
+				<Button className="w-full" variant={calendarStatus.connected ? 'secondary' : 'primary'} onClick={onConnect}>
 					<Link2 className="h-4 w-4" />
-					{connected ? 'Reconnect calendar' : 'Verify calendar access'}
+					{calendarStatus.connected ? 'Reconnect calendar' : 'Verify calendar access'}
 				</Button>
 			</CardContent>
 		</Card>

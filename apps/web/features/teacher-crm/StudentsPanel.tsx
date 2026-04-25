@@ -14,15 +14,16 @@ import type { AttendanceRecord, CreateStudentInput, Lesson, UpdateStudentInput }
 
 import { StudentFormDialog } from './StudentFormDialog'
 import { StudentProfilePane } from './StudentProfilePane'
-import { formatDateShort, formatMoney } from './model'
+import { formatUsdAmount, selectStudentLedgerProjection, STUDENT_FILTER_OPTIONS } from './model'
 import type { StudentWithBalance } from './types'
 
 type StudentsPanelProps = {
-	students: StudentWithBalance[]
-	allStudents: StudentWithBalance[]
+	visibleStudents: StudentWithBalance[]
+	profileStudents: StudentWithBalance[]
 	lessons: Lesson[]
 	attendance: AttendanceRecord[]
 	filter: 'all' | StudentWithBalance['status']
+	now: Date
 	onFilterChange: (value: 'all' | StudentWithBalance['status']) => void
 	onAddStudent: (input: CreateStudentInput) => Promise<void>
 	onUpdateStudent: (studentId: string, input: UpdateStudentInput) => Promise<void>
@@ -30,32 +31,13 @@ type StudentsPanelProps = {
 	onRecordPayment: (studentId: string) => Promise<void>
 }
 
-function billingLabel(value: StudentWithBalance['billingMode']) {
-	return value.replace('_', ' ')
-}
-
-function studentLessonStats(student: StudentWithBalance, lessons: Lesson[], attendance: AttendanceRecord[]) {
-	const relatedLessons = lessons.filter((lesson) => lesson.studentIds.includes(student.id))
-	const attended = attendance.filter((record) => record.studentId === student.id && record.status === 'attended').length
-	const nextLesson = relatedLessons
-		.filter((lesson) => new Date(lesson.startsAt).getTime() >= Date.now())
-		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
-
-	return { relatedLessons, attended, nextLesson }
-}
-
-function nextPaymentLabel(student: StudentWithBalance, nextLesson?: Lesson) {
-	if (student.balance.overdue) return 'Due now'
-	if (nextLesson) return `After ${formatDateShort(nextLesson.startsAt)}`
-	return 'Not scheduled'
-}
-
 export function StudentsPanel({
-	students,
-	allStudents,
+	visibleStudents,
+	profileStudents,
 	lessons,
 	attendance,
 	filter,
+	now,
 	onFilterChange,
 	onAddStudent,
 	onUpdateStudent,
@@ -70,16 +52,16 @@ export function StudentsPanel({
 	const query = search.trim().toLowerCase()
 	const filteredStudents = useMemo(
 		() =>
-			students.filter((student) => {
+			visibleStudents.filter((student) => {
 				if (!query) return true
 				return [student.fullName, student.email, student.phone, student.level, student.notes]
 					.filter(Boolean)
 					.some((value) => String(value).toLowerCase().includes(query))
 			}),
-		[query, students]
+		[query, visibleStudents]
 	)
 	const activeProfileStudent =
-		(profileStudentId ? allStudents.find((student) => student.id === profileStudentId) : null) ??
+		(profileStudentId ? profileStudents.find((student) => student.id === profileStudentId) : null) ??
 		filteredStudents[0] ??
 		null
 
@@ -112,7 +94,7 @@ export function StudentsPanel({
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
-							{(['all', 'active', 'paused', 'archived'] as const).map((item) => (
+							{STUDENT_FILTER_OPTIONS.map((item) => (
 								<SelectItem key={item} value={item}>
 									{item}
 								</SelectItem>
@@ -141,17 +123,7 @@ export function StudentsPanel({
 									</TableHeader>
 									<TableBody>
 										{filteredStudents.map((student) => {
-											const stats = studentLessonStats(student, lessons, attendance)
-											const lessonsLeft =
-												student.billingMode === 'package'
-													? 'Package room'
-													: `${student.balance.unpaidLessonCount} unpaid`
-											const plan =
-												student.billingMode === 'monthly'
-													? 'Monthly plan'
-													: student.billingMode === 'package'
-														? 'Package plan'
-														: `${formatMoney(student.defaultLessonPrice)} lesson`
+											const projection = selectStudentLedgerProjection(student, lessons, attendance, now)
 											return (
 												<TableRow
 													key={student.id}
@@ -165,31 +137,21 @@ export function StudentsPanel({
 														</div>
 													</TableCell>
 													<TableCell className="text-[#181713]">{student.level || '-'}</TableCell>
-													<TableCell className="capitalize text-[#181713]">
-														{billingLabel(student.billingMode)}
+													<TableCell className="capitalize text-[#181713]">{projection.billingLabel}</TableCell>
+													<TableCell className="text-[#6F6B63]">{projection.plan}</TableCell>
+													<TableCell className="font-mono text-xs tabular-nums text-[#181713]">
+														{projection.lessonsLeft}
 													</TableCell>
-													<TableCell className="text-[#6F6B63]">{plan}</TableCell>
-													<TableCell className="font-mono text-xs tabular-nums text-[#181713]">{lessonsLeft}</TableCell>
 													<TableCell className="font-mono text-xs tabular-nums text-[#6F6B63]">
-														{nextPaymentLabel(student, stats.nextLesson)}
+														{projection.nextPayment}
 													</TableCell>
 													<TableCell>
-														<Badge tone={student.balance.overdue ? 'red' : 'green'} className="font-mono tabular-nums">
-															{formatMoney(student.balance.balance)}
+														<Badge tone={projection.balanceTone} className="font-mono tabular-nums">
+															{formatUsdAmount(student.balance.balance)}
 														</Badge>
 													</TableCell>
 													<TableCell>
-														<Badge
-															tone={
-																student.status === 'active'
-																	? 'green'
-																	: student.status === 'paused'
-																		? 'amber'
-																		: 'neutral'
-															}
-														>
-															{student.status}
-														</Badge>
+														<Badge tone={projection.statusTone}>{student.status}</Badge>
 													</TableCell>
 													<TableCell onClick={(event) => event.stopPropagation()}>
 														<div className="flex justify-end gap-1.5">
@@ -243,7 +205,7 @@ export function StudentsPanel({
 						</ScrollArea>
 					</div>
 
-					<StudentProfilePane student={activeProfileStudent} lessons={lessons} attendance={attendance} />
+					<StudentProfilePane student={activeProfileStudent} lessons={lessons} attendance={attendance} now={now} />
 				</div>
 			</CardContent>
 

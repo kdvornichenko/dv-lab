@@ -10,26 +10,24 @@ import { LessonsPanel } from './LessonsPanel'
 import { PaymentsPanel } from './PaymentsPanel'
 import { StudentsPanel } from './StudentsPanel'
 import { SummaryStrip } from './SummaryStrip'
-import { formatMoney, formatWeekday } from './model'
+import {
+	formatUsdAmount,
+	formatWeekday,
+	selectFailedCalendarSyncs,
+	selectMissingAttendanceLessons,
+	selectOverdueStudents,
+	selectTodayLessons,
+} from './model'
 import { useTeacherCrm } from './useTeacherCrm'
-
-function isToday(value: string) {
-	const date = new Date(value)
-	const now = new Date()
-	return (
-		date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()
-	)
-}
 
 export function TeacherDashboard() {
 	const crm = useTeacherCrm()
-	const todayLessons = crm.state.lessons.filter((lesson) => isToday(lesson.startsAt))
-	const missingAttendanceLessons = todayLessons.filter((lesson) => {
-		const marked = crm.state.attendance.filter((record) => record.lessonId === lesson.id).length
-		return marked < lesson.studentIds.length
-	})
-	const overdueStudents = crm.studentRows.filter((student) => student.balance.overdue)
-	const failedSyncs = crm.state.calendarSyncRecords.filter((record) => record.status === 'failed')
+	const now = new Date()
+	const todayLessons = selectTodayLessons(crm.state.lessons, now)
+	const visibleLessons = todayLessons.length > 0 ? todayLessons : crm.state.lessons
+	const missingAttendanceLessons = selectMissingAttendanceLessons(todayLessons, crm.state.attendance)
+	const overdueStudents = selectOverdueStudents(crm.studentRows)
+	const failedSyncs = selectFailedCalendarSyncs(crm.state.calendarSyncRecords)
 	const atRiskStudent = overdueStudents[0]
 
 	const attentionItems = [
@@ -46,7 +44,7 @@ export function TeacherDashboard() {
 			label: 'Payment risk',
 			value: overdueStudents.length,
 			detail: atRiskStudent
-				? `${atRiskStudent.fullName}: ${formatMoney(atRiskStudent.balance.balance)}`
+				? `${atRiskStudent.fullName}: ${formatUsdAmount(atRiskStudent.balance.balance)}`
 				: 'No overdue student balance',
 			tone: overdueStudents.length > 0 ? 'red' : 'green',
 		},
@@ -66,7 +64,7 @@ export function TeacherDashboard() {
 						<div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[#2F6F5E]">
 							<BookOpenCheck className="h-4 w-4" />
 							<span>Teaching studio</span>
-							<span className="font-mono text-xs text-[#6F6B63]">{formatWeekday(new Date())}</span>
+							<span className="font-mono text-xs text-[#6F6B63]">{formatWeekday(now)}</span>
 						</div>
 						<h1 className="mt-2 text-2xl font-semibold text-[#181713] sm:text-3xl">Today control desk</h1>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-[#6F6B63]">
@@ -114,17 +112,21 @@ export function TeacherDashboard() {
 					<div className="grid min-w-0 gap-5">
 						<SummaryStrip summary={crm.summary} />
 						<LessonsPanel
-							state={{ ...crm.state, lessons: todayLessons.length > 0 ? todayLessons : crm.state.lessons }}
+							lessons={visibleLessons}
+							students={crm.state.students}
+							attendance={crm.state.attendance}
+							calendarSyncRecords={crm.state.calendarSyncRecords}
 							onAddLesson={crm.addLesson}
 							onMarkGroupAttended={crm.markGroupAttended}
 							onSyncLesson={crm.syncLesson}
 						/>
 						<StudentsPanel
-							students={crm.visibleStudents}
-							allStudents={crm.studentRows}
+							visibleStudents={crm.visibleStudents}
+							profileStudents={crm.studentRows}
 							lessons={crm.state.lessons}
 							attendance={crm.state.attendance}
 							filter={crm.studentFilter}
+							now={now}
 							onFilterChange={crm.setStudentFilter}
 							onAddStudent={crm.addStudent}
 							onUpdateStudent={crm.updateStudent}
@@ -158,8 +160,17 @@ export function TeacherDashboard() {
 								))}
 							</div>
 						</section>
-						<CalendarPanel state={crm.state} onConnect={crm.connectCalendar} />
-						<PaymentsPanel state={crm.state} />
+						<CalendarPanel
+							connection={crm.state.calendarConnection}
+							syncRecords={crm.state.calendarSyncRecords}
+							onConnect={crm.connectCalendar}
+						/>
+						<PaymentsPanel
+							payments={crm.state.payments}
+							students={crm.state.students}
+							studentBalances={crm.state.studentBalances}
+							now={now}
+						/>
 					</aside>
 				</section>
 			</div>

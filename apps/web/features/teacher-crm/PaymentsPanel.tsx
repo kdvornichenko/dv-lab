@@ -4,24 +4,19 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
-import { formatDateShort, formatMoney } from './model'
-import type { TeacherCrmState } from './types'
+import type { Payment, Student, StudentBalance } from '@teacher-crm/api-types'
 
-function isThisWeek(value: string) {
-	const date = new Date(value)
-	const now = new Date()
-	const weekStart = new Date(now)
-	weekStart.setDate(now.getDate() - now.getDay())
-	weekStart.setHours(0, 0, 0, 0)
-	return date >= weekStart
+import { formatDateShort, formatUsdAmount, selectPaymentLedger } from './model'
+
+type PaymentsPanelProps = {
+	payments: Payment[]
+	students: Student[]
+	studentBalances: StudentBalance[]
+	now: Date
 }
 
-export function PaymentsPanel({ state }: { state: TeacherCrmState }) {
-	const monthIncome = state.payments.reduce((sum, payment) => sum + payment.amount, 0)
-	const paidThisWeek = state.payments.filter((payment) => isThisWeek(payment.paidAt)).length
-	const overdueTotal = state.studentBalances
-		.filter((balance) => balance.overdue)
-		.reduce((sum, balance) => sum + Math.abs(balance.balance), 0)
+export function PaymentsPanel({ payments, students, studentBalances, now }: PaymentsPanelProps) {
+	const ledger = selectPaymentLedger(payments, studentBalances, now)
 
 	return (
 		<Card id="payments" className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
@@ -34,18 +29,18 @@ export function PaymentsPanel({ state }: { state: TeacherCrmState }) {
 			</CardHeader>
 			<CardContent className="space-y-4 pt-4">
 				<div className="grid grid-cols-3 gap-2">
-					<LedgerMetric label="Month income" value={formatMoney(monthIncome)} tone="green" />
-					<LedgerMetric label="Paid this week" value={paidThisWeek} tone="neutral" />
+					<LedgerMetric label="Month income" value={formatUsdAmount(ledger.monthIncome)} tone="green" />
+					<LedgerMetric label="Paid this week" value={ledger.paidThisWeek} tone="neutral" />
 					<LedgerMetric
 						label="Overdue total"
-						value={formatMoney(overdueTotal)}
-						tone={overdueTotal > 0 ? 'red' : 'green'}
+						value={formatUsdAmount(ledger.overdueTotal)}
+						tone={ledger.overdueTotal > 0 ? 'red' : 'green'}
 					/>
 				</div>
 				<ScrollArea className="max-h-[280px] pr-3">
 					<div className="space-y-2">
-						{state.payments.map((payment) => {
-							const student = state.students.find((item) => item.id === payment.studentId)
+						{payments.map((payment) => {
+							const student = students.find((item) => item.id === payment.studentId)
 							return (
 								<div
 									key={payment.id}
@@ -60,12 +55,12 @@ export function PaymentsPanel({ state }: { state: TeacherCrmState }) {
 										</p>
 									</div>
 									<Badge tone="green" className="font-mono tabular-nums">
-										{formatMoney(payment.amount)}
+										{formatUsdAmount(payment.amount)}
 									</Badge>
 								</div>
 							)
 						})}
-						{state.payments.length === 0 && (
+						{payments.length === 0 && (
 							<div className="rounded-md border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-4 text-sm text-[#6F6B63]">
 								No payments recorded this month.
 							</div>

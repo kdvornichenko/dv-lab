@@ -6,16 +6,17 @@ import { Badge } from '@/components/ui/badge'
 
 import type { AttendanceRecord, Lesson } from '@teacher-crm/api-types'
 
-import { formatDateShort, formatMoney } from './model'
+import { formatUsdAmount, getBillingModeLabel, selectStudentLedgerProjection } from './model'
 import type { StudentWithBalance } from './types'
 
 type StudentProfilePaneProps = {
 	student: StudentWithBalance | null
 	lessons: Lesson[]
 	attendance: AttendanceRecord[]
+	now: Date
 }
 
-export function StudentProfilePane({ student, lessons, attendance }: StudentProfilePaneProps) {
+export function StudentProfilePane({ student, lessons, attendance, now }: StudentProfilePaneProps) {
 	if (!student) {
 		return (
 			<aside className="rounded-lg border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-4 text-sm text-[#6F6B63]">
@@ -24,14 +25,8 @@ export function StudentProfilePane({ student, lessons, attendance }: StudentProf
 		)
 	}
 
-	const studentLessons = lessons.filter((lesson) => lesson.studentIds.includes(student.id))
-	const attendanceCount = attendance.filter(
-		(record) => record.studentId === student.id && record.status === 'attended'
-	).length
-	const nextLesson = studentLessons
-		.filter((lesson) => new Date(lesson.startsAt).getTime() >= Date.now())
-		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
-	const lessonsLeft = student.billingMode === 'package' ? 'Track soon' : `${student.balance.unpaidLessonCount} unpaid`
+	const projection = selectStudentLedgerProjection(student, lessons, attendance, now)
+	const billingLabel = getBillingModeLabel(student.billingMode)
 
 	return (
 		<aside className="rounded-lg border border-[#E6E0D4] bg-[#FBFAF6] p-4">
@@ -40,29 +35,21 @@ export function StudentProfilePane({ student, lessons, attendance }: StudentProf
 					<h3 className="truncate text-base font-semibold text-[#181713]">{student.fullName}</h3>
 					<p className="mt-1 text-sm text-[#6F6B63]">{student.level || 'No level set'}</p>
 				</div>
-				<Badge tone={student.status === 'active' ? 'green' : student.status === 'paused' ? 'amber' : 'neutral'}>
-					{student.status}
-				</Badge>
+				<Badge tone={projection.statusTone}>{student.status}</Badge>
 			</div>
 
 			<div className="mt-4 grid grid-cols-2 gap-2">
-				<Metric icon={CalendarCheck2} label="Scheduled" value={studentLessons.length} />
-				<Metric icon={ClipboardCheck} label="Attended" value={attendanceCount} />
-				<Metric icon={ReceiptText} label="Lessons left" value={lessonsLeft} />
-				<Metric icon={Banknote} label="Balance" value={formatMoney(student.balance.balance)} />
+				<Metric icon={CalendarCheck2} label="Scheduled" value={projection.stats.relatedLessons.length} />
+				<Metric icon={ClipboardCheck} label="Attended" value={projection.stats.attendedCount} />
+				<Metric icon={ReceiptText} label="Lessons left" value={projection.lessonsLeft} />
+				<Metric icon={Banknote} label="Balance" value={formatUsdAmount(student.balance.balance)} />
 			</div>
 
 			<div className="mt-4 rounded-md border border-[#E6E0D4] bg-white p-3">
 				<p className="text-xs font-medium uppercase text-[#6F6B63]">Next payment</p>
-				<p className="mt-1 font-mono text-sm tabular-nums text-[#181713]">
-					{student.balance.overdue
-						? 'Due now'
-						: nextLesson
-							? `After ${formatDateShort(nextLesson.startsAt)}`
-							: 'Not scheduled'}
-				</p>
+				<p className="mt-1 font-mono text-sm tabular-nums text-[#181713]">{projection.nextPayment}</p>
 				<p className="mt-1 text-xs text-[#6F6B63]">
-					{student.balance.unpaidLessonCount} unpaid lessons · {student.billingMode.replace('_', ' ')}
+					{student.balance.unpaidLessonCount} unpaid lessons · {billingLabel}
 				</p>
 			</div>
 
@@ -72,7 +59,7 @@ export function StudentProfilePane({ student, lessons, attendance }: StudentProf
 				<ProfileRow
 					icon={ReceiptText}
 					label="Billing"
-					value={`${student.billingMode.replace('_', ' ')} · ${formatMoney(student.defaultLessonPrice)}`}
+					value={`${billingLabel} · ${formatUsdAmount(student.defaultLessonPrice)}`}
 				/>
 				<ProfileRow icon={NotebookText} label="Notes" value={student.notes || 'No notes'} multiline />
 			</div>
