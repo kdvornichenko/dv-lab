@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 
 import type { AttendanceRecord, Lesson } from '@teacher-crm/api-types'
 
-import { formatMoney } from './model'
+import { formatDateShort, formatMoney } from './model'
 import type { StudentWithBalance } from './types'
 
 type StudentProfilePaneProps = {
@@ -18,23 +18,27 @@ type StudentProfilePaneProps = {
 export function StudentProfilePane({ student, lessons, attendance }: StudentProfilePaneProps) {
 	if (!student) {
 		return (
-			<div className="rounded-md border border-dashed border-zinc-200 p-4 text-sm text-zinc-500">
-				Select a student to view profile details.
-			</div>
+			<aside className="rounded-lg border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-4 text-sm text-[#6F6B63]">
+				Select a student to view lessons, attendance, and payment balance.
+			</aside>
 		)
 	}
 
-	const lessonCount = lessons.filter((lesson) => lesson.studentIds.includes(student.id)).length
+	const studentLessons = lessons.filter((lesson) => lesson.studentIds.includes(student.id))
 	const attendanceCount = attendance.filter(
 		(record) => record.studentId === student.id && record.status === 'attended'
 	).length
+	const nextLesson = studentLessons
+		.filter((lesson) => new Date(lesson.startsAt).getTime() >= Date.now())
+		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
+	const lessonsLeft = student.billingMode === 'package' ? 'Track soon' : `${student.balance.unpaidLessonCount} unpaid`
 
 	return (
-		<aside className="rounded-md border border-zinc-200 bg-zinc-50/70 p-4">
+		<aside className="rounded-lg border border-[#E6E0D4] bg-[#FBFAF6] p-4">
 			<div className="flex items-start justify-between gap-3">
-				<div>
-					<h3 className="text-base font-semibold text-zinc-950">{student.fullName}</h3>
-					<p className="mt-1 text-sm text-zinc-600">{student.level || 'No level set'}</p>
+				<div className="min-w-0">
+					<h3 className="truncate text-base font-semibold text-[#181713]">{student.fullName}</h3>
+					<p className="mt-1 text-sm text-[#6F6B63]">{student.level || 'No level set'}</p>
 				</div>
 				<Badge tone={student.status === 'active' ? 'green' : student.status === 'paused' ? 'amber' : 'neutral'}>
 					{student.status}
@@ -42,10 +46,24 @@ export function StudentProfilePane({ student, lessons, attendance }: StudentProf
 			</div>
 
 			<div className="mt-4 grid grid-cols-2 gap-2">
-				<Metric icon={CalendarCheck2} label="Lessons" value={lessonCount} />
+				<Metric icon={CalendarCheck2} label="Scheduled" value={studentLessons.length} />
 				<Metric icon={ClipboardCheck} label="Attended" value={attendanceCount} />
+				<Metric icon={ReceiptText} label="Lessons left" value={lessonsLeft} />
 				<Metric icon={Banknote} label="Balance" value={formatMoney(student.balance.balance)} />
-				<Metric icon={ReceiptText} label="Unpaid" value={student.balance.unpaidLessonCount} />
+			</div>
+
+			<div className="mt-4 rounded-md border border-[#E6E0D4] bg-white p-3">
+				<p className="text-xs font-medium uppercase text-[#6F6B63]">Next payment</p>
+				<p className="mt-1 font-mono text-sm tabular-nums text-[#181713]">
+					{student.balance.overdue
+						? 'Due now'
+						: nextLesson
+							? `After ${formatDateShort(nextLesson.startsAt)}`
+							: 'Not scheduled'}
+				</p>
+				<p className="mt-1 text-xs text-[#6F6B63]">
+					{student.balance.unpaidLessonCount} unpaid lessons · {student.billingMode.replace('_', ' ')}
+				</p>
 			</div>
 
 			<div className="mt-4 space-y-3 text-sm">
@@ -72,12 +90,12 @@ function Metric({
 	value: string | number
 }) {
 	return (
-		<div className="rounded-md border border-zinc-200 bg-white p-3">
-			<div className="flex items-center gap-1.5 text-xs text-zinc-500">
-				<Icon className="h-3.5 w-3.5" />
+		<div className="rounded-md border border-[#E6E0D4] bg-white p-3">
+			<div className="flex items-center gap-1.5 text-xs text-[#6F6B63]">
+				<Icon className="h-3.5 w-3.5 text-[#2F6F5E]" />
 				{label}
 			</div>
-			<div className="mt-1 truncate text-sm font-semibold text-zinc-950">{value}</div>
+			<div className="mt-1 truncate font-mono text-sm font-semibold tabular-nums text-[#181713]">{value}</div>
 		</div>
 	)
 }
@@ -95,11 +113,11 @@ function ProfileRow({
 }) {
 	return (
 		<div>
-			<div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-zinc-500">
-				<Icon className="h-3.5 w-3.5" />
+			<div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-[#6F6B63]">
+				<Icon className="h-3.5 w-3.5 text-[#2F6F5E]" />
 				{label}
 			</div>
-			<p className={multiline ? 'whitespace-pre-wrap text-zinc-700' : 'truncate text-zinc-700'}>{value}</p>
+			<p className={multiline ? 'whitespace-pre-wrap text-[#181713]' : 'truncate text-[#181713]'}>{value}</p>
 		</div>
 	)
 }

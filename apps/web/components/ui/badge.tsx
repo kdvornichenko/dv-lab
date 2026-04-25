@@ -45,11 +45,11 @@ function Badge({
 			data-variant={variant}
 			className={cn(
 				badgeVariants({ variant }),
-				tone === 'green' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
-				tone === 'amber' && 'border-amber-200 bg-amber-50 text-amber-700',
-				tone === 'neutral' && 'border-zinc-200 bg-zinc-50 text-zinc-700',
-				tone === 'red' && 'border-red-200 bg-red-50 text-red-700',
-				tone === 'blue' && 'border-sky-200 bg-sky-50 text-sky-700',
+				tone === 'green' && 'border-[#D8E5D8] bg-[#EEF5EF] text-[#3F7A4D]',
+				tone === 'amber' && 'border-[#EAD7B8] bg-[#F7EEDF] text-[#9A6A1F]',
+				tone === 'neutral' && 'border-[#E6E0D4] bg-[#FBFAF6] text-[#6F6B63]',
+				tone === 'red' && 'border-[#EDCBC5] bg-[#F8E9E6] text-[#A64235]',
+				tone === 'blue' && 'border-[#CFE0DA] bg-[#E7F0EC] text-[#2F6F5E]',
 				className
 			)}
 			{...props}

@@ -15,6 +15,21 @@ export function formatTime(value: string) {
 	}).format(new Date(value))
 }
 
+export function formatDateShort(value: string | Date) {
+	return new Intl.DateTimeFormat('en-US', {
+		month: 'short',
+		day: 'numeric',
+	}).format(new Date(value))
+}
+
+export function formatWeekday(value: string | Date) {
+	return new Intl.DateTimeFormat('en-US', {
+		weekday: 'long',
+		month: 'short',
+		day: 'numeric',
+	}).format(new Date(value))
+}
+
 export function studentNames(lesson: Lesson, students: Student[]) {
 	const names = lesson.studentIds.map((id) => students.find((student) => student.id === id)?.fullName).filter(Boolean)
 	return names.length > 0 ? names.join(', ') : 'No students'

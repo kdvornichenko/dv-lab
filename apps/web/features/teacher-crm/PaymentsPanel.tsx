@@ -2,34 +2,96 @@ import { ReceiptText } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
-import { formatMoney } from './model'
+import { formatDateShort, formatMoney } from './model'
 import type { TeacherCrmState } from './types'
 
+function isThisWeek(value: string) {
+	const date = new Date(value)
+	const now = new Date()
+	const weekStart = new Date(now)
+	weekStart.setDate(now.getDate() - now.getDay())
+	weekStart.setHours(0, 0, 0, 0)
+	return date >= weekStart
+}
+
 export function PaymentsPanel({ state }: { state: TeacherCrmState }) {
+	const monthIncome = state.payments.reduce((sum, payment) => sum + payment.amount, 0)
+	const paidThisWeek = state.payments.filter((payment) => isThisWeek(payment.paidAt)).length
+	const overdueTotal = state.studentBalances
+		.filter((balance) => balance.overdue)
+		.reduce((sum, balance) => sum + Math.abs(balance.balance), 0)
+
 	return (
-		<Card id="payments">
-			<CardHeader className="flex flex-row items-center justify-between gap-3">
-				<CardTitle>Recent Payments</CardTitle>
-				<ReceiptText className="h-5 w-5 text-sky-700" />
+		<Card id="payments" className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
+			<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-[#EFE8DC]">
+				<div>
+					<CardTitle className="text-base text-[#181713]">Payment ledger</CardTitle>
+					<p className="mt-1 text-sm text-[#6F6B63]">Income and payment risk before recency.</p>
+				</div>
+				<ReceiptText className="h-5 w-5 text-[#2F6F5E]" />
 			</CardHeader>
-			<CardContent className="space-y-3">
-				{state.payments.map((payment) => {
-					const student = state.students.find((item) => item.id === payment.studentId)
-					return (
-						<div
-							key={payment.id}
-							className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 p-3"
-						>
-							<div className="min-w-0">
-								<p className="truncate text-sm font-medium text-zinc-950">{student?.fullName ?? 'Unknown student'}</p>
-								<p className="text-xs text-zinc-500">{new Date(payment.paidAt).toLocaleDateString('en-US')}</p>
+			<CardContent className="space-y-4 pt-4">
+				<div className="grid grid-cols-3 gap-2">
+					<LedgerMetric label="Month income" value={formatMoney(monthIncome)} tone="green" />
+					<LedgerMetric label="Paid this week" value={paidThisWeek} tone="neutral" />
+					<LedgerMetric
+						label="Overdue total"
+						value={formatMoney(overdueTotal)}
+						tone={overdueTotal > 0 ? 'red' : 'green'}
+					/>
+				</div>
+				<ScrollArea className="max-h-[280px] pr-3">
+					<div className="space-y-2">
+						{state.payments.map((payment) => {
+							const student = state.students.find((item) => item.id === payment.studentId)
+							return (
+								<div
+									key={payment.id}
+									className="grid grid-cols-[1fr_auto] gap-3 rounded-md border border-[#E6E0D4] bg-[#FBFAF6] p-3"
+								>
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium text-[#181713]">
+											{student?.fullName ?? 'Unknown student'}
+										</p>
+										<p className="font-mono text-xs tabular-nums text-[#6F6B63]">
+											Paid {formatDateShort(payment.paidAt)}
+										</p>
+									</div>
+									<Badge tone="green" className="font-mono tabular-nums">
+										{formatMoney(payment.amount)}
+									</Badge>
+								</div>
+							)
+						})}
+						{state.payments.length === 0 && (
+							<div className="rounded-md border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-4 text-sm text-[#6F6B63]">
+								No payments recorded this month.
 							</div>
-							<Badge tone="green">{formatMoney(payment.amount)}</Badge>
-						</div>
-					)
-				})}
+						)}
+					</div>
+				</ScrollArea>
 			</CardContent>
 		</Card>
+	)
+}
+
+function LedgerMetric({
+	label,
+	value,
+	tone,
+}: {
+	label: string
+	value: string | number
+	tone: 'green' | 'red' | 'neutral'
+}) {
+	return (
+		<div className="rounded-md border border-[#E6E0D4] bg-[#FBFAF6] p-2">
+			<p className="truncate text-xs text-[#6F6B63]">{label}</p>
+			<Badge tone={tone} className="mt-2 font-mono tabular-nums">
+				{value}
+			</Badge>
+		</div>
 	)
 }
