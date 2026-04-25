@@ -8,7 +8,20 @@ import { GoogleLoginButton } from './GoogleLoginButton'
 
 export const dynamic = 'force-dynamic'
 
-export default async function LoginPage() {
+type LoginPageProps = {
+	searchParams?: Promise<{
+		error?: string | string[]
+	}>
+}
+
+function firstParam(value: string | string[] | undefined) {
+	if (Array.isArray(value)) return value[0]
+	return value
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+	const params = await searchParams
+	const authError = firstParam(params?.error)
 	const supabase = await createClient()
 	const {
 		data: { user },
@@ -29,6 +42,9 @@ export default async function LoginPage() {
 					<p className="text-sm leading-6 text-zinc-600">
 						Sign in with Google. The same Google account is requested for Calendar access.
 					</p>
+					{authError && (
+						<p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{authError}</p>
+					)}
 					<GoogleLoginButton />
 				</CardContent>
 			</Card>
