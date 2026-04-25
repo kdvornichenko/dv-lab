@@ -1,53 +1,43 @@
-# Next.js & NextUI Template
+# Teacher English CRM
 
-This is a template for creating applications using Next.js 14 (app directory) and NextUI (v2).
+Private operational CRM for an English teacher: students, lessons, attendance, payments, and daily risk dashboard.
 
-[Try it on CodeSandbox](https://githubbox.com/nextui-org/next-app-template)
+## Stack
 
-## Technologies Used
+- Turborepo + Yarn 4 workspaces through Corepack
+- `apps/web`: Next.js 16, React 19, Tailwind CSS 4, shadcn-style local components
+- `apps/api`: Hono on Node.js
+- `packages/api-types`: shared Zod contracts
+- `packages/db`: Drizzle schema and ledger helpers for Supabase Postgres
+- `packages/rbac`: teacher CRM permission model
 
-- [Next.js 14](https://nextjs.org/docs/getting-started)
-- [NextUI v2](https://nextui.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Tailwind Variants](https://tailwind-variants.org)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Framer Motion](https://www.framer.com/motion/)
-- [next-themes](https://github.com/pacocoursey/next-themes)
-
-## How to Use
-
-### Use the template with create-next-app
-
-To create a new project based on this template using `create-next-app`, run the following command:
+## Development
 
 ```bash
-npx create-next-app -e https://github.com/nextui-org/next-app-template
+corepack enable
+yarn install
+yarn dev
 ```
 
-### Install dependencies
+Web runs on `http://localhost:3000`.
+API runs on `http://localhost:4000`.
 
-You can use one of them `npm`, `yarn`, `pnpm`, `bun`, Example using `npm`:
+Install shadcn components from the web workspace:
 
 ```bash
-npm install
+cd apps/web
+yarn dlx shadcn@latest add button
 ```
 
-### Run the development server
+## Supabase
 
-```bash
-npm run dev
-```
+The project keeps the existing Supabase env contract:
 
-### Setup pnpm (optional)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `POSTGRES_URL` or `DATABASE_URL`
 
-If you are using `pnpm`, you need to add the following code to your `.npmrc` file:
-
-```bash
-public-hoist-pattern[]=*@nextui-org/*
-```
-
-After modifying the `.npmrc` file, you need to run `pnpm install` again to ensure that the dependencies are installed correctly.
-
-## License
-
-Licensed under the [MIT license](https://github.com/nextui-org/next-app-template/blob/main/LICENSE).
+Do not expose service-role keys to browser code.

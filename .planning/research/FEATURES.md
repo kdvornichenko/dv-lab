@@ -31,6 +31,14 @@ This is not a marketing site or an LMS. It is an operational control panel for o
 - Payment history with corrections.
 - Basic revenue summaries by month.
 
+### Google Calendar
+
+- Server-mediated Google OAuth, not browser-only token handling.
+- Calendar selection for lesson sync.
+- CRM lesson to Google Calendar event mapping.
+- Idempotent sync using stored external event IDs.
+- Sync status and retry UX for failures.
+
 ### Dashboard
 
 - Today: upcoming lessons and missing attendance marks.
@@ -58,7 +66,6 @@ This is not a marketing site or an LMS. It is an operational control panel for o
 - Student-facing homework.
 - Payment acquiring.
 - Complex payroll/teacher marketplace logic.
-- Calendar sync before the internal lesson model is stable.
 
 ## Feature Categories for Requirements
 
@@ -68,5 +75,6 @@ This is not a marketing site or an LMS. It is an operational control panel for o
 - Lessons
 - Attendance
 - Payments
+- Google Calendar
 - Dashboard
 - API and Architecture

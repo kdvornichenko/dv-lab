@@ -1,37 +1,11 @@
 {
-	"compilerOptions": {
-		"target": "ES2020",
-		"lib": ["dom", "dom.iterable", "esnext"],
-		"allowJs": true,
-		"skipLibCheck": true,
-		"strict": true,
-		"forceConsistentCasingInFileNames": true,
-		"noEmit": true,
-		"esModuleInterop": true,
-		"module": "esnext",
-		"isolatedModules": true,
-		"jsx": "react-jsx",
-		"incremental": true,
-		"plugins": [
-			{
-				"name": "next"
-			}
-		],
-		"paths": {
-			"@/*": ["./*"]
-		},
-		"moduleResolution": "bundler",
-		"ignoreDeprecations": "5.0",
-		"resolveJsonModule": true
-	},
-	"include": [
-		"next-env.d.ts",
-		"**/*.ts",
-		"**/*.tsx",
-		".next/types/**/*.ts",
-		".next\\dev/types/**/*.ts",
-		".next/dev/types/**/*.ts",
-		"app/layout.tsx"
-	],
-	"exclude": ["node_modules"]
+	"extends": "./tsconfig.base.json",
+	"files": [],
+	"references": [
+		{ "path": "./packages/api-types" },
+		{ "path": "./packages/rbac" },
+		{ "path": "./packages/db" },
+		{ "path": "./apps/api" },
+		{ "path": "./apps/web" }
+	]
 }

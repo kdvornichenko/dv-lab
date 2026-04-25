@@ -10,6 +10,7 @@
 - shadcn/ui is source code in the repo, not a runtime component package. Keep generated UI components local and generic.
 - Hono RPC type inference requires strict TypeScript across server and client. If strict mode is not enabled consistently, types degrade.
 - Turborepo caching requires correct `outputs`; root scripts should delegate to package tasks.
+- Google OAuth refresh tokens must stay server-side. Browser-only Calendar API calls are not an acceptable architecture baseline.
 
 ## Domain Pitfalls
 
@@ -19,6 +20,7 @@
 - Billing models differ: per lesson, monthly fixed fee, prepaid packages. v1 UI can be simple, but schema should not block packages later.
 - Deleting students can corrupt reports. Archive students instead.
 - Time zones and lesson dates should be explicit; store timestamps and display in teacher locale.
+- Calendar sync must be idempotent. Creating a new Google event on every lesson edit will duplicate lessons.
 
 ## Migration/Reuse Pitfalls
 
@@ -26,6 +28,7 @@
 - `g:/its/its-doc/packages/rbac` domain names are docs/workload/integrations-specific. Rename/redefine domains before integrating into the app.
 - `g:/its/its-doc/app/server` is Express. Reusing it wholesale would violate the Hono requirement.
 - Copying package names as `@its-doc/*` would leak old product identity. Rename to `@teacher-crm/*` or `@repo/*`.
+- Copying current `GoogleApiService.ts` would preserve the wrong boundary. Rebuild around Hono routes, token storage, and event sync services.
 
 ## UX Pitfalls
 

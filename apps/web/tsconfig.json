@@ -1,0 +1,13 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"plugins": [{ "name": "next" }],
+		"paths": {
+			"@/*": ["./*"],
+			"@teacher-crm/api-types": ["../../packages/api-types/src/index.ts"],
+			"@teacher-crm/rbac": ["../../packages/rbac/src/index.ts"]
+		}
+	},
+	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+	"exclude": ["node_modules"]
+}

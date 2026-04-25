@@ -1,0 +1,45 @@
+{
+	"name": "@teacher-crm/db",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs",
+			"default": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "rimraf dist && tsup src/index.ts --dts --format esm,cjs --out-dir dist --clean",
+		"clean": "rimraf dist",
+		"watch": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --watch --clean=false",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"lint": "tsc -p tsconfig.json --noEmit",
+		"test": "node --import tsx src/ledger.test.ts",
+		"db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+		"db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+		"db:studio": "drizzle-kit studio --config=drizzle.config.ts"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.45.1",
+		"pg": "^8.16.3"
+	},
+	"devDependencies": {
+		"@types/node": "^25.0.3",
+		"@types/pg": "^8.15.5",
+		"dotenv": "^16.4.5",
+		"drizzle-kit": "^0.31.5",
+		"rimraf": "^6.0.1",
+		"tsup": "^8.5.0",
+		"tsx": "^4.20.6",
+		"typescript": "^5.6.3"
+	}
+}

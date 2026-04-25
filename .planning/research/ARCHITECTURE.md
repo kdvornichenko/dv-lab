@@ -89,9 +89,11 @@ dv-lab/
   - `lessons`
   - `lesson_students`
   - `attendance_records`
-  - `payments`
-  - `billing_accounts` or computed ledger view
-  - `audit_events` later if needed
+- `payments`
+- `billing_accounts` or computed ledger view
+- `calendar_connections`
+- `calendar_sync_events`
+- `audit_events` later if needed
 - Supabase RLS policies should protect all user-owned rows.
 
 ### RBAC
@@ -102,6 +104,7 @@ Adapt ITS-DOC `@its-doc/rbac` into teacher CRM domains:
 - `lessons`: `read`, `write`, `cancel`
 - `attendance`: `read`, `mark`, `edit`
 - `payments`: `read`, `write`, `adjust`
+- `calendar`: `read`, `connect`, `sync`
 - `dashboard`: `read`
 - `settings`: `manage`
 - `rbac`: `read`, `write`
@@ -136,7 +139,8 @@ Do not reuse directly. It is Express with middleware/routes for docs/workload/Bi
 3. Server Component gets session/user state and renders shell.
 4. Client feature container calls Hono API for mutations and interactive table data.
 5. Hono validates JWT/session, checks RBAC, validates payload via Zod, writes through Drizzle to Supabase Postgres.
-6. Web refetches affected dashboard/table data.
+6. Lesson mutations trigger idempotent Google Calendar sync through the Hono service boundary.
+7. Web refetches affected dashboard/table data.
 
 ## Architecture Risks
 
@@ -145,3 +149,4 @@ Do not reuse directly. It is Express with middleware/routes for docs/workload/Bi
 - Using Server Actions and Hono for the same mutation class can duplicate validation and cache invalidation.
 - Payment ledger must be append-friendly; avoid destructive balance overwrites.
 - Attendance and payments have business coupling; schema should support corrections without losing history.
+- Google Calendar sync must store external event IDs and token metadata server-side; browser code must not own refresh tokens.

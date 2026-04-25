@@ -2,18 +2,26 @@
 
 # dependencies
 /node_modules
+**/node_modules
 /.pnp
 .pnp.js
+.yarn/install-state.gz
+.cache
+.turbo
 
 # testing
 /coverage
 
 # next.js
 /.next/
+apps/web/.next/
 /out/
 
 # production
 /build
+dist
+apps/api/dist
+packages/*/dist
 
 # misc
 .DS_Store
@@ -25,6 +33,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
+.env.*
 .env*.local
 
 # vercel
@@ -35,4 +45,4 @@ yarn-error.log*
 next-env.d.ts
 
 .claude
-
+.gitnexus
