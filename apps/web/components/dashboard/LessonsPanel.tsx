@@ -4,10 +4,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { formatTime, getLessonAttendanceCount, isLessonAttendanceMarked, studentNames } from '@/lib/crm/model'
 
 import type { AttendanceRecord, CalendarSyncRecord, Lesson, Student } from '@teacher-crm/api-types'
-
-import { formatTime, getLessonAttendanceCount, isLessonAttendanceMarked, studentNames } from './model'
 
 type LessonsPanelProps = {
 	lessons: Lesson[]
@@ -29,11 +28,11 @@ export function LessonsPanel({
 	onSyncLesson,
 }: LessonsPanelProps) {
 	return (
-		<Card id="lessons" className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
-			<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-[#EFE8DC]">
+		<Card id="lessons" className="border-line bg-surface rounded-lg shadow-none">
+			<CardHeader className="border-line-soft flex flex-row items-center justify-between gap-3 border-b">
 				<div>
-					<CardTitle className="text-base text-[#181713]">Today control</CardTitle>
-					<p className="mt-1 text-sm text-[#6F6B63]">Lessons, attendance status, and calendar sync.</p>
+					<CardTitle className="text-ink text-base">Today control</CardTitle>
+					<p className="text-ink-muted mt-1 text-sm">Lessons, attendance status, and calendar sync.</p>
 				</div>
 				<Button size="sm" onClick={onAddLesson}>
 					<CalendarPlus className="h-4 w-4" />
@@ -42,11 +41,11 @@ export function LessonsPanel({
 			</CardHeader>
 			<CardContent className="pt-4">
 				{lessons.length === 0 ? (
-					<div className="rounded-lg border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-5 text-sm text-[#6F6B63]">
+					<div className="border-line-strong bg-surface-muted text-ink-muted rounded-lg border border-dashed p-5 text-sm">
 						No lessons scheduled. Add the next lesson to start the day plan.
 					</div>
 				) : (
-					<ScrollArea className="max-h-[430px] pr-3">
+					<ScrollArea className="max-h-107.5 pr-3">
 						<div className="space-y-3">
 							{lessons.map((lesson) => {
 								const sync = calendarSyncRecords.find((record) => record.lessonId === lesson.id)
@@ -55,15 +54,15 @@ export function LessonsPanel({
 								return (
 									<div
 										key={lesson.id}
-										className="grid gap-3 rounded-lg border border-[#E6E0D4] bg-[#FBFAF6] p-3 md:grid-cols-[88px_minmax(0,1fr)_auto]"
+										className="border-line bg-surface-muted grid gap-3 rounded-lg border p-3 md:flex md:items-start"
 									>
-										<div className="flex items-center gap-2 font-mono text-sm font-semibold tabular-nums text-[#2F6F5E]">
+										<div className="text-sage md:w-22 flex items-center gap-2 font-mono text-sm font-semibold tabular-nums md:shrink-0">
 											<Clock3 className="h-4 w-4" />
 											{formatTime(lesson.startsAt)}
 										</div>
-										<div className="min-w-0">
+										<div className="min-w-0 md:flex-1">
 											<div className="flex flex-wrap items-center gap-2">
-												<p className="font-medium text-[#181713]">{lesson.title}</p>
+												<p className="text-ink font-medium">{lesson.title}</p>
 												<Badge tone={isMarked ? 'green' : 'amber'}>
 													{attendanceCount}/{lesson.studentIds.length} marked
 												</Badge>
@@ -73,8 +72,8 @@ export function LessonsPanel({
 													Calendar {sync?.status ?? 'not synced'}
 												</Badge>
 											</div>
-											<p className="mt-1 truncate text-sm text-[#6F6B63]">{studentNames(lesson, students)}</p>
-											<p className="mt-1 text-xs text-[#6F6B63]">
+											<p className="text-ink-muted mt-1 truncate text-sm">{studentNames(lesson, students)}</p>
+											<p className="text-ink-muted mt-1 text-xs">
 												{lesson.durationMinutes} min{lesson.topic ? ` · ${lesson.topic}` : ''}
 											</p>
 										</div>

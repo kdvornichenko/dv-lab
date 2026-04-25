@@ -9,13 +9,13 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { formatUsdAmount, selectStudentLedgerProjection, STUDENT_FILTER_OPTIONS } from '@/lib/crm/model'
+import type { StudentWithBalance } from '@/lib/crm/types'
 
 import type { AttendanceRecord, CreateStudentInput, Lesson, UpdateStudentInput } from '@teacher-crm/api-types'
 
 import { StudentFormDialog } from './StudentFormDialog'
 import { StudentProfilePane } from './StudentProfilePane'
-import { formatUsdAmount, selectStudentLedgerProjection, STUDENT_FILTER_OPTIONS } from './model'
-import type { StudentWithBalance } from './types'
 
 type StudentsPanelProps = {
 	visibleStudents: StudentWithBalance[]
@@ -66,11 +66,11 @@ export function StudentsPanel({
 		null
 
 	return (
-		<Card id="students" className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
-			<CardHeader className="flex flex-col gap-3 border-b border-[#EFE8DC] lg:flex-row lg:items-center lg:justify-between">
+		<Card id="students" className="border-line bg-surface rounded-lg shadow-none">
+			<CardHeader className="border-line-soft flex flex-col gap-3 border-b lg:flex-row lg:items-center lg:justify-between">
 				<div>
-					<CardTitle className="text-base text-[#181713]">Student ledger</CardTitle>
-					<p className="mt-1 text-sm text-[#6F6B63]">Balances, billing mode, and next payment attention.</p>
+					<CardTitle className="text-ink text-base">Student ledger</CardTitle>
+					<p className="text-ink-muted mt-1 text-sm">Balances, billing mode, and next payment attention.</p>
 				</div>
 				<Button size="sm" onClick={() => setIsCreateOpen(true)}>
 					<Plus className="h-4 w-4" />
@@ -78,19 +78,22 @@ export function StudentsPanel({
 				</Button>
 			</CardHeader>
 			<CardContent className="space-y-4 pt-4">
-				<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px]">
-					<div className="relative">
-						<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6F6B63]" />
+				<div className="grid gap-3 md:flex">
+					<div className="relative md:flex-1">
+						<Search className="text-ink-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
 						<Input
 							value={search}
 							onChange={(event) => setSearch(event.target.value)}
 							placeholder="Search students"
-							className="border-[#D8D0C2] bg-[#FBFAF6] pl-9"
+							className="border-line-strong bg-surface-muted pl-9"
 							aria-label="Search students"
 						/>
 					</div>
 					<Select value={filter} onValueChange={(value) => onFilterChange(value as typeof filter)}>
-						<SelectTrigger aria-label="Filter students by status" className="border-[#D8D0C2] bg-[#FBFAF6]">
+						<SelectTrigger
+							aria-label="Filter students by status"
+							className="border-line-strong bg-surface-muted md:w-47.5"
+						>
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent>
@@ -103,22 +106,22 @@ export function StudentsPanel({
 					</Select>
 				</div>
 
-				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-					<div className="min-w-0 rounded-lg border border-[#E6E0D4]">
+				<div className="grid gap-4 xl:flex xl:items-start">
+					<div className="border-line min-w-0 rounded-lg border xl:flex-1">
 						<ScrollArea className="w-full">
-							<div className="min-w-[1080px]">
+							<div className="min-w-270">
 								<Table>
 									<TableHeader>
-										<TableRow className="border-[#E6E0D4] bg-[#FBFAF6] hover:bg-[#FBFAF6]">
-											<TableHead className="w-[210px] text-xs uppercase text-[#6F6B63]">Student</TableHead>
-											<TableHead className="w-[90px] text-xs uppercase text-[#6F6B63]">Level</TableHead>
-											<TableHead className="w-[130px] text-xs uppercase text-[#6F6B63]">Billing mode</TableHead>
-											<TableHead className="w-[150px] text-xs uppercase text-[#6F6B63]">Package plan</TableHead>
-											<TableHead className="w-[120px] text-xs uppercase text-[#6F6B63]">Lessons left</TableHead>
-											<TableHead className="w-[140px] text-xs uppercase text-[#6F6B63]">Next payment</TableHead>
-											<TableHead className="w-[120px] text-xs uppercase text-[#6F6B63]">Balance</TableHead>
-											<TableHead className="w-[100px] text-xs uppercase text-[#6F6B63]">Status</TableHead>
-											<TableHead className="w-[150px] text-right text-xs uppercase text-[#6F6B63]">Actions</TableHead>
+										<TableRow className="border-line bg-surface-muted hover:bg-surface-muted">
+											<TableHead className="w-52.5 text-ink-muted text-xs uppercase">Student</TableHead>
+											<TableHead className="w-22.5 text-ink-muted text-xs uppercase">Level</TableHead>
+											<TableHead className="w-32.5 text-ink-muted text-xs uppercase">Billing mode</TableHead>
+											<TableHead className="w-37.5 text-ink-muted text-xs uppercase">Package plan</TableHead>
+											<TableHead className="w-30 text-ink-muted text-xs uppercase">Lessons left</TableHead>
+											<TableHead className="w-35 text-ink-muted text-xs uppercase">Next payment</TableHead>
+											<TableHead className="w-30 text-ink-muted text-xs uppercase">Balance</TableHead>
+											<TableHead className="w-25 text-ink-muted text-xs uppercase">Status</TableHead>
+											<TableHead className="w-37.5 text-ink-muted text-right text-xs uppercase">Actions</TableHead>
 										</TableRow>
 									</TableHeader>
 									<TableBody>
@@ -127,22 +130,22 @@ export function StudentsPanel({
 											return (
 												<TableRow
 													key={student.id}
-													className="h-12 cursor-pointer border-[#EFE8DC] transition-[background-color] duration-150 hover:bg-[#FBFAF6]"
+													className="border-line-soft hover:bg-surface-muted h-12 cursor-pointer transition-[background-color] duration-150"
 													onClick={() => setProfileStudentId(student.id)}
 												>
 													<TableCell>
-														<div className="font-medium text-[#181713]">{student.fullName}</div>
-														<div className="truncate text-xs text-[#6F6B63]">
+														<div className="text-ink font-medium">{student.fullName}</div>
+														<div className="text-ink-muted truncate text-xs">
 															{student.email || student.phone || 'No contact'}
 														</div>
 													</TableCell>
-													<TableCell className="text-[#181713]">{student.level || '-'}</TableCell>
-													<TableCell className="capitalize text-[#181713]">{projection.billingLabel}</TableCell>
-													<TableCell className="text-[#6F6B63]">{projection.plan}</TableCell>
-													<TableCell className="font-mono text-xs tabular-nums text-[#181713]">
+													<TableCell className="text-ink">{student.level || '-'}</TableCell>
+													<TableCell className="text-ink capitalize">{projection.billingLabel}</TableCell>
+													<TableCell className="text-ink-muted">{projection.plan}</TableCell>
+													<TableCell className="text-ink font-mono text-xs tabular-nums">
 														{projection.lessonsLeft}
 													</TableCell>
-													<TableCell className="font-mono text-xs tabular-nums text-[#6F6B63]">
+													<TableCell className="text-ink-muted font-mono text-xs tabular-nums">
 														{projection.nextPayment}
 													</TableCell>
 													<TableCell>
@@ -196,7 +199,7 @@ export function StudentsPanel({
 									</TableBody>
 								</Table>
 								{filteredStudents.length === 0 && (
-									<div className="border-t border-[#EFE8DC] bg-[#FBFAF6] py-8 text-center text-sm text-[#6F6B63]">
+									<div className="border-line-soft bg-surface-muted text-ink-muted border-t py-8 text-center text-sm">
 										No students match this ledger view.
 									</div>
 								)}
@@ -205,7 +208,9 @@ export function StudentsPanel({
 						</ScrollArea>
 					</div>
 
-					<StudentProfilePane student={activeProfileStudent} lessons={lessons} attendance={attendance} now={now} />
+					<div className="xl:w-80 xl:shrink-0">
+						<StudentProfilePane student={activeProfileStudent} lessons={lessons} attendance={attendance} now={now} />
+					</div>
 				</div>
 			</CardContent>
 

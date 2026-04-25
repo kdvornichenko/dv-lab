@@ -3,11 +3,10 @@ import type { ComponentType } from 'react'
 import { Banknote, CalendarCheck2, ClipboardCheck, Mail, NotebookText, Phone, ReceiptText } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { formatUsdAmount, getBillingModeLabel, selectStudentLedgerProjection } from '@/lib/crm/model'
+import type { StudentWithBalance } from '@/lib/crm/types'
 
 import type { AttendanceRecord, Lesson } from '@teacher-crm/api-types'
-
-import { formatUsdAmount, getBillingModeLabel, selectStudentLedgerProjection } from './model'
-import type { StudentWithBalance } from './types'
 
 type StudentProfilePaneProps = {
 	student: StudentWithBalance | null
@@ -19,7 +18,7 @@ type StudentProfilePaneProps = {
 export function StudentProfilePane({ student, lessons, attendance, now }: StudentProfilePaneProps) {
 	if (!student) {
 		return (
-			<aside className="rounded-lg border border-dashed border-[#D8D0C2] bg-[#FBFAF6] p-4 text-sm text-[#6F6B63]">
+			<aside className="border-line-strong bg-surface-muted text-ink-muted rounded-lg border border-dashed p-4 text-sm">
 				Select a student to view lessons, attendance, and payment balance.
 			</aside>
 		)
@@ -29,11 +28,11 @@ export function StudentProfilePane({ student, lessons, attendance, now }: Studen
 	const billingLabel = getBillingModeLabel(student.billingMode)
 
 	return (
-		<aside className="rounded-lg border border-[#E6E0D4] bg-[#FBFAF6] p-4">
+		<aside className="border-line bg-surface-muted rounded-lg border p-4">
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0">
-					<h3 className="truncate text-base font-semibold text-[#181713]">{student.fullName}</h3>
-					<p className="mt-1 text-sm text-[#6F6B63]">{student.level || 'No level set'}</p>
+					<h3 className="text-ink truncate text-base font-semibold">{student.fullName}</h3>
+					<p className="text-ink-muted mt-1 text-sm">{student.level || 'No level set'}</p>
 				</div>
 				<Badge tone={projection.statusTone}>{student.status}</Badge>
 			</div>
@@ -45,10 +44,10 @@ export function StudentProfilePane({ student, lessons, attendance, now }: Studen
 				<Metric icon={Banknote} label="Balance" value={formatUsdAmount(student.balance.balance)} />
 			</div>
 
-			<div className="mt-4 rounded-md border border-[#E6E0D4] bg-white p-3">
-				<p className="text-xs font-medium uppercase text-[#6F6B63]">Next payment</p>
-				<p className="mt-1 font-mono text-sm tabular-nums text-[#181713]">{projection.nextPayment}</p>
-				<p className="mt-1 text-xs text-[#6F6B63]">
+			<div className="border-line bg-surface mt-4 rounded-md border p-3">
+				<p className="text-ink-muted text-xs font-medium uppercase">Next payment</p>
+				<p className="text-ink mt-1 font-mono text-sm tabular-nums">{projection.nextPayment}</p>
+				<p className="text-ink-muted mt-1 text-xs">
 					{student.balance.unpaidLessonCount} unpaid lessons · {billingLabel}
 				</p>
 			</div>
@@ -77,12 +76,12 @@ function Metric({
 	value: string | number
 }) {
 	return (
-		<div className="rounded-md border border-[#E6E0D4] bg-white p-3">
-			<div className="flex items-center gap-1.5 text-xs text-[#6F6B63]">
-				<Icon className="h-3.5 w-3.5 text-[#2F6F5E]" />
+		<div className="border-line bg-surface rounded-md border p-3">
+			<div className="text-ink-muted flex items-center gap-1.5 text-xs">
+				<Icon className="text-sage h-3.5 w-3.5" />
 				{label}
 			</div>
-			<div className="mt-1 truncate font-mono text-sm font-semibold tabular-nums text-[#181713]">{value}</div>
+			<div className="text-ink mt-1 truncate font-mono text-sm font-semibold tabular-nums">{value}</div>
 		</div>
 	)
 }
@@ -100,11 +99,11 @@ function ProfileRow({
 }) {
 	return (
 		<div>
-			<div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase text-[#6F6B63]">
-				<Icon className="h-3.5 w-3.5 text-[#2F6F5E]" />
+			<div className="text-ink-muted mb-1 flex items-center gap-1.5 text-xs font-medium uppercase">
+				<Icon className="text-sage h-3.5 w-3.5" />
 				{label}
 			</div>
-			<p className={multiline ? 'whitespace-pre-wrap text-[#181713]' : 'truncate text-[#181713]'}>{value}</p>
+			<p className={multiline ? 'text-ink whitespace-pre-wrap' : 'text-ink truncate'}>{value}</p>
 		</div>
 	)
 }

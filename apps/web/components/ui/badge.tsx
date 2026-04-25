@@ -7,7 +7,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-	'group/badge duration-160 focus-visible:border-ring focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:size-3! inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-xl border border-transparent px-2 py-0.5 text-xs font-medium transition-[background-color,color,border-color,box-shadow,opacity] ease-[var(--ease-out)] focus-visible:ring-[3px] [&>svg]:pointer-events-none',
+	'group/badge duration-160 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:size-3! inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden whitespace-nowrap rounded-xl border border-transparent px-2 py-0.5 text-xs font-medium transition-[background-color,color,border-color,box-shadow,opacity] ease-[var(--ease-out)] [&>svg]:pointer-events-none',
 	{
 		variants: {
 			variant: {
@@ -45,11 +45,11 @@ function Badge({ className, variant = 'default', tone, asChild = false, ...props
 			data-variant={variant}
 			className={cn(
 				badgeVariants({ variant: tone ? 'outline' : variant }),
-				tone === 'green' && 'border-[#D8E5D8] bg-[#EEF5EF] text-[#3F7A4D]',
-				tone === 'amber' && 'border-[#EAD7B8] bg-[#F7EEDF] text-[#9A6A1F]',
-				tone === 'neutral' && 'border-[#E6E0D4] bg-[#FBFAF6] text-[#6F6B63]',
-				tone === 'red' && 'border-[#EDCBC5] bg-[#F8E9E6] text-[#A64235]',
-				tone === 'blue' && 'border-[#CFE0DA] bg-[#E7F0EC] text-[#2F6F5E]',
+				tone === 'green' && 'border-success-line bg-success-soft text-success',
+				tone === 'amber' && 'border-warning-line bg-warning-soft text-warning',
+				tone === 'neutral' && 'border-line bg-surface-muted text-ink-muted',
+				tone === 'red' && 'border-danger-line bg-danger-soft text-danger',
+				tone === 'blue' && 'border-sage-line bg-sage-soft text-sage',
 				className
 			)}
 			{...props}

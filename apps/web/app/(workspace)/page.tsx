@@ -1,4 +1,4 @@
-import { TeacherDashboard } from '@/features/teacher-crm/TeacherDashboard'
+import { TeacherDashboard } from '@/components/dashboard/TeacherDashboard'
 
 export default function Page() {
 	return <TeacherDashboard />

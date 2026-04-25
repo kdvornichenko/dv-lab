@@ -49,19 +49,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 	if (user) redirect('/')
 
 	return (
-		<main className="grid min-h-[100dvh] place-items-center bg-[#F7F5EF] px-4 py-10">
-			<div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.55fr)] lg:items-center">
-				<section className="rounded-lg border border-[#E6E0D4] bg-white p-5 shadow-none sm:p-6">
-					<div className="flex items-center gap-2 text-sm font-medium text-[#2F6F5E]">
+		<main className="bg-canvas grid min-h-dvh place-items-center px-4 py-10">
+			<div className="grid w-full max-w-5xl gap-5 lg:flex lg:items-center">
+				<section className="border-line bg-surface rounded-lg border p-5 shadow-none sm:p-6 lg:flex-1">
+					<div className="text-sage flex items-center gap-2 text-sm font-medium">
 						<CalendarDays className="h-4 w-4" />
 						Teacher English CRM
 					</div>
-					<h1 className="mt-3 text-2xl font-semibold text-[#181713]">Private teaching desk</h1>
-					<p className="mt-2 max-w-xl text-sm leading-6 text-[#6F6B63]">
+					<h1 className="text-ink mt-3 text-2xl font-semibold">Private teaching desk</h1>
+					<p className="text-ink-muted mt-2 max-w-xl text-sm leading-6">
 						Sign in with Google to open lessons, attendance, payments, and calendar sync for your workspace.
 					</p>
 					{authError && (
-						<p className="mt-4 rounded-md border border-[#EDCBC5] bg-[#F8E9E6] px-3 py-2 text-sm text-[#A64235]">
+						<p className="border-danger-line bg-danger-soft text-danger mt-4 rounded-md border px-3 py-2 text-sm">
 							{authError}
 						</p>
 					)}
@@ -70,19 +70,22 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 					</div>
 				</section>
 
-				<Card className="rounded-lg border-[#E6E0D4] bg-[#FBFAF6] shadow-none">
-					<CardHeader className="border-b border-[#E6E0D4]">
-						<CardTitle className="text-base text-[#181713]">Today preview</CardTitle>
-						<p className="text-sm text-[#6F6B63]">The first screen opens on operational attention.</p>
+				<Card className="border-line bg-surface-muted lg:w-90 rounded-lg shadow-none lg:shrink-0">
+					<CardHeader className="border-line border-b">
+						<CardTitle className="text-ink text-base">Today preview</CardTitle>
+						<p className="text-ink-muted text-sm">The first screen opens on operational attention.</p>
 					</CardHeader>
 					<CardContent className="space-y-3 pt-4">
 						{previewItems.map((item) => {
 							const Icon = item.icon
 							return (
-								<div key={item.label} className="flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2">
+								<div
+									key={item.label}
+									className="bg-surface flex items-center justify-between gap-3 rounded-md px-3 py-2"
+								>
 									<div className="flex min-w-0 items-center gap-2">
-										<Icon className="h-4 w-4 shrink-0 text-[#2F6F5E]" />
-										<span className="truncate text-sm text-[#181713]">{item.label}</span>
+										<Icon className="text-sage h-4 w-4 shrink-0" />
+										<span className="text-ink truncate text-sm">{item.label}</span>
 									</div>
 									<Badge tone="neutral" className="font-mono tabular-nums">
 										{item.value}

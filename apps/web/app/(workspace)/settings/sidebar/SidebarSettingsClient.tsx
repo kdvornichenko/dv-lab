@@ -11,13 +11,13 @@ export function SidebarSettingsClient() {
 	const { items, toggleItem, moveItem, resetItems } = useSidebarSettings()
 
 	return (
-		<main className="min-h-[100dvh] bg-[#F7F5EF] px-4 py-5 sm:px-6 lg:px-8">
-			<div className="mx-auto grid w-full max-w-[960px] gap-5">
-				<header className="flex flex-col gap-3 border-b border-[#E6E0D4] pb-5 md:flex-row md:items-end md:justify-between">
+		<main className="bg-canvas min-h-dvh px-4 py-5 sm:px-6 lg:px-8">
+			<div className="max-w-240 mx-auto grid w-full gap-5">
+				<header className="border-line flex flex-col gap-3 border-b pb-5 md:flex-row md:items-end md:justify-between">
 					<div>
-						<p className="text-sm font-medium text-[#2F6F5E]">AppSidebar</p>
-						<h1 className="mt-2 text-2xl font-semibold text-[#181713]">Sidebar settings</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-[#6F6B63]">
+						<p className="text-sage text-sm font-medium">AppSidebar</p>
+						<h1 className="text-ink mt-2 text-2xl font-semibold">Sidebar settings</h1>
+						<p className="text-ink-muted mt-2 max-w-2xl text-sm leading-6">
 							Keep the daily teaching controls visible and move secondary sections lower.
 						</p>
 					</div>
@@ -27,10 +27,10 @@ export function SidebarSettingsClient() {
 					</Button>
 				</header>
 
-				<Card className="rounded-lg border-[#E6E0D4] bg-white shadow-none">
-					<CardHeader className="border-b border-[#EFE8DC]">
-						<CardTitle className="text-base text-[#181713]">Navigation items</CardTitle>
-						<p className="text-sm text-[#6F6B63]">Locked items stay available for routine work.</p>
+				<Card className="border-line bg-surface rounded-lg shadow-none">
+					<CardHeader className="border-line-soft border-b">
+						<CardTitle className="text-ink text-base">Navigation items</CardTitle>
+						<p className="text-ink-muted text-sm">Locked items stay available for routine work.</p>
 					</CardHeader>
 					<CardContent className="space-y-3 pt-4">
 						{items.map((item, index) => {
@@ -38,18 +38,18 @@ export function SidebarSettingsClient() {
 							return (
 								<div
 									key={item.id}
-									className="grid gap-3 rounded-lg border border-[#E6E0D4] bg-[#FBFAF6] p-3 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+									className="border-line bg-surface-muted grid gap-3 rounded-lg border p-3 md:flex md:items-center md:justify-between"
 								>
-									<span className="flex h-9 w-9 items-center justify-center rounded-md bg-[#E7F0EC] text-[#2F6F5E]">
+									<span className="bg-sage-soft text-sage flex h-9 w-9 items-center justify-center rounded-md">
 										<Icon className="h-4 w-4 shrink-0" />
 									</span>
-									<div className="min-w-0">
+									<div className="min-w-0 md:flex-1">
 										<div className="flex flex-wrap items-center gap-2">
-											<p className="font-medium text-[#181713]">{item.title}</p>
+											<p className="text-ink font-medium">{item.title}</p>
 											{item.locked && <Badge tone="neutral">locked</Badge>}
 											{!item.visible && <Badge tone="amber">hidden</Badge>}
 										</div>
-										<p className="truncate font-mono text-xs text-[#6F6B63]">{item.href}</p>
+										<p className="text-ink-muted truncate font-mono text-xs">{item.href}</p>
 									</div>
 									<div className="flex gap-2 md:justify-end">
 										<Button

@@ -17,9 +17,8 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-
-import { BILLING_MODE_OPTIONS, getBillingModeLabel, STUDENT_STATUS_OPTIONS } from './model'
-import type { StudentWithBalance } from './types'
+import { BILLING_MODE_OPTIONS, getBillingModeLabel, STUDENT_STATUS_OPTIONS } from '@/lib/crm/model'
+import type { StudentWithBalance } from '@/lib/crm/types'
 
 type StudentFormValues = {
 	fullName: string
@@ -137,7 +136,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="border-[#E6E0D4] bg-white p-0">
+			<DialogContent className="border-line bg-surface p-0">
 				<form onSubmit={handleSubmit}>
 					<DialogHeader>
 						<div className="px-6 pt-6">
@@ -146,7 +145,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 						<DialogDescription className="sr-only">Student registry form</DialogDescription>
 					</DialogHeader>
 
-					<ScrollArea className="max-h-[70dvh]">
+					<ScrollArea className="max-h-dvh">
 						<div className="grid gap-4 px-6 py-5 md:grid-cols-2">
 							<Field label="Full name" error={errors.fullName}>
 								<Input
@@ -228,7 +227,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 						</div>
 					</ScrollArea>
 
-					<DialogFooter className="border-t border-[#E6E0D4] px-6 py-4">
+					<DialogFooter className="border-line border-t px-6 py-4">
 						<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
 							Cancel
 						</Button>
@@ -256,9 +255,9 @@ function Field({
 }) {
 	return (
 		<div className={className}>
-			<Label className="mb-1.5 block text-xs font-medium text-[#6F6B63]">{label}</Label>
+			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>
 			{children}
-			{error && <p className="mt-1 text-xs text-[#A64235]">{error}</p>}
+			{error && <p className="text-danger mt-1 text-xs">{error}</p>}
 		</div>
 	)
 }

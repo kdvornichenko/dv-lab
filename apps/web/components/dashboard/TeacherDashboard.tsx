@@ -2,14 +2,10 @@
 
 import { AlertTriangle, BookOpenCheck, CalendarPlus, ClipboardCheck, ReceiptText, UserPlus } from 'lucide-react'
 
+import { StudentsPanel } from '@/components/students/StudentsPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-
-import { CalendarPanel } from './CalendarPanel'
-import { LessonsPanel } from './LessonsPanel'
-import { PaymentsPanel } from './PaymentsPanel'
-import { StudentsPanel } from './StudentsPanel'
-import { SummaryStrip } from './SummaryStrip'
+import { useTeacherCrm } from '@/hooks/useTeacherCrm'
 import {
 	formatUsdAmount,
 	formatWeekday,
@@ -17,8 +13,12 @@ import {
 	selectMissingAttendanceLessons,
 	selectOverdueStudents,
 	selectTodayLessons,
-} from './model'
-import { useTeacherCrm } from './useTeacherCrm'
+} from '@/lib/crm/model'
+
+import { CalendarPanel } from './CalendarPanel'
+import { LessonsPanel } from './LessonsPanel'
+import { PaymentsPanel } from './PaymentsPanel'
+import { SummaryStrip } from './SummaryStrip'
 
 export function TeacherDashboard() {
 	const crm = useTeacherCrm()
@@ -57,21 +57,21 @@ export function TeacherDashboard() {
 	] as const
 
 	return (
-		<main className="min-h-[100dvh] bg-[#F7F5EF] px-4 py-5 sm:px-6 lg:px-8">
-			<div className="mx-auto grid w-full max-w-[1440px] gap-5">
-				<header className="grid gap-4 border-b border-[#E6E0D4] pb-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+		<main className="bg-canvas min-h-dvh px-4 py-5 sm:px-6 lg:px-8">
+			<div className="max-w-360 mx-auto grid w-full gap-5">
+				<header className="border-line grid gap-4 border-b pb-5 xl:flex xl:items-end xl:justify-between">
 					<div className="min-w-0">
-						<div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[#2F6F5E]">
+						<div className="text-sage flex flex-wrap items-center gap-2 text-sm font-medium">
 							<BookOpenCheck className="h-4 w-4" />
 							<span>Teaching studio</span>
-							<span className="font-mono text-xs text-[#6F6B63]">{formatWeekday(now)}</span>
+							<span className="text-ink-muted font-mono text-xs">{formatWeekday(now)}</span>
 						</div>
-						<h1 className="mt-2 text-2xl font-semibold text-[#181713] sm:text-3xl">Today control desk</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-[#6F6B63]">
+						<h1 className="text-ink mt-2 text-2xl font-semibold sm:text-3xl">Today control desk</h1>
+						<p className="text-ink-muted mt-2 max-w-2xl text-sm leading-6">
 							Today lessons, attendance gaps, payment risk, and Google Calendar status.
 						</p>
 					</div>
-					<div className="grid gap-2 sm:grid-cols-4 xl:w-[560px]">
+					<div className="xl:w-140 grid gap-2 sm:grid-cols-4">
 						<Button asChild variant="secondary" size="sm" className="justify-start">
 							<a href="#students">
 								<UserPlus className="h-4 w-4" />
@@ -98,18 +98,18 @@ export function TeacherDashboard() {
 				</header>
 
 				{crm.error && (
-					<div className="rounded-lg border border-[#EDCBC5] bg-[#F8E9E6] px-4 py-3 text-sm text-[#A64235]">
+					<div className="border-danger-line bg-danger-soft text-danger rounded-lg border px-4 py-3 text-sm">
 						{crm.error}
 					</div>
 				)}
 				{crm.isLoading && (
-					<div className="rounded-lg border border-[#E6E0D4] bg-white px-4 py-3 text-sm text-[#6F6B63]">
+					<div className="border-line bg-surface text-ink-muted rounded-lg border px-4 py-3 text-sm">
 						Loading CRM data...
 					</div>
 				)}
 
-				<section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-					<div className="grid min-w-0 gap-5">
+				<section className="grid gap-5 xl:flex xl:items-start">
+					<div className="grid min-w-0 gap-5 xl:flex-1">
 						<SummaryStrip summary={crm.summary} />
 						<LessonsPanel
 							lessons={visibleLessons}
@@ -134,24 +134,21 @@ export function TeacherDashboard() {
 							onRecordPayment={crm.recordPayment}
 						/>
 					</div>
-					<aside className="grid content-start gap-5">
-						<section
-							className="rounded-lg border border-[#E6E0D4] bg-white p-4 shadow-none"
-							aria-label="Attention queue"
-						>
+					<aside className="xl:w-90 grid content-start gap-5 xl:shrink-0">
+						<section className="border-line bg-surface rounded-lg border p-4 shadow-none" aria-label="Attention queue">
 							<div className="flex items-center justify-between gap-3">
 								<div>
-									<h2 className="text-base font-semibold text-[#181713]">Attention queue</h2>
-									<p className="mt-1 text-sm text-[#6F6B63]">Items to clear before the day ends.</p>
+									<h2 className="text-ink text-base font-semibold">Attention queue</h2>
+									<p className="text-ink-muted mt-1 text-sm">Items to clear before the day ends.</p>
 								</div>
-								<AlertTriangle className="h-5 w-5 text-[#9A6A1F]" />
+								<AlertTriangle className="text-warning h-5 w-5" />
 							</div>
-							<div className="mt-4 divide-y divide-[#EFE8DC]">
+							<div className="divide-line-soft mt-4 divide-y">
 								{attentionItems.map((item) => (
-									<div key={item.label} className="grid grid-cols-[1fr_auto] gap-3 py-3">
+									<div key={item.label} className="flex items-start justify-between gap-3 py-3">
 										<div className="min-w-0">
-											<p className="text-sm font-medium text-[#181713]">{item.label}</p>
-											<p className="mt-1 truncate text-xs text-[#6F6B63]">{item.detail}</p>
+											<p className="text-ink text-sm font-medium">{item.label}</p>
+											<p className="text-ink-muted mt-1 truncate text-xs">{item.detail}</p>
 										</div>
 										<Badge tone={item.tone} className="font-mono tabular-nums">
 											{item.value}

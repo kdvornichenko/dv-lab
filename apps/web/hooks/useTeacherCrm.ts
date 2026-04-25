@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { loadTeacherCrm, teacherCrmApi } from '@/lib/crm/api'
+import { initialTeacherCrmState } from '@/lib/crm/seed'
+import type { StudentWithBalance, TeacherCrmState, TeacherCrmSummary } from '@/lib/crm/types'
+
 import type {
 	CreateLessonInput,
 	CreatePaymentInput,
@@ -9,10 +13,6 @@ import type {
 	Student,
 	UpdateStudentInput,
 } from '@teacher-crm/api-types'
-
-import { loadTeacherCrm, teacherCrmApi } from './api'
-import { initialTeacherCrmState } from './seed'
-import type { StudentWithBalance, TeacherCrmState, TeacherCrmSummary } from './types'
 
 const now = () => new Date().toISOString()
 const emptySummary: TeacherCrmSummary = {
