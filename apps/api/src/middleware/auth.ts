@@ -102,7 +102,7 @@ export const optionalAuth = createMiddleware(async (context, next) => {
 export function actorFromContext(context: Context): StoreScope {
 	const user = context.get('user')
 	if (!user) throw new Error('Authenticated user missing from request context')
-	return { teacherId: user.id }
+	return { teacherId: user.id, email: user.email }
 }
 
 export function requirePermission<D extends PermissionDomain>(domain: D, action: ActionOf<D>) {

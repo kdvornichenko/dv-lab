@@ -49,7 +49,17 @@ export const createStudentSchema = studentSchema
 		defaultLessonPrice: z.coerce.number().nonnegative(),
 	})
 
-export const updateStudentSchema = createStudentSchema.partial()
+export const updateStudentSchema = createStudentSchema.partial().refine((input) => Object.keys(input).length > 0, {
+	message: 'At least one student field must be provided',
+})
+
+export const listStudentsQuerySchema = z.object({
+	status: z
+		.union([studentStatusSchema, z.literal('all')])
+		.optional()
+		.default('all'),
+	search: z.string().trim().max(120).optional().default(''),
+})
 
 export const lessonSchema = z.object({
 	id: z.string(),
@@ -195,6 +205,16 @@ export const authMeResponseSchema = z.discriminatedUnion('ok', [
 	apiErrorSchema,
 ])
 
+export const listStudentsResponseSchema = z.object({
+	ok: z.literal(true),
+	students: z.array(studentSchema),
+})
+
+export const studentMutationResponseSchema = z.object({
+	ok: z.literal(true),
+	student: studentSchema,
+})
+
 export type StudentStatus = z.infer<typeof studentStatusSchema>
 export type LessonStatus = z.infer<typeof lessonStatusSchema>
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>
@@ -205,6 +225,7 @@ export type { PermissionKey, RoleKey }
 export type Student = z.infer<typeof studentSchema>
 export type CreateStudentInput = z.infer<typeof createStudentSchema>
 export type UpdateStudentInput = z.infer<typeof updateStudentSchema>
+export type ListStudentsQuery = z.infer<typeof listStudentsQuerySchema>
 export type Lesson = z.infer<typeof lessonSchema>
 export type CreateLessonInput = z.infer<typeof createLessonSchema>
 export type UpdateLessonInput = z.infer<typeof updateLessonSchema>
@@ -219,3 +240,7 @@ export type DashboardSummary = z.infer<typeof dashboardSummarySchema>
 export type StudentBalance = z.infer<typeof studentBalanceSchema>
 export type ValidationIssue = z.infer<typeof validationIssueSchema>
 export type ValidationErrorDetails = z.infer<typeof validationErrorDetailsSchema>
+export type ApiErrorResponse = z.infer<typeof apiErrorSchema>
+export type AuthMeResponse = z.infer<typeof authMeResponseSchema>
+export type ListStudentsResponse = z.infer<typeof listStudentsResponseSchema>
+export type StudentMutationResponse = z.infer<typeof studentMutationResponseSchema>

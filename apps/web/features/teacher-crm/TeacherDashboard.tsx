@@ -43,9 +43,13 @@ export function TeacherDashboard() {
 					<div className="flex flex-col gap-5">
 						<StudentsPanel
 							students={crm.visibleStudents}
+							allStudents={crm.studentRows}
+							lessons={crm.state.lessons}
+							attendance={crm.state.attendance}
 							filter={crm.studentFilter}
 							onFilterChange={crm.setStudentFilter}
 							onAddStudent={crm.addStudent}
+							onUpdateStudent={crm.updateStudent}
 							onArchiveStudent={crm.archiveStudent}
 							onRecordPayment={crm.recordPayment}
 						/>

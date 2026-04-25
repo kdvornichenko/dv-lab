@@ -9,7 +9,7 @@ The milestone starts by replacing the current disposable app with a clean monore
 - [x] **Phase 1: Repository Reset and Monorepo Scaffold** - Wipe legacy app surface and create the Turborepo structure.
 - [x] **Phase 2: Shared Packages and Data Model** - Adapt RBAC/DB/API package patterns and define teacher CRM schema.
 - [x] **Phase 3: Auth and Hono API Foundation** - Wire Supabase auth/session and typed Hono route foundation.
-- [ ] **Phase 4: Student Registry** - Build student CRUD, archive, search, and list/profile UI.
+- [x] **Phase 4: Student Registry** - Build student CRUD, archive, search, and list/profile UI.
 - [ ] **Phase 5: Lessons and Attendance** - Build lesson scheduling and attendance marking.
 - [ ] **Phase 6: Google Calendar Integration** - Rebuild calendar OAuth and lesson event sync cleanly.
 - [ ] **Phase 7: Payments and Ledger** - Build manual payment ledger and balance summaries.
@@ -93,9 +93,9 @@ Plans:
 
 Plans:
 
-- [ ] 04-01: Student API/services and DB queries
-- [ ] 04-02: Student list/table with filters and archive state
-- [ ] 04-03: Student create/edit/profile flows
+- [x] 04-01: Student API/services and DB queries
+- [x] 04-02: Student list/table with filters and archive state
+- [x] 04-03: Student create/edit/profile flows
 
 ### Phase 5: Lessons and Attendance
 
@@ -184,7 +184,7 @@ Plans:
 | 1. Repository Reset and Monorepo Scaffold | v1.0      | 3/3            | Complete                  | 2026-04-25 |
 | 2. Shared Packages and Data Model         | v1.0      | 3/3            | Complete                  | 2026-04-25 |
 | 3. Auth and Hono API Foundation           | v1.0      | 3/3            | Complete                  | 2026-04-25 |
-| 4. Student Registry                       | v1.0      | 0/3            | Prototype UI only         | -          |
+| 4. Student Registry                       | v1.0      | 3/3            | Complete                  | 2026-04-25 |
 | 5. Lessons and Attendance                 | v1.0      | 0/3            | Prototype UI only         | -          |
 | 6. Google Calendar Integration            | v1.0      | 0/3            | Schema/API prototype only | -          |
 | 7. Payments and Ledger                    | v1.0      | 0/3            | Ledger helper + UI proto  | -          |

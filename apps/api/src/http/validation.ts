@@ -31,3 +31,21 @@ export function validateJson<T extends ZodType>(schema: T) {
 		)
 	})
 }
+
+export function validateQuery<T extends ZodType>(schema: T) {
+	return zValidator('query', schema, (result, context) => {
+		if (result.success) return
+
+		return context.json(
+			{
+				ok: false,
+				error: {
+					code: 'VALIDATION_FAILED',
+					message: 'Request query failed validation',
+					details: validationDetails(result.error as z.ZodError),
+				},
+			},
+			400
+		)
+	})
+}

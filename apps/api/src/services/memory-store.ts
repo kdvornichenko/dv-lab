@@ -6,6 +6,7 @@ import {
 	type CreateLessonInput,
 	type CreatePaymentInput,
 	type CreateStudentInput,
+	type ListStudentsQuery,
 	type Lesson,
 	type MarkAttendanceInput,
 	type Payment,
@@ -18,6 +19,7 @@ import { calculateStudentBalances } from '@teacher-crm/db'
 
 export type StoreScope = {
 	teacherId: string
+	email?: string | null
 }
 
 type TeacherStoreState = {
@@ -153,8 +155,17 @@ function stateFor(scope: StoreScope) {
 }
 
 export const memoryStore = {
-	listStudents(scope: StoreScope) {
+	listStudents(scope: StoreScope, filters: ListStudentsQuery = { status: 'all', search: '' }) {
+		const search = filters.search.trim().toLocaleLowerCase()
 		return Array.from(stateFor(scope).students.values())
+			.filter((student) => filters.status === 'all' || student.status === filters.status)
+			.filter((student) => {
+				if (!search) return true
+				return [student.fullName, student.email, student.phone, student.level, student.notes]
+					.filter(Boolean)
+					.some((value) => value!.toLocaleLowerCase().includes(search))
+			})
+			.sort((a, b) => a.fullName.localeCompare(b.fullName))
 	},
 
 	createStudent(scope: StoreScope, input: CreateStudentInput) {
@@ -177,11 +188,6 @@ export const memoryStore = {
 		state.students.set(studentId, updated)
 		return updated
 	},
-
-	archiveStudent(scope: StoreScope, studentId: string) {
-		return this.updateStudent(scope, studentId, { status: 'archived' })
-	},
-
 	listLessons(scope: StoreScope) {
 		return Array.from(stateFor(scope).lessons.values()).sort((a, b) => a.startsAt.localeCompare(b.startsAt))
 	},

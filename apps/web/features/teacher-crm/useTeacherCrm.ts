@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { CreateLessonInput, CreatePaymentInput, CreateStudentInput, Student } from '@teacher-crm/api-types'
+import type {
+	CreateLessonInput,
+	CreatePaymentInput,
+	CreateStudentInput,
+	Student,
+	UpdateStudentInput,
+} from '@teacher-crm/api-types'
 
 import { loadTeacherCrm, teacherCrmApi } from './api'
 import { initialTeacherCrmState } from './seed'
@@ -62,18 +68,13 @@ export function useTeacherCrm() {
 		[studentFilter, studentRows]
 	)
 
-	async function addStudent() {
-		const input: CreateStudentInput = {
-			fullName: `New Student ${state.students.length + 1}`,
-			email: '',
-			phone: '',
-			level: 'A1',
-			status: 'active',
-			notes: '',
-			defaultLessonPrice: 35,
-			billingMode: 'per_lesson',
-		}
+	async function addStudent(input: CreateStudentInput) {
 		await teacherCrmApi.createStudent(input)
+		await refresh()
+	}
+
+	async function updateStudent(studentId: string, input: UpdateStudentInput) {
+		await teacherCrmApi.updateStudent(studentId, input)
 		await refresh()
 	}
 
@@ -151,6 +152,7 @@ export function useTeacherCrm() {
 		isLoading,
 		error,
 		addStudent,
+		updateStudent,
 		archiveStudent,
 		addLesson,
 		markGroupAttended,

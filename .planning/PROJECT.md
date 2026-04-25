@@ -81,7 +81,8 @@ The teacher can always see who studies, who attended, who paid, and who owes mon
 | Manual payment ledger in v1                                        | Solves the teacher's immediate control need without payment provider complexity                     | In progress |
 | Rebuild Google Calendar integration in v1                          | Calendar sync is required, but current implementation is not acceptable as an architecture baseline | In progress |
 | Use ITS-DOC tooling conventions                                    | User asked to reuse ITS-DOC Turborepo, Prettier, and ESLint configuration                           | Done        |
+| Use DB-backed student service before lesson/payment refactors      | Student registry is the first production CRM entity and defines the repository/service pattern      | Done        |
 
 ---
 
-_Last updated: 2026-04-25 after autonomous foundation implementation_
+_Last updated: 2026-04-25 after Phase 4 student registry implementation_

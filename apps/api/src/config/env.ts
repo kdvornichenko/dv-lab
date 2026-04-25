@@ -20,4 +20,5 @@ const envSchema = z.object({
 
 export const serverEnv = envSchema.parse(process.env)
 
-export const databaseUrl = serverEnv.DATABASE_URL ?? serverEnv.POSTGRES_URL
+export const databaseUrl =
+	serverEnv.NODE_ENV === 'test' ? undefined : (serverEnv.DATABASE_URL ?? serverEnv.POSTGRES_URL)

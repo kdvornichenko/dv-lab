@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 
 import type {
+	ApiErrorResponse,
 	AttendanceRecord,
 	CalendarConnection,
 	CalendarSyncRecord,
@@ -11,24 +12,16 @@ import type {
 	CreateStudentInput,
 	DashboardSummary,
 	Lesson,
+	ListStudentsResponse,
 	MarkAttendanceInput,
 	Payment,
-	Student,
 	StudentBalance,
+	StudentMutationResponse,
 	UpdateStudentInput,
 } from '@teacher-crm/api-types'
 
 import type { TeacherCrmState, TeacherCrmSummary } from './types'
 
-type ApiErrorResponse = {
-	ok: false
-	error: {
-		code: string
-		message: string
-	}
-}
-
-type StudentsResponse = { ok: true; students: Student[] }
 type LessonsResponse = { ok: true; lessons: Lesson[]; attendance: AttendanceRecord[] }
 type PaymentsResponse = { ok: true; payments: Payment[]; balances: StudentBalance[] }
 type CalendarResponse = { ok: true; connection: CalendarConnection; syncRecords: CalendarSyncRecord[] }
@@ -92,7 +85,7 @@ function mapSummary(summary: DashboardSummary): TeacherCrmSummary {
 
 export async function loadTeacherCrm() {
 	const [students, lessons, payments, calendar, dashboard] = await Promise.all([
-		apiRequest<StudentsResponse>('/students'),
+		apiRequest<ListStudentsResponse>('/students'),
 		apiRequest<LessonsResponse>('/lessons'),
 		apiRequest<PaymentsResponse>('/payments'),
 		apiRequest<CalendarResponse>('/calendar/connection'),
@@ -117,12 +110,12 @@ export async function loadTeacherCrm() {
 
 export const teacherCrmApi = {
 	createStudent: (input: CreateStudentInput) =>
-		apiRequest('/students', {
+		apiRequest<StudentMutationResponse>('/students', {
 			method: 'POST',
 			body: JSON.stringify(input),
 		}),
 	updateStudent: (studentId: string, input: UpdateStudentInput) =>
-		apiRequest(`/students/${studentId}`, {
+		apiRequest<StudentMutationResponse>(`/students/${studentId}`, {
 			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
