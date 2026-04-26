@@ -18,7 +18,7 @@
 		"@supabase/supabase-js": "^2.49.4",
 		"@teacher-crm/api-types": "*",
 		"@teacher-crm/db": "*",
-		"@teacher-crm/rbac": "workspace:*",
+		"@teacher-crm/rbac": "*",
 		"dotenv": "^16.4.5",
 		"hono": "^4.10.7",
 		"zod": "^3.24.3"
