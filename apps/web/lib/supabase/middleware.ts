@@ -1,12 +1,6 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
 
 import { NextResponse, type NextRequest } from 'next/server'
-
-type SupabaseCookieToSet = {
-	name: string
-	value: string
-	options: CookieOptions
-}
 
 export async function updateSession(request: NextRequest) {
 	let response = NextResponse.next({
@@ -21,12 +15,12 @@ export async function updateSession(request: NextRequest) {
 				getAll() {
 					return request.cookies.getAll()
 				},
-				setAll(cookiesToSet: SupabaseCookieToSet[]) {
+				setAll(cookiesToSet) {
 					cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
 					response = NextResponse.next({ request })
 					cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
 				},
-			},
+			} satisfies CookieMethodsServer,
 		}
 	)
 

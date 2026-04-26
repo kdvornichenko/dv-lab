@@ -1,12 +1,6 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
 
 import { NextResponse, type NextRequest } from 'next/server'
-
-type SupabaseCookieToSet = {
-	name: string
-	value: string
-	options: CookieOptions
-}
 
 function safeNextPath(value: string | null) {
 	if (!value || !value.startsWith('/')) return '/'
@@ -46,10 +40,10 @@ export async function GET(request: NextRequest) {
 				getAll() {
 					return request.cookies.getAll()
 				},
-				setAll(cookiesToSet: SupabaseCookieToSet[]) {
+				setAll(cookiesToSet) {
 					cookiesToSet.forEach(({ name, value, options }) => redirectResponse.cookies.set(name, value, options))
 				},
-			},
+			} satisfies CookieMethodsServer,
 		}
 	)
 	const { error } = await supabase.auth.exchangeCodeForSession(code)

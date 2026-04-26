@@ -1,12 +1,6 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient, type CookieMethodsServer } from '@supabase/ssr'
 
 import { cookies } from 'next/headers'
-
-type SupabaseCookieToSet = {
-	name: string
-	value: string
-	options: CookieOptions
-}
 
 export async function createClient() {
 	const cookieStore = await cookies()
@@ -19,14 +13,14 @@ export async function createClient() {
 				getAll() {
 					return cookieStore.getAll()
 				},
-				setAll(cookiesToSet: SupabaseCookieToSet[]) {
+				setAll(cookiesToSet) {
 					try {
 						cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
 					} catch {
 						// Server Components cannot set cookies; proxy.ts refreshes sessions.
 					}
 				},
-			},
+			} satisfies CookieMethodsServer,
 		}
 	)
 }

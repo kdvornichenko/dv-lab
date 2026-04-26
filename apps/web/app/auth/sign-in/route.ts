@@ -1,16 +1,10 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient, type CookieMethodsServer, type SetAllCookies } from '@supabase/ssr'
 
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { localhostRedirectLocation } from '@/lib/canonical-localhost'
 
 import { GOOGLE_CALENDAR_REQUIRED_SCOPES } from '@teacher-crm/api-types'
-
-type SupabaseCookieToSet = {
-	name: string
-	value: string
-	options: CookieOptions
-}
 
 const googleCalendarScopes = ['openid', 'email', 'profile', ...GOOGLE_CALENDAR_REQUIRED_SCOPES].join(' ')
 
@@ -38,7 +32,7 @@ export async function GET(request: NextRequest) {
 	if (canonicalRedirect) return canonicalRedirect
 
 	const next = safeNextPath(requestUrl.searchParams.get('next'))
-	const cookiesToSet: SupabaseCookieToSet[] = []
+	const cookiesToSet: Parameters<SetAllCookies>[0] = []
 	const supabase = createServerClient(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
 		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -47,10 +41,10 @@ export async function GET(request: NextRequest) {
 				getAll() {
 					return request.cookies.getAll()
 				},
-				setAll(nextCookies: SupabaseCookieToSet[]) {
+				setAll(nextCookies) {
 					cookiesToSet.push(...nextCookies)
 				},
-			},
+			} satisfies CookieMethodsServer,
 		}
 	)
 	const { data, error } = await supabase.auth.signInWithOAuth({
