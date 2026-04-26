@@ -2887,7 +2887,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@teacher-crm/api@workspace:apps/api":
+"@teacher-crm/api@npm:*, @teacher-crm/api@workspace:apps/api":
   version: 0.0.0-use.local
   resolution: "@teacher-crm/api@workspace:apps/api"
   dependencies:
@@ -2969,6 +2969,7 @@ __metadata:
     "@supabase/ssr": "npm:^0.5.2"
     "@supabase/supabase-js": "npm:^2.49.4"
     "@tailwindcss/postcss": "npm:^4.1.18"
+    "@teacher-crm/api": "npm:*"
     "@teacher-crm/api-types": "npm:*"
     "@teacher-crm/db": "npm:*"
     "@types/node": "npm:^25.0.3"
