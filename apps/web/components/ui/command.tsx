@@ -8,6 +8,7 @@ import { Command as CommandPrimitive } from 'cmdk'
 import { Search } from 'lucide-react'
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 
 const Command = React.forwardRef<
@@ -65,7 +66,9 @@ const CommandList = React.forwardRef<
 	React.ElementRef<typeof CommandPrimitive.List>,
 	React.ComponentPropsWithoutRef<typeof CommandPrimitive.List>
 >(({ className, ...props }, ref) => (
-	<CommandPrimitive.List ref={ref} className={cn('max-h-75 overflow-y-auto overflow-x-hidden', className)} {...props} />
+	<ScrollArea className={cn('max-h-75', className)}>
+		<CommandPrimitive.List ref={ref} className="overflow-visible" {...props} />
+	</ScrollArea>
 ))
 
 CommandList.displayName = CommandPrimitive.List.displayName
@@ -118,7 +121,7 @@ const CommandItem = React.forwardRef<
 CommandItem.displayName = CommandPrimitive.Item.displayName
 
 const CommandShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
-	return <span className={cn('text-muted-foreground ml-auto text-xs tracking-widest', className)} {...props} />
+	return <span className={cn('text-muted-foreground ml-auto text-xs', className)} {...props} />
 }
 CommandShortcut.displayName = 'CommandShortcut'
 

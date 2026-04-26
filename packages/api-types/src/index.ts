@@ -22,6 +22,11 @@ export const GOOGLE_CALENDAR_REQUIRED_SCOPES = [
 	'https://www.googleapis.com/auth/calendar',
 	'https://www.googleapis.com/auth/calendar.events',
 ] as const
+export const LESSON_PRICE_RUB = {
+	default: 2300,
+	package3Months: 2100,
+	package5Months: 1900,
+} as const
 export const roleKeySchema = z.enum(ROLE_KEYS as [RoleKey, ...RoleKey[]])
 export const permissionKeySchema = z.enum(PERMISSION_KEYS as [PermissionKey, ...PermissionKey[]])
 
@@ -34,9 +39,18 @@ export const studentSchema = z.object({
 	status: studentStatusSchema,
 	notes: z.string().optional(),
 	defaultLessonPrice: z.number().nonnegative(),
+	packageMonths: z.number().int().nonnegative(),
+	packageLessonCount: z.number().int().nonnegative(),
+	packageTotalPrice: z.number().nonnegative(),
 	billingMode: z.enum(['per_lesson', 'monthly', 'package']),
 	createdAt: z.string(),
 	updatedAt: z.string(),
+})
+
+const createStudentBaseSchema = studentSchema.omit({
+	id: true,
+	createdAt: true,
+	updatedAt: true,
 })
 
 export const createStudentSchema = studentSchema
@@ -46,12 +60,23 @@ export const createStudentSchema = studentSchema
 		updatedAt: true,
 	})
 	.extend({
-		defaultLessonPrice: z.coerce.number().nonnegative(),
+		defaultLessonPrice: z.coerce.number().nonnegative().default(LESSON_PRICE_RUB.default),
+		packageMonths: z.coerce.number().int().nonnegative().default(0),
+		packageLessonCount: z.coerce.number().int().nonnegative().default(0),
+		packageTotalPrice: z.coerce.number().nonnegative().default(0),
 	})
 
-export const updateStudentSchema = createStudentSchema.partial().refine((input) => Object.keys(input).length > 0, {
-	message: 'At least one student field must be provided',
-})
+export const updateStudentSchema = createStudentBaseSchema
+	.extend({
+		defaultLessonPrice: z.coerce.number().nonnegative(),
+		packageMonths: z.coerce.number().int().nonnegative(),
+		packageLessonCount: z.coerce.number().int().nonnegative(),
+		packageTotalPrice: z.coerce.number().nonnegative(),
+	})
+	.partial()
+	.refine((input) => Object.keys(input).length > 0, {
+		message: 'At least one student field must be provided',
+	})
 
 export const listStudentsQuerySchema = z.object({
 	status: z
@@ -85,6 +110,16 @@ export const createLessonSchema = lessonSchema
 	})
 
 export const updateLessonSchema = createLessonSchema.partial()
+
+export const listLessonsQuerySchema = z.object({
+	status: z
+		.union([lessonStatusSchema, z.literal('all')])
+		.optional()
+		.default('all'),
+	studentId: z.string().optional().default(''),
+	dateFrom: z.string().optional().default(''),
+	dateTo: z.string().optional().default(''),
+})
 
 export const attendanceRecordSchema = z.object({
 	id: z.string(),
@@ -215,6 +250,22 @@ export const studentMutationResponseSchema = z.object({
 	student: studentSchema,
 })
 
+export const lessonsResponseSchema = z.object({
+	ok: z.literal(true),
+	lessons: z.array(lessonSchema),
+	attendance: z.array(attendanceRecordSchema),
+})
+
+export const lessonMutationResponseSchema = z.object({
+	ok: z.literal(true),
+	lesson: lessonSchema,
+})
+
+export const attendanceMutationResponseSchema = z.object({
+	ok: z.literal(true),
+	attendance: z.array(attendanceRecordSchema),
+})
+
 export type StudentStatus = z.infer<typeof studentStatusSchema>
 export type LessonStatus = z.infer<typeof lessonStatusSchema>
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>
@@ -229,6 +280,7 @@ export type ListStudentsQuery = z.infer<typeof listStudentsQuerySchema>
 export type Lesson = z.infer<typeof lessonSchema>
 export type CreateLessonInput = z.infer<typeof createLessonSchema>
 export type UpdateLessonInput = z.infer<typeof updateLessonSchema>
+export type ListLessonsQuery = z.infer<typeof listLessonsQuerySchema>
 export type AttendanceRecord = z.infer<typeof attendanceRecordSchema>
 export type MarkAttendanceInput = z.infer<typeof markAttendanceSchema>
 export type Payment = z.infer<typeof paymentSchema>
@@ -244,3 +296,6 @@ export type ApiErrorResponse = z.infer<typeof apiErrorSchema>
 export type AuthMeResponse = z.infer<typeof authMeResponseSchema>
 export type ListStudentsResponse = z.infer<typeof listStudentsResponseSchema>
 export type StudentMutationResponse = z.infer<typeof studentMutationResponseSchema>
+export type LessonsResponse = z.infer<typeof lessonsResponseSchema>
+export type LessonMutationResponse = z.infer<typeof lessonMutationResponseSchema>
+export type AttendanceMutationResponse = z.infer<typeof attendanceMutationResponseSchema>

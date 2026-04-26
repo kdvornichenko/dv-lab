@@ -98,3 +98,12 @@ export async function updateStudentRow(
 
 	return student ?? null
 }
+
+export async function deleteStudentRow(db: DB, teacherId: string, studentId: string): Promise<StudentRow | null> {
+	const [student] = await db
+		.delete(students)
+		.where(and(eq(students.teacherId, teacherId), eq(students.id, studentId)))
+		.returning()
+
+	return student ?? null
+}

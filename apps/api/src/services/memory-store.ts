@@ -1,11 +1,13 @@
 import {
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
+	LESSON_PRICE_RUB,
 	type AttendanceRecord,
 	type CalendarConnection,
 	type CalendarSyncRecord,
 	type CreateLessonInput,
 	type CreatePaymentInput,
 	type CreateStudentInput,
+	type ListLessonsQuery,
 	type ListStudentsQuery,
 	type Lesson,
 	type MarkAttendanceInput,
@@ -51,7 +53,10 @@ function seedStudents(): Student[] {
 			level: 'B1',
 			status: 'active',
 			notes: 'Prefers speaking practice.',
-			defaultLessonPrice: 35,
+			defaultLessonPrice: LESSON_PRICE_RUB.default,
+			packageMonths: 0,
+			packageLessonCount: 0,
+			packageTotalPrice: 0,
 			billingMode: 'per_lesson',
 			createdAt: now(),
 			updatedAt: now(),
@@ -63,9 +68,12 @@ function seedStudents(): Student[] {
 			phone: '+1 555 0102',
 			level: 'A2',
 			status: 'active',
-			notes: 'Exam prep.',
-			defaultLessonPrice: 40,
-			billingMode: 'per_lesson',
+			notes: 'Exam prep. 3-month package.',
+			defaultLessonPrice: LESSON_PRICE_RUB.default,
+			packageMonths: 3,
+			packageLessonCount: 24,
+			packageTotalPrice: LESSON_PRICE_RUB.package3Months * 24,
+			billingMode: 'package',
 			createdAt: now(),
 			updatedAt: now(),
 		},
@@ -106,7 +114,7 @@ function seedPayments(): Payment[] {
 		{
 			id: 'pay_anna_1',
 			studentId: 'stu_anna',
-			amount: 35,
+			amount: LESSON_PRICE_RUB.default,
 			paidAt: new Date().toISOString(),
 			method: 'bank_transfer',
 			comment: 'One lesson',
@@ -185,8 +193,42 @@ export const memoryStore = {
 		state.students.set(studentId, updated)
 		return updated
 	},
-	listLessons(scope: StoreScope) {
-		return Array.from(stateFor(scope).lessons.values()).sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+
+	deleteStudent(scope: StoreScope, studentId: string) {
+		const state = stateFor(scope)
+		const existing = state.students.get(studentId)
+		if (!existing) return null
+
+		state.students.delete(studentId)
+		for (const [paymentId, payment] of state.payments) {
+			if (payment.studentId === studentId) state.payments.delete(paymentId)
+		}
+		for (const [attendanceKey, attendance] of state.attendance) {
+			if (attendance.studentId === studentId) state.attendance.delete(attendanceKey)
+		}
+		for (const lesson of state.lessons.values()) {
+			if (lesson.studentIds.includes(studentId)) {
+				state.lessons.set(lesson.id, {
+					...lesson,
+					studentIds: lesson.studentIds.filter((id) => id !== studentId),
+					updatedAt: now(),
+				})
+			}
+		}
+
+		return existing
+	},
+
+	listLessons(
+		scope: StoreScope,
+		filters: ListLessonsQuery = { status: 'all', studentId: '', dateFrom: '', dateTo: '' }
+	) {
+		return Array.from(stateFor(scope).lessons.values())
+			.filter((lesson) => filters.status === 'all' || lesson.status === filters.status)
+			.filter((lesson) => !filters.studentId || lesson.studentIds.includes(filters.studentId))
+			.filter((lesson) => !filters.dateFrom || lesson.startsAt >= `${filters.dateFrom}T00:00:00.000Z`)
+			.filter((lesson) => !filters.dateTo || lesson.startsAt <= `${filters.dateTo}T23:59:59.999Z`)
+			.sort((a, b) => a.startsAt.localeCompare(b.startsAt))
 	},
 
 	createLesson(scope: StoreScope, input: CreateLessonInput) {
@@ -246,6 +288,14 @@ export const memoryStore = {
 		return payment
 	},
 
+	deletePayment(scope: StoreScope, paymentId: string) {
+		const state = stateFor(scope)
+		const payment = state.payments.get(paymentId)
+		if (!payment) return null
+		state.payments.delete(paymentId)
+		return payment
+	},
+
 	listPayments(scope: StoreScope) {
 		return Array.from(stateFor(scope).payments.values()).sort((a, b) => b.paidAt.localeCompare(a.paidAt))
 	},
@@ -254,9 +304,14 @@ export const memoryStore = {
 		const state = stateFor(scope)
 		const charges = Array.from(state.attendance.values()).map((record) => {
 			const student = state.students.get(record.studentId)
+			const packageLessonPrice =
+				student && student.packageLessonCount > 0 ? student.packageTotalPrice / student.packageLessonCount : 0
 			return {
 				studentId: record.studentId,
-				amount: student?.defaultLessonPrice ?? 0,
+				amount:
+					student?.billingMode === 'package' && packageLessonPrice > 0
+						? packageLessonPrice
+						: (student?.defaultLessonPrice ?? 0),
 				billable: record.billable && record.status === 'attended',
 			}
 		})

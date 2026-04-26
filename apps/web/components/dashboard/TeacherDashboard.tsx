@@ -1,15 +1,12 @@
 'use client'
 
-import { AlertTriangle, BookOpenCheck, CalendarPlus, ClipboardCheck, ReceiptText, UserPlus } from 'lucide-react'
-
 import { StudentsPanel } from '@/components/students/StudentsPanel'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useTeacherCrm } from '@/hooks/useTeacherCrm'
 import {
+	formatDateShort,
 	formatUsdAmount,
-	formatWeekday,
-	selectFailedCalendarSyncs,
 	selectMissingAttendanceLessons,
 	selectOverdueStudents,
 	selectTodayLessons,
@@ -20,157 +17,235 @@ import { LessonsPanel } from './LessonsPanel'
 import { PaymentsPanel } from './PaymentsPanel'
 import { SummaryStrip } from './SummaryStrip'
 
-export function TeacherDashboard() {
+export type WorkspaceView = 'dashboard' | 'lessons' | 'students' | 'payments' | 'calendar'
+
+export function TeacherDashboard({ view = 'dashboard' }: { view?: WorkspaceView }) {
 	const crm = useTeacherCrm()
 	const now = new Date()
+	const activeView = view
 	const todayLessons = selectTodayLessons(crm.state.lessons, now)
-	const visibleLessons = todayLessons.length > 0 ? todayLessons : crm.state.lessons
+	const dashboardLessons = todayLessons.length > 0 ? todayLessons : crm.state.lessons.slice(0, 4)
 	const missingAttendanceLessons = selectMissingAttendanceLessons(todayLessons, crm.state.attendance)
 	const overdueStudents = selectOverdueStudents(crm.studentRows)
-	const failedSyncs = selectFailedCalendarSyncs(crm.state.calendarSyncRecords)
 	const atRiskStudent = overdueStudents[0]
 
-	const attentionItems = [
-		{
-			label: 'Missing attendance',
-			value: missingAttendanceLessons.length,
-			detail:
-				missingAttendanceLessons.length > 0
-					? `${missingAttendanceLessons[0]!.title} needs a mark`
-					: 'All visible lessons are marked',
-			tone: missingAttendanceLessons.length > 0 ? 'amber' : 'green',
-		},
-		{
-			label: 'Payment risk',
-			value: overdueStudents.length,
-			detail: atRiskStudent
-				? `${atRiskStudent.fullName}: ${formatUsdAmount(atRiskStudent.balance.balance)}`
-				: 'No overdue student balance',
-			tone: overdueStudents.length > 0 ? 'red' : 'green',
-		},
-		{
-			label: 'Calendar sync',
-			value: failedSyncs.length,
-			detail: failedSyncs.length > 0 ? 'Calendar sync failed' : crm.state.calendarConnection.status,
-			tone: failedSyncs.length > 0 ? 'red' : crm.state.calendarConnection.status === 'connected' ? 'green' : 'amber',
-		},
-	] as const
+	function cancelLesson(lessonId: string) {
+		return crm.updateLesson(lessonId, { status: 'cancelled' })
+	}
+
+	const studentsPanel = (
+		<StudentsPanel
+			visibleStudents={crm.visibleStudents}
+			lessons={crm.state.lessons}
+			attendance={crm.state.attendance}
+			filter={crm.studentFilter}
+			now={now}
+			onFilterChange={crm.setStudentFilter}
+			onAddStudent={crm.addStudent}
+			onArchiveStudent={crm.archiveStudent}
+			onRecordPayment={crm.recordPayment}
+		/>
+	)
 
 	return (
-		<main className="bg-canvas min-h-dvh px-4 py-5 sm:px-6 lg:px-8">
-			<div className="max-w-360 mx-auto grid w-full gap-5">
-				<header className="border-line grid gap-4 border-b pb-5 xl:flex xl:items-end xl:justify-between">
-					<div className="min-w-0">
-						<div className="text-sage flex flex-wrap items-center gap-2 text-sm font-medium">
-							<BookOpenCheck className="h-4 w-4" />
-							<span>Teaching studio</span>
-							<span className="text-ink-muted font-mono text-xs">{formatWeekday(now)}</span>
-						</div>
-						<h1 className="text-ink mt-2 text-2xl font-semibold sm:text-3xl">Today control desk</h1>
-						<p className="text-ink-muted mt-2 max-w-2xl text-sm leading-6">
-							Today lessons, attendance gaps, payment risk, and Google Calendar status.
-						</p>
-					</div>
-					<div className="xl:w-140 grid gap-2 sm:grid-cols-4">
-						<Button asChild variant="secondary" size="sm" className="justify-start">
-							<a href="#students">
-								<UserPlus className="h-4 w-4" />
-								Add student
-							</a>
-						</Button>
-						<Button size="sm" className="justify-start" onClick={crm.addLesson}>
-							<CalendarPlus className="h-4 w-4" />
-							Add lesson
-						</Button>
-						<Button asChild variant="secondary" size="sm" className="justify-start">
-							<a href="#payments">
-								<ReceiptText className="h-4 w-4" />
-								Record payment
-							</a>
-						</Button>
-						<Button asChild variant="secondary" size="sm" className="justify-start">
-							<a href="#lessons">
-								<ClipboardCheck className="h-4 w-4" />
-								Mark attendance
-							</a>
-						</Button>
-					</div>
-				</header>
+		<main className="flex min-h-dvh flex-col gap-unit p-unit">
+			<div className="mx-auto grid h-full w-full grow gap-5">
+				{crm.isLoading && <WorkspaceSkeleton view={activeView} />}
 
-				{crm.error && (
-					<div className="border-danger-line bg-danger-soft text-danger rounded-lg border px-4 py-3 text-sm">
-						{crm.error}
-					</div>
-				)}
-				{crm.isLoading && (
-					<div className="border-line bg-surface text-ink-muted rounded-lg border px-4 py-3 text-sm">
-						Loading CRM data...
-					</div>
-				)}
-
-				<section className="grid gap-5 xl:flex xl:items-start">
-					<div className="grid min-w-0 gap-5 xl:flex-1">
-						<SummaryStrip summary={crm.summary} />
-						<LessonsPanel
-							lessons={visibleLessons}
-							students={crm.state.students}
-							attendance={crm.state.attendance}
-							calendarSyncRecords={crm.state.calendarSyncRecords}
-							onAddLesson={crm.addLesson}
-							onMarkGroupAttended={crm.markGroupAttended}
-							onSyncLesson={crm.syncLesson}
-						/>
-						<StudentsPanel
-							visibleStudents={crm.visibleStudents}
-							profileStudents={crm.studentRows}
-							lessons={crm.state.lessons}
-							attendance={crm.state.attendance}
-							filter={crm.studentFilter}
-							now={now}
-							onFilterChange={crm.setStudentFilter}
-							onAddStudent={crm.addStudent}
-							onUpdateStudent={crm.updateStudent}
-							onArchiveStudent={crm.archiveStudent}
-							onRecordPayment={crm.recordPayment}
-						/>
-					</div>
-					<aside className="xl:w-90 grid content-start gap-5 xl:shrink-0">
-						<section className="border-line bg-surface rounded-lg border p-4 shadow-none" aria-label="Attention queue">
-							<div className="flex items-center justify-between gap-3">
-								<div>
-									<h2 className="text-ink text-base font-semibold">Attention queue</h2>
-									<p className="text-ink-muted mt-1 text-sm">Items to clear before the day ends.</p>
+				{!crm.isLoading && (
+					<>
+						{activeView === 'dashboard' && (
+							<div className="grid gap-5">
+								<SummaryStrip summary={crm.summary} />
+								<div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+									<LessonsPanel
+										lessons={dashboardLessons}
+										students={crm.state.students}
+										attendance={crm.state.attendance}
+										calendarSyncRecords={crm.state.calendarSyncRecords}
+										title={todayLessons.length > 0 ? 'Today agenda' : 'Next lessons'}
+										description="A compact agenda for the next attendance decision."
+										onAddLesson={crm.addLesson}
+										onUpdateLesson={crm.updateLesson}
+										onCancelLesson={cancelLesson}
+										onMarkGroupAttended={crm.markGroupAttended}
+										onSyncLesson={crm.syncLesson}
+									/>
+									<FocusPanel
+										overdueStudents={overdueStudents.length}
+										missingAttendanceCount={missingAttendanceLessons.length}
+										atRiskStudent={atRiskStudent?.fullName}
+										monthIncome={crm.summary.monthIncome}
+										todayLessonCount={crm.summary.todayLessons}
+									/>
 								</div>
-								<AlertTriangle className="text-warning h-5 w-5" />
 							</div>
-							<div className="divide-line-soft mt-4 divide-y">
-								{attentionItems.map((item) => (
-									<div key={item.label} className="flex items-start justify-between gap-3 py-3">
-										<div className="min-w-0">
-											<p className="text-ink text-sm font-medium">{item.label}</p>
-											<p className="text-ink-muted mt-1 truncate text-xs">{item.detail}</p>
-										</div>
-										<Badge tone={item.tone} className="font-mono tabular-nums">
-											{item.value}
-										</Badge>
-									</div>
-								))}
+						)}
+
+						{activeView === 'lessons' && (
+							<LessonsPanel
+								lessons={crm.state.lessons}
+								students={crm.state.students}
+								attendance={crm.state.attendance}
+								calendarSyncRecords={crm.state.calendarSyncRecords}
+								title="Schedule workspace"
+								description="All planned lessons with attendance and sync actions in one focused view."
+								onAddLesson={crm.addLesson}
+								onUpdateLesson={crm.updateLesson}
+								onCancelLesson={cancelLesson}
+								onMarkGroupAttended={crm.markGroupAttended}
+								onSyncLesson={crm.syncLesson}
+							/>
+						)}
+
+						{activeView === 'students' && studentsPanel}
+
+						{activeView === 'payments' && (
+							<PaymentsPanel
+								payments={crm.state.payments}
+								students={crm.state.students}
+								studentBalances={crm.state.studentBalances}
+								now={now}
+								onDeletePayment={crm.deletePayment}
+							/>
+						)}
+
+						{activeView === 'calendar' && (
+							<div className="grid gap-5 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.2fr)]">
+								<CalendarPanel
+									connection={crm.state.calendarConnection}
+									syncRecords={crm.state.calendarSyncRecords}
+									onConnect={crm.connectCalendar}
+								/>
+								<CalendarSyncPanel
+									syncRecords={crm.state.calendarSyncRecords}
+									lessonTitles={new Map(crm.state.lessons.map((lesson) => [lesson.id, lesson.title]))}
+								/>
 							</div>
-						</section>
-						<CalendarPanel
-							connection={crm.state.calendarConnection}
-							syncRecords={crm.state.calendarSyncRecords}
-							onConnect={crm.connectCalendar}
-						/>
-						<PaymentsPanel
-							payments={crm.state.payments}
-							students={crm.state.students}
-							studentBalances={crm.state.studentBalances}
-							now={now}
-						/>
-					</aside>
-				</section>
+						)}
+					</>
+				)}
 			</div>
 		</main>
+	)
+}
+
+function WorkspaceSkeleton({ view }: { view: WorkspaceView }) {
+	const rows = view === 'dashboard' ? 4 : 7
+
+	return (
+		<div className="grid gap-5">
+			<div className="grid gap-3 md:grid-cols-4">
+				{Array.from({ length: 4 }).map((_, index) => (
+					<Skeleton key={index} className="h-24 rounded-lg" />
+				))}
+			</div>
+			<div className="rounded-lg border border-line bg-surface p-4">
+				<div className="flex items-start justify-between gap-3">
+					<div className="grid gap-2">
+						<Skeleton className="h-3 w-24" />
+						<Skeleton className="h-6 w-48" />
+					</div>
+					<Skeleton className="h-9 w-24 rounded-lg" />
+				</div>
+				<div className="mt-5 grid gap-3">
+					{Array.from({ length: rows }).map((_, index) => (
+						<Skeleton key={index} className="h-16 rounded-lg" />
+					))}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+function FocusPanel({
+	overdueStudents,
+	missingAttendanceCount,
+	atRiskStudent,
+	monthIncome,
+	todayLessonCount,
+}: {
+	overdueStudents: number
+	missingAttendanceCount: number
+	atRiskStudent?: string
+	monthIncome: number
+	todayLessonCount: number
+}) {
+	return (
+		<section className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+			<p className="font-mono text-xs font-semibold text-sage uppercase">Focus</p>
+			<h2 className="mt-1 text-lg font-semibold text-ink">Payment and schedule pressure</h2>
+			<div className="mt-4 grid gap-3">
+				<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
+					<p className="text-xs font-medium text-ink-muted">Today load</p>
+					<p className="mt-1 font-mono text-2xl font-semibold text-ink tabular-nums">{todayLessonCount}</p>
+				</div>
+				<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
+					<div className="flex items-center justify-between gap-3">
+						<p className="text-xs font-medium text-ink-muted">Missing marks</p>
+						<Badge tone={missingAttendanceCount > 0 ? 'amber' : 'green'} className="font-mono tabular-nums">
+							{missingAttendanceCount}
+						</Badge>
+					</div>
+				</div>
+				<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
+					<p className="text-xs font-medium text-ink-muted">Month income</p>
+					<p className="mt-1 font-mono text-2xl font-semibold text-ink tabular-nums">{formatUsdAmount(monthIncome)}</p>
+				</div>
+				<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
+					<div className="flex items-center justify-between gap-3">
+						<p className="text-xs font-medium text-ink-muted">Payment risk</p>
+						<Badge tone={overdueStudents > 0 ? 'red' : 'green'} className="font-mono tabular-nums">
+							{overdueStudents}
+						</Badge>
+					</div>
+					<p className="mt-2 truncate text-sm font-semibold text-ink">{atRiskStudent ?? 'No overdue student'}</p>
+				</div>
+			</div>
+		</section>
+	)
+}
+
+function CalendarSyncPanel({
+	syncRecords,
+	lessonTitles,
+}: {
+	syncRecords: { id: string; lessonId: string; status: string; updatedAt: string; lastError: string | null }[]
+	lessonTitles: Map<string, string>
+}) {
+	return (
+		<section className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+			<p className="font-mono text-xs font-semibold text-sage uppercase">Event ledger</p>
+			<h2 className="mt-1 text-lg font-semibold text-ink">Calendar sync records</h2>
+			<div className="mt-4 grid gap-2">
+				{syncRecords.map((record) => (
+					<div key={record.id} className="rounded-lg border border-line-soft bg-surface-muted p-3">
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="truncate text-sm font-semibold text-ink">
+									{lessonTitles.get(record.lessonId) ?? 'Unknown lesson'}
+								</p>
+								<p className="mt-1 font-mono text-xs text-ink-muted tabular-nums">
+									Updated {formatDateShort(record.updatedAt)}
+								</p>
+								{record.lastError && <p className="mt-1 truncate text-xs text-danger">{record.lastError}</p>}
+							</div>
+							<Badge
+								tone={record.status === 'synced' ? 'green' : record.status === 'failed' ? 'red' : 'neutral'}
+								className="font-mono tabular-nums"
+							>
+								{record.status}
+							</Badge>
+						</div>
+					</div>
+				))}
+				{syncRecords.length === 0 && (
+					<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-4">
+						<p className="text-sm font-semibold text-ink">No calendar events queued</p>
+						<p className="mt-1 text-xs text-ink-muted">Sync records will appear after lesson calendar actions.</p>
+					</div>
+				)}
+			</div>
+		</section>
 	)
 }

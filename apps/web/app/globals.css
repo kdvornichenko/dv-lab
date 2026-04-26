@@ -6,6 +6,10 @@
 	--font-mono:
 		'Geist Mono', 'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
 		Consolas, 'Liberation Mono', monospace;
+	--breakpoint-tab: 1024px;
+	--breakpoint-tab-sm: 768px;
+	--breakpoint-mob: 500px;
+	--breakpoint-mob-sm: 375px;
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -52,12 +56,15 @@
 	--color-success: var(--success);
 	--color-success-soft: var(--success-soft);
 	--color-success-line: var(--success-line);
+	--color-canvas-warm: var(--canvas-warm);
+	--color-shadow-sage: var(--shadow-sage);
 	--spacing-unit: 1rem;
 	--spacing-btn: 2.25rem;
 }
 
 :root {
 	--canvas: #f7f5ef;
+	--canvas-warm: #f2eadb;
 	--surface: #ffffff;
 	--surface-muted: #fbfaf6;
 	--ink: #181713;
@@ -77,6 +84,7 @@
 	--success: #3f7a4d;
 	--success-soft: #eef5ef;
 	--success-line: #d8e5d8;
+	--shadow-sage: rgba(47, 111, 94, 0.18);
 	--background: var(--canvas);
 	--foreground: var(--ink);
 	--card: var(--surface);
@@ -114,15 +122,25 @@
 
 html {
 	min-width: 320px;
+	scroll-behavior: smooth;
 }
 
 body {
 	margin: 0;
-	background: var(--background);
+	background:
+		linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0 1px, transparent 1px 18px),
+		linear-gradient(45deg, rgba(47, 111, 94, 0.035) 0 1px, transparent 1px 24px),
+		linear-gradient(180deg, var(--canvas) 0%, var(--canvas-warm) 100%);
+	background-attachment: fixed;
 	color: var(--foreground);
 	font-family: var(--font-sans);
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
+}
+
+::selection {
+	background: var(--sage-soft);
+	color: var(--ink);
 }
 
 button,
@@ -130,6 +148,17 @@ input,
 select,
 textarea {
 	font: inherit;
+}
+
+input[type='number'] {
+	-moz-appearance: textfield;
+	appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+	margin: 0;
+	-webkit-appearance: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

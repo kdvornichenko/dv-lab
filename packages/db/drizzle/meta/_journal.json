@@ -8,6 +8,13 @@
 			"when": 1777143479211,
 			"tag": "0000_happy_ultimates",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1777188040643,
+			"tag": "0001_hesitant_ultimates",
+			"breakpoints": true
 		}
 	]
 }

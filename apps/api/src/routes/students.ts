@@ -41,3 +41,9 @@ export const studentRoutes = new Hono()
 		const response: StudentMutationResponse = { ok: true, student }
 		return context.json(response, 200)
 	})
+	.delete('/:studentId', requirePermission('students', 'archive'), async (context) => {
+		const student = await studentService.deleteStudent(actorFromContext(context), context.req.param('studentId'))
+		if (!student) return context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Student not found' } }, 404)
+		const response: StudentMutationResponse = { ok: true, student }
+		return context.json(response, 200)
+	})

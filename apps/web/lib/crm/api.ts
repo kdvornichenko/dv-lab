@@ -16,6 +16,7 @@ import type {
 	MarkAttendanceInput,
 	Payment,
 	StudentBalance,
+	UpdateLessonInput,
 	StudentMutationResponse,
 	UpdateStudentInput,
 } from '@teacher-crm/api-types'
@@ -119,9 +120,18 @@ export const teacherCrmApi = {
 			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
+	deleteStudent: (studentId: string) =>
+		apiRequest<StudentMutationResponse>(`/students/${studentId}`, {
+			method: 'DELETE',
+		}),
 	createLesson: (input: CreateLessonInput) =>
 		apiRequest('/lessons', {
 			method: 'POST',
+			body: JSON.stringify(input),
+		}),
+	updateLesson: (lessonId: string, input: UpdateLessonInput) =>
+		apiRequest(`/lessons/${lessonId}`, {
+			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
 	markAttendance: (input: MarkAttendanceInput) =>
@@ -133,6 +143,10 @@ export const teacherCrmApi = {
 		apiRequest('/payments', {
 			method: 'POST',
 			body: JSON.stringify(input),
+		}),
+	deletePayment: (paymentId: string) =>
+		apiRequest<{ ok: true; payment: Payment }>(`/payments/${paymentId}`, {
+			method: 'DELETE',
 		}),
 	connectCalendar: () =>
 		apiRequest('/calendar/connections', {

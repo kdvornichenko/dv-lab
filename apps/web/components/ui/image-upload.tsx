@@ -228,7 +228,7 @@ export function ImageUpload({
 		<>
 			<div className={cn('flex flex-col items-center space-y-4', className)}>
 				{value ? (
-					<div className="group relative">
+					<div className="relative">
 						<Avatar className="h-32 w-32" key={imageKey}>
 							<AvatarImage src={`${value}?v=${imageKey}`} alt="Avatar" />
 							<AvatarFallback>Avatar</AvatarFallback>
@@ -251,7 +251,7 @@ export function ImageUpload({
 									type="button"
 									variant="secondary"
 									size="sm"
-									className="absolute bottom-0 left-1/2 h-8 w-8 -translate-x-1/2 translate-y-1/2 rounded-full p-0 opacity-0 transition-opacity group-hover:opacity-100"
+									className="absolute bottom-0 left-1/2 h-8 w-8 -translate-x-1/2 translate-y-1/2 rounded-full p-0"
 									onClick={handleEdit}
 									disabled={isUploading}
 								>

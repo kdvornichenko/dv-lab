@@ -23,7 +23,7 @@ const DialogOverlay = React.forwardRef<
 	<DialogPrimitive.Overlay
 		ref={ref}
 		className={cn(
-			'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-radial-[transparent_1px,color-mix(in_oklab,var(--color-black)_20%,transparent)_1px] bg-size-[4px_4px] dark:bg-radial-[transparent_1px,var(--color-black)_1px] fixed inset-0 z-50 cursor-pointer bg-transparent brightness-[1] backdrop-blur-md',
+			'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-ink/24 fixed inset-0 z-40 backdrop-blur-[2px] duration-200 ease-[var(--ease-out)]',
 			className
 		)}
 		{...props}
@@ -40,13 +40,13 @@ const DialogContent = React.forwardRef<
 		<DialogPrimitive.Content
 			ref={ref}
 			className={cn(
-				'bg-background data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 mob:rounded-lg fixed left-[50%] top-[50%] z-50 grid w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] gap-4 p-6 shadow-lg duration-200',
+				'border-line bg-surface data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 text-ink fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-xl border p-0 shadow-[0_28px_90px_-46px_rgba(24,23,19,0.55)] duration-200 ease-[var(--ease-out)]',
 				className
 			)}
 			{...props}
 		>
 			{children}
-			<DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute right-4 top-4 cursor-pointer rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:pointer-events-none">
+			<DialogPrimitive.Close className="text-ink-muted hover:bg-sage-soft hover:text-sage focus-visible:ring-ring/35 duration-160 data-[state=open]:bg-accent absolute right-4 top-4 z-10 flex size-8 cursor-pointer items-center justify-center rounded-lg transition-[background-color,color,box-shadow,opacity] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-[3px] disabled:pointer-events-none">
 				<X className="h-4 w-4" />
 				<span className="sr-only">Close</span>
 			</DialogPrimitive.Close>
@@ -56,12 +56,12 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-	<div className={cn('mob:text-left flex flex-col space-y-1.5 text-center', className)} {...props} />
+	<div className={cn('flex flex-col gap-1.5 text-left', className)} {...props} />
 )
 DialogHeader.displayName = 'DialogHeader'
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-	<div className={cn('mob:flex-row mob:justify-end mob:space-x-2 flex flex-col-reverse', className)} {...props} />
+	<div className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)} {...props} />
 )
 DialogFooter.displayName = 'DialogFooter'
 
@@ -71,7 +71,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<DialogPrimitive.Title
 		ref={ref}
-		className={cn('text-lg font-semibold leading-none tracking-tight', className)}
+		className={cn('text-ink text-lg font-semibold leading-tight', className)}
 		{...props}
 	/>
 ))
@@ -81,7 +81,7 @@ const DialogDescription = React.forwardRef<
 	React.ElementRef<typeof DialogPrimitive.Description>,
 	React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
-	<DialogPrimitive.Description ref={ref} className={cn('text-muted-foreground text-sm', className)} {...props} />
+	<DialogPrimitive.Description ref={ref} className={cn('text-ink-muted text-sm leading-5', className)} {...props} />
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 

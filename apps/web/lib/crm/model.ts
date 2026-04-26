@@ -21,9 +21,9 @@ export const BILLING_MODE_OPTIONS = [
 export type LedgerTone = 'green' | 'amber' | 'neutral' | 'red'
 
 export function formatUsdAmount(value: number) {
-	return new Intl.NumberFormat('en-US', {
+	return new Intl.NumberFormat('ru-RU', {
 		style: 'currency',
-		currency: 'USD',
+		currency: 'RUB',
 		maximumFractionDigits: 0,
 	}).format(value)
 }
@@ -113,6 +113,15 @@ export function getBalanceTone(balance: StudentBalance): LedgerTone {
 	return balance.overdue ? 'red' : 'green'
 }
 
+export function getPackageLessonPrice(student: Student) {
+	return student.packageLessonCount > 0 ? student.packageTotalPrice / student.packageLessonCount : 0
+}
+
+export function getPackageSavings(student: Student) {
+	if (student.packageLessonCount <= 0 || student.packageTotalPrice <= 0) return 0
+	return Math.max(student.defaultLessonPrice * student.packageLessonCount - student.packageTotalPrice, 0)
+}
+
 export function selectStudentLessonStats(
 	studentId: string,
 	lessons: Lesson[],
@@ -131,13 +140,18 @@ export function selectStudentLessonStats(
 }
 
 export function getStudentPlanLabel(student: StudentWithBalance) {
-	if (student.billingMode === 'monthly') return 'Monthly plan'
-	if (student.billingMode === 'package') return 'Package plan'
+	if (student.billingMode === 'monthly') return `Monthly plan · ${formatUsdAmount(student.defaultLessonPrice)}`
+	if (student.billingMode === 'package') {
+		const packageLessonPrice = getPackageLessonPrice(student)
+		return packageLessonPrice > 0
+			? `${student.packageMonths || '-'} mo · ${formatUsdAmount(packageLessonPrice)} lesson`
+			: 'Package not priced'
+	}
 	return `${formatUsdAmount(student.defaultLessonPrice)} lesson`
 }
 
 export function getLessonsLeftLabel(student: StudentWithBalance) {
-	if (student.billingMode === 'package') return 'Package room'
+	if (student.billingMode === 'package') return `${student.packageLessonCount} in package`
 	return `${student.balance.unpaidLessonCount} unpaid`
 }
 
@@ -160,6 +174,9 @@ export function selectStudentLedgerProjection(
 		balanceTone: getBalanceTone(student.balance),
 		lessonsLeft: getLessonsLeftLabel(student),
 		nextPayment: getNextPaymentLabel(student, stats.nextLesson),
+		packageLessonPrice: getPackageLessonPrice(student),
+		packageSavings: getPackageSavings(student),
+		packageTotal: student.packageTotalPrice,
 		plan: getStudentPlanLabel(student),
 		stats,
 		statusTone: getStudentStatusTone(student.status),

@@ -113,7 +113,7 @@ Plans:
 
 Plans:
 
-- [ ] 05-01: Lessons API/services and schedule UI
+- [x] 05-01: Lessons API/services and schedule UI
 - [ ] 05-02: Attendance records, statuses, and bulk marking
 - [ ] 05-03: Student attendance history and corrections
 
@@ -185,7 +185,7 @@ Plans:
 | 2. Shared Packages and Data Model         | v1.0      | 3/3            | Complete                  | 2026-04-25 |
 | 3. Auth and Hono API Foundation           | v1.0      | 3/3            | Complete                  | 2026-04-25 |
 | 4. Student Registry                       | v1.0      | 3/3            | Complete                  | 2026-04-25 |
-| 5. Lessons and Attendance                 | v1.0      | 0/3            | Prototype UI only         | -          |
+| 5. Lessons and Attendance                 | v1.0      | 1/3            | DB services in progress   | -          |
 | 6. Google Calendar Integration            | v1.0      | 0/3            | Schema/API prototype only | -          |
-| 7. Payments and Ledger                    | v1.0      | 0/3            | Ledger helper + UI proto  | -          |
+| 7. Payments and Ledger                    | v1.0      | 0/3            | DB payment delete added   | -          |
 | 8. Dashboard and Operational Polish       | v1.0      | 0/3            | Prototype UI only         | -          |

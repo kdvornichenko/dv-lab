@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-25)
 
 **Core value:** The teacher can always see who studies, who attended, who paid, and who owes money.
-**Current focus:** Phase 5+: DB-backed lessons/attendance and Google Calendar token-backed sync.
+**Current focus:** Phase 5+: DB-backed lessons/attendance, route-level workspaces, and DB-backed ledger operations.
 
 ## Current Position
 
 Phase: 5 of 8 (Lessons and Attendance)
-Plan: 05-01
-Status: Phase 4 complete; lessons/attendance DB-backed services pending
-Last activity: 2026-04-25 - Student registry completed with DB-backed student service, Hono query validation, create/edit/profile UI, search/filter table, and archive flow
+Plan: 05-02
+Status: Plan 05-01 complete; Plan 05-02 partially complete with DB attendance route/service, bulk mark action, and API smoke coverage
+Last activity: 2026-04-26 - Added DB-backed lessons, DB-backed payments with delete, student archive/delete verification, separate workspace routes, student settings page, package pricing fields, skeleton loading, and sidebar DnD settings UI
 
-Progress: [#####-----] 50%
+Progress: [######----] 60%
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [#####-----] 50%
 | 2     | 3/3   | current session | n/a      |
 | 3     | 3/3   | current session | n/a      |
 | 4     | 3/3   | current session | n/a      |
+| 5     | 1/3   | current session | n/a      |
 
 ## Accumulated Context
 
@@ -51,6 +52,10 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Use `tsup` builds with `dist` exports for shared packages and Hono API.
 - Use DB-backed student services when `DATABASE_URL` or `POSTGRES_URL` is configured, with memory fallback only for local/test mode.
 - Keep dev servers stopped unless explicitly needed; user wants to run visual checks manually.
+- Runtime CRM data should come from Postgres; no demo CRM rows should render before API data is loaded.
+- Workspace navigation uses route pages (`/lessons`, `/students`, `/payments`, `/calendar`) instead of `?view=...`.
+- Student settings are opened through compact per-student route IDs derived from DB IDs to avoid UUID-looking URLs while remaining unique in the loaded student set.
+- Payments now use a DB-backed service/repository when Postgres is configured, including DELETE support.
 
 ### Pending Todos
 
@@ -59,12 +64,12 @@ None yet.
 ### Blockers/Concerns
 
 - GitNexus CLI through WSL `npx` failed in current `dv-lab` on `status` and `analyze` with `Cannot destructure property 'package' of 'node.target' as it is null`; Windows `cmd.exe` path works.
-- Lessons, attendance, payments, dashboard, and calendar route handlers still use a tenant-scoped in-memory store for the prototype; next passes should move them to Supabase Postgres via `packages/db`.
+- Dashboard summary, calendar route handlers, sidebar settings persistence, and error log persistence still need DB-backed storage. Current sidebar/error persistence should be treated as temporary until the next DB pass.
 - RBAC now fails closed for missing Supabase roles; production must assign `teacher` or scoped roles through app metadata/profile policy.
 - Google OAuth now requests Calendar scopes at login; Phase 6 should add encrypted provider-token storage/refresh, calendar selection persistence, and idempotent event upsert.
 
 ## Session Continuity
 
-Last session: 2026-04-25
-Stopped at: Phase 4 complete, Phase 5 DB-backed lessons and attendance pending
+Last session: 2026-04-26
+Stopped at: Payment deletion fixed against Postgres, migration applied, and Phase 5/UX checkpoint ready for next DB persistence pass
 Resume file: None

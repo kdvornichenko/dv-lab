@@ -1,5 +1,6 @@
 import type { CreateStudentInput, ListStudentsQuery, Student, UpdateStudentInput } from '@teacher-crm/api-types'
 import {
+	deleteStudentRow,
 	insertStudentRow,
 	listStudentRows,
 	updateStudentRow,
@@ -35,6 +36,9 @@ function mapStudentRow(row: StudentRow): Student {
 		status: row.status,
 		notes: row.notes ?? '',
 		defaultLessonPrice: Number(row.defaultLessonPrice),
+		packageMonths: row.packageMonths,
+		packageLessonCount: row.packageLessonCount,
+		packageTotalPrice: Number(row.packageTotalPrice),
 		billingMode: row.billingMode,
 		createdAt: dateToIso(row.createdAt) ?? new Date().toISOString(),
 		updatedAt: dateToIso(row.updatedAt) ?? new Date().toISOString(),
@@ -53,6 +57,9 @@ function toInsertValues(teacherId: string, input: CreateStudentInput) {
 		status: input.status,
 		notes: emptyToNull(input.notes),
 		defaultLessonPrice: priceToNumeric(input.defaultLessonPrice),
+		packageMonths: input.packageMonths,
+		packageLessonCount: input.packageLessonCount,
+		packageTotalPrice: priceToNumeric(input.packageTotalPrice),
 		billingMode: input.billingMode,
 		archivedAt,
 	}
@@ -71,6 +78,9 @@ function toUpdateValues(input: UpdateStudentInput): StudentUpdateValues {
 	}
 	if (input.notes !== undefined) values.notes = emptyToNull(input.notes)
 	if (input.defaultLessonPrice !== undefined) values.defaultLessonPrice = priceToNumeric(input.defaultLessonPrice)
+	if (input.packageMonths !== undefined) values.packageMonths = input.packageMonths
+	if (input.packageLessonCount !== undefined) values.packageLessonCount = input.packageLessonCount
+	if (input.packageTotalPrice !== undefined) values.packageTotalPrice = priceToNumeric(input.packageTotalPrice)
 	if (input.billingMode !== undefined) values.billingMode = input.billingMode
 
 	return values
@@ -99,6 +109,15 @@ export const studentService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		const student = await updateStudentRow(db, teacherId, studentId, toUpdateValues(input))
+		return student ? mapStudentRow(student) : null
+	},
+
+	async deleteStudent(scope: StoreScope, studentId: string) {
+		const db = getDb()
+		if (!db) return memoryStore.deleteStudent(scope, studentId)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const student = await deleteStudentRow(db, teacherId, studentId)
 		return student ? mapStudentRow(student) : null
 	},
 }

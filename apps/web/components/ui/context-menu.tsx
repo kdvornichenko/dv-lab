@@ -8,6 +8,8 @@ import { Check, ChevronRight, Circle } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
+import { ScrollArea } from './scroll-area'
+
 const ContextMenu = ContextMenuPrimitive.Root
 
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger
@@ -59,16 +61,20 @@ ContextMenuSubContent.displayName = ContextMenuPrimitive.SubContent.displayName
 const ContextMenuContent = React.forwardRef<
 	React.ElementRef<typeof ContextMenuPrimitive.Content>,
 	React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Content>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
 	<ContextMenuPrimitive.Portal>
 		<ContextMenuPrimitive.Content
 			ref={ref}
 			className={cn(
-				'bg-popover text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 z-50 max-h-[--radix-context-menu-content-available-height] min-w-[8rem] origin-[--radix-context-menu-content-transform-origin] overflow-y-auto overflow-x-hidden rounded-md border p-1 shadow-md',
+				'border-line bg-popover text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 z-50 max-h-[var(--radix-context-menu-content-available-height)] min-w-[8rem] origin-[--radix-context-menu-content-transform-origin] overflow-hidden rounded-lg border shadow-[0_20px_60px_-36px_var(--shadow-sage)]',
 				className
 			)}
 			{...props}
-		/>
+		>
+			<ScrollArea className="max-h-[var(--radix-context-menu-content-available-height)]">
+				<div className="p-1.5">{children}</div>
+			</ScrollArea>
+		</ContextMenuPrimitive.Content>
 	</ContextMenuPrimitive.Portal>
 ))
 ContextMenuContent.displayName = ContextMenuPrimitive.Content.displayName
@@ -159,7 +165,7 @@ const ContextMenuSeparator = React.forwardRef<
 ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName
 
 const ContextMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
-	return <span className={cn('text-muted-foreground ml-auto text-xs tracking-widest', className)} {...props} />
+	return <span className={cn('text-muted-foreground ml-auto text-xs', className)} {...props} />
 }
 ContextMenuShortcut.displayName = 'ContextMenuShortcut'
 

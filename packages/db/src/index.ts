@@ -1,5 +1,7 @@
 export * from './connection-url'
 export * from './factory'
 export * from './ledger'
+export * from './lesson-repository'
+export * from './payment-repository'
 export * from './schema'
 export * from './student-repository'
