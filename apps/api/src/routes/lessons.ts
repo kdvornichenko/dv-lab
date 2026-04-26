@@ -7,6 +7,7 @@ import {
 	updateLessonSchema,
 	type AttendanceMutationResponse,
 	type CreateLessonInput,
+	type Lesson,
 	type LessonMutationResponse,
 	type LessonsResponse,
 	type UpdateLessonInput,
@@ -97,7 +98,7 @@ export const lessonRoutes = new Hono()
 		const actor = actorFromContext(context)
 		const lessonId = context.req.param('lessonId')
 		const input = context.req.valid('json')
-		const allLessons = await lessonService.listLessons(actor, {
+		const allLessons: Lesson[] = await lessonService.listLessons(actor, {
 			status: 'all',
 			studentId: '',
 			dateFrom: '',
