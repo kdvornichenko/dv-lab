@@ -51,7 +51,14 @@ function normalizeSidebarItems(items: readonly unknown[]): SidebarItem[] {
 }
 
 function toRepositoryItems(items: readonly SidebarItem[]): SidebarSettingsItem[] {
-	return items.map((item) => ({ ...item }))
+	return items.map((item) => ({
+		id: item.id,
+		title: item.title,
+		href: item.href,
+		icon: item.icon,
+		visible: item.visible,
+		locked: item.locked,
+	}))
 }
 
 function normalizeThemeSettings(value: unknown): CrmThemeSettings {
