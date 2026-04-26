@@ -16,7 +16,7 @@ function validationDetails(error: z.ZodError): ValidationErrorDetails {
 
 export function validateJson<T extends ZodType>(schema: T) {
 	return zValidator('json', schema, (result, context) => {
-		if (result.success) return
+		if (result.success !== false) return
 
 		return context.json(
 			{
@@ -24,7 +24,7 @@ export function validateJson<T extends ZodType>(schema: T) {
 				error: {
 					code: 'VALIDATION_FAILED',
 					message: 'Request body failed validation',
-					details: validationDetails(result.error as z.ZodError),
+					details: validationDetails(result.error),
 				},
 			},
 			400
@@ -34,7 +34,7 @@ export function validateJson<T extends ZodType>(schema: T) {
 
 export function validateQuery<T extends ZodType>(schema: T) {
 	return zValidator('query', schema, (result, context) => {
-		if (result.success) return
+		if (result.success !== false) return
 
 		return context.json(
 			{
@@ -42,7 +42,7 @@ export function validateQuery<T extends ZodType>(schema: T) {
 				error: {
 					code: 'VALIDATION_FAILED',
 					message: 'Request query failed validation',
-					details: validationDetails(result.error as z.ZodError),
+					details: validationDetails(result.error),
 				},
 			},
 			400
