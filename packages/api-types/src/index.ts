@@ -27,6 +27,68 @@ export const LESSON_PRICE_RUB = {
 	package3Months: 2100,
 	package5Months: 1900,
 } as const
+export const DEFAULT_LESSON_DURATION_MINUTES = 60
+export const DEFAULT_PACKAGE_WEEKS_PER_MONTH = 4
+export const SUPPORTED_PACKAGE_MONTHS = [0, 3, 5] as const
+export const PACKAGE_DISCOUNT_RUB = {
+	3: 200,
+	5: 400,
+} as const
+export type SupportedPackageMonths = (typeof SUPPORTED_PACKAGE_MONTHS)[number]
+
+export function isSupportedPackageMonths(value: number): value is SupportedPackageMonths {
+	return SUPPORTED_PACKAGE_MONTHS.includes(value as SupportedPackageMonths)
+}
+
+export function getPackageDiscountRub(packageMonths: number) {
+	if (packageMonths === 3) return PACKAGE_DISCOUNT_RUB[3]
+	if (packageMonths === 5) return PACKAGE_DISCOUNT_RUB[5]
+	return 0
+}
+
+export function getLessonDurationUnits(durationMinutes: number) {
+	return Number.isFinite(durationMinutes) ? Math.max(durationMinutes, 0) / DEFAULT_LESSON_DURATION_MINUTES : 0
+}
+
+export function calculatePackageLessonCount(input: { packageMonths: number; packageLessonsPerWeek: number }) {
+	if (!isSupportedPackageMonths(input.packageMonths) || input.packageMonths === 0) return 0
+	if (!Number.isFinite(input.packageLessonsPerWeek) || input.packageLessonsPerWeek <= 0) return 0
+	return input.packageMonths * DEFAULT_PACKAGE_WEEKS_PER_MONTH * input.packageLessonsPerWeek
+}
+
+export function calculatePackageLessonPriceRub(input: {
+	defaultLessonPrice: number
+	defaultLessonDurationMinutes: number
+	packageMonths: number
+}) {
+	const basePrice = Number.isFinite(input.defaultLessonPrice) ? input.defaultLessonPrice : 0
+	const discountedBasePrice = Math.max(basePrice - getPackageDiscountRub(input.packageMonths), 0)
+	return discountedBasePrice * getLessonDurationUnits(input.defaultLessonDurationMinutes)
+}
+
+export function calculatePackageTotalPriceRub(input: {
+	defaultLessonPrice: number
+	defaultLessonDurationMinutes: number
+	packageMonths: number
+	packageLessonCount: number
+}) {
+	if (
+		!isSupportedPackageMonths(input.packageMonths) ||
+		input.packageMonths === 0 ||
+		!Number.isFinite(input.packageLessonCount) ||
+		input.packageLessonCount <= 0
+	) {
+		return 0
+	}
+
+	return (
+		calculatePackageLessonPriceRub({
+			defaultLessonPrice: input.defaultLessonPrice,
+			defaultLessonDurationMinutes: input.defaultLessonDurationMinutes,
+			packageMonths: input.packageMonths,
+		}) * input.packageLessonCount
+	)
+}
 export const roleKeySchema = z.enum(ROLE_KEYS as [RoleKey, ...RoleKey[]])
 export const permissionKeySchema = z.enum(PERMISSION_KEYS as [PermissionKey, ...PermissionKey[]])
 
@@ -49,8 +111,8 @@ export const DEFAULT_SIDEBAR_ITEMS = [
 	{ id: 'errors', title: 'Error Log', href: '/errors', icon: 'AlertTriangle', visible: true },
 	{
 		id: 'settings',
-		title: 'Sidebar Settings',
-		href: '/settings/sidebar',
+		title: 'Settings',
+		href: '/settings',
 		icon: 'Settings',
 		visible: true,
 		locked: true,
@@ -73,16 +135,74 @@ export const saveCrmErrorSchema = z.object({
 	message: z.string().trim().min(1).max(4000),
 })
 
+const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+export const crmThemeFontSchema = z.enum([
+	'geist',
+	'inter',
+	'manrope',
+	'nunito',
+	'roboto',
+	'ibm-plex',
+	'system',
+	'serif',
+	'playfair',
+	'merriweather',
+	'mono',
+	'jetbrains-mono',
+	'roboto-mono',
+])
+export const crmThemeRadiusSchema = z.enum(['none', 'sm', 'default', 'lg', 'xl'])
+export const crmThemeColorsSchema = z.object({
+	background: hexColorSchema,
+	foreground: hexColorSchema,
+	primary: hexColorSchema,
+	accent: hexColorSchema,
+	success: hexColorSchema,
+	warning: hexColorSchema,
+	danger: hexColorSchema,
+	chart: hexColorSchema,
+})
+
+export const crmThemeSettingsSchema = z.object({
+	radius: crmThemeRadiusSchema,
+	headingFont: crmThemeFontSchema,
+	bodyFont: crmThemeFontSchema,
+	numberFont: crmThemeFontSchema,
+	colors: crmThemeColorsSchema,
+})
+
+export const DEFAULT_CRM_THEME_SETTINGS = {
+	radius: 'default',
+	headingFont: 'geist',
+	bodyFont: 'geist',
+	numberFont: 'geist',
+	colors: {
+		background: '#f7f5ef',
+		foreground: '#181713',
+		primary: '#2f6f5e',
+		accent: '#9a6a1f',
+		success: '#3f7a4d',
+		warning: '#9a6a1f',
+		danger: '#a64235',
+		chart: '#7d7a72',
+	},
+} as const satisfies z.infer<typeof crmThemeSettingsSchema>
+
 export const studentSchema = z.object({
 	id: z.string(),
+	firstName: z.string(),
+	lastName: z.string(),
 	fullName: z.string().min(1),
 	email: z.string().email().optional().or(z.literal('')),
 	phone: z.string().optional(),
 	level: z.string().optional(),
+	special: z.string().optional(),
 	status: studentStatusSchema,
 	notes: z.string().optional(),
 	defaultLessonPrice: z.number().nonnegative(),
+	defaultLessonDurationMinutes: z.number().int().positive(),
 	packageMonths: z.number().int().nonnegative(),
+	packageLessonsPerWeek: z.number().int().nonnegative(),
 	packageLessonCount: z.number().int().nonnegative(),
 	packageTotalPrice: z.number().nonnegative(),
 	billingMode: z.enum(['per_lesson', 'monthly', 'package']),
@@ -103,22 +223,46 @@ export const createStudentSchema = studentSchema
 		updatedAt: true,
 	})
 	.extend({
+		firstName: z.string().trim().optional().default(''),
+		lastName: z.string().trim().optional().default(''),
+		fullName: z.string().trim().optional().default(''),
+		special: z.string().trim().optional().default(''),
 		defaultLessonPrice: z.coerce.number().nonnegative().default(LESSON_PRICE_RUB.default),
+		defaultLessonDurationMinutes: z.coerce.number().int().positive().default(DEFAULT_LESSON_DURATION_MINUTES),
 		packageMonths: z.coerce.number().int().nonnegative().default(0),
+		packageLessonsPerWeek: z.coerce.number().int().nonnegative().default(0),
 		packageLessonCount: z.coerce.number().int().nonnegative().default(0),
 		packageTotalPrice: z.coerce.number().nonnegative().default(0),
+	})
+	.refine((input) => Boolean(input.firstName.trim() || input.fullName.trim()), {
+		path: ['firstName'],
+		message: 'First name is required',
+	})
+	.refine((input) => isSupportedPackageMonths(input.packageMonths), {
+		path: ['packageMonths'],
+		message: 'Package length must be 0, 3, or 5 months',
 	})
 
 export const updateStudentSchema = createStudentBaseSchema
 	.extend({
+		firstName: z.string().trim(),
+		lastName: z.string().trim(),
+		fullName: z.string().trim(),
+		special: z.string().trim().optional(),
 		defaultLessonPrice: z.coerce.number().nonnegative(),
+		defaultLessonDurationMinutes: z.coerce.number().int().positive(),
 		packageMonths: z.coerce.number().int().nonnegative(),
+		packageLessonsPerWeek: z.coerce.number().int().nonnegative(),
 		packageLessonCount: z.coerce.number().int().nonnegative(),
 		packageTotalPrice: z.coerce.number().nonnegative(),
 	})
 	.partial()
 	.refine((input) => Object.keys(input).length > 0, {
 		message: 'At least one student field must be provided',
+	})
+	.refine((input) => input.packageMonths === undefined || isSupportedPackageMonths(input.packageMonths), {
+		path: ['packageMonths'],
+		message: 'Package length must be 0, 3, or 5 months',
 	})
 
 export const listStudentsQuerySchema = z.object({
@@ -134,6 +278,7 @@ export const lessonSchema = z.object({
 	title: z.string().min(1),
 	startsAt: z.string(),
 	durationMinutes: z.number().int().positive(),
+	repeatWeekly: z.boolean(),
 	topic: z.string().optional(),
 	notes: z.string().optional(),
 	status: lessonStatusSchema,
@@ -150,9 +295,11 @@ export const createLessonSchema = lessonSchema
 	})
 	.extend({
 		durationMinutes: z.coerce.number().int().positive(),
+		repeatWeekly: z.boolean().optional().default(false),
+		repeatCount: z.coerce.number().int().min(1).max(50).optional().default(1),
 	})
 
-export const updateLessonSchema = createLessonSchema.partial()
+export const updateLessonSchema = createLessonSchema.extend({ applyToFuture: z.boolean().optional() }).partial()
 
 export const listLessonsQuerySchema = z.object({
 	status: z
@@ -231,9 +378,32 @@ export const calendarSyncRecordSchema = z.object({
 	updatedAt: z.string(),
 })
 
+export const calendarListEntrySchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	primary: z.boolean(),
+	accessRole: z.string(),
+})
+
 export const calendarUpsertLessonEventSchema = z.object({
 	lessonId: z.string(),
 	syncPolicy: z.enum(['sync', 'skip']).default('sync'),
+})
+
+export const calendarBusyQuerySchema = z.object({
+	startsAt: isoDateTimeSchema,
+	durationMinutes: z.coerce.number().int().positive(),
+	repeatWeekly: z.boolean().optional().default(false),
+	repeatCount: z.coerce.number().int().min(1).max(50).optional().default(1),
+	excludeLessonId: z.string().optional(),
+})
+
+export const calendarBusyIntervalSchema = z.object({
+	calendarId: z.string(),
+	calendarName: z.string(),
+	title: z.string(),
+	startsAt: z.string(),
+	endsAt: z.string(),
 })
 
 export const dashboardSummarySchema = z.object({
@@ -309,9 +479,19 @@ export const attendanceMutationResponseSchema = z.object({
 	attendance: z.array(attendanceRecordSchema),
 })
 
+export const calendarBusyResponseSchema = z.object({
+	ok: z.literal(true),
+	busy: z.array(calendarBusyIntervalSchema),
+})
+
 export const sidebarSettingsResponseSchema = z.object({
 	ok: z.literal(true),
 	items: z.array(sidebarItemSchema),
+})
+
+export const themeSettingsResponseSchema = z.object({
+	ok: z.literal(true),
+	theme: crmThemeSettingsSchema,
 })
 
 export const crmErrorLogResponseSchema = z.object({
@@ -345,10 +525,15 @@ export type Payment = z.infer<typeof paymentSchema>
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>
 export type CalendarConnection = z.infer<typeof calendarConnectionSchema>
 export type CalendarSyncRecord = z.infer<typeof calendarSyncRecordSchema>
+export type CalendarListEntry = z.infer<typeof calendarListEntrySchema>
 export type CalendarUpsertLessonEventInput = z.infer<typeof calendarUpsertLessonEventSchema>
+export type CalendarBusyQuery = z.infer<typeof calendarBusyQuerySchema>
+export type CalendarBusyInterval = z.infer<typeof calendarBusyIntervalSchema>
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>
 export type StudentBalance = z.infer<typeof studentBalanceSchema>
 export type UpdateSidebarSettingsInput = z.infer<typeof updateSidebarSettingsSchema>
+export type CrmThemeColors = z.infer<typeof crmThemeColorsSchema>
+export type CrmThemeSettings = z.infer<typeof crmThemeSettingsSchema>
 export type CrmErrorLogEntry = z.infer<typeof crmErrorLogEntrySchema>
 export type SaveCrmErrorInput = z.infer<typeof saveCrmErrorSchema>
 export type ValidationIssue = z.infer<typeof validationIssueSchema>
@@ -360,6 +545,8 @@ export type StudentMutationResponse = z.infer<typeof studentMutationResponseSche
 export type LessonsResponse = z.infer<typeof lessonsResponseSchema>
 export type LessonMutationResponse = z.infer<typeof lessonMutationResponseSchema>
 export type AttendanceMutationResponse = z.infer<typeof attendanceMutationResponseSchema>
+export type CalendarBusyResponse = z.infer<typeof calendarBusyResponseSchema>
 export type SidebarSettingsResponse = z.infer<typeof sidebarSettingsResponseSchema>
+export type ThemeSettingsResponse = z.infer<typeof themeSettingsResponseSchema>
 export type CrmErrorLogResponse = z.infer<typeof crmErrorLogResponseSchema>
 export type CrmErrorLogMutationResponse = z.infer<typeof crmErrorLogMutationResponseSchema>

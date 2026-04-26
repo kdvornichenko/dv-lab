@@ -16,9 +16,19 @@ const envSchema = z.object({
 	GOOGLE_CLIENT_ID: z.string().optional(),
 	GOOGLE_CLIENT_SECRET: z.string().optional(),
 	GOOGLE_REDIRECT_URI: z.string().url().optional(),
+	CALENDAR_TOKEN_ENCRYPTION_KEY: z.string().min(16).optional(),
 })
 
-export const serverEnv = envSchema.parse(process.env)
+const rawEnv = {
+	...process.env,
+	SUPABASE_URL: process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL,
+	SUPABASE_ANON_KEY:
+		process.env.SUPABASE_ANON_KEY ??
+		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+		process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+}
+
+export const serverEnv = envSchema.parse(rawEnv)
 
 export const databaseUrl =
 	serverEnv.NODE_ENV === 'test' ? undefined : (serverEnv.DATABASE_URL ?? serverEnv.POSTGRES_URL)

@@ -1,4 +1,5 @@
 export * from './connection-url'
+export * from './calendar-repository'
 export * from './error-log-repository'
 export * from './factory'
 export * from './ledger'

@@ -1,11 +1,19 @@
-import type { CreatePaymentInput, Payment, StudentBalance } from '@teacher-crm/api-types'
+import {
+	calculatePackageLessonPriceRub,
+	getLessonDurationUnits,
+	type CreatePaymentInput,
+	type Payment,
+	type StudentBalance,
+} from '@teacher-crm/api-types'
 import {
 	calculateStudentBalances,
 	deletePaymentRow,
 	insertPaymentRow,
 	listAttendanceRows,
+	listLessonRows,
 	listPaymentRows,
 	listStudentRows,
+	type LessonRowWithStudents,
 	type PaymentRow,
 } from '@teacher-crm/db'
 
@@ -36,13 +44,20 @@ function mapPaymentRow(row: PaymentRow): Payment {
 	}
 }
 
-function priceForStudent(student: Awaited<ReturnType<typeof listStudentRows>>[number] | undefined) {
+function priceForStudent(
+	student: Awaited<ReturnType<typeof listStudentRows>>[number] | undefined,
+	lesson: LessonRowWithStudents | undefined
+) {
 	if (!student) return 0
-	const packageLessonPrice =
-		student.packageLessonCount > 0 ? Number(student.packageTotalPrice) / student.packageLessonCount : 0
+	const durationUnits = lesson ? getLessonDurationUnits(lesson.durationMinutes) : 1
+	const packageLessonPrice = calculatePackageLessonPriceRub({
+		defaultLessonPrice: Number(student.defaultLessonPrice),
+		defaultLessonDurationMinutes: lesson?.durationMinutes ?? student.defaultLessonDurationMinutes,
+		packageMonths: student.packageMonths,
+	})
 	return student.billingMode === 'package' && packageLessonPrice > 0
 		? packageLessonPrice
-		: Number(student.defaultLessonPrice)
+		: Number(student.defaultLessonPrice) * durationUnits
 }
 
 export const paymentService = {
@@ -86,15 +101,17 @@ export const paymentService = {
 		if (!db) return memoryStore.listStudentBalances(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const [attendance, students, payments] = await Promise.all([
+		const [attendance, students, payments, lessons] = await Promise.all([
 			listAttendanceRows(db, teacherId),
 			listStudentRows(db, teacherId, { status: 'all' }),
 			listPaymentRows(db, teacherId),
+			listLessonRows(db, teacherId, { status: 'all' }),
 		])
 		const studentsById = new Map(students.map((student) => [student.id, student]))
+		const lessonsById = new Map(lessons.map((lesson) => [lesson.id, lesson]))
 		const charges = attendance.map((record) => ({
 			studentId: record.studentId,
-			amount: priceForStudent(studentsById.get(record.studentId)),
+			amount: priceForStudent(studentsById.get(record.studentId), lessonsById.get(record.lessonId)),
 			billable: record.billable && record.status === 'attended',
 		}))
 

@@ -1,10 +1,20 @@
 import {
+	DEFAULT_CRM_THEME_SETTINGS,
 	DEFAULT_SIDEBAR_ITEMS,
+	crmThemeSettingsSchema,
 	sidebarItemSchema,
+	type CrmThemeSettings,
 	type SidebarItem,
 	type UpdateSidebarSettingsInput,
 } from '@teacher-crm/api-types'
-import { getSidebarSettingsRow, upsertSidebarSettingsRow, type SidebarSettingsItem } from '@teacher-crm/db'
+import {
+	getSidebarSettingsRow,
+	getThemeSettingsRow,
+	upsertSidebarSettingsRow,
+	upsertThemeSettingsRow,
+	type SidebarSettingsItem,
+	type ThemeSettingsValue,
+} from '@teacher-crm/db'
 
 import { getDb, teacherProfileId } from './db-context'
 import { memoryStore } from './memory-store'
@@ -44,6 +54,20 @@ function toRepositoryItems(items: readonly SidebarItem[]): SidebarSettingsItem[]
 	return items.map((item) => ({ ...item }))
 }
 
+function normalizeThemeSettings(value: unknown): CrmThemeSettings {
+	return crmThemeSettingsSchema.catch(DEFAULT_CRM_THEME_SETTINGS).parse(value)
+}
+
+function toRepositoryTheme(theme: CrmThemeSettings): ThemeSettingsValue {
+	return {
+		radius: theme.radius,
+		headingFont: theme.headingFont,
+		bodyFont: theme.bodyFont,
+		numberFont: theme.numberFont,
+		colors: { ...theme.colors },
+	}
+}
+
 export const settingsService = {
 	async listSidebarItems(scope: StoreScope) {
 		const db = getDb()
@@ -69,5 +93,29 @@ export const settingsService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		return normalizeSidebarItems((await upsertSidebarSettingsRow(db, teacherId, toRepositoryItems(items))).items)
+	},
+
+	async getTheme(scope: StoreScope) {
+		const db = getDb()
+		if (!db) return memoryStore.getTheme(scope)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const existing = await getThemeSettingsRow(db, teacherId)
+
+		if (!existing) {
+			await upsertThemeSettingsRow(db, teacherId, toRepositoryTheme(DEFAULT_CRM_THEME_SETTINGS))
+			return DEFAULT_CRM_THEME_SETTINGS
+		}
+
+		return normalizeThemeSettings(existing.theme)
+	},
+
+	async saveTheme(scope: StoreScope, input: CrmThemeSettings) {
+		const theme = normalizeThemeSettings(input)
+		const db = getDb()
+		if (!db) return memoryStore.saveTheme(scope, theme)
+
+		const teacherId = await teacherProfileId(db, scope)
+		return normalizeThemeSettings((await upsertThemeSettingsRow(db, teacherId, toRepositoryTheme(theme))).theme)
 	},
 }

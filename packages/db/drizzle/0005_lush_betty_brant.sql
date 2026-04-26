@@ -1,0 +1,1 @@
+ALTER TABLE "students" ADD COLUMN "default_lesson_duration_minutes" integer DEFAULT 60 NOT NULL;

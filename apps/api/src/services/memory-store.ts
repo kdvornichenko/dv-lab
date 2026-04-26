@@ -1,6 +1,10 @@
 import {
+	DEFAULT_CRM_THEME_SETTINGS,
+	DEFAULT_LESSON_DURATION_MINUTES,
 	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
+	calculatePackageLessonCount,
+	calculatePackageTotalPriceRub,
 	type AttendanceRecord,
 	type CalendarConnection,
 	type CalendarSyncRecord,
@@ -8,6 +12,7 @@ import {
 	type CreatePaymentInput,
 	type CreateStudentInput,
 	type CrmErrorLogEntry,
+	type CrmThemeSettings,
 	type ListLessonsQuery,
 	type ListStudentsQuery,
 	type Lesson,
@@ -33,6 +38,7 @@ type TeacherStoreState = {
 	calendarSyncRecords: Map<string, CalendarSyncRecord>
 	sidebarItems: SidebarItem[]
 	errorLogs: Map<string, CrmErrorLogEntry>
+	theme: CrmThemeSettings
 }
 
 const stores = new Map<string, TeacherStoreState>()
@@ -41,6 +47,37 @@ const now = () => new Date().toISOString()
 const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 const hasGoogleCalendarGrant = (grantedScopes: readonly string[], tokenAvailable: boolean) =>
 	tokenAvailable && GOOGLE_CALENDAR_REQUIRED_SCOPES.every((scope) => grantedScopes.includes(scope))
+const splitName = (value: string | undefined) => {
+	const parts = value?.trim().split(/\s+/).filter(Boolean) ?? []
+	return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') }
+}
+const studentFullName = (student: Pick<Student, 'firstName' | 'lastName' | 'fullName'>) =>
+	[student.firstName, student.lastName].filter(Boolean).join(' ').trim() || student.fullName
+const studentShortName = (student: Pick<Student, 'firstName' | 'lastName' | 'fullName'>) => {
+	const fallbackName = splitName(student.fullName)
+	const firstName = student.firstName || fallbackName.firstName || student.fullName
+	const lastName = student.lastName || fallbackName.lastName
+	const lastInitial = lastName.trim() ? `${lastName.trim()[0]}.` : ''
+	return [firstName, lastInitial].filter(Boolean).join(' ')
+}
+const resolvedPackageLessonCount = (
+	student: Pick<Student, 'packageMonths' | 'packageLessonsPerWeek' | 'packageLessonCount'>
+) => {
+	const derivedLessonCount = calculatePackageLessonCount({
+		packageMonths: student.packageMonths,
+		packageLessonsPerWeek: student.packageLessonsPerWeek,
+	})
+	return derivedLessonCount > 0 ? derivedLessonCount : student.packageLessonCount
+}
+const studentPackageTotal = (
+	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths' | 'packageLessonCount'>
+) =>
+	calculatePackageTotalPriceRub({
+		defaultLessonPrice: student.defaultLessonPrice,
+		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
+		packageMonths: student.packageMonths,
+		packageLessonCount: student.packageLessonCount,
+	})
 
 function createStoreState(): TeacherStoreState {
 	return {
@@ -64,6 +101,13 @@ function createStoreState(): TeacherStoreState {
 		calendarSyncRecords: new Map<string, CalendarSyncRecord>(),
 		sidebarItems: DEFAULT_SIDEBAR_ITEMS.map((item) => ({ ...item })),
 		errorLogs: new Map<string, CrmErrorLogEntry>(),
+		theme: {
+			radius: DEFAULT_CRM_THEME_SETTINGS.radius,
+			headingFont: DEFAULT_CRM_THEME_SETTINGS.headingFont,
+			bodyFont: DEFAULT_CRM_THEME_SETTINGS.bodyFont,
+			numberFont: DEFAULT_CRM_THEME_SETTINGS.numberFont,
+			colors: { ...DEFAULT_CRM_THEME_SETTINGS.colors },
+		},
 	}
 }
 
@@ -83,7 +127,7 @@ export const memoryStore = {
 			.filter((student) => filters.status === 'all' || student.status === filters.status)
 			.filter((student) => {
 				if (!search) return true
-				return [student.fullName, student.email, student.phone, student.level, student.notes]
+				return [student.firstName, student.lastName, student.fullName, student.level, student.special, student.notes]
 					.filter(Boolean)
 					.some((value) => value!.toLocaleLowerCase().includes(search))
 			})
@@ -92,8 +136,24 @@ export const memoryStore = {
 
 	createStudent(scope: StoreScope, input: CreateStudentInput) {
 		const state = stateFor(scope)
+		const fallbackName = splitName(input.fullName)
+		const firstName = input.firstName || fallbackName.firstName
+		const lastName = input.lastName || fallbackName.lastName
+		const packageLessonCount = resolvedPackageLessonCount(input)
 		const student: Student = {
 			...input,
+			firstName,
+			lastName,
+			fullName: [firstName, lastName].filter(Boolean).join(' ').trim() || input.fullName,
+			special: input.special ?? '',
+			defaultLessonDurationMinutes: input.defaultLessonDurationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES,
+			packageLessonCount,
+			packageTotalPrice: studentPackageTotal({
+				defaultLessonPrice: input.defaultLessonPrice,
+				defaultLessonDurationMinutes: input.defaultLessonDurationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES,
+				packageMonths: input.packageMonths,
+				packageLessonCount,
+			}),
 			id: id('stu'),
 			createdAt: now(),
 			updatedAt: now(),
@@ -107,7 +167,20 @@ export const memoryStore = {
 		const existing = state.students.get(studentId)
 		if (!existing) return null
 		const updated: Student = { ...existing, ...input, updatedAt: now() }
+		updated.fullName = studentFullName(updated)
+		updated.packageLessonCount = resolvedPackageLessonCount(updated)
+		updated.packageTotalPrice = studentPackageTotal(updated)
 		state.students.set(studentId, updated)
+		if (input.firstName !== undefined || input.lastName !== undefined || input.fullName !== undefined) {
+			for (const lesson of state.lessons.values()) {
+				if (!lesson.studentIds.includes(studentId)) continue
+				state.lessons.set(lesson.id, {
+					...lesson,
+					title: studentShortName(updated),
+					updatedAt: now(),
+				})
+			}
+		}
 		return updated
 	},
 
@@ -152,6 +225,7 @@ export const memoryStore = {
 		const state = stateFor(scope)
 		const lesson: Lesson = {
 			...input,
+			repeatWeekly: input.repeatWeekly,
 			id: id('les'),
 			createdAt: now(),
 			updatedAt: now(),
@@ -168,6 +242,22 @@ export const memoryStore = {
 		state.lessons.set(lessonId, updated)
 		this.ensureCalendarSyncRecord(scope, lessonId, 'not_synced')
 		return updated
+	},
+
+	deleteLesson(scope: StoreScope, lessonId: string) {
+		const state = stateFor(scope)
+		const existing = state.lessons.get(lessonId)
+		if (!existing) return null
+
+		state.lessons.delete(lessonId)
+		for (const [attendanceKey, attendance] of state.attendance) {
+			if (attendance.lessonId === lessonId) state.attendance.delete(attendanceKey)
+		}
+		for (const [syncKey, syncRecord] of state.calendarSyncRecords) {
+			if (syncRecord.lessonId === lessonId) state.calendarSyncRecords.delete(syncKey)
+		}
+
+		return existing
 	},
 
 	markAttendance(scope: StoreScope, input: MarkAttendanceInput) {
@@ -221,14 +311,24 @@ export const memoryStore = {
 		const state = stateFor(scope)
 		const charges = Array.from(state.attendance.values()).map((record) => {
 			const student = state.students.get(record.studentId)
+			const lesson = state.lessons.get(record.lessonId)
+			const durationMinutes = lesson?.durationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES
+			const durationUnits = durationMinutes / DEFAULT_LESSON_DURATION_MINUTES
 			const packageLessonPrice =
-				student && student.packageLessonCount > 0 ? student.packageTotalPrice / student.packageLessonCount : 0
+				student && student.billingMode === 'package'
+					? calculatePackageTotalPriceRub({
+							defaultLessonPrice: student.defaultLessonPrice,
+							defaultLessonDurationMinutes: durationMinutes,
+							packageMonths: student.packageMonths,
+							packageLessonCount: 1,
+						})
+					: 0
 			return {
 				studentId: record.studentId,
 				amount:
 					student?.billingMode === 'package' && packageLessonPrice > 0
 						? packageLessonPrice
-						: (student?.defaultLessonPrice ?? 0),
+						: (student?.defaultLessonPrice ?? 0) * durationUnits,
 				billable: record.billable && record.status === 'attended',
 			}
 		})
@@ -378,5 +478,21 @@ export const memoryStore = {
 
 	clearCrmErrors(scope: StoreScope) {
 		stateFor(scope).errorLogs.clear()
+	},
+
+	getTheme(scope: StoreScope) {
+		const theme = stateFor(scope).theme
+		return {
+			...theme,
+			colors: { ...theme.colors },
+		}
+	},
+
+	saveTheme(scope: StoreScope, theme: CrmThemeSettings) {
+		stateFor(scope).theme = {
+			...theme,
+			colors: { ...theme.colors },
+		}
+		return this.getTheme(scope)
 	},
 }

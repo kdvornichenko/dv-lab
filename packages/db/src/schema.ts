@@ -56,6 +56,14 @@ type SidebarItemJson = {
 	locked?: boolean
 }
 
+type ThemeSettingsJson = {
+	radius: string
+	headingFont: string
+	bodyFont: string
+	numberFont: string
+	colors: Record<string, string>
+}
+
 export const sidebarSettings = pgTable(
 	'sidebar_settings',
 	{
@@ -63,11 +71,32 @@ export const sidebarSettings = pgTable(
 		teacherId: uuid('teacher_id')
 			.notNull()
 			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
-		items: jsonb('items').$type<SidebarItemJson[]>().notNull().default(sql`'[]'::jsonb`),
+		items: jsonb('items')
+			.$type<SidebarItemJson[]>()
+			.notNull()
+			.default(sql`'[]'::jsonb`),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => ({
 		teacherUniq: uniqueIndex('sidebar_settings_teacher_uniq').on(table.teacherId),
+	})
+)
+
+export const themeSettings = pgTable(
+	'theme_settings',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id')
+			.notNull()
+			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
+		theme: jsonb('theme')
+			.$type<ThemeSettingsJson>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		teacherUniq: uniqueIndex('theme_settings_teacher_uniq').on(table.teacherId),
 	})
 )
 
@@ -94,14 +123,19 @@ export const students = pgTable(
 		teacherId: uuid('teacher_id')
 			.notNull()
 			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
+		firstName: text('first_name').notNull().default(''),
+		lastName: text('last_name').notNull().default(''),
 		fullName: text('full_name').notNull(),
 		email: text('email'),
 		phone: text('phone'),
 		level: text('level'),
+		special: text('special'),
 		status: studentStatus('status').notNull().default('active'),
 		notes: text('notes'),
 		defaultLessonPrice: numeric('default_lesson_price', { precision: 12, scale: 2 }).notNull().default('0'),
+		defaultLessonDurationMinutes: integer('default_lesson_duration_minutes').notNull().default(60),
 		packageMonths: integer('package_months').notNull().default(0),
+		packageLessonsPerWeek: integer('package_lessons_per_week').notNull().default(0),
 		packageLessonCount: integer('package_lesson_count').notNull().default(0),
 		packageTotalPrice: numeric('package_total_price', { precision: 12, scale: 2 }).notNull().default('0'),
 		billingMode: billingMode('billing_mode').notNull().default('per_lesson'),
@@ -126,6 +160,7 @@ export const lessons = pgTable(
 		title: text('title').notNull(),
 		startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
 		durationMinutes: integer('duration_minutes').notNull().default(60),
+		repeatWeekly: boolean('repeat_weekly').notNull().default(false),
 		topic: text('topic'),
 		notes: text('notes'),
 		status: lessonStatus('status').notNull().default('planned'),

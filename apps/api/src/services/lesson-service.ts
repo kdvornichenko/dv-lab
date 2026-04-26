@@ -7,6 +7,7 @@ import type {
 	UpdateLessonInput,
 } from '@teacher-crm/api-types'
 import {
+	deleteLessonRow,
 	insertLessonRow,
 	listAttendanceRows,
 	listLessonRows,
@@ -37,6 +38,7 @@ function mapLessonRow(row: LessonRowWithStudents): Lesson {
 		title: row.title,
 		startsAt: dateToIso(row.startsAt) ?? new Date().toISOString(),
 		durationMinutes: row.durationMinutes,
+		repeatWeekly: row.repeatWeekly,
 		topic: row.topic ?? '',
 		notes: row.notes ?? '',
 		status: row.status,
@@ -64,6 +66,7 @@ function toInsertValues(teacherId: string, input: CreateLessonInput) {
 		title: input.title.trim(),
 		startsAt: new Date(input.startsAt),
 		durationMinutes: input.durationMinutes,
+		repeatWeekly: input.repeatWeekly,
 		topic: emptyToNull(input.topic),
 		notes: emptyToNull(input.notes),
 		status: input.status,
@@ -76,6 +79,7 @@ function toUpdateValues(input: UpdateLessonInput): LessonUpdateValues {
 	if (input.title !== undefined) values.title = input.title.trim()
 	if (input.startsAt !== undefined) values.startsAt = new Date(input.startsAt)
 	if (input.durationMinutes !== undefined) values.durationMinutes = input.durationMinutes
+	if (input.repeatWeekly !== undefined) values.repeatWeekly = input.repeatWeekly
 	if (input.topic !== undefined) values.topic = emptyToNull(input.topic)
 	if (input.notes !== undefined) values.notes = emptyToNull(input.notes)
 	if (input.status !== undefined) values.status = input.status
@@ -106,6 +110,15 @@ export const lessonService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		const lesson = await updateLessonRow(db, teacherId, lessonId, toUpdateValues(input), input.studentIds)
+		return lesson ? mapLessonRow(lesson) : null
+	},
+
+	async deleteLesson(scope: StoreScope, lessonId: string) {
+		const db = getDb()
+		if (!db) return memoryStore.deleteLesson(scope, lessonId)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const lesson = await deleteLessonRow(db, teacherId, lessonId)
 		return lesson ? mapLessonRow(lesson) : null
 	},
 

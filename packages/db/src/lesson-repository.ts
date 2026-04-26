@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lte, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm'
 
 import type { DB } from './factory'
 import { attendanceRecords, lessons, lessonStudents } from './schema'
@@ -163,6 +163,53 @@ export async function updateLessonRow(
 			studentIds: studentIds ?? (await readLessonStudents(tx, teacherId, lessonId)),
 		}
 	})
+}
+
+export async function deleteLessonRow(
+	db: DB,
+	teacherId: string,
+	lessonId: string
+): Promise<LessonRowWithStudents | null> {
+	return db.transaction(async (tx) => {
+		const studentIds = await readLessonStudents(tx, teacherId, lessonId)
+		const [lesson] = await tx
+			.delete(lessons)
+			.where(and(eq(lessons.teacherId, teacherId), eq(lessons.id, lessonId)))
+			.returning()
+
+		if (!lesson) return null
+
+		return {
+			...lesson,
+			studentIds,
+		}
+	})
+}
+
+export async function updateLessonTitlesForStudent(
+	db: DB,
+	teacherId: string,
+	studentId: string,
+	title: string
+): Promise<number> {
+	const relatedLessons = await db
+		.select({ lessonId: lessonStudents.lessonId })
+		.from(lessonStudents)
+		.where(and(eq(lessonStudents.teacherId, teacherId), eq(lessonStudents.studentId, studentId)))
+
+	const lessonIds = relatedLessons.map((row) => row.lessonId)
+	if (lessonIds.length === 0) return 0
+
+	const updatedLessons = await db
+		.update(lessons)
+		.set({
+			title,
+			updatedAt: new Date(),
+		})
+		.where(and(eq(lessons.teacherId, teacherId), inArray(lessons.id, lessonIds)))
+		.returning({ id: lessons.id })
+
+	return updatedLessons.length
 }
 
 export async function listAttendanceRows(db: DB, teacherId: string): Promise<AttendanceRecordRow[]> {

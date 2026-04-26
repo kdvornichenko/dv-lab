@@ -60,10 +60,13 @@ export async function listStudentRows(
 	if (search) {
 		const pattern = `%${search}%`
 		const searchCondition = or(
+			ilike(students.firstName, pattern),
+			ilike(students.lastName, pattern),
 			ilike(students.fullName, pattern),
 			ilike(students.email, pattern),
 			ilike(students.phone, pattern),
 			ilike(students.level, pattern),
+			ilike(students.special, pattern),
 			ilike(students.notes, pattern)
 		)
 		if (searchCondition) conditions.push(searchCondition)
