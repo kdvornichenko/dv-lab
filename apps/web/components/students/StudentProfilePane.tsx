@@ -1,34 +1,57 @@
 import type { ComponentType } from 'react'
 
-import { Banknote, CalendarCheck2, ClipboardCheck, Mail, NotebookText, Phone, ReceiptText } from 'lucide-react'
+import { Banknote, CalendarCheck2, CheckCircle2, Copy, NotebookText, ReceiptText, Sparkles } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
-import { formatUsdAmount, getBillingModeLabel, selectStudentLedgerProjection } from '@/lib/crm/model'
+import { Button } from '@/components/ui/button'
+import {
+	formatCompletedLessonDatesText,
+	formatDateShort,
+	formatTime,
+	formatUsdAmount,
+	getBillingModeLabel,
+	getStudentShortName,
+	getStudentDurationPrice,
+	selectStudentLedgerProjection,
+	selectStudentPackageProgress,
+} from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
-import type { AttendanceRecord, Lesson } from '@teacher-crm/api-types'
+import type { Lesson } from '@teacher-crm/api-types'
 
 type StudentProfilePaneProps = {
 	student: StudentWithBalance | null
 	lessons: Lesson[]
-	attendance: AttendanceRecord[]
 	now: Date
 }
 
-export function StudentProfilePane({ student, lessons, attendance, now }: StudentProfilePaneProps) {
+export function StudentProfilePane({ student, lessons, now }: StudentProfilePaneProps) {
 	if (!student) {
 		return (
 			<aside className="border-sage-line bg-sage-soft/45 rounded-lg border border-dashed p-5">
-				<p className="text-ink font-semibold">Select a student</p>
-				<p className="text-ink-muted mt-1 text-sm leading-5">
-					Lessons, attendance, billing, and payment balance will appear here.
-				</p>
+				<p className="font-heading text-ink font-semibold">Select a student</p>
+				<p className="text-ink-muted mt-1 text-sm leading-5">Lessons, billing, and payment balance will appear here.</p>
 			</aside>
 		)
 	}
 
-	const projection = selectStudentLedgerProjection(student, lessons, attendance, now)
+	const projection = selectStudentLedgerProjection(student, lessons, now)
 	const billingLabel = getBillingModeLabel(student.billingMode)
+	const recentLessons = [...projection.stats.relatedLessons].sort(
+		(a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
+	)
+	const completedCount = projection.stats.relatedLessons.filter((lesson) => lesson.status === 'completed').length
+	const packageProgress = selectStudentPackageProgress(student, lessons)
+	const completedDatesText = formatCompletedLessonDatesText(packageProgress.completedLessons)
+	const copyCompletedDates = async () => {
+		try {
+			await navigator.clipboard.writeText(completedDatesText)
+			toast.success('Lesson dates copied')
+		} catch {
+			toast.error('Could not copy lesson dates')
+		}
+	}
 
 	return (
 		<aside className="border-line bg-surface-muted overflow-hidden rounded-lg border">
@@ -46,11 +69,11 @@ export function StudentProfilePane({ student, lessons, attendance, now }: Studen
 			<div className="p-4">
 				<div className="grid grid-cols-2 gap-2">
 					<Metric icon={CalendarCheck2} label="Scheduled" value={projection.stats.relatedLessons.length} tone="sage" />
-					<Metric icon={ClipboardCheck} label="Attended" value={projection.stats.attendedCount} tone="success" />
+					<Metric icon={CheckCircle2} label="Completed" value={completedCount} tone="success" />
 					<Metric
 						icon={ReceiptText}
-						label={student.billingMode === 'package' ? 'Package' : 'Lessons'}
-						value={projection.lessonsLeft}
+						label={student.billingMode === 'package' ? 'Package progress' : 'Lessons'}
+						value={student.billingMode === 'package' ? packageProgress.label : projection.lessonsLeft}
 						tone="warning"
 					/>
 					<Metric icon={Banknote} label="Balance" value={formatUsdAmount(student.balance.balance)} tone="danger" />
@@ -64,13 +87,66 @@ export function StudentProfilePane({ student, lessons, attendance, now }: Studen
 					</p>
 				</div>
 
+				{student.billingMode === 'package' && (
+					<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
+						<div className="flex items-start justify-between gap-3">
+							<div>
+								<p className="text-ink-muted text-xs font-semibold uppercase">Completed dates</p>
+								<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{packageProgress.label}</p>
+								<p className="text-ink-muted mt-1 text-xs">{packageProgress.remainingLabel}</p>
+							</div>
+							<Button type="button" variant="secondary" size="sm" onClick={copyCompletedDates}>
+								<Copy className="h-4 w-4" />
+								Copy
+							</Button>
+						</div>
+						<pre className="border-line-soft bg-surface-muted text-ink mt-3 whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs leading-5">
+							{completedDatesText}
+						</pre>
+					</div>
+				)}
+
+				<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
+					<div className="flex items-center justify-between gap-3">
+						<p className="text-ink-muted text-xs font-semibold uppercase">Lesson history</p>
+						<Badge tone="neutral" className="font-mono tabular-nums">
+							{completedCount}/{projection.stats.relatedLessons.length}
+						</Badge>
+					</div>
+					<div className="mt-3 grid gap-2">
+						{recentLessons.slice(0, 5).map((lesson) => {
+							return (
+								<div key={lesson.id} className="border-line-soft bg-surface-muted rounded-lg border p-2.5">
+									<div className="flex items-start justify-between gap-3">
+										<div className="min-w-0">
+											<p className="font-heading text-ink truncate text-sm font-medium">
+												{getStudentShortName(student)}
+											</p>
+											<p className="text-ink-muted mt-1 font-mono text-xs tabular-nums">
+												{formatDateShort(lesson.startsAt)} · {formatTime(lesson.startsAt)}
+											</p>
+										</div>
+										<Badge tone={lessonStatusTone(lesson.status)}>{lesson.status}</Badge>
+									</div>
+								</div>
+							)
+						})}
+						{recentLessons.length === 0 && (
+							<p className="text-ink-muted border-line-strong bg-surface-muted rounded-lg border border-dashed p-3 text-sm">
+								No lessons scheduled for this student yet.
+							</p>
+						)}
+					</div>
+				</div>
+
 				<div className="divide-line-soft mt-4 divide-y text-sm">
-					<ProfileRow icon={Mail} label="Email" value={student.email || 'Not set'} />
-					<ProfileRow icon={Phone} label="Phone" value={student.phone || 'Not set'} />
+					<ProfileRow icon={Sparkles} label="Special" value={student.special || 'Not set'} />
 					<ProfileRow
 						icon={ReceiptText}
 						label="Billing"
-						value={`${billingLabel} · ${formatUsdAmount(student.defaultLessonPrice)}`}
+						value={`${billingLabel} · ${formatUsdAmount(student.defaultLessonPrice)} base · ${
+							student.defaultLessonDurationMinutes
+						} min · ${formatUsdAmount(getStudentDurationPrice(student))} actual`}
 					/>
 					{student.billingMode === 'package' && (
 						<ProfileRow
@@ -86,6 +162,13 @@ export function StudentProfilePane({ student, lessons, attendance, now }: Studen
 			</div>
 		</aside>
 	)
+}
+
+function lessonStatusTone(status: Lesson['status']) {
+	if (status === 'completed') return 'green'
+	if (status === 'rescheduled') return 'amber'
+	if (status === 'cancelled') return 'red'
+	return 'neutral'
 }
 
 function Metric({

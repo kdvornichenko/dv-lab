@@ -1,148 +1,161 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { CalendarPlus, CheckCheck, CircleSlash, Clock3, Edit3, RefreshCw } from 'lucide-react'
+import { CalendarPlus, CircleSlash, Edit3, Trash2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatTime, getLessonAttendanceCount, isLessonAttendanceMarked, studentNames } from '@/lib/crm/model'
+import { formatTime, lessonDisplayTitle } from '@/lib/crm/model'
 import { cn } from '@/lib/utils'
 
-import type { AttendanceRecord, CalendarSyncRecord, CreateLessonInput, Lesson, Student } from '@teacher-crm/api-types'
+import type {
+	CalendarBusyInterval,
+	CalendarSyncRecord,
+	CreateLessonInput,
+	Lesson,
+	Student,
+	UpdateLessonInput,
+} from '@teacher-crm/api-types'
 
 import { LessonFormDialog } from './LessonFormDialog'
 
 type LessonsPanelProps = {
 	lessons: Lesson[]
 	students: Student[]
-	attendance: AttendanceRecord[]
 	calendarSyncRecords: CalendarSyncRecord[]
 	title?: string
 	description?: string
+	toolbar?: ReactNode
 	onAddLesson: (input: CreateLessonInput) => Promise<void>
-	onUpdateLesson: (lessonId: string, input: CreateLessonInput) => Promise<void>
+	onUpdateLesson: (lessonId: string, input: UpdateLessonInput) => Promise<void>
 	onCancelLesson: (lessonId: string) => Promise<void>
-	onMarkGroupAttended: (lessonId: string) => void
-	onSyncLesson: (lessonId: string) => void
+	onDeleteLesson: (lessonId: string) => Promise<void>
+	onCheckCalendarConflicts?: (input: CreateLessonInput) => Promise<CalendarBusyInterval[]>
+	previewMode?: boolean
+}
+
+function lessonTone(lesson: Lesson) {
+	if (lesson.status === 'completed')
+		return { badge: 'green' as const, rail: 'bg-success', frame: 'border-success-line bg-success-soft/35' }
+	if (lesson.status === 'cancelled')
+		return { badge: 'red' as const, rail: 'bg-danger', frame: 'border-danger-line bg-danger-soft/35' }
+	if (lesson.status === 'rescheduled')
+		return { badge: 'amber' as const, rail: 'bg-warning', frame: 'border-warning-line bg-warning-soft/45' }
+	return { badge: 'neutral' as const, rail: 'bg-sage', frame: 'border-line-soft bg-surface-muted' }
 }
 
 export function LessonsPanel({
 	lessons,
 	students,
-	attendance,
 	calendarSyncRecords,
 	title = 'Today control',
-	description = 'Lessons, attendance status, and calendar sync.',
+	description = 'Individual lessons, statuses, and calendar sync.',
+	toolbar,
 	onAddLesson,
 	onUpdateLesson,
 	onCancelLesson,
-	onMarkGroupAttended,
-	onSyncLesson,
+	onDeleteLesson,
+	onCheckCalendarConflicts,
+	previewMode = false,
 }: LessonsPanelProps) {
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
 	const formOpen = isCreateOpen || Boolean(editingLesson)
 
+	function handleDeleteLesson(lesson: Lesson) {
+		if (previewMode) return
+		if (!window.confirm(`Delete lesson "${lesson.title}" from the CRM database?`)) return
+		void onDeleteLesson(lesson.id)
+	}
+
 	return (
 		<>
 			<Card id="lessons" className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
-				<CardHeader className="border-line-soft bg-surface-muted flex flex-row items-center justify-between gap-3 border-b">
+				<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-line-soft bg-surface-muted">
 					<div>
-						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson flow</p>
+						<p className="font-mono text-xs font-semibold text-sage uppercase">Lesson flow</p>
 						<CardTitle className="mt-1 text-lg">{title}</CardTitle>
-						<p className="text-ink-muted mt-1 text-sm">{description}</p>
+						<p className="mt-1 text-sm text-ink-muted">{description}</p>
 					</div>
-					<Button size="sm" onClick={() => setIsCreateOpen(true)}>
-						<CalendarPlus className="h-4 w-4" />
-						Add lesson
-					</Button>
+					<div className="flex flex-wrap items-center justify-end gap-2">
+						{toolbar}
+						<Button size="sm" onClick={() => setIsCreateOpen(true)}>
+							<CalendarPlus className="h-4 w-4" />
+							Add lesson
+						</Button>
+					</div>
 				</CardHeader>
 				<CardContent className="pt-5">
 					{lessons.length === 0 ? (
-						<div className="border-sage-line bg-sage-soft/55 rounded-lg border border-dashed p-5">
-							<p className="text-ink font-semibold">No lessons scheduled</p>
-							<p className="text-ink-muted mt-1 text-sm">Add the next lesson to start the day plan.</p>
+						<div className="rounded-lg border border-dashed border-sage-line bg-sage-soft/55 p-5">
+							<p className="font-heading font-semibold text-ink">No lessons scheduled</p>
+							<p className="mt-1 text-sm text-ink-muted">Add the next lesson to start the day plan.</p>
 						</div>
 					) : (
-						<ScrollArea className="max-h-[27rem] pr-3">
+						<ScrollArea className="max-h-108">
 							<div className="space-y-3">
 								{lessons.map((lesson) => {
 									const sync = calendarSyncRecords.find((record) => record.lessonId === lesson.id)
-									const attendanceCount = getLessonAttendanceCount(lesson, attendance)
-									const isMarked = isLessonAttendanceMarked(lesson, attendance)
+									const tone = lessonTone(lesson)
+									const endsAt = new Date(new Date(lesson.startsAt).getTime() + lesson.durationMinutes * 60_000).toISOString()
 									return (
 										<div
 											key={lesson.id}
 											className={cn(
-												'relative grid gap-3 overflow-hidden rounded-lg border p-4 md:flex md:items-start',
-												isMarked ? 'border-success-line bg-success-soft/45' : 'border-warning-line bg-warning-soft/55'
+												'relative grid gap-3 overflow-hidden rounded-lg border p-4 md:flex md:flex-col md:items-start',
+												tone.frame
 											)}
 										>
-											<span className={cn('absolute inset-y-0 left-0 w-1', isMarked ? 'bg-success' : 'bg-warning')} />
-											<div className="md:w-26 flex items-center gap-2 font-mono text-sm font-semibold tabular-nums md:shrink-0">
-												<span
-													className={cn(
-														'flex size-8 items-center justify-center rounded-lg border',
-														isMarked
-															? 'border-success-line bg-success-soft text-success'
-															: 'border-warning-line bg-warning-soft text-warning'
-													)}
+											<div className="flex gap-2">
+												<Badge tone="green" className="tabular-nums">
+													{lesson.durationMinutes} min
+												</Badge>
+												<Badge tone={tone.badge}>{lesson.status}</Badge>
+												<Badge
+													tone={sync?.status === 'synced' ? 'green' : sync?.status === 'failed' ? 'red' : 'neutral'}
 												>
-													<Clock3 className="h-4 w-4" />
-												</span>
-												<span className="text-ink">{formatTime(lesson.startsAt)}</span>
+													Calendar {sync?.status ?? 'not synced'}
+												</Badge>
 											</div>
-											<div className="min-w-0 md:flex-1">
-												<div className="flex flex-wrap items-center gap-2">
-													<p className="text-ink font-semibold">{lesson.title}</p>
-													<Badge tone={isMarked ? 'green' : 'amber'}>
-														{attendanceCount}/{lesson.studentIds.length} marked
-													</Badge>
-													<Badge
-														tone={sync?.status === 'synced' ? 'green' : sync?.status === 'failed' ? 'red' : 'neutral'}
-													>
-														Calendar {sync?.status ?? 'not synced'}
-													</Badge>
+											<div className="flex w-full">
+												<span className={cn('absolute inset-y-0 left-0 w-1', tone.rail)} />
+												<div className="flex flex-1">
+													<span className="mr-2 font-mono text-sm font-semibold text-ink tabular-nums">
+														{formatTime(lesson.startsAt)} - {formatTime(endsAt)}
+													</span>
+													<p className="font-heading leading-none font-semibold text-ink">
+														{lessonDisplayTitle(lesson, students)}
+													</p>
 												</div>
-												<p className="text-ink-muted mt-1 truncate text-sm">{studentNames(lesson, students)}</p>
-												<p className="text-ink-muted mt-1 text-xs">
-													{lesson.durationMinutes} min{lesson.topic ? ` · ${lesson.topic}` : ''}
-												</p>
-											</div>
-											<div className="flex items-center gap-2 md:justify-end">
-												<Button size="sm" variant="ghost" onClick={() => setEditingLesson(lesson)}>
-													<Edit3 className="h-4 w-4" />
-													Edit
-												</Button>
-												{lesson.status !== 'cancelled' && (
-													<Button size="sm" variant="ghost" onClick={() => onCancelLesson(lesson.id)}>
-														<CircleSlash className="h-4 w-4" />
-														Cancel
+												<div className="flex items-center gap-2 md:justify-end">
+													<Button size="sm" variant="ghost" onClick={() => setEditingLesson(lesson)}>
+														<Edit3 className="h-4 w-4" />
+														Edit
 													</Button>
-												)}
-												<Button
-													size="sm"
-													variant={isMarked ? 'secondary' : 'default'}
-													onClick={() => onMarkGroupAttended(lesson.id)}
-												>
-													<CheckCheck className="h-4 w-4" />
-													Mark attendance
-												</Button>
-												<Tooltip>
-													<TooltipTrigger asChild>
+													{lesson.status !== 'cancelled' && (
 														<Button
-															size="icon"
+															size="sm"
 															variant="ghost"
-															aria-label="Sync lesson"
-															onClick={() => onSyncLesson(lesson.id)}
+															onClick={() => onCancelLesson(lesson.id)}
+															disabled={previewMode}
 														>
-															<RefreshCw className="h-4 w-4" />
+															<CircleSlash className="h-4 w-4" />
+															Cancel
 														</Button>
-													</TooltipTrigger>
-													<TooltipContent sideOffset={6}>Sync lesson</TooltipContent>
-												</Tooltip>
+													)}
+													<Button
+														size="sm"
+														variant="ghost"
+														className="text-danger hover:text-danger"
+														onClick={() => handleDeleteLesson(lesson)}
+														disabled={previewMode}
+													>
+														<Trash2 className="h-4 w-4" />
+														Delete
+													</Button>
+												</div>
 											</div>
 										</div>
 									)
@@ -155,7 +168,9 @@ export function LessonsPanel({
 			<LessonFormDialog
 				open={formOpen}
 				students={students}
+				lessons={lessons}
 				lesson={editingLesson}
+				onCheckCalendarConflicts={onCheckCalendarConflicts}
 				onOpenChange={(open) => {
 					if (open) return
 					setIsCreateOpen(false)

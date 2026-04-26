@@ -4,15 +4,21 @@ import { createClient } from '@/lib/supabase/client'
 
 import type {
 	ApiErrorResponse,
+	AttendanceMutationResponse,
 	AttendanceRecord,
+	CalendarBusyInterval,
+	CalendarBusyQuery,
 	CalendarConnection,
+	CalendarListEntry,
 	CalendarSyncRecord,
 	CreateLessonInput,
 	CreatePaymentInput,
 	CreateStudentInput,
 	CrmErrorLogEntry,
+	CrmThemeSettings,
 	DashboardSummary,
 	Lesson,
+	LessonMutationResponse,
 	ListStudentsResponse,
 	MarkAttendanceInput,
 	Payment,
@@ -29,21 +35,53 @@ import type { TeacherCrmState, TeacherCrmSummary } from './types'
 type LessonsResponse = { ok: true; lessons: Lesson[]; attendance: AttendanceRecord[] }
 type PaymentsResponse = { ok: true; payments: Payment[]; balances: StudentBalance[] }
 type CalendarResponse = { ok: true; connection: CalendarConnection; syncRecords: CalendarSyncRecord[] }
+type CalendarListResponse = { ok: true; calendars: CalendarListEntry[] }
+type CalendarBusyResponse = { ok: true; busy: CalendarBusyInterval[] }
+type CalendarImportResponse = { ok: true; checked: number; updated: number }
+type CalendarProviderTokenResponse = { ok: true; connection: CalendarConnection }
 type DashboardResponse = { ok: true; summary: DashboardSummary }
 type SidebarSettingsResponse = { ok: true; items: SidebarItem[] }
+type ThemeSettingsResponse = { ok: true; theme: CrmThemeSettings }
 type CrmErrorLogResponse = { ok: true; errors: CrmErrorLogEntry[] }
 type CrmErrorLogMutationResponse = { ok: true; error: CrmErrorLogEntry }
 
 const apiBaseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 const isApiErrorResponse = (value: unknown): value is ApiErrorResponse =>
 	Boolean(value && typeof value === 'object' && (value as { ok?: unknown }).ok === false)
+const canImportCalendarChanges = (calendar: CalendarResponse) =>
+	calendar.connection.status === 'connected' && calendar.connection.tokenAvailable
 
-async function accessToken() {
+async function accessToken(options: { forceRefresh?: boolean } = {}) {
+	const supabase = createClient()
+	const sessionResult = options.forceRefresh ? await supabase.auth.refreshSession() : await supabase.auth.getSession()
+	let session = sessionResult.data.session
+
+	if (!options.forceRefresh && session?.expires_at && session.expires_at <= Math.floor(Date.now() / 1000) + 60) {
+		const refreshResult = await supabase.auth.refreshSession()
+		session = refreshResult.data.session ?? session
+	}
+
+	return session?.access_token ?? null
+}
+
+export async function saveCurrentGoogleCalendarTokens() {
 	const supabase = createClient()
 	const {
 		data: { session },
 	} = await supabase.auth.getSession()
-	return session?.access_token ?? null
+
+	if (!session?.provider_token) return { saved: false as const }
+
+	await apiRequest<CalendarProviderTokenResponse>('/calendar/provider-tokens', {
+		method: 'POST',
+		body: JSON.stringify({
+			email: session.user.email,
+			providerToken: session.provider_token,
+			providerRefreshToken: session.provider_refresh_token ?? null,
+		}),
+	})
+
+	return { saved: true as const }
 }
 
 export class TeacherCrmApiError extends Error {
@@ -61,16 +99,31 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 	const token = await accessToken()
 	if (!token) throw new TeacherCrmApiError('Authentication session is missing', 401, 'UNAUTHENTICATED')
 
-	const headers = new Headers(init.headers)
-	headers.set('authorization', `Bearer ${token}`)
-	if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
+	const request = async (accessTokenValue: string) => {
+		const headers = new Headers(init.headers)
+		headers.set('authorization', `Bearer ${accessTokenValue}`)
+		if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
 
-	const response = await fetch(`${apiBaseUrl()}${path}`, {
-		...init,
-		headers,
-		cache: 'no-store',
-	})
-	const payload = (await response.json().catch(() => null)) as T | ApiErrorResponse | null
+		const response = await fetch(`${apiBaseUrl()}${path}`, {
+			...init,
+			headers,
+			cache: 'no-store',
+		})
+		const payload = (await response.json().catch(() => null)) as T | ApiErrorResponse | null
+
+		return { response, payload }
+	}
+
+	let { response, payload } = await request(token)
+
+	if (response.status === 401 && isApiErrorResponse(payload) && payload.error.code === 'INVALID_TOKEN') {
+		const refreshedToken = await accessToken({ forceRefresh: true })
+		if (refreshedToken) {
+			const retry = await request(refreshedToken)
+			response = retry.response
+			payload = retry.payload
+		}
+	}
 
 	if (!response.ok || !payload || isApiErrorResponse(payload)) {
 		const error = isApiErrorResponse(payload) ? payload.error : null
@@ -91,7 +144,18 @@ function mapSummary(summary: DashboardSummary): TeacherCrmSummary {
 }
 
 export async function loadTeacherCrm() {
-	const [students, lessons, payments, calendar, dashboard] = await Promise.all([
+	const calendar = await apiRequest<CalendarResponse>('/calendar/connection')
+	if (canImportCalendarChanges(calendar)) {
+		try {
+			await apiRequest<CalendarImportResponse>('/calendar/import-events', {
+				method: 'POST',
+			})
+		} catch (error) {
+			console.warn('[teacher-crm] failed to import Google Calendar changes before loading lessons', error)
+		}
+	}
+
+	const [students, lessons, payments, refreshedCalendar, dashboard] = await Promise.all([
 		apiRequest<ListStudentsResponse>('/students'),
 		apiRequest<LessonsResponse>('/lessons'),
 		apiRequest<PaymentsResponse>('/payments'),
@@ -105,8 +169,9 @@ export async function loadTeacherCrm() {
 		attendance: lessons.attendance,
 		payments: payments.payments,
 		studentBalances: payments.balances,
-		calendarConnection: calendar.connection,
-		calendarSyncRecords: calendar.syncRecords,
+		calendarConnection: refreshedCalendar.connection,
+		calendarOptions: [],
+		calendarSyncRecords: refreshedCalendar.syncRecords,
 	}
 
 	return {
@@ -140,8 +205,12 @@ export const teacherCrmApi = {
 			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
+	deleteLesson: (lessonId: string) =>
+		apiRequest<LessonMutationResponse>(`/lessons/${lessonId}`, {
+			method: 'DELETE',
+		}),
 	markAttendance: (input: MarkAttendanceInput) =>
-		apiRequest('/lessons/attendance', {
+		apiRequest<AttendanceMutationResponse>('/lessons/attendance', {
 			method: 'POST',
 			body: JSON.stringify(input),
 		}),
@@ -160,6 +229,12 @@ export const teacherCrmApi = {
 			method: 'PUT',
 			body: JSON.stringify({ items }),
 		}),
+	getThemeSettings: () => apiRequest<ThemeSettingsResponse>('/settings/theme'),
+	saveThemeSettings: (theme: CrmThemeSettings) =>
+		apiRequest<ThemeSettingsResponse>('/settings/theme', {
+			method: 'PUT',
+			body: JSON.stringify(theme),
+		}),
 	listCrmErrors: () => apiRequest<CrmErrorLogResponse>('/errors'),
 	saveCrmError: (input: SaveCrmErrorInput) =>
 		apiRequest<CrmErrorLogMutationResponse>('/errors', {
@@ -175,12 +250,27 @@ export const teacherCrmApi = {
 			method: 'DELETE',
 		}),
 	connectCalendar: () =>
-		apiRequest('/calendar/connections', {
+		apiRequest<{ ok: true; connection: CalendarConnection }>('/calendar/connections', {
 			method: 'POST',
+		}),
+	listCalendars: () => apiRequest<CalendarListResponse>('/calendar/calendars'),
+	listBusyIntervals: (input: CalendarBusyQuery) =>
+		apiRequest<CalendarBusyResponse>('/calendar/busy', {
+			method: 'POST',
+			body: JSON.stringify(input),
+		}),
+	selectCalendar: (calendarId: string, calendarName: string) =>
+		apiRequest<{ ok: true; connection: CalendarConnection }>('/calendar/connection', {
+			method: 'PATCH',
+			body: JSON.stringify({ calendarId, calendarName }),
 		}),
 	syncLesson: (lessonId: string) =>
 		apiRequest('/calendar/sync-events', {
 			method: 'POST',
 			body: JSON.stringify({ lessonId, syncPolicy: 'sync' }),
+		}),
+	importCalendarEvents: () =>
+		apiRequest<CalendarImportResponse>('/calendar/import-events', {
+			method: 'POST',
 		}),
 }

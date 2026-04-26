@@ -68,8 +68,8 @@ export default function ErrorLogPage() {
 	}
 
 	return (
-		<main className="flex min-h-dvh flex-col gap-unit p-unit">
-			<div className="mx-auto grid h-full w-full grow gap-5">
+		<main className="min-h-full p-unit">
+			<div className="mx-auto w-full space-y-5">
 				<header className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div className="min-w-0">
@@ -95,7 +95,7 @@ export default function ErrorLogPage() {
 				</header>
 
 				<section className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
-					<ScrollArea className="h-[calc(100dvh-15rem)] min-h-[18rem] pr-3">
+					<ScrollArea className="max-h-[calc(100dvh-15rem)] min-h-72 pr-3">
 						<div className="space-y-2">
 							{isLoading &&
 								Array.from({ length: 5 }).map((_, index) => (
@@ -119,7 +119,7 @@ export default function ErrorLogPage() {
 										<div className="min-w-0">
 											<div className="flex flex-wrap items-center gap-2">
 												<AlertTriangle className="h-4 w-4 shrink-0 text-danger" />
-												<p className="truncate text-sm font-semibold text-ink">{error.source}</p>
+												<p className="font-heading truncate text-sm font-semibold text-ink">{error.source}</p>
 												<p className="font-mono text-xs text-ink-muted tabular-nums">
 													{formatErrorTime(error.createdAt)}
 												</p>
@@ -146,7 +146,7 @@ export default function ErrorLogPage() {
 
 							{!isLoading && errors.length === 0 && (
 								<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-5">
-									<p className="text-sm font-semibold text-ink">No saved errors</p>
+									<p className="font-heading text-sm font-semibold text-ink">No saved errors</p>
 									<p className="mt-1 text-xs text-ink-muted">There are no saved failures in this workspace.</p>
 								</div>
 							)}

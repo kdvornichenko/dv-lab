@@ -9,22 +9,26 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { formatUsdAmount } from '@/lib/crm/model'
 
-import { LESSON_PRICE_RUB } from '@teacher-crm/api-types'
+import {
+	DEFAULT_LESSON_DURATION_MINUTES,
+	LESSON_PRICE_RUB,
+	calculatePackageLessonCount,
+	calculatePackageLessonPriceRub,
+	calculatePackageTotalPriceRub,
+} from '@teacher-crm/api-types'
 
 export function OfferTextComposer() {
 	const [baseLessonPrice, setBaseLessonPrice] = useState(String(LESSON_PRICE_RUB.default))
-	const [threeMonths, setThreeMonths] = useState('3')
-	const [threeLessonCount, setThreeLessonCount] = useState('24')
-	const [threePackageTotal, setThreePackageTotal] = useState(String(LESSON_PRICE_RUB.package3Months * 24))
-	const [fiveMonths, setFiveMonths] = useState('5')
-	const [fiveLessonCount, setFiveLessonCount] = useState('40')
-	const [fivePackageTotal, setFivePackageTotal] = useState(String(LESSON_PRICE_RUB.package5Months * 40))
+	const [lessonDurationMinutes, setLessonDurationMinutes] = useState(String(DEFAULT_LESSON_DURATION_MINUTES))
+	const [threeLessonsPerWeek, setThreeLessonsPerWeek] = useState('2')
+	const [fiveLessonsPerWeek, setFiveLessonsPerWeek] = useState('2')
 	const [copied, setCopied] = useState(false)
 	const offerText = buildOfferText({
 		baseLessonPrice,
+		lessonDurationMinutes,
 		packages: [
-			{ months: threeMonths, lessonCount: threeLessonCount, packageTotal: threePackageTotal },
-			{ months: fiveMonths, lessonCount: fiveLessonCount, packageTotal: fivePackageTotal },
+			{ months: 3, lessonsPerWeek: threeLessonsPerWeek },
+			{ months: 5, lessonsPerWeek: fiveLessonsPerWeek },
 		],
 	})
 
@@ -35,11 +39,11 @@ export function OfferTextComposer() {
 	}
 
 	return (
-		<section className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+		<section className="border-line bg-surface rounded-lg border p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<p className="font-mono text-xs font-semibold text-sage uppercase">Offer text</p>
-					<h3 className="mt-1 text-lg font-semibold text-ink">Package message</h3>
+					<p className="text-sage font-mono text-xs font-semibold uppercase">Offer text</p>
+					<h3 className="text-ink mt-1 text-lg font-semibold">Package message</h3>
 				</div>
 				<Button type="button" size="sm" onClick={copyOfferText}>
 					<Copy className="h-4 w-4" />
@@ -49,23 +53,26 @@ export function OfferTextComposer() {
 
 			<div className="mt-4 grid gap-3">
 				<OfferInput label="Base lesson price" value={baseLessonPrice} onChange={setBaseLessonPrice} />
+				<OfferInput
+					label="Lesson duration, minutes"
+					value={lessonDurationMinutes}
+					onChange={setLessonDurationMinutes}
+				/>
 				<OfferPackageInputs
 					label="3-month package"
-					months={threeMonths}
-					lessonCount={threeLessonCount}
-					packageTotal={threePackageTotal}
-					onMonthsChange={setThreeMonths}
-					onLessonCountChange={setThreeLessonCount}
-					onPackageTotalChange={setThreePackageTotal}
+					baseLessonPrice={baseLessonPrice}
+					lessonDurationMinutes={lessonDurationMinutes}
+					months={3}
+					lessonsPerWeek={threeLessonsPerWeek}
+					onLessonsPerWeekChange={setThreeLessonsPerWeek}
 				/>
 				<OfferPackageInputs
 					label="5-month package"
-					months={fiveMonths}
-					lessonCount={fiveLessonCount}
-					packageTotal={fivePackageTotal}
-					onMonthsChange={setFiveMonths}
-					onLessonCountChange={setFiveLessonCount}
-					onPackageTotalChange={setFivePackageTotal}
+					baseLessonPrice={baseLessonPrice}
+					lessonDurationMinutes={lessonDurationMinutes}
+					months={5}
+					lessonsPerWeek={fiveLessonsPerWeek}
+					onLessonsPerWeekChange={setFiveLessonsPerWeek}
 				/>
 				<Textarea value={offerText} readOnly className="min-h-64 font-mono text-sm leading-6" aria-label="Offer text" />
 			</div>
@@ -75,35 +82,53 @@ export function OfferTextComposer() {
 
 function OfferPackageInputs({
 	label,
+	baseLessonPrice,
+	lessonDurationMinutes,
 	months,
-	lessonCount,
-	packageTotal,
-	onMonthsChange,
-	onLessonCountChange,
-	onPackageTotalChange,
+	lessonsPerWeek,
+	onLessonsPerWeekChange,
 }: {
 	label: string
-	months: string
-	lessonCount: string
-	packageTotal: string
-	onMonthsChange: (value: string) => void
-	onLessonCountChange: (value: string) => void
-	onPackageTotalChange: (value: string) => void
+	baseLessonPrice: string
+	lessonDurationMinutes: string
+	months: 3 | 5
+	lessonsPerWeek: string
+	onLessonsPerWeekChange: (value: string) => void
 }) {
-	const lessonPrice = safeNumber(lessonCount) > 0 ? safeNumber(packageTotal) / safeNumber(lessonCount) : 0
+	const lessonCount = calculatePackageLessonCount({
+		packageMonths: months,
+		packageLessonsPerWeek: Math.max(Math.floor(safeNumber(lessonsPerWeek)), 0),
+	})
+	const lessonPrice = calculatePackageLessonPriceRub({
+		defaultLessonPrice: safeNumber(baseLessonPrice),
+		defaultLessonDurationMinutes: safeNumber(lessonDurationMinutes),
+		packageMonths: months,
+	})
+	const packageTotal = calculatePackageTotalPriceRub({
+		defaultLessonPrice: safeNumber(baseLessonPrice),
+		defaultLessonDurationMinutes: safeNumber(lessonDurationMinutes),
+		packageMonths: months,
+		packageLessonCount: lessonCount,
+	})
 
 	return (
-		<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
+		<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
 			<div className="mb-3 flex items-center justify-between gap-3">
-				<p className="text-sm font-semibold text-ink">{label}</p>
+				<p className="font-heading text-ink text-sm font-semibold">{label}</p>
 				<Badge tone="neutral" className="font-mono tabular-nums">
 					{formatUsdAmount(lessonPrice)} / lesson
 				</Badge>
 			</div>
 			<div className="space-y-1">
-				<OfferInput label="Months" value={months} onChange={onMonthsChange} />
-				<OfferInput label="Lessons" value={lessonCount} onChange={onLessonCountChange} />
-				<OfferInput label="Package payment" value={packageTotal} onChange={onPackageTotalChange} />
+				<OfferInput label="Lessons per week" value={lessonsPerWeek} onChange={onLessonsPerWeekChange} />
+				<div className="grid grid-cols-2 items-center gap-2">
+					<p className="text-ink-muted text-sm font-medium">Lessons in package</p>
+					<p className="text-ink font-mono text-sm font-semibold tabular-nums">{lessonCount}</p>
+				</div>
+				<div className="grid grid-cols-2 items-center gap-2">
+					<p className="text-ink-muted text-sm font-medium">Package payment</p>
+					<p className="text-ink font-mono text-sm font-semibold tabular-nums">{formatUsdAmount(packageTotal)}</p>
+				</div>
 			</div>
 		</div>
 	)
@@ -112,7 +137,7 @@ function OfferPackageInputs({
 function OfferInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
 	return (
 		<div className="grid grid-cols-2 items-center gap-2">
-			<Label className="mb-1.5 block text-sm font-medium text-ink-muted">{label}</Label>
+			<Label className="text-ink-muted mb-1.5 block text-sm font-medium">{label}</Label>
 			<Input
 				type="number"
 				inputMode="numeric"
@@ -120,7 +145,7 @@ function OfferInput({ label, value, onChange }: { label: string; value: string; 
 				step="1"
 				value={value}
 				onChange={(event) => onChange(event.target.value)}
-				className="bg-surface"
+				className="bg-surface font-mono tabular-nums"
 			/>
 		</div>
 	)
@@ -128,22 +153,41 @@ function OfferInput({ label, value, onChange }: { label: string; value: string; 
 
 function buildOfferText({
 	baseLessonPrice,
+	lessonDurationMinutes,
 	packages,
 }: {
 	baseLessonPrice: string
-	packages: { months: string; lessonCount: string; packageTotal: string }[]
+	lessonDurationMinutes: string
+	packages: { months: 3 | 5; lessonsPerWeek: string }[]
 }) {
 	const basePrice = safeNumber(baseLessonPrice)
 	const [threeMonthPackage, fiveMonthPackage] = packages.map((item) => {
-		const months = Math.max(Math.floor(safeNumber(item.months)), 0)
-		const lessons = Math.max(Math.floor(safeNumber(item.lessonCount)), 0)
-		const packageTotal = safeNumber(item.packageTotal)
-		const lessonPrice = lessons > 0 ? packageTotal / lessons : 0
-		const savings = Math.max(basePrice * lessons - packageTotal, 0)
+		const lessons = calculatePackageLessonCount({
+			packageMonths: item.months,
+			packageLessonsPerWeek: Math.max(Math.floor(safeNumber(item.lessonsPerWeek)), 0),
+		})
+		const lessonPrice = calculatePackageLessonPriceRub({
+			defaultLessonPrice: basePrice,
+			defaultLessonDurationMinutes: safeNumber(lessonDurationMinutes),
+			packageMonths: item.months,
+		})
+		const packageTotal = calculatePackageTotalPriceRub({
+			defaultLessonPrice: basePrice,
+			defaultLessonDurationMinutes: safeNumber(lessonDurationMinutes),
+			packageMonths: item.months,
+			packageLessonCount: lessons,
+		})
+		const fullTotal =
+			calculatePackageLessonPriceRub({
+				defaultLessonPrice: basePrice,
+				defaultLessonDurationMinutes: safeNumber(lessonDurationMinutes),
+				packageMonths: 0,
+			}) * lessons
+		const savings = Math.max(fullTotal - packageTotal, 0)
 
 		return [
-			`• при оплате за ${formatMonths(months)} стоимость занятия составляет ${formatRubText(lessonPrice)} рублей`,
-			`за ${formatMonths(months)} — ${formatLessons(lessons)} — ${formatRubText(packageTotal)} рублей`,
+			`• при оплате за ${formatMonths(item.months)} стоимость занятия составляет ${formatRubText(lessonPrice)} рублей`,
+			`за ${formatMonths(item.months)} — ${formatLessons(lessons)} — ${formatRubText(packageTotal)} рублей`,
 			`экономия — ${formatRubText(savings)} рублей`,
 		].join('\n')
 	})

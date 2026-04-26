@@ -33,7 +33,7 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 
 	if (!student) {
 		return (
-			<main className="flex min-h-dvh flex-col gap-unit p-unit">
+			<main className="min-h-full p-unit">
 				<section className="rounded-lg border border-line bg-surface p-6">
 					<Button asChild variant="ghost" size="sm">
 						<Link href="/students">
@@ -51,8 +51,8 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 	}
 
 	return (
-		<main className="flex min-h-dvh flex-col gap-unit p-unit">
-			<div className="mx-auto grid h-full w-full grow gap-5">
+		<main className="min-h-full p-unit">
+			<div className="mx-auto w-full space-y-5">
 				<header className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div className="min-w-0">
@@ -103,7 +103,6 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 					<StudentProfilePane
 						student={student}
 						lessons={crm.state.lessons}
-						attendance={crm.state.attendance}
 						now={now}
 					/>
 					<OfferTextComposer />
@@ -126,8 +125,8 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 
 function StudentSettingsSkeleton() {
 	return (
-		<main className="flex min-h-dvh flex-col gap-unit p-unit">
-			<div className="grid gap-5">
+		<main className="min-h-full p-unit">
+			<div className="grid content-start gap-5">
 				<Skeleton className="h-36 rounded-lg" />
 				<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">
 					<Skeleton className="h-96 rounded-lg" />

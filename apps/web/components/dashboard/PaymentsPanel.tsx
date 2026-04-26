@@ -17,9 +17,17 @@ type PaymentsPanelProps = {
 	studentBalances: StudentBalance[]
 	now: Date
 	onDeletePayment: (paymentId: string) => Promise<void>
+	previewMode?: boolean
 }
 
-export function PaymentsPanel({ payments, students, studentBalances, now, onDeletePayment }: PaymentsPanelProps) {
+export function PaymentsPanel({
+	payments,
+	students,
+	studentBalances,
+	now,
+	onDeletePayment,
+	previewMode = false,
+}: PaymentsPanelProps) {
 	const ledger = selectPaymentLedger(payments, studentBalances, now)
 	const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
 
@@ -64,7 +72,9 @@ export function PaymentsPanel({ payments, students, studentBalances, now, onDele
 									className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-surface-muted p-3"
 								>
 									<div className="min-w-0">
-										<p className="truncate text-sm font-medium text-ink">{student?.fullName ?? 'Unknown student'}</p>
+										<p className="font-heading truncate text-sm font-medium text-ink">
+											{student?.fullName ?? 'Unknown student'}
+										</p>
 										<p className="font-mono text-xs text-ink-muted tabular-nums">
 											Paid {formatDateShort(payment.paidAt)}
 										</p>
@@ -81,7 +91,7 @@ export function PaymentsPanel({ payments, students, studentBalances, now, onDele
 													size="icon"
 													className="text-ink-muted hover:bg-danger-soft hover:text-danger"
 													aria-label={`Delete payment for ${student?.fullName ?? 'unknown student'}`}
-													disabled={deletingPaymentId === payment.id}
+													disabled={previewMode || deletingPaymentId === payment.id}
 													onClick={() => void handleDeletePayment(payment.id).catch(() => undefined)}
 												>
 													<Trash2 className="h-4 w-4" />
@@ -95,7 +105,7 @@ export function PaymentsPanel({ payments, students, studentBalances, now, onDele
 						})}
 						{payments.length === 0 && (
 							<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-4">
-								<p className="text-sm font-semibold text-ink">No payments recorded this month</p>
+								<p className="font-heading text-sm font-semibold text-ink">No payments recorded this month</p>
 								<p className="mt-1 text-xs text-ink-muted">Record a payment when a student tops up a package.</p>
 							</div>
 						)}

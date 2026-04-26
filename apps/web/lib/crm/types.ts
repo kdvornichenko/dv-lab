@@ -1,6 +1,7 @@
 import type {
 	AttendanceRecord,
 	CalendarConnection,
+	CalendarListEntry,
 	CalendarSyncRecord,
 	Lesson,
 	Payment,
@@ -15,6 +16,7 @@ export type TeacherCrmState = {
 	payments: Payment[]
 	studentBalances: StudentBalance[]
 	calendarConnection: CalendarConnection
+	calendarOptions: CalendarListEntry[]
 	calendarSyncRecords: CalendarSyncRecord[]
 }
 

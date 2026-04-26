@@ -3,18 +3,33 @@ import { CalendarClock, Link2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { selectCalendarStatus } from '@/lib/crm/model'
 
-import type { CalendarConnection, CalendarSyncRecord } from '@teacher-crm/api-types'
+import type { CalendarConnection, CalendarListEntry, CalendarSyncRecord } from '@teacher-crm/api-types'
 
 type CalendarPanelProps = {
 	connection: CalendarConnection
+	calendarOptions?: CalendarListEntry[]
 	syncRecords: CalendarSyncRecord[]
 	onConnect: () => void
+	onSelectCalendar?: (calendarId: string, calendarName: string) => void
+	previewMode?: boolean
 }
 
-export function CalendarPanel({ connection, syncRecords, onConnect }: CalendarPanelProps) {
+export function CalendarPanel({
+	connection,
+	calendarOptions = [],
+	syncRecords,
+	onConnect,
+	onSelectCalendar,
+	previewMode = false,
+}: CalendarPanelProps) {
 	const calendarStatus = selectCalendarStatus(connection, syncRecords)
+	const selectedPlaceholderValue = 'calendar-not-selected'
+	const selectedCalendarId = connection.selectedCalendarId ?? selectedPlaceholderValue
+	const selectedCalendarMissing =
+		Boolean(connection.selectedCalendarId) && !calendarOptions.some((calendar) => calendar.id === connection.selectedCalendarId)
 
 	return (
 		<Card id="calendar" className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
@@ -32,7 +47,9 @@ export function CalendarPanel({ connection, syncRecords, onConnect }: CalendarPa
 				<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
 					<div className="flex items-center justify-between gap-3">
 						<div className="min-w-0">
-							<p className="text-ink truncate text-sm font-semibold">{connection.email ?? 'No account connected'}</p>
+							<p className="font-heading text-ink truncate text-sm font-semibold">
+								{connection.email ?? 'No account connected'}
+							</p>
 							<p className="text-ink-muted mt-1 truncate text-xs">
 								{connection.selectedCalendarName ?? 'Calendar is not selected'}
 							</p>
@@ -50,9 +67,50 @@ export function CalendarPanel({ connection, syncRecords, onConnect }: CalendarPa
 						<p className="text-ink mt-1 font-mono text-lg font-semibold tabular-nums">{calendarStatus.failedSyncs}</p>
 					</div>
 				</div>
-				<Button className="w-full" variant={calendarStatus.connected ? 'secondary' : 'primary'} onClick={onConnect}>
+				<div className="grid gap-2">
+					<p className="text-ink-muted text-xs font-medium">Target calendar</p>
+					<Select
+						value={selectedCalendarId}
+						disabled={previewMode || !calendarStatus.connected || calendarOptions.length === 0}
+						onValueChange={(calendarId) => {
+							if (calendarId === selectedPlaceholderValue) return
+							const calendar = calendarOptions.find((item) => item.id === calendarId)
+							onSelectCalendar?.(calendarId, calendar?.name ?? calendarId)
+						}}
+					>
+						<SelectTrigger>
+							<SelectValue placeholder={calendarStatus.connected ? 'Choose calendar' : 'Connect Google first'} />
+						</SelectTrigger>
+						<SelectContent>
+							{!connection.selectedCalendarId && (
+								<SelectItem value={selectedPlaceholderValue} disabled>
+									{calendarStatus.connected ? 'Choose calendar' : 'Connect Google first'}
+								</SelectItem>
+							)}
+							{selectedCalendarMissing && connection.selectedCalendarId && (
+								<SelectItem value={connection.selectedCalendarId}>
+									{connection.selectedCalendarName ?? connection.selectedCalendarId}
+								</SelectItem>
+							)}
+							{calendarOptions.map((calendar) => (
+								<SelectItem key={calendar.id} value={calendar.id}>
+									{calendar.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					{calendarStatus.connected && calendarOptions.length === 0 && (
+						<p className="text-warning text-xs">Writable calendars are not loaded yet.</p>
+					)}
+				</div>
+				<Button
+					className="w-full"
+					variant={calendarStatus.connected ? 'secondary' : 'primary'}
+					onClick={onConnect}
+					disabled={previewMode}
+				>
 					<Link2 className="h-4 w-4" />
-					{calendarStatus.connected ? 'Reconnect calendar' : 'Verify calendar access'}
+					{calendarStatus.connected ? 'Reconnect calendar' : 'Authorize Google Calendar'}
 				</Button>
 			</CardContent>
 		</Card>

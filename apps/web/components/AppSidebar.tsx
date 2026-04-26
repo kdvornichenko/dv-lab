@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 import { Badge } from '@/components/ui/badge'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
@@ -9,18 +9,24 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 import { iconRegistry, useSidebarSettings } from './SidebarSettingsProvider'
+import { Button } from './ui/button'
 
 export function AppSidebar() {
 	const pathname = usePathname()
-	const searchParams = useSearchParams()
 	const { closeMobile, mobileOpen, open } = useSidebar()
 	const { loading, visibleItems } = useSidebarSettings()
 	const expanded = open || mobileOpen
-	const activeView = searchParams.get('view') ?? 'dashboard'
 
-	function itemView(href: string) {
-		if (!href.startsWith('/?')) return href === '/' ? 'dashboard' : href
-		return new URLSearchParams(href.slice(2)).get('view') ?? 'dashboard'
+	function workspaceHref(href: string) {
+		if (!href.startsWith('/?')) return href
+		const view = new URLSearchParams(href.slice(2)).get('view')
+		return view && view !== 'dashboard' ? `/${view}` : '/'
+	}
+
+	function isItemActive(href: string) {
+		const baseHref = workspaceHref(href).split('?')[0] || '/'
+		if (baseHref === '/') return pathname === '/'
+		return pathname === baseHref || pathname.startsWith(`${baseHref}/`)
 	}
 
 	return (
@@ -39,30 +45,26 @@ export function AppSidebar() {
 								{expanded && <Skeleton className="h-4 flex-1 rounded-md" />}
 							</div>
 						))}
-					{visibleItems.map((item) => {
-						const Icon = iconRegistry[item.icon] ?? iconRegistry.Circle
-						const baseHref = item.href.split('?')[0]
-						const isWorkspaceView = item.href === '/' || item.href.startsWith('/?')
-						const isActive = isWorkspaceView
-							? pathname === '/' && itemView(item.href) === activeView
-							: pathname === baseHref || pathname.startsWith(`${baseHref}/`)
-						return (
-							<Link
-								key={item.id}
-								href={item.href}
-								className={cn(
-									'flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-semibold text-ink-muted transition-[background-color,color,transform] duration-150 ease-[var(--ease-out)] hover:bg-sage-soft hover:text-sage active:scale-[0.98]',
-									!expanded && 'justify-center px-0',
-									isActive && 'bg-sage text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
-								)}
-								title={item.title}
-								onClick={closeMobile}
-							>
-								<Icon className="h-4 w-4 shrink-0" />
-								{expanded && <span className="truncate">{item.title}</span>}
-							</Link>
-						)
-					})}
+					<div className="flex flex-col gap-y-1">
+						{visibleItems.map((item) => {
+							const Icon = iconRegistry[item.icon] ?? iconRegistry.Circle
+							const href = workspaceHref(item.href)
+							const isActive = isItemActive(item.href)
+							return (
+								<Button
+									key={item.id}
+									variant={isActive ? 'default' : 'ghost'}
+									asChild
+									className="justify-start text-left"
+								>
+									<Link href={href} title={item.title} onClick={closeMobile}>
+										<Icon className="h-4 w-4 shrink-0" />
+										{expanded && <span className="truncate">{item.title}</span>}
+									</Link>
+								</Button>
+							)
+						})}
+					</div>
 				</div>
 			</SidebarContent>
 

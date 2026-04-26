@@ -7,39 +7,38 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatUsdAmount, selectStudentLedgerProjection, STUDENT_FILTER_OPTIONS } from '@/lib/crm/model'
 import { studentSettingsPath } from '@/lib/crm/student-route-id'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
-import { type AttendanceRecord, type CreateStudentInput, type Lesson } from '@teacher-crm/api-types'
+import { type CreateStudentInput, type Lesson } from '@teacher-crm/api-types'
 
 import { StudentFormDialog } from './StudentFormDialog'
 
 type StudentsPanelProps = {
 	visibleStudents: StudentWithBalance[]
 	lessons: Lesson[]
-	attendance: AttendanceRecord[]
 	filter: 'all' | StudentWithBalance['status']
 	now: Date
 	onFilterChange: (value: 'all' | StudentWithBalance['status']) => void
 	onAddStudent: (input: CreateStudentInput) => Promise<void>
 	onArchiveStudent: (studentId: string) => Promise<void>
 	onRecordPayment: (studentId: string) => Promise<void>
+	previewMode?: boolean
 }
 
 export function StudentsPanel({
 	visibleStudents,
 	lessons,
-	attendance,
 	filter,
 	now,
 	onFilterChange,
 	onAddStudent,
 	onArchiveStudent,
 	onRecordPayment,
+	previewMode = false,
 }: StudentsPanelProps) {
 	const [search, setSearch] = useState('')
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -50,7 +49,7 @@ export function StudentsPanel({
 		() =>
 			visibleStudents.filter((student) => {
 				if (!query) return true
-				return [student.fullName, student.email, student.phone, student.level, student.notes]
+				return [student.firstName, student.lastName, student.fullName, student.level, student.special, student.notes]
 					.filter(Boolean)
 					.some((value) => String(value).toLowerCase().includes(query))
 			}),
@@ -103,34 +102,32 @@ export function StudentsPanel({
 				</div>
 			</div>
 
-			<ScrollArea className="max-h-[calc(100dvh-16rem)] pr-3">
-				<div className="grid gap-3">
-					{filteredStudents.map((student) => (
-						<StudentLedgerItem
-							key={student.id}
-							student={student}
-							lessons={lessons}
-							attendance={attendance}
-							now={now}
-							settingsHref={studentSettingsPath(student.id, studentIds)}
-							onRecordPayment={() => onRecordPayment(student.id)}
-							onArchive={() => onArchiveStudent(student.id)}
-						/>
-					))}
-					{filteredStudents.length === 0 && (
-						<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-8 text-center">
-							<p className="font-semibold text-ink">No students match this ledger view</p>
-							<p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
-								Add a student or clear the search to bring the ledger back.
-							</p>
-							<Button className="mt-4" size="sm" onClick={() => setIsCreateOpen(true)}>
-								<Plus className="h-4 w-4" />
-								Add student
-							</Button>
-						</div>
-					)}
-				</div>
-			</ScrollArea>
+			<div className="grid gap-3">
+				{filteredStudents.map((student) => (
+					<StudentLedgerItem
+						key={student.id}
+						student={student}
+						lessons={lessons}
+						now={now}
+						settingsHref={studentSettingsPath(student.id, studentIds)}
+						onRecordPayment={() => onRecordPayment(student.id)}
+						onArchive={() => onArchiveStudent(student.id)}
+						previewMode={previewMode}
+					/>
+				))}
+				{filteredStudents.length === 0 && (
+					<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-8 text-center">
+						<p className="font-heading font-semibold text-ink">No students match this ledger view</p>
+						<p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+							Add a student or clear the search to bring the ledger back.
+						</p>
+						<Button className="mt-4" size="sm" onClick={() => setIsCreateOpen(true)}>
+							<Plus className="h-4 w-4" />
+							Add student
+						</Button>
+					</div>
+				)}
+			</div>
 
 			<StudentFormDialog
 				open={isCreateOpen}
@@ -148,59 +145,67 @@ export function StudentsPanel({
 function StudentLedgerItem({
 	student,
 	lessons,
-	attendance,
 	now,
 	settingsHref,
 	onRecordPayment,
 	onArchive,
+	previewMode,
 }: {
 	student: StudentWithBalance
 	lessons: Lesson[]
-	attendance: AttendanceRecord[]
 	now: Date
 	settingsHref: string
 	onRecordPayment: () => void
 	onArchive: () => void
+	previewMode: boolean
 }) {
-	const projection = selectStudentLedgerProjection(student, lessons, attendance, now)
-	const contact = student.email || student.phone || 'No contact'
+	const projection = selectStudentLedgerProjection(student, lessons, now)
+	const subtitle = student.special || student.level || 'No special note'
+	const ledgerContent = (
+		<>
+			<div className="flex flex-wrap items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p className="truncate font-heading font-semibold text-ink transition-colors group-hover:text-sage">
+						{student.fullName}
+					</p>
+					<p className="mt-1 truncate text-xs text-ink-muted">{subtitle}</p>
+				</div>
+				<div className="flex flex-wrap gap-1.5">
+					<Badge tone={projection.statusTone}>{student.status}</Badge>
+					<Badge tone={projection.balanceTone} className="font-mono tabular-nums">
+						{formatUsdAmount(student.balance.balance)}
+					</Badge>
+				</div>
+			</div>
+			<div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+				<StudentMetric label="Rate" value={`${formatUsdAmount(student.defaultLessonPrice)} / 60 min`} />
+				<StudentMetric label="Plan" value={projection.plan} />
+				<StudentMetric label="Package" value={projection.lessonsLeft} />
+				<StudentMetric label="Next payment" value={projection.nextPayment} />
+			</div>
+		</>
+	)
 
 	return (
-		<article className="rounded-lg border border-line bg-surface p-3 shadow-[0_14px_42px_-38px_var(--shadow-sage)]">
+		<article className="rounded-lg border border-line bg-surface p-3 transition-colors [&:has(a:hover)]:border-sage">
 			<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-				<Link
-					href={settingsHref}
-					className="group min-w-0 rounded-lg text-left focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none"
-				>
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div className="min-w-0">
-							<p className="truncate font-semibold text-ink">{student.fullName}</p>
-							<p className="mt-1 truncate text-xs text-ink-muted">{contact}</p>
-						</div>
-						<div className="flex flex-wrap gap-1.5">
-							<Badge tone={projection.statusTone}>{student.status}</Badge>
-							<Badge tone={projection.balanceTone} className="font-mono tabular-nums">
-								{formatUsdAmount(student.balance.balance)}
-							</Badge>
-						</div>
-					</div>
-					<div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-						<StudentMetric label="Rate" value={formatUsdAmount(student.defaultLessonPrice)} />
-						<StudentMetric label="Plan" value={projection.plan} />
-						<StudentMetric label="Package" value={projection.lessonsLeft} />
-						<StudentMetric label="Next payment" value={projection.nextPayment} />
-					</div>
-					<p className="mt-3 text-xs font-semibold text-sage group-hover:underline">Open settings</p>
-				</Link>
+				{previewMode ? (
+					<div className="min-w-0 rounded-lg text-left">{ledgerContent}</div>
+				) : (
+					<Link
+						href={settingsHref}
+						className="group min-w-0 rounded-lg text-left focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none"
+					>
+						{ledgerContent}
+					</Link>
+				)}
 
 				<div className="flex flex-wrap justify-end gap-1.5">
-					<StudentIconLink label={`Open settings for ${student.fullName}`} href={settingsHref} variant="ghost">
-						<Settings className="h-4 w-4" />
-					</StudentIconLink>
 					<StudentIconButton
 						label={`Record payment for ${student.fullName}`}
 						onClick={onRecordPayment}
 						variant="secondary"
+						disabled={previewMode}
 					>
 						<Banknote className="h-4 w-4" />
 					</StudentIconButton>
@@ -208,7 +213,7 @@ function StudentLedgerItem({
 						label={`Archive ${student.fullName}`}
 						onClick={onArchive}
 						variant="ghost"
-						disabled={student.status === 'archived'}
+						disabled={previewMode || student.status === 'archived'}
 					>
 						<Archive className="h-4 w-4" />
 					</StudentIconButton>

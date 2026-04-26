@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import { Save } from 'lucide-react'
 
@@ -20,17 +20,29 @@ import { Textarea } from '@/components/ui/textarea'
 import { BILLING_MODE_OPTIONS, formatUsdAmount, getBillingModeLabel, STUDENT_STATUS_OPTIONS } from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
-import { LESSON_PRICE_RUB } from '@teacher-crm/api-types'
+import {
+	DEFAULT_LESSON_DURATION_MINUTES,
+	DEFAULT_PACKAGE_WEEKS_PER_MONTH,
+	LESSON_PRICE_RUB,
+	SUPPORTED_PACKAGE_MONTHS,
+	calculatePackageLessonCount,
+	calculatePackageLessonPriceRub,
+	calculatePackageTotalPriceRub,
+	getLessonDurationUnits,
+	isSupportedPackageMonths,
+} from '@teacher-crm/api-types'
 
 type StudentFormValues = {
-	fullName: string
-	email: string
-	phone: string
+	firstName: string
+	lastName: string
 	level: string
+	special: string
 	status: StudentWithBalance['status']
 	notes: string
 	defaultLessonPrice: string
+	defaultLessonDurationMinutes: string
 	packageMonths: string
+	packageLessonsPerWeek: string
 	packageLessonCount: string
 	packageTotalPrice: string
 	billingMode: StudentWithBalance['billingMode']
@@ -38,15 +50,28 @@ type StudentFormValues = {
 
 type StudentFormCommand = Omit<
 	StudentFormValues,
-	'defaultLessonPrice' | 'packageMonths' | 'packageLessonCount' | 'packageTotalPrice'
+	| 'defaultLessonPrice'
+	| 'defaultLessonDurationMinutes'
+	| 'packageMonths'
+	| 'packageLessonsPerWeek'
+	| 'packageLessonCount'
+	| 'packageTotalPrice'
 > & {
+	fullName: string
+	email: string
+	phone: string
 	defaultLessonPrice: number
+	defaultLessonDurationMinutes: number
 	packageMonths: number
+	packageLessonsPerWeek: number
 	packageLessonCount: number
 	packageTotalPrice: number
 }
 
-type StudentFormErrors = Partial<Record<keyof StudentFormValues | 'contact', string>>
+type StudentFormErrors = Partial<Record<keyof StudentFormValues, string>>
+type FormSubmitEvent = {
+	preventDefault: () => void
+}
 
 type StudentFormDialogProps = {
 	open: boolean
@@ -57,82 +82,120 @@ type StudentFormDialogProps = {
 }
 
 const initialValues: StudentFormValues = {
-	fullName: '',
-	email: '',
-	phone: '',
+	firstName: '',
+	lastName: '',
 	level: '',
+	special: '',
 	status: 'active',
 	notes: '',
 	defaultLessonPrice: String(LESSON_PRICE_RUB.default),
+	defaultLessonDurationMinutes: String(DEFAULT_LESSON_DURATION_MINUTES),
 	packageMonths: '0',
+	packageLessonsPerWeek: '1',
 	packageLessonCount: '0',
 	packageTotalPrice: '0',
 	billingMode: 'per_lesson',
 }
 
+const textValue = (value: string | null | undefined) => value ?? ''
+const nameFromFullName = (value: string | null | undefined) => {
+	const parts = textValue(value).trim().split(/\s+/).filter(Boolean)
+	return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') }
+}
+const inferLessonsPerWeek = (student: StudentWithBalance) => {
+	if ((student.packageLessonsPerWeek ?? 0) > 0) return student.packageLessonsPerWeek
+	if (student.packageMonths > 0 && student.packageLessonCount > 0) {
+		return Math.max(
+			Math.round(student.packageLessonCount / (student.packageMonths * DEFAULT_PACKAGE_WEEKS_PER_MONTH)),
+			1
+		)
+	}
+	return 1
+}
+
 const toValues = (student?: StudentWithBalance | null): StudentFormValues =>
 	student
-		? {
-				fullName: student.fullName,
-				email: student.email ?? '',
-				phone: student.phone ?? '',
-				level: student.level ?? '',
-				status: student.status,
-				notes: student.notes ?? '',
-				defaultLessonPrice: String(student.defaultLessonPrice),
-				packageMonths: String(student.packageMonths),
-				packageLessonCount: String(student.packageLessonCount),
-				packageTotalPrice: String(student.packageTotalPrice),
-				billingMode: student.billingMode,
-			}
+		? (() => {
+				const fallbackName = nameFromFullName(student.fullName)
+				return {
+					firstName: textValue(student.firstName) || fallbackName.firstName,
+					lastName: textValue(student.lastName) || fallbackName.lastName,
+					level: student.level ?? '',
+					special: student.special ?? '',
+					status: student.status,
+					notes: student.notes ?? '',
+					defaultLessonPrice: String(student.defaultLessonPrice),
+					defaultLessonDurationMinutes: String(student.defaultLessonDurationMinutes),
+					packageMonths: String(student.packageMonths),
+					packageLessonsPerWeek: String(inferLessonsPerWeek(student)),
+					packageLessonCount: String(student.packageLessonCount),
+					packageTotalPrice: String(student.packageTotalPrice),
+					billingMode: student.billingMode,
+				}
+			})()
 		: initialValues
 
-const validateEmail = (email: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-const numberValue = (value: string) => Number(value)
+const numberValue = (value: string | undefined) => Number(value)
 const finiteOrZero = (value: number) => (Number.isFinite(value) ? value : 0)
 
 function validate(values: StudentFormValues) {
 	const errors: StudentFormErrors = {}
 	const price = Number(values.defaultLessonPrice)
+	const defaultLessonDurationMinutes = numberValue(values.defaultLessonDurationMinutes)
 	const packageMonths = numberValue(values.packageMonths)
-	const packageLessonCount = numberValue(values.packageLessonCount)
-	const packageTotalPrice = numberValue(values.packageTotalPrice)
+	const packageLessonsPerWeek = numberValue(values.packageLessonsPerWeek)
 
-	if (!values.fullName.trim()) errors.fullName = 'Full name is required'
+	if (!textValue(values.firstName).trim()) errors.firstName = 'First name is required'
+	if (!textValue(values.lastName).trim()) errors.lastName = 'Last name is required'
 	if (!Number.isFinite(price) || price < 0) errors.defaultLessonPrice = 'Price must be zero or greater'
-	if (!Number.isInteger(packageMonths) || packageMonths < 0) errors.packageMonths = 'Months must be zero or greater'
-	if (!Number.isInteger(packageLessonCount) || packageLessonCount < 0) {
-		errors.packageLessonCount = 'Lessons must be zero or greater'
+	if (!Number.isInteger(defaultLessonDurationMinutes) || defaultLessonDurationMinutes <= 0) {
+		errors.defaultLessonDurationMinutes = 'Duration must be greater than zero'
 	}
-	if (!Number.isFinite(packageTotalPrice) || packageTotalPrice < 0) {
-		errors.packageTotalPrice = 'Package price must be zero or greater'
+	if (!Number.isInteger(packageMonths) || !isSupportedPackageMonths(packageMonths)) {
+		errors.packageMonths = 'Choose no package, 3 months, or 5 months'
+	}
+	if (!Number.isInteger(packageLessonsPerWeek) || packageLessonsPerWeek < 0) {
+		errors.packageLessonsPerWeek = 'Lessons per week must be zero or greater'
 	}
 	if (values.billingMode === 'package') {
 		if (packageMonths <= 0) errors.packageMonths = 'Set package length'
-		if (packageLessonCount <= 0) errors.packageLessonCount = 'Set lessons in package'
-		if (packageTotalPrice <= 0) errors.packageTotalPrice = 'Set package payment amount'
+		if (packageLessonsPerWeek <= 0) errors.packageLessonsPerWeek = 'Set lessons per week'
 	}
-	if (!values.email.trim() && !values.phone.trim()) errors.contact = 'Add email or phone'
-	if (!validateEmail(values.email.trim())) errors.email = 'Use a valid email address'
 	if (!STUDENT_STATUS_OPTIONS.includes(values.status)) errors.status = 'Choose a status'
 	if (!BILLING_MODE_OPTIONS.includes(values.billingMode)) errors.billingMode = 'Choose billing mode'
-	if (values.notes.length > 1000) errors.notes = 'Notes must be 1000 characters or fewer'
+	if (textValue(values.notes).length > 1000) errors.notes = 'Notes must be 1000 characters or fewer'
+	if (textValue(values.special).length > 240) errors.special = 'Special must be 240 characters or fewer'
 
 	return errors
 }
 
 function toCommand(values: StudentFormValues): StudentFormCommand {
+	const firstName = textValue(values.firstName).trim()
+	const lastName = textValue(values.lastName).trim()
+	const packageMonths = Number(values.packageMonths)
+	const packageLessonsPerWeek = Number(values.packageLessonsPerWeek)
+	const packageLessonCount = calculatePackageLessonCount({ packageMonths, packageLessonsPerWeek })
 	return {
-		fullName: values.fullName.trim(),
-		email: values.email.trim(),
-		phone: values.phone.trim(),
-		level: values.level.trim(),
+		firstName,
+		lastName,
+		fullName: [firstName, lastName].filter(Boolean).join(' '),
+		email: '',
+		phone: '',
+		level: textValue(values.level).trim(),
+		special: textValue(values.special).trim(),
 		status: values.status,
-		notes: values.notes.trim(),
+		notes: textValue(values.notes).trim(),
 		defaultLessonPrice: Number(values.defaultLessonPrice),
-		packageMonths: Number(values.packageMonths),
-		packageLessonCount: Number(values.packageLessonCount),
-		packageTotalPrice: Number(values.packageTotalPrice),
+		defaultLessonDurationMinutes: Number(values.defaultLessonDurationMinutes),
+		packageMonths,
+		packageLessonsPerWeek,
+		packageLessonCount,
+		packageTotalPrice: calculatePackageTotalPriceRub({
+			defaultLessonPrice: Number(values.defaultLessonPrice),
+			defaultLessonDurationMinutes: Number(values.defaultLessonDurationMinutes),
+			packageMonths,
+			packageLessonCount,
+		}),
 		billingMode: values.billingMode,
 	}
 }
@@ -142,14 +205,24 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 	const [errors, setErrors] = useState<StudentFormErrors>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const defaultLessonPrice = numberValue(values.defaultLessonPrice)
-	const packageLessonCount = numberValue(values.packageLessonCount)
-	const packageTotalPrice = numberValue(values.packageTotalPrice)
-	const packageLessonPrice =
-		Number.isFinite(packageTotalPrice) && packageLessonCount > 0 ? packageTotalPrice / packageLessonCount : 0
-	const packageSavings =
-		Number.isFinite(defaultLessonPrice) && Number.isFinite(packageTotalPrice) && packageLessonCount > 0
-			? Math.max(defaultLessonPrice * packageLessonCount - packageTotalPrice, 0)
-			: 0
+	const defaultLessonDurationMinutes = numberValue(values.defaultLessonDurationMinutes)
+	const durationUnits = getLessonDurationUnits(defaultLessonDurationMinutes)
+	const durationLessonPrice = Number.isFinite(defaultLessonPrice) ? defaultLessonPrice * durationUnits : 0
+	const packageMonths = numberValue(values.packageMonths)
+	const packageLessonsPerWeek = numberValue(values.packageLessonsPerWeek)
+	const packageLessonCount = calculatePackageLessonCount({ packageMonths, packageLessonsPerWeek })
+	const packageLessonPrice = calculatePackageLessonPriceRub({
+		defaultLessonPrice: finiteOrZero(defaultLessonPrice),
+		defaultLessonDurationMinutes: finiteOrZero(defaultLessonDurationMinutes) || DEFAULT_LESSON_DURATION_MINUTES,
+		packageMonths,
+	})
+	const packageTotalPrice = calculatePackageTotalPriceRub({
+		defaultLessonPrice: finiteOrZero(defaultLessonPrice),
+		defaultLessonDurationMinutes: finiteOrZero(defaultLessonDurationMinutes) || DEFAULT_LESSON_DURATION_MINUTES,
+		packageMonths,
+		packageLessonCount,
+	})
+	const packageSavings = Math.max((durationLessonPrice - packageLessonPrice) * finiteOrZero(packageLessonCount), 0)
 
 	useEffect(() => {
 		if (!open) return
@@ -158,15 +231,19 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 	}, [open, student])
 
 	const updateValue = <Key extends keyof StudentFormValues>(key: Key, value: StudentFormValues[Key]) => {
-		setValues((current) => ({ ...current, [key]: value }))
+		setValues((current) => {
+			if (key === 'billingMode' && value === 'package' && current.packageMonths === '0') {
+				return { ...current, [key]: value, packageMonths: '3' }
+			}
+			return { ...current, [key]: value }
+		})
 		setErrors((current) => ({
 			...current,
 			[key]: undefined,
-			contact: key === 'email' || key === 'phone' ? undefined : current.contact,
 		}))
 	}
 
-	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+	const handleSubmit = async (event: FormSubmitEvent) => {
 		event.preventDefault()
 		const nextErrors = validate(values)
 		setErrors(nextErrors)
@@ -184,12 +261,12 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-3xl">
 				<form onSubmit={handleSubmit} className="grid min-h-0">
-					<DialogHeader className="border-b border-line-soft bg-surface-muted px-6 py-5 pr-14">
+					<DialogHeader className="border-line-soft bg-surface-muted border-b px-6 py-5 pr-14">
 						<div>
-							<p className="mb-1 font-mono text-xs font-semibold text-sage uppercase">Student record</p>
+							<p className="text-sage mb-1 font-mono text-xs font-semibold uppercase">Student record</p>
 							<DialogTitle>{mode === 'create' ? 'Add student' : 'Edit student'}</DialogTitle>
-							<p className="mt-1 text-sm text-ink-muted">
-								Keep contact, billing mode, and default lesson price in one ledger entry.
+							<p className="text-ink-muted mt-1 text-sm">
+								Keep schedule labels, billing mode, and default lesson price in one ledger entry.
 							</p>
 						</div>
 						<DialogDescription className="sr-only">Student registry form</DialogDescription>
@@ -197,29 +274,28 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 
 					<ScrollArea className="max-h-[calc(100dvh-13rem)]">
 						<div className="grid gap-4 px-6 py-5 md:grid-cols-2">
-							<Field label="Full name" error={errors.fullName}>
+							<Field label="First name" error={errors.firstName}>
 								<Input
-									value={values.fullName}
-									onChange={(event) => updateValue('fullName', event.target.value)}
-									aria-invalid={Boolean(errors.fullName)}
+									value={values.firstName}
+									onChange={(event) => updateValue('firstName', event.target.value)}
+									aria-invalid={Boolean(errors.firstName)}
+								/>
+							</Field>
+							<Field label="Last name" error={errors.lastName}>
+								<Input
+									value={values.lastName}
+									onChange={(event) => updateValue('lastName', event.target.value)}
+									aria-invalid={Boolean(errors.lastName)}
 								/>
 							</Field>
 							<Field label="Level">
 								<Input value={values.level} onChange={(event) => updateValue('level', event.target.value)} />
 							</Field>
-							<Field label="Email" error={errors.email ?? errors.contact}>
+							<Field label="Special" error={errors.special}>
 								<Input
-									type="email"
-									value={values.email}
-									onChange={(event) => updateValue('email', event.target.value)}
-									aria-invalid={Boolean(errors.email ?? errors.contact)}
-								/>
-							</Field>
-							<Field label="Phone" error={errors.contact}>
-								<Input
-									value={values.phone}
-									onChange={(event) => updateValue('phone', event.target.value)}
-									aria-invalid={Boolean(errors.contact)}
+									value={values.special}
+									onChange={(event) => updateValue('special', event.target.value)}
+									aria-invalid={Boolean(errors.special)}
 								/>
 							</Field>
 							<Field label="Status" error={errors.status}>
@@ -262,52 +338,61 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 									inputMode="numeric"
 									min="0"
 									step="1"
+									className="font-mono tabular-nums"
 									value={values.defaultLessonPrice}
 									onChange={(event) => updateValue('defaultLessonPrice', event.target.value)}
 									aria-invalid={Boolean(errors.defaultLessonPrice)}
 								/>
 							</Field>
-							<div className="grid gap-4 rounded-lg border border-line-soft bg-surface-muted p-4 md:col-span-2 md:grid-cols-3">
+							<Field label="Default lesson duration, minutes" error={errors.defaultLessonDurationMinutes}>
+								<Input
+									type="number"
+									inputMode="numeric"
+									min="1"
+									step="1"
+									className="font-mono tabular-nums"
+									value={values.defaultLessonDurationMinutes}
+									onChange={(event) => updateValue('defaultLessonDurationMinutes', event.target.value)}
+									aria-invalid={Boolean(errors.defaultLessonDurationMinutes)}
+								/>
+							</Field>
+							<div className="border-line-soft bg-surface-muted grid gap-4 rounded-lg border p-4 md:col-span-2 md:grid-cols-3">
 								<div className="md:col-span-3">
-									<p className="text-sm font-semibold text-ink">Package terms</p>
-									<p className="mt-1 text-xs text-ink-muted">
-										Enter the package payment manually. Lesson price inside the package is calculated from lesson count.
+									<p className="font-heading text-ink text-sm font-semibold">Package terms</p>
+									<p className="text-ink-muted mt-1 text-xs">
+										Choose the package length and lesson count. Lesson price and total payment are calculated from the
+										base price and lesson duration.
 									</p>
 								</div>
 								<Field label="Package months" error={errors.packageMonths}>
+									<Select value={values.packageMonths} onValueChange={(value) => updateValue('packageMonths', value)}>
+										<SelectTrigger aria-invalid={Boolean(errors.packageMonths)}>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{SUPPORTED_PACKAGE_MONTHS.map((item) => (
+												<SelectItem key={item} value={String(item)}>
+													{item === 0 ? 'No package' : `${item} months`}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</Field>
+								<Field label="Lessons per week" error={errors.packageLessonsPerWeek}>
 									<Input
 										type="number"
 										inputMode="numeric"
 										min="0"
 										step="1"
-										value={values.packageMonths}
-										onChange={(event) => updateValue('packageMonths', event.target.value)}
-										aria-invalid={Boolean(errors.packageMonths)}
+										className="font-mono tabular-nums"
+										value={values.packageLessonsPerWeek}
+										onChange={(event) => updateValue('packageLessonsPerWeek', event.target.value)}
+										aria-invalid={Boolean(errors.packageLessonsPerWeek)}
 									/>
 								</Field>
-								<Field label="Lessons in package" error={errors.packageLessonCount}>
-									<Input
-										type="number"
-										inputMode="numeric"
-										min="0"
-										step="1"
-										value={values.packageLessonCount}
-										onChange={(event) => updateValue('packageLessonCount', event.target.value)}
-										aria-invalid={Boolean(errors.packageLessonCount)}
-									/>
-								</Field>
-								<Field label="Package payment, RUB" error={errors.packageTotalPrice}>
-									<Input
-										type="number"
-										inputMode="numeric"
-										min="0"
-										step="1"
-										value={values.packageTotalPrice}
-										onChange={(event) => updateValue('packageTotalPrice', event.target.value)}
-										aria-invalid={Boolean(errors.packageTotalPrice)}
-									/>
-								</Field>
-								<div className="grid gap-3 rounded-lg border border-line-soft bg-surface p-3 sm:grid-cols-3 md:col-span-3">
+								<PackagePreviewItem label="Lessons in package" value={`${packageLessonCount} lessons`} />
+								<div className="border-line-soft bg-surface grid gap-3 rounded-lg border p-3 sm:grid-cols-4 md:col-span-3">
+									<PackagePreviewItem label="Base duration price" value={formatUsdAmount(durationLessonPrice)} />
 									<PackagePreviewItem label="Package lesson price" value={formatUsdAmount(packageLessonPrice)} />
 									<PackagePreviewItem
 										label="Package payment"
@@ -327,7 +412,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 						</div>
 					</ScrollArea>
 
-					<DialogFooter className="border-t border-line-soft bg-surface-muted px-6 py-4">
+					<DialogFooter className="border-line-soft bg-surface-muted border-t px-6 py-4">
 						<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
 							Cancel
 						</Button>
@@ -345,8 +430,8 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 function PackagePreviewItem({ label, value }: { label: string; value: string }) {
 	return (
 		<div>
-			<p className="text-xs font-medium text-ink-muted">{label}</p>
-			<p className="mt-1 font-mono text-sm font-semibold text-ink tabular-nums">{value}</p>
+			<p className="text-ink-muted text-xs font-medium">{label}</p>
+			<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{value}</p>
 		</div>
 	)
 }
@@ -364,9 +449,9 @@ function Field({
 }) {
 	return (
 		<div className={className}>
-			<Label className="mb-1.5 block text-xs font-medium text-ink-muted">{label}</Label>
+			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>
 			{children}
-			{error && <p className="mt-1 text-xs text-danger">{error}</p>}
+			{error && <p className="text-danger mt-1 text-xs">{error}</p>}
 		</div>
 	)
 }

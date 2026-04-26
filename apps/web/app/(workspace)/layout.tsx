@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/server'
 
-import { Providers } from '../providers'
+import { WorkspaceProviders } from '../providers'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,15 +20,15 @@ export default async function WorkspaceLayout({ children }: Readonly<{ children:
 	if (!user) redirect('/login')
 
 	return (
-		<Providers>
-			<SidebarProvider>
+		<WorkspaceProviders>
+			<SidebarProvider className="min-h-dvh">
 				<AppSidebar />
-				<SidebarInset className="min-h-dvh bg-transparent">
-					<ScrollArea className="min-h-0 flex-1">
+				<SidebarInset className="h-dvh min-h-0 overflow-hidden bg-transparent">
+					<ScrollArea className="h-full min-h-0">
 						<div className="min-h-full">{children}</div>
 					</ScrollArea>
 				</SidebarInset>
 			</SidebarProvider>
-		</Providers>
+		</WorkspaceProviders>
 	)
 }

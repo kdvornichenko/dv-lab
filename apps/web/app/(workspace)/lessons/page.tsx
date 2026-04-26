@@ -1,5 +1,5 @@
-import { TeacherDashboard } from '@/components/dashboard/TeacherDashboard'
+import { LessonsPageClient } from './LessonsPageClient'
 
 export default function LessonsPage() {
-	return <TeacherDashboard view="lessons" />
+	return <LessonsPageClient />
 }

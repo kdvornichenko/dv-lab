@@ -1,4 +1,4 @@
-import { AlertTriangle, Banknote, CalendarCheck, ReceiptText, Users } from 'lucide-react'
+import { Banknote, CalendarCheck, ReceiptText, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { formatUsdAmount } from '@/lib/crm/model'
@@ -7,7 +7,6 @@ import type { TeacherCrmSummary } from '@/lib/crm/types'
 const items = [
 	{ key: 'activeStudents', label: 'Active students', icon: Users, tone: 'neutral' },
 	{ key: 'todayLessons', label: 'Today lessons', icon: CalendarCheck, tone: 'accent' },
-	{ key: 'missingAttendance', label: 'Missing marks', icon: AlertTriangle, tone: 'warning' },
 	{ key: 'overdueStudents', label: 'Overdue students', icon: ReceiptText, tone: 'danger' },
 	{ key: 'monthIncome', label: 'Month income', icon: Banknote, tone: 'success' },
 ] as const
@@ -29,7 +28,7 @@ const railClass = {
 }
 
 export function SummaryStrip({ summary }: { summary: TeacherCrmSummary }) {
-	const attentionCount = summary.missingAttendance + summary.overdueStudents
+	const attentionCount = summary.overdueStudents
 
 	return (
 		<section className="grid gap-3 xl:grid-cols-[1.25fr_2fr]" aria-label="Ledger summary">
@@ -46,7 +45,7 @@ export function SummaryStrip({ summary }: { summary: TeacherCrmSummary }) {
 					</Badge>
 				</div>
 			</div>
-			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+			<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 				{items
 					.filter((item) => item.key !== 'todayLessons')
 					.map((item) => {

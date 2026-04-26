@@ -1,5 +1,5 @@
-import { TeacherDashboard } from '@/components/dashboard/TeacherDashboard'
+import { CalendarPageClient } from './CalendarPageClient'
 
 export default function CalendarPage() {
-	return <TeacherDashboard view="calendar" />
+	return <CalendarPageClient />
 }

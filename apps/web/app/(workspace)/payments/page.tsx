@@ -1,5 +1,5 @@
-import { TeacherDashboard } from '@/components/dashboard/TeacherDashboard'
+import { PaymentsPageClient } from './PaymentsPageClient'
 
 export default function PaymentsPage() {
-	return <TeacherDashboard view="payments" />
+	return <PaymentsPageClient />
 }
