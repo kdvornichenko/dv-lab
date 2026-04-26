@@ -118,7 +118,10 @@ export const lessonRoutes = new Hono()
 				(candidate) =>
 					candidate.id !== originalLesson.id &&
 					new Date(candidate.startsAt).getTime() >= originalStart.getTime() &&
-					sameSeriesSlot(originalLesson, candidate)
+					sameSeriesSlot(
+						{ startsAt: originalLesson.startsAt, studentIds: originalLesson.studentIds },
+						{ startsAt: candidate.startsAt, studentIds: candidate.studentIds }
+					)
 			)
 			for (const candidate of candidates) {
 				const updated = await lessonService.updateLesson(
