@@ -5,9 +5,9 @@
 	"type": "module",
 	"main": "dist/index.js",
 	"scripts": {
-		"dev": "node --import tsx src/server.ts",
+		"dev": "node --import tsx src/local-server.ts",
 		"build": "rimraf dist && tsup --config tsup.config.ts",
-		"start": "node --enable-source-maps dist/server.js",
+		"start": "node --enable-source-maps dist/local-server.js",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"lint": "tsc -p tsconfig.json --noEmit",
 		"test": "node --import tsx src/app.test.ts"
