@@ -386,7 +386,9 @@ export function useTeacherCrm() {
 		})
 	}
 
-	async function checkCalendarConflicts(input: CreateLessonInput & { excludeLessonId?: string }): Promise<CalendarBusyInterval[]> {
+	async function checkCalendarConflicts(
+		input: CreateLessonInput & { excludeLessonId?: string }
+	): Promise<CalendarBusyInterval[]> {
 		try {
 			const response = await teacherCrmApi.listBusyIntervals({
 				startsAt: input.startsAt,

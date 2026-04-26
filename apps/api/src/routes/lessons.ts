@@ -97,7 +97,12 @@ export const lessonRoutes = new Hono()
 		const actor = actorFromContext(context)
 		const lessonId = context.req.param('lessonId')
 		const input = context.req.valid('json')
-		const allLessons = await lessonService.listLessons(actor, { status: 'all', studentId: '', dateFrom: '', dateTo: '' })
+		const allLessons = await lessonService.listLessons(actor, {
+			status: 'all',
+			studentId: '',
+			dateFrom: '',
+			dateTo: '',
+		})
 		const originalLesson = allLessons.find((lesson) => lesson.id === lessonId)
 		const lesson = await lessonService.updateLesson(actor, lessonId, { ...input, applyToFuture: false })
 		if (!lesson) return context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Lesson not found' } }, 404)

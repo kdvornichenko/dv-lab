@@ -19,11 +19,7 @@ export async function insertCrmErrorLogRow(db: DB, values: CrmErrorLogInsertValu
 	return entry
 }
 
-export async function deleteCrmErrorLogRow(
-	db: DB,
-	teacherId: string,
-	errorId: string
-): Promise<CrmErrorLogRow | null> {
+export async function deleteCrmErrorLogRow(db: DB, teacherId: string, errorId: string): Promise<CrmErrorLogRow | null> {
 	const [entry] = await db
 		.delete(crmErrorLogs)
 		.where(and(eq(crmErrorLogs.teacherId, teacherId), eq(crmErrorLogs.id, errorId)))

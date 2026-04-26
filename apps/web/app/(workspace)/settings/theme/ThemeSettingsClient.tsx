@@ -358,19 +358,19 @@ export function ThemeSettingsClient() {
 
 	if (loading) {
 		return (
-			<main className="min-h-full bg-canvas p-unit text-ink">
+			<main className="bg-canvas p-unit text-ink min-h-full">
 				<div className="grid w-full gap-5 lg:grid-cols-12">
-					<Skeleton className="h-168 rounded-2xl bg-surface-muted lg:col-span-2" />
-					<Skeleton className="h-168 rounded-2xl bg-surface-muted lg:col-span-10" />
+					<Skeleton className="h-168 bg-surface-muted rounded-2xl lg:col-span-2" />
+					<Skeleton className="h-168 bg-surface-muted rounded-2xl lg:col-span-10" />
 				</div>
 			</main>
 		)
 	}
 
 	return (
-		<main className="min-h-full bg-canvas p-unit text-ink">
+		<main className="bg-canvas p-unit text-ink min-h-full">
 			<div className="grid w-full gap-5 lg:grid-cols-12">
-				<aside className="sticky top-2 h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-line bg-surface lg:col-span-2">
+				<aside className="border-line bg-surface sticky top-2 h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border lg:col-span-2">
 					<ScrollArea className="h-[calc(100dvh-2rem)]">
 						<div className="space-y-3 p-3">
 							<ControlSelect
@@ -379,16 +379,16 @@ export function ThemeSettingsClient() {
 								onValueChange={applyPreset}
 								options={presetThemes.map((preset) => ({ value: preset.id, label: preset.label }))}
 							/>
-							<div className="rounded-xl border border-line bg-surface-muted px-2.5 py-2">
-								<div className="text-xs font-medium text-ink-muted">Status</div>
+							<div className="border-line bg-surface-muted rounded-xl border px-2.5 py-2">
+								<div className="text-ink-muted text-xs font-medium">Status</div>
 								<div className="mt-1 flex items-center justify-between gap-2">
-									<span className="text-sm font-semibold text-ink">{hasChanges ? 'Draft' : 'Applied'}</span>
+									<span className="text-ink text-sm font-semibold">{hasChanges ? 'Draft' : 'Applied'}</span>
 									<Badge tone={hasChanges ? 'amber' : 'green'}>{hasChanges ? 'draft' : 'saved'}</Badge>
 								</div>
 							</div>
 						</div>
 
-						<div className="border-y border-line-soft p-3">
+						<div className="border-line-soft border-y p-3">
 							<div className="space-y-2">
 								<FontSelect
 									label="Heading"
@@ -414,10 +414,10 @@ export function ThemeSettingsClient() {
 								onValueChange={(radius) => setDraft((current) => ({ ...current, radius }))}
 							/>
 							{themeColorGroups.map((group) => (
-								<section key={group.title} className="rounded-xl border border-line bg-surface-muted p-2.5">
+								<section key={group.title} className="border-line bg-surface-muted rounded-xl border p-2.5">
 									<div className="mb-2">
-										<p className="text-xs font-medium text-ink-muted">{group.title}</p>
-										<p className="mt-0.5 text-xs leading-4 text-ink-muted">{group.description}</p>
+										<p className="text-ink-muted text-xs font-medium">{group.title}</p>
+										<p className="text-ink-muted mt-0.5 text-xs leading-4">{group.description}</p>
 									</div>
 									<div className="space-y-1.5">
 										{group.keys.map((key) => (
@@ -433,7 +433,7 @@ export function ThemeSettingsClient() {
 							))}
 						</div>
 
-						<div className="sticky bottom-0 space-y-2 border-t border-line-soft bg-surface p-3">
+						<div className="border-line-soft bg-surface sticky bottom-0 space-y-2 border-t p-3">
 							<Button
 								type="button"
 								variant="outline"
@@ -478,11 +478,11 @@ export function ThemeSettingsClient() {
 					</ScrollArea>
 				</aside>
 
-				<section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface lg:col-span-10">
-					<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-5 py-3">
+				<section className="border-line bg-surface min-w-0 overflow-hidden rounded-2xl border lg:col-span-10">
+					<div className="border-line-soft flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
 						<div>
-							<h1 className="text-base font-semibold text-ink">Theme preview</h1>
-							<p className="text-xs text-ink-muted">Real CRM components update from draft tokens.</p>
+							<h1 className="text-ink text-base font-semibold">Theme preview</h1>
+							<p className="text-ink-muted text-xs">Real CRM components update from draft tokens.</p>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
 							<Button type="button" variant="outline" size="sm" onClick={() => void handleReset()} disabled={isSaving}>
@@ -521,12 +521,12 @@ function ControlSelect<T extends string>({
 	value: T
 }) {
 	return (
-		<div className="rounded-xl border border-line bg-surface-muted px-2.5 py-2">
+		<div className="border-line bg-surface-muted rounded-xl border px-2.5 py-2">
 			<div className={trailing ? 'flex items-center justify-between gap-3' : undefined}>
 				<Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as T)}>
-					<SelectTrigger className="mt-0.5 border-0 bg-transparent p-0 text-ink shadow-none focus:ring-0">
+					<SelectTrigger className="text-ink mt-0.5 border-0 bg-transparent p-0 shadow-none focus:ring-0">
 						<div className="flex flex-col">
-							<div className="text-left text-xs font-medium text-ink-muted">{label}</div>
+							<div className="text-ink-muted text-left text-xs font-medium">{label}</div>
 							<SelectValue />
 						</div>
 					</SelectTrigger>
@@ -577,7 +577,7 @@ function FontSelect({
 				),
 			}))}
 			trailing={
-				<span className="shrink-0 text-sm text-ink-muted" style={{ fontFamily: selectedFont }}>
+				<span className="text-ink-muted shrink-0 text-sm" style={{ fontFamily: selectedFont }}>
 					Aa
 				</span>
 			}
@@ -602,10 +602,10 @@ function RadiusSelect({
 			options={radiusOptions.map((option) => ({
 				value: option.value,
 				label: option.label,
-				meta: <span className="h-5 w-5 border border-line-strong" style={{ borderRadius: option.preview }} />,
+				meta: <span className="border-line-strong h-5 w-5 border" style={{ borderRadius: option.preview }} />,
 			}))}
 			trailing={
-				<span className="h-7 w-7 shrink-0 border border-line-strong" style={{ borderRadius: selectedRadius }} />
+				<span className="border-line-strong h-7 w-7 shrink-0 border" style={{ borderRadius: selectedRadius }} />
 			}
 		/>
 	)
@@ -613,15 +613,15 @@ function RadiusSelect({
 
 function ColorRow({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
 	return (
-		<div className="flex items-center gap-2 rounded-lg border border-line-soft bg-surface px-2 py-1.5">
+		<div className="border-line-soft bg-surface flex items-center gap-2 rounded-lg border px-2 py-1.5">
 			<div className="min-w-0">
-				<p className="truncate text-xs font-medium text-ink">{label}</p>
-				<p className="font-mono text-xs text-ink-muted">{value}</p>
+				<p className="text-ink truncate text-xs font-medium">{label}</p>
+				<p className="text-ink-muted font-mono text-xs">{value}</p>
 			</div>
 			<ColorPicker
 				value={value}
 				onChange={onChange}
-				className="ml-auto h-7 w-7 rounded-md border-line-strong p-0 shadow-none hover:border-sage-line"
+				className="border-line-strong hover:border-sage-line ml-auto h-7 w-7 rounded-md p-0 shadow-none"
 			/>
 		</div>
 	)
@@ -697,8 +697,8 @@ function SettingsPreviewCard() {
 
 	return (
 		<Card className="overflow-hidden">
-			<CardHeader className="border-b border-line-soft bg-surface-muted">
-				<p className="font-mono text-xs font-semibold text-sage uppercase">Student settings</p>
+			<CardHeader className="border-line-soft bg-surface-muted border-b">
+				<p className="text-sage font-mono text-xs font-semibold uppercase">Student settings</p>
 				<CardTitle className="text-lg">Package price and offer text</CardTitle>
 			</CardHeader>
 			<CardContent className="grid gap-4 pt-5 lg:grid-cols-2">
@@ -707,7 +707,7 @@ function SettingsPreviewCard() {
 					<PreviewMetric icon={<BookOpenCheck className="h-4 w-4" />} label="Package lessons" value="40" />
 					<PreviewMetric icon={<CalendarClock className="h-4 w-4" />} label="Package total" value="76 000 ₽" />
 				</div>
-				<Textarea value={offerText} readOnly className="min-h-64 resize-none bg-surface" />
+				<Textarea value={offerText} readOnly className="bg-surface min-h-64 resize-none" />
 			</CardContent>
 		</Card>
 	)
@@ -715,13 +715,13 @@ function SettingsPreviewCard() {
 
 function PreviewMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
 	return (
-		<div className="flex items-center gap-3 rounded-lg border border-line-soft bg-surface-muted p-3">
-			<span className="flex size-9 items-center justify-center rounded-lg border border-sage-line bg-sage-soft text-sage">
+		<div className="border-line-soft bg-surface-muted flex items-center gap-3 rounded-lg border p-3">
+			<span className="border-sage-line bg-sage-soft text-sage flex size-9 items-center justify-center rounded-lg border">
 				{icon}
 			</span>
 			<div>
-				<p className="text-xs font-medium text-ink-muted">{label}</p>
-				<p className="mt-1 font-mono text-sm font-semibold text-ink">{value}</p>
+				<p className="text-ink-muted text-xs font-medium">{label}</p>
+				<p className="text-ink mt-1 font-mono text-sm font-semibold">{value}</p>
 			</div>
 		</div>
 	)

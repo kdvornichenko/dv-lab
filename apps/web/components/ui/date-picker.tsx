@@ -1,11 +1,11 @@
 'use client'
 
 import * as React from 'react'
+import type { DateRange } from 'react-day-picker'
 
 import { addDays, format, type Locale } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { Calendar as CalendarIcon } from 'lucide-react'
-import type { DateRange } from 'react-day-picker'
 
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'

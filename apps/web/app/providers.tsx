@@ -8,7 +8,13 @@ import { SidebarSettingsProvider } from '@/components/SidebarSettingsProvider'
 import { ThemeSettingsProvider } from '@/components/ThemeSettingsProvider'
 import { Toaster } from '@/components/ui/sonner'
 
-export function ThemeProviders({ children, themeProps }: { children: React.ReactNode; themeProps?: ThemeProviderProps }) {
+export function ThemeProviders({
+	children,
+	themeProps,
+}: {
+	children: React.ReactNode
+	themeProps?: ThemeProviderProps
+}) {
 	return (
 		<NextThemesProvider attribute="class" defaultTheme="light" enableSystem={false} {...themeProps}>
 			<ThemeSettingsProvider>

@@ -15,9 +15,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { DEFAULT_SIDEBAR_ITEMS, type SidebarItem } from '@teacher-crm/api-types'
-
 import { teacherCrmApi } from '@/lib/crm/api'
+
+import { DEFAULT_SIDEBAR_ITEMS, type SidebarItem } from '@teacher-crm/api-types'
 
 export type { SidebarItem }
 

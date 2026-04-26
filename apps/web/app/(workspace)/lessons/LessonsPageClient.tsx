@@ -5,7 +5,7 @@ import { TeacherCrmPageShell } from '@/components/workspace/TeacherCrmPageShell'
 
 export function LessonsPageClient() {
 	return (
-		<TeacherCrmPageShell>
+		<TeacherCrmPageShell classNames={{ main: 'p-0' }}>
 			{(crm) => (
 				<LessonsCalendarPanel
 					lessons={crm.state.lessons}

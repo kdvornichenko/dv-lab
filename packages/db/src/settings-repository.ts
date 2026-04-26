@@ -9,11 +9,7 @@ export type ThemeSettingsRow = typeof themeSettings.$inferSelect
 export type ThemeSettingsValue = ThemeSettingsRow['theme']
 
 export async function getSidebarSettingsRow(db: DB, teacherId: string): Promise<SidebarSettingsRow | null> {
-	const [settings] = await db
-		.select()
-		.from(sidebarSettings)
-		.where(eq(sidebarSettings.teacherId, teacherId))
-		.limit(1)
+	const [settings] = await db.select().from(sidebarSettings).where(eq(sidebarSettings.teacherId, teacherId)).limit(1)
 
 	return settings ?? null
 }
@@ -43,11 +39,7 @@ export async function upsertSidebarSettingsRow(
 }
 
 export async function getThemeSettingsRow(db: DB, teacherId: string): Promise<ThemeSettingsRow | null> {
-	const [settings] = await db
-		.select()
-		.from(themeSettings)
-		.where(eq(themeSettings.teacherId, teacherId))
-		.limit(1)
+	const [settings] = await db.select().from(themeSettings).where(eq(themeSettings.teacherId, teacherId)).limit(1)
 
 	return settings ?? null
 }

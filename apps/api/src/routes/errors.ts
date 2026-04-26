@@ -1,10 +1,6 @@
 import { Hono } from 'hono'
 
-import {
-	saveCrmErrorSchema,
-	type CrmErrorLogMutationResponse,
-	type CrmErrorLogResponse,
-} from '@teacher-crm/api-types'
+import { saveCrmErrorSchema, type CrmErrorLogMutationResponse, type CrmErrorLogResponse } from '@teacher-crm/api-types'
 
 import { validateJson } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'

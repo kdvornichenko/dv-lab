@@ -4,22 +4,25 @@ import type { ReactNode } from 'react'
 
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTeacherCrm } from '@/hooks/useTeacherCrm'
+import { cn } from '@/lib/utils'
 
 export type TeacherCrm = ReturnType<typeof useTeacherCrm>
 
 export function TeacherCrmPageShell({
 	children,
 	skeletonRows = 7,
+	classNames,
 }: {
 	children: (crm: TeacherCrm, now: Date) => ReactNode
 	skeletonRows?: number
+	classNames?: { main?: string; container?: string }
 }) {
 	const crm = useTeacherCrm()
 	const now = new Date()
 
 	return (
-		<main className="min-h-full p-unit">
-			<div className="w-full space-y-5">
+		<main className={cn('p-unit min-h-full', classNames?.main)}>
+			<div className={cn('w-full space-y-5', classNames?.container)}>
 				{crm.isLoading ? <WorkspaceSkeleton rows={skeletonRows} /> : children(crm, now)}
 			</div>
 		</main>

@@ -15,9 +15,8 @@ import {
 	Roboto_Mono,
 } from 'next/font/google'
 
-import { ThemeProviders } from './providers'
-
 import './globals.css'
+import { ThemeProviders } from './providers'
 
 const geistSans = Geist({
 	subsets: ['latin'],
@@ -95,19 +94,19 @@ const themeHydrationScript = `
 		const style = document.documentElement.style;
 		const hex = /^#[0-9a-fA-F]{6}$/;
 		const fontStacks = {
-			geist: 'var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+			geist: 'var(--font-geist-sans), var(--font-inter), Geist, "Geist Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 			inter: 'var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-			manrope: 'var(--font-manrope), Manrope, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
-			nunito: 'var(--font-nunito), "Nunito Sans", var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
-			roboto: 'var(--font-roboto), Roboto, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
-			'ibm-plex': 'var(--font-ibm-plex), "IBM Plex Sans", var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+			manrope: 'var(--font-manrope), Manrope, var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+			nunito: 'var(--font-nunito), "Nunito Sans", var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+			roboto: 'var(--font-roboto), Roboto, var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+			'ibm-plex': 'var(--font-ibm-plex), "IBM Plex Sans", var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
 			system: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 			serif: 'Georgia, "Times New Roman", ui-serif, serif',
 			playfair: 'var(--font-playfair), "Playfair Display", Georgia, "Times New Roman", ui-serif, serif',
 			merriweather: 'var(--font-merriweather), Merriweather, Georgia, "Times New Roman", ui-serif, serif',
-			mono: 'var(--font-geist-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+			mono: 'var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
 			'jetbrains-mono': 'var(--font-jetbrains-mono), "JetBrains Mono", var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-			'roboto-mono': 'var(--font-roboto-mono), "Roboto Mono", var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+			'roboto-mono': 'var(--font-roboto-mono), "Roboto Mono", var(--font-jetbrains-mono), "JetBrains Mono", var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
 		};
 		const radii = { none: '0rem', sm: '0.375rem', default: '0.5rem', lg: '0.75rem', xl: '1rem' };
 		const readableTextOn = (value) => {
@@ -183,10 +182,12 @@ const themeHydrationScript = `
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
 	return (
-		<html lang="ru" suppressHydrationWarning>
-			<body
-				className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${manrope.variable} ${nunitoSans.variable} ${roboto.variable} ${ibmPlexSans.variable} ${playfair.variable} ${merriweather.variable} ${jetbrainsMono.variable} ${robotoMono.variable}`}
-			>
+		<html
+			lang="ru"
+			suppressHydrationWarning
+			className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${manrope.variable} ${nunitoSans.variable} ${roboto.variable} ${ibmPlexSans.variable} ${playfair.variable} ${merriweather.variable} ${jetbrainsMono.variable} ${robotoMono.variable}`}
+		>
+			<body>
 				<script dangerouslySetInnerHTML={{ __html: themeHydrationScript }} />
 				<ThemeProviders>{children}</ThemeProviders>
 			</body>

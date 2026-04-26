@@ -68,14 +68,14 @@ export default function ErrorLogPage() {
 	}
 
 	return (
-		<main className="min-h-full p-unit">
+		<main className="p-unit min-h-full">
 			<div className="mx-auto w-full space-y-5">
-				<header className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+				<header className="border-line bg-surface rounded-lg border p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div className="min-w-0">
-							<p className="font-mono text-xs font-semibold text-danger uppercase">System log</p>
-							<h1 className="mt-1 text-xl font-semibold text-ink">CRM errors</h1>
-							<p className="mt-1 max-w-2xl text-sm text-ink-muted">Request failures from CRM operations.</p>
+							<p className="text-danger font-mono text-xs font-semibold uppercase">System log</p>
+							<h1 className="text-ink mt-1 text-xl font-semibold">CRM errors</h1>
+							<p className="text-ink-muted mt-1 max-w-2xl text-sm">Request failures from CRM operations.</p>
 						</div>
 						<div className="flex items-center gap-2">
 							<Badge tone={errors.length > 0 ? 'red' : 'green'} className="font-mono tabular-nums">
@@ -94,12 +94,12 @@ export default function ErrorLogPage() {
 					</div>
 				</header>
 
-				<section className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+				<section className="border-line bg-surface rounded-lg border p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 					<ScrollArea className="max-h-[calc(100dvh-15rem)] min-h-72 pr-3">
 						<div className="space-y-2">
 							{isLoading &&
 								Array.from({ length: 5 }).map((_, index) => (
-									<div key={index} className="rounded-lg border border-line-soft bg-surface-muted p-3">
+									<div key={index} className="border-line-soft bg-surface-muted rounded-lg border p-3">
 										<div className="flex items-center gap-2">
 											<Skeleton className="h-4 w-4 rounded-full" />
 											<Skeleton className="h-4 w-36" />
@@ -114,17 +114,17 @@ export default function ErrorLogPage() {
 								errors.map((error) => (
 									<div
 										key={error.id}
-										className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-surface-muted p-3"
+										className="border-line-soft bg-surface-muted flex items-start justify-between gap-3 rounded-lg border p-3"
 									>
 										<div className="min-w-0">
 											<div className="flex flex-wrap items-center gap-2">
-												<AlertTriangle className="h-4 w-4 shrink-0 text-danger" />
-												<p className="font-heading truncate text-sm font-semibold text-ink">{error.source}</p>
-												<p className="font-mono text-xs text-ink-muted tabular-nums">
+												<AlertTriangle className="text-danger h-4 w-4 shrink-0" />
+												<p className="font-heading text-ink truncate text-sm font-semibold">{error.source}</p>
+												<p className="text-ink-muted font-mono text-xs tabular-nums">
 													{formatErrorTime(error.createdAt)}
 												</p>
 											</div>
-											<p className="mt-2 text-sm leading-6 text-danger">{error.message}</p>
+											<p className="text-danger mt-2 text-sm leading-6">{error.message}</p>
 										</div>
 										<Tooltip>
 											<TooltipTrigger asChild>
@@ -145,9 +145,9 @@ export default function ErrorLogPage() {
 								))}
 
 							{!isLoading && errors.length === 0 && (
-								<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-5">
-									<p className="font-heading text-sm font-semibold text-ink">No saved errors</p>
-									<p className="mt-1 text-xs text-ink-muted">There are no saved failures in this workspace.</p>
+								<div className="border-line-strong bg-surface-muted rounded-lg border border-dashed p-5">
+									<p className="font-heading text-ink text-sm font-semibold">No saved errors</p>
+									<p className="text-ink-muted mt-1 text-xs">There are no saved failures in this workspace.</p>
 								</div>
 							)}
 						</div>

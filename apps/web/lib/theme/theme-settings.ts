@@ -64,26 +64,26 @@ export const colorLabels: Record<ThemeColorKey, string> = {
 
 const fontStacks: Record<ThemeFontKey, string> = {
 	geist:
-		'var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+		'var(--font-geist-sans), var(--font-inter), Geist, "Geist Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 	inter:
 		'var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 	manrope:
-		'var(--font-manrope), Manrope, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+		'var(--font-manrope), Manrope, var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
 	nunito:
-		'var(--font-nunito), "Nunito Sans", var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+		'var(--font-nunito), "Nunito Sans", var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
 	roboto:
-		'var(--font-roboto), Roboto, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+		'var(--font-roboto), Roboto, var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
 	'ibm-plex':
-		'var(--font-ibm-plex), "IBM Plex Sans", var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
+		'var(--font-ibm-plex), "IBM Plex Sans", var(--font-inter), Inter, var(--font-geist-sans), Geist, "Geist Sans", ui-sans-serif, system-ui, sans-serif',
 	system: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 	serif: 'Georgia, "Times New Roman", ui-serif, serif',
 	playfair: 'var(--font-playfair), "Playfair Display", Georgia, "Times New Roman", ui-serif, serif',
 	merriweather: 'var(--font-merriweather), Merriweather, Georgia, "Times New Roman", ui-serif, serif',
-	mono: 'var(--font-geist-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+	mono: 'var(--font-geist-mono), var(--font-jetbrains-mono), "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
 	'jetbrains-mono':
 		'var(--font-jetbrains-mono), "JetBrains Mono", var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
 	'roboto-mono':
-		'var(--font-roboto-mono), "Roboto Mono", var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+		'var(--font-roboto-mono), "Roboto Mono", var(--font-jetbrains-mono), "JetBrains Mono", var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
 }
 
 const radiusValues: Record<ThemeRadiusKey, string> = {

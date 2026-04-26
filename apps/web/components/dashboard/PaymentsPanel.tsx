@@ -42,13 +42,13 @@ export function PaymentsPanel({
 
 	return (
 		<Card id="payments" className="flex flex-col overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
-			<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-line-soft bg-surface-muted">
+			<CardHeader className="border-line-soft bg-surface-muted flex flex-row items-center justify-between gap-3 border-b">
 				<div>
-					<p className="font-mono text-xs font-semibold text-sage uppercase">Cash control</p>
+					<p className="text-sage font-mono text-xs font-semibold uppercase">Cash control</p>
 					<CardTitle className="mt-1 text-lg">Payment ledger</CardTitle>
-					<p className="mt-1 text-sm text-ink-muted">Income and payment risk before recency.</p>
+					<p className="text-ink-muted mt-1 text-sm">Income and payment risk before recency.</p>
 				</div>
-				<ReceiptText className="h-5 w-5 text-sage" />
+				<ReceiptText className="text-sage h-5 w-5" />
 			</CardHeader>
 			<CardContent className="flex h-full flex-col space-y-4 pt-5">
 				<div className="grid gap-2 sm:grid-cols-[1.35fr_1fr]">
@@ -69,13 +69,13 @@ export function PaymentsPanel({
 							return (
 								<div
 									key={payment.id}
-									className="flex items-start justify-between gap-3 rounded-lg border border-line-soft bg-surface-muted p-3"
+									className="border-line-soft bg-surface-muted flex items-start justify-between gap-3 rounded-lg border p-3"
 								>
 									<div className="min-w-0">
-										<p className="font-heading truncate text-sm font-medium text-ink">
+										<p className="font-heading text-ink truncate text-sm font-medium">
 											{student?.fullName ?? 'Unknown student'}
 										</p>
-										<p className="font-mono text-xs text-ink-muted tabular-nums">
+										<p className="text-ink-muted font-mono text-xs tabular-nums">
 											Paid {formatDateShort(payment.paidAt)}
 										</p>
 									</div>
@@ -104,9 +104,9 @@ export function PaymentsPanel({
 							)
 						})}
 						{payments.length === 0 && (
-							<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-4">
-								<p className="font-heading text-sm font-semibold text-ink">No payments recorded this month</p>
-								<p className="mt-1 text-xs text-ink-muted">Record a payment when a student tops up a package.</p>
+							<div className="border-line-strong bg-surface-muted rounded-lg border border-dashed p-4">
+								<p className="font-heading text-ink text-sm font-semibold">No payments recorded this month</p>
+								<p className="text-ink-muted mt-1 text-xs">Record a payment when a student tops up a package.</p>
 							</div>
 						)}
 					</div>
@@ -128,8 +128,8 @@ function LedgerMetric({
 	strong?: boolean
 }) {
 	return (
-		<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
-			<p className="truncate text-xs font-medium text-ink-muted">{label}</p>
+		<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
+			<p className="text-ink-muted truncate text-xs font-medium">{label}</p>
 			<Badge
 				tone={tone}
 				className={strong ? 'mt-3 h-8 px-3 font-mono text-sm tabular-nums' : 'mt-2 font-mono tabular-nums'}

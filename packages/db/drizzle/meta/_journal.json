@@ -1,62 +1,62 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1777143479211,
-      "tag": "0000_happy_ultimates",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1777188040643,
-      "tag": "0001_hesitant_ultimates",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1777191870623,
-      "tag": "0002_powerful_hercules",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1777193421132,
-      "tag": "0003_sturdy_gamora",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1777210577815,
-      "tag": "0004_chief_speed_demon",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1777212597984,
-      "tag": "0005_lush_betty_brant",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1777214012928,
-      "tag": "0006_puzzling_khan",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1777216000000,
-      "tag": "0007_repeated_lessons",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1777143479211,
+			"tag": "0000_happy_ultimates",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1777188040643,
+			"tag": "0001_hesitant_ultimates",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1777191870623,
+			"tag": "0002_powerful_hercules",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1777193421132,
+			"tag": "0003_sturdy_gamora",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1777210577815,
+			"tag": "0004_chief_speed_demon",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1777212597984,
+			"tag": "0005_lush_betty_brant",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1777214012928,
+			"tag": "0006_puzzling_khan",
+			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1777216000000,
+			"tag": "0007_repeated_lessons",
+			"breakpoints": true
+		}
+	]
 }

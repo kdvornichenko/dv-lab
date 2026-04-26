@@ -58,12 +58,12 @@ export function StudentsPanel({
 
 	return (
 		<section id="students" className="grid gap-5">
-			<div className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
+			<div className="border-line bg-surface rounded-lg border p-4 shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
 				<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
 					<div>
-						<p className="font-mono text-xs font-semibold text-sage uppercase">Student ledger</p>
-						<h2 className="mt-1 text-lg font-semibold text-ink">Students, packages, and payments</h2>
-						<p className="mt-1 text-sm text-ink-muted">Select a student record, then use the action buttons.</p>
+						<p className="text-sage font-mono text-xs font-semibold uppercase">Student ledger</p>
+						<h2 className="text-ink mt-1 text-lg font-semibold">Students, packages, and payments</h2>
+						<p className="text-ink-muted mt-1 text-sm">Select a student record, then use the action buttons.</p>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
 						<Badge tone="neutral" className="h-8 px-3 font-mono tabular-nums">
@@ -76,9 +76,9 @@ export function StudentsPanel({
 					</div>
 				</div>
 
-				<div className="mt-4 grid gap-3 rounded-lg border border-line-soft bg-surface-muted p-3 md:grid-cols-[minmax(0,1fr)_12rem]">
+				<div className="border-line-soft bg-surface-muted mt-4 grid gap-3 rounded-lg border p-3 md:grid-cols-[minmax(0,1fr)_12rem]">
 					<div className="relative">
-						<Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+						<Search className="text-ink-muted pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2" />
 						<Input
 							value={search}
 							onChange={(event) => setSearch(event.target.value)}
@@ -116,9 +116,9 @@ export function StudentsPanel({
 					/>
 				))}
 				{filteredStudents.length === 0 && (
-					<div className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-8 text-center">
-						<p className="font-heading font-semibold text-ink">No students match this ledger view</p>
-						<p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+					<div className="border-line-strong bg-surface-muted rounded-lg border border-dashed p-8 text-center">
+						<p className="font-heading text-ink font-semibold">No students match this ledger view</p>
+						<p className="text-ink-muted mx-auto mt-1 max-w-sm text-sm">
 							Add a student or clear the search to bring the ledger back.
 						</p>
 						<Button className="mt-4" size="sm" onClick={() => setIsCreateOpen(true)}>
@@ -165,10 +165,10 @@ function StudentLedgerItem({
 		<>
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div className="min-w-0">
-					<p className="truncate font-heading font-semibold text-ink transition-colors group-hover:text-sage">
+					<p className="font-heading text-ink group-hover:text-sage truncate font-semibold transition-colors">
 						{student.fullName}
 					</p>
-					<p className="mt-1 truncate text-xs text-ink-muted">{subtitle}</p>
+					<p className="text-ink-muted mt-1 truncate text-xs">{subtitle}</p>
 				</div>
 				<div className="flex flex-wrap gap-1.5">
 					<Badge tone={projection.statusTone}>{student.status}</Badge>
@@ -187,14 +187,14 @@ function StudentLedgerItem({
 	)
 
 	return (
-		<article className="rounded-lg border border-line bg-surface p-3 transition-colors [&:has(a:hover)]:border-sage">
+		<article className="border-line bg-surface [&:has(a:hover)]:border-sage rounded-lg border p-3 transition-colors">
 			<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
 				{previewMode ? (
 					<div className="min-w-0 rounded-lg text-left">{ledgerContent}</div>
 				) : (
 					<Link
 						href={settingsHref}
-						className="group min-w-0 rounded-lg text-left focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none"
+						className="focus-visible:ring-ring/35 group min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px]"
 					>
 						{ledgerContent}
 					</Link>
@@ -225,9 +225,9 @@ function StudentLedgerItem({
 
 function StudentMetric({ label, value }: { label: string; value: string }) {
 	return (
-		<div className="rounded-lg border border-line-soft bg-surface-muted p-2.5">
-			<p className="text-xs font-medium text-ink-muted">{label}</p>
-			<p className="mt-1 truncate font-mono text-xs font-semibold text-ink tabular-nums">{value}</p>
+		<div className="border-line-soft bg-surface-muted rounded-lg border p-2.5">
+			<p className="text-ink-muted text-xs font-medium">{label}</p>
+			<p className="text-ink mt-1 truncate font-mono text-xs font-semibold tabular-nums">{value}</p>
 		</div>
 	)
 }

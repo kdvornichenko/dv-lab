@@ -212,14 +212,14 @@ const EventGroup = ({ events, hour }: { events: CalendarEvent[]; hour: Date }) =
 	const { onEventClick, onTimeSlotClick } = useCalendar()
 
 	return (
-		<div className="group/hour relative h-20 border-t border-line-soft last:border-b">
+		<div className="group/hour border-line-soft relative h-20 border-t last:border-b">
 			<button
 				type="button"
-				className="absolute inset-0 z-0 text-left transition-colors duration-150 ease-out hover:bg-sage-soft/55 focus-visible:bg-sage-soft/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage/35"
+				className="hover:bg-sage-soft/55 focus-visible:bg-sage-soft/70 focus-visible:ring-sage/35 absolute inset-0 z-0 text-left transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2"
 				onClick={(event) => onTimeSlotClick?.(timeSlotFromPointer(hour, event))}
 				aria-label={`Add lesson at ${format(hour, 'HH:mm')}`}
 			>
-				<span className="pointer-events-none absolute top-2 left-2 inline-flex items-center gap-1 rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold text-sage opacity-0 shadow-sm transition-opacity group-hover/hour:opacity-100 group-focus-within/hour:opacity-100">
+				<span className="border-line bg-surface text-sage pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold opacity-0 shadow-sm transition-opacity group-focus-within/hour:opacity-100 group-hover/hour:opacity-100">
 					<Plus className="h-3 w-3" />
 					Add
 				</span>
@@ -233,7 +233,10 @@ const EventGroup = ({ events, hour }: { events: CalendarEvent[]; hour: Date }) =
 					return (
 						<div
 							key={event.id}
-							className={cn('absolute inset-x-1 z-10 cursor-pointer overflow-hidden', dayEventVariants({ variant: event.color }))}
+							className={cn(
+								'absolute inset-x-1 z-10 cursor-pointer overflow-hidden',
+								dayEventVariants({ variant: event.color })
+							)}
 							onClick={(clickEvent) => {
 								clickEvent.stopPropagation()
 								onEventClick?.(event)
@@ -259,7 +262,7 @@ const CalendarDayView = () => {
 	const hours = [...Array(24)].map((_, i) => setHours(date, i))
 
 	return (
-		<ScrollArea className="relative h-full bg-surface font-body text-ink">
+		<ScrollArea className="bg-surface font-body text-ink relative h-full">
 			<div className="flex min-w-0 pt-2">
 				<TimeTable />
 				<div className="min-w-0 flex-1">
@@ -300,22 +303,22 @@ const CalendarWeekView = () => {
 	if (view !== 'week') return null
 
 	return (
-		<ScrollArea className="relative flex h-full flex-col bg-surface font-body text-ink">
-			<div className="sticky top-0 z-10 mb-3 flex border-b border-line-soft bg-surface pt-2">
+		<ScrollArea className="bg-surface font-body text-ink relative flex h-full flex-col">
+			<div className="border-line-soft bg-surface sticky top-0 z-10 mb-1 flex border-b pt-2">
 				<div className="w-12"></div>
 				{headerDays.map((date, i) => (
 					<div
 						key={date.toString()}
 						className={cn(
-							'flex flex-1 items-center justify-center gap-1 pb-2 text-center text-sm text-ink-muted',
+							'text-ink-muted flex flex-1 items-center justify-center gap-1 pb-2 text-center text-sm',
 							[5, 6].includes(i) && 'text-ink-muted'
 						)}
 					>
-						<span className="font-medium text-ink-muted">{format(date, 'EEE', { locale })}</span>
+						<span className="text-ink-muted font-medium">{format(date, 'EEE', { locale })}</span>
 						<span
 							className={cn(
 								'grid h-6 place-content-center',
-								isToday(date) && 'size-6 rounded-full bg-sage font-semibold text-primary-foreground'
+								isToday(date) && 'bg-sage text-primary-foreground size-6 rounded-full font-semibold'
 							)}
 						>
 							{format(date, 'd')}
@@ -332,7 +335,7 @@ const CalendarWeekView = () => {
 						return (
 							<div
 								className={cn(
-									'h-full border-l border-line-soft text-sm text-ink-muted first:border-l-0',
+									'border-line-soft text-ink-muted h-full border-l text-sm first:border-l-0',
 									[5, 6].includes(i) && 'bg-surface-muted/45'
 								)}
 								key={hours[0].toString()}
@@ -358,13 +361,13 @@ const CalendarMonthView = () => {
 	if (view !== 'month') return null
 
 	return (
-		<div className="flex h-full flex-col bg-surface font-body text-ink">
-			<div className="sticky top-0 grid grid-cols-7 gap-px border-b border-line-soft bg-surface">
+		<div className="bg-surface font-body text-ink flex h-full flex-col">
+			<div className="border-line-soft bg-surface sticky top-0 grid grid-cols-7 gap-px border-b">
 				{weekDays.map((day, i) => (
 					<div
 						key={day}
 						className={cn(
-							'mb-2 pr-2 text-right text-sm font-medium text-ink-muted',
+							'text-ink-muted mb-2 pr-2 text-right text-sm font-medium',
 							[5, 6].includes(i) && 'text-ink-muted/70'
 						)}
 					>
@@ -386,7 +389,7 @@ const CalendarMonthView = () => {
 							role="button"
 							tabIndex={0}
 							className={cn(
-								'overflow-auto p-2 text-sm text-ink-muted ring-1 ring-line-soft transition-colors duration-150 ease-out hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage/35',
+								'text-ink-muted ring-line-soft hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-sage/35 overflow-auto p-2 text-sm ring-1 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2',
 								!isSameMonth(date, _date) && 'bg-surface-muted/35 text-ink-muted/70'
 							)}
 							key={_date.toString()}
@@ -412,7 +415,7 @@ const CalendarMonthView = () => {
 									<button
 										key={event.id}
 										type="button"
-										className="flex w-full items-center gap-1 rounded px-1 text-left text-sm hover:bg-surface-muted"
+										className="hover:bg-surface-muted flex w-full items-center gap-1 rounded px-1 text-left text-sm"
 										onClick={(clickEvent) => {
 											clickEvent.stopPropagation()
 											onEventClick?.(event)
@@ -420,7 +423,7 @@ const CalendarMonthView = () => {
 									>
 										<div className={cn('shrink-0', monthEventVariants({ variant: event.color }))}></div>
 										<span className="flex-1 truncate">{event.title}</span>
-										<time className="font-mono text-xs text-ink-muted tabular-nums">
+										<time className="text-ink-muted font-mono text-xs tabular-nums">
 											{format(event.start, 'HH:mm')}
 										</time>
 									</button>
@@ -452,14 +455,14 @@ const CalendarYearView = () => {
 	if (view !== 'year') return null
 
 	return (
-		<div className="grid h-full grid-cols-4 gap-10 overflow-auto bg-surface font-body text-ink">
+		<div className="bg-surface font-body text-ink grid h-full grid-cols-4 gap-10 overflow-auto">
 			{months.map((days, i) => (
 				<div key={days[0].toString()}>
 					<span className="text-xl">{i + 1}</span>
 
 					<div className="my-5 grid grid-cols-7 gap-2">
 						{weekDays.map((day) => (
-							<div key={day} className="text-center text-xs text-ink-muted">
+							<div key={day} className="text-ink-muted text-center text-xs">
 								{day}
 							</div>
 						))}
@@ -472,7 +475,7 @@ const CalendarYearView = () => {
 									<div
 										className={cn(
 											'grid aspect-square size-full place-content-center tabular-nums',
-											isSameDay(today, _date) && getMonth(_date) === i && 'rounded-full bg-sage text-primary-foreground'
+											isSameDay(today, _date) && getMonth(_date) === i && 'bg-sage text-primary-foreground rounded-full'
 										)}
 									>
 										{format(_date, 'd')}
@@ -609,15 +612,15 @@ const TimeTable = () => {
 		<div className="w-12 pr-2 font-mono">
 			{Array.from(Array(25).keys()).map((hour) => {
 				return (
-					<div className="relative h-20 text-right text-xs text-ink-muted last:h-0" key={hour}>
+					<div className="text-ink-muted relative h-20 text-right text-xs last:h-0" key={hour}>
 						{now.getHours() === hour && (
 							<div
-								className="absolute left-full z-10 h-0.5 w-[calc(100dvw-20rem)] translate-x-2 bg-danger"
+								className="bg-danger absolute left-full z-10 h-0.5 w-[calc(100dvw-20rem)] translate-x-2"
 								style={{
 									top: `${(now.getMinutes() / 60) * 100}%`,
 								}}
 							>
-								<div className="absolute top-1/2 left-0 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-danger"></div>
+								<div className="bg-danger absolute left-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full"></div>
 							</div>
 						)}
 						<p className="top-0 -translate-y-1/2">{hour === 24 ? 0 : hour}:00</p>

@@ -29,7 +29,8 @@ export function CalendarPanel({
 	const selectedPlaceholderValue = 'calendar-not-selected'
 	const selectedCalendarId = connection.selectedCalendarId ?? selectedPlaceholderValue
 	const selectedCalendarMissing =
-		Boolean(connection.selectedCalendarId) && !calendarOptions.some((calendar) => calendar.id === connection.selectedCalendarId)
+		Boolean(connection.selectedCalendarId) &&
+		!calendarOptions.some((calendar) => calendar.id === connection.selectedCalendarId)
 
 	return (
 		<Card id="calendar" className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">

@@ -165,7 +165,8 @@ function googleEventLessonPatch(event: GoogleCalendarEventResponse): LessonUpdat
 }
 
 function lessonMatchesGoogleEvent(context: CalendarLessonContext, values: LessonUpdateValues) {
-	const startsAt = values.startsAt instanceof Date ? values.startsAt : values.startsAt ? new Date(values.startsAt) : null
+	const startsAt =
+		values.startsAt instanceof Date ? values.startsAt : values.startsAt ? new Date(values.startsAt) : null
 	const localStartsAt = eventDate(context.lesson.startsAt)
 	const sameStart = !startsAt || localStartsAt.getTime() === startsAt.getTime()
 	const sameDuration = !values.durationMinutes || context.lesson.durationMinutes === values.durationMinutes
@@ -190,8 +191,7 @@ function closestGoogleOccurrence(events: GoogleEventListItem[], targetStartsAt: 
 		.map((event) => ({ event, anchor: occurrenceAnchor(event) }))
 		.filter((candidate): candidate is { event: GoogleEventListItem; anchor: Date } => Boolean(candidate.anchor))
 		.sort(
-			(a, b) =>
-				Math.abs(a.anchor.getTime() - target.getTime()) - Math.abs(b.anchor.getTime() - target.getTime())
+			(a, b) => Math.abs(a.anchor.getTime() - target.getTime()) - Math.abs(b.anchor.getTime() - target.getTime())
 		)[0]?.event
 }
 
@@ -677,8 +677,7 @@ export const calendarService = {
 					title: string
 					start: Date
 					end: Date
-				} =>
-					Boolean(interval.start && interval.end)
+				} => Boolean(interval.start && interval.end)
 			)
 			.filter((interval) => occurrences.some((occurrence) => intervalsOverlap(occurrence, interval)))
 			.map((interval) => {
@@ -919,7 +918,9 @@ export const calendarService = {
 					teacherId,
 					lessonId,
 					provider: 'google',
-					externalEventId: shouldPatchSingleOccurrence ? (existingSync?.externalEventId ?? null) : (event.id ?? existingSync?.externalEventId ?? null),
+					externalEventId: shouldPatchSingleOccurrence
+						? (existingSync?.externalEventId ?? null)
+						: (event.id ?? existingSync?.externalEventId ?? null),
 					externalCalendarId: targetCalendarId,
 					status: 'synced',
 					lastSyncedAt: new Date(),

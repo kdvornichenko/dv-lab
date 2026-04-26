@@ -33,16 +33,16 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 
 	if (!student) {
 		return (
-			<main className="min-h-full p-unit">
-				<section className="rounded-lg border border-line bg-surface p-6">
+			<main className="p-unit min-h-full">
+				<section className="border-line bg-surface rounded-lg border p-6">
 					<Button asChild variant="ghost" size="sm">
 						<Link href="/students">
 							<ArrowLeft className="h-4 w-4" />
 							Students
 						</Link>
 					</Button>
-					<h1 className="mt-4 text-xl font-semibold text-ink">Student not found</h1>
-					<p className="mt-1 text-sm text-ink-muted">
+					<h1 className="text-ink mt-4 text-xl font-semibold">Student not found</h1>
+					<p className="text-ink-muted mt-1 text-sm">
 						The student may have been deleted or belongs to another teacher.
 					</p>
 				</section>
@@ -51,9 +51,9 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 	}
 
 	return (
-		<main className="min-h-full p-unit">
+		<main className="p-unit min-h-full">
 			<div className="mx-auto w-full space-y-5">
-				<header className="rounded-lg border border-line bg-surface p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+				<header className="border-line bg-surface rounded-lg border p-4 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div className="min-w-0">
 							<Button asChild variant="ghost" size="sm" className="-ml-2">
@@ -62,8 +62,8 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 									Students
 								</Link>
 							</Button>
-							<p className="mt-3 font-mono text-xs font-semibold text-sage uppercase">Student settings</p>
-							<h1 className="mt-1 truncate text-2xl font-semibold text-ink">{student.fullName}</h1>
+							<p className="text-sage mt-3 font-mono text-xs font-semibold uppercase">Student settings</p>
+							<h1 className="text-ink mt-1 truncate text-2xl font-semibold">{student.fullName}</h1>
 							<div className="mt-2 flex flex-wrap gap-2">
 								<Badge tone={student.status === 'active' ? 'green' : student.status === 'paused' ? 'amber' : 'neutral'}>
 									{student.status}
@@ -100,11 +100,7 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 				</header>
 
 				<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem] xl:items-start">
-					<StudentProfilePane
-						student={student}
-						lessons={crm.state.lessons}
-						now={now}
-					/>
+					<StudentProfilePane student={student} lessons={crm.state.lessons} now={now} />
 					<OfferTextComposer />
 				</div>
 			</div>
@@ -125,7 +121,7 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 
 function StudentSettingsSkeleton() {
 	return (
-		<main className="min-h-full p-unit">
+		<main className="p-unit min-h-full">
 			<div className="grid content-start gap-5">
 				<Skeleton className="h-36 rounded-lg" />
 				<div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_28rem]">

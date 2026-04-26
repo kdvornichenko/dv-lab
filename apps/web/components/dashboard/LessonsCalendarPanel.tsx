@@ -75,7 +75,7 @@ export function LessonsCalendarPanel({
 	const formOpen = isCreateOpen || Boolean(editingLesson)
 
 	return (
-		<section className="flex min-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+		<section className="border-line bg-surface flex min-h-dvh flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 			<Calendar
 				view="week"
 				locale={ru}
@@ -93,10 +93,10 @@ export function LessonsCalendarPanel({
 					setIsCreateOpen(true)
 				}}
 			>
-				<header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-surface-muted px-4 py-3">
+				<header className="border-line-soft bg-surface-muted flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
 					<div>
-						<p className="font-mono text-xs font-semibold text-sage uppercase">Lesson calendar</p>
-						<h1 className="mt-1 font-heading text-lg font-semibold text-ink">
+						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson calendar</p>
+						<h1 className="font-heading text-ink mt-1 text-lg font-semibold">
 							<CalendarCurrentDate />
 						</h1>
 					</div>
@@ -114,22 +114,22 @@ export function LessonsCalendarPanel({
 						<CalendarNextTrigger className="h-9 w-9">
 							<ChevronRight className="h-4 w-4" />
 						</CalendarNextTrigger>
-						<div className="flex rounded-lg border border-line-soft bg-surface p-1">
+						<div className="border-line-soft bg-surface flex rounded-lg border p-1">
 							<CalendarViewTrigger
 								view="day"
-								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
+								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
 							>
 								Day
 							</CalendarViewTrigger>
 							<CalendarViewTrigger
 								view="week"
-								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
+								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
 							>
 								Week
 							</CalendarViewTrigger>
 							<CalendarViewTrigger
 								view="month"
-								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
+								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
 							>
 								Month
 							</CalendarViewTrigger>
@@ -146,7 +146,7 @@ export function LessonsCalendarPanel({
 						</Button>
 					</div>
 				</header>
-				<div className="h-[calc(100dvh-7rem)] min-h-168 overflow-hidden bg-surface">
+				<div className="min-h-168 bg-surface h-[calc(100dvh-5rem)] overflow-hidden">
 					<CalendarDayView />
 					<CalendarWeekView />
 					<CalendarMonthView />

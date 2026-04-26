@@ -19,7 +19,9 @@ export function CalendarPageClient() {
 					/>
 					<CalendarSyncPanel
 						syncRecords={crm.state.calendarSyncRecords}
-						lessonTitles={new Map(crm.state.lessons.map((lesson) => [lesson.id, lessonDisplayTitle(lesson, crm.state.students)]))}
+						lessonTitles={
+							new Map(crm.state.lessons.map((lesson) => [lesson.id, lessonDisplayTitle(lesson, crm.state.students)]))
+						}
 					/>
 				</div>
 			)}

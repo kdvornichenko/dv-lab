@@ -9,9 +9,7 @@ import { SummaryStrip } from './SummaryStrip'
 
 export function TeacherDashboard() {
 	return (
-		<TeacherCrmPageShell skeletonRows={4}>
-			{(crm, now) => <DashboardContent crm={crm} now={now} />}
-		</TeacherCrmPageShell>
+		<TeacherCrmPageShell skeletonRows={4}>{(crm, now) => <DashboardContent crm={crm} now={now} />}</TeacherCrmPageShell>
 	)
 }
 

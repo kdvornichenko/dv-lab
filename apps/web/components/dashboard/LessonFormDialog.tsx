@@ -225,7 +225,9 @@ export function LessonFormDialog({
 	onCheckCalendarConflicts,
 }: LessonFormDialogProps) {
 	const selectableStudents = useMemo(() => students.filter((student) => student.status !== 'archived'), [students])
-	const [values, setValues] = useState<LessonFormValues>(() => initialValues(selectableStudents, lesson, defaultStartsAt))
+	const [values, setValues] = useState<LessonFormValues>(() =>
+		initialValues(selectableStudents, lesson, defaultStartsAt)
+	)
 	const [errors, setErrors] = useState<LessonFormErrors>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [isCheckingCalendar, setIsCheckingCalendar] = useState(false)

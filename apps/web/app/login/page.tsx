@@ -41,19 +41,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 	if (user) redirect('/')
 
 	return (
-		<main className="grid min-h-dvh place-items-center bg-canvas px-4 py-10">
+		<main className="bg-canvas grid min-h-dvh place-items-center px-4 py-10">
 			<div className="grid w-fit gap-5 lg:flex lg:items-center">
-				<section className="space-y-2 rounded-lg border border-line bg-surface p-5 shadow-none sm:p-6 lg:flex-1">
-					<div className="flex items-center gap-2 text-sm font-medium text-sage">
+				<section className="border-line bg-surface space-y-2 rounded-lg border p-5 shadow-none sm:p-6 lg:flex-1">
+					<div className="text-sage flex items-center gap-2 text-sm font-medium">
 						<CalendarDays className="h-4 w-4" />
 						Teacher English CRM
 					</div>
-					<h1 className="text-2xl font-semibold text-ink">Private teaching desk</h1>
-					<p className="max-w-xl text-sm leading-6 text-ink-muted">
+					<h1 className="text-ink text-2xl font-semibold">Private teaching desk</h1>
+					<p className="text-ink-muted max-w-xl text-sm leading-6">
 						Sign in with Google to open individual lessons, payments, and calendar sync for your workspace.
 					</p>
 					{authError && (
-						<p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
+						<p className="border-danger-line bg-danger-soft text-danger rounded-md border px-3 py-2 text-sm">
 							{authError}
 						</p>
 					)}

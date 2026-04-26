@@ -73,11 +73,11 @@ export function LessonsPanel({
 	return (
 		<>
 			<Card id="lessons" className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
-				<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-line-soft bg-surface-muted">
+				<CardHeader className="border-line-soft bg-surface-muted flex flex-row items-center justify-between gap-3 border-b">
 					<div>
-						<p className="font-mono text-xs font-semibold text-sage uppercase">Lesson flow</p>
+						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson flow</p>
 						<CardTitle className="mt-1 text-lg">{title}</CardTitle>
-						<p className="mt-1 text-sm text-ink-muted">{description}</p>
+						<p className="text-ink-muted mt-1 text-sm">{description}</p>
 					</div>
 					<div className="flex flex-wrap items-center justify-end gap-2">
 						{toolbar}
@@ -89,9 +89,9 @@ export function LessonsPanel({
 				</CardHeader>
 				<CardContent className="pt-5">
 					{lessons.length === 0 ? (
-						<div className="rounded-lg border border-dashed border-sage-line bg-sage-soft/55 p-5">
-							<p className="font-heading font-semibold text-ink">No lessons scheduled</p>
-							<p className="mt-1 text-sm text-ink-muted">Add the next lesson to start the day plan.</p>
+						<div className="border-sage-line bg-sage-soft/55 rounded-lg border border-dashed p-5">
+							<p className="font-heading text-ink font-semibold">No lessons scheduled</p>
+							<p className="text-ink-muted mt-1 text-sm">Add the next lesson to start the day plan.</p>
 						</div>
 					) : (
 						<ScrollArea className="max-h-108">
@@ -99,7 +99,9 @@ export function LessonsPanel({
 								{lessons.map((lesson) => {
 									const sync = calendarSyncRecords.find((record) => record.lessonId === lesson.id)
 									const tone = lessonTone(lesson)
-									const endsAt = new Date(new Date(lesson.startsAt).getTime() + lesson.durationMinutes * 60_000).toISOString()
+									const endsAt = new Date(
+										new Date(lesson.startsAt).getTime() + lesson.durationMinutes * 60_000
+									).toISOString()
 									return (
 										<div
 											key={lesson.id}
@@ -122,10 +124,10 @@ export function LessonsPanel({
 											<div className="flex w-full">
 												<span className={cn('absolute inset-y-0 left-0 w-1', tone.rail)} />
 												<div className="flex flex-1">
-													<span className="mr-2 font-mono text-sm font-semibold text-ink tabular-nums">
+													<span className="text-ink mr-2 font-mono text-sm font-semibold tabular-nums">
 														{formatTime(lesson.startsAt)} - {formatTime(endsAt)}
 													</span>
-													<p className="font-heading leading-none font-semibold text-ink">
+													<p className="font-heading text-ink font-semibold leading-none">
 														{lessonDisplayTitle(lesson, students)}
 													</p>
 												</div>
