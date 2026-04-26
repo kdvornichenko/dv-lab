@@ -1,91 +1,44 @@
 'use client'
 
-export type CrmErrorLogEntry = {
-	id: string
-	source: string
-	message: string
-	createdAt: string
-}
+import type { CrmErrorLogEntry, SaveCrmErrorInput } from '@teacher-crm/api-types'
 
-type SaveCrmErrorInput = {
-	source: string
-	message: string
-}
+import { teacherCrmApi } from './api'
 
-const STORAGE_KEY = 'teacher-crm-error-log'
 const ERROR_LOG_EVENT = 'teacher-crm-error-log-updated'
-const MAX_ERRORS = 100
 
-function hasStorage() {
-	return typeof window !== 'undefined' && Boolean(window.localStorage)
-}
-
-function createErrorId() {
-	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return `err_${crypto.randomUUID()}`
-	return `err_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-}
-
-function parseErrors(value: string | null): CrmErrorLogEntry[] {
-	if (!value) return []
-	const parsed = JSON.parse(value) as unknown
-	if (!Array.isArray(parsed)) return []
-	return parsed.filter((item): item is CrmErrorLogEntry => {
-		if (!item || typeof item !== 'object') return false
-		const candidate = item as CrmErrorLogEntry
-		return (
-			typeof candidate.id === 'string' &&
-			typeof candidate.source === 'string' &&
-			typeof candidate.message === 'string' &&
-			typeof candidate.createdAt === 'string'
-		)
-	})
-}
-
-function readErrors() {
-	if (!hasStorage()) return []
-	try {
-		return parseErrors(window.localStorage.getItem(STORAGE_KEY))
-	} catch {
-		return []
-	}
-}
-
-function writeErrors(errors: CrmErrorLogEntry[]) {
-	if (!hasStorage()) return
-	window.localStorage.setItem(STORAGE_KEY, JSON.stringify(errors))
+function notifyErrorLogChanged() {
+	if (typeof window === 'undefined') return
 	window.dispatchEvent(new CustomEvent(ERROR_LOG_EVENT))
 }
 
-export function listCrmErrors() {
-	return readErrors()
+export type { CrmErrorLogEntry }
+
+export async function listCrmErrors() {
+	return (await teacherCrmApi.listCrmErrors()).errors
 }
 
-export function saveCrmError(input: SaveCrmErrorInput) {
-	const entry: CrmErrorLogEntry = {
-		id: createErrorId(),
-		source: input.source,
-		message: input.message,
-		createdAt: new Date().toISOString(),
-	}
-	writeErrors([entry, ...readErrors()].slice(0, MAX_ERRORS))
+export async function saveCrmError(input: SaveCrmErrorInput) {
+	const entry = (await teacherCrmApi.saveCrmError(input)).error
+	notifyErrorLogChanged()
 	return entry
 }
 
-export function deleteCrmError(errorId: string) {
-	writeErrors(readErrors().filter((error) => error.id !== errorId))
+export async function deleteCrmError(errorId: string) {
+	const entry = (await teacherCrmApi.deleteCrmError(errorId)).error
+	notifyErrorLogChanged()
+	return entry
 }
 
-export function clearCrmErrors() {
-	writeErrors([])
+export async function clearCrmErrors() {
+	await teacherCrmApi.clearCrmErrors()
+	notifyErrorLogChanged()
 }
 
 export function subscribeCrmErrors(listener: () => void) {
 	if (typeof window === 'undefined') return () => undefined
 	const handleChange = () => listener()
 	window.addEventListener(ERROR_LOG_EVENT, handleChange)
-	window.addEventListener('storage', handleChange)
 	return () => {
 		window.removeEventListener(ERROR_LOG_EVENT, handleChange)
-		window.removeEventListener('storage', handleChange)
 	}
 }

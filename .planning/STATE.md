@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 
 Phase: 5 of 8 (Lessons and Attendance)
 Plan: 05-02
-Status: Plan 05-01 complete; Plan 05-02 partially complete with DB attendance route/service, bulk mark action, and API smoke coverage
-Last activity: 2026-04-26 - Added DB-backed lessons, DB-backed payments with delete, student archive/delete verification, separate workspace routes, student settings page, package pricing fields, skeleton loading, and sidebar DnD settings UI
+Status: Plan 05-01 complete; Plan 05-02 partially complete with DB attendance route/service, bulk mark action, API smoke coverage, and DB-only persistence cleanup for CRM chrome/error state
+Last activity: 2026-04-26 - Added DB-backed lessons/payments, payment delete, student archive/delete verification, route-level workspace pages, student settings page, package pricing fields, skeleton loading, sidebar DnD settings UI, DB-backed sidebar settings, DB-backed CRM error log, and removed browser/default demo data sources
 
 Progress: [######----] 60%
 
@@ -56,6 +56,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Workspace navigation uses route pages (`/lessons`, `/students`, `/payments`, `/calendar`) instead of `?view=...`.
 - Student settings are opened through compact per-student route IDs derived from DB IDs to avoid UUID-looking URLs while remaining unique in the loaded student set.
 - Payments now use a DB-backed service/repository when Postgres is configured, including DELETE support.
+- Non-session UI persistence must go through the API/Postgres boundary. Sidebar settings now persist in `sidebar_settings`; CRM error log entries persist in `crm_error_logs`; browser storage is not used for CRM state.
 
 ### Pending Todos
 
@@ -64,12 +65,12 @@ None yet.
 ### Blockers/Concerns
 
 - GitNexus CLI through WSL `npx` failed in current `dv-lab` on `status` and `analyze` with `Cannot destructure property 'package' of 'node.target' as it is null`; Windows `cmd.exe` path works.
-- Dashboard summary, calendar route handlers, sidebar settings persistence, and error log persistence still need DB-backed storage. Current sidebar/error persistence should be treated as temporary until the next DB pass.
+- Dashboard summary and calendar route handlers still need full DB-backed storage beyond the current prototype coverage.
 - RBAC now fails closed for missing Supabase roles; production must assign `teacher` or scoped roles through app metadata/profile policy.
 - Google OAuth now requests Calendar scopes at login; Phase 6 should add encrypted provider-token storage/refresh, calendar selection persistence, and idempotent event upsert.
 
 ## Session Continuity
 
 Last session: 2026-04-26
-Stopped at: Payment deletion fixed against Postgres, migration applied, and Phase 5/UX checkpoint ready for next DB persistence pass
+Stopped at: Payment deletion fixed against Postgres, DB-only sidebar/error persistence added, migrations applied, and Phase 5 attendance dialog still pending
 Resume file: None

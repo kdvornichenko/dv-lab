@@ -1,17 +1,20 @@
 import {
+	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
-	LESSON_PRICE_RUB,
 	type AttendanceRecord,
 	type CalendarConnection,
 	type CalendarSyncRecord,
 	type CreateLessonInput,
 	type CreatePaymentInput,
 	type CreateStudentInput,
+	type CrmErrorLogEntry,
 	type ListLessonsQuery,
 	type ListStudentsQuery,
 	type Lesson,
 	type MarkAttendanceInput,
 	type Payment,
+	type SaveCrmErrorInput,
+	type SidebarItem,
 	type Student,
 	type StudentBalance,
 	type UpdateLessonInput,
@@ -28,6 +31,8 @@ type TeacherStoreState = {
 	payments: Map<string, Payment>
 	calendarConnection: CalendarConnection
 	calendarSyncRecords: Map<string, CalendarSyncRecord>
+	sidebarItems: SidebarItem[]
+	errorLogs: Map<string, CrmErrorLogEntry>
 }
 
 const stores = new Map<string, TeacherStoreState>()
@@ -37,102 +42,12 @@ const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 
 const hasGoogleCalendarGrant = (grantedScopes: readonly string[], tokenAvailable: boolean) =>
 	tokenAvailable && GOOGLE_CALENDAR_REQUIRED_SCOPES.every((scope) => grantedScopes.includes(scope))
 
-const todayAt = (hour: number) => {
-	const value = new Date()
-	value.setHours(hour, 0, 0, 0)
-	return value.toISOString()
-}
-
-function seedStudents(): Student[] {
-	return [
-		{
-			id: 'stu_anna',
-			fullName: 'Anna Petrova',
-			email: 'anna@example.com',
-			phone: '+1 555 0101',
-			level: 'B1',
-			status: 'active',
-			notes: 'Prefers speaking practice.',
-			defaultLessonPrice: LESSON_PRICE_RUB.default,
-			packageMonths: 0,
-			packageLessonCount: 0,
-			packageTotalPrice: 0,
-			billingMode: 'per_lesson',
-			createdAt: now(),
-			updatedAt: now(),
-		},
-		{
-			id: 'stu_max',
-			fullName: 'Max Ivanov',
-			email: 'max@example.com',
-			phone: '+1 555 0102',
-			level: 'A2',
-			status: 'active',
-			notes: 'Exam prep. 3-month package.',
-			defaultLessonPrice: LESSON_PRICE_RUB.default,
-			packageMonths: 3,
-			packageLessonCount: 24,
-			packageTotalPrice: LESSON_PRICE_RUB.package3Months * 24,
-			billingMode: 'package',
-			createdAt: now(),
-			updatedAt: now(),
-		},
-	]
-}
-
-function seedLessons(): Lesson[] {
-	return [
-		{
-			id: 'les_today_speaking',
-			title: 'Speaking practice',
-			startsAt: todayAt(15),
-			durationMinutes: 60,
-			topic: 'Travel vocabulary',
-			notes: '',
-			status: 'planned',
-			studentIds: ['stu_anna'],
-			createdAt: now(),
-			updatedAt: now(),
-		},
-		{
-			id: 'les_today_group',
-			title: 'Grammar group',
-			startsAt: todayAt(18),
-			durationMinutes: 90,
-			topic: 'Conditionals',
-			notes: '',
-			status: 'planned',
-			studentIds: ['stu_anna', 'stu_max'],
-			createdAt: now(),
-			updatedAt: now(),
-		},
-	]
-}
-
-function seedPayments(): Payment[] {
-	return [
-		{
-			id: 'pay_anna_1',
-			studentId: 'stu_anna',
-			amount: LESSON_PRICE_RUB.default,
-			paidAt: new Date().toISOString(),
-			method: 'bank_transfer',
-			comment: 'One lesson',
-			createdAt: now(),
-		},
-	]
-}
-
 function createStoreState(): TeacherStoreState {
-	const students = seedStudents()
-	const lessons = seedLessons()
-	const payments = seedPayments()
-
 	return {
-		students: new Map(students.map((student) => [student.id, student])),
-		lessons: new Map(lessons.map((lesson) => [lesson.id, lesson])),
+		students: new Map<string, Student>(),
+		lessons: new Map<string, Lesson>(),
 		attendance: new Map<string, AttendanceRecord>(),
-		payments: new Map(payments.map((payment) => [payment.id, payment])),
+		payments: new Map<string, Payment>(),
 		calendarConnection: {
 			id: 'cal_google',
 			provider: 'google',
@@ -147,6 +62,8 @@ function createStoreState(): TeacherStoreState {
 			updatedAt: now(),
 		},
 		calendarSyncRecords: new Map<string, CalendarSyncRecord>(),
+		sidebarItems: DEFAULT_SIDEBAR_ITEMS.map((item) => ({ ...item })),
+		errorLogs: new Map<string, CrmErrorLogEntry>(),
 	}
 }
 
@@ -423,5 +340,43 @@ export const memoryStore = {
 
 	listCalendarSyncRecords(scope: StoreScope) {
 		return Array.from(stateFor(scope).calendarSyncRecords.values())
+	},
+
+	listSidebarItems(scope: StoreScope) {
+		return stateFor(scope).sidebarItems.map((item) => ({ ...item }))
+	},
+
+	saveSidebarItems(scope: StoreScope, items: SidebarItem[]) {
+		const state = stateFor(scope)
+		state.sidebarItems = items.map((item) => ({ ...item }))
+		return this.listSidebarItems(scope)
+	},
+
+	listCrmErrors(scope: StoreScope) {
+		return Array.from(stateFor(scope).errorLogs.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+	},
+
+	saveCrmError(scope: StoreScope, input: SaveCrmErrorInput) {
+		const state = stateFor(scope)
+		const entry: CrmErrorLogEntry = {
+			id: id('err'),
+			source: input.source,
+			message: input.message,
+			createdAt: now(),
+		}
+		state.errorLogs.set(entry.id, entry)
+		return entry
+	},
+
+	deleteCrmError(scope: StoreScope, errorId: string) {
+		const state = stateFor(scope)
+		const entry = state.errorLogs.get(errorId)
+		if (!entry) return null
+		state.errorLogs.delete(errorId)
+		return entry
+	},
+
+	clearCrmErrors(scope: StoreScope) {
+		stateFor(scope).errorLogs.clear()
 	},
 }

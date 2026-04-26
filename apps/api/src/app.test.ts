@@ -20,6 +20,81 @@ const demoAuthenticated = await app.request('/students', {
 })
 assert.equal(demoAuthenticated.status, 200)
 
+const sidebarSettings = await app.request('/settings/sidebar', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(sidebarSettings.status, 200)
+const sidebarSettingsBody = await sidebarSettings.json()
+assert.equal(
+	sidebarSettingsBody.items.some((item: { id: string }) => item.id === 'dashboard'),
+	true
+)
+
+const updateSidebarSettings = await app.request('/settings/sidebar', {
+	method: 'PUT',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		items: [
+			...sidebarSettingsBody.items,
+			{ id: 'nav-custom', title: 'Custom', href: '/custom', icon: 'Circle', visible: true },
+		],
+	}),
+})
+assert.equal(updateSidebarSettings.status, 200)
+const updateSidebarSettingsBody = await updateSidebarSettings.json()
+assert.equal(
+	updateSidebarSettingsBody.items.some((item: { id: string }) => item.id === 'nav-custom'),
+	true
+)
+
+const createCrmError = await app.request('/errors', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		source: 'API smoke',
+		message: 'Persisted CRM error smoke test',
+	}),
+})
+assert.equal(createCrmError.status, 201)
+const createCrmErrorBody = await createCrmError.json()
+assert.equal(createCrmErrorBody.error.source, 'API smoke')
+
+const listCrmErrors = await app.request('/errors', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(listCrmErrors.status, 200)
+const listCrmErrorsBody = await listCrmErrors.json()
+assert.equal(
+	listCrmErrorsBody.errors.some((error: { id: string }) => error.id === createCrmErrorBody.error.id),
+	true
+)
+
+const deleteCrmError = await app.request(`/errors/${createCrmErrorBody.error.id}`, {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(deleteCrmError.status, 200)
+
+const clearCrmErrors = await app.request('/errors', {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(clearCrmErrors.status, 200)
+
 const createStudent = await app.request('/students', {
 	method: 'POST',
 	headers: {

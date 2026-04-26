@@ -7,8 +7,10 @@ import { optionalAuth, requireAuth } from './middleware/auth'
 import { authRoutes } from './routes/auth'
 import { calendarRoutes } from './routes/calendar'
 import { dashboardRoutes } from './routes/dashboard'
+import { errorRoutes } from './routes/errors'
 import { lessonRoutes } from './routes/lessons'
 import { paymentRoutes } from './routes/payments'
+import { settingsRoutes } from './routes/settings'
 import { studentRoutes } from './routes/students'
 
 export const app = new Hono()
@@ -37,11 +39,17 @@ app.use('/calendar', requireAuth)
 app.use('/calendar/*', requireAuth)
 app.use('/dashboard', requireAuth)
 app.use('/dashboard/*', requireAuth)
+app.use('/settings', requireAuth)
+app.use('/settings/*', requireAuth)
+app.use('/errors', requireAuth)
+app.use('/errors/*', requireAuth)
 app.route('/students', studentRoutes)
 app.route('/lessons', lessonRoutes)
 app.route('/payments', paymentRoutes)
 app.route('/calendar', calendarRoutes)
 app.route('/dashboard', dashboardRoutes)
+app.route('/settings', settingsRoutes)
+app.route('/errors', errorRoutes)
 
 app.notFound((context) => context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Route not found' } }, 404))
 

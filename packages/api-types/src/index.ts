@@ -30,6 +30,49 @@ export const LESSON_PRICE_RUB = {
 export const roleKeySchema = z.enum(ROLE_KEYS as [RoleKey, ...RoleKey[]])
 export const permissionKeySchema = z.enum(PERMISSION_KEYS as [PermissionKey, ...PermissionKey[]])
 
+export const sidebarItemSchema = z.object({
+	id: z.string().trim().min(1).max(80),
+	title: z.string().trim().min(1).max(80),
+	href: z.string().trim().min(1).max(240),
+	icon: z.string().trim().min(1).max(80),
+	visible: z.boolean(),
+	locked: z.boolean().optional(),
+})
+export type SidebarItem = z.infer<typeof sidebarItemSchema>
+
+export const DEFAULT_SIDEBAR_ITEMS = [
+	{ id: 'dashboard', title: 'Dashboard', href: '/', icon: 'LayoutDashboard', visible: true, locked: true },
+	{ id: 'lessons', title: 'Lessons', href: '/lessons', icon: 'ListChecks', visible: true },
+	{ id: 'students', title: 'Students', href: '/students', icon: 'GraduationCap', visible: true },
+	{ id: 'payments', title: 'Payments', href: '/payments', icon: 'Banknote', visible: true },
+	{ id: 'calendar', title: 'Google Calendar', href: '/calendar', icon: 'CalendarClock', visible: true },
+	{ id: 'errors', title: 'Error Log', href: '/errors', icon: 'AlertTriangle', visible: true },
+	{
+		id: 'settings',
+		title: 'Sidebar Settings',
+		href: '/settings/sidebar',
+		icon: 'Settings',
+		visible: true,
+		locked: true,
+	},
+] as const satisfies SidebarItem[]
+
+export const updateSidebarSettingsSchema = z.object({
+	items: z.array(sidebarItemSchema).min(1),
+})
+
+export const crmErrorLogEntrySchema = z.object({
+	id: z.string(),
+	source: z.string().min(1),
+	message: z.string().min(1),
+	createdAt: z.string(),
+})
+
+export const saveCrmErrorSchema = z.object({
+	source: z.string().trim().min(1).max(160),
+	message: z.string().trim().min(1).max(4000),
+})
+
 export const studentSchema = z.object({
 	id: z.string(),
 	fullName: z.string().min(1),
@@ -266,6 +309,21 @@ export const attendanceMutationResponseSchema = z.object({
 	attendance: z.array(attendanceRecordSchema),
 })
 
+export const sidebarSettingsResponseSchema = z.object({
+	ok: z.literal(true),
+	items: z.array(sidebarItemSchema),
+})
+
+export const crmErrorLogResponseSchema = z.object({
+	ok: z.literal(true),
+	errors: z.array(crmErrorLogEntrySchema),
+})
+
+export const crmErrorLogMutationResponseSchema = z.object({
+	ok: z.literal(true),
+	error: crmErrorLogEntrySchema,
+})
+
 export type StudentStatus = z.infer<typeof studentStatusSchema>
 export type LessonStatus = z.infer<typeof lessonStatusSchema>
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>
@@ -290,6 +348,9 @@ export type CalendarSyncRecord = z.infer<typeof calendarSyncRecordSchema>
 export type CalendarUpsertLessonEventInput = z.infer<typeof calendarUpsertLessonEventSchema>
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>
 export type StudentBalance = z.infer<typeof studentBalanceSchema>
+export type UpdateSidebarSettingsInput = z.infer<typeof updateSidebarSettingsSchema>
+export type CrmErrorLogEntry = z.infer<typeof crmErrorLogEntrySchema>
+export type SaveCrmErrorInput = z.infer<typeof saveCrmErrorSchema>
 export type ValidationIssue = z.infer<typeof validationIssueSchema>
 export type ValidationErrorDetails = z.infer<typeof validationErrorDetailsSchema>
 export type ApiErrorResponse = z.infer<typeof apiErrorSchema>
@@ -299,3 +360,6 @@ export type StudentMutationResponse = z.infer<typeof studentMutationResponseSche
 export type LessonsResponse = z.infer<typeof lessonsResponseSchema>
 export type LessonMutationResponse = z.infer<typeof lessonMutationResponseSchema>
 export type AttendanceMutationResponse = z.infer<typeof attendanceMutationResponseSchema>
+export type SidebarSettingsResponse = z.infer<typeof sidebarSettingsResponseSchema>
+export type CrmErrorLogResponse = z.infer<typeof crmErrorLogResponseSchema>
+export type CrmErrorLogMutationResponse = z.infer<typeof crmErrorLogMutationResponseSchema>

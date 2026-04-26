@@ -5,6 +5,7 @@ import {
 	foreignKey,
 	index,
 	integer,
+	jsonb,
 	numeric,
 	pgEnum,
 	pgTable,
@@ -45,6 +46,46 @@ export const teacherProfiles = pgTable('teacher_profiles', {
 	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+type SidebarItemJson = {
+	id: string
+	title: string
+	href: string
+	icon: string
+	visible: boolean
+	locked?: boolean
+}
+
+export const sidebarSettings = pgTable(
+	'sidebar_settings',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id')
+			.notNull()
+			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
+		items: jsonb('items').$type<SidebarItemJson[]>().notNull().default(sql`'[]'::jsonb`),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		teacherUniq: uniqueIndex('sidebar_settings_teacher_uniq').on(table.teacherId),
+	})
+)
+
+export const crmErrorLogs = pgTable(
+	'crm_error_logs',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id')
+			.notNull()
+			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
+		source: text('source').notNull(),
+		message: text('message').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		teacherCreatedAtIdx: index('crm_error_logs_teacher_created_at_idx').on(table.teacherId, table.createdAt),
+	})
+)
 
 export const students = pgTable(
 	'students',

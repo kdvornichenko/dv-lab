@@ -10,11 +10,14 @@ import type {
 	CreateLessonInput,
 	CreatePaymentInput,
 	CreateStudentInput,
+	CrmErrorLogEntry,
 	DashboardSummary,
 	Lesson,
 	ListStudentsResponse,
 	MarkAttendanceInput,
 	Payment,
+	SaveCrmErrorInput,
+	SidebarItem,
 	StudentBalance,
 	UpdateLessonInput,
 	StudentMutationResponse,
@@ -27,6 +30,9 @@ type LessonsResponse = { ok: true; lessons: Lesson[]; attendance: AttendanceReco
 type PaymentsResponse = { ok: true; payments: Payment[]; balances: StudentBalance[] }
 type CalendarResponse = { ok: true; connection: CalendarConnection; syncRecords: CalendarSyncRecord[] }
 type DashboardResponse = { ok: true; summary: DashboardSummary }
+type SidebarSettingsResponse = { ok: true; items: SidebarItem[] }
+type CrmErrorLogResponse = { ok: true; errors: CrmErrorLogEntry[] }
+type CrmErrorLogMutationResponse = { ok: true; error: CrmErrorLogEntry }
 
 const apiBaseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
 const isApiErrorResponse = (value: unknown): value is ApiErrorResponse =>
@@ -146,6 +152,26 @@ export const teacherCrmApi = {
 		}),
 	deletePayment: (paymentId: string) =>
 		apiRequest<{ ok: true; payment: Payment }>(`/payments/${paymentId}`, {
+			method: 'DELETE',
+		}),
+	listSidebarItems: () => apiRequest<SidebarSettingsResponse>('/settings/sidebar'),
+	saveSidebarItems: (items: SidebarItem[]) =>
+		apiRequest<SidebarSettingsResponse>('/settings/sidebar', {
+			method: 'PUT',
+			body: JSON.stringify({ items }),
+		}),
+	listCrmErrors: () => apiRequest<CrmErrorLogResponse>('/errors'),
+	saveCrmError: (input: SaveCrmErrorInput) =>
+		apiRequest<CrmErrorLogMutationResponse>('/errors', {
+			method: 'POST',
+			body: JSON.stringify(input),
+		}),
+	deleteCrmError: (errorId: string) =>
+		apiRequest<CrmErrorLogMutationResponse>(`/errors/${errorId}`, {
+			method: 'DELETE',
+		}),
+	clearCrmErrors: () =>
+		apiRequest<{ ok: true }>('/errors', {
 			method: 'DELETE',
 		}),
 	connectCalendar: () =>

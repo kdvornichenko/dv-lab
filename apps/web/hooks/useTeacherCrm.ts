@@ -63,7 +63,9 @@ function crmErrorMessage(error: unknown) {
 
 function reportCrmError(source: string, error: unknown) {
 	const message = crmErrorMessage(error)
-	saveCrmError({ source, message })
+	void saveCrmError({ source, message }).catch((logError) => {
+		console.error('[teacher-crm] failed to persist CRM error', logError)
+	})
 	toast.error('CRM request failed', { description: message })
 }
 

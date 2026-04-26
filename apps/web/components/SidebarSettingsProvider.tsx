@@ -13,15 +13,13 @@ import {
 	Settings,
 	type LucideIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
-export type SidebarItem = {
-	id: string
-	title: string
-	href: string
-	icon: string
-	visible: boolean
-	locked?: boolean
-}
+import { DEFAULT_SIDEBAR_ITEMS, type SidebarItem } from '@teacher-crm/api-types'
+
+import { teacherCrmApi } from '@/lib/crm/api'
+
+export type { SidebarItem }
 
 export const iconRegistry: Record<string, LucideIcon> = {
 	LayoutDashboard,
@@ -34,22 +32,7 @@ export const iconRegistry: Record<string, LucideIcon> = {
 	Circle,
 }
 
-const defaultItems: SidebarItem[] = [
-	{ id: 'dashboard', title: 'Dashboard', href: '/', icon: 'LayoutDashboard', visible: true, locked: true },
-	{ id: 'lessons', title: 'Lessons', href: '/lessons', icon: 'ListChecks', visible: true },
-	{ id: 'students', title: 'Students', href: '/students', icon: 'GraduationCap', visible: true },
-	{ id: 'payments', title: 'Payments', href: '/payments', icon: 'Banknote', visible: true },
-	{ id: 'calendar', title: 'Google Calendar', href: '/calendar', icon: 'CalendarClock', visible: true },
-	{ id: 'errors', title: 'Error Log', href: '/errors', icon: 'AlertTriangle', visible: true },
-	{
-		id: 'settings',
-		title: 'Sidebar Settings',
-		href: '/settings/sidebar',
-		icon: 'Settings',
-		visible: true,
-		locked: true,
-	},
-]
+const defaultItems: SidebarItem[] = DEFAULT_SIDEBAR_ITEMS.map((item) => ({ ...item }))
 
 type SidebarSettingsContextValue = {
 	items: SidebarItem[]
@@ -88,51 +71,62 @@ function newSidebarItemId(title: string, items: readonly SidebarItem[]) {
 }
 
 export function SidebarSettingsProvider({ children }: { children: React.ReactNode }) {
-	const [items, setItems] = React.useState(defaultItems)
-	const [hydrated, setHydrated] = React.useState(false)
+	const [items, setItems] = React.useState<SidebarItem[]>(defaultItems)
+	const [isLoading, setIsLoading] = React.useState(true)
 
 	React.useEffect(() => {
-		const stored = window.localStorage.getItem('teacher-crm-sidebar')
-		if (!stored) {
-			setHydrated(true)
-			return
+		let cancelled = false
+
+		async function loadSidebarSettings() {
+			try {
+				const response = await teacherCrmApi.listSidebarItems()
+				if (!cancelled) setItems(response.items)
+			} catch (error) {
+				const message = error instanceof Error ? error.message : 'Failed to load sidebar settings'
+				toast.error('Sidebar settings unavailable', { description: message })
+			} finally {
+				if (!cancelled) setIsLoading(false)
+			}
 		}
-		try {
-			const storedItems = JSON.parse(stored) as SidebarItem[]
-			const storedById = new Map(storedItems.map((item) => [item.id, item]))
-			const storedOrder = new Map(storedItems.map((item, index) => [item.id, index]))
-			setItems(
-				[...defaultItems]
-					.sort((a, b) => (storedOrder.get(a.id) ?? 999) - (storedOrder.get(b.id) ?? 999))
-					.map((item) => ({
-						...item,
-						visible: storedById.get(item.id)?.visible ?? item.visible,
-						locked: item.locked,
-					}))
-			)
-		} catch {
-			setItems(defaultItems)
-		} finally {
-			setHydrated(true)
+
+		void loadSidebarSettings()
+		return () => {
+			cancelled = true
 		}
 	}, [])
 
-	React.useEffect(() => {
-		if (!hydrated) return
-		window.localStorage.setItem('teacher-crm-sidebar', JSON.stringify(items))
-	}, [hydrated, items])
+	const persistItems = React.useCallback(async (nextItems: SidebarItem[]) => {
+		try {
+			const response = await teacherCrmApi.saveSidebarItems(nextItems)
+			setItems(response.items)
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Failed to save sidebar settings'
+			toast.error('Sidebar settings not saved', { description: message })
+		}
+	}, [])
+
+	const commitItems = React.useCallback(
+		(updater: (current: SidebarItem[]) => SidebarItem[]) => {
+			setItems((current) => {
+				const nextItems = updater(current)
+				void persistItems(nextItems)
+				return nextItems
+			})
+		},
+		[persistItems]
+	)
 
 	const value = React.useMemo<SidebarSettingsContextValue>(
 		() => ({
 			items,
-			visibleItems: hydrated ? items.filter((item) => item.visible) : [],
-			loading: !hydrated,
+			visibleItems: isLoading ? [] : items.filter((item) => item.visible),
+			loading: isLoading,
 			toggleItem: (id) =>
-				setItems((current) =>
+				commitItems((current) =>
 					current.map((item) => (item.id === id && !item.locked ? { ...item, visible: !item.visible } : item))
 				),
 			moveItem: (id, direction) =>
-				setItems((current) => {
+				commitItems((current) => {
 					const index = current.findIndex((item) => item.id === id)
 					const nextIndex = direction === 'up' ? index - 1 : index + 1
 					if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return current
@@ -142,7 +136,7 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 					return copy
 				}),
 			reorderItems: (activeId, overId) =>
-				setItems((current) => {
+				commitItems((current) => {
 					const activeIndex = current.findIndex((item) => item.id === activeId)
 					const overIndex = current.findIndex((item) => item.id === overId)
 					if (activeIndex < 0 || overIndex < 0 || activeIndex === overIndex) return current
@@ -152,7 +146,7 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 					return copy
 				}),
 			addItem: (item) =>
-				setItems((current) => [
+				commitItems((current) => [
 					...current,
 					{
 						...item,
@@ -160,11 +154,13 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 					},
 				]),
 			updateItem: (id, input) =>
-				setItems((current) => current.map((item) => (item.id === id && !item.locked ? { ...item, ...input } : item))),
-			deleteItem: (id) => setItems((current) => current.filter((item) => item.id !== id || item.locked)),
-			resetItems: () => setItems(defaultItems),
+				commitItems((current) =>
+					current.map((item) => (item.id === id && !item.locked ? { ...item, ...input } : item))
+				),
+			deleteItem: (id) => commitItems((current) => current.filter((item) => item.id !== id || item.locked)),
+			resetItems: () => commitItems(() => defaultItems.map((item) => ({ ...item }))),
 		}),
-		[hydrated, items]
+		[commitItems, isLoading, items]
 	)
 
 	return <SidebarSettingsContext.Provider value={value}>{children}</SidebarSettingsContext.Provider>
