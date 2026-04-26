@@ -133,7 +133,7 @@ Do not reduce the profile to contact details.
 
 ## Component Rules
 
-- Buttons: 8px radius, tactile active state such as `active:scale-[0.98]`.
+- Buttons: 8px radius.
 - Hover styling is allowed only on buttons, links, and table rows/cells. Do not add hover movement, color shifts, shadows, or reveal effects to cards, static panels, metrics, inputs, selects, scrollbars, badges, or non-clickable list items.
 - Badges: compact, muted backgrounds, semantic but quiet colors.
 - Inputs: label above, optional helper below, error below.

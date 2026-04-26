@@ -1,7 +1,7 @@
 # Requirements: Teacher English CRM
 
 **Defined:** 2026-04-25
-**Core Value:** The teacher can always see who studies, who attended, who paid, and who owes money.
+**Core Value:** The teacher can always see who studies, which individual lessons are planned/completed/cancelled/rescheduled, who paid, and who owes money.
 
 ## v1 Requirements
 
@@ -9,7 +9,7 @@
 
 - Complete: FOUND-01, FOUND-02, FOUND-03, FOUND-04, AUTH-01, AUTH-02, AUTH-03, AUTH-04, API-01, API-02, API-03, API-04.
 - Partial prototype: STUD-01, STUD-02, STUD-04, LESS-01, ATT-02, CAL-01, CAL-02, CAL-03, CAL-05, PAY-01, PAY-02, PAY-05, DASH-01, DASH-02, DASH-03, DASH-04, API-05.
-- Pending production pass: DB-backed Hono repositories, typed web API client integration, student edit/profile flows, reschedule/cancel flows, attendance history, Google OAuth/token storage/event upsert, payment corrections.
+- Pending production pass: DB-backed Hono repositories, typed web API client integration, student edit/profile flows, series reschedule/cancel flows, Google OAuth/token storage/event upsert, payment corrections, and package history snapshots.
 
 ### Foundation
 
@@ -27,31 +27,32 @@
 
 ### Students
 
-- [ ] **STUD-01**: User can create a student with name, contact info, status, level, notes, and default billing settings.
+- [ ] **STUD-01**: User can create a student with first name, last name, special calendar note, status, level, notes, default lesson price, and default lesson duration. Email/phone are not part of the visible v1 student workflow.
 - [ ] **STUD-02**: User can view, search, and filter students by status and payment/lesson state.
 - [ ] **STUD-03**: User can edit student details without losing lesson/payment history.
 - [ ] **STUD-04**: User can archive a student instead of deleting them.
 
 ### Lessons
 
-- [ ] **LESS-01**: User can create a lesson with date, time, duration, topic/notes, and one or multiple students.
+- [ ] **LESS-01**: User can create an individual lesson with date, time, duration, topic/notes, one student, and optional weekly repeat generation.
 - [ ] **LESS-02**: User can view lessons by day/week and by student.
-- [ ] **LESS-03**: User can reschedule or cancel a lesson with status preserved.
+- [ ] **LESS-03**: User can reschedule or cancel one lesson with status preserved, and choose whether to apply the change to future lessons in the same student/day/time pattern. Current implementation uses heuristic matching; explicit series metadata remains pending.
 
-### Attendance
+### Lesson Status
 
-- [ ] **ATT-01**: User can mark lesson attendance as planned, attended, absent, cancelled, or rescheduled.
-- [ ] **ATT-02**: User can bulk mark attendance for all students in a group lesson.
-- [ ] **ATT-03**: User can view attendance history per student.
-- [ ] **ATT-04**: Dashboard highlights lessons with missing attendance marks.
+- [ ] **ATT-01**: User can mark an individual lesson as planned, completed, cancelled, or rescheduled.
+- [x] **ATT-02**: Group attendance is removed from v1 scope because all lessons are individual.
+- [ ] **ATT-03**: User can view lesson status history per student.
+- [ ] **ATT-04**: Dashboard highlights lessons that need schedule/payment attention without using missing attendance marks.
 
 ### Google Calendar
 
-- [ ] **CAL-01**: User can connect a Google Calendar account through a server-mediated OAuth flow. Current foundation requests Calendar scopes during Google login; production token storage and sync use remain Phase 6 work.
-- [ ] **CAL-02**: User can choose which calendar receives CRM lesson events.
-- [ ] **CAL-03**: Creating or rescheduling a CRM lesson can create or update the linked Google Calendar event.
-- [ ] **CAL-04**: Cancelling a CRM lesson can cancel or remove the linked Google Calendar event according to a recorded sync policy.
-- [ ] **CAL-05**: User can see calendar sync status and retry failed syncs without duplicating events.
+- [x] **CAL-01**: User can connect a Google Calendar account through a server-mediated OAuth flow.
+- [x] **CAL-02**: User can choose which calendar receives CRM lesson events.
+- [x] **CAL-03**: Creating or rescheduling a CRM lesson automatically creates or updates the linked Google Calendar event.
+- [x] **CAL-04**: Cancelling a CRM lesson can cancel or remove the linked Google Calendar event according to a recorded sync policy.
+- [x] **CAL-05**: User can see calendar sync status without duplicating events; lesson-level sync actions are automatic.
+- [x] **CAL-06**: Lesson form warns about Google Calendar busy intervals before save without blocking creation.
 
 ### Payments
 
@@ -59,14 +60,17 @@
 - [ ] **PAY-02**: User can see student balance and unpaid/overdue lesson count.
 - [ ] **PAY-03**: User can view payment history per student.
 - [ ] **PAY-04**: User can correct payment records without destroying ledger history.
+- [ ] **PAY-07**: User can preserve historical package terms per payment period when a student changes package cadence or price later.
 - [ ] **PAY-05**: User can view monthly income summary.
+- [ ] **PAY-06**: User can generate lesson/package offer text in a selected currency using current exchange rates, with RUB as the base price and API-backed conversion for currencies such as KZT.
+- [ ] **PAY-08**: Student package pricing is calculated automatically from base lesson price, fixed 3-month/5-month package discounts, lesson duration, and lesson count. Package profile shows completed/remaining lesson units and copyable completed-lesson dates grouped by month.
 
 ### Dashboard
 
 - [ ] **DASH-01**: User can see today's upcoming lessons.
 - [ ] **DASH-02**: User can see overdue or low-balance students.
-- [ ] **DASH-03**: User can see active student count, attendance count for the period, and month income.
-- [ ] **DASH-04**: User can access quick actions for add student, add lesson, mark attendance, and record payment.
+- [ ] **DASH-03**: User can see active student count, lesson status counts for the period, and month income.
+- [ ] **DASH-04**: User can access quick actions for add student, add lesson, calendar sync status, and record payment.
 
 ### API and Architecture
 
@@ -98,6 +102,7 @@
 | Student portal          | Teacher-facing control loop comes first                               |
 | Homework/LMS            | Separate product surface, not required for attendance/payment MVP     |
 | Mobile app              | Responsive web is enough for v1                                       |
+| Group lessons           | Current product direction is individual private lessons only          |
 
 ## Traceability
 
@@ -122,16 +127,20 @@
 | ATT-02      | Phase 5 | Pending  |
 | ATT-03      | Phase 5 | Pending  |
 | ATT-04      | Phase 8 | Pending  |
-| CAL-01      | Phase 6 | Partial  |
-| CAL-02      | Phase 6 | Pending  |
-| CAL-03      | Phase 6 | Pending  |
-| CAL-04      | Phase 6 | Pending  |
-| CAL-05      | Phase 6 | Pending  |
+| CAL-01      | Phase 6 | Complete |
+| CAL-02      | Phase 6 | Complete |
+| CAL-03      | Phase 6 | Complete |
+| CAL-04      | Phase 6 | Complete |
+| CAL-05      | Phase 6 | Complete |
+| CAL-06      | Phase 6 | Complete |
 | PAY-01      | Phase 7 | Pending  |
 | PAY-02      | Phase 7 | Pending  |
 | PAY-03      | Phase 7 | Pending  |
 | PAY-04      | Phase 7 | Pending  |
 | PAY-05      | Phase 8 | Pending  |
+| PAY-06      | Phase 7 | Pending  |
+| PAY-07      | Phase 7 | Pending  |
+| PAY-08      | Phase 7 | Pending  |
 | DASH-01     | Phase 8 | Pending  |
 | DASH-02     | Phase 8 | Pending  |
 | DASH-03     | Phase 8 | Pending  |
@@ -144,11 +153,11 @@
 
 **Coverage:**
 
-- v1 requirements: 37 total
-- Mapped to phases: 37
+- v1 requirements: 41 total
+- Mapped to phases: 41
 - Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-04-25_
-_Last updated: 2026-04-25 after autonomous foundation implementation_
+_Last updated: 2026-04-26 after individual-only lesson and calendar automation pass_

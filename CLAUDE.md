@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **dv-lab** (607 symbols, 1424 relationships, 42 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **dv-lab** (943 symbols, 2561 relationships, 70 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -97,5 +97,21 @@ To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Work in the Services area (119 symbols) | `.claude/skills/generated/services/SKILL.md` |
+| Work in the Ui area (82 symbols) | `.claude/skills/generated/ui/SKILL.md` |
+| Work in the Crm area (55 symbols) | `.claude/skills/generated/crm/SKILL.md` |
+| Work in the Hooks area (25 symbols) | `.claude/skills/generated/hooks/SKILL.md` |
+| Work in the Theme area (23 symbols) | `.claude/skills/generated/theme/SKILL.md` |
+| Work in the Dashboard area (20 symbols) | `.claude/skills/generated/dashboard/SKILL.md` |
+| Work in the Students area (17 symbols) | `.claude/skills/generated/students/SKILL.md` |
+| Work in the Sign-in area (9 symbols) | `.claude/skills/generated/sign-in/SKILL.md` |
+| Work in the Middleware area (9 symbols) | `.claude/skills/generated/middleware/SKILL.md` |
+| Work in the Components area (9 symbols) | `.claude/skills/generated/components/SKILL.md` |
+| Work in the Db area (5 symbols) | `.claude/skills/generated/db/SKILL.md` |
+| Work in the Cluster_13 area (5 symbols) | `.claude/skills/generated/cluster-13/SKILL.md` |
+| Work in the Login area (5 symbols) | `.claude/skills/generated/login/SKILL.md` |
+| Work in the Web area (4 symbols) | `.claude/skills/generated/web/SKILL.md` |
+| Work in the Cluster_10 area (3 symbols) | `.claude/skills/generated/cluster-10/SKILL.md` |
+| Work in the Http area (3 symbols) | `.claude/skills/generated/http/SKILL.md` |
 
 <!-- gitnexus:end -->

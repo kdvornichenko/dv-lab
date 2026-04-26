@@ -10,8 +10,8 @@ The milestone starts by replacing the current disposable app with a clean monore
 - [x] **Phase 2: Shared Packages and Data Model** - Adapt RBAC/DB/API package patterns and define teacher CRM schema.
 - [x] **Phase 3: Auth and Hono API Foundation** - Wire Supabase auth/session and typed Hono route foundation.
 - [x] **Phase 4: Student Registry** - Build student CRUD, archive, search, and list/profile UI.
-- [ ] **Phase 5: Lessons and Attendance** - Build lesson scheduling and attendance marking.
-- [ ] **Phase 6: Google Calendar Integration** - Rebuild calendar OAuth and lesson event sync cleanly.
+- [x] **Phase 5: Lessons and Attendance** - Build lesson scheduling and attendance marking.
+- [x] **Phase 6: Google Calendar Integration** - Rebuild calendar OAuth and lesson event sync cleanly.
 - [ ] **Phase 7: Payments and Ledger** - Build manual payment ledger and balance summaries.
 - [ ] **Phase 8: Dashboard and Operational Polish** - Build dashboard, quick actions, responsive QA, and final verification.
 
@@ -114,8 +114,8 @@ Plans:
 Plans:
 
 - [x] 05-01: Lessons API/services and schedule UI
-- [ ] 05-02: Attendance records, statuses, and bulk marking
-- [ ] 05-03: Student attendance history and corrections
+- [x] 05-02: Attendance records, statuses, and bulk marking
+- [x] 05-03: Student attendance history and corrections
 
 ### Phase 6: Google Calendar Integration
 
@@ -133,29 +133,33 @@ Plans:
 
 Plans:
 
-- [ ] 06-01: Google OAuth and token storage boundary
-- [ ] 06-02: Calendar selection and lesson event mapping
-- [ ] 06-03: Sync status, retry, and duplicate-prevention contract tests
+- [x] 06-01: Google OAuth and token storage boundary
+- [x] 06-02: Calendar selection and lesson event mapping
+- [x] 06-03: Sync status, retry, and duplicate-prevention contract tests
 
 ### Phase 7: Payments and Ledger
 
 **Goal**: The teacher can record payments and understand balances without losing history.
 **Depends on**: Phase 6
-**Requirements**: PAY-01, PAY-02, PAY-03, PAY-04
+**Requirements**: PAY-01, PAY-02, PAY-03, PAY-04, PAY-06, PAY-08
 **Success Criteria** (what must be TRUE):
 
 1. User can record a manual payment for a student.
 2. User can view payment history by student.
 3. User can see balance and overdue/unpaid lesson count.
 4. Corrections preserve ledger history or explicit adjustment records.
-5. Payment calculations are covered by focused tests.
-   **Plans**: 3 plans
+5. Offer text can be generated in a selected currency using a current exchange-rate API.
+6. Package prices derive from student base price, lesson duration, fixed 3-month/5-month discounts, and lesson count.
+7. Student profile shows package progress and copyable completed-lesson dates.
+8. Payment calculations are covered by focused tests.
+   **Plans**: 4 plans
 
 Plans:
 
 - [ ] 07-01: Payment ledger schema, API, and service calculations
 - [ ] 07-02: Payment entry and history UI
 - [ ] 07-03: Balance/overdue summaries and ledger tests
+- [ ] 07-04: Currency-aware lesson/package offer text with live exchange rates
 
 ### Phase 8: Dashboard and Operational Polish
 
@@ -179,13 +183,13 @@ Plans:
 
 ## Progress
 
-| Phase                                     | Milestone | Plans Complete | Status                    | Completed  |
-| ----------------------------------------- | --------- | -------------- | ------------------------- | ---------- |
-| 1. Repository Reset and Monorepo Scaffold | v1.0      | 3/3            | Complete                  | 2026-04-25 |
-| 2. Shared Packages and Data Model         | v1.0      | 3/3            | Complete                  | 2026-04-25 |
-| 3. Auth and Hono API Foundation           | v1.0      | 3/3            | Complete                  | 2026-04-25 |
-| 4. Student Registry                       | v1.0      | 3/3            | Complete                  | 2026-04-25 |
-| 5. Lessons and Attendance                 | v1.0      | 1/3            | DB services in progress   | -          |
-| 6. Google Calendar Integration            | v1.0      | 0/3            | Schema/API prototype only | -          |
-| 7. Payments and Ledger                    | v1.0      | 0/3            | DB payment delete added   | -          |
-| 8. Dashboard and Operational Polish       | v1.0      | 0/3            | Prototype UI only         | -          |
+| Phase                                     | Milestone | Plans Complete | Status                | Completed  |
+| ----------------------------------------- | --------- | -------------- | --------------------- | ---------- |
+| 1. Repository Reset and Monorepo Scaffold | v1.0      | 3/3            | Complete              | 2026-04-25 |
+| 2. Shared Packages and Data Model         | v1.0      | 3/3            | Complete              | 2026-04-25 |
+| 3. Auth and Hono API Foundation           | v1.0      | 3/3            | Complete              | 2026-04-25 |
+| 4. Student Registry                       | v1.0      | 3/3            | Complete              | 2026-04-25 |
+| 5. Lessons and Attendance                 | v1.0      | 3/3            | Complete              | 2026-04-26 |
+| 6. Google Calendar Integration            | v1.0      | 3/3            | Complete              | 2026-04-26 |
+| 7. Payments and Ledger                    | v1.0      | 0/4            | Currency task planned | -          |
+| 8. Dashboard and Operational Polish       | v1.0      | 0/3            | Prototype UI only     | -          |

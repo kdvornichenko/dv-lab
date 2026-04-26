@@ -17,6 +17,7 @@
 - Added student profile pane with contact, billing, notes, lesson count, attendance count, and balance.
 - Added Yarn supported architectures for Linux/Windows native packages so WSL and PowerShell installs both work.
 - Added Supabase-friendly DB SSL handling for `sslmode=require` connection strings.
+- 2026-04-26 update: student records now expose first name, last name, and `special`; email/phone/contact UI was removed from the v1 student surface.
 
 ## Verification
 
@@ -30,3 +31,4 @@
 
 - Browser smoke was not run because the user asked to stop my dev servers and keep ports free.
 - Phase 5 should move lessons/attendance from memory-backed prototype routes to DB-backed services.
+- The older contact/attendance profile notes above are superseded by the individual-only lesson direction.
