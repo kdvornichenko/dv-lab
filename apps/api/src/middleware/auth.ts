@@ -75,7 +75,7 @@ function apiUserFromSupabase(user: User): ApiUser {
 	}
 }
 
-export const optionalAuth = createMiddleware(async (context, next) => {
+export const optionalAuth = createMiddleware<any, string, {}, Response>(async (context, next) => {
 	const token = bearerToken(context.req.header('authorization'))
 	if (token) {
 		const supabase = getSupabaseAuthClient()
@@ -120,7 +120,7 @@ export function actorFromContext(context: Context): StoreScope {
 }
 
 export function requirePermission<D extends PermissionDomain>(domain: D, action: ActionOf<D>) {
-	return createMiddleware(async (context, next) => {
+	return createMiddleware<any, string, {}, Response>(async (context, next) => {
 		const user = context.get('user')
 		if (!user) {
 			return context.json({ ok: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }, 401)
@@ -134,7 +134,7 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 	})
 }
 
-export const requireAuth = createMiddleware(async (context, next) => {
+export const requireAuth = createMiddleware<any, string, {}, Response>(async (context, next) => {
 	const user = context.get('user')
 	if (!user) {
 		return context.json({ ok: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }, 401)
