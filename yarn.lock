@@ -2970,6 +2970,7 @@ __metadata:
     "@supabase/supabase-js": "npm:^2.49.4"
     "@tailwindcss/postcss": "npm:^4.1.18"
     "@teacher-crm/api-types": "npm:*"
+    "@teacher-crm/db": "npm:*"
     "@types/node": "npm:^25.0.3"
     "@types/react": "npm:^19.2.14"
     "@types/react-dom": "npm:^19.2.3"
