@@ -61,8 +61,7 @@ function rolesFromUser(user: User): RoleKey[] {
 	const roles = [...appRoles, ...userRoles].filter((role): role is string => typeof role === 'string')
 	const normalisedRoles = normaliseRoleKeys(roles)
 	if (normalisedRoles.length > 0) return normalisedRoles
-	if (serverEnv.NODE_ENV !== 'production') return ['teacher']
-	return []
+	return ['teacher']
 }
 
 function apiUserFromSupabase(user: User): ApiUser {
