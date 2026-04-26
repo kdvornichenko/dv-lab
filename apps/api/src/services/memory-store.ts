@@ -332,8 +332,12 @@ export const memoryStore = {
 				billable: record.billable && record.status === 'attended',
 			}
 		})
+		const payments = Array.from(state.payments.values()).flatMap((payment) => {
+			if (!payment.studentId || typeof payment.amount !== 'number') return []
+			return [{ studentId: payment.studentId, amount: payment.amount }]
+		})
 
-		return calculateStudentBalances(charges, Array.from(state.payments.values()))
+		return calculateStudentBalances(charges, payments)
 	},
 
 	getDashboardSummary(scope: StoreScope) {
