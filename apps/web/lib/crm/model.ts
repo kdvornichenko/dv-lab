@@ -237,7 +237,7 @@ export function formatCompletedLessonDatesText(lessons: Lesson[]) {
 	const groups = new Map<string, number[]>()
 	for (const lesson of lessons) {
 		const date = new Date(lesson.startsAt)
-		const key = new Intl.DateTimeFormat('ru-RU', { month: 'long' }).format(date)
+		const key = new Intl.DateTimeFormat('en-US', { month: 'long' }).format(date)
 		const days = groups.get(key) ?? []
 		days.push(date.getDate())
 		groups.set(key, days)
