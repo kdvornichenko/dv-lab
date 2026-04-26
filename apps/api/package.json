@@ -5,9 +5,9 @@
 	"type": "module",
 	"main": "dist/index.js",
 	"scripts": {
-		"dev": "node --import tsx src/index.ts",
-		"build": "rimraf dist && tsup src/index.ts --format esm --platform node --out-dir dist --sourcemap --clean",
-		"start": "node --enable-source-maps dist/index.js",
+		"dev": "node --import tsx src/server.ts",
+		"build": "rimraf dist && tsup src/index.ts src/server.ts --format esm --platform node --out-dir dist --sourcemap --clean",
+		"start": "node --enable-source-maps dist/server.js",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"lint": "tsc -p tsconfig.json --noEmit",
 		"test": "node --import tsx src/app.test.ts"
