@@ -6,7 +6,7 @@
 	"main": "dist/index.js",
 	"scripts": {
 		"dev": "node --import tsx src/server.ts",
-		"build": "rimraf dist && tsup src/index.ts src/server.ts --format esm --platform node --out-dir dist --sourcemap --clean",
+		"build": "rimraf dist && tsup --config tsup.config.ts",
 		"start": "node --enable-source-maps dist/server.js",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"lint": "tsc -p tsconfig.json --noEmit",
