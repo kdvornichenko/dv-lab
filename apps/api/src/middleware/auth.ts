@@ -125,7 +125,7 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 			return context.json({ ok: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }, 401)
 		}
 
-		if (!can(new Set(user.permissions), domain, action)) {
+		if (!user.roles.includes('teacher') && !can(new Set(user.permissions), domain, action)) {
 			return context.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied' } }, 403)
 		}
 
