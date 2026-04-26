@@ -45,7 +45,7 @@ type ThemeSettingsResponse = { ok: true; theme: CrmThemeSettings }
 type CrmErrorLogResponse = { ok: true; errors: CrmErrorLogEntry[] }
 type CrmErrorLogMutationResponse = { ok: true; error: CrmErrorLogEntry }
 
-const apiBaseUrl = () => process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
+const apiBaseUrl = () => '/api'
 const isApiErrorResponse = (value: unknown): value is ApiErrorResponse =>
 	Boolean(value && typeof value === 'object' && (value as { ok?: unknown }).ok === false)
 const canImportCalendarChanges = (calendar: CalendarResponse) =>
