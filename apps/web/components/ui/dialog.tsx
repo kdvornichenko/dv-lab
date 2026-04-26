@@ -23,7 +23,7 @@ const DialogOverlay = React.forwardRef<
 	<DialogPrimitive.Overlay
 		ref={ref}
 		className={cn(
-			'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-ink/24 fixed inset-0 z-40 backdrop-blur-[2px] duration-200 ease-[var(--ease-out)]',
+			'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 bg-ink/24 fixed inset-0 z-40 backdrop-blur-[2px] duration-200 ease-out',
 			className
 		)}
 		{...props}
@@ -40,13 +40,13 @@ const DialogContent = React.forwardRef<
 		<DialogPrimitive.Content
 			ref={ref}
 			className={cn(
-				'border-line bg-surface data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 text-ink fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-xl border p-0 shadow-[0_28px_90px_-46px_rgba(24,23,19,0.55)] duration-200 ease-[var(--ease-out)]',
+				'border-line bg-surface data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 text-ink fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-2xl translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-xl border p-0 shadow-[0_28px_90px_-46px_rgba(24,23,19,0.55)] duration-200 ease-out',
 				className
 			)}
 			{...props}
 		>
 			{children}
-			<DialogPrimitive.Close className="text-ink-muted hover:bg-sage-soft hover:text-sage focus-visible:ring-ring/35 duration-160 data-[state=open]:bg-accent absolute right-4 top-4 z-10 flex size-8 cursor-pointer items-center justify-center rounded-lg transition-[background-color,color,box-shadow,opacity] ease-[var(--ease-out)] focus-visible:outline-none focus-visible:ring-[3px] disabled:pointer-events-none">
+			<DialogPrimitive.Close className="text-ink-muted hover:bg-sage-soft hover:text-sage focus-visible:ring-ring/35 duration-160 data-[state=open]:bg-accent absolute right-4 top-4 z-10 flex size-8 cursor-pointer items-center justify-center rounded-lg transition-[background-color,color,box-shadow,opacity] ease-out focus-visible:outline-none focus-visible:ring-[3px] disabled:pointer-events-none">
 				<X className="h-4 w-4" />
 				<span className="sr-only">Close</span>
 			</DialogPrimitive.Close>
@@ -71,7 +71,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<DialogPrimitive.Title
 		ref={ref}
-		className={cn('text-ink text-lg font-semibold leading-tight', className)}
+		className={cn('font-heading text-ink text-lg font-semibold leading-tight', className)}
 		{...props}
 	/>
 ))

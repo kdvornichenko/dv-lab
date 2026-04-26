@@ -210,11 +210,11 @@ const ChartTooltipContent = React.forwardRef<
 												{nestLabel ? tooltipLabel : null}
 												<span className="text-muted-foreground">{itemConfig?.label || item.name}</span>
 											</div>
-											{item.value && (
-												<span className="text-foreground font-mono font-medium tabular-nums">
-													{item.value.toLocaleString()}
-												</span>
-											)}
+												{item.value && (
+													<span className="text-foreground font-mono font-medium tabular-nums">
+														{item.value.toLocaleString('ru-RU')}
+													</span>
+												)}
 										</div>
 									</>
 								)}

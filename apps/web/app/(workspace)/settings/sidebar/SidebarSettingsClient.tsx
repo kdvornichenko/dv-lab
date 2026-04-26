@@ -97,13 +97,13 @@ export function SidebarSettingsClient() {
 	}
 
 	return (
-		<main className="flex min-h-dvh flex-col gap-unit p-unit">
-			<div className="mx-auto grid w-full max-w-240 gap-5">
+		<main className="min-h-full p-unit">
+			<div className="grid w-full gap-5">
 				<header className="flex flex-col gap-3 border-b border-line pb-5 md:flex-row md:items-end md:justify-between">
 					<div>
 						<p className="text-sm font-medium text-sage">AppSidebar</p>
 						<h1 className="mt-2 text-2xl font-semibold text-ink">Sidebar settings</h1>
-						<p className="mt-2 max-w-2xl text-sm leading-6 text-ink-muted">
+						<p className="mt-2 text-sm leading-6 text-ink-muted">
 							Reorder items, hide secondary links, or add a custom navigation item.
 						</p>
 					</div>
@@ -240,7 +240,7 @@ function SortableSidebarItem({
 			</span>
 			<div className="min-w-0">
 				<div className="flex flex-wrap items-center gap-2">
-					<p className="font-medium text-ink">{item.title}</p>
+					<p className="font-heading font-medium text-ink">{item.title}</p>
 					{item.locked && <Badge tone="neutral">locked</Badge>}
 					{!item.visible && <Badge tone="amber">hidden</Badge>}
 				</div>

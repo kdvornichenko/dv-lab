@@ -5,15 +5,20 @@ import * as React from 'react'
 import { ThemeProvider as NextThemesProvider, type ThemeProviderProps } from 'next-themes'
 
 import { SidebarSettingsProvider } from '@/components/SidebarSettingsProvider'
+import { ThemeSettingsProvider } from '@/components/ThemeSettingsProvider'
 import { Toaster } from '@/components/ui/sonner'
 
-export function Providers({ children, themeProps }: { children: React.ReactNode; themeProps?: ThemeProviderProps }) {
+export function ThemeProviders({ children, themeProps }: { children: React.ReactNode; themeProps?: ThemeProviderProps }) {
 	return (
 		<NextThemesProvider attribute="class" defaultTheme="light" enableSystem={false} {...themeProps}>
-			<SidebarSettingsProvider>
+			<ThemeSettingsProvider>
 				{children}
 				<Toaster position="top-right" />
-			</SidebarSettingsProvider>
+			</ThemeSettingsProvider>
 		</NextThemesProvider>
 	)
+}
+
+export function WorkspaceProviders({ children }: { children: React.ReactNode }) {
+	return <SidebarSettingsProvider>{children}</SidebarSettingsProvider>
 }

@@ -8,8 +8,6 @@ import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-import { ScrollArea } from './scroll-area'
-
 const Select = SelectPrimitive.Root
 
 const SelectGroup = SelectPrimitive.Group
@@ -23,7 +21,7 @@ const SelectTrigger = React.forwardRef<
 	<SelectPrimitive.Trigger
 		ref={ref}
 		className={cn(
-			'border-line-strong bg-surface ring-offset-background focus:ring-ring/35 data-placeholder:text-ink-muted text-ink duration-160 focus:border-ring flex h-10 w-full items-center justify-between whitespace-nowrap rounded-lg border px-3.5 py-2 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition-[background-color,border-color,color,box-shadow] ease-[var(--ease-out)] focus:outline-none focus:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+			'border-line-strong bg-surface ring-offset-background focus:ring-ring/35 data-placeholder:text-ink-muted text-ink duration-160 focus:border-ring flex h-10 w-full items-center justify-between whitespace-nowrap rounded-lg border px-3.5 py-2 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] transition-[background-color,border-color,color,box-shadow] ease-out focus:outline-none focus:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
 			className
 		)}
 		{...props}
@@ -81,13 +79,14 @@ const SelectContent = React.forwardRef<
 			{...props}
 		>
 			<SelectScrollUpButton />
-			<ScrollArea className="max-h-[min(var(--radix-select-content-available-height),18rem)]">
-				<SelectPrimitive.Viewport
-					className={cn('p-1.5', position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]')}
-				>
-					{children}
-				</SelectPrimitive.Viewport>
-			</ScrollArea>
+			<SelectPrimitive.Viewport
+				className={cn(
+					'max-h-72 overflow-y-auto p-1.5',
+					position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)]'
+				)}
+			>
+				{children}
+			</SelectPrimitive.Viewport>
 			<SelectScrollDownButton />
 		</SelectPrimitive.Content>
 	</SelectPrimitive.Portal>
@@ -109,7 +108,7 @@ const SelectItem = React.forwardRef<
 	<SelectPrimitive.Item
 		ref={ref}
 		className={cn(
-			'focus:bg-sage-soft focus:text-sage data-disabled:pointer-events-none data-disabled:opacity-50 relative flex w-full cursor-pointer select-none items-center rounded-md py-2 pl-2.5 pr-8 text-sm font-medium outline-none transition-[background-color,color] duration-150 ease-[var(--ease-out)]',
+			'focus:bg-sage-soft focus:text-sage data-disabled:pointer-events-none data-disabled:opacity-50 relative flex w-full cursor-pointer select-none items-center rounded-md py-2 pl-2.5 pr-8 text-sm font-medium outline-none transition-[background-color,color] duration-150 ease-out',
 			className
 		)}
 		{...props}
