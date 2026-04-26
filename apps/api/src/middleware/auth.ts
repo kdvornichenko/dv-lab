@@ -126,7 +126,30 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 		}
 
 		if (!user.roles.includes('teacher') && !can(new Set(user.permissions), domain, action)) {
-			return context.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied' } }, 403)
+			const requiredPermission = `${domain}.${action}`
+			const details = {
+				method: context.req.method,
+				path: context.req.path,
+				requiredPermission,
+				userId: user.id,
+				email: user.email,
+				roles: user.roles,
+				permissions: user.permissions,
+			}
+
+			console.warn('[teacher-crm] permission denied', details)
+
+			return context.json(
+				{
+					ok: false,
+					error: {
+						code: 'FORBIDDEN',
+						message: `Permission denied: missing ${requiredPermission}`,
+						details,
+					},
+				},
+				403
+			)
 		}
 
 		await next()
