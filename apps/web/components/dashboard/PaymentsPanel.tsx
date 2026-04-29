@@ -1,13 +1,17 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import type { DateRange } from 'react-day-picker'
 
-import { ArrowDownToLineIcon, ArrowUpDown, FilterIcon, Search, Trash2 } from 'lucide-react'
+import { enUS } from 'date-fns/locale'
+import { ArrowDownToLineIcon, ArrowUpDown, CalendarRange, FilterIcon, Search, Trash2, UserRound, X } from 'lucide-react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
+import { FacetedFilter, type FacetedFilterOption } from '@/components/filters/FacetedFilter'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DateRangePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatCurrencyAmount } from '@/lib/crm/model'
@@ -25,9 +29,8 @@ type PaymentsPanelProps = {
 }
 
 type PaymentStatus = 'paid' | 'open' | 'overdue'
-type SortMode = 'date_desc' | 'student_asc' | 'student_desc' | 'amount_desc'
+type SortMode = 'date_desc' | 'date_asc' | 'student_asc' | 'student_desc' | 'amount_desc'
 type CurrencyFilter = 'all' | Currency
-type MethodFilter = 'all' | PaymentMethod
 
 type PaymentRow = {
 	payment: Payment
@@ -41,9 +44,7 @@ type PaymentRow = {
 	status: PaymentStatus
 }
 
-const ALL_STUDENTS = 'all'
 const ALL_CURRENCIES = 'all'
-const ALL_METHODS = 'all'
 
 const STATUS: Record<PaymentStatus, { label: string; className: string; dot: string }> = {
 	paid: {
@@ -79,6 +80,12 @@ function formatMonth(value: string | Date) {
 		month: 'long',
 		year: 'numeric',
 	}).format(new Date(value))
+}
+
+function formatDateRange(range: DateRange) {
+	if (!range.from) return 'Date range'
+	if (!range.to) return formatDate(range.from)
+	return `${formatDate(range.from)} - ${formatDate(range.to)}`
 }
 
 function monthKey(value: Date) {
@@ -136,11 +143,33 @@ function formatTotals(totals: Record<Currency, number>) {
 
 function sortRows(rows: PaymentRow[], sortMode: SortMode) {
 	return [...rows].sort((a, b) => {
+		if (sortMode === 'date_asc') return a.issued.getTime() - b.issued.getTime()
 		if (sortMode === 'student_asc') return a.studentName.localeCompare(b.studentName)
 		if (sortMode === 'student_desc') return b.studentName.localeCompare(a.studentName)
 		if (sortMode === 'amount_desc') return b.payment.amount - a.payment.amount
 		return b.issued.getTime() - a.issued.getTime()
 	})
+}
+
+function isWithinDateRange(date: Date, range?: DateRange) {
+	if (!range?.from) return true
+
+	const from = new Date(range.from)
+	const to = new Date(range.to ?? range.from)
+	from.setHours(0, 0, 0, 0)
+	to.setHours(23, 59, 59, 999)
+
+	const time = date.getTime()
+	return time >= from.getTime() && time <= to.getTime()
+}
+
+function paymentInitials(name: string) {
+	return name
+		.split(/\s+/)
+		.filter(Boolean)
+		.slice(0, 2)
+		.map((part) => part[0]?.toUpperCase())
+		.join('')
 }
 
 export function PaymentsPanel({
@@ -152,21 +181,22 @@ export function PaymentsPanel({
 	previewMode = false,
 }: PaymentsPanelProps) {
 	const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
-	const [studentFilter, setStudentFilter] = useState(ALL_STUDENTS)
+	const [studentFilter, setStudentFilter] = useState<string[]>([])
 	const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>(ALL_CURRENCIES)
-	const [methodFilter, setMethodFilter] = useState<MethodFilter>(ALL_METHODS)
 	const [query, setQuery] = useState('')
 	const [sortMode, setSortMode] = useState<SortMode>('date_desc')
+	const [dateRange, setDateRange] = useState<DateRange | undefined>()
 	const [showFilters, setShowFilters] = useState(true)
+	const shouldReduceMotion = useReducedMotion()
 
 	const rows = useMemo(() => paymentRows(payments, students, studentBalances), [payments, studentBalances, students])
 	const filteredRows = useMemo(() => {
 		const normalizedQuery = query.trim().toLocaleLowerCase()
 		return sortRows(
 			rows.filter((row) => {
-				if (studentFilter !== ALL_STUDENTS && row.payment.studentId !== studentFilter) return false
+				if (studentFilter.length > 0 && !studentFilter.includes(row.payment.studentId)) return false
 				if (currencyFilter !== ALL_CURRENCIES && row.currency !== currencyFilter) return false
-				if (methodFilter !== ALL_METHODS && row.payment.method !== methodFilter) return false
+				if (!isWithinDateRange(row.issued, dateRange)) return false
 				if (!normalizedQuery) return true
 				return [
 					paymentNumber(row.payment),
@@ -180,7 +210,7 @@ export function PaymentsPanel({
 			}),
 			sortMode
 		)
-	}, [currencyFilter, methodFilter, query, rows, sortMode, studentFilter])
+	}, [currencyFilter, dateRange, query, rows, sortMode, studentFilter])
 
 	const groupedRows = useMemo(() => {
 		const groups = new Map<string, { label: string; rows: PaymentRow[]; totals: Record<Currency, number> }>()
@@ -198,6 +228,91 @@ export function PaymentsPanel({
 	const currentMonthCount = rows.filter(
 		(row) => row.issued.getMonth() === now.getMonth() && row.issued.getFullYear() === now.getFullYear()
 	).length
+	const studentCounts = useMemo(() => {
+		return rows.reduce(
+			(acc, row) => {
+				acc[row.payment.studentId] = (acc[row.payment.studentId] ?? 0) + 1
+				return acc
+			},
+			{} as Record<string, number>
+		)
+	}, [rows])
+	const currencyCounts = useMemo(() => {
+		return rows.reduce(
+			(acc, row) => {
+				acc[row.currency] = (acc[row.currency] ?? 0) + 1
+				return acc
+			},
+			{} as Record<Currency, number>
+		)
+	}, [rows])
+	const studentOptions = useMemo<FacetedFilterOption[]>(
+		() =>
+			students.map((student) => ({
+				value: student.id,
+				label: student.fullName,
+				count: studentCounts[student.id] ?? 0,
+				keywords: [student.email ?? '', student.phone ?? ''].filter(Boolean),
+				leading: (
+					<span className="grid size-5 place-content-center rounded-full bg-sage-soft font-mono text-[10px] text-sage">
+						{paymentInitials(student.fullName) || 'ST'}
+					</span>
+				),
+			})),
+		[studentCounts, students]
+	)
+	const currencyOptions = useMemo<FacetedFilterOption[]>(
+		() => [
+			{ value: 'RUB', label: 'RUB', count: currencyCounts.RUB ?? 0 },
+			{ value: 'KZT', label: 'KZT', count: currencyCounts.KZT ?? 0 },
+		],
+		[currencyCounts.KZT, currencyCounts.RUB]
+	)
+	const sortOptions = useMemo<FacetedFilterOption[]>(
+		() => [
+			{ value: 'date_desc', label: 'Newest first' },
+			{ value: 'date_asc', label: 'Oldest first' },
+			{ value: 'student_asc', label: 'Student A-Z' },
+			{ value: 'student_desc', label: 'Student Z-A' },
+			{ value: 'amount_desc', label: 'Highest amount' },
+		],
+		[]
+	)
+	const selectedStudents = students.filter((student) => studentFilter.includes(student.id))
+	const activeFilters = [
+		query.trim() ? { key: 'query', label: `Search: ${query.trim()}`, clear: () => setQuery('') } : null,
+		...selectedStudents.map((student) => ({
+			key: `student-${student.id}`,
+			label: student.fullName,
+			clear: () => setStudentFilter((current) => current.filter((id) => id !== student.id)),
+		})),
+		currencyFilter !== ALL_CURRENCIES
+			? { key: 'currency', label: currencyFilter, clear: () => setCurrencyFilter(ALL_CURRENCIES) }
+			: null,
+		dateRange?.from ? { key: 'date', label: formatDateRange(dateRange), clear: () => setDateRange(undefined) } : null,
+		sortMode !== 'date_desc'
+			? {
+					key: 'sort',
+					label:
+						sortMode === 'date_asc'
+							? 'Oldest first'
+							: sortMode === 'student_asc'
+								? 'Student A-Z'
+								: sortMode === 'student_desc'
+									? 'Student Z-A'
+									: 'Highest amount',
+					clear: () => setSortMode('date_desc' as const),
+				}
+			: null,
+	].filter((filter): filter is { key: string; label: string; clear: () => void } => Boolean(filter))
+
+	function clearFilters() {
+		setQuery('')
+		setStudentFilter([])
+		setCurrencyFilter(ALL_CURRENCIES)
+		setDateRange(undefined)
+		setSortMode('date_desc')
+	}
 
 	async function handleDeletePayment(paymentId: string) {
 		setDeletingPaymentId(paymentId)
@@ -220,7 +335,12 @@ export function PaymentsPanel({
 				<div className="flex flex-wrap items-center gap-2">
 					<Button type="button" size="sm" variant="outline" onClick={() => setShowFilters((current) => !current)}>
 						<FilterIcon />
-						Filter
+						Filters
+						{activeFilters.length > 0 ? (
+							<span className="ml-0.5 rounded bg-sage-soft px-1.5 font-mono text-[10px] text-sage">
+								{activeFilters.length}
+							</span>
+						) : null}
 					</Button>
 					<Button type="button" size="sm" variant="outline" disabled>
 						<ArrowDownToLineIcon />
@@ -238,68 +358,126 @@ export function PaymentsPanel({
 				</div>
 			</header>
 
-			{showFilters && (
-				<div className="grid gap-2 rounded-lg border border-line bg-surface-muted p-3 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
+			<motion.div
+				initial={false}
+				animate={
+					shouldReduceMotion
+						? { height: showFilters ? 'auto' : 0, opacity: showFilters ? 1 : 0 }
+						: {
+								height: showFilters ? 'auto' : 0,
+								opacity: showFilters ? 1 : 0,
+								filter: showFilters ? 'blur(0px)' : 'blur(4px)',
+								visibility: showFilters ? 'visible' : 'hidden',
+							}
+				}
+				transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+				aria-hidden={!showFilters}
+				className="overflow-hidden"
+			>
+				<div
+					className={cn(
+						'grid gap-2 rounded-lg border border-line bg-surface-muted p-2.5 md:grid-cols-[minmax(13rem,1.25fr)_repeat(4,minmax(8rem,0.8fr))]',
+						!showFilters && 'pointer-events-none'
+					)}
+				>
 					<div className="relative">
-						<Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+						<Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-ink-muted" />
 						<Input
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 							placeholder="Search payment, student, note"
-							className="pl-9"
+							className="h-8.5 pl-8 text-xs"
 						/>
 					</div>
-					<Select value={studentFilter} onValueChange={setStudentFilter}>
-						<SelectTrigger>
-							<SelectValue placeholder="Student" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value={ALL_STUDENTS}>All students</SelectItem>
-							{students.map((student) => (
-								<SelectItem key={student.id} value={student.id}>
-									{student.fullName}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Select value={currencyFilter} onValueChange={(value) => setCurrencyFilter(value as CurrencyFilter)}>
-						<SelectTrigger>
-							<SelectValue placeholder="Currency" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value={ALL_CURRENCIES}>All currencies</SelectItem>
-							<SelectItem value="RUB">RUB</SelectItem>
-							<SelectItem value="KZT">KZT</SelectItem>
-						</SelectContent>
-					</Select>
-					<Select value={methodFilter} onValueChange={(value) => setMethodFilter(value as MethodFilter)}>
-						<SelectTrigger>
-							<SelectValue placeholder="Method" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value={ALL_METHODS}>All methods</SelectItem>
-							<SelectItem value="cash">Cash</SelectItem>
-							<SelectItem value="bank_transfer">Bank transfer</SelectItem>
-							<SelectItem value="card">Card</SelectItem>
-							<SelectItem value="other">Other</SelectItem>
-						</SelectContent>
-					</Select>
-					<Select value={sortMode} onValueChange={(value) => setSortMode(value as SortMode)}>
-						<SelectTrigger>
-							<SelectValue placeholder="Sort" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="date_desc">Newest first</SelectItem>
-							<SelectItem value="student_asc">Student A-Z</SelectItem>
-							<SelectItem value="student_desc">Student Z-A</SelectItem>
-							<SelectItem value="amount_desc">Highest amount</SelectItem>
-						</SelectContent>
-					</Select>
+					<FacetedFilter
+						label="Student"
+						icon={<UserRound className="size-3.5" />}
+						mode="multiple"
+						value={studentFilter}
+						options={studentOptions}
+						searchPlaceholder="Search students"
+						onValueChange={setStudentFilter}
+					/>
+					<FacetedFilter
+						label="Currency"
+						mode="single"
+						value={currencyFilter === ALL_CURRENCIES ? [] : [currencyFilter]}
+						options={currencyOptions}
+						searchPlaceholder="Search currency"
+						onValueChange={(value) => setCurrencyFilter((value[0] as CurrencyFilter | undefined) ?? ALL_CURRENCIES)}
+						renderOption={(option) => (
+							<>
+								<span className="grid size-5 place-content-center rounded bg-surface-muted font-mono text-[10px] text-ink-muted">
+									{option.label}
+								</span>
+								<span className="min-w-0 flex-1 truncate">{option.label}</span>
+							</>
+						)}
+					/>
+					<DateRangePicker
+						range={dateRange}
+						onSelect={setDateRange}
+						placeholder="Date range"
+						locale={enUS}
+						fromYear={2020}
+						toYear={2035}
+						className="h-8.5 w-full px-3 text-xs"
+					/>
+					<FacetedFilter
+						label="Sort"
+						icon={<ArrowUpDown className="size-3.5" />}
+						mode="single"
+						value={[sortMode]}
+						active={sortMode !== 'date_desc'}
+						options={sortOptions}
+						searchPlaceholder="Search sort modes"
+						onValueChange={(value) => setSortMode((value[0] as SortMode | undefined) ?? 'date_desc')}
+					/>
 				</div>
-			)}
+			</motion.div>
 
-			<div className="overflow-x-auto rounded-lg border border-line bg-card shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
-				<Table className="min-w-[920px]">
+			<AnimatePresence initial={false}>
+				{activeFilters.length > 0 && (
+					<motion.div
+						key="payment-filter-chips"
+						initial={shouldReduceMotion ? false : { opacity: 0, y: -6 }}
+						animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+						exit={shouldReduceMotion ? undefined : { opacity: 0, y: -6 }}
+						transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
+						className="flex flex-wrap items-center gap-2"
+					>
+						<span className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-ink-muted uppercase">
+							<CalendarRange className="size-3" />
+							Applied
+						</span>
+						{activeFilters.map((filter) => (
+							<motion.button
+								key={filter.key}
+								type="button"
+								layout
+								initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96 }}
+								animate={shouldReduceMotion ? undefined : { opacity: 1, scale: 1 }}
+								exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
+								transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
+								className="inline-flex h-7 items-center gap-1.5 rounded-md border border-sage-line bg-sage-soft px-2.5 font-mono text-[11px] text-sage transition-colors hover:border-sage hover:bg-sage-soft/80"
+								onClick={filter.clear}
+							>
+								{filter.label}
+								<X className="size-3" />
+							</motion.button>
+						))}
+						<Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={clearFilters}>
+							Clear filters
+						</Button>
+					</motion.div>
+				)}
+			</AnimatePresence>
+
+			<motion.div
+				layout
+				className="overflow-x-auto rounded-lg border border-line bg-card shadow-[0_18px_55px_-44px_var(--shadow-sage)]"
+			>
+				<Table className="min-w-230">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="ps-4">Payment</TableHead>
@@ -344,7 +522,7 @@ export function PaymentsPanel({
 						</TableRow>
 					</TableFooter>
 				</Table>
-			</div>
+			</motion.div>
 		</section>
 	)
 }
