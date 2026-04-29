@@ -2,56 +2,88 @@
 
 import { createClient } from '@/lib/supabase/client'
 
-import type {
-	ApiErrorResponse,
-	AttendanceMutationResponse,
-	AttendanceRecord,
-	CalendarBusyInterval,
-	CalendarBusyQuery,
-	CalendarConnection,
-	CalendarListEntry,
-	CalendarSyncRecord,
-	CreateLessonInput,
-	CreatePaymentInput,
-	CreateStudentInput,
-	CrmErrorLogEntry,
-	CrmThemeSettings,
-	DashboardSummary,
-	Lesson,
-	LessonMutationResponse,
-	ListStudentsResponse,
-	MarkAttendanceInput,
-	Payment,
-	SaveCrmErrorInput,
-	SidebarItem,
-	StudentBalance,
-	UpdateLessonInput,
-	StudentMutationResponse,
-	UpdateStudentInput,
+import {
+	GOOGLE_CALENDAR_REQUIRED_SCOPES,
+	type ApiErrorResponse,
+	type AttendanceMutationResponse,
+	type CalendarBusyQuery,
+	type CalendarBusyResponse,
+	type CalendarConnectionResponse,
+	type CalendarConnection,
+	type CalendarImportResponse,
+	type CalendarListResponse,
+	type CalendarProviderTokenResponse,
+	type CalendarResponse,
+	type CalendarSyncResponse,
+	type CreateLessonInput,
+	type CreatePaymentInput,
+	type CreateStudentInput,
+	type CrmErrorLogMutationResponse,
+	type CrmErrorLogResponse,
+	type CrmThemeSettings,
+	type DashboardResponse,
+	type DashboardSummary,
+	type LessonMutationResponse,
+	type LessonsResponse,
+	type ListStudentsResponse,
+	type MarkAttendanceInput,
+	type PaymentMutationResponse,
+	type PaymentsResponse,
+	type SaveCrmErrorInput,
+	type SidebarItem,
+	type SidebarSettingsResponse,
+	type StudentBalance,
+	type StudentMutationResponse,
+	type ThemeSettingsResponse,
+	type UpdateLessonInput,
+	type UpdateStudentInput,
 } from '@teacher-crm/api-types'
 
 import type { TeacherCrmState, TeacherCrmSummary } from './types'
 
-type LessonsResponse = { ok: true; lessons: Lesson[]; attendance: AttendanceRecord[] }
-type PaymentsResponse = { ok: true; payments: Payment[]; balances: StudentBalance[] }
-type CalendarResponse = { ok: true; connection: CalendarConnection; syncRecords: CalendarSyncRecord[] }
-type CalendarListResponse = { ok: true; calendars: CalendarListEntry[] }
-type CalendarBusyResponse = { ok: true; busy: CalendarBusyInterval[] }
-type CalendarImportResponse = { ok: true; checked: number; updated: number }
-type CalendarProviderTokenResponse = { ok: true; connection: CalendarConnection }
-type DashboardResponse = { ok: true; summary: DashboardSummary }
-type SidebarSettingsResponse = { ok: true; items: SidebarItem[] }
-type ThemeSettingsResponse = { ok: true; theme: CrmThemeSettings }
-type CrmErrorLogResponse = { ok: true; errors: CrmErrorLogEntry[] }
-type CrmErrorLogMutationResponse = { ok: true; error: CrmErrorLogEntry }
-
 const apiBaseUrl = () => '/api'
 const isApiErrorResponse = (value: unknown): value is ApiErrorResponse =>
 	Boolean(value && typeof value === 'object' && (value as { ok?: unknown }).ok === false)
-const canImportCalendarChanges = (calendar: CalendarResponse) =>
-	calendar.connection.status === 'connected' && calendar.connection.tokenAvailable
 const requestLabel = (path: string, init: RequestInit) =>
 	`${(init.method ?? 'GET').toUpperCase()} ${apiBaseUrl()}${path}`
+
+export type TeacherCrmLoadIssue = {
+	source: string
+	error: unknown
+}
+
+type LoadResult<T> = {
+	data: T | null
+	issue: TeacherCrmLoadIssue | null
+}
+
+const emptyCalendarConnection: CalendarConnection = {
+	id: 'cal_empty',
+	provider: 'google',
+	email: null,
+	status: 'not_connected',
+	requiredScopes: [...GOOGLE_CALENDAR_REQUIRED_SCOPES],
+	grantedScopes: [],
+	tokenAvailable: false,
+	selectedCalendarId: null,
+	selectedCalendarName: null,
+	connectedAt: null,
+	updatedAt: new Date(0).toISOString(),
+}
+
+const emptyCalendarResponse: CalendarResponse = {
+	ok: true,
+	connection: emptyCalendarConnection,
+	syncRecords: [],
+}
+
+async function loadResource<T>(source: string, promise: Promise<T>): Promise<LoadResult<T>> {
+	try {
+		return { data: await promise, issue: null }
+	} catch (error) {
+		return { data: null, issue: { source, error } }
+	}
+}
 
 async function accessToken(options: { forceRefresh?: boolean } = {}) {
 	const supabase = createClient()
@@ -144,48 +176,120 @@ function mapSummary(summary: DashboardSummary): TeacherCrmSummary {
 		todayLessons: summary.todayLessonCount,
 		missingAttendance: summary.missingAttendanceCount,
 		overdueStudents: summary.overdueStudentCount,
-		monthIncome: summary.monthIncome,
+		monthIncome: summary.monthIncomeRub ?? summary.monthIncome,
+		monthIncomeByCurrency: summary.monthIncomeByCurrency ?? { RUB: summary.monthIncome, KZT: 0 },
 	}
 }
 
+function isBalanceOverdue(balance: StudentBalance) {
+	return balance.overdue || Boolean(balance.otherCurrencyBalances?.some((item) => item.overdue))
+}
+
+function fallbackSummary(
+	students: ListStudentsResponse,
+	lessons: LessonsResponse,
+	payments: PaymentsResponse
+): TeacherCrmSummary {
+	const todayKey = new Date().toISOString().slice(0, 10)
+	const startOfMonth = new Date()
+	startOfMonth.setDate(1)
+	startOfMonth.setHours(0, 0, 0, 0)
+	const monthIncomeByCurrency = payments.payments
+		.filter((payment) => new Date(payment.paidAt) >= startOfMonth)
+		.reduce(
+			(totals, payment) => {
+				totals[payment.currency] += payment.amount
+				return totals
+			},
+			{ RUB: 0, KZT: 0 }
+		)
+
+	return {
+		activeStudents: students.students.filter((student) => student.status === 'active').length,
+		todayLessons: lessons.lessons.filter((lesson) => lesson.startsAt.slice(0, 10) === todayKey).length,
+		missingAttendance: lessons.lessons.filter((lesson) => {
+			if (lesson.startsAt.slice(0, 10) !== todayKey) return false
+			return lesson.studentIds.some(
+				(studentId) =>
+					!lessons.attendance.some((record) => record.lessonId === lesson.id && record.studentId === studentId)
+			)
+		}).length,
+		overdueStudents: payments.balances.filter(isBalanceOverdue).length,
+		monthIncome: monthIncomeByCurrency.RUB,
+		monthIncomeByCurrency,
+	}
+}
+
+function collectIssue(issues: TeacherCrmLoadIssue[], result: LoadResult<unknown>) {
+	if (result.issue) issues.push(result.issue)
+}
+
+const emptyPaymentsResponse: PaymentsResponse = { ok: true, payments: [], balances: [] }
+
 export async function loadTeacherCrm() {
-	const calendar = await apiRequest<CalendarResponse>('/calendar/connection')
-	if (canImportCalendarChanges(calendar)) {
-		try {
-			await apiRequest<CalendarImportResponse>('/calendar/import-events', {
-				method: 'POST',
-			})
-		} catch (error) {
-			console.warn('[teacher-crm] failed to import Google Calendar changes before loading lessons', error)
-		}
+	const issues: TeacherCrmLoadIssue[] = []
+	const calendarResult = await loadResource(
+		'Load calendar connection',
+		apiRequest<CalendarResponse>('/calendar/connection')
+	)
+	collectIssue(issues, calendarResult)
+
+	const [studentsResult, lessonsResult, refreshedCalendarResult] = await Promise.all([
+		loadResource('Load students', apiRequest<ListStudentsResponse>('/students')),
+		loadResource('Load lessons', apiRequest<LessonsResponse>('/lessons')),
+		loadResource('Refresh calendar connection', apiRequest<CalendarResponse>('/calendar/connection')),
+	])
+	for (const result of [studentsResult, lessonsResult, refreshedCalendarResult]) {
+		collectIssue(issues, result)
 	}
 
-	const [students, lessons, payments, refreshedCalendar, dashboard] = await Promise.all([
-		apiRequest<ListStudentsResponse>('/students'),
-		apiRequest<LessonsResponse>('/lessons'),
-		apiRequest<PaymentsResponse>('/payments'),
-		apiRequest<CalendarResponse>('/calendar/connection'),
-		apiRequest<DashboardResponse>('/dashboard'),
-	])
+	const students = studentsResult.data ?? { ok: true, students: [] }
+	const lessons = lessonsResult.data ?? { ok: true, lessons: [], attendance: [] }
+	const calendar = refreshedCalendarResult.data ?? calendarResult.data ?? emptyCalendarResponse
 
 	const state: TeacherCrmState = {
 		students: students.students,
 		lessons: lessons.lessons,
 		attendance: lessons.attendance,
-		payments: payments.payments,
-		studentBalances: payments.balances,
-		calendarConnection: refreshedCalendar.connection,
+		payments: [],
+		studentBalances: [],
+		calendarConnection: calendar.connection,
 		calendarOptions: [],
-		calendarSyncRecords: refreshedCalendar.syncRecords,
+		calendarSyncRecords: calendar.syncRecords,
 	}
 
 	return {
 		state,
-		summary: mapSummary(dashboard.summary),
+		summary: fallbackSummary(students, lessons, emptyPaymentsResponse),
+		issues,
 	}
 }
 
-export const teacherCrmApi = {
+export async function loadTeacherCrmSupplements(baseState: TeacherCrmState) {
+	const issues: TeacherCrmLoadIssue[] = []
+	const [paymentsResult, dashboardResult] = await Promise.all([
+		loadResource('Load payments', apiRequest<PaymentsResponse>('/payments')),
+		loadResource('Load dashboard summary', apiRequest<DashboardResponse>('/dashboard')),
+	])
+	for (const result of [paymentsResult, dashboardResult]) {
+		collectIssue(issues, result)
+	}
+
+	const payments = paymentsResult.data ?? emptyPaymentsResponse
+	const students: ListStudentsResponse = { ok: true, students: baseState.students }
+	const lessons: LessonsResponse = { ok: true, lessons: baseState.lessons, attendance: baseState.attendance }
+
+	return {
+		payments: payments.payments,
+		studentBalances: payments.balances,
+		summary: dashboardResult.data
+			? mapSummary(dashboardResult.data.summary)
+			: fallbackSummary(students, lessons, payments),
+		issues,
+	}
+}
+
+export const teacherCrmStudentApi = {
 	createStudent: (input: CreateStudentInput) =>
 		apiRequest<StudentMutationResponse>('/students', {
 			method: 'POST',
@@ -200,13 +304,16 @@ export const teacherCrmApi = {
 		apiRequest<StudentMutationResponse>(`/students/${studentId}`, {
 			method: 'DELETE',
 		}),
+}
+
+export const teacherCrmLessonApi = {
 	createLesson: (input: CreateLessonInput) =>
-		apiRequest('/lessons', {
+		apiRequest<LessonMutationResponse>('/lessons', {
 			method: 'POST',
 			body: JSON.stringify(input),
 		}),
 	updateLesson: (lessonId: string, input: UpdateLessonInput) =>
-		apiRequest(`/lessons/${lessonId}`, {
+		apiRequest<LessonMutationResponse>(`/lessons/${lessonId}`, {
 			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
@@ -219,15 +326,21 @@ export const teacherCrmApi = {
 			method: 'POST',
 			body: JSON.stringify(input),
 		}),
+}
+
+export const teacherCrmPaymentApi = {
 	createPayment: (input: CreatePaymentInput) =>
-		apiRequest('/payments', {
+		apiRequest<PaymentMutationResponse>('/payments', {
 			method: 'POST',
 			body: JSON.stringify(input),
 		}),
 	deletePayment: (paymentId: string) =>
-		apiRequest<{ ok: true; payment: Payment }>(`/payments/${paymentId}`, {
+		apiRequest<PaymentMutationResponse>(`/payments/${paymentId}`, {
 			method: 'DELETE',
 		}),
+}
+
+export const teacherCrmSettingsApi = {
 	listSidebarItems: () => apiRequest<SidebarSettingsResponse>('/settings/sidebar'),
 	saveSidebarItems: (items: SidebarItem[]) =>
 		apiRequest<SidebarSettingsResponse>('/settings/sidebar', {
@@ -240,6 +353,9 @@ export const teacherCrmApi = {
 			method: 'PUT',
 			body: JSON.stringify(theme),
 		}),
+}
+
+export const teacherCrmErrorApi = {
 	listCrmErrors: () => apiRequest<CrmErrorLogResponse>('/errors'),
 	saveCrmError: (input: SaveCrmErrorInput) =>
 		apiRequest<CrmErrorLogMutationResponse>('/errors', {
@@ -254,8 +370,11 @@ export const teacherCrmApi = {
 		apiRequest<{ ok: true }>('/errors', {
 			method: 'DELETE',
 		}),
+}
+
+export const teacherCrmCalendarApi = {
 	connectCalendar: () =>
-		apiRequest<{ ok: true; connection: CalendarConnection }>('/calendar/connections', {
+		apiRequest<CalendarConnectionResponse>('/calendar/connections', {
 			method: 'POST',
 		}),
 	listCalendars: () => apiRequest<CalendarListResponse>('/calendar/calendars'),
@@ -265,12 +384,12 @@ export const teacherCrmApi = {
 			body: JSON.stringify(input),
 		}),
 	selectCalendar: (calendarId: string, calendarName: string) =>
-		apiRequest<{ ok: true; connection: CalendarConnection }>('/calendar/connection', {
+		apiRequest<CalendarConnectionResponse>('/calendar/connection', {
 			method: 'PATCH',
 			body: JSON.stringify({ calendarId, calendarName }),
 		}),
 	syncLesson: (lessonId: string) =>
-		apiRequest('/calendar/sync-events', {
+		apiRequest<CalendarSyncResponse>('/calendar/sync-events', {
 			method: 'POST',
 			body: JSON.stringify({ lessonId, syncPolicy: 'sync' }),
 		}),
@@ -278,4 +397,13 @@ export const teacherCrmApi = {
 		apiRequest<CalendarImportResponse>('/calendar/import-events', {
 			method: 'POST',
 		}),
+}
+
+export const teacherCrmApi = {
+	...teacherCrmStudentApi,
+	...teacherCrmLessonApi,
+	...teacherCrmPaymentApi,
+	...teacherCrmSettingsApi,
+	...teacherCrmErrorApi,
+	...teacherCrmCalendarApi,
 }

@@ -71,6 +71,13 @@
 			"when": 1777473000000,
 			"tag": "0009_student_currency",
 			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1777477200000,
+			"tag": "0010_billing_ledger",
+			"breakpoints": true
 		}
 	]
 }

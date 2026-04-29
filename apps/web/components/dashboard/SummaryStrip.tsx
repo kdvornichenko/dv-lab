@@ -1,7 +1,7 @@
 import { Banknote, CalendarCheck, ReceiptText, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { formatUsdAmount } from '@/lib/crm/model'
+import { formatCurrencyTotals } from '@/lib/crm/model'
 import type { TeacherCrmSummary } from '@/lib/crm/types'
 
 const items = [
@@ -51,7 +51,7 @@ export function SummaryStrip({ summary }: { summary: TeacherCrmSummary }) {
 					.map((item) => {
 						const Icon = item.icon
 						const rawValue = summary[item.key]
-						const value = item.key === 'monthIncome' ? formatUsdAmount(rawValue) : rawValue
+						const value = item.key === 'monthIncome' ? formatCurrencyTotals(summary.monthIncomeByCurrency) : rawValue
 						return (
 							<div
 								key={item.key}

@@ -30,6 +30,7 @@ export const attendanceStatus = pgEnum('attendance_status', [
 ])
 export const paymentMethod = pgEnum('payment_method', ['cash', 'bank_transfer', 'card', 'other'])
 export const currency = pgEnum('currency', ['RUB', 'KZT'])
+export const packageInstanceStatus = pgEnum('package_instance_status', ['active', 'exhausted', 'cancelled'])
 export const calendarProvider = pgEnum('calendar_provider', ['google'])
 export const calendarConnectionStatus = pgEnum('calendar_connection_status', [
 	'not_connected',
@@ -176,6 +177,37 @@ export const lessons = pgTable(
 	})
 )
 
+export const studentPackages = pgTable(
+	'student_packages',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id').notNull(),
+		studentId: uuid('student_id')
+			.notNull()
+			.references(() => students.id, { onDelete: 'cascade' }),
+		status: packageInstanceStatus('status').notNull().default('active'),
+		startsAt: date('starts_at', { mode: 'string' }).notNull(),
+		paidAt: date('paid_at', { mode: 'string' }),
+		packageMonths: integer('package_months').notNull().default(0),
+		lessonsPerWeek: integer('lessons_per_week').notNull().default(0),
+		purchasedLessonCount: integer('purchased_lesson_count').notNull().default(0),
+		purchasedLessonUnits: numeric('purchased_lesson_units', { precision: 12, scale: 2 }).notNull().default('0'),
+		lessonPrice: numeric('lesson_price', { precision: 12, scale: 2 }).notNull().default('0'),
+		totalPrice: numeric('total_price', { precision: 12, scale: 2 }).notNull().default('0'),
+		currency: currency('currency').notNull().default('RUB'),
+		exhaustedAt: timestamp('exhausted_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		studentStatusIdx: index('student_packages_student_status_idx').on(table.teacherId, table.studentId, table.status),
+		teacherStudentFk: foreignKey({
+			columns: [table.teacherId, table.studentId],
+			foreignColumns: [students.teacherId, students.id],
+			name: 'student_packages_teacher_student_fk',
+		}).onDelete('cascade'),
+	})
+)
+
 export const lessonStudents = pgTable(
 	'lesson_students',
 	{
@@ -248,19 +280,63 @@ export const payments = pgTable(
 		studentId: uuid('student_id')
 			.notNull()
 			.references(() => students.id, { onDelete: 'cascade' }),
+		packageId: uuid('package_id').references(() => studentPackages.id, { onDelete: 'set null' }),
 		amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+		currency: currency('currency').notNull().default('RUB'),
 		paidAt: date('paid_at', { mode: 'string' }).notNull(),
 		method: paymentMethod('method').notNull().default('bank_transfer'),
 		comment: text('comment'),
 		correctionOfPaymentId: uuid('correction_of_payment_id'),
+		idempotencyKey: text('idempotency_key'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => ({
+		idempotencyKeyUniq: uniqueIndex('payments_teacher_idempotency_key_uniq').on(table.teacherId, table.idempotencyKey),
 		studentPaidAtIdx: index('payments_student_paid_at_idx').on(table.teacherId, table.studentId, table.paidAt),
 		teacherStudentFk: foreignKey({
 			columns: [table.teacherId, table.studentId],
 			foreignColumns: [students.teacherId, students.id],
 			name: 'payments_teacher_student_fk',
+		}).onDelete('cascade'),
+	})
+)
+
+export const lessonCharges = pgTable(
+	'lesson_charges',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id').notNull(),
+		attendanceRecordId: uuid('attendance_record_id')
+			.notNull()
+			.references(() => attendanceRecords.id, { onDelete: 'cascade' }),
+		lessonId: uuid('lesson_id')
+			.notNull()
+			.references(() => lessons.id, { onDelete: 'cascade' }),
+		studentId: uuid('student_id')
+			.notNull()
+			.references(() => students.id, { onDelete: 'cascade' }),
+		packageId: uuid('package_id').references(() => studentPackages.id, { onDelete: 'set null' }),
+		amount: numeric('amount', { precision: 12, scale: 2 }).notNull(),
+		currency: currency('currency').notNull().default('RUB'),
+		lessonUnits: numeric('lesson_units', { precision: 12, scale: 2 }).notNull().default('1'),
+		attendanceStatus: attendanceStatus('attendance_status').notNull(),
+		voidedAt: timestamp('voided_at', { withTimezone: true }),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		attendanceUniq: uniqueIndex('lesson_charges_attendance_uniq').on(table.teacherId, table.attendanceRecordId),
+		studentLessonIdx: index('lesson_charges_student_lesson_idx').on(table.teacherId, table.studentId, table.lessonId),
+		packageIdx: index('lesson_charges_package_idx').on(table.teacherId, table.packageId),
+		teacherLessonFk: foreignKey({
+			columns: [table.teacherId, table.lessonId],
+			foreignColumns: [lessons.teacherId, lessons.id],
+			name: 'lesson_charges_teacher_lesson_fk',
+		}).onDelete('cascade'),
+		teacherStudentFk: foreignKey({
+			columns: [table.teacherId, table.studentId],
+			foreignColumns: [students.teacherId, students.id],
+			name: 'lesson_charges_teacher_student_fk',
 		}).onDelete('cascade'),
 	})
 )
@@ -331,11 +407,14 @@ export const studentsRelations = relations(students, ({ many }) => ({
 	lessonStudents: many(lessonStudents),
 	attendanceRecords: many(attendanceRecords),
 	payments: many(payments),
+	packages: many(studentPackages),
+	lessonCharges: many(lessonCharges),
 }))
 
 export const lessonsRelations = relations(lessons, ({ many, one }) => ({
 	lessonStudents: many(lessonStudents),
 	attendanceRecords: many(attendanceRecords),
+	lessonCharges: many(lessonCharges),
 	calendarSync: one(calendarSyncEvents),
 }))
 

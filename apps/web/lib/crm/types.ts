@@ -3,6 +3,7 @@ import type {
 	CalendarConnection,
 	CalendarListEntry,
 	CalendarSyncRecord,
+	Currency,
 	Lesson,
 	Payment,
 	Student,
@@ -26,6 +27,7 @@ export type TeacherCrmSummary = {
 	missingAttendance: number
 	overdueStudents: number
 	monthIncome: number
+	monthIncomeByCurrency: Record<Currency, number>
 }
 
 export type StudentWithBalance = Student & {

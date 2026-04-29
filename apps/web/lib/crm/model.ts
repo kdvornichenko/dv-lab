@@ -1,5 +1,6 @@
 import type {
 	AttendanceRecord,
+	AttendanceStatus,
 	CalendarConnection,
 	CalendarSyncRecord,
 	Currency,
@@ -29,9 +30,11 @@ const CHARGEABLE_LESSON_STATUSES = ['completed', 'no_show'] as const
 
 export type LedgerTone = 'green' | 'amber' | 'neutral' | 'red'
 
-export function formatUsdAmount(value: number) {
+export function formatRubAmount(value: number) {
 	return formatCurrencyAmount(value, 'RUB')
 }
+
+export const formatUsdAmount = formatRubAmount
 
 export function formatCurrencyAmount(value: number, currency: Currency = 'RUB') {
 	return new Intl.NumberFormat(currency === 'KZT' ? 'kk-KZ' : 'ru-RU', {
@@ -39,6 +42,12 @@ export function formatCurrencyAmount(value: number, currency: Currency = 'RUB') 
 		currency,
 		maximumFractionDigits: 0,
 	}).format(value)
+}
+
+export function formatCurrencyTotals(totals: Partial<Record<Currency, number>>) {
+	const entries = (Object.entries(totals) as [Currency, number][]).filter(([, amount]) => amount > 0)
+	if (entries.length === 0) return formatCurrencyAmount(0, 'RUB')
+	return entries.map(([currency, amount]) => formatCurrencyAmount(amount, currency)).join(' · ')
 }
 
 export function formatTime(value: string) {
@@ -153,12 +162,35 @@ export function selectLessonAttendanceBreakdown(lesson: Lesson, attendance: Atte
 	}
 }
 
+export function isLessonAbsentFree(lesson: Lesson, attendance: AttendanceRecord[]) {
+	if (lesson.studentIds.length === 0) return false
+	const recordsByStudentId = new Map(
+		attendance.filter((record) => record.lessonId === lesson.id).map((record) => [record.studentId, record])
+	)
+
+	return lesson.studentIds.every((studentId) => {
+		const record = recordsByStudentId.get(studentId)
+		return record?.status === 'absent' && record.billable === false
+	})
+}
+
+export function buildLessonAttendanceRecords(lesson: Lesson, status: AttendanceStatus, billable: boolean) {
+	return lesson.studentIds.map((studentId) => ({
+		studentId,
+		status,
+		billable,
+	}))
+}
+
 export function selectMissingAttendanceLessons(lessons: Lesson[], attendance: AttendanceRecord[]) {
 	return lessons.filter((lesson) => !isLessonAttendanceMarked(lesson, attendance))
 }
 
 export function selectOverdueStudents(students: StudentWithBalance[]) {
-	return students.filter((student) => student.balance.overdue)
+	return students.filter(
+		(student) =>
+			student.balance.overdue || Boolean(student.balance.otherCurrencyBalances?.some((balance) => balance.overdue))
+	)
 }
 
 export function selectFailedCalendarSyncs(syncRecords: CalendarSyncRecord[]) {
@@ -176,7 +208,7 @@ export function getStudentStatusTone(status: Student['status']): LedgerTone {
 }
 
 export function getBalanceTone(balance: StudentBalance): LedgerTone {
-	return balance.overdue ? 'red' : 'green'
+	return balance.overdue || balance.otherCurrencyBalances?.some((item) => item.overdue) ? 'red' : 'green'
 }
 
 export function getStudentDurationUnits(student: Pick<Student, 'defaultLessonDurationMinutes'>) {
@@ -256,7 +288,29 @@ function estimatePackagePaymentDate(
 	return date.toISOString()
 }
 
-export function selectStudentPackageProgress(student: Student, lessons: Lesson[], now = new Date()) {
+export function selectStudentPackageProgress(student: StudentWithBalance, lessons: Lesson[], now = new Date()) {
+	const backendProgress = student.balance.packageProgress
+	if (backendProgress) {
+		const completedLessons = backendProgress.completedLessonIds
+			.map((lessonId) => lessons.find((lesson) => lesson.id === lessonId))
+			.filter((lesson): lesson is Lesson => Boolean(lesson))
+		const projectedPaymentLesson = backendProgress.projectedPaymentLessonId
+			? lessons.find((lesson) => lesson.id === backendProgress.projectedPaymentLessonId)
+			: undefined
+
+		return {
+			completedLessons,
+			completedUnits: backendProgress.consumedUnits,
+			estimatedPaymentDate: projectedPaymentLesson ? undefined : backendProgress.projectedPaymentDate,
+			label: `${formatLessonUnitCount(backendProgress.consumedUnits)}/${formatLessonUnitCount(backendProgress.totalUnits)}`,
+			projectedPaymentDate: backendProgress.projectedPaymentDate,
+			projectedPaymentLesson,
+			remainingLabel: `${formatLessonUnitCount(backendProgress.remainingUnits)} left`,
+			remainingUnits: backendProgress.remainingUnits,
+			totalUnits: backendProgress.totalUnits,
+		}
+	}
+
 	const packageLessons = lessons
 		.filter((lesson) => lesson.studentIds.includes(student.id))
 		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
@@ -338,6 +392,17 @@ export function getNextPaymentLabel(
 	nextLesson?: Lesson,
 	packageProgress?: ReturnType<typeof selectStudentPackageProgress>
 ) {
+	const projectedDate = student.balance.nextPayment.projectedDate
+	if (student.balance.nextPayment.status === 'due_now') return 'Due now'
+	if (student.balance.nextPayment.status === 'not_configured') return 'Package not configured'
+	if (student.balance.nextPayment.status === 'not_scheduled') return 'Not scheduled'
+	if (student.balance.nextPayment.status === 'after_projected_lesson' && projectedDate)
+		return `After ${formatDateShortEn(projectedDate)}`
+	if (student.balance.nextPayment.status === 'estimated_after' && projectedDate)
+		return `Est. after ${formatDateShortEn(projectedDate)}`
+	if (student.balance.nextPayment.status === 'after_next_lesson' && projectedDate)
+		return `After ${formatDateShortEn(projectedDate)}`
+
 	if (student.balance.overdue) return 'Due now'
 	if (student.billingMode === 'package') {
 		if (!packageProgress || packageProgress.totalUnits <= 0) return 'Package not configured'
@@ -386,12 +451,21 @@ export function selectCalendarStatus(connection: CalendarConnection, syncRecords
 }
 
 export function selectPaymentLedger(payments: Payment[], studentBalances: StudentBalance[], now: Date) {
+	const monthPayments = payments.filter((payment) => isSameCalendarMonth(payment.paidAt, now))
+	const allBalances = studentBalances.flatMap((balance) => [balance, ...(balance.otherCurrencyBalances ?? [])])
+	const monthIncomeByCurrency = monthPayments.reduce(
+		(totals, payment) => {
+			totals[payment.currency] += payment.amount
+			return totals
+		},
+		{ RUB: 0, KZT: 0 } satisfies Record<Currency, number>
+	)
+
 	return {
-		monthIncome: payments
-			.filter((payment) => isSameCalendarMonth(payment.paidAt, now))
-			.reduce((sum, payment) => sum + payment.amount, 0),
+		monthIncome: monthIncomeByCurrency.RUB,
+		monthIncomeByCurrency,
 		paidThisWeek: payments.filter((payment) => isThisWeek(payment.paidAt, now)).length,
-		overdueTotal: studentBalances
+		overdueTotal: allBalances
 			.filter((balance) => balance.overdue)
 			.reduce((sum, balance) => sum + Math.abs(balance.balance), 0),
 	}

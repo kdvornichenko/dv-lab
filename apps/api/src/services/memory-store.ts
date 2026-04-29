@@ -4,8 +4,10 @@ import {
 	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
 	BILLABLE_ATTENDANCE_STATUSES,
+	calculatePackageLessonPriceRub,
 	calculatePackageLessonCount,
 	calculatePackageTotalPriceRub,
+	getLessonDurationUnits,
 	type AttendanceStatus,
 	type AttendanceRecord,
 	type CalendarConnection,
@@ -15,6 +17,7 @@ import {
 	type CreateStudentInput,
 	type CrmErrorLogEntry,
 	type CrmThemeSettings,
+	type Currency,
 	type ListLessonsQuery,
 	type ListStudentsQuery,
 	type Lesson,
@@ -24,6 +27,9 @@ import {
 	type SidebarItem,
 	type Student,
 	type StudentBalance,
+	type StudentCurrencyBalance,
+	type StudentPackage,
+	type LessonCharge,
 	type UpdateLessonInput,
 	type UpdateStudentInput,
 } from '@teacher-crm/api-types'
@@ -36,6 +42,8 @@ type TeacherStoreState = {
 	lessons: Map<string, Lesson>
 	attendance: Map<string, AttendanceRecord>
 	payments: Map<string, Payment>
+	packages: Map<string, StudentPackage>
+	lessonCharges: Map<string, LessonCharge>
 	calendarConnection: CalendarConnection
 	calendarSyncRecords: Map<string, CalendarSyncRecord>
 	sidebarItems: SidebarItem[]
@@ -51,6 +59,8 @@ const hasGoogleCalendarGrant = (grantedScopes: readonly string[], tokenAvailable
 	tokenAvailable && GOOGLE_CALENDAR_REQUIRED_SCOPES.every((scope) => grantedScopes.includes(scope))
 const isBillableAttendanceStatus = (status: AttendanceStatus) =>
 	(BILLABLE_ATTENDANCE_STATUSES as readonly string[]).includes(status)
+const lessonUnits = (durationMinutes: number) =>
+	getLessonDurationUnits(durationMinutes || DEFAULT_LESSON_DURATION_MINUTES)
 const attendanceForLessonStatus = (status: Lesson['status']): Pick<AttendanceRecord, 'status' | 'billable'> => {
 	if (status === 'completed') return { status: 'attended', billable: true }
 	if (status === 'no_show') return { status: 'no_show', billable: true }
@@ -89,6 +99,18 @@ const studentPackageTotal = (
 		packageMonths: student.packageMonths,
 		packageLessonCount: student.packageLessonCount,
 	})
+const studentPackageLessonPrice = (
+	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths'>,
+	durationMinutes = student.defaultLessonDurationMinutes
+) =>
+	calculatePackageLessonPriceRub({
+		defaultLessonPrice: student.defaultLessonPrice,
+		defaultLessonDurationMinutes: durationMinutes,
+		packageMonths: student.packageMonths,
+	})
+const studentPackageUnits = (student: Pick<Student, 'packageLessonCount' | 'defaultLessonDurationMinutes'>) =>
+	student.packageLessonCount * lessonUnits(student.defaultLessonDurationMinutes)
+const paymentDate = (value: string) => value.slice(0, 10)
 
 function createStoreState(): TeacherStoreState {
 	return {
@@ -96,6 +118,8 @@ function createStoreState(): TeacherStoreState {
 		lessons: new Map<string, Lesson>(),
 		attendance: new Map<string, AttendanceRecord>(),
 		payments: new Map<string, Payment>(),
+		packages: new Map<string, StudentPackage>(),
+		lessonCharges: new Map<string, LessonCharge>(),
 		calendarConnection: {
 			id: 'cal_google',
 			provider: 'google',
@@ -129,6 +153,156 @@ function stateFor(scope: StoreScope) {
 	const created = createStoreState()
 	stores.set(scope.teacherId, created)
 	return created
+}
+
+function packageConsumedUnits(state: TeacherStoreState, packageId: string) {
+	return Array.from(state.lessonCharges.values())
+		.filter((charge) => charge.packageId === packageId && !charge.voidedAt)
+		.reduce((sum, charge) => sum + charge.lessonUnits, 0)
+}
+
+function findPackageForCharge(state: TeacherStoreState, student: Student, lesson: Lesson) {
+	if (student.billingMode !== 'package') return undefined
+	const requiredUnits = lessonUnits(lesson.durationMinutes)
+
+	return Array.from(state.packages.values())
+		.filter((studentPackage) => {
+			if (studentPackage.studentId !== student.id) return false
+			if (studentPackage.currency !== student.currency) return false
+			if (studentPackage.status === 'cancelled') return false
+			if (studentPackage.startsAt > paymentDate(lesson.startsAt)) return false
+			return studentPackage.purchasedLessonUnits - packageConsumedUnits(state, studentPackage.id) >= requiredUnits
+		})
+		.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.createdAt.localeCompare(b.createdAt))[0]
+}
+
+function chargeAmount(student: Student, lesson: Lesson) {
+	const packagePrice = studentPackageLessonPrice(student, lesson.durationMinutes)
+	if (student.billingMode === 'package' && packagePrice > 0) return packagePrice
+	return student.defaultLessonPrice * lessonUnits(lesson.durationMinutes)
+}
+
+function packageProgress(
+	state: TeacherStoreState,
+	student: Student,
+	relatedLessons: Lesson[],
+	nowDate = new Date()
+): StudentBalance['packageProgress'] {
+	if (student.billingMode !== 'package') return undefined
+	const candidate = Array.from(state.packages.values())
+		.filter(
+			(studentPackage) =>
+				studentPackage.studentId === student.id &&
+				studentPackage.currency === student.currency &&
+				studentPackage.status !== 'cancelled'
+		)
+		.map((studentPackage) => {
+			const consumedUnits = packageConsumedUnits(state, studentPackage.id)
+			return {
+				studentPackage,
+				consumedUnits,
+				remainingUnits: Math.max(studentPackage.purchasedLessonUnits - consumedUnits, 0),
+			}
+		})
+		.filter((item) => item.remainingUnits > 0)
+		.sort((a, b) => a.studentPackage.startsAt.localeCompare(b.studentPackage.startsAt))[0]
+
+	if (!candidate) return undefined
+
+	let scheduledUnits = 0
+	let projectedPaymentDate: string | undefined
+	let projectedPaymentLessonId: string | undefined
+	const futureLessons = relatedLessons
+		.filter((lesson) => lesson.status === 'planned' && new Date(lesson.startsAt).getTime() >= nowDate.getTime())
+		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+	for (const lesson of futureLessons) {
+		scheduledUnits += lessonUnits(lesson.durationMinutes)
+		if (scheduledUnits >= candidate.remainingUnits) {
+			projectedPaymentDate = lesson.startsAt
+			projectedPaymentLessonId = lesson.id
+			break
+		}
+	}
+	if (!projectedPaymentDate && candidate.studentPackage.lessonsPerWeek > 0) {
+		const weeklyUnits = candidate.studentPackage.lessonsPerWeek * lessonUnits(student.defaultLessonDurationMinutes)
+		const estimated = new Date(futureLessons.at(-1)?.startsAt ?? nowDate)
+		estimated.setDate(
+			estimated.getDate() + Math.ceil(Math.max(candidate.remainingUnits - scheduledUnits, 0) / weeklyUnits) * 7
+		)
+		projectedPaymentDate = estimated.toISOString()
+	}
+
+	return {
+		packageId: candidate.studentPackage.id,
+		status: candidate.remainingUnits <= 0 ? 'exhausted' : candidate.studentPackage.status,
+		totalUnits: candidate.studentPackage.purchasedLessonUnits,
+		consumedUnits: candidate.consumedUnits,
+		remainingUnits: candidate.remainingUnits,
+		projectedPaymentDate,
+		projectedPaymentLessonId,
+		completedLessonIds: Array.from(state.lessonCharges.values())
+			.filter((charge) => charge.packageId === candidate.studentPackage.id && !charge.voidedAt)
+			.map((charge) => charge.lessonId),
+	}
+}
+
+function nextPayment(
+	student: Student,
+	relatedLessons: Lesson[],
+	balance: Omit<StudentBalance, 'packageProgress' | 'nextPayment'>,
+	progress: StudentBalance['packageProgress']
+) {
+	if (balance.overdue) {
+		return {
+			status: 'due_now' as const,
+			dueNow: true,
+			amount: Math.abs(balance.balance),
+			currency: balance.currency as Currency,
+		}
+	}
+	if (student.billingMode === 'package') {
+		const amount = studentPackageTotal(student)
+		if (student.packageLessonCount <= 0 || student.packageLessonsPerWeek <= 0) {
+			return { status: 'not_configured' as const, dueNow: false, amount: 0, currency: student.currency }
+		}
+		if (!progress || progress.remainingUnits <= 0) {
+			return { status: 'due_now' as const, dueNow: true, amount, currency: student.currency }
+		}
+		if (progress.projectedPaymentDate) {
+			return {
+				status: progress.projectedPaymentLessonId ? ('after_projected_lesson' as const) : ('estimated_after' as const),
+				dueNow: false,
+				projectedDate: progress.projectedPaymentDate,
+				amount,
+				currency: student.currency,
+			}
+		}
+		return { status: 'not_scheduled' as const, dueNow: false, amount, currency: student.currency }
+	}
+	const nextLesson = relatedLessons
+		.filter((lesson) => lesson.status === 'planned' && new Date(lesson.startsAt).getTime() >= Date.now())
+		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
+	return nextLesson
+		? {
+				status: 'after_next_lesson' as const,
+				dueNow: false,
+				projectedDate: nextLesson.startsAt,
+				amount: chargeAmount(student, nextLesson),
+				currency: student.currency,
+			}
+		: { status: 'not_scheduled' as const, dueNow: false, amount: 0, currency: student.currency }
+}
+
+function normalizeCurrencyBalance(balance: {
+	studentId: string
+	currency: string
+	charged: number
+	paid: number
+	balance: number
+	unpaidLessonCount: number
+	overdue: boolean
+}): StudentCurrencyBalance {
+	return { ...balance, currency: balance.currency as Currency }
 }
 
 export const memoryStore = {
@@ -208,6 +382,12 @@ export const memoryStore = {
 		for (const [attendanceKey, attendance] of state.attendance) {
 			if (attendance.studentId === studentId) state.attendance.delete(attendanceKey)
 		}
+		for (const [chargeId, charge] of state.lessonCharges) {
+			if (charge.studentId === studentId) state.lessonCharges.delete(chargeId)
+		}
+		for (const [packageId, studentPackage] of state.packages) {
+			if (studentPackage.studentId === studentId) state.packages.delete(packageId)
+		}
 		for (const lesson of state.lessons.values()) {
 			if (lesson.studentIds.includes(studentId)) {
 				state.lessons.set(lesson.id, {
@@ -256,6 +436,7 @@ export const memoryStore = {
 				updatedAt: now(),
 			})
 		}
+		this.syncLessonChargesForLesson(scope, lesson.id)
 		return lesson
 	},
 
@@ -268,8 +449,12 @@ export const memoryStore = {
 		if (input.studentIds !== undefined) {
 			const studentIds = new Set(updated.studentIds)
 			for (const [attendanceKey, attendance] of state.attendance) {
-				if (attendance.lessonId === lessonId && !studentIds.has(attendance.studentId))
+				if (attendance.lessonId === lessonId && !studentIds.has(attendance.studentId)) {
 					state.attendance.delete(attendanceKey)
+					for (const [chargeId, charge] of state.lessonCharges) {
+						if (charge.attendanceRecordId === attendance.id) state.lessonCharges.delete(chargeId)
+					}
+				}
 			}
 		}
 		if (input.status !== undefined || input.studentIds !== undefined) {
@@ -287,6 +472,7 @@ export const memoryStore = {
 				})
 			}
 		}
+		this.syncLessonChargesForLesson(scope, lessonId)
 		this.ensureCalendarSyncRecord(scope, lessonId, 'not_synced')
 		return updated
 	},
@@ -299,6 +485,9 @@ export const memoryStore = {
 		state.lessons.delete(lessonId)
 		for (const [attendanceKey, attendance] of state.attendance) {
 			if (attendance.lessonId === lessonId) state.attendance.delete(attendanceKey)
+		}
+		for (const [chargeId, charge] of state.lessonCharges) {
+			if (charge.lessonId === lessonId) state.lessonCharges.delete(chargeId)
 		}
 		for (const [syncKey, syncRecord] of state.calendarSyncRecords) {
 			if (syncRecord.lessonId === lessonId) state.calendarSyncRecords.delete(syncKey)
@@ -324,6 +513,7 @@ export const memoryStore = {
 			state.attendance.set(key, nextRecord)
 			updated.push(nextRecord)
 		}
+		this.syncLessonChargesForLesson(scope, input.lessonId)
 		return updated
 	},
 
@@ -331,10 +521,92 @@ export const memoryStore = {
 		return Array.from(stateFor(scope).attendance.values())
 	},
 
+	createPackageForPayment(scope: StoreScope, student: Student, paidAt: string) {
+		const studentPackage: StudentPackage = {
+			id: id('pkg'),
+			studentId: student.id,
+			status: 'active',
+			startsAt: paymentDate(paidAt),
+			paidAt: paymentDate(paidAt),
+			packageMonths: student.packageMonths,
+			lessonsPerWeek: student.packageLessonsPerWeek,
+			purchasedLessonCount: student.packageLessonCount,
+			purchasedLessonUnits: studentPackageUnits(student),
+			lessonPrice: studentPackageLessonPrice(student),
+			totalPrice: studentPackageTotal(student),
+			currency: student.currency,
+			createdAt: now(),
+		}
+		stateFor(scope).packages.set(studentPackage.id, studentPackage)
+		return studentPackage
+	},
+
+	syncLessonChargesForLesson(scope: StoreScope, lessonId?: string) {
+		const state = stateFor(scope)
+		const records = Array.from(state.attendance.values()).filter((record) => !lessonId || record.lessonId === lessonId)
+		for (const record of records) {
+			const student = state.students.get(record.studentId)
+			const lesson = state.lessons.get(record.lessonId)
+			const existingCharge = Array.from(state.lessonCharges.values()).find(
+				(charge) => charge.attendanceRecordId === record.id
+			)
+			if (!student || !lesson) continue
+			if (!record.billable || !isBillableAttendanceStatus(record.status)) {
+				if (existingCharge && !existingCharge.voidedAt) {
+					state.lessonCharges.set(existingCharge.id, { ...existingCharge, voidedAt: now(), updatedAt: now() })
+				}
+				continue
+			}
+			const existingPackage = existingCharge?.packageId ? state.packages.get(existingCharge.packageId) : undefined
+			const studentPackage =
+				existingPackage && existingPackage.status !== 'cancelled' && existingPackage.currency === student.currency
+					? existingPackage
+					: findPackageForCharge(state, student, lesson)
+			const charge: LessonCharge = {
+				id: existingCharge?.id ?? id('chg'),
+				lessonId: lesson.id,
+				studentId: student.id,
+				attendanceRecordId: record.id,
+				packageId: studentPackage?.id,
+				amount: existingCharge?.amount ?? chargeAmount(student, lesson),
+				currency: existingCharge?.currency ?? student.currency,
+				lessonUnits: existingCharge?.lessonUnits ?? lessonUnits(lesson.durationMinutes),
+				attendanceStatus: record.status,
+				voidedAt: undefined,
+				createdAt: existingCharge?.createdAt ?? now(),
+				updatedAt: now(),
+			}
+			state.lessonCharges.set(charge.id, charge)
+		}
+	},
+
 	createPayment(scope: StoreScope, input: CreatePaymentInput) {
 		const state = stateFor(scope)
+		if (input.idempotencyKey) {
+			const existing = Array.from(state.payments.values()).find(
+				(payment) => payment.idempotencyKey === input.idempotencyKey
+			)
+			if (existing) return existing
+		}
+
+		const student = state.students.get(input.studentId)
+		const studentPackage =
+			input.packagePurchase && student?.billingMode === 'package'
+				? this.createPackageForPayment(scope, student, input.paidAt)
+				: undefined
 		const payment: Payment = {
-			...input,
+			studentId: input.studentId,
+			amount: input.amount,
+			currency:
+				input.packagePurchase && student?.billingMode === 'package'
+					? student.currency
+					: (input.currency ?? student?.currency ?? 'RUB'),
+			paidAt: input.paidAt,
+			method: input.method,
+			comment: input.comment,
+			correctionOfPaymentId: input.correctionOfPaymentId,
+			packageId: studentPackage?.id,
+			idempotencyKey: input.idempotencyKey,
 			id: id('pay'),
 			createdAt: now(),
 		}
@@ -347,7 +619,26 @@ export const memoryStore = {
 		const payment = state.payments.get(paymentId)
 		if (!payment) return null
 		state.payments.delete(paymentId)
+		if (payment.packageId) this.cancelPackage(scope, payment.packageId)
 		return payment
+	},
+
+	cancelPackage(scope: StoreScope, packageId: string) {
+		const state = stateFor(scope)
+		const studentPackage = state.packages.get(packageId)
+		if (!studentPackage) return null
+		const cancelled: StudentPackage = {
+			...studentPackage,
+			status: 'cancelled',
+			exhaustedAt: now(),
+		}
+		state.packages.set(packageId, cancelled)
+		for (const [chargeId, charge] of state.lessonCharges) {
+			if (charge.packageId === packageId) {
+				state.lessonCharges.set(chargeId, { ...charge, packageId: undefined, updatedAt: now() })
+			}
+		}
+		return cancelled
 	},
 
 	listPayments(scope: StoreScope) {
@@ -356,35 +647,50 @@ export const memoryStore = {
 
 	listStudentBalances(scope: StoreScope): StudentBalance[] {
 		const state = stateFor(scope)
-		const charges = Array.from(state.attendance.values()).map((record) => {
-			const student = state.students.get(record.studentId)
-			const lesson = state.lessons.get(record.lessonId)
-			const durationMinutes = lesson?.durationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES
-			const durationUnits = durationMinutes / DEFAULT_LESSON_DURATION_MINUTES
-			const packageLessonPrice =
-				student && student.billingMode === 'package'
-					? calculatePackageTotalPriceRub({
-							defaultLessonPrice: student.defaultLessonPrice,
-							defaultLessonDurationMinutes: durationMinutes,
-							packageMonths: student.packageMonths,
-							packageLessonCount: 1,
-						})
-					: 0
-			return {
-				studentId: record.studentId,
-				amount:
-					student?.billingMode === 'package' && packageLessonPrice > 0
-						? packageLessonPrice
-						: (student?.defaultLessonPrice ?? 0) * durationUnits,
-				billable: record.billable && isBillableAttendanceStatus(record.status),
-			}
-		})
+		this.syncLessonChargesForLesson(scope)
+		const charges = Array.from(state.lessonCharges.values()).map((charge) => ({
+			studentId: charge.studentId,
+			amount: charge.amount,
+			currency: charge.currency,
+			billable: !charge.voidedAt,
+		}))
 		const payments = Array.from(state.payments.values()).flatMap((payment) => {
 			if (!payment.studentId || typeof payment.amount !== 'number') return []
-			return [{ studentId: payment.studentId, amount: payment.amount }]
+			return [{ studentId: payment.studentId, amount: payment.amount, currency: payment.currency }]
 		})
 
-		return calculateStudentBalances(charges, payments)
+		const balances = calculateStudentBalances(charges, payments)
+		const balanceKey = (studentId: string, currency: string) => `${studentId}:${currency}`
+		const balancesByStudentCurrency = new Map(
+			balances.map((balance) => [balanceKey(balance.studentId, balance.currency), balance])
+		)
+		return Array.from(state.students.values()).map((student) => {
+			const relatedLessons = Array.from(state.lessons.values()).filter((lesson) =>
+				lesson.studentIds.includes(student.id)
+			)
+			const base = balancesByStudentCurrency.get(balanceKey(student.id, student.currency)) ?? {
+				studentId: student.id,
+				currency: student.currency,
+				charged: 0,
+				paid: 0,
+				balance: 0,
+				unpaidLessonCount: 0,
+				overdue: false,
+			}
+			const normalizedBase = normalizeCurrencyBalance(base)
+			const otherCurrencyBalances = balances
+				.filter((balance) => balance.studentId === student.id && balance.currency !== student.currency)
+				.map(normalizeCurrencyBalance)
+			const nextPaymentBalance =
+				[normalizedBase, ...otherCurrencyBalances].find((balance) => balance.overdue) ?? normalizedBase
+			const progress = packageProgress(state, student, relatedLessons)
+			return {
+				...normalizedBase,
+				packageProgress: progress,
+				nextPayment: nextPayment(student, relatedLessons, nextPaymentBalance, progress),
+				otherCurrencyBalances,
+			}
+		})
 	},
 
 	getDashboardSummary(scope: StoreScope) {
@@ -394,6 +700,15 @@ export const memoryStore = {
 		startOfMonth.setDate(1)
 		startOfMonth.setHours(0, 0, 0, 0)
 		const balances = this.listStudentBalances(scope)
+		const monthIncomeByCurrency = this.listPayments(scope)
+			.filter((payment) => new Date(payment.paidAt) >= startOfMonth)
+			.reduce(
+				(totals, payment) => {
+					totals[payment.currency] += payment.amount
+					return totals
+				},
+				{ RUB: 0, KZT: 0 } satisfies Record<Currency, number>
+			)
 
 		return {
 			activeStudents: this.listStudents(scope).filter((student) => student.status === 'active').length,
@@ -402,10 +717,12 @@ export const memoryStore = {
 				if (lesson.startsAt.slice(0, 10) !== todayKey) return false
 				return lesson.studentIds.some((studentId) => !state.attendance.has(`${lesson.id}:${studentId}`))
 			}).length,
-			overdueStudentCount: balances.filter((balance) => balance.overdue).length,
-			monthIncome: this.listPayments(scope)
-				.filter((payment) => new Date(payment.paidAt) >= startOfMonth)
-				.reduce((sum, payment) => sum + payment.amount, 0),
+			overdueStudentCount: balances.filter(
+				(balance) => balance.overdue || Boolean(balance.otherCurrencyBalances?.some((item) => item.overdue))
+			).length,
+			monthIncomeRub: monthIncomeByCurrency.RUB,
+			monthIncome: monthIncomeByCurrency.RUB,
+			monthIncomeByCurrency,
 		}
 	},
 

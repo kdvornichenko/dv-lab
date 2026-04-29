@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 
 import { enUS } from 'date-fns/locale'
@@ -12,12 +12,34 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DateRangePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatCurrencyAmount } from '@/lib/crm/model'
+import {
+	ALL_CURRENCIES,
+	PAYMENT_STATUS,
+	currentMonthPaymentCount,
+	currencyTotals,
+	filterPaymentRows,
+	formatPaymentDate,
+	formatPaymentDateRange,
+	formatPaymentMonth,
+	formatPaymentTotals,
+	groupPaymentRows,
+	paymentCurrencyCounts,
+	paymentInitials,
+	paymentMethodLabel,
+	paymentNumber,
+	paymentRows,
+	paymentStudentCounts,
+	type CurrencyFilter,
+	type PaymentRow,
+	type SortMode,
+} from '@/lib/crm/payments-model'
 import { cn } from '@/lib/utils'
 
-import type { Currency, Payment, PaymentMethod, Student, StudentBalance } from '@teacher-crm/api-types'
+import type { Currency, Payment, Student, StudentBalance } from '@teacher-crm/api-types'
 
 type PaymentsPanelProps = {
 	payments: Payment[]
@@ -26,150 +48,6 @@ type PaymentsPanelProps = {
 	now: Date
 	onDeletePayment: (paymentId: string) => Promise<void>
 	previewMode?: boolean
-}
-
-type PaymentStatus = 'paid' | 'open' | 'overdue'
-type SortMode = 'date_desc' | 'date_asc' | 'student_asc' | 'student_desc' | 'amount_desc'
-type CurrencyFilter = 'all' | Currency
-
-type PaymentRow = {
-	payment: Payment
-	student?: Student
-	balance?: StudentBalance
-	currency: Currency
-	studentName: string
-	issued: Date
-	monthKey: string
-	monthLabel: string
-	status: PaymentStatus
-}
-
-const ALL_CURRENCIES = 'all'
-
-const STATUS: Record<PaymentStatus, { label: string; className: string; dot: string }> = {
-	paid: {
-		label: 'Paid',
-		className: 'border-success-line bg-success-soft text-success',
-		dot: 'bg-success',
-	},
-	open: {
-		label: 'Open',
-		className: 'border-warning-line bg-warning-soft text-warning',
-		dot: 'bg-warning',
-	},
-	overdue: {
-		label: 'Overdue',
-		className: 'border-danger-line bg-danger-soft text-danger',
-		dot: 'bg-danger',
-	},
-}
-
-function paymentNumber(payment: Payment) {
-	return `PAY-${payment.id.slice(-6).toUpperCase()}`
-}
-
-function formatDate(value: string | Date) {
-	return new Intl.DateTimeFormat('en-US', {
-		month: 'short',
-		day: '2-digit',
-	}).format(new Date(value))
-}
-
-function formatMonth(value: string | Date) {
-	return new Intl.DateTimeFormat('en-US', {
-		month: 'long',
-		year: 'numeric',
-	}).format(new Date(value))
-}
-
-function formatDateRange(range: DateRange) {
-	if (!range.from) return 'Date range'
-	if (!range.to) return formatDate(range.from)
-	return `${formatDate(range.from)} - ${formatDate(range.to)}`
-}
-
-function monthKey(value: Date) {
-	return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`
-}
-
-function methodLabel(value: PaymentMethod) {
-	return value.replace('_', ' ')
-}
-
-function paymentStatus(balance?: StudentBalance): PaymentStatus {
-	if (!balance) return 'paid'
-	if (balance.overdue) return 'overdue'
-	if (balance.balance > 0) return 'open'
-	return 'paid'
-}
-
-function paymentRows(payments: Payment[], students: Student[], balances: StudentBalance[]) {
-	const studentsById = new Map(students.map((student) => [student.id, student]))
-	const balancesByStudentId = new Map(balances.map((balance) => [balance.studentId, balance]))
-
-	return payments.map((payment): PaymentRow => {
-		const student = studentsById.get(payment.studentId)
-		const balance = balancesByStudentId.get(payment.studentId)
-		const issued = new Date(payment.paidAt)
-		return {
-			payment,
-			student,
-			balance,
-			currency: student?.currency ?? 'RUB',
-			studentName: student?.fullName ?? 'Unknown student',
-			issued,
-			monthKey: monthKey(issued),
-			monthLabel: formatMonth(issued),
-			status: paymentStatus(balance),
-		}
-	})
-}
-
-function currencyTotals(rows: PaymentRow[]) {
-	return rows.reduce(
-		(acc, row) => {
-			acc[row.currency] = (acc[row.currency] ?? 0) + row.payment.amount
-			return acc
-		},
-		{} as Record<Currency, number>
-	)
-}
-
-function formatTotals(totals: Record<Currency, number>) {
-	const entries = (Object.entries(totals) as [Currency, number][]).filter(([, amount]) => amount > 0)
-	if (entries.length === 0) return formatCurrencyAmount(0, 'RUB')
-	return entries.map(([currency, amount]) => formatCurrencyAmount(amount, currency)).join(' · ')
-}
-
-function sortRows(rows: PaymentRow[], sortMode: SortMode) {
-	return [...rows].sort((a, b) => {
-		if (sortMode === 'date_asc') return a.issued.getTime() - b.issued.getTime()
-		if (sortMode === 'student_asc') return a.studentName.localeCompare(b.studentName)
-		if (sortMode === 'student_desc') return b.studentName.localeCompare(a.studentName)
-		if (sortMode === 'amount_desc') return b.payment.amount - a.payment.amount
-		return b.issued.getTime() - a.issued.getTime()
-	})
-}
-
-function isWithinDateRange(date: Date, range?: DateRange) {
-	if (!range?.from) return true
-
-	const from = new Date(range.from)
-	const to = new Date(range.to ?? range.from)
-	from.setHours(0, 0, 0, 0)
-	to.setHours(23, 59, 59, 999)
-
-	const time = date.getTime()
-	return time >= from.getTime() && time <= to.getTime()
-}
-
-function paymentInitials(name: string) {
-	return name
-		.split(/\s+/)
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((part) => part[0]?.toUpperCase())
-		.join('')
 }
 
 export function PaymentsPanel({
@@ -187,65 +65,21 @@ export function PaymentsPanel({
 	const [sortMode, setSortMode] = useState<SortMode>('date_desc')
 	const [dateRange, setDateRange] = useState<DateRange | undefined>()
 	const [showFilters, setShowFilters] = useState(true)
+	const deletingPaymentIdsRef = useRef(new Set<string>())
 	const shouldReduceMotion = useReducedMotion()
 
 	const rows = useMemo(() => paymentRows(payments, students, studentBalances), [payments, studentBalances, students])
-	const filteredRows = useMemo(() => {
-		const normalizedQuery = query.trim().toLocaleLowerCase()
-		return sortRows(
-			rows.filter((row) => {
-				if (studentFilter.length > 0 && !studentFilter.includes(row.payment.studentId)) return false
-				if (currencyFilter !== ALL_CURRENCIES && row.currency !== currencyFilter) return false
-				if (!isWithinDateRange(row.issued, dateRange)) return false
-				if (!normalizedQuery) return true
-				return [
-					paymentNumber(row.payment),
-					row.studentName,
-					row.student?.email,
-					row.payment.comment,
-					row.payment.method,
-				]
-					.filter(Boolean)
-					.some((value) => value!.toLocaleLowerCase().includes(normalizedQuery))
-			}),
-			sortMode
-		)
-	}, [currencyFilter, dateRange, query, rows, sortMode, studentFilter])
-
-	const groupedRows = useMemo(() => {
-		const groups = new Map<string, { label: string; rows: PaymentRow[]; totals: Record<Currency, number> }>()
-		for (const row of filteredRows) {
-			const group = groups.get(row.monthKey) ?? { label: row.monthLabel, rows: [], totals: { RUB: 0, KZT: 0 } }
-			group.rows.push(row)
-			group.totals[row.currency] += row.payment.amount
-			groups.set(row.monthKey, group)
-		}
-		return Array.from(groups.entries()).map(([key, group]) => ({ key, ...group }))
-	}, [filteredRows])
+	const filteredRows = useMemo(
+		() => filterPaymentRows(rows, { studentFilter, currencyFilter, dateRange, query, sortMode }),
+		[currencyFilter, dateRange, query, rows, sortMode, studentFilter]
+	)
+	const groupedRows = useMemo(() => groupPaymentRows(filteredRows), [filteredRows])
 
 	const allTotals = currencyTotals(rows)
 	const filteredTotals = currencyTotals(filteredRows)
-	const currentMonthCount = rows.filter(
-		(row) => row.issued.getMonth() === now.getMonth() && row.issued.getFullYear() === now.getFullYear()
-	).length
-	const studentCounts = useMemo(() => {
-		return rows.reduce(
-			(acc, row) => {
-				acc[row.payment.studentId] = (acc[row.payment.studentId] ?? 0) + 1
-				return acc
-			},
-			{} as Record<string, number>
-		)
-	}, [rows])
-	const currencyCounts = useMemo(() => {
-		return rows.reduce(
-			(acc, row) => {
-				acc[row.currency] = (acc[row.currency] ?? 0) + 1
-				return acc
-			},
-			{} as Record<Currency, number>
-		)
-	}, [rows])
+	const currentMonthCount = currentMonthPaymentCount(rows, now)
+	const studentCounts = useMemo(() => paymentStudentCounts(rows), [rows])
+	const currencyCounts = useMemo(() => paymentCurrencyCounts(rows), [rows])
 	const studentOptions = useMemo<FacetedFilterOption[]>(
 		() =>
 			students.map((student) => ({
@@ -289,7 +123,9 @@ export function PaymentsPanel({
 		currencyFilter !== ALL_CURRENCIES
 			? { key: 'currency', label: currencyFilter, clear: () => setCurrencyFilter(ALL_CURRENCIES) }
 			: null,
-		dateRange?.from ? { key: 'date', label: formatDateRange(dateRange), clear: () => setDateRange(undefined) } : null,
+		dateRange?.from
+			? { key: 'date', label: formatPaymentDateRange(dateRange), clear: () => setDateRange(undefined) }
+			: null,
 		sortMode !== 'date_desc'
 			? {
 					key: 'sort',
@@ -315,10 +151,15 @@ export function PaymentsPanel({
 	}
 
 	async function handleDeletePayment(paymentId: string) {
+		if (deletingPaymentIdsRef.current.has(paymentId)) return
+		const row = rows.find((item) => item.payment.id === paymentId)
+		if (!previewMode && row && !window.confirm(`Delete ${paymentNumber(row.payment)} for ${row.studentName}?`)) return
+		deletingPaymentIdsRef.current.add(paymentId)
 		setDeletingPaymentId(paymentId)
 		try {
 			await onDeletePayment(paymentId)
 		} finally {
+			deletingPaymentIdsRef.current.delete(paymentId)
 			setDeletingPaymentId((current) => (current === paymentId ? null : current))
 		}
 	}
@@ -329,7 +170,7 @@ export function PaymentsPanel({
 				<div>
 					<h1 className="font-heading text-xl font-semibold text-ink">Payments</h1>
 					<p className="mt-1 text-sm text-ink-muted">
-						{filteredRows.length} of {payments.length} · {formatMonth(now)} · {currentMonthCount} this month
+						{filteredRows.length} of {payments.length} · {formatPaymentMonth(now)} · {currentMonthCount} this month
 					</p>
 				</div>
 				<div className="flex flex-wrap items-center gap-2">
@@ -372,11 +213,12 @@ export function PaymentsPanel({
 				}
 				transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
 				aria-hidden={!showFilters}
+				inert={showFilters ? undefined : true}
 				className="overflow-hidden"
 			>
 				<div
 					className={cn(
-						'grid gap-2 rounded-lg border border-line bg-surface-muted p-2.5 md:grid-cols-[minmax(13rem,1.25fr)_repeat(4,minmax(8rem,0.8fr))]',
+						'grid gap-2 rounded-lg border border-line bg-surface-muted p-2.5 md:grid-cols-[minmax(4rem,0.6fr)_repeat(4,minmax(8rem,0.8fr))]',
 						!showFilters && 'pointer-events-none'
 					)}
 				>
@@ -389,6 +231,15 @@ export function PaymentsPanel({
 							className="h-8.5 pl-8 text-xs"
 						/>
 					</div>
+					<DateRangePicker
+						range={dateRange}
+						onSelect={setDateRange}
+						placeholder="Date range"
+						locale={enUS}
+						fromYear={2020}
+						toYear={2035}
+						className="h-8.5 w-full px-3 text-xs"
+					/>
 					<FacetedFilter
 						label="Student"
 						icon={<UserRound className="size-3.5" />}
@@ -414,15 +265,7 @@ export function PaymentsPanel({
 							</>
 						)}
 					/>
-					<DateRangePicker
-						range={dateRange}
-						onSelect={setDateRange}
-						placeholder="Date range"
-						locale={enUS}
-						fromYear={2020}
-						toYear={2035}
-						className="h-8.5 w-full px-3 text-xs"
-					/>
+
 					<FacetedFilter
 						label="Sort"
 						icon={<ArrowUpDown className="size-3.5" />}
@@ -475,53 +318,55 @@ export function PaymentsPanel({
 
 			<motion.div
 				layout
-				className="overflow-x-auto rounded-lg border border-line bg-card shadow-[0_18px_55px_-44px_var(--shadow-sage)]"
+				className="rounded-lg border border-line bg-card shadow-[0_18px_55px_-44px_var(--shadow-sage)]"
 			>
-				<Table className="min-w-230">
-					<TableHeader>
-						<TableRow>
-							<TableHead className="ps-4">Payment</TableHead>
-							<TableHead>Student</TableHead>
-							<TableHead>Issued</TableHead>
-							<TableHead>Method</TableHead>
-							<TableHead>Status</TableHead>
-							<TableHead className="text-right">Balance</TableHead>
-							<TableHead className="pe-4 text-right">Amount</TableHead>
-							<TableHead className="w-11 pe-4" />
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{groupedRows.map((group) => (
-							<PaymentMonthGroup
-								key={group.key}
-								label={group.label}
-								rows={group.rows}
-								totals={group.totals}
-								deletingPaymentId={deletingPaymentId}
-								previewMode={previewMode}
-								onDeletePayment={handleDeletePayment}
-							/>
-						))}
-						{filteredRows.length === 0 && (
+				<ScrollArea className="w-full">
+					<Table className="min-w-230">
+						<TableHeader>
 							<TableRow>
-								<TableCell colSpan={8} className="px-4 py-10 text-center">
-									<p className="font-heading text-sm font-semibold text-ink">No payments match these filters</p>
-									<p className="mt-1 text-xs text-ink-muted">Clear filters or record a new student payment.</p>
+								<TableHead className="ps-4">Payment</TableHead>
+								<TableHead>Student</TableHead>
+								<TableHead>Issued</TableHead>
+								<TableHead>Method</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead className="text-right">Balance</TableHead>
+								<TableHead className="pe-4 text-right">Amount</TableHead>
+								<TableHead className="w-11 pe-4" />
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{groupedRows.map((group) => (
+								<PaymentMonthGroup
+									key={group.key}
+									label={group.label}
+									rows={group.rows}
+									totals={group.totals}
+									deletingPaymentId={deletingPaymentId}
+									previewMode={previewMode}
+									onDeletePayment={handleDeletePayment}
+								/>
+							))}
+							{filteredRows.length === 0 && (
+								<TableRow>
+									<TableCell colSpan={8} className="px-4 py-10 text-center">
+										<p className="font-heading text-sm font-semibold text-ink">No payments match these filters</p>
+										<p className="mt-1 text-xs text-ink-muted">Clear filters or record a new student payment.</p>
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+						<TableFooter>
+							<TableRow>
+								<TableCell className="ps-4" colSpan={6}>
+									Filtered total · All total {formatPaymentTotals(allTotals)}
+								</TableCell>
+								<TableCell className="pe-4 text-right font-mono tabular-nums" colSpan={2}>
+									{formatPaymentTotals(filteredTotals)}
 								</TableCell>
 							</TableRow>
-						)}
-					</TableBody>
-					<TableFooter>
-						<TableRow>
-							<TableCell className="ps-4" colSpan={6}>
-								Filtered total · All total {formatTotals(allTotals)}
-							</TableCell>
-							<TableCell className="pe-4 text-right font-mono tabular-nums" colSpan={2}>
-								{formatTotals(filteredTotals)}
-							</TableCell>
-						</TableRow>
-					</TableFooter>
-				</Table>
+						</TableFooter>
+					</Table>
+				</ScrollArea>
 			</motion.div>
 		</section>
 	)
@@ -549,7 +394,7 @@ function PaymentMonthGroup({
 					{label}
 				</TableCell>
 				<TableCell className="pe-4 text-right font-mono text-sm font-semibold tabular-nums" colSpan={2}>
-					{formatTotals(totals)}
+					{formatPaymentTotals(totals)}
 				</TableCell>
 			</TableRow>
 			{rows.map((row) => (
@@ -576,7 +421,7 @@ function PaymentTableRow({
 	previewMode: boolean
 	onDeletePayment: (paymentId: string) => Promise<void>
 }) {
-	const status = STATUS[row.status]
+	const status = PAYMENT_STATUS[row.status]
 	return (
 		<TableRow>
 			<TableCell className="ps-4 font-mono text-sm text-ink">{paymentNumber(row.payment)}</TableCell>
@@ -584,8 +429,8 @@ function PaymentTableRow({
 				<div className="font-medium text-ink">{row.studentName}</div>
 				<div className="text-xs text-ink-muted">{row.student?.email || row.payment.comment || 'No email'}</div>
 			</TableCell>
-			<TableCell className="font-mono text-sm text-ink-muted tabular-nums">{formatDate(row.issued)}</TableCell>
-			<TableCell className="text-ink-muted capitalize">{methodLabel(row.payment.method)}</TableCell>
+			<TableCell className="font-mono text-sm text-ink-muted tabular-nums">{formatPaymentDate(row.issued)}</TableCell>
+			<TableCell className="text-ink-muted capitalize">{paymentMethodLabel(row.payment.method)}</TableCell>
 			<TableCell>
 				<Badge variant="outline" className={cn('gap-1.5', status.className)}>
 					<span className={cn('size-1.5 rounded-full', status.dot)} />
@@ -593,7 +438,7 @@ function PaymentTableRow({
 				</Badge>
 			</TableCell>
 			<TableCell className="text-right font-mono text-sm text-ink-muted tabular-nums">
-				{row.balance ? formatCurrencyAmount(row.balance.balance, row.currency) : '-'}
+				{row.balance ? formatCurrencyAmount(row.balance.balance, row.balance.currency) : '-'}
 			</TableCell>
 			<TableCell className="pe-4 text-right font-mono text-ink tabular-nums">
 				{formatCurrencyAmount(row.payment.amount, row.currency)}

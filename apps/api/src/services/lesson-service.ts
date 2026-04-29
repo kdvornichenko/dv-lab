@@ -18,6 +18,7 @@ import {
 	type LessonUpdateValues,
 } from '@teacher-crm/db'
 
+import { billingService } from './billing-service'
 import { getDb, teacherProfileId } from './db-context'
 import { memoryStore } from './memory-store'
 import type { StoreScope } from './store-scope'
@@ -133,6 +134,7 @@ export const lessonService = {
 		const teacherId = await teacherProfileId(db, scope)
 		const lesson = await insertLessonRow(db, toInsertValues(teacherId, input), input.studentIds)
 		await syncLessonAttendanceForStatus(db, teacherId, lesson)
+		await billingService.syncLessonChargesForLesson(scope, lesson.id)
 		return mapLessonRow(lesson)
 	},
 
@@ -145,6 +147,7 @@ export const lessonService = {
 		if (lesson && (input.status !== undefined || input.studentIds !== undefined)) {
 			await syncLessonAttendanceForStatus(db, teacherId, lesson)
 		}
+		if (lesson) await billingService.syncLessonChargesForLesson(scope, lesson.id)
 		return lesson ? mapLessonRow(lesson) : null
 	},
 
@@ -170,7 +173,7 @@ export const lessonService = {
 		if (!db) return memoryStore.markAttendance(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
-		return (
+		const updatedAttendance = (
 			await upsertAttendanceRows(
 				db,
 				input.records.map((record) => ({
@@ -183,5 +186,7 @@ export const lessonService = {
 				}))
 			)
 		).map(mapAttendanceRow)
+		await billingService.syncLessonChargesForLesson(scope, input.lessonId)
+		return updatedAttendance
 	},
 }

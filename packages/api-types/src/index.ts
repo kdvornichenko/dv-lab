@@ -14,6 +14,11 @@ export const lessonStatusSchema = z.enum(LESSON_STATUSES)
 export const attendanceStatusSchema = z.enum(ATTENDANCE_STATUSES)
 export const paymentMethodSchema = z.enum(['cash', 'bank_transfer', 'card', 'other'])
 export const currencySchema = z.enum(['RUB', 'KZT'])
+export const currencyTotalsSchema = z.object({
+	RUB: z.number().nonnegative().default(0),
+	KZT: z.number().nonnegative().default(0),
+})
+export const packageInstanceStatusSchema = z.enum(['active', 'exhausted', 'cancelled'])
 export const calendarConnectionStatusSchema = z.enum([
 	'not_connected',
 	'authorization_required',
@@ -344,21 +349,59 @@ export const paymentSchema = z.object({
 	id: z.string(),
 	studentId: z.string(),
 	amount: z.number(),
+	currency: currencySchema,
 	paidAt: z.string(),
 	method: paymentMethodSchema,
 	comment: z.string().optional(),
 	correctionOfPaymentId: z.string().optional(),
+	packageId: z.string().optional(),
+	idempotencyKey: z.string().trim().min(8).max(120).optional(),
 	createdAt: z.string(),
 })
 
-export const createPaymentSchema = paymentSchema
-	.omit({
-		id: true,
-		createdAt: true,
-	})
-	.extend({
-		amount: z.coerce.number(),
-	})
+export const createPaymentSchema = z.object({
+	studentId: z.string(),
+	amount: z.coerce.number().positive(),
+	currency: currencySchema.optional(),
+	paidAt: z.string(),
+	method: paymentMethodSchema,
+	comment: z.string().trim().optional(),
+	correctionOfPaymentId: z.string().optional(),
+	idempotencyKey: z.string().trim().min(8).max(120).optional(),
+	packagePurchase: z.boolean().optional().default(false),
+})
+
+export const studentPackageSchema = z.object({
+	id: z.string(),
+	studentId: z.string(),
+	status: packageInstanceStatusSchema,
+	startsAt: z.string(),
+	paidAt: z.string().optional(),
+	packageMonths: z.number().int().nonnegative(),
+	lessonsPerWeek: z.number().int().nonnegative(),
+	purchasedLessonCount: z.number().int().nonnegative(),
+	purchasedLessonUnits: z.number().nonnegative(),
+	lessonPrice: z.number().nonnegative(),
+	totalPrice: z.number().nonnegative(),
+	currency: currencySchema,
+	exhaustedAt: z.string().optional(),
+	createdAt: z.string(),
+})
+
+export const lessonChargeSchema = z.object({
+	id: z.string(),
+	lessonId: z.string(),
+	studentId: z.string(),
+	attendanceRecordId: z.string(),
+	packageId: z.string().optional(),
+	amount: z.number().nonnegative(),
+	currency: currencySchema,
+	lessonUnits: z.number().nonnegative(),
+	attendanceStatus: attendanceStatusSchema,
+	voidedAt: z.string().optional(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+})
 
 export const calendarConnectionSchema = z.object({
 	id: z.string(),
@@ -418,14 +461,49 @@ export const dashboardSummarySchema = z.object({
 	todayLessonCount: z.number().int().nonnegative(),
 	missingAttendanceCount: z.number().int().nonnegative(),
 	overdueStudentCount: z.number().int().nonnegative(),
+	monthIncomeRub: z.number().nonnegative().optional(),
 	monthIncome: z.number().nonnegative(),
+	monthIncomeByCurrency: currencyTotalsSchema.default({ RUB: 0, KZT: 0 }),
 })
 
-export const studentBalanceSchema = z.object({
+export const studentCurrencyBalanceSchema = z.object({
 	studentId: z.string(),
+	currency: currencySchema,
+	charged: z.number(),
+	paid: z.number(),
 	balance: z.number(),
 	unpaidLessonCount: z.number().int().nonnegative(),
 	overdue: z.boolean(),
+})
+
+export const studentBalanceSchema = studentCurrencyBalanceSchema.extend({
+	packageProgress: z
+		.object({
+			packageId: z.string(),
+			status: packageInstanceStatusSchema,
+			totalUnits: z.number().nonnegative(),
+			consumedUnits: z.number().nonnegative(),
+			remainingUnits: z.number().nonnegative(),
+			projectedPaymentDate: z.string().optional(),
+			projectedPaymentLessonId: z.string().optional(),
+			completedLessonIds: z.array(z.string()),
+		})
+		.optional(),
+	nextPayment: z.object({
+		status: z.enum([
+			'due_now',
+			'after_projected_lesson',
+			'estimated_after',
+			'after_next_lesson',
+			'not_scheduled',
+			'not_configured',
+		]),
+		dueNow: z.boolean(),
+		projectedDate: z.string().optional(),
+		amount: z.number().nonnegative(),
+		currency: currencySchema,
+	}),
+	otherCurrencyBalances: z.array(studentCurrencyBalanceSchema).optional(),
 })
 
 export const validationIssueSchema = z.object({
@@ -486,9 +564,57 @@ export const attendanceMutationResponseSchema = z.object({
 	attendance: z.array(attendanceRecordSchema),
 })
 
+export const paymentsResponseSchema = z.object({
+	ok: z.literal(true),
+	payments: z.array(paymentSchema),
+	balances: z.array(studentBalanceSchema),
+})
+
+export const paymentMutationResponseSchema = z.object({
+	ok: z.literal(true),
+	payment: paymentSchema,
+})
+
+export const calendarResponseSchema = z.object({
+	ok: z.literal(true),
+	connection: calendarConnectionSchema,
+	syncRecords: z.array(calendarSyncRecordSchema),
+})
+
+export const calendarConnectionResponseSchema = z.object({
+	ok: z.literal(true),
+	connection: calendarConnectionSchema,
+})
+
+export const calendarListResponseSchema = z.object({
+	ok: z.literal(true),
+	calendars: z.array(calendarListEntrySchema),
+})
+
 export const calendarBusyResponseSchema = z.object({
 	ok: z.literal(true),
 	busy: z.array(calendarBusyIntervalSchema),
+})
+
+export const calendarImportResponseSchema = z.object({
+	ok: z.literal(true),
+	checked: z.number().int().nonnegative(),
+	updated: z.number().int().nonnegative(),
+})
+
+export const calendarProviderTokenResponseSchema = z.object({
+	ok: z.literal(true),
+	connection: calendarConnectionSchema,
+})
+
+export const calendarSyncResponseSchema = z.object({
+	ok: z.literal(true),
+	sync: calendarSyncRecordSchema,
+})
+
+export const dashboardResponseSchema = z.object({
+	ok: z.literal(true),
+	summary: dashboardSummarySchema,
 })
 
 export const sidebarSettingsResponseSchema = z.object({
@@ -516,6 +642,7 @@ export type LessonStatus = z.infer<typeof lessonStatusSchema>
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>
 export type Currency = z.infer<typeof currencySchema>
+export type PackageInstanceStatus = z.infer<typeof packageInstanceStatusSchema>
 export type CalendarConnectionStatus = z.infer<typeof calendarConnectionStatusSchema>
 export type CalendarSyncStatus = z.infer<typeof calendarSyncStatusSchema>
 export type { PermissionKey, RoleKey }
@@ -531,6 +658,8 @@ export type AttendanceRecord = z.infer<typeof attendanceRecordSchema>
 export type MarkAttendanceInput = z.infer<typeof markAttendanceSchema>
 export type Payment = z.infer<typeof paymentSchema>
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>
+export type StudentPackage = z.infer<typeof studentPackageSchema>
+export type LessonCharge = z.infer<typeof lessonChargeSchema>
 export type CalendarConnection = z.infer<typeof calendarConnectionSchema>
 export type CalendarSyncRecord = z.infer<typeof calendarSyncRecordSchema>
 export type CalendarListEntry = z.infer<typeof calendarListEntrySchema>
@@ -538,6 +667,7 @@ export type CalendarUpsertLessonEventInput = z.infer<typeof calendarUpsertLesson
 export type CalendarBusyQuery = z.infer<typeof calendarBusyQuerySchema>
 export type CalendarBusyInterval = z.infer<typeof calendarBusyIntervalSchema>
 export type DashboardSummary = z.infer<typeof dashboardSummarySchema>
+export type StudentCurrencyBalance = z.infer<typeof studentCurrencyBalanceSchema>
 export type StudentBalance = z.infer<typeof studentBalanceSchema>
 export type UpdateSidebarSettingsInput = z.infer<typeof updateSidebarSettingsSchema>
 export type CrmThemeColors = z.infer<typeof crmThemeColorsSchema>
@@ -553,7 +683,16 @@ export type StudentMutationResponse = z.infer<typeof studentMutationResponseSche
 export type LessonsResponse = z.infer<typeof lessonsResponseSchema>
 export type LessonMutationResponse = z.infer<typeof lessonMutationResponseSchema>
 export type AttendanceMutationResponse = z.infer<typeof attendanceMutationResponseSchema>
+export type PaymentsResponse = z.infer<typeof paymentsResponseSchema>
+export type PaymentMutationResponse = z.infer<typeof paymentMutationResponseSchema>
+export type CalendarResponse = z.infer<typeof calendarResponseSchema>
+export type CalendarConnectionResponse = z.infer<typeof calendarConnectionResponseSchema>
+export type CalendarListResponse = z.infer<typeof calendarListResponseSchema>
 export type CalendarBusyResponse = z.infer<typeof calendarBusyResponseSchema>
+export type CalendarImportResponse = z.infer<typeof calendarImportResponseSchema>
+export type CalendarProviderTokenResponse = z.infer<typeof calendarProviderTokenResponseSchema>
+export type CalendarSyncResponse = z.infer<typeof calendarSyncResponseSchema>
+export type DashboardResponse = z.infer<typeof dashboardResponseSchema>
 export type SidebarSettingsResponse = z.infer<typeof sidebarSettingsResponseSchema>
 export type ThemeSettingsResponse = z.infer<typeof themeSettingsResponseSchema>
 export type CrmErrorLogResponse = z.infer<typeof crmErrorLogResponseSchema>

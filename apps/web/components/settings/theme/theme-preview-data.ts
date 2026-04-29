@@ -82,18 +82,64 @@ export const previewStudents: Student[] = [
 ]
 
 export const previewBalances: StudentBalance[] = [
-	{ studentId: 'preview-anna', balance: 0, unpaidLessonCount: 0, overdue: false },
-	{ studentId: 'preview-max', balance: 2300, unpaidLessonCount: 1, overdue: true },
-	{ studentId: 'preview-lena', balance: -1900, unpaidLessonCount: 0, overdue: false },
+	{
+		studentId: 'preview-anna',
+		currency: 'RUB',
+		charged: 0,
+		paid: 50400,
+		balance: 50400,
+		unpaidLessonCount: 0,
+		overdue: false,
+		packageProgress: {
+			packageId: 'preview-package-anna',
+			status: 'active',
+			totalUnits: 24,
+			consumedUnits: 0,
+			remainingUnits: 24,
+			projectedPaymentDate: '2026-07-19T12:00:00.000Z',
+			completedLessonIds: [],
+		},
+		nextPayment: {
+			status: 'estimated_after',
+			dueNow: false,
+			projectedDate: '2026-07-19T12:00:00.000Z',
+			amount: 50400,
+			currency: 'RUB',
+		},
+	},
+	{
+		studentId: 'preview-max',
+		currency: 'RUB',
+		charged: 2300,
+		paid: 0,
+		balance: -2300,
+		unpaidLessonCount: 1,
+		overdue: true,
+		nextPayment: { status: 'due_now', dueNow: true, amount: 2300, currency: 'RUB' },
+	},
+	{
+		studentId: 'preview-lena',
+		currency: 'KZT',
+		charged: 1900,
+		paid: 0,
+		balance: -1900,
+		unpaidLessonCount: 1,
+		overdue: true,
+		nextPayment: { status: 'due_now', dueNow: true, amount: 1900, currency: 'KZT' },
+	},
 ]
 
 export const previewStudentsWithBalance: StudentWithBalance[] = previewStudents.map((student) => ({
 	...student,
 	balance: previewBalances.find((balance) => balance.studentId === student.id) ?? {
 		studentId: student.id,
+		currency: student.currency,
+		charged: 0,
+		paid: 0,
 		balance: 0,
 		unpaidLessonCount: 0,
 		overdue: false,
+		nextPayment: { status: 'not_scheduled', dueNow: false, amount: 0, currency: student.currency },
 	},
 }))
 
@@ -131,6 +177,7 @@ export const previewPayments: Payment[] = [
 		id: 'preview-payment-anna',
 		studentId: 'preview-anna',
 		amount: 50400,
+		currency: 'RUB',
 		paidAt: '2026-04-24',
 		method: 'bank_transfer',
 		comment: '3 month package',
@@ -140,6 +187,7 @@ export const previewPayments: Payment[] = [
 		id: 'preview-payment-max',
 		studentId: 'preview-max',
 		amount: 2300,
+		currency: 'RUB',
 		paidAt: '2026-04-20',
 		method: 'card',
 		comment: 'Single lesson',
@@ -189,6 +237,7 @@ export const previewSummary: TeacherCrmSummary = {
 	missingAttendance: 0,
 	overdueStudents: 1,
 	monthIncome: 52700,
+	monthIncomeByCurrency: { RUB: 52700, KZT: 0 },
 }
 
 export const routeLinks = [

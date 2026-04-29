@@ -52,6 +52,7 @@ export function ThemeBlocksPreview({ theme }: { theme: CrmThemeSettings }) {
 						<LessonsPanel
 							lessons={previewLessons}
 							students={previewStudents}
+							attendanceRecords={[]}
 							calendarSyncRecords={previewCalendarSyncRecords}
 							title="Schedule workspace"
 							description="The real lesson panel with individual lesson status and calendar state."
@@ -59,6 +60,7 @@ export function ThemeBlocksPreview({ theme }: { theme: CrmThemeSettings }) {
 							onUpdateLesson={async (_lessonId: string, _input: UpdateLessonInput) => previewOnly()}
 							onCancelLesson={async () => previewOnly()}
 							onDeleteLesson={async () => previewOnly()}
+							onMarkAttendance={async () => previewOnly()}
 							previewMode
 						/>
 						<StudentsPanel

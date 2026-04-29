@@ -2,7 +2,9 @@
 
 import { Badge } from '@/components/ui/badge'
 import { TeacherCrmPageShell, type TeacherCrm } from '@/components/workspace/TeacherCrmPageShell'
-import { formatUsdAmount, selectOverdueStudents, selectTodayLessons } from '@/lib/crm/model'
+import { formatCurrencyTotals, selectOverdueStudents, selectTodayLessons } from '@/lib/crm/model'
+
+import type { Currency } from '@teacher-crm/api-types'
 
 import { LessonsPanel } from './LessonsPanel'
 import { SummaryStrip } from './SummaryStrip'
@@ -31,6 +33,7 @@ function DashboardContent({ crm, now }: { crm: TeacherCrm; now: Date }) {
 				<LessonsPanel
 					lessons={dashboardLessons}
 					students={crm.state.students}
+					attendanceRecords={crm.state.attendance}
 					calendarSyncRecords={crm.state.calendarSyncRecords}
 					title={todayLessons.length > 0 ? 'Today agenda' : 'Next lessons'}
 					description="A compact agenda for the next schedule decision."
@@ -38,12 +41,13 @@ function DashboardContent({ crm, now }: { crm: TeacherCrm; now: Date }) {
 					onUpdateLesson={crm.updateLesson}
 					onCancelLesson={cancelLesson}
 					onDeleteLesson={crm.deleteLesson}
+					onMarkAttendance={crm.markAttendance}
 					onCheckCalendarConflicts={crm.checkCalendarConflicts}
 				/>
 				<FocusPanel
 					overdueStudents={overdueStudents.length}
 					atRiskStudent={atRiskStudent?.fullName}
-					monthIncome={crm.summary.monthIncome}
+					monthIncomeByCurrency={crm.summary.monthIncomeByCurrency}
 					todayLessonCount={crm.summary.todayLessons}
 					cancelledToday={cancelledToday}
 				/>
@@ -55,13 +59,13 @@ function DashboardContent({ crm, now }: { crm: TeacherCrm; now: Date }) {
 function FocusPanel({
 	overdueStudents,
 	atRiskStudent,
-	monthIncome,
+	monthIncomeByCurrency,
 	todayLessonCount,
 	cancelledToday,
 }: {
 	overdueStudents: number
 	atRiskStudent?: string
-	monthIncome: number
+	monthIncomeByCurrency: Record<Currency, number>
 	todayLessonCount: number
 	cancelledToday: number
 }) {
@@ -84,7 +88,9 @@ function FocusPanel({
 				</div>
 				<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
 					<p className="text-ink-muted text-xs font-medium">Month income</p>
-					<p className="text-ink mt-1 font-mono text-2xl font-semibold tabular-nums">{formatUsdAmount(monthIncome)}</p>
+					<p className="text-ink mt-1 font-mono text-2xl font-semibold tabular-nums">
+						{formatCurrencyTotals(monthIncomeByCurrency)}
+					</p>
 				</div>
 				<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
 					<div className="flex items-center justify-between gap-3">

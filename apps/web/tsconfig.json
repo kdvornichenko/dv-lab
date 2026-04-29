@@ -5,6 +5,7 @@
 		"paths": {
 			"@/*": ["./*"],
 			"@teacher-crm/api-types": ["../../packages/api-types/src/index.ts"],
+			"@teacher-crm/db": ["../../packages/db/src/index.ts"],
 			"@teacher-crm/rbac": ["../../packages/rbac/src/index.ts"]
 		}
 	},

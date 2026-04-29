@@ -1,23 +1,14 @@
+import { type CreatePaymentInput, type Payment, type StudentBalance } from '@teacher-crm/api-types'
 import {
-	BILLABLE_ATTENDANCE_STATUSES,
-	calculatePackageLessonPriceRub,
-	getLessonDurationUnits,
-	type CreatePaymentInput,
-	type Payment,
-	type StudentBalance,
-} from '@teacher-crm/api-types'
-import {
-	calculateStudentBalances,
 	deletePaymentRow,
+	findPaymentRowByIdempotencyKey,
 	insertPaymentRow,
-	listAttendanceRows,
-	listLessonRows,
 	listPaymentRows,
 	listStudentRows,
-	type LessonRowWithStudents,
 	type PaymentRow,
 } from '@teacher-crm/db'
 
+import { billingService } from './billing-service'
 import { getDb, teacherProfileId } from './db-context'
 import { memoryStore } from './memory-store'
 import type { StoreScope } from './store-scope'
@@ -37,28 +28,15 @@ function mapPaymentRow(row: PaymentRow): Payment {
 		id: row.id,
 		studentId: row.studentId,
 		amount: Number(row.amount),
+		currency: row.currency,
 		paidAt: dateToIso(row.paidAt),
 		method: row.method,
 		comment: row.comment ?? undefined,
 		correctionOfPaymentId: row.correctionOfPaymentId ?? undefined,
+		packageId: row.packageId ?? undefined,
+		idempotencyKey: row.idempotencyKey ?? undefined,
 		createdAt: dateToIso(row.createdAt),
 	}
-}
-
-function priceForStudent(
-	student: Awaited<ReturnType<typeof listStudentRows>>[number] | undefined,
-	lesson: LessonRowWithStudents | undefined
-) {
-	if (!student) return 0
-	const durationUnits = lesson ? getLessonDurationUnits(lesson.durationMinutes) : 1
-	const packageLessonPrice = calculatePackageLessonPriceRub({
-		defaultLessonPrice: Number(student.defaultLessonPrice),
-		defaultLessonDurationMinutes: lesson?.durationMinutes ?? student.defaultLessonDurationMinutes,
-		packageMonths: student.packageMonths,
-	})
-	return student.billingMode === 'package' && packageLessonPrice > 0
-		? packageLessonPrice
-		: Number(student.defaultLessonPrice) * durationUnits
 }
 
 export const paymentService = {
@@ -75,15 +53,32 @@ export const paymentService = {
 		if (!db) return memoryStore.createPayment(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
+		if (input.idempotencyKey) {
+			const existing = await findPaymentRowByIdempotencyKey(db, teacherId, input.idempotencyKey)
+			if (existing) return mapPaymentRow(existing)
+		}
+
+		const student = (await listStudentRows(db, teacherId, { status: 'all' })).find((row) => row.id === input.studentId)
+		const currency =
+			input.packagePurchase && student?.billingMode === 'package'
+				? student.currency
+				: (input.currency ?? student?.currency ?? 'RUB')
+		const studentPackage =
+			input.packagePurchase && student?.billingMode === 'package'
+				? await billingService.createPackageForPayment(scope, student, input.paidAt)
+				: null
 		return mapPaymentRow(
 			await insertPaymentRow(db, {
 				teacherId,
 				studentId: input.studentId,
+				packageId: studentPackage?.id ?? null,
 				amount: input.amount.toFixed(2),
+				currency,
 				paidAt: paymentDate(input.paidAt),
 				method: input.method,
 				comment: input.comment?.trim() || null,
 				correctionOfPaymentId: input.correctionOfPaymentId ?? null,
+				idempotencyKey: input.idempotencyKey ?? null,
 			})
 		)
 	},
@@ -94,34 +89,11 @@ export const paymentService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		const payment = await deletePaymentRow(db, teacherId, paymentId)
+		if (payment?.packageId) await billingService.cancelPackage(scope, payment.packageId)
 		return payment ? mapPaymentRow(payment) : null
 	},
 
 	async listStudentBalances(scope: StoreScope): Promise<StudentBalance[]> {
-		const db = getDb()
-		if (!db) return memoryStore.listStudentBalances(scope)
-
-		const teacherId = await teacherProfileId(db, scope)
-		const [attendance, students, payments, lessons] = await Promise.all([
-			listAttendanceRows(db, teacherId),
-			listStudentRows(db, teacherId, { status: 'all' }),
-			listPaymentRows(db, teacherId),
-			listLessonRows(db, teacherId, { status: 'all' }),
-		])
-		const studentsById = new Map(students.map((student) => [student.id, student]))
-		const lessonsById = new Map(lessons.map((lesson) => [lesson.id, lesson]))
-		const charges = attendance.map((record) => ({
-			studentId: record.studentId,
-			amount: priceForStudent(studentsById.get(record.studentId), lessonsById.get(record.lessonId)),
-			billable: record.billable && (BILLABLE_ATTENDANCE_STATUSES as readonly string[]).includes(record.status),
-		}))
-
-		return calculateStudentBalances(
-			charges,
-			payments.map((payment) => ({
-				studentId: payment.studentId,
-				amount: Number(payment.amount),
-			}))
-		)
+		return billingService.listStudentBalances(scope)
 	},
 }

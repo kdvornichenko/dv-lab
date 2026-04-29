@@ -1,8 +1,14 @@
 import { Hono } from 'hono'
 
-import { actorFromContext, requirePermission } from '../middleware/auth'
-import { memoryStore } from '../services/memory-store'
+import type { DashboardResponse } from '@teacher-crm/api-types'
 
-export const dashboardRoutes = new Hono().get('/', requirePermission('dashboard', 'read'), (context) => {
-	return context.json({ ok: true, summary: memoryStore.getDashboardSummary(actorFromContext(context)) }, 200)
+import { actorFromContext, requirePermission } from '../middleware/auth'
+import { dashboardService } from '../services/dashboard-service'
+
+export const dashboardRoutes = new Hono().get('/', requirePermission('dashboard', 'read'), async (context) => {
+	const response: DashboardResponse = {
+		ok: true,
+		summary: await dashboardService.getDashboardSummary(actorFromContext(context)),
+	}
+	return context.json(response, 200)
 })

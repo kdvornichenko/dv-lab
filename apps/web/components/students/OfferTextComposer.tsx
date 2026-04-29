@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { formatUsdAmount } from '@/lib/crm/model'
+import { formatRubAmount } from '@/lib/crm/model'
 
 import {
 	DEFAULT_LESSON_DURATION_MINUTES,
@@ -116,7 +116,7 @@ function OfferPackageInputs({
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<p className="font-heading text-ink text-sm font-semibold">{label}</p>
 				<Badge tone="neutral" className="font-mono tabular-nums">
-					{formatUsdAmount(lessonPrice)} / lesson
+					{formatRubAmount(lessonPrice)} / lesson
 				</Badge>
 			</div>
 			<div className="space-y-1">
@@ -127,7 +127,7 @@ function OfferPackageInputs({
 				</div>
 				<div className="grid grid-cols-2 items-center gap-2">
 					<p className="text-ink-muted text-sm font-medium">Package payment</p>
-					<p className="text-ink font-mono text-sm font-semibold tabular-nums">{formatUsdAmount(packageTotal)}</p>
+					<p className="text-ink font-mono text-sm font-semibold tabular-nums">{formatRubAmount(packageTotal)}</p>
 				</div>
 			</div>
 		</div>

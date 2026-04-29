@@ -179,11 +179,32 @@ const createPayment = await app.request('/payments', {
 		paidAt: new Date().toISOString(),
 		method: 'cash',
 		comment: 'Delete payment smoke test',
+		idempotencyKey: 'smoke-delete-payment-key',
 	}),
 })
 assert.equal(createPayment.status, 201)
 const createPaymentBody = await createPayment.json()
 assert.equal(createPaymentBody.payment.amount, 1234)
+assert.equal(createPaymentBody.payment.currency, 'RUB')
+
+const duplicateCreatePayment = await app.request('/payments', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		studentId: createStudentBody.student.id,
+		amount: 1234,
+		paidAt: new Date().toISOString(),
+		method: 'cash',
+		comment: 'Duplicate payment smoke test',
+		idempotencyKey: 'smoke-delete-payment-key',
+	}),
+})
+assert.equal(duplicateCreatePayment.status, 201)
+const duplicateCreatePaymentBody = await duplicateCreatePayment.json()
+assert.equal(duplicateCreatePaymentBody.payment.id, createPaymentBody.payment.id)
 
 const deletePayment = await app.request(`/payments/${createPaymentBody.payment.id}`, {
 	method: 'DELETE',
@@ -202,6 +223,117 @@ const deleteMissingPayment = await app.request(`/payments/${createPaymentBody.pa
 	},
 })
 assert.equal(deleteMissingPayment.status, 404)
+
+const createPackagePayment = await app.request('/payments', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		studentId: createStudentBody.student.id,
+		amount: createStudentBody.student.packageTotalPrice,
+		paidAt: new Date().toISOString(),
+		method: 'bank_transfer',
+		comment: 'Package delete smoke test',
+		packagePurchase: true,
+		idempotencyKey: 'smoke-package-delete-key',
+	}),
+})
+assert.equal(createPackagePayment.status, 201)
+const createPackagePaymentBody = await createPackagePayment.json()
+assert.ok(createPackagePaymentBody.payment.packageId)
+
+const paymentsWithPackage = await app.request('/payments', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(paymentsWithPackage.status, 200)
+const paymentsWithPackageBody = await paymentsWithPackage.json()
+const packageBalance = paymentsWithPackageBody.balances.find(
+	(balance: { studentId: string }) => balance.studentId === createStudentBody.student.id
+)
+assert.equal(packageBalance.packageProgress.packageId, createPackagePaymentBody.payment.packageId)
+
+const deletePackagePayment = await app.request(`/payments/${createPackagePaymentBody.payment.id}`, {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(deletePackagePayment.status, 200)
+
+const paymentsAfterPackageDelete = await app.request('/payments', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(paymentsAfterPackageDelete.status, 200)
+const paymentsAfterPackageDeleteBody = await paymentsAfterPackageDelete.json()
+const packageBalanceAfterDelete = paymentsAfterPackageDeleteBody.balances.find(
+	(balance: { studentId: string }) => balance.studentId === createStudentBody.student.id
+)
+assert.equal(packageBalanceAfterDelete.packageProgress, undefined)
+assert.equal(packageBalanceAfterDelete.nextPayment.status, 'due_now')
+
+const dashboardBeforeCurrencyPayment = await app.request('/dashboard', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(dashboardBeforeCurrencyPayment.status, 200)
+const dashboardBeforeCurrencyPaymentBody = await dashboardBeforeCurrencyPayment.json()
+const initialKztMonthIncome = dashboardBeforeCurrencyPaymentBody.summary.monthIncomeByCurrency.KZT
+
+const createKztStudent = await app.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'KZT Student',
+		email: 'kzt.student@example.com',
+		status: 'active',
+		defaultLessonPrice: 15000,
+		defaultLessonDurationMinutes: 60,
+		packageMonths: 0,
+		packageLessonsPerWeek: 0,
+		packageLessonCount: 0,
+		billingMode: 'per_lesson',
+		currency: 'KZT',
+	}),
+})
+assert.equal(createKztStudent.status, 201)
+const createKztStudentBody = await createKztStudent.json()
+
+const createKztPayment = await app.request('/payments', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		studentId: createKztStudentBody.student.id,
+		amount: 5000,
+		paidAt: new Date().toISOString(),
+		method: 'bank_transfer',
+		comment: 'Currency summary smoke test',
+	}),
+})
+assert.equal(createKztPayment.status, 201)
+const createKztPaymentBody = await createKztPayment.json()
+assert.equal(createKztPaymentBody.payment.currency, 'KZT')
+
+const dashboardAfterCurrencyPayment = await app.request('/dashboard', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(dashboardAfterCurrencyPayment.status, 200)
+const dashboardAfterCurrencyPaymentBody = await dashboardAfterCurrencyPayment.json()
+assert.equal(dashboardAfterCurrencyPaymentBody.summary.monthIncomeByCurrency.KZT, initialKztMonthIncome + 5000)
 
 const updateStudent = await app.request(`/students/${createStudentBody.student.id}`, {
 	method: 'PATCH',
@@ -433,6 +565,30 @@ const noShowBalance = paymentsWithNoShowBody.balances.find(
 )
 assert.equal(noShowBalance.balance, -2000)
 assert.equal(noShowBalance.unpaidLessonCount, 1)
+
+const mutateStudentRate = await app.request(`/students/${createStudentBody.student.id}`, {
+	method: 'PATCH',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		defaultLessonPrice: 9999,
+	}),
+})
+assert.equal(mutateStudentRate.status, 200)
+
+const paymentsAfterRateChange = await app.request('/payments', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(paymentsAfterRateChange.status, 200)
+const paymentsAfterRateChangeBody = await paymentsAfterRateChange.json()
+const immutableChargeBalance = paymentsAfterRateChangeBody.balances.find(
+	(balance: { studentId: string }) => balance.studentId === createStudentBody.student.id
+)
+assert.equal(immutableChargeBalance.balance, -2000)
 
 const createDeletedLesson = await app.request('/lessons', {
 	method: 'POST',

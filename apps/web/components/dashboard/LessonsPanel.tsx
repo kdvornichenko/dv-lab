@@ -1,20 +1,22 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { CalendarPlus, CircleSlash, Edit3, Trash2 } from 'lucide-react'
+import { CalendarPlus, CheckCircle2, CircleSlash, Edit3, Trash2, UserX } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { formatTime, lessonDisplayTitle } from '@/lib/crm/model'
+import { buildLessonAttendanceRecords, formatTime, isLessonAbsentFree, lessonDisplayTitle } from '@/lib/crm/model'
 import { cn } from '@/lib/utils'
 
 import type {
+	AttendanceRecord,
 	CalendarBusyInterval,
 	CalendarSyncRecord,
 	CreateLessonInput,
 	Lesson,
+	MarkAttendanceInput,
 	Student,
 	UpdateLessonInput,
 } from '@teacher-crm/api-types'
@@ -24,6 +26,7 @@ import { LessonFormDialog } from './LessonFormDialog'
 type LessonsPanelProps = {
 	lessons: Lesson[]
 	students: Student[]
+	attendanceRecords?: AttendanceRecord[]
 	calendarSyncRecords: CalendarSyncRecord[]
 	title?: string
 	description?: string
@@ -32,6 +35,7 @@ type LessonsPanelProps = {
 	onUpdateLesson: (lessonId: string, input: UpdateLessonInput) => Promise<void>
 	onCancelLesson: (lessonId: string) => Promise<void>
 	onDeleteLesson: (lessonId: string) => Promise<void>
+	onMarkAttendance?: (input: MarkAttendanceInput) => Promise<void>
 	onCheckCalendarConflicts?: (input: CreateLessonInput) => Promise<CalendarBusyInterval[]>
 	previewMode?: boolean
 }
@@ -48,9 +52,12 @@ function lessonTone(lesson: Lesson) {
 	return { badge: 'neutral' as const, rail: 'bg-sage', frame: 'border-line-soft bg-surface-muted' }
 }
 
+const absentFreeTone = { badge: 'amber' as const, rail: 'bg-warning', frame: 'border-warning-line bg-warning-soft/45' }
+
 export function LessonsPanel({
 	lessons,
 	students,
+	attendanceRecords = [],
 	calendarSyncRecords,
 	title = 'Today control',
 	description = 'Individual lessons, statuses, and calendar sync.',
@@ -59,6 +66,7 @@ export function LessonsPanel({
 	onUpdateLesson,
 	onCancelLesson,
 	onDeleteLesson,
+	onMarkAttendance,
 	onCheckCalendarConflicts,
 	previewMode = false,
 }: LessonsPanelProps) {
@@ -72,14 +80,36 @@ export function LessonsPanel({
 		void onDeleteLesson(lesson.id)
 	}
 
+	function markAbsent(lesson: Lesson) {
+		if (!onMarkAttendance) return
+		void onMarkAttendance({
+			lessonId: lesson.id,
+			records: buildLessonAttendanceRecords(lesson, 'absent', false),
+		})
+	}
+
+	function markAllAttended(lesson: Lesson) {
+		void onUpdateLesson(lesson.id, { status: 'completed' })
+	}
+
+	function markAllNoShow(lesson: Lesson) {
+		if (
+			lesson.studentIds.length > 1 &&
+			!window.confirm(`Mark all ${lesson.studentIds.length} students as no-show and bill them?`)
+		) {
+			return
+		}
+		void onUpdateLesson(lesson.id, { status: 'no_show' })
+	}
+
 	return (
 		<>
 			<Card id="lessons" className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
-				<CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-line-soft bg-surface-muted">
+				<CardHeader className="border-line-soft bg-surface-muted flex flex-row items-center justify-between gap-3 border-b">
 					<div>
-						<p className="font-mono text-xs font-semibold text-sage uppercase">Lesson flow</p>
+						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson flow</p>
 						<CardTitle className="mt-1 text-lg">{title}</CardTitle>
-						<p className="mt-1 text-sm text-ink-muted">{description}</p>
+						<p className="text-ink-muted mt-1 text-sm">{description}</p>
 					</div>
 					<div className="flex flex-wrap items-center justify-end gap-2">
 						{toolbar}
@@ -91,16 +121,18 @@ export function LessonsPanel({
 				</CardHeader>
 				<CardContent className="pt-5">
 					{lessons.length === 0 ? (
-						<div className="rounded-lg border border-dashed border-sage-line bg-sage-soft/55 p-5">
-							<p className="font-heading font-semibold text-ink">No lessons scheduled</p>
-							<p className="mt-1 text-sm text-ink-muted">Add the next lesson to start the day plan.</p>
+						<div className="border-sage-line bg-sage-soft/55 rounded-lg border border-dashed p-5">
+							<p className="font-heading text-ink font-semibold">No lessons scheduled</p>
+							<p className="text-ink-muted mt-1 text-sm">Add the next lesson to start the day plan.</p>
 						</div>
 					) : (
 						<ScrollArea className="max-h-108">
 							<div className="space-y-3">
 								{lessons.map((lesson) => {
 									const sync = calendarSyncRecords.find((record) => record.lessonId === lesson.id)
-									const tone = lessonTone(lesson)
+									const absentFree = isLessonAbsentFree(lesson, attendanceRecords)
+									const groupPrefix = lesson.studentIds.length > 1 ? 'All ' : ''
+									const tone = absentFree ? absentFreeTone : lessonTone(lesson)
 									const endsAt = new Date(
 										new Date(lesson.startsAt).getTime() + lesson.durationMinutes * 60_000
 									).toISOString()
@@ -116,24 +148,51 @@ export function LessonsPanel({
 												<Badge tone="green" className="tabular-nums">
 													{lesson.durationMinutes} min
 												</Badge>
-												<Badge tone={tone.badge}>{lesson.status}</Badge>
+												<Badge tone={tone.badge}>{absentFree ? 'absent free' : lesson.status.replace('_', ' ')}</Badge>
 												<Badge
 													tone={sync?.status === 'synced' ? 'green' : sync?.status === 'failed' ? 'red' : 'neutral'}
 												>
 													Calendar {sync?.status ?? 'not synced'}
 												</Badge>
 											</div>
-											<div className="flex w-full">
+											<div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 												<span className={cn('absolute inset-y-0 left-0 w-1', tone.rail)} />
-												<div className="flex flex-1">
-													<span className="mr-2 font-mono text-sm font-semibold text-ink tabular-nums">
+												<div className="flex min-w-0 flex-1">
+													<span className="text-ink mr-2 font-mono text-sm font-semibold tabular-nums">
 														{formatTime(lesson.startsAt)} - {formatTime(endsAt)}
 													</span>
-													<p className="font-heading leading-none font-semibold text-ink">
+													<p className="font-heading text-ink font-semibold leading-none">
 														{lessonDisplayTitle(lesson, students)}
 													</p>
 												</div>
-												<div className="flex items-center gap-2 md:justify-end">
+												<div className="flex flex-wrap items-center gap-2 lg:justify-end">
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={() => markAllAttended(lesson)}
+														disabled={previewMode || lesson.status === 'completed'}
+													>
+														<CheckCircle2 className="h-4 w-4" />
+														{groupPrefix}attended
+													</Button>
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={() => markAllNoShow(lesson)}
+														disabled={previewMode || lesson.status === 'no_show'}
+													>
+														<UserX className="h-4 w-4" />
+														{groupPrefix}no-show
+													</Button>
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={() => markAbsent(lesson)}
+														disabled={previewMode || !onMarkAttendance || absentFree}
+													>
+														<CircleSlash className="h-4 w-4" />
+														{groupPrefix}absent free
+													</Button>
 													<Button size="sm" variant="ghost" onClick={() => setEditingLesson(lesson)}>
 														<Edit3 className="h-4 w-4" />
 														Edit

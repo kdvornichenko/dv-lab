@@ -17,6 +17,7 @@ const result = calculateStudentBalances(
 assert.deepEqual(result, [
 	{
 		studentId: 's1',
+		currency: 'RUB',
 		charged: 60,
 		paid: 30,
 		balance: -30,
@@ -25,9 +26,36 @@ assert.deepEqual(result, [
 	},
 	{
 		studentId: 's2',
+		currency: 'RUB',
 		charged: 0,
 		paid: 20,
 		balance: 20,
+		unpaidLessonCount: 0,
+		overdue: false,
+	},
+])
+
+const mixedCurrencyResult = calculateStudentBalances(
+	[{ studentId: 's3', amount: 1000, currency: 'KZT', billable: true }],
+	[{ studentId: 's3', amount: 1000, currency: 'RUB' }]
+)
+
+assert.deepEqual(mixedCurrencyResult, [
+	{
+		studentId: 's3',
+		currency: 'KZT',
+		charged: 1000,
+		paid: 0,
+		balance: -1000,
+		unpaidLessonCount: 1,
+		overdue: true,
+	},
+	{
+		studentId: 's3',
+		currency: 'RUB',
+		charged: 0,
+		paid: 1000,
+		balance: 1000,
 		unpaidLessonCount: 0,
 		overdue: false,
 	},

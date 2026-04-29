@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { OfferTextComposer } from '@/components/students/OfferTextComposer'
+import { PaymentFormDialog } from '@/components/students/PaymentFormDialog'
 import { StudentFormDialog } from '@/components/students/StudentFormDialog'
 import { StudentProfilePane } from '@/components/students/StudentProfilePane'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,7 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 	const router = useRouter()
 	const crm = useTeacherCrm()
 	const [isEditOpen, setIsEditOpen] = useState(false)
+	const [isPaymentOpen, setIsPaymentOpen] = useState(false)
 	const student = findStudentByRouteId(crm.studentRows, studentId)
 	const now = new Date()
 
@@ -78,7 +80,7 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 								<Pencil className="h-4 w-4" />
 								Edit
 							</Button>
-							<Button type="button" variant="secondary" onClick={() => void crm.recordPayment(student.id)}>
+							<Button type="button" variant="secondary" onClick={() => setIsPaymentOpen(true)}>
 								<Banknote className="h-4 w-4" />
 								Record payment
 							</Button>
@@ -114,6 +116,12 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 					await crm.updateStudent(student.id, input)
 					setIsEditOpen(false)
 				}}
+			/>
+			<PaymentFormDialog
+				open={isPaymentOpen}
+				student={student}
+				onOpenChange={setIsPaymentOpen}
+				onSubmit={crm.recordPayment}
 			/>
 		</main>
 	)
