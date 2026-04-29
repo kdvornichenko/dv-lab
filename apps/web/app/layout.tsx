@@ -114,12 +114,19 @@ const themeHydrationScript = `
 			colors: {
 				background: '#f8fafc',
 				foreground: '#0f172a',
-				primary: '#2563eb',
+				primary: '#2f6f5e',
 				accent: '#d97706',
 				success: '#059669',
 				warning: '#d97706',
 				danger: '#dc2626',
 				chart: '#64748b'
+			}
+		};
+		const blueDefault = {
+			...devlDefault,
+			colors: {
+				...devlDefault.colors,
+				primary: '#2563eb'
 			}
 		};
 		const sameTheme = (a, b) => a && b &&
@@ -128,7 +135,7 @@ const themeHydrationScript = `
 			a.bodyFont === b.bodyFont &&
 			a.numberFont === b.numberFont &&
 			Object.keys(b.colors).every((key) => a.colors?.[key] === b.colors[key]);
-		const resolvedTheme = sameTheme(theme, legacyDefault) ? devlDefault : theme;
+		const resolvedTheme = sameTheme(theme, legacyDefault) || sameTheme(theme, blueDefault) ? devlDefault : theme;
 		if (resolvedTheme !== theme) window.localStorage.setItem('teacher-crm-theme', JSON.stringify(resolvedTheme));
 		theme = resolvedTheme;
 		const colors = theme.colors || {};

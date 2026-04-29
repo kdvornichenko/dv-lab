@@ -183,7 +183,7 @@ export const DEFAULT_CRM_THEME_SETTINGS = {
 	colors: {
 		background: '#f8fafc',
 		foreground: '#0f172a',
-		primary: '#2563eb',
+		primary: '#2f6f5e',
 		accent: '#d97706',
 		success: '#059669',
 		warning: '#d97706',

@@ -23,6 +23,23 @@ const LEGACY_DEFAULT_CRM_THEME_SETTINGS: CrmThemeSettings = {
 	},
 }
 
+const BLUE_DEFAULT_CRM_THEME_SETTINGS: CrmThemeSettings = {
+	radius: 'default',
+	headingFont: 'geist',
+	bodyFont: 'geist',
+	numberFont: 'mono',
+	colors: {
+		background: '#f8fafc',
+		foreground: '#0f172a',
+		primary: '#2563eb',
+		accent: '#d97706',
+		success: '#059669',
+		warning: '#d97706',
+		danger: '#dc2626',
+		chart: '#64748b',
+	},
+}
+
 type ThemeColorKey = keyof CrmThemeSettings['colors']
 type ThemeFontKey = CrmThemeSettings['headingFont']
 type ThemeRadiusKey = CrmThemeSettings['radius']
@@ -155,7 +172,9 @@ function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {
 }
 
 export function migrateCrmTheme(theme: CrmThemeSettings): CrmThemeSettings {
-	if (themesEqual(theme, LEGACY_DEFAULT_CRM_THEME_SETTINGS)) return cloneTheme(DEFAULT_CRM_THEME_SETTINGS)
+	if (themesEqual(theme, LEGACY_DEFAULT_CRM_THEME_SETTINGS) || themesEqual(theme, BLUE_DEFAULT_CRM_THEME_SETTINGS)) {
+		return cloneTheme(DEFAULT_CRM_THEME_SETTINGS)
+	}
 	return theme
 }
 

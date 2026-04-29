@@ -80,6 +80,32 @@
 	font-variant-numeric: tabular-nums;
 }
 
+@keyframes crm-popover-in {
+	from {
+		opacity: 0;
+		filter: blur(6px);
+		transform: translate3d(0, -0.25rem, 0) scale(0.98);
+	}
+	to {
+		opacity: 1;
+		filter: blur(0);
+		transform: translate3d(0, 0, 0) scale(1);
+	}
+}
+
+@keyframes crm-popover-out {
+	from {
+		opacity: 1;
+		filter: blur(0);
+		transform: translate3d(0, 0, 0) scale(1);
+	}
+	to {
+		opacity: 0;
+		filter: blur(6px);
+		transform: translate3d(0, -0.25rem, 0) scale(0.98);
+	}
+}
+
 :root {
 	--font-heading:
 		var(--font-geist-sans), Geist, 'Geist Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
@@ -93,7 +119,7 @@
 	--radius: 0.625rem;
 	--canvas: #f8fafc;
 	--ink: #0f172a;
-	--sage: #2563eb;
+	--sage: #2f6f5e;
 	--crm-accent: #d97706;
 	--warning: #d97706;
 	--danger: #dc2626;
