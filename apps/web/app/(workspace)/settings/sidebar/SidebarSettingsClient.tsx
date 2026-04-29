@@ -97,13 +97,13 @@ export function SidebarSettingsClient() {
 	}
 
 	return (
-		<main className="min-h-full p-unit">
+		<main className="p-unit min-h-full">
 			<div className="grid w-full gap-5">
-				<header className="flex flex-col gap-3 border-b border-line pb-5 md:flex-row md:items-end md:justify-between">
+				<header className="border-line flex flex-col gap-3 border-b pb-5 md:flex-row md:items-end md:justify-between">
 					<div>
-						<p className="text-sm font-medium text-sage">AppSidebar</p>
-						<h1 className="mt-2 text-2xl font-semibold text-ink">Sidebar settings</h1>
-						<p className="mt-2 text-sm leading-6 text-ink-muted">
+						<p className="text-sage text-sm font-medium">AppSidebar</p>
+						<h1 className="text-ink mt-2 text-2xl font-semibold">Sidebar settings</h1>
+						<p className="text-ink-muted mt-2 text-sm leading-6">
 							Reorder items, hide secondary links, or add a custom navigation item.
 						</p>
 					</div>
@@ -119,10 +119,10 @@ export function SidebarSettingsClient() {
 					</div>
 				</header>
 
-				<Card className="rounded-lg border-line bg-surface shadow-none">
-					<CardHeader className="border-b border-line-soft">
-						<CardTitle className="text-base text-ink">Navigation items</CardTitle>
-						<p className="text-sm text-ink-muted">
+				<Card className="border-line bg-surface rounded-lg shadow-none">
+					<CardHeader className="border-line-soft border-b">
+						<CardTitle className="text-ink text-base">Navigation items</CardTitle>
+						<p className="text-ink-muted text-sm">
 							Drag rows to change order. Locked items cannot be hidden or deleted.
 						</p>
 					</CardHeader>
@@ -224,27 +224,27 @@ function SortableSidebarItem({
 				transition,
 				opacity: isDragging ? 0.58 : 1,
 			}}
-			className="grid gap-3 rounded-lg border border-line bg-surface-muted p-3 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center"
+			className="border-line bg-surface-muted grid gap-3 rounded-lg border p-3 md:grid-cols-[auto_auto_minmax(0,1fr)_auto] md:items-center"
 		>
 			<button
 				type="button"
-				className="flex h-9 w-9 cursor-grab items-center justify-center rounded-lg text-ink-muted hover:bg-sage-soft active:cursor-grabbing"
+				className="text-ink-muted hover:bg-sage-soft flex h-9 w-9 cursor-grab items-center justify-center rounded-lg active:cursor-grabbing"
 				aria-label={`Drag ${item.title}`}
 				{...attributes}
 				{...listeners}
 			>
 				<GripVertical className="h-4 w-4" />
 			</button>
-			<span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sage-soft text-sage">
+			<span className="bg-sage-soft text-sage flex h-9 w-9 items-center justify-center rounded-lg">
 				<Icon className="h-4 w-4" />
 			</span>
 			<div className="min-w-0">
 				<div className="flex flex-wrap items-center gap-2">
-					<p className="font-heading font-medium text-ink">{item.title}</p>
+					<p className="font-heading text-ink font-medium">{item.title}</p>
 					{item.locked && <Badge tone="neutral">locked</Badge>}
 					{!item.visible && <Badge tone="amber">hidden</Badge>}
 				</div>
-				<p className="truncate font-mono text-xs text-ink-muted">{item.href}</p>
+				<p className="text-ink-muted truncate font-mono text-xs">{item.href}</p>
 			</div>
 			<div className="flex gap-1.5 md:justify-end">
 				<SidebarToolButton

@@ -28,19 +28,19 @@ export const CalendarWeekView = () => {
 	)
 
 	return (
-		<ScrollArea className="h-full bg-surface font-body text-ink">
+		<ScrollArea className="bg-surface font-body text-ink h-full">
 			<div className="min-w-230">
 				<div className="bg-surface">
-					<div className="sticky top-0 z-100 grid grid-cols-[64px_repeat(7,1fr)] border-b border-line-soft bg-surface/10 backdrop-blur-xs">
-						<div className="border-r border-line-soft" />
+					<div className="z-100 border-line-soft bg-surface/10 backdrop-blur-xs sticky top-0 grid grid-cols-[64px_repeat(7,1fr)] border-b">
+						<div className="border-line-soft border-r" />
 						{days.map((day) => (
 							<div key={day.toISOString()} className="border-line-soft px-3 py-3 last:border-r-0 sm:border-r">
-								<div className="font-mono text-[10px] tracking-[0.25em] text-ink-muted uppercase">
+								<div className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.25em]">
 									{format(day, 'EEE', { locale })}
 								</div>
 								<div
 									className={cn(
-										'mt-0.5 inline-flex size-7 items-center justify-center rounded-full font-heading text-base',
+										'font-heading mt-0.5 inline-flex size-7 items-center justify-center rounded-full text-base',
 										isToday(day) && 'bg-ink text-surface'
 									)}
 								>
@@ -51,11 +51,11 @@ export const CalendarWeekView = () => {
 					</div>
 
 					<div className="grid grid-cols-[64px_repeat(7,1fr)]">
-						<div className="border-r border-line-soft">
+						<div className="border-line-soft border-r">
 							{hours.map((hour) => (
 								<div
 									key={hour}
-									className="flex items-start justify-end px-2 py-1 font-mono text-[10px] text-ink-muted"
+									className="text-ink-muted flex items-start justify-end px-2 py-1 font-mono text-[10px]"
 									style={{ height: HOUR_PX }}
 								>
 									{String(hour).padStart(2, '0')}:00
@@ -66,19 +66,19 @@ export const CalendarWeekView = () => {
 						{days.map((day) => (
 							<div
 								key={day.toISOString()}
-								className="relative border-line-soft last:border-r-0 sm:border-r"
+								className="border-line-soft relative last:border-r-0 sm:border-r"
 								style={{ height: hours.length * HOUR_PX }}
 							>
 								{hours.map((hour, hourIndex) => (
 									<button
 										key={hour}
 										type="button"
-										className="absolute inset-x-0 border-t border-line-soft text-left transition-colors hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-2 focus-visible:ring-sage/35 focus-visible:outline-none"
+										className="border-line-soft hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-sage/35 absolute inset-x-0 border-t text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
 										style={{ top: hourIndex * HOUR_PX, height: HOUR_PX }}
 										onClick={() => onTimeSlotClick?.(calendarSlot(day, hour))}
 										aria-label={`Add lesson at ${format(calendarSlot(day, hour), 'HH:mm')}`}
 									>
-										<span className="mt-2 ml-2 inline-flex items-center gap-1 rounded-md text-sage opacity-0 transition-opacity hover:opacity-100 focus:opacity-100">
+										<span className="text-sage ml-2 mt-2 inline-flex items-center gap-1 rounded-md opacity-0 transition-opacity hover:opacity-100 focus:opacity-100">
 											<Plus className="h-3 w-3" />
 										</span>
 									</button>
@@ -109,7 +109,7 @@ export const CalendarWeekView = () => {
 											}}
 											onClick={() => onEventClick?.(event)}
 										>
-											<div className="truncate text-xs leading-tight font-medium">{event.title}</div>
+											<div className="truncate text-xs font-medium leading-tight">{event.title}</div>
 											<div className="font-mono text-xs opacity-70">
 												{formatEventTime(event.start)}-{formatEventTime(event.end)}
 											</div>
@@ -143,8 +143,8 @@ function NowLine() {
 			className="absolute inset-x-0 z-20 flex items-center"
 			style={{ top: ((currentMinutes - calendarStart) / 60) * HOUR_PX }}
 		>
-			<span className="size-2 rounded-full bg-danger ring-2 ring-danger/30" />
-			<span className="h-px flex-1 bg-danger" />
+			<span className="bg-danger ring-danger/30 size-2 rounded-full ring-2" />
+			<span className="bg-danger h-px flex-1" />
 		</div>
 	)
 }

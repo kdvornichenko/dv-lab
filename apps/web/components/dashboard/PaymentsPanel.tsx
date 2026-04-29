@@ -88,7 +88,7 @@ export function PaymentsPanel({
 				count: studentCounts[student.id] ?? 0,
 				keywords: [student.email ?? '', student.phone ?? ''].filter(Boolean),
 				leading: (
-					<span className="grid size-5 place-content-center rounded-full bg-sage-soft font-mono text-[10px] text-sage">
+					<span className="bg-sage-soft text-sage grid size-5 place-content-center rounded-full font-mono text-[10px]">
 						{paymentInitials(student.fullName) || 'ST'}
 					</span>
 				),
@@ -168,8 +168,8 @@ export function PaymentsPanel({
 		<section id="payments" className="space-y-4">
 			<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 				<div>
-					<h1 className="font-heading text-xl font-semibold text-ink">Payments</h1>
-					<p className="mt-1 text-sm text-ink-muted">
+					<h1 className="font-heading text-ink text-xl font-semibold">Payments</h1>
+					<p className="text-ink-muted mt-1 text-sm">
 						{filteredRows.length} of {payments.length} · {formatPaymentMonth(now)} · {currentMonthCount} this month
 					</p>
 				</div>
@@ -178,7 +178,7 @@ export function PaymentsPanel({
 						<FilterIcon />
 						Filters
 						{activeFilters.length > 0 ? (
-							<span className="ml-0.5 rounded bg-sage-soft px-1.5 font-mono text-[10px] text-sage">
+							<span className="bg-sage-soft text-sage ml-0.5 rounded px-1.5 font-mono text-[10px]">
 								{activeFilters.length}
 							</span>
 						) : null}
@@ -218,12 +218,12 @@ export function PaymentsPanel({
 			>
 				<div
 					className={cn(
-						'grid gap-2 rounded-lg border border-line bg-surface-muted p-2.5 md:grid-cols-[minmax(4rem,0.6fr)_repeat(4,minmax(8rem,0.8fr))]',
+						'border-line bg-surface-muted grid gap-2 rounded-lg border p-2.5 md:grid-cols-[minmax(4rem,0.6fr)_repeat(4,minmax(8rem,0.8fr))]',
 						!showFilters && 'pointer-events-none'
 					)}
 				>
 					<div className="relative">
-						<Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-ink-muted" />
+						<Search className="text-ink-muted pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
 						<Input
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
@@ -258,7 +258,7 @@ export function PaymentsPanel({
 						onValueChange={(value) => setCurrencyFilter((value[0] as CurrencyFilter | undefined) ?? ALL_CURRENCIES)}
 						renderOption={(option) => (
 							<>
-								<span className="grid size-5 place-content-center rounded bg-surface-muted font-mono text-[10px] text-ink-muted">
+								<span className="bg-surface-muted text-ink-muted grid size-5 place-content-center rounded font-mono text-[10px]">
 									{option.label}
 								</span>
 								<span className="min-w-0 flex-1 truncate">{option.label}</span>
@@ -289,7 +289,7 @@ export function PaymentsPanel({
 						transition={{ duration: 0.16, ease: [0.23, 1, 0.32, 1] }}
 						className="flex flex-wrap items-center gap-2"
 					>
-						<span className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-ink-muted uppercase">
+						<span className="text-ink-muted inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider">
 							<CalendarRange className="size-3" />
 							Applied
 						</span>
@@ -302,7 +302,7 @@ export function PaymentsPanel({
 								animate={shouldReduceMotion ? undefined : { opacity: 1, scale: 1 }}
 								exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.96 }}
 								transition={{ duration: 0.14, ease: [0.23, 1, 0.32, 1] }}
-								className="inline-flex h-7 items-center gap-1.5 rounded-md border border-sage-line bg-sage-soft px-2.5 font-mono text-[11px] text-sage transition-colors hover:border-sage hover:bg-sage-soft/80"
+								className="border-sage-line bg-sage-soft text-sage hover:border-sage hover:bg-sage-soft/80 inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[11px] transition-colors"
 								onClick={filter.clear}
 							>
 								{filter.label}
@@ -318,7 +318,7 @@ export function PaymentsPanel({
 
 			<motion.div
 				layout
-				className="rounded-lg border border-line bg-card shadow-[0_18px_55px_-44px_var(--shadow-sage)]"
+				className="border-line bg-card rounded-lg border shadow-[0_18px_55px_-44px_var(--shadow-sage)]"
 			>
 				<ScrollArea className="w-full">
 					<Table className="min-w-230">
@@ -349,8 +349,8 @@ export function PaymentsPanel({
 							{filteredRows.length === 0 && (
 								<TableRow>
 									<TableCell colSpan={8} className="px-4 py-10 text-center">
-										<p className="font-heading text-sm font-semibold text-ink">No payments match these filters</p>
-										<p className="mt-1 text-xs text-ink-muted">Clear filters or record a new student payment.</p>
+										<p className="font-heading text-ink text-sm font-semibold">No payments match these filters</p>
+										<p className="text-ink-muted mt-1 text-xs">Clear filters or record a new student payment.</p>
 									</TableCell>
 								</TableRow>
 							)}
@@ -390,7 +390,7 @@ function PaymentMonthGroup({
 	return (
 		<>
 			<TableRow className="bg-surface-muted hover:bg-surface-muted">
-				<TableCell className="ps-4 font-heading text-sm font-semibold text-ink" colSpan={6}>
+				<TableCell className="font-heading text-ink ps-4 text-sm font-semibold" colSpan={6}>
 					{label}
 				</TableCell>
 				<TableCell className="pe-4 text-right font-mono text-sm font-semibold tabular-nums" colSpan={2}>
@@ -424,12 +424,12 @@ function PaymentTableRow({
 	const status = PAYMENT_STATUS[row.status]
 	return (
 		<TableRow>
-			<TableCell className="ps-4 font-mono text-sm text-ink">{paymentNumber(row.payment)}</TableCell>
+			<TableCell className="text-ink ps-4 font-mono text-sm">{paymentNumber(row.payment)}</TableCell>
 			<TableCell>
-				<div className="font-medium text-ink">{row.studentName}</div>
-				<div className="text-xs text-ink-muted">{row.student?.email || row.payment.comment || 'No email'}</div>
+				<div className="text-ink font-medium">{row.studentName}</div>
+				<div className="text-ink-muted text-xs">{row.student?.email || row.payment.comment || 'No email'}</div>
 			</TableCell>
-			<TableCell className="font-mono text-sm text-ink-muted tabular-nums">{formatPaymentDate(row.issued)}</TableCell>
+			<TableCell className="text-ink-muted font-mono text-sm tabular-nums">{formatPaymentDate(row.issued)}</TableCell>
 			<TableCell className="text-ink-muted capitalize">{paymentMethodLabel(row.payment.method)}</TableCell>
 			<TableCell>
 				<Badge variant="outline" className={cn('gap-1.5', status.className)}>
@@ -437,10 +437,10 @@ function PaymentTableRow({
 					{status.label}
 				</Badge>
 			</TableCell>
-			<TableCell className="text-right font-mono text-sm text-ink-muted tabular-nums">
+			<TableCell className="text-ink-muted text-right font-mono text-sm tabular-nums">
 				{row.balance ? formatCurrencyAmount(row.balance.balance, row.balance.currency) : '-'}
 			</TableCell>
-			<TableCell className="pe-4 text-right font-mono text-ink tabular-nums">
+			<TableCell className="text-ink pe-4 text-right font-mono tabular-nums">
 				{formatCurrencyAmount(row.payment.amount, row.currency)}
 			</TableCell>
 			<TableCell className="pe-4 text-right">

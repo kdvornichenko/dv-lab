@@ -110,7 +110,7 @@ export function FacetedFilter({
 					<span>{label}</span>
 					{count > 0 ? (
 						<>
-							<Separator orientation="vertical" className="mx-0.5 h-4 bg-sage-line" />
+							<Separator orientation="vertical" className="bg-sage-line mx-0.5 h-4" />
 							<Badge tone="green" className="h-5 min-w-5 rounded px-1.5 font-mono text-[10px]">
 								{selectedCount}
 							</Badge>
@@ -120,7 +120,7 @@ export function FacetedFilter({
 								) : (
 									<>
 										{selectedOptions.slice(0, 2).map((option) => (
-											<span key={option.value} className="truncate rounded bg-surface/80 px-1.5 py-0.5 text-[11px]">
+											<span key={option.value} className="bg-surface/80 truncate rounded px-1.5 py-0.5 text-[11px]">
 												{option.label}
 											</span>
 										))}
@@ -132,8 +132,8 @@ export function FacetedFilter({
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent className={cn('w-72 p-0', contentClassName)} align="start" sideOffset={8}>
-				<div className="border-b border-line-soft p-2">
-					<InputGroup className="h-8 border-line bg-surface">
+				<div className="border-line-soft border-b p-2">
+					<InputGroup className="border-line bg-surface h-8">
 						<InputGroupAddon>
 							<Search className="size-3.5" />
 						</InputGroupAddon>
@@ -182,7 +182,7 @@ export function FacetedFilter({
 										</>
 									)}
 									{option.count !== undefined ? (
-										<span className="ml-auto font-mono text-[11px] text-ink-muted tabular-nums">{option.count}</span>
+										<span className="text-ink-muted ml-auto font-mono text-[11px] tabular-nums">{option.count}</span>
 									) : null}
 									{mode === 'single' && selected ? <Check className="ml-auto size-3.5" /> : null}
 								</motion.button>
@@ -190,11 +190,11 @@ export function FacetedFilter({
 						})}
 					</AnimatePresence>
 					{filteredOptions.length === 0 ? (
-						<div className="px-2 py-6 text-center text-xs text-ink-muted">{emptyText}</div>
+						<div className="text-ink-muted px-2 py-6 text-center text-xs">{emptyText}</div>
 					) : null}
 				</div>
-				<div className="flex items-center justify-between border-t border-line-soft px-3 py-2">
-					<span className="font-mono text-[10px] tracking-wider text-ink-muted uppercase">
+				<div className="border-line-soft flex items-center justify-between border-t px-3 py-2">
+					<span className="text-ink-muted font-mono text-[10px] uppercase tracking-wider">
 						{selectedCount} selected
 					</span>
 					<Button

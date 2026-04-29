@@ -8,6 +8,8 @@ coverage
 .vscode
 .pnp
 .pnp.js
+.yarn
+.yarnrc.yml
 yarn.lock
 *.tsbuildinfo
 .env
