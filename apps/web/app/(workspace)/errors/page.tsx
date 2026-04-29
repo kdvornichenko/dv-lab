@@ -8,7 +8,6 @@ import {
 	CalendarClock,
 	Copy,
 	Database,
-	Filter,
 	Pause,
 	Play,
 	RefreshCw,
@@ -18,6 +17,7 @@ import {
 	Trash2,
 	Users,
 	WalletCards,
+	X,
 	XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -27,7 +27,6 @@ import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -212,11 +211,11 @@ export default function ErrorLogPage() {
 			<div className="mx-auto w-full max-w-7xl space-y-4">
 				<header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 					<div className="flex min-w-0 items-center gap-2">
-						<Terminal className="size-4 shrink-0 text-ink-muted" />
-						<h1 className="font-heading text-xl font-semibold text-ink">Logs</h1>
+						<Terminal className="text-ink-muted size-4 shrink-0" />
+						<h1 className="font-heading text-ink text-xl font-semibold">Logs</h1>
 						<Badge variant="outline" className="ml-1 gap-1.5 font-mono text-[10px] uppercase">
 							<span
-								className={cn('size-1.5 rounded-full', isPaused ? 'bg-ink-muted/60' : 'animate-pulse bg-success')}
+								className={cn('size-1.5 rounded-full', isPaused ? 'bg-ink-muted/60' : 'bg-success animate-pulse')}
 							/>
 							{isPaused ? 'paused' : 'live'}
 						</Badge>
@@ -226,7 +225,7 @@ export default function ErrorLogPage() {
 					</div>
 
 					<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-						<InputGroup className="w-full bg-surface sm:w-80">
+						<InputGroup className="bg-surface w-full sm:w-80">
 							<InputGroupAddon>
 								<Search className="size-3.5" />
 							</InputGroupAddon>
@@ -262,49 +261,46 @@ export default function ErrorLogPage() {
 					</div>
 				</header>
 
-				<section className="rounded-xl border border-line bg-surface shadow-xs">
-					<div className="flex flex-col gap-3 border-b border-line-soft p-3 lg:flex-row lg:items-center lg:justify-between">
+				<section className="border-line bg-surface shadow-xs rounded-xl border">
+					<div className="border-line-soft flex flex-col gap-3 border-b p-3 lg:flex-row lg:items-center lg:justify-between">
 						<div className="flex min-w-0 flex-wrap items-center gap-2">
-							<Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as LogType)}>
-								<SelectTrigger className="h-8 w-44 bg-background font-mono text-xs" aria-label="Filter logs by type">
-									<Filter className="size-3.5" />
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{LOG_TYPES.map((item) => (
-										<SelectItem key={item.value} value={item.value}>
-											{item.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
 							{LOG_TYPES.filter((item) => item.value !== 'all').map((item) => {
 								const value = item.value as Exclude<LogType, 'all'>
 								const meta = LOG_TYPE_META[value]
 								const Icon = meta.icon
+								const isActive = typeFilter === value
 								return (
 									<Button
 										key={value}
 										type="button"
 										size="sm"
-										variant={typeFilter === value ? 'secondary' : 'ghost'}
-										className="h-8 gap-1.5 px-2.5 font-mono text-[11px]"
-										onClick={() => setTypeFilter(typeFilter === value ? 'all' : value)}
+										variant={isActive ? 'secondary' : 'ghost'}
+										className={cn(
+											'relative h-8 gap-1.5 overflow-hidden font-mono text-[11px] transition-all',
+											isActive && 'pr-6!'
+										)}
+										onClick={() => setTypeFilter(isActive ? 'all' : value)}
 									>
 										<Icon className="size-3.5" />
 										{meta.label}
 										<span className="text-ink-muted tabular-nums">{typeCounts[value] ?? 0}</span>
+										<X
+											className={cn(
+												'absolute right-1 top-1/2 size-3.5 -translate-y-1/2 transition-all',
+												isActive ? 'opacity-100 blur-none' : 'opacity-0 blur-sm'
+											)}
+										/>
 									</Button>
 								)
 							})}
 						</div>
-						<p className="font-mono text-[11px] text-ink-muted">
+						<p className="text-ink-muted font-mono text-[11px]">
 							Showing {filteredEntries.length} of {entries.length} entries · click a row for details
 						</p>
 					</div>
 
 					<div className="overflow-x-auto">
-						<Table className="min-w-[1040px] font-mono text-xs">
+						<Table className="min-w-260 font-mono text-xs">
 							<TableHeader>
 								<TableRow className="bg-background hover:bg-background">
 									<TableHead className="ps-4 text-[10px] tracking-wider">Time</TableHead>
@@ -342,9 +338,9 @@ export default function ErrorLogPage() {
 									<TableRow>
 										<TableCell colSpan={8} className="px-4 py-12 text-center">
 											<div className="mx-auto max-w-sm">
-												<AlertCircle className="mx-auto size-5 text-ink-muted" />
-												<p className="mt-2 font-heading text-sm font-semibold text-ink">No logs match this view</p>
-												<p className="mt-1 text-xs text-ink-muted">
+												<AlertCircle className="text-ink-muted mx-auto size-5" />
+												<p className="font-heading text-ink mt-2 text-sm font-semibold">No logs match this view</p>
+												<p className="text-ink-muted mt-1 text-xs">
 													Clear the query or switch the type filter to inspect another log stream.
 												</p>
 											</div>
@@ -382,7 +378,7 @@ function LogTableRow({
 			tabIndex={0}
 			aria-selected={active}
 			className={cn(
-				'cursor-pointer transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/35 focus-visible:outline-none',
+				'focus-visible:ring-ring/35 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-[3px]',
 				active ? 'bg-danger-soft/80 hover:bg-danger-soft/80' : 'bg-danger-soft/30 hover:bg-danger-soft/60'
 			)}
 			onClick={onSelect}
@@ -392,11 +388,11 @@ function LogTableRow({
 				onSelect()
 			}}
 		>
-			<TableCell className="ps-4 text-ink-muted tabular-nums">{entry.timeLabel}</TableCell>
+			<TableCell className="text-ink-muted ps-4 tabular-nums">{entry.timeLabel}</TableCell>
 			<TableCell>
 				<span className="inline-flex items-center gap-1.5">
-					<span className="size-1.5 rounded-full bg-danger" />
-					<span className="text-[10px] tracking-wider text-danger uppercase">error</span>
+					<span className="bg-danger size-1.5 rounded-full" />
+					<span className="text-danger text-[10px] uppercase tracking-wider">error</span>
 				</span>
 			</TableCell>
 			<TableCell>
@@ -405,12 +401,12 @@ function LogTableRow({
 					{meta.label}
 				</Badge>
 			</TableCell>
-			<TableCell className="max-w-40 truncate text-ink-muted">{entry.source}</TableCell>
-			<TableCell className="max-w-40 truncate text-ink-muted">{entry.endpoint ?? '-'}</TableCell>
+			<TableCell className="text-ink-muted max-w-40 truncate">{entry.source}</TableCell>
+			<TableCell className="text-ink-muted max-w-40 truncate">{entry.endpoint ?? '-'}</TableCell>
 			<TableCell className="text-ink-muted tabular-nums">{entry.eventId}</TableCell>
 			<TableCell className="max-w-xl">
 				<span className="flex items-center gap-2">
-					<AlertTriangle className="size-3.5 shrink-0 text-danger" />
+					<AlertTriangle className="text-danger size-3.5 shrink-0" />
 					<span className="truncate">{entry.message}</span>
 				</span>
 			</TableCell>
@@ -421,7 +417,7 @@ function LogTableRow({
 							type="button"
 							variant="ghost"
 							size="icon"
-							className="size-8 text-ink-muted hover:bg-danger-soft hover:text-danger"
+							className="text-ink-muted hover:bg-danger-soft hover:text-danger size-8"
 							aria-label={`Delete ${entry.source} log`}
 							onClick={onDelete}
 						>
@@ -449,20 +445,20 @@ function LogDetailSheet({
 
 	return (
 		<Sheet open={Boolean(entry)} onOpenChange={(open) => !open && onClose()}>
-			<SheetContent className="!max-w-xl gap-0 bg-surface p-0 sm:w-[34rem]" side="right">
+			<SheetContent className="max-w-xl! bg-surface sm:w-136 gap-0 p-0" side="right">
 				{entry && meta ? (
 					<>
-						<SheetHeader className="border-b border-line-soft p-5 pr-12">
+						<SheetHeader className="border-line-soft border-b p-5 pr-12">
 							<SheetTitle className="flex items-center gap-2 font-mono text-base">
-								<span className="size-1.5 rounded-full bg-danger" />
-								<span className="text-[10px] tracking-wider text-danger uppercase">error</span>
-								<span className="truncate text-ink">{entry.eventId}</span>
+								<span className="bg-danger size-1.5 rounded-full" />
+								<span className="text-danger text-[10px] uppercase tracking-wider">error</span>
+								<span className="text-ink truncate">{entry.eventId}</span>
 								<Badge tone={meta.badge} className="gap-1.5 font-mono text-[10px]">
 									<Icon className="size-3" />
 									{meta.label}
 								</Badge>
 							</SheetTitle>
-							<p className="mt-1 font-mono text-[11px] text-ink-muted">
+							<p className="text-ink-muted mt-1 font-mono text-[11px]">
 								{entry.dateLabel} · {entry.timeLabel} · {entry.source}
 							</p>
 							<SheetDescription className="sr-only">
@@ -473,7 +469,7 @@ function LogDetailSheet({
 						<ScrollArea className="min-h-0 flex-1">
 							<div className="space-y-6 py-5">
 								<LogSection title="Message" copyValue={entry.message}>
-									<pre className="overflow-x-auto rounded-md border border-line-soft bg-surface-muted p-3 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-ink/90">
+									<pre className="border-line-soft bg-surface-muted text-ink/90 overflow-x-auto whitespace-pre-wrap rounded-md border p-3 font-mono text-[12px] leading-relaxed">
 										{entry.message}
 									</pre>
 								</LogSection>
@@ -487,7 +483,7 @@ function LogDetailSheet({
 								</LogSection>
 
 								<LogSection title="Payload" copyValue={JSON.stringify(entry, null, 2)}>
-									<pre className="max-h-72 overflow-auto rounded-md border border-line-soft bg-surface-muted p-3 font-mono text-[11px] leading-relaxed text-ink/85">
+									<pre className="border-line-soft bg-surface-muted text-ink/85 max-h-72 overflow-auto rounded-md border p-3 font-mono text-[11px] leading-relaxed">
 										{JSON.stringify(
 											{
 												id: entry.id,
@@ -530,11 +526,11 @@ function LogSection({ title, copyValue, children }: { title: string; copyValue?:
 	return (
 		<section className="px-5">
 			<header className="mb-2 flex items-center justify-between gap-3">
-				<h3 className="font-mono text-[10px] tracking-[0.25em] text-ink-muted uppercase">{title}</h3>
+				<h3 className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.25em]">{title}</h3>
 				{copyValue ? (
 					<button
 						type="button"
-						className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] tracking-[0.2em] text-ink-muted uppercase transition-colors hover:bg-sage-soft hover:text-sage"
+						className="text-ink-muted hover:bg-sage-soft hover:text-sage inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors"
 						onClick={() => {
 							void navigator.clipboard.writeText(copyValue)
 							setCopied(true)
@@ -555,15 +551,15 @@ function KeyVal({ label, value, copy = false }: { label: string; value: string; 
 	const [copied, setCopied] = useState(false)
 
 	return (
-		<div className="group flex items-baseline justify-between gap-3 rounded-md px-2 py-1 transition-colors hover:bg-sage-soft/45">
-			<span className="font-mono text-[10px] tracking-[0.2em] text-ink-muted uppercase">{label}</span>
+		<div className="hover:bg-sage-soft/45 group flex items-baseline justify-between gap-3 rounded-md px-2 py-1 transition-colors">
+			<span className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.2em]">{label}</span>
 			<span className="flex min-w-0 items-center gap-1.5">
-				<span className="max-w-[280px] truncate font-mono text-[12px] text-ink/90">{value}</span>
+				<span className="max-w-70 text-ink/90 truncate font-mono text-[12px]">{value}</span>
 				{copy ? (
 					<button
 						type="button"
 						aria-label={`Copy ${label}`}
-						className="inline-flex size-5 items-center justify-center rounded text-ink-muted/50 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sage-soft hover:text-sage"
+						className="text-ink-muted/50 hover:bg-sage-soft hover:text-sage inline-flex size-5 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100"
 						onClick={() => {
 							void navigator.clipboard.writeText(value)
 							setCopied(true)
