@@ -50,6 +50,8 @@ const isApiErrorResponse = (value: unknown): value is ApiErrorResponse =>
 	Boolean(value && typeof value === 'object' && (value as { ok?: unknown }).ok === false)
 const canImportCalendarChanges = (calendar: CalendarResponse) =>
 	calendar.connection.status === 'connected' && calendar.connection.tokenAvailable
+const requestLabel = (path: string, init: RequestInit) =>
+	`${(init.method ?? 'GET').toUpperCase()} ${apiBaseUrl()}${path}`
 
 async function accessToken(options: { forceRefresh?: boolean } = {}) {
 	const supabase = createClient()
@@ -96,8 +98,9 @@ export class TeacherCrmApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+	const label = requestLabel(path, init)
 	const token = await accessToken()
-	if (!token) throw new TeacherCrmApiError('Authentication session is missing', 401, 'UNAUTHENTICATED')
+	if (!token) throw new TeacherCrmApiError(`${label}: Authentication session is missing`, 401, 'UNAUTHENTICATED')
 
 	const request = async (accessTokenValue: string) => {
 		const headers = new Headers(init.headers)
@@ -128,7 +131,8 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
 	if (!response.ok || !payload || isApiErrorResponse(payload)) {
 		const error = isApiErrorResponse(payload) ? payload.error : null
-		throw new TeacherCrmApiError(error?.message ?? 'Teacher CRM API request failed', response.status, error?.code)
+		const message = error?.message ?? 'Teacher CRM API request failed'
+		throw new TeacherCrmApiError(`${label}: ${message}`, response.status, error?.code)
 	}
 
 	return payload as T

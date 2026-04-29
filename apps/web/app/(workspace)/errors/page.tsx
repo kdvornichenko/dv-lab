@@ -45,6 +45,7 @@ import { cn } from '@/lib/utils'
 type LogType = 'all' | 'calendar' | 'students' | 'lessons' | 'payments' | 'settings' | 'system'
 
 type LogEntryView = CrmErrorLogEntry & {
+	endpoint: string | null
 	eventId: string
 	type: Exclude<LogType, 'all'>
 	typeLabel: string
@@ -103,10 +104,20 @@ function inferLogType(error: CrmErrorLogEntry): Exclude<LogType, 'all'> {
 	return 'system'
 }
 
+function extractEndpoint(message: string) {
+	const match = message.match(/\b(GET|POST|PATCH|PUT|DELETE)\s+(\/?api\/[^\s:]+)/i)
+	if (!match) return null
+
+	const method = match[1].toUpperCase()
+	const endpoint = match[2].startsWith('/') ? match[2] : `/${match[2]}`
+	return `${method} ${endpoint}`
+}
+
 function normalizeLogEntry(error: CrmErrorLogEntry): LogEntryView {
 	const type = inferLogType(error)
 	return {
 		...error,
+		endpoint: extractEndpoint(error.message),
 		eventId: `log_${error.id.slice(-6)}`,
 		type,
 		typeLabel: LOG_TYPE_META[type].label,
@@ -119,7 +130,7 @@ function normalizeLogEntry(error: CrmErrorLogEntry): LogEntryView {
 
 function matchLogQuery(entry: LogEntryView, query: string) {
 	if (!query) return true
-	return [entry.eventId, entry.traceId, entry.typeLabel, entry.source, entry.message]
+	return [entry.eventId, entry.traceId, entry.typeLabel, entry.endpoint, entry.source, entry.message]
 		.join(' ')
 		.toLowerCase()
 		.includes(query)
@@ -293,13 +304,14 @@ export default function ErrorLogPage() {
 					</div>
 
 					<div className="overflow-x-auto">
-						<Table className="min-w-[900px] font-mono text-xs">
+						<Table className="min-w-[1040px] font-mono text-xs">
 							<TableHeader>
 								<TableRow className="bg-background hover:bg-background">
 									<TableHead className="ps-4 text-[10px] tracking-wider">Time</TableHead>
 									<TableHead className="text-[10px] tracking-wider">Lvl</TableHead>
 									<TableHead className="text-[10px] tracking-wider">Type</TableHead>
 									<TableHead className="text-[10px] tracking-wider">Source</TableHead>
+									<TableHead className="text-[10px] tracking-wider">Endpoint</TableHead>
 									<TableHead className="text-[10px] tracking-wider">Event</TableHead>
 									<TableHead className="text-[10px] tracking-wider">Message</TableHead>
 									<TableHead className="pe-4 text-right text-[10px] tracking-wider">Actions</TableHead>
@@ -309,7 +321,7 @@ export default function ErrorLogPage() {
 								{isLoading &&
 									Array.from({ length: 6 }).map((_, index) => (
 										<TableRow key={index}>
-											<TableCell colSpan={7} className="px-4 py-2">
+											<TableCell colSpan={8} className="px-4 py-2">
 												<Skeleton className="h-8 w-full" />
 											</TableCell>
 										</TableRow>
@@ -328,7 +340,7 @@ export default function ErrorLogPage() {
 
 								{!isLoading && filteredEntries.length === 0 && (
 									<TableRow>
-										<TableCell colSpan={7} className="px-4 py-12 text-center">
+										<TableCell colSpan={8} className="px-4 py-12 text-center">
 											<div className="mx-auto max-w-sm">
 												<AlertCircle className="mx-auto size-5 text-ink-muted" />
 												<p className="mt-2 font-heading text-sm font-semibold text-ink">No logs match this view</p>
@@ -393,7 +405,8 @@ function LogTableRow({
 					{meta.label}
 				</Badge>
 			</TableCell>
-			<TableCell className="max-w-44 truncate text-ink-muted">{entry.source}</TableCell>
+			<TableCell className="max-w-40 truncate text-ink-muted">{entry.source}</TableCell>
+			<TableCell className="max-w-40 truncate text-ink-muted">{entry.endpoint ?? '-'}</TableCell>
 			<TableCell className="text-ink-muted tabular-nums">{entry.eventId}</TableCell>
 			<TableCell className="max-w-xl">
 				<span className="flex items-center gap-2">
@@ -470,6 +483,7 @@ function LogDetailSheet({
 									<KeyVal label="Trace" value={entry.traceId} copy />
 									<KeyVal label="Type" value={entry.typeLabel} />
 									<KeyVal label="Source" value={entry.source} />
+									{entry.endpoint ? <KeyVal label="Endpoint" value={entry.endpoint} copy /> : null}
 								</LogSection>
 
 								<LogSection title="Payload" copyValue={JSON.stringify(entry, null, 2)}>
@@ -478,6 +492,7 @@ function LogDetailSheet({
 											{
 												id: entry.id,
 												type: entry.type,
+												endpoint: entry.endpoint,
 												source: entry.source,
 												message: entry.message,
 												createdAt: entry.createdAt,
