@@ -90,31 +90,31 @@
 	--font-numeric:
 		var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		monospace;
-	--radius: 0.5rem;
-	--canvas: #f7f5ef;
-	--ink: #181713;
-	--sage: #2f6f5e;
-	--crm-accent: #9a6a1f;
-	--warning: #9a6a1f;
-	--danger: #a64235;
-	--success: #3f7a4d;
-	--chart: #7d7a72;
-	--canvas-warm: color-mix(in srgb, var(--canvas) 92%, var(--crm-accent) 8%);
-	--surface: color-mix(in srgb, var(--canvas) 96%, white 4%);
-	--surface-muted: color-mix(in srgb, var(--surface) 92%, var(--ink) 8%);
-	--ink-muted: color-mix(in srgb, var(--ink) 64%, var(--canvas) 36%);
-	--line: color-mix(in srgb, var(--ink) 14%, var(--canvas) 86%);
-	--line-soft: color-mix(in srgb, var(--ink) 9%, var(--canvas) 91%);
-	--line-strong: color-mix(in srgb, var(--ink) 24%, var(--canvas) 76%);
-	--sage-soft: color-mix(in srgb, var(--sage) 14%, var(--canvas) 86%);
-	--sage-line: color-mix(in srgb, var(--sage) 30%, var(--canvas) 70%);
-	--warning-soft: color-mix(in srgb, var(--warning) 14%, var(--canvas) 86%);
-	--warning-line: color-mix(in srgb, var(--warning) 30%, var(--canvas) 70%);
-	--danger-soft: color-mix(in srgb, var(--danger) 14%, var(--canvas) 86%);
-	--danger-line: color-mix(in srgb, var(--danger) 30%, var(--canvas) 70%);
-	--success-soft: color-mix(in srgb, var(--success) 14%, var(--canvas) 86%);
-	--success-line: color-mix(in srgb, var(--success) 30%, var(--canvas) 70%);
-	--shadow-sage: color-mix(in srgb, var(--sage) 20%, transparent);
+	--radius: 0.625rem;
+	--canvas: #f8fafc;
+	--ink: #0f172a;
+	--sage: #2563eb;
+	--crm-accent: #d97706;
+	--warning: #d97706;
+	--danger: #dc2626;
+	--success: #059669;
+	--chart: #64748b;
+	--canvas-warm: #eef2f7;
+	--surface: #ffffff;
+	--surface-muted: #f1f5f9;
+	--ink-muted: #64748b;
+	--line: #e2e8f0;
+	--line-soft: #edf2f7;
+	--line-strong: #cbd5e1;
+	--sage-soft: color-mix(in srgb, var(--sage) 10%, #ffffff 90%);
+	--sage-line: color-mix(in srgb, var(--sage) 24%, #ffffff 76%);
+	--warning-soft: color-mix(in srgb, var(--warning) 12%, #ffffff 88%);
+	--warning-line: color-mix(in srgb, var(--warning) 28%, #ffffff 72%);
+	--danger-soft: color-mix(in srgb, var(--danger) 10%, #ffffff 90%);
+	--danger-line: color-mix(in srgb, var(--danger) 24%, #ffffff 76%);
+	--success-soft: color-mix(in srgb, var(--success) 10%, #ffffff 90%);
+	--success-line: color-mix(in srgb, var(--success) 24%, #ffffff 76%);
+	--shadow-sage: color-mix(in srgb, var(--ink) 14%, transparent);
 	--background: var(--canvas);
 	--foreground: var(--ink);
 	--card: var(--surface);
@@ -124,7 +124,7 @@
 	--primary: var(--sage);
 	--primary-foreground: #ffffff;
 	--secondary: var(--sage-soft);
-	--secondary-foreground: #1f5f4f;
+	--secondary-foreground: var(--sage);
 	--muted: var(--surface-muted);
 	--muted-foreground: var(--ink-muted);
 	--accent: color-mix(in srgb, var(--crm-accent) 16%, var(--canvas) 84%);
@@ -154,10 +154,7 @@ html {
 
 body {
 	margin: 0;
-	background:
-		linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0 1px, transparent 1px 18px),
-		linear-gradient(45deg, rgba(47, 111, 94, 0.035) 0 1px, transparent 1px 24px),
-		linear-gradient(180deg, var(--canvas) 0%, var(--canvas-warm) 100%);
+	background: linear-gradient(180deg, var(--canvas) 0%, var(--canvas-warm) 100%);
 	background-attachment: fixed;
 	color: var(--foreground);
 	font-family: var(--font-body);

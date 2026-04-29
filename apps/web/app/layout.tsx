@@ -89,7 +89,48 @@ const themeHydrationScript = `
 	try {
 		const raw = window.localStorage.getItem('teacher-crm-theme');
 		if (!raw) return;
-		const theme = JSON.parse(raw);
+		let theme = JSON.parse(raw);
+		const legacyDefault = {
+			radius: 'default',
+			headingFont: 'geist',
+			bodyFont: 'geist',
+			numberFont: 'geist',
+			colors: {
+				background: '#f7f5ef',
+				foreground: '#181713',
+				primary: '#2f6f5e',
+				accent: '#9a6a1f',
+				success: '#3f7a4d',
+				warning: '#9a6a1f',
+				danger: '#a64235',
+				chart: '#7d7a72'
+			}
+		};
+		const devlDefault = {
+			radius: 'default',
+			headingFont: 'geist',
+			bodyFont: 'geist',
+			numberFont: 'mono',
+			colors: {
+				background: '#f8fafc',
+				foreground: '#0f172a',
+				primary: '#2563eb',
+				accent: '#d97706',
+				success: '#059669',
+				warning: '#d97706',
+				danger: '#dc2626',
+				chart: '#64748b'
+			}
+		};
+		const sameTheme = (a, b) => a && b &&
+			a.radius === b.radius &&
+			a.headingFont === b.headingFont &&
+			a.bodyFont === b.bodyFont &&
+			a.numberFont === b.numberFont &&
+			Object.keys(b.colors).every((key) => a.colors?.[key] === b.colors[key]);
+		const resolvedTheme = sameTheme(theme, legacyDefault) ? devlDefault : theme;
+		if (resolvedTheme !== theme) window.localStorage.setItem('teacher-crm-theme', JSON.stringify(resolvedTheme));
+		theme = resolvedTheme;
 		const colors = theme.colors || {};
 		const style = document.documentElement.style;
 		const hex = /^#[0-9a-fA-F]{6}$/;
@@ -134,22 +175,22 @@ const themeHydrationScript = `
 		if (hex.test(colors.warning)) style.setProperty('--warning', colors.warning);
 		if (hex.test(colors.danger)) style.setProperty('--danger', colors.danger);
 		if (hex.test(colors.chart)) style.setProperty('--chart', colors.chart);
-		style.setProperty('--canvas-warm', 'color-mix(in srgb, var(--canvas) 92%, var(--crm-accent) 8%)');
-		style.setProperty('--surface', 'color-mix(in srgb, var(--canvas) 96%, white 4%)');
-		style.setProperty('--surface-muted', 'color-mix(in srgb, var(--surface) 92%, var(--ink) 8%)');
-		style.setProperty('--ink-muted', 'color-mix(in srgb, var(--ink) 64%, var(--canvas) 36%)');
-		style.setProperty('--line', 'color-mix(in srgb, var(--ink) 14%, var(--canvas) 86%)');
-		style.setProperty('--line-soft', 'color-mix(in srgb, var(--ink) 9%, var(--canvas) 91%)');
-		style.setProperty('--line-strong', 'color-mix(in srgb, var(--ink) 24%, var(--canvas) 76%)');
-		style.setProperty('--sage-soft', 'color-mix(in srgb, var(--sage) 14%, var(--canvas) 86%)');
-		style.setProperty('--sage-line', 'color-mix(in srgb, var(--sage) 30%, var(--canvas) 70%)');
-		style.setProperty('--warning-soft', 'color-mix(in srgb, var(--warning) 14%, var(--canvas) 86%)');
-		style.setProperty('--warning-line', 'color-mix(in srgb, var(--warning) 30%, var(--canvas) 70%)');
-		style.setProperty('--danger-soft', 'color-mix(in srgb, var(--danger) 14%, var(--canvas) 86%)');
-		style.setProperty('--danger-line', 'color-mix(in srgb, var(--danger) 30%, var(--canvas) 70%)');
-		style.setProperty('--success-soft', 'color-mix(in srgb, var(--success) 14%, var(--canvas) 86%)');
-		style.setProperty('--success-line', 'color-mix(in srgb, var(--success) 30%, var(--canvas) 70%)');
-		style.setProperty('--shadow-sage', 'color-mix(in srgb, var(--sage) 20%, transparent)');
+		style.setProperty('--canvas-warm', 'color-mix(in srgb, var(--canvas) 96%, var(--chart) 4%)');
+		style.setProperty('--surface', 'color-mix(in srgb, var(--canvas) 10%, #ffffff 90%)');
+		style.setProperty('--surface-muted', 'color-mix(in srgb, var(--canvas) 78%, var(--ink) 7%)');
+		style.setProperty('--ink-muted', 'color-mix(in srgb, var(--ink) 58%, var(--canvas) 42%)');
+		style.setProperty('--line', 'color-mix(in srgb, var(--ink) 12%, var(--canvas) 88%)');
+		style.setProperty('--line-soft', 'color-mix(in srgb, var(--ink) 7%, var(--canvas) 93%)');
+		style.setProperty('--line-strong', 'color-mix(in srgb, var(--ink) 20%, var(--canvas) 80%)');
+		style.setProperty('--sage-soft', 'color-mix(in srgb, var(--sage) 10%, var(--surface) 90%)');
+		style.setProperty('--sage-line', 'color-mix(in srgb, var(--sage) 24%, var(--surface) 76%)');
+		style.setProperty('--warning-soft', 'color-mix(in srgb, var(--warning) 12%, var(--surface) 88%)');
+		style.setProperty('--warning-line', 'color-mix(in srgb, var(--warning) 28%, var(--surface) 72%)');
+		style.setProperty('--danger-soft', 'color-mix(in srgb, var(--danger) 10%, var(--surface) 90%)');
+		style.setProperty('--danger-line', 'color-mix(in srgb, var(--danger) 24%, var(--surface) 76%)');
+		style.setProperty('--success-soft', 'color-mix(in srgb, var(--success) 10%, var(--surface) 90%)');
+		style.setProperty('--success-line', 'color-mix(in srgb, var(--success) 24%, var(--surface) 76%)');
+		style.setProperty('--shadow-sage', 'color-mix(in srgb, var(--ink) 14%, transparent)');
 		style.setProperty('--background', 'var(--canvas)');
 		style.setProperty('--foreground', 'var(--ink)');
 		style.setProperty('--card', 'var(--surface)');

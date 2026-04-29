@@ -46,7 +46,7 @@ import {
 } from '@teacher-crm/api-types'
 
 const presetThemes: Array<{ id: string; label: string; theme: CrmThemeSettings }> = [
-	{ id: 'neutral', label: 'Neutral', theme: DEFAULT_CRM_THEME_SETTINGS },
+	{ id: 'devl', label: 'Devl', theme: DEFAULT_CRM_THEME_SETTINGS },
 	{
 		id: 'studio',
 		label: 'Studio',

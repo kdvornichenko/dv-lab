@@ -6,6 +6,23 @@ import { DEFAULT_CRM_THEME_SETTINGS, crmThemeSettingsSchema, type CrmThemeSettin
 
 export const THEME_STORAGE_KEY = 'teacher-crm-theme'
 
+const LEGACY_DEFAULT_CRM_THEME_SETTINGS: CrmThemeSettings = {
+	radius: 'default',
+	headingFont: 'geist',
+	bodyFont: 'geist',
+	numberFont: 'geist',
+	colors: {
+		background: '#f7f5ef',
+		foreground: '#181713',
+		primary: '#2f6f5e',
+		accent: '#9a6a1f',
+		success: '#3f7a4d',
+		warning: '#9a6a1f',
+		danger: '#a64235',
+		chart: '#7d7a72',
+	},
+}
+
 type ThemeColorKey = keyof CrmThemeSettings['colors']
 type ThemeFontKey = CrmThemeSettings['headingFont']
 type ThemeRadiusKey = CrmThemeSettings['radius']
@@ -115,16 +132,31 @@ function readableTextOn(hex: string) {
 	return luminance > 0.62 ? '#181713' : '#ffffff'
 }
 
-function softMix(variableName: string, amount = 14) {
-	return `color-mix(in srgb, var(${variableName}) ${amount}%, var(--canvas) ${100 - amount}%)`
+function softMix(variableName: string, amount = 10) {
+	return `color-mix(in srgb, var(${variableName}) ${amount}%, var(--surface) ${100 - amount}%)`
 }
 
-function lineMix(variableName: string, amount = 30) {
-	return `color-mix(in srgb, var(${variableName}) ${amount}%, var(--canvas) ${100 - amount}%)`
+function lineMix(variableName: string, amount = 24) {
+	return `color-mix(in srgb, var(${variableName}) ${amount}%, var(--surface) ${100 - amount}%)`
 }
 
 export function normalizeTheme(value: unknown): CrmThemeSettings {
-	return crmThemeSettingsSchema.catch(DEFAULT_CRM_THEME_SETTINGS).parse(value)
+	return migrateCrmTheme(crmThemeSettingsSchema.catch(DEFAULT_CRM_THEME_SETTINGS).parse(value))
+}
+
+function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {
+	return (
+		a.radius === b.radius &&
+		a.headingFont === b.headingFont &&
+		a.bodyFont === b.bodyFont &&
+		a.numberFont === b.numberFont &&
+		Object.entries(a.colors).every(([key, value]) => b.colors[key as ThemeColorKey] === value)
+	)
+}
+
+export function migrateCrmTheme(theme: CrmThemeSettings): CrmThemeSettings {
+	if (themesEqual(theme, LEGACY_DEFAULT_CRM_THEME_SETTINGS)) return cloneTheme(DEFAULT_CRM_THEME_SETTINGS)
+	return theme
 }
 
 export function cloneTheme(theme: CrmThemeSettings): CrmThemeSettings {
@@ -164,22 +196,22 @@ export function themeCssVariables(theme: CrmThemeSettings): CSSProperties {
 		'--warning': theme.colors.warning,
 		'--danger': theme.colors.danger,
 		'--chart': theme.colors.chart,
-		'--canvas-warm': 'color-mix(in srgb, var(--canvas) 92%, var(--crm-accent) 8%)',
-		'--surface': 'color-mix(in srgb, var(--canvas) 96%, white 4%)',
-		'--surface-muted': 'color-mix(in srgb, var(--surface) 92%, var(--ink) 8%)',
-		'--ink-muted': 'color-mix(in srgb, var(--ink) 64%, var(--canvas) 36%)',
-		'--line': 'color-mix(in srgb, var(--ink) 14%, var(--canvas) 86%)',
-		'--line-soft': 'color-mix(in srgb, var(--ink) 9%, var(--canvas) 91%)',
-		'--line-strong': 'color-mix(in srgb, var(--ink) 24%, var(--canvas) 76%)',
+		'--canvas-warm': 'color-mix(in srgb, var(--canvas) 96%, var(--chart) 4%)',
+		'--surface': 'color-mix(in srgb, var(--canvas) 10%, #ffffff 90%)',
+		'--surface-muted': 'color-mix(in srgb, var(--canvas) 78%, var(--ink) 7%)',
+		'--ink-muted': 'color-mix(in srgb, var(--ink) 58%, var(--canvas) 42%)',
+		'--line': 'color-mix(in srgb, var(--ink) 12%, var(--canvas) 88%)',
+		'--line-soft': 'color-mix(in srgb, var(--ink) 7%, var(--canvas) 93%)',
+		'--line-strong': 'color-mix(in srgb, var(--ink) 20%, var(--canvas) 80%)',
 		'--sage-soft': softMix('--sage'),
 		'--sage-line': lineMix('--sage'),
-		'--warning-soft': softMix('--warning'),
-		'--warning-line': lineMix('--warning'),
+		'--warning-soft': softMix('--warning', 12),
+		'--warning-line': lineMix('--warning', 28),
 		'--danger-soft': softMix('--danger'),
 		'--danger-line': lineMix('--danger'),
 		'--success-soft': softMix('--success'),
 		'--success-line': lineMix('--success'),
-		'--shadow-sage': 'color-mix(in srgb, var(--sage) 20%, transparent)',
+		'--shadow-sage': 'color-mix(in srgb, var(--ink) 14%, transparent)',
 		'--background': 'var(--canvas)',
 		'--foreground': 'var(--ink)',
 		'--card': 'var(--surface)',
@@ -272,7 +304,9 @@ export function readLocalCrmTheme() {
 	const raw = window.localStorage.getItem(THEME_STORAGE_KEY)
 	if (!raw) return null
 	try {
-		return normalizeTheme(JSON.parse(raw))
+		const theme = normalizeTheme(JSON.parse(raw))
+		if (raw !== JSON.stringify(theme)) writeLocalCrmTheme(theme)
+		return theme
 	} catch {
 		return null
 	}

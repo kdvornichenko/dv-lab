@@ -6,7 +6,13 @@ import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 
 import { teacherCrmApi } from '@/lib/crm/api'
-import { applyCrmTheme, cloneTheme, readLocalCrmTheme, writeLocalCrmTheme } from '@/lib/theme/theme-settings'
+import {
+	applyCrmTheme,
+	cloneTheme,
+	migrateCrmTheme,
+	readLocalCrmTheme,
+	writeLocalCrmTheme,
+} from '@/lib/theme/theme-settings'
 
 import { DEFAULT_CRM_THEME_SETTINGS, type CrmThemeSettings } from '@teacher-crm/api-types'
 
@@ -26,7 +32,7 @@ export function ThemeSettingsProvider({ children }: { children: React.ReactNode 
 	const [loading, setLoading] = React.useState(true)
 
 	const applySavedTheme = React.useCallback((nextTheme: CrmThemeSettings) => {
-		const cloned = cloneTheme(nextTheme)
+		const cloned = cloneTheme(migrateCrmTheme(nextTheme))
 		applyCrmTheme(cloned)
 		writeLocalCrmTheme(cloned)
 		setTheme(cloned)
