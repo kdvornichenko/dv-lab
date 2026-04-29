@@ -7,14 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
 	formatCompletedLessonDatesText,
+	formatCurrencyAmount,
 	formatDateShort,
 	formatTime,
-	formatUsdAmount,
 	getBillingModeLabel,
 	getStudentShortName,
 	getStudentDurationPrice,
+	isChargeableLessonStatus,
 	selectStudentLedgerProjection,
-	selectStudentPackageProgress,
 } from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
@@ -29,9 +29,9 @@ type StudentProfilePaneProps = {
 export function StudentProfilePane({ student, lessons, now }: StudentProfilePaneProps) {
 	if (!student) {
 		return (
-			<aside className="border-sage-line bg-sage-soft/45 rounded-lg border border-dashed p-5">
-				<p className="font-heading text-ink font-semibold">Select a student</p>
-				<p className="text-ink-muted mt-1 text-sm leading-5">Lessons, billing, and payment balance will appear here.</p>
+			<aside className="rounded-lg border border-dashed border-sage-line bg-sage-soft/45 p-5">
+				<p className="font-heading font-semibold text-ink">Select a student</p>
+				<p className="mt-1 text-sm leading-5 text-ink-muted">Lessons, billing, and payment balance will appear here.</p>
 			</aside>
 		)
 	}
@@ -41,8 +41,10 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 	const recentLessons = [...projection.stats.relatedLessons].sort(
 		(a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
 	)
-	const completedCount = projection.stats.relatedLessons.filter((lesson) => lesson.status === 'completed').length
-	const packageProgress = selectStudentPackageProgress(student, lessons)
+	const completedCount = projection.stats.relatedLessons.filter((lesson) =>
+		isChargeableLessonStatus(lesson.status)
+	).length
+	const packageProgress = projection.packageProgress
 	const completedDatesText = formatCompletedLessonDatesText(packageProgress.completedLessons)
 	const copyCompletedDates = async () => {
 		try {
@@ -54,13 +56,13 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 	}
 
 	return (
-		<aside className="border-line bg-surface-muted overflow-hidden rounded-lg border">
-			<div className="border-line-soft bg-surface border-b p-4">
+		<aside className="overflow-hidden rounded-lg border border-line bg-surface-muted">
+			<div className="border-b border-line-soft bg-surface p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
-						<p className="text-sage font-mono text-xs font-semibold uppercase">Profile</p>
-						<h3 className="text-ink mt-1 truncate text-lg font-semibold">{student.fullName}</h3>
-						<p className="text-ink-muted mt-1 text-sm">{student.level || 'No level set'}</p>
+						<p className="font-mono text-xs font-semibold text-sage uppercase">Profile</p>
+						<h3 className="mt-1 truncate text-lg font-semibold text-ink">{student.fullName}</h3>
+						<p className="mt-1 text-sm text-ink-muted">{student.level || 'No level set'}</p>
 					</div>
 					<Badge tone={projection.statusTone}>{student.status}</Badge>
 				</div>
@@ -69,46 +71,51 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 			<div className="p-4">
 				<div className="grid grid-cols-2 gap-2">
 					<Metric icon={CalendarCheck2} label="Scheduled" value={projection.stats.relatedLessons.length} tone="sage" />
-					<Metric icon={CheckCircle2} label="Completed" value={completedCount} tone="success" />
+					<Metric icon={CheckCircle2} label="Charged" value={completedCount} tone="success" />
 					<Metric
 						icon={ReceiptText}
 						label={student.billingMode === 'package' ? 'Package progress' : 'Lessons'}
 						value={student.billingMode === 'package' ? packageProgress.label : projection.lessonsLeft}
 						tone="warning"
 					/>
-					<Metric icon={Banknote} label="Balance" value={formatUsdAmount(student.balance.balance)} tone="danger" />
+					<Metric
+						icon={Banknote}
+						label="Balance"
+						value={formatCurrencyAmount(student.balance.balance, student.currency)}
+						tone="danger"
+					/>
 				</div>
 
-				<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
-					<p className="text-ink-muted text-xs font-semibold uppercase">Next payment</p>
-					<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{projection.nextPayment}</p>
-					<p className="text-ink-muted mt-1 text-xs">
+				<div className="mt-4 rounded-lg border border-line-soft bg-surface p-3">
+					<p className="text-xs font-semibold text-ink-muted uppercase">Next payment</p>
+					<p className="mt-1 font-mono text-sm font-semibold text-ink tabular-nums">{projection.nextPayment}</p>
+					<p className="mt-1 text-xs text-ink-muted">
 						{student.balance.unpaidLessonCount} unpaid lessons · {billingLabel}
 					</p>
 				</div>
 
 				{student.billingMode === 'package' && (
-					<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
+					<div className="mt-4 rounded-lg border border-line-soft bg-surface p-3">
 						<div className="flex items-start justify-between gap-3">
 							<div>
-								<p className="text-ink-muted text-xs font-semibold uppercase">Completed dates</p>
-								<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{packageProgress.label}</p>
-								<p className="text-ink-muted mt-1 text-xs">{packageProgress.remainingLabel}</p>
+								<p className="text-xs font-semibold text-ink-muted uppercase">Completed dates</p>
+								<p className="mt-1 font-mono text-sm font-semibold text-ink tabular-nums">{packageProgress.label}</p>
+								<p className="mt-1 text-xs text-ink-muted">{packageProgress.remainingLabel}</p>
 							</div>
 							<Button type="button" variant="secondary" size="sm" onClick={copyCompletedDates}>
 								<Copy className="h-4 w-4" />
 								Copy
 							</Button>
 						</div>
-						<pre className="border-line-soft bg-surface-muted text-ink mt-3 whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs leading-5">
+						<pre className="mt-3 rounded-lg border border-line-soft bg-surface-muted p-3 font-mono text-xs leading-5 whitespace-pre-wrap text-ink">
 							{completedDatesText}
 						</pre>
 					</div>
 				)}
 
-				<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
+				<div className="mt-4 rounded-lg border border-line-soft bg-surface p-3">
 					<div className="flex items-center justify-between gap-3">
-						<p className="text-ink-muted text-xs font-semibold uppercase">Lesson history</p>
+						<p className="text-xs font-semibold text-ink-muted uppercase">Lesson history</p>
 						<Badge tone="neutral" className="font-mono tabular-nums">
 							{completedCount}/{projection.stats.relatedLessons.length}
 						</Badge>
@@ -116,13 +123,13 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 					<div className="mt-3 grid gap-2">
 						{recentLessons.slice(0, 5).map((lesson) => {
 							return (
-								<div key={lesson.id} className="border-line-soft bg-surface-muted rounded-lg border p-2.5">
+								<div key={lesson.id} className="rounded-lg border border-line-soft bg-surface-muted p-2.5">
 									<div className="flex items-start justify-between gap-3">
 										<div className="min-w-0">
-											<p className="font-heading text-ink truncate text-sm font-medium">
+											<p className="truncate font-heading text-sm font-medium text-ink">
 												{getStudentShortName(student)}
 											</p>
-											<p className="text-ink-muted mt-1 font-mono text-xs tabular-nums">
+											<p className="mt-1 font-mono text-xs text-ink-muted tabular-nums">
 												{formatDateShort(lesson.startsAt)} · {formatTime(lesson.startsAt)}
 											</p>
 										</div>
@@ -132,29 +139,30 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 							)
 						})}
 						{recentLessons.length === 0 && (
-							<p className="text-ink-muted border-line-strong bg-surface-muted rounded-lg border border-dashed p-3 text-sm">
+							<p className="rounded-lg border border-dashed border-line-strong bg-surface-muted p-3 text-sm text-ink-muted">
 								No lessons scheduled for this student yet.
 							</p>
 						)}
 					</div>
 				</div>
 
-				<div className="divide-line-soft mt-4 divide-y text-sm">
+				<div className="mt-4 divide-y divide-line-soft text-sm">
 					<ProfileRow icon={Sparkles} label="Special" value={student.special || 'Not set'} />
 					<ProfileRow
 						icon={ReceiptText}
 						label="Billing"
-						value={`${billingLabel} · ${formatUsdAmount(student.defaultLessonPrice)} base · ${
+						value={`${billingLabel} · ${formatCurrencyAmount(student.defaultLessonPrice, student.currency)} base · ${
 							student.defaultLessonDurationMinutes
-						} min · ${formatUsdAmount(getStudentDurationPrice(student))} actual`}
+						} min · ${formatCurrencyAmount(getStudentDurationPrice(student), student.currency)} actual`}
 					/>
 					{student.billingMode === 'package' && (
 						<ProfileRow
 							icon={Banknote}
 							label="Package"
-							value={`${student.packageMonths} months · ${student.packageLessonCount} lessons · ${formatUsdAmount(
-								projection.packageTotal
-							)} total · ${formatUsdAmount(projection.packageLessonPrice)} per lesson`}
+							value={`${student.packageMonths} months · ${student.packageLessonCount} lessons · ${formatCurrencyAmount(
+								projection.packageTotal,
+								student.currency
+							)} total · ${formatCurrencyAmount(projection.packageLessonPrice, student.currency)} per lesson`}
 						/>
 					)}
 					<ProfileRow icon={NotebookText} label="Notes" value={student.notes || 'No notes'} multiline />
@@ -166,6 +174,7 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 
 function lessonStatusTone(status: Lesson['status']) {
 	if (status === 'completed') return 'green'
+	if (status === 'no_show') return 'amber'
 	if (status === 'rescheduled') return 'amber'
 	if (status === 'cancelled') return 'red'
 	return 'neutral'
@@ -190,14 +199,14 @@ function Metric({
 	}
 
 	return (
-		<div className="border-line-soft bg-surface rounded-lg border p-3">
-			<div className="text-ink-muted flex items-center gap-1.5 text-xs font-medium">
+		<div className="rounded-lg border border-line-soft bg-surface p-3">
+			<div className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
 				<span className={`flex size-6 items-center justify-center rounded-md border ${toneClass[tone]}`}>
 					<Icon className="h-3.5 w-3.5" />
 				</span>
 				{label}
 			</div>
-			<div className="text-ink mt-2 truncate font-mono text-sm font-semibold tabular-nums">{value}</div>
+			<div className="mt-2 truncate font-mono text-sm font-semibold text-ink tabular-nums">{value}</div>
 		</div>
 	)
 }
@@ -215,11 +224,11 @@ function ProfileRow({
 }) {
 	return (
 		<div className="py-3 first:pt-0 last:pb-0">
-			<div className="text-ink-muted mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase">
-				<Icon className="text-sage h-3.5 w-3.5" />
+			<div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-ink-muted uppercase">
+				<Icon className="h-3.5 w-3.5 text-sage" />
 				{label}
 			</div>
-			<p className={multiline ? 'text-ink whitespace-pre-wrap leading-5' : 'text-ink truncate'}>{value}</p>
+			<p className={multiline ? 'leading-5 whitespace-pre-wrap text-ink' : 'truncate text-ink'}>{value}</p>
 		</div>
 	)
 }

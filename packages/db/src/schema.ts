@@ -19,15 +19,17 @@ import {
 
 export const studentStatus = pgEnum('student_status', ['active', 'paused', 'archived'])
 export const billingMode = pgEnum('billing_mode', ['per_lesson', 'monthly', 'package'])
-export const lessonStatus = pgEnum('lesson_status', ['planned', 'completed', 'cancelled', 'rescheduled'])
+export const lessonStatus = pgEnum('lesson_status', ['planned', 'completed', 'cancelled', 'rescheduled', 'no_show'])
 export const attendanceStatus = pgEnum('attendance_status', [
 	'planned',
 	'attended',
 	'absent',
 	'cancelled',
 	'rescheduled',
+	'no_show',
 ])
 export const paymentMethod = pgEnum('payment_method', ['cash', 'bank_transfer', 'card', 'other'])
+export const currency = pgEnum('currency', ['RUB', 'KZT'])
 export const calendarProvider = pgEnum('calendar_provider', ['google'])
 export const calendarConnectionStatus = pgEnum('calendar_connection_status', [
 	'not_connected',
@@ -138,6 +140,7 @@ export const students = pgTable(
 		packageLessonsPerWeek: integer('package_lessons_per_week').notNull().default(0),
 		packageLessonCount: integer('package_lesson_count').notNull().default(0),
 		packageTotalPrice: numeric('package_total_price', { precision: 12, scale: 2 }).notNull().default('0'),
+		currency: currency('currency').notNull().default('RUB'),
 		billingMode: billingMode('billing_mode').notNull().default('per_lesson'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

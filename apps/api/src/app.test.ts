@@ -151,6 +151,7 @@ assert.equal(createStudent.status, 201)
 const createStudentBody = await createStudent.json()
 assert.equal(createStudentBody.student.fullName, 'Test Student')
 assert.equal(createStudentBody.student.defaultLessonDurationMinutes, 60)
+assert.equal(createStudentBody.student.currency, 'RUB')
 assert.equal(createStudentBody.student.packageLessonsPerWeek, 2)
 assert.equal(createStudentBody.student.packageTotalPrice, 50400)
 
@@ -399,6 +400,39 @@ const markAttendance = await app.request('/lessons/attendance', {
 assert.equal(markAttendance.status, 200)
 const markAttendanceBody = await markAttendance.json()
 assert.equal(markAttendanceBody.attendance[0].billable, false)
+
+const createNoShowLesson = await app.request('/lessons', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		title: 'No-show lesson',
+		startsAt: new Date(startsAt.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+		durationMinutes: 60,
+		topic: 'Billable absence',
+		notes: 'Student forgot the lesson',
+		status: 'no_show',
+		studentIds: [createStudentBody.student.id],
+	}),
+})
+assert.equal(createNoShowLesson.status, 201)
+const createNoShowLessonBody = await createNoShowLesson.json()
+assert.equal(createNoShowLessonBody.lesson.status, 'no_show')
+
+const paymentsWithNoShow = await app.request('/payments', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(paymentsWithNoShow.status, 200)
+const paymentsWithNoShowBody = await paymentsWithNoShow.json()
+const noShowBalance = paymentsWithNoShowBody.balances.find(
+	(balance: { studentId: string }) => balance.studentId === createStudentBody.student.id
+)
+assert.equal(noShowBalance.balance, -2000)
+assert.equal(noShowBalance.unpaidLessonCount, 1)
 
 const createDeletedLesson = await app.request('/lessons', {
 	method: 'POST',

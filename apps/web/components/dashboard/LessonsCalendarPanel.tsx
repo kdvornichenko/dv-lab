@@ -1,23 +1,21 @@
 import { useMemo, useState } from 'react'
 
-import { ru } from 'date-fns/locale'
+import { enUS } from 'date-fns/locale'
 import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import {
 	Calendar,
 	CalendarCurrentDate,
-	CalendarDayView,
 	type CalendarEvent,
-	CalendarMonthView,
 	CalendarNextTrigger,
 	CalendarPrevTrigger,
 	CalendarTodayTrigger,
+	CalendarViewStage,
 	CalendarViewTrigger,
-	CalendarWeekView,
 } from '@/components/calendar/Calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatTime, lessonDisplayTitle } from '@/lib/crm/model'
+import { lessonDisplayTitle } from '@/lib/crm/model'
 
 import type {
 	CalendarBusyInterval,
@@ -43,18 +41,54 @@ function lessonEventColor(lesson: Lesson): CalendarEvent['color'] {
 	if (lesson.status === 'completed') return 'green'
 	if (lesson.status === 'cancelled') return 'pink'
 	if (lesson.status === 'rescheduled') return 'purple'
+	if (lesson.status === 'no_show') return 'orange'
 	return 'default'
 }
 
-function lessonToCalendarEvent(lesson: Lesson, students: Student[]): CalendarEvent {
+function lessonAttendees(lesson: Lesson, students: Student[]) {
+	return lesson.studentIds
+		.map((id) => students.find((student) => student.id === id))
+		.filter((student): student is Student => Boolean(student))
+		.map((student) =>
+			student.fullName
+				.split(/\s+/)
+				.map((part) => part[0])
+				.join('')
+				.slice(0, 2)
+				.toUpperCase()
+		)
+}
+
+function calendarSyncBadge(syncRecord?: CalendarSyncRecord): NonNullable<CalendarEvent['badges']>[number] | undefined {
+	if (!syncRecord) return undefined
+
+	if (syncRecord.status === 'synced') return { label: 'Google synced', tone: 'success' }
+	if (syncRecord.status === 'failed') return { label: 'Google failed', tone: 'danger' }
+	if (syncRecord.status === 'not_synced') return { label: 'Google pending', tone: 'neutral' }
+	if (syncRecord.status === 'disabled') return { label: 'Google off', tone: 'neutral' }
+}
+
+function lessonToCalendarEvent(
+	lesson: Lesson,
+	students: Student[],
+	syncRecordsByLessonId: Map<string, CalendarSyncRecord>
+): CalendarEvent {
 	const start = new Date(lesson.startsAt)
 	const end = new Date(start.getTime() + lesson.durationMinutes * 60_000)
+	const syncRecord = syncRecordsByLessonId.get(lesson.id)
+	const badge = calendarSyncBadge(syncRecord)
+
 	return {
 		id: lesson.id,
 		start,
 		end,
-		title: `${formatTime(lesson.startsAt)} ${lessonDisplayTitle(lesson, students)}`,
+		title: lessonDisplayTitle(lesson, students),
+		subtitle: lesson.title,
+		location: syncRecord?.externalEventId ? 'Google Calendar' : 'Teacher CRM lesson',
+		attendees: lessonAttendees(lesson, students),
 		color: lessonEventColor(lesson),
+		isAlert: syncRecord?.status === 'failed',
+		badges: badge ? [badge] : undefined,
 	}
 }
 
@@ -69,16 +103,23 @@ export function LessonsCalendarPanel({
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
 	const [defaultStartsAt, setDefaultStartsAt] = useState<Date | null>(null)
-	const events = useMemo(() => lessons.map((lesson) => lessonToCalendarEvent(lesson, students)), [lessons, students])
+	const syncRecordsByLessonId = useMemo(
+		() => new Map(calendarSyncRecords.map((record) => [record.lessonId, record])),
+		[calendarSyncRecords]
+	)
+	const events = useMemo(
+		() => lessons.map((lesson) => lessonToCalendarEvent(lesson, students, syncRecordsByLessonId)),
+		[lessons, students, syncRecordsByLessonId]
+	)
 	const syncedCount = calendarSyncRecords.filter((record) => record.status === 'synced').length
 	const failedCount = calendarSyncRecords.filter((record) => record.status === 'failed').length
 	const formOpen = isCreateOpen || Boolean(editingLesson)
 
 	return (
-		<section className="border-line bg-surface flex min-h-dvh flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+		<section className="flex min-h-dvh flex-col overflow-hidden border border-line bg-surface shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
 			<Calendar
 				view="week"
-				locale={ru}
+				locale={enUS}
 				events={events}
 				onEventClick={(event) => {
 					const lesson = lessons.find((item) => item.id === event.id)
@@ -93,10 +134,10 @@ export function LessonsCalendarPanel({
 					setIsCreateOpen(true)
 				}}
 			>
-				<header className="border-line-soft bg-surface-muted flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+				<header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-surface-muted px-4 py-3">
 					<div>
-						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson calendar</p>
-						<h1 className="font-heading text-ink mt-1 text-lg font-semibold">
+						<p className="font-mono text-xs font-semibold text-sage uppercase">Lesson calendar</p>
+						<h1 className="mt-1 font-heading text-lg font-semibold text-ink">
 							<CalendarCurrentDate />
 						</h1>
 					</div>
@@ -114,22 +155,22 @@ export function LessonsCalendarPanel({
 						<CalendarNextTrigger className="h-9 w-9">
 							<ChevronRight className="h-4 w-4" />
 						</CalendarNextTrigger>
-						<div className="border-line-soft bg-surface flex rounded-lg border p-1">
+						<div className="flex rounded-lg border border-line-soft bg-surface p-1">
 							<CalendarViewTrigger
 								view="day"
-								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
+								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
 							>
-								Day
+								Agenda
 							</CalendarViewTrigger>
 							<CalendarViewTrigger
 								view="week"
-								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
+								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
 							>
 								Week
 							</CalendarViewTrigger>
 							<CalendarViewTrigger
 								view="month"
-								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
+								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
 							>
 								Month
 							</CalendarViewTrigger>
@@ -146,10 +187,8 @@ export function LessonsCalendarPanel({
 						</Button>
 					</div>
 				</header>
-				<div className="min-h-168 bg-surface h-[calc(100dvh-5rem)] overflow-hidden">
-					<CalendarDayView />
-					<CalendarWeekView />
-					<CalendarMonthView />
+				<div className="h-[calc(100dvh-5rem)] min-h-168 overflow-hidden bg-surface">
+					<CalendarViewStage />
 				</div>
 			</Calendar>
 			<LessonFormDialog

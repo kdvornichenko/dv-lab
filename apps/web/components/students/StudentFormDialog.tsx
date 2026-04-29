@@ -17,10 +17,16 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { BILLING_MODE_OPTIONS, formatUsdAmount, getBillingModeLabel, STUDENT_STATUS_OPTIONS } from '@/lib/crm/model'
+import {
+	BILLING_MODE_OPTIONS,
+	formatCurrencyAmount,
+	getBillingModeLabel,
+	STUDENT_STATUS_OPTIONS,
+} from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
 import {
+	type Currency,
 	DEFAULT_LESSON_DURATION_MINUTES,
 	DEFAULT_PACKAGE_WEEKS_PER_MONTH,
 	LESSON_PRICE_RUB,
@@ -41,6 +47,7 @@ type StudentFormValues = {
 	notes: string
 	defaultLessonPrice: string
 	defaultLessonDurationMinutes: string
+	currency: Currency
 	packageMonths: string
 	packageLessonsPerWeek: string
 	packageLessonCount: string
@@ -62,6 +69,7 @@ type StudentFormCommand = Omit<
 	phone: string
 	defaultLessonPrice: number
 	defaultLessonDurationMinutes: number
+	currency: Currency
 	packageMonths: number
 	packageLessonsPerWeek: number
 	packageLessonCount: number
@@ -90,6 +98,7 @@ const initialValues: StudentFormValues = {
 	notes: '',
 	defaultLessonPrice: String(LESSON_PRICE_RUB.default),
 	defaultLessonDurationMinutes: String(DEFAULT_LESSON_DURATION_MINUTES),
+	currency: 'RUB',
 	packageMonths: '0',
 	packageLessonsPerWeek: '1',
 	packageLessonCount: '0',
@@ -126,6 +135,7 @@ const toValues = (student?: StudentWithBalance | null): StudentFormValues =>
 					notes: student.notes ?? '',
 					defaultLessonPrice: String(student.defaultLessonPrice),
 					defaultLessonDurationMinutes: String(student.defaultLessonDurationMinutes),
+					currency: student.currency,
 					packageMonths: String(student.packageMonths),
 					packageLessonsPerWeek: String(inferLessonsPerWeek(student)),
 					packageLessonCount: String(student.packageLessonCount),
@@ -187,6 +197,7 @@ function toCommand(values: StudentFormValues): StudentFormCommand {
 		notes: textValue(values.notes).trim(),
 		defaultLessonPrice: Number(values.defaultLessonPrice),
 		defaultLessonDurationMinutes: Number(values.defaultLessonDurationMinutes),
+		currency: values.currency,
 		packageMonths,
 		packageLessonsPerWeek,
 		packageLessonCount,
@@ -261,11 +272,11 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-3xl">
 				<form onSubmit={handleSubmit} className="grid min-h-0">
-					<DialogHeader className="border-line-soft bg-surface-muted border-b px-6 py-5 pr-14">
+					<DialogHeader className="border-b border-line-soft bg-surface-muted px-6 py-5 pr-14">
 						<div>
-							<p className="text-sage mb-1 font-mono text-xs font-semibold uppercase">Student record</p>
+							<p className="mb-1 font-mono text-xs font-semibold text-sage uppercase">Student record</p>
 							<DialogTitle>{mode === 'create' ? 'Add student' : 'Edit student'}</DialogTitle>
-							<p className="text-ink-muted mt-1 text-sm">
+							<p className="mt-1 text-sm text-ink-muted">
 								Keep schedule labels, billing mode, and default lesson price in one ledger entry.
 							</p>
 						</div>
@@ -332,7 +343,18 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 									</SelectContent>
 								</Select>
 							</Field>
-							<Field label="Default lesson price, RUB" error={errors.defaultLessonPrice}>
+							<Field label="Currency">
+								<Select value={values.currency} onValueChange={(value) => updateValue('currency', value as Currency)}>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="RUB">RUB</SelectItem>
+										<SelectItem value="KZT">KZT</SelectItem>
+									</SelectContent>
+								</Select>
+							</Field>
+							<Field label={`Default lesson price, ${values.currency}`} error={errors.defaultLessonPrice}>
 								<Input
 									type="number"
 									inputMode="numeric"
@@ -356,10 +378,10 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 									aria-invalid={Boolean(errors.defaultLessonDurationMinutes)}
 								/>
 							</Field>
-							<div className="border-line-soft bg-surface-muted grid gap-4 rounded-lg border p-4 md:col-span-2 md:grid-cols-3">
+							<div className="grid gap-4 rounded-lg border border-line-soft bg-surface-muted p-4 md:col-span-2 md:grid-cols-3">
 								<div className="md:col-span-3">
-									<p className="font-heading text-ink text-sm font-semibold">Package terms</p>
-									<p className="text-ink-muted mt-1 text-xs">
+									<p className="font-heading text-sm font-semibold text-ink">Package terms</p>
+									<p className="mt-1 text-xs text-ink-muted">
 										Choose the package length and lesson count. Lesson price and total payment are calculated from the
 										base price and lesson duration.
 									</p>
@@ -391,14 +413,20 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 									/>
 								</Field>
 								<PackagePreviewItem label="Lessons in package" value={`${packageLessonCount} lessons`} />
-								<div className="border-line-soft bg-surface grid gap-3 rounded-lg border p-3 sm:grid-cols-4 md:col-span-3">
-									<PackagePreviewItem label="Base duration price" value={formatUsdAmount(durationLessonPrice)} />
-									<PackagePreviewItem label="Package lesson price" value={formatUsdAmount(packageLessonPrice)} />
+								<div className="grid gap-3 rounded-lg border border-line-soft bg-surface p-3 sm:grid-cols-4 md:col-span-3">
+									<PackagePreviewItem
+										label="Base duration price"
+										value={formatCurrencyAmount(durationLessonPrice, values.currency)}
+									/>
+									<PackagePreviewItem
+										label="Package lesson price"
+										value={formatCurrencyAmount(packageLessonPrice, values.currency)}
+									/>
 									<PackagePreviewItem
 										label="Package payment"
-										value={formatUsdAmount(finiteOrZero(packageTotalPrice))}
+										value={formatCurrencyAmount(finiteOrZero(packageTotalPrice), values.currency)}
 									/>
-									<PackagePreviewItem label="Savings" value={formatUsdAmount(packageSavings)} />
+									<PackagePreviewItem label="Savings" value={formatCurrencyAmount(packageSavings, values.currency)} />
 								</div>
 							</div>
 							<Field label="Notes" error={errors.notes} className="md:col-span-2">
@@ -412,7 +440,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 						</div>
 					</ScrollArea>
 
-					<DialogFooter className="border-line-soft bg-surface-muted border-t px-6 py-4">
+					<DialogFooter className="border-t border-line-soft bg-surface-muted px-6 py-4">
 						<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
 							Cancel
 						</Button>
@@ -430,8 +458,8 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 function PackagePreviewItem({ label, value }: { label: string; value: string }) {
 	return (
 		<div>
-			<p className="text-ink-muted text-xs font-medium">{label}</p>
-			<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{value}</p>
+			<p className="text-xs font-medium text-ink-muted">{label}</p>
+			<p className="mt-1 font-mono text-sm font-semibold text-ink tabular-nums">{value}</p>
 		</div>
 	)
 }
@@ -449,9 +477,9 @@ function Field({
 }) {
 	return (
 		<div className={className}>
-			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>
+			<Label className="mb-1.5 block text-xs font-medium text-ink-muted">{label}</Label>
 			{children}
-			{error && <p className="text-danger mt-1 text-xs">{error}</p>}
+			{error && <p className="mt-1 text-xs text-danger">{error}</p>}
 		</div>
 	)
 }

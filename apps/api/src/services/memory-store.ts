@@ -3,8 +3,10 @@ import {
 	DEFAULT_LESSON_DURATION_MINUTES,
 	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
+	BILLABLE_ATTENDANCE_STATUSES,
 	calculatePackageLessonCount,
 	calculatePackageTotalPriceRub,
+	type AttendanceStatus,
 	type AttendanceRecord,
 	type CalendarConnection,
 	type CalendarSyncRecord,
@@ -47,6 +49,15 @@ const now = () => new Date().toISOString()
 const id = (prefix: string) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`
 const hasGoogleCalendarGrant = (grantedScopes: readonly string[], tokenAvailable: boolean) =>
 	tokenAvailable && GOOGLE_CALENDAR_REQUIRED_SCOPES.every((scope) => grantedScopes.includes(scope))
+const isBillableAttendanceStatus = (status: AttendanceStatus) =>
+	(BILLABLE_ATTENDANCE_STATUSES as readonly string[]).includes(status)
+const attendanceForLessonStatus = (status: Lesson['status']): Pick<AttendanceRecord, 'status' | 'billable'> => {
+	if (status === 'completed') return { status: 'attended', billable: true }
+	if (status === 'no_show') return { status: 'no_show', billable: true }
+	if (status === 'cancelled') return { status: 'cancelled', billable: false }
+	if (status === 'rescheduled') return { status: 'rescheduled', billable: false }
+	return { status: 'planned', billable: true }
+}
 const splitName = (value: string | undefined) => {
 	const parts = value?.trim().split(/\s+/).filter(Boolean) ?? []
 	return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') }
@@ -146,6 +157,7 @@ export const memoryStore = {
 			lastName,
 			fullName: [firstName, lastName].filter(Boolean).join(' ').trim() || input.fullName,
 			special: input.special ?? '',
+			currency: input.currency,
 			defaultLessonDurationMinutes: input.defaultLessonDurationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES,
 			packageLessonCount,
 			packageTotalPrice: studentPackageTotal({
@@ -231,6 +243,19 @@ export const memoryStore = {
 			updatedAt: now(),
 		}
 		state.lessons.set(lesson.id, lesson)
+		const attendancePatch = attendanceForLessonStatus(lesson.status)
+		for (const studentId of lesson.studentIds) {
+			const key = `${lesson.id}:${studentId}`
+			state.attendance.set(key, {
+				id: state.attendance.get(key)?.id ?? id('att'),
+				lessonId: lesson.id,
+				studentId,
+				status: attendancePatch.status,
+				billable: attendancePatch.billable,
+				note: state.attendance.get(key)?.note ?? '',
+				updatedAt: now(),
+			})
+		}
 		return lesson
 	},
 
@@ -240,6 +265,28 @@ export const memoryStore = {
 		if (!existing) return null
 		const updated: Lesson = { ...existing, ...input, updatedAt: now() }
 		state.lessons.set(lessonId, updated)
+		if (input.studentIds !== undefined) {
+			const studentIds = new Set(updated.studentIds)
+			for (const [attendanceKey, attendance] of state.attendance) {
+				if (attendance.lessonId === lessonId && !studentIds.has(attendance.studentId))
+					state.attendance.delete(attendanceKey)
+			}
+		}
+		if (input.status !== undefined || input.studentIds !== undefined) {
+			const attendancePatch = attendanceForLessonStatus(updated.status)
+			for (const studentId of updated.studentIds) {
+				const key = `${lessonId}:${studentId}`
+				state.attendance.set(key, {
+					id: state.attendance.get(key)?.id ?? id('att'),
+					lessonId,
+					studentId,
+					status: attendancePatch.status,
+					billable: attendancePatch.billable,
+					note: state.attendance.get(key)?.note ?? '',
+					updatedAt: now(),
+				})
+			}
+		}
 		this.ensureCalendarSyncRecord(scope, lessonId, 'not_synced')
 		return updated
 	},
@@ -329,7 +376,7 @@ export const memoryStore = {
 					student?.billingMode === 'package' && packageLessonPrice > 0
 						? packageLessonPrice
 						: (student?.defaultLessonPrice ?? 0) * durationUnits,
-				billable: record.billable && record.status === 'attended',
+				billable: record.billable && isBillableAttendanceStatus(record.status),
 			}
 		})
 		const payments = Array.from(state.payments.values()).flatMap((payment) => {

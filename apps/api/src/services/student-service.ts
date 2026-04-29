@@ -108,6 +108,7 @@ function mapStudentRow(row: StudentRow): Student {
 		packageLessonsPerWeek: row.packageLessonsPerWeek,
 		packageLessonCount: row.packageLessonCount,
 		packageTotalPrice: Number(row.packageTotalPrice),
+		currency: row.currency,
 		billingMode: row.billingMode,
 		createdAt: dateToIso(row.createdAt) ?? new Date().toISOString(),
 		updatedAt: dateToIso(row.updatedAt) ?? new Date().toISOString(),
@@ -143,6 +144,7 @@ function toInsertValues(teacherId: string, input: CreateStudentInput) {
 		packageLessonsPerWeek: input.packageLessonsPerWeek,
 		packageLessonCount,
 		packageTotalPrice: priceToNumeric(packageTotalPrice),
+		currency: input.currency,
 		billingMode: input.billingMode,
 		archivedAt,
 	}
@@ -175,6 +177,7 @@ function toUpdateValues(input: UpdateStudentInput, existing: StudentRow): Studen
 	if (input.defaultLessonDurationMinutes !== undefined) {
 		values.defaultLessonDurationMinutes = input.defaultLessonDurationMinutes
 	}
+	if (input.currency !== undefined) values.currency = input.currency
 	if (input.packageMonths !== undefined) values.packageMonths = input.packageMonths
 	if (input.packageLessonsPerWeek !== undefined) values.packageLessonsPerWeek = input.packageLessonsPerWeek
 	if (

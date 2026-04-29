@@ -1,4 +1,5 @@
 import {
+	BILLABLE_ATTENDANCE_STATUSES,
 	calculatePackageLessonPriceRub,
 	getLessonDurationUnits,
 	type CreatePaymentInput,
@@ -112,7 +113,7 @@ export const paymentService = {
 		const charges = attendance.map((record) => ({
 			studentId: record.studentId,
 			amount: priceForStudent(studentsById.get(record.studentId), lessonsById.get(record.lessonId)),
-			billable: record.billable && record.status === 'attended',
+			billable: record.billable && (BILLABLE_ATTENDANCE_STATUSES as readonly string[]).includes(record.status),
 		}))
 
 		return calculateStudentBalances(

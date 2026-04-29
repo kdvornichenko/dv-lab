@@ -108,6 +108,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 			...init,
 			headers,
 			cache: 'no-store',
+			credentials: 'omit',
 		})
 		const payload = (await response.json().catch(() => null)) as T | ApiErrorResponse | null
 

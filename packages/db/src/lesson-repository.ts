@@ -1,9 +1,9 @@
-import { and, asc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, lte, notInArray, sql, type SQL } from 'drizzle-orm'
 
 import type { DB } from './factory'
 import { attendanceRecords, lessons, lessonStudents } from './schema'
 
-export type LessonStatusFilter = 'all' | 'planned' | 'completed' | 'cancelled' | 'rescheduled'
+export type LessonStatusFilter = 'all' | 'planned' | 'completed' | 'cancelled' | 'rescheduled' | 'no_show'
 
 export type LessonListFilters = {
 	status?: LessonStatusFilter
@@ -148,6 +148,15 @@ export async function updateLessonRow(
 			await tx
 				.delete(lessonStudents)
 				.where(and(eq(lessonStudents.teacherId, teacherId), eq(lessonStudents.lessonId, lessonId)))
+			await tx
+				.delete(attendanceRecords)
+				.where(
+					and(
+						eq(attendanceRecords.teacherId, teacherId),
+						eq(attendanceRecords.lessonId, lessonId),
+						notInArray(attendanceRecords.studentId, studentIds)
+					)
+				)
 
 			await tx.insert(lessonStudents).values(
 				studentIds.map((studentId) => ({
@@ -222,7 +231,8 @@ export async function listAttendanceRows(db: DB, teacherId: string): Promise<Att
 
 export async function upsertAttendanceRows(
 	db: DB,
-	records: AttendanceRecordUpsertValues[]
+	records: AttendanceRecordUpsertValues[],
+	options: { preserveExistingNote?: boolean } = {}
 ): Promise<AttendanceRecordRow[]> {
 	if (records.length === 0) return []
 
@@ -234,7 +244,9 @@ export async function upsertAttendanceRows(
 			set: {
 				status: sql`excluded.status`,
 				billable: sql`excluded.billable`,
-				note: sql`excluded.note`,
+				note: options.preserveExistingNote
+					? sql`coalesce(excluded.note, ${attendanceRecords.note})`
+					: sql`excluded.note`,
 				updatedAt: new Date(),
 			},
 		})

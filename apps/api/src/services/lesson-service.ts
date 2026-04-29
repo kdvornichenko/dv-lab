@@ -87,6 +87,36 @@ function toUpdateValues(input: UpdateLessonInput): LessonUpdateValues {
 	return values
 }
 
+function attendanceForLessonStatus(
+	status: Lesson['status']
+): Pick<MarkAttendanceInput['records'][number], 'status' | 'billable'> {
+	if (status === 'completed') return { status: 'attended', billable: true }
+	if (status === 'no_show') return { status: 'no_show', billable: true }
+	if (status === 'cancelled') return { status: 'cancelled', billable: false }
+	if (status === 'rescheduled') return { status: 'rescheduled', billable: false }
+	return { status: 'planned', billable: true }
+}
+
+async function syncLessonAttendanceForStatus(
+	db: Parameters<typeof upsertAttendanceRows>[0],
+	teacherId: string,
+	lesson: LessonRowWithStudents
+) {
+	const attendancePatch = attendanceForLessonStatus(lesson.status)
+	await upsertAttendanceRows(
+		db,
+		lesson.studentIds.map((studentId) => ({
+			teacherId,
+			lessonId: lesson.id,
+			studentId,
+			status: attendancePatch.status,
+			billable: attendancePatch.billable,
+			note: null,
+		})),
+		{ preserveExistingNote: true }
+	)
+}
+
 export const lessonService = {
 	async listLessons(scope: StoreScope, filters: ListLessonsQuery) {
 		const db = getDb()
@@ -101,7 +131,9 @@ export const lessonService = {
 		if (!db) return memoryStore.createLesson(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
-		return mapLessonRow(await insertLessonRow(db, toInsertValues(teacherId, input), input.studentIds))
+		const lesson = await insertLessonRow(db, toInsertValues(teacherId, input), input.studentIds)
+		await syncLessonAttendanceForStatus(db, teacherId, lesson)
+		return mapLessonRow(lesson)
 	},
 
 	async updateLesson(scope: StoreScope, lessonId: string, input: UpdateLessonInput) {
@@ -110,6 +142,9 @@ export const lessonService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		const lesson = await updateLessonRow(db, teacherId, lessonId, toUpdateValues(input), input.studentIds)
+		if (lesson && (input.status !== undefined || input.studentIds !== undefined)) {
+			await syncLessonAttendanceForStatus(db, teacherId, lesson)
+		}
 		return lesson ? mapLessonRow(lesson) : null
 	},
 

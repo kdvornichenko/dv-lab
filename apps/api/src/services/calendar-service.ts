@@ -5,6 +5,7 @@ import {
 	type CalendarBusyInterval,
 	type CalendarBusyQuery,
 	type CalendarConnection,
+	type CalendarConnectionStatus,
 	type CalendarListEntry,
 	type CalendarSyncRecord,
 	type CalendarSyncStatus,
@@ -431,6 +432,47 @@ async function withGoogleAccessToken<T>(
 	}
 }
 
+function googleConnectionStatusForError(error: unknown): CalendarConnectionStatus | null {
+	if (error instanceof GoogleCalendarRequestError && [401, 403].includes(error.status)) return 'expired'
+	if (!(error instanceof Error)) return null
+
+	const message = error.message.toLowerCase()
+	if (message.includes('refresh token') || message.includes('invalid_grant')) return 'authorization_required'
+	if (message.includes('access token') || message.includes('oauth client credentials')) return 'error'
+	return null
+}
+
+async function markGoogleConnectionIssue(
+	db: NonNullable<ReturnType<typeof getDb>>,
+	teacherId: string,
+	connection: CalendarConnectionRow,
+	error: unknown
+) {
+	const status = googleConnectionStatusForError(error)
+	if (!status) return false
+
+	await upsertCalendarConnectionRow(db, {
+		teacherId,
+		provider: 'google',
+		providerAccountEmail: connection.providerAccountEmail,
+		requiredScopes: connection.requiredScopes,
+		grantedScopes: connection.grantedScopes,
+		tokenAvailable: false,
+		selectedCalendarId: connection.selectedCalendarId,
+		selectedCalendarName: connection.selectedCalendarName,
+		status,
+		connectedAt: connection.connectedAt,
+	})
+
+	console.warn('[teacher-crm] Google Calendar connection needs reconnect', {
+		teacherId,
+		status,
+		message: error instanceof Error ? error.message : 'Unknown Google Calendar authorization error',
+	})
+
+	return true
+}
+
 export const calendarService = {
 	async getCalendarConnection(scope: StoreScope) {
 		const db = getDb()
@@ -574,27 +616,32 @@ export const calendarService = {
 				connectedAt: connection.connectedAt ?? new Date(),
 			})
 
-		return withGoogleAccessToken(
-			connection,
-			async (accessToken) => {
-				const response = await googleJson<GoogleCalendarListResponse>(
-					'https://www.googleapis.com/calendar/v3/users/me/calendarList',
-					accessToken
-				)
+		try {
+			return await withGoogleAccessToken(
+				connection,
+				async (accessToken) => {
+					const response = await googleJson<GoogleCalendarListResponse>(
+						'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+						accessToken
+					)
 
-				return (response.items ?? [])
-					.filter((calendar) => !calendar.deleted)
-					.filter((calendar) => calendar.accessRole === 'writer' || calendar.accessRole === 'owner')
-					.filter((calendar): calendar is typeof calendar & { id: string; summary: string } => Boolean(calendar.id))
-					.map((calendar) => ({
-						id: calendar.id,
-						name: calendar.summaryOverride ?? calendar.summary ?? calendar.id,
-						primary: Boolean(calendar.primary),
-						accessRole: calendar.accessRole ?? 'reader',
-					}))
-			},
-			persistRefreshedToken
-		)
+					return (response.items ?? [])
+						.filter((calendar) => !calendar.deleted)
+						.filter((calendar) => calendar.accessRole === 'writer' || calendar.accessRole === 'owner')
+						.filter((calendar): calendar is typeof calendar & { id: string; summary: string } => Boolean(calendar.id))
+						.map((calendar) => ({
+							id: calendar.id,
+							name: calendar.summaryOverride ?? calendar.summary ?? calendar.id,
+							primary: Boolean(calendar.primary),
+							accessRole: calendar.accessRole ?? 'reader',
+						}))
+				},
+				persistRefreshedToken
+			)
+		} catch (error) {
+			if (await markGoogleConnectionIssue(db, teacherId, connection, error)) return []
+			throw error
+		}
 	},
 
 	async listBusyIntervals(scope: StoreScope, input: CalendarBusyQuery): Promise<CalendarBusyInterval[]> {
@@ -640,15 +687,21 @@ export const calendarService = {
 			showDeleted: 'false',
 		})
 
-		const response = await withGoogleAccessToken(
-			connection,
-			(accessToken) =>
-				googleJson<GoogleEventsListResponse>(
-					`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${query.toString()}`,
-					accessToken
-				),
-			persistRefreshedToken
-		)
+		let response: GoogleEventsListResponse
+		try {
+			response = await withGoogleAccessToken(
+				connection,
+				(accessToken) =>
+					googleJson<GoogleEventsListResponse>(
+						`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${query.toString()}`,
+						accessToken
+					),
+				persistRefreshedToken
+			)
+		} catch (error) {
+			if (await markGoogleConnectionIssue(db, teacherId, connection, error)) return []
+			throw error
+		}
 		const events = response.items ?? []
 
 		return events
@@ -774,6 +827,7 @@ export const calendarService = {
 					lastError: null,
 				})
 			} catch (error) {
+				const connectionNeedsReconnect = await markGoogleConnectionIssue(db, teacherId, connection, error)
 				await upsertCalendarSyncEventRow(db, {
 					teacherId,
 					lessonId: sync.lessonId,
@@ -783,6 +837,7 @@ export const calendarService = {
 					status: 'failed',
 					lastError: error instanceof Error ? error.message : 'Google Calendar import failed',
 				})
+				if (connectionNeedsReconnect) break
 			}
 		}
 
@@ -928,6 +983,7 @@ export const calendarService = {
 				})
 			)
 		} catch (error) {
+			await markGoogleConnectionIssue(db, teacherId, connection, error)
 			return mapSyncEventRow(
 				await upsertCalendarSyncEventRow(db, {
 					teacherId,

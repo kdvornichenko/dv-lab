@@ -7,9 +7,13 @@ export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const isoDateTimeSchema = z.string().datetime({ offset: true })
 
 export const studentStatusSchema = z.enum(['active', 'paused', 'archived'])
-export const lessonStatusSchema = z.enum(['planned', 'completed', 'cancelled', 'rescheduled'])
-export const attendanceStatusSchema = z.enum(['planned', 'attended', 'absent', 'cancelled', 'rescheduled'])
+export const LESSON_STATUSES = ['planned', 'completed', 'cancelled', 'rescheduled', 'no_show'] as const
+export const ATTENDANCE_STATUSES = ['planned', 'attended', 'absent', 'cancelled', 'rescheduled', 'no_show'] as const
+export const BILLABLE_ATTENDANCE_STATUSES = ['attended', 'no_show'] as const
+export const lessonStatusSchema = z.enum(LESSON_STATUSES)
+export const attendanceStatusSchema = z.enum(ATTENDANCE_STATUSES)
 export const paymentMethodSchema = z.enum(['cash', 'bank_transfer', 'card', 'other'])
+export const currencySchema = z.enum(['RUB', 'KZT'])
 export const calendarConnectionStatusSchema = z.enum([
 	'not_connected',
 	'authorization_required',
@@ -205,6 +209,7 @@ export const studentSchema = z.object({
 	packageLessonsPerWeek: z.number().int().nonnegative(),
 	packageLessonCount: z.number().int().nonnegative(),
 	packageTotalPrice: z.number().nonnegative(),
+	currency: currencySchema,
 	billingMode: z.enum(['per_lesson', 'monthly', 'package']),
 	createdAt: z.string(),
 	updatedAt: z.string(),
@@ -229,6 +234,7 @@ export const createStudentSchema = studentSchema
 		special: z.string().trim().optional().default(''),
 		defaultLessonPrice: z.coerce.number().nonnegative().default(LESSON_PRICE_RUB.default),
 		defaultLessonDurationMinutes: z.coerce.number().int().positive().default(DEFAULT_LESSON_DURATION_MINUTES),
+		currency: currencySchema.default('RUB'),
 		packageMonths: z.coerce.number().int().nonnegative().default(0),
 		packageLessonsPerWeek: z.coerce.number().int().nonnegative().default(0),
 		packageLessonCount: z.coerce.number().int().nonnegative().default(0),
@@ -251,6 +257,7 @@ export const updateStudentSchema = createStudentBaseSchema
 		special: z.string().trim().optional(),
 		defaultLessonPrice: z.coerce.number().nonnegative(),
 		defaultLessonDurationMinutes: z.coerce.number().int().positive(),
+		currency: currencySchema,
 		packageMonths: z.coerce.number().int().nonnegative(),
 		packageLessonsPerWeek: z.coerce.number().int().nonnegative(),
 		packageLessonCount: z.coerce.number().int().nonnegative(),
@@ -508,6 +515,7 @@ export type StudentStatus = z.infer<typeof studentStatusSchema>
 export type LessonStatus = z.infer<typeof lessonStatusSchema>
 export type AttendanceStatus = z.infer<typeof attendanceStatusSchema>
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>
+export type Currency = z.infer<typeof currencySchema>
 export type CalendarConnectionStatus = z.infer<typeof calendarConnectionStatusSchema>
 export type CalendarSyncStatus = z.infer<typeof calendarSyncStatusSchema>
 export type { PermissionKey, RoleKey }

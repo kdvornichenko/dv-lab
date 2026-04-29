@@ -8,7 +8,7 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "turbo run dev --filter=@teacher-crm/api --filter=@teacher-crm/web",
+		"dev": "portless dv-lab turbo run dev --filter=@teacher-crm/api --filter=@teacher-crm/web",
 		"build": "turbo run build",
 		"build:apps": "turbo run build --filter=@teacher-crm/api --filter=@teacher-crm/web",
 		"start": "turbo run start --filter=@teacher-crm/api --filter=@teacher-crm/web",

@@ -2,7 +2,7 @@ import { createServerClient, type CookieMethodsServer, type SetAllCookies } from
 
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { localhostRedirectLocation } from '@/lib/canonical-localhost'
+import { publicOrigin } from '@/lib/public-origin'
 
 import { GOOGLE_CALENDAR_REQUIRED_SCOPES } from '@teacher-crm/api-types'
 
@@ -20,16 +20,9 @@ function loginErrorRedirect(origin: string, code: string) {
 	return NextResponse.redirect(url)
 }
 
-function localCanonicalRedirect(request: NextRequest, requestUrl: URL) {
-	const canonicalLocation = localhostRedirectLocation(requestUrl, request.headers.get('host'))
-	if (!canonicalLocation) return null
-	return new Response(null, { headers: { Location: canonicalLocation }, status: 307 })
-}
-
 export async function GET(request: NextRequest) {
 	const requestUrl = new URL(request.url)
-	const canonicalRedirect = localCanonicalRedirect(request, requestUrl)
-	if (canonicalRedirect) return canonicalRedirect
+	const origin = publicOrigin(request, requestUrl.origin)
 
 	const next = safeNextPath(requestUrl.searchParams.get('next'))
 	const cookiesToSet: Parameters<SetAllCookies>[0] = []
@@ -50,7 +43,7 @@ export async function GET(request: NextRequest) {
 	const { data, error } = await supabase.auth.signInWithOAuth({
 		provider: 'google',
 		options: {
-			redirectTo: `${requestUrl.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+			redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
 			scopes: googleCalendarScopes,
 			queryParams: {
 				access_type: 'offline',
@@ -62,7 +55,7 @@ export async function GET(request: NextRequest) {
 
 	if (error || !data.url) {
 		console.error('Supabase OAuth start failed', { message: error?.message })
-		return loginErrorRedirect(requestUrl.origin, 'oauth_start_failed')
+		return loginErrorRedirect(origin, 'oauth_start_failed')
 	}
 
 	const redirectResponse = NextResponse.redirect(data.url)

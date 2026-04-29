@@ -2,6 +2,7 @@ import type {
 	AttendanceRecord,
 	CalendarConnection,
 	CalendarSyncRecord,
+	Currency,
 	Lesson,
 	Payment,
 	Student,
@@ -24,13 +25,18 @@ export const BILLING_MODE_OPTIONS = [
 	'monthly',
 	'package',
 ] as const satisfies readonly Student['billingMode'][]
+const CHARGEABLE_LESSON_STATUSES = ['completed', 'no_show'] as const
 
 export type LedgerTone = 'green' | 'amber' | 'neutral' | 'red'
 
 export function formatUsdAmount(value: number) {
-	return new Intl.NumberFormat('ru-RU', {
+	return formatCurrencyAmount(value, 'RUB')
+}
+
+export function formatCurrencyAmount(value: number, currency: Currency = 'RUB') {
+	return new Intl.NumberFormat(currency === 'KZT' ? 'kk-KZ' : 'ru-RU', {
 		style: 'currency',
-		currency: 'RUB',
+		currency,
 		maximumFractionDigits: 0,
 	}).format(value)
 }
@@ -44,6 +50,13 @@ export function formatTime(value: string) {
 
 export function formatDateShort(value: string | Date) {
 	return new Intl.DateTimeFormat('ru-RU', {
+		month: 'short',
+		day: 'numeric',
+	}).format(new Date(value))
+}
+
+export function formatDateShortEn(value: string | Date) {
+	return new Intl.DateTimeFormat('en-US', {
 		month: 'short',
 		day: 'numeric',
 	}).format(new Date(value))
@@ -109,7 +122,9 @@ export function selectTodayLessons(lessons: Lesson[], now: Date) {
 }
 
 export function getLessonAttendanceCount(lesson: Lesson, attendance: AttendanceRecord[]) {
-	return attendance.filter((record) => record.lessonId === lesson.id && record.status === 'attended').length
+	return attendance.filter(
+		(record) => record.lessonId === lesson.id && (record.status === 'attended' || record.status === 'no_show')
+	).length
 }
 
 export function getLessonMarkedAttendanceCount(lesson: Lesson, attendance: AttendanceRecord[]) {
@@ -132,6 +147,7 @@ export function selectLessonAttendanceBreakdown(lesson: Lesson, attendance: Atte
 		absent: records.filter((record) => record.status === 'absent').length,
 		cancelled: records.filter((record) => record.status === 'cancelled').length,
 		marked: records.filter((record) => record.status !== 'planned').length,
+		noShow: records.filter((record) => record.status === 'no_show').length,
 		rescheduled: records.filter((record) => record.status === 'rescheduled').length,
 		total: lesson.studentIds.length,
 	}
@@ -171,6 +187,15 @@ export function getStudentDurationPrice(student: Pick<Student, 'defaultLessonPri
 	return student.defaultLessonPrice * getStudentDurationUnits(student)
 }
 
+export function isChargeableLessonStatus(status: Lesson['status']) {
+	return (CHARGEABLE_LESSON_STATUSES as readonly string[]).includes(status)
+}
+
+function isProjectedPackageLesson(lesson: Lesson, now: Date) {
+	if (isChargeableLessonStatus(lesson.status)) return true
+	return lesson.status === 'planned' && new Date(lesson.startsAt).getTime() >= now.getTime()
+}
+
 export function getPackageLessonPrice(student: Student) {
 	return calculatePackageLessonPriceRub({
 		defaultLessonPrice: student.defaultLessonPrice,
@@ -198,9 +223,9 @@ export function getPackageSavings(student: Student) {
 
 export function selectStudentLessonStats(studentId: string, lessons: Lesson[], now: Date) {
 	const relatedLessons = lessons.filter((lesson) => lesson.studentIds.includes(studentId))
-	const attendedCount = relatedLessons.filter((lesson) => lesson.status === 'completed').length
+	const attendedCount = relatedLessons.filter((lesson) => isChargeableLessonStatus(lesson.status)).length
 	const nextLesson = relatedLessons
-		.filter((lesson) => new Date(lesson.startsAt).getTime() >= now.getTime())
+		.filter((lesson) => new Date(lesson.startsAt).getTime() >= now.getTime() && lesson.status === 'planned')
 		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
 
 	return { relatedLessons, attendedCount, nextLesson }
@@ -214,25 +239,63 @@ export function formatLessonUnitCount(value: number) {
 	return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, '')
 }
 
-export function selectStudentPackageProgress(student: Student, lessons: Lesson[]) {
-	const completedLessons = lessons
-		.filter((lesson) => lesson.studentIds.includes(student.id) && lesson.status === 'completed')
+function estimatePackagePaymentDate(
+	student: Student,
+	scheduledUnits: number,
+	anchor: string | Date | undefined,
+	now: Date
+) {
+	const totalUnits = student.packageLessonCount * getStudentDurationUnits(student)
+	const weeklyUnits = student.packageLessonsPerWeek * getStudentDurationUnits(student)
+	if (totalUnits <= 0 || weeklyUnits <= 0) return undefined
+
+	const remainingUnits = Math.max(totalUnits - scheduledUnits, 0)
+	const remainingWeeks = Math.ceil(remainingUnits / weeklyUnits)
+	const date = new Date(anchor ?? now)
+	date.setDate(date.getDate() + remainingWeeks * 7)
+	return date.toISOString()
+}
+
+export function selectStudentPackageProgress(student: Student, lessons: Lesson[], now = new Date()) {
+	const packageLessons = lessons
+		.filter((lesson) => lesson.studentIds.includes(student.id))
 		.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+	const completedLessons = packageLessons.filter((lesson) => isChargeableLessonStatus(lesson.status))
 	const completedUnits = completedLessons.reduce((sum, lesson) => sum + getLessonUnitCount(lesson), 0)
 	const totalUnits = student.packageLessonCount * getStudentDurationUnits(student)
 	const remainingUnits = Math.max(totalUnits - completedUnits, 0)
+	const projectedLessons = packageLessons.filter((lesson) => isProjectedPackageLesson(lesson, now))
+	let projectedUnits = 0
+	let projectedPaymentLesson: Lesson | undefined
+
+	for (const lesson of projectedLessons) {
+		projectedUnits += getLessonUnitCount(lesson)
+		if (totalUnits > 0 && projectedUnits >= totalUnits) {
+			projectedPaymentLesson = lesson
+			break
+		}
+	}
+
+	const lastProjectedLesson = projectedLessons.at(-1)
+	const estimatedPaymentDate = projectedPaymentLesson
+		? undefined
+		: estimatePackagePaymentDate(student, projectedUnits, lastProjectedLesson?.startsAt, now)
 
 	return {
 		completedLessons,
 		completedUnits,
+		estimatedPaymentDate,
 		label: `${formatLessonUnitCount(completedUnits)}/${formatLessonUnitCount(totalUnits)}`,
+		projectedPaymentDate: projectedPaymentLesson?.startsAt ?? estimatedPaymentDate,
+		projectedPaymentLesson,
 		remainingLabel: `${formatLessonUnitCount(remainingUnits)} left`,
+		remainingUnits,
 		totalUnits,
 	}
 }
 
 export function formatCompletedLessonDatesText(lessons: Lesson[]) {
-	if (lessons.length === 0) return 'No completed lessons yet.'
+	if (lessons.length === 0) return 'No charged lessons yet.'
 
 	const groups = new Map<string, number[]>()
 	for (const lesson of lessons) {
@@ -250,35 +313,55 @@ export function formatCompletedLessonDatesText(lessons: Lesson[]) {
 
 export function getStudentPlanLabel(student: StudentWithBalance) {
 	const durationPrice = getStudentDurationPrice(student)
-	if (student.billingMode === 'monthly') return `Monthly plan · ${formatUsdAmount(durationPrice)}`
+	const formatStudentAmount = (value: number) => formatCurrencyAmount(value, student.currency)
+	if (student.billingMode === 'monthly') return `Monthly plan · ${formatStudentAmount(durationPrice)}`
 	if (student.billingMode === 'package') {
 		const packageLessonPrice = getPackageLessonPrice(student)
 		return packageLessonPrice > 0
-			? `${student.packageMonths || '-'} mo · ${formatUsdAmount(packageLessonPrice)} lesson`
+			? `${student.packageMonths || '-'} mo · ${formatStudentAmount(packageLessonPrice)} lesson`
 			: 'Package not priced'
 	}
-	return `${formatUsdAmount(durationPrice)} lesson`
+	return `${formatStudentAmount(durationPrice)} lesson`
 }
 
-export function getLessonsLeftLabel(student: StudentWithBalance) {
-	if (student.billingMode === 'package') return `${student.packageLessonCount} lessons`
+export function getLessonsLeftLabel(
+	student: StudentWithBalance,
+	packageProgress?: ReturnType<typeof selectStudentPackageProgress>
+) {
+	if (student.billingMode === 'package')
+		return packageProgress?.remainingLabel ?? `${student.packageLessonCount} lessons`
 	return `${student.balance.unpaidLessonCount} unpaid`
 }
 
-export function getNextPaymentLabel(student: StudentWithBalance, nextLesson?: Lesson) {
+export function getNextPaymentLabel(
+	student: StudentWithBalance,
+	nextLesson?: Lesson,
+	packageProgress?: ReturnType<typeof selectStudentPackageProgress>
+) {
 	if (student.balance.overdue) return 'Due now'
+	if (student.billingMode === 'package') {
+		if (!packageProgress || packageProgress.totalUnits <= 0) return 'Package not configured'
+		if (packageProgress.remainingUnits <= 0) return 'Due now'
+		if (packageProgress.projectedPaymentDate) {
+			const prefix = packageProgress.projectedPaymentLesson ? 'After' : 'Est. after'
+			return `${prefix} ${formatDateShortEn(packageProgress.projectedPaymentDate)}`
+		}
+		return 'Not scheduled'
+	}
 	if (nextLesson) return `After ${formatDateShort(nextLesson.startsAt)}`
 	return 'Not scheduled'
 }
 
 export function selectStudentLedgerProjection(student: StudentWithBalance, lessons: Lesson[], now: Date) {
 	const stats = selectStudentLessonStats(student.id, lessons, now)
+	const packageProgress = selectStudentPackageProgress(student, lessons, now)
 
 	return {
 		billingLabel: getBillingModeLabel(student.billingMode),
 		balanceTone: getBalanceTone(student.balance),
-		lessonsLeft: getLessonsLeftLabel(student),
-		nextPayment: getNextPaymentLabel(student, stats.nextLesson),
+		lessonsLeft: getLessonsLeftLabel(student, packageProgress),
+		nextPayment: getNextPaymentLabel(student, stats.nextLesson, packageProgress),
+		packageProgress,
 		packageLessonPrice: getPackageLessonPrice(student),
 		packageSavings: getPackageSavings(student),
 		packageTotal: getPackageTotalPrice(student),

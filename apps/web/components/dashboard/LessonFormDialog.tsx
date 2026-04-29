@@ -64,6 +64,7 @@ const statusOptions = [
 	'completed',
 	'cancelled',
 	'rescheduled',
+	'no_show',
 ] as const satisfies readonly Lesson['status'][]
 const REPEAT_CONFLICT_WEEKS = 8
 
@@ -311,11 +312,11 @@ export function LessonFormDialog({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-3xl">
 				<form onSubmit={handleSubmit} className="grid min-h-0">
-					<DialogHeader className="border-line-soft bg-surface-muted border-b px-6 py-5 pr-14">
+					<DialogHeader className="border-b border-line-soft bg-surface-muted px-6 py-5 pr-14">
 						<div>
-							<p className="text-sage mb-1 font-mono text-xs font-semibold uppercase">Lesson record</p>
+							<p className="mb-1 font-mono text-xs font-semibold text-sage uppercase">Lesson record</p>
 							<DialogTitle>{mode === 'create' ? 'Add lesson' : 'Edit lesson'}</DialogTitle>
-							<p className="text-ink-muted mt-1 text-sm">Create an individual lesson in the schedule.</p>
+							<p className="mt-1 text-sm text-ink-muted">Create an individual lesson in the schedule.</p>
 						</div>
 						<DialogDescription className="sr-only">Lesson schedule form</DialogDescription>
 					</DialogHeader>
@@ -386,11 +387,11 @@ export function LessonFormDialog({
 								<Input value={values.topic} onChange={(event) => updateValue('topic', event.target.value)} />
 							</Field>
 							<Field label="Repeat" className="md:col-span-2">
-								<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
+								<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
 									<div className="flex items-center justify-between gap-3">
 										<div>
-											<p className="font-heading text-ink text-sm font-semibold">Weekly at this time</p>
-											<p className="text-ink-muted mt-1 text-xs">
+											<p className="font-heading text-sm font-semibold text-ink">Weekly at this time</p>
+											<p className="mt-1 text-xs text-ink-muted">
 												{mode === 'create'
 													? 'Creates one weekly recurring Google Calendar event.'
 													: 'Makes this lesson weekly recurring in Google Calendar.'}
@@ -406,11 +407,11 @@ export function LessonFormDialog({
 							</Field>
 							{mode === 'edit' && (
 								<Field label="Series" className="md:col-span-2">
-									<div className="border-line-soft bg-surface-muted rounded-lg border p-3">
+									<div className="rounded-lg border border-line-soft bg-surface-muted p-3">
 										<div className="flex items-center justify-between gap-3">
 											<div>
-												<p className="font-heading text-ink text-sm font-semibold">Apply to future weekly lessons</p>
-												<p className="text-ink-muted mt-1 text-xs">
+												<p className="font-heading text-sm font-semibold text-ink">Apply to future weekly lessons</p>
+												<p className="mt-1 text-xs text-ink-muted">
 													Updates this student&apos;s future lessons with the same weekday and time.
 												</p>
 											</div>
@@ -424,17 +425,17 @@ export function LessonFormDialog({
 								</Field>
 							)}
 							{conflicts.length > 0 && (
-								<div className="border-warning-line bg-warning-soft/55 rounded-lg border p-3 md:col-span-2">
+								<div className="rounded-lg border border-warning-line bg-warning-soft/55 p-3 md:col-span-2">
 									<div className="flex items-start gap-2">
-										<AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+										<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
 										<div className="min-w-0">
-											<p className="font-heading text-ink text-sm font-semibold">Schedule overlap</p>
-											<p className="text-ink-muted mt-1 text-xs">
+											<p className="font-heading text-sm font-semibold text-ink">Schedule overlap</p>
+											<p className="mt-1 text-xs text-ink-muted">
 												This warning does not block saving. Check these lessons before confirming:
 											</p>
 											<div className="mt-2 grid gap-1">
 												{conflicts.slice(0, 3).map((conflict) => (
-													<p key={conflict.id} className="text-ink truncate font-mono text-xs tabular-nums">
+													<p key={conflict.id} className="truncate font-mono text-xs text-ink tabular-nums">
 														{timeInputValue(new Date(conflict.startsAt))} · {conflict.title}
 													</p>
 												))}
@@ -444,19 +445,19 @@ export function LessonFormDialog({
 								</div>
 							)}
 							{calendarConflicts.length > 0 && (
-								<div className="border-warning-line bg-warning-soft/55 rounded-lg border p-3 md:col-span-2">
+								<div className="rounded-lg border border-warning-line bg-warning-soft/55 p-3 md:col-span-2">
 									<div className="flex items-start gap-2">
-										<AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+										<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
 										<div className="min-w-0">
-											<p className="font-heading text-ink text-sm font-semibold">Google Calendar busy time</p>
-											<p className="text-ink-muted mt-1 text-xs">
+											<p className="font-heading text-sm font-semibold text-ink">Google Calendar busy time</p>
+											<p className="mt-1 text-xs text-ink-muted">
 												Google Calendar already has busy time in this slot. Saving is still allowed.
 											</p>
 											<div className="mt-2 grid gap-1">
 												{calendarConflicts.slice(0, 3).map((conflict) => (
 													<p
 														key={`${conflict.calendarId}-${conflict.startsAt}`}
-														className="text-ink truncate font-mono text-xs tabular-nums"
+														className="truncate font-mono text-xs text-ink tabular-nums"
 													>
 														{conflictDateValue(new Date(conflict.startsAt))} ·{' '}
 														{timeInputValue(new Date(conflict.startsAt))} - {timeInputValue(new Date(conflict.endsAt))}{' '}
@@ -479,7 +480,7 @@ export function LessonFormDialog({
 						</div>
 					</ScrollArea>
 
-					<DialogFooter className="border-line-soft bg-surface-muted border-t px-6 py-4">
+					<DialogFooter className="border-t border-line-soft bg-surface-muted px-6 py-4">
 						<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
 							Cancel
 						</Button>
@@ -513,9 +514,9 @@ function Field({
 }) {
 	return (
 		<div className={className}>
-			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>
+			<Label className="mb-1.5 block text-xs font-medium text-ink-muted">{label}</Label>
 			{children}
-			{error && <p className="text-danger mt-1 text-xs">{error}</p>}
+			{error && <p className="mt-1 text-xs text-danger">{error}</p>}
 		</div>
 	)
 }
