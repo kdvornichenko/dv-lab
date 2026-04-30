@@ -35,7 +35,7 @@ import {
 } from '@teacher-crm/db'
 
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 const BILLABLE_STATUSES = BILLABLE_ATTENDANCE_STATUSES as readonly string[]
@@ -395,7 +395,7 @@ export const billingService = {
 
 	async createPackageForPayment(scope: StoreScope, student: StudentRow, paidAt: string) {
 		const db = getDb()
-		if (!db) return memoryStore.createPackageForPayment(scope, mapStudent(student), paidAt)
+		if (!db) return getMemoryStore().createPackageForPayment(scope, mapStudent(student), paidAt)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return mapPackage(
@@ -419,7 +419,7 @@ export const billingService = {
 
 	async cancelPackage(scope: StoreScope, packageId: string) {
 		const db = getDb()
-		if (!db) return memoryStore.cancelPackage(scope, packageId)
+		if (!db) return getMemoryStore().cancelPackage(scope, packageId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		await clearLessonChargePackageRows(db, teacherId, packageId)
@@ -431,7 +431,7 @@ export const billingService = {
 
 	async syncLessonChargesForLesson(scope: StoreScope, lessonId?: string) {
 		const db = getDb()
-		if (!db) return memoryStore.syncLessonChargesForLesson(scope, lessonId)
+		if (!db) return getMemoryStore().syncLessonChargesForLesson(scope, lessonId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const [attendance, students, lessons, packageRows, chargeRows] = await Promise.all([
@@ -485,7 +485,7 @@ export const billingService = {
 
 	async listStudentBalances(scope: StoreScope): Promise<StudentBalance[]> {
 		const db = getDb()
-		if (!db) return memoryStore.listStudentBalances(scope)
+		if (!db) return getMemoryStore().listStudentBalances(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		await billingService.syncLessonChargesForLesson(scope)

@@ -10,7 +10,7 @@ import {
 
 import { billingService } from './billing-service'
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 function dateToIso(value: Date | string | null | undefined) {
@@ -42,7 +42,7 @@ function mapPaymentRow(row: PaymentRow): Payment {
 export const paymentService = {
 	async listPayments(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.listPayments(scope)
+		if (!db) return getMemoryStore().listPayments(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listPaymentRows(db, teacherId)).map(mapPaymentRow)
@@ -50,7 +50,7 @@ export const paymentService = {
 
 	async createPayment(scope: StoreScope, input: CreatePaymentInput) {
 		const db = getDb()
-		if (!db) return memoryStore.createPayment(scope, input)
+		if (!db) return getMemoryStore().createPayment(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		if (input.idempotencyKey) {
@@ -85,7 +85,7 @@ export const paymentService = {
 
 	async deletePayment(scope: StoreScope, paymentId: string) {
 		const db = getDb()
-		if (!db) return memoryStore.deletePayment(scope, paymentId)
+		if (!db) return getMemoryStore().deletePayment(scope, paymentId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const payment = await deletePaymentRow(db, teacherId, paymentId)

@@ -12,6 +12,7 @@ import {
 	type CalendarSyncResponse,
 } from '@teacher-crm/api-types'
 
+import { apiError, errorResponse, notFoundResponse } from '../http/errors'
 import { validateJson } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { calendarService } from '../services/calendar-service'
@@ -56,10 +57,7 @@ export const calendarRoutes = new Hono()
 	.post('/connections', requirePermission('calendar', 'connect'), async (context) => {
 		const user = context.get('user')
 		if (!user?.email) {
-			return context.json(
-				{ ok: false, error: { code: 'GOOGLE_EMAIL_REQUIRED', message: 'Google account email is required' } },
-				400
-			)
+			return errorResponse(context, 400, apiError('VALIDATION_FAILED', 'Google account email is required'))
 		}
 
 		const response: CalendarConnectionResponse = {
@@ -76,10 +74,7 @@ export const calendarRoutes = new Hono()
 			const input = context.req.valid('json')
 			const email = input.email ?? context.get('user')?.email
 			if (!email) {
-				return context.json(
-					{ ok: false, error: { code: 'GOOGLE_EMAIL_REQUIRED', message: 'Google account email is required' } },
-					400
-				)
+				return errorResponse(context, 400, apiError('VALIDATION_FAILED', 'Google account email is required'))
 			}
 
 			const response: CalendarConnectionResponse = {
@@ -123,13 +118,13 @@ export const calendarRoutes = new Hono()
 					input.lessonId,
 					'disabled'
 				)
-				if (!sync) return context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Lesson not found' } }, 404)
+				if (!sync) return notFoundResponse(context, 'Lesson not found')
 				const response: CalendarSyncResponse = { ok: true, sync }
 				return context.json(response, 200)
 			}
 
 			const sync = await calendarService.syncLessonToCalendar(actorFromContext(context), input.lessonId)
-			if (!sync) return context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Lesson not found' } }, 404)
+			if (!sync) return notFoundResponse(context, 'Lesson not found')
 			const response: CalendarSyncResponse = { ok: true, sync }
 			return context.json(response, 200)
 		}

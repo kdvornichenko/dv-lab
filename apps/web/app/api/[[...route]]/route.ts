@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { handle } from 'hono/vercel'
 
-import { app as teacherCrmApi } from '../../../../api/src/app'
+import { app as teacherCrmApi } from '@teacher-crm/api'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

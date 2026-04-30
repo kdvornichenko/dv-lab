@@ -9,6 +9,7 @@ import {
 } from '@teacher-crm/api-types'
 import { can } from '@teacher-crm/rbac'
 
+import { apiError, errorResponse, notFoundResponse } from '../http/errors'
 import { validateJson, validateQuery } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { studentService } from '../services/student-service'
@@ -33,17 +34,17 @@ export const studentRoutes = new Hono()
 		const user = context.get('user')
 
 		if (input.status === 'archived' && !can(new Set(user?.permissions ?? []), 'students', 'archive')) {
-			return context.json({ ok: false, error: { code: 'FORBIDDEN', message: 'Permission denied' } }, 403)
+			return errorResponse(context, 403, apiError('FORBIDDEN', 'Permission denied'))
 		}
 
 		const student = await studentService.updateStudent(actorFromContext(context), context.req.param('studentId'), input)
-		if (!student) return context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Student not found' } }, 404)
+		if (!student) return notFoundResponse(context, 'Student not found')
 		const response: StudentMutationResponse = { ok: true, student }
 		return context.json(response, 200)
 	})
 	.delete('/:studentId', requirePermission('students', 'archive'), async (context) => {
 		const student = await studentService.deleteStudent(actorFromContext(context), context.req.param('studentId'))
-		if (!student) return context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Student not found' } }, 404)
+		if (!student) return notFoundResponse(context, 'Student not found')
 		const response: StudentMutationResponse = { ok: true, student }
 		return context.json(response, 200)
 	})

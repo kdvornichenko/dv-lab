@@ -18,7 +18,7 @@ import {
 } from '@teacher-crm/db'
 
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 function emptyToNull(value: string | undefined) {
@@ -215,7 +215,7 @@ function toUpdateValues(input: UpdateStudentInput, existing: StudentRow): Studen
 export const studentService = {
 	async listStudents(scope: StoreScope, filters: ListStudentsQuery) {
 		const db = getDb()
-		if (!db) return memoryStore.listStudents(scope, filters)
+		if (!db) return getMemoryStore().listStudents(scope, filters)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listStudentRows(db, teacherId, filters)).map(mapStudentRow)
@@ -223,7 +223,7 @@ export const studentService = {
 
 	async createStudent(scope: StoreScope, input: CreateStudentInput) {
 		const db = getDb()
-		if (!db) return memoryStore.createStudent(scope, input)
+		if (!db) return getMemoryStore().createStudent(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return mapStudentRow(await insertStudentRow(db, toInsertValues(teacherId, input)))
@@ -231,7 +231,7 @@ export const studentService = {
 
 	async updateStudent(scope: StoreScope, studentId: string, input: UpdateStudentInput) {
 		const db = getDb()
-		if (!db) return memoryStore.updateStudent(scope, studentId, input)
+		if (!db) return getMemoryStore().updateStudent(scope, studentId, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const existing = (await listStudentRows(db, teacherId, { status: 'all' })).find(
@@ -247,7 +247,7 @@ export const studentService = {
 
 	async deleteStudent(scope: StoreScope, studentId: string) {
 		const db = getDb()
-		if (!db) return memoryStore.deleteStudent(scope, studentId)
+		if (!db) return getMemoryStore().deleteStudent(scope, studentId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const student = await deleteStudentRow(db, teacherId, studentId)

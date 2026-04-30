@@ -17,7 +17,7 @@ import {
 } from '@teacher-crm/db'
 
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 const defaultSidebarItems: SidebarItem[] = DEFAULT_SIDEBAR_ITEMS.map((item) => ({ ...item }))
@@ -78,7 +78,7 @@ function toRepositoryTheme(theme: CrmThemeSettings): ThemeSettingsValue {
 export const settingsService = {
 	async listSidebarItems(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.listSidebarItems(scope)
+		if (!db) return getMemoryStore().listSidebarItems(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const existing = await getSidebarSettingsRow(db, teacherId)
@@ -96,7 +96,7 @@ export const settingsService = {
 	async saveSidebarItems(scope: StoreScope, input: UpdateSidebarSettingsInput) {
 		const items = normalizeSidebarItems(input.items)
 		const db = getDb()
-		if (!db) return memoryStore.saveSidebarItems(scope, items)
+		if (!db) return getMemoryStore().saveSidebarItems(scope, items)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return normalizeSidebarItems((await upsertSidebarSettingsRow(db, teacherId, toRepositoryItems(items))).items)
@@ -104,7 +104,7 @@ export const settingsService = {
 
 	async getTheme(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.getTheme(scope)
+		if (!db) return getMemoryStore().getTheme(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const existing = await getThemeSettingsRow(db, teacherId)
@@ -120,7 +120,7 @@ export const settingsService = {
 	async saveTheme(scope: StoreScope, input: CrmThemeSettings) {
 		const theme = normalizeThemeSettings(input)
 		const db = getDb()
-		if (!db) return memoryStore.saveTheme(scope, theme)
+		if (!db) return getMemoryStore().saveTheme(scope, theme)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return normalizeThemeSettings((await upsertThemeSettingsRow(db, teacherId, toRepositoryTheme(theme))).theme)

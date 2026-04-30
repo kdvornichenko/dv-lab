@@ -20,7 +20,7 @@ import {
 
 import { billingService } from './billing-service'
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 function emptyToNull(value: string | undefined) {
@@ -121,7 +121,7 @@ async function syncLessonAttendanceForStatus(
 export const lessonService = {
 	async listLessons(scope: StoreScope, filters: ListLessonsQuery) {
 		const db = getDb()
-		if (!db) return memoryStore.listLessons(scope, filters)
+		if (!db) return getMemoryStore().listLessons(scope, filters)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listLessonRows(db, teacherId, filters)).map(mapLessonRow)
@@ -129,7 +129,7 @@ export const lessonService = {
 
 	async createLesson(scope: StoreScope, input: CreateLessonInput) {
 		const db = getDb()
-		if (!db) return memoryStore.createLesson(scope, input)
+		if (!db) return getMemoryStore().createLesson(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const lesson = await insertLessonRow(db, toInsertValues(teacherId, input), input.studentIds)
@@ -140,7 +140,7 @@ export const lessonService = {
 
 	async updateLesson(scope: StoreScope, lessonId: string, input: UpdateLessonInput) {
 		const db = getDb()
-		if (!db) return memoryStore.updateLesson(scope, lessonId, input)
+		if (!db) return getMemoryStore().updateLesson(scope, lessonId, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const lesson = await updateLessonRow(db, teacherId, lessonId, toUpdateValues(input), input.studentIds)
@@ -153,7 +153,7 @@ export const lessonService = {
 
 	async deleteLesson(scope: StoreScope, lessonId: string) {
 		const db = getDb()
-		if (!db) return memoryStore.deleteLesson(scope, lessonId)
+		if (!db) return getMemoryStore().deleteLesson(scope, lessonId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const lesson = await deleteLessonRow(db, teacherId, lessonId)
@@ -162,7 +162,7 @@ export const lessonService = {
 
 	async listAttendance(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.listAttendance(scope)
+		if (!db) return getMemoryStore().listAttendance(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listAttendanceRows(db, teacherId)).map(mapAttendanceRow)
@@ -170,7 +170,7 @@ export const lessonService = {
 
 	async markAttendance(scope: StoreScope, input: MarkAttendanceInput) {
 		const db = getDb()
-		if (!db) return memoryStore.markAttendance(scope, input)
+		if (!db) return getMemoryStore().markAttendance(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const updatedAttendance = (

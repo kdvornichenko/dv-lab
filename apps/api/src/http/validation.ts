@@ -4,6 +4,8 @@ import type { z, ZodType } from 'zod'
 
 import type { ValidationErrorDetails } from '@teacher-crm/api-types'
 
+import { apiError, errorResponse } from './errors'
+
 function validationDetails(error: z.ZodError): ValidationErrorDetails {
 	return {
 		issues: error.issues.map((issue) => ({
@@ -18,16 +20,10 @@ export function validateJson<T extends ZodType>(schema: T) {
 	return zValidator('json', schema, (result, context) => {
 		if (result.success !== false) return
 
-		return context.json(
-			{
-				ok: false,
-				error: {
-					code: 'VALIDATION_FAILED',
-					message: 'Request body failed validation',
-					details: validationDetails(result.error),
-				},
-			},
-			400
+		return errorResponse(
+			context,
+			400,
+			apiError('VALIDATION_FAILED', 'Request body failed validation', validationDetails(result.error))
 		)
 	})
 }
@@ -36,16 +32,10 @@ export function validateQuery<T extends ZodType>(schema: T) {
 	return zValidator('query', schema, (result, context) => {
 		if (result.success !== false) return
 
-		return context.json(
-			{
-				ok: false,
-				error: {
-					code: 'VALIDATION_FAILED',
-					message: 'Request query failed validation',
-					details: validationDetails(result.error),
-				},
-			},
-			400
+		return errorResponse(
+			context,
+			400,
+			apiError('VALIDATION_FAILED', 'Request query failed validation', validationDetails(result.error))
 		)
 	})
 }

@@ -28,7 +28,8 @@ import {
 
 import { serverEnv } from '../config/env'
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { GoogleCalendarRequestError, googleJson } from './google-calendar-client'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 type ProviderTokenInput = {
@@ -97,16 +98,6 @@ type GoogleRefreshTokenResponse = {
 	expires_in?: number
 	error?: string
 	error_description?: string
-}
-
-class GoogleCalendarRequestError extends Error {
-	constructor(
-		message: string,
-		readonly status: number
-	) {
-		super(message)
-		this.name = 'GoogleCalendarRequestError'
-	}
 }
 
 const now = () => new Date().toISOString()
@@ -351,28 +342,6 @@ async function googleRecurringInstances(
 	return response.items ?? []
 }
 
-async function googleJson<T>(url: string, accessToken: string, init: RequestInit = {}): Promise<T> {
-	const headers = new Headers(init.headers)
-	headers.set('authorization', `Bearer ${accessToken}`)
-	if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
-
-	const response = await fetch(url, {
-		...init,
-		headers,
-	})
-	const body = (await response.json().catch(() => null)) as T | { error?: { message?: string } } | null
-
-	if (!response.ok) {
-		const message =
-			body && typeof body === 'object' && 'error' in body && body.error?.message
-				? body.error.message
-				: `Google Calendar request failed with ${response.status}`
-		throw new GoogleCalendarRequestError(message, response.status)
-	}
-
-	return body as T
-}
-
 async function refreshGoogleAccessToken(connection: CalendarConnectionRow) {
 	if (!connection.encryptedRefreshToken) throw new Error('Google refresh token is not available')
 	if (!serverEnv.GOOGLE_CLIENT_ID || !serverEnv.GOOGLE_CLIENT_SECRET) {
@@ -476,7 +445,7 @@ async function markGoogleConnectionIssue(
 export const calendarService = {
 	async getCalendarConnection(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.getCalendarConnection(scope)
+		if (!db) return getMemoryStore().getCalendarConnection(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return mapConnectionRow(await getCalendarConnectionRow(db, teacherId))
@@ -484,7 +453,7 @@ export const calendarService = {
 
 	async listCalendarSyncRecords(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.listCalendarSyncRecords(scope)
+		if (!db) return getMemoryStore().listCalendarSyncRecords(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listCalendarSyncEventRows(db, teacherId)).map(mapSyncEventRow)
@@ -494,8 +463,8 @@ export const calendarService = {
 		const db = getDb()
 		if (!db) {
 			return {
-				connection: memoryStore.getCalendarConnection(scope),
-				syncRecords: memoryStore.listCalendarSyncRecords(scope),
+				connection: getMemoryStore().getCalendarConnection(scope),
+				syncRecords: getMemoryStore().listCalendarSyncRecords(scope),
 			}
 		}
 
@@ -512,7 +481,7 @@ export const calendarService = {
 
 	async connectCalendar(scope: StoreScope, email: string) {
 		const db = getDb()
-		if (!db) return memoryStore.connectCalendar(scope, email)
+		if (!db) return getMemoryStore().connectCalendar(scope, email)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const existing = await getCalendarConnectionRow(db, teacherId)
@@ -539,7 +508,7 @@ export const calendarService = {
 	async saveProviderTokens(scope: StoreScope, input: ProviderTokenInput) {
 		const db = getDb()
 		if (!db) {
-			return memoryStore.connectCalendar(scope, input.email, {
+			return getMemoryStore().connectCalendar(scope, input.email, {
 				grantedScopes: [...GOOGLE_CALENDAR_REQUIRED_SCOPES],
 				tokenAvailable: true,
 			})
@@ -570,7 +539,7 @@ export const calendarService = {
 
 	async selectCalendar(scope: StoreScope, calendarId: string, calendarName: string) {
 		const db = getDb()
-		if (!db) return memoryStore.selectCalendar(scope, calendarId, calendarName)
+		if (!db) return getMemoryStore().selectCalendar(scope, calendarId, calendarName)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const existing = await selectCalendarConnectionRow(db, teacherId, calendarId, calendarName)
@@ -593,7 +562,7 @@ export const calendarService = {
 
 	async listCalendars(scope: StoreScope): Promise<CalendarListEntry[]> {
 		const db = getDb()
-		if (!db) return memoryCalendarOptions(memoryStore.getCalendarConnection(scope))
+		if (!db) return memoryCalendarOptions(getMemoryStore().getCalendarConnection(scope))
 
 		const teacherId = await teacherProfileId(db, scope)
 		const connection = await getCalendarConnectionRow(db, teacherId)
@@ -850,7 +819,7 @@ export const calendarService = {
 		status: CalendarSyncStatus = 'not_synced'
 	): Promise<CalendarSyncRecord | null> {
 		const db = getDb()
-		if (!db) return memoryStore.ensureCalendarSyncRecord(scope, lessonId, status)
+		if (!db) return getMemoryStore().ensureCalendarSyncRecord(scope, lessonId, status)
 
 		const teacherId = await teacherProfileId(db, scope)
 		if (!(await lessonExistsForTeacher(db, teacherId, lessonId))) return null
@@ -872,7 +841,7 @@ export const calendarService = {
 		options: CalendarSyncOptions = {}
 	): Promise<CalendarSyncRecord | null> {
 		const db = getDb()
-		if (!db) return memoryStore.syncLessonToCalendar(scope, lessonId)
+		if (!db) return getMemoryStore().syncLessonToCalendar(scope, lessonId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const lessonContext = await getCalendarLessonContext(db, teacherId, lessonId)

@@ -9,7 +9,7 @@ import {
 } from '@teacher-crm/db'
 
 import { getDb, teacherProfileId } from './db-context'
-import { memoryStore } from './memory-store'
+import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
 const MAX_ERRORS = 100
@@ -30,7 +30,7 @@ function mapErrorLogRow(row: CrmErrorLogRow): CrmErrorLogEntry {
 export const errorLogService = {
 	async listErrors(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.listCrmErrors(scope)
+		if (!db) return getMemoryStore().listCrmErrors(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listCrmErrorLogRows(db, teacherId)).map(mapErrorLogRow)
@@ -38,7 +38,7 @@ export const errorLogService = {
 
 	async saveError(scope: StoreScope, input: SaveCrmErrorInput) {
 		const db = getDb()
-		if (!db) return memoryStore.saveCrmError(scope, input)
+		if (!db) return getMemoryStore().saveCrmError(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const entry = mapErrorLogRow(
@@ -54,7 +54,7 @@ export const errorLogService = {
 
 	async deleteError(scope: StoreScope, errorId: string) {
 		const db = getDb()
-		if (!db) return memoryStore.deleteCrmError(scope, errorId)
+		if (!db) return getMemoryStore().deleteCrmError(scope, errorId)
 
 		const teacherId = await teacherProfileId(db, scope)
 		const entry = await deleteCrmErrorLogRow(db, teacherId, errorId)
@@ -63,7 +63,7 @@ export const errorLogService = {
 
 	async clearErrors(scope: StoreScope) {
 		const db = getDb()
-		if (!db) return memoryStore.clearCrmErrors(scope)
+		if (!db) return getMemoryStore().clearCrmErrors(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
 		await clearCrmErrorLogRows(db, teacherId)

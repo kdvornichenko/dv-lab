@@ -4,7 +4,8 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 
 import { serverEnv } from './config/env'
-import { optionalAuth, requireAuth } from './middleware/auth'
+import { apiError } from './http/errors'
+import { createOptionalAuth, requireAuth } from './middleware/auth'
 import { authRoutes } from './routes/auth'
 import { calendarRoutes } from './routes/calendar'
 import { dashboardRoutes } from './routes/dashboard'
@@ -13,6 +14,8 @@ import { lessonRoutes } from './routes/lessons'
 import { paymentRoutes } from './routes/payments'
 import { settingsRoutes } from './routes/settings'
 import { studentRoutes } from './routes/students'
+import { type DbContextOptions, runWithDbContext } from './services/db-context'
+import { type ApiMemoryStore, runWithStorageContext } from './services/storage-context'
 
 const defaultCorsOrigins = ['http://localhost:3000', 'https://dv-lab.dev', 'https://www.dv-lab.dev']
 const corsOrigins = Array.from(
@@ -41,56 +44,74 @@ function withCorsHeaders(context: Context, response: Response) {
 	return response
 }
 
-export const app = new Hono()
+export type CreateAppOptions = {
+	storeNamespace?: string
+	auth?: Parameters<typeof createOptionalAuth>[0]
+	db?: DbContextOptions
+	memoryStore?: ApiMemoryStore
+}
 
-app.use('*', logger())
-app.use(
-	'*',
-	cors({
-		origin: allowedCorsOrigin,
-		allowMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
-		credentials: true,
-		maxAge: 600,
-	})
-)
-app.use('*', optionalAuth)
+export function createApp(options: CreateAppOptions = {}) {
+	const app = new Hono()
 
-app.get('/healthz', (context) => context.json({ ok: true, service: 'teacher-crm-api' }, 200))
-
-app.use('/auth/me', requireAuth)
-app.route('/auth', authRoutes)
-app.use('/students', requireAuth)
-app.use('/students/*', requireAuth)
-app.use('/lessons', requireAuth)
-app.use('/lessons/*', requireAuth)
-app.use('/payments', requireAuth)
-app.use('/payments/*', requireAuth)
-app.use('/calendar', requireAuth)
-app.use('/calendar/*', requireAuth)
-app.use('/dashboard', requireAuth)
-app.use('/dashboard/*', requireAuth)
-app.use('/settings', requireAuth)
-app.use('/settings/*', requireAuth)
-app.use('/errors', requireAuth)
-app.use('/errors/*', requireAuth)
-app.route('/students', studentRoutes)
-app.route('/lessons', lessonRoutes)
-app.route('/payments', paymentRoutes)
-app.route('/calendar', calendarRoutes)
-app.route('/dashboard', dashboardRoutes)
-app.route('/settings', settingsRoutes)
-app.route('/errors', errorRoutes)
-
-app.notFound((context) =>
-	withCorsHeaders(context, context.json({ ok: false, error: { code: 'NOT_FOUND', message: 'Route not found' } }, 404))
-)
-
-app.onError((error, context) => {
-	console.error(error)
-	return withCorsHeaders(
-		context,
-		context.json({ ok: false, error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } }, 500)
+	app.use('*', logger())
+	app.use(
+		'*',
+		cors({
+			origin: allowedCorsOrigin,
+			allowMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
+			credentials: true,
+			maxAge: 600,
+		})
 	)
-})
+	app.use('*', async (context, next) => {
+		context.set('storeNamespace', options.storeNamespace)
+		await next()
+	})
+	if (options.db) {
+		app.use('*', async (_context, next) => runWithDbContext(options.db!, next))
+	}
+	if (options.memoryStore) {
+		app.use('*', async (_context, next) => runWithStorageContext({ memoryStore: options.memoryStore }, next))
+	}
+	app.use('*', createOptionalAuth(options.auth))
 
-export type ApiApp = typeof app
+	app.get('/healthz', (context) => context.json({ ok: true, service: 'teacher-crm-api' }, 200))
+
+	app.use('/auth/me', requireAuth)
+	app.route('/auth', authRoutes)
+	app.use('/students', requireAuth)
+	app.use('/students/*', requireAuth)
+	app.use('/lessons', requireAuth)
+	app.use('/lessons/*', requireAuth)
+	app.use('/payments', requireAuth)
+	app.use('/payments/*', requireAuth)
+	app.use('/calendar', requireAuth)
+	app.use('/calendar/*', requireAuth)
+	app.use('/dashboard', requireAuth)
+	app.use('/dashboard/*', requireAuth)
+	app.use('/settings', requireAuth)
+	app.use('/settings/*', requireAuth)
+	app.use('/errors', requireAuth)
+	app.use('/errors/*', requireAuth)
+	app.route('/students', studentRoutes)
+	app.route('/lessons', lessonRoutes)
+	app.route('/payments', paymentRoutes)
+	app.route('/calendar', calendarRoutes)
+	app.route('/dashboard', dashboardRoutes)
+	app.route('/settings', settingsRoutes)
+	app.route('/errors', errorRoutes)
+
+	app.notFound((context) => withCorsHeaders(context, context.json(apiError('NOT_FOUND', 'Route not found'), 404)))
+
+	app.onError((error, context) => {
+		console.error(error)
+		return withCorsHeaders(context, context.json(apiError('INTERNAL_ERROR', 'Internal server error'), 500))
+	})
+
+	return app
+}
+
+export const app = createApp()
+
+export type ApiApp = ReturnType<typeof createApp>

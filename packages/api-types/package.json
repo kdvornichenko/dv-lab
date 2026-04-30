@@ -18,9 +18,9 @@
 		}
 	},
 	"scripts": {
-		"build": "rimraf dist && tsup src/index.ts --dts --format esm,cjs --out-dir dist --clean",
+		"build": "rimraf dist && tsup --config tsup.config.ts",
 		"clean": "rimraf dist",
-		"watch": "tsup src/index.ts --dts --format esm,cjs --out-dir dist --watch --clean=false",
+		"watch": "tsup --config tsup.config.ts --watch --clean=false",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"lint": "tsc -p tsconfig.json --noEmit",
 		"test": "tsc -p tsconfig.json --noEmit"

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 
 process.env.NODE_ENV = 'test'
 
-const { app } = await import('./app')
+const { createApp } = await import('./app')
+const app = createApp({ storeNamespace: 'api-smoke', db: { db: null } })
 
 const health = await app.request('/healthz')
 assert.equal(health.status, 200)
@@ -19,6 +20,35 @@ const demoAuthenticated = await app.request('/students', {
 	},
 })
 assert.equal(demoAuthenticated.status, 200)
+
+const isolatedA = createApp({ storeNamespace: 'isolated-a', db: { db: null } })
+const isolatedB = createApp({ storeNamespace: 'isolated-b', db: { db: null } })
+const isolatedStudent = await isolatedA.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'Isolated Student',
+		email: 'isolated.student@example.com',
+		status: 'active',
+		defaultLessonPrice: 1000,
+		packageMonths: 0,
+		packageLessonsPerWeek: 0,
+		packageLessonCount: 0,
+		billingMode: 'per_lesson',
+	}),
+})
+assert.equal(isolatedStudent.status, 201)
+const isolatedBStudents = await isolatedB.request('/students?status=all&search=Isolated%20Student', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(isolatedBStudents.status, 200)
+const isolatedBStudentsBody = await isolatedBStudents.json()
+assert.equal(isolatedBStudentsBody.students.length, 0)
 
 const sidebarSettings = await app.request('/settings/sidebar', {
 	headers: {

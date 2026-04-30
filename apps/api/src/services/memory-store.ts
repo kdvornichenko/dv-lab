@@ -146,12 +146,24 @@ function createStoreState(): TeacherStoreState {
 	}
 }
 
+function storeKey(scope: StoreScope) {
+	return `${scope.storeNamespace ?? 'default'}:${scope.teacherId}`
+}
+
+export function resetMemoryStore(storeNamespace?: string) {
+	const prefix = `${storeNamespace ?? 'default'}:`
+	for (const key of stores.keys()) {
+		if (key.startsWith(prefix)) stores.delete(key)
+	}
+}
+
 function stateFor(scope: StoreScope) {
-	const existing = stores.get(scope.teacherId)
+	const key = storeKey(scope)
+	const existing = stores.get(key)
 	if (existing) return existing
 
 	const created = createStoreState()
-	stores.set(scope.teacherId, created)
+	stores.set(key, created)
 	return created
 }
 

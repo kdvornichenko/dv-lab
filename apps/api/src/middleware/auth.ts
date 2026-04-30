@@ -15,6 +15,7 @@ import {
 } from '@teacher-crm/rbac'
 
 import { serverEnv } from '../config/env'
+import { apiError, errorResponse } from '../http/errors'
 import type { StoreScope } from '../services/store-scope'
 
 export type ApiUser = {
@@ -27,15 +28,18 @@ export type ApiUser = {
 declare module 'hono' {
 	interface ContextVariableMap {
 		user: ApiUser | undefined
+		storeNamespace: string | undefined
 	}
 }
 
 let supabaseAuthClient: ReturnType<typeof createClient> | null = null
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+type AuthClient = ReturnType<typeof createClient>
+type AuthEnv = Pick<typeof serverEnv, 'NODE_ENV' | 'SUPABASE_URL' | 'SUPABASE_ANON_KEY'>
 
-function getSupabaseAuthClient() {
-	if (!serverEnv.SUPABASE_URL || !serverEnv.SUPABASE_ANON_KEY) return null
-	supabaseAuthClient ??= createClient(serverEnv.SUPABASE_URL, serverEnv.SUPABASE_ANON_KEY, {
+function getSupabaseAuthClient(env: AuthEnv = serverEnv) {
+	if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return null
+	supabaseAuthClient ??= createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
 		auth: { persistSession: false, autoRefreshToken: false },
 	})
 	return supabaseAuthClient
@@ -74,55 +78,56 @@ function apiUserFromSupabase(user: User): ApiUser {
 	}
 }
 
-export const optionalAuth = createMiddleware<any, string, {}, Response>(async (context, next) => {
-	const token = bearerToken(context.req.header('authorization'))
-	if (token) {
-		const supabase = getSupabaseAuthClient()
-		if (!supabase) {
-			return context.json(
-				{ ok: false, error: { code: 'AUTH_NOT_CONFIGURED', message: 'Supabase auth is not configured' } },
-				500
-			)
+export function createOptionalAuth(options: { env?: AuthEnv; authClient?: AuthClient | null } = {}) {
+	const env = options.env ?? serverEnv
+	const authClient = options.authClient
+
+	return createMiddleware<any, string, {}, Response>(async (context, next) => {
+		const token = bearerToken(context.req.header('authorization'))
+		if (token) {
+			const supabase = authClient ?? getSupabaseAuthClient(env)
+			if (!supabase) {
+				return errorResponse(context, 500, apiError('AUTH_NOT_CONFIGURED', 'Supabase auth is not configured'))
+			}
+
+			const { data, error } = await supabase.auth.getUser(token)
+			if (error || !data.user) {
+				return errorResponse(context, 401, apiError('UNAUTHENTICATED', 'Invalid or expired access token'))
+			}
+
+			context.set('user', apiUserFromSupabase(data.user))
+			await next()
+			return
 		}
 
-		const { data, error } = await supabase.auth.getUser(token)
-		if (error || !data.user) {
-			return context.json(
-				{ ok: false, error: { code: 'INVALID_TOKEN', message: 'Invalid or expired access token' } },
-				401
-			)
+		const demoUserId = context.req.header('x-demo-user')
+		if (demoUserId && env.NODE_ENV !== 'production') {
+			const roles: RoleKey[] = ['teacher']
+			context.set('user', {
+				id: devAuthUserId(demoUserId),
+				email: context.req.header('x-demo-email') ?? 'teacher@example.com',
+				roles,
+				permissions: Array.from(buildPermissionSet(roles)),
+			})
 		}
 
-		context.set('user', apiUserFromSupabase(data.user))
 		await next()
-		return
-	}
+	})
+}
 
-	const demoUserId = context.req.header('x-demo-user')
-	if (demoUserId && serverEnv.NODE_ENV !== 'production') {
-		const roles: RoleKey[] = ['teacher']
-		context.set('user', {
-			id: devAuthUserId(demoUserId),
-			email: context.req.header('x-demo-email') ?? 'teacher@example.com',
-			roles,
-			permissions: Array.from(buildPermissionSet(roles)),
-		})
-	}
-
-	await next()
-})
+export const optionalAuth = createOptionalAuth()
 
 export function actorFromContext(context: Context): StoreScope {
 	const user = context.get('user')
 	if (!user) throw new Error('Authenticated user missing from request context')
-	return { teacherId: user.id, email: user.email }
+	return { teacherId: user.id, email: user.email, storeNamespace: context.get('storeNamespace') }
 }
 
 export function requirePermission<D extends PermissionDomain>(domain: D, action: ActionOf<D>) {
 	return createMiddleware<any, string, {}, Response>(async (context, next) => {
 		const user = context.get('user')
 		if (!user) {
-			return context.json({ ok: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }, 401)
+			return errorResponse(context, 401, apiError('UNAUTHENTICATED', 'Authentication required'))
 		}
 
 		if (!user.roles.includes('teacher') && !can(new Set(user.permissions), domain, action)) {
@@ -139,16 +144,10 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 
 			console.warn('[teacher-crm] permission denied', details)
 
-			return context.json(
-				{
-					ok: false,
-					error: {
-						code: 'FORBIDDEN',
-						message: `Permission denied: missing ${requiredPermission}`,
-						details,
-					},
-				},
-				403
+			return errorResponse(
+				context,
+				403,
+				apiError('FORBIDDEN', `Permission denied: missing ${requiredPermission}`, details)
 			)
 		}
 
@@ -159,7 +158,7 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 export const requireAuth = createMiddleware<any, string, {}, Response>(async (context, next) => {
 	const user = context.get('user')
 	if (!user) {
-		return context.json({ ok: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } }, 401)
+		return errorResponse(context, 401, apiError('UNAUTHENTICATED', 'Authentication required'))
 	}
 
 	await next()
