@@ -94,7 +94,8 @@ dv-lab/
 - `calendar_connections`
 - `calendar_sync_events`
 - `audit_events` later if needed
-- Supabase RLS policies should protect all user-owned rows.
+- For v1, tenant isolation is enforced in the Hono API and Drizzle repositories through `teacher_id` filters while the server uses privileged database credentials.
+- Supabase RLS is deferred until the product introduces direct browser-to-database access or untrusted DB clients. If that changes, add RLS migrations before exposing those clients.
 
 ### RBAC
 

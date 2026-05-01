@@ -1,10 +1,10 @@
 import { type CreatePaymentInput, type Payment, type StudentBalance } from '@teacher-crm/api-types'
 import {
-	deletePaymentRow,
 	findPaymentRowByIdempotencyKey,
+	getStudentRow,
 	insertPaymentRow,
 	listPaymentRows,
-	listStudentRows,
+	voidPaymentRow,
 	type PaymentRow,
 } from '@teacher-crm/db'
 
@@ -35,7 +35,18 @@ function mapPaymentRow(row: PaymentRow): Payment {
 		correctionOfPaymentId: row.correctionOfPaymentId ?? undefined,
 		packageId: row.packageId ?? undefined,
 		idempotencyKey: row.idempotencyKey ?? undefined,
+		voidedAt: row.voidedAt ? dateToIso(row.voidedAt) : undefined,
 		createdAt: dateToIso(row.createdAt),
+	}
+}
+
+export class PaymentServiceError extends Error {
+	constructor(
+		readonly code: 'STUDENT_NOT_FOUND',
+		message: string
+	) {
+		super(message)
+		this.name = 'PaymentServiceError'
 	}
 }
 
@@ -50,7 +61,13 @@ export const paymentService = {
 
 	async createPayment(scope: StoreScope, input: CreatePaymentInput) {
 		const db = getDb()
-		if (!db) return getMemoryStore().createPayment(scope, input)
+		if (!db) {
+			const store = getMemoryStore()
+			if (!store.listStudents(scope, { status: 'all', search: '' }).some((student) => student.id === input.studentId)) {
+				throw new PaymentServiceError('STUDENT_NOT_FOUND', 'Student not found for payment')
+			}
+			return store.createPayment(scope, input)
+		}
 
 		const teacherId = await teacherProfileId(db, scope)
 		if (input.idempotencyKey) {
@@ -58,13 +75,17 @@ export const paymentService = {
 			if (existing) return mapPaymentRow(existing)
 		}
 
-		const student = (await listStudentRows(db, teacherId, { status: 'all' })).find((row) => row.id === input.studentId)
+		const student = await getStudentRow(db, teacherId, input.studentId)
+		if (!student) {
+			throw new PaymentServiceError('STUDENT_NOT_FOUND', 'Student not found for payment')
+		}
+
 		const currency =
-			input.packagePurchase && student?.billingMode === 'package'
+			input.packagePurchase && student.billingMode === 'package'
 				? student.currency
-				: (input.currency ?? student?.currency ?? 'RUB')
+				: (input.currency ?? student.currency)
 		const studentPackage =
-			input.packagePurchase && student?.billingMode === 'package'
+			input.packagePurchase && student.billingMode === 'package'
 				? await billingService.createPackageForPayment(scope, student, input.paidAt)
 				: null
 		return mapPaymentRow(
@@ -88,7 +109,7 @@ export const paymentService = {
 		if (!db) return getMemoryStore().deletePayment(scope, paymentId)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const payment = await deletePaymentRow(db, teacherId, paymentId)
+		const payment = await voidPaymentRow(db, teacherId, paymentId)
 		if (payment?.packageId) await billingService.cancelPackage(scope, payment.packageId)
 		return payment ? mapPaymentRow(payment) : null
 	},

@@ -2,10 +2,11 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { randomUUID } from 'node:crypto'
 
 import { serverEnv } from './config/env'
-import { apiError } from './http/errors'
-import { createOptionalAuth, requireAuth } from './middleware/auth'
+import { apiError, redactSensitiveText, sanitizeErrorDetails } from './http/errors'
+import { createOptionalAuth, requireAuth, type ApiHonoEnv } from './middleware/auth'
 import { authRoutes } from './routes/auth'
 import { calendarRoutes } from './routes/calendar'
 import { dashboardRoutes } from './routes/dashboard'
@@ -17,7 +18,7 @@ import { studentRoutes } from './routes/students'
 import { type DbContextOptions, runWithDbContext } from './services/db-context'
 import { type ApiMemoryStore, runWithStorageContext } from './services/storage-context'
 
-const defaultCorsOrigins = ['http://localhost:3000', 'https://dv-lab.dev', 'https://www.dv-lab.dev']
+const defaultCorsOrigins = ['http://localhost:3000']
 const corsOrigins = Array.from(
 	new Set([
 		serverEnv.APP_ORIGIN,
@@ -51,10 +52,28 @@ export type CreateAppOptions = {
 	memoryStore?: ApiMemoryStore
 }
 
+function assertRuntimeStorageConfigured(options: CreateAppOptions) {
+	if (serverEnv.NODE_ENV !== 'production') return
+	if (options.db && options.db.db === null) {
+		throw new Error('Production API cannot run with an explicitly null database context')
+	}
+	if (options.memoryStore) {
+		throw new Error('Production API cannot run with in-memory storage')
+	}
+}
+
 export function createApp(options: CreateAppOptions = {}) {
-	const app = new Hono()
+	assertRuntimeStorageConfigured(options)
+
+	const app = new Hono<ApiHonoEnv>()
 
 	app.use('*', logger())
+	app.use('*', async (context, next) => {
+		const requestId = context.req.header('x-request-id')?.trim() || randomUUID()
+		context.set('requestId', requestId)
+		await next()
+		context.header('x-request-id', requestId)
+	})
 	app.use(
 		'*',
 		cors({
@@ -105,8 +124,18 @@ export function createApp(options: CreateAppOptions = {}) {
 	app.notFound((context) => withCorsHeaders(context, context.json(apiError('NOT_FOUND', 'Route not found'), 404)))
 
 	app.onError((error, context) => {
-		console.error(error)
-		return withCorsHeaders(context, context.json(apiError('INTERNAL_ERROR', 'Internal server error'), 500))
+		const requestId = context.get('requestId')
+		console.error('[teacher-crm] unhandled api error', {
+			requestId,
+			method: context.req.method,
+			path: context.req.path,
+			error: sanitizeErrorDetails(error),
+		})
+		const body = apiError('INTERNAL_ERROR', redactSensitiveText('Internal server error'))
+		return withCorsHeaders(
+			context,
+			context.json({ ...body, error: { ...body.error, ...(requestId ? { requestId } : {}) } }, 500)
+		)
 	})
 
 	return app

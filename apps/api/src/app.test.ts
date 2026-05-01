@@ -21,6 +21,96 @@ const demoAuthenticated = await app.request('/students', {
 })
 assert.equal(demoAuthenticated.status, 200)
 
+const noRoleAuthApp = createApp({
+	storeNamespace: 'auth-no-role',
+	db: { db: null },
+	auth: {
+		authClient: {
+			auth: {
+				getUser: async () => ({
+					data: {
+						user: {
+							id: '11111111-1111-5111-8111-111111111111',
+							email: 'norole@example.test',
+							app_metadata: {},
+							user_metadata: {},
+						},
+					},
+					error: null,
+				}),
+			},
+		} as never,
+	},
+})
+const noRoleStudents = await noRoleAuthApp.request('/students', {
+	headers: {
+		authorization: 'Bearer no-role-token',
+	},
+})
+assert.equal(noRoleStudents.status, 403)
+
+const teacherRoleAuthApp = createApp({
+	storeNamespace: 'auth-teacher-role',
+	db: { db: null },
+	auth: {
+		authClient: {
+			auth: {
+				getUser: async () => ({
+					data: {
+						user: {
+							id: '22222222-2222-5222-8222-222222222222',
+							email: 'teacher-role@example.test',
+							app_metadata: { roles: ['teacher'] },
+							user_metadata: {},
+						},
+					},
+					error: null,
+				}),
+			},
+		} as never,
+	},
+})
+const teacherRoleStudents = await teacherRoleAuthApp.request('/students', {
+	headers: {
+		authorization: 'Bearer teacher-role-token',
+	},
+})
+assert.equal(teacherRoleStudents.status, 200)
+
+const envTeacherAuthApp = createApp({
+	storeNamespace: 'auth-env-teacher',
+	db: { db: null },
+	auth: {
+		env: {
+			NODE_ENV: 'test',
+			SUPABASE_URL: 'https://example.supabase.co',
+			SUPABASE_ANON_KEY: 'anon',
+			TEACHER_CRM_TEACHER_EMAILS: 'env-teacher@example.test',
+		},
+		authClient: {
+			auth: {
+				getUser: async () => ({
+					data: {
+						user: {
+							id: '33333333-3333-5333-8333-333333333333',
+							email: 'env-teacher@example.test',
+							app_metadata: {},
+							user_metadata: {},
+						},
+					},
+					error: null,
+				}),
+			},
+		} as never,
+	},
+})
+const envTeacherStudents = await envTeacherAuthApp.request('/students', {
+	headers: {
+		authorization: 'Bearer env-teacher-token',
+	},
+})
+assert.equal(envTeacherStudents.status, 200)
+
 const isolatedA = createApp({ storeNamespace: 'isolated-a', db: { db: null } })
 const isolatedB = createApp({ storeNamespace: 'isolated-b', db: { db: null } })
 const isolatedStudent = await isolatedA.request('/students', {

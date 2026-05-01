@@ -288,6 +288,7 @@ export const payments = pgTable(
 		comment: text('comment'),
 		correctionOfPaymentId: uuid('correction_of_payment_id'),
 		idempotencyKey: text('idempotency_key'),
+		voidedAt: timestamp('voided_at', { withTimezone: true }),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => ({
@@ -298,6 +299,11 @@ export const payments = pgTable(
 			foreignColumns: [students.teacherId, students.id],
 			name: 'payments_teacher_student_fk',
 		}).onDelete('cascade'),
+		correctionPaymentFk: foreignKey({
+			columns: [table.correctionOfPaymentId],
+			foreignColumns: [table.id],
+			name: 'payments_correction_payment_fk',
+		}).onDelete('set null'),
 	})
 )
 

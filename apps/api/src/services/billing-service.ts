@@ -17,6 +17,7 @@ import {
 import {
 	calculateStudentBalances,
 	clearLessonChargePackageRows,
+	getLessonRow,
 	insertStudentPackageRow,
 	listAttendanceRows,
 	listLessonChargeRows,
@@ -24,6 +25,7 @@ import {
 	listPaymentRows,
 	listStudentPackageRows,
 	listStudentRows,
+	listStudentRowsByIds,
 	updateStudentPackageRow,
 	upsertLessonChargeRow,
 	voidLessonChargeRow,
@@ -434,13 +436,21 @@ export const billingService = {
 		if (!db) return getMemoryStore().syncLessonChargesForLesson(scope, lessonId)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const [attendance, students, lessons, packageRows, chargeRows] = await Promise.all([
-			listAttendanceRows(db, teacherId),
-			listStudentRows(db, teacherId, { status: 'all' }),
-			listLessonRows(db, teacherId, { status: 'all' }),
-			listStudentPackageRows(db, teacherId),
-			listLessonChargeRows(db, teacherId),
-		])
+		const attendance = await listAttendanceRows(db, teacherId, lessonId ? { lessonId } : {})
+		const affectedStudentIds = Array.from(new Set(attendance.map((record) => record.studentId)))
+		const [students, lessons, packageRows, chargeRows] = lessonId
+			? await Promise.all([
+					listStudentRowsByIds(db, teacherId, affectedStudentIds),
+					getLessonRow(db, teacherId, lessonId).then((lesson) => (lesson ? [lesson] : [])),
+					listStudentPackageRows(db, teacherId, { studentIds: affectedStudentIds }),
+					listLessonChargeRows(db, teacherId, { studentIds: affectedStudentIds }),
+				])
+			: await Promise.all([
+					listStudentRows(db, teacherId, { status: 'all' }),
+					listLessonRows(db, teacherId, { status: 'all' }),
+					listStudentPackageRows(db, teacherId),
+					listLessonChargeRows(db, teacherId),
+				])
 		const studentsById = new Map(students.map((student) => [student.id, student]))
 		const lessonsById = new Map(lessons.map((lesson) => [lesson.id, lesson]))
 		const packages = packageRows.map(mapPackage)
@@ -488,7 +498,6 @@ export const billingService = {
 		if (!db) return getMemoryStore().listStudentBalances(scope)
 
 		const teacherId = await teacherProfileId(db, scope)
-		await billingService.syncLessonChargesForLesson(scope)
 		const [students, lessons, payments, packages, charges] = await Promise.all([
 			listStudentRows(db, teacherId, { status: 'all' }),
 			listLessonRows(db, teacherId, { status: 'all' }),

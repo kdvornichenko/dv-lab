@@ -93,6 +93,22 @@ export async function listLessonRows(
 	return groupLessonRows(rows)
 }
 
+export async function getLessonRow(db: DB, teacherId: string, lessonId: string): Promise<LessonRowWithStudents | null> {
+	const rows = await db
+		.select({
+			lesson: lessons,
+			studentId: lessonStudents.studentId,
+		})
+		.from(lessons)
+		.leftJoin(
+			lessonStudents,
+			and(eq(lessonStudents.teacherId, lessons.teacherId), eq(lessonStudents.lessonId, lessons.id))
+		)
+		.where(and(eq(lessons.teacherId, teacherId), eq(lessons.id, lessonId)))
+
+	return groupLessonRows(rows)[0] ?? null
+}
+
 export async function insertLessonRow(
 	db: DB,
 	values: LessonInsertValues,
@@ -221,11 +237,18 @@ export async function updateLessonTitlesForStudent(
 	return updatedLessons.length
 }
 
-export async function listAttendanceRows(db: DB, teacherId: string): Promise<AttendanceRecordRow[]> {
+export async function listAttendanceRows(
+	db: DB,
+	teacherId: string,
+	filters: { lessonId?: string } = {}
+): Promise<AttendanceRecordRow[]> {
+	const conditions: SQL[] = [eq(attendanceRecords.teacherId, teacherId)]
+	if (filters.lessonId) conditions.push(eq(attendanceRecords.lessonId, filters.lessonId))
+
 	return db
 		.select()
 		.from(attendanceRecords)
-		.where(eq(attendanceRecords.teacherId, teacherId))
+		.where(and(...conditions))
 		.orderBy(asc(attendanceRecords.updatedAt))
 }
 

@@ -6,6 +6,7 @@ import type { DateRange } from 'react-day-picker'
 import { enUS } from 'date-fns/locale'
 import { ArrowDownToLineIcon, ArrowUpDown, CalendarRange, FilterIcon, Search, Trash2, UserRound, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { toast } from 'sonner'
 
 import { FacetedFilter, type FacetedFilterOption } from '@/components/filters/FacetedFilter'
 import { Badge } from '@/components/ui/badge'
@@ -158,6 +159,10 @@ export function PaymentsPanel({
 		setDeletingPaymentId(paymentId)
 		try {
 			await onDeletePayment(paymentId)
+		} catch (error) {
+			toast.error('Payment delete failed', {
+				description: error instanceof Error ? error.message : 'Unable to delete payment',
+			})
 		} finally {
 			deletingPaymentIdsRef.current.delete(paymentId)
 			setDeletingPaymentId((current) => (current === paymentId ? null : current))
@@ -453,7 +458,7 @@ function PaymentTableRow({
 							className="text-ink-muted hover:bg-danger-soft hover:text-danger"
 							aria-label={`Delete payment for ${row.studentName}`}
 							disabled={previewMode || deletingPaymentId === row.payment.id}
-							onClick={() => void onDeletePayment(row.payment.id).catch(() => undefined)}
+							onClick={() => void onDeletePayment(row.payment.id)}
 						>
 							<Trash2 className="h-4 w-4" />
 						</Button>

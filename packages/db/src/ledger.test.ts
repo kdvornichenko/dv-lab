@@ -60,3 +60,63 @@ assert.deepEqual(mixedCurrencyResult, [
 		overdue: false,
 	},
 ])
+
+const overpaidResult = calculateStudentBalances(
+	[
+		{ studentId: 's4', amount: 50, billable: true },
+		{ studentId: 's4', amount: 50, billable: false },
+	],
+	[{ studentId: 's4', amount: 75 }]
+)
+
+assert.deepEqual(overpaidResult, [
+	{
+		studentId: 's4',
+		currency: 'RUB',
+		charged: 50,
+		paid: 75,
+		balance: 25,
+		unpaidLessonCount: 0,
+		overdue: false,
+	},
+])
+
+const reversalResult = calculateStudentBalances(
+	[{ studentId: 's5', amount: 100, billable: true }],
+	[
+		{ studentId: 's5', amount: 100 },
+		{ studentId: 's5', amount: -100 },
+	]
+)
+
+assert.deepEqual(reversalResult, [
+	{
+		studentId: 's5',
+		currency: 'RUB',
+		charged: 100,
+		paid: 0,
+		balance: -100,
+		unpaidLessonCount: 1,
+		overdue: true,
+	},
+])
+
+const durationUnitResult = calculateStudentBalances(
+	[
+		{ studentId: 's6', amount: 150, billable: true },
+		{ studentId: 's6', amount: 75, billable: true },
+	],
+	[]
+)
+
+assert.deepEqual(durationUnitResult, [
+	{
+		studentId: 's6',
+		currency: 'RUB',
+		charged: 225,
+		paid: 0,
+		balance: -225,
+		unpaidLessonCount: 2,
+		overdue: true,
+	},
+])

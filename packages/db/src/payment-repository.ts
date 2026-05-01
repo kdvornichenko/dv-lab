@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 
 import type { DB } from './factory'
 import { payments } from './schema'
@@ -10,7 +10,7 @@ export async function listPaymentRows(db: DB, teacherId: string): Promise<Paymen
 	return db
 		.select()
 		.from(payments)
-		.where(eq(payments.teacherId, teacherId))
+		.where(and(eq(payments.teacherId, teacherId), isNull(payments.voidedAt)))
 		.orderBy(desc(payments.paidAt), desc(payments.createdAt))
 }
 
@@ -45,10 +45,21 @@ export async function insertPaymentRow(db: DB, values: PaymentInsertValues): Pro
 	return payment
 }
 
-export async function deletePaymentRow(db: DB, teacherId: string, paymentId: string): Promise<PaymentRow | null> {
+export async function getPaymentRow(db: DB, teacherId: string, paymentId: string): Promise<PaymentRow | null> {
 	const [payment] = await db
-		.delete(payments)
-		.where(and(eq(payments.teacherId, teacherId), eq(payments.id, paymentId)))
+		.select()
+		.from(payments)
+		.where(and(eq(payments.teacherId, teacherId), eq(payments.id, paymentId), isNull(payments.voidedAt)))
+		.limit(1)
+
+	return payment ?? null
+}
+
+export async function voidPaymentRow(db: DB, teacherId: string, paymentId: string): Promise<PaymentRow | null> {
+	const [payment] = await db
+		.update(payments)
+		.set({ voidedAt: new Date() })
+		.where(and(eq(payments.teacherId, teacherId), eq(payments.id, paymentId), isNull(payments.voidedAt)))
 		.returning()
 
 	return payment ?? null

@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm'
 
 import type { DB } from './factory'
 import { lessonCharges, studentPackages } from './schema'
@@ -12,11 +12,21 @@ export type StudentPackageUpdateValues = Partial<
 export type LessonChargeRow = typeof lessonCharges.$inferSelect
 export type LessonChargeInsertValues = Omit<typeof lessonCharges.$inferInsert, 'id' | 'createdAt' | 'updatedAt'>
 
-export async function listStudentPackageRows(db: DB, teacherId: string): Promise<StudentPackageRow[]> {
+export async function listStudentPackageRows(
+	db: DB,
+	teacherId: string,
+	filters: { studentIds?: string[] } = {}
+): Promise<StudentPackageRow[]> {
+	const conditions: SQL[] = [eq(studentPackages.teacherId, teacherId)]
+	if (filters.studentIds) {
+		if (filters.studentIds.length === 0) return []
+		conditions.push(inArray(studentPackages.studentId, filters.studentIds))
+	}
+
 	return db
 		.select()
 		.from(studentPackages)
-		.where(eq(studentPackages.teacherId, teacherId))
+		.where(and(...conditions))
 		.orderBy(asc(studentPackages.startsAt), asc(studentPackages.createdAt))
 }
 
@@ -50,11 +60,22 @@ export async function clearLessonChargePackageRows(db: DB, teacherId: string, pa
 		.where(and(eq(lessonCharges.teacherId, teacherId), eq(lessonCharges.packageId, packageId)))
 }
 
-export async function listLessonChargeRows(db: DB, teacherId: string): Promise<LessonChargeRow[]> {
+export async function listLessonChargeRows(
+	db: DB,
+	teacherId: string,
+	filters: { lessonId?: string; studentIds?: string[] } = {}
+): Promise<LessonChargeRow[]> {
+	const conditions: SQL[] = [eq(lessonCharges.teacherId, teacherId)]
+	if (filters.lessonId) conditions.push(eq(lessonCharges.lessonId, filters.lessonId))
+	if (filters.studentIds) {
+		if (filters.studentIds.length === 0) return []
+		conditions.push(inArray(lessonCharges.studentId, filters.studentIds))
+	}
+
 	return db
 		.select()
 		.from(lessonCharges)
-		.where(eq(lessonCharges.teacherId, teacherId))
+		.where(and(...conditions))
 		.orderBy(asc(lessonCharges.createdAt))
 }
 

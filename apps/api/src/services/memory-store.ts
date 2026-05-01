@@ -602,17 +602,18 @@ export const memoryStore = {
 		}
 
 		const student = state.students.get(input.studentId)
+		if (!student) throw new Error('Student not found for payment')
 		const studentPackage =
-			input.packagePurchase && student?.billingMode === 'package'
+			input.packagePurchase && student.billingMode === 'package'
 				? this.createPackageForPayment(scope, student, input.paidAt)
 				: undefined
 		const payment: Payment = {
 			studentId: input.studentId,
 			amount: input.amount,
 			currency:
-				input.packagePurchase && student?.billingMode === 'package'
+				input.packagePurchase && student.billingMode === 'package'
 					? student.currency
-					: (input.currency ?? student?.currency ?? 'RUB'),
+					: (input.currency ?? student.currency),
 			paidAt: input.paidAt,
 			method: input.method,
 			comment: input.comment,
@@ -629,10 +630,11 @@ export const memoryStore = {
 	deletePayment(scope: StoreScope, paymentId: string) {
 		const state = stateFor(scope)
 		const payment = state.payments.get(paymentId)
-		if (!payment) return null
-		state.payments.delete(paymentId)
+		if (!payment || payment.voidedAt) return null
+		const voidedPayment: Payment = { ...payment, voidedAt: now() }
+		state.payments.set(paymentId, voidedPayment)
 		if (payment.packageId) this.cancelPackage(scope, payment.packageId)
-		return payment
+		return voidedPayment
 	},
 
 	cancelPackage(scope: StoreScope, packageId: string) {
@@ -654,7 +656,9 @@ export const memoryStore = {
 	},
 
 	listPayments(scope: StoreScope) {
-		return Array.from(stateFor(scope).payments.values()).sort((a, b) => b.paidAt.localeCompare(a.paidAt))
+		return Array.from(stateFor(scope).payments.values())
+			.filter((payment) => !payment.voidedAt)
+			.sort((a, b) => b.paidAt.localeCompare(a.paidAt))
 	},
 
 	listStudentBalances(scope: StoreScope): StudentBalance[] {
@@ -667,6 +671,7 @@ export const memoryStore = {
 			billable: !charge.voidedAt,
 		}))
 		const payments = Array.from(state.payments.values()).flatMap((payment) => {
+			if (payment.voidedAt) return []
 			if (!payment.studentId || typeof payment.amount !== 'number') return []
 			return [{ studentId: payment.studentId, amount: payment.amount, currency: payment.currency }]
 		})

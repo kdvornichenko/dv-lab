@@ -9,6 +9,7 @@ import {
 } from '@teacher-crm/api-types'
 import {
 	deleteStudentRow,
+	getStudentRow,
 	insertStudentRow,
 	listStudentRows,
 	updateLessonTitlesForStudent,
@@ -234,9 +235,7 @@ export const studentService = {
 		if (!db) return getMemoryStore().updateStudent(scope, studentId, input)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const existing = (await listStudentRows(db, teacherId, { status: 'all' })).find(
-			(student) => student.id === studentId
-		)
+		const existing = await getStudentRow(db, teacherId, studentId)
 		if (!existing) return null
 		const student = await updateStudentRow(db, teacherId, studentId, toUpdateValues(input, existing))
 		if (student && (input.firstName !== undefined || input.lastName !== undefined || input.fullName !== undefined)) {

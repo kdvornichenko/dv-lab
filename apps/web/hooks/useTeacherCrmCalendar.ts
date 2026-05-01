@@ -34,6 +34,7 @@ export function useTeacherCrmCalendar({
 	const calendarTokenSyncAttemptedRef = useRef(false)
 	const calendarImportInFlightRef = useRef(false)
 	const lastCalendarImportAtRef = useRef(0)
+	const calendarImportFailureCountRef = useRef(0)
 
 	const runCalendarAction = useCallback(async (source: string, action: () => Promise<void>) => {
 		try {
@@ -104,8 +105,9 @@ export function useTeacherCrmCalendar({
 		let cancelled = false
 		const importCalendarChanges = (force = false) => {
 			const nowMs = Date.now()
+			const failureBackoffMs = Math.min(calendarImportFailureCountRef.current * 60_000, 15 * 60_000)
 			if (calendarImportInFlightRef.current) return
-			if (!force && nowMs - lastCalendarImportAtRef.current < 60_000) return
+			if (!force && nowMs - lastCalendarImportAtRef.current < 60_000 + failureBackoffMs) return
 
 			calendarImportInFlightRef.current = true
 			lastCalendarImportAtRef.current = nowMs
@@ -113,9 +115,11 @@ export function useTeacherCrmCalendar({
 			teacherCrmCalendarApi
 				.importCalendarEvents()
 				.then((response) => {
+					calendarImportFailureCountRef.current = 0
 					if (!cancelled && response.updated > 0) void refresh({ showLoading: false })
 				})
 				.catch((error) => {
+					calendarImportFailureCountRef.current += 1
 					if (!cancelled) reportCrmError('Import Google Calendar changes', error)
 				})
 				.finally(() => {

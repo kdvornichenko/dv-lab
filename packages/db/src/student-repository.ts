@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, or, type SQL } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, or, type SQL } from 'drizzle-orm'
 
 import type { DB } from './factory'
 import { students, teacherProfiles } from './schema'
@@ -77,6 +77,24 @@ export async function listStudentRows(
 		.from(students)
 		.where(and(...conditions))
 		.orderBy(asc(students.fullName))
+}
+
+export async function getStudentRow(db: DB, teacherId: string, studentId: string): Promise<StudentRow | null> {
+	const [student] = await db
+		.select()
+		.from(students)
+		.where(and(eq(students.teacherId, teacherId), eq(students.id, studentId)))
+		.limit(1)
+
+	return student ?? null
+}
+
+export async function listStudentRowsByIds(db: DB, teacherId: string, studentIds: string[]): Promise<StudentRow[]> {
+	if (studentIds.length === 0) return []
+	return db
+		.select()
+		.from(students)
+		.where(and(eq(students.teacherId, teacherId), inArray(students.id, studentIds)))
 }
 
 export async function insertStudentRow(db: DB, values: StudentInsertValues): Promise<StudentRow> {

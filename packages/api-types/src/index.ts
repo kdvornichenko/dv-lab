@@ -294,7 +294,12 @@ export const lessonSchema = z.object({
 	topic: z.string().optional(),
 	notes: z.string().optional(),
 	status: lessonStatusSchema,
-	studentIds: z.array(z.string()).min(1),
+	studentIds: z
+		.array(z.string())
+		.min(1)
+		.refine((studentIds) => new Set(studentIds).size === studentIds.length, {
+			message: 'Student ids must be unique',
+		}),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 })
@@ -356,6 +361,7 @@ export const paymentSchema = z.object({
 	correctionOfPaymentId: z.string().optional(),
 	packageId: z.string().optional(),
 	idempotencyKey: z.string().trim().min(8).max(120).optional(),
+	voidedAt: z.string().optional(),
 	createdAt: z.string(),
 })
 
@@ -521,6 +527,7 @@ export const apiErrorSchema = z.object({
 	error: z.object({
 		code: z.string(),
 		message: z.string(),
+		requestId: z.string().optional(),
 		details: validationErrorDetailsSchema.optional(),
 	}),
 })

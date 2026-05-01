@@ -226,33 +226,13 @@ function eventDate(value: Date | string) {
 	return value instanceof Date ? value : new Date(value)
 }
 
-function studentShortName(student: CalendarLessonContext['students'][number]) {
-	const firstName = student.firstName || student.fullName.split(/\s+/)[0] || student.fullName
-	const lastName = student.lastName || student.fullName.split(/\s+/).slice(1).join(' ')
-	const lastInitial = lastName.trim() ? `${lastName.trim()[0]}.` : ''
-	return [firstName, lastInitial].filter(Boolean).join(' ')
-}
-
-function studentCalendarTitle(student: CalendarLessonContext['students'][number] | undefined, fallback: string) {
-	if (!student) return fallback
-	const shortName = studentShortName(student)
-	return student.special ? `${shortName} - ${student.special}` : shortName
-}
-
 function calendarEventPayload(context: CalendarLessonContext, options: CalendarSyncOptions = {}) {
 	const startsAt = eventDate(context.lesson.startsAt)
 	const endsAt = new Date(startsAt.getTime() + context.lesson.durationMinutes * 60_000)
-	const studentNames = context.students.map((student) => student.fullName).join(', ')
-	const details = [
-		studentNames ? `Student: ${studentNames}` : null,
-		context.lesson.topic ? `Topic: ${context.lesson.topic}` : null,
-		context.lesson.notes ? `Notes: ${context.lesson.notes}` : null,
-		'Created from Teacher CRM.',
-	].filter(Boolean)
 
 	return {
-		summary: studentCalendarTitle(context.students[0], context.lesson.title),
-		description: details.join('\n'),
+		summary: context.lesson.title,
+		description: 'Created from Teacher CRM.',
 		status: context.lesson.status === 'cancelled' ? 'cancelled' : 'confirmed',
 		start: {
 			dateTime: startsAt.toISOString(),
@@ -723,9 +703,9 @@ export const calendarService = {
 			return { checked: 0, updated: 0 }
 		}
 
-		const syncRows = (await listCalendarSyncEventRows(db, teacherId)).filter(
-			(sync) => sync.status !== 'disabled' && Boolean(sync.externalEventId)
-		)
+		const syncRows = (await listCalendarSyncEventRows(db, teacherId))
+			.filter((sync) => sync.status !== 'disabled' && Boolean(sync.externalEventId))
+			.slice(0, 25)
 		const persistRefreshedToken = (accessToken: string, expiresAt: Date | null) =>
 			upsertCalendarConnectionRow(db, {
 				teacherId,

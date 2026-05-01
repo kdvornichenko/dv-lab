@@ -109,7 +109,6 @@ export async function saveCurrentGoogleCalendarTokens() {
 	await apiRequest<CalendarProviderTokenResponse>('/calendar/provider-tokens', {
 		method: 'POST',
 		body: JSON.stringify({
-			email: session.user.email,
 			providerToken: session.provider_token,
 			providerRefreshToken: session.provider_refresh_token ?? null,
 		}),
@@ -152,7 +151,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 
 	let { response, payload } = await request(token)
 
-	if (response.status === 401 && isApiErrorResponse(payload) && payload.error.code === 'INVALID_TOKEN') {
+	if (response.status === 401) {
 		const refreshedToken = await accessToken({ forceRefresh: true })
 		if (refreshedToken) {
 			const retry = await request(refreshedToken)
@@ -228,24 +227,22 @@ const emptyPaymentsResponse: PaymentsResponse = { ok: true, payments: [], balanc
 
 export async function loadTeacherCrm() {
 	const issues: TeacherCrmLoadIssue[] = []
-	const calendarResult = await loadResource(
-		'Load calendar connection',
-		apiRequest<CalendarResponse>('/calendar/connection')
-	)
-	collectIssue(issues, calendarResult)
-
-	const [studentsResult, lessonsResult, refreshedCalendarResult] = await Promise.all([
+	const [studentsResult, lessonsResult, calendarResult] = await Promise.all([
 		loadResource('Load students', apiRequest<ListStudentsResponse>('/students')),
 		loadResource('Load lessons', apiRequest<LessonsResponse>('/lessons')),
-		loadResource('Refresh calendar connection', apiRequest<CalendarResponse>('/calendar/connection')),
+		loadResource('Load calendar connection', apiRequest<CalendarResponse>('/calendar/connection')),
 	])
-	for (const result of [studentsResult, lessonsResult, refreshedCalendarResult]) {
+	for (const result of [studentsResult, lessonsResult, calendarResult]) {
 		collectIssue(issues, result)
 	}
 
-	const students = studentsResult.data ?? { ok: true, students: [] }
-	const lessons = lessonsResult.data ?? { ok: true, lessons: [], attendance: [] }
-	const calendar = refreshedCalendarResult.data ?? calendarResult.data ?? emptyCalendarResponse
+	if (!studentsResult.data || !lessonsResult.data) {
+		throw studentsResult.issue?.error ?? lessonsResult.issue?.error ?? new TeacherCrmApiError('Core CRM data failed')
+	}
+
+	const students = studentsResult.data
+	const lessons = lessonsResult.data
+	const calendar = calendarResult.data ?? emptyCalendarResponse
 
 	const state: TeacherCrmState = {
 		students: students.students,

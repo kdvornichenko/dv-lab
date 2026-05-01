@@ -72,7 +72,7 @@ export const calendarRoutes = new Hono()
 		validateJson(providerTokensSchema),
 		async (context) => {
 			const input = context.req.valid('json')
-			const email = input.email ?? context.get('user')?.email
+			const email = context.get('user')?.email
 			if (!email) {
 				return errorResponse(context, 400, apiError('VALIDATION_FAILED', 'Google account email is required'))
 			}
