@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 
 import { reportCrmError } from '@/hooks/teacherCrmErrors'
 import { loadTeacherCrm, loadTeacherCrmSupplements } from '@/lib/crm/api'
@@ -41,22 +41,91 @@ export const emptyTeacherCrmState: TeacherCrmState = {
 	calendarSyncRecords: [],
 }
 
+type TeacherCrmCacheSnapshot = {
+	state: TeacherCrmState
+	summary: TeacherCrmSummary
+	calendarOptions: CalendarListEntry[]
+	updatedAt: number
+}
+
+const TEACHER_CRM_CACHE_TTL_MS = 30_000
+
+let teacherCrmCache: TeacherCrmCacheSnapshot | null = null
+let teacherCrmLoadPromise: Promise<Awaited<ReturnType<typeof loadTeacherCrm>>> | null = null
+
+function isTeacherCrmCacheFresh(snapshot: TeacherCrmCacheSnapshot) {
+	return Date.now() - snapshot.updatedAt < TEACHER_CRM_CACHE_TTL_MS
+}
+
+function writeTeacherCrmCache(update: Partial<Omit<TeacherCrmCacheSnapshot, 'updatedAt'>>) {
+	const current = teacherCrmCache
+	teacherCrmCache = {
+		state: update.state ?? current?.state ?? emptyTeacherCrmState,
+		summary: update.summary ?? current?.summary ?? emptySummary,
+		calendarOptions: update.calendarOptions ?? current?.calendarOptions ?? [],
+		updatedAt: Date.now(),
+	}
+	return teacherCrmCache
+}
+
+function loadTeacherCrmOnce() {
+	teacherCrmLoadPromise ??= loadTeacherCrm().finally(() => {
+		teacherCrmLoadPromise = null
+	})
+	return teacherCrmLoadPromise
+}
+
 export function useTeacherCrmData() {
-	const [state, setState] = useState<TeacherCrmState>(emptyTeacherCrmState)
-	const [summary, setSummary] = useState<TeacherCrmSummary>(emptySummary)
+	const initialCache = teacherCrmCache
+	const [state, setStateValue] = useState<TeacherCrmState>(() => initialCache?.state ?? emptyTeacherCrmState)
+	const [summary, setSummaryValue] = useState<TeacherCrmSummary>(() => initialCache?.summary ?? emptySummary)
 	const [studentFilter, setStudentFilter] = useState<'all' | Student['status']>('all')
-	const [isLoading, setIsLoading] = useState(true)
-	const [calendarOptions, setCalendarOptions] = useState<CalendarListEntry[]>([])
-	const calendarOptionsRef = useRef<CalendarListEntry[]>([])
+	const [isLoading, setIsLoading] = useState(() => !initialCache)
+	const [calendarOptions, setCalendarOptionsValue] = useState<CalendarListEntry[]>(
+		() => initialCache?.calendarOptions ?? []
+	)
+	const calendarOptionsRef = useRef<CalendarListEntry[]>(initialCache?.calendarOptions ?? [])
 	const refreshRequestIdRef = useRef(0)
+
+	const setState = useCallback((nextState: SetStateAction<TeacherCrmState>) => {
+		setStateValue((current) => {
+			const resolved =
+				typeof nextState === 'function' ? (nextState as (value: TeacherCrmState) => TeacherCrmState)(current) : nextState
+			writeTeacherCrmCache({ state: resolved })
+			return resolved
+		})
+	}, [])
+
+	const setSummary = useCallback((nextSummary: SetStateAction<TeacherCrmSummary>) => {
+		setSummaryValue((current) => {
+			const resolved =
+				typeof nextSummary === 'function'
+					? (nextSummary as (value: TeacherCrmSummary) => TeacherCrmSummary)(current)
+					: nextSummary
+			writeTeacherCrmCache({ summary: resolved })
+			return resolved
+		})
+	}, [])
+
+	const setCalendarOptions = useCallback((nextOptions: SetStateAction<CalendarListEntry[]>) => {
+		setCalendarOptionsValue((current) => {
+			const resolved =
+				typeof nextOptions === 'function'
+					? (nextOptions as (value: CalendarListEntry[]) => CalendarListEntry[])(current)
+					: nextOptions
+			calendarOptionsRef.current = resolved
+			if (teacherCrmCache) writeTeacherCrmCache({ calendarOptions: resolved })
+			return resolved
+		})
+	}, [])
 
 	const refresh = useCallback(async (options: { showLoading?: boolean } = {}) => {
 		const requestId = refreshRequestIdRef.current + 1
 		refreshRequestIdRef.current = requestId
-		const showLoading = options.showLoading ?? true
+		const showLoading = options.showLoading ?? !teacherCrmCache
 		if (showLoading) setIsLoading(true)
 		try {
-			const next = await loadTeacherCrm()
+			const next = await loadTeacherCrmOnce()
 			if (requestId !== refreshRequestIdRef.current) return
 			const nextCalendarOptions = next.state.calendarConnection.status === 'connected' ? calendarOptionsRef.current : []
 			setState(next.state)
@@ -82,10 +151,15 @@ export function useTeacherCrmData() {
 		} finally {
 			if (requestId === refreshRequestIdRef.current) setIsLoading(false)
 		}
-	}, [])
+	}, [setCalendarOptions, setState, setSummary])
 
 	useEffect(() => {
-		void refresh()
+		if (teacherCrmCache && isTeacherCrmCacheFresh(teacherCrmCache)) {
+			setIsLoading(false)
+			return
+		}
+
+		void refresh({ showLoading: !teacherCrmCache })
 	}, [refresh])
 
 	const studentRows = useMemo<StudentWithBalance[]>(
