@@ -1,6 +1,8 @@
 import {
 	BILLABLE_ATTENDANCE_STATUSES,
 	DEFAULT_LESSON_DURATION_MINUTES,
+	calculateMonthlyLessonCount,
+	calculateMonthlyTotalPrice,
 	calculatePackageLessonPriceRub,
 	calculatePackageTotalPriceRub,
 	getLessonDurationUnits,
@@ -168,6 +170,18 @@ function packageUnits(student: Student | StudentRow) {
 	return student.packageLessonCount * getLessonDurationUnits(student.defaultLessonDurationMinutes)
 }
 
+function monthlyLessonCount(student: Student | StudentRow) {
+	return calculateMonthlyLessonCount({ lessonsPerWeek: student.packageLessonsPerWeek })
+}
+
+function monthlyTotal(student: Student | StudentRow) {
+	return calculateMonthlyTotalPrice({
+		defaultLessonPrice: numeric(student.defaultLessonPrice),
+		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
+		lessonsPerWeek: student.packageLessonsPerWeek,
+	})
+}
+
 function packageConsumedUnits(packageId: string, charges: LessonCharge[]) {
 	return charges
 		.filter((charge) => charge.packageId === packageId && !charge.voidedAt)
@@ -308,6 +322,55 @@ function nextPayment(
 				currency: student.currency,
 			}
 		}
+		return { status: 'not_scheduled', dueNow: false, amount, currency: student.currency }
+	}
+
+	if (student.billingMode === 'monthly') {
+		const amount = monthlyTotal(student)
+		const requiredUnits = monthlyLessonCount(student) * getLessonDurationUnits(student.defaultLessonDurationMinutes)
+		if (amount <= 0 || requiredUnits <= 0) {
+			return { status: 'not_configured', dueNow: false, amount: 0, currency: student.currency }
+		}
+
+		let scheduledUnits = 0
+		const futureLessons = lessons
+			.filter(
+				(lesson) =>
+					lesson.studentIds.includes(student.id) &&
+					lesson.status === 'planned' &&
+					new Date(lesson.startsAt).getTime() >= Date.now()
+			)
+			.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+
+		for (const lesson of futureLessons) {
+			scheduledUnits += getLessonDurationUnits(lesson.durationMinutes)
+			if (scheduledUnits >= requiredUnits) {
+				return {
+					status: 'after_projected_lesson',
+					dueNow: false,
+					projectedDate: lesson.startsAt,
+					amount,
+					currency: student.currency,
+				}
+			}
+		}
+
+		const weeklyUnits =
+			student.packageLessonsPerWeek *
+			getLessonDurationUnits(student.defaultLessonDurationMinutes || DEFAULT_LESSON_DURATION_MINUTES)
+		if (weeklyUnits > 0) {
+			const anchor = futureLessons.at(-1)?.startsAt ?? new Date().toISOString()
+			const estimated = new Date(anchor)
+			estimated.setDate(estimated.getDate() + Math.ceil(Math.max(requiredUnits - scheduledUnits, 0) / weeklyUnits) * 7)
+			return {
+				status: 'estimated_after',
+				dueNow: false,
+				projectedDate: estimated.toISOString(),
+				amount,
+				currency: student.currency,
+			}
+		}
+
 		return { status: 'not_scheduled', dueNow: false, amount, currency: student.currency }
 	}
 

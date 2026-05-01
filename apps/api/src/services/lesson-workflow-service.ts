@@ -22,7 +22,7 @@ function repeatedLessonInput(input: CreateLessonInput, index: number): CreateLes
 	return {
 		...input,
 		startsAt: addWeeks(input.startsAt, index),
-		repeatWeekly: false,
+		repeatWeekly: index === 0 ? input.repeatWeekly : false,
 		repeatCount: 1,
 	}
 }
@@ -93,7 +93,7 @@ export function createLessonWorkflowService(
 
 			await syncLessonAutomatically(actor, lesson.id, {
 				repeatWeekly: input.repeatWeekly ?? lesson.repeatWeekly,
-				singleOccurrence: Boolean(lesson.repeatWeekly && !input.applyToFuture),
+				singleOccurrence: Boolean(originalLesson?.repeatWeekly && !input.applyToFuture),
 				occurrenceStartsAt: originalLesson?.startsAt,
 			})
 
@@ -119,6 +119,11 @@ export function createLessonWorkflowService(
 			}
 
 			return lesson
+		},
+
+		async deleteLesson(actor: StoreScope, lessonId: string) {
+			await deps.calendar.deleteLessonFromCalendar(actor, lessonId)
+			return deps.lessons.deleteLesson(actor, lessonId)
 		},
 	}
 }

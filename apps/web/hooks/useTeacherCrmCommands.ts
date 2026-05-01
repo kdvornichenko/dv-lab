@@ -3,7 +3,12 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 
 import { reportCrmError } from '@/hooks/teacherCrmErrors'
-import { teacherCrmLessonApi, teacherCrmPaymentApi, teacherCrmStudentApi } from '@/lib/crm/api'
+import {
+	saveCurrentGoogleCalendarTokens,
+	teacherCrmLessonApi,
+	teacherCrmPaymentApi,
+	teacherCrmStudentApi,
+} from '@/lib/crm/api'
 import { mergeStudentIntoState } from '@/lib/crm/state'
 import type { TeacherCrmState } from '@/lib/crm/types'
 
@@ -37,14 +42,30 @@ export function useTeacherCrmCommands({
 		}
 	}, [])
 
+	const refreshInBackground = useCallback(() => {
+		void refresh({ showLoading: false })
+	}, [refresh])
+
+	const ensureCalendarTokens = useCallback(async () => {
+		try {
+			await saveCurrentGoogleCalendarTokens()
+		} catch (tokenError) {
+			reportCrmError('Save Google Calendar token', tokenError)
+		}
+	}, [])
+
 	const addStudent = useCallback(
 		async (input: CreateStudentInput) => {
 			await runCrmAction('Add student', async () => {
-				await teacherCrmStudentApi.createStudent(input)
-				await refresh()
+				const response = await teacherCrmStudentApi.createStudent(input)
+				setState((current) => ({
+					...current,
+					students: [...current.students.filter((student) => student.id !== response.student.id), response.student],
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const updateStudent = useCallback(
@@ -52,70 +73,105 @@ export function useTeacherCrmCommands({
 			await runCrmAction('Update student', async () => {
 				const response = await teacherCrmStudentApi.updateStudent(studentId, input)
 				setState((current) => mergeStudentIntoState(current, response.student))
-				await refresh()
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction, setState]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const archiveStudent = useCallback(
 		async (studentId: string) => {
 			await runCrmAction('Archive student', async () => {
-				await teacherCrmStudentApi.updateStudent(studentId, { status: 'archived' })
-				await refresh()
+				const response = await teacherCrmStudentApi.updateStudent(studentId, { status: 'archived' })
+				setState((current) => mergeStudentIntoState(current, response.student))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const deleteStudent = useCallback(
 		async (studentId: string) => {
 			await runCrmAction('Delete student', async () => {
 				await teacherCrmStudentApi.deleteStudent(studentId)
-				await refresh()
+				setState((current) => ({
+					...current,
+					students: current.students.filter((student) => student.id !== studentId),
+					lessons: current.lessons.flatMap((lesson) => {
+						if (!lesson.studentIds.includes(studentId)) return [lesson]
+						const studentIds = lesson.studentIds.filter((id) => id !== studentId)
+						return studentIds.length > 0 ? [{ ...lesson, studentIds }] : []
+					}),
+					attendance: current.attendance.filter((record) => record.studentId !== studentId),
+					payments: current.payments.filter((payment) => payment.studentId !== studentId),
+					studentBalances: current.studentBalances.filter((balance) => balance.studentId !== studentId),
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const addLesson = useCallback(
 		async (input: CreateLessonInput) => {
 			await runCrmAction('Add lesson', async () => {
-				await teacherCrmLessonApi.createLesson(input)
-				await refresh()
+				await ensureCalendarTokens()
+				const response = await teacherCrmLessonApi.createLesson(input)
+				setState((current) => ({
+					...current,
+					lessons: [...current.lessons.filter((lesson) => lesson.id !== response.lesson.id), response.lesson],
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
 	)
 
 	const updateLesson = useCallback(
 		async (lessonId: string, input: UpdateLessonInput) => {
 			await runCrmAction('Update lesson', async () => {
-				await teacherCrmLessonApi.updateLesson(lessonId, input)
-				await refresh()
+				await ensureCalendarTokens()
+				const response = await teacherCrmLessonApi.updateLesson(lessonId, input)
+				setState((current) => ({
+					...current,
+					lessons: current.lessons.map((lesson) => (lesson.id === lessonId ? response.lesson : lesson)),
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
 	)
 
 	const deleteLesson = useCallback(
 		async (lessonId: string) => {
 			await runCrmAction('Delete lesson', async () => {
 				await teacherCrmLessonApi.deleteLesson(lessonId)
-				await refresh()
+				setState((current) => ({
+					...current,
+					lessons: current.lessons.filter((lesson) => lesson.id !== lessonId),
+					attendance: current.attendance.filter((record) => record.lessonId !== lessonId),
+					calendarSyncRecords: current.calendarSyncRecords.filter((record) => record.lessonId !== lessonId),
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const markAttendance = useCallback(
 		async (input: MarkAttendanceInput) => {
 			await runCrmAction('Mark attendance', async () => {
-				await teacherCrmLessonApi.markAttendance(input)
-				await refresh()
+				const response = await teacherCrmLessonApi.markAttendance(input)
+				setState((current) => {
+					const key = (record: { lessonId: string; studentId: string }) => `${record.lessonId}:${record.studentId}`
+					const nextAttendance = new Map(current.attendance.map((record) => [key(record), record]))
+					for (const record of response.attendance) nextAttendance.set(key(record), record)
+					return { ...current, attendance: Array.from(nextAttendance.values()) }
+				})
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const markGroupAttended = useCallback(
@@ -138,21 +194,29 @@ export function useTeacherCrmCommands({
 	const recordPayment = useCallback(
 		async (input: CreatePaymentInput) => {
 			await runCrmAction('Record payment', async () => {
-				await teacherCrmPaymentApi.createPayment(input)
-				await refresh()
+				const response = await teacherCrmPaymentApi.createPayment(input)
+				setState((current) => ({
+					...current,
+					payments: [...current.payments.filter((payment) => payment.id !== response.payment.id), response.payment],
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	const deletePayment = useCallback(
 		async (paymentId: string) => {
 			await runCrmAction('Delete payment', async () => {
 				await teacherCrmPaymentApi.deletePayment(paymentId)
-				await refresh()
+				setState((current) => ({
+					...current,
+					payments: current.payments.filter((payment) => payment.id !== paymentId),
+				}))
+				refreshInBackground()
 			})
 		},
-		[refresh, runCrmAction]
+		[refreshInBackground, runCrmAction, setState]
 	)
 
 	return {

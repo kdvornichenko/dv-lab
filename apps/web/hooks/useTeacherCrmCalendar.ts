@@ -135,6 +135,7 @@ export function useTeacherCrmCalendar({
 		const intervalId = window.setInterval(() => importCalendarChanges(), 60_000)
 		window.addEventListener('focus', handleFocus)
 		document.addEventListener('visibilitychange', handleVisibilityChange)
+		importCalendarChanges()
 
 		return () => {
 			cancelled = true

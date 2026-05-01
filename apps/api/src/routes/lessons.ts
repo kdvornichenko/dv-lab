@@ -45,7 +45,7 @@ export const lessonRoutes = new Hono()
 	.delete('/:lessonId', requirePermission('lessons', 'write'), async (context) => {
 		const actor = actorFromContext(context)
 		const lessonId = context.req.param('lessonId')
-		const lesson = await lessonService.deleteLesson(actor, lessonId)
+		const lesson = await lessonWorkflowService.deleteLesson(actor, lessonId)
 		if (!lesson) return notFoundResponse(context, 'Lesson not found')
 
 		const response: LessonMutationResponse = { ok: true, lesson }

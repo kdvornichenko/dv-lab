@@ -65,6 +65,21 @@ export function calculatePackageLessonCount(input: { packageMonths: number; pack
 	return input.packageMonths * DEFAULT_PACKAGE_WEEKS_PER_MONTH * input.packageLessonsPerWeek
 }
 
+export function calculateMonthlyLessonCount(input: { lessonsPerWeek: number }) {
+	if (!Number.isFinite(input.lessonsPerWeek) || input.lessonsPerWeek <= 0) return 0
+	return DEFAULT_PACKAGE_WEEKS_PER_MONTH * input.lessonsPerWeek
+}
+
+export function calculateMonthlyTotalPrice(input: {
+	defaultLessonPrice: number
+	defaultLessonDurationMinutes: number
+	lessonsPerWeek: number
+}) {
+	const lessonCount = calculateMonthlyLessonCount({ lessonsPerWeek: input.lessonsPerWeek })
+	const basePrice = Number.isFinite(input.defaultLessonPrice) ? input.defaultLessonPrice : 0
+	return basePrice * getLessonDurationUnits(input.defaultLessonDurationMinutes) * lessonCount
+}
+
 export function calculatePackageLessonPriceRub(input: {
 	defaultLessonPrice: number
 	defaultLessonDurationMinutes: number

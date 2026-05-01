@@ -7,6 +7,7 @@ import { Banknote, Save } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
 	Dialog,
 	DialogContent,
@@ -46,6 +47,20 @@ const PAYMENT_METHODS: PaymentMethod[] = ['bank_transfer', 'cash', 'card', 'othe
 
 function todayInputValue() {
 	return new Date().toISOString().slice(0, 10)
+}
+
+function dateInputValue(value: Date) {
+	return [
+		value.getFullYear(),
+		String(value.getMonth() + 1).padStart(2, '0'),
+		String(value.getDate()).padStart(2, '0'),
+	].join('-')
+}
+
+function datePickerValue(value: string) {
+	if (!value) return undefined
+	const date = new Date(`${value}T00:00:00`)
+	return Number.isNaN(date.getTime()) ? undefined : date
 }
 
 function defaultAmount(student: StudentWithBalance | null) {
@@ -191,13 +206,11 @@ export function PaymentFormDialog({ open, student, onOpenChange, onSubmit }: Pay
 							/>
 						</Field>
 						<Field id={dateId} label="Payment date" error={fieldErrors.paidAt} errorId={dateErrorId}>
-							<Input
-								id={dateId}
-								type="date"
-								value={values.paidAt}
-								aria-invalid={Boolean(fieldErrors.paidAt)}
-								aria-describedby={fieldErrors.paidAt ? dateErrorId : undefined}
-								onChange={(event) => setValues((current) => ({ ...current, paidAt: event.target.value }))}
+							<DatePicker
+								date={datePickerValue(values.paidAt)}
+								onSelect={(date) => setValues((current) => ({ ...current, paidAt: date ? dateInputValue(date) : '' }))}
+								placeholder="Choose date"
+								className="w-full font-mono tabular-nums"
 							/>
 						</Field>
 					</div>

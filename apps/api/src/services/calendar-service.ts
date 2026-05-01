@@ -151,6 +151,7 @@ function googleEventLessonPatch(event: GoogleCalendarEventResponse): LessonUpdat
 		startsAt: start,
 		durationMinutes: Math.max(Math.round((end.getTime() - start.getTime()) / 60_000), 1),
 	}
+	if (event.recurrence?.some((rule) => rule.includes('FREQ=WEEKLY'))) values.repeatWeekly = true
 	if (event.status === 'cancelled') values.status = 'cancelled'
 
 	return values
@@ -163,7 +164,8 @@ function lessonMatchesGoogleEvent(context: CalendarLessonContext, values: Lesson
 	const sameStart = !startsAt || localStartsAt.getTime() === startsAt.getTime()
 	const sameDuration = !values.durationMinutes || context.lesson.durationMinutes === values.durationMinutes
 	const sameStatus = !values.status || context.lesson.status === values.status
-	return sameStart && sameDuration && sameStatus
+	const sameRepeatWeekly = values.repeatWeekly === undefined || context.lesson.repeatWeekly === values.repeatWeekly
+	return sameStart && sameDuration && sameStatus && sameRepeatWeekly
 }
 
 function occurrenceSearchWindow(value: Date | string) {
@@ -750,7 +752,8 @@ export const calendarService = {
 							lessonContext.lesson.startsAt,
 							accessToken
 						)
-						return closestGoogleOccurrence(instances, lessonContext.lesson.startsAt) ?? masterEvent
+						const occurrence = closestGoogleOccurrence(instances, lessonContext.lesson.startsAt)
+						return occurrence ? { ...occurrence, recurrence: masterEvent.recurrence } : masterEvent
 					},
 					persistRefreshedToken
 				)
@@ -813,6 +816,65 @@ export const calendarService = {
 				lastError: null,
 			})
 		)
+	},
+
+	async deleteLessonFromCalendar(scope: StoreScope, lessonId: string): Promise<void> {
+		const db = getDb()
+		if (!db) {
+			getMemoryStore().deleteCalendarSyncRecord(scope, lessonId)
+			return
+		}
+
+		const teacherId = await teacherProfileId(db, scope)
+		const sync = await getCalendarSyncEventRow(db, teacherId, lessonId)
+		if (!sync?.externalEventId) return
+
+		const connection = await getCalendarConnectionRow(db, teacherId)
+		if (!connection || !hasGoogleCalendarGrant(connection.grantedScopes, connection.tokenAvailable)) return
+
+		const calendarId = sync.externalCalendarId ?? connection.selectedCalendarId ?? 'primary'
+		const persistRefreshedToken = (accessToken: string, expiresAt: Date | null) =>
+			upsertCalendarConnectionRow(db, {
+				teacherId,
+				provider: 'google',
+				providerAccountEmail: connection.providerAccountEmail,
+				requiredScopes: connection.requiredScopes,
+				grantedScopes: connection.grantedScopes,
+				tokenAvailable: true,
+				encryptedAccessToken: encryptSecret(accessToken),
+				encryptedRefreshToken: connection.encryptedRefreshToken,
+				tokenExpiresAt: expiresAt,
+				selectedCalendarId: connection.selectedCalendarId,
+				selectedCalendarName: connection.selectedCalendarName,
+				status: 'connected',
+				connectedAt: connection.connectedAt ?? new Date(),
+			})
+
+		try {
+			await withGoogleAccessToken(
+				connection,
+				async (accessToken) => {
+					await googleJson<null>(
+						`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(sync.externalEventId!)}`,
+						accessToken,
+						{ method: 'DELETE' }
+					)
+				},
+				persistRefreshedToken
+			)
+		} catch (error) {
+			if (error instanceof GoogleCalendarRequestError && [404, 410].includes(error.status)) return
+			await markGoogleConnectionIssue(db, teacherId, connection, error)
+			await upsertCalendarSyncEventRow(db, {
+				teacherId,
+				lessonId,
+				provider: 'google',
+				externalCalendarId: calendarId,
+				status: 'failed',
+				lastError: error instanceof Error ? error.message : 'Google Calendar event delete failed',
+			})
+			throw error
+		}
 	},
 
 	async syncLessonToCalendar(

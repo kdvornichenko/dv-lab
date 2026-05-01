@@ -4,6 +4,8 @@ import {
 	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
 	BILLABLE_ATTENDANCE_STATUSES,
+	calculateMonthlyLessonCount,
+	calculateMonthlyTotalPrice,
 	calculatePackageLessonPriceRub,
 	calculatePackageLessonCount,
 	calculatePackageTotalPriceRub,
@@ -110,6 +112,16 @@ const studentPackageLessonPrice = (
 	})
 const studentPackageUnits = (student: Pick<Student, 'packageLessonCount' | 'defaultLessonDurationMinutes'>) =>
 	student.packageLessonCount * lessonUnits(student.defaultLessonDurationMinutes)
+const studentMonthlyLessonCount = (student: Pick<Student, 'packageLessonsPerWeek'>) =>
+	calculateMonthlyLessonCount({ lessonsPerWeek: student.packageLessonsPerWeek })
+const studentMonthlyTotal = (
+	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageLessonsPerWeek'>
+) =>
+	calculateMonthlyTotalPrice({
+		defaultLessonPrice: student.defaultLessonPrice,
+		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
+		lessonsPerWeek: student.packageLessonsPerWeek,
+	})
 const paymentDate = (value: string) => value.slice(0, 10)
 
 function createStoreState(): TeacherStoreState {
@@ -289,6 +301,45 @@ function nextPayment(
 				currency: student.currency,
 			}
 		}
+		return { status: 'not_scheduled' as const, dueNow: false, amount, currency: student.currency }
+	}
+	if (student.billingMode === 'monthly') {
+		const amount = studentMonthlyTotal(student)
+		const requiredUnits = studentMonthlyLessonCount(student) * lessonUnits(student.defaultLessonDurationMinutes)
+		if (amount <= 0 || requiredUnits <= 0) {
+			return { status: 'not_configured' as const, dueNow: false, amount: 0, currency: student.currency }
+		}
+
+		let scheduledUnits = 0
+		const futureLessons = relatedLessons
+			.filter((lesson) => lesson.status === 'planned' && new Date(lesson.startsAt).getTime() >= Date.now())
+			.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+		for (const lesson of futureLessons) {
+			scheduledUnits += lessonUnits(lesson.durationMinutes)
+			if (scheduledUnits >= requiredUnits) {
+				return {
+					status: 'after_projected_lesson' as const,
+					dueNow: false,
+					projectedDate: lesson.startsAt,
+					amount,
+					currency: student.currency,
+				}
+			}
+		}
+
+		const weeklyUnits = student.packageLessonsPerWeek * lessonUnits(student.defaultLessonDurationMinutes)
+		if (weeklyUnits > 0) {
+			const estimated = new Date(futureLessons.at(-1)?.startsAt ?? new Date())
+			estimated.setDate(estimated.getDate() + Math.ceil(Math.max(requiredUnits - scheduledUnits, 0) / weeklyUnits) * 7)
+			return {
+				status: 'estimated_after' as const,
+				dueNow: false,
+				projectedDate: estimated.toISOString(),
+				amount,
+				currency: student.currency,
+			}
+		}
+
 		return { status: 'not_scheduled' as const, dueNow: false, amount, currency: student.currency }
 	}
 	const nextLesson = relatedLessons
@@ -796,6 +847,13 @@ export const memoryStore = {
 		}
 		state.calendarSyncRecords.set(lessonId, record)
 		return record
+	},
+
+	deleteCalendarSyncRecord(scope: StoreScope, lessonId: string) {
+		const state = stateFor(scope)
+		const existing = state.calendarSyncRecords.get(lessonId) ?? null
+		state.calendarSyncRecords.delete(lessonId)
+		return existing
 	},
 
 	syncLessonToCalendar(scope: StoreScope, lessonId: string) {

@@ -73,13 +73,14 @@ export const CalendarWeekView = () => {
 									<button
 										key={hour}
 										type="button"
-										className="border-line-soft hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-sage/35 absolute inset-x-0 border-t text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
+										className="border-line-soft hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-sage/35 group absolute inset-x-0 border-t text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
 										style={{ top: hourIndex * HOUR_PX, height: HOUR_PX }}
 										onClick={() => onTimeSlotClick?.(calendarSlot(day, hour))}
 										aria-label={`Add lesson at ${format(calendarSlot(day, hour), 'HH:mm')}`}
 									>
-										<span className="text-sage ml-2 mt-2 inline-flex items-center gap-1 rounded-md opacity-0 transition-opacity hover:opacity-100 focus:opacity-100">
+										<span className="text-sage bg-surface/90 pointer-events-none ml-1.5 mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
 											<Plus className="h-3 w-3" />
+											{format(calendarSlot(day, hour), 'HH:mm')}
 										</span>
 									</button>
 								))}

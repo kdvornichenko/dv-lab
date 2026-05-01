@@ -28,6 +28,9 @@ import type {
 
 import { LessonFormDialog } from './LessonFormDialog'
 
+const RECURRING_LESSON_OCCURRENCES = 104
+const LESSON_EVENT_ID_SEPARATOR = '::'
+
 type LessonsCalendarPanelProps = {
 	lessons: Lesson[]
 	students: Student[]
@@ -71,15 +74,17 @@ function calendarSyncBadge(syncRecord?: CalendarSyncRecord): NonNullable<Calenda
 function lessonToCalendarEvent(
 	lesson: Lesson,
 	students: Student[],
-	syncRecordsByLessonId: Map<string, CalendarSyncRecord>
+	syncRecordsByLessonId: Map<string, CalendarSyncRecord>,
+	occurrenceIndex = 0
 ): CalendarEvent {
 	const start = new Date(lesson.startsAt)
+	if (occurrenceIndex > 0) start.setDate(start.getDate() + occurrenceIndex * 7)
 	const end = new Date(start.getTime() + lesson.durationMinutes * 60_000)
 	const syncRecord = syncRecordsByLessonId.get(lesson.id)
 	const badge = calendarSyncBadge(syncRecord)
 
 	return {
-		id: lesson.id,
+		id: `${lesson.id}${LESSON_EVENT_ID_SEPARATOR}${occurrenceIndex}`,
 		start,
 		end,
 		title: lessonDisplayTitle(lesson, students),
@@ -90,6 +95,21 @@ function lessonToCalendarEvent(
 		isAlert: syncRecord?.status === 'failed',
 		badges: badge ? [badge] : undefined,
 	}
+}
+
+function lessonToCalendarEvents(
+	lesson: Lesson,
+	students: Student[],
+	syncRecordsByLessonId: Map<string, CalendarSyncRecord>
+) {
+	if (!lesson.repeatWeekly) return [lessonToCalendarEvent(lesson, students, syncRecordsByLessonId)]
+	return Array.from({ length: RECURRING_LESSON_OCCURRENCES }, (_, index) =>
+		lessonToCalendarEvent(lesson, students, syncRecordsByLessonId, index)
+	)
+}
+
+function lessonIdFromCalendarEventId(eventId: string) {
+	return eventId.split(LESSON_EVENT_ID_SEPARATOR)[0] ?? eventId
 }
 
 export function LessonsCalendarPanel({
@@ -108,7 +128,7 @@ export function LessonsCalendarPanel({
 		[calendarSyncRecords]
 	)
 	const events = useMemo(
-		() => lessons.map((lesson) => lessonToCalendarEvent(lesson, students, syncRecordsByLessonId)),
+		() => lessons.flatMap((lesson) => lessonToCalendarEvents(lesson, students, syncRecordsByLessonId)),
 		[lessons, students, syncRecordsByLessonId]
 	)
 	const syncedCount = calendarSyncRecords.filter((record) => record.status === 'synced').length
@@ -122,7 +142,7 @@ export function LessonsCalendarPanel({
 				locale={enUS}
 				events={events}
 				onEventClick={(event) => {
-					const lesson = lessons.find((item) => item.id === event.id)
+					const lesson = lessons.find((item) => item.id === lessonIdFromCalendarEventId(event.id))
 					if (lesson) {
 						setDefaultStartsAt(null)
 						setEditingLesson(lesson)

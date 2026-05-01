@@ -90,7 +90,9 @@ export function useTeacherCrmData() {
 	const setState = useCallback((nextState: SetStateAction<TeacherCrmState>) => {
 		setStateValue((current) => {
 			const resolved =
-				typeof nextState === 'function' ? (nextState as (value: TeacherCrmState) => TeacherCrmState)(current) : nextState
+				typeof nextState === 'function'
+					? (nextState as (value: TeacherCrmState) => TeacherCrmState)(current)
+					: nextState
 			writeTeacherCrmCache({ state: resolved })
 			return resolved
 		})
@@ -119,39 +121,47 @@ export function useTeacherCrmData() {
 		})
 	}, [])
 
-	const refresh = useCallback(async (options: { showLoading?: boolean } = {}) => {
-		const requestId = refreshRequestIdRef.current + 1
-		refreshRequestIdRef.current = requestId
-		const showLoading = options.showLoading ?? !teacherCrmCache
-		if (showLoading) setIsLoading(true)
-		try {
-			const next = await loadTeacherCrmOnce()
-			if (requestId !== refreshRequestIdRef.current) return
-			const nextCalendarOptions = next.state.calendarConnection.status === 'connected' ? calendarOptionsRef.current : []
-			setState(next.state)
-			setSummary(next.summary)
-			setCalendarOptions(nextCalendarOptions)
-			for (const issue of next.issues) reportCrmError(issue.source, issue.error)
-			void loadTeacherCrmSupplements(next.state)
-				.then((supplements) => {
-					if (requestId !== refreshRequestIdRef.current) return
-					setState((current) => ({
-						...current,
-						payments: supplements.payments,
-						studentBalances: supplements.studentBalances,
-					}))
-					setSummary(supplements.summary)
-					for (const issue of supplements.issues) reportCrmError(issue.source, issue.error)
-				})
-				.catch((supplementError) => {
-					if (requestId === refreshRequestIdRef.current) reportCrmError('Load CRM billing data', supplementError)
-				})
-		} catch (refreshError) {
-			if (requestId === refreshRequestIdRef.current) reportCrmError('Load CRM data', refreshError)
-		} finally {
-			if (requestId === refreshRequestIdRef.current) setIsLoading(false)
-		}
-	}, [setCalendarOptions, setState, setSummary])
+	const refresh = useCallback(
+		async (options: { showLoading?: boolean } = {}) => {
+			const requestId = refreshRequestIdRef.current + 1
+			refreshRequestIdRef.current = requestId
+			const showLoading = options.showLoading ?? !teacherCrmCache
+			if (showLoading) setIsLoading(true)
+			try {
+				const next = await loadTeacherCrmOnce()
+				if (requestId !== refreshRequestIdRef.current) return
+				const nextCalendarOptions =
+					next.state.calendarConnection.status === 'connected' ? calendarOptionsRef.current : []
+				setState((current) => ({
+					...next.state,
+					payments: current.payments,
+					studentBalances: current.studentBalances,
+				}))
+				setSummary(next.summary)
+				setCalendarOptions(nextCalendarOptions)
+				for (const issue of next.issues) reportCrmError(issue.source, issue.error)
+				void loadTeacherCrmSupplements(next.state)
+					.then((supplements) => {
+						if (requestId !== refreshRequestIdRef.current) return
+						setState((current) => ({
+							...current,
+							payments: supplements.payments,
+							studentBalances: supplements.studentBalances,
+						}))
+						setSummary(supplements.summary)
+						for (const issue of supplements.issues) reportCrmError(issue.source, issue.error)
+					})
+					.catch((supplementError) => {
+						if (requestId === refreshRequestIdRef.current) reportCrmError('Load CRM billing data', supplementError)
+					})
+			} catch (refreshError) {
+				if (requestId === refreshRequestIdRef.current) reportCrmError('Load CRM data', refreshError)
+			} finally {
+				if (requestId === refreshRequestIdRef.current) setIsLoading(false)
+			}
+		},
+		[setCalendarOptions, setState, setSummary]
+	)
 
 	useEffect(() => {
 		if (teacherCrmCache && isTeacherCrmCacheFresh(teacherCrmCache)) {

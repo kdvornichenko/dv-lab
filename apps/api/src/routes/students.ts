@@ -13,6 +13,7 @@ import { apiError, errorResponse, notFoundResponse } from '../http/errors'
 import { validateJson, validateQuery } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { studentService } from '../services/student-service'
+import { studentWorkflowService } from '../services/student-workflow-service'
 
 export const studentRoutes = new Hono()
 	.get('/', requirePermission('students', 'read'), validateQuery(listStudentsQuerySchema), async (context) => {
@@ -43,7 +44,10 @@ export const studentRoutes = new Hono()
 		return context.json(response, 200)
 	})
 	.delete('/:studentId', requirePermission('students', 'archive'), async (context) => {
-		const student = await studentService.deleteStudent(actorFromContext(context), context.req.param('studentId'))
+		const student = await studentWorkflowService.deleteStudent(
+			actorFromContext(context),
+			context.req.param('studentId')
+		)
 		if (!student) return notFoundResponse(context, 'Student not found')
 		const response: StudentMutationResponse = { ok: true, student }
 		return context.json(response, 200)

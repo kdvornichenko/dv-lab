@@ -167,6 +167,9 @@ function validate(values: StudentFormValues) {
 	if (!Number.isInteger(packageLessonsPerWeek) || packageLessonsPerWeek < 0) {
 		errors.packageLessonsPerWeek = 'Lessons per week must be zero or greater'
 	}
+	if (values.billingMode === 'monthly' && packageLessonsPerWeek <= 0) {
+		errors.packageLessonsPerWeek = 'Set lessons per week'
+	}
 	if (values.billingMode === 'package') {
 		if (packageMonths <= 0) errors.packageMonths = 'Set package length'
 		if (packageLessonsPerWeek <= 0) errors.packageLessonsPerWeek = 'Set lessons per week'

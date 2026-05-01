@@ -11,6 +11,8 @@ import type {
 } from '@teacher-crm/api-types'
 import {
 	DEFAULT_LESSON_DURATION_MINUTES,
+	calculateMonthlyLessonCount,
+	calculateMonthlyTotalPrice,
 	calculatePackageLessonPriceRub,
 	calculatePackageTotalPriceRub,
 	getLessonDurationUnits,
@@ -368,7 +370,17 @@ export function formatCompletedLessonDatesText(lessons: Lesson[]) {
 export function getStudentPlanLabel(student: StudentWithBalance) {
 	const durationPrice = getStudentDurationPrice(student)
 	const formatStudentAmount = (value: number) => formatCurrencyAmount(value, student.currency)
-	if (student.billingMode === 'monthly') return `Monthly plan · ${formatStudentAmount(durationPrice)}`
+	if (student.billingMode === 'monthly') {
+		const monthlyLessonCount = calculateMonthlyLessonCount({ lessonsPerWeek: student.packageLessonsPerWeek })
+		const monthlyTotal = calculateMonthlyTotalPrice({
+			defaultLessonPrice: student.defaultLessonPrice,
+			defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
+			lessonsPerWeek: student.packageLessonsPerWeek,
+		})
+		return monthlyLessonCount > 0
+			? `Monthly plan · ${monthlyLessonCount} lessons · ${formatStudentAmount(monthlyTotal)}`
+			: `Monthly plan · ${formatStudentAmount(durationPrice)}`
+	}
 	if (student.billingMode === 'package') {
 		const packageLessonPrice = getPackageLessonPrice(student)
 		return packageLessonPrice > 0
@@ -394,7 +406,7 @@ export function getNextPaymentLabel(
 ) {
 	const projectedDate = student.balance.nextPayment.projectedDate
 	if (student.balance.nextPayment.status === 'due_now') return 'Due now'
-	if (student.balance.nextPayment.status === 'not_configured') return 'Package not configured'
+	if (student.balance.nextPayment.status === 'not_configured') return 'Plan not configured'
 	if (student.balance.nextPayment.status === 'not_scheduled') return 'Not scheduled'
 	if (student.balance.nextPayment.status === 'after_projected_lesson' && projectedDate)
 		return `After ${formatDateShortEn(projectedDate)}`

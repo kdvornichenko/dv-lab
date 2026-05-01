@@ -514,6 +514,27 @@ const createDeleteStudent = await app.request('/students', {
 })
 assert.equal(createDeleteStudent.status, 201)
 const createDeleteStudentBody = await createDeleteStudent.json()
+const deleteStudentLessonStartsAt = new Date()
+deleteStudentLessonStartsAt.setDate(deleteStudentLessonStartsAt.getDate() + 6)
+deleteStudentLessonStartsAt.setHours(12, 0, 0, 0)
+const createDeleteStudentLesson = await app.request('/lessons', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		title: 'Delete Student lesson',
+		startsAt: deleteStudentLessonStartsAt.toISOString(),
+		durationMinutes: 60,
+		topic: 'Delete student cleanup',
+		notes: 'Should be removed with the student',
+		status: 'planned',
+		studentIds: [createDeleteStudentBody.student.id],
+	}),
+})
+assert.equal(createDeleteStudentLesson.status, 201)
+const createDeleteStudentLessonBody = await createDeleteStudentLesson.json()
 const deleteStudent = await app.request(`/students/${createDeleteStudentBody.student.id}`, {
 	method: 'DELETE',
 	headers: {
@@ -521,6 +542,19 @@ const deleteStudent = await app.request(`/students/${createDeleteStudentBody.stu
 	},
 })
 assert.equal(deleteStudent.status, 200)
+const lessonsAfterStudentDelete = await app.request('/lessons?status=all', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(lessonsAfterStudentDelete.status, 200)
+const lessonsAfterStudentDeleteBody = await lessonsAfterStudentDelete.json()
+assert.equal(
+	lessonsAfterStudentDeleteBody.lessons.some(
+		(lesson: { id: string }) => lesson.id === createDeleteStudentLessonBody.lesson.id
+	),
+	false
+)
 const deleteMissingStudent = await app.request(`/students/${createDeleteStudentBody.student.id}`, {
 	method: 'DELETE',
 	headers: {
@@ -867,3 +901,82 @@ assert.equal(
 	).length,
 	1
 )
+
+const deleteSyncedLesson = await app.request(`/lessons/${createLessonBody.lesson.id}`, {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(deleteSyncedLesson.status, 200)
+const calendarStateAfterSyncedLessonDelete = await app.request('/calendar/connection', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(calendarStateAfterSyncedLessonDelete.status, 200)
+const calendarStateAfterSyncedLessonDeleteBody = await calendarStateAfterSyncedLessonDelete.json()
+assert.equal(
+	calendarStateAfterSyncedLessonDeleteBody.syncRecords.some(
+		(record: { lessonId: string }) => record.lessonId === createLessonBody.lesson.id
+	),
+	false
+)
+
+const createMonthlyStudent = await app.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'Monthly Student',
+		email: 'monthly.student@example.com',
+		status: 'active',
+		defaultLessonPrice: 1500,
+		defaultLessonDurationMinutes: 60,
+		packageMonths: 0,
+		packageLessonsPerWeek: 2,
+		packageLessonCount: 0,
+		billingMode: 'monthly',
+	}),
+})
+assert.equal(createMonthlyStudent.status, 201)
+const createMonthlyStudentBody = await createMonthlyStudent.json()
+const monthlyLessonDates = Array.from({ length: 8 }, (_, index) => {
+	const lessonDate = new Date(startsAt)
+	lessonDate.setDate(lessonDate.getDate() + index * 3)
+	return lessonDate
+})
+for (const [index, lessonDate] of monthlyLessonDates.entries()) {
+	const createMonthlyLesson = await app.request('/lessons', {
+		method: 'POST',
+		headers: {
+			'content-type': 'application/json',
+			'x-demo-user': 'demo-teacher',
+		},
+		body: JSON.stringify({
+			title: `Monthly lesson ${index + 1}`,
+			startsAt: lessonDate.toISOString(),
+			durationMinutes: 60,
+			topic: 'Monthly billing projection',
+			notes: '',
+			status: 'planned',
+			studentIds: [createMonthlyStudentBody.student.id],
+		}),
+	})
+	assert.equal(createMonthlyLesson.status, 201)
+}
+const monthlyPayments = await app.request('/payments', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(monthlyPayments.status, 200)
+const monthlyPaymentsBody = await monthlyPayments.json()
+const monthlyBalance = monthlyPaymentsBody.balances.find(
+	(balance: { studentId: string }) => balance.studentId === createMonthlyStudentBody.student.id
+)
+assert.equal(monthlyBalance.nextPayment.status, 'after_projected_lesson')
+assert.equal(monthlyBalance.nextPayment.amount, 12000)
+assert.equal(monthlyBalance.nextPayment.projectedDate, monthlyLessonDates[7].toISOString())
