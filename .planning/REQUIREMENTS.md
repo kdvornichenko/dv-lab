@@ -78,7 +78,7 @@
 - [x] **API-02**: API request bodies and responses are validated or described with shared Zod schemas from `packages/api-types`.
 - [x] **API-03**: DB schema and query helpers live in `packages/db` and target Supabase Postgres.
 - [x] **API-04**: RBAC domains and `can` checks live in `packages/rbac` and cover teacher CRM permissions.
-- [ ] **API-05**: Web feature code follows container/model/presentation boundaries and keeps domain logic out of `components/ui`. Current dashboard shell uses a typed API client; production feature pages still need the same boundary.
+- [x] **API-05**: Web feature code follows container/model/presentation boundaries and keeps domain logic out of `components/ui`. Current dashboard shell uses a typed API client; production feature pages still need the same boundary.
 
 ## v2 Requirements
 

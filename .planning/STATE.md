@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 9 plan 01 complete; plan 02 partially complete
-last_updated: "2026-05-02T18:52:00+03:00"
-last_activity: 2026-04-26 - Added per-student lesson duration, automatic package pricing from base price/duration, package progress tracking, and copyable completed-lesson date summaries.
+status: in_progress
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-05-02T16:54:27.291Z"
+last_activity: 2026-05-02 - Completed Phase 9 plan 02 persisted pet settings API, workspace controls, and live pet settings store.
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 16
-  completed_plans: 10
-  percent: 80
+  completed_plans: 12
+  percent: 75
 ---
 
 # Project State
@@ -21,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-25)
 
 **Core value:** The teacher can always see who studies, which individual lessons are planned/completed/cancelled/rescheduled, who paid, and who owes money.
-**Current focus:** Phase 7: Payments, package history, and currency-aware offer text.
+**Current focus:** Phase 9: Implement website pet widget.
 
 ## Current Position
 
-Phase: 7 of 9 (Payments and Ledger)
-Plan: 07-01
-Status: Phase 6 complete; current urgent pass is individual-only lesson scheduling and calendar automation before returning to payment ledger hardening
-Last activity: 2026-04-26 - Added per-student lesson duration, automatic package pricing from base price/duration, package progress tracking, and copyable completed-lesson date summaries.
+Phase: 9 of 9 (Implement website pet widget)
+Plan: 09-03
+Status: Plan 09-02 complete; next plan is pet engine, overlay provider, and target discovery
+Last activity: 2026-05-02 - Completed persisted pet settings API, workspace controls, and live pet settings store.
 
-Progress: [########--] 80%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 12
 - Average duration: n/a
 - Total execution time: current autonomous session
 
@@ -50,6 +50,7 @@ Progress: [########--] 80%
 | 4     | 3/3   | current session | n/a      |
 | 5     | 3/3   | current session | n/a      |
 | 6     | 3/3   | current session | n/a      |
+| Phase 09-implement-website-pet-widget P02 | 18min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Phase 6 sync status and retry are complete: Calendar page exposes retry actions and repeated sync calls reuse one sync record.
 - Calendar OAuth callback now only exchanges the Supabase session and redirects back; the web app saves `session.provider_token` to the API/DB after return, matching the pre-CRM working Google token access pattern.
 - For currency-aware offer text, use ExchangeRate-API open endpoint (`https://open.er-api.com/v6/latest/RUB`) as the no-key primary candidate with caching/attribution, and keep Bank of Russia official daily KZT/RUB data as a RUB/KZT fallback source.
+- [Phase 09-implement-website-pet-widget]: Pet settings persist through the authenticated API/Postgres boundary; the web store is only a live in-memory subscription bridge.
+- [Phase 09-implement-website-pet-widget]: Sound is an explicit pet setting and remains off by default.
 
 ### Pending Todos
 
@@ -112,6 +115,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-05-02T12:16:27.956Z
-Stopped at: Phase 9 plan 01 complete; plan 02 partially complete
-Resume file: .planning/phases/09-implement-website-pet-widget/09-02-PLAN.md
+Last session: 2026-05-02T16:54:27.264Z
+Stopped at: Completed 09-02-PLAN.md
+Resume file: None
