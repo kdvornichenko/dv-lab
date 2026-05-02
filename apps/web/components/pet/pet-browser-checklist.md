@@ -17,13 +17,15 @@ Run this after the app is available in a browser with an authenticated workspace
 
 ## Interaction
 
-- [ ] Confirm the pet can visibly walk across the viewport.
-- [ ] Confirm the pet jumps only to visible `data-pet-target` surfaces, lands, and rests there.
-- [ ] Click CRM UI beneath or near the pet and confirm clicks pass through normally.
+- [ ] Confirm the pet is rendered at the smaller sidebar size.
+- [ ] Confirm the pet walks only along the top edge of the sidebar footer.
+- [ ] Confirm the pet switches to sleep on the sidebar footer without drifting.
+- [ ] Click the sleeping pet and confirm it resumes walking without a transition animation.
+- [ ] Click CRM UI beneath or near the pet and confirm clicks pass through normally outside the pet image.
 
 ## Motion And Privacy
 
-- [ ] Emulate `prefers-reduced-motion: reduce` and confirm active walking/jumping stops in favor of sleeper behavior.
+- [ ] Emulate `prefers-reduced-motion: reduce` and confirm active walking stops in favor of sleeper behavior.
 - [ ] Toggle privacy mode and confirm the pet switches to the privacy pose.
 - [ ] Test a mobile viewport and confirm movement remains reduced and does not obstruct touch workflows.
 

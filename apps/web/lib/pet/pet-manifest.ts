@@ -1,17 +1,17 @@
 export const PET_POSES = [
-	"idle",
-	"walk",
-	"run",
-	"jump",
-	"land",
-	"sit",
-	"lie",
-	"sleep",
-	"scratch",
-	"stretch",
-	"paw",
-	"fall",
-	"privacy",
+	'idle',
+	'walk',
+	'run',
+	'jump',
+	'land',
+	'sit',
+	'lie',
+	'sleep',
+	'scratch',
+	'stretch',
+	'paw',
+	'fall',
+	'privacy',
 ] as const
 
 export type PetPose = (typeof PET_POSES)[number]
@@ -24,23 +24,23 @@ export type PetAnimationAsset = {
 	animated: true
 	loop: true
 	naturalFrameCount?: number
-	motionRole: "idle" | "travel" | "jump" | "rest" | "privacy"
+	motionRole: 'idle' | 'travel' | 'jump' | 'rest' | 'privacy'
 	sourcePose?: PetPose
 	temporary?: boolean
 }
 
 export type PetAssetManifest = {
-	id: "cat"
+	id: 'cat'
 	animations: Record<PetPose, PetAnimationAsset>
 }
 
 function createAnimationAsset(
 	pose: PetPose,
-	src: PetAnimationAsset["src"],
+	src: PetAnimationAsset['src'],
 	width: number,
 	height: number,
-	motionRole: PetAnimationAsset["motionRole"],
-	options: Pick<PetAnimationAsset, "naturalFrameCount" | "sourcePose" | "temporary"> = {},
+	motionRole: PetAnimationAsset['motionRole'],
+	options: Pick<PetAnimationAsset, 'naturalFrameCount' | 'sourcePose' | 'temporary'> = {}
 ): PetAnimationAsset {
 	return {
 		pose,
@@ -54,40 +54,57 @@ function createAnimationAsset(
 	}
 }
 
-function createTemporarySleepAsset(pose: PetPose, motionRole: PetAnimationAsset["motionRole"]): PetAnimationAsset {
-	return createAnimationAsset(
-		pose,
-		"/assets/cat-widget/cat-sleep.webp",
-		208,
-		151,
-		motionRole,
-		{ naturalFrameCount: 13, sourcePose: "sleep", temporary: true },
-	)
+function createTemporarySleepAsset(pose: PetPose, motionRole: PetAnimationAsset['motionRole']): PetAnimationAsset {
+	return createAnimationAsset(pose, '/assets/cat-widget/cat-sleep.webp', 208, 151, motionRole, {
+		naturalFrameCount: 13,
+		sourcePose: 'sleep',
+		temporary: true,
+	})
+}
+
+function createLayDownAsset(
+	pose: PetPose,
+	options: Pick<PetAnimationAsset, 'sourcePose' | 'temporary'> = {}
+): PetAnimationAsset {
+	return createAnimationAsset(pose, '/assets/cat-widget/cat-lay-down.webp', 370, 200, 'rest', {
+		naturalFrameCount: 10,
+		...options,
+	})
+}
+
+function createStandUpAsset(
+	pose: PetPose,
+	options: Pick<PetAnimationAsset, 'sourcePose' | 'temporary'> = {}
+): PetAnimationAsset {
+	return createAnimationAsset(pose, '/assets/cat-widget/cat-stand-up.webp', 370, 200, 'rest', {
+		naturalFrameCount: 10,
+		...options,
+	})
 }
 
 export const catPetManifest: PetAssetManifest = {
-	id: "cat",
+	id: 'cat',
 	animations: {
-		idle: createTemporarySleepAsset("idle", "idle"),
-		walk: createAnimationAsset("walk", "/assets/cat-widget/cat-walk.webp", 370, 200, "travel", {
+		idle: createTemporarySleepAsset('idle', 'idle'),
+		walk: createAnimationAsset('walk', '/assets/cat-widget/cat-walk.webp', 370, 200, 'travel', {
 			naturalFrameCount: 5,
 		}),
-		run: createAnimationAsset("run", "/assets/cat-widget/cat-walk.webp", 370, 200, "travel", {
+		run: createAnimationAsset('run', '/assets/cat-widget/cat-walk.webp', 370, 200, 'travel', {
 			naturalFrameCount: 5,
-			sourcePose: "walk",
+			sourcePose: 'walk',
 			temporary: true,
 		}),
-		jump: createTemporarySleepAsset("jump", "jump"),
-		land: createTemporarySleepAsset("land", "jump"),
-		sit: createTemporarySleepAsset("sit", "rest"),
-		lie: createTemporarySleepAsset("lie", "rest"),
-		sleep: createAnimationAsset("sleep", "/assets/cat-widget/cat-sleep.webp", 208, 151, "rest", {
+		jump: createTemporarySleepAsset('jump', 'jump'),
+		land: createTemporarySleepAsset('land', 'jump'),
+		sit: createLayDownAsset('sit', { sourcePose: 'lie', temporary: true }),
+		lie: createLayDownAsset('lie'),
+		sleep: createAnimationAsset('sleep', '/assets/cat-widget/cat-sleep.webp', 208, 151, 'rest', {
 			naturalFrameCount: 13,
 		}),
-		scratch: createTemporarySleepAsset("scratch", "rest"),
-		stretch: createTemporarySleepAsset("stretch", "rest"),
-		paw: createTemporarySleepAsset("paw", "idle"),
-		fall: createTemporarySleepAsset("fall", "jump"),
-		privacy: createTemporarySleepAsset("privacy", "privacy"),
+		scratch: createTemporarySleepAsset('scratch', 'rest'),
+		stretch: createStandUpAsset('stretch', { sourcePose: 'lie' }),
+		paw: createTemporarySleepAsset('paw', 'idle'),
+		fall: createTemporarySleepAsset('fall', 'jump'),
+		privacy: createTemporarySleepAsset('privacy', 'privacy'),
 	},
 }

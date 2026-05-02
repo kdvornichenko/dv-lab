@@ -1,9 +1,9 @@
-import type { PetTarget } from "./pet-engine"
+import type { PetTarget } from './pet-engine'
 
-export const PET_TARGET_SELECTOR = "[data-pet-target]"
+export const PET_TARGET_SELECTOR = '[data-pet-target]'
 
 export function listPetTargets(): PetTarget[] {
-	if (typeof document === "undefined" || typeof window === "undefined") {
+	if (typeof document === 'undefined' || typeof window === 'undefined') {
 		return []
 	}
 
@@ -14,7 +14,7 @@ export function listPetTargets(): PetTarget[] {
 			return {
 				id: element.dataset.petTarget || `pet-target-${index}`,
 				x: rect.left,
-				y: rect.top,
+				y: rect.top + 5,
 				width: rect.width,
 				height: rect.height,
 			}
@@ -24,6 +24,11 @@ export function listPetTargets(): PetTarget[] {
 				return false
 			}
 
-			return target.x + target.width > 0 && target.y + target.height > 0 && target.x < window.innerWidth && target.y < window.innerHeight
+			return (
+				target.x + target.width > 0 &&
+				target.y + target.height > 0 &&
+				target.x < window.innerWidth &&
+				target.y < window.innerHeight
+			)
 		})
 }

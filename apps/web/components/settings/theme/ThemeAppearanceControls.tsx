@@ -8,13 +8,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
+import type { FontSizeInputProps, ThemeAppearanceControlsProps } from './ThemeAppearanceControls.types'
 import { ThemeColorControls } from './ThemeColorControls'
 import { ThemeFontStackedAccordion } from './ThemeFontStackedAccordion'
 import { ThemePresetCard } from './ThemePresetCard'
 import { ThemeSettingsSection } from './ThemeSettingsSection'
 import { ThemeShapeControls } from './ThemeShapeControls'
 import { presetThemes } from './theme-presets'
-import type { FontSizeInputProps, ThemeAppearanceControlsProps } from './ThemeAppearanceControls.types'
 
 export const ThemeAppearanceControls: FC<ThemeAppearanceControlsProps> = ({
 	activePreset,

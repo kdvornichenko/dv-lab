@@ -11,8 +11,8 @@ import { studentSettingsPath } from '@/lib/crm/student-route-id'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
 import { PaymentFormDialog } from './PaymentFormDialog'
-import { StudentLedgerItem } from './StudentLedgerItem'
 import { StudentFormDialog } from './StudentFormDialog'
+import { StudentLedgerItem } from './StudentLedgerItem'
 import type { StudentsPanelProps } from './StudentsPanel.types'
 
 export const StudentsPanel: FC<StudentsPanelProps> = ({

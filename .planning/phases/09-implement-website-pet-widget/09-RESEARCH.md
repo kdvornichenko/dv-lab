@@ -7,12 +7,15 @@
 > 2026-05-02 update: this research file contains older sprite-sheet analysis below. The current implementation direction supersedes it: render standalone animated WebP files with a native `img`, move the `img` with CSS transforms, and switch `src` by pose only when needed. Do not implement `background-position`, sheet coordinates, manual frame timers, canvas rendering, or SVG sprites.
 
 <user_constraints>
+
 ## User Constraints (from CONTEXT.md)
 
 ### Locked Decisions
+
 ## Implementation Decisions
 
 ### Pet behavior
+
 - The pet should be playful active, not mostly idle: it can move enough to feel alive.
 - Movement must still respect the CRM as a work tool: jumps happen sometimes, not constantly.
 - The pet may occasionally show interest in the cursor, but it should not constantly chase the cursor like classic oneko.
@@ -20,12 +23,14 @@
 - Resting on page targets is part of the expected behavior, not only a floor/edge behavior.
 
 ### Target element policy
+
 - The pet may jump only to explicitly marked target zones, using a marker such as `data-pet-target`.
 - Initial target zones should be existing workspace surfaces: sidebar/header/dashboard panels/calendar blocks and similar broad CRM surfaces.
 - The pet must never block CRM clicks. The overlay behavior should allow clicks to pass through page UI even when the pet is visually over an element.
 - Mobile behavior should be reduced: fewer targets, less movement, and safe lower-edge behavior so touch workflows are not obstructed.
 
 ### Pet model and visual asset contract
+
 - The widget should expose a generic pet API so future pets can be swapped in, but the first shipped pet should be a cat unless a later phase changes the asset.
 - The asset format should be standalone animated WebP files, not SVG symbols and not manual sprite sheets. SVG generation was attempted but does not produce acceptable pet sprites; a test animated `cat-sleep.webp` in the sidebar works correctly.
 - Visual style should be a tiny pixel-art cat, readable around 64-120px, with neutral coloring that does not fight the Warm Ledger CRM palette.
@@ -33,29 +38,34 @@
 - The manifest should be deterministic so code can switch animated WebP `src` by pose; animated WebP owns the internal frame loop.
 
 ### Controls, accessibility, and privacy
+
 - The user needs an explicit settings toggle to enable or disable the pet. The setting should persist.
 - Reduced motion should show a static or near-static sleeping pet instead of walking and jumping.
 - Ambient sounds are desired, but they must not surprise the user in a work CRM. They should be controlled by an explicit sound setting and respect browser audio restrictions.
 - Privacy mode needs a distinct pet state/sprite: the pet remains visible but changes into a privacy pose where it covers its eyes with a paw.
 
 ### Claude's Discretion
+
 - Exact timing values for movement, jump arcs, rest duration, and idle randomness.
 - Exact settings placement, provided it is discoverable and does not clutter the main CRM workflow.
 - Exact technical split between provider, engine, sprite renderer, and target registration.
 - Exact manifest metadata for temporary pose-to-asset mappings, as long as runtime rendering remains native animated WebP `img` movement without manual frame switching.
 
 ### Deferred Ideas (OUT OF SCOPE)
+
 - Multiple selectable pet species beyond the first cat are supported by the API shape but not required as complete user-facing content in this phase.
 - Full game/pet-care mechanics, unlockable pets, feeding, stats, or progression belong to future phases.
 - Student-facing or public embeddable pet widget behavior is out of scope for this teacher CRM phase.
-</user_constraints>
+  </user_constraints>
 
 <phase_requirements>
+
 ## Phase Requirements
 
-| ID | Description | Research Support |
-|----|-------------|------------------|
+| ID     | Description                                                                                                     | Research Support                                                                                                                                                                                                                                                |
+| ------ | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | API-05 | Web feature code follows container/model/presentation boundaries and keeps domain logic out of `components/ui`. | Use `apps/web/lib/pet/*` for engine/model/manifest, `apps/web/components/pet/*` for provider and renderer, `apps/web/app/(workspace)/settings/pet/*` for controls, and API/db settings modules for persistence. Do not put pet engine logic in `components/ui`. |
+
 </phase_requirements>
 
 ## Summary
@@ -70,33 +80,33 @@ The locked asset contract is now standalone animated WebP files plus a determini
 
 ### Core
 
-| Library/API | Version | Purpose | Why Standard |
-|-------------|---------|---------|--------------|
-| Next.js App Router | 16.1.6 | Web app routing/layout and static asset serving | Existing app framework; `public` serves `/pets/...` WebP assets. |
-| React | 19.2.4 | Provider composition and client renderer | Existing app stack; refs/effects fit browser API synchronization. |
-| Tailwind CSS | 4.1.18 | Overlay and settings styling | Existing styling system and app tokens. |
-| Motion for React | 12.23.26 | Existing reduced-motion hook and occasional UI transitions | Already used; `useReducedMotion` actively tracks the user motion preference. |
-| Browser Web APIs | Baseline | `requestAnimationFrame`, `matchMedia`, `MutationObserver`, `ResizeObserver`, `getBoundingClientRect`, Page Visibility | Native, current, no extra runtime dependency. |
-| CSS sprites | Baseline | WebP sprite frame rendering via `background-position` | MDN documents CSS sprites as a bandwidth/request-saving pattern using background position. |
+| Library/API        | Version  | Purpose                                                                                                               | Why Standard                                                                               |
+| ------------------ | -------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Next.js App Router | 16.1.6   | Web app routing/layout and static asset serving                                                                       | Existing app framework; `public` serves `/pets/...` WebP assets.                           |
+| React              | 19.2.4   | Provider composition and client renderer                                                                              | Existing app stack; refs/effects fit browser API synchronization.                          |
+| Tailwind CSS       | 4.1.18   | Overlay and settings styling                                                                                          | Existing styling system and app tokens.                                                    |
+| Motion for React   | 12.23.26 | Existing reduced-motion hook and occasional UI transitions                                                            | Already used; `useReducedMotion` actively tracks the user motion preference.               |
+| Browser Web APIs   | Baseline | `requestAnimationFrame`, `matchMedia`, `MutationObserver`, `ResizeObserver`, `getBoundingClientRect`, Page Visibility | Native, current, no extra runtime dependency.                                              |
+| CSS sprites        | Baseline | WebP sprite frame rendering via `background-position`                                                                 | MDN documents CSS sprites as a bandwidth/request-saving pattern using background position. |
 
 ### Supporting
 
-| Library/API | Version | Purpose | When to Use |
-|-------------|---------|---------|-------------|
-| Hono | 4.10.7 | `/settings/pet` route | Persist pet enable/sound settings through existing authenticated settings API. |
-| Zod | 3.24.3 | Shared pet settings and manifest validation | Add schema in `packages/api-types`; optionally validate manifest in tests. |
-| Drizzle ORM | 0.45.1 | `pet_settings` table/repository | Match existing `sidebar_settings` and `theme_settings` persistence pattern. |
-| Radix Switch via shadcn | 1.2.6 | Pet enable/sound toggles | Existing `Switch` component under `components/ui`. |
-| `sonner` | 2.0.7 | Save/load error feedback | Existing settings providers use toast failures. |
+| Library/API             | Version | Purpose                                     | When to Use                                                                    |
+| ----------------------- | ------- | ------------------------------------------- | ------------------------------------------------------------------------------ |
+| Hono                    | 4.10.7  | `/settings/pet` route                       | Persist pet enable/sound settings through existing authenticated settings API. |
+| Zod                     | 3.24.3  | Shared pet settings and manifest validation | Add schema in `packages/api-types`; optionally validate manifest in tests.     |
+| Drizzle ORM             | 0.45.1  | `pet_settings` table/repository             | Match existing `sidebar_settings` and `theme_settings` persistence pattern.    |
+| Radix Switch via shadcn | 1.2.6   | Pet enable/sound toggles                    | Existing `Switch` component under `components/ui`.                             |
+| `sonner`                | 2.0.7   | Save/load error feedback                    | Existing settings providers use toast failures.                                |
 
 ### Alternatives Considered
 
-| Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
-| CSS `background-position` sprite | Cropped `<img>` with `object-fit: none` and `object-position` | More semantic image element, but cropping/negative offsets are clumsier; use background sprites for deterministic frame cells. |
-| Small custom rAF engine | Motion animation controls for every movement | Motion is good for UI transitions, but a pet needs continuous target/path updates without React re-rendering every frame. |
-| WebP sprite sheet | SVG symbols | Explicitly rejected by updated user decision; SVG generation did not produce acceptable pet sprites. |
-| API/Postgres pet settings | `localStorage` only | Project state says non-session UI persistence must go through API/Postgres; local cache is acceptable only as optimistic hydration/fallback. |
+| Instead of                       | Could Use                                                     | Tradeoff                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSS `background-position` sprite | Cropped `<img>` with `object-fit: none` and `object-position` | More semantic image element, but cropping/negative offsets are clumsier; use background sprites for deterministic frame cells.               |
+| Small custom rAF engine          | Motion animation controls for every movement                  | Motion is good for UI transitions, but a pet needs continuous target/path updates without React re-rendering every frame.                    |
+| WebP sprite sheet                | SVG symbols                                                   | Explicitly rejected by updated user decision; SVG generation did not produce acceptable pet sprites.                                         |
+| API/Postgres pet settings        | `localStorage` only                                           | Project state says non-session UI persistence must go through API/Postgres; local cache is acceptable only as optimistic hydration/fallback. |
 
 **Installation:**
 
@@ -303,15 +313,15 @@ observer.observe(document.documentElement, { attributes: true, attributeFilter: 
 
 ## Don't Hand-Roll
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| Sprite frame coordinates | Filename parsing or DOM scanning | Typed manifest + compile/runtime invariant tests | Deterministic, future-pet compatible, easy to validate. |
-| Click-through behavior | Manual event forwarding | CSS `pointer-events: none` on overlay/sprite | Native browser behavior and less failure-prone. |
-| Target discovery | Heuristic "interesting element" detection | `[data-pet-target]` only | Prevents blocking controls and private CRM data. |
-| Reduced-motion detection | Custom OS/browser sniffing | `useReducedMotion()`/`matchMedia('(prefers-reduced-motion: reduce)')` | Existing app pattern and official browser API. |
-| Privacy detection | Duplicated keyboard shortcut/state | Existing `html.privacy-mode` class observed by the pet | Maintains one privacy source of truth. |
-| Audio permission handling | Autoplay unlock hacks | Explicit sound toggle plus play only after user gesture | Browsers may reject autoplay; surprise audio is not acceptable. |
-| Persistence | Browser-only localStorage setting | `/settings/pet` + Postgres/memory fallback | Matches project state and existing settings pattern. |
+| Problem                   | Don't Build                               | Use Instead                                                           | Why                                                             |
+| ------------------------- | ----------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Sprite frame coordinates  | Filename parsing or DOM scanning          | Typed manifest + compile/runtime invariant tests                      | Deterministic, future-pet compatible, easy to validate.         |
+| Click-through behavior    | Manual event forwarding                   | CSS `pointer-events: none` on overlay/sprite                          | Native browser behavior and less failure-prone.                 |
+| Target discovery          | Heuristic "interesting element" detection | `[data-pet-target]` only                                              | Prevents blocking controls and private CRM data.                |
+| Reduced-motion detection  | Custom OS/browser sniffing                | `useReducedMotion()`/`matchMedia('(prefers-reduced-motion: reduce)')` | Existing app pattern and official browser API.                  |
+| Privacy detection         | Duplicated keyboard shortcut/state        | Existing `html.privacy-mode` class observed by the pet                | Maintains one privacy source of truth.                          |
+| Audio permission handling | Autoplay unlock hacks                     | Explicit sound toggle plus play only after user gesture               | Browsers may reject autoplay; surprise audio is not acceptable. |
+| Persistence               | Browser-only localStorage setting         | `/settings/pet` + Postgres/memory fallback                            | Matches project state and existing settings pattern.            |
 
 **Key insight:** The custom part is the pet state machine, not the browser plumbing. Keep the engine small and deterministic, but rely on native browser APIs for animation timing, layout measurement, media preferences, target observation, and click-through behavior.
 
@@ -429,12 +439,12 @@ export const petSettingsResponseSchema = z.object({
 
 ## State of the Art
 
-| Old Approach | Current Approach | When Changed | Impact |
-|--------------|------------------|--------------|--------|
-| SVG `<symbol>` frames | WebP sprite sheet + deterministic frame manifest | 2026-05-02 user clarification | Planner must remove SVG-symbol work and validate raster frame coordinates instead. |
-| GIF-like animated asset | Single WebP sheet controlled by JS/CSS | Current recommendation | Enables privacy/reduced-motion state overrides and deterministic tests. |
-| Animation library drives every movement | rAF engine + transform style updates | Current React/browser practice | Avoids React re-rendering every frame while keeping provider state declarative. |
-| Heuristic DOM target selection | Explicit `[data-pet-target]` zones | Phase decision | Keeps pet non-blocking and privacy-compatible. |
+| Old Approach                            | Current Approach                                 | When Changed                   | Impact                                                                             |
+| --------------------------------------- | ------------------------------------------------ | ------------------------------ | ---------------------------------------------------------------------------------- |
+| SVG `<symbol>` frames                   | WebP sprite sheet + deterministic frame manifest | 2026-05-02 user clarification  | Planner must remove SVG-symbol work and validate raster frame coordinates instead. |
+| GIF-like animated asset                 | Single WebP sheet controlled by JS/CSS           | Current recommendation         | Enables privacy/reduced-motion state overrides and deterministic tests.            |
+| Animation library drives every movement | rAF engine + transform style updates             | Current React/browser practice | Avoids React re-rendering every frame while keeping provider state declarative.    |
+| Heuristic DOM target selection          | Explicit `[data-pet-target]` zones               | Phase decision                 | Keeps pet non-blocking and privacy-compatible.                                     |
 
 **Deprecated/outdated:**
 
@@ -458,22 +468,22 @@ export const petSettingsResponseSchema = z.object({
 
 ### Test Framework
 
-| Property | Value |
-|----------|-------|
-| Framework | Existing: TypeScript `tsc`, ESLint, API smoke tests via `node --import tsx`; web has no browser/unit test runner yet |
-| Config file | `apps/web/tsconfig.json`, `apps/web/eslint.config.mjs`, `apps/api/src/app.test.ts` |
-| Quick run command | `yarn --cwd apps/web test` |
-| Full suite command | `yarn test` |
+| Property           | Value                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Framework          | Existing: TypeScript `tsc`, ESLint, API smoke tests via `node --import tsx`; web has no browser/unit test runner yet |
+| Config file        | `apps/web/tsconfig.json`, `apps/web/eslint.config.mjs`, `apps/api/src/app.test.ts`                                   |
+| Quick run command  | `yarn --cwd apps/web test`                                                                                           |
+| Full suite command | `yarn test`                                                                                                          |
 
 ### Phase Requirements → Test Map
 
-| Req ID | Behavior | Test Type | Automated Command | File Exists? |
-|--------|----------|-----------|-------------------|--------------|
-| API-05 | Pet engine/manifest logic lives under `apps/web/lib/pet`, renderer/provider under `components/pet`, settings UI under `app/(workspace)/settings/pet`, and no pet logic lands in `components/ui` | architecture/static | `rg -n "pet|Pet" apps/web/components/ui apps/web/lib/pet apps/web/components/pet` plus `yarn --cwd apps/web typecheck` | ❌ Wave 0 |
-| API-05 | Pet settings persist through API/Postgres/memory fallback | integration | `yarn --cwd apps/api test` after adding `/settings/pet` smoke assertions | ❌ Wave 0 |
-| API-05 | Manifest includes all required poses and valid in-bounds frame coordinates | unit | `yarn --cwd apps/web test:pet` | ❌ Wave 0 |
-| API-05 | Overlay never blocks clicks and only targets `[data-pet-target]` | browser/manual | Manual browser check or Playwright if added | ❌ Wave 0 |
-| API-05 | Reduced motion renders static/near-static sleeper and privacy mode forces privacy frame | browser/manual | Manual browser check with reduced-motion emulation and `html.privacy-mode` | ❌ Wave 0 |
+| Req ID | Behavior                                                                                                                                                                                        | Test Type           | Automated Command                                                          | File Exists?                                                                                             |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | --------- |
+| API-05 | Pet engine/manifest logic lives under `apps/web/lib/pet`, renderer/provider under `components/pet`, settings UI under `app/(workspace)/settings/pet`, and no pet logic lands in `components/ui` | architecture/static | `rg -n "pet                                                                | Pet" apps/web/components/ui apps/web/lib/pet apps/web/components/pet`plus`yarn --cwd apps/web typecheck` | ❌ Wave 0 |
+| API-05 | Pet settings persist through API/Postgres/memory fallback                                                                                                                                       | integration         | `yarn --cwd apps/api test` after adding `/settings/pet` smoke assertions   | ❌ Wave 0                                                                                                |
+| API-05 | Manifest includes all required poses and valid in-bounds frame coordinates                                                                                                                      | unit                | `yarn --cwd apps/web test:pet`                                             | ❌ Wave 0                                                                                                |
+| API-05 | Overlay never blocks clicks and only targets `[data-pet-target]`                                                                                                                                | browser/manual      | Manual browser check or Playwright if added                                | ❌ Wave 0                                                                                                |
+| API-05 | Reduced motion renders static/near-static sleeper and privacy mode forces privacy frame                                                                                                         | browser/manual      | Manual browser check with reduced-motion emulation and `html.privacy-mode` | ❌ Wave 0                                                                                                |
 
 ### Sampling Rate
 

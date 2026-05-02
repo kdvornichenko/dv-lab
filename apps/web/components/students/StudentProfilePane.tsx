@@ -17,8 +17,8 @@ import {
 	selectStudentLedgerProjection,
 } from '@/lib/crm/model'
 
-import { lessonStatusTone, ProfileMetric, ProfileRow } from './StudentProfileParts'
 import type { StudentProfilePaneProps } from './StudentProfilePane.types'
+import { lessonStatusTone, ProfileMetric, ProfileRow } from './StudentProfileParts'
 
 export const StudentProfilePane: FC<StudentProfilePaneProps> = ({ student, lessons, now }) => {
 	if (!student) {
@@ -71,7 +71,12 @@ export const StudentProfilePane: FC<StudentProfilePaneProps> = ({ student, lesso
 
 			<div className="p-4">
 				<div className="grid grid-cols-2 gap-2">
-					<ProfileMetric icon={CalendarCheck2} label="Scheduled" value={projection.stats.relatedLessons.length} tone="sage" />
+					<ProfileMetric
+						icon={CalendarCheck2}
+						label="Scheduled"
+						value={projection.stats.relatedLessons.length}
+						tone="sage"
+					/>
 					<ProfileMetric icon={CheckCircle2} label="Charged" value={completedCount} tone="success" />
 					<ProfileMetric
 						icon={ReceiptText}

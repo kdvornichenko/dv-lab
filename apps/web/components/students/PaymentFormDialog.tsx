@@ -26,6 +26,7 @@ import type { StudentWithBalance } from '@/lib/crm/types'
 
 import { calculateMonthlyTotalPrice } from '@teacher-crm/api-types'
 import type { PaymentMethod } from '@teacher-crm/api-types'
+
 import type {
 	PaymentFieldErrors,
 	PaymentFieldProps,
@@ -255,13 +256,7 @@ export const PaymentFormDialog: FC<PaymentFormDialogProps> = ({ open, student, o
 	)
 }
 
-const Field: FC<PaymentFieldProps> = ({
-	id,
-	label,
-	error,
-	errorId,
-	children,
-}) => {
+const Field: FC<PaymentFieldProps> = ({ id, label, error, errorId, children }) => {
 	return (
 		<div>
 			<Label htmlFor={id} className="text-ink-muted mb-1.5 block text-xs font-medium">

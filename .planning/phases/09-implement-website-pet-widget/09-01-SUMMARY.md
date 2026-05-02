@@ -4,9 +4,9 @@ plan: 01
 subsystem: ui
 tags: [nextjs, react, animated-webp, testing, tsx]
 provides:
-  - "Deterministic cat pet animated WebP asset manifest"
-  - "Pure pet engine helpers for pose priority and viewport clamping"
-  - "Pet-focused TypeScript test command"
+  - 'Deterministic cat pet animated WebP asset manifest'
+  - 'Pure pet engine helpers for pose priority and viewport clamping'
+  - 'Pet-focused TypeScript test command'
 affects: [pet-widget, web-ui, phase-09]
 key-files:
   created:
@@ -20,9 +20,9 @@ key-files:
     - apps/web/package.json
     - yarn.lock
 key-decisions:
-  - "Use standalone animated WebP files rendered through native img elements; runtime movement moves the img and does not switch frames manually."
-  - "Use /assets/cat-widget/cat-sleep.webp for sleep/rest and /assets/cat-widget/cat-walk.webp for walk/travel."
-  - "Keep non-final pose mappings explicit with temporary/sourcePose metadata until dedicated animated assets exist."
+  - 'Use standalone animated WebP files rendered through native img elements; runtime movement moves the img and does not switch frames manually.'
+  - 'Use /assets/cat-widget/cat-sleep.webp for sleep/rest and /assets/cat-widget/cat-walk.webp for walk/travel.'
+  - 'Keep non-final pose mappings explicit with temporary/sourcePose metadata until dedicated animated assets exist.'
 requirements-completed: [API-05]
 completed: 2026-05-02
 ---

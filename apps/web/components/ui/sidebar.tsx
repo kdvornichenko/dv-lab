@@ -373,8 +373,8 @@ function Sidebar({
 				className={cn(
 					'tab-sm:flex w-(--sidebar-width) fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] duration-200 ease-linear',
 					side === 'left'
-						? 'left-0 group-data-[collapsible=offcanvas]:-left-(--sidebar-width)'
-						: 'right-0 group-data-[collapsible=offcanvas]:-right-(--sidebar-width)',
+						? 'group-data-[collapsible=offcanvas]:-left-(--sidebar-width) left-0'
+						: 'group-data-[collapsible=offcanvas]:-right-(--sidebar-width) right-0',
 					// Adjust the padding for floating and inset variants.
 					variant === 'floating' || variant === 'inset'
 						? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'

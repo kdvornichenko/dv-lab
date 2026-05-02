@@ -1,0 +1,51 @@
+{
+	"version": 1,
+	"animations": {
+		"walk": {
+			"src": "/assets/cat-widget/cat-walk.webp",
+			"frames": 5,
+			"width": 370,
+			"height": 200,
+			"fps": 6,
+			"style": "pixel-art",
+			"usage": "bottom-edge walking loop"
+		},
+		"lay_down": {
+			"src": "/assets/cat-widget/cat-lay-down.webp",
+			"frames": 10,
+			"width": 370,
+			"height": 200,
+			"fps": 6,
+			"delayMs": [167, 167, 167, 167, 167, 167, 167, 167, 167, 167],
+			"style": "pixel-art",
+			"usage": "one-shot transition from walking to sleep"
+		},
+		"sleep": {
+			"src": "/assets/cat-widget/cat-sleep.webp",
+			"frames": 13,
+			"width": 208,
+			"height": 151,
+			"style": "pixel-art",
+			"usage": "loop while waiting for pet click"
+		},
+		"stand_up": {
+			"src": "/assets/cat-widget/cat-stand-up.webp",
+			"frames": 10,
+			"width": 370,
+			"height": 200,
+			"fps": 6,
+			"delayMs": [167, 167, 167, 167, 167, 167, 167, 167, 167, 167],
+			"style": "pixel-art",
+			"usage": "one-shot reverse transition from sleep to walking"
+		},
+		"lay_down_frames": {
+			"src": "/assets/cat-widget/cat-lay-down-frames.png",
+			"frames": 10,
+			"frameWidth": 370,
+			"frameHeight": 200,
+			"width": 3700,
+			"height": 200,
+			"style": "pixel-art"
+		}
+	}
+}

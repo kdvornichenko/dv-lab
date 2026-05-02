@@ -8,8 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 
 import type { Lesson } from '@teacher-crm/api-types'
 
-import { LessonListItem } from './LessonListItem'
 import { LessonFormDialog } from './LessonFormDialog'
+import { LessonListItem } from './LessonListItem'
 import type { LessonsPanelProps } from './LessonsPanel.types'
 
 export const LessonsPanel: FC<LessonsPanelProps> = ({

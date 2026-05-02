@@ -1,6 +1,6 @@
-import type { CalendarListEntry } from '@teacher-crm/api-types'
-
 import type { TeacherCrmState, TeacherCrmSummary } from '@/lib/crm/types'
+
+import type { CalendarListEntry } from '@teacher-crm/api-types'
 
 export type TeacherCrmCacheSnapshot = {
 	state: TeacherCrmState

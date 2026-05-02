@@ -44,15 +44,20 @@ export const lessonRoutes = new Hono()
 		const response: LessonMutationResponse = { ok: true, lesson }
 		return context.json(response, 200)
 	})
-	.delete('/:lessonId', requirePermission('lessons', 'write'), validateQuery(deleteLessonQuerySchema), async (context) => {
-		const actor = actorFromContext(context)
-		const lessonId = context.req.param('lessonId')
-		const lesson = await lessonWorkflowService.deleteLesson(actor, lessonId, context.req.valid('query'))
-		if (!lesson) return notFoundResponse(context, 'Lesson not found')
+	.delete(
+		'/:lessonId',
+		requirePermission('lessons', 'write'),
+		validateQuery(deleteLessonQuerySchema),
+		async (context) => {
+			const actor = actorFromContext(context)
+			const lessonId = context.req.param('lessonId')
+			const lesson = await lessonWorkflowService.deleteLesson(actor, lessonId, context.req.valid('query'))
+			if (!lesson) return notFoundResponse(context, 'Lesson not found')
 
-		const response: LessonMutationResponse = { ok: true, lesson }
-		return context.json(response, 200)
-	})
+			const response: LessonMutationResponse = { ok: true, lesson }
+			return context.json(response, 200)
+		}
+	)
 	.post('/attendance', requirePermission('attendance', 'mark'), validateJson(markAttendanceSchema), async (context) => {
 		const response: AttendanceMutationResponse = {
 			ok: true,

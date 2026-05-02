@@ -24,8 +24,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 
-import { SortableSidebarItem } from './SortableSidebarItem'
 import type { SidebarFormState } from './SidebarSettingsClient.types'
+import { SortableSidebarItem } from './SortableSidebarItem'
 
 const emptyForm: SidebarFormState = {
 	title: '',

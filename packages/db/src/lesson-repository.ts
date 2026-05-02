@@ -20,7 +20,10 @@ export type LessonUpdateValues = Partial<
 	Omit<typeof lessons.$inferInsert, 'id' | 'teacherId' | 'createdAt' | 'updatedAt'>
 >
 export type AttendanceRecordUpsertValues = Omit<typeof attendanceRecords.$inferInsert, 'id' | 'updatedAt'>
-export type LessonOccurrenceExceptionUpsertValues = Omit<typeof lessonOccurrenceExceptions.$inferInsert, 'id' | 'createdAt'>
+export type LessonOccurrenceExceptionUpsertValues = Omit<
+	typeof lessonOccurrenceExceptions.$inferInsert,
+	'id' | 'createdAt'
+>
 export type LessonRowWithStudents = LessonRow & {
 	studentIds: string[]
 }

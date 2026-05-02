@@ -33,7 +33,7 @@ export const CalendarDayView: FC = () => {
 					{format(selectedDay, 'EEE, d MMM', { locale })} · agenda
 				</div>
 				<h2 className="font-heading mt-1 text-3xl tracking-tight">Agenda</h2>
-				<p className="text-ink-muted mt-1 text-sm">
+				<p data-private className="text-ink-muted mt-1 text-sm">
 					{visibleEvents.length} lessons · {Math.round(bookedMinutes / 60)}h {bookedMinutes % 60}m booked
 				</p>
 
@@ -102,7 +102,9 @@ const AgendaSection: FC<AgendaSectionProps> = ({ label, date, events, onEventCli
 								<div className="flex min-w-0 items-center gap-3">
 									<span className={cn('h-12 w-1 shrink-0 rounded-full', TONE_RAIL[eventTone(event)])} />
 									<div className="min-w-0 flex-1">
-										<div className="text-ink truncate text-sm font-medium">{event.title}</div>
+										<div data-private className="text-ink truncate text-sm font-medium">
+											{event.title}
+										</div>
 										<div className="text-ink-muted mt-0.5 flex items-center gap-2 font-mono text-[10px]">
 											{event.location?.toLowerCase().includes('zoom') ? (
 												<Video className="size-3" />

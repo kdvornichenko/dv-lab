@@ -5,6 +5,7 @@ import { useCallback } from 'react'
 import { teacherCrmCalendarApi } from '@/lib/crm/api'
 
 import type { CreateCalendarBlockInput, UpdateCalendarBlockInput } from '@teacher-crm/api-types'
+
 import type { TeacherCrmCalendarCommandDeps } from './useTeacherCrmCommands.types'
 
 export function useTeacherCrmCalendarBlockCommands({
@@ -20,10 +21,7 @@ export function useTeacherCrmCalendarBlockCommands({
 				const response = await teacherCrmCalendarApi.createCalendarBlock(input)
 				setState((current) => ({
 					...current,
-					calendarBlocks: [
-						...current.calendarBlocks.filter((block) => block.id !== response.block.id),
-						response.block,
-					],
+					calendarBlocks: [...current.calendarBlocks.filter((block) => block.id !== response.block.id), response.block],
 				}))
 				refreshInBackground()
 			})

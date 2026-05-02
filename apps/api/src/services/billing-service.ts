@@ -89,7 +89,8 @@ function mapStudent(row: StudentRow): Student {
 		packageLessonsPerWeek: row.packageLessonsPerWeek,
 		packageLessonCount: row.packageLessonCount,
 		packageTotalPrice: numeric(row.packageTotalPrice),
-		packageLessonPriceOverride: row.packageLessonPriceOverride === null ? null : numeric(row.packageLessonPriceOverride),
+		packageLessonPriceOverride:
+			row.packageLessonPriceOverride === null ? null : numeric(row.packageLessonPriceOverride),
 		currency: row.currency,
 		billingMode: row.billingMode,
 		createdAt: dateToIso(row.createdAt),

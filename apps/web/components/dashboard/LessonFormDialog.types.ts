@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 
-import type { CalendarBusyInterval, CreateLessonInput, DeleteLessonQuery, Lesson, Student } from '@teacher-crm/api-types'
+import type {
+	CalendarBusyInterval,
+	CreateLessonInput,
+	DeleteLessonQuery,
+	Lesson,
+	Student,
+} from '@teacher-crm/api-types'
 
 export type LessonFormCommand = CreateLessonInput & {
 	applyToFuture?: boolean

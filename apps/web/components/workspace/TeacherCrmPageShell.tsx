@@ -6,15 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTeacherCrm } from '@/hooks/useTeacherCrm'
 import { cn } from '@/lib/utils'
+
 import type { TeacherCrmPageShellProps, WorkspaceSkeletonProps } from './TeacherCrmPageShell.types'
 
 export type { TeacherCrm } from './TeacherCrmPageShell.types'
 
-export const TeacherCrmPageShell: FC<TeacherCrmPageShellProps> = ({
-	children,
-	skeletonRows = 7,
-	classNames,
-}) => {
+export const TeacherCrmPageShell: FC<TeacherCrmPageShellProps> = ({ children, skeletonRows = 7, classNames }) => {
 	const crm = useTeacherCrm()
 	const now = new Date()
 
@@ -22,13 +19,13 @@ export const TeacherCrmPageShell: FC<TeacherCrmPageShellProps> = ({
 		<main className={cn('p-unit min-h-full', classNames?.main)}>
 			<div className={cn('w-full space-y-5', classNames?.container)}>
 				{crm.loadError ? (
-					<div role="alert" className="border-warning-line bg-warning-soft rounded-lg border p-3 text-sm text-ink">
+					<div role="alert" className="border-warning-line bg-warning-soft text-ink rounded-lg border p-3 text-sm">
 						<div className="flex flex-wrap items-center justify-between gap-3">
 							<div>
 								<p className="font-heading font-semibold">
 									{crm.loadError.source === 'core' ? 'CRM data failed to load' : 'Billing data failed to refresh'}
 								</p>
-								<p className="mt-1 text-xs text-ink-muted">{crm.loadError.message}</p>
+								<p className="text-ink-muted mt-1 text-xs">{crm.loadError.message}</p>
 							</div>
 							<Button type="button" variant="secondary" size="sm" onClick={() => void crm.refresh()}>
 								Retry

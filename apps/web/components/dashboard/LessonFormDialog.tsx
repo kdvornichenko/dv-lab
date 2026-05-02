@@ -23,6 +23,7 @@ import { formatDateOnly, parseDateOnly } from '@/lib/crm/date-model'
 import { getStudentShortName } from '@/lib/crm/model'
 
 import type { CalendarBusyInterval, Lesson, Student } from '@teacher-crm/api-types'
+
 import type {
 	CalendarConflictCommand,
 	FormSubmitEvent,
@@ -302,7 +303,7 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 				: 'series'
 		setIsSubmitting(true)
 		try {
-			await onDelete({ scope, occurrenceStartsAt: scope === 'current' ? occurrenceStartsAt ?? undefined : undefined })
+			await onDelete({ scope, occurrenceStartsAt: scope === 'current' ? (occurrenceStartsAt ?? undefined) : undefined })
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -534,12 +535,7 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 	)
 }
 
-const Field: FC<LessonFieldProps> = ({
-	label,
-	error,
-	className,
-	children,
-}) => {
+const Field: FC<LessonFieldProps> = ({ label, error, className, children }) => {
 	return (
 		<div className={className}>
 			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>

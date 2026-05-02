@@ -5,11 +5,6 @@ import { type FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Pause, Play, RefreshCw, Search, Terminal, X, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { ErrorLogDetailSheet } from './ErrorLogDetailSheet'
-import { ErrorLogTableRow } from './ErrorLogTableRow'
-import { LOG_TYPES, LOG_TYPE_META, matchLogQuery, normalizeLogEntry } from './error-log-model'
-import type { LogEntryType, LogType } from './error-log.types'
-
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
@@ -24,6 +19,11 @@ import {
 	type CrmErrorLogEntry,
 } from '@/lib/crm/error-log'
 import { cn } from '@/lib/utils'
+
+import { ErrorLogDetailSheet } from './ErrorLogDetailSheet'
+import { ErrorLogTableRow } from './ErrorLogTableRow'
+import { LOG_TYPES, LOG_TYPE_META, matchLogQuery, normalizeLogEntry } from './error-log-model'
+import type { LogEntryType, LogType } from './error-log.types'
 
 const ErrorLogPage: FC = () => {
 	const [errors, setErrors] = useState<CrmErrorLogEntry[]>([])

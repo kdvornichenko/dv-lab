@@ -172,20 +172,20 @@ export const CalendarWeekView: FC = () => {
 	}
 
 	return (
-		<ScrollArea className="h-full bg-surface font-body text-ink">
+		<ScrollArea className="bg-surface font-body text-ink h-full">
 			<DndContext sensors={sensors} onDragEnd={handleDragEnd}>
 				<div className="min-w-230">
 					<div className="bg-surface">
-						<div className="sticky top-0 z-100 grid grid-cols-[64px_repeat(7,1fr)] border-b border-line-soft bg-surface/10 backdrop-blur-xs">
-							<div className="border-r border-line-soft" />
+						<div className="z-100 border-line-soft bg-surface/10 backdrop-blur-xs sticky top-0 grid grid-cols-[64px_repeat(7,1fr)] border-b">
+							<div className="border-line-soft border-r" />
 							{days.map((day) => (
 								<div key={day.toISOString()} className="border-line-soft px-3 py-3 last:border-r-0 sm:border-r">
-									<div className="font-mono text-[10px] tracking-[0.25em] text-ink-muted uppercase">
+									<div className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.25em]">
 										{format(day, 'EEE', { locale })}
 									</div>
 									<div
 										className={cn(
-											'mt-0.5 inline-flex size-7 items-center justify-center rounded-full font-heading text-base',
+											'font-heading mt-0.5 inline-flex size-7 items-center justify-center rounded-full text-base',
 											isToday(day) && 'bg-ink text-surface'
 										)}
 									>
@@ -196,11 +196,11 @@ export const CalendarWeekView: FC = () => {
 						</div>
 
 						<div className="grid grid-cols-[64px_repeat(7,1fr)]">
-							<div className="border-r border-line-soft">
+							<div className="border-line-soft border-r">
 								{hours.map((hour) => (
 									<div
 										key={hour}
-										className="flex items-start justify-end px-2 py-1 font-mono text-[10px] text-ink-muted"
+										className="text-ink-muted flex items-start justify-end px-2 py-1 font-mono text-[10px]"
 										style={{ height: HOUR_PX }}
 									>
 										{String(hour).padStart(2, '0')}:00
@@ -211,7 +211,7 @@ export const CalendarWeekView: FC = () => {
 							{days.map((day) => (
 								<div
 									key={day.toISOString()}
-									className="relative border-line-soft last:border-r-0 sm:border-r"
+									className="border-line-soft relative last:border-r-0 sm:border-r"
 									style={{ height: hours.length * HOUR_PX }}
 								>
 									{hours.map((hour, hourIndex) => (
@@ -268,12 +268,12 @@ const HourSlot: FC<HourSlotProps> = ({ day, hour, hourIndex, onTimeSlotClick }) 
 	return (
 		<button
 			type="button"
-			className="group absolute inset-x-0 border-t border-line-soft text-left transition-colors hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-2 focus-visible:ring-sage/35 focus-visible:outline-none"
+			className="border-line-soft hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-sage/35 group absolute inset-x-0 border-t text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
 			style={{ top: hourIndex * HOUR_PX, height: HOUR_PX }}
 			onClick={() => onTimeSlotClick?.(slot)}
 			aria-label={`Add lesson at ${format(slot, 'HH:mm')}`}
 		>
-			<span className="pointer-events-none mt-1.5 ml-1.5 inline-flex items-center gap-1 rounded-md bg-surface/90 px-1.5 py-0.5 font-mono text-[10px] text-sage opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+			<span className="bg-surface/90 text-sage pointer-events-none ml-1.5 mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
 				<Plus className="h-3 w-3" />
 				{format(slot, 'HH:mm')}
 			</span>
@@ -288,7 +288,7 @@ const SlotDropZone: FC<SlotDropZoneProps> = ({ slot, startHour }) => {
 	return (
 		<div
 			ref={setNodeRef}
-			className={cn('pointer-events-none absolute inset-x-0 z-1', isOver && 'bg-sage-soft/55')}
+			className={cn('z-1 pointer-events-none absolute inset-x-0', isOver && 'bg-sage-soft/55')}
 			style={{ top, height: (DROP_INTERVAL_MINUTES / 60) * HOUR_PX }}
 		/>
 	)
@@ -307,7 +307,7 @@ const WeekEvent: FC<WeekEventProps> = ({ event, onEventClick, style }) => {
 			className={cn(
 				'absolute z-10 overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm',
 				event.kind === 'free'
-					? 'border-yellow-400 bg-yellow-400/55 text-ink'
+					? 'text-ink border-yellow-400 bg-yellow-400/55'
 					: event.isPrivate
 						? 'border-line-strong bg-surface-muted/75 text-ink-muted opacity-75'
 						: TONE_EVENT[eventTone(event)],
@@ -319,12 +319,12 @@ const WeekEvent: FC<WeekEventProps> = ({ event, onEventClick, style }) => {
 			{...listeners}
 		>
 			<div
-				className={cn("truncate text-xs leading-tight font-medium", event.kind === 'free' && "text-lg")}
+				className={cn('truncate text-xs font-medium leading-tight', event.kind === 'free' && 'text-lg')}
 				data-private={event.kind === 'lesson' ? true : undefined}
 			>
 				{event.title}
 			</div>
-			<div className={cn("font-mono text-xs opacity-70", event.kind === 'free' && "text-lg")}>
+			<div className={cn('font-mono text-xs opacity-70', event.kind === 'free' && 'text-lg')}>
 				{formatEventTime(event.start)}-{formatEventTime(event.end)}
 			</div>
 			{event.badges?.some((badge) => badge.tone === 'danger') && (
@@ -347,8 +347,8 @@ const NowLine: FC = () => {
 			className="absolute inset-x-0 z-20 flex items-center"
 			style={{ top: ((currentMinutes - calendarStart) / 60) * HOUR_PX }}
 		>
-			<span className="size-2 rounded-full bg-danger ring-2 ring-danger/30" />
-			<span className="h-px flex-1 bg-danger" />
+			<span className="bg-danger ring-danger/30 size-2 rounded-full ring-2" />
+			<span className="bg-danger h-px flex-1" />
 		</div>
 	)
 }

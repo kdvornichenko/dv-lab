@@ -17,6 +17,7 @@ import {
 } from '@/lib/theme/theme-settings'
 
 import { DEFAULT_CRM_THEME_SETTINGS, type CrmThemeSettings } from '@teacher-crm/api-types'
+
 import type { ThemeSettingsContextValue, ThemeSettingsProviderProps } from './ThemeSettingsProvider.types'
 
 const ThemeSettingsContext = React.createContext<ThemeSettingsContextValue | null>(null)

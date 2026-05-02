@@ -17,6 +17,7 @@ import { themeCssVariables } from '@/lib/theme/theme-settings'
 
 import type { CreateLessonInput, CreateStudentInput, UpdateLessonInput } from '@teacher-crm/api-types'
 
+import type { PreviewMetricProps, ThemeBlocksPreviewProps } from './ThemeBlocksPreview.types'
 import {
 	previewBalances,
 	previewCalendarConnection,
@@ -30,7 +31,6 @@ import {
 	previewSummary,
 	routeLinks,
 } from './theme-preview-data'
-import type { PreviewMetricProps, ThemeBlocksPreviewProps } from './ThemeBlocksPreview.types'
 
 function previewOnly() {
 	return undefined

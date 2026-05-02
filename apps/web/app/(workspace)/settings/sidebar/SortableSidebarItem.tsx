@@ -1,9 +1,10 @@
 'use client'
 
-import type { FC } from 'react'
-
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
+import type { FC } from 'react'
+
 import { Eye, EyeOff, GripVertical, Pencil, Trash2 } from 'lucide-react'
 
 import { iconRegistry } from '@/components/SidebarSettingsProvider'

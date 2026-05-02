@@ -90,7 +90,12 @@ export const LessonListItem: FC<LessonListItemProps> = ({
 						<CheckCircle2 className="h-4 w-4" />
 						{groupPrefix}attended
 					</Button>
-					<Button size="sm" variant="ghost" onClick={markAllNoShow} disabled={previewMode || lesson.status === 'no_show'}>
+					<Button
+						size="sm"
+						variant="ghost"
+						onClick={markAllNoShow}
+						disabled={previewMode || lesson.status === 'no_show'}
+					>
 						<UserX className="h-4 w-4" />
 						{groupPrefix}no-show
 					</Button>

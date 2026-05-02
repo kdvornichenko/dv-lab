@@ -9,16 +9,16 @@ import {
 	type PetImageBounds,
 	type PetViewport,
 } from '@/lib/pet/pet-engine'
-import { listPetTargets } from '@/lib/pet/pet-targets'
 import { loadPersistedPetSettings, subscribePetSettings, getPetSettingsSnapshot } from '@/lib/pet/pet-settings'
-
-import { WebsitePetOverlay } from './WebsitePetOverlay'
+import { listPetTargets } from '@/lib/pet/pet-targets'
 
 import type { PetSettings } from '@teacher-crm/api-types'
 
-const PET_IMAGE_BOUNDS: PetImageBounds = { width: 96, height: 72 }
+import { WebsitePetOverlay } from './WebsitePetOverlay'
+
+const PET_IMAGE_BOUNDS: PetImageBounds = { width: 67, height: 50 }
 const DEFAULT_VIEWPORT: PetViewport = { width: 1024, height: 768 }
-const TARGET_REFRESH_MS = 1000
+const TARGET_REFRESH_MS = 500
 
 function readViewport(): PetViewport {
 	if (typeof window === 'undefined') return DEFAULT_VIEWPORT
@@ -54,6 +54,7 @@ function readDocumentHidden() {
 }
 
 export function WebsitePetProvider({ children }: PropsWithChildren) {
+	const [clientReady, setClientReady] = useState(false)
 	const [settings, setSettings] = useState<PetSettings>(() => getPetSettingsSnapshot())
 	const [privacyMode, setPrivacyMode] = useState(false)
 	const [reducedMotion, setReducedMotion] = useState(false)
@@ -61,7 +62,7 @@ export function WebsitePetProvider({ children }: PropsWithChildren) {
 	const engine = useMemo(
 		() =>
 			createPetEngine({
-				viewport: readViewport(),
+				viewport: DEFAULT_VIEWPORT,
 				image: PET_IMAGE_BOUNDS,
 			}),
 		[]
@@ -73,6 +74,7 @@ export function WebsitePetProvider({ children }: PropsWithChildren) {
 
 	useEffect(() => {
 		let mounted = true
+		setClientReady(true)
 
 		void loadPersistedPetSettings()
 			.then((nextSettings) => {
@@ -196,7 +198,15 @@ export function WebsitePetProvider({ children }: PropsWithChildren) {
 	return (
 		<>
 			{children}
-			{settings.enabled && <WebsitePetOverlay snapshot={snapshot} image={PET_IMAGE_BOUNDS} />}
+			{clientReady && settings.enabled && (
+				<WebsitePetOverlay
+					snapshot={snapshot}
+					image={PET_IMAGE_BOUNDS}
+					onPetClick={() => {
+						setSnapshot(engine.wake())
+					}}
+				/>
+			)}
 		</>
 	)
 }

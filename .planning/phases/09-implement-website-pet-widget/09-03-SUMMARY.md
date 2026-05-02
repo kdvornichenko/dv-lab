@@ -5,20 +5,20 @@ subsystem: ui
 tags: [nextjs, react, animated-webp, requestanimationframe, pet-widget]
 requires:
   - phase: 09-implement-website-pet-widget
-    provides: "Animated WebP pet manifest foundation from plan 09-01"
+    provides: 'Animated WebP pet manifest foundation from plan 09-01'
   - phase: 09-implement-website-pet-widget
-    provides: "API-backed pet settings and live settings store from plan 09-02"
+    provides: 'API-backed pet settings and live settings store from plan 09-02'
 provides:
-  - "Workspace-scoped click-through website pet overlay"
-  - "Deterministic pet engine with walking, explicit-target jumping, landing, and timed rest states"
-  - "Explicit [data-pet-target] discovery for eligible workspace landing zones"
-  - "Live settings, privacy-mode, reduced-motion, and visibility gates for pet runtime behavior"
+  - 'Workspace-scoped click-through website pet overlay'
+  - 'Deterministic pet engine with walking, explicit-target jumping, landing, and timed rest states'
+  - 'Explicit [data-pet-target] discovery for eligible workspace landing zones'
+  - 'Live settings, privacy-mode, reduced-motion, and visibility gates for pet runtime behavior'
 affects: [pet-widget, web-ui, workspace-shell, phase-09]
 tech-stack:
   added: []
   patterns:
-    - "Animated WebP pet poses render through native img elements while runtime movement uses translate3d on a fixed overlay."
-    - "Pet behavior is modeled in apps/web/lib/pet and consumed by workspace-scoped components in apps/web/components/pet."
+    - 'Animated WebP pet poses render through native img elements while runtime movement uses translate3d on a fixed overlay.'
+    - 'Pet behavior is modeled in apps/web/lib/pet and consumed by workspace-scoped components in apps/web/components/pet.'
 key-files:
   created:
     - apps/web/lib/pet/pet-targets.ts
@@ -31,13 +31,13 @@ key-files:
     - apps/web/lib/pet/pet-engine.test.ts
     - apps/web/app/providers.tsx
 key-decisions:
-  - "Mount the pet provider inside WorkspaceProviders so the overlay is authenticated-workspace scoped, not global theme scoped."
-  - "Keep the overlay click-through with pointer-events-none and move it using transform translate3d."
-  - "Use native animated WebP img rendering from catPetManifest; no Next Image, canvas, background-position, or manual frame timers."
-  - "Treat privacy mode as the highest pose priority and reduced-motion/coarse-pointer as sleeper mode."
+  - 'Mount the pet provider inside WorkspaceProviders so the overlay is authenticated-workspace scoped, not global theme scoped.'
+  - 'Keep the overlay click-through with pointer-events-none and move it using transform translate3d.'
+  - 'Use native animated WebP img rendering from catPetManifest; no Next Image, canvas, background-position, or manual frame timers.'
+  - 'Treat privacy mode as the highest pose priority and reduced-motion/coarse-pointer as sleeper mode.'
 patterns-established:
-  - "Pet target acquisition only consumes explicit PetTarget[] values discovered from [data-pet-target]."
-  - "Mounted pet runtime subscribes to pet-settings-store for live enable, sound, and activity updates."
+  - 'Pet target acquisition only consumes explicit PetTarget[] values discovered from [data-pet-target].'
+  - 'Mounted pet runtime subscribes to pet-settings-store for live enable, sound, and activity updates.'
 requirements-completed: [API-05]
 duration: 31min
 completed: 2026-05-02
@@ -93,6 +93,7 @@ Each task was committed atomically:
 ### Auto-fixed Issues
 
 **1. [Rule 2 - Missing Critical] Added live runtime setters beyond the initial engine method list**
+
 - **Found during:** Task 09-03-02 (Render workspace-scoped click-through pet overlay)
 - **Issue:** The planned provider needed live activity-level and viewport updates, but the required Task 09-03-01 engine method list only named privacy, reduced-motion, targets, and cursor setters.
 - **Fix:** Added `setActivityLevel`, `setViewport`, and `setImageBounds` to the engine API.
@@ -139,5 +140,6 @@ Plan 09-04 can add explicit `data-pet-target` zones to workspace surfaces and op
 - Static artifact checks found `WebsitePetProvider`, `pointer-events-none`, native `<img`, `PET_TARGET_SELECTOR = "[data-pet-target]"`, `subscribePetSettings`, and `createPetEngine`.
 
 ---
-*Phase: 09-implement-website-pet-widget*
-*Completed: 2026-05-02*
+
+_Phase: 09-implement-website-pet-widget_
+_Completed: 2026-05-02_

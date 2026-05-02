@@ -64,6 +64,7 @@ export const CalendarMonthView = () => {
 								<div className="relative z-10 mt-8 flex flex-col gap-0.5">
 									{visibleEvents.map((event) => (
 										<button
+											data-private
 											key={event.id}
 											type="button"
 											className={cn(

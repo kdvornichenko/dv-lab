@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 
 import { reportCrmError } from '@/hooks/teacherCrmErrors'
+import type { TeacherCrmCacheSnapshot, TeacherCrmLoadError } from '@/hooks/useTeacherCrmData.types'
 import { loadTeacherCrm, loadTeacherCrmSupplements } from '@/lib/crm/api'
 import { emptyBalance } from '@/lib/crm/state'
 import type { StudentWithBalance, TeacherCrmState, TeacherCrmSummary } from '@/lib/crm/types'
-import type { TeacherCrmCacheSnapshot, TeacherCrmLoadError } from '@/hooks/useTeacherCrmData.types'
 
 import { GOOGLE_CALENDAR_REQUIRED_SCOPES, type CalendarListEntry, type Student } from '@teacher-crm/api-types'
 

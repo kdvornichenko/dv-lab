@@ -61,7 +61,12 @@ export function createLessonWorkflowService(
 	async function syncLessonAutomatically(
 		actor: StoreScope,
 		lessonId: string,
-		options: { repeatWeekly?: boolean; singleOccurrence?: boolean; occurrenceStartsAt?: string; lessonOverride?: Lesson } = {}
+		options: {
+			repeatWeekly?: boolean
+			singleOccurrence?: boolean
+			occurrenceStartsAt?: string
+			lessonOverride?: Lesson
+		} = {}
 	) {
 		const connection = await deps.calendar.getCalendarConnection(actor)
 		const hasGrant =
@@ -88,11 +93,7 @@ export function createLessonWorkflowService(
 				dateTo: '',
 			})
 			const originalLesson = allLessons.find((lesson) => lesson.id === lessonId)
-			if (
-				originalLesson?.repeatWeekly &&
-				input.occurrenceStartsAt &&
-				input.applyToFuture !== true
-			) {
+			if (originalLesson?.repeatWeekly && input.occurrenceStartsAt && input.applyToFuture !== true) {
 				const replacement = await deps.lessons.createLesson(actor, {
 					title: input.title ?? originalLesson.title,
 					startsAt: input.startsAt ?? input.occurrenceStartsAt,

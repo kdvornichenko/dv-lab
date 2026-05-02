@@ -5,17 +5,17 @@ subsystem: ui-api
 tags: [nextjs, react, hono, postgres, settings, pet-widget]
 requires:
   - phase: 09-implement-website-pet-widget
-    provides: "Animated WebP pet manifest foundation from plan 09-01"
+    provides: 'Animated WebP pet manifest foundation from plan 09-01'
 provides:
-  - "Authenticated API persistence for pet enabled, sound, and activity settings"
-  - "Workspace pet settings page with API-backed controls"
-  - "useSyncExternalStore-compatible live pet settings bridge"
+  - 'Authenticated API persistence for pet enabled, sound, and activity settings'
+  - 'Workspace pet settings page with API-backed controls'
+  - 'useSyncExternalStore-compatible live pet settings bridge'
 affects: [pet-widget, web-ui, api-settings, phase-09]
 tech-stack:
   added: []
   patterns:
-    - "Pet UI settings persist through teacherCrmSettingsApi and /settings/pet"
-    - "Mounted pet providers subscribe to apps/web/lib/pet/pet-settings-store.ts for live updates"
+    - 'Pet UI settings persist through teacherCrmSettingsApi and /settings/pet'
+    - 'Mounted pet providers subscribe to apps/web/lib/pet/pet-settings-store.ts for live updates'
 key-files:
   created:
     - apps/web/lib/pet/pet-settings-store.ts
@@ -31,11 +31,11 @@ key-files:
     - apps/web/lib/crm/api.ts
     - apps/web/app/(workspace)/settings/page.tsx
 key-decisions:
-  - "Pet settings persist through the existing authenticated settings API and DB/memory fallback boundary, never browser-only localStorage."
-  - "The web pet settings store is a live in-memory subscriber bridge, not durable persistence."
-  - "Sound remains explicit and defaults off."
+  - 'Pet settings persist through the existing authenticated settings API and DB/memory fallback boundary, never browser-only localStorage.'
+  - 'The web pet settings store is a live in-memory subscriber bridge, not durable persistence.'
+  - 'Sound remains explicit and defaults off.'
 patterns-established:
-  - "Settings clients load persisted state, save through teacherCrmSettingsApi, then publish the saved snapshot to pet-settings-store."
+  - 'Settings clients load persisted state, save through teacherCrmSettingsApi, then publish the saved snapshot to pet-settings-store.'
 requirements-completed: [API-05]
 duration: 18min
 completed: 2026-05-02
@@ -118,5 +118,6 @@ Plan 09-03 can mount the pet provider and subscribe to `pet-settings-store.ts` s
 - Pet API methods, live store exports, and `/settings/pet` route references are present.
 
 ---
-*Phase: 09-implement-website-pet-widget*
-*Completed: 2026-05-02*
+
+_Phase: 09-implement-website-pet-widget_
+_Completed: 2026-05-02_

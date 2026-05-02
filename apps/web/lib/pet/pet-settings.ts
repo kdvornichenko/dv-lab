@@ -1,8 +1,10 @@
 'use client'
 
+import { teacherCrmSettingsApi } from '@/lib/crm/api'
+
 import type { PetSettings } from '@teacher-crm/api-types'
 
-import { teacherCrmSettingsApi } from '@/lib/crm/api'
+import { setPetSettingsSnapshot } from './pet-settings-store'
 
 export {
 	DEFAULT_PET_SETTINGS,
@@ -11,7 +13,6 @@ export {
 	subscribePetSettings,
 	usePetSettingsSnapshot,
 } from './pet-settings-store'
-import { setPetSettingsSnapshot } from './pet-settings-store'
 
 export async function loadPersistedPetSettings(): Promise<PetSettings> {
 	const response = await teacherCrmSettingsApi.getPetSettings()

@@ -4,7 +4,13 @@ import { useCallback } from 'react'
 
 import { teacherCrmLessonApi } from '@/lib/crm/api'
 
-import type { CreateLessonInput, DeleteLessonQuery, MarkAttendanceInput, UpdateLessonInput } from '@teacher-crm/api-types'
+import type {
+	CreateLessonInput,
+	DeleteLessonQuery,
+	MarkAttendanceInput,
+	UpdateLessonInput,
+} from '@teacher-crm/api-types'
+
 import type { TeacherCrmLessonCommandDeps } from './useTeacherCrmCommands.types'
 
 export function useTeacherCrmLessonCommands({
@@ -54,9 +60,7 @@ export function useTeacherCrmLessonCommands({
 				setState((current) => ({
 					...current,
 					lessons:
-						options?.scope === 'current'
-							? current.lessons
-							: current.lessons.filter((lesson) => lesson.id !== lessonId),
+						options?.scope === 'current' ? current.lessons : current.lessons.filter((lesson) => lesson.id !== lessonId),
 					attendance:
 						options?.scope === 'current'
 							? current.attendance

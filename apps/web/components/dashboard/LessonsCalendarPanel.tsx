@@ -198,7 +198,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	return (
 		<section
 			data-pet-target
-			className="flex min-h-dvh flex-col overflow-hidden border border-line bg-surface shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
+			className="border-line bg-surface flex min-h-dvh flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
 		>
 			<Calendar
 				view="week"
@@ -240,10 +240,10 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 					if (event.kind === 'lesson') setPendingDrop({ event, startsAt })
 				}}
 			>
-				<header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft bg-surface-muted px-4 py-3">
+				<header className="border-line-soft bg-surface-muted flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
 					<div>
-						<p className="font-mono text-xs font-semibold text-sage uppercase">Lesson calendar</p>
-						<h1 className="mt-1 font-heading text-lg font-semibold text-ink">
+						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson calendar</p>
+						<h1 className="font-heading text-ink mt-1 text-lg font-semibold">
 							<CalendarCurrentDate />
 						</h1>
 					</div>
@@ -270,22 +270,22 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 						<CalendarNextTrigger className="h-9 w-9">
 							<ChevronRight className="h-4 w-4" />
 						</CalendarNextTrigger>
-						<div className="flex rounded-lg border border-line-soft bg-surface p-1">
+						<div className="border-line-soft bg-surface flex rounded-lg border p-1">
 							<CalendarViewTrigger
 								view="day"
-								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
+								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
 							>
 								Agenda
 							</CalendarViewTrigger>
 							<CalendarViewTrigger
 								view="week"
-								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
+								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
 							>
 								Week
 							</CalendarViewTrigger>
 							<CalendarViewTrigger
 								view="month"
-								className="h-7 px-2 text-xs aria-current:bg-sage aria-current:text-primary-foreground"
+								className="aria-current:bg-sage aria-current:text-primary-foreground h-7 px-2 text-xs"
 							>
 								Month
 							</CalendarViewTrigger>
@@ -303,7 +303,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 						</Button>
 					</div>
 				</header>
-				<div className="h-[calc(100dvh-5rem)] min-h-168 overflow-hidden bg-surface">
+				<div className="min-h-168 bg-surface h-[calc(100dvh-5rem)] overflow-hidden">
 					<CalendarViewStage />
 				</div>
 			</Calendar>
@@ -499,12 +499,7 @@ const PersonalBlockDialog: FC<PersonalBlockDialogProps> = ({
 	)
 }
 
-const SlotChoiceDialog: FC<SlotChoiceDialogProps> = ({
-	startsAt,
-	onClose,
-	onAddLesson,
-	onAddBlock,
-}) => {
+const SlotChoiceDialog: FC<SlotChoiceDialogProps> = ({ startsAt, onClose, onAddLesson, onAddBlock }) => {
 	return (
 		<Dialog open={Boolean(startsAt)} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="max-w-sm">
@@ -526,14 +521,10 @@ const SlotChoiceDialog: FC<SlotChoiceDialogProps> = ({
 	)
 }
 
-const DropScopeDialog: FC<DropScopeDialogProps> = ({
-	pendingDrop,
-	onClose,
-	onApply,
-}) => {
+const DropScopeDialog: FC<DropScopeDialogProps> = ({ pendingDrop, onClose, onApply }) => {
 	return (
 		<Dialog open={Boolean(pendingDrop)} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="max-w-sm p-unit">
+			<DialogContent className="p-unit max-w-sm">
 				<DialogHeader className="mb-unit">
 					<DialogTitle>Apply schedule move</DialogTitle>
 				</DialogHeader>
@@ -553,7 +544,7 @@ const DropScopeDialog: FC<DropScopeDialogProps> = ({
 const Field: FC<CalendarFieldProps> = ({ label, children }) => {
 	return (
 		<div>
-			<Label className="mb-1.5 block text-xs font-medium text-ink-muted">{label}</Label>
+			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>
 			{children}
 		</div>
 	)

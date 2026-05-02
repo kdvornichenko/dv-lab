@@ -19,10 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDateOnly, parseDateOnly } from '@/lib/crm/date-model'
-import {
-	formatCurrencyAmount,
-	STUDENT_STATUS_OPTIONS,
-} from '@/lib/crm/model'
+import { formatCurrencyAmount, STUDENT_STATUS_OPTIONS } from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
 import {
@@ -37,6 +34,7 @@ import {
 	getLessonDurationUnits,
 	isSupportedPackageMonths,
 } from '@teacher-crm/api-types'
+
 import type {
 	FormSubmitEvent,
 	PackagePreviewItemProps,
@@ -133,7 +131,10 @@ function validate(values: StudentFormValues) {
 	if (!Number.isInteger(packageLessonsPerWeek) || packageLessonsPerWeek < 0) {
 		errors.packageLessonsPerWeek = 'Lessons per week must be zero or greater'
 	}
-	if (packageLessonPriceOverride !== null && (!Number.isFinite(packageLessonPriceOverride) || packageLessonPriceOverride < 0)) {
+	if (
+		packageLessonPriceOverride !== null &&
+		(!Number.isFinite(packageLessonPriceOverride) || packageLessonPriceOverride < 0)
+	) {
 		errors.packageLessonPriceOverride = 'Custom price must be zero or greater'
 	}
 	if (values.billingMode === 'monthly' && packageLessonsPerWeek <= 0) {
@@ -354,7 +355,7 @@ export const StudentFormDialog: FC<StudentFormDialogProps> = ({ open, mode, stud
 									</SelectContent>
 								</Select>
 							</Field>
-							
+
 							<Field label="Currency">
 								<Select value={values.currency} onValueChange={(value) => updateValue('currency', value as Currency)}>
 									<SelectTrigger>
@@ -509,12 +510,7 @@ const PackagePreviewItem: FC<PackagePreviewItemProps> = ({ label, value }) => {
 	)
 }
 
-const Field: FC<StudentFieldProps> = ({
-	label,
-	error,
-	className,
-	children,
-}) => {
+const Field: FC<StudentFieldProps> = ({ label, error, className, children }) => {
 	return (
 		<div className={className}>
 			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>

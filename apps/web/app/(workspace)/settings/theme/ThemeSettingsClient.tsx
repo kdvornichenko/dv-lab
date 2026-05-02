@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cloneTheme, radiusOptions } from '@/lib/theme/theme-settings'
 
 import type { CrmThemeSettings } from '@teacher-crm/api-types'
+
 import type { ThemeColorKey } from './ThemeSettingsClient.types'
 
 function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {

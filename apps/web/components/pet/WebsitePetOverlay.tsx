@@ -7,13 +7,13 @@ import { PetImage } from './PetImage'
 type WebsitePetOverlayProps = {
 	snapshot: PetEngineSnapshot
 	image: PetImageBounds
+	onPetClick: () => void
 }
 
-export function WebsitePetOverlay({ snapshot, image }: WebsitePetOverlayProps) {
+export function WebsitePetOverlay({ snapshot, image, onPetClick }: WebsitePetOverlayProps) {
 	return (
 		<div
-			aria-hidden="true"
-			className="pointer-events-none fixed top-0 left-0 z-40 select-none"
+			className="pointer-events-none fixed left-0 top-0 z-40 select-none"
 			style={{
 				width: image.width,
 				height: image.height,
@@ -21,7 +21,13 @@ export function WebsitePetOverlay({ snapshot, image }: WebsitePetOverlayProps) {
 				willChange: 'transform',
 			}}
 		>
-			<PetImage pose={snapshot.pose} facing={snapshot.facing} width={image.width} height={image.height} />
+			<PetImage
+				pose={snapshot.pose}
+				facing={snapshot.facing}
+				width={image.width}
+				height={image.height}
+				onClick={onPetClick}
+			/>
 		</div>
 	)
 }

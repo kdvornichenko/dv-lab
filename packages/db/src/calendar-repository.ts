@@ -99,10 +99,7 @@ export async function listCalendarBlockRows(db: DB, teacherId: string): Promise<
 		.orderBy(asc(calendarBlocks.startsAt))
 }
 
-export async function insertCalendarBlockRow(
-	db: DB,
-	values: CalendarBlockInsertValues
-): Promise<CalendarBlockRow> {
+export async function insertCalendarBlockRow(db: DB, values: CalendarBlockInsertValues): Promise<CalendarBlockRow> {
 	const [block] = await db.insert(calendarBlocks).values(values).returning()
 	if (!block) throw new Error('Calendar block insert did not return a row')
 	return block

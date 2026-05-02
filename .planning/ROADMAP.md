@@ -195,10 +195,11 @@ Plans:
 5. Reduced-motion mode shows a static or near-static sleeper state instead of active walking/jumping.
 6. Privacy mode switches the pet to a dedicated eyes-covered pose.
 7. The implementation follows web app provider/component boundaries and keeps pet engine logic out of `components/ui`.
-**Depends on:** Phase 8
-**Plans:** 4 plans
+   **Depends on:** Phase 8
+   **Plans:** 4 plans
 
 Plans:
+
 - [x] 09-01-PLAN.md — Wave 0 pet validation, WebP manifest, and pure engine contracts
 - [x] 09-02-PLAN.md — Persisted pet settings API and workspace controls
 - [x] 09-03-PLAN.md — Pet engine, overlay provider, and target discovery
