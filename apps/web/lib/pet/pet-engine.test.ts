@@ -43,6 +43,17 @@ for (let index = 0; index < 12; index += 1) walkingEngine.step(64)
 assert.ok(walkingEngine.snapshot().position.x > walkStart, "walking should change x-position over time")
 assert.equal(walkingEngine.snapshot().phase, "travel")
 
+const cursorEngine = createPetEngine({
+	viewport,
+	image,
+	activityLevel: "normal",
+	initialPosition: { x: 120, y: 320 },
+	random: () => 0,
+})
+cursorEngine.setCursor({ x: 40, y: 320 })
+for (let index = 0; index < 20; index += 1) cursorEngine.step(64)
+assert.ok(cursorEngine.snapshot().position.x > 120, "cursor interest should not reverse walking direction every frame")
+
 const jumpEngine = createPetEngine({
 	viewport,
 	image,

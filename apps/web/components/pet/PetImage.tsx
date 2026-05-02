@@ -19,7 +19,7 @@ export function PetImage({ pose, facing, width, height }: PetImageProps) {
 		width,
 		height,
 		objectFit: 'contain',
-		transform: facing === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
+		transform: facing === 'right' ? 'scaleX(-1)' : 'scaleX(1)',
 		transformOrigin: 'center',
 	} satisfies CSSProperties
 

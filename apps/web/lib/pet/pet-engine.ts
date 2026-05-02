@@ -162,6 +162,20 @@ function restPoseForElapsed(elapsedMs: number): PetPose {
 	return "sleep"
 }
 
+function departureDirectionFrom(position: PetPosition, viewport: PetViewport, image: PetImageBounds) {
+	const centerX = position.x + image.width / 2
+
+	if (centerX < viewport.width * 0.35) {
+		return 1
+	}
+
+	if (centerX > viewport.width * 0.65) {
+		return -1
+	}
+
+	return centerX < viewport.width / 2 ? 1 : -1
+}
+
 export function createPetEngine(options: PetEngineOptions) {
 	let viewport = options.viewport
 	let image = options.image
@@ -179,7 +193,6 @@ export function createPetEngine(options: PetEngineOptions) {
 	let privacyMode = false
 	let reducedMotion = false
 	let targets: PetTarget[] = []
-	let cursor: PetPosition | null = null
 	let jump: JumpState | null = null
 	let rest: RestState | null = null
 	let targetTimerMs = config.jumpIntervalMs * 0.85
@@ -217,13 +230,6 @@ export function createPetEngine(options: PetEngineOptions) {
 
 	function stepTravel(deltaMs: number) {
 		targetTimerMs += deltaMs
-
-		if (cursor) {
-			facing = cursor.x >= position.x + image.width / 2 ? "right" : "left"
-			if (Math.abs(cursor.x - position.x) < 160 && random() < 0.18) {
-				direction = facing === "right" ? 1 : -1
-			}
-		}
 
 		if (targetTimerMs >= config.jumpIntervalMs) {
 			targetTimerMs = 0
@@ -293,7 +299,8 @@ export function createPetEngine(options: PetEngineOptions) {
 			rest = null
 			phase = "travel"
 			targetTimerMs = 0
-			direction = facing === "right" ? 1 : -1
+			direction = departureDirectionFrom(position, viewport, image)
+			facing = direction >= 0 ? "right" : "left"
 			requestedPose = "walk"
 		}
 	}
@@ -333,8 +340,8 @@ export function createPetEngine(options: PetEngineOptions) {
 		setActivityLevel(nextActivityLevel: PetActivityLevel) {
 			updateConfig(nextActivityLevel)
 		},
-		setCursor(position: PetPosition | null) {
-			cursor = position
+		setCursor(_position: PetPosition | null) {
+			// Cursor curiosity is intentionally passive for now; it must not flip travel direction every frame.
 		},
 		setPrivacyMode(enabled: boolean) {
 			privacyMode = enabled
