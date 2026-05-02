@@ -1,4 +1,4 @@
-import { Paintbrush, PanelLeft, Settings } from 'lucide-react'
+import { Cat, Paintbrush, PanelLeft, Settings } from 'lucide-react'
 import Link from 'next/link'
 
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,13 @@ const settingsLinks = [
 		icon: Paintbrush,
 		badge: 'visual system',
 	},
+	{
+		title: 'Pet',
+		description: 'Turn the workspace pet on or off, keep sound explicit, and set movement level.',
+		href: '/settings/pet',
+		icon: Cat,
+		badge: 'workspace',
+	},
 ] as const
 
 export default function SettingsPage() {
@@ -36,7 +43,7 @@ export default function SettingsPage() {
 					</p>
 				</header>
 
-				<section className="grid gap-3 md:grid-cols-2">
+				<section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
 					{settingsLinks.map((item) => {
 						const Icon = item.icon
 						return (

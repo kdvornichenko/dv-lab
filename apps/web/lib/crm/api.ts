@@ -33,6 +33,8 @@ import {
 	type MarkAttendanceInput,
 	type PaymentMutationResponse,
 	type PaymentsResponse,
+	type PetSettings,
+	type PetSettingsResponse,
 	type SaveCrmErrorInput,
 	type SidebarItem,
 	type SidebarSettingsResponse,
@@ -367,6 +369,12 @@ export const teacherCrmSettingsApi = {
 		apiRequest<ThemeSettingsResponse>('/settings/theme', {
 			method: 'PUT',
 			body: JSON.stringify(theme),
+		}),
+	getPetSettings: () => apiRequest<PetSettingsResponse>('/settings/pet'),
+	savePetSettings: (input: PetSettings) =>
+		apiRequest<PetSettingsResponse>('/settings/pet', {
+			method: 'PUT',
+			body: JSON.stringify(input),
 		}),
 }
 
