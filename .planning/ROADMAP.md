@@ -201,7 +201,7 @@ Plans:
 Plans:
 - [x] 09-01-PLAN.md — Wave 0 pet validation, WebP manifest, and pure engine contracts
 - [x] 09-02-PLAN.md — Persisted pet settings API and workspace controls
-- [ ] 09-03-PLAN.md — Pet engine, overlay provider, and target discovery
+- [x] 09-03-PLAN.md — Pet engine, overlay provider, and target discovery
 - [ ] 09-04-PLAN.md — Pet target rollout, sound guardrails, and browser verification
 
 ## Progress
@@ -216,4 +216,4 @@ Plans:
 | 6. Google Calendar Integration            | v1.0      | 3/3            | Complete              | 2026-04-26 |
 | 7. Payments and Ledger                    | v1.0      | 0/4            | Currency task planned | -          |
 | 8. Dashboard and Operational Polish       | v1.0      | 0/3            | Prototype UI only     | -          |
-| 9. Implement website pet widget           | v1.0      | 2/4            | In progress           | -          |
+| 9. Implement website pet widget           | v1.0      | 3/4            | In progress           | -          |

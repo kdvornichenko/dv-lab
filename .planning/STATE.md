@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-05-02T16:54:27.291Z"
-last_activity: 2026-05-02 - Completed Phase 9 plan 02 persisted pet settings API, workspace controls, and live pet settings store.
+stopped_at: Completed 09-03-PLAN.md
+last_updated: "2026-05-02T17:49:52.386Z"
+last_activity: 2026-05-02 - Completed Phase 9 plan 03 pet engine, overlay provider, and target discovery.
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 16
-  completed_plans: 12
-  percent: 75
+  completed_plans: 13
+  percent: 81
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 ## Current Position
 
 Phase: 9 of 9 (Implement website pet widget)
-Plan: 09-03
-Status: Plan 09-02 complete; next plan is pet engine, overlay provider, and target discovery
-Last activity: 2026-05-02 - Completed persisted pet settings API, workspace controls, and live pet settings store.
+Plan: 09-04
+Status: Plan 09-03 complete; next plan is pet target rollout, sound guardrails, and browser verification
+Last activity: 2026-05-02 - Completed Phase 9 plan 03 pet engine, overlay provider, and target discovery.
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 81%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: n/a
 - Total execution time: current autonomous session
 
@@ -51,6 +51,7 @@ Progress: [████████░░] 75%
 | 5     | 3/3   | current session | n/a      |
 | 6     | 3/3   | current session | n/a      |
 | Phase 09-implement-website-pet-widget P02 | 18min | 2 tasks | 11 files |
+| Phase 09-implement-website-pet-widget P03 | 31min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - For currency-aware offer text, use ExchangeRate-API open endpoint (`https://open.er-api.com/v6/latest/RUB`) as the no-key primary candidate with caching/attribution, and keep Bank of Russia official daily KZT/RUB data as a RUB/KZT fallback source.
 - [Phase 09-implement-website-pet-widget]: Pet settings persist through the authenticated API/Postgres boundary; the web store is only a live in-memory subscription bridge.
 - [Phase 09-implement-website-pet-widget]: Sound is an explicit pet setting and remains off by default.
+- [Phase 09-implement-website-pet-widget]: Mount the animated WebP pet provider inside WorkspaceProviders so the overlay is authenticated-workspace scoped.
+- [Phase 09-implement-website-pet-widget]: Move the pet through translate3d on a click-through fixed overlay while rendering current poses as native animated WebP img assets.
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-05-02T16:54:27.264Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-05-02T17:49:52.359Z
+Stopped at: Completed 09-03-PLAN.md
 Resume file: None
