@@ -1,8 +1,10 @@
 # Phase 9: Implement website pet widget - Research
 
 **Researched:** 2026-05-02
-**Domain:** Next.js/React fixed overlay animation, WebP sprite sheets, CRM settings persistence
+**Domain:** Next.js/React fixed overlay animation, animated WebP assets, CRM settings persistence
 **Confidence:** HIGH
+
+> 2026-05-02 update: this research file contains older sprite-sheet analysis below. The current implementation direction supersedes it: render standalone animated WebP files with a native `img`, move the `img` with CSS transforms, and switch `src` by pose only when needed. Do not implement `background-position`, sheet coordinates, manual frame timers, canvas rendering, or SVG sprites.
 
 <user_constraints>
 ## User Constraints (from CONTEXT.md)
@@ -25,10 +27,10 @@
 
 ### Pet model and visual asset contract
 - The widget should expose a generic pet API so future pets can be swapped in, but the first shipped pet should be a cat unless a later phase changes the asset.
-- The asset format should be a WebP sprite sheet, not SVG symbols. SVG generation was attempted but does not produce acceptable pet sprites.
-- Visual style should be a tiny calm vector character, readable around 32-64px, with neutral/black-and-white coloring that does not fight the Warm Ledger CRM palette.
-- The first sprite should include the full core pose set: idle, walk, run, jump, land, sit, lie, sleep, scratch, stretch, paw/wave, and fall/drop.
-- The sprite sheet manifest should be deterministic so code can switch frames by state and index.
+- The asset format should be standalone animated WebP files, not SVG symbols and not manual sprite sheets. SVG generation was attempted but does not produce acceptable pet sprites; a test animated `cat-sleep.webp` in the sidebar works correctly.
+- Visual style should be a tiny pixel-art cat, readable around 64-120px, with neutral coloring that does not fight the Warm Ledger CRM palette.
+- The first asset set should include at least animated sleep and walk WebP files. Other poses may temporarily reuse existing animated WebP files through explicit manifest metadata until dedicated art exists.
+- The manifest should be deterministic so code can switch animated WebP `src` by pose; animated WebP owns the internal frame loop.
 
 ### Controls, accessibility, and privacy
 - The user needs an explicit settings toggle to enable or disable the pet. The setting should persist.
@@ -40,7 +42,7 @@
 - Exact timing values for movement, jump arcs, rest duration, and idle randomness.
 - Exact settings placement, provided it is discoverable and does not clutter the main CRM workflow.
 - Exact technical split between provider, engine, sprite renderer, and target registration.
-- Whether the first implementation ships with a generated placeholder WebP sprite sheet or a final hand-tuned sheet, as long as the frame manifest contract is stable.
+- Exact manifest metadata for temporary pose-to-asset mappings, as long as runtime rendering remains native animated WebP `img` movement without manual frame switching.
 
 ### Deferred Ideas (OUT OF SCOPE)
 - Multiple selectable pet species beyond the first cat are supported by the API shape but not required as complete user-facing content in this phase.
@@ -60,9 +62,9 @@
 
 Implement the pet as a workspace-scoped, fixed, click-through overlay rendered by a client provider. The pet should not be a page component and should not be part of `components/ui`; it belongs in a dedicated pet feature boundary with a model/engine layer, a sprite renderer, settings API integration, and small target markers added to broad workspace surfaces.
 
-The locked asset contract is now a WebP sprite sheet plus a deterministic TypeScript manifest. Use CSS sprite rendering with `background-position` as the standard path: it is the direct browser-supported sprite technique, it avoids per-frame image swaps, and it allows frame validation through manifest coordinates. Use `object-position` only as a fallback experiment if background rendering proves unsuitable.
+The locked asset contract is now standalone animated WebP files plus a deterministic TypeScript manifest. Use native `<img>` rendering for the current pose; CSS transforms move the element around the viewport. The browser owns internal animated WebP playback, so do not build a frame scheduler or sprite coordinate renderer.
 
-**Primary recommendation:** Build `WebsitePetProvider` inside `WorkspaceProviders`, persist `petSettings` through `/settings/pet`, render one `pointer-events-none fixed` overlay sprite from a WebP sheet/manifest, drive movement with a small `requestAnimationFrame` finite-state engine, and gate behavior by persisted settings, `prefers-reduced-motion`, mobile media queries, and `html.privacy-mode`.
+**Primary recommendation:** Build `WebsitePetProvider` inside `WorkspaceProviders`, persist `petSettings` through `/settings/pet`, render one `pointer-events-none fixed` overlay `img` from animated WebP manifest assets, drive movement with a small `requestAnimationFrame` finite-state engine, and gate behavior by persisted settings, `prefers-reduced-motion`, mobile media queries, and `html.privacy-mode`.
 
 ## Standard Stack
 

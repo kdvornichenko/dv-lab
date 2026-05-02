@@ -16,121 +16,78 @@ export const PET_POSES = [
 
 export type PetPose = (typeof PET_POSES)[number]
 
-export type PetFrame = {
-	id: `${PetPose}_${number}`
+export type PetAnimationAsset = {
 	pose: PetPose
-	index: number
-	x: number
-	y: number
+	src: `/assets/cat-widget/${string}.webp`
 	width: number
 	height: number
-	durationMs: number
-	anchor: {
-		x: number
-		y: number
-	}
+	animated: true
+	loop: true
+	naturalFrameCount?: number
+	motionRole: "idle" | "travel" | "jump" | "rest" | "privacy"
 	sourcePose?: PetPose
 	temporary?: boolean
 }
 
-export type PetAnimation = {
-	pose: PetPose
-	frames: readonly PetFrame[]
-	fps: number
-	loop: boolean
-	sourcePose?: PetPose
-	temporary?: boolean
-}
-
-export type PetSpriteManifest = {
+export type PetAssetManifest = {
 	id: "cat"
-	imageSrc: "/assets/cat-widget/cat-sleep.webp"
-	sheet: {
-		width: number
-		height: number
-		columns: number
-		rows: number
-		frameWidth: number
-		frameHeight: number
-	}
-	animations: Record<PetPose, PetAnimation>
+	animations: Record<PetPose, PetAnimationAsset>
 }
 
-const SHEET = {
-	width: 1374,
-	height: 1145,
-	columns: 6,
-	rows: 5,
-	frameWidth: 229,
-	frameHeight: 229,
-} as const
-
-const SLEEP_FRAME_COUNT = SHEET.columns * SHEET.rows
-const SLEEP_FPS = 7
-const FRAME_DURATION_MS = Math.round(1000 / SLEEP_FPS)
-const FRAME_ANCHOR = { x: 114.5, y: 206 }
-
-function getSleepFrameCoordinates(frameIndex: number) {
-	return {
-		x: (frameIndex % SHEET.columns) * SHEET.frameWidth,
-		y: Math.floor(frameIndex / SHEET.columns) * SHEET.frameHeight,
-	}
-}
-
-function createFrame(pose: PetPose, index: number, sheetFrameIndex: number, temporary = false): PetFrame {
-	const coordinates = getSleepFrameCoordinates(sheetFrameIndex)
-
-	return {
-		id: `${pose}_${index}`,
-		pose,
-		index,
-		x: coordinates.x,
-		y: coordinates.y,
-		width: SHEET.frameWidth,
-		height: SHEET.frameHeight,
-		durationMs: FRAME_DURATION_MS,
-		anchor: FRAME_ANCHOR,
-		...(temporary ? { sourcePose: "sleep" as const, temporary: true } : {}),
-	}
-}
-
-function createSleepAnimation(): PetAnimation {
-	return {
-		pose: "sleep",
-		frames: Array.from({ length: SLEEP_FRAME_COUNT }, (_, index) => createFrame("sleep", index, index)),
-		fps: SLEEP_FPS,
-		loop: true,
-	}
-}
-
-function createTemporarySleepFrameAnimation(pose: PetPose, sheetFrameIndex: number): PetAnimation {
+function createAnimationAsset(
+	pose: PetPose,
+	src: PetAnimationAsset["src"],
+	width: number,
+	height: number,
+	motionRole: PetAnimationAsset["motionRole"],
+	options: Pick<PetAnimationAsset, "naturalFrameCount" | "sourcePose" | "temporary"> = {},
+): PetAnimationAsset {
 	return {
 		pose,
-		frames: [createFrame(pose, 0, sheetFrameIndex, true)],
-		fps: 1,
+		src,
+		width,
+		height,
+		animated: true,
 		loop: true,
-		sourcePose: "sleep",
-		temporary: true,
+		motionRole,
+		...options,
 	}
 }
 
-export const catPetManifest: PetSpriteManifest = {
+function createTemporarySleepAsset(pose: PetPose, motionRole: PetAnimationAsset["motionRole"]): PetAnimationAsset {
+	return createAnimationAsset(
+		pose,
+		"/assets/cat-widget/cat-sleep.webp",
+		208,
+		151,
+		motionRole,
+		{ naturalFrameCount: 13, sourcePose: "sleep", temporary: true },
+	)
+}
+
+export const catPetManifest: PetAssetManifest = {
 	id: "cat",
-	imageSrc: "/assets/cat-widget/cat-sleep.webp",
-	sheet: SHEET,
 	animations: {
-		idle: createTemporarySleepFrameAnimation("idle", 0),
-		walk: createTemporarySleepFrameAnimation("walk", 1),
-		run: createTemporarySleepFrameAnimation("run", 2),
-		jump: createTemporarySleepFrameAnimation("jump", 3),
-		land: createTemporarySleepFrameAnimation("land", 4),
-		sit: createTemporarySleepFrameAnimation("sit", 5),
-		lie: createTemporarySleepFrameAnimation("lie", 6),
-		sleep: createSleepAnimation(),
-		scratch: createTemporarySleepFrameAnimation("scratch", 8),
-		stretch: createTemporarySleepFrameAnimation("stretch", 9),
-		paw: createTemporarySleepFrameAnimation("paw", 10),
-		fall: createTemporarySleepFrameAnimation("fall", 11),
-		privacy: createTemporarySleepFrameAnimation("privacy", 12),
+		idle: createTemporarySleepAsset("idle", "idle"),
+		walk: createAnimationAsset("walk", "/assets/cat-widget/cat-walk.webp", 370, 200, "travel", {
+			naturalFrameCount: 5,
+		}),
+		run: createAnimationAsset("run", "/assets/cat-widget/cat-walk.webp", 370, 200, "travel", {
+			naturalFrameCount: 5,
+			sourcePose: "walk",
+			temporary: true,
+		}),
+		jump: createTemporarySleepAsset("jump", "jump"),
+		land: createTemporarySleepAsset("land", "jump"),
+		sit: createTemporarySleepAsset("sit", "rest"),
+		lie: createTemporarySleepAsset("lie", "rest"),
+		sleep: createAnimationAsset("sleep", "/assets/cat-widget/cat-sleep.webp", 208, 151, "rest", {
+			naturalFrameCount: 13,
+		}),
+		scratch: createTemporarySleepAsset("scratch", "rest"),
+		stretch: createTemporarySleepAsset("stretch", "rest"),
+		paw: createTemporarySleepAsset("paw", "idle"),
+		fall: createTemporarySleepAsset("fall", "jump"),
+		privacy: createTemporarySleepAsset("privacy", "privacy"),
 	},
 }

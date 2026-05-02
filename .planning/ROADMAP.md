@@ -14,6 +14,7 @@ The milestone starts by replacing the current disposable app with a clean monore
 - [x] **Phase 6: Google Calendar Integration** - Rebuild calendar OAuth and lesson event sync cleanly.
 - [ ] **Phase 7: Payments and Ledger** - Build manual payment ledger and balance summaries.
 - [ ] **Phase 8: Dashboard and Operational Polish** - Build dashboard, quick actions, responsive QA, and final verification.
+- [ ] **Phase 9: Implement website pet widget** - Add an animated pet overlay that can walk, jump to page elements, and rest.
 
 ## Phase Details
 
@@ -181,6 +182,28 @@ Plans:
 - [ ] 08-02: Quick actions and empty/loading/error states
 - [ ] 08-03: Responsive QA, accessibility pass, and final v1 verification
 
+### Phase 9: Implement website pet widget
+
+**Goal:** Add an animated in-app pet overlay that can walk around the CRM shell, jump to explicit page targets, rest on them, respect reduced-motion/privacy settings, and remain non-blocking to normal CRM work.
+**Requirements**: API-05
+**Success Criteria** (what must be TRUE):
+
+1. User can enable or disable the pet through a persisted setting.
+2. The first pet renders from deterministic animated WebP assets in a native `img`; the runtime moves the element and does not switch frames manually.
+3. The pet moves inside a fixed overlay without blocking clicks on CRM UI.
+4. The pet only jumps to explicitly marked target zones such as `data-pet-target`.
+5. Reduced-motion mode shows a static or near-static sleeper state instead of active walking/jumping.
+6. Privacy mode switches the pet to a dedicated eyes-covered pose.
+7. The implementation follows web app provider/component boundaries and keeps pet engine logic out of `components/ui`.
+**Depends on:** Phase 8
+**Plans:** 4 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Wave 0 pet validation, WebP manifest, and pure engine contracts
+- [ ] 09-02-PLAN.md — Persisted pet settings API and workspace controls
+- [ ] 09-03-PLAN.md — Pet engine, overlay provider, and target discovery
+- [ ] 09-04-PLAN.md — Pet target rollout, sound guardrails, and browser verification
+
 ## Progress
 
 | Phase                                     | Milestone | Plans Complete | Status                | Completed  |
@@ -193,3 +216,4 @@ Plans:
 | 6. Google Calendar Integration            | v1.0      | 3/3            | Complete              | 2026-04-26 |
 | 7. Payments and Ledger                    | v1.0      | 0/4            | Currency task planned | -          |
 | 8. Dashboard and Operational Polish       | v1.0      | 0/3            | Prototype UI only     | -          |
+| 9. Implement website pet widget           | v1.0      | 0/4            | Planned               | -          |
