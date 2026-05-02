@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: completed
+stopped_at: Phase 9 plan 01 complete; plan 02 partially complete
+last_updated: "2026-05-02T18:52:00+03:00"
+last_activity: 2026-04-26 - Added per-student lesson duration, automatic package pricing from base price/duration, package progress tracking, and copyable completed-lesson date summaries.
+progress:
+  total_phases: 9
+  completed_phases: 2
+  total_plans: 16
+  completed_plans: 10
+  percent: 80
+---
+
 # Project State
 
 ## Project Reference
@@ -9,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-04-25)
 
 ## Current Position
 
-Phase: 7 of 8 (Payments and Ledger)
+Phase: 7 of 9 (Payments and Ledger)
 Plan: 07-01
 Status: Phase 6 complete; current urgent pass is individual-only lesson scheduling and calendar automation before returning to payment ledger hardening
 Last activity: 2026-04-26 - Added per-student lesson duration, automatic package pricing from base price/duration, package progress tracking, and copyable completed-lesson date summaries.
@@ -36,6 +52,10 @@ Progress: [########--] 80%
 | 6     | 3/3   | current session | n/a      |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 9 added: Implement website pet widget
 
 ### Decisions
 
@@ -92,6 +112,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-04-26
-Stopped at: Phase 6 complete with Calendar OAuth token-capture fix; next step is Phase 7 payment ledger hardening and currency-aware offer text
-Resume file: None
+Last session: 2026-05-02T12:16:27.956Z
+Stopped at: Phase 9 plan 01 complete; plan 02 partially complete
+Resume file: .planning/phases/09-implement-website-pet-widget/09-02-PLAN.md

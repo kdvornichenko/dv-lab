@@ -216,4 +216,4 @@ Plans:
 | 6. Google Calendar Integration            | v1.0      | 3/3            | Complete              | 2026-04-26 |
 | 7. Payments and Ledger                    | v1.0      | 0/4            | Currency task planned | -          |
 | 8. Dashboard and Operational Polish       | v1.0      | 0/3            | Prototype UI only     | -          |
-| 9. Implement website pet widget           | v1.0      | 0/4            | Planned               | -          |
+| 9. Implement website pet widget           | v1.0      | 1/4            | In progress           | -          |
