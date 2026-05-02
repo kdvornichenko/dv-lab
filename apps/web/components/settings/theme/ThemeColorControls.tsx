@@ -1,18 +1,14 @@
 'use client'
 
+import type { FC } from 'react'
+
 import { ColorPicker } from '@/components/ui/color-picker'
 import { Input } from '@/components/ui/input'
 import { colorLabels, themeColorGroups } from '@/lib/theme/theme-settings'
 
-import type { CrmThemeSettings } from '@teacher-crm/api-types'
+import type { ColorRowProps, ThemeColorControlsProps } from './ThemeColorControls.types'
 
-export function ThemeColorControls({
-	colors,
-	onColorChange,
-}: {
-	colors: CrmThemeSettings['colors']
-	onColorChange: (key: keyof CrmThemeSettings['colors'], value: string) => void
-}) {
+export const ThemeColorControls: FC<ThemeColorControlsProps> = ({ colors, onColorChange }) => {
 	return (
 		<div className="space-y-3">
 			{themeColorGroups.map((group) => (
@@ -37,7 +33,7 @@ export function ThemeColorControls({
 	)
 }
 
-function ColorRow({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+const ColorRow: FC<ColorRowProps> = ({ label, onChange, value }) => {
 	return (
 		<div className="border-line-soft bg-surface grid gap-2 rounded-lg border p-2">
 			<div className="flex items-center justify-between gap-2">

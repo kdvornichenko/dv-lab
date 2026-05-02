@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type Dispatch, type SetStateAction } from 'react'
+import { type FC, useState } from 'react'
 
 import { Check } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -10,26 +10,18 @@ import { fontOptions, fontStackFor } from '@/lib/theme/theme-settings'
 
 import type { CrmThemeSettings } from '@teacher-crm/api-types'
 
-type FontSettingKey = 'headingFont' | 'bodyFont' | 'numberFont'
-type FontSectionKey = 'heading' | 'body' | 'numbers'
+import type {
+	FontOptionButtonProps,
+	FontSection,
+	FontSectionKey,
+	FontSettingKey,
+	ThemeFontStackedAccordionProps,
+} from './ThemeFontStackedAccordion.types'
 
-export function ThemeFontStackedAccordion({
-	draft,
-	onDraftChange,
-}: {
-	draft: CrmThemeSettings
-	onDraftChange: Dispatch<SetStateAction<CrmThemeSettings>>
-}) {
+export const ThemeFontStackedAccordion: FC<ThemeFontStackedAccordionProps> = ({ draft, onDraftChange }) => {
 	const [openSection, setOpenSection] = useState<FontSectionKey[]>(['heading'])
 	const reduceMotion = useReducedMotion()
-	const sections: Array<{
-		description: string
-		key: FontSettingKey
-		label: string
-		sample: string
-		value: CrmThemeSettings['headingFont']
-		section: FontSectionKey
-	}> = [
+	const sections: FontSection[] = [
 		{
 			description: 'Used for page titles, card headings, and panel labels.',
 			key: 'headingFont',
@@ -134,17 +126,7 @@ export function ThemeFontStackedAccordion({
 	)
 }
 
-function FontOptionButton({
-	onSelect,
-	option,
-	sample,
-	selected,
-}: {
-	onSelect: () => void
-	option: (typeof fontOptions)[number]
-	sample: string
-	selected: boolean
-}) {
+const FontOptionButton: FC<FontOptionButtonProps> = ({ onSelect, option, sample, selected }) => {
 	return (
 		<button
 			type="button"

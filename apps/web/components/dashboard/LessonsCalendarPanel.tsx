@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { FC } from 'react'
 
 import { enUS } from 'date-fns/locale'
 import { CalendarPlus, ChevronLeft, ChevronRight, Clock, LockKeyhole, Trash2 } from 'lucide-react'
@@ -16,44 +16,33 @@ import {
 } from '@/components/calendar/Calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { formatDateOnly, parseDateOnly } from '@/lib/crm/date-model'
 import { lessonDisplayTitle } from '@/lib/crm/model'
 
 import type {
 	CalendarBlock,
-	CalendarBusyInterval,
 	CalendarSyncRecord,
 	CreateCalendarBlockInput,
-	CreateLessonInput,
-	DeleteLessonQuery,
 	Lesson,
 	LessonOccurrenceException,
 	Student,
-	UpdateCalendarBlockInput,
-	UpdateLessonInput,
 } from '@teacher-crm/api-types'
 
 import { LessonFormDialog } from './LessonFormDialog'
+import type {
+	CalendarFieldProps,
+	DropScopeDialogProps,
+	LessonsCalendarPanelProps,
+	PersonalBlockDialogProps,
+	SlotChoiceDialogProps,
+} from './LessonsCalendarPanel.types'
 
 const RECURRING_LESSON_OCCURRENCES = 104
 const LESSON_EVENT_ID_SEPARATOR = '::'
-
-type LessonsCalendarPanelProps = {
-	lessons: Lesson[]
-	students: Student[]
-	calendarSyncRecords: CalendarSyncRecord[]
-	calendarBlocks: CalendarBlock[]
-	lessonOccurrenceExceptions: LessonOccurrenceException[]
-	onAddLesson: (input: CreateLessonInput) => Promise<void>
-	onUpdateLesson: (lessonId: string, input: UpdateLessonInput) => Promise<void>
-	onDeleteLesson: (lessonId: string, options?: DeleteLessonQuery) => Promise<void>
-	onAddCalendarBlock: (input: CreateCalendarBlockInput) => Promise<void>
-	onUpdateCalendarBlock: (blockId: string, input: UpdateCalendarBlockInput) => Promise<void>
-	onDeleteCalendarBlock: (blockId: string) => Promise<void>
-	onCheckCalendarConflicts?: (input: CreateLessonInput) => Promise<CalendarBusyInterval[]>
-}
 
 function lessonEventColor(lesson: Lesson): CalendarEvent['color'] {
 	if (lesson.status === 'completed') return 'green'
@@ -152,19 +141,11 @@ function calendarBlockToEvent(block: CalendarBlock): CalendarEvent {
 	}
 }
 
-function dateInputValue(value: Date) {
-	return [
-		value.getFullYear(),
-		String(value.getMonth() + 1).padStart(2, '0'),
-		String(value.getDate()).padStart(2, '0'),
-	].join('-')
-}
-
 function timeInputValue(value: Date) {
 	return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
 }
 
-export function LessonsCalendarPanel({
+export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	lessons,
 	students,
 	calendarSyncRecords,
@@ -177,7 +158,7 @@ export function LessonsCalendarPanel({
 	onUpdateCalendarBlock,
 	onDeleteCalendarBlock,
 	onCheckCalendarConflicts,
-}: LessonsCalendarPanelProps) {
+}) => {
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
 	const [editingOccurrenceStartsAt, setEditingOccurrenceStartsAt] = useState<string | null>(null)
@@ -419,24 +400,17 @@ function startsAtFromDateTime(date: string, time: string) {
 	return Number.isNaN(value.getTime()) ? new Date() : value
 }
 
-function PersonalBlockDialog({
+const PersonalBlockDialog: FC<PersonalBlockDialogProps> = ({
 	open,
 	block,
 	defaultStartsAt,
 	onOpenChange,
 	onSubmit,
 	onDelete,
-}: {
-	open: boolean
-	block: CalendarBlock | null
-	defaultStartsAt: Date | null
-	onOpenChange: (open: boolean) => void
-	onSubmit: (input: CreateCalendarBlockInput | UpdateCalendarBlockInput) => Promise<void>
-	onDelete?: () => Promise<void>
-}) {
+}) => {
 	const initialStart = block ? new Date(block.startsAt) : (defaultStartsAt ?? new Date())
 	const [title, setTitle] = useState(block?.title ?? 'Personal time')
-	const [date, setDate] = useState(dateInputValue(initialStart))
+	const [date, setDate] = useState(formatDateOnly(initialStart))
 	const [time, setTime] = useState(timeInputValue(initialStart))
 	const [durationMinutes, setDurationMinutes] = useState(String(block?.durationMinutes ?? 60))
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -445,7 +419,7 @@ function PersonalBlockDialog({
 		if (!open) return
 		const nextStart = block ? new Date(block.startsAt) : (defaultStartsAt ?? new Date())
 		setTitle(block?.title ?? 'Personal time')
-		setDate(dateInputValue(nextStart))
+		setDate(formatDateOnly(nextStart))
 		setTime(timeInputValue(nextStart))
 		setDurationMinutes(String(block?.durationMinutes ?? 60))
 	}, [block, defaultStartsAt, open])
@@ -477,7 +451,12 @@ function PersonalBlockDialog({
 					</Field>
 					<div className="grid gap-3 sm:grid-cols-3">
 						<Field label="Date">
-							<Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+							<DatePicker
+								date={parseDateOnly(date)}
+								onSelect={(value) => setDate(value ? formatDateOnly(value) : '')}
+								placeholder="Choose date"
+								className="w-full"
+							/>
 						</Field>
 						<Field label="Time">
 							<Input type="time" value={time} onChange={(event) => setTime(event.target.value)} />
@@ -517,17 +496,12 @@ function PersonalBlockDialog({
 	)
 }
 
-function SlotChoiceDialog({
+const SlotChoiceDialog: FC<SlotChoiceDialogProps> = ({
 	startsAt,
 	onClose,
 	onAddLesson,
 	onAddBlock,
-}: {
-	startsAt: Date | null
-	onClose: () => void
-	onAddLesson: () => void
-	onAddBlock: () => void
-}) {
+}) => {
 	return (
 		<Dialog open={Boolean(startsAt)} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="max-w-sm">
@@ -549,15 +523,11 @@ function SlotChoiceDialog({
 	)
 }
 
-function DropScopeDialog({
+const DropScopeDialog: FC<DropScopeDialogProps> = ({
 	pendingDrop,
 	onClose,
 	onApply,
-}: {
-	pendingDrop: { event: CalendarEvent; startsAt: Date } | null
-	onClose: () => void
-	onApply: (scope: 'current' | 'series') => Promise<void>
-}) {
+}) => {
 	return (
 		<Dialog open={Boolean(pendingDrop)} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="max-w-sm p-unit">
@@ -577,7 +547,7 @@ function DropScopeDialog({
 	)
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+const Field: FC<CalendarFieldProps> = ({ label, children }) => {
 	return (
 		<div>
 			<Label className="mb-1.5 block text-xs font-medium text-ink-muted">{label}</Label>

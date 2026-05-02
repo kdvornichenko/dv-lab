@@ -1,36 +1,21 @@
-import { useMemo, useState } from 'react'
-import type { ComponentProps, ReactNode } from 'react'
+import { type FC, useMemo, useState } from 'react'
 
-import { Archive, Banknote, Plus, Search } from 'lucide-react'
-import Link from 'next/link'
+import { Plus, Search } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatCurrencyAmount, selectStudentLedgerProjection, STUDENT_FILTER_OPTIONS } from '@/lib/crm/model'
+import { STUDENT_FILTER_OPTIONS } from '@/lib/crm/model'
 import { studentSettingsPath } from '@/lib/crm/student-route-id'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
-import { type CreatePaymentInput, type CreateStudentInput, type Lesson } from '@teacher-crm/api-types'
-
 import { PaymentFormDialog } from './PaymentFormDialog'
+import { StudentLedgerItem } from './StudentLedgerItem'
 import { StudentFormDialog } from './StudentFormDialog'
+import type { StudentsPanelProps } from './StudentsPanel.types'
 
-type StudentsPanelProps = {
-	visibleStudents: StudentWithBalance[]
-	lessons: Lesson[]
-	filter: 'all' | StudentWithBalance['status']
-	now: Date
-	onFilterChange: (value: 'all' | StudentWithBalance['status']) => void
-	onAddStudent: (input: CreateStudentInput) => Promise<void>
-	onArchiveStudent: (studentId: string) => Promise<void>
-	onRecordPayment: (input: CreatePaymentInput) => Promise<void>
-	previewMode?: boolean
-}
-
-export function StudentsPanel({
+export const StudentsPanel: FC<StudentsPanelProps> = ({
 	visibleStudents,
 	lessons,
 	filter,
@@ -40,7 +25,7 @@ export function StudentsPanel({
 	onArchiveStudent,
 	onRecordPayment,
 	previewMode = false,
-}: StudentsPanelProps) {
+}) => {
 	const [search, setSearch] = useState('')
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [paymentStudent, setPaymentStudent] = useState<StudentWithBalance | null>(null)
@@ -149,137 +134,5 @@ export function StudentsPanel({
 				onSubmit={onRecordPayment}
 			/>
 		</section>
-	)
-}
-
-function StudentLedgerItem({
-	student,
-	lessons,
-	now,
-	settingsHref,
-	onRecordPayment,
-	onArchive,
-	previewMode,
-}: {
-	student: StudentWithBalance
-	lessons: Lesson[]
-	now: Date
-	settingsHref: string
-	onRecordPayment: () => void
-	onArchive: () => void
-	previewMode: boolean
-}) {
-	const projection = selectStudentLedgerProjection(student, lessons, now)
-	const subtitle = student.special || student.level || 'No special note'
-	const secondaryBalances = (student.balance.otherCurrencyBalances ?? []).filter(
-		(balance) => balance.balance !== 0 || balance.charged !== 0 || balance.paid !== 0
-	)
-	const ledgerContent = (
-		<>
-			<div className="flex flex-wrap items-start justify-between gap-3">
-				<div className="min-w-0">
-					<p
-						className="font-heading text-ink group-hover:text-sage truncate font-semibold transition-colors"
-						data-private
-					>
-						{student.fullName}
-					</p>
-					<p className="text-ink-muted mt-1 truncate text-xs" data-private>
-						{subtitle}
-					</p>
-				</div>
-				<div className="flex flex-wrap gap-1.5">
-					<Badge tone={projection.statusTone}>{student.status}</Badge>
-					{student.packageLessonPriceOverride !== null && <Badge tone="neutral">custom plan</Badge>}
-					<Badge tone={projection.balanceTone} className="font-mono tabular-nums">
-						{formatCurrencyAmount(student.balance.balance, student.currency)}
-					</Badge>
-					{secondaryBalances.map((balance) => (
-						<Badge
-							key={balance.currency}
-							tone={balance.overdue ? 'red' : 'neutral'}
-							className="font-mono tabular-nums"
-							title={`Historical ${balance.currency} balance`}
-						>
-							{formatCurrencyAmount(balance.balance, balance.currency)}
-						</Badge>
-					))}
-				</div>
-			</div>
-			<div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-				<StudentMetric
-					label="Rate"
-					value={`${formatCurrencyAmount(student.defaultLessonPrice, student.currency)} / 60 min`}
-				/>
-				<StudentMetric label="Plan" value={projection.plan} />
-				<StudentMetric label="Package" value={projection.lessonsLeft} />
-				<StudentMetric label="Next payment" value={projection.nextPayment} />
-			</div>
-		</>
-	)
-
-	return (
-		<article className="border-line bg-surface [&:has(a:hover)]:border-sage rounded-lg border p-3 transition-colors">
-			<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-				{previewMode ? (
-					<div className="min-w-0 rounded-lg text-left">{ledgerContent}</div>
-				) : (
-					<Link
-						href={settingsHref}
-						className="focus-visible:ring-ring/35 group min-w-0 rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px]"
-					>
-						{ledgerContent}
-					</Link>
-				)}
-
-				<div className="flex flex-wrap justify-end gap-1.5">
-					<StudentIconButton
-						label={`Record payment for ${student.fullName}`}
-						onClick={onRecordPayment}
-						variant="secondary"
-						disabled={previewMode}
-					>
-						<Banknote className="h-4 w-4" />
-					</StudentIconButton>
-					<StudentIconButton
-						label={`Archive ${student.fullName}`}
-						onClick={onArchive}
-						variant="ghost"
-						disabled={previewMode || student.status === 'archived'}
-					>
-						<Archive className="h-4 w-4" />
-					</StudentIconButton>
-				</div>
-			</div>
-		</article>
-	)
-}
-
-function StudentMetric({ label, value }: { label: string; value: string }) {
-	return (
-		<div className="border-line-soft bg-surface-muted rounded-lg border p-2.5">
-			<p className="text-ink-muted text-xs font-medium">{label}</p>
-			<p className="text-ink mt-1 truncate font-mono text-xs font-semibold tabular-nums">{value}</p>
-		</div>
-	)
-}
-
-function StudentIconButton({
-	label,
-	children,
-	...props
-}: Omit<ComponentProps<typeof Button>, 'size' | 'aria-label'> & {
-	label: string
-	children: ReactNode
-}) {
-	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<Button size="icon" aria-label={label} {...props}>
-					{children}
-				</Button>
-			</TooltipTrigger>
-			<TooltipContent sideOffset={6}>{label}</TooltipContent>
-		</Tooltip>
 	)
 }

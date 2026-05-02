@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import type { FC } from 'react'
 
 import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
@@ -10,29 +11,23 @@ import {
 	applyCrmTheme,
 	cloneTheme,
 	migrateCrmTheme,
+	normalizeTheme,
 	readLocalCrmTheme,
 	writeLocalCrmTheme,
 } from '@/lib/theme/theme-settings'
 
 import { DEFAULT_CRM_THEME_SETTINGS, type CrmThemeSettings } from '@teacher-crm/api-types'
-
-type ThemeSettingsContextValue = {
-	theme: CrmThemeSettings
-	loading: boolean
-	applySavedTheme: (theme: CrmThemeSettings) => void
-	saveTheme: (theme: CrmThemeSettings) => Promise<void>
-	resetTheme: () => Promise<void>
-}
+import type { ThemeSettingsContextValue, ThemeSettingsProviderProps } from './ThemeSettingsProvider.types'
 
 const ThemeSettingsContext = React.createContext<ThemeSettingsContextValue | null>(null)
 
-export function ThemeSettingsProvider({ children }: { children: React.ReactNode }) {
+export const ThemeSettingsProvider: FC<ThemeSettingsProviderProps> = ({ children }) => {
 	const pathname = usePathname()
 	const [theme, setTheme] = React.useState<CrmThemeSettings>(() => cloneTheme(DEFAULT_CRM_THEME_SETTINGS))
 	const [loading, setLoading] = React.useState(true)
 
 	const applySavedTheme = React.useCallback((nextTheme: CrmThemeSettings) => {
-		const cloned = cloneTheme(migrateCrmTheme(nextTheme))
+		const cloned = cloneTheme(normalizeTheme(migrateCrmTheme(nextTheme)))
 		applyCrmTheme(cloned)
 		writeLocalCrmTheme(cloned)
 		setTheme(cloned)
@@ -78,7 +73,7 @@ export function ThemeSettingsProvider({ children }: { children: React.ReactNode 
 
 	const saveTheme = React.useCallback(
 		async (nextTheme: CrmThemeSettings) => {
-			const optimisticTheme = cloneTheme(nextTheme)
+			const optimisticTheme = cloneTheme(normalizeTheme(nextTheme))
 			applySavedTheme(optimisticTheme)
 			const response = await teacherCrmApi.saveThemeSettings(optimisticTheme)
 			applySavedTheme(response.theme)

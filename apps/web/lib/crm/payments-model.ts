@@ -1,3 +1,4 @@
+import { dateOnlyFromApiValue, parseDateOnly } from '@/lib/crm/date-model'
 import { formatCurrencyAmount } from '@/lib/crm/model'
 
 import type {
@@ -50,18 +51,23 @@ export function paymentNumber(payment: Payment) {
 	return `PAY-${payment.id.slice(-6).toUpperCase()}`
 }
 
+function paymentDate(value: string | Date) {
+	const dateOnly = dateOnlyFromApiValue(value)
+	return (dateOnly ? parseDateOnly(dateOnly) : undefined) ?? new Date(value)
+}
+
 export function formatPaymentDate(value: string | Date) {
 	return new Intl.DateTimeFormat('en-US', {
 		month: 'short',
 		day: '2-digit',
-	}).format(new Date(value))
+	}).format(paymentDate(value))
 }
 
 export function formatPaymentMonth(value: string | Date) {
 	return new Intl.DateTimeFormat('en-US', {
 		month: 'long',
 		year: 'numeric',
-	}).format(new Date(value))
+	}).format(paymentDate(value))
 }
 
 export function formatPaymentDateRange(range: PaymentDateRange) {
@@ -89,7 +95,7 @@ export function paymentRows(payments: Payment[], students: Student[], balances: 
 	return payments.map((payment): PaymentRow => {
 		const student = studentsById.get(payment.studentId)
 		const balance = balancesByStudentCurrency.get(balanceKey(payment.studentId, payment.currency))
-		const issued = new Date(payment.paidAt)
+		const issued = paymentDate(payment.paidAt)
 		return {
 			payment,
 			student,

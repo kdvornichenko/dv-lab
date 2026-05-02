@@ -1,18 +1,12 @@
 'use client'
 
-import type { Dispatch, SetStateAction } from 'react'
+import type { FC } from 'react'
 
 import { radiusOptions } from '@/lib/theme/theme-settings'
 
-import type { CrmThemeSettings } from '@teacher-crm/api-types'
+import type { RadiusButtonProps, ThemeShapeControlsProps } from './ThemeShapeControls.types'
 
-export function ThemeShapeControls({
-	draft,
-	onDraftChange,
-}: {
-	draft: CrmThemeSettings
-	onDraftChange: Dispatch<SetStateAction<CrmThemeSettings>>
-}) {
+export const ThemeShapeControls: FC<ThemeShapeControlsProps> = ({ draft, onDraftChange }) => {
 	return (
 		<div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
 			{radiusOptions.map((option) => (
@@ -28,17 +22,7 @@ export function ThemeShapeControls({
 	)
 }
 
-function RadiusButton({
-	active,
-	label,
-	onSelect,
-	preview,
-}: {
-	active: boolean
-	label: string
-	onSelect: () => void
-	preview: string
-}) {
+const RadiusButton: FC<RadiusButtonProps> = ({ active, label, onSelect, preview }) => {
 	return (
 		<button
 			type="button"

@@ -1,5 +1,8 @@
 'use client'
 
+import type { FC } from 'react'
+
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -11,7 +14,7 @@ import { cn } from '@/lib/utils'
 import { iconRegistry, useSidebarSettings } from './SidebarSettingsProvider'
 import { Button } from './ui/button'
 
-export function AppSidebar() {
+export const AppSidebar: FC = () => {
 	const pathname = usePathname()
 	const { closeMobile, mobileOpen, open } = useSidebar()
 	const { loading, visibleItems } = useSidebarSettings()
@@ -68,17 +71,19 @@ export function AppSidebar() {
 				</div>
 			</SidebarContent>
 
+			<Image src="assets/scottish-fold-cat-sprite.svg" alt="" width={40} height={40} />
+
 			<SidebarFooter>
 				{expanded ? (
-					<div className="border-warning-line bg-warning-soft rounded-lg border p-3">
+					<div className="rounded-lg border border-warning-line bg-warning-soft p-3">
 						<div className="flex items-center justify-between gap-2">
-							<p className="text-warning text-xs font-semibold">Calendar</p>
+							<p className="text-xs font-semibold text-warning">Calendar</p>
 							<Badge tone="amber">setup</Badge>
 						</div>
-						<p className="text-ink-muted mt-2 text-xs leading-5">Connect Google before calendar sync.</p>
+						<p className="mt-2 text-xs leading-5 text-ink-muted">Connect Google before calendar sync.</p>
 					</div>
 				) : (
-					<div className="bg-warning mx-auto h-2 w-2 rounded-full" />
+					<div className="mx-auto h-2 w-2 rounded-full bg-warning" />
 				)}
 			</SidebarFooter>
 		</Sidebar>

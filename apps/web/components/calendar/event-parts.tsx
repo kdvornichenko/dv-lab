@@ -1,8 +1,10 @@
+import type { FC } from 'react'
+
 import { cn } from '@/lib/utils'
 
-import type { CalendarEventBadge } from './types'
+import type { AttendeeStackProps, EventBadgesProps } from './event-parts.types'
 
-export function EventBadges({ badges }: { badges?: CalendarEventBadge[] }) {
+export const EventBadges: FC<EventBadgesProps> = ({ badges }) => {
 	if (!badges?.length) return null
 
 	return (
@@ -24,7 +26,7 @@ export function EventBadges({ badges }: { badges?: CalendarEventBadge[] }) {
 	)
 }
 
-export function AttendeeStack({ attendees }: { attendees?: string[] }) {
+export const AttendeeStack: FC<AttendeeStackProps> = ({ attendees }) => {
 	if (!attendees?.length) return null
 
 	return (

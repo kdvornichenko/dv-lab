@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { FC } from 'react'
 
 import { Banknote, CalendarCheck2, CheckCircle2, Copy, NotebookText, ReceiptText, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
@@ -16,17 +16,11 @@ import {
 	isChargeableLessonStatus,
 	selectStudentLedgerProjection,
 } from '@/lib/crm/model'
-import type { StudentWithBalance } from '@/lib/crm/types'
 
-import type { Lesson } from '@teacher-crm/api-types'
+import { lessonStatusTone, ProfileMetric, ProfileRow } from './StudentProfileParts'
+import type { StudentProfilePaneProps } from './StudentProfilePane.types'
 
-type StudentProfilePaneProps = {
-	student: StudentWithBalance | null
-	lessons: Lesson[]
-	now: Date
-}
-
-export function StudentProfilePane({ student, lessons, now }: StudentProfilePaneProps) {
+export const StudentProfilePane: FC<StudentProfilePaneProps> = ({ student, lessons, now }) => {
 	if (!student) {
 		return (
 			<aside className="border-sage-line bg-sage-soft/45 rounded-lg border border-dashed p-5">
@@ -77,15 +71,15 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 
 			<div className="p-4">
 				<div className="grid grid-cols-2 gap-2">
-					<Metric icon={CalendarCheck2} label="Scheduled" value={projection.stats.relatedLessons.length} tone="sage" />
-					<Metric icon={CheckCircle2} label="Charged" value={completedCount} tone="success" />
-					<Metric
+					<ProfileMetric icon={CalendarCheck2} label="Scheduled" value={projection.stats.relatedLessons.length} tone="sage" />
+					<ProfileMetric icon={CheckCircle2} label="Charged" value={completedCount} tone="success" />
+					<ProfileMetric
 						icon={ReceiptText}
 						label={student.billingMode === 'package' ? 'Package progress' : 'Lessons'}
 						value={student.billingMode === 'package' ? packageProgress.label : projection.lessonsLeft}
 						tone="warning"
 					/>
-					<Metric
+					<ProfileMetric
 						icon={Banknote}
 						label="Balance"
 						value={formatCurrencyAmount(student.balance.balance, student.currency)}
@@ -176,66 +170,5 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 				</div>
 			</div>
 		</aside>
-	)
-}
-
-function lessonStatusTone(status: Lesson['status']) {
-	if (status === 'completed') return 'green'
-	if (status === 'no_show') return 'amber'
-	if (status === 'rescheduled') return 'amber'
-	if (status === 'cancelled') return 'red'
-	return 'neutral'
-}
-
-function Metric({
-	icon: Icon,
-	label,
-	value,
-	tone,
-}: {
-	icon: ComponentType<{ className?: string }>
-	label: string
-	value: string | number
-	tone: 'sage' | 'success' | 'warning' | 'danger'
-}) {
-	const toneClass = {
-		sage: 'border-sage-line bg-sage-soft text-sage',
-		success: 'border-success-line bg-success-soft text-success',
-		warning: 'border-warning-line bg-warning-soft text-warning',
-		danger: 'border-danger-line bg-danger-soft text-danger',
-	}
-
-	return (
-		<div className="border-line-soft bg-surface rounded-lg border p-3">
-			<div className="text-ink-muted flex items-center gap-1.5 text-xs font-medium">
-				<span className={`flex size-6 items-center justify-center rounded-md border ${toneClass[tone]}`}>
-					<Icon className="h-3.5 w-3.5" />
-				</span>
-				{label}
-			</div>
-			<div className="text-ink mt-2 truncate font-mono text-sm font-semibold tabular-nums">{value}</div>
-		</div>
-	)
-}
-
-function ProfileRow({
-	icon: Icon,
-	label,
-	value,
-	multiline = false,
-}: {
-	icon: ComponentType<{ className?: string }>
-	label: string
-	value: string
-	multiline?: boolean
-}) {
-	return (
-		<div className="py-3 first:pt-0 last:pb-0">
-			<div className="text-ink-muted mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase">
-				<Icon className="text-sage h-3.5 w-3.5" />
-				{label}
-			</div>
-			<p data-private className={multiline ? 'text-ink whitespace-pre-wrap leading-5' : 'text-ink truncate'}>{value}</p>
-		</div>
 	)
 }

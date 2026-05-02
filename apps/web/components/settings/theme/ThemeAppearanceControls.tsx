@@ -1,6 +1,6 @@
 'use client'
 
-import type { Dispatch, SetStateAction } from 'react'
+import type { FC } from 'react'
 
 import { Palette, RotateCcw, Save, Shuffle, Type } from 'lucide-react'
 
@@ -8,30 +8,15 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-import type { CrmThemeSettings } from '@teacher-crm/api-types'
-
 import { ThemeColorControls } from './ThemeColorControls'
 import { ThemeFontStackedAccordion } from './ThemeFontStackedAccordion'
 import { ThemePresetCard } from './ThemePresetCard'
 import { ThemeSettingsSection } from './ThemeSettingsSection'
 import { ThemeShapeControls } from './ThemeShapeControls'
 import { presetThemes } from './theme-presets'
+import type { FontSizeInputProps, ThemeAppearanceControlsProps } from './ThemeAppearanceControls.types'
 
-type ThemeAppearanceControlsProps = {
-	activePreset: string
-	draft: CrmThemeSettings
-	hasChanges: boolean
-	isSaving: boolean
-	onApplyPreset: (presetId: string) => void
-	onColorChange: (key: keyof CrmThemeSettings['colors'], value: string) => void
-	onDraftChange: Dispatch<SetStateAction<CrmThemeSettings>>
-	onReset: () => void
-	onSave: () => void
-	onShuffle: () => void
-	onUndo: () => void
-}
-
-export function ThemeAppearanceControls({
+export const ThemeAppearanceControls: FC<ThemeAppearanceControlsProps> = ({
 	activePreset,
 	draft,
 	hasChanges,
@@ -43,7 +28,7 @@ export function ThemeAppearanceControls({
 	onSave,
 	onShuffle,
 	onUndo,
-}: ThemeAppearanceControlsProps) {
+}) => {
 	return (
 		<section className="space-y-4">
 			<header className="border-line bg-surface rounded-2xl border p-5 shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
@@ -129,17 +114,7 @@ export function ThemeAppearanceControls({
 	)
 }
 
-function FontSizeInput({
-	label,
-	value,
-	field,
-	onDraftChange,
-}: {
-	label: string
-	value: number
-	field: keyof CrmThemeSettings['fontSizes']
-	onDraftChange: Dispatch<SetStateAction<CrmThemeSettings>>
-}) {
+const FontSizeInput: FC<FontSizeInputProps> = ({ label, value, field, onDraftChange }) => {
 	return (
 		<label className="grid gap-1.5">
 			<span className="text-ink-muted text-xs font-medium">{label} size</span>

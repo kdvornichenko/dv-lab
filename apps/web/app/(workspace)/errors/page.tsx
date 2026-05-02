@@ -1,37 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type FC, useCallback, useEffect, useMemo, useState } from 'react'
 
-import {
-	AlertCircle,
-	AlertTriangle,
-	CalendarClock,
-	Copy,
-	Database,
-	Pause,
-	Play,
-	RefreshCw,
-	Search,
-	Settings,
-	Terminal,
-	Trash2,
-	Users,
-	WalletCards,
-	X,
-	XCircle,
-} from 'lucide-react'
+import { AlertCircle, Pause, Play, RefreshCw, Search, Terminal, X, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
+
+import { ErrorLogDetailSheet } from './ErrorLogDetailSheet'
+import { ErrorLogTableRow } from './ErrorLogTableRow'
+import { LOG_TYPES, LOG_TYPE_META, matchLogQuery, normalizeLogEntry } from './error-log-model'
+import type { LogEntryType, LogType } from './error-log.types'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Kbd } from '@/components/ui/kbd'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
 	clearCrmErrors,
 	deleteCrmError,
@@ -41,101 +25,7 @@ import {
 } from '@/lib/crm/error-log'
 import { cn } from '@/lib/utils'
 
-type LogType = 'all' | 'calendar' | 'students' | 'lessons' | 'payments' | 'settings' | 'system'
-
-type LogEntryView = CrmErrorLogEntry & {
-	endpoint: string | null
-	eventId: string
-	type: Exclude<LogType, 'all'>
-	typeLabel: string
-	createdDate: Date
-	timeLabel: string
-	dateLabel: string
-	traceId: string
-}
-
-const LOG_TYPES: Array<{ value: LogType; label: string }> = [
-	{ value: 'all', label: 'All types' },
-	{ value: 'calendar', label: 'Calendar' },
-	{ value: 'students', label: 'Students' },
-	{ value: 'lessons', label: 'Lessons' },
-	{ value: 'payments', label: 'Payments' },
-	{ value: 'settings', label: 'Settings' },
-	{ value: 'system', label: 'System' },
-]
-
-const LOG_TYPE_META: Record<
-	Exclude<LogType, 'all'>,
-	{ label: string; icon: typeof Terminal; badge: 'blue' | 'green' | 'amber' | 'neutral' | 'red' }
-> = {
-	calendar: { label: 'Calendar', icon: CalendarClock, badge: 'blue' },
-	students: { label: 'Students', icon: Users, badge: 'green' },
-	lessons: { label: 'Lessons', icon: Database, badge: 'amber' },
-	payments: { label: 'Payments', icon: WalletCards, badge: 'green' },
-	settings: { label: 'Settings', icon: Settings, badge: 'neutral' },
-	system: { label: 'System', icon: Terminal, badge: 'red' },
-}
-
-function formatLogTime(value: string) {
-	return new Intl.DateTimeFormat('en-US', {
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hour12: false,
-	}).format(new Date(value))
-}
-
-function formatLogDate(value: string) {
-	return new Intl.DateTimeFormat('en-US', {
-		month: 'short',
-		day: '2-digit',
-		year: 'numeric',
-	}).format(new Date(value))
-}
-
-function inferLogType(error: CrmErrorLogEntry): Exclude<LogType, 'all'> {
-	const text = `${error.source} ${error.message}`.toLowerCase()
-	if (text.includes('calendar') || text.includes('google')) return 'calendar'
-	if (text.includes('student')) return 'students'
-	if (text.includes('lesson') || text.includes('attendance')) return 'lessons'
-	if (text.includes('payment') || text.includes('billing')) return 'payments'
-	if (text.includes('settings') || text.includes('sidebar') || text.includes('theme')) return 'settings'
-	return 'system'
-}
-
-function extractEndpoint(message: string) {
-	const match = message.match(/\b(GET|POST|PATCH|PUT|DELETE)\s+(\/?api\/[^\s:]+)/i)
-	if (!match) return null
-
-	const method = match[1].toUpperCase()
-	const endpoint = match[2].startsWith('/') ? match[2] : `/${match[2]}`
-	return `${method} ${endpoint}`
-}
-
-function normalizeLogEntry(error: CrmErrorLogEntry): LogEntryView {
-	const type = inferLogType(error)
-	return {
-		...error,
-		endpoint: extractEndpoint(error.message),
-		eventId: `log_${error.id.slice(-6)}`,
-		type,
-		typeLabel: LOG_TYPE_META[type].label,
-		createdDate: new Date(error.createdAt),
-		timeLabel: formatLogTime(error.createdAt),
-		dateLabel: formatLogDate(error.createdAt),
-		traceId: `tr_${error.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`,
-	}
-}
-
-function matchLogQuery(entry: LogEntryView, query: string) {
-	if (!query) return true
-	return [entry.eventId, entry.traceId, entry.typeLabel, entry.endpoint, entry.source, entry.message]
-		.join(' ')
-		.toLowerCase()
-		.includes(query)
-}
-
-export default function ErrorLogPage() {
+const ErrorLogPage: FC = () => {
 	const [errors, setErrors] = useState<CrmErrorLogEntry[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [isPaused, setIsPaused] = useState(false)
@@ -180,7 +70,7 @@ export default function ErrorLogPage() {
 				acc[entry.type] = (acc[entry.type] ?? 0) + 1
 				return acc
 			},
-			{} as Partial<Record<Exclude<LogType, 'all'>, number>>
+			{} as Partial<Record<LogEntryType, number>>
 		)
 	}, [entries])
 
@@ -265,7 +155,7 @@ export default function ErrorLogPage() {
 					<div className="border-line-soft flex flex-col gap-3 border-b p-3 lg:flex-row lg:items-center lg:justify-between">
 						<div className="flex min-w-0 flex-wrap items-center gap-2">
 							{LOG_TYPES.filter((item) => item.value !== 'all').map((item) => {
-								const value = item.value as Exclude<LogType, 'all'>
+								const value = item.value as LogEntryType
 								const meta = LOG_TYPE_META[value]
 								const Icon = meta.icon
 								const isActive = typeFilter === value
@@ -325,7 +215,7 @@ export default function ErrorLogPage() {
 
 								{!isLoading &&
 									filteredEntries.map((entry) => (
-										<LogTableRow
+										<ErrorLogTableRow
 											key={entry.id}
 											entry={entry}
 											active={selectedId === entry.id}
@@ -353,223 +243,9 @@ export default function ErrorLogPage() {
 				</section>
 			</div>
 
-			<LogDetailSheet entry={selected} onClose={() => setSelectedId(null)} onDelete={removeError} />
+			<ErrorLogDetailSheet entry={selected} onClose={() => setSelectedId(null)} onDelete={removeError} />
 		</main>
 	)
 }
 
-function LogTableRow({
-	entry,
-	active,
-	onSelect,
-	onDelete,
-}: {
-	entry: LogEntryView
-	active: boolean
-	onSelect: () => void
-	onDelete: () => void
-}) {
-	const meta = LOG_TYPE_META[entry.type]
-	const Icon = meta.icon
-
-	return (
-		<TableRow
-			data-active={active}
-			tabIndex={0}
-			aria-selected={active}
-			className={cn(
-				'focus-visible:ring-ring/35 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-[3px]',
-				active ? 'bg-danger-soft/80 hover:bg-danger-soft/80' : 'bg-danger-soft/30 hover:bg-danger-soft/60'
-			)}
-			onClick={onSelect}
-			onKeyDown={(event) => {
-				if (event.key !== 'Enter' && event.key !== ' ') return
-				event.preventDefault()
-				onSelect()
-			}}
-		>
-			<TableCell className="text-ink-muted ps-4 tabular-nums">{entry.timeLabel}</TableCell>
-			<TableCell>
-				<span className="inline-flex items-center gap-1.5">
-					<span className="bg-danger size-1.5 rounded-full" />
-					<span className="text-danger text-[10px] uppercase tracking-wider">error</span>
-				</span>
-			</TableCell>
-			<TableCell>
-				<Badge tone={meta.badge} className="gap-1.5 font-mono text-[10px]">
-					<Icon className="size-3" />
-					{meta.label}
-				</Badge>
-			</TableCell>
-			<TableCell className="text-ink-muted max-w-40 truncate">{entry.source}</TableCell>
-			<TableCell className="text-ink-muted max-w-40 truncate">{entry.endpoint ?? '-'}</TableCell>
-			<TableCell className="text-ink-muted tabular-nums">{entry.eventId}</TableCell>
-			<TableCell className="max-w-xl">
-				<span className="flex items-center gap-2">
-					<AlertTriangle className="text-danger size-3.5 shrink-0" />
-					<span className="truncate">{entry.message}</span>
-				</span>
-			</TableCell>
-			<TableCell className="pe-4 text-right" onClick={(event) => event.stopPropagation()}>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							className="text-ink-muted hover:bg-danger-soft hover:text-danger size-8"
-							aria-label={`Delete ${entry.source} log`}
-							onClick={onDelete}
-						>
-							<Trash2 className="size-4" />
-						</Button>
-					</TooltipTrigger>
-					<TooltipContent sideOffset={6}>Delete log</TooltipContent>
-				</Tooltip>
-			</TableCell>
-		</TableRow>
-	)
-}
-
-function LogDetailSheet({
-	entry,
-	onClose,
-	onDelete,
-}: {
-	entry: LogEntryView | null
-	onClose: () => void
-	onDelete: (errorId: string) => Promise<void>
-}) {
-	const meta = entry ? LOG_TYPE_META[entry.type] : null
-	const Icon = meta?.icon ?? Terminal
-
-	return (
-		<Sheet open={Boolean(entry)} onOpenChange={(open) => !open && onClose()}>
-			<SheetContent className="max-w-xl! bg-surface sm:w-136 gap-0 p-0" side="right">
-				{entry && meta ? (
-					<>
-						<SheetHeader className="border-line-soft border-b p-5 pr-12">
-							<SheetTitle className="flex items-center gap-2 font-mono text-base">
-								<span className="bg-danger size-1.5 rounded-full" />
-								<span className="text-danger text-[10px] uppercase tracking-wider">error</span>
-								<span className="text-ink truncate">{entry.eventId}</span>
-								<Badge tone={meta.badge} className="gap-1.5 font-mono text-[10px]">
-									<Icon className="size-3" />
-									{meta.label}
-								</Badge>
-							</SheetTitle>
-							<p className="text-ink-muted mt-1 font-mono text-[11px]">
-								{entry.dateLabel} · {entry.timeLabel} · {entry.source}
-							</p>
-							<SheetDescription className="sr-only">
-								Log details for {entry.eventId}, including message, identifiers, and payload.
-							</SheetDescription>
-						</SheetHeader>
-
-						<ScrollArea className="min-h-0 flex-1">
-							<div className="space-y-6 py-5">
-								<LogSection title="Message" copyValue={entry.message}>
-									<pre className="border-line-soft bg-surface-muted text-ink/90 overflow-x-auto whitespace-pre-wrap rounded-md border p-3 font-mono text-[12px] leading-relaxed">
-										{entry.message}
-									</pre>
-								</LogSection>
-
-								<LogSection title="Identifiers">
-									<KeyVal label="Event" value={entry.eventId} copy />
-									<KeyVal label="Trace" value={entry.traceId} copy />
-									<KeyVal label="Type" value={entry.typeLabel} />
-									<KeyVal label="Source" value={entry.source} />
-									{entry.endpoint ? <KeyVal label="Endpoint" value={entry.endpoint} copy /> : null}
-								</LogSection>
-
-								<LogSection title="Payload" copyValue={JSON.stringify(entry, null, 2)}>
-									<pre className="border-line-soft bg-surface-muted text-ink/85 max-h-72 overflow-auto rounded-md border p-3 font-mono text-[11px] leading-relaxed">
-										{JSON.stringify(
-											{
-												id: entry.id,
-												type: entry.type,
-												endpoint: entry.endpoint,
-												source: entry.source,
-												message: entry.message,
-												createdAt: entry.createdAt,
-											},
-											null,
-											2
-										)}
-									</pre>
-								</LogSection>
-
-								<div className="px-5 pb-5">
-									<Separator className="mb-4" />
-									<div className="flex flex-wrap items-center gap-2">
-										<Button size="sm" variant="outline" type="button" onClick={() => void onDelete(entry.id)}>
-											<Trash2 className="size-4" />
-											Delete log
-										</Button>
-										<Button size="sm" variant="outline" type="button" onClick={onClose}>
-											Close
-										</Button>
-									</div>
-								</div>
-							</div>
-						</ScrollArea>
-					</>
-				) : null}
-			</SheetContent>
-		</Sheet>
-	)
-}
-
-function LogSection({ title, copyValue, children }: { title: string; copyValue?: string; children: React.ReactNode }) {
-	const [copied, setCopied] = useState(false)
-
-	return (
-		<section className="px-5">
-			<header className="mb-2 flex items-center justify-between gap-3">
-				<h3 className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.25em]">{title}</h3>
-				{copyValue ? (
-					<button
-						type="button"
-						className="text-ink-muted hover:bg-sage-soft hover:text-sage inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.2em] transition-colors"
-						onClick={() => {
-							void navigator.clipboard.writeText(copyValue)
-							setCopied(true)
-							window.setTimeout(() => setCopied(false), 1200)
-						}}
-					>
-						<Copy className="size-3" />
-						{copied ? 'Copied' : 'Copy'}
-					</button>
-				) : null}
-			</header>
-			<div className="flex flex-col gap-1.5">{children}</div>
-		</section>
-	)
-}
-
-function KeyVal({ label, value, copy = false }: { label: string; value: string; copy?: boolean }) {
-	const [copied, setCopied] = useState(false)
-
-	return (
-		<div className="hover:bg-sage-soft/45 group flex items-baseline justify-between gap-3 rounded-md px-2 py-1 transition-colors">
-			<span className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.2em]">{label}</span>
-			<span className="flex min-w-0 items-center gap-1.5">
-				<span className="max-w-70 text-ink/90 truncate font-mono text-[12px]">{value}</span>
-				{copy ? (
-					<button
-						type="button"
-						aria-label={`Copy ${label}`}
-						className="text-ink-muted/50 hover:bg-sage-soft hover:text-sage inline-flex size-5 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100"
-						onClick={() => {
-							void navigator.clipboard.writeText(value)
-							setCopied(true)
-							window.setTimeout(() => setCopied(false), 1200)
-						}}
-					>
-						{copied ? <span className="text-[9px]">ok</span> : <Copy className="size-3" />}
-					</button>
-				) : null}
-			</span>
-		</div>
-	)
-}
+export default ErrorLogPage

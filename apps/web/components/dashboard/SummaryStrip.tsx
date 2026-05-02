@@ -1,8 +1,11 @@
+import type { FC } from 'react'
+
 import { Banknote, CalendarCheck, ReceiptText, Users } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { formatCurrencyTotals } from '@/lib/crm/model'
-import type { TeacherCrmSummary } from '@/lib/crm/types'
+
+import type { SummaryStripProps } from './SummaryStrip.types'
 
 const items = [
 	{ key: 'activeStudents', label: 'Active students', icon: Users, tone: 'neutral' },
@@ -27,7 +30,7 @@ const railClass = {
 	success: 'bg-success',
 }
 
-export function SummaryStrip({ summary }: { summary: TeacherCrmSummary }) {
+export const SummaryStrip: FC<SummaryStripProps> = ({ summary }) => {
 	const attentionCount = summary.overdueStudents
 
 	return (

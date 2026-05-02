@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { FC } from 'react'
 
 import { Save } from 'lucide-react'
 
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { formatDateOnly, parseDateOnly } from '@/lib/crm/date-model'
 import {
 	formatCurrencyAmount,
 	STUDENT_STATUS_OPTIONS,
@@ -36,63 +37,15 @@ import {
 	getLessonDurationUnits,
 	isSupportedPackageMonths,
 } from '@teacher-crm/api-types'
-
-type StudentFormValues = {
-	firstName: string
-	lastName: string
-	level: string
-	special: string
-	status: StudentWithBalance['status']
-	notes: string
-	birthday: string
-	defaultLessonPrice: string
-	defaultLessonDurationMinutes: string
-	currency: Currency
-	packageMonths: string
-	packageLessonsPerWeek: string
-	packageLessonCount: string
-	packageTotalPrice: string
-	packageLessonPriceOverride: string
-	billingMode: StudentWithBalance['billingMode']
-}
-
-type StudentFormCommand = Omit<
+import type {
+	FormSubmitEvent,
+	PackagePreviewItemProps,
+	StudentFieldProps,
+	StudentFormCommand,
+	StudentFormDialogProps,
+	StudentFormErrors,
 	StudentFormValues,
-	| 'defaultLessonPrice'
-	| 'defaultLessonDurationMinutes'
-	| 'packageMonths'
-	| 'packageLessonsPerWeek'
-	| 'packageLessonCount'
-	| 'packageTotalPrice'
-	| 'packageLessonPriceOverride'
-	| 'birthday'
-> & {
-	fullName: string
-	email: string
-	phone: string
-	birthday: string | null
-	defaultLessonPrice: number
-	defaultLessonDurationMinutes: number
-	currency: Currency
-	packageMonths: number
-	packageLessonsPerWeek: number
-	packageLessonCount: number
-	packageTotalPrice: number
-	packageLessonPriceOverride: number | null
-}
-
-type StudentFormErrors = Partial<Record<keyof StudentFormValues, string>>
-type FormSubmitEvent = {
-	preventDefault: () => void
-}
-
-type StudentFormDialogProps = {
-	open: boolean
-	mode: 'create' | 'edit'
-	student?: StudentWithBalance | null
-	onOpenChange: (open: boolean) => void
-	onSubmit: (input: StudentFormCommand) => Promise<void>
-}
+} from './StudentFormDialog.types'
 
 const initialValues: StudentFormValues = {
 	firstName: '',
@@ -114,20 +67,6 @@ const initialValues: StudentFormValues = {
 }
 
 const textValue = (value: string | null | undefined) => value ?? ''
-function datePickerValue(value: string) {
-	if (!value) return undefined
-	const date = new Date(`${value}T00:00:00`)
-	return Number.isNaN(date.getTime()) ? undefined : date
-}
-
-function dateInputValue(value: Date) {
-	return [
-		value.getFullYear(),
-		String(value.getMonth() + 1).padStart(2, '0'),
-		String(value.getDate()).padStart(2, '0'),
-	].join('-')
-}
-
 const nameFromFullName = (value: string | null | undefined) => {
 	const parts = textValue(value).trim().split(/\s+/).filter(Boolean)
 	return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') }
@@ -248,7 +187,7 @@ function toCommand(values: StudentFormValues): StudentFormCommand {
 	}
 }
 
-export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit }: StudentFormDialogProps) {
+export const StudentFormDialog: FC<StudentFormDialogProps> = ({ open, mode, student, onOpenChange, onSubmit }) => {
 	const [values, setValues] = useState<StudentFormValues>(() => toValues(student))
 	const [errors, setErrors] = useState<StudentFormErrors>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -385,8 +324,8 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 							</Field>
 							<Field label="Birthday">
 								<DatePicker
-									date={datePickerValue(values.birthday)}
-									onSelect={(date) => updateValue('birthday', date ? dateInputValue(date) : '')}
+									date={parseDateOnly(values.birthday)}
+									onSelect={(date) => updateValue('birthday', date ? formatDateOnly(date) : '')}
 									placeholder="Choose birthday"
 									className="w-full"
 								/>
@@ -561,7 +500,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 	)
 }
 
-function PackagePreviewItem({ label, value }: { label: string; value: string }) {
+const PackagePreviewItem: FC<PackagePreviewItemProps> = ({ label, value }) => {
 	return (
 		<div>
 			<p className="text-ink-muted text-xs font-medium">{label}</p>
@@ -570,17 +509,12 @@ function PackagePreviewItem({ label, value }: { label: string; value: string }) 
 	)
 }
 
-function Field({
+const Field: FC<StudentFieldProps> = ({
 	label,
 	error,
 	className,
 	children,
-}: {
-	label: string
-	error?: string
-	className?: string
-	children: ReactNode
-}) {
+}) => {
 	return (
 		<div className={className}>
 			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>

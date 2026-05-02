@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { FC } from 'react'
 
 import { toast } from 'sonner'
 
@@ -12,12 +13,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cloneTheme, radiusOptions } from '@/lib/theme/theme-settings'
 
 import type { CrmThemeSettings } from '@teacher-crm/api-types'
+import type { ThemeColorKey } from './ThemeSettingsClient.types'
 
 function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {
 	return JSON.stringify(a) === JSON.stringify(b)
 }
 
-export function ThemeSettingsClient() {
+export const ThemeSettingsClient: FC = () => {
 	const { loading, saveTheme, theme } = useThemeSettings()
 	const [draft, setDraft] = useState(() => cloneTheme(theme))
 	const [activePreset, setActivePreset] = useState('devl')
@@ -28,7 +30,7 @@ export function ThemeSettingsClient() {
 		setDraft(cloneTheme(theme))
 	}, [theme])
 
-	function updateColor(key: keyof CrmThemeSettings['colors'], value: string) {
+	function updateColor(key: ThemeColorKey, value: string) {
 		setDraft((current) => ({
 			...current,
 			colors: {

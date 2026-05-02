@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { type FC, useEffect } from 'react'
+
+import type { PrivacyModeProviderProps } from './PrivacyModeProvider.types'
 
 const PRIVACY_MODE_STORAGE_KEY = 'teacher-crm-privacy-mode'
 
@@ -13,7 +15,7 @@ function isPrivacyModeShortcut(event: KeyboardEvent) {
 	return (event.ctrlKey || event.metaKey) && !event.altKey && (event.code === 'KeyH' || key === 'h' || key === 'р')
 }
 
-export function PrivacyModeProvider({ children }: { children: React.ReactNode }) {
+export const PrivacyModeProvider: FC<PrivacyModeProviderProps> = ({ children }) => {
 	useEffect(() => {
 		const initial = window.localStorage.getItem(PRIVACY_MODE_STORAGE_KEY) === 'true'
 		applyPrivacyMode(initial)

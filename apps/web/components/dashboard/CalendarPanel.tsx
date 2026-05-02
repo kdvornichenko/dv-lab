@@ -1,3 +1,5 @@
+import type { FC } from 'react'
+
 import { CalendarClock, Link2 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -6,25 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { selectCalendarStatus } from '@/lib/crm/model'
 
-import type { CalendarConnection, CalendarListEntry, CalendarSyncRecord } from '@teacher-crm/api-types'
+import type { CalendarPanelProps } from './CalendarPanel.types'
 
-type CalendarPanelProps = {
-	connection: CalendarConnection
-	calendarOptions?: CalendarListEntry[]
-	syncRecords: CalendarSyncRecord[]
-	onConnect: () => void
-	onSelectCalendar?: (calendarId: string, calendarName: string) => void
-	previewMode?: boolean
-}
-
-export function CalendarPanel({
+export const CalendarPanel: FC<CalendarPanelProps> = ({
 	connection,
 	calendarOptions = [],
 	syncRecords,
 	onConnect,
 	onSelectCalendar,
 	previewMode = false,
-}: CalendarPanelProps) {
+}) => {
 	const calendarStatus = selectCalendarStatus(connection, syncRecords)
 	const selectedPlaceholderValue = 'calendar-not-selected'
 	const selectedCalendarId = connection.selectedCalendarId ?? selectedPlaceholderValue

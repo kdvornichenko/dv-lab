@@ -6,6 +6,7 @@ import { reportCrmError } from '@/hooks/teacherCrmErrors'
 import { loadTeacherCrm, loadTeacherCrmSupplements } from '@/lib/crm/api'
 import { emptyBalance } from '@/lib/crm/state'
 import type { StudentWithBalance, TeacherCrmState, TeacherCrmSummary } from '@/lib/crm/types'
+import type { TeacherCrmCacheSnapshot, TeacherCrmLoadError } from '@/hooks/useTeacherCrmData.types'
 
 import { GOOGLE_CALENDAR_REQUIRED_SCOPES, type CalendarListEntry, type Student } from '@teacher-crm/api-types'
 
@@ -43,13 +44,6 @@ export const emptyTeacherCrmState: TeacherCrmState = {
 	lessonOccurrenceExceptions: [],
 }
 
-type TeacherCrmCacheSnapshot = {
-	state: TeacherCrmState
-	summary: TeacherCrmSummary
-	calendarOptions: CalendarListEntry[]
-	updatedAt: number
-}
-
 const TEACHER_CRM_CACHE_TTL_MS = 30_000
 
 let teacherCrmCache: TeacherCrmCacheSnapshot | null = null
@@ -83,6 +77,7 @@ export function useTeacherCrmData() {
 	const [summary, setSummaryValue] = useState<TeacherCrmSummary>(() => initialCache?.summary ?? emptySummary)
 	const [studentFilter, setStudentFilter] = useState<'all' | Student['status']>('all')
 	const [isLoading, setIsLoading] = useState(() => !initialCache)
+	const [loadError, setLoadError] = useState<TeacherCrmLoadError | null>(null)
 	const [calendarOptions, setCalendarOptionsValue] = useState<CalendarListEntry[]>(
 		() => initialCache?.calendarOptions ?? []
 	)
@@ -132,6 +127,7 @@ export function useTeacherCrmData() {
 			try {
 				const next = await loadTeacherCrmOnce()
 				if (requestId !== refreshRequestIdRef.current) return
+				setLoadError(null)
 				const nextCalendarOptions =
 					next.state.calendarConnection.status === 'connected' ? calendarOptionsRef.current : []
 				setState((current) => ({
@@ -154,10 +150,16 @@ export function useTeacherCrmData() {
 						for (const issue of supplements.issues) reportCrmError(issue.source, issue.error)
 					})
 					.catch((supplementError) => {
-						if (requestId === refreshRequestIdRef.current) reportCrmError('Load CRM billing data', supplementError)
+						if (requestId !== refreshRequestIdRef.current) return
+						const message = supplementError instanceof Error ? supplementError.message : 'Failed to load billing data'
+						setLoadError({ source: 'billing', message })
+						reportCrmError('Load CRM billing data', supplementError)
 					})
 			} catch (refreshError) {
-				if (requestId === refreshRequestIdRef.current) reportCrmError('Load CRM data', refreshError)
+				if (requestId !== refreshRequestIdRef.current) return
+				const message = refreshError instanceof Error ? refreshError.message : 'Failed to load CRM data'
+				setLoadError({ source: 'core', message })
+				reportCrmError('Load CRM data', refreshError)
 			} finally {
 				if (requestId === refreshRequestIdRef.current) setIsLoading(false)
 			}
@@ -199,6 +201,7 @@ export function useTeacherCrmData() {
 		studentFilter,
 		setStudentFilter,
 		isLoading,
+		loadError,
 		refresh,
 	}
 }

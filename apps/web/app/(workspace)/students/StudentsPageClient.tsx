@@ -1,9 +1,11 @@
 'use client'
 
+import type { FC } from 'react'
+
 import { StudentsPanel } from '@/components/students/StudentsPanel'
 import { TeacherCrmPageShell } from '@/components/workspace/TeacherCrmPageShell'
 
-export function StudentsPageClient() {
+export const StudentsPageClient: FC = () => {
 	return (
 		<TeacherCrmPageShell>
 			{(crm, now) => (

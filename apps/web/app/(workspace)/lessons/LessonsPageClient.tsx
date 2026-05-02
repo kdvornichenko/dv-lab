@@ -1,9 +1,11 @@
 'use client'
 
+import type { FC } from 'react'
+
 import { LessonsCalendarPanel } from '@/components/dashboard/LessonsCalendarPanel'
 import { TeacherCrmPageShell } from '@/components/workspace/TeacherCrmPageShell'
 
-export function LessonsPageClient() {
+export const LessonsPageClient: FC = () => {
 	return (
 		<TeacherCrmPageShell classNames={{ main: 'p-0' }}>
 			{(crm) => (

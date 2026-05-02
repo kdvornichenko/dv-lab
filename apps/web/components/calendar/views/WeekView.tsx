@@ -10,7 +10,7 @@ import {
 	type DragEndEvent,
 } from '@dnd-kit/core'
 
-import { useMemo } from 'react'
+import { type FC, useMemo } from 'react'
 
 import { addDays, format, isSameDay, isToday, startOfWeek } from 'date-fns'
 import { Plus } from 'lucide-react'
@@ -22,6 +22,7 @@ import { HOUR_PX, TONE_EVENT, WEEK_END_HOUR, WEEK_START_HOUR } from '../constant
 import { useCalendar } from '../context'
 import type { CalendarEvent } from '../types'
 import { calendarSlot, eventTone, formatEventTime, sameDayEvents } from '../utils'
+import type { HourSlotProps, SlotDropZoneProps, WeekEventProps } from './WeekView.types'
 
 const AVAILABILITY_START_HOUR = 10
 const AVAILABILITY_END_HOUR = 21
@@ -125,7 +126,7 @@ function dropSlots(day: Date, startHour: number, endHour: number) {
 	return slots
 }
 
-export const CalendarWeekView = () => {
+export const CalendarWeekView: FC = () => {
 	const { date, locale, events, onEventClick, onTimeSlotClick, onEventDrop, availabilityMode } = useCalendar()
 	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 	const startHour = availabilityMode ? AVAILABILITY_START_HOUR : WEEK_START_HOUR
@@ -262,17 +263,7 @@ export const CalendarWeekView = () => {
 	)
 }
 
-function HourSlot({
-	day,
-	hour,
-	hourIndex,
-	onTimeSlotClick,
-}: {
-	day: Date
-	hour: number
-	hourIndex: number
-	onTimeSlotClick?: (date: Date) => void
-}) {
+const HourSlot: FC<HourSlotProps> = ({ day, hour, hourIndex, onTimeSlotClick }) => {
 	const slot = calendarSlot(day, hour)
 	return (
 		<button
@@ -290,7 +281,7 @@ function HourSlot({
 	)
 }
 
-function SlotDropZone({ slot, startHour }: { slot: Date; startHour: number }) {
+const SlotDropZone: FC<SlotDropZoneProps> = ({ slot, startHour }) => {
 	const { setNodeRef, isOver } = useDroppable({ id: `slot:${slot.toISOString()}` })
 	const slotMinutes = slot.getHours() * 60 + slot.getMinutes()
 	const top = ((slotMinutes - startHour * 60) / 60) * HOUR_PX
@@ -303,15 +294,7 @@ function SlotDropZone({ slot, startHour }: { slot: Date; startHour: number }) {
 	)
 }
 
-function WeekEvent({
-	event,
-	onEventClick,
-	style,
-}: {
-	event: CalendarEvent
-	onEventClick?: (event: CalendarEvent) => void
-	style: React.CSSProperties
-}) {
+const WeekEvent: FC<WeekEventProps> = ({ event, onEventClick, style }) => {
 	const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
 		id: event.id,
 		disabled: event.draggable === false || event.kind === 'free',
@@ -351,7 +334,7 @@ function WeekEvent({
 	)
 }
 
-function NowLine() {
+const NowLine: FC = () => {
 	const now = new Date()
 	const currentMinutes = now.getHours() * 60 + now.getMinutes()
 	const calendarStart = WEEK_START_HOUR * 60

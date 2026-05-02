@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import type { FC } from 'react'
 import type { DateRange } from 'react-day-picker'
 
 import { enUS } from 'date-fns/locale'
@@ -35,30 +36,24 @@ import {
 	paymentRows,
 	paymentStudentCounts,
 	type CurrencyFilter,
-	type PaymentRow,
 	type SortMode,
 } from '@/lib/crm/payments-model'
 import { cn } from '@/lib/utils'
+import type {
+	ActivePaymentFilter,
+	PaymentMonthGroupProps,
+	PaymentsPanelProps,
+	PaymentTableRowProps,
+} from './PaymentsPanel.types'
 
-import type { Currency, Payment, Student, StudentBalance } from '@teacher-crm/api-types'
-
-type PaymentsPanelProps = {
-	payments: Payment[]
-	students: Student[]
-	studentBalances: StudentBalance[]
-	now: Date
-	onDeletePayment: (paymentId: string) => Promise<void>
-	previewMode?: boolean
-}
-
-export function PaymentsPanel({
+export const PaymentsPanel: FC<PaymentsPanelProps> = ({
 	payments,
 	students,
 	studentBalances,
 	now,
 	onDeletePayment,
 	previewMode = false,
-}: PaymentsPanelProps) {
+}) => {
 	const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null)
 	const [studentFilter, setStudentFilter] = useState<string[]>([])
 	const [currencyFilter, setCurrencyFilter] = useState<CurrencyFilter>(ALL_CURRENCIES)
@@ -76,7 +71,6 @@ export function PaymentsPanel({
 	)
 	const groupedRows = useMemo(() => groupPaymentRows(filteredRows), [filteredRows])
 
-	const allTotals = currencyTotals(rows)
 	const filteredTotals = currencyTotals(filteredRows)
 	const currentMonthCount = currentMonthPaymentCount(rows, now)
 	const studentCounts = useMemo(() => paymentStudentCounts(rows), [rows])
@@ -141,7 +135,7 @@ export function PaymentsPanel({
 					clear: () => setSortMode('date_desc' as const),
 				}
 			: null,
-	].filter((filter): filter is { key: string; label: string; clear: () => void } => Boolean(filter))
+	].filter((filter): filter is ActivePaymentFilter => Boolean(filter))
 
 	function clearFilters() {
 		setQuery('')
@@ -375,21 +369,14 @@ export function PaymentsPanel({
 	)
 }
 
-function PaymentMonthGroup({
+const PaymentMonthGroup: FC<PaymentMonthGroupProps> = ({
 	label,
 	rows,
 	totals,
 	deletingPaymentId,
 	previewMode,
 	onDeletePayment,
-}: {
-	label: string
-	rows: PaymentRow[]
-	totals: Record<Currency, number>
-	deletingPaymentId: string | null
-	previewMode: boolean
-	onDeletePayment: (paymentId: string) => Promise<void>
-}) {
+}) => {
 	return (
 		<>
 			<TableRow data-private className="bg-surface-muted hover:bg-surface-muted">
@@ -413,17 +400,12 @@ function PaymentMonthGroup({
 	)
 }
 
-function PaymentTableRow({
+const PaymentTableRow: FC<PaymentTableRowProps> = ({
 	row,
 	deletingPaymentId,
 	previewMode,
 	onDeletePayment,
-}: {
-	row: PaymentRow
-	deletingPaymentId: string | null
-	previewMode: boolean
-	onDeletePayment: (paymentId: string) => Promise<void>
-}) {
+}) => {
 	const status = PAYMENT_STATUS[row.status]
 	return (
 		<TableRow data-private>

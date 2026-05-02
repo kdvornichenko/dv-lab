@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { FC } from 'react'
 
 import { Banknote, Save } from 'lucide-react'
 
@@ -20,49 +20,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { dateOnlyToApiIso, formatDateOnly, isDateOnly, parseDateOnly, todayDateOnly } from '@/lib/crm/date-model'
 import { formatCurrencyAmount, getPackageTotalPrice, getStudentDurationPrice } from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
 import { calculateMonthlyTotalPrice } from '@teacher-crm/api-types'
-import type { CreatePaymentInput, Currency, PaymentMethod } from '@teacher-crm/api-types'
-
-type PaymentFormDialogProps = {
-	open: boolean
-	student: StudentWithBalance | null
-	onOpenChange: (open: boolean) => void
-	onSubmit: (input: CreatePaymentInput) => Promise<void>
-}
-
-type PaymentFormValues = {
-	amount: string
-	paidAt: string
-	method: PaymentMethod
-	currency: Currency
-	comment: string
-	packagePurchase: boolean
-}
-
-type PaymentFieldErrors = Partial<Record<'amount' | 'paidAt', string>>
+import type { PaymentMethod } from '@teacher-crm/api-types'
+import type {
+	PaymentFieldErrors,
+	PaymentFieldProps,
+	PaymentFormDialogProps,
+	PaymentFormValues,
+} from './PaymentFormDialog.types'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['bank_transfer', 'cash', 'card', 'other']
-
-function todayInputValue() {
-	return new Date().toISOString().slice(0, 10)
-}
-
-function dateInputValue(value: Date) {
-	return [
-		value.getFullYear(),
-		String(value.getMonth() + 1).padStart(2, '0'),
-		String(value.getDate()).padStart(2, '0'),
-	].join('-')
-}
-
-function datePickerValue(value: string) {
-	if (!value) return undefined
-	const date = new Date(`${value}T00:00:00`)
-	return Number.isNaN(date.getTime()) ? undefined : date
-}
 
 function defaultAmount(student: StudentWithBalance | null) {
 	if (!student) return 0
@@ -94,7 +65,7 @@ function shouldOpenPackageCycle(student: StudentWithBalance | null) {
 function initialValues(student: StudentWithBalance | null): PaymentFormValues {
 	return {
 		amount: String(defaultAmount(student)),
-		paidAt: todayInputValue(),
+		paidAt: todayDateOnly(),
 		method: 'bank_transfer',
 		currency: defaultCurrency(student),
 		comment: shouldOpenPackageCycle(student) ? 'Package renewal' : 'Lesson payment',
@@ -108,7 +79,7 @@ function paymentIdempotencyKey() {
 		: `pay_${Date.now()}_${Math.random().toString(36).slice(2)}`
 }
 
-export function PaymentFormDialog({ open, student, onOpenChange, onSubmit }: PaymentFormDialogProps) {
+export const PaymentFormDialog: FC<PaymentFormDialogProps> = ({ open, student, onOpenChange, onSubmit }) => {
 	const formId = useId()
 	const idempotencyKeyRef = useRef(paymentIdempotencyKey())
 	const isSubmittingRef = useRef(false)
@@ -137,8 +108,7 @@ export function PaymentFormDialog({ open, student, onOpenChange, onSubmit }: Pay
 	const dateErrorId = `${dateId}-error`
 	const amount = Number(values.amount)
 	const amountValid = Number.isFinite(amount) && amount > 0
-	const paidAtValid =
-		/^\d{4}-\d{2}-\d{2}$/.test(values.paidAt) && !Number.isNaN(new Date(`${values.paidAt}T00:00:00.000Z`).getTime())
+	const paidAtValid = isDateOnly(values.paidAt)
 
 	async function submit() {
 		if (!student) return
@@ -158,7 +128,7 @@ export function PaymentFormDialog({ open, student, onOpenChange, onSubmit }: Pay
 				studentId: student.id,
 				amount,
 				currency: values.packagePurchase ? student.currency : values.currency,
-				paidAt: `${values.paidAt}T00:00:00.000Z`,
+				paidAt: dateOnlyToApiIso(values.paidAt),
 				method: values.method,
 				comment: values.comment.trim(),
 				packagePurchase: values.packagePurchase,
@@ -216,8 +186,8 @@ export function PaymentFormDialog({ open, student, onOpenChange, onSubmit }: Pay
 						</Field>
 						<Field id={dateId} label="Payment date" error={fieldErrors.paidAt} errorId={dateErrorId}>
 							<DatePicker
-								date={datePickerValue(values.paidAt)}
-								onSelect={(date) => setValues((current) => ({ ...current, paidAt: date ? dateInputValue(date) : '' }))}
+								date={parseDateOnly(values.paidAt)}
+								onSelect={(date) => setValues((current) => ({ ...current, paidAt: date ? formatDateOnly(date) : '' }))}
 								placeholder="Choose date"
 								className="w-full font-mono tabular-nums"
 							/>
@@ -285,19 +255,13 @@ export function PaymentFormDialog({ open, student, onOpenChange, onSubmit }: Pay
 	)
 }
 
-function Field({
+const Field: FC<PaymentFieldProps> = ({
 	id,
 	label,
 	error,
 	errorId,
 	children,
-}: {
-	id: string
-	label: string
-	error?: string
-	errorId?: string
-	children: ReactNode
-}) {
+}) => {
 	return (
 		<div>
 			<Label htmlFor={id} className="text-ink-muted mb-1.5 block text-xs font-medium">

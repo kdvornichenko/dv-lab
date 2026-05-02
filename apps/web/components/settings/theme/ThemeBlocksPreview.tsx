@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { FC } from 'react'
 
 import { BookOpenCheck, CalendarClock, GraduationCap } from 'lucide-react'
 
@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { themeCssVariables } from '@/lib/theme/theme-settings'
 
-import type { CreateLessonInput, CreateStudentInput, CrmThemeSettings, UpdateLessonInput } from '@teacher-crm/api-types'
+import type { CreateLessonInput, CreateStudentInput, UpdateLessonInput } from '@teacher-crm/api-types'
 
 import {
 	previewBalances,
@@ -30,12 +30,13 @@ import {
 	previewSummary,
 	routeLinks,
 } from './theme-preview-data'
+import type { PreviewMetricProps, ThemeBlocksPreviewProps } from './ThemeBlocksPreview.types'
 
 function previewOnly() {
 	return undefined
 }
 
-export function ThemeBlocksPreview({ theme }: { theme: CrmThemeSettings }) {
+export const ThemeBlocksPreview: FC<ThemeBlocksPreviewProps> = ({ theme }) => {
 	return (
 		<ScrollArea className="h-[calc(100%-5rem)] font-sans" style={themeCssVariables(theme)}>
 			<div className="bg-canvas p-5">
@@ -101,7 +102,7 @@ export function ThemeBlocksPreview({ theme }: { theme: CrmThemeSettings }) {
 	)
 }
 
-function SettingsPreviewCard() {
+const SettingsPreviewCard: FC = () => {
 	const offerText =
 		'До конца года также доступны варианты с пониженной стоимостью при оплате наперед:\n\n* при оплате за 3 месяца стоимость занятия составляет 2100 рублей\nза 3 месяца - 24 занятия - 50 400 рублей\nэкономия - 4 800 рублей\n\n* при оплате за 5 месяцев стоимость занятия составляет 1900 рублей\nза 5 месяцев - 40 занятий - 76 000 рублей\nэкономия - 16 000 рублей'
 
@@ -123,7 +124,7 @@ function SettingsPreviewCard() {
 	)
 }
 
-function PreviewMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+const PreviewMetric: FC<PreviewMetricProps> = ({ icon, label, value }) => {
 	return (
 		<div className="border-line-soft bg-surface-muted flex items-center gap-3 rounded-lg border p-3">
 			<span className="border-sage-line bg-sage-soft text-sage flex size-9 items-center justify-center rounded-lg border">

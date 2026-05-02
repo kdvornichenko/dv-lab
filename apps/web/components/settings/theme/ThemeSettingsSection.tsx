@@ -1,16 +1,8 @@
-import type { ReactNode } from 'react'
+import type { FC } from 'react'
 
-export function ThemeSettingsSection({
-	children,
-	hint,
-	icon,
-	title,
-}: {
-	children: ReactNode
-	hint?: string
-	icon?: ReactNode
-	title: string
-}) {
+import type { ThemeSettingsSectionProps } from './ThemeSettingsSection.types'
+
+export const ThemeSettingsSection: FC<ThemeSettingsSectionProps> = ({ children, hint, icon, title }) => {
 	return (
 		<section className="border-line bg-surface rounded-2xl border p-4 shadow-[0_18px_55px_-48px_var(--shadow-sage)]">
 			<header className="mb-4 flex items-start gap-3">

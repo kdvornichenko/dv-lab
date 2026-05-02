@@ -1,5 +1,7 @@
 'use client'
 
+import type { FC } from 'react'
+
 import { addDays, differenceInMinutes, format, isToday, setHours, startOfDay } from 'date-fns'
 import { CalendarPlus, MapPin, Video } from 'lucide-react'
 
@@ -9,10 +11,10 @@ import { cn } from '@/lib/utils'
 import { TONE_RAIL } from '../constants'
 import { useCalendar } from '../context'
 import { AttendeeStack, EventBadges } from '../event-parts'
-import type { CalendarEvent } from '../types'
 import { eventTone, formatEventTime, sameDayEvents } from '../utils'
+import type { AgendaSectionProps } from './AgendaView.types'
 
-export const CalendarDayView = () => {
+export const CalendarDayView: FC = () => {
 	const { date, events, locale, onEventClick, onTimeSlotClick } = useCalendar()
 	const selectedDay = startOfDay(date)
 	const nextDay = addDays(selectedDay, 1)
@@ -63,17 +65,7 @@ export const CalendarDayView = () => {
 	)
 }
 
-function AgendaSection({
-	label,
-	date,
-	events,
-	onEventClick,
-}: {
-	label: string
-	date: Date
-	events: CalendarEvent[]
-	onEventClick?: (event: CalendarEvent) => void
-}) {
+const AgendaSection: FC<AgendaSectionProps> = ({ label, date, events, onEventClick }) => {
 	const { locale } = useCalendar()
 
 	return (

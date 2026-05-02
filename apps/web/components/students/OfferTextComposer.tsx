@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { type FC, useState } from 'react'
 
 import { Copy } from 'lucide-react'
 
@@ -17,7 +17,9 @@ import {
 	calculatePackageTotalPriceRub,
 } from '@teacher-crm/api-types'
 
-export function OfferTextComposer() {
+import type { OfferInputProps, OfferPackageInputsProps } from './OfferTextComposer.types'
+
+export const OfferTextComposer: FC = () => {
 	const [baseLessonPrice, setBaseLessonPrice] = useState(String(LESSON_PRICE_RUB.default))
 	const [lessonDurationMinutes, setLessonDurationMinutes] = useState(String(DEFAULT_LESSON_DURATION_MINUTES))
 	const [threeLessonsPerWeek, setThreeLessonsPerWeek] = useState('2')
@@ -80,21 +82,14 @@ export function OfferTextComposer() {
 	)
 }
 
-function OfferPackageInputs({
+const OfferPackageInputs: FC<OfferPackageInputsProps> = ({
 	label,
 	baseLessonPrice,
 	lessonDurationMinutes,
 	months,
 	lessonsPerWeek,
 	onLessonsPerWeekChange,
-}: {
-	label: string
-	baseLessonPrice: string
-	lessonDurationMinutes: string
-	months: 3 | 5
-	lessonsPerWeek: string
-	onLessonsPerWeekChange: (value: string) => void
-}) {
+}) => {
 	const lessonCount = calculatePackageLessonCount({
 		packageMonths: months,
 		packageLessonsPerWeek: Math.max(Math.floor(safeNumber(lessonsPerWeek)), 0),
@@ -134,7 +129,7 @@ function OfferPackageInputs({
 	)
 }
 
-function OfferInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+const OfferInput: FC<OfferInputProps> = ({ label, value, onChange }) => {
 	return (
 		<div className="grid grid-cols-2 items-center gap-2">
 			<Label className="text-ink-muted mb-1.5 block text-sm font-medium">{label}</Label>

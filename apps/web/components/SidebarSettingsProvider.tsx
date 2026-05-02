@@ -1,6 +1,6 @@
 'use client'
 
-import * as React from 'react'
+import { type FC, createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 import {
 	AlertTriangle,
@@ -19,6 +19,8 @@ import { teacherCrmApi } from '@/lib/crm/api'
 
 import { DEFAULT_SIDEBAR_ITEMS, type SidebarItem } from '@teacher-crm/api-types'
 
+import type { SidebarSettingsContextValue, SidebarSettingsProviderProps } from './SidebarSettingsProvider.types'
+
 export type { SidebarItem }
 
 export const iconRegistry: Record<string, LucideIcon> = {
@@ -34,20 +36,7 @@ export const iconRegistry: Record<string, LucideIcon> = {
 
 const defaultItems: SidebarItem[] = DEFAULT_SIDEBAR_ITEMS.map((item) => ({ ...item }))
 
-type SidebarSettingsContextValue = {
-	items: SidebarItem[]
-	visibleItems: SidebarItem[]
-	loading: boolean
-	toggleItem: (id: string) => void
-	moveItem: (id: string, direction: 'up' | 'down') => void
-	reorderItems: (activeId: string, overId: string) => void
-	addItem: (item: Omit<SidebarItem, 'id' | 'locked'>) => void
-	updateItem: (id: string, input: Partial<Omit<SidebarItem, 'id' | 'locked'>>) => void
-	deleteItem: (id: string) => void
-	resetItems: () => void
-}
-
-const SidebarSettingsContext = React.createContext<SidebarSettingsContextValue | null>(null)
+const SidebarSettingsContext = createContext<SidebarSettingsContextValue | null>(null)
 
 function slug(value: string) {
 	return (
@@ -70,11 +59,11 @@ function newSidebarItemId(title: string, items: readonly SidebarItem[]) {
 	return candidate
 }
 
-export function SidebarSettingsProvider({ children }: { children: React.ReactNode }) {
-	const [items, setItems] = React.useState<SidebarItem[]>(defaultItems)
-	const [isLoading, setIsLoading] = React.useState(true)
+export const SidebarSettingsProvider: FC<SidebarSettingsProviderProps> = ({ children }) => {
+	const [items, setItems] = useState<SidebarItem[]>(defaultItems)
+	const [isLoading, setIsLoading] = useState(true)
 
-	React.useEffect(() => {
+	useEffect(() => {
 		let cancelled = false
 
 		async function loadSidebarSettings() {
@@ -95,7 +84,7 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 		}
 	}, [])
 
-	const persistItems = React.useCallback(async (nextItems: SidebarItem[]) => {
+	const persistItems = useCallback(async (nextItems: SidebarItem[]) => {
 		try {
 			const response = await teacherCrmApi.saveSidebarItems(nextItems)
 			setItems(response.items)
@@ -105,7 +94,7 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 		}
 	}, [])
 
-	const commitItems = React.useCallback(
+	const commitItems = useCallback(
 		(updater: (current: SidebarItem[]) => SidebarItem[]) => {
 			setItems((current) => {
 				const nextItems = updater(current)
@@ -116,7 +105,7 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 		[persistItems]
 	)
 
-	const value = React.useMemo<SidebarSettingsContextValue>(
+	const value = useMemo<SidebarSettingsContextValue>(
 		() => ({
 			items,
 			visibleItems: isLoading ? [] : items.filter((item) => item.visible),
@@ -167,7 +156,7 @@ export function SidebarSettingsProvider({ children }: { children: React.ReactNod
 }
 
 export function useSidebarSettings() {
-	const value = React.useContext(SidebarSettingsContext)
+	const value = useContext(SidebarSettingsContext)
 	if (!value) throw new Error('useSidebarSettings must be used within SidebarSettingsProvider.')
 	return value
 }

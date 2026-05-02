@@ -87,6 +87,10 @@ export const metadata: Metadata = {
 const themeHydrationScript = `
 (() => {
 	try {
+		document.documentElement.classList.toggle(
+			'privacy-mode',
+			window.localStorage.getItem('teacher-crm-privacy-mode') === 'true'
+		);
 		const raw = window.localStorage.getItem('teacher-crm-theme');
 		if (!raw) return;
 		let theme = JSON.parse(raw);

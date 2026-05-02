@@ -1,11 +1,15 @@
 'use client'
 
+import type { FC } from 'react'
+
 import { CalendarPanel } from '@/components/dashboard/CalendarPanel'
 import { Badge } from '@/components/ui/badge'
 import { TeacherCrmPageShell } from '@/components/workspace/TeacherCrmPageShell'
 import { formatDateShort, lessonDisplayTitle } from '@/lib/crm/model'
 
-export function CalendarPageClient() {
+import type { CalendarSyncPanelProps } from './CalendarPageClient.types'
+
+export const CalendarPageClient: FC = () => {
 	return (
 		<TeacherCrmPageShell>
 			{(crm) => (
@@ -29,13 +33,7 @@ export function CalendarPageClient() {
 	)
 }
 
-function CalendarSyncPanel({
-	syncRecords,
-	lessonTitles,
-}: {
-	syncRecords: { id: string; lessonId: string; status: string; updatedAt: string; lastError: string | null }[]
-	lessonTitles: Map<string, string>
-}) {
+const CalendarSyncPanel: FC<CalendarSyncPanelProps> = ({ syncRecords, lessonTitles }) => {
 	const visibleRecords = syncRecords.filter((record) => record.status !== 'synced')
 
 	return (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { type FC, useState } from 'react'
 
 import { Archive, ArrowLeft, Banknote, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
@@ -16,7 +16,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useTeacherCrm } from '@/hooks/useTeacherCrm'
 import { findStudentByRouteId } from '@/lib/crm/student-route-id'
 
-export function StudentSettingsClient({ studentId }: { studentId: string }) {
+import type { StudentSettingsClientProps } from './StudentSettingsClient.types'
+
+export const StudentSettingsClient: FC<StudentSettingsClientProps> = ({ studentId }) => {
 	const router = useRouter()
 	const crm = useTeacherCrm()
 	const [isEditOpen, setIsEditOpen] = useState(false)
@@ -129,7 +131,7 @@ export function StudentSettingsClient({ studentId }: { studentId: string }) {
 	)
 }
 
-function StudentSettingsSkeleton() {
+const StudentSettingsSkeleton: FC = () => {
 	return (
 		<main className="min-h-full p-unit">
 			<div className="grid content-start gap-5">

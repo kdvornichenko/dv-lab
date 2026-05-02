@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { FC } from 'react'
 
 import { AlertTriangle, Save, Trash2 } from 'lucide-react'
 
@@ -19,48 +19,19 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { formatDateOnly, parseDateOnly } from '@/lib/crm/date-model'
 import { getStudentShortName } from '@/lib/crm/model'
 
-import type { CalendarBusyInterval, CreateLessonInput, DeleteLessonQuery, Lesson, Student } from '@teacher-crm/api-types'
-
-type LessonFormCommand = CreateLessonInput & {
-	applyToFuture?: boolean
-	occurrenceStartsAt?: string
-}
-type CalendarConflictCommand = CreateLessonInput & {
-	excludeLessonId?: string
-}
-
-type LessonFormValues = {
-	date: string
-	time: string
-	durationMinutes: string
-	topic: string
-	notes: string
-	status: Lesson['status']
-	studentId: string
-	repeatWeekly: boolean
-	repeatCount: string
-	applyToFuture: boolean
-}
-
-type LessonFormErrors = Partial<Record<keyof LessonFormValues | 'startsAt', string>>
-type FormSubmitEvent = {
-	preventDefault: () => void
-}
-
-type LessonFormDialogProps = {
-	open: boolean
-	students: Student[]
-	lessons: Lesson[]
-	lesson?: Lesson | null
-	occurrenceStartsAt?: string | null
-	defaultStartsAt?: Date | null
-	onOpenChange: (open: boolean) => void
-	onSubmit: (input: LessonFormCommand) => Promise<void>
-	onDelete?: (options?: DeleteLessonQuery) => Promise<void>
-	onCheckCalendarConflicts?: (input: CalendarConflictCommand) => Promise<CalendarBusyInterval[]>
-}
+import type { CalendarBusyInterval, Lesson, Student } from '@teacher-crm/api-types'
+import type {
+	CalendarConflictCommand,
+	FormSubmitEvent,
+	LessonFieldProps,
+	LessonFormCommand,
+	LessonFormDialogProps,
+	LessonFormErrors,
+	LessonFormValues,
+} from './LessonFormDialog.types'
 
 const statusOptions = [
 	'planned',
@@ -78,14 +49,6 @@ function tomorrowDate() {
 	return value
 }
 
-function dateInputValue(value: Date) {
-	return [
-		value.getFullYear(),
-		String(value.getMonth() + 1).padStart(2, '0'),
-		String(value.getDate()).padStart(2, '0'),
-	].join('-')
-}
-
 function timeInputValue(value: Date) {
 	return `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
 }
@@ -97,12 +60,6 @@ function conflictDateValue(value: Date) {
 	}).format(value)
 }
 
-function datePickerValue(value: string) {
-	if (!value) return undefined
-	const date = new Date(`${value}T00:00:00`)
-	return Number.isNaN(date.getTime()) ? undefined : date
-}
-
 function initialValues(
 	students: Student[],
 	lesson?: Lesson | null,
@@ -112,7 +69,7 @@ function initialValues(
 	if (lesson) {
 		const startsAt = new Date(occurrenceStartsAt ?? lesson.startsAt)
 		return {
-			date: dateInputValue(startsAt),
+			date: formatDateOnly(startsAt),
 			time: timeInputValue(startsAt),
 			durationMinutes: String(lesson.durationMinutes),
 			topic: lesson.topic ?? '',
@@ -129,7 +86,7 @@ function initialValues(
 	const firstActiveStudent = students.find((student) => student.status === 'active') ?? students[0]
 
 	return {
-		date: dateInputValue(startsAt),
+		date: formatDateOnly(startsAt),
 		time: timeInputValue(startsAt),
 		durationMinutes: String(firstActiveStudent?.defaultLessonDurationMinutes ?? 60),
 		topic: '',
@@ -223,7 +180,7 @@ function calendarConflictTitle(conflict: CalendarBusyInterval) {
 	return conflict.title?.trim() || 'Busy time'
 }
 
-export function LessonFormDialog({
+export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 	open,
 	students,
 	lessons,
@@ -234,7 +191,7 @@ export function LessonFormDialog({
 	onSubmit,
 	onDelete,
 	onCheckCalendarConflicts,
-}: LessonFormDialogProps) {
+}) => {
 	const selectableStudents = useMemo(() => students.filter((student) => student.status !== 'archived'), [students])
 	const [values, setValues] = useState<LessonFormValues>(() =>
 		initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt)
@@ -243,6 +200,7 @@ export function LessonFormDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [isCheckingCalendar, setIsCheckingCalendar] = useState(false)
 	const [calendarConflicts, setCalendarConflicts] = useState<CalendarBusyInterval[]>([])
+	const [calendarConflictCheckError, setCalendarConflictCheckError] = useState<string | null>(null)
 	const mode = lesson ? 'edit' : 'create'
 	const conflicts = useMemo(() => findConflicts(values, lessons, lesson?.id), [lesson?.id, lessons, values])
 
@@ -255,25 +213,34 @@ export function LessonFormDialog({
 	useEffect(() => {
 		if (!open || !onCheckCalendarConflicts) {
 			setCalendarConflicts([])
+			setCalendarConflictCheckError(null)
 			setIsCheckingCalendar(false)
 			return
 		}
 		const selectedStudent = selectableStudents.find((student) => student.id === values.studentId)
 		if (!selectedStudent || Object.keys(validate(values)).length > 0) {
 			setCalendarConflicts([])
+			setCalendarConflictCheckError(null)
 			setIsCheckingCalendar(false)
 			return
 		}
 
 		let cancelled = false
 		setIsCheckingCalendar(true)
+		setCalendarConflictCheckError(null)
 		const timeoutId = window.setTimeout(() => {
 			onCheckCalendarConflicts(toCalendarConflictCommand(values, selectedStudent, lesson?.id))
 				.then((busy) => {
-					if (!cancelled) setCalendarConflicts(busy)
+					if (!cancelled) {
+						setCalendarConflicts(busy)
+						setCalendarConflictCheckError(null)
+					}
 				})
-				.catch(() => {
-					if (!cancelled) setCalendarConflicts([])
+				.catch((error) => {
+					if (!cancelled) {
+						setCalendarConflicts([])
+						setCalendarConflictCheckError(error instanceof Error ? error.message : 'Calendar conflict check failed')
+					}
 				})
 				.finally(() => {
 					if (!cancelled) setIsCheckingCalendar(false)
@@ -305,6 +272,9 @@ export function LessonFormDialog({
 		event.preventDefault()
 		if (isCheckingCalendar) return
 		const nextErrors = validate(values)
+		if (calendarConflictCheckError) {
+			nextErrors.startsAt = 'Calendar availability check failed. Try again before saving.'
+		}
 		setErrors(nextErrors)
 		if (Object.keys(nextErrors).length > 0) return
 		const selectedStudent = selectableStudents.find((student) => student.id === values.studentId)
@@ -386,8 +356,8 @@ export function LessonFormDialog({
 							</Field>
 							<Field label="Date" error={errors.startsAt}>
 								<DatePicker
-									date={datePickerValue(values.date)}
-									onSelect={(date) => updateValue('date', date ? dateInputValue(date) : '')}
+									date={parseDateOnly(values.date)}
+									onSelect={(date) => updateValue('date', date ? formatDateOnly(date) : '')}
 									placeholder="Choose date"
 									className="w-full font-mono tabular-nums"
 								/>
@@ -499,6 +469,19 @@ export function LessonFormDialog({
 									</div>
 								</div>
 							)}
+							{calendarConflictCheckError && (
+								<div className="border-warning-line bg-warning-soft/55 rounded-lg border p-3 md:col-span-2">
+									<div className="flex items-start gap-2">
+										<AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+										<div className="min-w-0">
+											<p className="font-heading text-ink text-sm font-semibold">Google Calendar check failed</p>
+											<p className="text-ink-muted mt-1 text-xs">
+												Saving is paused until the busy-time check succeeds. Change the time or try again in a moment.
+											</p>
+										</div>
+									</div>
+								</div>
+							)}
 							<Field label="Notes" error={errors.notes} className="md:col-span-2">
 								<Textarea
 									value={values.notes}
@@ -524,7 +507,15 @@ export function LessonFormDialog({
 								<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
 									Cancel
 								</Button>
-								<Button type="submit" disabled={isSubmitting || isCheckingCalendar || selectableStudents.length === 0}>
+								<Button
+									type="submit"
+									disabled={
+										isSubmitting ||
+										isCheckingCalendar ||
+										Boolean(calendarConflictCheckError) ||
+										selectableStudents.length === 0
+									}
+								>
 									<Save className="h-4 w-4" />
 									{isSubmitting
 										? 'Saving'
@@ -543,17 +534,12 @@ export function LessonFormDialog({
 	)
 }
 
-function Field({
+const Field: FC<LessonFieldProps> = ({
 	label,
 	error,
 	className,
 	children,
-}: {
-	label: string
-	error?: string
-	className?: string
-	children: ReactNode
-}) {
+}) => {
 	return (
 		<div className={className}>
 			<Label className="text-ink-muted mb-1.5 block text-xs font-medium">{label}</Label>

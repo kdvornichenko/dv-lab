@@ -1,18 +1,10 @@
+import type { FC } from 'react'
+
 import { Check } from 'lucide-react'
 
-import type { CrmThemeSettings } from '@teacher-crm/api-types'
+import type { ThemePresetCardProps } from './ThemePresetCard.types'
 
-export function ThemePresetCard({
-	active,
-	label,
-	onSelect,
-	theme,
-}: {
-	active: boolean
-	label: string
-	onSelect: () => void
-	theme: CrmThemeSettings
-}) {
+export const ThemePresetCard: FC<ThemePresetCardProps> = ({ active, label, onSelect, theme }) => {
 	return (
 		<button
 			type="button"

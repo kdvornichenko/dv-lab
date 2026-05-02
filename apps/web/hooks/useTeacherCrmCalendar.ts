@@ -10,9 +10,8 @@ import {
 	type SetStateAction,
 } from 'react'
 
-import { crmErrorMessage, reportCrmError } from '@/hooks/teacherCrmErrors'
+import { reportCrmError } from '@/hooks/teacherCrmErrors'
 import { saveCurrentGoogleCalendarTokens, teacherCrmCalendarApi } from '@/lib/crm/api'
-import { saveCrmError } from '@/lib/crm/error-log'
 import type { TeacherCrmState } from '@/lib/crm/types'
 
 import type { CalendarBusyInterval, CalendarListEntry, CreateLessonInput } from '@teacher-crm/api-types'
@@ -200,11 +199,8 @@ export function useTeacherCrmCalendar({
 				})
 				return response.busy
 			} catch (error) {
-				const message = crmErrorMessage(error)
-				void saveCrmError({ source: 'Check calendar conflicts', message }).catch((logError) => {
-					console.error('[teacher-crm] failed to persist CRM error', logError)
-				})
-				return []
+				reportCrmError('Check calendar conflicts', error)
+				throw error
 			}
 		},
 		[]

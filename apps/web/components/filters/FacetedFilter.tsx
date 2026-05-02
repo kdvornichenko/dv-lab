@@ -1,7 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import type React from 'react'
+import { type FC, useMemo, useState } from 'react'
 
 import { Check, PlusCircle, Search, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -13,34 +12,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
-type ButtonVariant = React.ComponentProps<typeof Button>['variant']
+import type { FacetedFilterOption, FacetedFilterProps } from './FacetedFilter.types'
 
-export type FacetedFilterOption = {
-	value: string
-	label: string
-	count?: number
-	keywords?: string[]
-	leading?: React.ReactNode
-}
+export type { FacetedFilterOption }
 
-type FacetedFilterProps = {
-	label: string
-	value: string[]
-	options: FacetedFilterOption[]
-	onValueChange: (value: string[]) => void
-	icon?: React.ReactNode
-	mode?: 'single' | 'multiple'
-	buttonVariant?: ButtonVariant
-	searchPlaceholder?: string
-	emptyText?: string
-	className?: string
-	contentClassName?: string
-	renderOption?: (option: FacetedFilterOption, state: { selected: boolean }) => React.ReactNode
-	renderSelected?: (options: FacetedFilterOption[]) => React.ReactNode
-	active?: boolean
-}
-
-export function FacetedFilter({
+export const FacetedFilter: FC<FacetedFilterProps> = ({
 	label,
 	value,
 	options,
@@ -55,7 +31,7 @@ export function FacetedFilter({
 	renderOption,
 	renderSelected,
 	active,
-}: FacetedFilterProps) {
+}) => {
 	const [open, setOpen] = useState(false)
 	const [query, setQuery] = useState('')
 	const selectedSet = useMemo(() => new Set(value), [value])
