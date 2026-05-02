@@ -166,7 +166,7 @@ export const PetSettingsClient: FC = () => {
 										Sound
 									</Label>
 									<p className="text-ink-muted mt-1 text-sm leading-6">
-										Allow pet sounds after browser audio permission. Default is off.
+										Keep the preference saved for future pet sounds. No audio plays by default.
 									</p>
 								</div>
 							</div>
