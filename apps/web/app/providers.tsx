@@ -7,6 +7,7 @@ import { ThemeProvider as NextThemesProvider } from 'next-themes'
 import { SidebarSettingsProvider } from '@/components/SidebarSettingsProvider'
 import { ThemeSettingsProvider } from '@/components/ThemeSettingsProvider'
 import { PrivacyModeProvider } from '@/components/PrivacyModeProvider'
+import { WebsitePetProvider } from '@/components/pet/WebsitePetProvider'
 import { Toaster } from '@/components/ui/sonner'
 
 import type { ThemeProvidersProps, WorkspaceProvidersProps } from './providers.types'
@@ -23,5 +24,9 @@ export const ThemeProviders: FC<ThemeProvidersProps> = ({ children, themeProps }
 }
 
 export const WorkspaceProviders: FC<WorkspaceProvidersProps> = ({ children }) => {
-	return <SidebarSettingsProvider>{children}</SidebarSettingsProvider>
+	return (
+		<SidebarSettingsProvider>
+			<WebsitePetProvider>{children}</WebsitePetProvider>
+		</SidebarSettingsProvider>
+	)
 }
