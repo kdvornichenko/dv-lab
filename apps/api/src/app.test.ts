@@ -205,6 +205,35 @@ assert.equal(updateThemeSettingsBody.theme.numberFont, 'roboto-mono')
 assert.equal(updateThemeSettingsBody.theme.colors.card, themeSettingsBody.theme.colors.card)
 assert.equal(updateThemeSettingsBody.theme.fontSizes.body, themeSettingsBody.theme.fontSizes.body)
 
+const petSettings = await app.request('/settings/pet', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(petSettings.status, 200)
+const petSettingsBody = await petSettings.json()
+assert.equal(petSettingsBody.settings.enabled, true)
+assert.equal(petSettingsBody.settings.soundEnabled, false)
+assert.equal(petSettingsBody.settings.activityLevel, 'normal')
+
+const updatePetSettings = await app.request('/settings/pet', {
+	method: 'PUT',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		enabled: false,
+		soundEnabled: true,
+		activityLevel: 'playful',
+	}),
+})
+assert.equal(updatePetSettings.status, 200)
+const updatePetSettingsBody = await updatePetSettings.json()
+assert.equal(updatePetSettingsBody.settings.enabled, false)
+assert.equal(updatePetSettingsBody.settings.soundEnabled, true)
+assert.equal(updatePetSettingsBody.settings.activityLevel, 'playful')
+
 const createCrmError = await app.request('/errors', {
 	method: 'POST',
 	headers: {

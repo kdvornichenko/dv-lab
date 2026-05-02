@@ -168,6 +168,18 @@ export const updateSidebarSettingsSchema = z.object({
 	items: z.array(sidebarItemSchema).min(1),
 })
 
+export const petSettingsSchema = z.object({
+	enabled: z.boolean().default(true),
+	soundEnabled: z.boolean().default(false),
+	activityLevel: z.enum(['reduced', 'normal', 'playful']).default('normal'),
+})
+export type PetSettings = z.infer<typeof petSettingsSchema>
+export const DEFAULT_PET_SETTINGS = {
+	enabled: true,
+	soundEnabled: false,
+	activityLevel: 'normal',
+} as const satisfies PetSettings
+
 export const crmErrorLogEntrySchema = z.object({
 	id: z.string(),
 	source: z.string().min(1),
@@ -534,12 +546,11 @@ export const createCalendarBlockSchema = z.object({
 	durationMinutes: z.coerce.number().int().positive(),
 })
 
-export const updateCalendarBlockSchema = createCalendarBlockSchema.partial().refine(
-	(input) => Object.keys(input).length > 0,
-	{
+export const updateCalendarBlockSchema = createCalendarBlockSchema
+	.partial()
+	.refine((input) => Object.keys(input).length > 0, {
 		message: 'At least one calendar block field must be provided',
-	}
-)
+	})
 
 export const calendarListEntrySchema = z.object({
 	id: z.string(),
@@ -753,6 +764,11 @@ export const themeSettingsResponseSchema = z.object({
 	theme: crmThemeSettingsSchema,
 })
 
+export const petSettingsResponseSchema = z.object({
+	ok: z.literal(true),
+	settings: petSettingsSchema,
+})
+
 export const crmErrorLogResponseSchema = z.object({
 	ok: z.literal(true),
 	errors: z.array(crmErrorLogEntrySchema),
@@ -828,5 +844,6 @@ export type CalendarBlockMutationResponse = z.infer<typeof calendarBlockMutation
 export type DashboardResponse = z.infer<typeof dashboardResponseSchema>
 export type SidebarSettingsResponse = z.infer<typeof sidebarSettingsResponseSchema>
 export type ThemeSettingsResponse = z.infer<typeof themeSettingsResponseSchema>
+export type PetSettingsResponse = z.infer<typeof petSettingsResponseSchema>
 export type CrmErrorLogResponse = z.infer<typeof crmErrorLogResponseSchema>
 export type CrmErrorLogMutationResponse = z.infer<typeof crmErrorLogMutationResponseSchema>

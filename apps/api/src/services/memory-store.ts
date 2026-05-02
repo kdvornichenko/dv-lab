@@ -1,6 +1,7 @@
 import {
 	DEFAULT_CRM_THEME_SETTINGS,
 	DEFAULT_LESSON_DURATION_MINUTES,
+	DEFAULT_PET_SETTINGS,
 	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
 	BILLABLE_ATTENDANCE_STATUSES,
@@ -28,6 +29,7 @@ import {
 	type LessonOccurrenceException,
 	type MarkAttendanceInput,
 	type Payment,
+	type PetSettings,
 	type SaveCrmErrorInput,
 	type SidebarItem,
 	type Student,
@@ -57,6 +59,7 @@ type TeacherStoreState = {
 	sidebarItems: SidebarItem[]
 	errorLogs: Map<string, CrmErrorLogEntry>
 	theme: CrmThemeSettings
+	petSettings: PetSettings
 }
 
 const stores = new Map<string, TeacherStoreState>()
@@ -116,7 +119,10 @@ const studentPackageTotal = (
 		packageLessonPriceOverride: student.packageLessonPriceOverride,
 	})
 const studentPackageLessonPrice = (
-	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths' | 'packageLessonPriceOverride'>,
+	student: Pick<
+		Student,
+		'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths' | 'packageLessonPriceOverride'
+	>,
 	durationMinutes = student.defaultLessonDurationMinutes
 ) =>
 	calculatePackageLessonPriceRub({
@@ -177,6 +183,7 @@ function createStoreState(): TeacherStoreState {
 			fontSizes: { ...DEFAULT_CRM_THEME_SETTINGS.fontSizes },
 			colors: { ...DEFAULT_CRM_THEME_SETTINGS.colors },
 		},
+		petSettings: { ...DEFAULT_PET_SETTINGS },
 	}
 }
 
@@ -1054,5 +1061,14 @@ export const memoryStore = {
 			colors: { ...theme.colors },
 		}
 		return this.getTheme(scope)
+	},
+
+	getPetSettings(scope: StoreScope) {
+		return { ...stateFor(scope).petSettings }
+	},
+
+	savePetSettings(scope: StoreScope, settings: PetSettings) {
+		stateFor(scope).petSettings = { ...settings }
+		return this.getPetSettings(scope)
 	},
 }

@@ -92,6 +92,13 @@
 			"when": 1777708800000,
 			"tag": "0012_calendar_blocks_privacy_plans",
 			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "7",
+			"when": 1777737600000,
+			"tag": "0013_pet_settings",
+			"breakpoints": true
 		}
 	]
 }

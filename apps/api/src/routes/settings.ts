@@ -2,7 +2,9 @@ import { Hono } from 'hono'
 
 import {
 	crmThemeSettingsSchema,
+	petSettingsSchema,
 	updateSidebarSettingsSchema,
+	type PetSettingsResponse,
 	type SidebarSettingsResponse,
 	type ThemeSettingsResponse,
 } from '@teacher-crm/api-types'
@@ -26,6 +28,13 @@ export const settingsRoutes = new Hono()
 		}
 		return context.json(response, 200)
 	})
+	.get('/pet', requirePermission('settings', 'manage'), async (context) => {
+		const response: PetSettingsResponse = {
+			ok: true,
+			settings: await settingsService.getPetSettings(actorFromContext(context)),
+		}
+		return context.json(response, 200)
+	})
 	.put(
 		'/sidebar',
 		requirePermission('settings', 'manage'),
@@ -42,6 +51,13 @@ export const settingsRoutes = new Hono()
 		const response: ThemeSettingsResponse = {
 			ok: true,
 			theme: await settingsService.saveTheme(actorFromContext(context), context.req.valid('json')),
+		}
+		return context.json(response, 200)
+	})
+	.put('/pet', requirePermission('settings', 'manage'), validateJson(petSettingsSchema), async (context) => {
+		const response: PetSettingsResponse = {
+			ok: true,
+			settings: await settingsService.savePetSettings(actorFromContext(context), context.req.valid('json')),
 		}
 		return context.json(response, 200)
 	})

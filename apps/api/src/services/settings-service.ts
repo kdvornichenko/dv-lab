@@ -1,17 +1,23 @@
 import {
 	DEFAULT_CRM_THEME_SETTINGS,
+	DEFAULT_PET_SETTINGS,
 	DEFAULT_SIDEBAR_ITEMS,
 	crmThemeSettingsSchema,
+	petSettingsSchema,
 	sidebarItemSchema,
 	type CrmThemeSettings,
+	type PetSettings,
 	type SidebarItem,
 	type UpdateSidebarSettingsInput,
 } from '@teacher-crm/api-types'
 import {
+	getPetSettingsRow,
 	getSidebarSettingsRow,
 	getThemeSettingsRow,
+	upsertPetSettingsRow,
 	upsertSidebarSettingsRow,
 	upsertThemeSettingsRow,
+	type PetSettingsValue,
 	type SidebarSettingsItem,
 	type ThemeSettingsValue,
 } from '@teacher-crm/db'
@@ -90,6 +96,23 @@ function toRepositoryTheme(theme: CrmThemeSettings): ThemeSettingsValue {
 	}
 }
 
+function normalizePetSettings(value: unknown): PetSettings {
+	const candidate = value && typeof value === 'object' ? (value as Partial<PetSettings>) : {}
+	const parsed = petSettingsSchema.safeParse({
+		...DEFAULT_PET_SETTINGS,
+		...candidate,
+	})
+	return parsed.success ? parsed.data : DEFAULT_PET_SETTINGS
+}
+
+function toRepositoryPetSettings(settings: PetSettings): PetSettingsValue {
+	return {
+		enabled: settings.enabled,
+		soundEnabled: settings.soundEnabled,
+		activityLevel: settings.activityLevel,
+	}
+}
+
 export const settingsService = {
 	async listSidebarItems(scope: StoreScope) {
 		const db = getDb()
@@ -139,5 +162,29 @@ export const settingsService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		return normalizeThemeSettings((await upsertThemeSettingsRow(db, teacherId, toRepositoryTheme(theme))).theme)
+	},
+
+	async getPetSettings(scope: StoreScope) {
+		const db = getDb()
+		if (!db) return getMemoryStore().getPetSettings(scope)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const existing = await getPetSettingsRow(db, teacherId)
+
+		if (!existing) {
+			await upsertPetSettingsRow(db, teacherId, toRepositoryPetSettings(DEFAULT_PET_SETTINGS))
+			return DEFAULT_PET_SETTINGS
+		}
+
+		return normalizePetSettings(existing)
+	},
+
+	async savePetSettings(scope: StoreScope, input: PetSettings) {
+		const settings = normalizePetSettings(input)
+		const db = getDb()
+		if (!db) return getMemoryStore().savePetSettings(scope, settings)
+
+		const teacherId = await teacherProfileId(db, scope)
+		return normalizePetSettings(await upsertPetSettingsRow(db, teacherId, toRepositoryPetSettings(settings)))
 	},
 }

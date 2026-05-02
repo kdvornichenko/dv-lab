@@ -68,6 +68,8 @@ type ThemeSettingsJson = {
 	colors: Record<string, string>
 }
 
+type PetActivityLevel = 'reduced' | 'normal' | 'playful'
+
 export const sidebarSettings = pgTable(
 	'sidebar_settings',
 	{
@@ -101,6 +103,24 @@ export const themeSettings = pgTable(
 	},
 	(table) => ({
 		teacherUniq: uniqueIndex('theme_settings_teacher_uniq').on(table.teacherId),
+	})
+)
+
+export const petSettings = pgTable(
+	'pet_settings',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id')
+			.notNull()
+			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
+		enabled: boolean('enabled').notNull().default(true),
+		soundEnabled: boolean('sound_enabled').notNull().default(false),
+		activityLevel: text('activity_level').$type<PetActivityLevel>().notNull().default('normal'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		teacherUniq: uniqueIndex('pet_settings_teacher_uniq').on(table.teacherId),
 	})
 )
 
