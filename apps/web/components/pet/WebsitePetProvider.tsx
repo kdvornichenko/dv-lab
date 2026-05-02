@@ -10,12 +10,7 @@ import {
 	type PetViewport,
 } from '@/lib/pet/pet-engine'
 import { listPetTargets } from '@/lib/pet/pet-targets'
-import {
-	DEFAULT_PET_SETTINGS,
-	loadPersistedPetSettings,
-	subscribePetSettings,
-	getPetSettingsSnapshot,
-} from '@/lib/pet/pet-settings'
+import { loadPersistedPetSettings, subscribePetSettings, getPetSettingsSnapshot } from '@/lib/pet/pet-settings'
 
 import { WebsitePetOverlay } from './WebsitePetOverlay'
 
@@ -68,7 +63,6 @@ export function WebsitePetProvider({ children }: PropsWithChildren) {
 			createPetEngine({
 				viewport: readViewport(),
 				image: PET_IMAGE_BOUNDS,
-				activityLevel: settings.activityLevel,
 			}),
 		[]
 	)
