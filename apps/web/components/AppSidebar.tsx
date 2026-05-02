@@ -38,7 +38,7 @@ export const AppSidebar: FC = () => {
 			suppressHydrationWarning
 			className="border-line bg-surface/92 shadow-[18px_0_60px_-52px_var(--shadow-sage)]"
 		>
-			<SidebarContent className="p-2">
+			<SidebarContent data-pet-target className="p-2">
 				{!expanded && <SidebarTrigger className="mx-auto mb-2" />}
 				<div className="space-y-1.5">
 					{loading &&
@@ -73,7 +73,7 @@ export const AppSidebar: FC = () => {
 
 			<Image src="assets/scottish-fold-cat-sprite.svg" alt="" width={40} height={40} />
 
-			<SidebarFooter>
+			<SidebarFooter data-pet-target>
 				{expanded ? (
 					<div className="rounded-lg border border-warning-line bg-warning-soft p-3">
 						<div className="flex items-center justify-between gap-2">

@@ -34,7 +34,7 @@ export const LessonsPanel: FC<LessonsPanelProps> = ({
 
 	return (
 		<>
-			<Card id="lessons" className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
+			<Card id="lessons" data-pet-target className="overflow-hidden shadow-[0_18px_55px_-44px_var(--shadow-sage)]">
 				<CardHeader className="border-line-soft bg-surface-muted flex flex-row items-center justify-between gap-3 border-b">
 					<div>
 						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson flow</p>

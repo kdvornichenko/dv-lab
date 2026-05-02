@@ -196,7 +196,10 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	const formOpen = isCreateOpen || Boolean(editingLesson)
 
 	return (
-		<section className="flex min-h-dvh flex-col overflow-hidden border border-line bg-surface shadow-[0_18px_55px_-46px_var(--shadow-sage)]">
+		<section
+			data-pet-target
+			className="flex min-h-dvh flex-col overflow-hidden border border-line bg-surface shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
+		>
 			<Calendar
 				view="week"
 				locale={enUS}

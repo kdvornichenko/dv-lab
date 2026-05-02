@@ -165,7 +165,7 @@ export const PaymentsPanel: FC<PaymentsPanelProps> = ({
 
 	return (
 		<section id="payments" className="space-y-4">
-			<header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+			<header data-pet-target className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 				<div>
 					<h1 className="font-heading text-xl font-semibold text-ink">Payments</h1>
 					<p className="mt-1 text-sm text-ink-muted">
