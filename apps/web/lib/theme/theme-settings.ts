@@ -11,9 +11,12 @@ const LEGACY_DEFAULT_CRM_THEME_SETTINGS: CrmThemeSettings = {
 	headingFont: 'geist',
 	bodyFont: 'geist',
 	numberFont: 'geist',
+	fontSizes: { ...DEFAULT_CRM_THEME_SETTINGS.fontSizes },
 	colors: {
 		background: '#f7f5ef',
 		foreground: '#181713',
+		card: DEFAULT_CRM_THEME_SETTINGS.colors.card,
+		surfaceMuted: DEFAULT_CRM_THEME_SETTINGS.colors.surfaceMuted,
 		primary: '#2f6f5e',
 		accent: '#9a6a1f',
 		success: '#3f7a4d',
@@ -28,9 +31,12 @@ const BLUE_DEFAULT_CRM_THEME_SETTINGS: CrmThemeSettings = {
 	headingFont: 'geist',
 	bodyFont: 'geist',
 	numberFont: 'mono',
+	fontSizes: { ...DEFAULT_CRM_THEME_SETTINGS.fontSizes },
 	colors: {
 		background: '#f8fafc',
 		foreground: '#0f172a',
+		card: '#ffffff',
+		surfaceMuted: '#e2e8f0',
 		primary: '#2563eb',
 		accent: '#d97706',
 		success: '#059669',
@@ -76,7 +82,7 @@ export const themeColorGroups: Array<{
 	{
 		title: 'Core',
 		description: 'Base surface, text, primary action, and accent.',
-		keys: ['background', 'foreground', 'primary', 'accent'],
+		keys: ['background', 'foreground', 'card', 'surfaceMuted', 'primary', 'accent'],
 	},
 	{
 		title: 'Signals',
@@ -88,6 +94,8 @@ export const themeColorGroups: Array<{
 export const colorLabels: Record<ThemeColorKey, string> = {
 	background: 'Background',
 	foreground: 'Foreground',
+	card: 'Card',
+	surfaceMuted: 'Muted surface',
 	primary: 'Primary',
 	accent: 'Accent',
 	success: 'Success',
@@ -158,7 +166,20 @@ function lineMix(variableName: string, amount = 24) {
 }
 
 export function normalizeTheme(value: unknown): CrmThemeSettings {
-	return migrateCrmTheme(crmThemeSettingsSchema.catch(DEFAULT_CRM_THEME_SETTINGS).parse(value))
+	const candidate = value && typeof value === 'object' ? (value as Partial<CrmThemeSettings>) : {}
+	const merged = {
+		...DEFAULT_CRM_THEME_SETTINGS,
+		...candidate,
+		colors: {
+			...DEFAULT_CRM_THEME_SETTINGS.colors,
+			...(candidate.colors ?? {}),
+		},
+		fontSizes: {
+			...DEFAULT_CRM_THEME_SETTINGS.fontSizes,
+			...(candidate.fontSizes ?? {}),
+		},
+	}
+	return migrateCrmTheme(crmThemeSettingsSchema.catch(DEFAULT_CRM_THEME_SETTINGS).parse(merged))
 }
 
 function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {
@@ -167,7 +188,10 @@ function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {
 		a.headingFont === b.headingFont &&
 		a.bodyFont === b.bodyFont &&
 		a.numberFont === b.numberFont &&
-		Object.entries(a.colors).every(([key, value]) => b.colors[key as ThemeColorKey] === value)
+		Object.entries(a.colors).every(([key, value]) => b.colors[key as ThemeColorKey] === value) &&
+		Object.entries(a.fontSizes).every(
+			([key, value]) => b.fontSizes[key as keyof CrmThemeSettings['fontSizes']] === value
+		)
 	)
 }
 
@@ -184,6 +208,7 @@ export function cloneTheme(theme: CrmThemeSettings): CrmThemeSettings {
 		headingFont: theme.headingFont,
 		bodyFont: theme.bodyFont,
 		numberFont: theme.numberFont,
+		fontSizes: { ...theme.fontSizes },
 		colors: { ...theme.colors },
 	}
 }
@@ -202,6 +227,9 @@ export function themeCssVariables(theme: CrmThemeSettings): CSSProperties {
 		'--font-numeric': numberFont,
 		'--font-sans': bodyFont,
 		'--font-mono': numberFont,
+		'--crm-font-size-body': `${theme.fontSizes.body}px`,
+		'--crm-font-size-heading': `${theme.fontSizes.heading}px`,
+		'--crm-font-size-small': `${theme.fontSizes.small}px`,
 		'--radius': radius,
 		'--radius-sm': radiusSm,
 		'--radius-md': radius,
@@ -216,8 +244,8 @@ export function themeCssVariables(theme: CrmThemeSettings): CSSProperties {
 		'--danger': theme.colors.danger,
 		'--chart': theme.colors.chart,
 		'--canvas-warm': 'color-mix(in srgb, var(--canvas) 96%, var(--chart) 4%)',
-		'--surface': 'color-mix(in srgb, var(--canvas) 10%, #ffffff 90%)',
-		'--surface-muted': 'color-mix(in srgb, var(--canvas) 78%, var(--ink) 7%)',
+		'--surface': theme.colors.card,
+		'--surface-muted': theme.colors.surfaceMuted,
 		'--ink-muted': 'color-mix(in srgb, var(--ink) 58%, var(--canvas) 42%)',
 		'--line': 'color-mix(in srgb, var(--ink) 12%, var(--canvas) 88%)',
 		'--line-soft': 'color-mix(in srgb, var(--ink) 7%, var(--canvas) 93%)',

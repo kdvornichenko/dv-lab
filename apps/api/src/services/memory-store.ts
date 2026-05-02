@@ -12,8 +12,10 @@ import {
 	getLessonDurationUnits,
 	type AttendanceStatus,
 	type AttendanceRecord,
+	type CalendarBlock,
 	type CalendarConnection,
 	type CalendarSyncRecord,
+	type CreateCalendarBlockInput,
 	type CreateLessonInput,
 	type CreatePaymentInput,
 	type CreateStudentInput,
@@ -23,6 +25,7 @@ import {
 	type ListLessonsQuery,
 	type ListStudentsQuery,
 	type Lesson,
+	type LessonOccurrenceException,
 	type MarkAttendanceInput,
 	type Payment,
 	type SaveCrmErrorInput,
@@ -32,6 +35,7 @@ import {
 	type StudentCurrencyBalance,
 	type StudentPackage,
 	type LessonCharge,
+	type UpdateCalendarBlockInput,
 	type UpdateLessonInput,
 	type UpdateStudentInput,
 } from '@teacher-crm/api-types'
@@ -48,6 +52,8 @@ type TeacherStoreState = {
 	lessonCharges: Map<string, LessonCharge>
 	calendarConnection: CalendarConnection
 	calendarSyncRecords: Map<string, CalendarSyncRecord>
+	calendarBlocks: Map<string, CalendarBlock>
+	occurrenceExceptions: Map<string, LessonOccurrenceException>
 	sidebarItems: SidebarItem[]
 	errorLogs: Map<string, CrmErrorLogEntry>
 	theme: CrmThemeSettings
@@ -93,34 +99,47 @@ const resolvedPackageLessonCount = (
 	return derivedLessonCount > 0 ? derivedLessonCount : student.packageLessonCount
 }
 const studentPackageTotal = (
-	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths' | 'packageLessonCount'>
+	student: Pick<
+		Student,
+		| 'defaultLessonPrice'
+		| 'defaultLessonDurationMinutes'
+		| 'packageMonths'
+		| 'packageLessonCount'
+		| 'packageLessonPriceOverride'
+	>
 ) =>
 	calculatePackageTotalPriceRub({
 		defaultLessonPrice: student.defaultLessonPrice,
 		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 		packageMonths: student.packageMonths,
 		packageLessonCount: student.packageLessonCount,
+		packageLessonPriceOverride: student.packageLessonPriceOverride,
 	})
 const studentPackageLessonPrice = (
-	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths'>,
+	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageMonths' | 'packageLessonPriceOverride'>,
 	durationMinutes = student.defaultLessonDurationMinutes
 ) =>
 	calculatePackageLessonPriceRub({
 		defaultLessonPrice: student.defaultLessonPrice,
 		defaultLessonDurationMinutes: durationMinutes,
 		packageMonths: student.packageMonths,
+		packageLessonPriceOverride: student.packageLessonPriceOverride,
 	})
 const studentPackageUnits = (student: Pick<Student, 'packageLessonCount' | 'defaultLessonDurationMinutes'>) =>
 	student.packageLessonCount * lessonUnits(student.defaultLessonDurationMinutes)
 const studentMonthlyLessonCount = (student: Pick<Student, 'packageLessonsPerWeek'>) =>
 	calculateMonthlyLessonCount({ lessonsPerWeek: student.packageLessonsPerWeek })
 const studentMonthlyTotal = (
-	student: Pick<Student, 'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageLessonsPerWeek'>
+	student: Pick<
+		Student,
+		'defaultLessonPrice' | 'defaultLessonDurationMinutes' | 'packageLessonsPerWeek' | 'packageLessonPriceOverride'
+	>
 ) =>
 	calculateMonthlyTotalPrice({
 		defaultLessonPrice: student.defaultLessonPrice,
 		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 		lessonsPerWeek: student.packageLessonsPerWeek,
+		packageLessonPriceOverride: student.packageLessonPriceOverride,
 	})
 const paymentDate = (value: string) => value.slice(0, 10)
 
@@ -146,6 +165,8 @@ function createStoreState(): TeacherStoreState {
 			updatedAt: now(),
 		},
 		calendarSyncRecords: new Map<string, CalendarSyncRecord>(),
+		calendarBlocks: new Map<string, CalendarBlock>(),
+		occurrenceExceptions: new Map<string, LessonOccurrenceException>(),
 		sidebarItems: DEFAULT_SIDEBAR_ITEMS.map((item) => ({ ...item })),
 		errorLogs: new Map<string, CrmErrorLogEntry>(),
 		theme: {
@@ -153,6 +174,7 @@ function createStoreState(): TeacherStoreState {
 			headingFont: DEFAULT_CRM_THEME_SETTINGS.headingFont,
 			bodyFont: DEFAULT_CRM_THEME_SETTINGS.bodyFont,
 			numberFont: DEFAULT_CRM_THEME_SETTINGS.numberFont,
+			fontSizes: { ...DEFAULT_CRM_THEME_SETTINGS.fontSizes },
 			colors: { ...DEFAULT_CRM_THEME_SETTINGS.colors },
 		},
 	}
@@ -394,14 +416,17 @@ export const memoryStore = {
 			lastName,
 			fullName: [firstName, lastName].filter(Boolean).join(' ').trim() || input.fullName,
 			special: input.special ?? '',
+			birthday: input.birthday ?? null,
 			currency: input.currency,
 			defaultLessonDurationMinutes: input.defaultLessonDurationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES,
 			packageLessonCount,
+			packageLessonPriceOverride: input.packageLessonPriceOverride ?? null,
 			packageTotalPrice: studentPackageTotal({
 				defaultLessonPrice: input.defaultLessonPrice,
 				defaultLessonDurationMinutes: input.defaultLessonDurationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES,
 				packageMonths: input.packageMonths,
 				packageLessonCount,
+				packageLessonPriceOverride: input.packageLessonPriceOverride ?? null,
 			}),
 			id: id('stu'),
 			createdAt: now(),
@@ -417,6 +442,8 @@ export const memoryStore = {
 		if (!existing) return null
 		const updated: Student = { ...existing, ...input, updatedAt: now() }
 		updated.fullName = studentFullName(updated)
+		updated.birthday = updated.birthday ?? null
+		updated.packageLessonPriceOverride = updated.packageLessonPriceOverride ?? null
 		updated.packageLessonCount = resolvedPackageLessonCount(updated)
 		updated.packageTotalPrice = studentPackageTotal(updated)
 		state.students.set(studentId, updated)
@@ -555,8 +582,41 @@ export const memoryStore = {
 		for (const [syncKey, syncRecord] of state.calendarSyncRecords) {
 			if (syncRecord.lessonId === lessonId) state.calendarSyncRecords.delete(syncKey)
 		}
+		for (const [exceptionKey, exception] of state.occurrenceExceptions) {
+			if (exception.lessonId === lessonId || exception.replacementLessonId === lessonId) {
+				state.occurrenceExceptions.delete(exceptionKey)
+			}
+		}
 
 		return existing
+	},
+
+	listLessonOccurrenceExceptions(scope: StoreScope) {
+		return Array.from(stateFor(scope).occurrenceExceptions.values())
+	},
+
+	upsertLessonOccurrenceException(
+		scope: StoreScope,
+		input: {
+			lessonId: string
+			occurrenceStartsAt: string
+			replacementLessonId?: string
+			reason: LessonOccurrenceException['reason']
+		}
+	) {
+		const state = stateFor(scope)
+		const key = `${input.lessonId}:${input.occurrenceStartsAt}`
+		const existing = state.occurrenceExceptions.get(key)
+		const exception: LessonOccurrenceException = {
+			id: existing?.id ?? id('exc'),
+			lessonId: input.lessonId,
+			occurrenceStartsAt: input.occurrenceStartsAt,
+			replacementLessonId: input.replacementLessonId,
+			reason: input.reason,
+			createdAt: existing?.createdAt ?? now(),
+		}
+		state.occurrenceExceptions.set(key, exception)
+		return exception
 	},
 
 	markAttendance(scope: StoreScope, input: MarkAttendanceInput) {
@@ -885,6 +945,61 @@ export const memoryStore = {
 		return Array.from(stateFor(scope).calendarSyncRecords.values())
 	},
 
+	listCalendarBlocks(scope: StoreScope) {
+		return Array.from(stateFor(scope).calendarBlocks.values()).sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+	},
+
+	createCalendarBlock(scope: StoreScope, input: CreateCalendarBlockInput) {
+		const state = stateFor(scope)
+		const canSync =
+			state.calendarConnection.status === 'connected' &&
+			hasGoogleCalendarGrant(state.calendarConnection.grantedScopes, state.calendarConnection.tokenAvailable)
+		const block: CalendarBlock = {
+			id: id('blk'),
+			title: input.title,
+			startsAt: input.startsAt,
+			durationMinutes: input.durationMinutes,
+			externalEventId: canSync ? `google_block_${id('evt')}` : null,
+			externalCalendarId: canSync ? (state.calendarConnection.selectedCalendarId ?? 'primary') : null,
+			syncStatus: canSync ? 'synced' : 'not_synced',
+			lastError: null,
+			createdAt: now(),
+			updatedAt: now(),
+		}
+		state.calendarBlocks.set(block.id, block)
+		return block
+	},
+
+	updateCalendarBlock(scope: StoreScope, blockId: string, input: UpdateCalendarBlockInput) {
+		const state = stateFor(scope)
+		const existing = state.calendarBlocks.get(blockId)
+		if (!existing) return null
+		const canSync =
+			state.calendarConnection.status === 'connected' &&
+			hasGoogleCalendarGrant(state.calendarConnection.grantedScopes, state.calendarConnection.tokenAvailable)
+		const updated: CalendarBlock = {
+			...existing,
+			...input,
+			externalEventId: canSync ? (existing.externalEventId ?? `google_block_${id('evt')}`) : existing.externalEventId,
+			externalCalendarId: canSync
+				? (existing.externalCalendarId ?? state.calendarConnection.selectedCalendarId ?? 'primary')
+				: existing.externalCalendarId,
+			syncStatus: canSync ? 'synced' : existing.syncStatus,
+			lastError: canSync ? null : existing.lastError,
+			updatedAt: now(),
+		}
+		state.calendarBlocks.set(blockId, updated)
+		return updated
+	},
+
+	deleteCalendarBlock(scope: StoreScope, blockId: string) {
+		const state = stateFor(scope)
+		const existing = state.calendarBlocks.get(blockId)
+		if (!existing) return null
+		state.calendarBlocks.delete(blockId)
+		return existing
+	},
+
 	listSidebarItems(scope: StoreScope) {
 		return stateFor(scope).sidebarItems.map((item) => ({ ...item }))
 	},
@@ -927,6 +1042,7 @@ export const memoryStore = {
 		const theme = stateFor(scope).theme
 		return {
 			...theme,
+			fontSizes: { ...theme.fontSizes },
 			colors: { ...theme.colors },
 		}
 	},
@@ -934,6 +1050,7 @@ export const memoryStore = {
 	saveTheme(scope: StoreScope, theme: CrmThemeSettings) {
 		stateFor(scope).theme = {
 			...theme,
+			fontSizes: { ...theme.fontSizes },
 			colors: { ...theme.colors },
 		}
 		return this.getTheme(scope)

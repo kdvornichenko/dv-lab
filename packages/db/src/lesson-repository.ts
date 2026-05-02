@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, lte, notInArray, sql, type SQL } from 'drizzle-orm'
 
 import type { DB } from './factory'
-import { attendanceRecords, lessons, lessonStudents } from './schema'
+import { attendanceRecords, lessonOccurrenceExceptions, lessons, lessonStudents } from './schema'
 
 export type LessonStatusFilter = 'all' | 'planned' | 'completed' | 'cancelled' | 'rescheduled' | 'no_show'
 
@@ -14,11 +14,13 @@ export type LessonListFilters = {
 
 export type LessonRow = typeof lessons.$inferSelect
 export type AttendanceRecordRow = typeof attendanceRecords.$inferSelect
+export type LessonOccurrenceExceptionRow = typeof lessonOccurrenceExceptions.$inferSelect
 export type LessonInsertValues = Omit<typeof lessons.$inferInsert, 'id' | 'createdAt' | 'updatedAt'>
 export type LessonUpdateValues = Partial<
 	Omit<typeof lessons.$inferInsert, 'id' | 'teacherId' | 'createdAt' | 'updatedAt'>
 >
 export type AttendanceRecordUpsertValues = Omit<typeof attendanceRecords.$inferInsert, 'id' | 'updatedAt'>
+export type LessonOccurrenceExceptionUpsertValues = Omit<typeof lessonOccurrenceExceptions.$inferInsert, 'id' | 'createdAt'>
 export type LessonRowWithStudents = LessonRow & {
 	studentIds: string[]
 }
@@ -209,6 +211,40 @@ export async function deleteLessonRow(
 			studentIds,
 		}
 	})
+}
+
+export async function listLessonOccurrenceExceptionRows(
+	db: DB,
+	teacherId: string
+): Promise<LessonOccurrenceExceptionRow[]> {
+	return db
+		.select()
+		.from(lessonOccurrenceExceptions)
+		.where(eq(lessonOccurrenceExceptions.teacherId, teacherId))
+		.orderBy(asc(lessonOccurrenceExceptions.occurrenceStartsAt))
+}
+
+export async function upsertLessonOccurrenceExceptionRow(
+	db: DB,
+	values: LessonOccurrenceExceptionUpsertValues
+): Promise<LessonOccurrenceExceptionRow> {
+	const [exception] = await db
+		.insert(lessonOccurrenceExceptions)
+		.values(values)
+		.onConflictDoUpdate({
+			target: [
+				lessonOccurrenceExceptions.teacherId,
+				lessonOccurrenceExceptions.lessonId,
+				lessonOccurrenceExceptions.occurrenceStartsAt,
+			],
+			set: {
+				replacementLessonId: values.replacementLessonId ?? null,
+				reason: values.reason,
+			},
+		})
+		.returning()
+
+	return exception
 }
 
 export async function updateLessonTitlesForStudent(

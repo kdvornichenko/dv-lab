@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 
 import {
 	createLessonSchema,
+	deleteLessonQuerySchema,
 	listLessonsQuerySchema,
 	markAttendanceSchema,
 	updateLessonSchema,
@@ -23,6 +24,7 @@ export const lessonRoutes = new Hono()
 			ok: true,
 			lessons: await lessonService.listLessons(actor, context.req.valid('query')),
 			attendance: await lessonService.listAttendance(actor),
+			occurrenceExceptions: await lessonService.listOccurrenceExceptions(actor),
 		}
 		return context.json(response, 200)
 	})
@@ -42,10 +44,10 @@ export const lessonRoutes = new Hono()
 		const response: LessonMutationResponse = { ok: true, lesson }
 		return context.json(response, 200)
 	})
-	.delete('/:lessonId', requirePermission('lessons', 'write'), async (context) => {
+	.delete('/:lessonId', requirePermission('lessons', 'write'), validateQuery(deleteLessonQuerySchema), async (context) => {
 		const actor = actorFromContext(context)
 		const lessonId = context.req.param('lessonId')
-		const lesson = await lessonWorkflowService.deleteLesson(actor, lessonId)
+		const lesson = await lessonWorkflowService.deleteLesson(actor, lessonId, context.req.valid('query'))
 		if (!lesson) return notFoundResponse(context, 'Lesson not found')
 
 		const response: LessonMutationResponse = { ok: true, lesson }

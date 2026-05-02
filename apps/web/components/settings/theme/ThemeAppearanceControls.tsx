@@ -6,6 +6,7 @@ import { Palette, RotateCcw, Save, Shuffle, Type } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 import type { CrmThemeSettings } from '@teacher-crm/api-types'
 
@@ -102,6 +103,16 @@ export function ThemeAppearanceControls({
 				hint="Configure heading, body, and numeric fonts independently."
 			>
 				<ThemeFontStackedAccordion draft={draft} onDraftChange={onDraftChange} />
+				<div className="mt-3 grid gap-3 sm:grid-cols-3">
+					<FontSizeInput label="Body" value={draft.fontSizes.body} field="body" onDraftChange={onDraftChange} />
+					<FontSizeInput
+						label="Heading"
+						value={draft.fontSizes.heading}
+						field="heading"
+						onDraftChange={onDraftChange}
+					/>
+					<FontSizeInput label="Small" value={draft.fontSizes.small} field="small" onDraftChange={onDraftChange} />
+				</div>
 			</ThemeSettingsSection>
 
 			<ThemeSettingsSection title="Shape" hint="Controls cards, inputs, buttons, tables, and popovers.">
@@ -115,5 +126,40 @@ export function ThemeAppearanceControls({
 				<ThemeColorControls colors={draft.colors} onColorChange={onColorChange} />
 			</ThemeSettingsSection>
 		</section>
+	)
+}
+
+function FontSizeInput({
+	label,
+	value,
+	field,
+	onDraftChange,
+}: {
+	label: string
+	value: number
+	field: keyof CrmThemeSettings['fontSizes']
+	onDraftChange: Dispatch<SetStateAction<CrmThemeSettings>>
+}) {
+	return (
+		<label className="grid gap-1.5">
+			<span className="text-ink-muted text-xs font-medium">{label} size</span>
+			<Input
+				type="number"
+				min={field === 'small' ? 10 : 12}
+				max={field === 'heading' ? 28 : 20}
+				value={value}
+				onChange={(event) => {
+					const next = Number(event.target.value)
+					onDraftChange((current) => ({
+						...current,
+						fontSizes: {
+							...current.fontSizes,
+							[field]: Number.isFinite(next) ? next : value,
+						},
+					}))
+				}}
+				className="font-mono tabular-nums"
+			/>
+		</label>
 	)
 }

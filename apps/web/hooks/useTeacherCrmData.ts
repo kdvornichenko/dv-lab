@@ -39,6 +39,8 @@ export const emptyTeacherCrmState: TeacherCrmState = {
 	},
 	calendarOptions: [],
 	calendarSyncRecords: [],
+	calendarBlocks: [],
+	lessonOccurrenceExceptions: [],
 }
 
 type TeacherCrmCacheSnapshot = {

@@ -1,12 +1,17 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, sql } from 'drizzle-orm'
 
 import type { DB } from './factory'
-import { calendarConnections, calendarSyncEvents, lessons, lessonStudents, students } from './schema'
+import { calendarBlocks, calendarConnections, calendarSyncEvents, lessons, lessonStudents, students } from './schema'
 
 export type CalendarConnectionRow = typeof calendarConnections.$inferSelect
 export type CalendarSyncEventRow = typeof calendarSyncEvents.$inferSelect
+export type CalendarBlockRow = typeof calendarBlocks.$inferSelect
 export type CalendarConnectionUpsertValues = typeof calendarConnections.$inferInsert
 export type CalendarSyncEventUpsertValues = typeof calendarSyncEvents.$inferInsert
+export type CalendarBlockInsertValues = Omit<typeof calendarBlocks.$inferInsert, 'id' | 'createdAt' | 'updatedAt'>
+export type CalendarBlockUpdateValues = Partial<
+	Omit<typeof calendarBlocks.$inferInsert, 'id' | 'teacherId' | 'createdAt' | 'updatedAt'>
+>
 export type CalendarLessonContext = {
 	lesson: typeof lessons.$inferSelect
 	students: {
@@ -84,6 +89,51 @@ export async function listCalendarSyncEventRows(db: DB, teacherId: string): Prom
 		.from(calendarSyncEvents)
 		.where(and(eq(calendarSyncEvents.teacherId, teacherId), eq(calendarSyncEvents.provider, 'google')))
 		.orderBy(desc(calendarSyncEvents.updatedAt))
+}
+
+export async function listCalendarBlockRows(db: DB, teacherId: string): Promise<CalendarBlockRow[]> {
+	return db
+		.select()
+		.from(calendarBlocks)
+		.where(eq(calendarBlocks.teacherId, teacherId))
+		.orderBy(asc(calendarBlocks.startsAt))
+}
+
+export async function insertCalendarBlockRow(
+	db: DB,
+	values: CalendarBlockInsertValues
+): Promise<CalendarBlockRow> {
+	const [block] = await db.insert(calendarBlocks).values(values).returning()
+	if (!block) throw new Error('Calendar block insert did not return a row')
+	return block
+}
+
+export async function updateCalendarBlockRow(
+	db: DB,
+	teacherId: string,
+	blockId: string,
+	values: CalendarBlockUpdateValues
+): Promise<CalendarBlockRow | null> {
+	const [block] = await db
+		.update(calendarBlocks)
+		.set({ ...values, updatedAt: new Date() })
+		.where(and(eq(calendarBlocks.teacherId, teacherId), eq(calendarBlocks.id, blockId)))
+		.returning()
+
+	return block ?? null
+}
+
+export async function deleteCalendarBlockRow(
+	db: DB,
+	teacherId: string,
+	blockId: string
+): Promise<CalendarBlockRow | null> {
+	const [block] = await db
+		.delete(calendarBlocks)
+		.where(and(eq(calendarBlocks.teacherId, teacherId), eq(calendarBlocks.id, blockId)))
+		.returning()
+
+	return block ?? null
 }
 
 export async function getCalendarSyncEventRow(

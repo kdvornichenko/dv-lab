@@ -178,13 +178,19 @@ function StudentLedgerItem({
 		<>
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div className="min-w-0">
-					<p className="font-heading text-ink group-hover:text-sage truncate font-semibold transition-colors">
+					<p
+						className="font-heading text-ink group-hover:text-sage truncate font-semibold transition-colors"
+						data-private
+					>
 						{student.fullName}
 					</p>
-					<p className="text-ink-muted mt-1 truncate text-xs">{subtitle}</p>
+					<p className="text-ink-muted mt-1 truncate text-xs" data-private>
+						{subtitle}
+					</p>
 				</div>
 				<div className="flex flex-wrap gap-1.5">
 					<Badge tone={projection.statusTone}>{student.status}</Badge>
+					{student.packageLessonPriceOverride !== null && <Badge tone="neutral">custom plan</Badge>}
 					<Badge tone={projection.balanceTone} className="font-mono tabular-nums">
 						{formatCurrencyAmount(student.balance.balance, student.currency)}
 					</Badge>

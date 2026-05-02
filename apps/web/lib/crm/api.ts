@@ -8,6 +8,8 @@ import {
 	type AttendanceMutationResponse,
 	type CalendarBusyQuery,
 	type CalendarBusyResponse,
+	type CalendarBlockMutationResponse,
+	type CalendarBlocksResponse,
 	type CalendarConnectionResponse,
 	type CalendarConnection,
 	type CalendarImportResponse,
@@ -16,6 +18,7 @@ import {
 	type CalendarResponse,
 	type CalendarSyncResponse,
 	type CreateLessonInput,
+	type CreateCalendarBlockInput,
 	type CreatePaymentInput,
 	type CreateStudentInput,
 	type CrmErrorLogMutationResponse,
@@ -23,6 +26,7 @@ import {
 	type CrmThemeSettings,
 	type DashboardResponse,
 	type DashboardSummary,
+	type DeleteLessonQuery,
 	type LessonMutationResponse,
 	type LessonsResponse,
 	type ListStudentsResponse,
@@ -36,6 +40,7 @@ import {
 	type StudentMutationResponse,
 	type ThemeSettingsResponse,
 	type UpdateLessonInput,
+	type UpdateCalendarBlockInput,
 	type UpdateStudentInput,
 } from '@teacher-crm/api-types'
 
@@ -75,6 +80,7 @@ const emptyCalendarResponse: CalendarResponse = {
 	ok: true,
 	connection: emptyCalendarConnection,
 	syncRecords: [],
+	blocks: [],
 }
 
 async function loadResource<T>(source: string, promise: Promise<T>): Promise<LoadResult<T>> {
@@ -253,6 +259,8 @@ export async function loadTeacherCrm() {
 		calendarConnection: calendar.connection,
 		calendarOptions: [],
 		calendarSyncRecords: calendar.syncRecords,
+		calendarBlocks: calendar.blocks,
+		lessonOccurrenceExceptions: lessons.occurrenceExceptions,
 	}
 
 	return {
@@ -274,7 +282,12 @@ export async function loadTeacherCrmSupplements(baseState: TeacherCrmState) {
 
 	const payments = paymentsResult.data ?? emptyPaymentsResponse
 	const students: ListStudentsResponse = { ok: true, students: baseState.students }
-	const lessons: LessonsResponse = { ok: true, lessons: baseState.lessons, attendance: baseState.attendance }
+	const lessons: LessonsResponse = {
+		ok: true,
+		lessons: baseState.lessons,
+		attendance: baseState.attendance,
+		occurrenceExceptions: baseState.lessonOccurrenceExceptions,
+	}
 
 	return {
 		payments: payments.payments,
@@ -314,10 +327,15 @@ export const teacherCrmLessonApi = {
 			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
-	deleteLesson: (lessonId: string) =>
-		apiRequest<LessonMutationResponse>(`/lessons/${lessonId}`, {
+	deleteLesson: (lessonId: string, options: DeleteLessonQuery = { scope: 'series' }) => {
+		const params = new URLSearchParams()
+		if (options.scope) params.set('scope', options.scope)
+		if (options.occurrenceStartsAt) params.set('occurrenceStartsAt', options.occurrenceStartsAt)
+		const query = params.toString()
+		return apiRequest<LessonMutationResponse>(`/lessons/${lessonId}${query ? `?${query}` : ''}`, {
 			method: 'DELETE',
-		}),
+		})
+	},
 	markAttendance: (input: MarkAttendanceInput) =>
 		apiRequest<AttendanceMutationResponse>('/lessons/attendance', {
 			method: 'POST',
@@ -393,6 +411,21 @@ export const teacherCrmCalendarApi = {
 	importCalendarEvents: () =>
 		apiRequest<CalendarImportResponse>('/calendar/import-events', {
 			method: 'POST',
+		}),
+	listCalendarBlocks: () => apiRequest<CalendarBlocksResponse>('/calendar/blocks'),
+	createCalendarBlock: (input: CreateCalendarBlockInput) =>
+		apiRequest<CalendarBlockMutationResponse>('/calendar/blocks', {
+			method: 'POST',
+			body: JSON.stringify(input),
+		}),
+	updateCalendarBlock: (blockId: string, input: UpdateCalendarBlockInput) =>
+		apiRequest<CalendarBlockMutationResponse>(`/calendar/blocks/${blockId}`, {
+			method: 'PATCH',
+			body: JSON.stringify(input),
+		}),
+	deleteCalendarBlock: (blockId: string) =>
+		apiRequest<CalendarBlockMutationResponse>(`/calendar/blocks/${blockId}`, {
+			method: 'DELETE',
 		}),
 }
 

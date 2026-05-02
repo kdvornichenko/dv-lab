@@ -64,6 +64,7 @@ type ThemeSettingsJson = {
 	headingFont: string
 	bodyFont: string
 	numberFont: string
+	fontSizes?: Record<string, number>
 	colors: Record<string, string>
 }
 
@@ -134,6 +135,7 @@ export const students = pgTable(
 		level: text('level'),
 		special: text('special'),
 		status: studentStatus('status').notNull().default('active'),
+		birthday: date('birthday', { mode: 'string' }),
 		notes: text('notes'),
 		defaultLessonPrice: numeric('default_lesson_price', { precision: 12, scale: 2 }).notNull().default('0'),
 		defaultLessonDurationMinutes: integer('default_lesson_duration_minutes').notNull().default(60),
@@ -141,6 +143,7 @@ export const students = pgTable(
 		packageLessonsPerWeek: integer('package_lessons_per_week').notNull().default(0),
 		packageLessonCount: integer('package_lesson_count').notNull().default(0),
 		packageTotalPrice: numeric('package_total_price', { precision: 12, scale: 2 }).notNull().default('0'),
+		packageLessonPriceOverride: numeric('package_lesson_price_override', { precision: 12, scale: 2 }),
 		currency: currency('currency').notNull().default('RUB'),
 		billingMode: billingMode('billing_mode').notNull().default('per_lesson'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -151,6 +154,38 @@ export const students = pgTable(
 		teacherStatusIdx: index('students_teacher_status_idx').on(table.teacherId, table.status),
 		nameSearchIdx: index('students_name_search_idx').on(table.teacherId, table.fullName),
 		teacherStudentUniq: unique('students_teacher_id_id_uniq').on(table.teacherId, table.id),
+	})
+)
+
+export const lessonOccurrenceExceptions = pgTable(
+	'lesson_occurrence_exceptions',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id').notNull(),
+		lessonId: uuid('lesson_id')
+			.notNull()
+			.references(() => lessons.id, { onDelete: 'cascade' }),
+		occurrenceStartsAt: timestamp('occurrence_starts_at', { withTimezone: true }).notNull(),
+		replacementLessonId: uuid('replacement_lesson_id').references(() => lessons.id, { onDelete: 'set null' }),
+		reason: text('reason').notNull().default('moved'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		lessonOccurrenceUniq: uniqueIndex('lesson_occurrence_exceptions_lesson_occurrence_uniq').on(
+			table.teacherId,
+			table.lessonId,
+			table.occurrenceStartsAt
+		),
+		teacherLessonFk: foreignKey({
+			columns: [table.teacherId, table.lessonId],
+			foreignColumns: [lessons.teacherId, lessons.id],
+			name: 'lesson_occurrence_exceptions_teacher_lesson_fk',
+		}).onDelete('cascade'),
+		replacementLessonFk: foreignKey({
+			columns: [table.teacherId, table.replacementLessonId],
+			foreignColumns: [lessons.teacherId, lessons.id],
+			name: 'lesson_occurrence_exceptions_teacher_replacement_lesson_fk',
+		}).onDelete('set null'),
 	})
 )
 
@@ -409,6 +444,28 @@ export const calendarSyncEvents = pgTable(
 	})
 )
 
+export const calendarBlocks = pgTable(
+	'calendar_blocks',
+	{
+		id: uuid('id').primaryKey().defaultRandom(),
+		teacherId: uuid('teacher_id')
+			.notNull()
+			.references(() => teacherProfiles.id, { onDelete: 'cascade' }),
+		title: text('title').notNull(),
+		startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+		durationMinutes: integer('duration_minutes').notNull().default(60),
+		externalEventId: text('external_event_id'),
+		externalCalendarId: text('external_calendar_id'),
+		syncStatus: calendarSyncStatus('sync_status').notNull().default('not_synced'),
+		lastError: text('last_error'),
+		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+	},
+	(table) => ({
+		teacherStartsAtIdx: index('calendar_blocks_teacher_starts_at_idx').on(table.teacherId, table.startsAt),
+	})
+)
+
 export const studentsRelations = relations(students, ({ many }) => ({
 	lessonStudents: many(lessonStudents),
 	attendanceRecords: many(attendanceRecords),
@@ -421,6 +478,7 @@ export const lessonsRelations = relations(lessons, ({ many, one }) => ({
 	lessonStudents: many(lessonStudents),
 	attendanceRecords: many(attendanceRecords),
 	lessonCharges: many(lessonCharges),
+	occurrenceExceptions: many(lessonOccurrenceExceptions),
 	calendarSync: one(calendarSyncEvents),
 }))
 

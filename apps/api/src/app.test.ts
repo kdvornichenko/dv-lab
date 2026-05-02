@@ -202,6 +202,8 @@ const updateThemeSettingsBody = await updateThemeSettings.json()
 assert.equal(updateThemeSettingsBody.theme.colors.primary, '#145f52')
 assert.equal(updateThemeSettingsBody.theme.bodyFont, 'jetbrains-mono')
 assert.equal(updateThemeSettingsBody.theme.numberFont, 'roboto-mono')
+assert.equal(updateThemeSettingsBody.theme.colors.card, themeSettingsBody.theme.colors.card)
+assert.equal(updateThemeSettingsBody.theme.fontSizes.body, themeSettingsBody.theme.fontSizes.body)
 
 const createCrmError = await app.request('/errors', {
 	method: 'POST',
@@ -274,6 +276,35 @@ assert.equal(createStudentBody.student.defaultLessonDurationMinutes, 60)
 assert.equal(createStudentBody.student.currency, 'RUB')
 assert.equal(createStudentBody.student.packageLessonsPerWeek, 2)
 assert.equal(createStudentBody.student.packageTotalPrice, 50400)
+assert.equal(createStudentBody.student.birthday, null)
+assert.equal(createStudentBody.student.packageLessonPriceOverride, null)
+
+const createCustomPackageStudent = await app.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'Custom Package Student',
+		email: 'custom.package@example.com',
+		status: 'active',
+		defaultLessonPrice: 2600,
+		defaultLessonDurationMinutes: 60,
+		packageMonths: 4,
+		packageLessonsPerWeek: 1,
+		billingMode: 'package',
+		birthday: '2012-04-13',
+		packageLessonPriceOverride: 2000,
+	}),
+})
+assert.equal(createCustomPackageStudent.status, 201)
+const createCustomPackageStudentBody = await createCustomPackageStudent.json()
+assert.equal(createCustomPackageStudentBody.student.birthday, '2012-04-13')
+assert.equal(createCustomPackageStudentBody.student.defaultLessonPrice, 2600)
+assert.equal(createCustomPackageStudentBody.student.packageLessonPriceOverride, 2000)
+assert.equal(createCustomPackageStudentBody.student.packageLessonCount, 16)
+assert.equal(createCustomPackageStudentBody.student.packageTotalPrice, 32000)
 
 const filteredStudents = await app.request('/students?status=active&search=Test%20Student', {
 	headers: {
@@ -468,15 +499,20 @@ const updateStudent = await app.request(`/students/${createStudentBody.student.i
 		defaultLessonDurationMinutes: 90,
 		packageMonths: 5,
 		packageLessonsPerWeek: 2,
+		birthday: '2010-05-20',
+		packageLessonPriceOverride: 1800,
 	}),
 })
 assert.equal(updateStudent.status, 200)
 const updateStudentBody = await updateStudent.json()
 assert.equal(updateStudentBody.student.level, 'C1')
 assert.equal(updateStudentBody.student.special, 'IELTS writing')
+assert.equal(updateStudentBody.student.birthday, '2010-05-20')
+assert.equal(updateStudentBody.student.defaultLessonPrice, 2400)
+assert.equal(updateStudentBody.student.packageLessonPriceOverride, 1800)
 assert.equal(updateStudentBody.student.defaultLessonDurationMinutes, 90)
 assert.equal(updateStudentBody.student.packageLessonCount, 40)
-assert.equal(updateStudentBody.student.packageTotalPrice, 120000)
+assert.equal(updateStudentBody.student.packageTotalPrice, 108000)
 
 const archiveStudent = await app.request(`/students/${createStudentBody.student.id}`, {
 	method: 'PATCH',
@@ -612,6 +648,46 @@ assert.equal(repeatExistingLesson.status, 200)
 const repeatExistingLessonBody = await repeatExistingLesson.json()
 assert.equal(repeatExistingLessonBody.lesson.repeatWeekly, true)
 
+const occurrenceStart = new Date(startsAt)
+occurrenceStart.setDate(occurrenceStart.getDate() + 7)
+const movedOccurrenceStart = new Date(occurrenceStart)
+movedOccurrenceStart.setMinutes(movedOccurrenceStart.getMinutes() + 45)
+const moveSingleWeeklyOccurrence = await app.request(`/lessons/${createLessonBody.lesson.id}`, {
+	method: 'PATCH',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		startsAt: movedOccurrenceStart.toISOString(),
+		durationMinutes: 90,
+		occurrenceStartsAt: occurrenceStart.toISOString(),
+		applyToFuture: false,
+	}),
+})
+assert.equal(moveSingleWeeklyOccurrence.status, 200)
+const moveSingleWeeklyOccurrenceBody = await moveSingleWeeklyOccurrence.json()
+assert.notEqual(moveSingleWeeklyOccurrenceBody.lesson.id, createLessonBody.lesson.id)
+assert.equal(moveSingleWeeklyOccurrenceBody.lesson.repeatWeekly, false)
+assert.equal(moveSingleWeeklyOccurrenceBody.lesson.startsAt, movedOccurrenceStart.toISOString())
+
+const lessonsWithOccurrenceException = await app.request('/lessons?status=all', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(lessonsWithOccurrenceException.status, 200)
+const lessonsWithOccurrenceExceptionBody = await lessonsWithOccurrenceException.json()
+assert.equal(
+	lessonsWithOccurrenceExceptionBody.occurrenceExceptions.some(
+		(exception: { lessonId: string; occurrenceStartsAt: string; replacementLessonId?: string }) =>
+			exception.lessonId === createLessonBody.lesson.id &&
+			exception.occurrenceStartsAt === occurrenceStart.toISOString() &&
+			exception.replacementLessonId === moveSingleWeeklyOccurrenceBody.lesson.id
+	),
+	true
+)
+
 const filteredLessons = await app.request(`/lessons?studentId=${createStudentBody.student.id}&status=planned`, {
 	headers: {
 		'x-demo-user': 'demo-teacher',
@@ -717,7 +793,7 @@ const paymentsWithNoShowBody = await paymentsWithNoShow.json()
 const noShowBalance = paymentsWithNoShowBody.balances.find(
 	(balance: { studentId: string }) => balance.studentId === createStudentBody.student.id
 )
-assert.equal(noShowBalance.balance, -2000)
+assert.equal(noShowBalance.balance, -1800)
 assert.equal(noShowBalance.unpaidLessonCount, 1)
 
 const mutateStudentRate = await app.request(`/students/${createStudentBody.student.id}`, {
@@ -742,7 +818,7 @@ const paymentsAfterRateChangeBody = await paymentsAfterRateChange.json()
 const immutableChargeBalance = paymentsAfterRateChangeBody.balances.find(
 	(balance: { studentId: string }) => balance.studentId === createStudentBody.student.id
 )
-assert.equal(immutableChargeBalance.balance, -2000)
+assert.equal(immutableChargeBalance.balance, -1800)
 
 const createDeletedLesson = await app.request('/lessons', {
 	method: 'POST',
@@ -859,6 +935,62 @@ const selectCalendar = await app.request('/calendar/connection', {
 assert.equal(selectCalendar.status, 200)
 const selectCalendarBody = await selectCalendar.json()
 assert.equal(selectCalendarBody.connection.selectedCalendarId, 'teacher-calendar')
+
+const blockStartsAt = new Date(startsAt)
+blockStartsAt.setDate(blockStartsAt.getDate() + 10)
+blockStartsAt.setHours(11, 15, 0, 0)
+const createCalendarBlock = await app.request('/calendar/blocks', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		title: 'Personal appointment',
+		startsAt: blockStartsAt.toISOString(),
+		durationMinutes: 45,
+	}),
+})
+assert.equal(createCalendarBlock.status, 201)
+const createCalendarBlockBody = await createCalendarBlock.json()
+assert.equal(createCalendarBlockBody.block.title, 'Personal appointment')
+assert.equal(createCalendarBlockBody.block.syncStatus, 'synced')
+
+const listCalendarBlocks = await app.request('/calendar/blocks', {
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(listCalendarBlocks.status, 200)
+const listCalendarBlocksBody = await listCalendarBlocks.json()
+assert.equal(
+	listCalendarBlocksBody.blocks.some((block: { id: string }) => block.id === createCalendarBlockBody.block.id),
+	true
+)
+
+const updateCalendarBlock = await app.request(`/calendar/blocks/${createCalendarBlockBody.block.id}`, {
+	method: 'PATCH',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		title: 'Updated personal appointment',
+		durationMinutes: 60,
+	}),
+})
+assert.equal(updateCalendarBlock.status, 200)
+const updateCalendarBlockBody = await updateCalendarBlock.json()
+assert.equal(updateCalendarBlockBody.block.title, 'Updated personal appointment')
+assert.equal(updateCalendarBlockBody.block.durationMinutes, 60)
+
+const deleteCalendarBlock = await app.request(`/calendar/blocks/${createCalendarBlockBody.block.id}`, {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(deleteCalendarBlock.status, 200)
 
 const syncLesson = await app.request('/calendar/sync-events', {
 	method: 'POST',

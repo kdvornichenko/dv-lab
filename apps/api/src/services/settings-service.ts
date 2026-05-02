@@ -62,7 +62,21 @@ function toRepositoryItems(items: readonly SidebarItem[]): SidebarSettingsItem[]
 }
 
 function normalizeThemeSettings(value: unknown): CrmThemeSettings {
-	return crmThemeSettingsSchema.catch(DEFAULT_CRM_THEME_SETTINGS).parse(value)
+	const candidate = value && typeof value === 'object' ? (value as Partial<CrmThemeSettings>) : {}
+	const merged = {
+		...DEFAULT_CRM_THEME_SETTINGS,
+		...candidate,
+		colors: {
+			...DEFAULT_CRM_THEME_SETTINGS.colors,
+			...(candidate.colors ?? {}),
+		},
+		fontSizes: {
+			...DEFAULT_CRM_THEME_SETTINGS.fontSizes,
+			...(candidate.fontSizes ?? {}),
+		},
+	}
+	const parsed = crmThemeSettingsSchema.safeParse(merged)
+	return parsed.success ? parsed.data : DEFAULT_CRM_THEME_SETTINGS
 }
 
 function toRepositoryTheme(theme: CrmThemeSettings): ThemeSettingsValue {
@@ -71,6 +85,7 @@ function toRepositoryTheme(theme: CrmThemeSettings): ThemeSettingsValue {
 		headingFont: theme.headingFont,
 		bodyFont: theme.bodyFont,
 		numberFont: theme.numberFont,
+		fontSizes: { ...theme.fontSizes },
 		colors: { ...theme.colors },
 	}
 }

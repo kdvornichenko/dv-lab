@@ -1,5 +1,15 @@
 'use client'
 
+import {
+	DndContext,
+	PointerSensor,
+	useDraggable,
+	useDroppable,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from '@dnd-kit/core'
+
 import { useMemo } from 'react'
 
 import { addDays, format, isSameDay, isToday, startOfWeek } from 'date-fns'
@@ -10,13 +20,119 @@ import { cn } from '@/lib/utils'
 
 import { HOUR_PX, TONE_EVENT, WEEK_END_HOUR, WEEK_START_HOUR } from '../constants'
 import { useCalendar } from '../context'
+import type { CalendarEvent } from '../types'
 import { calendarSlot, eventTone, formatEventTime, sameDayEvents } from '../utils'
 
+const AVAILABILITY_START_HOUR = 10
+const AVAILABILITY_END_HOUR = 21
+const DROP_INTERVAL_MINUTES = 15
+
+function eventOverlaps(a: CalendarEvent, b: CalendarEvent) {
+	return a.start < b.end && a.end > b.start
+}
+
+function layoutEvents(events: CalendarEvent[]) {
+	return events.map((event) => {
+		const overlaps = events
+			.filter((candidate) => eventOverlaps(event, candidate))
+			.sort((a, b) => a.start.getTime() - b.start.getTime() || a.id.localeCompare(b.id))
+		return {
+			event,
+			column: Math.max(
+				overlaps.findIndex((candidate) => candidate.id === event.id),
+				0
+			),
+			columns: Math.max(overlaps.length, 1),
+		}
+	})
+}
+
+function mergedBusyIntervals(events: CalendarEvent[], day: Date) {
+	const dayStart = calendarSlot(day, AVAILABILITY_START_HOUR)
+	const dayEnd = calendarSlot(day, AVAILABILITY_END_HOUR + 1)
+	const busy = sameDayEvents(events, day)
+		.filter((event) => event.kind !== 'free')
+		.map((event) => ({
+			start: new Date(Math.max(event.start.getTime(), dayStart.getTime())),
+			end: new Date(Math.min(event.end.getTime(), dayEnd.getTime())),
+		}))
+		.filter((event) => event.end > event.start)
+		.sort((a, b) => a.start.getTime() - b.start.getTime())
+
+	const merged: Array<{ start: Date; end: Date }> = []
+	for (const interval of busy) {
+		const last = merged.at(-1)
+		if (last && interval.start <= last.end) {
+			last.end = new Date(Math.max(last.end.getTime(), interval.end.getTime()))
+		} else {
+			merged.push({ ...interval })
+		}
+	}
+	return { dayStart, dayEnd, busy: merged }
+}
+
+function freeSlotEvents(events: CalendarEvent[], day: Date): CalendarEvent[] {
+	const { dayStart, dayEnd, busy } = mergedBusyIntervals(events, day)
+	const free: CalendarEvent[] = []
+	let cursor = dayStart
+	for (const interval of busy) {
+		if (interval.start > cursor) {
+			free.push({
+				id: `free:${day.toISOString()}:${cursor.toISOString()}`,
+				start: cursor,
+				end: interval.start,
+				title: 'Free slot',
+				color: 'green',
+				kind: 'free',
+			})
+		}
+		cursor = new Date(Math.max(cursor.getTime(), interval.end.getTime()))
+	}
+	if (cursor < dayEnd) {
+		free.push({
+			id: `free:${day.toISOString()}:${cursor.toISOString()}`,
+			start: cursor,
+			end: dayEnd,
+			title: 'Free slot',
+			color: 'green',
+			kind: 'free',
+		})
+	}
+	return free.filter((event) => event.end.getTime() - event.start.getTime() >= DROP_INTERVAL_MINUTES * 60_000)
+}
+
+function visibleAvailabilityEvent(event: CalendarEvent, day: Date): CalendarEvent | null {
+	const dayStart = calendarSlot(day, AVAILABILITY_START_HOUR)
+	const dayEnd = calendarSlot(day, AVAILABILITY_END_HOUR + 1)
+	if (event.end <= dayStart || event.start >= dayEnd) return null
+
+	return {
+		...event,
+		start: new Date(Math.max(event.start.getTime(), dayStart.getTime())),
+		end: new Date(Math.min(event.end.getTime(), dayEnd.getTime())),
+	}
+}
+
+function dropSlots(day: Date, startHour: number, endHour: number) {
+	const slots: Date[] = []
+	const start = startHour * 60
+	const end = (endHour + 1) * 60
+	for (let minute = start; minute < end; minute += DROP_INTERVAL_MINUTES) {
+		const slot = calendarSlot(day, Math.floor(minute / 60))
+		slot.setMinutes(minute % 60, 0, 0)
+		slots.push(slot)
+	}
+	return slots
+}
+
 export const CalendarWeekView = () => {
-	const { date, locale, events, onEventClick, onTimeSlotClick } = useCalendar()
+	const { date, locale, events, onEventClick, onTimeSlotClick, onEventDrop, availabilityMode } = useCalendar()
+	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+	const startHour = availabilityMode ? AVAILABILITY_START_HOUR : WEEK_START_HOUR
+	const endHour = availabilityMode ? AVAILABILITY_END_HOUR : WEEK_END_HOUR
 	const hours = useMemo(
-		() => Array.from({ length: WEEK_END_HOUR - WEEK_START_HOUR + 1 }, (_, index) => WEEK_START_HOUR + index),
-		[]
+		() => Array.from({ length: endHour - startHour + 1 }, (_, index) => startHour + index),
+		[endHour, startHour]
 	)
 	const days = useMemo(() => {
 		const start = startOfWeek(date, { weekStartsOn: 1 })
@@ -26,108 +142,212 @@ export const CalendarWeekView = () => {
 		() => events.filter((event) => days.some((day) => isSameDay(day, event.start))),
 		[days, events]
 	)
+	const renderEvents = useMemo(() => {
+		if (!availabilityMode) return weekEvents
+		const freeEvents = days.flatMap((day) => freeSlotEvents(weekEvents, day))
+		const busyEvents = days.flatMap((day) =>
+			sameDayEvents(weekEvents, day)
+				.filter((event) => event.kind !== 'free')
+				.map((event) => visibleAvailabilityEvent(event, day))
+				.filter((event): event is CalendarEvent => Boolean(event))
+				.map((event) => ({
+					...event,
+					title: ' ',
+					subtitle: undefined,
+					attendees: undefined,
+					color: 'gray' as const,
+					isPrivate: true,
+					draggable: false,
+				}))
+		)
+		return [...busyEvents, ...freeEvents]
+	}, [availabilityMode, days, weekEvents])
+	const handleDragEnd = (event: DragEndEvent) => {
+		const activeEvent = events.find((item) => item.id === event.active.id)
+		const slotIso = typeof event.over?.id === 'string' ? event.over.id.replace(/^slot:/, '') : ''
+		if (!activeEvent || !slotIso || slotIso === String(event.over?.id)) return
+		const startsAt = new Date(slotIso)
+		if (!Number.isNaN(startsAt.getTime())) onEventDrop?.(activeEvent, startsAt)
+	}
 
 	return (
-		<ScrollArea className="bg-surface font-body text-ink h-full">
-			<div className="min-w-230">
-				<div className="bg-surface">
-					<div className="z-100 border-line-soft bg-surface/10 backdrop-blur-xs sticky top-0 grid grid-cols-[64px_repeat(7,1fr)] border-b">
-						<div className="border-line-soft border-r" />
-						{days.map((day) => (
-							<div key={day.toISOString()} className="border-line-soft px-3 py-3 last:border-r-0 sm:border-r">
-								<div className="text-ink-muted font-mono text-[10px] uppercase tracking-[0.25em]">
-									{format(day, 'EEE', { locale })}
-								</div>
-								<div
-									className={cn(
-										'font-heading mt-0.5 inline-flex size-7 items-center justify-center rounded-full text-base',
-										isToday(day) && 'bg-ink text-surface'
-									)}
-								>
-									{format(day, 'd')}
-								</div>
-							</div>
-						))}
-					</div>
-
-					<div className="grid grid-cols-[64px_repeat(7,1fr)]">
-						<div className="border-line-soft border-r">
-							{hours.map((hour) => (
-								<div
-									key={hour}
-									className="text-ink-muted flex items-start justify-end px-2 py-1 font-mono text-[10px]"
-									style={{ height: HOUR_PX }}
-								>
-									{String(hour).padStart(2, '0')}:00
+		<ScrollArea className="h-full bg-surface font-body text-ink">
+			<DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+				<div className="min-w-230">
+					<div className="bg-surface">
+						<div className="sticky top-0 z-100 grid grid-cols-[64px_repeat(7,1fr)] border-b border-line-soft bg-surface/10 backdrop-blur-xs">
+							<div className="border-r border-line-soft" />
+							{days.map((day) => (
+								<div key={day.toISOString()} className="border-line-soft px-3 py-3 last:border-r-0 sm:border-r">
+									<div className="font-mono text-[10px] tracking-[0.25em] text-ink-muted uppercase">
+										{format(day, 'EEE', { locale })}
+									</div>
+									<div
+										className={cn(
+											'mt-0.5 inline-flex size-7 items-center justify-center rounded-full font-heading text-base',
+											isToday(day) && 'bg-ink text-surface'
+										)}
+									>
+										{format(day, 'd')}
+									</div>
 								</div>
 							))}
 						</div>
 
-						{days.map((day) => (
-							<div
-								key={day.toISOString()}
-								className="border-line-soft relative last:border-r-0 sm:border-r"
-								style={{ height: hours.length * HOUR_PX }}
-							>
-								{hours.map((hour, hourIndex) => (
-									<button
+						<div className="grid grid-cols-[64px_repeat(7,1fr)]">
+							<div className="border-r border-line-soft">
+								{hours.map((hour) => (
+									<div
 										key={hour}
-										type="button"
-										className="border-line-soft hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-sage/35 group absolute inset-x-0 border-t text-left transition-colors focus-visible:outline-none focus-visible:ring-2"
-										style={{ top: hourIndex * HOUR_PX, height: HOUR_PX }}
-										onClick={() => onTimeSlotClick?.(calendarSlot(day, hour))}
-										aria-label={`Add lesson at ${format(calendarSlot(day, hour), 'HH:mm')}`}
+										className="flex items-start justify-end px-2 py-1 font-mono text-[10px] text-ink-muted"
+										style={{ height: HOUR_PX }}
 									>
-										<span className="text-sage bg-surface/90 pointer-events-none ml-1.5 mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-											<Plus className="h-3 w-3" />
-											{format(calendarSlot(day, hour), 'HH:mm')}
-										</span>
-									</button>
+										{String(hour).padStart(2, '0')}:00
+									</div>
 								))}
-
-								{isToday(day) && <NowLine />}
-
-								{sameDayEvents(weekEvents, day).map((event) => {
-									const startMinutes = event.start.getHours() * 60 + event.start.getMinutes()
-									const endMinutes = event.end.getHours() * 60 + event.end.getMinutes()
-									const calendarStart = WEEK_START_HOUR * 60
-									const top = ((startMinutes - calendarStart) / 60) * HOUR_PX
-									const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_PX - 2, 28)
-
-									return (
-										<button
-											key={event.id}
-											type="button"
-											className={cn(
-												'absolute z-10 overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm',
-												TONE_EVENT[eventTone(event)]
-											)}
-											style={{
-												top: Math.max(top, 0),
-												height,
-												left: 4,
-												width: 'calc(100% - 8px)',
-											}}
-											onClick={() => onEventClick?.(event)}
-										>
-											<div className="truncate text-xs font-medium leading-tight">{event.title}</div>
-											<div className="font-mono text-xs opacity-70">
-												{formatEventTime(event.start)}-{formatEventTime(event.end)}
-											</div>
-											{event.badges?.some((badge) => badge.tone === 'danger') && (
-												<div className="mt-0.5 font-mono text-xs">
-													{event.badges.find((badge) => badge.tone === 'danger')?.label}
-												</div>
-											)}
-										</button>
-									)
-								})}
 							</div>
-						))}
+
+							{days.map((day) => (
+								<div
+									key={day.toISOString()}
+									className="relative border-line-soft last:border-r-0 sm:border-r"
+									style={{ height: hours.length * HOUR_PX }}
+								>
+									{hours.map((hour, hourIndex) => (
+										<HourSlot
+											key={hour}
+											day={day}
+											hour={hour}
+											hourIndex={hourIndex}
+											onTimeSlotClick={onTimeSlotClick}
+										/>
+									))}
+									{dropSlots(day, startHour, endHour).map((slot) => (
+										<SlotDropZone key={slot.toISOString()} slot={slot} startHour={startHour} />
+									))}
+
+									{isToday(day) && <NowLine />}
+
+									{layoutEvents(sameDayEvents(renderEvents, day)).map(({ event, column, columns }) => {
+										const startMinutes = event.start.getHours() * 60 + event.start.getMinutes()
+										const endMinutes = event.end.getHours() * 60 + event.end.getMinutes()
+										const calendarStart = startHour * 60
+										const top = ((startMinutes - calendarStart) / 60) * HOUR_PX
+										const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_PX - 2, 28)
+										const gap = 4
+										const width = `calc((100% - ${gap * (columns + 1)}px) / ${columns})`
+										const left = `calc(${gap}px + (${width} + ${gap}px) * ${column})`
+
+										return (
+											<WeekEvent
+												key={event.id}
+												event={event}
+												onEventClick={event.kind === 'free' ? undefined : onEventClick}
+												style={{
+													top: Math.max(top, 0),
+													height,
+													left,
+													width,
+												}}
+											/>
+										)
+									})}
+								</div>
+							))}
+						</div>
 					</div>
 				</div>
-			</div>
+			</DndContext>
 		</ScrollArea>
+	)
+}
+
+function HourSlot({
+	day,
+	hour,
+	hourIndex,
+	onTimeSlotClick,
+}: {
+	day: Date
+	hour: number
+	hourIndex: number
+	onTimeSlotClick?: (date: Date) => void
+}) {
+	const slot = calendarSlot(day, hour)
+	return (
+		<button
+			type="button"
+			className="group absolute inset-x-0 border-t border-line-soft text-left transition-colors hover:bg-sage-soft/45 focus-visible:bg-sage-soft/60 focus-visible:ring-2 focus-visible:ring-sage/35 focus-visible:outline-none"
+			style={{ top: hourIndex * HOUR_PX, height: HOUR_PX }}
+			onClick={() => onTimeSlotClick?.(slot)}
+			aria-label={`Add lesson at ${format(slot, 'HH:mm')}`}
+		>
+			<span className="pointer-events-none mt-1.5 ml-1.5 inline-flex items-center gap-1 rounded-md bg-surface/90 px-1.5 py-0.5 font-mono text-[10px] text-sage opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+				<Plus className="h-3 w-3" />
+				{format(slot, 'HH:mm')}
+			</span>
+		</button>
+	)
+}
+
+function SlotDropZone({ slot, startHour }: { slot: Date; startHour: number }) {
+	const { setNodeRef, isOver } = useDroppable({ id: `slot:${slot.toISOString()}` })
+	const slotMinutes = slot.getHours() * 60 + slot.getMinutes()
+	const top = ((slotMinutes - startHour * 60) / 60) * HOUR_PX
+	return (
+		<div
+			ref={setNodeRef}
+			className={cn('pointer-events-none absolute inset-x-0 z-1', isOver && 'bg-sage-soft/55')}
+			style={{ top, height: (DROP_INTERVAL_MINUTES / 60) * HOUR_PX }}
+		/>
+	)
+}
+
+function WeekEvent({
+	event,
+	onEventClick,
+	style,
+}: {
+	event: CalendarEvent
+	onEventClick?: (event: CalendarEvent) => void
+	style: React.CSSProperties
+}) {
+	const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+		id: event.id,
+		disabled: event.draggable === false || event.kind === 'free',
+	})
+	const transformStyle = transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined
+	return (
+		<button
+			ref={setNodeRef}
+			type="button"
+			className={cn(
+				'absolute z-10 overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm',
+				event.kind === 'free'
+					? 'border-yellow-400 bg-yellow-400/55 text-ink'
+					: event.isPrivate
+						? 'border-line-strong bg-surface-muted/75 text-ink-muted opacity-75'
+						: TONE_EVENT[eventTone(event)],
+				isDragging && 'z-40 opacity-80'
+			)}
+			style={{ ...style, transform: transformStyle }}
+			onClick={() => onEventClick?.(event)}
+			{...attributes}
+			{...listeners}
+		>
+			<div
+				className={cn("truncate text-xs leading-tight font-medium", event.kind === 'free' && "text-lg")}
+				data-private={event.kind === 'lesson' ? true : undefined}
+			>
+				{event.title}
+			</div>
+			<div className={cn("font-mono text-xs opacity-70", event.kind === 'free' && "text-lg")}>
+				{formatEventTime(event.start)}-{formatEventTime(event.end)}
+			</div>
+			{event.badges?.some((badge) => badge.tone === 'danger') && (
+				<div className="mt-0.5 font-mono text-xs">{event.badges.find((badge) => badge.tone === 'danger')?.label}</div>
+			)}
+		</button>
 	)
 }
 
@@ -144,8 +364,8 @@ function NowLine() {
 			className="absolute inset-x-0 z-20 flex items-center"
 			style={{ top: ((currentMinutes - calendarStart) / 60) * HOUR_PX }}
 		>
-			<span className="bg-danger ring-danger/30 size-2 rounded-full ring-2" />
-			<span className="bg-danger h-px flex-1" />
+			<span className="size-2 rounded-full bg-danger ring-2 ring-danger/30" />
+			<span className="h-px flex-1 bg-danger" />
 		</div>
 	)
 }

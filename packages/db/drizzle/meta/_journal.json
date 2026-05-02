@@ -85,6 +85,13 @@
 			"when": 1777636800000,
 			"tag": "0011_payment_voiding",
 			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1777708800000,
+			"tag": "0012_calendar_blocks_privacy_plans",
+			"breakpoints": true
 		}
 	]
 }

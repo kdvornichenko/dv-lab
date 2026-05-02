@@ -61,10 +61,17 @@ export function StudentProfilePane({ student, lessons, now }: StudentProfilePane
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
 						<p className="text-sage font-mono text-xs font-semibold uppercase">Profile</p>
-						<h3 className="text-ink mt-1 truncate text-lg font-semibold">{student.fullName}</h3>
-						<p className="text-ink-muted mt-1 text-sm">{student.level || 'No level set'}</p>
+						<h3 className="text-ink mt-1 truncate text-lg font-semibold" data-private>
+							{student.fullName}
+						</h3>
+						<p className="text-ink-muted mt-1 text-sm" data-private>
+							{student.level || 'No level set'}
+						</p>
 					</div>
-					<Badge tone={projection.statusTone}>{student.status}</Badge>
+					<div className="flex flex-wrap justify-end gap-1.5">
+						{student.packageLessonPriceOverride !== null && <Badge tone="neutral">custom plan</Badge>}
+						<Badge tone={projection.statusTone}>{student.status}</Badge>
+					</div>
 				</div>
 			</div>
 
@@ -228,7 +235,7 @@ function ProfileRow({
 				<Icon className="text-sage h-3.5 w-3.5" />
 				{label}
 			</div>
-			<p className={multiline ? 'text-ink whitespace-pre-wrap leading-5' : 'text-ink truncate'}>{value}</p>
+			<p data-private className={multiline ? 'text-ink whitespace-pre-wrap leading-5' : 'text-ink truncate'}>{value}</p>
 		</div>
 	)
 }

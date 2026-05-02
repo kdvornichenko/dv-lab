@@ -235,6 +235,7 @@ export function getPackageLessonPrice(student: Student) {
 		defaultLessonPrice: student.defaultLessonPrice,
 		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 		packageMonths: student.packageMonths,
+		packageLessonPriceOverride: student.packageLessonPriceOverride,
 	})
 }
 
@@ -244,6 +245,7 @@ export function getPackageTotalPrice(student: Student) {
 		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 		packageMonths: student.packageMonths,
 		packageLessonCount: student.packageLessonCount,
+		packageLessonPriceOverride: student.packageLessonPriceOverride,
 	})
 }
 
@@ -376,6 +378,7 @@ export function getStudentPlanLabel(student: StudentWithBalance) {
 			defaultLessonPrice: student.defaultLessonPrice,
 			defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 			lessonsPerWeek: student.packageLessonsPerWeek,
+			packageLessonPriceOverride: student.packageLessonPriceOverride,
 		})
 		return monthlyLessonCount > 0
 			? `Monthly plan · ${monthlyLessonCount} lessons · ${formatStudentAmount(monthlyTotal)}`

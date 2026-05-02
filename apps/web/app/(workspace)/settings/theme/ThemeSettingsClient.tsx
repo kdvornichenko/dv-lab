@@ -11,14 +11,14 @@ import { presetThemes, shufflePalettes } from '@/components/settings/theme/theme
 import { Skeleton } from '@/components/ui/skeleton'
 import { cloneTheme, radiusOptions } from '@/lib/theme/theme-settings'
 
-import { DEFAULT_CRM_THEME_SETTINGS, type CrmThemeSettings } from '@teacher-crm/api-types'
+import type { CrmThemeSettings } from '@teacher-crm/api-types'
 
 function themesEqual(a: CrmThemeSettings, b: CrmThemeSettings) {
 	return JSON.stringify(a) === JSON.stringify(b)
 }
 
 export function ThemeSettingsClient() {
-	const { loading, resetTheme, saveTheme, theme } = useThemeSettings()
+	const { loading, saveTheme, theme } = useThemeSettings()
 	const [draft, setDraft] = useState(() => cloneTheme(theme))
 	const [activePreset, setActivePreset] = useState('devl')
 	const [isSaving, setIsSaving] = useState(false)
@@ -48,10 +48,25 @@ export function ThemeSettingsClient() {
 	function shuffleTheme() {
 		const palette = shufflePalettes[Math.floor(Math.random() * shufflePalettes.length)]
 		const radius = radiusOptions[Math.floor(Math.random() * radiusOptions.length)].value
+		const fonts = ['geist', 'inter', 'manrope', 'nunito', 'roboto', 'ibm-plex', 'system'] as const
+		const numberFonts = ['mono', 'jetbrains-mono', 'roboto-mono'] as const
+		const fontSize = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
 		setDraft((current) => ({
 			...current,
 			radius,
-			colors: { ...palette },
+			headingFont: fonts[Math.floor(Math.random() * fonts.length)],
+			bodyFont: fonts[Math.floor(Math.random() * fonts.length)],
+			numberFont: numberFonts[Math.floor(Math.random() * numberFonts.length)],
+			fontSizes: {
+				body: fontSize(13, 16),
+				heading: fontSize(17, 22),
+				small: fontSize(11, 13),
+			},
+			colors: {
+				...palette,
+				card: Math.random() > 0.5 ? palette.card : current.colors.card,
+				surfaceMuted: Math.random() > 0.5 ? palette.surfaceMuted : current.colors.surfaceMuted,
+			},
 		}))
 	}
 
@@ -68,19 +83,10 @@ export function ThemeSettingsClient() {
 		}
 	}
 
-	async function handleReset() {
-		setIsSaving(true)
-		try {
-			setDraft(cloneTheme(DEFAULT_CRM_THEME_SETTINGS))
-			setActivePreset('devl')
-			await resetTheme()
-			toast.success('Theme reset')
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Reset locally, but database sync failed'
-			toast.error('Theme reset locally', { description: message })
-		} finally {
-			setIsSaving(false)
-		}
+	function handleReset() {
+		setDraft(cloneTheme(theme))
+		setActivePreset('devl')
+		toast.success('Draft reset')
 	}
 
 	if (loading) {
@@ -105,7 +111,7 @@ export function ThemeSettingsClient() {
 					onApplyPreset={applyPreset}
 					onColorChange={updateColor}
 					onDraftChange={setDraft}
-					onReset={() => void handleReset()}
+					onReset={handleReset}
 					onSave={() => void handleSave()}
 					onShuffle={shuffleTheme}
 					onUndo={() => setDraft(cloneTheme(theme))}

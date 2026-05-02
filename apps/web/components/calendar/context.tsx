@@ -19,6 +19,8 @@ type ContextType = {
 	onChangeView?: (view: View) => void
 	onEventClick?: (event: CalendarEvent) => void
 	onTimeSlotClick?: (date: Date) => void
+	onEventDrop?: (event: CalendarEvent, startsAt: Date) => void
+	availabilityMode?: boolean
 	enableHotkeys?: boolean
 	today: Date
 }
@@ -33,6 +35,8 @@ export const Calendar = ({
 	view: _defaultMode = 'week',
 	onEventClick,
 	onTimeSlotClick,
+	onEventDrop,
+	availabilityMode = false,
 	events: defaultEvents = [],
 	onChangeView,
 }: CalendarProps) => {
@@ -78,6 +82,8 @@ export const Calendar = ({
 				enableHotkeys,
 				onEventClick,
 				onTimeSlotClick,
+				onEventDrop,
+				availabilityMode,
 				onChangeView,
 				today: new Date(),
 			}}

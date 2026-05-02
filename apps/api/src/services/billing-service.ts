@@ -60,6 +60,12 @@ function numeric(value: string | number | null | undefined) {
 	return Number(value)
 }
 
+function packageLessonPriceOverride(student: Student | StudentRow) {
+	return student.packageLessonPriceOverride === null || student.packageLessonPriceOverride === undefined
+		? null
+		: numeric(student.packageLessonPriceOverride)
+}
+
 function isBillableAttendance(record: Pick<AttendanceRecord, 'status' | 'billable'>) {
 	return record.billable && BILLABLE_STATUSES.includes(record.status)
 }
@@ -76,12 +82,14 @@ function mapStudent(row: StudentRow): Student {
 		special: row.special ?? undefined,
 		status: row.status,
 		notes: row.notes ?? undefined,
+		birthday: row.birthday ?? null,
 		defaultLessonPrice: numeric(row.defaultLessonPrice),
 		defaultLessonDurationMinutes: row.defaultLessonDurationMinutes,
 		packageMonths: row.packageMonths,
 		packageLessonsPerWeek: row.packageLessonsPerWeek,
 		packageLessonCount: row.packageLessonCount,
 		packageTotalPrice: numeric(row.packageTotalPrice),
+		packageLessonPriceOverride: row.packageLessonPriceOverride === null ? null : numeric(row.packageLessonPriceOverride),
 		currency: row.currency,
 		billingMode: row.billingMode,
 		createdAt: dateToIso(row.createdAt),
@@ -146,6 +154,7 @@ function packageLessonPrice(student: Student | StudentRow, lesson?: Lesson | Les
 		defaultLessonPrice: numeric(student.defaultLessonPrice),
 		defaultLessonDurationMinutes: lesson?.durationMinutes ?? student.defaultLessonDurationMinutes,
 		packageMonths: student.packageMonths,
+		packageLessonPriceOverride: packageLessonPriceOverride(student),
 	})
 }
 
@@ -163,6 +172,7 @@ function packageTotal(student: Student | StudentRow) {
 		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 		packageMonths: student.packageMonths,
 		packageLessonCount: student.packageLessonCount,
+		packageLessonPriceOverride: packageLessonPriceOverride(student),
 	})
 }
 
@@ -179,6 +189,7 @@ function monthlyTotal(student: Student | StudentRow) {
 		defaultLessonPrice: numeric(student.defaultLessonPrice),
 		defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
 		lessonsPerWeek: student.packageLessonsPerWeek,
+		packageLessonPriceOverride: packageLessonPriceOverride(student),
 	})
 }
 

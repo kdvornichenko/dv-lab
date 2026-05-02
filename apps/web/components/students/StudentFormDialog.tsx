@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Save } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
 	Dialog,
 	DialogContent,
@@ -18,9 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
-	BILLING_MODE_OPTIONS,
 	formatCurrencyAmount,
-	getBillingModeLabel,
 	STUDENT_STATUS_OPTIONS,
 } from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
@@ -30,7 +29,7 @@ import {
 	DEFAULT_LESSON_DURATION_MINUTES,
 	DEFAULT_PACKAGE_WEEKS_PER_MONTH,
 	LESSON_PRICE_RUB,
-	SUPPORTED_PACKAGE_MONTHS,
+	calculateMonthlyTotalPrice,
 	calculatePackageLessonCount,
 	calculatePackageLessonPriceRub,
 	calculatePackageTotalPriceRub,
@@ -45,6 +44,7 @@ type StudentFormValues = {
 	special: string
 	status: StudentWithBalance['status']
 	notes: string
+	birthday: string
 	defaultLessonPrice: string
 	defaultLessonDurationMinutes: string
 	currency: Currency
@@ -52,6 +52,7 @@ type StudentFormValues = {
 	packageLessonsPerWeek: string
 	packageLessonCount: string
 	packageTotalPrice: string
+	packageLessonPriceOverride: string
 	billingMode: StudentWithBalance['billingMode']
 }
 
@@ -63,10 +64,13 @@ type StudentFormCommand = Omit<
 	| 'packageLessonsPerWeek'
 	| 'packageLessonCount'
 	| 'packageTotalPrice'
+	| 'packageLessonPriceOverride'
+	| 'birthday'
 > & {
 	fullName: string
 	email: string
 	phone: string
+	birthday: string | null
 	defaultLessonPrice: number
 	defaultLessonDurationMinutes: number
 	currency: Currency
@@ -74,6 +78,7 @@ type StudentFormCommand = Omit<
 	packageLessonsPerWeek: number
 	packageLessonCount: number
 	packageTotalPrice: number
+	packageLessonPriceOverride: number | null
 }
 
 type StudentFormErrors = Partial<Record<keyof StudentFormValues, string>>
@@ -96,6 +101,7 @@ const initialValues: StudentFormValues = {
 	special: '',
 	status: 'active',
 	notes: '',
+	birthday: '',
 	defaultLessonPrice: String(LESSON_PRICE_RUB.default),
 	defaultLessonDurationMinutes: String(DEFAULT_LESSON_DURATION_MINUTES),
 	currency: 'RUB',
@@ -103,10 +109,25 @@ const initialValues: StudentFormValues = {
 	packageLessonsPerWeek: '1',
 	packageLessonCount: '0',
 	packageTotalPrice: '0',
+	packageLessonPriceOverride: '',
 	billingMode: 'per_lesson',
 }
 
 const textValue = (value: string | null | undefined) => value ?? ''
+function datePickerValue(value: string) {
+	if (!value) return undefined
+	const date = new Date(`${value}T00:00:00`)
+	return Number.isNaN(date.getTime()) ? undefined : date
+}
+
+function dateInputValue(value: Date) {
+	return [
+		value.getFullYear(),
+		String(value.getMonth() + 1).padStart(2, '0'),
+		String(value.getDate()).padStart(2, '0'),
+	].join('-')
+}
+
 const nameFromFullName = (value: string | null | undefined) => {
 	const parts = textValue(value).trim().split(/\s+/).filter(Boolean)
 	return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') }
@@ -133,6 +154,7 @@ const toValues = (student?: StudentWithBalance | null): StudentFormValues =>
 					special: student.special ?? '',
 					status: student.status,
 					notes: student.notes ?? '',
+					birthday: student.birthday ?? '',
 					defaultLessonPrice: String(student.defaultLessonPrice),
 					defaultLessonDurationMinutes: String(student.defaultLessonDurationMinutes),
 					currency: student.currency,
@@ -140,6 +162,8 @@ const toValues = (student?: StudentWithBalance | null): StudentFormValues =>
 					packageLessonsPerWeek: String(inferLessonsPerWeek(student)),
 					packageLessonCount: String(student.packageLessonCount),
 					packageTotalPrice: String(student.packageTotalPrice),
+					packageLessonPriceOverride:
+						student.packageLessonPriceOverride === null ? '' : String(student.packageLessonPriceOverride),
 					billingMode: student.billingMode,
 				}
 			})()
@@ -154,6 +178,9 @@ function validate(values: StudentFormValues) {
 	const defaultLessonDurationMinutes = numberValue(values.defaultLessonDurationMinutes)
 	const packageMonths = numberValue(values.packageMonths)
 	const packageLessonsPerWeek = numberValue(values.packageLessonsPerWeek)
+	const packageLessonPriceOverride =
+		values.packageLessonPriceOverride.trim() === '' ? null : Number(values.packageLessonPriceOverride)
+	const customPackage = packageLessonPriceOverride !== null
 
 	if (!textValue(values.firstName).trim()) errors.firstName = 'First name is required'
 	if (!textValue(values.lastName).trim()) errors.lastName = 'Last name is required'
@@ -161,11 +188,14 @@ function validate(values: StudentFormValues) {
 	if (!Number.isInteger(defaultLessonDurationMinutes) || defaultLessonDurationMinutes <= 0) {
 		errors.defaultLessonDurationMinutes = 'Duration must be greater than zero'
 	}
-	if (!Number.isInteger(packageMonths) || !isSupportedPackageMonths(packageMonths)) {
-		errors.packageMonths = 'Choose no package, 3 months, or 5 months'
+	if (!Number.isInteger(packageMonths) || (!isSupportedPackageMonths(packageMonths) && !customPackage)) {
+		errors.packageMonths = 'Choose a standard plan or custom package'
 	}
 	if (!Number.isInteger(packageLessonsPerWeek) || packageLessonsPerWeek < 0) {
 		errors.packageLessonsPerWeek = 'Lessons per week must be zero or greater'
+	}
+	if (packageLessonPriceOverride !== null && (!Number.isFinite(packageLessonPriceOverride) || packageLessonPriceOverride < 0)) {
+		errors.packageLessonPriceOverride = 'Custom price must be zero or greater'
 	}
 	if (values.billingMode === 'monthly' && packageLessonsPerWeek <= 0) {
 		errors.packageLessonsPerWeek = 'Set lessons per week'
@@ -175,7 +205,6 @@ function validate(values: StudentFormValues) {
 		if (packageLessonsPerWeek <= 0) errors.packageLessonsPerWeek = 'Set lessons per week'
 	}
 	if (!STUDENT_STATUS_OPTIONS.includes(values.status)) errors.status = 'Choose a status'
-	if (!BILLING_MODE_OPTIONS.includes(values.billingMode)) errors.billingMode = 'Choose billing mode'
 	if (textValue(values.notes).length > 1000) errors.notes = 'Notes must be 1000 characters or fewer'
 	if (textValue(values.special).length > 240) errors.special = 'Special must be 240 characters or fewer'
 
@@ -188,6 +217,8 @@ function toCommand(values: StudentFormValues): StudentFormCommand {
 	const packageMonths = Number(values.packageMonths)
 	const packageLessonsPerWeek = Number(values.packageLessonsPerWeek)
 	const packageLessonCount = calculatePackageLessonCount({ packageMonths, packageLessonsPerWeek })
+	const packageLessonPriceOverride =
+		values.packageLessonPriceOverride.trim() === '' ? null : Number(values.packageLessonPriceOverride)
 	return {
 		firstName,
 		lastName,
@@ -198,6 +229,7 @@ function toCommand(values: StudentFormValues): StudentFormCommand {
 		special: textValue(values.special).trim(),
 		status: values.status,
 		notes: textValue(values.notes).trim(),
+		birthday: values.birthday.trim() || null,
 		defaultLessonPrice: Number(values.defaultLessonPrice),
 		defaultLessonDurationMinutes: Number(values.defaultLessonDurationMinutes),
 		currency: values.currency,
@@ -209,7 +241,9 @@ function toCommand(values: StudentFormValues): StudentFormCommand {
 			defaultLessonDurationMinutes: Number(values.defaultLessonDurationMinutes),
 			packageMonths,
 			packageLessonCount,
+			packageLessonPriceOverride,
 		}),
+		packageLessonPriceOverride,
 		billingMode: values.billingMode,
 	}
 }
@@ -225,18 +259,36 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 	const packageMonths = numberValue(values.packageMonths)
 	const packageLessonsPerWeek = numberValue(values.packageLessonsPerWeek)
 	const packageLessonCount = calculatePackageLessonCount({ packageMonths, packageLessonsPerWeek })
+	const packageLessonPriceOverride =
+		values.packageLessonPriceOverride.trim() === '' ? null : numberValue(values.packageLessonPriceOverride)
 	const packageLessonPrice = calculatePackageLessonPriceRub({
 		defaultLessonPrice: finiteOrZero(defaultLessonPrice),
 		defaultLessonDurationMinutes: finiteOrZero(defaultLessonDurationMinutes) || DEFAULT_LESSON_DURATION_MINUTES,
 		packageMonths,
+		packageLessonPriceOverride,
 	})
 	const packageTotalPrice = calculatePackageTotalPriceRub({
 		defaultLessonPrice: finiteOrZero(defaultLessonPrice),
 		defaultLessonDurationMinutes: finiteOrZero(defaultLessonDurationMinutes) || DEFAULT_LESSON_DURATION_MINUTES,
 		packageMonths,
 		packageLessonCount,
+		packageLessonPriceOverride,
+	})
+	const monthlyTotalPrice = calculateMonthlyTotalPrice({
+		defaultLessonPrice: finiteOrZero(defaultLessonPrice),
+		defaultLessonDurationMinutes: finiteOrZero(defaultLessonDurationMinutes) || DEFAULT_LESSON_DURATION_MINUTES,
+		lessonsPerWeek: packageLessonsPerWeek,
+		packageLessonPriceOverride,
 	})
 	const packageSavings = Math.max((durationLessonPrice - packageLessonPrice) * finiteOrZero(packageLessonCount), 0)
+	const planValue =
+		values.billingMode === 'per_lesson'
+			? 'per_lesson'
+			: values.billingMode === 'monthly'
+				? 'monthly'
+				: packageLessonPriceOverride !== null && !isSupportedPackageMonths(packageMonths)
+					? 'custom'
+					: String(packageMonths)
 
 	useEffect(() => {
 		if (!open) return
@@ -255,6 +307,32 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 			...current,
 			[key]: undefined,
 		}))
+	}
+
+	const updatePlan = (value: string) => {
+		setValues((current) => {
+			if (value === 'per_lesson') {
+				return { ...current, billingMode: 'per_lesson', packageMonths: '0', packageLessonCount: '0' }
+			}
+			if (value === 'monthly') {
+				return { ...current, billingMode: 'monthly', packageMonths: '0' }
+			}
+			if (value === 'custom') {
+				return {
+					...current,
+					billingMode: 'package',
+					packageMonths: isSupportedPackageMonths(Number(current.packageMonths)) ? '4' : current.packageMonths,
+					packageLessonPriceOverride: current.packageLessonPriceOverride || current.defaultLessonPrice,
+				}
+			}
+			return {
+				...current,
+				billingMode: 'package',
+				packageMonths: value,
+				packageLessonPriceOverride: '',
+			}
+		})
+		setErrors((current) => ({ ...current, billingMode: undefined, packageMonths: undefined }))
 	}
 
 	const handleSubmit = async (event: FormSubmitEvent) => {
@@ -305,6 +383,14 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 							<Field label="Level">
 								<Input value={values.level} onChange={(event) => updateValue('level', event.target.value)} />
 							</Field>
+							<Field label="Birthday">
+								<DatePicker
+									date={datePickerValue(values.birthday)}
+									onSelect={(date) => updateValue('birthday', date ? dateInputValue(date) : '')}
+									placeholder="Choose birthday"
+									className="w-full"
+								/>
+							</Field>
 							<Field label="Special" error={errors.special}>
 								<Input
 									value={values.special}
@@ -329,23 +415,7 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 									</SelectContent>
 								</Select>
 							</Field>
-							<Field label="Billing mode" error={errors.billingMode}>
-								<Select
-									value={values.billingMode}
-									onValueChange={(value) => updateValue('billingMode', value as StudentFormValues['billingMode'])}
-								>
-									<SelectTrigger aria-invalid={Boolean(errors.billingMode)}>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{BILLING_MODE_OPTIONS.map((item) => (
-											<SelectItem key={item} value={item}>
-												{getBillingModeLabel(item)}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</Field>
+							
 							<Field label="Currency">
 								<Select value={values.currency} onValueChange={(value) => updateValue('currency', value as Currency)}>
 									<SelectTrigger>
@@ -389,20 +459,34 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 										base price and lesson duration.
 									</p>
 								</div>
-								<Field label="Package months" error={errors.packageMonths}>
-									<Select value={values.packageMonths} onValueChange={(value) => updateValue('packageMonths', value)}>
+								<Field label="Plan" error={errors.billingMode ?? errors.packageMonths}>
+									<Select value={planValue} onValueChange={updatePlan}>
 										<SelectTrigger aria-invalid={Boolean(errors.packageMonths)}>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											{SUPPORTED_PACKAGE_MONTHS.map((item) => (
-												<SelectItem key={item} value={String(item)}>
-													{item === 0 ? 'No package' : `${item} months`}
-												</SelectItem>
-											))}
+											<SelectItem value="per_lesson">Per lesson</SelectItem>
+											<SelectItem value="monthly">Monthly</SelectItem>
+											<SelectItem value="3">3 months</SelectItem>
+											<SelectItem value="5">5 months</SelectItem>
+											<SelectItem value="custom">+ custom</SelectItem>
 										</SelectContent>
 									</Select>
 								</Field>
+								{planValue === 'custom' && (
+									<Field label="Custom months" error={errors.packageMonths}>
+										<Input
+											type="number"
+											inputMode="numeric"
+											min="1"
+											step="1"
+											className="font-mono tabular-nums"
+											value={values.packageMonths}
+											onChange={(event) => updateValue('packageMonths', event.target.value)}
+											aria-invalid={Boolean(errors.packageMonths)}
+										/>
+									</Field>
+								)}
 								<Field label="Lessons per week" error={errors.packageLessonsPerWeek}>
 									<Input
 										type="number"
@@ -415,6 +499,21 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 										aria-invalid={Boolean(errors.packageLessonsPerWeek)}
 									/>
 								</Field>
+								{planValue === 'custom' && (
+									<Field label="Custom lesson price" error={errors.packageLessonPriceOverride}>
+										<Input
+											type="number"
+											inputMode="numeric"
+											min="0"
+											step="1"
+											className="font-mono tabular-nums"
+											value={values.packageLessonPriceOverride}
+											onChange={(event) => updateValue('packageLessonPriceOverride', event.target.value)}
+											placeholder="Use package discount"
+											aria-invalid={Boolean(errors.packageLessonPriceOverride)}
+										/>
+									</Field>
+								)}
 								<PackagePreviewItem label="Lessons in package" value={`${packageLessonCount} lessons`} />
 								<div className="border-line-soft bg-surface grid gap-3 rounded-lg border p-3 sm:grid-cols-4 md:col-span-3">
 									<PackagePreviewItem
@@ -428,6 +527,10 @@ export function StudentFormDialog({ open, mode, student, onOpenChange, onSubmit 
 									<PackagePreviewItem
 										label="Package payment"
 										value={formatCurrencyAmount(finiteOrZero(packageTotalPrice), values.currency)}
+									/>
+									<PackagePreviewItem
+										label="Monthly payment"
+										value={formatCurrencyAmount(finiteOrZero(monthlyTotalPrice), values.currency)}
 									/>
 									<PackagePreviewItem label="Savings" value={formatCurrencyAmount(packageSavings, values.currency)} />
 								</div>

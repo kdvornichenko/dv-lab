@@ -117,6 +117,9 @@
 	--font-numeric:
 		var(--font-geist-mono), 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		monospace;
+	--crm-font-size-body: 14px;
+	--crm-font-size-heading: 18px;
+	--crm-font-size-small: 12px;
 	--radius: 0.625rem;
 	--canvas: #f8fafc;
 	--ink: #0f172a;
@@ -184,6 +187,7 @@ body {
 	background: linear-gradient(180deg, var(--canvas) 0%, var(--canvas-warm) 100%);
 	background-attachment: fixed;
 	color: var(--foreground);
+	font-size: var(--crm-font-size-body);
 	font-family: var(--font-body);
 	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
@@ -196,6 +200,33 @@ h4,
 h5,
 h6 {
 	font-family: var(--font-heading);
+}
+
+h1,
+h2,
+h3 {
+	font-size-adjust: from-font;
+}
+
+small,
+.text-xs {
+	font-size: var(--crm-font-size-small);
+}
+
+html.privacy-mode [data-private],
+html.privacy-mode input,
+html.privacy-mode textarea,
+html.privacy-mode [role='combobox'],
+html.privacy-mode .tabular-nums {
+	filter: blur(7px);
+	transition: filter 120ms ease-out;
+}
+
+html.privacy-mode [data-private]:hover,
+html.privacy-mode input:focus,
+html.privacy-mode textarea:focus,
+html.privacy-mode [role='combobox']:focus {
+	filter: blur(7px);
 }
 
 ::selection {

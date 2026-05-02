@@ -4,22 +4,31 @@ import {
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
 	type CalendarBusyInterval,
 	type CalendarBusyQuery,
+	type CalendarBlock,
 	type CalendarConnection,
 	type CalendarConnectionStatus,
 	type CalendarListEntry,
 	type CalendarSyncRecord,
 	type CalendarSyncStatus,
+	type CreateCalendarBlockInput,
+	type Lesson,
+	type UpdateCalendarBlockInput,
 } from '@teacher-crm/api-types'
 import {
+	deleteCalendarBlockRow,
 	getCalendarLessonContext,
 	getCalendarConnectionRow,
 	getCalendarSyncEventRow,
+	insertCalendarBlockRow,
 	lessonExistsForTeacher,
+	listCalendarBlockRows,
 	listCalendarSyncEventRows,
 	selectCalendarConnectionRow,
+	updateCalendarBlockRow,
 	updateLessonRow,
 	upsertCalendarConnectionRow,
 	upsertCalendarSyncEventRow,
+	type CalendarBlockRow,
 	type CalendarLessonContext,
 	type CalendarConnectionRow,
 	type CalendarSyncEventRow,
@@ -56,6 +65,7 @@ type CalendarSyncOptions = {
 	repeatWeekly?: boolean
 	singleOccurrence?: boolean
 	occurrenceStartsAt?: string
+	lessonOverride?: Lesson
 }
 
 type CalendarImportResult = {
@@ -229,13 +239,14 @@ function eventDate(value: Date | string) {
 }
 
 function calendarEventPayload(context: CalendarLessonContext, options: CalendarSyncOptions = {}) {
-	const startsAt = eventDate(context.lesson.startsAt)
-	const endsAt = new Date(startsAt.getTime() + context.lesson.durationMinutes * 60_000)
+	const lesson = options.lessonOverride ?? context.lesson
+	const startsAt = eventDate(lesson.startsAt)
+	const endsAt = new Date(startsAt.getTime() + lesson.durationMinutes * 60_000)
 
 	return {
-		summary: context.lesson.title,
+		summary: lesson.title,
 		description: 'Created from Teacher CRM.',
-		status: context.lesson.status === 'cancelled' ? 'cancelled' : 'confirmed',
+		status: lesson.status === 'cancelled' ? 'cancelled' : 'confirmed',
 		start: {
 			dateTime: startsAt.toISOString(),
 		},
@@ -243,6 +254,23 @@ function calendarEventPayload(context: CalendarLessonContext, options: CalendarS
 			dateTime: endsAt.toISOString(),
 		},
 		recurrence: options.repeatWeekly ? ['RRULE:FREQ=WEEKLY'] : undefined,
+	}
+}
+
+function calendarBlockPayload(block: Pick<CalendarBlock, 'title' | 'startsAt' | 'durationMinutes'>) {
+	const startsAt = eventDate(block.startsAt)
+	const endsAt = new Date(startsAt.getTime() + block.durationMinutes * 60_000)
+
+	return {
+		summary: block.title,
+		description: 'Busy time from Teacher CRM.',
+		transparency: 'opaque',
+		start: {
+			dateTime: startsAt.toISOString(),
+		},
+		end: {
+			dateTime: endsAt.toISOString(),
+		},
 	}
 }
 
@@ -289,6 +317,21 @@ function mapSyncEventRow(row: CalendarSyncEventRow): CalendarSyncRecord {
 		status: row.status,
 		lastSyncedAt: dateToIso(row.lastSyncedAt),
 		lastError: row.lastError ?? null,
+		updatedAt: dateToIso(row.updatedAt) ?? now(),
+	}
+}
+
+function mapCalendarBlockRow(row: CalendarBlockRow): CalendarBlock {
+	return {
+		id: row.id,
+		title: row.title,
+		startsAt: dateToIso(row.startsAt) ?? new Date().toISOString(),
+		durationMinutes: row.durationMinutes,
+		externalEventId: row.externalEventId ?? null,
+		externalCalendarId: row.externalCalendarId ?? null,
+		syncStatus: row.syncStatus,
+		lastError: row.lastError ?? null,
+		createdAt: dateToIso(row.createdAt) ?? now(),
 		updatedAt: dateToIso(row.updatedAt) ?? now(),
 	}
 }
@@ -424,6 +467,121 @@ async function markGoogleConnectionIssue(
 	return true
 }
 
+function persistRefreshedGoogleToken(
+	db: NonNullable<ReturnType<typeof getDb>>,
+	teacherId: string,
+	connection: CalendarConnectionRow
+) {
+	return (accessToken: string, expiresAt: Date | null) =>
+		upsertCalendarConnectionRow(db, {
+			teacherId,
+			provider: 'google',
+			providerAccountEmail: connection.providerAccountEmail,
+			requiredScopes: connection.requiredScopes,
+			grantedScopes: connection.grantedScopes,
+			tokenAvailable: true,
+			encryptedAccessToken: encryptSecret(accessToken),
+			encryptedRefreshToken: connection.encryptedRefreshToken,
+			tokenExpiresAt: expiresAt,
+			selectedCalendarId: connection.selectedCalendarId,
+			selectedCalendarName: connection.selectedCalendarName,
+			status: 'connected',
+			connectedAt: connection.connectedAt ?? new Date(),
+		})
+}
+
+async function syncCalendarBlockToGoogle(
+	db: NonNullable<ReturnType<typeof getDb>>,
+	teacherId: string,
+	block: CalendarBlockRow
+) {
+	const connection = await getCalendarConnectionRow(db, teacherId)
+	if (!connection || !hasGoogleCalendarGrant(connection.grantedScopes, connection.tokenAvailable)) {
+		return block
+	}
+
+	const calendarId = block.externalCalendarId ?? connection.selectedCalendarId ?? 'primary'
+	const payload = calendarBlockPayload(mapCalendarBlockRow(block))
+
+	try {
+		const event = await withGoogleAccessToken(
+			connection,
+			async (accessToken) => {
+				if (block.externalEventId) {
+					try {
+						return await googleJson<GoogleCalendarEventResponse>(
+							`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(block.externalEventId)}`,
+							accessToken,
+							{
+								method: 'PATCH',
+								body: JSON.stringify(payload),
+							}
+						)
+					} catch (error) {
+						if (!(error instanceof GoogleCalendarRequestError) || error.status !== 404) throw error
+					}
+				}
+
+				return googleJson<GoogleCalendarEventResponse>(
+					`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+					accessToken,
+					{
+						method: 'POST',
+						body: JSON.stringify(payload),
+					}
+				)
+			},
+			persistRefreshedGoogleToken(db, teacherId, connection)
+		)
+
+		return (
+			(await updateCalendarBlockRow(db, teacherId, block.id, {
+				externalEventId: event.id ?? block.externalEventId,
+				externalCalendarId: calendarId,
+				syncStatus: 'synced',
+				lastError: null,
+			})) ?? block
+		)
+	} catch (error) {
+		await markGoogleConnectionIssue(db, teacherId, connection, error)
+		return (
+			(await updateCalendarBlockRow(db, teacherId, block.id, {
+				externalCalendarId: calendarId,
+				syncStatus: 'failed',
+				lastError: error instanceof Error ? error.message : 'Google Calendar block sync failed',
+			})) ?? block
+		)
+	}
+}
+
+async function deleteCalendarBlockFromGoogle(
+	db: NonNullable<ReturnType<typeof getDb>>,
+	teacherId: string,
+	block: CalendarBlockRow
+) {
+	if (!block.externalEventId) return
+	const connection = await getCalendarConnectionRow(db, teacherId)
+	if (!connection || !hasGoogleCalendarGrant(connection.grantedScopes, connection.tokenAvailable)) return
+
+	const calendarId = block.externalCalendarId ?? connection.selectedCalendarId ?? 'primary'
+	try {
+		await withGoogleAccessToken(
+			connection,
+			(accessToken) =>
+				googleJson<null>(
+					`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(block.externalEventId!)}`,
+					accessToken,
+					{ method: 'DELETE' }
+				),
+			persistRefreshedGoogleToken(db, teacherId, connection)
+		)
+	} catch (error) {
+		if (error instanceof GoogleCalendarRequestError && [404, 410].includes(error.status)) return
+		await markGoogleConnectionIssue(db, teacherId, connection, error)
+		throw error
+	}
+}
+
 export const calendarService = {
 	async getCalendarConnection(scope: StoreScope) {
 		const db = getDb()
@@ -447,18 +605,76 @@ export const calendarService = {
 			return {
 				connection: getMemoryStore().getCalendarConnection(scope),
 				syncRecords: getMemoryStore().listCalendarSyncRecords(scope),
+				blocks: getMemoryStore().listCalendarBlocks(scope),
 			}
 		}
 
 		const teacherId = await teacherProfileId(db, scope)
-		const [connection, syncRecords] = await Promise.all([
+		const [connection, syncRecords, blocks] = await Promise.all([
 			getCalendarConnectionRow(db, teacherId),
 			listCalendarSyncEventRows(db, teacherId),
+			listCalendarBlockRows(db, teacherId),
 		])
 		return {
 			connection: mapConnectionRow(connection),
 			syncRecords: syncRecords.map(mapSyncEventRow),
+			blocks: blocks.map(mapCalendarBlockRow),
 		}
+	},
+
+	async listCalendarBlocks(scope: StoreScope) {
+		const db = getDb()
+		if (!db) return getMemoryStore().listCalendarBlocks(scope)
+
+		const teacherId = await teacherProfileId(db, scope)
+		return (await listCalendarBlockRows(db, teacherId)).map(mapCalendarBlockRow)
+	},
+
+	async createCalendarBlock(scope: StoreScope, input: CreateCalendarBlockInput) {
+		const db = getDb()
+		if (!db) return getMemoryStore().createCalendarBlock(scope, input)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const block = await insertCalendarBlockRow(db, {
+			teacherId,
+			title: input.title.trim(),
+			startsAt: new Date(input.startsAt),
+			durationMinutes: input.durationMinutes,
+			externalEventId: null,
+			externalCalendarId: null,
+			syncStatus: 'not_synced',
+			lastError: null,
+		})
+
+		return mapCalendarBlockRow(await syncCalendarBlockToGoogle(db, teacherId, block))
+	},
+
+	async updateCalendarBlock(scope: StoreScope, blockId: string, input: UpdateCalendarBlockInput) {
+		const db = getDb()
+		if (!db) return getMemoryStore().updateCalendarBlock(scope, blockId, input)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const block = await updateCalendarBlockRow(db, teacherId, blockId, {
+			...(input.title !== undefined ? { title: input.title.trim() } : {}),
+			...(input.startsAt !== undefined ? { startsAt: new Date(input.startsAt) } : {}),
+			...(input.durationMinutes !== undefined ? { durationMinutes: input.durationMinutes } : {}),
+			syncStatus: 'not_synced',
+			lastError: null,
+		})
+		if (!block) return null
+
+		return mapCalendarBlockRow(await syncCalendarBlockToGoogle(db, teacherId, block))
+	},
+
+	async deleteCalendarBlock(scope: StoreScope, blockId: string) {
+		const db = getDb()
+		if (!db) return getMemoryStore().deleteCalendarBlock(scope, blockId)
+
+		const teacherId = await teacherProfileId(db, scope)
+		const block = await deleteCalendarBlockRow(db, teacherId, blockId)
+		if (!block) return null
+		await deleteCalendarBlockFromGoogle(db, teacherId, block)
+		return mapCalendarBlockRow(block)
 	},
 
 	async connectCalendar(scope: StoreScope, email: string) {
@@ -818,10 +1034,14 @@ export const calendarService = {
 		)
 	},
 
-	async deleteLessonFromCalendar(scope: StoreScope, lessonId: string): Promise<void> {
+	async deleteLessonFromCalendar(
+		scope: StoreScope,
+		lessonId: string,
+		options: Pick<CalendarSyncOptions, 'singleOccurrence' | 'occurrenceStartsAt'> = {}
+	): Promise<void> {
 		const db = getDb()
 		if (!db) {
-			getMemoryStore().deleteCalendarSyncRecord(scope, lessonId)
+			if (!options.singleOccurrence) getMemoryStore().deleteCalendarSyncRecord(scope, lessonId)
 			return
 		}
 
@@ -854,6 +1074,27 @@ export const calendarService = {
 			await withGoogleAccessToken(
 				connection,
 				async (accessToken) => {
+					if (options.singleOccurrence) {
+						const instances = await googleRecurringInstances(
+							calendarId,
+							sync.externalEventId!,
+							options.occurrenceStartsAt ?? new Date().toISOString(),
+							accessToken
+						)
+						const occurrence = closestGoogleOccurrence(
+							instances,
+							options.occurrenceStartsAt ?? new Date().toISOString()
+						)
+						if (occurrence?.id) {
+							await googleJson<null>(
+								`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(occurrence.id)}`,
+								accessToken,
+								{ method: 'DELETE' }
+							)
+						}
+						return
+					}
+
 					await googleJson<null>(
 						`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(sync.externalEventId!)}`,
 						accessToken,

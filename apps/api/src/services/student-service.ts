@@ -65,6 +65,7 @@ function calculateStudentPackageTotal(input: {
 	defaultLessonDurationMinutes: number
 	packageMonths: number
 	packageLessonCount: number
+	packageLessonPriceOverride?: number | null
 }) {
 	return calculatePackageTotalPriceRub(input)
 }
@@ -102,6 +103,7 @@ function mapStudentRow(row: StudentRow): Student {
 		level: row.level ?? '',
 		special: row.special ?? '',
 		status: row.status,
+		birthday: row.birthday ?? null,
 		notes: row.notes ?? '',
 		defaultLessonPrice: Number(row.defaultLessonPrice),
 		defaultLessonDurationMinutes: row.defaultLessonDurationMinutes ?? DEFAULT_LESSON_DURATION_MINUTES,
@@ -109,6 +111,7 @@ function mapStudentRow(row: StudentRow): Student {
 		packageLessonsPerWeek: row.packageLessonsPerWeek,
 		packageLessonCount: row.packageLessonCount,
 		packageTotalPrice: Number(row.packageTotalPrice),
+		packageLessonPriceOverride: row.packageLessonPriceOverride === null ? null : Number(row.packageLessonPriceOverride),
 		currency: row.currency,
 		billingMode: row.billingMode,
 		createdAt: dateToIso(row.createdAt) ?? new Date().toISOString(),
@@ -126,6 +129,7 @@ function toInsertValues(teacherId: string, input: CreateStudentInput) {
 		defaultLessonDurationMinutes: input.defaultLessonDurationMinutes,
 		packageMonths: input.packageMonths,
 		packageLessonCount,
+		packageLessonPriceOverride: input.packageLessonPriceOverride,
 	})
 
 	return {
@@ -138,6 +142,7 @@ function toInsertValues(teacherId: string, input: CreateStudentInput) {
 		level: emptyToNull(input.level),
 		special: emptyToNull(input.special),
 		status: input.status,
+		birthday: input.birthday ?? null,
 		notes: emptyToNull(input.notes),
 		defaultLessonPrice: priceToNumeric(input.defaultLessonPrice),
 		defaultLessonDurationMinutes: input.defaultLessonDurationMinutes,
@@ -145,6 +150,8 @@ function toInsertValues(teacherId: string, input: CreateStudentInput) {
 		packageLessonsPerWeek: input.packageLessonsPerWeek,
 		packageLessonCount,
 		packageTotalPrice: priceToNumeric(packageTotalPrice),
+		packageLessonPriceOverride:
+			input.packageLessonPriceOverride === null ? null : priceToNumeric(input.packageLessonPriceOverride),
 		currency: input.currency,
 		billingMode: input.billingMode,
 		archivedAt,
@@ -169,6 +176,7 @@ function toUpdateValues(input: UpdateStudentInput, existing: StudentRow): Studen
 	if (input.phone !== undefined) values.phone = emptyToNull(input.phone)
 	if (input.level !== undefined) values.level = emptyToNull(input.level)
 	if (input.special !== undefined) values.special = emptyToNull(input.special)
+	if (input.birthday !== undefined) values.birthday = input.birthday
 	if (input.status !== undefined) {
 		values.status = input.status
 		values.archivedAt = input.status === 'archived' ? new Date() : null
@@ -181,10 +189,15 @@ function toUpdateValues(input: UpdateStudentInput, existing: StudentRow): Studen
 	if (input.currency !== undefined) values.currency = input.currency
 	if (input.packageMonths !== undefined) values.packageMonths = input.packageMonths
 	if (input.packageLessonsPerWeek !== undefined) values.packageLessonsPerWeek = input.packageLessonsPerWeek
+	if (input.packageLessonPriceOverride !== undefined) {
+		values.packageLessonPriceOverride =
+			input.packageLessonPriceOverride === null ? null : priceToNumeric(input.packageLessonPriceOverride)
+	}
 	if (
 		input.packageMonths !== undefined ||
 		input.packageLessonsPerWeek !== undefined ||
-		input.packageLessonCount !== undefined
+		input.packageLessonCount !== undefined ||
+		input.packageLessonPriceOverride !== undefined
 	) {
 		values.packageLessonCount = resolvePackageLessonCount(input, existing)
 	}
@@ -193,7 +206,8 @@ function toUpdateValues(input: UpdateStudentInput, existing: StudentRow): Studen
 		input.defaultLessonDurationMinutes !== undefined ||
 		input.packageMonths !== undefined ||
 		input.packageLessonsPerWeek !== undefined ||
-		input.packageLessonCount !== undefined
+		input.packageLessonCount !== undefined ||
+		input.packageLessonPriceOverride !== undefined
 	) {
 		const packageLessonCount = resolvePackageLessonCount(input, existing)
 		values.packageTotalPrice = priceToNumeric(
@@ -205,6 +219,12 @@ function toUpdateValues(input: UpdateStudentInput, existing: StudentRow): Studen
 					DEFAULT_LESSON_DURATION_MINUTES,
 				packageMonths: input.packageMonths ?? existing.packageMonths,
 				packageLessonCount,
+				packageLessonPriceOverride:
+					input.packageLessonPriceOverride !== undefined
+						? input.packageLessonPriceOverride
+						: existing.packageLessonPriceOverride === null
+							? null
+							: Number(existing.packageLessonPriceOverride),
 			})
 		)
 	}

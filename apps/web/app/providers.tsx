@@ -6,6 +6,7 @@ import { ThemeProvider as NextThemesProvider, type ThemeProviderProps } from 'ne
 
 import { SidebarSettingsProvider } from '@/components/SidebarSettingsProvider'
 import { ThemeSettingsProvider } from '@/components/ThemeSettingsProvider'
+import { PrivacyModeProvider } from '@/components/PrivacyModeProvider'
 import { Toaster } from '@/components/ui/sonner'
 
 export function ThemeProviders({
@@ -18,7 +19,7 @@ export function ThemeProviders({
 	return (
 		<NextThemesProvider attribute="class" defaultTheme="light" enableSystem={false} {...themeProps}>
 			<ThemeSettingsProvider>
-				{children}
+				<PrivacyModeProvider>{children}</PrivacyModeProvider>
 				<Toaster position="top-right" />
 			</ThemeSettingsProvider>
 		</NextThemesProvider>

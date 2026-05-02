@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { AlertTriangle, Save } from 'lucide-react'
+import { AlertTriangle, Save, Trash2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -21,10 +21,11 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { getStudentShortName } from '@/lib/crm/model'
 
-import type { CalendarBusyInterval, CreateLessonInput, Lesson, Student } from '@teacher-crm/api-types'
+import type { CalendarBusyInterval, CreateLessonInput, DeleteLessonQuery, Lesson, Student } from '@teacher-crm/api-types'
 
 type LessonFormCommand = CreateLessonInput & {
 	applyToFuture?: boolean
+	occurrenceStartsAt?: string
 }
 type CalendarConflictCommand = CreateLessonInput & {
 	excludeLessonId?: string
@@ -53,9 +54,11 @@ type LessonFormDialogProps = {
 	students: Student[]
 	lessons: Lesson[]
 	lesson?: Lesson | null
+	occurrenceStartsAt?: string | null
 	defaultStartsAt?: Date | null
 	onOpenChange: (open: boolean) => void
 	onSubmit: (input: LessonFormCommand) => Promise<void>
+	onDelete?: (options?: DeleteLessonQuery) => Promise<void>
 	onCheckCalendarConflicts?: (input: CalendarConflictCommand) => Promise<CalendarBusyInterval[]>
 }
 
@@ -100,9 +103,14 @@ function datePickerValue(value: string) {
 	return Number.isNaN(date.getTime()) ? undefined : date
 }
 
-function initialValues(students: Student[], lesson?: Lesson | null, defaultStartsAt?: Date | null): LessonFormValues {
+function initialValues(
+	students: Student[],
+	lesson?: Lesson | null,
+	defaultStartsAt?: Date | null,
+	occurrenceStartsAt?: string | null
+): LessonFormValues {
 	if (lesson) {
-		const startsAt = new Date(lesson.startsAt)
+		const startsAt = new Date(occurrenceStartsAt ?? lesson.startsAt)
 		return {
 			date: dateInputValue(startsAt),
 			time: timeInputValue(startsAt),
@@ -220,14 +228,16 @@ export function LessonFormDialog({
 	students,
 	lessons,
 	lesson,
+	occurrenceStartsAt,
 	defaultStartsAt,
 	onOpenChange,
 	onSubmit,
+	onDelete,
 	onCheckCalendarConflicts,
 }: LessonFormDialogProps) {
 	const selectableStudents = useMemo(() => students.filter((student) => student.status !== 'archived'), [students])
 	const [values, setValues] = useState<LessonFormValues>(() =>
-		initialValues(selectableStudents, lesson, defaultStartsAt)
+		initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt)
 	)
 	const [errors, setErrors] = useState<LessonFormErrors>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -238,9 +248,9 @@ export function LessonFormDialog({
 
 	useEffect(() => {
 		if (!open) return
-		setValues(initialValues(selectableStudents, lesson, defaultStartsAt))
+		setValues(initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt))
 		setErrors({})
-	}, [defaultStartsAt, open, selectableStudents, lesson])
+	}, [defaultStartsAt, occurrenceStartsAt, open, selectableStudents, lesson])
 
 	useEffect(() => {
 		if (!open || !onCheckCalendarConflicts) {
@@ -302,7 +312,27 @@ export function LessonFormDialog({
 
 		setIsSubmitting(true)
 		try {
-			await onSubmit(toCommand(values, selectedStudent))
+			const command = toCommand(values, selectedStudent)
+			if (lesson?.repeatWeekly && occurrenceStartsAt && !command.applyToFuture) {
+				command.occurrenceStartsAt = occurrenceStartsAt
+			}
+			await onSubmit(command)
+		} finally {
+			setIsSubmitting(false)
+		}
+	}
+
+	const handleDelete = async () => {
+		if (!lesson || !onDelete) return
+		const scope =
+			lesson.repeatWeekly && occurrenceStartsAt
+				? window.confirm('Delete only this occurrence? Press Cancel to delete the whole series.')
+					? 'current'
+					: 'series'
+				: 'series'
+		setIsSubmitting(true)
+		try {
+			await onDelete({ scope, occurrenceStartsAt: scope === 'current' ? occurrenceStartsAt ?? undefined : undefined })
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -481,19 +511,31 @@ export function LessonFormDialog({
 					</ScrollArea>
 
 					<DialogFooter className="border-line-soft bg-surface-muted border-t px-6 py-4">
-						<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={isSubmitting || isCheckingCalendar || selectableStudents.length === 0}>
-							<Save className="h-4 w-4" />
-							{isSubmitting
-								? 'Saving'
-								: isCheckingCalendar
-									? 'Checking calendar'
-									: mode === 'create'
-										? 'Save lesson'
-										: 'Save changes'}
-						</Button>
+						<div className="flex w-full flex-wrap items-center justify-between gap-2">
+							{mode === 'edit' && onDelete ? (
+								<Button type="button" variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+									<Trash2 className="h-4 w-4" />
+									Delete
+								</Button>
+							) : (
+								<span />
+							)}
+							<div className="flex flex-wrap gap-2">
+								<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+									Cancel
+								</Button>
+								<Button type="submit" disabled={isSubmitting || isCheckingCalendar || selectableStudents.length === 0}>
+									<Save className="h-4 w-4" />
+									{isSubmitting
+										? 'Saving'
+										: isCheckingCalendar
+											? 'Checking calendar'
+											: mode === 'create'
+												? 'Save lesson'
+												: 'Save changes'}
+								</Button>
+							</div>
+						</div>
 					</DialogFooter>
 				</form>
 			</DialogContent>

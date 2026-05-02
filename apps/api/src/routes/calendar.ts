@@ -3,7 +3,11 @@ import { z } from 'zod'
 
 import {
 	calendarBusyQuerySchema,
+	createCalendarBlockSchema,
+	updateCalendarBlockSchema,
 	calendarUpsertLessonEventSchema,
+	type CalendarBlockMutationResponse,
+	type CalendarBlocksResponse,
 	type CalendarBusyResponse,
 	type CalendarConnectionResponse,
 	type CalendarImportResponse,
@@ -47,6 +51,41 @@ export const calendarRoutes = new Hono()
 			ok: true,
 			calendars: await calendarService.listCalendars(actorFromContext(context)),
 		}
+		return context.json(response, 200)
+	})
+	.get('/blocks', requirePermission('calendar', 'read'), async (context) => {
+		const response: CalendarBlocksResponse = {
+			ok: true,
+			blocks: await calendarService.listCalendarBlocks(actorFromContext(context)),
+		}
+		return context.json(response, 200)
+	})
+	.post('/blocks', requirePermission('calendar', 'sync'), validateJson(createCalendarBlockSchema), async (context) => {
+		const response: CalendarBlockMutationResponse = {
+			ok: true,
+			block: await calendarService.createCalendarBlock(actorFromContext(context), context.req.valid('json')),
+		}
+		return context.json(response, 201)
+	})
+	.patch(
+		'/blocks/:blockId',
+		requirePermission('calendar', 'sync'),
+		validateJson(updateCalendarBlockSchema),
+		async (context) => {
+			const block = await calendarService.updateCalendarBlock(
+				actorFromContext(context),
+				context.req.param('blockId'),
+				context.req.valid('json')
+			)
+			if (!block) return notFoundResponse(context, 'Calendar block not found')
+			const response: CalendarBlockMutationResponse = { ok: true, block }
+			return context.json(response, 200)
+		}
+	)
+	.delete('/blocks/:blockId', requirePermission('calendar', 'sync'), async (context) => {
+		const block = await calendarService.deleteCalendarBlock(actorFromContext(context), context.req.param('blockId'))
+		if (!block) return notFoundResponse(context, 'Calendar block not found')
+		const response: CalendarBlockMutationResponse = { ok: true, block }
 		return context.json(response, 200)
 	})
 	.post('/busy', requirePermission('calendar', 'read'), validateJson(calendarBusyQuerySchema), async (context) => {

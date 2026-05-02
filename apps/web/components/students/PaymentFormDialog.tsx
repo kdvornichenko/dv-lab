@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatCurrencyAmount, getPackageTotalPrice, getStudentDurationPrice } from '@/lib/crm/model'
 import type { StudentWithBalance } from '@/lib/crm/types'
 
+import { calculateMonthlyTotalPrice } from '@teacher-crm/api-types'
 import type { CreatePaymentInput, Currency, PaymentMethod } from '@teacher-crm/api-types'
 
 type PaymentFormDialogProps = {
@@ -67,6 +68,14 @@ function defaultAmount(student: StudentWithBalance | null) {
 	if (!student) return 0
 	if (student.balance.nextPayment.amount > 0) return student.balance.nextPayment.amount
 	if (student.billingMode === 'package' && getPackageTotalPrice(student) > 0) return getPackageTotalPrice(student)
+	if (student.billingMode === 'monthly') {
+		return calculateMonthlyTotalPrice({
+			defaultLessonPrice: student.defaultLessonPrice,
+			defaultLessonDurationMinutes: student.defaultLessonDurationMinutes,
+			lessonsPerWeek: student.packageLessonsPerWeek,
+			packageLessonPriceOverride: student.packageLessonPriceOverride,
+		})
+	}
 	return getStudentDurationPrice(student)
 }
 

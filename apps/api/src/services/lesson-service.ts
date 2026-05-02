@@ -2,6 +2,7 @@ import type {
 	AttendanceRecord,
 	CreateLessonInput,
 	Lesson,
+	LessonOccurrenceException,
 	ListLessonsQuery,
 	MarkAttendanceInput,
 	UpdateLessonInput,
@@ -10,10 +11,13 @@ import {
 	deleteLessonRow,
 	insertLessonRow,
 	listAttendanceRows,
+	listLessonOccurrenceExceptionRows,
 	listLessonRows,
 	updateLessonRow,
+	upsertLessonOccurrenceExceptionRow,
 	upsertAttendanceRows,
 	type AttendanceRecordRow,
+	type LessonOccurrenceExceptionRow,
 	type LessonRowWithStudents,
 	type LessonUpdateValues,
 } from '@teacher-crm/db'
@@ -58,6 +62,17 @@ function mapAttendanceRow(row: AttendanceRecordRow): AttendanceRecord {
 		billable: row.billable,
 		note: row.note ?? '',
 		updatedAt: dateToIso(row.updatedAt) ?? new Date().toISOString(),
+	}
+}
+
+function mapOccurrenceExceptionRow(row: LessonOccurrenceExceptionRow): LessonOccurrenceException {
+	return {
+		id: row.id,
+		lessonId: row.lessonId,
+		occurrenceStartsAt: dateToIso(row.occurrenceStartsAt) ?? new Date().toISOString(),
+		replacementLessonId: row.replacementLessonId ?? undefined,
+		reason: row.reason === 'deleted' ? 'deleted' : 'moved',
+		createdAt: dateToIso(row.createdAt) ?? new Date().toISOString(),
 	}
 }
 
@@ -125,6 +140,38 @@ export const lessonService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		return (await listLessonRows(db, teacherId, filters)).map(mapLessonRow)
+	},
+
+	async listOccurrenceExceptions(scope: StoreScope) {
+		const db = getDb()
+		if (!db) return getMemoryStore().listLessonOccurrenceExceptions(scope)
+
+		const teacherId = await teacherProfileId(db, scope)
+		return (await listLessonOccurrenceExceptionRows(db, teacherId)).map(mapOccurrenceExceptionRow)
+	},
+
+	async upsertOccurrenceException(
+		scope: StoreScope,
+		input: {
+			lessonId: string
+			occurrenceStartsAt: string
+			replacementLessonId?: string
+			reason: LessonOccurrenceException['reason']
+		}
+	) {
+		const db = getDb()
+		if (!db) return getMemoryStore().upsertLessonOccurrenceException(scope, input)
+
+		const teacherId = await teacherProfileId(db, scope)
+		return mapOccurrenceExceptionRow(
+			await upsertLessonOccurrenceExceptionRow(db, {
+				teacherId,
+				lessonId: input.lessonId,
+				occurrenceStartsAt: new Date(input.occurrenceStartsAt),
+				replacementLessonId: input.replacementLessonId ?? null,
+				reason: input.reason,
+			})
+		)
 	},
 
 	async createLesson(scope: StoreScope, input: CreateLessonInput) {

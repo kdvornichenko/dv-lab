@@ -6,6 +6,7 @@ import { reportCrmError } from '@/hooks/teacherCrmErrors'
 import {
 	saveCurrentGoogleCalendarTokens,
 	teacherCrmLessonApi,
+	teacherCrmCalendarApi,
 	teacherCrmPaymentApi,
 	teacherCrmStudentApi,
 } from '@/lib/crm/api'
@@ -14,10 +15,13 @@ import type { TeacherCrmState } from '@/lib/crm/types'
 
 import type {
 	CreateLessonInput,
+	CreateCalendarBlockInput,
 	CreatePaymentInput,
 	CreateStudentInput,
+	DeleteLessonQuery,
 	Lesson,
 	MarkAttendanceInput,
+	UpdateCalendarBlockInput,
 	UpdateLessonInput,
 	UpdateStudentInput,
 } from '@teacher-crm/api-types'
@@ -134,7 +138,10 @@ export function useTeacherCrmCommands({
 				const response = await teacherCrmLessonApi.updateLesson(lessonId, input)
 				setState((current) => ({
 					...current,
-					lessons: current.lessons.map((lesson) => (lesson.id === lessonId ? response.lesson : lesson)),
+					lessons:
+						response.lesson.id === lessonId
+							? current.lessons.map((lesson) => (lesson.id === lessonId ? response.lesson : lesson))
+							: [...current.lessons.filter((lesson) => lesson.id !== response.lesson.id), response.lesson],
 				}))
 				refreshInBackground()
 			})
@@ -143,14 +150,70 @@ export function useTeacherCrmCommands({
 	)
 
 	const deleteLesson = useCallback(
-		async (lessonId: string) => {
+		async (lessonId: string, options?: DeleteLessonQuery) => {
 			await runCrmAction('Delete lesson', async () => {
-				await teacherCrmLessonApi.deleteLesson(lessonId)
+				await teacherCrmLessonApi.deleteLesson(lessonId, options)
 				setState((current) => ({
 					...current,
-					lessons: current.lessons.filter((lesson) => lesson.id !== lessonId),
-					attendance: current.attendance.filter((record) => record.lessonId !== lessonId),
-					calendarSyncRecords: current.calendarSyncRecords.filter((record) => record.lessonId !== lessonId),
+					lessons:
+						options?.scope === 'current'
+							? current.lessons
+							: current.lessons.filter((lesson) => lesson.id !== lessonId),
+					attendance:
+						options?.scope === 'current'
+							? current.attendance
+							: current.attendance.filter((record) => record.lessonId !== lessonId),
+					calendarSyncRecords:
+						options?.scope === 'current'
+							? current.calendarSyncRecords
+							: current.calendarSyncRecords.filter((record) => record.lessonId !== lessonId),
+				}))
+				refreshInBackground()
+			})
+		},
+		[refreshInBackground, runCrmAction, setState]
+	)
+
+	const addCalendarBlock = useCallback(
+		async (input: CreateCalendarBlockInput) => {
+			await runCrmAction('Add personal block', async () => {
+				await ensureCalendarTokens()
+				const response = await teacherCrmCalendarApi.createCalendarBlock(input)
+				setState((current) => ({
+					...current,
+					calendarBlocks: [
+						...current.calendarBlocks.filter((block) => block.id !== response.block.id),
+						response.block,
+					],
+				}))
+				refreshInBackground()
+			})
+		},
+		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
+	)
+
+	const updateCalendarBlock = useCallback(
+		async (blockId: string, input: UpdateCalendarBlockInput) => {
+			await runCrmAction('Update personal block', async () => {
+				await ensureCalendarTokens()
+				const response = await teacherCrmCalendarApi.updateCalendarBlock(blockId, input)
+				setState((current) => ({
+					...current,
+					calendarBlocks: current.calendarBlocks.map((block) => (block.id === blockId ? response.block : block)),
+				}))
+				refreshInBackground()
+			})
+		},
+		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
+	)
+
+	const deleteCalendarBlock = useCallback(
+		async (blockId: string) => {
+			await runCrmAction('Delete personal block', async () => {
+				await teacherCrmCalendarApi.deleteCalendarBlock(blockId)
+				setState((current) => ({
+					...current,
+					calendarBlocks: current.calendarBlocks.filter((block) => block.id !== blockId),
 				}))
 				refreshInBackground()
 			})
@@ -227,6 +290,9 @@ export function useTeacherCrmCommands({
 		addLesson,
 		updateLesson,
 		deleteLesson,
+		addCalendarBlock,
+		updateCalendarBlock,
+		deleteCalendarBlock,
 		markAttendance,
 		markGroupAttended,
 		recordPayment,

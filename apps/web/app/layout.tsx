@@ -98,13 +98,16 @@ const themeHydrationScript = `
 			colors: {
 				background: '#f7f5ef',
 				foreground: '#181713',
+				card: '#ffffff',
+				surfaceMuted: '#f1f5f9',
 				primary: '#2f6f5e',
 				accent: '#9a6a1f',
 				success: '#3f7a4d',
 				warning: '#9a6a1f',
 				danger: '#a64235',
 				chart: '#7d7a72'
-			}
+			},
+			fontSizes: { body: 14, heading: 18, small: 12 }
 		};
 		const devlDefault = {
 			radius: 'default',
@@ -114,13 +117,16 @@ const themeHydrationScript = `
 			colors: {
 				background: '#f8fafc',
 				foreground: '#0f172a',
+				card: '#ffffff',
+				surfaceMuted: '#f1f5f9',
 				primary: '#2f6f5e',
 				accent: '#d97706',
 				success: '#059669',
 				warning: '#d97706',
 				danger: '#dc2626',
 				chart: '#64748b'
-			}
+			},
+			fontSizes: { body: 14, heading: 18, small: 12 }
 		};
 		const blueDefault = {
 			...devlDefault,
@@ -138,7 +144,8 @@ const themeHydrationScript = `
 		const resolvedTheme = sameTheme(theme, legacyDefault) || sameTheme(theme, blueDefault) ? devlDefault : theme;
 		if (resolvedTheme !== theme) window.localStorage.setItem('teacher-crm-theme', JSON.stringify(resolvedTheme));
 		theme = resolvedTheme;
-		const colors = theme.colors || {};
+		const colors = { ...devlDefault.colors, ...(theme.colors || {}) };
+		const fontSizes = { ...devlDefault.fontSizes, ...(theme.fontSizes || {}) };
 		const style = document.documentElement.style;
 		const hex = /^#[0-9a-fA-F]{6}$/;
 		const fontStacks = {
@@ -173,6 +180,9 @@ const themeHydrationScript = `
 		style.setProperty('--font-numeric', numberFont);
 		style.setProperty('--font-sans', bodyFont);
 		style.setProperty('--font-mono', numberFont);
+		style.setProperty('--crm-font-size-body', fontSizes.body + 'px');
+		style.setProperty('--crm-font-size-heading', fontSizes.heading + 'px');
+		style.setProperty('--crm-font-size-small', fontSizes.small + 'px');
 		style.setProperty('--radius', radii[theme.radius] || radii.default);
 		if (hex.test(colors.background)) style.setProperty('--canvas', colors.background);
 		if (hex.test(colors.foreground)) style.setProperty('--ink', colors.foreground);
@@ -183,8 +193,8 @@ const themeHydrationScript = `
 		if (hex.test(colors.danger)) style.setProperty('--danger', colors.danger);
 		if (hex.test(colors.chart)) style.setProperty('--chart', colors.chart);
 		style.setProperty('--canvas-warm', 'color-mix(in srgb, var(--canvas) 96%, var(--chart) 4%)');
-		style.setProperty('--surface', 'color-mix(in srgb, var(--canvas) 10%, #ffffff 90%)');
-		style.setProperty('--surface-muted', 'color-mix(in srgb, var(--canvas) 78%, var(--ink) 7%)');
+		style.setProperty('--surface', hex.test(colors.card) ? colors.card : '#ffffff');
+		style.setProperty('--surface-muted', hex.test(colors.surfaceMuted) ? colors.surfaceMuted : '#f1f5f9');
 		style.setProperty('--ink-muted', 'color-mix(in srgb, var(--ink) 58%, var(--canvas) 42%)');
 		style.setProperty('--line', 'color-mix(in srgb, var(--ink) 12%, var(--canvas) 88%)');
 		style.setProperty('--line-soft', 'color-mix(in srgb, var(--ink) 7%, var(--canvas) 93%)');

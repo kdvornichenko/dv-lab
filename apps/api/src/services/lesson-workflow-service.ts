@@ -1,4 +1,4 @@
-import type { CreateLessonInput, Lesson, UpdateLessonInput } from '@teacher-crm/api-types'
+import type { CreateLessonInput, DeleteLessonQuery, Lesson, UpdateLessonInput } from '@teacher-crm/api-types'
 
 import { calendarService } from './calendar-service'
 import { lessonService } from './lesson-service'
@@ -61,7 +61,7 @@ export function createLessonWorkflowService(
 	async function syncLessonAutomatically(
 		actor: StoreScope,
 		lessonId: string,
-		options: { repeatWeekly?: boolean; singleOccurrence?: boolean; occurrenceStartsAt?: string } = {}
+		options: { repeatWeekly?: boolean; singleOccurrence?: boolean; occurrenceStartsAt?: string; lessonOverride?: Lesson } = {}
 	) {
 		const connection = await deps.calendar.getCalendarConnection(actor)
 		const hasGrant =
@@ -88,6 +88,36 @@ export function createLessonWorkflowService(
 				dateTo: '',
 			})
 			const originalLesson = allLessons.find((lesson) => lesson.id === lessonId)
+			if (
+				originalLesson?.repeatWeekly &&
+				input.occurrenceStartsAt &&
+				input.applyToFuture !== true
+			) {
+				const replacement = await deps.lessons.createLesson(actor, {
+					title: input.title ?? originalLesson.title,
+					startsAt: input.startsAt ?? input.occurrenceStartsAt,
+					durationMinutes: input.durationMinutes ?? originalLesson.durationMinutes,
+					repeatWeekly: false,
+					repeatCount: 1,
+					topic: input.topic ?? originalLesson.topic,
+					notes: input.notes ?? originalLesson.notes,
+					status: input.status ?? originalLesson.status,
+					studentIds: input.studentIds ?? originalLesson.studentIds,
+				})
+				await deps.lessons.upsertOccurrenceException(actor, {
+					lessonId: originalLesson.id,
+					occurrenceStartsAt: input.occurrenceStartsAt,
+					replacementLessonId: replacement.id,
+					reason: 'moved',
+				})
+				await syncLessonAutomatically(actor, originalLesson.id, {
+					singleOccurrence: true,
+					occurrenceStartsAt: input.occurrenceStartsAt,
+					lessonOverride: replacement,
+				})
+				return replacement
+			}
+
 			const lesson = await deps.lessons.updateLesson(actor, lessonId, { ...input, applyToFuture: false })
 			if (!lesson) return null
 
@@ -121,7 +151,29 @@ export function createLessonWorkflowService(
 			return lesson
 		},
 
-		async deleteLesson(actor: StoreScope, lessonId: string) {
+		async deleteLesson(actor: StoreScope, lessonId: string, options: DeleteLessonQuery = { scope: 'series' }) {
+			if (options.scope === 'current' && options.occurrenceStartsAt) {
+				const allLessons = await deps.lessons.listLessons(actor, {
+					status: 'all',
+					studentId: '',
+					dateFrom: '',
+					dateTo: '',
+				})
+				const lesson = allLessons.find((item) => item.id === lessonId)
+				if (lesson?.repeatWeekly) {
+					await deps.lessons.upsertOccurrenceException(actor, {
+						lessonId,
+						occurrenceStartsAt: options.occurrenceStartsAt,
+						reason: 'deleted',
+					})
+					await deps.calendar.deleteLessonFromCalendar(actor, lessonId, {
+						singleOccurrence: true,
+						occurrenceStartsAt: options.occurrenceStartsAt,
+					})
+					return lesson
+				}
+			}
+
 			await deps.calendar.deleteLessonFromCalendar(actor, lessonId)
 			return deps.lessons.deleteLesson(actor, lessonId)
 		},

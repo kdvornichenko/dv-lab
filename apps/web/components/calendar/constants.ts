@@ -12,6 +12,7 @@ export const TONE_EVENT: Record<CalendarTone, string> = {
 	pink: 'border-danger/40 bg-danger-soft text-ink',
 	purple: 'border-warning/40 bg-warning-soft text-ink',
 	orange: 'border-warning/40 bg-warning-soft text-ink',
+	gray: 'border-line-strong bg-surface-muted text-ink-muted',
 }
 
 export const TONE_RAIL: Record<CalendarTone, string> = {
@@ -21,4 +22,5 @@ export const TONE_RAIL: Record<CalendarTone, string> = {
 	pink: 'bg-danger',
 	purple: 'bg-warning',
 	orange: 'bg-warning',
+	gray: 'bg-ink-muted',
 }
