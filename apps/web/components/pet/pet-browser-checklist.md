@@ -19,8 +19,8 @@ Run this after the app is available in a browser with an authenticated workspace
 
 - [ ] Confirm the pet is rendered at the smaller sidebar size.
 - [ ] Confirm the pet walks only along the top edge of the sidebar footer.
-- [ ] Confirm the pet switches to sleep on the sidebar footer without drifting.
-- [ ] Click the sleeping pet and confirm it resumes walking without a transition animation.
+- [ ] Confirm the pet plays the walk-to-lay transition before sleeping on the sidebar footer.
+- [ ] Click the sleeping pet and confirm it plays the lay-to-walk transition before walking.
 - [ ] Click CRM UI beneath or near the pet and confirm clicks pass through normally outside the pet image.
 
 ## Motion And Privacy
@@ -32,6 +32,8 @@ Run this after the app is available in a browser with an authenticated workspace
 ## Animated WebP Assets
 
 - [ ] Confirm the walking animated WebP is visible and nonblank.
+- [ ] Confirm the walk-to-lay animated WebP is visible and nonblank.
+- [ ] Confirm the lay-to-walk animated WebP is visible and nonblank.
 - [ ] Confirm the sleeping animated WebP is visible and nonblank.
 - [ ] Confirm temporary mapped poses render a visible animated WebP asset.
 - [ ] Do not manually step frames; animated WebP owns its internal frame loop.

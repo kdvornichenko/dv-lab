@@ -58,22 +58,25 @@ const sleepEngine = createPetEngine({
 	initialPosition: { x: 40, y: 120 },
 	random: () => 0,
 	settleAfterMs: 128,
+	transitionDurationMs: 256,
 })
 sleepEngine.step(64)
 sleepEngine.step(64)
-assert.equal(sleepEngine.snapshot().phase, 'sleep', 'cat should switch to sleep without a transition animation')
-assert.equal(sleepEngine.snapshot().pose, 'sleep')
+assert.equal(sleepEngine.snapshot().phase, 'settling', 'cat should play walk-to-lay before sleeping')
+assert.equal(sleepEngine.snapshot().pose, 'lie')
 const sleepPosition = sleepEngine.snapshot().position
+for (let index = 0; index < 4; index += 1) sleepEngine.step(64)
+assert.equal(sleepEngine.snapshot().phase, 'sleep', 'walk-to-lay should end in sleep')
+assert.equal(sleepEngine.snapshot().pose, 'sleep')
 for (let index = 0; index < 80; index += 1) sleepEngine.step(64)
 assert.equal(sleepEngine.snapshot().phase, 'sleep', 'sleep should continue until the pet is clicked')
 assert.deepEqual(sleepEngine.snapshot().position, sleepPosition, 'sleep should not drift from its sleep position')
 
 sleepEngine.wake()
-assert.equal(
-	sleepEngine.snapshot().phase,
-	'walk',
-	'clicking the sleeping cat should resume walking without a transition'
-)
+assert.equal(sleepEngine.snapshot().phase, 'waking', 'clicking the sleeping cat should play lay-to-walk')
+assert.equal(sleepEngine.snapshot().pose, 'stretch')
+for (let index = 0; index < 4; index += 1) sleepEngine.step(64)
+assert.equal(sleepEngine.snapshot().phase, 'walk', 'lay-to-walk should end in walking')
 assert.equal(sleepEngine.snapshot().pose, 'walk')
 const afterWakeX = sleepEngine.snapshot().position.x
 sleepEngine.step(64)

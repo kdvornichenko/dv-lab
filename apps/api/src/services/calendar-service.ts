@@ -432,6 +432,14 @@ function googleConnectionStatusForError(error: unknown): CalendarConnectionStatu
 
 	const message = error.message.toLowerCase()
 	if (message.includes('refresh token') || message.includes('invalid_grant')) return 'authorization_required'
+	if (
+		message.includes('unsupported state or unable to authenticate data') ||
+		message.includes('unsupported encrypted secret format') ||
+		message.includes('invalid authentication tag') ||
+		message.includes('invalid initialization vector')
+	) {
+		return 'authorization_required'
+	}
 	if (message.includes('access token') || message.includes('oauth client credentials')) return 'error'
 	return null
 }

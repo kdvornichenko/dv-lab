@@ -22,7 +22,7 @@ export type PetAnimationAsset = {
 	width: number
 	height: number
 	animated: true
-	loop: true
+	loop: boolean
 	naturalFrameCount?: number
 	motionRole: 'idle' | 'travel' | 'jump' | 'rest' | 'privacy'
 	sourcePose?: PetPose
@@ -40,7 +40,7 @@ function createAnimationAsset(
 	width: number,
 	height: number,
 	motionRole: PetAnimationAsset['motionRole'],
-	options: Pick<PetAnimationAsset, 'naturalFrameCount' | 'sourcePose' | 'temporary'> = {}
+	options: Partial<Pick<PetAnimationAsset, 'loop' | 'naturalFrameCount' | 'sourcePose' | 'temporary'>> = {}
 ): PetAnimationAsset {
 	return {
 		pose,
@@ -48,15 +48,15 @@ function createAnimationAsset(
 		width,
 		height,
 		animated: true,
-		loop: true,
+		loop: options.loop ?? true,
 		motionRole,
 		...options,
 	}
 }
 
 function createTemporarySleepAsset(pose: PetPose, motionRole: PetAnimationAsset['motionRole']): PetAnimationAsset {
-	return createAnimationAsset(pose, '/assets/cat-widget/cat-sleep.webp', 208, 151, motionRole, {
-		naturalFrameCount: 13,
+	return createAnimationAsset(pose, '/assets/cat-widget/cat-sleep.webp', 370, 200, motionRole, {
+		naturalFrameCount: 5,
 		sourcePose: 'sleep',
 		temporary: true,
 	})
@@ -66,8 +66,9 @@ function createLayDownAsset(
 	pose: PetPose,
 	options: Pick<PetAnimationAsset, 'sourcePose' | 'temporary'> = {}
 ): PetAnimationAsset {
-	return createAnimationAsset(pose, '/assets/cat-widget/cat-lay-down.webp', 370, 200, 'rest', {
-		naturalFrameCount: 10,
+	return createAnimationAsset(pose, '/assets/cat-widget/cat-walk-to-lay.webp', 370, 200, 'rest', {
+		loop: false,
+		naturalFrameCount: 6,
 		...options,
 	})
 }
@@ -76,8 +77,9 @@ function createStandUpAsset(
 	pose: PetPose,
 	options: Pick<PetAnimationAsset, 'sourcePose' | 'temporary'> = {}
 ): PetAnimationAsset {
-	return createAnimationAsset(pose, '/assets/cat-widget/cat-stand-up.webp', 370, 200, 'rest', {
-		naturalFrameCount: 10,
+	return createAnimationAsset(pose, '/assets/cat-widget/cat-lay-to-walk.webp', 370, 200, 'rest', {
+		loop: false,
+		naturalFrameCount: 6,
 		...options,
 	})
 }
@@ -98,8 +100,8 @@ export const catPetManifest: PetAssetManifest = {
 		land: createTemporarySleepAsset('land', 'jump'),
 		sit: createLayDownAsset('sit', { sourcePose: 'lie', temporary: true }),
 		lie: createLayDownAsset('lie'),
-		sleep: createAnimationAsset('sleep', '/assets/cat-widget/cat-sleep.webp', 208, 151, 'rest', {
-			naturalFrameCount: 13,
+		sleep: createAnimationAsset('sleep', '/assets/cat-widget/cat-sleep.webp', 370, 200, 'rest', {
+			naturalFrameCount: 5,
 		}),
 		scratch: createTemporarySleepAsset('scratch', 'rest'),
 		stretch: createStandUpAsset('stretch', { sourcePose: 'lie' }),

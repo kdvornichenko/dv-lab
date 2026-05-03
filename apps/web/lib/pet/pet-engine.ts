@@ -38,9 +38,10 @@ export type PetEngineOptions = {
 	initialPosition?: PetPosition
 	random?: () => number
 	settleAfterMs?: number
+	transitionDurationMs?: number
 }
 
-export type PetEnginePhase = 'walk' | 'sleep'
+export type PetEnginePhase = 'walk' | 'settling' | 'sleep' | 'waking'
 
 export type PetEngineSnapshot = {
 	position: PetPosition
@@ -75,6 +76,7 @@ const ACTIVITY_CONFIG: Record<PetActivityLevel, ActivityConfig> = {
 }
 
 const BOTTOM_OFFSET = 18
+const DEFAULT_TRANSITION_DURATION_MS = 750
 
 function clamp(value: number, min: number, max: number) {
 	return Math.min(Math.max(value, min), max)
@@ -160,9 +162,11 @@ export function createPetEngine(options: PetEngineOptions) {
 	let privacyMode = false
 	let reducedMotion = false
 	let walkElapsedMs = 0
+	let transitionElapsedMs = 0
 	let activeTarget: PetTarget | null = null
 	const random = options.random ?? Math.random
 	const fixedSettleAfterMs = options.settleAfterMs
+	const transitionDurationMs = options.transitionDurationMs ?? DEFAULT_TRANSITION_DURATION_MS
 	let nextSettleAfterMs = fixedSettleAfterMs ?? settleDelay(config, random)
 
 	function updateConfig(nextActivityLevel: PetActivityLevel) {
@@ -180,14 +184,16 @@ export function createPetEngine(options: PetEngineOptions) {
 	}
 
 	function startSettling() {
-		phase = 'sleep'
-		requestedPose = 'sleep'
+		phase = 'settling'
+		transitionElapsedMs = 0
+		requestedPose = 'lie'
 		pinToFloor()
 	}
 
 	function startWalking() {
 		phase = 'walk'
 		walkElapsedMs = 0
+		transitionElapsedMs = 0
 		nextSettleAfterMs = fixedSettleAfterMs ?? settleDelay(config, random)
 		direction = chooseDepartureDirection(position, viewport, image)
 		facing = direction >= 0 ? 'right' : 'left'
@@ -221,6 +227,24 @@ export function createPetEngine(options: PetEngineOptions) {
 		}
 	}
 
+	function stepTransition(deltaMs: number) {
+		transitionElapsedMs += deltaMs
+		pinToFloor()
+
+		if (transitionElapsedMs < transitionDurationMs) {
+			return
+		}
+
+		if (phase === 'settling') {
+			phase = 'sleep'
+			transitionElapsedMs = 0
+			requestedPose = 'sleep'
+			return
+		}
+
+		startWalking()
+	}
+
 	function step(deltaMs: number) {
 		const safeDeltaMs = clamp(deltaMs, 0, 64)
 		pinToFloor()
@@ -231,6 +255,8 @@ export function createPetEngine(options: PetEngineOptions) {
 
 		if (phase === 'walk') {
 			stepWalk(safeDeltaMs)
+		} else if (phase === 'settling' || phase === 'waking') {
+			stepTransition(safeDeltaMs)
 		} else {
 			requestedPose = 'sleep'
 			pinToFloor()
@@ -244,7 +270,12 @@ export function createPetEngine(options: PetEngineOptions) {
 			return snapshot()
 		}
 
-		startWalking()
+		phase = 'waking'
+		transitionElapsedMs = 0
+		direction = chooseDepartureDirection(position, viewport, image)
+		facing = direction >= 0 ? 'right' : 'left'
+		requestedPose = 'stretch'
+		pinToFloor()
 		return snapshot()
 	}
 

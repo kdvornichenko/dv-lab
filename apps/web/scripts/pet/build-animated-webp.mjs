@@ -212,7 +212,13 @@ async function main() {
 	const boxes = segments.map((segment) => findBox(data, info, segment))
 	const maxWidth = Math.max(...boxes.map((box) => box.width))
 	const maxHeight = Math.max(...boxes.map((box) => box.height))
-	const scale = Math.min(1, (frameWidth - 40) / maxWidth, (frameHeight - 20) / maxHeight)
+	const horizontalPadding = Math.min(40, Math.max(4, Math.round(frameWidth * 0.04)))
+	const verticalPadding = Math.min(20, Math.max(4, Math.round(frameHeight * 0.04)))
+	const scale = Math.min(
+		1,
+		(frameWidth - horizontalPadding * 2) / maxWidth,
+		(frameHeight - verticalPadding * 2) / maxHeight
+	)
 	const cleanedPng = await sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } })
 		.png()
 		.toBuffer()
@@ -241,7 +247,7 @@ async function main() {
 				{
 					input: sprite,
 					left: Math.round((frameWidth - metadata.width) / 2),
-					top: Math.max(0, Math.round(frameHeight - 10 - metadata.height)),
+					top: Math.max(0, Math.round(frameHeight - verticalPadding - metadata.height)),
 				},
 			])
 			.png()
