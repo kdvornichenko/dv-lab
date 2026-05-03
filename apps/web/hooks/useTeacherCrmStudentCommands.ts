@@ -10,7 +10,7 @@ import type { CreateStudentInput, UpdateStudentInput } from '@teacher-crm/api-ty
 import type { TeacherCrmCommandBaseDeps } from './useTeacherCrmCommands.types'
 
 export function useTeacherCrmStudentCommands({
-	refreshInBackground,
+	refreshAfterMutation,
 	runCrmAction,
 	setState,
 }: TeacherCrmCommandBaseDeps) {
@@ -22,10 +22,10 @@ export function useTeacherCrmStudentCommands({
 					...current,
 					students: [...current.students.filter((student) => student.id !== response.student.id), response.student],
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const updateStudent = useCallback(
@@ -33,10 +33,10 @@ export function useTeacherCrmStudentCommands({
 			await runCrmAction('Update student', async () => {
 				const response = await teacherCrmStudentApi.updateStudent(studentId, input)
 				setState((current) => mergeStudentIntoState(current, response.student))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const archiveStudent = useCallback(
@@ -44,10 +44,10 @@ export function useTeacherCrmStudentCommands({
 			await runCrmAction('Archive student', async () => {
 				const response = await teacherCrmStudentApi.updateStudent(studentId, { status: 'archived' })
 				setState((current) => mergeStudentIntoState(current, response.student))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const deleteStudent = useCallback(
@@ -66,10 +66,10 @@ export function useTeacherCrmStudentCommands({
 					payments: current.payments.filter((payment) => payment.studentId !== studentId),
 					studentBalances: current.studentBalances.filter((balance) => balance.studentId !== studentId),
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	return { addStudent, updateStudent, archiveStudent, deleteStudent }

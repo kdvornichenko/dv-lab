@@ -12,6 +12,11 @@ export function todayDateOnly(now = new Date()) {
 	return formatDateOnly(now)
 }
 
+export function teacherDateOnlyFromInstant(value: string | Date) {
+	const date = value instanceof Date ? value : new Date(value)
+	return Number.isNaN(date.getTime()) ? '' : formatDateOnly(date)
+}
+
 export function parseDateOnly(value: string) {
 	const match = DATE_ONLY_PATTERN.exec(value)
 	if (!match) return undefined
@@ -42,4 +47,13 @@ export function dateOnlyFromApiValue(value: string | Date) {
 
 export function dateOnlyToApiIso(value: string) {
 	return parseDateOnly(value) ? `${value}T00:00:00.000Z` : ''
+}
+
+export function isSameTeacherMonth(value: string | Date, anchor = new Date()) {
+	const date = value instanceof Date ? value : new Date(value)
+	return (
+		!Number.isNaN(date.getTime()) &&
+		date.getFullYear() === anchor.getFullYear() &&
+		date.getMonth() === anchor.getMonth()
+	)
 }

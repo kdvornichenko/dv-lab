@@ -16,6 +16,7 @@ export const LessonsPanel: FC<LessonsPanelProps> = ({
 	lessons,
 	students,
 	attendanceRecords = [],
+	calendarConnection,
 	calendarSyncRecords,
 	title = 'Today control',
 	description = 'Individual lessons, statuses, and calendar sync.',
@@ -26,6 +27,7 @@ export const LessonsPanel: FC<LessonsPanelProps> = ({
 	onDeleteLesson,
 	onMarkAttendance,
 	onCheckCalendarConflicts,
+	onConnectCalendar,
 	previewMode = false,
 }) => {
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -50,6 +52,23 @@ export const LessonsPanel: FC<LessonsPanelProps> = ({
 					</div>
 				</CardHeader>
 				<CardContent className="pt-5">
+					{calendarConnection && (calendarConnection.status !== 'connected' || !calendarConnection.tokenAvailable) && (
+						<div role="alert" className="border-warning-line bg-warning-soft mb-4 rounded-lg border p-3 text-sm">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<div>
+									<p className="font-heading text-ink font-semibold">Google Calendar is not connected</p>
+									<p className="text-ink-muted mt-1 text-xs">
+										Lesson changes are saved locally until Google reconnect completes.
+									</p>
+								</div>
+								{onConnectCalendar ? (
+									<Button type="button" variant="secondary" size="sm" onClick={onConnectCalendar}>
+										Reconnect Google
+									</Button>
+								) : null}
+							</div>
+						</div>
+					)}
 					{lessons.length === 0 ? (
 						<div className="border-sage-line bg-sage-soft/55 rounded-lg border border-dashed p-5">
 							<p className="font-heading text-ink font-semibold">No lessons scheduled</p>
@@ -64,6 +83,7 @@ export const LessonsPanel: FC<LessonsPanelProps> = ({
 										lesson={lesson}
 										students={students}
 										attendanceRecords={attendanceRecords}
+										calendarConnection={calendarConnection}
 										calendarSyncRecords={calendarSyncRecords}
 										previewMode={previewMode}
 										onEdit={setEditingLesson}

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 
 import {
 	createStudentSchema,
+	studentIdParamSchema,
 	listStudentsQuerySchema,
 	updateStudentSchema,
 	type ListStudentsResponse,
@@ -10,7 +11,7 @@ import {
 import { can } from '@teacher-crm/rbac'
 
 import { apiError, errorResponse, notFoundResponse } from '../http/errors'
-import { validateJson, validateQuery } from '../http/validation'
+import { validateJson, validateParams, validateQuery } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { studentService } from '../services/student-service'
 import { studentWorkflowService } from '../services/student-workflow-service'
@@ -30,25 +31,40 @@ export const studentRoutes = new Hono()
 		}
 		return context.json(response, 201)
 	})
-	.patch('/:studentId', requirePermission('students', 'write'), validateJson(updateStudentSchema), async (context) => {
-		const input = context.req.valid('json')
-		const user = context.get('user')
+	.patch(
+		'/:studentId',
+		requirePermission('students', 'write'),
+		validateParams(studentIdParamSchema),
+		validateJson(updateStudentSchema),
+		async (context) => {
+			const input = context.req.valid('json')
+			const user = context.get('user')
 
-		if (input.status === 'archived' && !can(new Set(user?.permissions ?? []), 'students', 'archive')) {
-			return errorResponse(context, 403, apiError('FORBIDDEN', 'Permission denied'))
+			if (input.status === 'archived' && !can(new Set(user?.permissions ?? []), 'students', 'archive')) {
+				return errorResponse(context, 403, apiError('FORBIDDEN', 'Permission denied'))
+			}
+
+			const student = await studentService.updateStudent(
+				actorFromContext(context),
+				context.req.param('studentId'),
+				input
+			)
+			if (!student) return notFoundResponse(context, 'Student not found')
+			const response: StudentMutationResponse = { ok: true, student }
+			return context.json(response, 200)
 		}
-
-		const student = await studentService.updateStudent(actorFromContext(context), context.req.param('studentId'), input)
-		if (!student) return notFoundResponse(context, 'Student not found')
-		const response: StudentMutationResponse = { ok: true, student }
-		return context.json(response, 200)
-	})
-	.delete('/:studentId', requirePermission('students', 'archive'), async (context) => {
-		const student = await studentWorkflowService.deleteStudent(
-			actorFromContext(context),
-			context.req.param('studentId')
-		)
-		if (!student) return notFoundResponse(context, 'Student not found')
-		const response: StudentMutationResponse = { ok: true, student }
-		return context.json(response, 200)
-	})
+	)
+	.delete(
+		'/:studentId',
+		requirePermission('students', 'archive'),
+		validateParams(studentIdParamSchema),
+		async (context) => {
+			const student = await studentWorkflowService.deleteStudent(
+				actorFromContext(context),
+				context.req.param('studentId')
+			)
+			if (!student) return notFoundResponse(context, 'Student not found')
+			const response: StudentMutationResponse = { ok: true, student }
+			return context.json(response, 200)
+		}
+	)

@@ -9,7 +9,7 @@ import type { CreatePaymentInput } from '@teacher-crm/api-types'
 import type { TeacherCrmCommandBaseDeps } from './useTeacherCrmCommands.types'
 
 export function useTeacherCrmPaymentCommands({
-	refreshInBackground,
+	refreshAfterMutation,
 	runCrmAction,
 	setState,
 }: TeacherCrmCommandBaseDeps) {
@@ -21,10 +21,10 @@ export function useTeacherCrmPaymentCommands({
 					...current,
 					payments: [...current.payments.filter((payment) => payment.id !== response.payment.id), response.payment],
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const deletePayment = useCallback(
@@ -35,10 +35,10 @@ export function useTeacherCrmPaymentCommands({
 					...current,
 					payments: current.payments.filter((payment) => payment.id !== paymentId),
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	return { recordPayment, deletePayment }

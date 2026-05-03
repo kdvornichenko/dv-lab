@@ -4,8 +4,13 @@ import { randomUUID } from 'node:crypto'
 process.env.NODE_ENV = 'test'
 
 const databaseUrl = process.env.TEACHER_CRM_TEST_DATABASE_URL
+const requireDatabaseTests = process.env.TEACHER_CRM_REQUIRE_DB_TESTS === '1' || process.env.CI === 'true'
 
 if (!databaseUrl) {
+	if (requireDatabaseTests) {
+		console.error('[teacher-crm] DB integration tests required but TEACHER_CRM_TEST_DATABASE_URL is not set')
+		process.exit(1)
+	}
 	console.log('[teacher-crm] skipping DB integration tests: TEACHER_CRM_TEST_DATABASE_URL is not set')
 	process.exit(0)
 }

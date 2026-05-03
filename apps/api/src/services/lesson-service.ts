@@ -9,6 +9,7 @@ import type {
 } from '@teacher-crm/api-types'
 import {
 	deleteLessonRow,
+	getLessonRow,
 	insertLessonRow,
 	listAttendanceRows,
 	listLessonOccurrenceExceptionRows,
@@ -16,6 +17,7 @@ import {
 	updateLessonRow,
 	upsertLessonOccurrenceExceptionRow,
 	upsertAttendanceRows,
+	type DB,
 	type AttendanceRecordRow,
 	type LessonOccurrenceExceptionRow,
 	type LessonRowWithStudents,
@@ -23,7 +25,7 @@ import {
 } from '@teacher-crm/db'
 
 import { billingService } from './billing-service'
-import { getDb, teacherProfileId } from './db-context'
+import { getDb, runWithDbContext, teacherProfileId } from './db-context'
 import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
@@ -113,6 +115,27 @@ function attendanceForLessonStatus(
 	return { status: 'planned', billable: true }
 }
 
+export class LessonServiceError extends Error {
+	constructor(
+		readonly code: 'LESSON_NOT_FOUND' | 'STUDENT_NOT_IN_LESSON',
+		message: string
+	) {
+		super(message)
+		this.name = 'LessonServiceError'
+	}
+}
+
+function assertAttendanceRoster(lesson: Pick<Lesson, 'id' | 'studentIds'> | null, input: MarkAttendanceInput) {
+	if (!lesson) throw new LessonServiceError('LESSON_NOT_FOUND', 'Lesson not found for attendance')
+	const lessonStudentIds = new Set(lesson.studentIds)
+	const unknownStudentIds = input.records
+		.map((record) => record.studentId)
+		.filter((studentId) => !lessonStudentIds.has(studentId))
+	if (unknownStudentIds.length > 0) {
+		throw new LessonServiceError('STUDENT_NOT_IN_LESSON', 'Attendance student is not enrolled in this lesson')
+	}
+}
+
 async function syncLessonAttendanceForStatus(
 	db: Parameters<typeof upsertAttendanceRows>[0],
 	teacherId: string,
@@ -179,10 +202,14 @@ export const lessonService = {
 		if (!db) return getMemoryStore().createLesson(scope, input)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const lesson = await insertLessonRow(db, toInsertValues(teacherId, input), input.studentIds)
-		await syncLessonAttendanceForStatus(db, teacherId, lesson)
-		await billingService.syncLessonChargesForLesson(scope, lesson.id)
-		return mapLessonRow(lesson)
+		return db.transaction((tx) =>
+			runWithDbContext({ db: tx as DB }, async () => {
+				const lesson = await insertLessonRow(tx as DB, toInsertValues(teacherId, input), input.studentIds)
+				await syncLessonAttendanceForStatus(tx as DB, teacherId, lesson)
+				await billingService.syncLessonChargesForLesson(scope, lesson.id)
+				return mapLessonRow(lesson)
+			})
+		)
 	},
 
 	async updateLesson(scope: StoreScope, lessonId: string, input: UpdateLessonInput) {
@@ -190,12 +217,16 @@ export const lessonService = {
 		if (!db) return getMemoryStore().updateLesson(scope, lessonId, input)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const lesson = await updateLessonRow(db, teacherId, lessonId, toUpdateValues(input), input.studentIds)
-		if (lesson && (input.status !== undefined || input.studentIds !== undefined)) {
-			await syncLessonAttendanceForStatus(db, teacherId, lesson)
-		}
-		if (lesson) await billingService.syncLessonChargesForLesson(scope, lesson.id)
-		return lesson ? mapLessonRow(lesson) : null
+		return db.transaction((tx) =>
+			runWithDbContext({ db: tx as DB }, async () => {
+				const lesson = await updateLessonRow(tx as DB, teacherId, lessonId, toUpdateValues(input), input.studentIds)
+				if (lesson && (input.status !== undefined || input.studentIds !== undefined)) {
+					await syncLessonAttendanceForStatus(tx as DB, teacherId, lesson)
+				}
+				if (lesson) await billingService.syncLessonChargesForLesson(scope, lesson.id)
+				return lesson ? mapLessonRow(lesson) : null
+			})
+		)
 	},
 
 	async deleteLesson(scope: StoreScope, lessonId: string) {
@@ -217,23 +248,36 @@ export const lessonService = {
 
 	async markAttendance(scope: StoreScope, input: MarkAttendanceInput) {
 		const db = getDb()
-		if (!db) return getMemoryStore().markAttendance(scope, input)
+		if (!db) {
+			const store = getMemoryStore()
+			const lesson = store
+				.listLessons(scope, { status: 'all', studentId: '', dateFrom: '', dateTo: '' })
+				.find((item) => item.id === input.lessonId)
+			assertAttendanceRoster(lesson ?? null, input)
+			return store.markAttendance(scope, input)
+		}
 
 		const teacherId = await teacherProfileId(db, scope)
-		const updatedAttendance = (
-			await upsertAttendanceRows(
-				db,
-				input.records.map((record) => ({
-					teacherId,
-					lessonId: input.lessonId,
-					studentId: record.studentId,
-					status: record.status,
-					billable: record.billable,
-					note: emptyToNull(record.note),
-				}))
-			)
-		).map(mapAttendanceRow)
-		await billingService.syncLessonChargesForLesson(scope, input.lessonId)
-		return updatedAttendance
+		return db.transaction((tx) =>
+			runWithDbContext({ db: tx as DB }, async () => {
+				const lesson = await getLessonRow(tx as DB, teacherId, input.lessonId)
+				assertAttendanceRoster(lesson ? mapLessonRow(lesson) : null, input)
+				const updatedAttendance = (
+					await upsertAttendanceRows(
+						tx as DB,
+						input.records.map((record) => ({
+							teacherId,
+							lessonId: input.lessonId,
+							studentId: record.studentId,
+							status: record.status,
+							billable: record.billable,
+							note: emptyToNull(record.note),
+						}))
+					)
+				).map(mapAttendanceRow)
+				await billingService.syncLessonChargesForLesson(scope, input.lessonId)
+				return updatedAttendance
+			})
+		)
 	},
 }

@@ -1,7 +1,14 @@
 import { config } from 'dotenv'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 
-config({ path: '../../.env.local' })
+const apiRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const repoRoot = resolve(apiRoot, '../..')
+
+config({ path: resolve(repoRoot, '.env.local') })
+config({ path: resolve(repoRoot, '.env') })
+config({ path: resolve(apiRoot, '.env') })
 config()
 
 function cleanEnvValue(value: unknown) {

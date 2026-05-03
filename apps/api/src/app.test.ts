@@ -3,10 +3,27 @@ import assert from 'node:assert/strict'
 process.env.NODE_ENV = 'test'
 
 const { createApp } = await import('./app')
+const { googleJson, GoogleCalendarRequestError } = await import('./services/google-calendar-client')
 const app = createApp({ storeNamespace: 'api-smoke', db: { db: null } })
 
 const health = await app.request('/healthz')
 assert.equal(health.status, 200)
+
+const googleErrorFetch: typeof fetch = async () =>
+	new Response(JSON.stringify({ error: { message: 'bad access_token=ya29.secret Bearer ya29.secret' } }), {
+		status: 400,
+		headers: { 'content-type': 'application/json' },
+	})
+await assert.rejects(
+	() => googleJson('https://google.example.test/calendar', 'ya29.secret', {}, googleErrorFetch),
+	(error: unknown) => {
+		assert.ok(error instanceof GoogleCalendarRequestError)
+		assert.equal(error.status, 400)
+		assert.equal(error.message.includes('ya29.secret'), false)
+		assert.equal(error.message.includes('access_token=[REDACTED]'), true)
+		return true
+	}
+)
 
 const unauthenticated = await app.request('/students')
 assert.equal(unauthenticated.status, 401)
@@ -48,6 +65,12 @@ const noRoleStudents = await noRoleAuthApp.request('/students', {
 	},
 })
 assert.equal(noRoleStudents.status, 403)
+const noRoleStudentsBody = await noRoleStudents.json()
+assert.equal(noRoleStudentsBody.error.details.userId, undefined)
+assert.equal(noRoleStudentsBody.error.details.email, undefined)
+assert.equal(noRoleStudentsBody.error.details.roles, undefined)
+assert.equal(noRoleStudentsBody.error.details.permissions, undefined)
+assert.equal(noRoleStudentsBody.error.details.requiredPermission, 'students.read')
 
 const teacherRoleAuthApp = createApp({
 	storeNamespace: 'auth-teacher-role',
@@ -76,6 +99,34 @@ const teacherRoleStudents = await teacherRoleAuthApp.request('/students', {
 	},
 })
 assert.equal(teacherRoleStudents.status, 200)
+
+const userMetadataRoleAuthApp = createApp({
+	storeNamespace: 'auth-user-metadata-role',
+	db: { db: null },
+	auth: {
+		authClient: {
+			auth: {
+				getUser: async () => ({
+					data: {
+						user: {
+							id: '44444444-4444-5444-8444-444444444444',
+							email: 'user-metadata-role@example.test',
+							app_metadata: {},
+							user_metadata: { roles: ['teacher'] },
+						},
+					},
+					error: null,
+				}),
+			},
+		} as never,
+	},
+})
+const userMetadataRoleStudents = await userMetadataRoleAuthApp.request('/students', {
+	headers: {
+		authorization: 'Bearer user-metadata-role-token',
+	},
+})
+assert.equal(userMetadataRoleStudents.status, 403)
 
 const envTeacherAuthApp = createApp({
 	storeNamespace: 'auth-env-teacher',
@@ -110,6 +161,119 @@ const envTeacherStudents = await envTeacherAuthApp.request('/students', {
 	},
 })
 assert.equal(envTeacherStudents.status, 200)
+
+const malformedStudentParam = await app.request('/students/not%20an%20id', {
+	method: 'PATCH',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({ firstName: 'Bad' }),
+})
+assert.equal(malformedStudentParam.status, 400)
+const malformedStudentParamBody = await malformedStudentParam.json()
+assert.equal(malformedStudentParamBody.error.code, 'VALIDATION_FAILED')
+
+const malformedLessonParam = await app.request('/lessons/not%20an%20id', {
+	method: 'PATCH',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({ status: 'completed' }),
+})
+assert.equal(malformedLessonParam.status, 400)
+
+const malformedPaymentParam = await app.request('/payments/not%20an%20id', {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(malformedPaymentParam.status, 400)
+
+const malformedCalendarBlockParam = await app.request('/calendar/blocks/not%20an%20id', {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(malformedCalendarBlockParam.status, 400)
+
+const malformedErrorParam = await app.request('/errors/not%20an%20id', {
+	method: 'DELETE',
+	headers: {
+		'x-demo-user': 'demo-teacher',
+	},
+})
+assert.equal(malformedErrorParam.status, 400)
+
+const rosterStudentA = await app.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'Roster Student A',
+		status: 'active',
+		defaultLessonPrice: 1000,
+		packageMonths: 0,
+		packageLessonsPerWeek: 0,
+		packageLessonCount: 0,
+		billingMode: 'per_lesson',
+	}),
+})
+assert.equal(rosterStudentA.status, 201)
+const rosterStudentABody = await rosterStudentA.json()
+const rosterStudentB = await app.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'Roster Student B',
+		status: 'active',
+		defaultLessonPrice: 1000,
+		packageMonths: 0,
+		packageLessonsPerWeek: 0,
+		packageLessonCount: 0,
+		billingMode: 'per_lesson',
+	}),
+})
+assert.equal(rosterStudentB.status, 201)
+const rosterStudentBBody = await rosterStudentB.json()
+const rosterLesson = await app.request('/lessons', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		title: 'Roster enforcement',
+		startsAt: new Date(Date.now() + 86_400_000).toISOString(),
+		durationMinutes: 60,
+		status: 'planned',
+		studentIds: [rosterStudentABody.student.id],
+	}),
+})
+assert.equal(rosterLesson.status, 201)
+const rosterLessonBody = await rosterLesson.json()
+const invalidRosterAttendance = await app.request('/lessons/attendance', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		lessonId: rosterLessonBody.lesson.id,
+		records: [{ studentId: rosterStudentBBody.student.id, status: 'attended', billable: true }],
+	}),
+})
+assert.equal(invalidRosterAttendance.status, 400)
+const invalidRosterAttendanceBody = await invalidRosterAttendance.json()
+assert.equal(invalidRosterAttendanceBody.error.code, 'VALIDATION_FAILED')
 
 const isolatedA = createApp({ storeNamespace: 'isolated-a', db: { db: null } })
 const isolatedB = createApp({ storeNamespace: 'isolated-b', db: { db: null } })

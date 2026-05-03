@@ -12,6 +12,7 @@ export const LessonsPageClient: FC = () => {
 				<LessonsCalendarPanel
 					lessons={crm.state.lessons}
 					students={crm.state.students}
+					calendarConnection={crm.state.calendarConnection}
 					calendarSyncRecords={crm.state.calendarSyncRecords}
 					calendarBlocks={crm.state.calendarBlocks}
 					lessonOccurrenceExceptions={crm.state.lessonOccurrenceExceptions}
@@ -22,6 +23,7 @@ export const LessonsPageClient: FC = () => {
 					onUpdateCalendarBlock={crm.updateCalendarBlock}
 					onDeleteCalendarBlock={crm.deleteCalendarBlock}
 					onCheckCalendarConflicts={crm.checkCalendarConflicts}
+					onConnectCalendar={crm.connectCalendar}
 				/>
 			)}
 		</TeacherCrmPageShell>

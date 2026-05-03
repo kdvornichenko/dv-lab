@@ -3,6 +3,7 @@ import type { TeacherCrmState, TeacherCrmSummary } from '@/lib/crm/types'
 import type { CalendarListEntry } from '@teacher-crm/api-types'
 
 export type TeacherCrmCacheSnapshot = {
+	cacheKey: string
 	state: TeacherCrmState
 	summary: TeacherCrmSummary
 	calendarOptions: CalendarListEntry[]

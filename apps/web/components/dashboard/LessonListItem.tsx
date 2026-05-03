@@ -14,6 +14,7 @@ export const LessonListItem: FC<LessonListItemProps> = ({
 	lesson,
 	students,
 	attendanceRecords,
+	calendarConnection,
 	calendarSyncRecords,
 	previewMode,
 	onEdit,
@@ -23,6 +24,16 @@ export const LessonListItem: FC<LessonListItemProps> = ({
 	onMarkAttendance,
 }) => {
 	const sync = calendarSyncRecords.find((record) => record.lessonId === lesson.id)
+	const isGoogleConnected = calendarConnection?.status === 'connected' && calendarConnection.tokenAvailable
+	const calendarBadgeLabel = calendarConnection && !isGoogleConnected ? 'local only' : (sync?.status ?? 'not synced')
+	const calendarBadgeTone =
+		calendarConnection && !isGoogleConnected
+			? 'neutral'
+			: sync?.status === 'synced'
+				? 'green'
+				: sync?.status === 'failed'
+					? 'red'
+					: 'neutral'
 	const absentFree = isLessonAbsentFree(lesson, attendanceRecords)
 	const groupPrefix = lesson.studentIds.length > 1 ? 'All ' : ''
 	const tone = absentFree ? absentFreeTone : lessonTone(lesson)
@@ -68,9 +79,7 @@ export const LessonListItem: FC<LessonListItemProps> = ({
 					{lesson.durationMinutes} min
 				</Badge>
 				<Badge tone={tone.badge}>{absentFree ? 'absent free' : lesson.status.replace('_', ' ')}</Badge>
-				<Badge tone={sync?.status === 'synced' ? 'green' : sync?.status === 'failed' ? 'red' : 'neutral'}>
-					Calendar {sync?.status ?? 'not synced'}
-				</Badge>
+				<Badge tone={calendarBadgeTone}>Calendar {calendarBadgeLabel}</Badge>
 			</div>
 			<div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 				<span className={cn('absolute inset-y-0 left-0 w-1', tone.rail)} />

@@ -39,3 +39,15 @@ export function validateQuery<T extends ZodType>(schema: T) {
 		)
 	})
 }
+
+export function validateParams<T extends ZodType>(schema: T) {
+	return zValidator('param', schema, (result, context) => {
+		if (result.success !== false) return
+
+		return errorResponse(
+			context,
+			400,
+			apiError('VALIDATION_FAILED', 'Request params failed validation', validationDetails(result.error))
+		)
+	})
+}

@@ -5,6 +5,7 @@ import {
 	DEFAULT_SIDEBAR_ITEMS,
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
 	BILLABLE_ATTENDANCE_STATUSES,
+	buildDashboardSummary,
 	calculateMonthlyLessonCount,
 	calculateMonthlyTotalPrice,
 	calculatePackageLessonPriceRub,
@@ -830,35 +831,13 @@ export const memoryStore = {
 
 	getDashboardSummary(scope: StoreScope) {
 		const state = stateFor(scope)
-		const todayKey = new Date().toISOString().slice(0, 10)
-		const startOfMonth = new Date()
-		startOfMonth.setDate(1)
-		startOfMonth.setHours(0, 0, 0, 0)
-		const balances = this.listStudentBalances(scope)
-		const monthIncomeByCurrency = this.listPayments(scope)
-			.filter((payment) => new Date(payment.paidAt) >= startOfMonth)
-			.reduce(
-				(totals, payment) => {
-					totals[payment.currency] += payment.amount
-					return totals
-				},
-				{ RUB: 0, KZT: 0 } satisfies Record<Currency, number>
-			)
-
-		return {
-			activeStudents: this.listStudents(scope).filter((student) => student.status === 'active').length,
-			todayLessonCount: this.listLessons(scope).filter((lesson) => lesson.startsAt.slice(0, 10) === todayKey).length,
-			missingAttendanceCount: this.listLessons(scope).filter((lesson) => {
-				if (lesson.startsAt.slice(0, 10) !== todayKey) return false
-				return lesson.studentIds.some((studentId) => !state.attendance.has(`${lesson.id}:${studentId}`))
-			}).length,
-			overdueStudentCount: balances.filter(
-				(balance) => balance.overdue || Boolean(balance.otherCurrencyBalances?.some((item) => item.overdue))
-			).length,
-			monthIncomeRub: monthIncomeByCurrency.RUB,
-			monthIncome: monthIncomeByCurrency.RUB,
-			monthIncomeByCurrency,
-		}
+		return buildDashboardSummary({
+			students: this.listStudents(scope),
+			lessons: this.listLessons(scope),
+			attendance: Array.from(state.attendance.values()),
+			payments: this.listPayments(scope),
+			balances: this.listStudentBalances(scope),
+		})
 	},
 
 	getCalendarConnection(scope: StoreScope) {

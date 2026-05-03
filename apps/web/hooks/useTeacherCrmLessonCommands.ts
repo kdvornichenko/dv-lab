@@ -16,7 +16,7 @@ import type { TeacherCrmLessonCommandDeps } from './useTeacherCrmCommands.types'
 export function useTeacherCrmLessonCommands({
 	ensureCalendarTokens,
 	lessons,
-	refreshInBackground,
+	refreshAfterMutation,
 	runCrmAction,
 	setState,
 }: TeacherCrmLessonCommandDeps) {
@@ -29,10 +29,10 @@ export function useTeacherCrmLessonCommands({
 					...current,
 					lessons: [...current.lessons.filter((lesson) => lesson.id !== response.lesson.id), response.lesson],
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
+		[ensureCalendarTokens, refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const updateLesson = useCallback(
@@ -47,10 +47,10 @@ export function useTeacherCrmLessonCommands({
 							? current.lessons.map((lesson) => (lesson.id === lessonId ? response.lesson : lesson))
 							: [...current.lessons.filter((lesson) => lesson.id !== response.lesson.id), response.lesson],
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
+		[ensureCalendarTokens, refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const deleteLesson = useCallback(
@@ -70,10 +70,10 @@ export function useTeacherCrmLessonCommands({
 							? current.calendarSyncRecords
 							: current.calendarSyncRecords.filter((record) => record.lessonId !== lessonId),
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const markAttendance = useCallback(
@@ -86,10 +86,10 @@ export function useTeacherCrmLessonCommands({
 					for (const record of response.attendance) nextAttendance.set(key(record), record)
 					return { ...current, attendance: Array.from(nextAttendance.values()) }
 				})
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const markGroupAttended = useCallback(

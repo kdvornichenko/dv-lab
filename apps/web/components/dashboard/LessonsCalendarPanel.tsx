@@ -25,6 +25,7 @@ import { lessonDisplayTitle } from '@/lib/crm/model'
 
 import type {
 	CalendarBlock,
+	CalendarConnection,
 	CalendarSyncRecord,
 	CreateCalendarBlockInput,
 	Lesson,
@@ -66,7 +67,15 @@ function lessonAttendees(lesson: Lesson, students: Student[]) {
 		)
 }
 
-function calendarSyncBadge(syncRecord?: CalendarSyncRecord): NonNullable<CalendarEvent['badges']>[number] | undefined {
+function isGoogleCalendarConnected(connection: CalendarConnection) {
+	return connection.status === 'connected' && connection.tokenAvailable
+}
+
+function calendarSyncBadge(
+	syncRecord: CalendarSyncRecord | undefined,
+	isGoogleConnected: boolean
+): NonNullable<CalendarEvent['badges']>[number] | undefined {
+	if (!isGoogleConnected) return { label: 'Google local', tone: 'neutral' }
 	if (!syncRecord) return undefined
 
 	if (syncRecord.status === 'synced') return { label: 'Google synced', tone: 'success' }
@@ -79,13 +88,14 @@ function lessonToCalendarEvent(
 	lesson: Lesson,
 	students: Student[],
 	syncRecordsByLessonId: Map<string, CalendarSyncRecord>,
+	isGoogleConnected: boolean,
 	occurrenceIndex = 0
 ): CalendarEvent {
 	const start = new Date(lesson.startsAt)
 	if (occurrenceIndex > 0) start.setDate(start.getDate() + occurrenceIndex * 7)
 	const end = new Date(start.getTime() + lesson.durationMinutes * 60_000)
 	const syncRecord = syncRecordsByLessonId.get(lesson.id)
-	const badge = calendarSyncBadge(syncRecord)
+	const badge = calendarSyncBadge(syncRecord, isGoogleConnected)
 	const occurrenceStartsAt = start.toISOString()
 
 	return {
@@ -111,11 +121,12 @@ function lessonToCalendarEvents(
 	lesson: Lesson,
 	students: Student[],
 	syncRecordsByLessonId: Map<string, CalendarSyncRecord>,
+	isGoogleConnected: boolean,
 	exceptionsByOccurrence: Map<string, LessonOccurrenceException>
 ) {
 	const count = lesson.repeatWeekly ? RECURRING_LESSON_OCCURRENCES : 1
 	return Array.from({ length: count }, (_, index) =>
-		lessonToCalendarEvent(lesson, students, syncRecordsByLessonId, index)
+		lessonToCalendarEvent(lesson, students, syncRecordsByLessonId, isGoogleConnected, index)
 	).filter((event) => !exceptionsByOccurrence.has(`${lesson.id}:${event.occurrenceStartsAt}`))
 }
 
@@ -148,6 +159,7 @@ function timeInputValue(value: Date) {
 export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	lessons,
 	students,
+	calendarConnection,
 	calendarSyncRecords,
 	calendarBlocks,
 	lessonOccurrenceExceptions,
@@ -158,6 +170,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	onUpdateCalendarBlock,
 	onDeleteCalendarBlock,
 	onCheckCalendarConflicts,
+	onConnectCalendar,
 }) => {
 	const [isCreateOpen, setIsCreateOpen] = useState(false)
 	const [editingLesson, setEditingLesson] = useState<Lesson | null>(null)
@@ -172,6 +185,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 		() => new Map(calendarSyncRecords.map((record) => [record.lessonId, record])),
 		[calendarSyncRecords]
 	)
+	const isGoogleConnected = isGoogleCalendarConnected(calendarConnection)
 	const exceptionsByOccurrence = useMemo(
 		() =>
 			new Map(
@@ -185,11 +199,11 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	const events = useMemo(
 		() => [
 			...lessons.flatMap((lesson) =>
-				lessonToCalendarEvents(lesson, students, syncRecordsByLessonId, exceptionsByOccurrence)
+				lessonToCalendarEvents(lesson, students, syncRecordsByLessonId, isGoogleConnected, exceptionsByOccurrence)
 			),
 			...calendarBlocks.map(calendarBlockToEvent),
 		],
-		[calendarBlocks, exceptionsByOccurrence, lessons, students, syncRecordsByLessonId]
+		[calendarBlocks, exceptionsByOccurrence, isGoogleConnected, lessons, students, syncRecordsByLessonId]
 	)
 	const syncedCount = calendarSyncRecords.filter((record) => record.status === 'synced').length
 	const failedCount = calendarSyncRecords.filter((record) => record.status === 'failed').length
@@ -254,6 +268,9 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 						<Badge tone={failedCount > 0 ? 'red' : 'green'} className="font-mono tabular-nums">
 							{syncedCount} synced
 						</Badge>
+						<Badge tone={isGoogleConnected ? 'green' : 'red'} className="font-mono tabular-nums">
+							{isGoogleConnected ? 'Google connected' : 'Google local'}
+						</Badge>
 						<Button
 							type="button"
 							variant={availabilityMode ? 'default' : 'secondary'}
@@ -303,6 +320,23 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 						</Button>
 					</div>
 				</header>
+				{!isGoogleConnected && (
+					<div role="alert" className="border-warning-line bg-warning-soft text-ink border-b px-4 py-3 text-sm">
+						<div className="flex flex-wrap items-center justify-between gap-3">
+							<div>
+								<p className="font-heading font-semibold">Google Calendar is not connected</p>
+								<p className="text-ink-muted mt-1 text-xs">
+									Lesson changes are saved locally until Google reconnect completes.
+								</p>
+							</div>
+							{onConnectCalendar ? (
+								<Button type="button" variant="secondary" size="sm" onClick={onConnectCalendar}>
+									Reconnect Google
+								</Button>
+							) : null}
+						</div>
+					</div>
+				)}
 				<div className="min-h-168 bg-surface h-[calc(100dvh-5rem)] overflow-hidden">
 					<CalendarViewStage />
 				</div>

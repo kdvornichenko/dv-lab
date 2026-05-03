@@ -6,6 +6,7 @@ import {
 	GOOGLE_CALENDAR_REQUIRED_SCOPES,
 	type ApiErrorResponse,
 	type AttendanceMutationResponse,
+	buildDashboardSummary,
 	type CalendarBusyQuery,
 	type CalendarBusyResponse,
 	type CalendarBlockMutationResponse,
@@ -17,6 +18,7 @@ import {
 	type CalendarProviderTokenResponse,
 	type CalendarResponse,
 	type CalendarSyncResponse,
+	calendarResponseSchema,
 	type CreateLessonInput,
 	type CreateCalendarBlockInput,
 	type CreatePaymentInput,
@@ -27,18 +29,23 @@ import {
 	type DashboardResponse,
 	type DashboardSummary,
 	type DeleteLessonQuery,
+	dashboardResponseSchema,
 	type LessonMutationResponse,
 	type LessonsResponse,
+	lessonsResponseSchema,
 	type ListStudentsResponse,
+	listStudentsResponseSchema,
 	type MarkAttendanceInput,
 	type PaymentMutationResponse,
 	type PaymentsResponse,
+	paymentsResponseSchema,
 	type PetSettings,
 	type PetSettingsResponse,
+	petSettingsResponseSchema,
 	type SaveCrmErrorInput,
 	type SidebarItem,
 	type SidebarSettingsResponse,
-	type StudentBalance,
+	sidebarSettingsResponseSchema,
 	type StudentMutationResponse,
 	type ThemeSettingsResponse,
 	type UpdateLessonInput,
@@ -62,6 +69,14 @@ export type TeacherCrmLoadIssue = {
 type LoadResult<T> = {
 	data: T | null
 	issue: TeacherCrmLoadIssue | null
+}
+
+type ResponseSchema<T> = {
+	safeParse(
+		value: unknown
+	):
+		| { success: true; data: T }
+		| { success: false; error: { issues: Array<{ path: Array<string | number>; message: string }> } }
 }
 
 const emptyCalendarConnection: CalendarConnection = {
@@ -136,7 +151,11 @@ export class TeacherCrmApiError extends Error {
 	}
 }
 
-export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(
+	path: string,
+	init: RequestInit = {},
+	responseSchema?: ResponseSchema<T>
+): Promise<T> {
 	const label = requestLabel(path, init)
 	const token = await accessToken()
 	if (!token) throw new TeacherCrmApiError(`${label}: Authentication session is missing`, 401, 'UNAUTHENTICATED')
@@ -174,6 +193,17 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 		throw new TeacherCrmApiError(`${label}: ${message}`, response.status, error?.code)
 	}
 
+	if (responseSchema) {
+		const parsed = responseSchema.safeParse(payload)
+		if (!parsed.success) {
+			const issue = parsed.error.issues[0]
+			const field = issue?.path.length ? issue.path.join('.') : 'response'
+			const message = issue ? `${field}: ${issue.message}` : 'Response payload failed validation'
+			throw new TeacherCrmApiError(`${label}: ${message}`, response.status, 'INVALID_RESPONSE')
+		}
+		return parsed.data
+	}
+
 	return payload as T
 }
 
@@ -188,43 +218,20 @@ function mapSummary(summary: DashboardSummary): TeacherCrmSummary {
 	}
 }
 
-function isBalanceOverdue(balance: StudentBalance) {
-	return balance.overdue || Boolean(balance.otherCurrencyBalances?.some((item) => item.overdue))
-}
-
 function fallbackSummary(
 	students: ListStudentsResponse,
 	lessons: LessonsResponse,
 	payments: PaymentsResponse
 ): TeacherCrmSummary {
-	const todayKey = new Date().toISOString().slice(0, 10)
-	const startOfMonth = new Date()
-	startOfMonth.setDate(1)
-	startOfMonth.setHours(0, 0, 0, 0)
-	const monthIncomeByCurrency = payments.payments
-		.filter((payment) => new Date(payment.paidAt) >= startOfMonth)
-		.reduce(
-			(totals, payment) => {
-				totals[payment.currency] += payment.amount
-				return totals
-			},
-			{ RUB: 0, KZT: 0 }
-		)
-
-	return {
-		activeStudents: students.students.filter((student) => student.status === 'active').length,
-		todayLessons: lessons.lessons.filter((lesson) => lesson.startsAt.slice(0, 10) === todayKey).length,
-		missingAttendance: lessons.lessons.filter((lesson) => {
-			if (lesson.startsAt.slice(0, 10) !== todayKey) return false
-			return lesson.studentIds.some(
-				(studentId) =>
-					!lessons.attendance.some((record) => record.lessonId === lesson.id && record.studentId === studentId)
-			)
-		}).length,
-		overdueStudents: payments.balances.filter(isBalanceOverdue).length,
-		monthIncome: monthIncomeByCurrency.RUB,
-		monthIncomeByCurrency,
-	}
+	return mapSummary(
+		buildDashboardSummary({
+			students: students.students,
+			lessons: lessons.lessons,
+			attendance: lessons.attendance,
+			payments: payments.payments,
+			balances: payments.balances,
+		})
+	)
 }
 
 function collectIssue(issues: TeacherCrmLoadIssue[], result: LoadResult<unknown>) {
@@ -236,9 +243,12 @@ const emptyPaymentsResponse: PaymentsResponse = { ok: true, payments: [], balanc
 export async function loadTeacherCrm() {
 	const issues: TeacherCrmLoadIssue[] = []
 	const [studentsResult, lessonsResult, calendarResult] = await Promise.all([
-		loadResource('Load students', apiRequest<ListStudentsResponse>('/students')),
-		loadResource('Load lessons', apiRequest<LessonsResponse>('/lessons')),
-		loadResource('Load calendar connection', apiRequest<CalendarResponse>('/calendar/connection')),
+		loadResource('Load students', apiRequest<ListStudentsResponse>('/students', {}, listStudentsResponseSchema)),
+		loadResource('Load lessons', apiRequest<LessonsResponse>('/lessons', {}, lessonsResponseSchema)),
+		loadResource(
+			'Load calendar connection',
+			apiRequest<CalendarResponse>('/calendar/connection', {}, calendarResponseSchema)
+		),
 	])
 	for (const result of [studentsResult, lessonsResult, calendarResult]) {
 		collectIssue(issues, result)
@@ -275,8 +285,8 @@ export async function loadTeacherCrm() {
 export async function loadTeacherCrmSupplements(baseState: TeacherCrmState) {
 	const issues: TeacherCrmLoadIssue[] = []
 	const [paymentsResult, dashboardResult] = await Promise.all([
-		loadResource('Load payments', apiRequest<PaymentsResponse>('/payments')),
-		loadResource('Load dashboard summary', apiRequest<DashboardResponse>('/dashboard')),
+		loadResource('Load payments', apiRequest<PaymentsResponse>('/payments', {}, paymentsResponseSchema)),
+		loadResource('Load dashboard summary', apiRequest<DashboardResponse>('/dashboard', {}, dashboardResponseSchema)),
 	])
 	for (const result of [paymentsResult, dashboardResult]) {
 		collectIssue(issues, result)
@@ -358,7 +368,7 @@ export const teacherCrmPaymentApi = {
 }
 
 export const teacherCrmSettingsApi = {
-	listSidebarItems: () => apiRequest<SidebarSettingsResponse>('/settings/sidebar'),
+	listSidebarItems: () => apiRequest<SidebarSettingsResponse>('/settings/sidebar', {}, sidebarSettingsResponseSchema),
 	saveSidebarItems: (items: SidebarItem[]) =>
 		apiRequest<SidebarSettingsResponse>('/settings/sidebar', {
 			method: 'PUT',
@@ -370,7 +380,7 @@ export const teacherCrmSettingsApi = {
 			method: 'PUT',
 			body: JSON.stringify(theme),
 		}),
-	getPetSettings: () => apiRequest<PetSettingsResponse>('/settings/pet'),
+	getPetSettings: () => apiRequest<PetSettingsResponse>('/settings/pet', {}, petSettingsResponseSchema),
 	savePetSettings: (input: PetSettings) =>
 		apiRequest<PetSettingsResponse>('/settings/pet', {
 			method: 'PUT',

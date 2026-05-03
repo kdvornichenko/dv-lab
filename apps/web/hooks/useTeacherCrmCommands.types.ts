@@ -4,7 +4,11 @@ import type { TeacherCrmState } from '@/lib/crm/types'
 
 import type { Lesson } from '@teacher-crm/api-types'
 
-export type RefreshTeacherCrm = (options?: { showLoading?: boolean }) => Promise<void>
+export type RefreshTeacherCrm = (options?: {
+	showLoading?: boolean
+	awaitSupplements?: boolean
+	force?: boolean
+}) => Promise<void>
 
 export type RunCrmAction = (source: string, action: () => Promise<void>) => Promise<void>
 
@@ -16,7 +20,7 @@ export type UseTeacherCrmCommandsInput = {
 
 export type TeacherCrmCommandBaseDeps = {
 	runCrmAction: RunCrmAction
-	refreshInBackground: () => void
+	refreshAfterMutation: () => Promise<void>
 	setState: Dispatch<SetStateAction<TeacherCrmState>>
 }
 

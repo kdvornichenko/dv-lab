@@ -5,6 +5,7 @@ import type { CalendarEvent } from '@/components/calendar/Calendar'
 import type {
 	CalendarBlock,
 	CalendarBusyInterval,
+	CalendarConnection,
 	CalendarSyncRecord,
 	CreateCalendarBlockInput,
 	CreateLessonInput,
@@ -19,6 +20,7 @@ import type {
 export type LessonsCalendarPanelProps = {
 	lessons: Lesson[]
 	students: Student[]
+	calendarConnection: CalendarConnection
 	calendarSyncRecords: CalendarSyncRecord[]
 	calendarBlocks: CalendarBlock[]
 	lessonOccurrenceExceptions: LessonOccurrenceException[]
@@ -29,6 +31,7 @@ export type LessonsCalendarPanelProps = {
 	onUpdateCalendarBlock: (blockId: string, input: UpdateCalendarBlockInput) => Promise<void>
 	onDeleteCalendarBlock: (blockId: string) => Promise<void>
 	onCheckCalendarConflicts?: (input: CreateLessonInput) => Promise<CalendarBusyInterval[]>
+	onConnectCalendar?: () => void
 }
 
 export type PersonalBlockDialogProps = {

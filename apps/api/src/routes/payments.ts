@@ -1,9 +1,14 @@
 import { Hono } from 'hono'
 
-import { createPaymentSchema, type PaymentMutationResponse, type PaymentsResponse } from '@teacher-crm/api-types'
+import {
+	createPaymentSchema,
+	paymentIdParamSchema,
+	type PaymentMutationResponse,
+	type PaymentsResponse,
+} from '@teacher-crm/api-types'
 
 import { apiError, errorResponse, notFoundResponse } from '../http/errors'
-import { validateJson } from '../http/validation'
+import { validateJson, validateParams } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { paymentService, PaymentServiceError } from '../services/payment-service'
 
@@ -31,11 +36,16 @@ export const paymentRoutes = new Hono()
 			throw error
 		}
 	})
-	.delete('/:paymentId', requirePermission('payments', 'adjust'), async (context) => {
-		const payment = await paymentService.deletePayment(actorFromContext(context), context.req.param('paymentId'))
-		if (!payment) {
-			return notFoundResponse(context, 'Payment not found', 'PAYMENT_NOT_FOUND')
+	.delete(
+		'/:paymentId',
+		requirePermission('payments', 'adjust'),
+		validateParams(paymentIdParamSchema),
+		async (context) => {
+			const payment = await paymentService.deletePayment(actorFromContext(context), context.req.param('paymentId'))
+			if (!payment) {
+				return notFoundResponse(context, 'Payment not found', 'PAYMENT_NOT_FOUND')
+			}
+			const response: PaymentMutationResponse = { ok: true, payment }
+			return context.json(response, 200)
 		}
-		const response: PaymentMutationResponse = { ok: true, payment }
-		return context.json(response, 200)
-	})
+	)

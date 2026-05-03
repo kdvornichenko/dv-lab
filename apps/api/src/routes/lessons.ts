@@ -4,6 +4,7 @@ import {
 	createLessonSchema,
 	deleteLessonQuerySchema,
 	listLessonsQuerySchema,
+	lessonIdParamSchema,
 	markAttendanceSchema,
 	updateLessonSchema,
 	type AttendanceMutationResponse,
@@ -11,10 +12,10 @@ import {
 	type LessonsResponse,
 } from '@teacher-crm/api-types'
 
-import { notFoundResponse } from '../http/errors'
-import { validateJson, validateQuery } from '../http/validation'
+import { apiError, errorResponse, notFoundResponse } from '../http/errors'
+import { validateJson, validateParams, validateQuery } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
-import { lessonService } from '../services/lesson-service'
+import { lessonService, LessonServiceError } from '../services/lesson-service'
 import { lessonWorkflowService } from '../services/lesson-workflow-service'
 
 export const lessonRoutes = new Hono()
@@ -35,18 +36,25 @@ export const lessonRoutes = new Hono()
 		const response: LessonMutationResponse = { ok: true, lesson }
 		return context.json(response, 201)
 	})
-	.patch('/:lessonId', requirePermission('lessons', 'write'), validateJson(updateLessonSchema), async (context) => {
-		const actor = actorFromContext(context)
-		const lessonId = context.req.param('lessonId')
-		const input = context.req.valid('json')
-		const lesson = await lessonWorkflowService.updateLesson(actor, lessonId, input)
-		if (!lesson) return notFoundResponse(context, 'Lesson not found')
-		const response: LessonMutationResponse = { ok: true, lesson }
-		return context.json(response, 200)
-	})
+	.patch(
+		'/:lessonId',
+		requirePermission('lessons', 'write'),
+		validateParams(lessonIdParamSchema),
+		validateJson(updateLessonSchema),
+		async (context) => {
+			const actor = actorFromContext(context)
+			const lessonId = context.req.param('lessonId')
+			const input = context.req.valid('json')
+			const lesson = await lessonWorkflowService.updateLesson(actor, lessonId, input)
+			if (!lesson) return notFoundResponse(context, 'Lesson not found')
+			const response: LessonMutationResponse = { ok: true, lesson }
+			return context.json(response, 200)
+		}
+	)
 	.delete(
 		'/:lessonId',
 		requirePermission('lessons', 'write'),
+		validateParams(lessonIdParamSchema),
 		validateQuery(deleteLessonQuerySchema),
 		async (context) => {
 			const actor = actorFromContext(context)
@@ -59,9 +67,17 @@ export const lessonRoutes = new Hono()
 		}
 	)
 	.post('/attendance', requirePermission('attendance', 'mark'), validateJson(markAttendanceSchema), async (context) => {
-		const response: AttendanceMutationResponse = {
-			ok: true,
-			attendance: await lessonService.markAttendance(actorFromContext(context), context.req.valid('json')),
+		try {
+			const response: AttendanceMutationResponse = {
+				ok: true,
+				attendance: await lessonService.markAttendance(actorFromContext(context), context.req.valid('json')),
+			}
+			return context.json(response, 200)
+		} catch (error) {
+			if (error instanceof LessonServiceError) {
+				if (error.code === 'LESSON_NOT_FOUND') return notFoundResponse(context, error.message)
+				return errorResponse(context, 400, apiError('VALIDATION_FAILED', error.message))
+			}
+			throw error
 		}
-		return context.json(response, 200)
 	})

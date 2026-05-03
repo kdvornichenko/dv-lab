@@ -8,21 +8,21 @@ Teacher English CRM is a private operational web app for an English teacher to c
 
 The teacher can always see who studies, who attended, who paid, and who owes money.
 
-## Current Milestone: v1.0 Teacher CRM Foundation
+## Current Milestone: v1.1 Audit Remediation
 
-**Goal:** Replace the existing wishlist/schedule app with a clean teacher CRM foundation that keeps Supabase connectivity and delivers the first usable control loop for students, attendance, and payments.
+**Goal:** Convert the 2026-05-03 tech-debt and architecture audits into a safer production baseline without rewriting the CRM.
+
+**Status:** v1.0 phase work closed on 2026-05-03. v1.1 remediation phases 10-16 are complete across `apps/api`, `apps/web`, and shared packages.
 
 **Target features:**
 
-- Reset `dv-lab` into a Turborepo monorepo.
-- Build `apps/web` on Next.js 16, Tailwind CSS 4, shadcn/ui, and React 19.
-- Build `apps/api` on Hono for typed server routes.
-- Use Yarn 4 stable via Corepack with `nodeLinker: node-modules`.
-- Add shared packages for DB, RBAC, and API contracts, reusing useful parts from `g:/its/its-doc`.
-- Keep Supabase connection/auth as the system boundary.
-- Use Google OAuth as the only login path; the same Google account is the Calendar account.
-- Rebuild Google Calendar integration properly instead of preserving the current client-heavy implementation.
-- Implement v1 student registry, lesson attendance, payment ledger, and dashboard summaries.
+- Harden auth roles, route params, and web/API typed response parsing.
+- Add a reliable DB-backed test and CI path.
+- Make payment/package, lesson/status, attendance, and tenant package writes transactionally safe.
+- Harden Google Calendar I/O, token provenance, sync failure behavior, and service boundaries.
+- Scope web CRM cache by auth session and make mutation feedback coherent.
+- Consolidate billing/dashboard domain policy.
+- Remove high-value dependency, dead-code, and large-component debt after invariants are safe.
 
 ## Requirements
 
@@ -32,15 +32,14 @@ The teacher can always see who studies, who attended, who paid, and who owes mon
 
 ### Active
 
-- [ ] Preserve only the Supabase connection contract from the current app before resetting the codebase.
-- [ ] User can sign in as the teacher/admin and keep a working session across refreshes.
-- [ ] User can create and maintain students with contact, status, and billing metadata.
-- [ ] User can create lessons and mark attendance for one or multiple students.
-- [ ] User can record manual payments and see balances/overdue students.
-- [ ] User can connect Google Calendar and sync CRM lessons to calendar events.
-- [ ] User can scan a dashboard for today's lessons, attendance gaps, and payment risk.
-- [ ] Server API exposes typed, validated routes for the web app.
-- [ ] Shared DB/RBAC/API packages are package-boundary clean and reusable.
+- [ ] API auth trusts only app-controlled roles and safe teacher fallback.
+- [ ] API route params and web response payloads are schema-validated at boundaries.
+- [ ] CI exercises DB-backed integration tests instead of silently skipping them.
+- [ ] Payment/package and lesson/status write paths prevent partial durable state.
+- [x] Calendar sync has safe timeout, token, failure, and bidirectional import semantics.
+- [x] Web CRM state is auth-scoped and mutation-driven UI state is refreshed coherently.
+- [x] Billing/dashboard policy duplication is reduced through shared tested policy.
+- [x] Dependency and component debt is cleaned after correctness work is green.
 
 ### Out of Scope
 
@@ -70,19 +69,20 @@ The teacher can always see who studies, who attended, who paid, and who owes mon
 
 ## Key Decisions
 
-| Decision                                                           | Rationale                                                                                           | Outcome     |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | ----------- |
-| Use Turborepo with `apps/web`, `apps/api`, and shared `packages/*` | Separates UI, server, contracts, DB, and RBAC while keeping one repo workflow                       | Done        |
-| Use Hono for new API instead of reusing ITS-DOC Express server     | User specified Hono; ITS-DOC server is Express and should not define the new server architecture    | Done        |
-| Reuse/adapt ITS-DOC shared packages                                | Existing RBAC/DB/API contracts reduce implementation risk if domain-specific parts are trimmed      | Done        |
-| Keep Supabase as auth/data boundary                                | User asked to keep Supabase connection; official SSR flow supports Next App Router                  | In progress |
-| Use Google account as both login and calendar identity             | User requested Google auth instead of email and the same account for Calendar                       | In progress |
-| Use Yarn 4 stable with node-modules linker                         | User requested latest Yarn; node_modules keeps Next.js and shadcn workflows straightforward         | Done        |
-| Manual payment ledger in v1                                        | Solves the teacher's immediate control need without payment provider complexity                     | In progress |
-| Rebuild Google Calendar integration in v1                          | Calendar sync is required, but current implementation is not acceptable as an architecture baseline | In progress |
-| Use ITS-DOC tooling conventions                                    | User asked to reuse ITS-DOC Turborepo, Prettier, and ESLint configuration                           | Done        |
-| Use DB-backed student service before lesson/payment refactors      | Student registry is the first production CRM entity and defines the repository/service pattern      | Done        |
+| Decision                                                           | Rationale                                                                                           | Outcome |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | ------- |
+| Use Turborepo with `apps/web`, `apps/api`, and shared `packages/*` | Separates UI, server, contracts, DB, and RBAC while keeping one repo workflow                       | Done    |
+| Use Hono for new API instead of reusing ITS-DOC Express server     | User specified Hono; ITS-DOC server is Express and should not define the new server architecture    | Done    |
+| Reuse/adapt ITS-DOC shared packages                                | Existing RBAC/DB/API contracts reduce implementation risk if domain-specific parts are trimmed      | Done    |
+| Keep Supabase as auth/data boundary                                | User asked to keep Supabase connection; official SSR flow supports Next App Router                  | Done    |
+| Use Google account as both login and calendar identity             | User requested Google auth instead of email and the same account for Calendar                       | Done    |
+| Use Yarn 4 stable with node-modules linker                         | User requested latest Yarn; node_modules keeps Next.js and shadcn workflows straightforward         | Done    |
+| Manual payment ledger in v1                                        | Solves the teacher's immediate control need without payment provider complexity                     | Done    |
+| Rebuild Google Calendar integration in v1                          | Calendar sync is required, but current implementation is not acceptable as an architecture baseline | Done    |
+| Use ITS-DOC tooling conventions                                    | User asked to reuse ITS-DOC Turborepo, Prettier, and ESLint configuration                           | Done    |
+| Use DB-backed student service before lesson/payment refactors      | Student registry is the first production CRM entity and defines the repository/service pattern      | Done    |
+| Use audit remediation as v1.1 phases                               | v1.0 is functionally closed; audit findings need executable GSD work instead of loose TODOs         | Active  |
 
 ---
 
-_Last updated: 2026-04-25 after Phase 4 student registry implementation_
+_Last updated: 2026-05-03 after Phase 16 cleanup and final verification_

@@ -1,57 +1,60 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: in_progress
-stopped_at: Completed 09-03-PLAN.md
-last_updated: '2026-05-02T17:49:52.386Z'
-last_activity: 2026-05-02 - Completed Phase 9 plan 03 pet engine, overlay provider, and target discovery.
+milestone: v1.1
+milestone_name: Audit Remediation
+status: complete
+stopped_at: Completed Phase 16 cleanup and final verification
+last_updated: '2026-05-03T18:00:12+03:00'
+last_activity: 2026-05-03 - Completed Phase 16 dependency hygiene, audit tooling, lint cleanup, and final verification.
 progress:
-  total_phases: 9
-  completed_phases: 2
-  total_plans: 16
-  completed_plans: 13
-  percent: 81
+  total_phases: 16
+  completed_phases: 16
+  total_plans: 51
+  completed_plans: 51
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-25)
+See: .planning/PROJECT.md (updated 2026-05-03)
 
 **Core value:** The teacher can always see who studies, which individual lessons are planned/completed/cancelled/rescheduled, who paid, and who owes money.
-**Current focus:** Phase 9: Implement website pet widget.
+**Current focus:** v1.1 remediation pass from tech-debt and architecture audits.
 
 ## Current Position
 
-Phase: 9 of 9 (Implement website pet widget)
-Plan: 09-04
-Status: Plan 09-03 complete; next plan is pet target rollout, sound guardrails, and browser verification
-Last activity: 2026-05-02 - Completed Phase 9 plan 03 pet engine, overlay provider, and target discovery.
+Phase: 16 of 16 (Cleanup, Tooling, and Component Decomposition)
+Plan: Complete
+Status: v1.1 audit remediation complete.
+Last activity: 2026-05-03 - Completed Phase 16 dependency hygiene, audit tooling, lint cleanup, and final verification.
 
-Progress: [████████░░] 81%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 13
+- Total plans completed: 29
 - Average duration: n/a
 - Total execution time: current autonomous session
 
 **By Phase:**
 
-| Phase                                     | Plans | Total           | Avg/Plan |
-| ----------------------------------------- | ----- | --------------- | -------- |
-| 1                                         | 3/3   | current session | n/a      |
-| 2                                         | 3/3   | current session | n/a      |
-| 3                                         | 3/3   | current session | n/a      |
-| 4                                         | 3/3   | current session | n/a      |
-| 5                                         | 3/3   | current session | n/a      |
-| 6                                         | 3/3   | current session | n/a      |
-| Phase 09-implement-website-pet-widget P02 | 18min | 2 tasks         | 11 files |
-| Phase 09-implement-website-pet-widget P03 | 31min | 2 tasks         | 8 files  |
+| Phase                                     | Plans | Total                    | Avg/Plan |
+| ----------------------------------------- | ----- | ------------------------ | -------- |
+| 1                                         | 3/3   | current session          | n/a      |
+| 2                                         | 3/3   | current session          | n/a      |
+| 3                                         | 3/3   | current session          | n/a      |
+| 4                                         | 3/3   | current session          | n/a      |
+| 5                                         | 3/3   | current session          | n/a      |
+| 6                                         | 3/3   | current session          | n/a      |
+| Phase 09-implement-website-pet-widget P02 | 18min | 2 tasks                  | 11 files |
+| Phase 09-implement-website-pet-widget P03 | 31min | 2 tasks                  | 8 files  |
+| 7                                         | 4/4   | closed by reconciliation | n/a      |
+| 8                                         | 3/3   | closed by reconciliation | n/a      |
+| Phase 09-implement-website-pet-widget P04 | 1/1   | closed by reconciliation | n/a      |
 
 ## Accumulated Context
 
@@ -102,14 +105,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-- Phase 7: add currency selector and API-backed exchange rate conversion to lesson/package offer text generation. Example output should support RUB base prices converted to KZT with package variants, monthly totals, and rounded "pretty price" lines for Telegram copy.
-- Add explicit lesson series metadata to replace the current heuristic "apply to future weekly lessons" matching.
-- Replace attendance-based billing balance calculation with lesson-status/billable-policy-based charges.
-- Store payment/package snapshots per payment period so historical package prices remain accurate when a student changes package next month.
+- v1.1 remediation complete; dependency-audit residuals remain blocked on upstream transitive releases.
+- Add explicit lesson series metadata to replace the current heuristic "apply to future weekly lessons" matching if the audit confirms this remains a product risk.
+- Verify whether payment/package snapshots per payment period are fully durable; remediate through the audit plan if not.
 
 ### Blockers/Concerns
 
-- GitNexus CLI through WSL `npx` failed in current `dv-lab` on `status` and `analyze` with `Cannot destructure property 'package' of 'node.target' as it is null`; Windows `cmd.exe` path works.
+- Use the running GitNexus MCP for code intelligence. If the index must be refreshed, run `gitnexus analyze` directly; do not use `npx gitnexus`.
 - Live Google Calendar behavior should be manually verified with a real connected Google account and valid Calendar scopes.
 - Dashboard summary still needs full DB-backed storage beyond the current prototype coverage.
 - Google Calendar conflict warnings use FreeBusy busy intervals and do not expose event titles. If detailed conflict names are required, add an events.list-based read path with explicit UX/privacy handling.
@@ -118,6 +120,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-05-02T17:49:52.359Z
-Stopped at: Completed 09-03-PLAN.md
+Last session: 2026-05-03T16:04:48+03:00
+Stopped at: Completed Phase 12 persistence integrity remediation
 Resume file: None

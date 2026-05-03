@@ -3,6 +3,19 @@ import { z } from 'zod'
 import { PERMISSION_KEYS, ROLE_KEYS, type PermissionKey, type RoleKey } from '@teacher-crm/rbac'
 
 export const idSchema = z.string().uuid()
+export const crmRouteIdSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.max(120)
+	.regex(/^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|[a-z][a-z0-9]*_[a-z0-9_-]+)$/i, {
+		message: 'Invalid CRM resource id',
+	})
+export const studentIdParamSchema = z.object({ studentId: crmRouteIdSchema })
+export const lessonIdParamSchema = z.object({ lessonId: crmRouteIdSchema })
+export const paymentIdParamSchema = z.object({ paymentId: crmRouteIdSchema })
+export const errorIdParamSchema = z.object({ errorId: crmRouteIdSchema })
+export const calendarBlockIdParamSchema = z.object({ blockId: crmRouteIdSchema })
 export const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 export const isoDateTimeSchema = z.string().datetime({ offset: true })
 
@@ -590,6 +603,8 @@ export const dashboardSummarySchema = z.object({
 	monthIncomeByCurrency: currencyTotalsSchema.default({ RUB: 0, KZT: 0 }),
 })
 
+export { buildDashboardSummary, type DashboardSummaryInput } from './dashboard-policy'
+
 export const studentCurrencyBalanceSchema = z.object({
 	studentId: z.string(),
 	currency: currencySchema,
@@ -823,6 +838,11 @@ export type CrmErrorLogEntry = z.infer<typeof crmErrorLogEntrySchema>
 export type SaveCrmErrorInput = z.infer<typeof saveCrmErrorSchema>
 export type ValidationIssue = z.infer<typeof validationIssueSchema>
 export type ValidationErrorDetails = z.infer<typeof validationErrorDetailsSchema>
+export type StudentIdParam = z.infer<typeof studentIdParamSchema>
+export type LessonIdParam = z.infer<typeof lessonIdParamSchema>
+export type PaymentIdParam = z.infer<typeof paymentIdParamSchema>
+export type ErrorIdParam = z.infer<typeof errorIdParamSchema>
+export type CalendarBlockIdParam = z.infer<typeof calendarBlockIdParamSchema>
 export type ApiErrorResponse = z.infer<typeof apiErrorSchema>
 export type AuthMeResponse = z.infer<typeof authMeResponseSchema>
 export type ListStudentsResponse = z.infer<typeof listStudentsResponseSchema>

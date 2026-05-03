@@ -1,0 +1,58 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"workspaces": {
+		".": {
+			"entry": ["package.json"]
+		},
+		"apps/api": {
+			"entry": ["src/index.ts", "src/local-server.ts", "src/app.test.ts", "src/db.integration.test.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"apps/web": {
+			"entry": [
+				"app/**/*.{ts,tsx}",
+				"components/**/*.{ts,tsx}",
+				"hooks/**/*.{ts,tsx}",
+				"lib/**/*.{ts,tsx}",
+				"next.config.ts",
+				"postcss.config.mjs"
+			],
+			"project": ["**/*.{ts,tsx,mjs}"],
+			"ignore": ["components/ui/**", "scripts/pet/build-animated-webp.mjs", "lib/canonical-localhost.ts"],
+			"ignoreDependencies": [
+				"@radix-ui/react-alert-dialog",
+				"@radix-ui/react-avatar",
+				"@radix-ui/react-collapsible",
+				"@radix-ui/react-context-menu",
+				"@radix-ui/react-dropdown-menu",
+				"@radix-ui/react-menubar",
+				"@radix-ui/react-navigation-menu",
+				"@radix-ui/react-radio-group",
+				"@radix-ui/react-slider",
+				"@radix-ui/react-tabs",
+				"@radix-ui/react-toggle",
+				"@radix-ui/react-toggle-group",
+				"cmdk",
+				"react-easy-crop",
+				"react-is",
+				"recharts",
+				"tailwindcss",
+				"tw-animate-css",
+				"vaul",
+				"eslint-config-prettier"
+			]
+		},
+		"packages/api-types": {
+			"entry": ["src/index.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"packages/db": {
+			"entry": ["src/index.ts", "src/ledger.test.ts", "src/connection-url.test.ts"],
+			"project": ["src/**/*.ts", "drizzle.config.ts"]
+		},
+		"packages/rbac": {
+			"entry": ["src/index.ts"],
+			"project": ["src/**/*.ts"]
+		}
+	}
+}

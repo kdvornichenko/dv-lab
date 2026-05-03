@@ -1,9 +1,14 @@
 import { Hono } from 'hono'
 
-import { saveCrmErrorSchema, type CrmErrorLogMutationResponse, type CrmErrorLogResponse } from '@teacher-crm/api-types'
+import {
+	errorIdParamSchema,
+	saveCrmErrorSchema,
+	type CrmErrorLogMutationResponse,
+	type CrmErrorLogResponse,
+} from '@teacher-crm/api-types'
 
 import { notFoundResponse } from '../http/errors'
-import { validateJson } from '../http/validation'
+import { validateJson, validateParams } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { errorLogService } from '../services/error-log-service'
 
@@ -26,7 +31,7 @@ export const errorRoutes = new Hono()
 		await errorLogService.clearErrors(actorFromContext(context))
 		return context.json({ ok: true }, 200)
 	})
-	.delete('/:errorId', requirePermission('settings', 'manage'), async (context) => {
+	.delete('/:errorId', requirePermission('settings', 'manage'), validateParams(errorIdParamSchema), async (context) => {
 		const entry = await errorLogService.deleteError(actorFromContext(context), context.req.param('errorId'))
 		if (!entry) return notFoundResponse(context, 'Error not found', 'ERROR_NOT_FOUND')
 		return context.json({ ok: true, error: entry }, 200)

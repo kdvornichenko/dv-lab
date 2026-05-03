@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import {
 	calendarBusyQuerySchema,
+	calendarBlockIdParamSchema,
 	createCalendarBlockSchema,
 	updateCalendarBlockSchema,
 	calendarUpsertLessonEventSchema,
@@ -17,7 +18,7 @@ import {
 } from '@teacher-crm/api-types'
 
 import { apiError, errorResponse, notFoundResponse } from '../http/errors'
-import { validateJson } from '../http/validation'
+import { validateJson, validateParams } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { calendarService } from '../services/calendar-service'
 
@@ -70,6 +71,7 @@ export const calendarRoutes = new Hono()
 	.patch(
 		'/blocks/:blockId',
 		requirePermission('calendar', 'sync'),
+		validateParams(calendarBlockIdParamSchema),
 		validateJson(updateCalendarBlockSchema),
 		async (context) => {
 			const block = await calendarService.updateCalendarBlock(
@@ -82,12 +84,17 @@ export const calendarRoutes = new Hono()
 			return context.json(response, 200)
 		}
 	)
-	.delete('/blocks/:blockId', requirePermission('calendar', 'sync'), async (context) => {
-		const block = await calendarService.deleteCalendarBlock(actorFromContext(context), context.req.param('blockId'))
-		if (!block) return notFoundResponse(context, 'Calendar block not found')
-		const response: CalendarBlockMutationResponse = { ok: true, block }
-		return context.json(response, 200)
-	})
+	.delete(
+		'/blocks/:blockId',
+		requirePermission('calendar', 'sync'),
+		validateParams(calendarBlockIdParamSchema),
+		async (context) => {
+			const block = await calendarService.deleteCalendarBlock(actorFromContext(context), context.req.param('blockId'))
+			if (!block) return notFoundResponse(context, 'Calendar block not found')
+			const response: CalendarBlockMutationResponse = { ok: true, block }
+			return context.json(response, 200)
+		}
+	)
 	.post('/busy', requirePermission('calendar', 'read'), validateJson(calendarBusyQuerySchema), async (context) => {
 		const busy = await calendarService.listBusyIntervals(actorFromContext(context), context.req.valid('json'))
 		const response: CalendarBusyResponse = { ok: true, busy: busy.map(normalizeBusyIntervalTitle) }
@@ -164,6 +171,13 @@ export const calendarRoutes = new Hono()
 
 			const sync = await calendarService.syncLessonToCalendar(actorFromContext(context), input.lessonId)
 			if (!sync) return notFoundResponse(context, 'Lesson not found')
+			if (sync.status === 'failed') {
+				return errorResponse(
+					context,
+					500,
+					apiError('INTERNAL_ERROR', sync.lastError ?? 'Google Calendar event sync failed', { sync })
+				)
+			}
 			const response: CalendarSyncResponse = { ok: true, sync }
 			return context.json(response, 200)
 		}

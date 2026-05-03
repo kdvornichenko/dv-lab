@@ -10,7 +10,7 @@ import type { TeacherCrmCalendarCommandDeps } from './useTeacherCrmCommands.type
 
 export function useTeacherCrmCalendarBlockCommands({
 	ensureCalendarTokens,
-	refreshInBackground,
+	refreshAfterMutation,
 	runCrmAction,
 	setState,
 }: TeacherCrmCalendarCommandDeps) {
@@ -23,10 +23,10 @@ export function useTeacherCrmCalendarBlockCommands({
 					...current,
 					calendarBlocks: [...current.calendarBlocks.filter((block) => block.id !== response.block.id), response.block],
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
+		[ensureCalendarTokens, refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const updateCalendarBlock = useCallback(
@@ -38,10 +38,10 @@ export function useTeacherCrmCalendarBlockCommands({
 					...current,
 					calendarBlocks: current.calendarBlocks.map((block) => (block.id === blockId ? response.block : block)),
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[ensureCalendarTokens, refreshInBackground, runCrmAction, setState]
+		[ensureCalendarTokens, refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const deleteCalendarBlock = useCallback(
@@ -52,10 +52,10 @@ export function useTeacherCrmCalendarBlockCommands({
 					...current,
 					calendarBlocks: current.calendarBlocks.filter((block) => block.id !== blockId),
 				}))
-				refreshInBackground()
+				await refreshAfterMutation()
 			})
 		},
-		[refreshInBackground, runCrmAction, setState]
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 
 	return { addCalendarBlock, updateCalendarBlock, deleteCalendarBlock }

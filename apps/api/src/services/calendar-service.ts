@@ -37,7 +37,7 @@ import {
 
 import { serverEnv } from '../config/env'
 import { getDb, teacherProfileId } from './db-context'
-import { GoogleCalendarRequestError, googleJson } from './google-calendar-client'
+import { GoogleCalendarRequestError, googleJson, sanitizeGoogleErrorMessage } from './google-calendar-client'
 import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
@@ -106,6 +106,13 @@ type GoogleEventsListResponse = {
 type GoogleRefreshTokenResponse = {
 	access_token?: string
 	expires_in?: number
+	error?: string
+	error_description?: string
+}
+
+type GoogleTokenInfoResponse = {
+	email?: string
+	scope?: string
 	error?: string
 	error_description?: string
 }
@@ -203,6 +210,29 @@ function tokenExpiry(value: string | undefined) {
 	if (!value) return null
 	const date = new Date(value)
 	return Number.isNaN(date.getTime()) ? null : date
+}
+
+function calendarErrorMessage(error: unknown, fallback: string) {
+	if (!(error instanceof Error)) return fallback
+	return sanitizeGoogleErrorMessage(error.message)
+}
+
+async function verifyGoogleProviderToken(input: ProviderTokenInput) {
+	const tokenInfo = await googleJson<GoogleTokenInfoResponse>(
+		`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${encodeURIComponent(input.providerToken)}`,
+		input.providerToken
+	)
+	if (tokenInfo.email && tokenInfo.email.toLowerCase() !== input.email.toLowerCase()) {
+		throw new Error('Google token account does not match authenticated user')
+	}
+
+	const grantedScopes = new Set((tokenInfo.scope ?? '').split(/\s+/).filter(Boolean))
+	const missingScopes = GOOGLE_CALENDAR_REQUIRED_SCOPES.filter((scope) => !grantedScopes.has(scope))
+	if (missingScopes.length > 0) {
+		throw new Error('Google token is missing required Calendar scopes')
+	}
+
+	return [...grantedScopes]
 }
 
 function encryptionSecret() {
@@ -388,7 +418,9 @@ async function refreshGoogleAccessToken(connection: CalendarConnectionRow) {
 	const payload = (await response.json().catch(() => null)) as GoogleRefreshTokenResponse | null
 
 	if (!response.ok || !payload?.access_token) {
-		throw new Error(payload?.error_description ?? payload?.error ?? 'Google token refresh failed')
+		throw new Error(
+			sanitizeGoogleErrorMessage(payload?.error_description ?? payload?.error ?? 'Google token refresh failed')
+		)
 	}
 
 	return {
@@ -469,7 +501,7 @@ async function markGoogleConnectionIssue(
 	console.warn('[teacher-crm] Google Calendar connection needs reconnect', {
 		teacherId,
 		status,
-		message: error instanceof Error ? error.message : 'Unknown Google Calendar authorization error',
+		message: calendarErrorMessage(error, 'Unknown Google Calendar authorization error'),
 	})
 
 	return true
@@ -556,7 +588,7 @@ async function syncCalendarBlockToGoogle(
 			(await updateCalendarBlockRow(db, teacherId, block.id, {
 				externalCalendarId: calendarId,
 				syncStatus: 'failed',
-				lastError: error instanceof Error ? error.message : 'Google Calendar block sync failed',
+				lastError: calendarErrorMessage(error, 'Google Calendar block sync failed'),
 			})) ?? block
 		)
 	}
@@ -722,12 +754,13 @@ export const calendarService = {
 
 		const teacherId = await teacherProfileId(db, scope)
 		const existing = await getCalendarConnectionRow(db, teacherId)
+		const grantedScopes = await verifyGoogleProviderToken(input)
 		const connection = await upsertCalendarConnectionRow(db, {
 			teacherId,
 			provider: 'google',
 			providerAccountEmail: input.email,
 			requiredScopes: [...GOOGLE_CALENDAR_REQUIRED_SCOPES],
-			grantedScopes: [...GOOGLE_CALENDAR_REQUIRED_SCOPES],
+			grantedScopes,
 			tokenAvailable: true,
 			encryptedAccessToken: encryptSecret(input.providerToken),
 			encryptedRefreshToken: input.providerRefreshToken
@@ -1011,7 +1044,7 @@ export const calendarService = {
 					externalEventId,
 					externalCalendarId: calendarId,
 					status: 'failed',
-					lastError: error instanceof Error ? error.message : 'Google Calendar import failed',
+					lastError: calendarErrorMessage(error, 'Google Calendar import failed'),
 				})
 				if (connectionNeedsReconnect) break
 			}
@@ -1120,7 +1153,7 @@ export const calendarService = {
 				provider: 'google',
 				externalCalendarId: calendarId,
 				status: 'failed',
-				lastError: error instanceof Error ? error.message : 'Google Calendar event delete failed',
+				lastError: calendarErrorMessage(error, 'Google Calendar event delete failed'),
 			})
 			throw error
 		}
@@ -1251,7 +1284,7 @@ export const calendarService = {
 					provider: 'google',
 					externalCalendarId: connection.selectedCalendarId,
 					status: 'failed',
-					lastError: error instanceof Error ? error.message : 'Google Calendar event sync failed',
+					lastError: calendarErrorMessage(error, 'Google Calendar event sync failed'),
 				})
 			)
 		}

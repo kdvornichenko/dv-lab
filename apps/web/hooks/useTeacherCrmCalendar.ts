@@ -13,10 +13,11 @@ import {
 import { reportCrmError } from '@/hooks/teacherCrmErrors'
 import { saveCurrentGoogleCalendarTokens, teacherCrmCalendarApi } from '@/lib/crm/api'
 import type { TeacherCrmState } from '@/lib/crm/types'
+import { createClient } from '@/lib/supabase/client'
 
 import type { CalendarBusyInterval, CalendarListEntry, CreateLessonInput } from '@teacher-crm/api-types'
 
-type RefreshTeacherCrm = (options?: { showLoading?: boolean }) => Promise<void>
+type RefreshTeacherCrm = (options?: { showLoading?: boolean; force?: boolean }) => Promise<void>
 
 export function useTeacherCrmCalendar({
 	calendarOptionsRef,
@@ -30,10 +31,11 @@ export function useTeacherCrmCalendar({
 	state: TeacherCrmState
 }) {
 	const [isCalendarImporting, setIsCalendarImporting] = useState(false)
-	const calendarTokenSyncAttemptedRef = useRef(false)
+	const lastSavedProviderTokenRef = useRef<string | null>(null)
 	const calendarImportInFlightRef = useRef(false)
 	const lastCalendarImportAtRef = useRef(0)
 	const calendarImportFailureCountRef = useRef(0)
+	const calendarSyncRetryKeyRef = useRef<string | null>(null)
 
 	const runCalendarAction = useCallback(async (source: string, action: () => Promise<void>) => {
 		try {
@@ -44,23 +46,43 @@ export function useTeacherCrmCalendar({
 		}
 	}, [])
 
-	useEffect(() => {
-		if (calendarTokenSyncAttemptedRef.current) return
+	const saveCalendarTokenAndRefresh = useCallback(
+		async (providerToken: string | null) => {
+			if (!providerToken || lastSavedProviderTokenRef.current === providerToken) return false
 
+			const result = await saveCurrentGoogleCalendarTokens()
+			if (!result.saved) return false
+
+			lastSavedProviderTokenRef.current = providerToken
+			await refresh({ showLoading: false, force: true })
+			return true
+		},
+		[refresh]
+	)
+
+	useEffect(() => {
+		const supabase = createClient()
 		let cancelled = false
-		calendarTokenSyncAttemptedRef.current = true
-		saveCurrentGoogleCalendarTokens()
-			.then((result) => {
-				if (!cancelled && result.saved) void refresh({ showLoading: false })
-			})
-			.catch((error) => {
+
+		const syncSessionToken = (providerToken: string | null) => {
+			saveCalendarTokenAndRefresh(providerToken).catch((error) => {
 				if (!cancelled) reportCrmError('Save Google Calendar token', error)
 			})
+		}
+
+		void supabase.auth.getSession().then(({ data: { session } }) => {
+			if (!cancelled) syncSessionToken(session?.provider_token ?? null)
+		})
+
+		const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+			if (!cancelled) syncSessionToken(session?.provider_token ?? null)
+		})
 
 		return () => {
 			cancelled = true
+			data.subscription.unsubscribe()
 		}
-	}, [refresh])
+	}, [saveCalendarTokenAndRefresh])
 
 	useEffect(() => {
 		const canLoadCalendars = state.calendarConnection.status === 'connected' && state.calendarConnection.tokenAvailable
@@ -115,7 +137,7 @@ export function useTeacherCrmCalendar({
 				.importCalendarEvents()
 				.then((response) => {
 					calendarImportFailureCountRef.current = 0
-					if (!cancelled && response.updated > 0) void refresh({ showLoading: false })
+					if (!cancelled && response.updated > 0) void refresh({ showLoading: false, force: true })
 				})
 				.catch((error) => {
 					calendarImportFailureCountRef.current += 1
@@ -134,7 +156,7 @@ export function useTeacherCrmCalendar({
 		const intervalId = window.setInterval(() => importCalendarChanges(), 60_000)
 		window.addEventListener('focus', handleFocus)
 		document.addEventListener('visibilitychange', handleVisibilityChange)
-		importCalendarChanges()
+		importCalendarChanges(true)
 
 		return () => {
 			cancelled = true
@@ -149,6 +171,47 @@ export function useTeacherCrmCalendar({
 		state.calendarConnection.tokenAvailable,
 	])
 
+	useEffect(() => {
+		const canSync =
+			state.calendarConnection.status === 'connected' &&
+			state.calendarConnection.tokenAvailable &&
+			Boolean(state.calendarConnection.selectedCalendarId)
+		if (!canSync) return
+
+		const retryableLessonIds = Array.from(
+			new Set(
+				state.calendarSyncRecords
+					.filter((record) => record.status === 'failed' || record.status === 'not_synced')
+					.map((record) => record.lessonId)
+			)
+		).sort()
+		if (retryableLessonIds.length === 0) return
+
+		const retryKey = `${state.calendarConnection.updatedAt}:${retryableLessonIds.join(',')}`
+		if (calendarSyncRetryKeyRef.current === retryKey) return
+		calendarSyncRetryKeyRef.current = retryKey
+
+		let cancelled = false
+		void Promise.allSettled(retryableLessonIds.map((lessonId) => teacherCrmCalendarApi.syncLesson(lessonId)))
+			.then(() => {
+				if (!cancelled) void refresh({ showLoading: false, force: true })
+			})
+			.catch((error) => {
+				if (!cancelled) reportCrmError('Retry Google Calendar lesson sync', error)
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [
+		refresh,
+		state.calendarConnection.selectedCalendarId,
+		state.calendarConnection.status,
+		state.calendarConnection.tokenAvailable,
+		state.calendarConnection.updatedAt,
+		state.calendarSyncRecords,
+	])
+
 	const connectCalendar = useCallback(async () => {
 		const needsCalendarToken =
 			state.calendarConnection.status !== 'connected' || !state.calendarConnection.tokenAvailable
@@ -156,7 +219,7 @@ export function useTeacherCrmCalendar({
 			try {
 				const result = await saveCurrentGoogleCalendarTokens()
 				if (result.saved) {
-					await refresh({ showLoading: false })
+					await refresh({ showLoading: false, force: true })
 					return
 				}
 			} catch (error) {

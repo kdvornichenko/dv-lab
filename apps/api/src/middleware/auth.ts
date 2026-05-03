@@ -79,8 +79,7 @@ function envTeacherEmails(env: AuthEnv) {
 
 function rolesFromUser(user: User, env: AuthEnv = serverEnv): RoleKey[] {
 	const appRoles = Array.isArray(user.app_metadata.roles) ? user.app_metadata.roles : []
-	const userRoles = Array.isArray(user.user_metadata.roles) ? user.user_metadata.roles : []
-	const roles = [...appRoles, ...userRoles].filter((role): role is string => typeof role === 'string')
+	const roles = appRoles.filter((role): role is string => typeof role === 'string')
 	const normalisedRoles = normaliseRoleKeys(roles)
 	if (normalisedRoles.length > 0) return normalisedRoles
 	if (user.email && envTeacherEmails(env).has(user.email.toLowerCase())) return ['teacher']
@@ -151,7 +150,7 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 
 		if (!can(new Set(user.permissions), domain, action)) {
 			const requiredPermission = `${domain}.${action}`
-			const details = {
+			const logDetails = {
 				method: context.req.method,
 				path: context.req.path,
 				requiredPermission,
@@ -160,13 +159,18 @@ export function requirePermission<D extends PermissionDomain>(domain: D, action:
 				roles: user.roles,
 				permissions: user.permissions,
 			}
+			const clientDetails = {
+				method: context.req.method,
+				path: context.req.path,
+				requiredPermission,
+			}
 
-			console.warn('[teacher-crm] permission denied', details)
+			console.warn('[teacher-crm] permission denied', logDetails)
 
 			return errorResponse(
 				context,
 				403,
-				apiError('FORBIDDEN', `Permission denied: missing ${requiredPermission}`, details)
+				apiError('FORBIDDEN', `Permission denied: missing ${requiredPermission}`, clientDetails)
 			)
 		}
 

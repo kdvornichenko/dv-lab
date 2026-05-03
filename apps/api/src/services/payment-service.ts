@@ -5,11 +5,12 @@ import {
 	insertPaymentRow,
 	listPaymentRows,
 	voidPaymentRow,
+	type DB,
 	type PaymentRow,
 } from '@teacher-crm/db'
 
 import { billingService } from './billing-service'
-import { getDb, teacherProfileId } from './db-context'
+import { getDb, runWithDbContext, teacherProfileId } from './db-context'
 import { getMemoryStore } from './storage-context'
 import type { StoreScope } from './store-scope'
 
@@ -75,31 +76,35 @@ export const paymentService = {
 			if (existing) return mapPaymentRow(existing)
 		}
 
-		const student = await getStudentRow(db, teacherId, input.studentId)
-		if (!student) {
-			throw new PaymentServiceError('STUDENT_NOT_FOUND', 'Student not found for payment')
-		}
+		return db.transaction((tx) =>
+			runWithDbContext({ db: tx as DB }, async () => {
+				const student = await getStudentRow(tx as DB, teacherId, input.studentId)
+				if (!student) {
+					throw new PaymentServiceError('STUDENT_NOT_FOUND', 'Student not found for payment')
+				}
 
-		const currency =
-			input.packagePurchase && student.billingMode === 'package'
-				? student.currency
-				: (input.currency ?? student.currency)
-		const studentPackage =
-			input.packagePurchase && student.billingMode === 'package'
-				? await billingService.createPackageForPayment(scope, student, input.paidAt)
-				: null
-		return mapPaymentRow(
-			await insertPaymentRow(db, {
-				teacherId,
-				studentId: input.studentId,
-				packageId: studentPackage?.id ?? null,
-				amount: input.amount.toFixed(2),
-				currency,
-				paidAt: paymentDate(input.paidAt),
-				method: input.method,
-				comment: input.comment?.trim() || null,
-				correctionOfPaymentId: input.correctionOfPaymentId ?? null,
-				idempotencyKey: input.idempotencyKey ?? null,
+				const currency =
+					input.packagePurchase && student.billingMode === 'package'
+						? student.currency
+						: (input.currency ?? student.currency)
+				const studentPackage =
+					input.packagePurchase && student.billingMode === 'package'
+						? await billingService.createPackageForPayment(scope, student, input.paidAt)
+						: null
+				return mapPaymentRow(
+					await insertPaymentRow(tx as DB, {
+						teacherId,
+						studentId: input.studentId,
+						packageId: studentPackage?.id ?? null,
+						amount: input.amount.toFixed(2),
+						currency,
+						paidAt: paymentDate(input.paidAt),
+						method: input.method,
+						comment: input.comment?.trim() || null,
+						correctionOfPaymentId: input.correctionOfPaymentId ?? null,
+						idempotencyKey: input.idempotencyKey ?? null,
+					})
+				)
 			})
 		)
 	},
@@ -109,9 +114,13 @@ export const paymentService = {
 		if (!db) return getMemoryStore().deletePayment(scope, paymentId)
 
 		const teacherId = await teacherProfileId(db, scope)
-		const payment = await voidPaymentRow(db, teacherId, paymentId)
-		if (payment?.packageId) await billingService.cancelPackage(scope, payment.packageId)
-		return payment ? mapPaymentRow(payment) : null
+		return db.transaction((tx) =>
+			runWithDbContext({ db: tx as DB }, async () => {
+				const payment = await voidPaymentRow(tx as DB, teacherId, paymentId)
+				if (payment?.packageId) await billingService.cancelPackage(scope, payment.packageId)
+				return payment ? mapPaymentRow(payment) : null
+			})
+		)
 	},
 
 	async listStudentBalances(scope: StoreScope): Promise<StudentBalance[]> {

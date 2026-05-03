@@ -35,6 +35,7 @@ const DashboardContent: FC<DashboardContentProps> = ({ crm, now }) => {
 					lessons={dashboardLessons}
 					students={crm.state.students}
 					attendanceRecords={crm.state.attendance}
+					calendarConnection={crm.state.calendarConnection}
 					calendarSyncRecords={crm.state.calendarSyncRecords}
 					title={todayLessons.length > 0 ? 'Today agenda' : 'Next lessons'}
 					description="A compact agenda for the next schedule decision."
@@ -44,6 +45,7 @@ const DashboardContent: FC<DashboardContentProps> = ({ crm, now }) => {
 					onDeleteLesson={crm.deleteLesson}
 					onMarkAttendance={crm.markAttendance}
 					onCheckCalendarConflicts={crm.checkCalendarConflicts}
+					onConnectCalendar={crm.connectCalendar}
 				/>
 				<FocusPanel
 					overdueStudents={overdueStudents.length}

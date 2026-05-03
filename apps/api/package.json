@@ -18,7 +18,10 @@
 		"start": "node --enable-source-maps dist/local-server.js",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"lint": "tsc -p tsconfig.json --noEmit",
-		"test": "node --import tsx src/app.test.ts && node --import tsx src/db.integration.test.ts"
+		"test": "yarn test:memory && yarn test:db:optional",
+		"test:memory": "node --import tsx src/app.test.ts",
+		"test:db": "TEACHER_CRM_REQUIRE_DB_TESTS=1 node --import tsx src/db.integration.test.ts",
+		"test:db:optional": "node --import tsx src/db.integration.test.ts"
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.19.6",

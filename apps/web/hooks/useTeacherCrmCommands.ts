@@ -25,8 +25,8 @@ export function useTeacherCrmCommands({ lessons, refresh, setState }: UseTeacher
 		}
 	}, [])
 
-	const refreshInBackground = useCallback(() => {
-		void refresh({ showLoading: false })
+	const refreshAfterMutation = useCallback(() => {
+		return refresh({ showLoading: false, awaitSupplements: true })
 	}, [refresh])
 
 	const ensureCalendarTokens = useCallback(async () => {
@@ -38,8 +38,8 @@ export function useTeacherCrmCommands({ lessons, refresh, setState }: UseTeacher
 	}, [])
 
 	const baseDeps = useMemo<TeacherCrmCommandBaseDeps>(
-		() => ({ refreshInBackground, runCrmAction, setState }),
-		[refreshInBackground, runCrmAction, setState]
+		() => ({ refreshAfterMutation, runCrmAction, setState }),
+		[refreshAfterMutation, runCrmAction, setState]
 	)
 	const calendarDeps = useMemo<TeacherCrmCalendarCommandDeps>(
 		() => ({ ...baseDeps, ensureCalendarTokens }),

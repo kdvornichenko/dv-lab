@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: teacher_crm_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d teacher_crm_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      CI: 'true'
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/teacher_crm_test
+      TEACHER_CRM_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/teacher_crm_test
+      TEACHER_CRM_REQUIRE_DB_TESTS: '1'
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_ANON_KEY: test-anon-key
+      TEACHER_CRM_TEACHER_EMAILS: teacher@example.test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install
+        run: yarn install --immutable
+
+      - name: Migrate test database
+        run: yarn --cwd packages/db db:migrate
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Lint
+        run: yarn lint
+
+      - name: API memory tests
+        run: yarn test:api:memory
+
+      - name: API DB integration tests
+        run: yarn test:api:db
+
+      - name: Web pet tests
+        run: yarn test:web:pet
+
+      - name: Test
+        run: yarn test
+
+      - name: Build
+        run: yarn build
+
+      - name: Dependency audit
+        run: yarn audit:deps
+        continue-on-error: true
+
+      - name: Circular dependency audit
+        run: yarn audit:cycles
+        continue-on-error: true
+
+      - name: Dead-code audit
+        run: yarn audit:dead-code
+        continue-on-error: true

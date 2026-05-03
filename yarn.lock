@@ -2971,7 +2971,6 @@ __metadata:
     "@tailwindcss/postcss": "npm:^4.1.18"
     "@teacher-crm/api": "npm:*"
     "@teacher-crm/api-types": "npm:*"
-    "@teacher-crm/db": "npm:*"
     "@types/node": "npm:^25.0.3"
     "@types/react": "npm:^19.2.14"
     "@types/react-dom": "npm:^19.2.3"
@@ -2980,18 +2979,22 @@ __metadata:
     class-variance-authority: "npm:^0.7.1"
     clsx: "npm:^2.1.1"
     cmdk: "npm:^1.1.1"
+    date-fns: "npm:^4.1.0"
     eslint: "npm:^9.18.0"
     eslint-config-prettier: "npm:^10.1.8"
     eslint-plugin-react-hooks: "npm:^5.1.0"
+    hono: "npm:^4.10.7"
     lucide-react: "npm:^0.564.0"
     motion: "npm:^12.23.26"
     next: "npm:^16.1.6"
     next-themes: "npm:^0.4.6"
+    postcss: "npm:^8.5.6"
     react: "npm:^19.2.4"
     react-colorful: "npm:^5.6.1"
     react-day-picker: "npm:^9.12.0"
     react-dom: "npm:^19.2.4"
     react-easy-crop: "npm:^5.5.3"
+    react-hotkeys-hook: "npm:^5.2.4"
     react-is: "npm:^19.2.4"
     recharts: "npm:^2.15.4"
     sonner: "npm:^2.0.7"
@@ -5406,6 +5409,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"portless@npm:^0.12.0":
+  version: 0.12.0
+  resolution: "portless@npm:0.12.0"
+  bin:
+    portless: dist/cli.js
+  checksum: 10c0/892c04e4b017d6bfec411a58637e2e9e39ef84ffad4d4fa819bd1b282dbac11d35b8ab54e13c6a0388bc07885268de4fdcc3f4e17acbb6f469493a1ac4eb0465
+  conditions: (os=darwin | os=linux | os=win32)
+  languageName: node
+  linkType: hard
+
 "postcss-load-config@npm:^6.0.1":
   version: 6.0.1
   resolution: "postcss-load-config@npm:6.0.1"
@@ -6186,10 +6199,9 @@ __metadata:
   resolution: "teacher-english-crm@workspace:."
   dependencies:
     "@trivago/prettier-plugin-sort-imports": "npm:^5.2.2"
-    date-fns: "npm:^4.1.0"
+    portless: "npm:^0.12.0"
     prettier: "npm:^3.6.2"
     prettier-plugin-tailwindcss: "npm:^0.6.14"
-    react-hotkeys-hook: "npm:^5.2.4"
     turbo: "npm:^2.9.7"
     typescript: "npm:^5.6.3"
   languageName: unknown
