@@ -1,11 +1,11 @@
 type DashboardCurrency = 'RUB' | 'KZT'
 
 export type DashboardSummaryInput = {
-	students: Array<{ status: 'active' | 'paused' | 'archived' }>
-	lessons: Array<{ id: string; startsAt: string; studentIds: string[] }>
-	attendance: Array<{ lessonId: string; studentId: string }>
-	payments: Array<{ amount: number; currency: DashboardCurrency; paidAt: string }>
-	balances: Array<{ overdue: boolean; otherCurrencyBalances?: Array<{ overdue: boolean }> }>
+	students: Array<{ status?: 'active' | 'paused' | 'archived' }>
+	lessons: Array<{ id?: string; startsAt?: string; studentIds?: string[] }>
+	attendance: Array<{ lessonId?: string; studentId?: string }>
+	payments: Array<{ amount?: number; currency?: DashboardCurrency; paidAt?: string }>
+	balances: Array<{ overdue?: boolean; otherCurrencyBalances?: Array<{ overdue?: boolean }> }>
 }
 
 export type DashboardSummaryResult = {
@@ -39,8 +39,16 @@ function policySameMonth(value: string | Date, anchor: Date) {
 
 export function buildDashboardSummary(input: DashboardSummaryInput, now = new Date()): DashboardSummaryResult {
 	const todayKey = policyDateOnly(now)
-	const attendanceKeys = new Set(input.attendance.map((record) => `${record.lessonId}:${record.studentId}`))
+	const attendanceKeys = new Set(
+		input.attendance.flatMap((record) =>
+			record.lessonId && record.studentId ? [`${record.lessonId}:${record.studentId}`] : []
+		)
+	)
 	const monthIncomeByCurrency = input.payments
+		.filter(
+			(payment): payment is { amount: number; currency: DashboardCurrency; paidAt: string } =>
+				typeof payment.amount === 'number' && Boolean(payment.currency) && Boolean(payment.paidAt)
+		)
 		.filter((payment) => policySameMonth(payment.paidAt, now))
 		.reduce(
 			(totals, payment) => {
@@ -52,8 +60,10 @@ export function buildDashboardSummary(input: DashboardSummaryInput, now = new Da
 
 	return {
 		activeStudents: input.students.filter((student) => student.status === 'active').length,
-		todayLessonCount: input.lessons.filter((lesson) => policyDateOnly(lesson.startsAt) === todayKey).length,
+		todayLessonCount: input.lessons.filter((lesson) => lesson.startsAt && policyDateOnly(lesson.startsAt) === todayKey)
+			.length,
 		missingAttendanceCount: input.lessons.filter((lesson) => {
+			if (!lesson.id || !lesson.startsAt || !lesson.studentIds) return false
 			if (policyDateOnly(lesson.startsAt) !== todayKey) return false
 			return lesson.studentIds.some((studentId) => !attendanceKeys.has(`${lesson.id}:${studentId}`))
 		}).length,
