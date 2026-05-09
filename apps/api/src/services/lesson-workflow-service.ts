@@ -269,7 +269,11 @@ export function createLessonWorkflowService(
 				return replacement
 			}
 
-			const lesson = await deps.lessons.updateLesson(actor, lessonId, { ...input, applyToFuture: false })
+			const currentPatch =
+				originalLesson && !originalLesson.repeatWeekly && input.applyToFuture
+					? { ...input, repeatWeekly: false, repeatCount: 1, applyToFuture: false }
+					: { ...input, applyToFuture: false }
+			const lesson = await deps.lessons.updateLesson(actor, lessonId, currentPatch)
 			if (!lesson) return null
 
 			await syncLessonAutomatically(actor, lesson.id, {

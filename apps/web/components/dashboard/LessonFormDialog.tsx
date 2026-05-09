@@ -61,11 +61,43 @@ function conflictDateValue(value: Date) {
 	}).format(value)
 }
 
+function sameStudentSet(a: string[], b: string[]) {
+	if (a.length !== b.length) return false
+	const left = [...a].sort()
+	const right = [...b].sort()
+	return left.every((studentId, index) => studentId === right[index])
+}
+
+function sameWeeklySlot(a: string, b: string) {
+	const left = new Date(a)
+	const right = new Date(b)
+	return (
+		left.getDay() === right.getDay() &&
+		left.getHours() === right.getHours() &&
+		left.getMinutes() === right.getMinutes()
+	)
+}
+
+function isHistoricalWeeklyOccurrence(lesson: Lesson, lessons: Lesson[]) {
+	if (lesson.repeatWeekly) return false
+	const lessonStart = new Date(lesson.startsAt)
+	return lessons.some((candidate) => {
+		if (candidate.id === lesson.id || !candidate.repeatWeekly) return false
+		return (
+			new Date(candidate.startsAt).getTime() > lessonStart.getTime() &&
+			candidate.durationMinutes === lesson.durationMinutes &&
+			sameStudentSet(candidate.studentIds, lesson.studentIds) &&
+			sameWeeklySlot(candidate.startsAt, lesson.startsAt)
+		)
+	})
+}
+
 function initialValues(
 	students: Student[],
 	lesson?: Lesson | null,
 	defaultStartsAt?: Date | null,
-	occurrenceStartsAt?: string | null
+	occurrenceStartsAt?: string | null,
+	repeatWeeklyOverride?: boolean
 ): LessonFormValues {
 	if (lesson) {
 		const startsAt = new Date(occurrenceStartsAt ?? lesson.startsAt)
@@ -77,7 +109,7 @@ function initialValues(
 			notes: lesson.notes ?? '',
 			status: lesson.status,
 			studentId: lesson.studentIds[0] ?? '',
-			repeatWeekly: lesson.repeatWeekly,
+			repeatWeekly: repeatWeeklyOverride ?? lesson.repeatWeekly,
 			repeatCount: '8',
 			applyToFuture: false,
 		}
@@ -194,8 +226,13 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 	onCheckCalendarConflicts,
 }) => {
 	const selectableStudents = useMemo(() => students.filter((student) => student.status !== 'archived'), [students])
+	const historicalWeeklyOccurrence = useMemo(
+		() => (lesson ? isHistoricalWeeklyOccurrence(lesson, lessons) : false),
+		[lesson, lessons]
+	)
+	const lessonRepeatWeekly = lesson ? lesson.repeatWeekly || historicalWeeklyOccurrence : undefined
 	const [values, setValues] = useState<LessonFormValues>(() =>
-		initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt)
+		initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt, lessonRepeatWeekly)
 	)
 	const [errors, setErrors] = useState<LessonFormErrors>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
@@ -207,9 +244,9 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 
 	useEffect(() => {
 		if (!open) return
-		setValues(initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt))
+		setValues(initialValues(selectableStudents, lesson, defaultStartsAt, occurrenceStartsAt, lessonRepeatWeekly))
 		setErrors({})
-	}, [defaultStartsAt, occurrenceStartsAt, open, selectableStudents, lesson])
+	}, [defaultStartsAt, occurrenceStartsAt, open, selectableStudents, lesson, lessonRepeatWeekly])
 
 	useEffect(() => {
 		if (!open || !onCheckCalendarConflicts) {
@@ -284,6 +321,10 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 		setIsSubmitting(true)
 		try {
 			const command = toCommand(values, selectedStudent)
+			if (historicalWeeklyOccurrence && !values.applyToFuture) {
+				command.repeatWeekly = false
+				command.repeatCount = 1
+			}
 			if (lesson?.repeatWeekly && occurrenceStartsAt && !command.applyToFuture) {
 				command.occurrenceStartsAt = occurrenceStartsAt
 			}
