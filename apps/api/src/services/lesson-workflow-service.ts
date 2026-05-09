@@ -12,6 +12,8 @@ type LessonWorkflowDeps = {
 	calendar: CalendarService
 }
 
+const RECURRENCE_MATERIALIZATION_LIMIT = 520
+
 function addWeeks(isoDate: string, weeks: number) {
 	const date = new Date(isoDate)
 	date.setDate(date.getDate() + weeks * 7)
@@ -24,6 +26,62 @@ function repeatedLessonInput(input: CreateLessonInput, index: number): CreateLes
 		startsAt: addWeeks(input.startsAt, index),
 		repeatWeekly: index === 0 ? input.repeatWeekly : false,
 		repeatCount: 1,
+	}
+}
+
+function sameInstant(a: string, b: string) {
+	return new Date(a).getTime() === new Date(b).getTime()
+}
+
+function isPastStart(startsAt: string, now = new Date()) {
+	return new Date(startsAt).getTime() < now.getTime()
+}
+
+function autoStatusForStart(status: Lesson['status'], startsAt: string, now = new Date()): Lesson['status'] {
+	return status === 'planned' && isPastStart(startsAt, now) ? 'completed' : status
+}
+
+function firstWeeklyOccurrenceOnOrAfter(startsAt: string, cutoff: Date) {
+	const occurrence = new Date(startsAt)
+	for (let index = 0; occurrence.getTime() < cutoff.getTime() && index < RECURRENCE_MATERIALIZATION_LIMIT; index += 1) {
+		occurrence.setDate(occurrence.getDate() + 7)
+	}
+	return occurrence.toISOString()
+}
+
+function weeklyOccurrencesBefore(startsAt: string, cutoffStartsAt: string) {
+	const cutoff = new Date(cutoffStartsAt)
+	const occurrence = new Date(startsAt)
+	const occurrences: string[] = []
+	for (let index = 0; occurrence.getTime() < cutoff.getTime() && index < RECURRENCE_MATERIALIZATION_LIMIT; index += 1) {
+		occurrences.push(occurrence.toISOString())
+		occurrence.setDate(occurrence.getDate() + 7)
+	}
+	return occurrences
+}
+
+function recurrenceUntilBefore(startsAt: string) {
+	return new Date(new Date(startsAt).getTime() - 1000).toISOString()
+}
+
+function lessonInputFromLesson(
+	lesson: Lesson,
+	patch: UpdateLessonInput,
+	startsAt: string,
+	repeatWeekly: boolean,
+	now = new Date()
+): CreateLessonInput {
+	const status = patch.status ?? lesson.status
+	return {
+		title: patch.title ?? lesson.title,
+		startsAt,
+		durationMinutes: patch.durationMinutes ?? lesson.durationMinutes,
+		repeatWeekly,
+		repeatCount: 1,
+		topic: patch.topic ?? lesson.topic,
+		notes: patch.notes ?? lesson.notes,
+		status: autoStatusForStart(status, startsAt, now),
+		studentIds: patch.studentIds ?? lesson.studentIds,
 	}
 }
 
@@ -63,6 +121,7 @@ export function createLessonWorkflowService(
 		lessonId: string,
 		options: {
 			repeatWeekly?: boolean
+			recurrenceUntil?: string
 			singleOccurrence?: boolean
 			occurrenceStartsAt?: string
 			lessonOverride?: Lesson
@@ -78,9 +137,89 @@ export function createLessonWorkflowService(
 		await deps.calendar.syncLessonToCalendar(actor, lessonId, options)
 	}
 
+	async function materializeRecurringOccurrencesBefore(actor: StoreScope, lesson: Lesson, cutoffStartsAt: string) {
+		const exceptions = await deps.lessons.listOccurrenceExceptions(actor)
+		const skippedStarts = new Set(
+			exceptions
+				.filter((exception) => exception.lessonId === lesson.id)
+				.map((exception) => exception.occurrenceStartsAt)
+		)
+		const materialized: Lesson[] = []
+
+		for (const startsAt of weeklyOccurrencesBefore(lesson.startsAt, cutoffStartsAt)) {
+			if (skippedStarts.has(startsAt)) continue
+			materialized.push(
+				await deps.lessons.createLesson(actor, {
+					title: lesson.title,
+					startsAt,
+					durationMinutes: lesson.durationMinutes,
+					repeatWeekly: false,
+					repeatCount: 1,
+					topic: lesson.topic,
+					notes: lesson.notes,
+					status: autoStatusForStart(lesson.status, startsAt),
+					studentIds: lesson.studentIds,
+				})
+			)
+		}
+
+		return materialized
+	}
+
+	async function splitRecurringLessonAt(
+		actor: StoreScope,
+		originalLesson: Lesson,
+		input: UpdateLessonInput,
+		occurrenceStartsAt: string
+	) {
+		await materializeRecurringOccurrencesBefore(actor, originalLesson, occurrenceStartsAt)
+		await syncLessonAutomatically(actor, originalLesson.id, {
+			repeatWeekly: true,
+			recurrenceUntil: recurrenceUntilBefore(occurrenceStartsAt),
+		})
+
+		const nextSeries = await deps.lessons.createLesson(
+			actor,
+			lessonInputFromLesson(
+				originalLesson,
+				input,
+				input.startsAt ?? occurrenceStartsAt,
+				input.repeatWeekly ?? originalLesson.repeatWeekly
+			)
+		)
+		await syncLessonAutomatically(actor, nextSeries.id, { repeatWeekly: nextSeries.repeatWeekly })
+		await deps.lessons.deleteLesson(actor, originalLesson.id)
+		return nextSeries
+	}
+
 	return {
 		async createLesson(actor: StoreScope, input: CreateLessonInput) {
-			const lesson = await deps.lessons.createLesson(actor, repeatedLessonInput(input, 0))
+			if (input.repeatWeekly && input.status === 'planned' && isPastStart(input.startsAt)) {
+				const futureStartsAt = firstWeeklyOccurrenceOnOrAfter(input.startsAt, new Date())
+				for (const startsAt of weeklyOccurrencesBefore(input.startsAt, futureStartsAt)) {
+					await deps.lessons.createLesson(actor, {
+						...input,
+						startsAt,
+						status: 'completed',
+						repeatWeekly: false,
+						repeatCount: 1,
+					})
+				}
+				const lesson = await deps.lessons.createLesson(actor, {
+					...input,
+					startsAt: futureStartsAt,
+					status: 'planned',
+					repeatWeekly: true,
+					repeatCount: 1,
+				})
+				await syncLessonAutomatically(actor, lesson.id, { repeatWeekly: true })
+				return lesson
+			}
+
+			const lesson = await deps.lessons.createLesson(
+				actor,
+				repeatedLessonInput({ ...input, status: autoStatusForStart(input.status, input.startsAt) }, 0)
+			)
 			await syncLessonAutomatically(actor, lesson.id, { repeatWeekly: input.repeatWeekly })
 			return lesson
 		},
@@ -93,6 +232,15 @@ export function createLessonWorkflowService(
 				dateTo: '',
 			})
 			const originalLesson = allLessons.find((lesson) => lesson.id === lessonId)
+			if (
+				originalLesson?.repeatWeekly &&
+				input.applyToFuture === true &&
+				input.occurrenceStartsAt &&
+				!sameInstant(input.occurrenceStartsAt, originalLesson.startsAt)
+			) {
+				return splitRecurringLessonAt(actor, originalLesson, input, input.occurrenceStartsAt)
+			}
+
 			if (originalLesson?.repeatWeekly && input.occurrenceStartsAt && input.applyToFuture !== true) {
 				const replacement = await deps.lessons.createLesson(actor, {
 					title: input.title ?? originalLesson.title,
@@ -111,6 +259,7 @@ export function createLessonWorkflowService(
 					replacementLessonId: replacement.id,
 					reason: 'moved',
 				})
+				await syncLessonAutomatically(actor, originalLesson.id, { repeatWeekly: originalLesson.repeatWeekly })
 				await syncLessonAutomatically(actor, originalLesson.id, {
 					singleOccurrence: true,
 					occurrenceStartsAt: input.occurrenceStartsAt,
@@ -153,15 +302,26 @@ export function createLessonWorkflowService(
 		},
 
 		async deleteLesson(actor: StoreScope, lessonId: string, options: DeleteLessonQuery = { scope: 'series' }) {
-			if (options.scope === 'current' && options.occurrenceStartsAt) {
-				const allLessons = await deps.lessons.listLessons(actor, {
-					status: 'all',
-					studentId: '',
-					dateFrom: '',
-					dateTo: '',
+			const allLessons: Lesson[] = await deps.lessons.listLessons(actor, {
+				status: 'all',
+				studentId: '',
+				dateFrom: '',
+				dateTo: '',
+			})
+			const originalLesson = allLessons.find((lesson) => lesson.id === lessonId)
+
+			if (options.applyToFuture && options.occurrenceStartsAt && originalLesson?.repeatWeekly) {
+				await materializeRecurringOccurrencesBefore(actor, originalLesson, options.occurrenceStartsAt)
+				await syncLessonAutomatically(actor, originalLesson.id, {
+					repeatWeekly: true,
+					recurrenceUntil: recurrenceUntilBefore(options.occurrenceStartsAt),
 				})
-				const lesson = allLessons.find((item) => item.id === lessonId)
-				if (lesson?.repeatWeekly) {
+				await deps.lessons.deleteLesson(actor, lessonId)
+				return originalLesson
+			}
+
+			if (options.scope === 'current' && options.occurrenceStartsAt) {
+				if (originalLesson?.repeatWeekly) {
 					await deps.lessons.upsertOccurrenceException(actor, {
 						lessonId,
 						occurrenceStartsAt: options.occurrenceStartsAt,
@@ -171,12 +331,31 @@ export function createLessonWorkflowService(
 						singleOccurrence: true,
 						occurrenceStartsAt: options.occurrenceStartsAt,
 					})
-					return lesson
+					return originalLesson
 				}
 			}
 
 			await deps.calendar.deleteLessonFromCalendar(actor, lessonId)
-			return deps.lessons.deleteLesson(actor, lessonId)
+			const deleted = await deps.lessons.deleteLesson(actor, lessonId)
+
+			if (options.applyToFuture && originalLesson) {
+				const originalStart = new Date(originalLesson.startsAt)
+				const candidates = allLessons.filter(
+					(candidate) =>
+						candidate.id !== originalLesson.id &&
+						new Date(candidate.startsAt).getTime() >= originalStart.getTime() &&
+						sameSeriesSlot(
+							{ startsAt: originalLesson.startsAt, studentIds: originalLesson.studentIds },
+							{ startsAt: candidate.startsAt, studentIds: candidate.studentIds }
+						)
+				)
+				for (const candidate of candidates) {
+					await deps.calendar.deleteLessonFromCalendar(actor, candidate.id)
+					await deps.lessons.deleteLesson(actor, candidate.id)
+				}
+			}
+
+			return deleted
 		},
 	}
 }

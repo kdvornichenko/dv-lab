@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 
 import type { Locale } from 'date-fns'
@@ -15,7 +15,6 @@ type ContextType = {
 	setDate: (date: Date) => void
 	events: CalendarEvent[]
 	locale: Locale
-	setEvents: (date: CalendarEvent[]) => void
 	onChangeView?: (view: View) => void
 	onEventClick?: (event: CalendarEvent) => void
 	onTimeSlotClick?: (date: Date) => void
@@ -42,11 +41,6 @@ export const Calendar = ({
 }: CalendarProps) => {
 	const [view, setView] = useState<View>(_defaultMode)
 	const [date, setDate] = useState(defaultDate)
-	const [events, setEvents] = useState<CalendarEvent[]>(defaultEvents)
-
-	useEffect(() => {
-		setEvents(defaultEvents)
-	}, [defaultEvents])
 
 	const changeView = (view: View) => {
 		setView(view)
@@ -76,8 +70,7 @@ export const Calendar = ({
 				setView,
 				date,
 				setDate,
-				events,
-				setEvents,
+				events: defaultEvents,
 				locale,
 				enableHotkeys,
 				onEventClick,

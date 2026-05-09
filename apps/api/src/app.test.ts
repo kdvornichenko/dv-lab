@@ -1049,6 +1049,103 @@ const deleteMissingLesson = await app.request(`/lessons/${createDeletedLessonBod
 })
 assert.equal(deleteMissingLesson.status, 404)
 
+const recurringHistoryStudent = await app.request('/students', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		fullName: 'Recurring History',
+		status: 'active',
+		defaultLessonPrice: 1000,
+		packageMonths: 0,
+		packageLessonsPerWeek: 0,
+		packageLessonCount: 0,
+		billingMode: 'per_lesson',
+	}),
+})
+assert.equal(recurringHistoryStudent.status, 201)
+const recurringHistoryStudentBody = await recurringHistoryStudent.json()
+const recurringHistoryStart = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000)
+recurringHistoryStart.setHours(10, 0, 0, 0)
+const recurringHistoryLesson = await app.request('/lessons', {
+	method: 'POST',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		title: 'Recurring history',
+		startsAt: recurringHistoryStart.toISOString(),
+		durationMinutes: 60,
+		status: 'planned',
+		studentIds: [recurringHistoryStudentBody.student.id],
+		repeatWeekly: true,
+	}),
+})
+assert.equal(recurringHistoryLesson.status, 201)
+const recurringHistoryLessonBody = await recurringHistoryLesson.json()
+assert.equal(recurringHistoryLessonBody.lesson.status, 'planned')
+assert.equal(recurringHistoryLessonBody.lesson.repeatWeekly, true)
+assert.equal(new Date(recurringHistoryLessonBody.lesson.startsAt).getTime() >= Date.now(), true)
+const recurringHistoryLessons = await app.request(
+	`/lessons?studentId=${recurringHistoryStudentBody.student.id}&status=all`,
+	{
+		headers: {
+			'x-demo-user': 'demo-teacher',
+		},
+	}
+)
+assert.equal(recurringHistoryLessons.status, 200)
+const recurringHistoryLessonsBody = await recurringHistoryLessons.json()
+const recurringHistoryCompleted = recurringHistoryLessonsBody.lessons.filter(
+	(lesson: { status: string; repeatWeekly: boolean }) => lesson.status === 'completed' && !lesson.repeatWeekly
+)
+assert.equal(recurringHistoryCompleted.length >= 1, true)
+const recurringHistorySplitStart = new Date(recurringHistoryLessonBody.lesson.startsAt)
+recurringHistorySplitStart.setDate(recurringHistorySplitStart.getDate() + 14)
+const splitRecurringHistory = await app.request(`/lessons/${recurringHistoryLessonBody.lesson.id}`, {
+	method: 'PATCH',
+	headers: {
+		'content-type': 'application/json',
+		'x-demo-user': 'demo-teacher',
+	},
+	body: JSON.stringify({
+		status: 'planned',
+		startsAt: recurringHistorySplitStart.toISOString(),
+		repeatWeekly: true,
+		applyToFuture: true,
+		occurrenceStartsAt: recurringHistorySplitStart.toISOString(),
+	}),
+})
+assert.equal(splitRecurringHistory.status, 200)
+const splitRecurringHistoryBody = await splitRecurringHistory.json()
+assert.notEqual(splitRecurringHistoryBody.lesson.id, recurringHistoryLessonBody.lesson.id)
+assert.equal(splitRecurringHistoryBody.lesson.repeatWeekly, true)
+const recurringHistoryAfterSplit = await app.request(
+	`/lessons?studentId=${recurringHistoryStudentBody.student.id}&status=all`,
+	{
+		headers: {
+			'x-demo-user': 'demo-teacher',
+		},
+	}
+)
+assert.equal(recurringHistoryAfterSplit.status, 200)
+const recurringHistoryAfterSplitBody = await recurringHistoryAfterSplit.json()
+assert.equal(
+	recurringHistoryAfterSplitBody.lessons.some(
+		(lesson: { id: string }) => lesson.id === recurringHistoryLessonBody.lesson.id
+	),
+	false
+)
+assert.equal(
+	recurringHistoryAfterSplitBody.lessons.filter(
+		(lesson: { status: string; repeatWeekly: boolean }) => lesson.status === 'completed' && !lesson.repeatWeekly
+	).length >= recurringHistoryCompleted.length,
+	true
+)
+
 const demoMe = await app.request('/auth/me', {
 	headers: {
 		'x-demo-user': 'demo-teacher',

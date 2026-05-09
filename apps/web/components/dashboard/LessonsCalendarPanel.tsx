@@ -423,7 +423,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 						startsAt: pendingDrop.startsAt.toISOString(),
 						durationMinutes: Math.round((pendingDrop.event.end.getTime() - pendingDrop.event.start.getTime()) / 60_000),
 						applyToFuture: scope === 'series',
-						occurrenceStartsAt: scope === 'current' ? pendingDrop.event.occurrenceStartsAt : undefined,
+						occurrenceStartsAt: pendingDrop.event.occurrenceStartsAt,
 					})
 					setPendingDrop(null)
 				}}
@@ -556,17 +556,33 @@ const SlotChoiceDialog: FC<SlotChoiceDialogProps> = ({ startsAt, onClose, onAddL
 }
 
 const DropScopeDialog: FC<DropScopeDialogProps> = ({ pendingDrop, onClose, onApply }) => {
+	const [isApplying, setIsApplying] = useState(false)
+
+	useEffect(() => {
+		if (!pendingDrop) setIsApplying(false)
+	}, [pendingDrop])
+
+	const apply = async (scope: 'current' | 'series') => {
+		if (isApplying) return
+		setIsApplying(true)
+		try {
+			await onApply(scope)
+		} finally {
+			setIsApplying(false)
+		}
+	}
+
 	return (
-		<Dialog open={Boolean(pendingDrop)} onOpenChange={(open) => !open && onClose()}>
+		<Dialog open={Boolean(pendingDrop)} onOpenChange={(open) => !open && !isApplying && onClose()}>
 			<DialogContent className="p-unit max-w-sm">
 				<DialogHeader className="mb-unit">
 					<DialogTitle>Apply schedule move</DialogTitle>
 				</DialogHeader>
 				<div className="grid gap-2">
-					<Button type="button" onClick={() => void onApply('current')}>
-						Apply current
+					<Button type="button" onClick={() => void apply('current')} disabled={isApplying}>
+						{isApplying ? 'Moving lesson' : 'Apply current'}
 					</Button>
-					<Button type="button" variant="secondary" onClick={() => void onApply('series')}>
+					<Button type="button" variant="secondary" onClick={() => void apply('series')} disabled={isApplying}>
 						Apply all future
 					</Button>
 				</div>

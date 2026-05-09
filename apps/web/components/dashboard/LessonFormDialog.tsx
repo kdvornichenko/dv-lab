@@ -294,16 +294,20 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 	}
 
 	const handleDelete = async () => {
-		if (!lesson || !onDelete) return
+		if (!lesson || !onDelete || isSubmitting) return
 		const scope =
-			lesson.repeatWeekly && occurrenceStartsAt
+			lesson.repeatWeekly && occurrenceStartsAt && !values.applyToFuture
 				? window.confirm('Delete only this occurrence? Press Cancel to delete the whole series.')
 					? 'current'
 					: 'series'
 				: 'series'
 		setIsSubmitting(true)
 		try {
-			await onDelete({ scope, occurrenceStartsAt: scope === 'current' ? (occurrenceStartsAt ?? undefined) : undefined })
+			await onDelete({
+				scope,
+				occurrenceStartsAt: scope === 'current' || values.applyToFuture ? (occurrenceStartsAt ?? undefined) : undefined,
+				applyToFuture: values.applyToFuture,
+			})
 		} finally {
 			setIsSubmitting(false)
 		}

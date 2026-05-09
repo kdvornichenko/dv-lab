@@ -343,6 +343,7 @@ export const teacherCrmLessonApi = {
 		const params = new URLSearchParams()
 		if (options.scope) params.set('scope', options.scope)
 		if (options.occurrenceStartsAt) params.set('occurrenceStartsAt', options.occurrenceStartsAt)
+		if (options.applyToFuture) params.set('applyToFuture', 'true')
 		const query = params.toString()
 		return apiRequest<LessonMutationResponse>(`/lessons/${lessonId}${query ? `?${query}` : ''}`, {
 			method: 'DELETE',

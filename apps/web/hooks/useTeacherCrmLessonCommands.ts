@@ -56,6 +56,7 @@ export function useTeacherCrmLessonCommands({
 	const deleteLesson = useCallback(
 		async (lessonId: string, options?: DeleteLessonQuery) => {
 			await runCrmAction('Delete lesson', async () => {
+				await ensureCalendarTokens()
 				await teacherCrmLessonApi.deleteLesson(lessonId, options)
 				setState((current) => ({
 					...current,
@@ -73,7 +74,7 @@ export function useTeacherCrmLessonCommands({
 				await refreshAfterMutation()
 			})
 		},
-		[refreshAfterMutation, runCrmAction, setState]
+		[ensureCalendarTokens, refreshAfterMutation, runCrmAction, setState]
 	)
 
 	const markAttendance = useCallback(

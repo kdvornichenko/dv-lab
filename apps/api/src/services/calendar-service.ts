@@ -63,6 +63,7 @@ type GoogleCalendarEventResponse = GoogleEventListItem
 
 type CalendarSyncOptions = {
 	repeatWeekly?: boolean
+	recurrenceUntil?: string
 	singleOccurrence?: boolean
 	occurrenceStartsAt?: string
 	lessonOverride?: Lesson
@@ -268,10 +269,18 @@ function eventDate(value: Date | string) {
 	return value instanceof Date ? value : new Date(value)
 }
 
+function googleRRuleUntil(value: string) {
+	return value.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+
 function calendarEventPayload(context: CalendarLessonContext, options: CalendarSyncOptions = {}) {
 	const lesson = options.lessonOverride ?? context.lesson
 	const startsAt = eventDate(lesson.startsAt)
 	const endsAt = new Date(startsAt.getTime() + lesson.durationMinutes * 60_000)
+	const repeatWeekly = options.repeatWeekly ?? (options.lessonOverride ? false : context.lesson.repeatWeekly)
+	const recurrence = repeatWeekly
+		? [`RRULE:FREQ=WEEKLY${options.recurrenceUntil ? `;UNTIL=${googleRRuleUntil(options.recurrenceUntil)}` : ''}`]
+		: undefined
 
 	return {
 		summary: lesson.title,
@@ -283,7 +292,7 @@ function calendarEventPayload(context: CalendarLessonContext, options: CalendarS
 		end: {
 			dateTime: endsAt.toISOString(),
 		},
-		recurrence: options.repeatWeekly ? ['RRULE:FREQ=WEEKLY'] : undefined,
+		recurrence,
 	}
 }
 
@@ -1189,7 +1198,9 @@ export const calendarService = {
 			const targetCalendarId = existingSync?.externalCalendarId ?? connection.selectedCalendarId ?? 'primary'
 			const shouldPatchSingleOccurrence = Boolean(options.singleOccurrence && existingSync?.externalEventId)
 			const payload = calendarEventPayload(lessonContext, {
-				repeatWeekly: shouldPatchSingleOccurrence ? false : options.repeatWeekly,
+				lessonOverride: options.lessonOverride,
+				recurrenceUntil: options.recurrenceUntil,
+				repeatWeekly: shouldPatchSingleOccurrence ? false : (options.repeatWeekly ?? lessonContext.lesson.repeatWeekly),
 			})
 			const persistRefreshedToken = (accessToken: string, expiresAt: Date | null) =>
 				upsertCalendarConnectionRow(db, {
