@@ -17,7 +17,7 @@ export const CalendarYearView = () => {
 
 	return (
 		<ScrollArea className="bg-surface font-body text-ink h-full">
-			<div className="min-w-210 grid grid-cols-4 gap-6 p-5">
+			<div className="grid grid-cols-1 gap-4 p-3 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
 				{months.map((days, index) => (
 					<div key={days[15].toISOString()} className="border-line-soft rounded-lg border p-3">
 						<div className="font-heading text-sm">{format(setMonth(date, index), 'LLLL', { locale })}</div>

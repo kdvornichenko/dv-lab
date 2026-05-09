@@ -16,8 +16,8 @@ export const TeacherCrmPageShell: FC<TeacherCrmPageShellProps> = ({ children, sk
 	const now = new Date()
 
 	return (
-		<main className={cn('p-unit min-h-full', classNames?.main)}>
-			<div className={cn('w-full space-y-5', classNames?.container)}>
+		<main className={cn('p-unit min-h-full min-w-0', classNames?.main)}>
+			<div className={cn('w-full min-w-0 space-y-5', classNames?.container)}>
 				{crm.loadError ? (
 					<div role="alert" className="border-warning-line bg-warning-soft text-ink rounded-lg border p-3 text-sm">
 						<div className="flex flex-wrap items-center justify-between gap-3">

@@ -178,12 +178,17 @@ export function useTeacherCrmCalendar({
 			Boolean(state.calendarConnection.selectedCalendarId)
 		if (!canSync) return
 
+		const recordedLessonIds = new Set(state.calendarSyncRecords.map((record) => record.lessonId))
+		const missingSyncLessonIds = state.lessons
+			.filter((lesson) => lesson.status !== 'cancelled' && !recordedLessonIds.has(lesson.id))
+			.map((lesson) => lesson.id)
 		const retryableLessonIds = Array.from(
-			new Set(
-				state.calendarSyncRecords
+			new Set([
+				...state.calendarSyncRecords
 					.filter((record) => record.status === 'failed' || record.status === 'not_synced')
-					.map((record) => record.lessonId)
-			)
+					.map((record) => record.lessonId),
+				...missingSyncLessonIds,
+			])
 		).sort()
 		if (retryableLessonIds.length === 0) return
 
@@ -210,6 +215,7 @@ export function useTeacherCrmCalendar({
 		state.calendarConnection.tokenAvailable,
 		state.calendarConnection.updatedAt,
 		state.calendarSyncRecords,
+		state.lessons,
 	])
 
 	const connectCalendar = useCallback(async () => {

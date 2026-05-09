@@ -273,6 +273,10 @@ function googleRRuleUntil(value: string) {
 	return value.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 }
 
+function googleEventTimeZone() {
+	return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+}
+
 function calendarEventPayload(context: CalendarLessonContext, options: CalendarSyncOptions = {}) {
 	const lesson = options.lessonOverride ?? context.lesson
 	const startsAt = eventDate(lesson.startsAt)
@@ -288,9 +292,11 @@ function calendarEventPayload(context: CalendarLessonContext, options: CalendarS
 		status: lesson.status === 'cancelled' ? 'cancelled' : 'confirmed',
 		start: {
 			dateTime: startsAt.toISOString(),
+			timeZone: googleEventTimeZone(),
 		},
 		end: {
 			dateTime: endsAt.toISOString(),
+			timeZone: googleEventTimeZone(),
 		},
 		recurrence,
 	}

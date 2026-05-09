@@ -51,7 +51,7 @@ const CalendarSyncPanel: FC<CalendarSyncPanelProps> = ({ syncRecords, lessonTitl
 								<p className="text-ink-muted mt-1 font-mono text-xs tabular-nums">
 									Updated {formatDateShort(record.updatedAt)}
 								</p>
-								{record.lastError && <p className="text-danger mt-1 truncate text-xs">{record.lastError}</p>}
+								{record.lastError && <p className="text-danger mt-1 break-words text-xs">{record.lastError}</p>}
 							</div>
 							<div className="flex shrink-0 items-center gap-2">
 								<Badge

@@ -148,19 +148,19 @@ export function createLessonWorkflowService(
 
 		for (const startsAt of weeklyOccurrencesBefore(lesson.startsAt, cutoffStartsAt)) {
 			if (skippedStarts.has(startsAt)) continue
-			materialized.push(
-				await deps.lessons.createLesson(actor, {
-					title: lesson.title,
-					startsAt,
-					durationMinutes: lesson.durationMinutes,
-					repeatWeekly: false,
-					repeatCount: 1,
-					topic: lesson.topic,
-					notes: lesson.notes,
-					status: autoStatusForStart(lesson.status, startsAt),
-					studentIds: lesson.studentIds,
-				})
-			)
+			const occurrenceLesson = await deps.lessons.createLesson(actor, {
+				title: lesson.title,
+				startsAt,
+				durationMinutes: lesson.durationMinutes,
+				repeatWeekly: false,
+				repeatCount: 1,
+				topic: lesson.topic,
+				notes: lesson.notes,
+				status: autoStatusForStart(lesson.status, startsAt),
+				studentIds: lesson.studentIds,
+			})
+			materialized.push(occurrenceLesson)
+			await syncLessonAutomatically(actor, occurrenceLesson.id, { repeatWeekly: false })
 		}
 
 		return materialized
@@ -197,13 +197,14 @@ export function createLessonWorkflowService(
 			if (input.repeatWeekly && input.status === 'planned' && isPastStart(input.startsAt)) {
 				const futureStartsAt = firstWeeklyOccurrenceOnOrAfter(input.startsAt, new Date())
 				for (const startsAt of weeklyOccurrencesBefore(input.startsAt, futureStartsAt)) {
-					await deps.lessons.createLesson(actor, {
+					const occurrenceLesson = await deps.lessons.createLesson(actor, {
 						...input,
 						startsAt,
 						status: 'completed',
 						repeatWeekly: false,
 						repeatCount: 1,
 					})
+					await syncLessonAutomatically(actor, occurrenceLesson.id, { repeatWeekly: false })
 				}
 				const lesson = await deps.lessons.createLesson(actor, {
 					...input,

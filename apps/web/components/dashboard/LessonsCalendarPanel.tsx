@@ -212,7 +212,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	return (
 		<section
 			data-pet-target
-			className="border-line bg-surface flex min-h-dvh flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
+			className="border-line bg-surface flex h-dvh min-h-[34rem] min-w-0 flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
 		>
 			<Calendar
 				view="week"
@@ -255,9 +255,9 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 				}}
 			>
 				<header className="border-line-soft bg-surface-muted flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-					<div>
+					<div className="min-w-0">
 						<p className="text-sage font-mono text-xs font-semibold uppercase">Lesson calendar</p>
-						<h1 className="font-heading text-ink mt-1 text-lg font-semibold">
+						<h1 className="font-heading text-ink mt-1 truncate text-lg font-semibold">
 							<CalendarCurrentDate />
 						</h1>
 					</div>
@@ -337,7 +337,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 						</div>
 					</div>
 				)}
-				<div className="min-h-168 bg-surface h-[calc(100dvh-5rem)] overflow-hidden">
+				<div className="bg-surface min-h-0 flex-1 overflow-hidden">
 					<CalendarViewStage />
 				</div>
 			</Calendar>

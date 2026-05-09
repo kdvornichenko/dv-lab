@@ -16,11 +16,14 @@ export const CalendarMonthView = () => {
 	const weekDays = useMemo(() => generateWeekdays(locale), [locale])
 
 	return (
-		<div className="bg-surface font-body text-ink flex h-full flex-col p-4">
+		<div className="bg-surface font-body text-ink flex h-full flex-col p-2 sm:p-4">
 			<div className="border-line-soft bg-surface flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
 				<div className="border-line-soft grid grid-cols-7 border-b">
 					{weekDays.map((day) => (
-						<div key={day} className="text-ink-muted px-3 py-2 font-mono text-[10px] uppercase tracking-[0.25em]">
+						<div
+							key={day}
+							className="text-ink-muted px-1 py-2 text-center font-mono text-[10px] uppercase tracking-[0.08em] sm:px-3 sm:text-left sm:tracking-[0.25em]"
+						>
 							{day}
 						</div>
 					))}
@@ -41,7 +44,7 @@ export const CalendarMonthView = () => {
 							<div
 								key={day.toISOString()}
 								className={cn(
-									'min-h-27 border-line-soft hover:bg-sage-soft/45 relative border-b border-r p-1.5 text-left transition-colors',
+									'min-h-18 border-line-soft hover:bg-sage-soft/45 sm:min-h-27 relative border-b border-r p-1 text-left transition-colors sm:p-1.5',
 									index % 7 === 6 && 'border-r-0',
 									out && 'bg-surface-muted/35 text-ink-muted'
 								)}
