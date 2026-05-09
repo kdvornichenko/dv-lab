@@ -192,7 +192,12 @@ export function useTeacherCrmCalendar({
 		).sort()
 		if (retryableLessonIds.length === 0) return
 
-		const retryKey = `${state.calendarConnection.updatedAt}:${retryableLessonIds.join(',')}`
+		const retryState = state.calendarSyncRecords
+			.filter((record) => retryableLessonIds.includes(record.lessonId))
+			.map((record) => `${record.lessonId}:${record.status}:${record.updatedAt}`)
+			.sort()
+			.join(',')
+		const retryKey = `${state.calendarConnection.updatedAt}:${retryableLessonIds.join(',')}:${retryState}`
 		if (calendarSyncRetryKeyRef.current === retryKey) return
 		calendarSyncRetryKeyRef.current = retryKey
 

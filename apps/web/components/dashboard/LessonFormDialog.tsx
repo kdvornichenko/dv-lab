@@ -72,9 +72,7 @@ function sameWeeklySlot(a: string, b: string) {
 	const left = new Date(a)
 	const right = new Date(b)
 	return (
-		left.getDay() === right.getDay() &&
-		left.getHours() === right.getHours() &&
-		left.getMinutes() === right.getMinutes()
+		left.getDay() === right.getDay() && left.getHours() === right.getHours() && left.getMinutes() === right.getMinutes()
 	)
 }
 

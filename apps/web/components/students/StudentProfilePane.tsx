@@ -1,45 +1,109 @@
-import type { FC } from 'react'
+import { type FC, useEffect, useState } from 'react'
+import type { DateRange } from 'react-day-picker'
 
-import { Banknote, CalendarCheck2, CheckCircle2, Copy, NotebookText, ReceiptText, Sparkles } from 'lucide-react'
+import {
+	Banknote,
+	CalendarCheck2,
+	CalendarDays,
+	CheckCircle2,
+	Copy,
+	NotebookText,
+	ReceiptText,
+	Sparkles,
+} from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
 	formatCompletedLessonDatesText,
 	formatCurrencyAmount,
-	formatDateShort,
-	formatTime,
+	formatDateShortEn,
 	getBillingModeLabel,
-	getStudentShortName,
 	getStudentDurationPrice,
 	isChargeableLessonStatus,
 	selectStudentLedgerProjection,
 } from '@/lib/crm/model'
 
 import type { StudentProfilePaneProps } from './StudentProfilePane.types'
-import { lessonStatusTone, ProfileMetric, ProfileRow } from './StudentProfileParts'
+import { ProfileMetric, ProfileRow } from './StudentProfileParts'
+
+type StudentLesson = StudentProfilePaneProps['lessons'][number]
+
+function startOfDay(value: Date) {
+	const date = new Date(value)
+	date.setHours(0, 0, 0, 0)
+	return date
+}
+
+function endOfDay(value: Date) {
+	const date = new Date(value)
+	date.setHours(23, 59, 59, 999)
+	return date
+}
+
+function sortLessonsByStart(lessons: StudentLesson[]) {
+	return [...lessons].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+}
+
+function selectLessonsInRange(lessons: StudentLesson[], range?: DateRange) {
+	if (!range?.from) return lessons
+
+	const from = startOfDay(range.from).getTime()
+	const to = endOfDay(range.to ?? range.from).getTime()
+	return lessons.filter((lesson) => {
+		const startsAt = new Date(lesson.startsAt).getTime()
+		return startsAt >= from && startsAt <= to
+	})
+}
+
+function formatLessonHistoryRange(range?: DateRange) {
+	if (!range?.from) return undefined
+	if (!range.to) return formatDateShortEn(range.from)
+	return `${formatDateShortEn(range.from)} - ${formatDateShortEn(range.to)}`
+}
 
 export const StudentProfilePane: FC<StudentProfilePaneProps> = ({ student, lessons, now }) => {
+	const [lessonHistoryRange, setLessonHistoryRange] = useState<DateRange | undefined>()
+
+	useEffect(() => {
+		setLessonHistoryRange(undefined)
+	}, [student?.id])
+
 	if (!student) {
 		return (
-			<aside className="border-sage-line bg-sage-soft/45 rounded-lg border border-dashed p-5">
-				<p className="font-heading text-ink font-semibold">Select a student</p>
-				<p className="text-ink-muted mt-1 text-sm leading-5">Lessons, billing, and payment balance will appear here.</p>
+			<aside className="rounded-lg border border-dashed border-sage-line bg-sage-soft/45 p-5">
+				<p className="font-heading font-semibold text-ink">Select a student</p>
+				<p className="mt-1 text-sm leading-5 text-ink-muted">Lessons, billing, and payment balance will appear here.</p>
 			</aside>
 		)
 	}
 
 	const projection = selectStudentLedgerProjection(student, lessons, now)
 	const billingLabel = getBillingModeLabel(student.billingMode)
-	const recentLessons = [...projection.stats.relatedLessons].sort(
-		(a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime()
-	)
 	const completedCount = projection.stats.relatedLessons.filter((lesson) =>
 		isChargeableLessonStatus(lesson.status)
 	).length
 	const packageProgress = projection.packageProgress
-	const completedDatesText = formatCompletedLessonDatesText(packageProgress.completedLessons)
+	const chargedLessons = sortLessonsByStart(
+		projection.stats.relatedLessons.filter((lesson) => isChargeableLessonStatus(lesson.status))
+	)
+	const defaultLessonHistory = student.billingMode === 'package' ? packageProgress.completedLessons : chargedLessons
+	const lessonHistoryLessons = sortLessonsByStart(
+		lessonHistoryRange?.from ? selectLessonsInRange(chargedLessons, lessonHistoryRange) : defaultLessonHistory
+	)
+	const lessonHistoryRangeLabel =
+		formatLessonHistoryRange(lessonHistoryRange) ??
+		(student.billingMode === 'package' ? 'Current package' : 'All charged lessons')
+	const lessonHistorySummary = lessonHistoryRange?.from
+		? `${lessonHistoryLessons.length} charged`
+		: student.billingMode === 'package'
+			? `${packageProgress.label} · ${packageProgress.remainingLabel}`
+			: `${completedCount} charged`
+	const completedDatesText = formatCompletedLessonDatesText(lessonHistoryLessons)
 	const copyCompletedDates = async () => {
 		try {
 			await navigator.clipboard.writeText(completedDatesText)
@@ -50,15 +114,15 @@ export const StudentProfilePane: FC<StudentProfilePaneProps> = ({ student, lesso
 	}
 
 	return (
-		<aside className="border-line bg-surface-muted overflow-hidden rounded-lg border">
-			<div className="border-line-soft bg-surface border-b p-4">
+		<aside className="overflow-hidden rounded-lg border border-line bg-surface-muted">
+			<div className="border-b border-line-soft bg-surface p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
-						<p className="text-sage font-mono text-xs font-semibold uppercase">Profile</p>
-						<h3 className="text-ink mt-1 truncate text-lg font-semibold" data-private>
+						<p className="font-mono text-xs font-semibold text-sage uppercase">Profile</p>
+						<h3 className="mt-1 truncate text-lg font-semibold text-ink" data-private>
 							{student.fullName}
 						</h3>
-						<p className="text-ink-muted mt-1 text-sm" data-private>
+						<p className="mt-1 text-sm text-ink-muted" data-private>
 							{student.level || 'No level set'}
 						</p>
 					</div>
@@ -92,67 +156,68 @@ export const StudentProfilePane: FC<StudentProfilePaneProps> = ({ student, lesso
 					/>
 				</div>
 
-				<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
-					<p className="text-ink-muted text-xs font-semibold uppercase">Next payment</p>
-					<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{projection.nextPayment}</p>
-					<p className="text-ink-muted mt-1 text-xs">
+				<div className="mt-4 rounded-lg border border-line-soft bg-surface p-3">
+					<p className="text-xs font-semibold text-ink-muted uppercase">Next payment</p>
+					<p className="mt-1 font-mono text-sm font-semibold text-ink tabular-nums">{projection.nextPayment}</p>
+					<p className="mt-1 text-xs text-ink-muted">
 						{student.balance.unpaidLessonCount} unpaid lessons · {billingLabel}
 					</p>
 				</div>
 
-				{student.billingMode === 'package' && (
-					<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
-						<div className="flex items-start justify-between gap-3">
-							<div>
-								<p className="text-ink-muted text-xs font-semibold uppercase">Completed dates</p>
-								<p className="text-ink mt-1 font-mono text-sm font-semibold tabular-nums">{packageProgress.label}</p>
-								<p className="text-ink-muted mt-1 text-xs">{packageProgress.remainingLabel}</p>
-							</div>
-							<Button type="button" variant="secondary" size="sm" onClick={copyCompletedDates}>
-								<Copy className="h-4 w-4" />
-								Copy
-							</Button>
+				<div className="mt-4 rounded-lg border border-line-soft bg-surface p-3">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0">
+							<p className="text-xs font-semibold text-ink-muted uppercase">Lesson history</p>
+							<p className="mt-1 font-mono text-sm font-semibold text-ink tabular-nums">{lessonHistorySummary}</p>
+							<p className="mt-1 text-xs text-ink-muted">{lessonHistoryRangeLabel}</p>
 						</div>
-						<pre className="border-line-soft bg-surface-muted text-ink mt-3 whitespace-pre-wrap rounded-lg border p-3 font-mono text-xs leading-5">
-							{completedDatesText}
-						</pre>
+						<div className="flex shrink-0 items-center gap-1.5">
+							<Popover>
+								<PopoverTrigger asChild>
+									<Button
+										type="button"
+										variant="outline"
+										size="icon"
+										aria-label="Select lesson history range"
+										title="Select lesson history range"
+									>
+										<CalendarDays className="h-4 w-4" />
+									</Button>
+								</PopoverTrigger>
+								<PopoverContent className="w-auto p-0" align="end" sideOffset={8}>
+									<Calendar
+										mode="range"
+										selected={lessonHistoryRange}
+										onSelect={setLessonHistoryRange}
+										numberOfMonths={2}
+										captionLayout="dropdown"
+										startMonth={new Date(2020, 0)}
+										endMonth={new Date(2030, 11)}
+									/>
+								</PopoverContent>
+							</Popover>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										type="button"
+										variant="secondary"
+										size="icon"
+										aria-label="Copy lesson history"
+										onClick={copyCompletedDates}
+									>
+										<Copy className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent sideOffset={6}>Copy lesson history</TooltipContent>
+							</Tooltip>
+						</div>
 					</div>
-				)}
-
-				<div className="border-line-soft bg-surface mt-4 rounded-lg border p-3">
-					<div className="flex items-center justify-between gap-3">
-						<p className="text-ink-muted text-xs font-semibold uppercase">Lesson history</p>
-						<Badge tone="neutral" className="font-mono tabular-nums">
-							{completedCount}/{projection.stats.relatedLessons.length}
-						</Badge>
-					</div>
-					<div className="mt-3 grid gap-2">
-						{recentLessons.slice(0, 5).map((lesson) => {
-							return (
-								<div key={lesson.id} className="border-line-soft bg-surface-muted rounded-lg border p-2.5">
-									<div className="flex items-start justify-between gap-3">
-										<div className="min-w-0">
-											<p className="font-heading text-ink truncate text-sm font-medium">
-												{getStudentShortName(student)}
-											</p>
-											<p className="text-ink-muted mt-1 font-mono text-xs tabular-nums">
-												{formatDateShort(lesson.startsAt)} · {formatTime(lesson.startsAt)}
-											</p>
-										</div>
-										<Badge tone={lessonStatusTone(lesson.status)}>{lesson.status}</Badge>
-									</div>
-								</div>
-							)
-						})}
-						{recentLessons.length === 0 && (
-							<p className="border-line-strong bg-surface-muted text-ink-muted rounded-lg border border-dashed p-3 text-sm">
-								No lessons scheduled for this student yet.
-							</p>
-						)}
-					</div>
+					<pre className="mt-3 rounded-lg border border-line-soft bg-surface-muted p-3 font-mono text-xs leading-5 whitespace-pre-wrap text-ink">
+						{completedDatesText}
+					</pre>
 				</div>
 
-				<div className="divide-line-soft mt-4 divide-y text-sm">
+				<div className="mt-4 divide-y divide-line-soft text-sm">
 					<ProfileRow icon={Sparkles} label="Special" value={student.special || 'Not set'} />
 					<ProfileRow
 						icon={ReceiptText}

@@ -212,7 +212,7 @@ export const LessonsCalendarPanel: FC<LessonsCalendarPanelProps> = ({
 	return (
 		<section
 			data-pet-target
-			className="border-line bg-surface flex h-dvh min-h-[34rem] min-w-0 flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
+			className="border-line bg-surface min-h-136 flex h-dvh min-w-0 flex-col overflow-hidden border shadow-[0_18px_55px_-46px_var(--shadow-sage)]"
 		>
 			<Calendar
 				view="week"

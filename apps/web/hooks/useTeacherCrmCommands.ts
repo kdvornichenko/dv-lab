@@ -26,7 +26,7 @@ export function useTeacherCrmCommands({ lessons, refresh, setState }: UseTeacher
 	}, [])
 
 	const refreshAfterMutation = useCallback(() => {
-		return refresh({ showLoading: false, awaitSupplements: true })
+		return refresh({ showLoading: false, awaitSupplements: true, force: true })
 	}, [refresh])
 
 	const ensureCalendarTokens = useCallback(async () => {

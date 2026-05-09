@@ -978,7 +978,7 @@ export const calendarService = {
 		}
 
 		const syncRows = (await listCalendarSyncEventRows(db, teacherId))
-			.filter((sync) => sync.status !== 'disabled' && Boolean(sync.externalEventId))
+			.filter((sync) => sync.status === 'synced' && Boolean(sync.externalEventId))
 			.slice(0, 25)
 		const persistRefreshedToken = (accessToken: string, expiresAt: Date | null) =>
 			upsertCalendarConnectionRow(db, {
@@ -1051,17 +1051,24 @@ export const calendarService = {
 					lastError: null,
 				})
 			} catch (error) {
-				const connectionNeedsReconnect = await markGoogleConnectionIssue(db, teacherId, connection, error)
-				await upsertCalendarSyncEventRow(db, {
-					teacherId,
-					lessonId: sync.lessonId,
-					provider: 'google',
-					externalEventId,
-					externalCalendarId: calendarId,
-					status: 'failed',
-					lastError: calendarErrorMessage(error, 'Google Calendar import failed'),
-				})
-				if (connectionNeedsReconnect) break
+				try {
+					const connectionNeedsReconnect = await markGoogleConnectionIssue(db, teacherId, connection, error)
+					await upsertCalendarSyncEventRow(db, {
+						teacherId,
+						lessonId: sync.lessonId,
+						provider: 'google',
+						externalEventId,
+						externalCalendarId: calendarId,
+						status: 'failed',
+						lastError: calendarErrorMessage(error, 'Google Calendar import failed'),
+					})
+					if (connectionNeedsReconnect) break
+				} catch (recordError) {
+					console.warn('[teacher-crm] Google Calendar import failure could not be recorded', {
+						lessonId: sync.lessonId,
+						message: calendarErrorMessage(recordError, 'Google Calendar import failure recording failed'),
+					})
+				}
 			}
 		}
 
