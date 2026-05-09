@@ -68,8 +68,8 @@ export function DatePicker({
 					onSelect={onSelect}
 					captionLayout="dropdown"
 					locale={locale}
-					fromYear={fromYear}
-					toYear={toYear}
+					startMonth={new Date(fromYear, 0)}
+					endMonth={new Date(toYear, 11)}
 				/>
 			</PopoverContent>
 		</Popover>
@@ -126,8 +126,8 @@ export function DateRangePicker({
 					numberOfMonths={2}
 					captionLayout="dropdown"
 					locale={locale}
-					fromYear={fromYear}
-					toYear={toYear}
+					startMonth={new Date(fromYear, 0)}
+					endMonth={new Date(toYear, 11)}
 				/>
 			</PopoverContent>
 		</Popover>
