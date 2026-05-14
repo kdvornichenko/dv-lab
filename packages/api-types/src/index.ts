@@ -420,7 +420,7 @@ export const updateLessonSchema = createLessonSchema
 	.partial()
 
 export const deleteLessonQuerySchema = z.object({
-	scope: z.enum(['current', 'series']).optional().default('series'),
+	scope: z.enum(['current', 'series']).optional().default('current'),
 	occurrenceStartsAt: isoDateTimeSchema.optional(),
 	applyToFuture: z
 		.preprocess((value) => (typeof value === 'string' ? value === 'true' : value), z.boolean())

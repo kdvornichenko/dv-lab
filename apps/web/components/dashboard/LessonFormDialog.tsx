@@ -339,7 +339,9 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 				? window.confirm('Delete only this occurrence? Press Cancel to delete the whole series.')
 					? 'current'
 					: 'series'
-				: 'series'
+				: values.applyToFuture
+					? 'series'
+					: 'current'
 		setIsSubmitting(true)
 		try {
 			await onDelete({

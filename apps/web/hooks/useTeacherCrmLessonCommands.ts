@@ -58,18 +58,16 @@ export function useTeacherCrmLessonCommands({
 			await runCrmAction('Delete lesson', async () => {
 				await ensureCalendarTokens()
 				await teacherCrmLessonApi.deleteLesson(lessonId, options)
+				const keepsRecurringSource = options?.scope === 'current' && Boolean(options.occurrenceStartsAt)
 				setState((current) => ({
 					...current,
-					lessons:
-						options?.scope === 'current' ? current.lessons : current.lessons.filter((lesson) => lesson.id !== lessonId),
-					attendance:
-						options?.scope === 'current'
-							? current.attendance
-							: current.attendance.filter((record) => record.lessonId !== lessonId),
-					calendarSyncRecords:
-						options?.scope === 'current'
-							? current.calendarSyncRecords
-							: current.calendarSyncRecords.filter((record) => record.lessonId !== lessonId),
+					lessons: keepsRecurringSource ? current.lessons : current.lessons.filter((lesson) => lesson.id !== lessonId),
+					attendance: keepsRecurringSource
+						? current.attendance
+						: current.attendance.filter((record) => record.lessonId !== lessonId),
+					calendarSyncRecords: keepsRecurringSource
+						? current.calendarSyncRecords
+						: current.calendarSyncRecords.filter((record) => record.lessonId !== lessonId),
 				}))
 				await refreshAfterMutation()
 			})

@@ -339,11 +339,11 @@ export const teacherCrmLessonApi = {
 			method: 'PATCH',
 			body: JSON.stringify(input),
 		}),
-	deleteLesson: (lessonId: string, options: DeleteLessonQuery = { scope: 'series' }) => {
+	deleteLesson: (lessonId: string, options?: DeleteLessonQuery) => {
 		const params = new URLSearchParams()
-		if (options.scope) params.set('scope', options.scope)
-		if (options.occurrenceStartsAt) params.set('occurrenceStartsAt', options.occurrenceStartsAt)
-		if (options.applyToFuture) params.set('applyToFuture', 'true')
+		if (options?.scope) params.set('scope', options.scope)
+		if (options?.occurrenceStartsAt) params.set('occurrenceStartsAt', options.occurrenceStartsAt)
+		if (options?.applyToFuture) params.set('applyToFuture', 'true')
 		const query = params.toString()
 		return apiRequest<LessonMutationResponse>(`/lessons/${lessonId}${query ? `?${query}` : ''}`, {
 			method: 'DELETE',

@@ -137,6 +137,32 @@ export function createLessonWorkflowService(
 		await deps.calendar.syncLessonToCalendar(actor, lessonId, options)
 	}
 
+	async function syncLessonsAutomatically(
+		actor: StoreScope,
+		items: { lessonId: string; options?: Parameters<typeof syncLessonAutomatically>[2] }[]
+	) {
+		const concurrency = 4
+		for (let index = 0; index < items.length; index += concurrency) {
+			await Promise.all(
+				items
+					.slice(index, index + concurrency)
+					.map((item) => syncLessonAutomatically(actor, item.lessonId, item.options))
+			)
+		}
+	}
+
+	async function deleteLessonFromCalendarBestEffort(
+		actor: StoreScope,
+		lessonId: string,
+		options?: Parameters<CalendarService['deleteLessonFromCalendar']>[2]
+	) {
+		try {
+			await deps.calendar.deleteLessonFromCalendar(actor, lessonId, options)
+		} catch {
+			return
+		}
+	}
+
 	async function materializeRecurringOccurrencesBefore(actor: StoreScope, lesson: Lesson, cutoffStartsAt: string) {
 		const exceptions = await deps.lessons.listOccurrenceExceptions(actor)
 		const skippedStarts = new Set(
@@ -276,11 +302,16 @@ export function createLessonWorkflowService(
 			const lesson = await deps.lessons.updateLesson(actor, lessonId, currentPatch)
 			if (!lesson) return null
 
-			await syncLessonAutomatically(actor, lesson.id, {
-				repeatWeekly: input.repeatWeekly ?? lesson.repeatWeekly,
-				singleOccurrence: Boolean(originalLesson?.repeatWeekly && !input.applyToFuture),
-				occurrenceStartsAt: originalLesson?.startsAt,
-			})
+			const syncItems: { lessonId: string; options?: Parameters<typeof syncLessonAutomatically>[2] }[] = [
+				{
+					lessonId: lesson.id,
+					options: {
+						repeatWeekly: input.repeatWeekly ?? lesson.repeatWeekly,
+						singleOccurrence: Boolean(originalLesson?.repeatWeekly && !input.applyToFuture),
+						occurrenceStartsAt: originalLesson?.startsAt,
+					},
+				},
+			]
 
 			if (input.applyToFuture && originalLesson) {
 				const originalStart = new Date(originalLesson.startsAt)
@@ -299,14 +330,15 @@ export function createLessonWorkflowService(
 						candidate.id,
 						futureSeriesPatch(input, originalLesson.startsAt, candidate.startsAt)
 					)
-					if (updated) await syncLessonAutomatically(actor, updated.id)
+					if (updated) syncItems.push({ lessonId: updated.id })
 				}
 			}
+			await syncLessonsAutomatically(actor, syncItems)
 
 			return lesson
 		},
 
-		async deleteLesson(actor: StoreScope, lessonId: string, options: DeleteLessonQuery = { scope: 'series' }) {
+		async deleteLesson(actor: StoreScope, lessonId: string, options: DeleteLessonQuery = { scope: 'current' }) {
 			const allLessons: Lesson[] = await deps.lessons.listLessons(actor, {
 				status: 'all',
 				studentId: '',
@@ -332,7 +364,7 @@ export function createLessonWorkflowService(
 						occurrenceStartsAt: options.occurrenceStartsAt,
 						reason: 'deleted',
 					})
-					await deps.calendar.deleteLessonFromCalendar(actor, lessonId, {
+					await deleteLessonFromCalendarBestEffort(actor, lessonId, {
 						singleOccurrence: true,
 						occurrenceStartsAt: options.occurrenceStartsAt,
 					})
@@ -340,7 +372,7 @@ export function createLessonWorkflowService(
 				}
 			}
 
-			await deps.calendar.deleteLessonFromCalendar(actor, lessonId)
+			await deleteLessonFromCalendarBestEffort(actor, lessonId)
 			const deleted = await deps.lessons.deleteLesson(actor, lessonId)
 
 			if (options.applyToFuture && originalLesson) {
@@ -355,7 +387,7 @@ export function createLessonWorkflowService(
 						)
 				)
 				for (const candidate of candidates) {
-					await deps.calendar.deleteLessonFromCalendar(actor, candidate.id)
+					await deleteLessonFromCalendarBestEffort(actor, candidate.id)
 					await deps.lessons.deleteLesson(actor, candidate.id)
 				}
 			}
