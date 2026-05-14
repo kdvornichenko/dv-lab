@@ -201,9 +201,7 @@ export function useTeacherCrmCalendar({
 			.map((lesson) => lesson.id)
 		const retryableLessonIds = Array.from(
 			new Set([
-				...state.calendarSyncRecords
-					.filter((record) => record.status === 'failed' || record.status === 'not_synced')
-					.map((record) => record.lessonId),
+				...state.calendarSyncRecords.filter((record) => record.status === 'failed').map((record) => record.lessonId),
 				...missingSyncLessonIds,
 			])
 		).sort()
