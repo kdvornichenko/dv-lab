@@ -16,7 +16,7 @@ import { apiError, errorResponse, notFoundResponse } from '../http/errors'
 import { validateJson, validateParams, validateQuery } from '../http/validation'
 import { actorFromContext, requirePermission } from '../middleware/auth'
 import { lessonService, LessonServiceError } from '../services/lesson-service'
-import { lessonWorkflowService } from '../services/lesson-workflow-service'
+import { lessonWorkflowService, LessonWorkflowError } from '../services/lesson-workflow-service'
 
 export const lessonRoutes = new Hono()
 	.get('/', requirePermission('lessons', 'read'), validateQuery(listLessonsQuerySchema), async (context) => {
@@ -59,7 +59,17 @@ export const lessonRoutes = new Hono()
 		async (context) => {
 			const actor = actorFromContext(context)
 			const lessonId = context.req.param('lessonId')
-			const lesson = await lessonWorkflowService.deleteLesson(actor, lessonId, context.req.valid('query'))
+			let lesson: Awaited<ReturnType<typeof lessonWorkflowService.deleteLesson>>
+			try {
+				lesson = await lessonWorkflowService.deleteLesson(actor, lessonId, context.req.valid('query'))
+			} catch (error) {
+				if (error instanceof LessonWorkflowError && error.code === 'GOOGLE_CALENDAR_EVENT_NOT_FOUND') {
+					const body = apiError(error.code, error.message)
+					const requestId = context.get('requestId')
+					return context.json({ ...body, error: { ...body.error, ...(requestId ? { requestId } : {}) } }, 409)
+				}
+				throw error
+			}
 			if (!lesson) return notFoundResponse(context, 'Lesson not found')
 
 			const response: LessonMutationResponse = { ok: true, lesson }

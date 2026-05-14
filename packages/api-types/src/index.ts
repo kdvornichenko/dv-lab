@@ -425,6 +425,9 @@ export const deleteLessonQuerySchema = z.object({
 	applyToFuture: z
 		.preprocess((value) => (typeof value === 'string' ? value === 'true' : value), z.boolean())
 		.optional(),
+	skipCalendarDelete: z
+		.preprocess((value) => (typeof value === 'string' ? value === 'true' : value), z.boolean())
+		.optional(),
 })
 
 export const listLessonsQuerySchema = z.object({

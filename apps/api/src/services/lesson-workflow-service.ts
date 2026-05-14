@@ -12,6 +12,16 @@ type LessonWorkflowDeps = {
 	calendar: CalendarService
 }
 
+export class LessonWorkflowError extends Error {
+	constructor(
+		readonly code: 'GOOGLE_CALENDAR_EVENT_NOT_FOUND',
+		message: string
+	) {
+		super(message)
+		this.name = 'LessonWorkflowError'
+	}
+}
+
 const RECURRENCE_MATERIALIZATION_LIMIT = 520
 
 function addWeeks(isoDate: string, weeks: number) {
@@ -142,13 +152,42 @@ export function createLessonWorkflowService(
 		items: { lessonId: string; options?: Parameters<typeof syncLessonAutomatically>[2] }[]
 	) {
 		const concurrency = 4
+		await runInBatches(items, concurrency, (item) => syncLessonAutomatically(actor, item.lessonId, item.options))
+	}
+
+	async function runInBatches<T>(items: T[], concurrency: number, handler: (item: T) => Promise<void>) {
 		for (let index = 0; index < items.length; index += concurrency) {
-			await Promise.all(
-				items
-					.slice(index, index + concurrency)
-					.map((item) => syncLessonAutomatically(actor, item.lessonId, item.options))
-			)
+			await Promise.all(items.slice(index, index + concurrency).map((item) => handler(item)))
 		}
+	}
+
+	async function queueLessonCalendarSync(
+		actor: StoreScope,
+		lessonId: string,
+		options?: Parameters<typeof syncLessonAutomatically>[2]
+	) {
+		await deps.calendar.ensureCalendarSyncRecord(actor, lessonId)
+		void syncLessonAutomatically(actor, lessonId, options).catch((error) => {
+			console.warn('[teacher-crm] Background lesson calendar sync failed', {
+				lessonId,
+				message: error instanceof Error ? error.message : 'Unknown calendar sync error',
+			})
+		})
+	}
+
+	async function queueLessonsCalendarSync(
+		actor: StoreScope,
+		items: { lessonId: string; options?: Parameters<typeof syncLessonAutomatically>[2] }[]
+	) {
+		await runInBatches(items, 8, async (item) => {
+			await deps.calendar.ensureCalendarSyncRecord(actor, item.lessonId)
+		})
+		void syncLessonsAutomatically(actor, items).catch((error) => {
+			console.warn('[teacher-crm] Background lesson calendar sync failed', {
+				lessonIds: items.map((item) => item.lessonId),
+				message: error instanceof Error ? error.message : 'Unknown calendar sync error',
+			})
+		})
 	}
 
 	async function deleteLessonFromCalendarBestEffort(
@@ -160,6 +199,26 @@ export function createLessonWorkflowService(
 			await deps.calendar.deleteLessonFromCalendar(actor, lessonId, options)
 		} catch {
 			return
+		}
+	}
+
+	async function deleteLessonsFromCalendarBestEffort(actor: StoreScope, lessonIds: string[]) {
+		await runInBatches(lessonIds, 4, (lessonId) => deleteLessonFromCalendarBestEffort(actor, lessonId))
+	}
+
+	async function deleteLessonFromCalendarOrConfirmLocal(
+		actor: StoreScope,
+		lessonId: string,
+		options: DeleteLessonQuery,
+		calendarOptions?: Parameters<CalendarService['deleteLessonFromCalendar']>[2]
+	) {
+		if (options.skipCalendarDelete) return
+		const result = await deps.calendar.deleteLessonFromCalendar(actor, lessonId, calendarOptions)
+		if (result === 'missing') {
+			throw new LessonWorkflowError(
+				'GOOGLE_CALENDAR_EVENT_NOT_FOUND',
+				'Google Calendar event was not found. Confirm local deletion to remove this lesson from CRM only.'
+			)
 		}
 	}
 
@@ -186,7 +245,7 @@ export function createLessonWorkflowService(
 				studentIds: lesson.studentIds,
 			})
 			materialized.push(occurrenceLesson)
-			await syncLessonAutomatically(actor, occurrenceLesson.id, { repeatWeekly: false })
+			await queueLessonCalendarSync(actor, occurrenceLesson.id, { repeatWeekly: false })
 		}
 
 		return materialized
@@ -230,7 +289,7 @@ export function createLessonWorkflowService(
 						repeatWeekly: false,
 						repeatCount: 1,
 					})
-					await syncLessonAutomatically(actor, occurrenceLesson.id, { repeatWeekly: false })
+					await queueLessonCalendarSync(actor, occurrenceLesson.id, { repeatWeekly: false })
 				}
 				const lesson = await deps.lessons.createLesson(actor, {
 					...input,
@@ -239,7 +298,7 @@ export function createLessonWorkflowService(
 					repeatWeekly: true,
 					repeatCount: 1,
 				})
-				await syncLessonAutomatically(actor, lesson.id, { repeatWeekly: true })
+				await queueLessonCalendarSync(actor, lesson.id, { repeatWeekly: true })
 				return lesson
 			}
 
@@ -247,7 +306,7 @@ export function createLessonWorkflowService(
 				actor,
 				repeatedLessonInput({ ...input, status: autoStatusForStart(input.status, input.startsAt) }, 0)
 			)
-			await syncLessonAutomatically(actor, lesson.id, { repeatWeekly: input.repeatWeekly })
+			await queueLessonCalendarSync(actor, lesson.id, { repeatWeekly: input.repeatWeekly })
 			return lesson
 		},
 
@@ -333,7 +392,14 @@ export function createLessonWorkflowService(
 					if (updated) syncItems.push({ lessonId: updated.id })
 				}
 			}
-			await syncLessonsAutomatically(actor, syncItems)
+			const canDeferCalendarSync = syncItems.every(
+				(item) => !item.options?.singleOccurrence && !item.options?.recurrenceUntil && !item.options?.lessonOverride
+			)
+			if (canDeferCalendarSync) {
+				await queueLessonsCalendarSync(actor, syncItems)
+			} else {
+				await syncLessonsAutomatically(actor, syncItems)
+			}
 
 			return lesson
 		},
@@ -359,20 +425,20 @@ export function createLessonWorkflowService(
 
 			if (options.scope === 'current' && options.occurrenceStartsAt) {
 				if (originalLesson?.repeatWeekly) {
+					await deleteLessonFromCalendarOrConfirmLocal(actor, lessonId, options, {
+						singleOccurrence: true,
+						occurrenceStartsAt: options.occurrenceStartsAt,
+					})
 					await deps.lessons.upsertOccurrenceException(actor, {
 						lessonId,
 						occurrenceStartsAt: options.occurrenceStartsAt,
 						reason: 'deleted',
 					})
-					await deleteLessonFromCalendarBestEffort(actor, lessonId, {
-						singleOccurrence: true,
-						occurrenceStartsAt: options.occurrenceStartsAt,
-					})
 					return originalLesson
 				}
 			}
 
-			await deleteLessonFromCalendarBestEffort(actor, lessonId)
+			await deleteLessonFromCalendarOrConfirmLocal(actor, lessonId, options)
 			const deleted = await deps.lessons.deleteLesson(actor, lessonId)
 
 			if (options.applyToFuture && originalLesson) {
@@ -386,10 +452,13 @@ export function createLessonWorkflowService(
 							{ startsAt: candidate.startsAt, studentIds: candidate.studentIds }
 						)
 				)
-				for (const candidate of candidates) {
-					await deleteLessonFromCalendarBestEffort(actor, candidate.id)
+				await deleteLessonsFromCalendarBestEffort(
+					actor,
+					candidates.map((candidate) => candidate.id)
+				)
+				await runInBatches(candidates, 8, async (candidate) => {
 					await deps.lessons.deleteLesson(actor, candidate.id)
-				}
+				})
 			}
 
 			return deleted

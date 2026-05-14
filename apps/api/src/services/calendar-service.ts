@@ -69,6 +69,8 @@ type CalendarSyncOptions = {
 	lessonOverride?: Lesson
 }
 
+export type CalendarDeleteResult = 'deleted' | 'missing' | 'skipped'
+
 type CalendarImportResult = {
 	checked: number
 	updated: number
@@ -1101,19 +1103,19 @@ export const calendarService = {
 		scope: StoreScope,
 		lessonId: string,
 		options: Pick<CalendarSyncOptions, 'singleOccurrence' | 'occurrenceStartsAt'> = {}
-	): Promise<void> {
+	): Promise<CalendarDeleteResult> {
 		const db = getDb()
 		if (!db) {
 			if (!options.singleOccurrence) getMemoryStore().deleteCalendarSyncRecord(scope, lessonId)
-			return
+			return 'skipped'
 		}
 
 		const teacherId = await teacherProfileId(db, scope)
 		const sync = await getCalendarSyncEventRow(db, teacherId, lessonId)
-		if (!sync?.externalEventId) return
+		if (!sync?.externalEventId) return 'skipped'
 
 		const connection = await getCalendarConnectionRow(db, teacherId)
-		if (!connection || !hasGoogleCalendarGrant(connection.grantedScopes, connection.tokenAvailable)) return
+		if (!connection || !hasGoogleCalendarGrant(connection.grantedScopes, connection.tokenAvailable)) return 'skipped'
 
 		const calendarId = sync.externalCalendarId ?? connection.selectedCalendarId ?? 'primary'
 		const persistRefreshedToken = (accessToken: string, expiresAt: Date | null) =>
@@ -1134,7 +1136,7 @@ export const calendarService = {
 			})
 
 		try {
-			await withGoogleAccessToken(
+			return await withGoogleAccessToken(
 				connection,
 				async (accessToken) => {
 					if (options.singleOccurrence) {
@@ -1154,8 +1156,9 @@ export const calendarService = {
 								accessToken,
 								{ method: 'DELETE' }
 							)
+							return 'deleted'
 						}
-						return
+						return 'missing'
 					}
 
 					await googleJson<null>(
@@ -1163,11 +1166,12 @@ export const calendarService = {
 						accessToken,
 						{ method: 'DELETE' }
 					)
+					return 'deleted'
 				},
 				persistRefreshedToken
 			)
 		} catch (error) {
-			if (error instanceof GoogleCalendarRequestError && [404, 410].includes(error.status)) return
+			if (error instanceof GoogleCalendarRequestError && [404, 410].includes(error.status)) return 'missing'
 			await markGoogleConnectionIssue(db, teacherId, connection, error)
 			await upsertCalendarSyncEventRow(db, {
 				teacherId,

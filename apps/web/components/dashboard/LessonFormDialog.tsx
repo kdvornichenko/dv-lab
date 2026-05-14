@@ -234,7 +234,6 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 	)
 	const [errors, setErrors] = useState<LessonFormErrors>({})
 	const [isSubmitting, setIsSubmitting] = useState(false)
-	const [isCheckingCalendar, setIsCheckingCalendar] = useState(false)
 	const [calendarConflicts, setCalendarConflicts] = useState<CalendarBusyInterval[]>([])
 	const [calendarConflictCheckError, setCalendarConflictCheckError] = useState<string | null>(null)
 	const mode = lesson ? 'edit' : 'create'
@@ -250,19 +249,16 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 		if (!open || !onCheckCalendarConflicts) {
 			setCalendarConflicts([])
 			setCalendarConflictCheckError(null)
-			setIsCheckingCalendar(false)
 			return
 		}
 		const selectedStudent = selectableStudents.find((student) => student.id === values.studentId)
 		if (!selectedStudent || Object.keys(validate(values)).length > 0) {
 			setCalendarConflicts([])
 			setCalendarConflictCheckError(null)
-			setIsCheckingCalendar(false)
 			return
 		}
 
 		let cancelled = false
-		setIsCheckingCalendar(true)
 		setCalendarConflictCheckError(null)
 		const timeoutId = window.setTimeout(() => {
 			onCheckCalendarConflicts(toCalendarConflictCommand(values, selectedStudent, lesson?.id))
@@ -277,9 +273,6 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 						setCalendarConflicts([])
 						setCalendarConflictCheckError(error instanceof Error ? error.message : 'Calendar conflict check failed')
 					}
-				})
-				.finally(() => {
-					if (!cancelled) setIsCheckingCalendar(false)
 				})
 		}, 350)
 
@@ -306,11 +299,7 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 
 	const handleSubmit = async (event: FormSubmitEvent) => {
 		event.preventDefault()
-		if (isCheckingCalendar) return
 		const nextErrors = validate(values)
-		if (calendarConflictCheckError) {
-			nextErrors.startsAt = 'Calendar availability check failed. Try again before saving.'
-		}
 		setErrors(nextErrors)
 		if (Object.keys(nextErrors).length > 0) return
 		const selectedStudent = selectableStudents.find((student) => student.id === values.studentId)
@@ -522,7 +511,7 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 										<div className="min-w-0">
 											<p className="font-heading text-ink text-sm font-semibold">Google Calendar check failed</p>
 											<p className="text-ink-muted mt-1 text-xs">
-												Saving is paused until the busy-time check succeeds. Change the time or try again in a moment.
+												Google availability could not be checked. Saving is still allowed.
 											</p>
 										</div>
 									</div>
@@ -553,23 +542,9 @@ export const LessonFormDialog: FC<LessonFormDialogProps> = ({
 								<Button type="button" variant="secondary" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
 									Cancel
 								</Button>
-								<Button
-									type="submit"
-									disabled={
-										isSubmitting ||
-										isCheckingCalendar ||
-										Boolean(calendarConflictCheckError) ||
-										selectableStudents.length === 0
-									}
-								>
+								<Button type="submit" disabled={isSubmitting || selectableStudents.length === 0}>
 									<Save className="h-4 w-4" />
-									{isSubmitting
-										? 'Saving'
-										: isCheckingCalendar
-											? 'Checking calendar'
-											: mode === 'create'
-												? 'Save lesson'
-												: 'Save changes'}
+									{isSubmitting ? 'Saving' : mode === 'create' ? 'Save lesson' : 'Save changes'}
 								</Button>
 							</div>
 						</div>

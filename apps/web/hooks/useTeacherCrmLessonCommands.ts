@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 
-import { teacherCrmLessonApi } from '@/lib/crm/api'
+import { teacherCrmLessonApi, TeacherCrmApiError } from '@/lib/crm/api'
 
 import type {
 	CreateLessonInput,
@@ -57,7 +57,26 @@ export function useTeacherCrmLessonCommands({
 		async (lessonId: string, options?: DeleteLessonQuery) => {
 			await runCrmAction('Delete lesson', async () => {
 				await ensureCalendarTokens()
-				await teacherCrmLessonApi.deleteLesson(lessonId, options)
+				let deleted = false
+				try {
+					await teacherCrmLessonApi.deleteLesson(lessonId, options)
+					deleted = true
+				} catch (error) {
+					const isMissingGoogleEvent =
+						error instanceof TeacherCrmApiError && error.code === 'GOOGLE_CALENDAR_EVENT_NOT_FOUND'
+					if (!isMissingGoogleEvent) throw error
+					const shouldDeleteLocally = window.confirm(
+						'Google Calendar event was not found. Delete this lesson from CRM only?'
+					)
+					if (!shouldDeleteLocally) return
+					await teacherCrmLessonApi.deleteLesson(lessonId, {
+						...options,
+						scope: options?.scope ?? 'current',
+						skipCalendarDelete: true,
+					})
+					deleted = true
+				}
+				if (!deleted) return
 				const keepsRecurringSource = options?.scope === 'current' && Boolean(options.occurrenceStartsAt)
 				setState((current) => ({
 					...current,

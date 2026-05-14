@@ -18,6 +18,22 @@ import { createClient } from '@/lib/supabase/client'
 import type { CalendarBusyInterval, CalendarListEntry, CreateLessonInput } from '@teacher-crm/api-types'
 
 type RefreshTeacherCrm = (options?: { showLoading?: boolean; force?: boolean }) => Promise<void>
+type CalendarBusyCacheEntry =
+	| { expiresAt: number; busy: CalendarBusyInterval[]; promise?: never }
+	| { expiresAt: number; promise: Promise<CalendarBusyInterval[]>; busy?: never }
+
+const CALENDAR_BUSY_CACHE_TTL_MS = 30_000
+
+function calendarBusyCacheKey(calendarId: string, input: CreateLessonInput & { excludeLessonId?: string }) {
+	return JSON.stringify({
+		calendarId,
+		startsAt: input.startsAt,
+		durationMinutes: input.durationMinutes,
+		repeatWeekly: input.repeatWeekly,
+		repeatCount: input.repeatCount,
+		excludeLessonId: input.excludeLessonId ?? null,
+	})
+}
 
 export function useTeacherCrmCalendar({
 	calendarOptionsRef,
@@ -36,6 +52,7 @@ export function useTeacherCrmCalendar({
 	const lastCalendarImportAtRef = useRef(0)
 	const calendarImportFailureCountRef = useRef(0)
 	const calendarSyncRetryKeyRef = useRef<string | null>(null)
+	const calendarBusyCacheRef = useRef(new Map<string, CalendarBusyCacheEntry>())
 
 	const runCalendarAction = useCallback(async (source: string, action: () => Promise<void>) => {
 		try {
@@ -263,21 +280,52 @@ export function useTeacherCrmCalendar({
 
 	const checkCalendarConflicts = useCallback(
 		async (input: CreateLessonInput & { excludeLessonId?: string }): Promise<CalendarBusyInterval[]> => {
-			try {
-				const response = await teacherCrmCalendarApi.listBusyIntervals({
+			const selectedCalendarId = state.calendarConnection.selectedCalendarId
+			const canCheckCalendar =
+				state.calendarConnection.status === 'connected' &&
+				state.calendarConnection.tokenAvailable &&
+				Boolean(selectedCalendarId)
+			if (!canCheckCalendar || !selectedCalendarId) return []
+
+			const cacheKey = calendarBusyCacheKey(selectedCalendarId, input)
+			const cached = calendarBusyCacheRef.current.get(cacheKey)
+			if (cached && cached.expiresAt > Date.now()) {
+				if (cached.busy) return cached.busy
+				return cached.promise
+			}
+
+			const request = teacherCrmCalendarApi
+				.listBusyIntervals({
 					startsAt: input.startsAt,
 					durationMinutes: input.durationMinutes,
 					repeatWeekly: input.repeatWeekly,
 					repeatCount: input.repeatCount,
 					excludeLessonId: input.excludeLessonId,
 				})
-				return response.busy
-			} catch (error) {
-				reportCrmError('Check calendar conflicts', error)
-				throw error
-			}
+				.then((response) => {
+					calendarBusyCacheRef.current.set(cacheKey, {
+						expiresAt: Date.now() + CALENDAR_BUSY_CACHE_TTL_MS,
+						busy: response.busy,
+					})
+					return response.busy
+				})
+				.catch((error) => {
+					calendarBusyCacheRef.current.delete(cacheKey)
+					reportCrmError('Check calendar conflicts', error)
+					throw error
+				})
+			calendarBusyCacheRef.current.set(cacheKey, {
+				expiresAt: Date.now() + CALENDAR_BUSY_CACHE_TTL_MS,
+				promise: request,
+			})
+
+			return request
 		},
-		[]
+		[
+			state.calendarConnection.selectedCalendarId,
+			state.calendarConnection.status,
+			state.calendarConnection.tokenAvailable,
+		]
 	)
 
 	return {

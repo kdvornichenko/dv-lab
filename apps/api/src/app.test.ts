@@ -4,6 +4,7 @@ process.env.NODE_ENV = 'test'
 
 const { createApp } = await import('./app')
 const { googleJson, GoogleCalendarRequestError } = await import('./services/google-calendar-client')
+const { createLessonWorkflowService, LessonWorkflowError } = await import('./services/lesson-workflow-service')
 const app = createApp({ storeNamespace: 'api-smoke', db: { db: null } })
 
 const health = await app.request('/healthz')
@@ -24,6 +25,50 @@ await assert.rejects(
 		return true
 	}
 )
+
+const missingGoogleLesson = {
+	id: 'les_google_missing',
+	title: 'Missing Google occurrence',
+	startsAt: '2026-05-09T07:00:00.000Z',
+	durationMinutes: 60,
+	repeatWeekly: true,
+	status: 'planned',
+	studentIds: ['stu_google_missing'],
+	createdAt: '2026-05-01T00:00:00.000Z',
+	updatedAt: '2026-05-01T00:00:00.000Z',
+}
+let missingGoogleLocalExceptionCreated = false
+const missingGoogleWorkflow = createLessonWorkflowService({
+	lessons: {
+		listLessons: async () => [missingGoogleLesson],
+		upsertOccurrenceException: async () => {
+			missingGoogleLocalExceptionCreated = true
+		},
+		deleteLesson: async () => missingGoogleLesson,
+	} as never,
+	calendar: {
+		deleteLessonFromCalendar: async () => 'missing',
+	} as never,
+})
+await assert.rejects(
+	() =>
+		missingGoogleWorkflow.deleteLesson({ teacherId: 'teacher_google_missing' }, missingGoogleLesson.id, {
+			scope: 'current',
+			occurrenceStartsAt: missingGoogleLesson.startsAt,
+		}),
+	(error: unknown) => {
+		assert.ok(error instanceof LessonWorkflowError)
+		assert.equal(error.code, 'GOOGLE_CALENDAR_EVENT_NOT_FOUND')
+		return true
+	}
+)
+assert.equal(missingGoogleLocalExceptionCreated, false)
+await missingGoogleWorkflow.deleteLesson({ teacherId: 'teacher_google_missing' }, missingGoogleLesson.id, {
+	scope: 'current',
+	occurrenceStartsAt: missingGoogleLesson.startsAt,
+	skipCalendarDelete: true,
+})
+assert.equal(missingGoogleLocalExceptionCreated, true)
 
 const unauthenticated = await app.request('/students')
 assert.equal(unauthenticated.status, 401)
