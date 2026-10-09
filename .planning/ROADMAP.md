@@ -42,7 +42,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
   4. `https://dv-lab.dev` serves the web app and the API health check from the VPS over IPv4 and IPv6, only the proxy ports are reachable from outside, HTTP/3 is off, and `ielts.dv-lab.dev` still serves from Vercel.
   5. Postgres backups run on a schedule and the owner has restored the latest one once; the API stops on `SIGTERM` within a bounded time with open WebSocket connections, writes structured logs with request ids, and migrations run as a separate step under the migration role.
 
-**Plans**: 11/13 plans executed
+**Plans**: 13/13 plans executed
 
 Plans:
 **Wave 1**
@@ -69,10 +69,10 @@ Plans:
 - [x] 17-10-PLAN.md — CI on PostgreSQL 18, Dockerfiles, GHCR images, knip, agent docs (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 17-12-PLAN.md — PR green, merge, images published to GHCR (owner) (W7)
+- [x] 17-12-PLAN.md — PR green, merge, images published to GHCR (owner) (W7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 17-13-PLAN.md — DNS cutover, first deploy, backups and restore, outside checks (owner) (W8)
+- [x] 17-13-PLAN.md — DNS cutover, first deploy, backups and restore, outside checks (owner) (W8)
 
 **Notes**: Server steps are run by the owner through the separate "Server guy" session; agents have no server access. Traps and the bio-exam reference setup are in `~/.claude/servers/dv-lab.md`.
 
@@ -222,7 +222,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 17. Skeleton on the Server | v2.0 | 11/13 | In Progress|  |
+| 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 0/TBD | Not started | - |
 | 19. Student Cards and Vault Import | v2.0 | 0/TBD | Not started | - |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
