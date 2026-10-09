@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import type { StudentAccount } from './auth.ts'
 import { isDisplayNameLength, normalizeDisplayName } from './identity.ts'
 
 export const SECTION_KINDS = [
@@ -133,6 +134,25 @@ export const linkStudentAccountRequest = z.object({
 export const deactivateStudentAccountRequest = z.object({
 	accountId: z.uuid(),
 })
+
+export type StudentDetail = {
+	id: string
+	displayName: string
+	status: StudentStatus
+	rateMinor: number | null
+	currency: Currency | null
+	defaultLessonMinutes: number
+	balanceMinutes: number | null
+	parent: string | null
+	level: string | null
+	goals: string | null
+	timeZone: string | null
+	openingBalance: { minutes: number; on: string } | null
+	archivedAt: string | null
+	account: StudentAccount | null
+}
+
+export type StudentResponse = { student: StudentDetail }
 
 export type StudentSection = { kind: SectionKind; body: string; updatedAt: string | null }
 

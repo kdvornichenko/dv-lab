@@ -1,10 +1,10 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 
-import type { AccountSummary, StudentRow } from '@dv-lab/contracts'
+import type { AccountSummary, StudentAccount, StudentRow } from '@dv-lab/contracts'
 import { accounts, violatesUnique } from '@dv-lab/db'
-import type { Database } from '@dv-lab/db'
+import type { Database, DbExecutor } from '@dv-lab/db'
 
-import { studentRowColumns, toStudentRow } from './account-rows.ts'
+import { studentAccountColumns, studentRowColumns, toStudentAccount, toStudentRow } from './account-rows.ts'
 import { generatePassword, hashPassword, verifyPassword } from './passwords.ts'
 import { issueSession, revokeAccountSessions } from './sessions.ts'
 import type { CredentialCheck, SignIn } from './sign-in.ts'
@@ -90,6 +90,16 @@ export async function listStudents(db: Database): Promise<StudentRow[]> {
 		.where(eq(accounts.role, 'student'))
 		.orderBy(desc(accounts.createdAt))
 	return rows.map(toStudentRow)
+}
+
+export async function findStudentAccount(executor: DbExecutor, studentId: string): Promise<StudentAccount | null> {
+	const [row] = await executor
+		.select(studentAccountColumns)
+		.from(accounts)
+		.where(and(eq(accounts.studentId, studentId), eq(accounts.role, 'student')))
+		.orderBy(sql`${accounts.status} = 'active' desc`, desc(accounts.updatedAt), desc(accounts.createdAt))
+		.limit(1)
+	return row ? toStudentAccount(row) : null
 }
 
 export function deactivateStudent(db: Database, studentId: string): Promise<DeactivateStudentResult> {

@@ -75,6 +75,14 @@ export type SignInResponse = { account: AccountSummary }
 
 export type MeResponse = { account: AccountSummary; renewDue: boolean }
 
+export type StudentAccount = {
+	id: string
+	login: string
+	displayName: string
+	status: AccountStatus
+	createdAt: string
+}
+
 export type StudentRow = {
 	id: string
 	login: string
