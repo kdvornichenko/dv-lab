@@ -4,8 +4,10 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"build": "tsdown",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run"
+		"test": "vitest run",
+		"db:migrate": "node --env-file-if-exists=../../.env src/migrate.ts"
 	},
 	"dependencies": {
 		"@dv-lab/db": "workspace:*",
