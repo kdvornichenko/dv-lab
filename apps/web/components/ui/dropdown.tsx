@@ -138,7 +138,7 @@ const Dropdown = forwardRef<HTMLDivElement, DropdownProps>(
 					<AnimatePresence>
 						{checkedRect && (
 							<motion.div
-								className={`absolute ${shape.bg} bg-active pointer-events-none`}
+								className={`absolute ${shape.bg} pointer-events-none bg-active`}
 								initial={false}
 								animate={{
 									top: checkedRect.top,
@@ -452,7 +452,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
 											<AnimatePresence>
 												{checkedRect && (
 													<motion.div
-														className={`absolute ${shape.bg} bg-active pointer-events-none`}
+														className={`absolute ${shape.bg} pointer-events-none bg-active`}
 														initial={false}
 														animate={{
 															top: checkedRect.top,
@@ -555,7 +555,7 @@ const DropdownLabel = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>
 		<div
 			ref={ref}
 			className={cn(
-				'text-muted-foreground shrink-0 px-2 py-1.5',
+				'shrink-0 px-2 py-1.5 text-muted-foreground',
 				typeClass('caption', compact ? 'compact' : 'default'),
 				className
 			)}
@@ -565,7 +565,7 @@ const DropdownLabel = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>
 })
 DropdownLabel.displayName = 'DropdownLabel'
 const DropdownSeparator = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-	<div ref={ref} role="separator" className={cn('bg-border/60 -mx-1 my-1 h-px shrink-0', className)} {...props} />
+	<div ref={ref} role="separator" className={cn('-mx-1 my-1 h-px shrink-0 bg-border/60', className)} {...props} />
 ))
 DropdownSeparator.displayName = 'DropdownSeparator'
 export {

@@ -56,7 +56,7 @@ export function FluidHoverHighlight(props: FluidHoverHighlightProps) {
 				<motion.div
 					key={session}
 					data-slot="fluid-hover-highlight"
-					className={cn('bg-hover pointer-events-none absolute top-0 left-0', className)}
+					className={cn('pointer-events-none absolute top-0 left-0 bg-hover', className)}
 					initial={{ opacity: 0, ...toTarget(from ?? rect) }}
 					animate={{ opacity: 1, ...toTarget(rect) }}
 					exit={{ opacity: 0, transition: spring.fast.exit }}

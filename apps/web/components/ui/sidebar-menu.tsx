@@ -360,7 +360,7 @@ function useMenuScope(
 				{activeRects.map(({ key, rect }) => (
 					<motion.div
 						key={key}
-						className={`absolute ${shape.bg} bg-active pointer-events-none`}
+						className={`absolute ${shape.bg} pointer-events-none bg-active`}
 						initial={false}
 						animate={{
 							top: rect.top,
@@ -645,7 +645,7 @@ export const sidebarMenuButtonVariants = cva(
 		variants: {
 			variant: {
 				default: '',
-				outline: 'border-border bg-background border',
+				outline: 'border border-border bg-background',
 			},
 		},
 		defaultVariants: { variant: 'default' },
@@ -733,8 +733,8 @@ const SidebarMenuButton = forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
 										? 'bg-foreground/60'
 										: 'bg-muted-foreground/50'
 									: lit
-										? 'border-foreground/60 border'
-										: 'border-muted-foreground/50 border'
+										? 'border border-foreground/60'
+										: 'border border-muted-foreground/50'
 							)}
 						/>
 					</span>
@@ -800,14 +800,14 @@ const SidebarMenuAction = forwardRef<HTMLButtonElement, SidebarMenuActionProps>(
 					'data-show-on-hover': showOnHover ? '' : undefined,
 					className: cn(
 						inCluster
-							? 'text-muted-foreground relative flex size-6 shrink-0 items-center justify-center outline-none'
-							: 'text-muted-foreground absolute right-1.5 z-10 flex size-6 items-center justify-center outline-none',
+							? 'relative flex size-6 shrink-0 items-center justify-center text-muted-foreground outline-none'
+							: 'absolute right-1.5 z-10 flex size-6 items-center justify-center text-muted-foreground outline-none',
 						!inCluster &&
 							(item?.isSubRow
 								? 'group-has-[>[data-sidebar=menu-badge]]/menu-sub-item:right-8.5'
 								: 'group-has-[>[data-sidebar=menu-badge]]/menu-item:right-8.5'),
 						!inCluster && (item?.isSubRow || sizeClasses.variant === 'compact' ? 'top-0.5' : 'top-1'),
-						'hover:bg-hover hover:text-foreground transition-[color,background-color,opacity] duration-80',
+						'transition-[color,background-color,opacity] duration-80 hover:bg-hover hover:text-foreground',
 						'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
 						'[&_svg]:size-[var(--icon-size)] [&_svg]:shrink-0 [&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 hover:[&_svg]:stroke-[2]',
 						shape.item,
@@ -918,11 +918,11 @@ const SidebarMenuSkeleton = forwardRef<HTMLDivElement, SidebarMenuSkeletonProps>
 				{...props}
 			>
 				{showIcon && (
-					<div data-sidebar="menu-skeleton-icon" className="bg-hover size-4 shrink-0 animate-pulse rounded-md" />
+					<div data-sidebar="menu-skeleton-icon" className="size-4 shrink-0 animate-pulse rounded-md bg-hover" />
 				)}
 				<div
 					data-sidebar="menu-skeleton-text"
-					className="bg-hover h-4 flex-1 animate-pulse rounded-md"
+					className="h-4 flex-1 animate-pulse rounded-md bg-hover"
 					style={{ maxWidth: width }}
 				/>
 			</div>
@@ -978,7 +978,7 @@ const SidebarMenuSub = forwardRef<HTMLUListElement, SidebarMenuSubProps>(
 					data-sidebar="menu-sub"
 					data-state={open ? 'open' : 'closed'}
 					aria-hidden={open ? undefined : true}
-					className={cn('border-border relative ml-[15px] flex min-w-0 flex-col border-l pl-2 select-none', className)}
+					className={cn('relative ml-[15px] flex min-w-0 flex-col border-l border-border pl-2 select-none', className)}
 					{...props}
 				>
 					{children}

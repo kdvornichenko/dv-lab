@@ -123,7 +123,7 @@ function Tooltip({
 								>
 									<motion.div
 										className={cn(
-											'bg-foreground text-background px-2 py-1 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)]',
+											'bg-foreground px-2 py-1 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)] text-background',
 											'[text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both]:py-2',
 											shape.bg,
 											className

@@ -170,7 +170,7 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 											render={
 												<Button variant="ghost" size="icon-sm" className="absolute top-3 right-3">
 													<XIcon />
-													<span className="sr-only">Закрыть</span>
+													<span className="sr-only">Close</span>
 												</Button>
 											}
 										/>

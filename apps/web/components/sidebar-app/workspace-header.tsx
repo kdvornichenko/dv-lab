@@ -32,7 +32,7 @@ export function SidebarWorkspaceHeader({ name, tile, menu, checkedIndex }: Sideb
 	const triggerFade = `[&>span:first-child]:hidden [&_svg]:size-4 transition-opacity duration-80 ${isPeeking ? 'opacity-100' : 'pointer-events-none opacity-0'}`
 	const nameSpan = (
 		<span
-			className="text-foreground min-w-0 truncate text-[length:var(--fs-body,13px)] leading-[var(--lh-body,20px)]"
+			className="min-w-0 truncate text-[length:var(--fs-body,13px)] leading-[var(--lh-body,20px)] text-foreground"
 			style={{ fontVariationSettings: fontWeights.semibold }}
 		>
 			{name}
@@ -87,7 +87,7 @@ export function WorkspaceTile({ children, className }: { children: ReactNode; cl
 	return (
 		<span
 			className={cn(
-				'bg-foreground text-background flex size-5 shrink-0 items-center justify-center text-[length:var(--fs-micro-compact,10px)] leading-[var(--lh-micro-compact,12px)]',
+				'flex size-5 shrink-0 items-center justify-center bg-foreground text-[length:var(--fs-micro-compact,10px)] leading-[var(--lh-micro-compact,12px)] text-background',
 				shape.bgRadius >= 20 ? 'rounded-full' : 'rounded-md',
 				className
 			)}

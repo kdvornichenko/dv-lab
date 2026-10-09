@@ -535,7 +535,7 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 					<>
 						<button
 							type="button"
-							aria-label="Показать боковую панель"
+							aria-label="Show sidebar"
 							aria-expanded={isPeeking}
 							className={cn(
 								'group/peek-strip absolute inset-y-0 z-40 w-3 cursor-pointer outline-none',
@@ -556,7 +556,7 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 							<span
 								aria-hidden="true"
 								className={cn(
-									'bg-border absolute inset-y-0 w-px opacity-0 transition-opacity duration-80 group-hover/peek-strip:opacity-100 group-focus-visible/peek-strip:opacity-100',
+									'absolute inset-y-0 w-px bg-border opacity-0 transition-opacity duration-80 group-hover/peek-strip:opacity-100 group-focus-visible/peek-strip:opacity-100',
 									side === 'left' ? 'left-0' : 'right-0'
 								)}
 							/>
@@ -620,7 +620,7 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 									'flex h-full min-h-0 w-full flex-col',
 									bordered &&
 										variant === 'sidebar' &&
-										(side === 'left' ? 'border-border border-r' : 'border-border border-l')
+										(side === 'left' ? 'border-r border-border' : 'border-l border-border')
 								)}
 							>
 								{children}
@@ -655,7 +655,7 @@ SidebarShell.displayName = 'SidebarShell'
 export type SidebarTriggerProps = ButtonProps
 function ShortcutKbd({ children }: { children: ReactNode }) {
 	return (
-		<kbd className="border-background/30 text-background -my-1 flex h-4 min-w-4 items-center justify-center rounded border px-1 font-sans text-[length:var(--fs-micro-compact,10px)] leading-[var(--lh-micro-compact,12px)]">
+		<kbd className="-my-1 flex h-4 min-w-4 items-center justify-center rounded border border-background/30 px-1 font-sans text-[length:var(--fs-micro-compact,10px)] leading-[var(--lh-micro-compact,12px)] text-background">
 			{children}
 		</kbd>
 	)
@@ -682,7 +682,7 @@ const SidebarTrigger = forwardRef<HTMLButtonElement, SidebarTriggerProps>(
 				content={
 					<span className="flex items-center gap-1.5">
 						<span className="[text-box:trim-both_cap_alphabetic]">
-							{collapsed ? 'Развернуть боковую панель' : 'Свернуть боковую панель'}
+							{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
 						</span>
 						<ShortcutKbd>{shortcutKey}</ShortcutKbd>
 					</span>
@@ -693,7 +693,7 @@ const SidebarTrigger = forwardRef<HTMLButtonElement, SidebarTriggerProps>(
 					variant="ghost"
 					size={size ?? iconSize}
 					data-sidebar="trigger"
-					aria-label="Переключить боковую панель"
+					aria-label="Toggle sidebar"
 					onClick={(event) => {
 						onClick?.(event)
 						toggleSidebar()
@@ -793,11 +793,11 @@ const SidebarRail = forwardRef<HTMLButtonElement, SidebarRailProps>(({ className
 			content={
 				<span className="flex flex-col items-start gap-2">
 					<span className="[text-box:trim-both_cap_alphabetic]">
-						<span style={semibold}>Потяните</span>, чтобы изменить ширину
+						<span style={semibold}>Drag</span> to resize
 					</span>
 					<span className="flex items-center gap-1.5">
 						<span className="[text-box:trim-both_cap_alphabetic]">
-							<span style={semibold}>Нажмите</span>, чтобы свернуть
+							<span style={semibold}>Click</span> to collapse
 						</span>
 						<ShortcutKbd>{shortcutKey}</ShortcutKbd>
 					</span>
@@ -812,7 +812,7 @@ const SidebarRail = forwardRef<HTMLButtonElement, SidebarRailProps>(({ className
 				}}
 				type="button"
 				data-sidebar="rail"
-				aria-label="Изменить ширину или свернуть боковую панель"
+				aria-label="Resize or collapse the sidebar"
 				tabIndex={-1}
 				onPointerDown={onPointerDown}
 				onPointerMove={onPointerMove}
@@ -821,7 +821,7 @@ const SidebarRail = forwardRef<HTMLButtonElement, SidebarRailProps>(({ className
 				className={cn(
 					'absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none outline-none',
 					side === 'left' ? 'right-0' : 'left-0',
-					'hover:after:bg-foreground/25 after:absolute after:inset-y-0 after:w-px after:bg-transparent after:transition-colors after:duration-80',
+					'after:absolute after:inset-y-0 after:w-px after:bg-transparent after:transition-colors after:duration-80 hover:after:bg-foreground/25',
 					tooltipOpen && 'after:bg-foreground/25',
 					side === 'left' ? 'after:right-0' : 'after:left-0',
 					className
@@ -840,7 +840,7 @@ const SidebarInset = forwardRef<HTMLElement, SidebarInsetProps>(({ className, ..
 			ref={ref}
 			data-slot="sidebar-inset"
 			className={cn(
-				'bg-background relative flex min-h-0 w-full min-w-0 flex-1 flex-col',
+				'relative flex min-h-0 w-full min-w-0 flex-1 flex-col bg-background',
 				'peer-data-[variant=inset]:m-2 peer-data-[variant=inset]:peer-data-[side=left]:ml-0 peer-data-[variant=inset]:peer-data-[side=right]:mr-0',
 				'peer-data-[variant=inset]:peer-data-[state=collapsed]:peer-data-[side=left]:ml-2 peer-data-[variant=inset]:peer-data-[state=collapsed]:peer-data-[side=right]:mr-2',
 				'transition-[margin] duration-80',
@@ -862,7 +862,7 @@ const SidebarInput = forwardRef<HTMLInputElement, SidebarInputProps>(({ classNam
 			ref={ref}
 			data-sidebar="input"
 			className={cn(
-				'text-foreground placeholder:text-muted-foreground w-full bg-transparent px-3 outline-none',
+				'w-full bg-transparent px-3 text-foreground outline-none placeholder:text-muted-foreground',
 				'ring-1 ring-transparent transition-[background-color,box-shadow] duration-80',
 				'hover:bg-muted/50 hover:ring-border',
 				'focus:bg-card focus:ring-border',
@@ -897,7 +897,7 @@ const SidebarSeparator = forwardRef<HTMLDivElement, SidebarSectionProps>(({ clas
 		data-sidebar="separator"
 		role="separator"
 		aria-orientation="horizontal"
-		className={cn('bg-border mx-2 h-px shrink-0', className)}
+		className={cn('mx-2 h-px shrink-0 bg-border', className)}
 		{...props}
 	/>
 ))
@@ -1060,8 +1060,8 @@ const SidebarGroupLabel = forwardRef<HTMLDivElement, SidebarGroupLabelProps>(
 								? ({ '--group-actions-pad': `${group.actionsCount * 28 + 6}px` } as CSSProperties)
 								: undefined,
 						className: cn(
-							'text-muted-foreground flex h-8 w-full shrink-0 cursor-pointer items-center gap-2 px-2 text-left outline-none select-none',
-							'hover:text-muted-foreground transition-colors duration-80',
+							'flex h-8 w-full shrink-0 cursor-pointer items-center gap-2 px-2 text-left text-muted-foreground outline-none select-none',
+							'transition-colors duration-80 hover:text-muted-foreground',
 							group.actionsCount > 0 && 'pr-[var(--group-actions-pad)]',
 							'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
 							shape.item,
@@ -1098,7 +1098,7 @@ const SidebarGroupLabel = forwardRef<HTMLDivElement, SidebarGroupLabelProps>(
 				props={{
 					'data-sidebar': 'group-label',
 					className: cn(
-						'text-muted-foreground flex h-8 shrink-0 items-center gap-2 px-2 outline-none',
+						'flex h-8 shrink-0 items-center gap-2 px-2 text-muted-foreground outline-none',
 						typeClass('caption', sizeVariant),
 						className
 					),
@@ -1132,9 +1132,9 @@ const SidebarGroupAction = forwardRef<HTMLButtonElement, SidebarGroupActionProps
 					'data-sidebar': 'group-action',
 					className: cn(
 						inCluster
-							? 'text-muted-foreground relative flex size-6 items-center justify-center outline-none'
-							: 'text-muted-foreground absolute top-3 right-3.5 flex size-6 items-center justify-center outline-none',
-						'hover:bg-hover hover:text-foreground transition-colors duration-80',
+							? 'relative flex size-6 items-center justify-center text-muted-foreground outline-none'
+							: 'absolute top-3 right-3.5 flex size-6 items-center justify-center text-muted-foreground outline-none',
+						'transition-colors duration-80 hover:bg-hover hover:text-foreground',
 						'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
 						'[&_svg]:size-[var(--icon-size)] [&_svg]:shrink-0 [&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 hover:[&_svg]:stroke-[2]',
 						shape.item,

@@ -31,7 +31,7 @@ const badgeVariants = cva('inline-flex items-center whitespace-nowrap', {
 	variants: {
 		variant: {
 			solid: '',
-			dot: 'border-border text-foreground border',
+			dot: 'border border-border text-foreground',
 		},
 		size: {
 			default: 'h-6 gap-1.5 px-2.5 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)]',

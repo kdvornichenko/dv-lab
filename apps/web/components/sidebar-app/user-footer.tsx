@@ -19,14 +19,14 @@ export function SidebarUserFooter({ name, avatar, menu, className }: SidebarUser
 	const icons = useIcons()
 	const ChevronsUpDown = icons['chevrons-up-down']
 	return (
-		<SidebarMenu aria-label="User" className={cn(className)}>
+		<SidebarMenu aria-label="Account" className={cn(className)}>
 			<SidebarMenuItem>
 				<DropdownMenu>
 					<DropdownTrigger
 						render={
-							<SidebarMenuButton aria-label="Open user menu">
+							<SidebarMenuButton aria-label="Open account menu">
 								<span className="-mr-0.5 -ml-0.5 flex size-5 shrink-0 items-center justify-center">{avatar}</span>
-								<span className="text-foreground min-w-0 truncate text-[length:var(--fs-body,13px)] leading-[var(--lh-body,20px)]">
+								<span className="min-w-0 truncate text-[length:var(--fs-body,13px)] leading-[var(--lh-body,20px)] text-foreground">
 									{name}
 								</span>
 								<span className="-mr-0.5 ml-auto flex size-6 shrink-0 items-center justify-center">

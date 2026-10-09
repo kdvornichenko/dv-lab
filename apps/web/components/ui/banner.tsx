@@ -265,7 +265,7 @@ const Banner = forwardRef<HTMLDivElement, BannerProps>(
 				data-contrast={contrast}
 				data-variant={variant}
 				className={cn(
-					'group/banner text-foreground @container/banner relative grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center',
+					'group/banner @container/banner relative grid w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center text-foreground',
 					'has-data-[slot=banner-description]:items-start',
 					compact ? 'p-3' : 'p-4',
 					!fixed && shape.container,
@@ -304,7 +304,7 @@ const Banner = forwardRef<HTMLDivElement, BannerProps>(
 						onClick={handleDismiss}
 						aria-label={dismissLabel}
 						className={cn(
-							'text-muted-foreground hover:bg-hover hover:text-foreground col-start-4 row-start-1 flex size-7 cursor-pointer items-center justify-center transition-colors duration-80 outline-none focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
+							'col-start-4 row-start-1 flex size-7 cursor-pointer items-center justify-center text-muted-foreground transition-colors duration-80 outline-none hover:bg-hover hover:text-foreground focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
 							compact ? '-my-[5px] -mr-1.5 ml-1.5' : '-my-1 -mr-1.5 ml-2',
 							shape.button
 						)}
@@ -335,7 +335,7 @@ const BannerTitle = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagrap
 				ref={ref}
 				data-slot="banner-title"
 				className={cn(
-					'text-foreground col-start-2 row-start-1 min-w-0',
+					'col-start-2 row-start-1 min-w-0 text-foreground',
 					typeClass('subtitle', compact ? 'compact' : 'default'),
 					className
 				)}
@@ -354,7 +354,7 @@ const BannerDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLPa
 				ref={ref}
 				data-slot="banner-description"
 				className={cn(
-					'text-foreground col-start-2 row-start-2 mt-0.5 min-w-0',
+					'col-start-2 row-start-2 mt-0.5 min-w-0 text-foreground',
 					typeClass('subtitle', compact ? 'compact' : 'default'),
 					className
 				)}

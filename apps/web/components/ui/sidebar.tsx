@@ -84,7 +84,7 @@ function SidebarSheet({ side, open, onClose, children }: SidebarSheetProps) {
 				/>
 
 				<DialogPrimitive.Popup
-					aria-label="Боковая панель"
+					aria-label="Sidebar"
 					initialFocus={panelRef}
 					render={(popupProps) => {
 						const {
@@ -178,7 +178,7 @@ const Sidebar = forwardRef<HTMLDivElement, SidebarProps>(
 							'flex h-full min-h-0 w-full flex-col',
 							bordered &&
 								variant === 'sidebar' &&
-								(side === 'left' ? 'border-border border-r' : 'border-border border-l')
+								(side === 'left' ? 'border-r border-border' : 'border-l border-border')
 						)}
 					>
 						{children}

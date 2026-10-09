@@ -204,7 +204,7 @@ const DropdownSearch = forwardRef<HTMLInputElement, DropdownSearchProps>(
 		return (
 			<div
 				className={cn(
-					'group/search border-border/60 sticky top-0 z-20 -mx-1 -mt-1 mb-0.5 flex shrink-0 items-center border-b',
+					'group/search sticky top-0 z-20 -mx-1 -mt-1 mb-0.5 flex shrink-0 items-center border-b border-border/60',
 					SURFACE_BG[surface],
 					sizeClasses.control,
 					sizeClasses.gap,
@@ -215,7 +215,7 @@ const DropdownSearch = forwardRef<HTMLInputElement, DropdownSearchProps>(
 				<SearchIcon
 					size={sizeClasses.icon}
 					strokeWidth={1.5}
-					className="text-muted-foreground group-focus-within/search:text-foreground shrink-0 transition-[color,stroke-width] duration-80 group-focus-within/search:stroke-[2]"
+					className="shrink-0 text-muted-foreground transition-[color,stroke-width] duration-80 group-focus-within/search:stroke-[2] group-focus-within/search:text-foreground"
 				/>
 				<input
 					ref={(node) => {
@@ -233,7 +233,7 @@ const DropdownSearch = forwardRef<HTMLInputElement, DropdownSearchProps>(
 					onKeyDown={handleKeyDown}
 					placeholder={placeholder}
 					className={cn(
-						'text-foreground placeholder:text-muted-foreground min-w-0 flex-1 rounded-none bg-transparent font-[inherit] outline-none',
+						'min-w-0 flex-1 rounded-none bg-transparent font-[inherit] text-foreground outline-none placeholder:text-muted-foreground',
 						sizeClasses.field,
 						compact ? 'leading-5' : 'leading-6'
 					)}
@@ -251,7 +251,7 @@ const DropdownEmpty = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>
 			ref={ref}
 			role="status"
 			aria-live="polite"
-			className={cn('text-muted-foreground px-2 py-6 text-center', sizeClasses.text, className)}
+			className={cn('px-2 py-6 text-center text-muted-foreground', sizeClasses.text, className)}
 			{...props}
 		/>
 	)

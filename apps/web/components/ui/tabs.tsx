@@ -214,7 +214,7 @@ const TabsList = forwardRef<HTMLDivElement, TabsListProps>(({ children, classNam
 					setHoveredIndex(null)
 				}}
 				className={cn(
-					'bg-muted relative inline-flex items-center select-none',
+					'relative inline-flex items-center bg-muted select-none',
 					sizeClasses.segmentPad,
 					shape.container,
 					className
@@ -242,7 +242,7 @@ const TabsList = forwardRef<HTMLDivElement, TabsListProps>(({ children, classNam
 				<AnimatePresence>
 					{hoverRect && !isHoveringSelected && selectedRect && (
 						<motion.div
-							className={cn('bg-hover pointer-events-none absolute', shape.bg)}
+							className={cn('pointer-events-none absolute bg-hover', shape.bg)}
 							initial={{
 								left: selectedRect.left,
 								width: selectedRect.width,
