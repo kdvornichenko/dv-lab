@@ -24,6 +24,7 @@ import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
 import { RecordPaymentDialog } from './record-payment-dialog'
+import { VocabularyTab } from './vocabulary-tab'
 
 type ReadState =
 	{ kind: 'loading' } | { kind: 'error' } | { kind: 'not_found' } | { kind: 'ready'; student: StudentDetail }
@@ -52,9 +53,10 @@ function BackButton() {
 function SectionTabs({ children, disabled }: { children: ReactNode; disabled: boolean }) {
 	return (
 		<Tabs defaultValue="overview">
-			<TabsList aria-label="Student sections">
+			<TabsList aria-label="Student sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
 				<TabItem value="overview" label="Overview" disabled={disabled} />
 				<TabItem value="notes" label="Notes" disabled={disabled} />
+				<TabItem value="vocabulary" label="Vocabulary" disabled={disabled} />
 				<TabItem value="payments" label="Payments" disabled={disabled} />
 			</TabsList>
 			<TabPanel value="overview" className="mt-4">
@@ -243,9 +245,10 @@ export function StudentProfile({ id }: { id: string }) {
 				}
 			/>
 			<Tabs value={tab} onValueChange={setTab}>
-				<TabsList aria-label="Student sections">
+				<TabsList aria-label="Student sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
 					<TabItem value="overview" label="Overview" />
 					<TabItem value="notes" label="Notes" />
+					<TabItem value="vocabulary" label="Vocabulary" />
 					<TabItem value="payments" label="Payments" />
 				</TabsList>
 				<TabPanel value="overview" className="mt-4">
@@ -253,6 +256,9 @@ export function StudentProfile({ id }: { id: string }) {
 				</TabPanel>
 				<TabPanel value="notes" className="mt-4">
 					<NotesTab student={student} drafts={drafts} onDraftChange={changeDraft} />
+				</TabPanel>
+				<TabPanel value="vocabulary" className="mt-4">
+					<VocabularyTab student={student} />
 				</TabPanel>
 				<TabPanel value="payments" className="mt-4">
 					<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
