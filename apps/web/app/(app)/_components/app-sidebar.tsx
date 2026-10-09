@@ -1,13 +1,16 @@
 'use client'
 
+import { UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { SidebarSearchField } from '@/components/sidebar-app/search-field'
+import { SidebarUserFooter } from '@/components/sidebar-app/user-footer'
 import { SidebarWorkspaceHeader, WorkspaceTile } from '@/components/sidebar-app/workspace-header'
 import {
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
@@ -16,9 +19,16 @@ import {
 	useSidebar,
 } from '@/components/ui/sidebar'
 
+import type { AccountSummary } from '@dv-lab/contracts'
+
 import { isSectionActive, sections } from './sections'
 
-export function AppSidebar({ onOpenSearch }: { onOpenSearch: (initialQuery?: string) => void }) {
+interface AppSidebarProps {
+	account: AccountSummary
+	onOpenSearch: (initialQuery?: string) => void
+}
+
+export function AppSidebar({ account, onOpenSearch }: AppSidebarProps) {
 	const pathname = usePathname()
 	const { isMobile, setOpenMobile } = useSidebar()
 
@@ -74,6 +84,13 @@ export function AppSidebar({ onOpenSearch }: { onOpenSearch: (initialQuery?: str
 					</SidebarMenu>
 				</SidebarGroup>
 			</SidebarContent>
+			<SidebarFooter>
+				<SidebarUserFooter
+					name={account.displayName}
+					avatar={<UserRound size={16} className="text-muted-foreground" aria-hidden />}
+					menu={null}
+				/>
+			</SidebarFooter>
 		</Sidebar>
 	)
 }

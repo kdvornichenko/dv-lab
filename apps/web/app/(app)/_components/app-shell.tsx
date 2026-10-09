@@ -12,6 +12,8 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip } from '@/components/ui/tooltip'
 import { SurfaceProvider } from '@/lib/surface-context'
 
+import type { AccountSummary } from '@dv-lab/contracts'
+
 import { AppSidebar } from './app-sidebar'
 import { CommandPalette } from './command-palette'
 import { sectionForPath } from './sections'
@@ -35,7 +37,7 @@ function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
 	)
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ account, children }: { account: AccountSummary; children: ReactNode }) {
 	const [palette, setPalette] = useState({ open: false, key: 0, initialQuery: '' })
 
 	const openSearch = useCallback((initialQuery = '') => {
@@ -64,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 				Skip to content
 			</a>
 			<SidebarProvider persist={false} peek="hover" width="15rem" className="h-dvh min-h-0 overflow-hidden">
-				<AppSidebar onOpenSearch={openSearch} />
+				<AppSidebar account={account} onOpenSearch={openSearch} />
 				<SidebarInset className="overflow-hidden">
 					<SurfaceProvider value={2}>
 						<Topbar onOpenSearch={() => openSearch()} />
