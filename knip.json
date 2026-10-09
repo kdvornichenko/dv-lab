@@ -1,9 +1,33 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"ignoreExportsUsedInFile": true,
 	"workspaces": {
-		"apps/web": {},
+		"apps/web": {
+			"ignore": [
+				"components/ui/**",
+				"components/sidebar-app/**",
+				"components/fluid-hover-highlight.tsx",
+				"hooks/**",
+				"lib/elevated.tsx",
+				"lib/icon-context.tsx",
+				"lib/shape-context.tsx",
+				"lib/size-context.tsx",
+				"lib/surface-context.tsx",
+				"lib/font-weight.ts",
+				"lib/popup.ts",
+				"lib/sidebar-menu-grid.ts",
+				"lib/springs.ts",
+				"lib/surface-classes.ts",
+				"lib/type-scale.ts",
+				"lib/utils.ts"
+			]
+		},
 		"apps/api": {
-			"entry": ["src/server.ts", "src/migrate.ts"],
+			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"packages/contracts": {
+			"entry": ["src/index.ts"],
 			"project": ["src/**/*.ts"]
 		},
 		"packages/db": {
