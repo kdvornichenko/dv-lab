@@ -43,4 +43,6 @@ const server = serve({ fetch: app.fetch, port: config.PORT, websocket: { server:
 	logger.info({ port: info.port }, 'listening')
 ) as Server
 
-lifecycle.manage({ server, wss, resources: [{ name: 'pg-pool', close: () => pool.end() }] })
+housekeeping.start()
+
+lifecycle.manage({ server, wss, resources: [housekeeping, { name: 'pg-pool', close: () => pool.end() }] })
