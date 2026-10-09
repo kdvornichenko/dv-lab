@@ -357,15 +357,15 @@ TTL — второе поле строки. Если он больше 60 с, TT
 
 Этап → где смотреть:
 
-| Этап | Где смотреть |
-|------|--------------|
-| `lock` | идёт другая выкатка (код 75) |
-| `fetch` | вывод `deploy.sh`: `git fetch` и `rev-parse` |
-| `images` | раздел 4: пакеты не опубликованы или недоступны |
-| `db-up`, `ensure-db`, `pre-dump` | `SERVICE=db` |
-| `dry-run`, `migrate` | вывод `migrate` в выводе `deploy.sh` (контейнер `run --rm` удаляется, `logs` по нему пуст) и `SERVICE=db` |
-| `switch` | `SERVICE=api`, `SERVICE=web`, `SERVICE=caddy` |
-| `smoke` | `SERVICE=caddy` (сертификат, DNS), `SERVICE=api` |
+| Этап                             | Где смотреть                                                                                              |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `lock`                           | идёт другая выкатка (код 75)                                                                              |
+| `fetch`                          | вывод `deploy.sh`: `git fetch` и `rev-parse`                                                              |
+| `images`                         | раздел 4: пакеты не опубликованы или недоступны                                                           |
+| `db-up`, `ensure-db`, `pre-dump` | `SERVICE=db`                                                                                              |
+| `dry-run`, `migrate`             | вывод `migrate` в выводе `deploy.sh` (контейнер `run --rm` удаляется, `logs` по нему пуст) и `SERVICE=db` |
+| `switch`                         | `SERVICE=api`, `SERVICE=web`, `SERVICE=caddy`                                                             |
+| `smoke`                          | `SERVICE=caddy` (сертификат, DNS), `SERVICE=api`                                                          |
 
 `SHA` — выкатываемый коммит, `SERVICE` — `db`, `api`, `web` или `caddy`:
 

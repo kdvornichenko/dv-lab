@@ -1,5 +1,5 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
 import type { MiddlewareHandler } from 'hono'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import pino, { type DestinationStream, type Logger } from 'pino'
 
 const storage = new AsyncLocalStorage<{ requestId: string }>()
@@ -17,7 +17,7 @@ export function createLogger(level: string, destination?: DestinationStream): Lo
 			mixin: () => ({ requestId: currentRequestId() }),
 			redact: { paths: ['req.headers.authorization', 'req.headers.cookie'], censor: '[redacted]' },
 		},
-		destination,
+		destination
 	)
 }
 
@@ -40,7 +40,7 @@ export const requestContext =
 						status: c.res.status,
 						durationMs: Math.round(performance.now() - started),
 					},
-					'request',
+					'request'
 				)
 			}
 		})
