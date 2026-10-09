@@ -3,23 +3,16 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import pino, { type DestinationStream, type Logger } from 'pino'
 
 import type { ErrorCode } from '@dv-lab/contracts'
+import { postgresErrorFields } from '@dv-lab/db'
 
 const storage = new AsyncLocalStorage<{ requestId: string }>()
 const VALID_ID = /^[\w-]{8,64}$/
 
 const currentRequestId = () => storage.getStore()?.requestId
 
-type QueryCause = { code?: unknown; constraint?: unknown }
-
 function serializeError(err: unknown) {
 	if (err instanceof Error && 'query' in err && 'params' in err) {
-		const cause: QueryCause = typeof err.cause === 'object' && err.cause !== null ? err.cause : {}
-		return {
-			type: err.name,
-			message: 'Failed query',
-			...(typeof cause.code === 'string' ? { code: cause.code } : {}),
-			...(typeof cause.constraint === 'string' ? { constraint: cause.constraint } : {}),
-		}
+		return { type: err.name, message: 'Failed query', ...postgresErrorFields(err) }
 	}
 	return err instanceof Error ? pino.stdSerializers.err(err) : err
 }

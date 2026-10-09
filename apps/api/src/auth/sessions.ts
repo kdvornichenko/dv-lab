@@ -7,13 +7,9 @@ import {
 	SESSION_TOKEN_PATTERN,
 	SESSION_TTL_SECONDS,
 } from '@dv-lab/contracts'
-import { type Database, accounts, sessions } from '@dv-lab/db'
+import { type DbExecutor, accounts, sessions } from '@dv-lab/db'
 
 import { accountSummaryColumns, toAccountSummary } from './account-rows.ts'
-
-type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
-
-export type DbExecutor = Database | Transaction
 
 export type SessionView = { account: AccountSummary; renewDue: boolean }
 

@@ -3,9 +3,7 @@ import { createHash } from 'node:crypto'
 import { isIP } from 'node:net'
 
 import { normalizeLogin } from '@dv-lab/contracts'
-import { type Database, signInThrottles } from '@dv-lab/db'
-
-import type { DbExecutor } from './sessions.ts'
+import { type Database, type DbExecutor, signInThrottles } from '@dv-lab/db'
 
 export const MAX_PAIR_FAILURES = 5
 export const MAX_LOGIN_FAILURES = 20
