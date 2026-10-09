@@ -1,3 +1,5 @@
+import { and, eq, sql } from 'drizzle-orm'
+
 import { accounts } from '@dv-lab/db'
 import type { Database } from '@dv-lab/db'
 
@@ -20,7 +22,14 @@ export function violatesUnique(error: unknown, constraint: string): boolean {
 
 export async function createTeacher(db: Database, input: CreateTeacherInput): Promise<CreateTeacherResult> {
 	try {
-		return await db.transaction(async (tx) => {
+		return await db.transaction(async (tx): Promise<CreateTeacherResult> => {
+			await tx.execute(sql`select pg_advisory_xact_lock(hashtext('dvlab_bootstrap_teacher'))`)
+			const [existing] = await tx
+				.select({ id: accounts.id })
+				.from(accounts)
+				.where(and(eq(accounts.role, 'teacher'), eq(accounts.status, 'active')))
+				.limit(1)
+			if (existing) return { kind: 'teacher_exists' }
 			const [row] = await tx
 				.insert(accounts)
 				.values({
@@ -31,7 +40,7 @@ export async function createTeacher(db: Database, input: CreateTeacherInput): Pr
 				})
 				.returning({ login: accounts.login })
 			if (!row) throw new Error('teacher insert returned no row')
-			return { kind: 'created', login: row.login } as const
+			return { kind: 'created', login: row.login }
 		})
 	} catch (error) {
 		if (violatesUnique(error, ONE_ACTIVE_TEACHER_CONSTRAINT)) return { kind: 'teacher_exists' }
