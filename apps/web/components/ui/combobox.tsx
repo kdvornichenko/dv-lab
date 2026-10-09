@@ -24,6 +24,7 @@ import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useFluidHover, useRegisterFluidHoverItem, type ItemRect } from '@/hooks/use-fluid-hover'
 import { useMergeSplitBlocks, useSelectionRuns, SelectionBackgrounds } from '@/hooks/use-merge-split'
+import { Elevated } from '@/lib/elevated'
 import { useIcons, type IconComponent } from '@/lib/icon-context'
 import { popupMotionClass, popupScrollAreaClass, popupViewportClass, isDisabledRow } from '@/lib/popup'
 import { useShape, shapeMap } from '@/lib/shape-context'
@@ -282,10 +283,10 @@ const fieldVariants = cva(
 	{
 		variants: {
 			variant: {
-				bordered: [fieldRing, 'bg-transparent hover:bg-muted/50'],
+				bordered: [fieldRing, 'bg-transparent hover:bg-hover'],
 
 				borderless:
-					'bg-transparent ring-transparent focus-within:bg-card focus-within:ring-border hover:bg-muted/50 hover:ring-border',
+					'bg-transparent ring-transparent focus-within:bg-card focus-within:ring-border hover:bg-hover hover:ring-border',
 			},
 		},
 		defaultVariants: {
@@ -336,7 +337,7 @@ function FieldControls({ clearable, compact, iconSize }: { clearable: boolean; c
 			<ComboboxPrimitive.Trigger
 				aria-label="Open"
 				tabIndex={-1}
-				className={cn(fieldButtonClass, compact ? 'size-5' : 'size-6')}
+				className={cn(fieldButtonClass, compact ? '-mr-px size-5' : '-mr-1 size-6')}
 			>
 				<svg
 					width={iconSize}
@@ -649,8 +650,9 @@ const ComboboxContent = forwardRef<HTMLDivElement, ComboboxContentProps>(
 					>
 						<ComboboxPrimitive.Popup
 							ref={ref}
+							render={<Elevated offset={2} shadowLevel={4} />}
 							className={cn(
-								'flex max-h-72 w-[var(--anchor-width)] flex-col overflow-hidden rounded-xl bg-surface-4 p-1 shadow-surface-4 outline-none select-none',
+								'flex max-h-72 w-[var(--anchor-width)] flex-col overflow-hidden rounded-xl p-1 outline-none select-none',
 								className
 							)}
 						>

@@ -352,7 +352,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 				>
 					<SelectContentContext.Provider value={contentCtx}>
 						<SelectPrimitive.Popup
-							render={<Elevated offset={2} shadowLevel={3} ref={ref} />}
+							render={<Elevated offset={2} shadowLevel={4} ref={ref} />}
 
 							onKeyDownCapture={trackKeyboardNav}
 							onMouseEnter={() => {
