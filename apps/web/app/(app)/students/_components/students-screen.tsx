@@ -23,12 +23,15 @@ import { cn } from '@/lib/utils'
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
 
 import { StudentFormDialog } from './student-form-dialog'
+import { UnassignedPayments } from './unassigned-payments'
 
-type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; students: StudentRow[] }
+type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; students: StudentRow[]; unassigned: number }
 
 async function readStudents(): Promise<ReadState> {
 	const result = await apiRequest<StudentsResponse>('GET', '/students')
-	return result.ok ? { kind: 'ready', students: result.data.students } : { kind: 'error' }
+	return result.ok
+		? { kind: 'ready', students: result.data.students, unassigned: result.data.unassignedPayments }
+		: { kind: 'error' }
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
@@ -158,15 +161,22 @@ export function StudentsScreen() {
 		)
 		body = (
 			<Tabs defaultValue="active">
-				<TabsList aria-label="Student lists">
+				<TabsList aria-label="Student lists" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
 					<TabItem value="active" label="Active" />
 					<TabItem value="archived" label="Archived" />
+					<TabItem
+						value="unassigned"
+						label={state.kind === 'ready' ? `Unassigned payments (${state.unassigned})` : 'Unassigned payments'}
+					/>
 				</TabsList>
 				<TabPanel value="active" className="mt-4">
 					{loading ? <SkeletonTable /> : <StudentsTable rows={active} />}
 				</TabPanel>
 				<TabPanel value="archived" className="mt-4">
 					{loading ? <SkeletonTable /> : <StudentsTable rows={archived} />}
+				</TabPanel>
+				<TabPanel value="unassigned" className="mt-4">
+					{loading ? <SkeletonTable /> : <UnassignedPayments students={active} onChanged={() => void load()} />}
 				</TabPanel>
 			</Tabs>
 		)
