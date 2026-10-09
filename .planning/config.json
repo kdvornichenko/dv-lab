@@ -34,5 +34,8 @@
 	"safety": {
 		"always_confirm_destructive": true,
 		"always_confirm_external_services": true
+	},
+	"git": {
+		"branching_strategy": "phase"
 	}
 }
