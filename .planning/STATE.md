@@ -1,15 +1,20 @@
 ---
 gsd_state_version: "1.0"
 milestone: v2.0
-milestone_name: Unified dv-lab
-status: planning
-last_updated: "2026-10-09T08:28:12.000Z"
+milestone_name: Unified dv-lab (In Progress)
+current_phase: 17
+current_phase_name: Skeleton on the Server
+status: executing
+stopped_at: "Выполнен 17-01 (волна 1); следующая волна 2: 17-02, 17-03, 17-04"
+last_updated: "2026-10-09T11:51:22.961Z"
 last_activity: 2026-10-09
+last_activity_desc: Phase 17 execution started
+state_head: 8b4a08502a8eb7717f2eddce4dee33dee4736b7c
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 13
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 ## Current Position
 
-Phase: 17 of 26 (Skeleton on the Server)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-09 — v2.0 roadmap created (phases 17-26)
+Phase: 17 (Skeleton on the Server) — EXECUTING
+Plan: 1 of 13
+Status: Executing Phase 17
+Last activity: 2026-10-09 — Phase 17 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -46,6 +51,11 @@ Progress: [░░░░░░░░░░] 0%
 | -     | -     | -     | -        |
 
 Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 17 P01 | 40min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -82,6 +92,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09
-Stopped at: v2.0 roadmap created; next step is `/gsd-discuss-phase 17`
-Resume file: None
+Last session: 2026-10-09T11:36:51.720Z
+Stopped at: Выполнен 17-01 (волна 1); следующая волна 2: 17-02, 17-03, 17-04
+Resume file: .planning/phases/17-skeleton-on-the-server/17-01-SUMMARY.md
