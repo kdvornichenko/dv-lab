@@ -8,9 +8,25 @@ export type ManagedServer = {
 	closeAllConnections: () => void
 }
 
+export type ManagedSocket = {
+	close: (code: number, reason: string) => unknown
+	terminate: () => unknown
+}
+
+export type ManagedSocketServer = {
+	clients: Iterable<ManagedSocket>
+	close: (callback: () => void) => unknown
+}
+
+export type ManagedHandles = {
+	server: ManagedServer
+	wss?: ManagedSocketServer
+	resources: Closable[]
+}
+
 export type Lifecycle = {
 	isStopping: () => boolean
-	manage: (handles: { server: ManagedServer; resources: Closable[] }) => void
+	manage: (handles: ManagedHandles) => void
 	shutdown: (signal: string) => Promise<void>
 }
 
@@ -24,6 +40,7 @@ export function createLifecycle({ deadlineMs, logger, exit }: Options): Lifecycl
 	let stopping = false
 	let running: Promise<void> | undefined
 	let server: ManagedServer | undefined
+	let wss: ManagedSocketServer | undefined
 	let resources: Closable[] = []
 
 	async function stop(signal: string) {
@@ -33,15 +50,24 @@ export function createLifecycle({ deadlineMs, logger, exit }: Options): Lifecycl
 			exit(1)
 		}, deadlineMs)
 		hard.unref()
+		const sockets = wss
 		if (server) {
 			const current = server
 			const closed = new Promise<void>((resolve) => current.close(() => resolve()))
 			current.closeIdleConnections()
-			const grace = setTimeout(() => current.closeAllConnections(), Math.floor(deadlineMs / 2))
+			if (sockets) for (const client of sockets.clients) client.close(1001, 'server shutting down')
+			const grace = setTimeout(
+				() => {
+					if (sockets) for (const client of sockets.clients) client.terminate()
+					current.closeAllConnections()
+				},
+				Math.floor(deadlineMs / 2)
+			)
 			grace.unref()
 			await closed
 			clearTimeout(grace)
 		}
+		if (sockets) await new Promise<void>((resolve) => sockets.close(() => resolve()))
 		for (const resource of resources) {
 			try {
 				await resource.close()
@@ -62,8 +88,9 @@ export function createLifecycle({ deadlineMs, logger, exit }: Options): Lifecycl
 		return running
 	}
 
-	function manage(handles: { server: ManagedServer; resources: Closable[] }) {
+	function manage(handles: ManagedHandles) {
 		server = handles.server
+		wss = handles.wss
 		resources = handles.resources
 		process.on('SIGTERM', () => void shutdown('SIGTERM'))
 		process.on('SIGINT', () => void shutdown('SIGINT'))

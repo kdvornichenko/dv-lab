@@ -13,6 +13,7 @@ function deps(logger: Logger): AppDeps {
 		logger,
 		db: { execute: async () => ({ rows: [] }) } as unknown as AppDeps['db'],
 		gitSha: 'test-sha',
+		appOrigin: 'http://localhost:3000',
 		isStopping: () => false,
 	}
 }

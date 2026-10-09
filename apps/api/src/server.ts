@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server'
 
 import type { Server } from 'node:http'
+import { WebSocketServer } from 'ws'
 
 import { createDb } from '@dv-lab/db'
 
@@ -20,10 +21,18 @@ const lifecycle = createLifecycle({
 	exit: (code) => process.exit(code),
 })
 
-const app = createApp({ logger, db, gitSha: config.GIT_SHA, isStopping: lifecycle.isStopping })
+const app = createApp({
+	logger,
+	db,
+	gitSha: config.GIT_SHA,
+	appOrigin: config.APP_ORIGIN,
+	isStopping: lifecycle.isStopping,
+})
 
-const server = serve({ fetch: app.fetch, port: config.PORT }, (info) =>
+const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
+
+const server = serve({ fetch: app.fetch, port: config.PORT, websocket: { server: wss } }, (info) =>
 	logger.info({ port: info.port }, 'listening')
 ) as Server
 
-lifecycle.manage({ server, resources: [{ name: 'pg-pool', close: () => pool.end() }] })
+lifecycle.manage({ server, wss, resources: [{ name: 'pg-pool', close: () => pool.end() }] })

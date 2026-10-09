@@ -1,3 +1,5 @@
+import { upgradeWebSocket } from '@hono/node-server'
+
 import { sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Logger } from 'pino'
@@ -10,6 +12,7 @@ export type AppDeps = {
 	logger: Logger
 	db: Pick<Database, 'execute'>
 	gitSha: string
+	appOrigin: string
 	isStopping: () => boolean
 }
 
@@ -27,6 +30,18 @@ export function createApp(deps: AppDeps) {
 			return c.json({ status: 'error', sha, db: 'error' }, 503)
 		}
 	})
+	app.get(
+		'/ws',
+		async (c, next) => {
+			if (c.req.header('origin') !== deps.appOrigin) return c.json(errorBody('forbidden_origin', 'Forbidden'), 403)
+			await next()
+		},
+		upgradeWebSocket(() => ({
+			onMessage(event, ws) {
+				if (typeof event.data === 'string') ws.send(event.data)
+			},
+		}))
+	)
 	app.onError((err, c) => {
 		deps.logger.error({ err }, 'request failed')
 		return c.json(errorBody('internal_error', 'Internal Server Error'), 500)

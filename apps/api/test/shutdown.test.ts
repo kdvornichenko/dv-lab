@@ -2,6 +2,7 @@ import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { connect } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import WebSocket from 'ws'
 
 const entry = fileURLToPath(new URL('../dist/server.mjs', import.meta.url))
 
@@ -77,6 +78,29 @@ describe('server.mjs shutdown', () => {
 		expect(code).toBe(0)
 		expect(elapsed).toBeGreaterThanOrEqual(1400)
 		expect(elapsed).toBeLessThan(4000)
+		expect(server.stdout()).toContain('shutdown complete')
+	})
+
+	it('SIGTERM with an open WebSocket exits 0 within the deadline and closes it with 1001', async () => {
+		const port = 20000 + Math.floor(Math.random() * 20000)
+		const server = start(port)
+		await server.listening
+
+		const socket = new WebSocket(`ws://127.0.0.1:${port}/ws`, { headers: { origin: `http://127.0.0.1:${port}` } })
+		const closeCode = new Promise<number>((resolve) => socket.on('close', (code) => resolve(code)))
+		await new Promise<void>((resolve) => socket.once('open', () => resolve()))
+		const echoed = new Promise<string>((resolve) => socket.once('message', (data) => resolve(data.toString())))
+		socket.send('ping')
+		expect(await echoed).toBe('ping')
+
+		const started = performance.now()
+		server.proc.kill('SIGTERM')
+		const code = await server.exited
+		const elapsed = performance.now() - started
+
+		expect(code).toBe(0)
+		expect(elapsed).toBeLessThan(4000)
+		expect(await closeCode).toBe(1001)
 		expect(server.stdout()).toContain('shutdown complete')
 	})
 })

@@ -26,6 +26,7 @@ function build(execute: () => Promise<unknown>, stopping = false) {
 		logger: log.logger,
 		db: db as unknown as AppDeps['db'],
 		gitSha: 'abc1234',
+		appOrigin: 'http://localhost:3000',
 		isStopping: () => stopping,
 	})
 	return { app, db, ...log }
