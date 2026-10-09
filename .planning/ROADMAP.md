@@ -121,7 +121,7 @@ Plans:
   5. A student account links to exactly one card; linking a second account to the same card, or one account to two cards, is rejected.
   6. The teacher sets an opening balance (lessons left) on each card, and the balance shown after the import is counted from that opening balance, not from every lesson ever paid.
 
-**Plans**: 19/20 plans executed
+**Plans**: 20/20 plans executed
 
 Plans:
 **Wave 1**
@@ -162,7 +162,7 @@ Plans:
 - [x] 19-20-PLAN.md — Form fields: one look, one error line, Combobox empty state and time zone offsets, per the Design session (W9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 19-19-PLAN.md — Final verification: AGENTS.md, full checks, privacy, six criteria by hand (W10)
+- [x] 19-19-PLAN.md — Final verification: AGENTS.md, full checks, privacy, six criteria by hand (W10)
 
 **Notes**: The release and the server import are run later by the Server guy session (RUNBOOK 11) after the owner accepts the import on `dvlab_dev`.
 **UI hint**: yes
@@ -284,7 +284,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 |-------|-----------|----------------|--------|-----------|
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
-| 19. Student Cards and Vault Import | v2.0 | 19/20 | In Progress|  |
+| 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
