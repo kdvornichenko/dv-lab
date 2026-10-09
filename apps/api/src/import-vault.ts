@@ -1,18 +1,24 @@
 import { parseArgs } from 'node:util'
 
-import { importPacket } from './import/packet.ts'
+import { createDb, postgresCode, resolveDatabaseUrl } from '@dv-lab/db'
+
+import { applyPacket } from './import/apply-packet.ts'
+import { type ImportPacket, importPacket } from './import/packet.ts'
 import { VaultParseError, parseVault } from './import/parse-vault.ts'
 import type { ParseSummary } from './import/parse-vault.ts'
 
-const USAGE = 'Usage: import-vault parse <students-dir>'
+const USAGE = ['Usage: import-vault parse <students-dir>', '       import-vault apply < packet.json'].join('\n')
 const USAGE_EXIT_CODE = 2
 const FAILED_EXIT_CODE = 1
 
-function parseCommand(argv: string[]): string | null {
+type Command = { kind: 'parse'; dir: string } | { kind: 'apply' }
+
+function parseCommand(argv: string[]): Command | null {
 	try {
 		const { positionals } = parseArgs({ args: argv, options: {}, allowPositionals: true })
+		if (positionals.length === 1 && positionals[0] === 'apply') return { kind: 'apply' }
 		if (positionals.length !== 2 || positionals[0] !== 'parse' || positionals[1] === '') return null
-		return positionals[1]
+		return { kind: 'parse', dir: positionals[1] }
 	} catch {
 		return null
 	}
@@ -50,13 +56,54 @@ function runParse(dir: string): number {
 	return 0
 }
 
-function main(): number {
-	const dir = parseCommand(process.argv.slice(2))
-	if (dir === null) {
+async function readStdin(): Promise<string> {
+	const chunks: Buffer[] = []
+	for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk))
+	return Buffer.concat(chunks).toString('utf8')
+}
+
+function readPacket(text: string): ImportPacket | null {
+	let value: unknown
+	try {
+		value = JSON.parse(text)
+	} catch {
+		return null
+	}
+	const parsed = importPacket.safeParse(value)
+	return parsed.success ? parsed.data : null
+}
+
+async function runApply(): Promise<number> {
+	const packet = readPacket(await readStdin())
+	if (!packet) {
+		process.stderr.write('Invalid packet\n')
+		return USAGE_EXIT_CODE
+	}
+	let pool: ReturnType<typeof createDb>['pool'] | null = null
+	try {
+		const connection = createDb(resolveDatabaseUrl('app', process.env))
+		pool = connection.pool
+		const result = await applyPacket(connection.db, packet)
+		for (const [table, { inserted, skipped }] of Object.entries(result)) {
+			process.stdout.write(`${table} inserted=${inserted} skipped=${skipped}\n`)
+		}
+		return 0
+	} catch (error) {
+		const code = postgresCode(error)
+		process.stderr.write(code ? `Import failed (${code})\n` : 'Import failed\n')
+		return FAILED_EXIT_CODE
+	} finally {
+		await pool?.end()
+	}
+}
+
+async function main(): Promise<number> {
+	const command = parseCommand(process.argv.slice(2))
+	if (command === null) {
 		process.stderr.write(`${USAGE}\n`)
 		return USAGE_EXIT_CODE
 	}
-	return runParse(dir)
+	return command.kind === 'apply' ? runApply() : runParse(command.dir)
 }
 
-process.exitCode = main()
+process.exitCode = await main()
