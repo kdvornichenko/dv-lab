@@ -40,7 +40,7 @@ actuals:
   tokens: 2200
   tasks: 2
   commits: 2
-plan_head_before: ed76b01186f8a07174a8ef3804107e024df298a1
+plan_head_before: b3981ceff5cef27176f7696bd40c2dce1191600b
 plan_head_after: cf5d0d3337e8c211fbd3d60078b2104128bf488b
 ---
 
@@ -125,7 +125,7 @@ None - plan executed as written. Сверх плана скрипт провер
 
 ## Self-Check: PASSED
 
-Файлы `apps/api/src/cards/payments.ts`, `apps/api/src/routes/payments.ts` на месте; коммиты c5b07a3 и cf5d0d3 есть в ветке (2 коммита со scope `(19-10)` после ed76b01; в той же ветке между ними есть коммиты параллельного 19-09).
+Файлы `apps/api/src/cards/payments.ts`, `apps/api/src/routes/payments.ts` на месте; коммиты c5b07a3 и cf5d0d3 есть в ветке (`git rev-list --count b3981ce..cf5d0d3` — 2).
 
 ## Threat Flags
 
