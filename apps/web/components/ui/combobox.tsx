@@ -368,13 +368,14 @@ const ComboboxInput = forwardRef<HTMLInputElement, ComboboxInputProps>(
 			size,
 			id,
 			'aria-describedby': describedBy,
+			onKeyDown,
 			...props
 		},
 		ref
 	) => {
 		const sizeClasses = useSize(size)
 		const compact = sizeClasses.variant === 'compact'
-		const { anchorRef } = useComboboxContext()
+		const { anchorRef, open } = useComboboxContext()
 		const errorId = error && id ? `${id}-error` : undefined
 
 		return (
@@ -411,6 +412,12 @@ const ComboboxInput = forwardRef<HTMLInputElement, ComboboxInputProps>(
 							compact ? 'leading-5' : 'leading-6'
 						)}
 						{...props}
+						onKeyDown={(event) => {
+							onKeyDown?.(event)
+							if (event.key !== 'Escape') return
+							if (open) event.stopPropagation()
+							else event.preventBaseUIHandler()
+						}}
 					/>
 					<FieldControls clearable={clearable} compact={compact} iconSize={sizeClasses.icon} />
 				</ComboboxPrimitive.InputGroup>
