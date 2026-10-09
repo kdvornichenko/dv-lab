@@ -1,4 +1,5 @@
 \set ON_ERROR_STOP on
+SET client_min_messages = warning;
 
 SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L', 'dvlab_migrator', :'migrator_password')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dvlab_migrator')

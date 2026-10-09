@@ -8,6 +8,9 @@
 	lb_try_duration 10s
 	lb_try_interval 250ms
 	header_up X-Request-Id {http.request.uuid}
+	transport http {
+		keepalive 4s
+	}
 }
 
 dv-lab.dev {
