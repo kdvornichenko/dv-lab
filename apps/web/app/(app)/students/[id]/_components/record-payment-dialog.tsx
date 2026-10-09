@@ -38,10 +38,8 @@ interface RecordPaymentDialogProps {
 	onRecorded: () => void
 }
 
-export function suggestLessonsText(amountText: string, currency: string, rate: Rate | null) {
-	if (currency === '') return ''
-	const amountMinor = parseMoney(amountText, currency)
-	if (amountMinor === null) return ''
+export function suggestLessonsText(amountMinor: number | null, currency: string, rate: Rate | null) {
+	if (amountMinor === null || currency === '') return ''
 	const hundredths = suggestLessons(amountMinor, currency, rate)
 	return hundredths === null ? '' : formatHundredths(hundredths)
 }
@@ -72,7 +70,7 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 	const lessonsRef = useRef<HTMLInputElement>(null)
 	const noteRef = useRef<HTMLInputElement>(null)
 
-	const suggestion = suggestLessonsText(amount, currency, rate)
+	const suggestion = suggestLessonsText(currency === '' ? null : parseMoney(amount, currency), currency, rate)
 	const lessons = lessonsDraft ?? suggestion
 	const prefilled = lessonsDraft === null && suggestion !== ''
 

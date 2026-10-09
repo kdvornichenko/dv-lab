@@ -21,6 +21,7 @@ import type { StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
 import { OverviewTab } from './overview-tab'
+import { PaymentsTab } from './payments-tab'
 import { RecordPaymentDialog } from './record-payment-dialog'
 
 type ReadState =
@@ -52,6 +53,7 @@ function SectionTabs({ children, disabled }: { children: ReactNode; disabled: bo
 		<Tabs defaultValue="overview">
 			<TabsList aria-label="Student sections">
 				<TabItem value="overview" label="Overview" disabled={disabled} />
+				<TabItem value="payments" label="Payments" disabled={disabled} />
 			</TabsList>
 			<TabPanel value="overview" className="mt-4">
 				{children}
@@ -118,6 +120,7 @@ export function StudentProfile({ id }: { id: string }) {
 	const [tab, setTab] = useState('overview')
 	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
 	const [recordOpen, setRecordOpen] = useState(false)
+	const [paymentsVersion, setPaymentsVersion] = useState(0)
 	const lessonsInput = useRef<HTMLInputElement>(null)
 	const statusButton = useRef<HTMLButtonElement>(null)
 	const recordButton = useRef<HTMLButtonElement>(null)
@@ -230,9 +233,13 @@ export function StudentProfile({ id }: { id: string }) {
 			<Tabs value={tab} onValueChange={setTab}>
 				<TabsList aria-label="Student sections">
 					<TabItem value="overview" label="Overview" />
+					<TabItem value="payments" label="Payments" />
 				</TabsList>
 				<TabPanel value="overview" className="mt-4">
 					<OverviewTab student={student} lessonsInputRef={lessonsInput} onSaved={() => void reload()} />
+				</TabPanel>
+				<TabPanel value="payments" className="mt-4">
+					<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
 				</TabPanel>
 			</Tabs>
 			{recordOpen ? (
@@ -241,6 +248,7 @@ export function StudentProfile({ id }: { id: string }) {
 					onClose={closeRecord}
 					onRecorded={() => {
 						closeRecord()
+						setPaymentsVersion((version) => version + 1)
 						void reload()
 					}}
 				/>
