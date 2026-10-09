@@ -6,18 +6,23 @@ import type { Logger } from 'pino'
 
 import type { Database } from '@dv-lab/db'
 
+import type { AppEnv } from './auth/middleware.ts'
+import type { SignIn } from './auth/sign-in.ts'
 import { errorBody, requestContext } from './request-context.ts'
+import { authRoutes } from './routes/auth.ts'
 
 export type AppDeps = {
 	logger: Logger
-	db: Pick<Database, 'execute'>
+	db: Database
 	gitSha: string
 	appOrigin: string
+	production: boolean
 	isStopping: () => boolean
+	signIn: SignIn
 }
 
 export function createApp(deps: AppDeps) {
-	const app = new Hono<{ Variables: { requestId: string } }>()
+	const app = new Hono<AppEnv>()
 	app.use('*', requestContext(deps.logger))
 	app.get('/healthz', async (c) => {
 		const sha = deps.gitSha
@@ -42,6 +47,7 @@ export function createApp(deps: AppDeps) {
 			},
 		}))
 	)
+	app.route('/auth', authRoutes({ db: deps.db, signIn: deps.signIn, production: deps.production, logger: deps.logger }))
 	app.onError((err, c) => {
 		deps.logger.error({ err }, 'request failed')
 		return c.json(errorBody('internal_error', 'Internal Server Error'), 500)

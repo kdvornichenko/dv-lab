@@ -27,7 +27,9 @@ function build(execute: () => Promise<unknown>, stopping = false) {
 		db: db as unknown as AppDeps['db'],
 		gitSha: 'abc1234',
 		appOrigin: 'http://localhost:3000',
+		production: false,
 		isStopping: () => stopping,
+		signIn: {} as unknown as AppDeps['signIn'],
 	})
 	return { app, db, ...log }
 }

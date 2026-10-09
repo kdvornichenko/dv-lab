@@ -2,6 +2,8 @@ import type { MiddlewareHandler } from 'hono'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import pino, { type DestinationStream, type Logger } from 'pino'
 
+import type { ErrorCode } from '@dv-lab/contracts'
+
 const storage = new AsyncLocalStorage<{ requestId: string }>()
 const VALID_ID = /^[\w-]{8,64}$/
 
@@ -46,6 +48,6 @@ export const requestContext =
 		})
 	}
 
-export const errorBody = (code: string, message: string) => ({
-	error: { code, message, requestId: currentRequestId() },
+export const errorBody = (code: ErrorCode, message: string, extra?: { retryAfterSeconds?: number }) => ({
+	error: { code, message, requestId: currentRequestId(), ...extra },
 })

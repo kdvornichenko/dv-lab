@@ -6,6 +6,8 @@ import { WebSocketServer } from 'ws'
 import { createDb } from '@dv-lab/db'
 
 import { createApp } from './app.ts'
+import { createHousekeeping } from './auth/housekeeping.ts'
+import { createSignIn } from './auth/sign-in.ts'
 import { loadConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
 import { createLogger } from './request-context.ts'
@@ -21,12 +23,18 @@ const lifecycle = createLifecycle({
 	exit: (code) => process.exit(code),
 })
 
+const production = config.NODE_ENV === 'production'
+const signIn = createSignIn({ db, logger, requireClientIp: production })
+const housekeeping = createHousekeeping({ db, logger })
+
 const app = createApp({
 	logger,
 	db,
 	gitSha: config.GIT_SHA,
 	appOrigin: config.APP_ORIGIN,
+	production,
 	isStopping: lifecycle.isStopping,
+	signIn,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })

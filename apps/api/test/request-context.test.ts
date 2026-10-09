@@ -14,7 +14,9 @@ function deps(logger: Logger): AppDeps {
 		db: { execute: async () => ({ rows: [] }) } as unknown as AppDeps['db'],
 		gitSha: 'test-sha',
 		appOrigin: 'http://localhost:3000',
+		production: false,
 		isStopping: () => false,
+		signIn: {} as unknown as AppDeps['signIn'],
 	}
 }
 
