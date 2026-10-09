@@ -8,16 +8,16 @@ import { Avatar } from '@/components/app/avatar'
 import { EmptyLine } from '@/components/app/empty-line'
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
+import { StatusDot } from '@/components/app/status-dot'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
-import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 import { cn } from '@/lib/utils'
 
-import type { AccountStatus, StudentListResponse, StudentRow } from '@dv-lab/contracts'
+import type { StudentListResponse, StudentRow } from '@dv-lab/contracts'
 
 import { useToast } from '../../_components/toasts'
 import { CreateStudentDialog } from './create-student-dialog'
@@ -30,22 +30,6 @@ const createdFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
 async function readStudents(): Promise<ReadState> {
 	const result = await apiRequest<StudentListResponse>('GET', '/students')
 	return result.ok ? { kind: 'ready', students: result.data.students } : { kind: 'error' }
-}
-
-function StatusDot({ status }: { status: AccountStatus }) {
-	const label = status === 'active' ? 'Active' : 'Deactivated'
-	return (
-		<Tooltip content={label}>
-			<span
-				role="img"
-				aria-label={label}
-				className={cn(
-					"relative inline-block size-2 rounded-full before:absolute before:-inset-2 before:content-['']",
-					status === 'active' ? 'bg-success' : 'bg-muted-foreground'
-				)}
-			/>
-		</Tooltip>
-	)
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
