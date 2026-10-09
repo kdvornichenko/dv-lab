@@ -121,22 +121,22 @@ Plans:
   5. A student account links to exactly one card; linking a second account to the same card, or one account to two cards, is rejected.
   6. The teacher sets an opening balance (lessons left) on each card, and the balance shown after the import is counted from that opening balance, not from every lesson ever paid.
 
-**Plans**: 19 plans
+**Plans**: 8/19 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 19-01-PLAN.md — All phase dependencies in one install: `packages/core` skeleton, pinned react-markdown, remark-gfm, react-day-picker (W1)
+- [x] 19-01-PLAN.md — All phase dependencies in one install: `packages/core` skeleton, pinned react-markdown, remark-gfm, react-day-picker (W1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 19-02-PLAN.md — `packages/db` owns `DbExecutor` and Postgres error parsing; four copies moved (W2)
-- [ ] 19-03-PLAN.md — Contracts: name predicate, currencies, section kinds, request schemas, 409 codes (W2)
-- [ ] 19-04-PLAN.md — `packages/core` money, lessons and balance functions; knip and CI boundary (W2)
-- [ ] 19-05-PLAN.md — Schema for cards, sections, terms, payments, account link; migration applied [BLOCKING] (W2)
-- [ ] 19-06-PLAN.md — Variant A Select, Combobox, Textarea, DateField copies, MarkdownView (DR-1), StatusDot (W2)
+- [x] 19-02-PLAN.md — `packages/db` owns `DbExecutor` and Postgres error parsing; four copies moved (W2)
+- [x] 19-03-PLAN.md — Contracts: name predicate, currencies, section kinds, request schemas, 409 codes (W2)
+- [x] 19-04-PLAN.md — `packages/core` money, lessons and balance functions; knip and CI boundary (W2)
+- [x] 19-05-PLAN.md — Schema for cards, sections, terms, payments, account link; migration applied [BLOCKING] (W2)
+- [x] 19-06-PLAN.md — Variant A Select, Combobox, Textarea, DateField copies, MarkdownView (DR-1), StatusDot (W2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 19-07-PLAN.md — Cards module and `/students` routes, opening balance, account and card names split (W3)
-- [ ] 19-08-PLAN.md — `import-vault parse`: packet from the vault, ignore masks (W3)
+- [x] 19-07-PLAN.md — Cards module and `/students` routes, opening balance, account and card names split (W3)
+- [x] 19-08-PLAN.md — `import-vault parse`: packet from the vault, ignore masks (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 19-09-PLAN.md — Sections and vocabulary in the cards module and routes (W4)
@@ -281,7 +281,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 |-------|-----------|----------------|--------|-----------|
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
-| 19. Student Cards and Vault Import | v2.0 | 0/TBD | Not started | - |
+| 19. Student Cards and Vault Import | v2.0 | 8/19 | In Progress|  |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
