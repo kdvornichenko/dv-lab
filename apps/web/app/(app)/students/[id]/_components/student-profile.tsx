@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { ArrowLeft } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/app/avatar'
+import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
 import { LessonsText, MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
@@ -18,6 +19,7 @@ import { apiRequest } from '@/lib/api-client'
 
 import type { StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
+import { useToast } from '../../../_components/toasts'
 import { OverviewTab } from './overview-tab'
 
 type ReadState =
@@ -113,7 +115,10 @@ function SummaryLine({ student, onSetBalance }: { student: StudentDetail; onSetB
 export function StudentProfile({ id }: { id: string }) {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [tab, setTab] = useState('overview')
+	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
 	const lessonsInput = useRef<HTMLInputElement>(null)
+	const statusButton = useRef<HTMLButtonElement>(null)
+	const toast = useToast()
 
 	const reload = useCallback(async () => {
 		setState(await readStudent(id))
@@ -132,6 +137,24 @@ export function StudentProfile({ id }: { id: string }) {
 	function focusOpeningBalance() {
 		setTab('overview')
 		requestAnimationFrame(() => lessonsInput.current?.focus())
+	}
+
+	function closeConfirm() {
+		setConfirm(null)
+		requestAnimationFrame(() => statusButton.current?.focus())
+	}
+
+	async function changeStatus(action: 'archive' | 'restore') {
+		const result = await apiRequest<StudentResponse>('POST', `/students/${id}/${action}`)
+		if (!result.ok) return false
+		const name = result.data.student.displayName
+		toast.show(
+			action === 'archive'
+				? { title: 'Student archived', description: `${name} is in the Archived tab.` }
+				: { title: 'Student restored', description: `${name} is back in the Active tab.` }
+		)
+		await reload()
+		return true
 	}
 
 	if (state.kind === 'not_found') return <NotFoundPage inShell />
@@ -169,6 +192,22 @@ export function StudentProfile({ id }: { id: string }) {
 					</span>
 				}
 				description={<SummaryLine student={student} onSetBalance={focusOpeningBalance} />}
+				actions={
+					student.status === 'active' ? (
+						<Button ref={statusButton} variant="secondary" leadingIcon={Archive} onClick={() => setConfirm('archive')}>
+							Archive
+						</Button>
+					) : (
+						<Button
+							ref={statusButton}
+							variant="secondary"
+							leadingIcon={ArchiveRestore}
+							onClick={() => setConfirm('restore')}
+						>
+							Restore
+						</Button>
+					)
+				}
 			/>
 			<Tabs value={tab} onValueChange={setTab}>
 				<TabsList aria-label="Student sections">
@@ -178,6 +217,32 @@ export function StudentProfile({ id }: { id: string }) {
 					<OverviewTab student={student} onSaved={() => void reload()} />
 				</TabPanel>
 			</Tabs>
+			{confirm === 'archive' ? (
+				<ConfirmDialog
+					title={`Archive ${student.displayName}?`}
+					body={`${student.displayName} moves to the Archived tab. The account, payments and notes are kept.${student.account?.status === 'active' ? ' The account can still sign in; deactivate it separately.' : ''}`}
+					cancelLabel="Keep student"
+					confirmLabel="Archive student"
+					pendingLabel="Archiving…"
+					tone="primary"
+					failureText="Could not archive the student. Try again."
+					onConfirm={() => changeStatus('archive')}
+					onClose={closeConfirm}
+				/>
+			) : null}
+			{confirm === 'restore' ? (
+				<ConfirmDialog
+					title={`Restore ${student.displayName}?`}
+					body={`${student.displayName} returns to the Active tab.`}
+					cancelLabel="Keep archived"
+					confirmLabel="Restore student"
+					pendingLabel="Restoring…"
+					tone="primary"
+					failureText="Could not restore the student. Try again."
+					onConfirm={() => changeStatus('restore')}
+					onClose={closeConfirm}
+				/>
+			) : null}
 		</PageScroll>
 	)
 }
