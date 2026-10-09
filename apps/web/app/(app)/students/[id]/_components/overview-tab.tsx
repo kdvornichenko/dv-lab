@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import type { StudentDetail } from '@dv-lab/contracts'
 
 import { StudentFormDialog } from '../../_components/student-form-dialog'
+import { AccountPanel } from './account-panel'
 import { OpeningBalancePanel } from './opening-balance-panel'
 
 interface OverviewTabProps {
@@ -78,6 +79,7 @@ export function OverviewTab({ student, lessonsInputRef, onSaved }: OverviewTabPr
 			</Panel>
 			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
 				<OpeningBalancePanel student={student} lessonsInputRef={lessonsInputRef} onSaved={onSaved} />
+				<AccountPanel student={student} onChanged={onSaved} />
 			</div>
 			{editOpen ? (
 				<StudentFormDialog
