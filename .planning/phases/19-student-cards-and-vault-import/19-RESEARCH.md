@@ -625,11 +625,11 @@ const [row] = await db.update(accounts)
 | A5 | design-lab `src/app/globals.css` lines 394-~1180 are self-contained `.typeset` rules | Standard Stack | missing tokens; copy any referenced variables too |
 | A6 | Opening balance may be negative | Pitfall 8 | CHECK too strict/loose — Open Question 2 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Null currency on 4 imported student payments (R1).** Recommended default: allow null currency for unaccounted payments and let the teacher set it via the assign-like action. Alternative: import them as unassigned (breaks D-16).
-2. **Negative opening balance.** Recommended default: allow (student owes lessons); UI shows a minus sign.
-3. **Index predicate for one account per card (R6).** Recommended default: active accounts only.
+1. **Null currency on 4 imported student payments (R1).** RESOLVED by D-29: null currency is allowed for payments with no lessons and no credited minutes; the teacher sets the currency by an assign-like action (the UI row action waits for the Design answer DR-2; the api supports it).
+2. **Negative opening balance.** RESOLVED by D-36 against the earlier recommendation: a negative opening balance is rejected in this phase (CHECK `>= 0`); showing debt belongs to phase 21.
+3. **Index predicate for one account per card (R6).** RESOLVED by D-33: the unique index covers active accounts only.
 
 ## Environment Availability
 
