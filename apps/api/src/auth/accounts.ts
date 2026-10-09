@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 
 import type { AccountSummary, StudentRow } from '@dv-lab/contracts'
-import { accounts } from '@dv-lab/db'
+import { accounts, violatesUnique } from '@dv-lab/db'
 import type { Database } from '@dv-lab/db'
 
 import { studentRowColumns, toStudentRow } from './account-rows.ts'
@@ -11,7 +11,6 @@ import type { CredentialCheck, SignIn } from './sign-in.ts'
 
 const ONE_ACTIVE_TEACHER_CONSTRAINT = 'accounts_one_active_teacher_uq'
 const ACTIVE_LOGIN_CONSTRAINT = 'accounts_active_login_uq'
-const CAUSE_DEPTH = 5
 
 type CreateTeacherInput = { login: string; displayName: string; passwordHash: string }
 
@@ -38,16 +37,6 @@ export type ChangePasswordResult =
 	| Exclude<CredentialCheck, { kind: 'ok' | 'invalid_credentials' }>
 
 export type ResetTeacherPasswordResult = { kind: 'reset'; login: string } | { kind: 'not_found' }
-
-export function violatesUnique(error: unknown, constraint: string): boolean {
-	let current: unknown = error
-	for (let depth = 0; depth < CAUSE_DEPTH && current instanceof Error; depth += 1) {
-		const candidate = current as Error & { code?: unknown; constraint?: unknown }
-		if (candidate.code === '23505' && candidate.constraint === constraint) return true
-		current = candidate.cause
-	}
-	return false
-}
 
 export async function createTeacher(db: Database, input: CreateTeacherInput): Promise<CreateTeacherResult> {
 	try {

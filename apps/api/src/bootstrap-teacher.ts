@@ -9,7 +9,7 @@ import {
 	normalizeLogin,
 	passwordLength,
 } from '@dv-lab/contracts'
-import { createDb, resolveDatabaseUrl } from '@dv-lab/db'
+import { createDb, postgresCode, resolveDatabaseUrl } from '@dv-lab/db'
 import type { Database } from '@dv-lab/db'
 
 import { createTeacher, resetTeacherPassword } from './auth/accounts.ts'
@@ -21,7 +21,6 @@ const USAGE = [
 ].join('\n')
 const USAGE_EXIT_CODE = 2
 const REFUSED_EXIT_CODE = 3
-const CAUSE_DEPTH = 5
 
 type Options =
 	| { mode: 'create'; login: string; displayName: string; passwordFromStdin: boolean }
@@ -56,16 +55,6 @@ async function readStdin(): Promise<string> {
 	return Buffer.concat(chunks)
 		.toString('utf8')
 		.replace(/\r?\n$/, '')
-}
-
-function postgresCode(error: unknown): string | null {
-	let current: unknown = error
-	for (let depth = 0; depth < CAUSE_DEPTH && current instanceof Error; depth += 1) {
-		const code = (current as Error & { code?: unknown }).code
-		if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return code
-		current = current.cause
-	}
-	return null
 }
 
 async function runCreate(
