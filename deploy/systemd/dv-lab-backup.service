@@ -1,0 +1,9 @@
+[Unit]
+Description=dv-lab nightly database backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/dv-lab/repo/deploy/backup/backup.sh
+TimeoutStartSec=30min
