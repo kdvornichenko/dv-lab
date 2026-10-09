@@ -34,7 +34,7 @@ key-decisions:
 requirements-completed: [ACCT-02, ACCT-05]
 
 actuals:
-  tokens: 4200
+  tokens: 1100
   tasks: 3
   commits: 3
 
