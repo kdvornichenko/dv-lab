@@ -1,14 +1,20 @@
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
-import type { StudentDetail, StudentsResponse, saveStudentRequest } from '@dv-lab/contracts'
-import { balanceMinutes } from '@dv-lab/core'
-import { type DbExecutor, payments, students } from '@dv-lab/db'
+import type { StudentDetail, StudentsResponse, openingBalanceRequest, saveStudentRequest } from '@dv-lab/contracts'
+import { balanceMinutes, lessonsToMinutes } from '@dv-lab/core'
+import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
 
 import { findStudentAccount } from '../auth/accounts.ts'
 import { type CardRecord, cardColumns, toCardRow, toStudentDetail } from './card-rows.ts'
 
 type SaveStudentInput = z.output<typeof saveStudentRequest>
+
+type OpeningBalanceInput = z.output<typeof openingBalanceRequest>
+
+type ImportCardInput = Pick<SaveStudentInput, 'displayName' | 'rateMinor' | 'currency' | 'defaultLessonMinutes'> & {
+	importKey: string
+}
 
 type BalanceSource = Pick<CardRecord, 'id' | 'openingBalanceMinutes' | 'openingBalanceOn'>
 
@@ -26,10 +32,37 @@ function cardValues(input: SaveStudentInput) {
 }
 
 async function cardBalances(
-	_executor: DbExecutor,
+	executor: DbExecutor,
 	cards: readonly BalanceSource[]
 ): Promise<Map<string, number | null>> {
-	return new Map(cards.map((card) => [card.id, balanceMinutes(card.openingBalanceMinutes, [])]))
+	const opened = cards.filter((card) => card.openingBalanceMinutes !== null && card.openingBalanceOn !== null)
+	const credited = new Map<string, number[]>()
+	if (opened.length > 0) {
+		const rows = await executor
+			.select({ studentId: payments.studentId, creditedMinutes: payments.creditedMinutes })
+			.from(payments)
+			.innerJoin(students, eq(payments.studentId, students.id))
+			.where(
+				and(
+					inArray(
+						payments.studentId,
+						opened.map((card) => card.id)
+					),
+					isNotNull(students.openingBalanceOn),
+					gt(payments.paidOn, students.openingBalanceOn),
+					gt(payments.creditedMinutes, 0)
+				)
+			)
+		for (const row of rows) {
+			if (row.studentId === null) continue
+			const list = credited.get(row.studentId) ?? []
+			list.push(row.creditedMinutes)
+			credited.set(row.studentId, list)
+		}
+	}
+	return new Map(
+		cards.map((card) => [card.id, balanceMinutes(card.openingBalanceMinutes, credited.get(card.id) ?? [])])
+	)
 }
 
 async function toDetail(executor: DbExecutor, row: CardRecord): Promise<StudentDetail> {
@@ -94,4 +127,46 @@ export async function restoreCard(executor: DbExecutor, id: string): Promise<Stu
 		.where(and(eq(students.id, id), eq(students.status, 'archived')))
 		.returning(cardColumns)
 	return row ? toDetail(executor, row) : getCard(executor, id)
+}
+
+export function setOpeningBalance(
+	db: Database,
+	id: string,
+	{ lessonsHundredths, on }: OpeningBalanceInput
+): Promise<StudentDetail | null> {
+	return db.transaction(async (tx): Promise<StudentDetail | null> => {
+		const [locked] = await tx
+			.select({ defaultLessonMinutes: students.defaultLessonMinutes })
+			.from(students)
+			.where(eq(students.id, id))
+			.for('update')
+		if (!locked) return null
+		const [row] = await tx
+			.update(students)
+			.set({
+				openingBalanceMinutes: lessonsToMinutes(lessonsHundredths, locked.defaultLessonMinutes),
+				openingBalanceOn: on,
+				updatedAt: sql`now()`,
+			})
+			.where(eq(students.id, id))
+			.returning(cardColumns)
+		if (!row) throw new Error('student card update returned no row')
+		return toDetail(tx, row)
+	})
+}
+
+export async function importCard(
+	executor: DbExecutor,
+	{ importKey, ...card }: ImportCardInput
+): Promise<{ id: string; inserted: boolean }> {
+	const values = cardValues({ ...card, parent: null, level: null, goals: null, timeZone: null })
+	const [row] = await executor
+		.insert(students)
+		.values({ ...values, importKey })
+		.onConflictDoNothing({ target: students.importKey })
+		.returning({ id: students.id })
+	if (row) return { id: row.id, inserted: true }
+	const [existing] = await executor.select({ id: students.id }).from(students).where(eq(students.importKey, importKey))
+	if (!existing) throw new Error('imported student card is missing after a conflict')
+	return { id: existing.id, inserted: false }
 }

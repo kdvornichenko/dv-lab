@@ -2,11 +2,24 @@ import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { z } from 'zod'
 
-import { type StudentResponse, type StudentsResponse, saveStudentRequest } from '@dv-lab/contracts'
+import {
+	type StudentResponse,
+	type StudentsResponse,
+	openingBalanceRequest,
+	saveStudentRequest,
+} from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
-import { archiveCard, createCard, getCard, listCards, restoreCard, updateCard } from '../cards/cards.ts'
+import {
+	archiveCard,
+	createCard,
+	getCard,
+	listCards,
+	restoreCard,
+	setOpeningBalance,
+	updateCard,
+} from '../cards/cards.ts'
 import { errorBody } from '../request-context.ts'
 
 type StudentRouteDeps = { db: Database }
@@ -63,6 +76,16 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
 		const student = await restoreCard(db, id)
+		if (!student) return notFound(c)
+		return c.json({ student } satisfies StudentResponse, 200)
+	})
+
+	routes.put('/:id/opening-balance', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, openingBalanceRequest)
+		if (!input) return invalidRequest(c)
+		const student = await setOpeningBalance(db, id, input)
 		if (!student) return notFound(c)
 		return c.json({ student } satisfies StudentResponse, 200)
 	})
