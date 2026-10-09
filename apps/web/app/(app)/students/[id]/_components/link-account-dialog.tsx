@@ -71,7 +71,7 @@ export function LinkAccountDialog({ studentId, name, onClose, onLinked, onConfli
 
 	const loading = candidates === null
 	const empty = candidates !== null && candidates.length === 0
-	const error = submitted && accountId === '' && !empty ? 'Choose an account.' : undefined
+	const error = submitted && accountId === '' && !empty && failure === null ? 'Choose an account.' : undefined
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
