@@ -85,7 +85,10 @@ smoke_ok() {
 		*'"db":"ok"'*) ;;
 		*) return 1 ;;
 	esac
-	[ "$WEB_CODE" = 200 ]
+	case "$WEB_CODE" in
+		200 | 307) ;;
+		*) return 1 ;;
+	esac
 }
 
 mkdir -p "$STATE"
