@@ -5,6 +5,7 @@
 apps/api/drizzle
 .env
 .env.*
+**/.env.*
 .planning
 .claude
 .turbo
