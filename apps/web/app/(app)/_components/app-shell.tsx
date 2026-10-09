@@ -2,10 +2,14 @@
 
 import type { ReactNode } from 'react'
 
+import { Search } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 
+import { ThemeToggle } from '@/components/app/theme-toggle'
 import { SidebarInsetTopbar } from '@/components/sidebar-app/inset-topbar'
+import { Button } from '@/components/ui/button'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { Tooltip } from '@/components/ui/tooltip'
 import { SurfaceProvider } from '@/lib/surface-context'
 
 import { AppSidebar } from './app-sidebar'
@@ -16,6 +20,16 @@ function Topbar() {
 	return (
 		<SidebarInsetTopbar>
 			<span className="min-w-0 flex-1 truncate text-body text-foreground">{section.label}</span>
+			<div className="flex shrink-0 items-center gap-1 pr-2">
+				<span className="md:hidden">
+					<Tooltip content="Search" delayDuration={200}>
+						<Button variant="ghost" size="icon-compact" aria-label="Search">
+							<Search />
+						</Button>
+					</Tooltip>
+				</span>
+				<ThemeToggle />
+			</div>
 		</SidebarInsetTopbar>
 	)
 }
