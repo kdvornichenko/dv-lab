@@ -92,7 +92,7 @@ Copy-time edits (import, size and locale only, no restyling):
 | Part | Notes |
 |------|-------|
 | `StatusDot` (shared) | Extract the existing dot from `students-screen.tsx` to `components/app/status-dot.tsx`: bare 8px dot in `Tooltip`, `role="img"`, `aria-label`. Active and "Active" account: `bg-success`; Archived and Deactivated: `bg-muted-foreground`. Not `Badge` |
-| `MarkdownView` | `react-markdown` + `remark-gfm`, `skipHtml`; see Design Requests DR-1 for the look; fallback class map is fixed there |
+| `MarkdownView` | `react-markdown` + `remark-gfm`, `skipHtml`; the look is the DR-1 class map from the Design session (Design Requests) |
 | `LessonsText`, `MoneyText` helpers | Thin wrappers over the `packages/core` formatters (D-06); the UI never formats money or lessons on its own |
 
 ---
@@ -116,7 +116,7 @@ Same four sizes and two weights as the baseline [18]: Display 22/28 (600, `text-
 | Body | Everything else: table cells, field labels (muted), values, markdown paragraphs, header summary line, tab labels, buttons |
 | Caption | Field helpers and errors, hints (opening balance hint, prefill hint), tooltip-adjacent secondary text, counts under toolbars when secondary |
 
-Markdown inside sections never introduces new sizes: all headings (`h1` to `h6`) render as `text-title` 600, everything else `text-body` 400, inline and block code as `font-mono` (JetBrains Mono Variable) at `text-body` 400. Money, dates and lesson counts use `tabular-nums`.
+Markdown inside sections never introduces new sizes: `h1` and `h2` render as `text-title` 600, `h3` to `h6` as `text-body` 600 (DR-1), everything else `text-body` 400, inline and block code as `font-mono` (JetBrains Mono Variable) at `text-body` 400. Money, dates and lesson counts use `tabular-nums`.
 
 ---
 
@@ -339,11 +339,22 @@ All formatting goes through `packages/core` [D-06]; the UI passes stored values 
 
 ## Design Requests
 
-| ID | Element | Screen | States needed | Fallback if the Design session has not answered |
+| ID | Element | Screen | States needed | Answer from the Design session (2026-10-10) |
 |----|---------|--------|---------------|--------------------------------------------------|
-| DR-1 | Markdown content view (rendered markdown typography inside a `Panel`) | Notes tab (six sections); read-only reuse later in chat | Paragraph, headings, bullet/ordered/task lists, links, inline and block code, blockquote, GFM table (horizontal scroll), horizontal rule, very long unbroken line, empty (plain "Nothing here yet"), light and dark | `MarkdownView` with token-only classes: container `flex flex-col gap-2 text-body`; `h1`-`h6` `text-title font-semibold`; `ul`/`ol` `list-disc`/`list-decimal pl-4`; `a` `text-foreground underline underline-offset-2` with `target="_blank" rel="noreferrer noopener"`; `code` `font-mono text-body bg-hover rounded-md px-1`; `pre` `bg-hover rounded-lg p-2 overflow-x-auto`; `blockquote` `border-l-2 border-border pl-2 text-muted-foreground`; `table` in an `overflow-x-auto` wrapper, cells `border border-border px-2 py-1`; `hr` `border-border`; all `break-words` |
+| DR-1 | Markdown content view (rendered markdown typography inside a `Panel`) | Notes tab (six sections); read-only reuse later in chat | Paragraph, headings, bullet/ordered/task lists, links, inline and block code, blockquote, GFM table (horizontal scroll), horizontal rule, very long unbroken line, empty (plain "Nothing here yet"), light and dark | **ANSWERED** by Design dude: component `MarkdownView` in the design system (group Content, artifact https://claude.ai/artifact/P9JxkriLSszvf5y8JZyv9v), no new tokens. Class map below is binding and replaces the earlier fallback |
 
-Everything else the screens need exists in the variant A copy and is mapped in the table below; no custom look is invented for any of it. The plan that builds DR-1 carries a "request from design" step.
+DR-1 class map (token-only; the Design session's answer):
+- Container: `flex flex-col gap-3 text-body text-foreground wrap-anywhere` (`break-words` if the installed Tailwind has no `wrap-anywhere`).
+- Headings: `h1` and `h2` `text-title font-semibold` with `mt-4 first:mt-0` and `mt-3 first:mt-0`; `h3` to `h6` `text-body font-semibold mt-2 first:mt-0`.
+- Lists: `ul` `list-disc pl-5 flex flex-col gap-1 marker:text-muted-foreground`; `ol` the same with `list-decimal`; nested list `mt-1`. Task item: `list-none -ml-5 flex items-start gap-2`; box `size-4 mt-1 shrink-0 rounded-sm ring-1 ring-inset ring-input bg-surface-3`, read only; checked box `bg-primary text-primary-foreground` with a 12px `Check` icon, checked text `text-muted-foreground`.
+- Link `a`: `text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground`, `target="_blank" rel="noreferrer noopener"`; the `link` token stays reserved for links to students and notes inside the app.
+- Code: inline `font-mono text-body bg-hover rounded-md px-1`; block `pre` `bg-hover rounded-lg p-3 overflow-x-auto` (no wrapping), inner `code` `bg-transparent p-0`.
+- `blockquote`: `bg-hover rounded-lg px-3 py-2 text-muted-foreground` (no coloured left bar).
+- Table: wrapper `overflow-x-auto rounded-lg ring-1 ring-inset ring-border`; `table` `w-full min-w-max border-collapse`; `th` `text-left font-semibold text-muted-foreground px-3 py-2 whitespace-nowrap`; `td` `px-3 py-2 border-t border-border whitespace-nowrap`.
+- `hr`: `border-t border-border my-1`. `img`: `max-w-full rounded-lg`.
+- Empty section: `px-6 py-12 text-center text-body text-muted-foreground`, text "Nothing here yet", inside the same `Panel`.
+
+Everything else the screens need exists in the variant A copy and is mapped in the table below; no custom look is invented for any of it. DR-1 is answered, so no "request from design" step is needed for it; any new gap found during execution is sent to the Design session before the element is built.
 
 | Need | Resolved by |
 |------|-------------|
