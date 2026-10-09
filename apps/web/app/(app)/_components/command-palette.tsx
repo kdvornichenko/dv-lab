@@ -2,15 +2,17 @@
 
 import { Autocomplete } from '@base-ui/react/autocomplete'
 
-import { Monitor, Moon, Search, Sun, type LucideIcon } from 'lucide-react'
+import { LogOut, Monitor, Moon, Search, Sun, type LucideIcon } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useRouter } from 'next/navigation'
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 
 import { sections } from './sections'
+import { useSignOut } from './use-sign-out'
 
-type Action = { type: 'route'; href: string } | { type: 'theme'; theme: 'light' | 'dark' | 'system' }
+type Action =
+	{ type: 'route'; href: string } | { type: 'theme'; theme: 'light' | 'dark' | 'system' } | { type: 'sign-out' }
 
 interface Item {
 	value: string
@@ -42,6 +44,10 @@ const groups: Group[] = [
 			{ value: 'theme-system', label: 'System theme', icon: Monitor, action: { type: 'theme', theme: 'system' } },
 		],
 	},
+	{
+		value: 'Account',
+		items: [{ value: 'account-sign-out', label: 'Sign out', icon: LogOut, action: { type: 'sign-out' } }],
+	},
 ]
 
 interface CommandPaletteProps {
@@ -53,10 +59,12 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPaletteProps) {
 	const router = useRouter()
 	const { setTheme } = useTheme()
+	const { signOut } = useSignOut()
 
 	function run(item: Item) {
 		if (item.action.type === 'route') router.push(item.action.href)
-		else setTheme(item.action.theme)
+		else if (item.action.type === 'theme') setTheme(item.action.theme)
+		else void signOut()
 		onOpenChange(false)
 	}
 

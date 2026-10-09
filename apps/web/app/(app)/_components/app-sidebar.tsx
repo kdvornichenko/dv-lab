@@ -1,12 +1,13 @@
 'use client'
 
-import { UserRound } from 'lucide-react'
+import { LogOut, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import { SidebarSearchField } from '@/components/sidebar-app/search-field'
 import { SidebarUserFooter } from '@/components/sidebar-app/user-footer'
 import { SidebarWorkspaceHeader, WorkspaceTile } from '@/components/sidebar-app/workspace-header'
+import { MenuItem } from '@/components/ui/menu-item'
 import {
 	Sidebar,
 	SidebarContent,
@@ -22,6 +23,7 @@ import {
 import type { AccountSummary } from '@dv-lab/contracts'
 
 import { isSectionActive, sections } from './sections'
+import { useSignOut } from './use-sign-out'
 
 interface AppSidebarProps {
 	account: AccountSummary
@@ -31,6 +33,7 @@ interface AppSidebarProps {
 export function AppSidebar({ account, onOpenSearch }: AppSidebarProps) {
 	const pathname = usePathname()
 	const { isMobile, setOpenMobile } = useSidebar()
+	const { signOut } = useSignOut()
 
 	function openSearch(initialQuery?: string) {
 		if (isMobile) setOpenMobile(false)
@@ -88,7 +91,7 @@ export function AppSidebar({ account, onOpenSearch }: AppSidebarProps) {
 				<SidebarUserFooter
 					name={account.displayName}
 					avatar={<UserRound size={16} className="text-muted-foreground" aria-hidden />}
-					menu={null}
+					menu={<MenuItem icon={LogOut} label="Sign out" index={0} onSelect={() => void signOut()} />}
 				/>
 			</SidebarFooter>
 		</Sidebar>
