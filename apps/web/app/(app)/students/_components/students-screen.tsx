@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
-
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 
 import { UserPlus } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
 import { EmptyLine } from '@/components/app/empty-line'
@@ -22,6 +21,8 @@ import { Elevated } from '@/lib/elevated'
 import { cn } from '@/lib/utils'
 
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
+
+import { StudentFormDialog } from './student-form-dialog'
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; students: StudentRow[] }
 
@@ -108,6 +109,8 @@ function StudentsTable({ rows }: { rows: StudentRow[] }) {
 
 export function StudentsScreen() {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [createOpen, setCreateOpen] = useState(false)
+	const createButton = useRef<HTMLButtonElement>(null)
 
 	const load = useCallback(async () => {
 		setState(await readStudents())
@@ -124,7 +127,10 @@ export function StudentsScreen() {
 	}, [])
 
 	const students = state.kind === 'ready' ? state.students : null
-	const active = useMemo(() => (students ?? []).filter((student) => student.status === 'active').sort(byName), [students])
+	const active = useMemo(
+		() => (students ?? []).filter((student) => student.status === 'active').sort(byName),
+		[students]
+	)
 	const archived = useMemo(
 		() => (students ?? []).filter((student) => student.status === 'archived').sort(byName),
 		[students]
@@ -143,7 +149,11 @@ export function StudentsScreen() {
 				description={
 					loading ? <SkeletonText className="w-48 py-0.5" /> : `${active.length} active, ${archived.length} archived`
 				}
-				actions={<Button leadingIcon={UserPlus}>New student</Button>}
+				actions={
+					<Button ref={createButton} leadingIcon={UserPlus} onClick={() => setCreateOpen(true)}>
+						New student
+					</Button>
+				}
 			/>
 		)
 		body = (
@@ -166,6 +176,19 @@ export function StudentsScreen() {
 		<PageScroll>
 			{header}
 			{body}
+			{createOpen ? (
+				<StudentFormDialog
+					mode="create"
+					onClose={() => {
+						setCreateOpen(false)
+						requestAnimationFrame(() => createButton.current?.focus())
+					}}
+					onSaved={() => {
+						setCreateOpen(false)
+						void load()
+					}}
+				/>
+			) : null}
 		</PageScroll>
 	)
 }
