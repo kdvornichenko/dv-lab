@@ -324,6 +324,8 @@ __metadata:
   dependencies:
     "@base-ui/react": "npm:1.8.0"
     "@dv-lab/contracts": "workspace:*"
+    "@fontsource-variable/inter": "npm:5.3.0"
+    "@fontsource-variable/jetbrains-mono": "npm:5.3.0"
     "@tailwindcss/postcss": "npm:4.3.3"
     "@types/node": "npm:24.19.1"
     "@types/react": "npm:19.3.0"
@@ -333,7 +335,6 @@ __metadata:
     eslint: "npm:10.12.0"
     eslint-config-next: "npm:16.4.0"
     framer-motion: "npm:14.0.0"
-    geist: "npm:1.7.2"
     lucide-react: "npm:1.53.0"
     next: "npm:16.4.0"
     next-themes: "npm:0.4.6"
@@ -343,8 +344,6 @@ __metadata:
     tailwind-merge: "npm:3.7.0"
     tailwindcss: "npm:4.3.3"
     typescript: "npm:6.0.3"
-    vite: "npm:8.3.3"
-    vitest: "npm:5.0.3"
   languageName: unknown
   linkType: soft
 
@@ -724,6 +723,20 @@ __metadata:
   version: 0.2.12
   resolution: "@floating-ui/utils@npm:0.2.12"
   checksum: 10c0/bb910b90d56991a62011afaf5f8e0c4b7fb6dab69403f4dd17fbd6eb25560b28d533dff9791f270b4f459852e9006a1077b5d73cbedb5e34d9424afc6a828314
+  languageName: node
+  linkType: hard
+
+"@fontsource-variable/inter@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource-variable/inter@npm:5.3.0"
+  checksum: 10c0/46fbe41e8482a718f99634c8254346c6081d615415059be12e177224c903d688199125967825e75d4b8122668fd83f70880e11d4e02d08c20b503c65fe2a96d1
+  languageName: node
+  linkType: hard
+
+"@fontsource-variable/jetbrains-mono@npm:5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource-variable/jetbrains-mono@npm:5.3.0"
+  checksum: 10c0/ba983321b530a56696b12390a377c79a962376a33359eeda37c9a2141450802e0b630e6c232d90aab0281179e623d01c77d1bc8059ce595fe865fbc6d6022ffb
   languageName: node
   linkType: hard
 
@@ -4024,15 +4037,6 @@ __metadata:
   version: 1.2.3
   resolution: "functions-have-names@npm:1.2.3"
   checksum: 10c0/33e77fd29bddc2d9bb78ab3eb854c165909201f88c75faa8272e35899e2d35a8a642a15e7420ef945e1f64a9670d6aa3ec744106b2aa42be68ca5114025954ca
-  languageName: node
-  linkType: hard
-
-"geist@npm:1.7.2":
-  version: 1.7.2
-  resolution: "geist@npm:1.7.2"
-  peerDependencies:
-    next: ">=13.2.0"
-  checksum: 10c0/ee523706786297a72db6adc62cf56a8d31e51926d785c195403e7115bfa1dea71bdef84853a9c1a362699b1b91484a8c2fc98048a0cfef7efdd0b478d403cc65
   languageName: node
   linkType: hard
 

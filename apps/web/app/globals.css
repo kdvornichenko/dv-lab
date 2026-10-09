@@ -5,8 +5,8 @@
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
+	--font-sans: 'Inter Variable', system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -214,15 +214,15 @@
 
 	--link: oklch(0.5 0.17 265);
 	--link-missing: oklch(0.6 0.15 30);
-	--fs-display: 22px;
-	--lh-display: 28px;
+	--fs-display: 28px;
+	--lh-display: 34px;
 	--fs-display-compact: 24px;
 	--lh-display-compact: 30px;
 	--fs-title: 16px;
 	--lh-title: 22px;
 	--fs-title-compact: 15px;
 	--lh-title-compact: 20px;
-	--fs-subtitle: 13px;
+	--fs-subtitle: 14px;
 	--lh-subtitle: 20px;
 	--fs-subtitle-compact: 13px;
 	--lh-subtitle-compact: 18px;
@@ -366,6 +366,13 @@
 	--info: #93c5fd;
 	--success: #86efac;
 	--warning: #fcd34d;
+}
+
+.app-scale {
+	--fs-display: 22px;
+	--lh-display: 28px;
+	--fs-subtitle: 13px;
+	--lh-subtitle: 20px;
 }
 
 @layer base {

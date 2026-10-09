@@ -1,7 +1,8 @@
+import '@fontsource-variable/inter/opsz.css'
+import '@fontsource-variable/jetbrains-mono'
+
 import type { ReactNode } from 'react'
 
-import { GeistMono } from 'geist/font/mono'
-import { GeistSans } from 'geist/font/sans'
 import type { Metadata } from 'next'
 
 import { ThemeProvider } from '@/components/app/theme-provider'
@@ -15,8 +16,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 	return (
-		<html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
-			<body className="font-sans antialiased">
+		<html lang="en" suppressHydrationWarning>
+			<body className="app-scale font-sans antialiased">
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
 					<div className="isolate">{children}</div>
 				</ThemeProvider>
