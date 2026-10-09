@@ -1,10 +1,21 @@
 import { Writable } from 'node:stream'
 import { setTimeout as sleep } from 'node:timers/promises'
+import type { Logger } from 'pino'
 import { describe, expect, it } from 'vitest'
-import { createApp } from '../src/app.ts'
+
+import { type AppDeps, createApp } from '../src/app.ts'
 import { createLogger } from '../src/request-context.ts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+function deps(logger: Logger): AppDeps {
+	return {
+		logger,
+		db: { execute: async () => ({ rows: [] }) } as unknown as AppDeps['db'],
+		gitSha: 'test-sha',
+		isStopping: () => false,
+	}
+}
 
 function memoryLogger() {
 	const lines: string[] = []
@@ -24,7 +35,7 @@ function memoryLogger() {
 describe('request context', () => {
 	it('writes one access line with the incoming request id and echoes it in the response header', async () => {
 		const { logger, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 
 		const res = await app.request('/healthz', { headers: { 'x-request-id': 'abc-12345' } })
 
@@ -50,7 +61,7 @@ describe('request context', () => {
 		['contains characters outside word and dash', 'abc.def/123'],
 	])('replaces the request id with a UUID when the incoming id %s', async (_name, incoming) => {
 		const { logger, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 
 		const res = await app.request('/healthz', incoming ? { headers: { 'x-request-id': incoming } } : {})
 
@@ -62,7 +73,7 @@ describe('request context', () => {
 
 	it('keeps an incoming id of exactly 64 characters', async () => {
 		const { logger } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 		const id = 'a'.repeat(64)
 
 		const res = await app.request('/healthz', { headers: { 'x-request-id': id } })
@@ -72,7 +83,7 @@ describe('request context', () => {
 
 	it('answers a handler error with the generic envelope, hides the exception text and logs it with the same request id', async () => {
 		const { logger, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 		app.get('/boom', () => {
 			throw new Error('secret detail')
 		})
@@ -93,7 +104,7 @@ describe('request context', () => {
 
 	it('answers an unknown path with the not_found envelope carrying the response request id', async () => {
 		const { logger, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 
 		const res = await app.request('/missing')
 
@@ -108,7 +119,7 @@ describe('request context', () => {
 
 	it('keeps the request id for a background task that finishes after the response', async () => {
 		const { logger, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 		app.get('/background', (c) => {
 			setTimeout(() => logger.info('background done'), 20)
 			return c.text('accepted')
@@ -124,7 +135,7 @@ describe('request context', () => {
 
 	it('gives concurrent requests their own request ids in access lines and in handler logs', async () => {
 		const { logger, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 		app.get('/slow', async (c) => {
 			await sleep(c.req.header('x-delay') === 'long' ? 40 : 10)
 			logger.info('handler done')
@@ -146,11 +157,11 @@ describe('request context', () => {
 
 	it('replaces cookie and authorization header values with [redacted] in logs', async () => {
 		const { logger, raw, records } = memoryLogger()
-		const app = createApp({ logger })
+		const app = createApp(deps(logger))
 		app.get('/echo', (c) => {
 			logger.info(
 				{ req: { headers: { cookie: 'session=cookie-secret', authorization: 'Bearer token-secret' } } },
-				'incoming',
+				'incoming'
 			)
 			return c.text('ok')
 		})

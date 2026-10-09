@@ -5,6 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsdown",
+		"start": "node --enable-source-maps dist/server.mjs",
+		"dev": "node --env-file-if-exists=../../.env --watch src/server.ts",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"db:migrate": "node --env-file-if-exists=../../.env src/migrate.ts"
