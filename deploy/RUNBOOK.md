@@ -6,15 +6,15 @@
 
 - На сервере команды выполняются под `ubuntu` через `sudo`. Клон `/opt/dv-lab/repo` принадлежит root, поэтому `deploy.sh`, `backup.sh`, `restore-check.sh` и `git -C /opt/dv-lab/repo` запускаются только через `sudo` (без него git отвечает `dubious ownership`).
 - Каждый блок — подоболочка `( set -Eeuo pipefail; … )`. Блок вставляется в bash целиком; на Mac сначала запустить `bash` (zsh понимает `set -E` иначе). Ошибка любой команды завершает блок с ненулевым кодом. Конструкций `… || echo`, `команда | grep -q` и `%{redirect_url}` в блоках нет.
-- Значения, которые знает только оператор, задаются переменными в первых строках блока: `VPS_IPV4`, `VPS_IPV6`, `CLIENT_IPV6`, `SHA`, `DUMP`, `SERVICE`, `GHCR_USER`. Пустая переменная останавливает блок на проверке `${VAR:?}`. Реальные адреса, пароли и токены в этот файл не записываются.
+- Значения, которые знает только оператор, задаются переменными в первых строках блока: `VPS_IPV4`, `VPS_IPV6`, `CLIENT_IPV4`, `CLIENT_IPV6`, `SHA`, `DUMP`, `SERVICE`, `GHCR_USER`, `TEACHER_EMAIL`, `TEACHER_NAME`. Пустая переменная останавливает блок на проверке `${VAR:?}`. Реальные адреса, пароли и токены в этот файл не записываются.
 - `curl` в блоках печатает только `http_code` или тело `/healthz`.
 - `SHA` — полный sha коммита, 40 hex без префикса `sha-`: для работающего релиза — из строки `DEPLOY_OK <прошлый> -> sha-<SHA>` или из поля `to=sha-<SHA>` последней строки `OK` в `/opt/dv-lab/state/deploy-journal.log`; для раздела 5a и первой выкатки — merge-коммит в `master` (`sudo git -C /opt/dv-lab/repo rev-parse origin/master` после `fetch`).
-- Одна форма ручного вызова docker compose (разделы 5, 5a, 6, 9): в начале блока задаётся `SHA`, затем `APP_TAG="sha-${SHA:?}"`, и compose вызывается как `sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env <команда>` (в блоках — функция `dc` с этой строкой). Compose интерполирует весь файл, и без `APP_TAG` падают даже `logs` и `up -d db`. `sudo` сбрасывает окружение, поэтому `APP_TAG` передаётся через `env`. Файл состояния выкатки в каталоге `state` ручные блоки не читают: при первой выкатке и на пересобранном VPS его нет. Пароли compose берёт из `db.env`. `exec` вызывается с `-T`.
+- Одна форма ручного вызова docker compose (разделы 5, 5a, 6, 9, 10): в начале блока задаётся `SHA`, затем `APP_TAG="sha-${SHA:?}"`, и compose вызывается как `sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env <команда>` (в блоках — функция `dc` с этой строкой). Compose интерполирует весь файл, и без `APP_TAG` падают даже `logs` и `up -d db`. `sudo` сбрасывает окружение, поэтому `APP_TAG` передаётся через `env`. Файл состояния выкатки в каталоге `state` ручные блоки не читают: при первой выкатке и на пересобранном VPS его нет. Пароли compose берёт из `db.env`. `exec` вызывается с `-T`.
 - Переменные для `deploy.sh` передаются так же: `sudo env FORCE=1 /opt/dv-lab/repo/deploy/deploy.sh`.
 - Отступы в блоках — пробелы: табуляция при вставке в bash без bracketed paste запускает автодополнение.
 - Назад присылаются коды и строки-маркеры (`DEPLOY_OK`, `BACKUP_OK`, `RESTORE_OK`, `DNS_OK`, коды HTTP), без адресов и паролей.
 
-Порядок первого релиза: 1 и 2 (проверка) → 3.1 (TTL) → 4 → 5a → 3.3–3.4 (переключение DNS) → 5 → 6 → 7. Раздел 8 — каждая следующая выкатка, раздел 9 — авария.
+Порядок первого релиза: 1 и 2 (проверка) → 3.1 (TTL) → 4 → 5a → 3.3–3.4 (переключение DNS) → 5 → 6 → 7. Раздел 8 — каждая следующая выкатка, раздел 9 — авария. Релиз фазы 18 — разделы 10.1, 10.2, 10.3 вместо обычного 8.1.
 
 ## 1. Подготовка VPS
 
@@ -647,3 +647,66 @@ TTL — второе поле строки. Если он больше 60 с, TT
 ```
 
 Ожидаемо `DEPLOY_OK none -> sha-<SHA>`. Затем разделы 6 и 7 (включая `RESTORE_OK`).
+
+## 10. Релиз со входом (фаза 18) и учётные записи
+
+Порядок: 10.1 → 10.2 → 10.3. Разделы 10.4 и 10.5 — по необходимости после 10.3. `SHA` во всех блоках раздела — merge-коммит релиза фазы 18 в `master` (после выкатки — текущий релиз).
+
+### 10.1. Выкатка релиза фазы 18 (один раз)
+
+Клон на сервере держит релиз фазы 17 (`17868c4`). Его `deploy.sh` принимает на `/` только код 200, а после фазы 18 корень без сессии отвечает 307 на `/login`: запуск старого скрипта без переключения клона даёт `DEPLOY_FAILED stage=smoke` и откат. Поэтому блок сначала переключает клон на целевой sha, и запускается `deploy.sh` релиза фазы 18.
+
+Сеть compose с IPv6 (D-26) появляется только после пересоздания существующей сети `dv-lab_default`, а `deploy.sh` сети не пересоздаёт. Блок проверяет сеть: если у неё нет IPv6, выполняется `dc down` (без `-v`: тома и данные остаются; сайт не отвечает до конца выкатки, это короткий простой). Если сеть уже с IPv6 (её пересоздали раньше), `dc down` не выполняется и выкатка идёт без простоя. Перед блоком образы `sha-<SHA>` проверяются блоком 4.2: иначе простой после `dc down` растягивается на ожидание образов в `deploy.sh`.
+
+Образы приватные: сервер уже вошёл в GHCR (4.2), анонимного доступа блок не предполагает.
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  sudo git -C /opt/dv-lab/repo fetch -q origin
+  sudo git -C /opt/dv-lab/repo checkout -q --detach "$SHA"
+  if sudo docker network inspect dv-lab_default > /dev/null 2>&1; then
+    V6=$(sudo docker network inspect -f '{{.EnableIPv6}}' dv-lab_default)
+    echo "dv-lab_default EnableIPv6=$V6"
+    if [ "$V6" != true ]; then
+      dc down
+    fi
+  fi
+  sudo /opt/dv-lab/repo/deploy/deploy.sh "$SHA"
+)
+```
+
+Ожидаемо: строка `dv-lab_default EnableIPv6=…` и последняя строка `DEPLOY_OK sha-<прошлый> -> sha-<SHA>`; в строке `smoke:` коды `web=200` или `web=307`, `login=200`, `me=401`. Назад присылается строка `DEPLOY_OK` и значение `EnableIPv6` до выкатки.
+
+Если `DEPLOY_FAILED` и итог отката пишет ошибку сети compose (`ROLLBACK FAILED` или сообщение о сети `dv-lab_default`): `dc down` той же формой в клоне на прошлом sha (`sudo git -C /opt/dv-lab/repo checkout -q --detach <прошлый sha>`, `SHA` в блоке — прошлый), затем раздел 8.2 с прошлым sha, затем сообщить владельцу. Прошлый sha — из поля `to=` последней строки `OK` журнала выкаток (8.4).
+
+### 10.3. Первый учитель и вход владельца
+
+Только после того, как 10.2 напечатал `CLIENT_IP_OK`. `TEACHER_EMAIL` — e-mail владельца для входа, `TEACHER_NAME` — его имя, как оно показывается в оболочке. Скрипт печатает пароль один раз; контейнер `run --rm` удаляется вместе с журналом (драйвер `local`), блок проверяет, что контейнера `bootstrap` не осталось.
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  TEACHER_EMAIL=
+  TEACHER_NAME=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  : "${TEACHER_EMAIL:?}" "${TEACHER_NAME:?}"
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  dc --profile tools run --rm bootstrap --email "$TEACHER_EMAIL" --name "$TEACHER_NAME"
+  LEFT=$(sudo docker ps -a -q --filter label=com.docker.compose.project=dv-lab --filter label=com.docker.compose.service=bootstrap)
+  [ -z "$LEFT" ]
+  echo NO_BOOTSTRAP_CONTAINER
+)
+```
+
+Ожидаемо строки `Teacher created. Login: …`, `Password (shown once): …` и `NO_BOOTSTRAP_CONTAINER`. Пароль оператор передаёт владельцу лично и назад не присылает; назад присылаются только маркеры `Teacher created` и `NO_BOOTSTRAP_CONTAINER`, без логина и пароля. Код 3 и `An active teacher already exists` — учитель уже есть, повторять не нужно (забытый пароль — раздел 10.5). Код 2 и строка `Usage:` — пустое или неверное значение `TEACHER_EMAIL` или `TEACHER_NAME`. Код 1 и `Bootstrap failed` — ошибка базы, смотреть `SERVICE=db` (5.1).
+
+Последний шаг выполняет владелец: входит на `https://dv-lab.dev/login` этим e-mail и паролем, видит оболочку Today со своим именем и меняет пароль через меню аккаунта. Это закрывает критерий 1 ROADMAP фазы 18.
