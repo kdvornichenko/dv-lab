@@ -56,7 +56,7 @@ jobs:
         run: |
           yarn --cwd packages/db db:migrate || {
             echo "migrate failed; postgres service log follows"
-            docker ps -q | xargs -r -n1 docker logs --tail 60
+            docker ps -q | xargs -r -n1 sh -c 'docker logs "$0" 2>&1 | grep -E "ERROR|HINT|DETAIL" | head -20'
             exit 1
           }
 

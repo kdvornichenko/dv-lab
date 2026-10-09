@@ -77,7 +77,7 @@ WITH "package_students" AS (
 			WHERE "attendance_records"."teacher_id" = "students"."teacher_id"
 				AND "attendance_records"."student_id" = "students"."id"
 				AND "attendance_records"."billable" = true
-				AND "attendance_records"."status" IN ('attended', 'no_show')
+				AND "attendance_records"."status"::text IN ('attended', 'no_show')
 		) AS "first_billable_lesson_at"
 	FROM "students"
 	WHERE "billing_mode" = 'package'
@@ -167,4 +167,4 @@ LEFT JOIN "student_packages"
 	AND "student_packages"."status" = 'active'
 	AND "lessons"."starts_at"::date >= "student_packages"."starts_at"
 WHERE "attendance_records"."billable" = true
-	AND "attendance_records"."status" IN ('attended', 'no_show');
+	AND "attendance_records"."status"::text IN ('attended', 'no_show');
