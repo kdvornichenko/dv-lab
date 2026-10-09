@@ -48,7 +48,7 @@ const UNMATCHED_FILE = 'Unmatched transfers.md'
 const UNMATCHED_KEY = 'unmatched'
 const VOCABULARY_FILE = 'Learnt vocabulary.md'
 const RATE_LINE = /^- Listed rate:/
-const RATE_PATTERN = /^- Listed rate:\s*(?:(KZT|RUB)\s+)?(\d[\d\s.,]*?)\s*(₽|KZT|RUB)?\s*\/\s*(\d+)\s*min/
+const RATE_PATTERN = /^- Listed rate:\s*(?:(KZT|RUB)\s+)?(\d[\d\s.,]*?)\s*(₽|₸|KZT|RUB)?\s*\/\s*(\d+)\s*min/
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const EMPTY_CELL = '—'
 
@@ -246,11 +246,11 @@ function readRate(text: string, label: string, warnings: string[]): Rate | null 
 	if (line === undefined) return null
 	const match = RATE_PATTERN.exec(line)
 	const symbol = match?.[1] ?? match?.[3]
-	if (!match || symbol === undefined) {
+	const currency = symbol === undefined ? null : parseCurrency(symbol)
+	if (!match || !currency) {
 		warnings.push(`warning: unreadable rate line, rate left empty (${label})`)
 		return null
 	}
-	const currency: Currency = symbol === '₽' ? 'RUB' : (symbol as Currency)
 	const amountMinor = parseMoney(normalizeAmount(match[2]), currency)
 	const lessonMinutes = Number(match[4])
 	if (amountMinor === null || lessonMinutes < LESSON_MINUTES_MIN || lessonMinutes > LESSON_MINUTES_MAX) {
