@@ -135,7 +135,7 @@ export const deactivateStudentAccountRequest = z.object({
 	accountId: z.uuid(),
 })
 
-export type StudentDetail = {
+export type StudentRow = {
 	id: string
 	displayName: string
 	status: StudentStatus
@@ -143,6 +143,11 @@ export type StudentDetail = {
 	currency: Currency | null
 	defaultLessonMinutes: number
 	balanceMinutes: number | null
+}
+
+export type StudentsResponse = { students: StudentRow[]; unassignedPayments: number }
+
+export type StudentDetail = StudentRow & {
 	parent: string | null
 	level: string | null
 	goals: string | null

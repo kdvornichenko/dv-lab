@@ -1,10 +1,10 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 
-import type { AccountSummary, StudentAccount, StudentRow } from '@dv-lab/contracts'
+import type { AccountSummary, StudentAccount } from '@dv-lab/contracts'
 import { accounts, violatesUnique } from '@dv-lab/db'
 import type { Database, DbExecutor } from '@dv-lab/db'
 
-import { studentAccountColumns, studentRowColumns, toStudentAccount, toStudentRow } from './account-rows.ts'
+import { studentAccountColumns, toStudentAccount } from './account-rows.ts'
 import { generatePassword, hashPassword, verifyPassword } from './passwords.ts'
 import { issueSession, revokeAccountSessions } from './sessions.ts'
 import type { CredentialCheck, SignIn } from './sign-in.ts'
@@ -19,9 +19,9 @@ export type CreateTeacherResult = { kind: 'created'; login: string } | { kind: '
 type CreateStudentInput = { login: string; displayName: string; password: string | null }
 
 export type CreateStudentResult =
-	{ kind: 'created'; student: StudentRow; generatedPassword: string | null } | { kind: 'login_taken' }
+	{ kind: 'created'; student: StudentAccount; generatedPassword: string | null } | { kind: 'login_taken' }
 
-export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentRow } | { kind: 'not_found' }
+export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentAccount } | { kind: 'not_found' }
 
 type ChangePasswordInput = {
 	account: AccountSummary
@@ -74,22 +74,13 @@ export async function createStudent(db: Database, input: CreateStudentInput): Pr
 		const [row] = await db
 			.insert(accounts)
 			.values({ login: input.login, displayName: input.displayName, role: 'student', passwordHash })
-			.returning(studentRowColumns)
+			.returning(studentAccountColumns)
 		if (!row) throw new Error('student insert returned no row')
-		return { kind: 'created', student: toStudentRow(row), generatedPassword }
+		return { kind: 'created', student: toStudentAccount(row), generatedPassword }
 	} catch (error) {
 		if (violatesUnique(error, ACTIVE_LOGIN_CONSTRAINT)) return { kind: 'login_taken' }
 		throw error
 	}
-}
-
-export async function listStudents(db: Database): Promise<StudentRow[]> {
-	const rows = await db
-		.select(studentRowColumns)
-		.from(accounts)
-		.where(eq(accounts.role, 'student'))
-		.orderBy(desc(accounts.createdAt))
-	return rows.map(toStudentRow)
 }
 
 export async function findStudentAccount(executor: DbExecutor, studentId: string): Promise<StudentAccount | null> {
@@ -114,10 +105,10 @@ export function deactivateStudent(db: Database, studentId: string): Promise<Deac
 			.update(accounts)
 			.set({ status: 'deactivated', updatedAt: sql`now()` })
 			.where(eq(accounts.id, locked.id))
-			.returning(studentRowColumns)
+			.returning(studentAccountColumns)
 		if (!row) throw new Error('student update returned no row')
 		await revokeAccountSessions(tx, locked.id)
-		return { kind: 'deactivated', student: toStudentRow(row) }
+		return { kind: 'deactivated', student: toStudentAccount(row) }
 	})
 }
 

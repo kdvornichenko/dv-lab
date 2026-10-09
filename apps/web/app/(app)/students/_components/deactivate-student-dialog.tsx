@@ -14,12 +14,12 @@ import {
 } from '@/components/ui/dialog'
 import { apiRequest } from '@/lib/api-client'
 
-import type { DeactivateStudentResponse, StudentRow } from '@dv-lab/contracts'
+import type { DeactivateStudentResponse, StudentAccount } from '@dv-lab/contracts'
 
 interface DeactivateStudentDialogProps {
-	student: StudentRow
+	student: StudentAccount
 	onClose: () => void
-	onDeactivated: (student: StudentRow) => void
+	onDeactivated: (student: StudentAccount) => void
 }
 
 export function DeactivateStudentDialog({ student, onClose, onDeactivated }: DeactivateStudentDialogProps) {

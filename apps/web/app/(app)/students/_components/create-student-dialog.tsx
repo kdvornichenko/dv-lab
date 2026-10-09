@@ -26,16 +26,16 @@ import {
 	normalizeLogin,
 	passwordLength,
 	type CreateStudentResponse,
-	type StudentRow,
+	type StudentAccount,
 } from '@dv-lab/contracts'
 
 interface CreateStudentDialogProps {
 	onClose: () => void
-	onFinished: (student: StudentRow, revealed: boolean) => void
+	onFinished: (student: StudentAccount, revealed: boolean) => void
 }
 
 interface Revealed {
-	student: StudentRow
+	student: StudentAccount
 	password: string
 }
 

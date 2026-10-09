@@ -17,13 +17,13 @@ import { apiRequest } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 import { cn } from '@/lib/utils'
 
-import type { StudentListResponse, StudentRow } from '@dv-lab/contracts'
+import type { StudentListResponse, StudentAccount } from '@dv-lab/contracts'
 
 import { useToast } from '../../_components/toasts'
 import { CreateStudentDialog } from './create-student-dialog'
 import { DeactivateStudentDialog } from './deactivate-student-dialog'
 
-type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; students: StudentRow[] }
+type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; students: StudentAccount[] }
 
 const createdFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
 
@@ -34,7 +34,13 @@ async function readStudents(): Promise<ReadState> {
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
 
-function StudentsTable({ rows, onDeactivate }: { rows: StudentRow[]; onDeactivate: (student: StudentRow) => void }) {
+function StudentsTable({
+	rows,
+	onDeactivate,
+}: {
+	rows: StudentAccount[]
+	onDeactivate: (student: StudentAccount) => void
+}) {
 	if (rows.length === 0) return <EmptyLine />
 	return (
 		<Elevated offset={1} shadowLevel={2} className="w-0 min-w-full overflow-hidden rounded-2xl">
@@ -97,7 +103,7 @@ export function StudentsScreen() {
 	const toast = useToast()
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [createOpen, setCreateOpen] = useState(false)
-	const [deactivating, setDeactivating] = useState<StudentRow | null>(null)
+	const [deactivating, setDeactivating] = useState<StudentAccount | null>(null)
 
 	const load = useCallback(async () => {
 		setState(await readStudents())

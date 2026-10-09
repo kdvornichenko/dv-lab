@@ -3,6 +3,7 @@ import {
 	type Currency,
 	type StudentAccount,
 	type StudentDetail,
+	type StudentRow,
 	type StudentStatus,
 } from '@dv-lab/contracts'
 import { students } from '@dv-lab/db'
@@ -37,11 +38,7 @@ function toCurrency(value: string | null): Currency | null {
 	return known
 }
 
-export function toStudentDetail(
-	row: CardRecord,
-	balanceMinutes: number | null,
-	account: StudentAccount | null
-): StudentDetail {
+export function toCardRow(row: CardRecord, balanceMinutes: number | null): StudentRow {
 	return {
 		id: row.id,
 		displayName: row.displayName,
@@ -50,6 +47,16 @@ export function toStudentDetail(
 		currency: toCurrency(row.currency),
 		defaultLessonMinutes: row.defaultLessonMinutes,
 		balanceMinutes,
+	}
+}
+
+export function toStudentDetail(
+	row: CardRecord,
+	balanceMinutes: number | null,
+	account: StudentAccount | null
+): StudentDetail {
+	return {
+		...toCardRow(row, balanceMinutes),
 		parent: row.parent,
 		level: row.level,
 		goals: row.goals,

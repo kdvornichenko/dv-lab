@@ -2,17 +2,11 @@ import type { Context } from 'hono'
 import { Hono } from 'hono'
 import { z } from 'zod'
 
-import {
-	type DeactivateStudentResponse,
-	type StudentListResponse,
-	type StudentResponse,
-	saveStudentRequest,
-} from '@dv-lab/contracts'
+import { type StudentResponse, type StudentsResponse, saveStudentRequest } from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
 
-import { deactivateStudent, listStudents } from '../auth/accounts.ts'
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
-import { createCard, getCard } from '../cards/cards.ts'
+import { archiveCard, createCard, getCard, listCards, restoreCard, updateCard } from '../cards/cards.ts'
 import { errorBody } from '../request-context.ts'
 
 type StudentRouteDeps = { db: Database }
@@ -30,7 +24,7 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
-	routes.get('/', async (c) => c.json({ students: await listStudents(db) } satisfies StudentListResponse, 200))
+	routes.get('/', async (c) => c.json((await listCards(db)) satisfies StudentsResponse, 200))
 
 	routes.post('/', async (c) => {
 		const input = await readJson(c, saveStudentRequest)
@@ -47,12 +41,30 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		return c.json({ student } satisfies StudentResponse, 200)
 	})
 
-	routes.post('/:id/deactivate', async (c) => {
+	routes.patch('/:id', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const outcome = await deactivateStudent(db, id)
-		if (outcome.kind === 'not_found') return notFound(c)
-		return c.json({ student: outcome.student } satisfies DeactivateStudentResponse, 200)
+		const input = await readJson(c, saveStudentRequest)
+		if (!input) return invalidRequest(c)
+		const student = await updateCard(db, id, input)
+		if (!student) return notFound(c)
+		return c.json({ student } satisfies StudentResponse, 200)
+	})
+
+	routes.post('/:id/archive', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const student = await archiveCard(db, id)
+		if (!student) return notFound(c)
+		return c.json({ student } satisfies StudentResponse, 200)
+	})
+
+	routes.post('/:id/restore', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const student = await restoreCard(db, id)
+		if (!student) return notFound(c)
+		return c.json({ student } satisfies StudentResponse, 200)
 	})
 
 	return routes
