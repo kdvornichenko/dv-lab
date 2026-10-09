@@ -1,4 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
+import { connect } from 'node:net'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -52,6 +53,29 @@ describe('server.mjs shutdown', () => {
 		const elapsed = performance.now() - started
 
 		expect(code).toBe(0)
+		expect(elapsed).toBeLessThan(4000)
+		expect(server.stdout()).toContain('shutdown complete')
+	})
+
+	it('SIGTERM with an unfinished request forces the connection closed at half the deadline and exits 0', async () => {
+		const port = 20000 + Math.floor(Math.random() * 20000)
+		const server = start(port)
+		await server.listening
+
+		const socket = connect(port, '127.0.0.1')
+		await new Promise<void>((resolve) => socket.on('connect', () => resolve()))
+		const socketClosed = new Promise<void>((resolve) => socket.on('close', () => resolve()))
+		socket.on('error', () => {})
+		socket.write('GET /healthz HTTP/1.1\r\nHost: 127.0.0.1\r\n')
+
+		const started = performance.now()
+		server.proc.kill('SIGTERM')
+		const code = await server.exited
+		const elapsed = performance.now() - started
+		await socketClosed
+
+		expect(code).toBe(0)
+		expect(elapsed).toBeGreaterThanOrEqual(1400)
 		expect(elapsed).toBeLessThan(4000)
 		expect(server.stdout()).toContain('shutdown complete')
 	})
