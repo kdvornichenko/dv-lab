@@ -53,7 +53,12 @@ jobs:
         run: yarn install --immutable
 
       - name: Migrate test database
-        run: yarn --cwd packages/db db:migrate
+        run: |
+          yarn --cwd packages/db db:migrate || {
+            echo "migrate failed; postgres service log follows"
+            docker ps -q | xargs -r -n1 docker logs --tail 60
+            exit 1
+          }
 
       - name: Typecheck
         run: yarn typecheck
