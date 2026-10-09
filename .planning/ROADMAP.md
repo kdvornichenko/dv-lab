@@ -42,7 +42,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
   4. `https://dv-lab.dev` serves the web app and the API health check from the VPS over IPv4 and IPv6, only the proxy ports are reachable from outside, HTTP/3 is off, and `ielts.dv-lab.dev` still serves from Vercel.
   5. Postgres backups run on a schedule and the owner has restored the latest one once; the API stops on `SIGTERM` within a bounded time with open WebSocket connections, writes structured logs with request ids, and migrations run as a separate step under the migration role.
 
-**Plans**: 8/13 plans executed
+**Plans**: 11/13 plans executed
 
 Plans:
 **Wave 1**
@@ -62,11 +62,11 @@ Plans:
 - [x] 17-08-PLAN.md — `deploy.sh` with migration rehearsal and rollback, nightly backup with 14+8 retention, restore check (W4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 17-09-PLAN.md — `/ws` echo with Origin check, shutdown with open WebSockets (W5)
-- [ ] 17-11-PLAN.md — `RUNBOOK.md` and VPS preparation by the owner (W5)
+- [x] 17-09-PLAN.md — `/ws` echo with Origin check, shutdown with open WebSockets (W5)
+- [x] 17-11-PLAN.md — `RUNBOOK.md` and VPS preparation by the owner (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 17-10-PLAN.md — CI on PostgreSQL 18, Dockerfiles, GHCR images, knip, agent docs (W6)
+- [x] 17-10-PLAN.md — CI on PostgreSQL 18, Dockerfiles, GHCR images, knip, agent docs (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 17-12-PLAN.md — PR green, merge, images published to GHCR (owner) (W7)
@@ -222,7 +222,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 17. Skeleton on the Server | v2.0 | 8/13 | In Progress|  |
+| 17. Skeleton on the Server | v2.0 | 11/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 0/TBD | Not started | - |
 | 19. Student Cards and Vault Import | v2.0 | 0/TBD | Not started | - |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
