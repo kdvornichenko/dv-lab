@@ -10,28 +10,41 @@ import {
 	passwordLength,
 } from '@dv-lab/contracts'
 import { createDb, resolveDatabaseUrl } from '@dv-lab/db'
+import type { Database } from '@dv-lab/db'
 
-import { createTeacher } from './auth/accounts.ts'
+import { createTeacher, resetTeacherPassword } from './auth/accounts.ts'
 import { generatePassword, hashPassword } from './auth/passwords.ts'
 
-const USAGE = 'Usage: bootstrap-teacher --email <email> --name <name> [--password-stdin]'
+const USAGE = [
+	'Usage: bootstrap-teacher --email <email> --name <name> [--password-stdin]',
+	'       bootstrap-teacher --reset-password --email <email> [--password-stdin]',
+].join('\n')
 const USAGE_EXIT_CODE = 2
 const REFUSED_EXIT_CODE = 3
 const CAUSE_DEPTH = 5
 
-type Options = { login: string; displayName: string; passwordFromStdin: boolean }
+type Options =
+	| { mode: 'create'; login: string; displayName: string; passwordFromStdin: boolean }
+	| { mode: 'reset'; login: string; passwordFromStdin: boolean }
 
 function parseOptions(argv: string[]): Options | null {
 	try {
 		const { values } = parseArgs({
 			args: argv,
-			options: { email: { type: 'string' }, name: { type: 'string' }, 'password-stdin': { type: 'boolean' } },
+			options: {
+				email: { type: 'string' },
+				name: { type: 'string' },
+				'password-stdin': { type: 'boolean' },
+				'reset-password': { type: 'boolean' },
+			},
 		})
 		const login = normalizeLogin(values.email ?? '')
-		const displayName = normalizeDisplayName(values.name ?? '')
+		const passwordFromStdin = values['password-stdin'] === true
 		if (!isTeacherLogin(login)) return null
+		if (values['reset-password'] === true) return { mode: 'reset', login, passwordFromStdin }
+		const displayName = normalizeDisplayName(values.name ?? '')
 		if (displayName.length < 1 || Array.from(displayName).length > DISPLAY_NAME_MAX_LENGTH) return null
-		return { login, displayName, passwordFromStdin: values['password-stdin'] === true }
+		return { mode: 'create', login, displayName, passwordFromStdin }
 	} catch {
 		return null
 	}
@@ -53,6 +66,32 @@ function postgresCode(error: unknown): string | null {
 		current = current.cause
 	}
 	return null
+}
+
+async function runCreate(
+	db: Database,
+	options: Extract<Options, { mode: 'create' }>,
+	passwordHash: string
+): Promise<string | null> {
+	const outcome = await createTeacher(db, { login: options.login, displayName: options.displayName, passwordHash })
+	if (outcome.kind === 'teacher_exists') {
+		process.stderr.write('An active teacher already exists\n')
+		return null
+	}
+	return `Teacher created. Login: ${outcome.login}\n`
+}
+
+async function runReset(
+	db: Database,
+	options: Extract<Options, { mode: 'reset' }>,
+	passwordHash: string
+): Promise<string | null> {
+	const outcome = await resetTeacherPassword(db, { login: options.login, passwordHash })
+	if (outcome.kind === 'not_found') {
+		process.stderr.write('No active teacher with this email\n')
+		return null
+	}
+	return `Password reset. Login: ${outcome.login}\n`
 }
 
 async function main(): Promise<number> {
@@ -77,16 +116,12 @@ async function main(): Promise<number> {
 		const passwordHash = await hashPassword(password)
 		const connection = createDb(resolveDatabaseUrl('app', process.env))
 		pool = connection.pool
-		const outcome = await createTeacher(connection.db, {
-			login: options.login,
-			displayName: options.displayName,
-			passwordHash,
-		})
-		if (outcome.kind === 'teacher_exists') {
-			process.stderr.write('An active teacher already exists\n')
-			return REFUSED_EXIT_CODE
-		}
-		process.stdout.write(`Teacher created. Login: ${outcome.login}\n`)
+		const done =
+			options.mode === 'reset'
+				? await runReset(connection.db, options, passwordHash)
+				: await runCreate(connection.db, options, passwordHash)
+		if (done === null) return REFUSED_EXIT_CODE
+		process.stdout.write(done)
 		if (!options.passwordFromStdin) process.stdout.write(`Password (shown once): ${password}\n`)
 		return 0
 	} catch (error) {

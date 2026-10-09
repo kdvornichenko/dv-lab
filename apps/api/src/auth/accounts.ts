@@ -1,12 +1,13 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 
-import type { StudentRow } from '@dv-lab/contracts'
+import type { AccountSummary, StudentRow } from '@dv-lab/contracts'
 import { accounts } from '@dv-lab/db'
 import type { Database } from '@dv-lab/db'
 
 import { studentRowColumns, toStudentRow } from './account-rows.ts'
-import { generatePassword, hashPassword } from './passwords.ts'
-import { revokeAccountSessions } from './sessions.ts'
+import { generatePassword, hashPassword, verifyPassword } from './passwords.ts'
+import { issueSession, revokeAccountSessions } from './sessions.ts'
+import type { CredentialCheck, SignIn } from './sign-in.ts'
 
 const ONE_ACTIVE_TEACHER_CONSTRAINT = 'accounts_one_active_teacher_uq'
 const ACTIVE_LOGIN_CONSTRAINT = 'accounts_active_login_uq'
@@ -22,6 +23,21 @@ export type CreateStudentResult =
 	{ kind: 'created'; student: StudentRow; generatedPassword: string | null } | { kind: 'login_taken' }
 
 export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentRow } | { kind: 'not_found' }
+
+type ChangePasswordInput = {
+	account: AccountSummary
+	currentPassword: string
+	newPassword: string
+	ip: string | null | undefined
+}
+
+export type ChangePasswordResult =
+	| { kind: 'changed'; token: string }
+	| { kind: 'wrong_current_password' }
+	| { kind: 'password_unchanged' }
+	| Exclude<CredentialCheck, { kind: 'ok' | 'invalid_credentials' }>
+
+export type ResetTeacherPasswordResult = { kind: 'reset'; login: string } | { kind: 'not_found' }
 
 export function violatesUnique(error: unknown, constraint: string): boolean {
 	let current: unknown = error
@@ -103,5 +119,57 @@ export function deactivateStudent(db: Database, studentId: string): Promise<Deac
 		if (!row) throw new Error('student update returned no row')
 		await revokeAccountSessions(tx, locked.id)
 		return { kind: 'deactivated', student: toStudentRow(row) }
+	})
+}
+
+export async function changePassword(
+	db: Database,
+	signIn: Pick<SignIn, 'verifyCredentials'>,
+	{ account, currentPassword, newPassword, ip }: ChangePasswordInput
+): Promise<ChangePasswordResult> {
+	const check = await signIn.verifyCredentials({
+		accountId: account.id,
+		login: account.login,
+		password: currentPassword,
+		ip,
+	})
+	if (check.kind === 'invalid_credentials') return { kind: 'wrong_current_password' }
+	if (check.kind !== 'ok') return check
+	if (await verifyPassword(newPassword, check.passwordHash)) return { kind: 'password_unchanged' }
+	const nextHash = await hashPassword(newPassword)
+	return db.transaction(async (tx): Promise<ChangePasswordResult> => {
+		const [row] = await tx
+			.select({ passwordHash: accounts.passwordHash })
+			.from(accounts)
+			.where(and(eq(accounts.id, account.id), eq(accounts.status, 'active')))
+			.for('update')
+		if (!row || row.passwordHash !== check.passwordHash) return { kind: 'wrong_current_password' }
+		await tx
+			.update(accounts)
+			.set({ passwordHash: nextHash, updatedAt: sql`now()` })
+			.where(eq(accounts.id, account.id))
+		const epoch = await revokeAccountSessions(tx, account.id)
+		const token = await issueSession(tx, { accountId: account.id, authEpoch: epoch })
+		return { kind: 'changed', token }
+	})
+}
+
+export function resetTeacherPassword(
+	db: Database,
+	{ login, passwordHash }: { login: string; passwordHash: string }
+): Promise<ResetTeacherPasswordResult> {
+	return db.transaction(async (tx): Promise<ResetTeacherPasswordResult> => {
+		const [locked] = await tx
+			.select({ id: accounts.id, login: accounts.login })
+			.from(accounts)
+			.where(and(eq(accounts.login, login), eq(accounts.role, 'teacher'), eq(accounts.status, 'active')))
+			.for('update')
+		if (!locked) return { kind: 'not_found' }
+		await tx
+			.update(accounts)
+			.set({ passwordHash, updatedAt: sql`now()` })
+			.where(eq(accounts.id, locked.id))
+		await revokeAccountSessions(tx, locked.id)
+		return { kind: 'reset', login: locked.login }
 	})
 }
