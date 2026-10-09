@@ -5,7 +5,8 @@
 ## Структура
 
 - `apps/web` — Next 16 (App Router), сборка `output: 'standalone'`. Шрифты Inter Variable и JetBrains Mono Variable из пакетов `@fontsource-variable/inter` и `@fontsource-variable/jetbrains-mono`, без обращения к Google.
-- `apps/api` — Hono на `@hono/node-server`, отдельный процесс за прокси. Сборка `tsdown` в `apps/api/dist/server.mjs`, `apps/api/dist/migrate.mjs` и `apps/api/dist/bootstrap-teacher.mjs` (CLI первого учителя и восстановления его пароля), `@dv-lab/*` вшиваются в бандл, миграции копируются в `apps/api/drizzle`.
+- `apps/api` — Hono на `@hono/node-server`, отдельный процесс за прокси. Сборка `tsdown` в `apps/api/dist/server.mjs`, `apps/api/dist/migrate.mjs`, `apps/api/dist/bootstrap-teacher.mjs` (CLI первого учителя и восстановления его пароля) и `apps/api/dist/import-vault.mjs` (импорт vault: команды `parse` и `apply`), `@dv-lab/*` вшиваются в бандл, миграции копируются в `apps/api/drizzle`.
+- `packages/core` — JIT-пакет `@dv-lab/core` (экспортирует исходники `src/index.ts`): чистые функции денег, уроков и остатка. Без зависимостей, без Node API и без базы. Его вызывают web, api и импорт vault.
 - `packages/contracts` — JIT-пакет `@dv-lab/contracts`: только типы, схемы zod и константы общего контракта web и api (запросы, ответы, коды ошибок, имя cookie сессии, пределы логина и пароля). Зависит только от `zod`. web и api импортируют его; web не зависит от `@dv-lab/api` и `@dv-lab/db`.
 - `packages/db` — JIT-пакет `@dv-lab/db` (экспортирует исходники `src/index.ts`, своей сборки нет): Drizzle v1, схема, подключение, мигратор. Миграции лежат в `packages/db/drizzle`.
 - `deploy/` — `compose.yaml`, Caddy (`deploy/caddy/Caddyfile`), `deploy.sh`, скрипты бэкапа, `deploy/postgres/ensure-db.sql` и `ensure-db.sh`, юниты systemd, `deploy/RUNBOOK.md`.
@@ -27,7 +28,7 @@
 | `yarn db:generate` | `drizzle-kit generate`: новая миграция из `packages/db/src/schema.ts` |
 | `yarn db:migrate` | применение миграций под ролью миграций (`apps/api/src/migrate.ts`) |
 
-CI (`.github/workflows/ci.yml`) на каждый pull request и push в `master`: job `Verify` проверяет границу web, api и contracts (шаг `Web and api boundary`) и доверие к адресу клиента в `deploy/` (шаг `Client address trust`), поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, typecheck, lint, test, build, knip, `caddy validate` и shellcheck скриптов `deploy/`. Job `images` собирает образы после зелёного `Verify`; на push в `master` публикует их в GHCR с тегами `sha-<полный sha>` и `latest`.
+CI (`.github/workflows/ci.yml`) на каждый pull request и push в `master`: job `Verify` проверяет границу web, api, contracts и core (шаг `Web and api boundary`) и доверие к адресу клиента в `deploy/` (шаг `Client address trust`), поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, typecheck, lint, test, build, knip, `caddy validate` и shellcheck скриптов `deploy/`. Job `images` собирает образы после зелёного `Verify`; на push в `master` публикует их в GHCR с тегами `sha-<полный sha>` и `latest`.
 
 ## Окружение
 
@@ -47,16 +48,21 @@ CI (`.github/workflows/ci.yml`) на каждый pull request и push в `maste
 - Сигналы, срок остановки, закрытие HTTP-сервера, WebSocket и пула базы принадлежат `apps/api/src/lifecycle.ts`.
 - `apps/api/src/server.ts` — composition root: собирает конфиг, логгер, базу, приложение и жизненный цикл. `apps/api/src/app.ts` при импорте ничего не запускает.
 - Маршруты api — без префикса (`/healthz`, `/ws`, далее свои пути). Префикс `/api` принадлежит Caddy: `handle_path /api/*` срезает его перед api.
-- `apps/web` не импортирует код api и базы: в `apps/web/package.json` нет `@dv-lab/api` и `@dv-lab/db`, в исходниках web нет их импортов, каталога `apps/web/app/api` нет, `transpilePackages` в `apps/web/next.config.ts` нет. `packages/contracts` не импортирует `pg`, `node:*` и `@dv-lab/*` и не читает `process.env`. Эти условия проверяет шаг CI `Web and api boundary`.
+- `apps/web` не импортирует код api и базы: в `apps/web/package.json` нет `@dv-lab/api` и `@dv-lab/db`, в исходниках web нет их импортов, каталога `apps/web/app/api` нет, `transpilePackages` в `apps/web/next.config.ts` нет. `packages/contracts` не импортирует `pg`, `node:*` и `@dv-lab/*` и не читает `process.env`. У `packages/core` нет зависимостей, он не импортирует `pg`, `node:*` и `@dv-lab/*` и не читает `process.env`. Эти условия проверяет шаг CI `Web and api boundary`.
+- Тип `DbExecutor` (база или транзакция) — `packages/db/src/connection.ts`. Разбор ошибок Postgres (`violatesUnique`, `postgresCode`, `postgresErrorFields`) — `packages/db/src/postgres-errors.ts`.
 - Доверие к адресу клиента: api берёт адрес из правого значения `X-Forwarded-For`, которое дописывает Caddy. У api в `deploy/compose.yaml` нет `ports`, в `deploy/caddy/Caddyfile` нет `trusted_proxies`, у сети `default` включён IPv6. Это проверяет шаг CI `Client address trust`.
 - Порядок входа (проверка пароля, ограничение попыток, выдача сессии) принадлежит `apps/api/src/auth/sign-in.ts`: `createSignIn().attempt`, экземпляр создаётся в `server.ts`.
 - Эпоха аккаунта и сессии (выдача, чтение, продление, отзыв) принадлежат `apps/api/src/auth/sessions.ts`.
 - Отображение строк `accounts` в ответы api принадлежит `apps/api/src/auth/account-rows.ts`.
-- Учётные записи (первый учитель, ученики, деактивация, смена пароля, восстановление пароля учителя) принадлежат `apps/api/src/auth/accounts.ts`.
+- Учётные записи (первый учитель, ученики, деактивация, смена пароля, восстановление пароля учителя) принадлежат `apps/api/src/auth/accounts.ts`. Он единственный создаёт аккаунты, привязывает их к карточке и деактивирует.
+- Модуль карточек `apps/api/src/cards` владеет записью и чтением карточки, секций, словаря и оплат, аккаунтом карточки (`card-account.ts`) и отбором оплат в остаток (в остаток идут оплаты с `paid_on` позже даты открытия). Из `auth/` он импортирует только `accounts.ts`, маршруты карточек и оплат — ещё `middleware.ts`. `packages/core` только считает.
+- Маршруты карточек: `/students` — карточки, `/students/:id/account*` — аккаунт карточки, `/payments` — оплаты. `StudentRow` — строка карточки, `StudentAccount` — аккаунт ученика.
+- Импорт vault — `apps/api/src/import-vault.ts`. `parse` выполняет владелец над каталогом vault (`apps/api/src/import/parse-vault.ts`), пакет по схеме `apps/api/src/import/packet.ts` уходит в stdout. `apply` читает пакет из stdin и пишет его одной транзакцией только через модуль карточек (`apps/api/src/import/apply-packet.ts`) под ролью приложения. На сервере `apply` запускает одноразовый сервис `import` профиля `tools` в `deploy/compose.yaml` (`deploy/RUNBOOK.md`, раздел 11).
 - HTTP-сторона входа (проверка Origin, адрес клиента, cookie сессии, ответы отказа, `no-store`) принадлежит `apps/api/src/auth/middleware.ts`.
 - Клиентские запросы web к api идут только через `apps/web/lib/api-client.ts` (`apiRequest`, путь без префикса `/api`).
 - Проверка формы cookie сессии и редирект на `/login` — `apps/web/proxy.ts`; «кто я» на сервере web — `apps/web/lib/session.ts` (`getMe`, `requireTeacherPage`).
 - Страницы 404 и ошибки — `apps/web/components/app/status-pages.tsx`; корневые `not-found.tsx`, `error.tsx` и `global-error.tsx` только вызывают их. Ошибка чтения целого экрана — `apps/web/components/app/read-error.tsx`. Скелетоны — `apps/web/components/ui/skeleton.tsx`.
+- Вид markdown в web — `apps/web/components/app/markdown-view.tsx` (`react-markdown` со `skipHtml`). Строки денег, уроков и дат оплат — `apps/web/components/app/ledger-text.tsx` поверх `packages/core`.
 - UI web — только Base UI и копия компонентов варианта A (`components/ui`, `components/sidebar-app`, `components/fluid-hover-highlight.tsx`, `hooks`, двенадцать файлов `lib`; knip их не проверяет). Импорты `radix-ui`, `@radix-ui/*` и `cmdk` запрещены правилом ESLint. Рукописные части экранов лежат в `apps/web/components/app` и `apps/web/app`.
 
 ## База
@@ -78,6 +84,8 @@ CI (`.github/workflows/ci.yml`) на каждый pull request и push в `maste
 ## Публичный репозиторий
 
 Репозиторий публичный. Адресов серверов, паролей, ключей и данных учеников нет нигде, включая `.planning/`, `deploy/` и тестовые данные. `.env*` не коммитятся и не попадают в контекст сборки образов (`.dockerignore`). Секреты сервера лежат только на сервере.
+
+Пакет импорта vault содержит данные учеников и лежит вне репозитория: маска `*.vault-import.json` закрыта в `.gitignore` и `.dockerignore`, в образ и логи пакет не попадает. `apply` печатает только счётчики. В коде, тестах, `.planning/` и SUMMARY нет имён, сумм и заметок учеников.
 
 ## Выкатка и сервер
 
