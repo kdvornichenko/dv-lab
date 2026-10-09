@@ -72,7 +72,7 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
 		<header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 			<div className="flex min-w-0 flex-col gap-1">
 				<h1 className="text-display font-semibold tracking-tight text-foreground">{title}</h1>
-				{description ? <p className="text-body text-muted-foreground">{description}</p> : null}
+				{description ? <div className="text-body text-muted-foreground">{description}</div> : null}
 			</div>
 			{actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
 		</header>
