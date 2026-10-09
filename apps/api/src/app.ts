@@ -11,6 +11,7 @@ import { type AppEnv, originMatches, sameOrigin } from './auth/middleware.ts'
 import type { SignIn } from './auth/sign-in.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
+import { paymentRoutes } from './routes/payments.ts'
 import { studentRoutes } from './routes/students.ts'
 
 export type AppDeps = {
@@ -65,6 +66,7 @@ export function createApp(deps: AppDeps) {
 	)
 	app.route('/auth', authRoutes({ db: deps.db, signIn: deps.signIn, production: deps.production, logger: deps.logger }))
 	app.route('/students', studentRoutes({ db: deps.db }))
+	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.onError((err, c) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {
 			return c.json(clientErrorBody(err.status), err.status)
