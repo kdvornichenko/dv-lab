@@ -1,88 +1,116 @@
-# Teacher English CRM
+# dv-lab
 
 ## What This Is
 
-Teacher English CRM is a private operational web app for an English teacher to control students, lessons, attendance, and payments in one place. The current `dv-lab` product is treated as disposable legacy code; the new product starts as a Turborepo monorepo with a Next.js 16 web app, a Hono API, shared packages, and Supabase as the retained backend connection.
+dv-lab is the private workspace of an English and IELTS teacher (Vika): student cards, lesson and payment tracking, a chat assistant that records facts and answers from the data, a Google Calendar–synced schedule, and an IELTS practice section for students. One teacher, many students, self-hosted on an OVHcloud VPS. The interface is fully in English.
+
+It merges three sources: the earlier `dv-lab` CRM (skeleton and functional reference only), the working `ielts` app (ported), and the student data and variant A design from `vault`.
 
 ## Core Value
 
-The teacher can always see who studies, who attended, who paid, and who owes money.
+The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
 
-## Current Milestone: v1.1 Audit Remediation
+## Current Milestone: v2.0 Unified dv-lab
 
-**Goal:** Convert the 2026-05-03 tech-debt and architecture audits into a safer production baseline without rewriting the CRM.
-
-**Status:** v1.0 phase work closed on 2026-05-03. v1.1 remediation phases 10-16 are complete across `apps/api`, `apps/web`, and shared packages.
+**Goal:** New workspace on the own VPS: student cards, chat, lesson and payment accounting in the variant A design, then IELTS. The old dv-lab code and data do not carry over; only the monorepo skeleton stays.
 
 **Target features:**
 
-- Harden auth roles, route params, and web/API typed response parsing.
-- Add a reliable DB-backed test and CI path.
-- Make payment/package, lesson/status, attendance, and tenant package writes transactionally safe.
-- Harden Google Calendar I/O, token provenance, sync failure behavior, and service boundaries.
-- Scope web CRM cache by auth session and make mutation feedback coherent.
-- Consolidate billing/dashboard domain policy.
-- Remove high-value dependency, dead-code, and large-component debt after invariants are safe.
+- Server and empty skeleton deployed: VPS, PostgreSQL 18, HTTPS proxy, backups, CI to GHCR; all libraries updated to latest.
+- Login ported from ielts (one teacher, students).
+- Variant A shell (Base UI, English) and `packages/core` with lesson and payment rules.
+- Student cards imported from vault into Postgres (all 25 students, no preview).
+- Lesson and payment accounting in minutes; unpaid-soon list.
+- Chat on `claude-haiku-5-5`: `@student` mentions with quick actions, writes with undo or confirmation, answers from history.
+- Schedule and Google Calendar rebuilt: series plus occurrence exceptions, idempotent events, one writer, `events.watch` and `syncToken`.
+- IELTS as a `/ielts` section, ported last.
 
 ## Requirements
 
 ### Validated
 
-(None yet - this is a new product direction.)
+(None carried over. The v1.x CRM code is a functional reference and is rewritten.)
 
 ### Active
 
-- [ ] API auth trusts only app-controlled roles and safe teacher fallback.
-- [ ] API route params and web response payloads are schema-validated at boundaries.
-- [ ] CI exercises DB-backed integration tests instead of silently skipping them.
-- [ ] Payment/package and lesson/status write paths prevent partial durable state.
-- [x] Calendar sync has safe timeout, token, failure, and bidirectional import semantics.
-- [x] Web CRM state is auth-scoped and mutation-driven UI state is refreshed coherently.
-- [x] Billing/dashboard policy duplication is reduced through shared tested policy.
-- [x] Dependency and component debt is cleaned after correctness work is green.
+- [ ] Server runs the empty skeleton with Postgres 18, HTTPS, backups and CI/CD.
+- [ ] Teacher and students sign in with ielts-style accounts and sessions.
+- [ ] Variant A shell is the only interface; every screen is in English.
+- [ ] Every student has one card with a stable id, text sections, vocabulary and payments.
+- [ ] Balance is tracked in minutes and shown in lessons with fractions; no-shows deduct by default, moves and cancellations do not.
+- [ ] Chat records lesson outcomes, moves (one lesson or a series), payments and notes through `@student` mentions.
+- [ ] Google Calendar changes flow both ways without duplicates; Google wins conflicts.
+- [ ] IELTS tasks, rooms, attempts and grading work under `/ielts` on the new server.
 
 ### Out of Scope
 
-- Online card payments and payment provider reconciliation - v1 tracks manual payments only.
-- Student portal and parent/student login - v1 is teacher-facing only.
-- Homework/LMS content engine - separate product surface, not needed for attendance/payment control.
-- Messaging automation - reminders can be future work after the core ledger is stable.
-- Native mobile apps - responsive web is sufficient for v1.
+- Migrating data from the old dv-lab database — not in use; lessons and history are re-entered and synced with the calendar.
+- Porting old dv-lab screens and services as-is — rewritten from variant A components.
+- Online card payments and reconciliation — payments are recorded manually.
+- Student access beyond `/ielts` (schedule, balance) — students only practice.
+- Multi-teacher interface — the schema keeps `teacher_id`, the product has one teacher.
+- Speaking audio feedback, live mirroring of the student screen, PWA and push — later.
+- The vault note reader — stays a separate site.
+- Storing data in markdown or git, and payment-sum previews — all data is written to Postgres directly.
 
 ## Context
 
-- Current repository at `/mnt/g/dv-lab` is a Next.js app with wishlist, Google API, Drizzle, and Supabase fragments. The user explicitly wants it wiped and rebuilt, keeping only Supabase connectivity.
-- Current retained Supabase code is minimal: `libs/supabase/supabaseClient.ts` uses `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-- Current Google Calendar integration uses legacy env keys and client/service/store code; the integration stays in v1, but implementation must be rebuilt cleanly.
-- Target stack update from user: full Turborepo, web on Next.js 16, server on Hono JS, Tailwind, shadcn.
-- Reuse source available in `/mnt/g/its/its-doc`: `packages/rbac`, `packages/db`, `packages/api-types`. These should be adapted/renamed instead of copied blindly.
-- ITS-DOC app/server currently uses Express, not Hono; only shared package patterns are candidates for reuse.
+- Sources: `/Volumes/T7/personal/dv-lab` (skeleton), `/Volumes/T7/personal/ielts` (working app, Next 16.3, Drizzle, Base UI), `/Volumes/T7/personal/vault` (25 student folders in `md/personal/vika/students/`, variant A snapshot `cda53ee` on branch `design/lab`).
+- Handoff from the vault session: `/Volumes/T7/personal/vault/.planning/research/DV-LAB-MERGE-HANDOFF.md`. Code audit of the old dv-lab: `.planning/research/CODE-AUDIT.md` (the calendar findings drive the rebuild).
+- Server: OVHcloud VPS-2, Beauharnois, Ubuntu 26.04, 4 vCore, 8 GB, 75 GB; profile `~/.claude/servers/dv-lab.md`; the server is operated by a separate session, agents have no direct access.
+- Vercel, Supabase and Neon leave the project; DNS stays at Vercel with new IPs. ielts keeps running on Vercel and Neon until its phase because essays are still reviewed and graded there.
+- Default time zone is Vietnam; a prompt can name another (for example MSK).
+- Network risk: connections to OVH from some Russian networks can be cut; HTTP/3 is off; checking from Russia is postponed until the app is ready.
 
 ## Constraints
 
-- **Tech stack**: Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, Turborepo, Hono, TypeScript - user specified.
-- **Backend boundary**: Supabase remains the retained backend connection - user specified.
-- **Repository reset**: Existing app code is disposable - do not preserve wishlist/Google/schedule features unless explicitly reintroduced.
-- **Monorepo discipline**: Root scripts delegate to `turbo run`; task logic lives in packages/apps.
-- **Architecture**: Container/model/presentation split on web; transport and domain policy stay out of `components/ui`.
-- **Destructive work**: Actual wipe/scaffold must be executed as Phase 1, with a final pre-reset inventory of Supabase/env files.
+- **Tech stack**: Yarn 4 + Turborepo skeleton kept, every library at latest (Next 16.4, React 19.3, TypeScript, Turbo, Yarn); Hono API; Drizzle; Tailwind 4; Base UI with shadcn style `base-mira`; Radix is not used.
+- **Database**: PostgreSQL 18 on the VPS; CI runs on the same image and role; no Redis; queues through `pg-boss`, events through `LISTEN/NOTIFY`.
+- **Hosting**: one domain `dv-lab.dev` behind a reverse proxy; images built by GitHub Actions and pulled by the server; no builds on the server.
+- **AI**: `claude-haiku-5-5`, budget about $200; code computes all numbers, the model reads and writes through `packages/core` tools.
+- **Delivery**: GSD phases, one branch per phase named `gsd/*`, merged through a pull request after green CI; rewrite over port, port only what works (ielts).
+- **Language**: interface and product text in English.
 
 ## Key Decisions
 
-| Decision                                                           | Rationale                                                                                           | Outcome |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- | ------- |
-| Use Turborepo with `apps/web`, `apps/api`, and shared `packages/*` | Separates UI, server, contracts, DB, and RBAC while keeping one repo workflow                       | Done    |
-| Use Hono for new API instead of reusing ITS-DOC Express server     | User specified Hono; ITS-DOC server is Express and should not define the new server architecture    | Done    |
-| Reuse/adapt ITS-DOC shared packages                                | Existing RBAC/DB/API contracts reduce implementation risk if domain-specific parts are trimmed      | Done    |
-| Keep Supabase as auth/data boundary                                | User asked to keep Supabase connection; official SSR flow supports Next App Router                  | Done    |
-| Use Google account as both login and calendar identity             | User requested Google auth instead of email and the same account for Calendar                       | Done    |
-| Use Yarn 4 stable with node-modules linker                         | User requested latest Yarn; node_modules keeps Next.js and shadcn workflows straightforward         | Done    |
-| Manual payment ledger in v1                                        | Solves the teacher's immediate control need without payment provider complexity                     | Done    |
-| Rebuild Google Calendar integration in v1                          | Calendar sync is required, but current implementation is not acceptable as an architecture baseline | Done    |
-| Use ITS-DOC tooling conventions                                    | User asked to reuse ITS-DOC Turborepo, Prettier, and ESLint configuration                           | Done    |
-| Use DB-backed student service before lesson/payment refactors      | Student registry is the first production CRM entity and defines the repository/service pattern      | Done    |
-| Use audit remediation as v1.1 phases                               | v1.0 is functionally closed; audit findings need executable GSD work instead of loose TODOs         | Active  |
+| Decision                                                                 | Rationale                                                                                   | Outcome   |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | --------- |
+| Rewrite instead of porting old dv-lab; port only ielts                   | Old code is unused; rewriting is cheaper than analysing and fixing it                       | — Pending |
+| Keep Turborepo and Yarn 4 skeleton, update all libraries                 | Skeleton works; dependencies are stale                                                      | — Pending |
+| Database rewritten from zero on Drizzle v1, old migrations dropped       | Old schema and data are not carried over; fixing old migrations is wasted work              | — Pending |
+| Keep Hono for `apps/api`                                                 | Already in place; WebSocket exists; logging, tracing and migrations are closed explicitly   | — Pending |
+| Login ported from ielts; Supabase Auth removed                           | ielts auth works and is tested; Supabase leaves the project                                 | — Pending |
+| One teacher, `teacher_id` stays in the schema                            | Cheaper than removing; no multi-teacher UI                                                  | — Pending |
+| PostgreSQL 18 on own VPS, files on disk                                  | Own server; Neon, Supabase, Vercel Blob leave                                               | — Pending |
+| Balance in minutes, shown in lessons with fractions                      | A 90-minute lesson against 60-minute lessons must leave half a lesson                       | — Pending |
+| Calendar: series plus occurrence exceptions, deterministic event ids     | The old sync duplicated events; one writer, `events.watch` and `syncToken`, Google wins     | — Pending |
+| Chat: lesson marks apply at once with undo; money and deletes confirm    | Fast entry for frequent actions, safety for destructive ones                                | — Pending |
+| Variant A components, Base UI                                            | Variant A and ielts already use Base UI; Radix is dropped                                   | — Pending |
+| IELTS under `/ielts`, ported last                                        | One app and one login; ielts keeps running on Vercel and Neon until then                    | — Pending |
+| Student data from vault goes straight into Postgres                      | Previews and git commits were only needed while data lived in markdown                      | — Pending |
+| Default time zone Vietnam, other zones named in the prompt               | Teacher works from Vietnam; students sit in several zones                                   | — Pending |
+
+Superseded by v2.0: Supabase as the auth/data boundary, Google as login identity, reuse of ITS-DOC packages, v1 single-student-per-lesson billing model.
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
 
 ---
 
-_Last updated: 2026-05-03 after Phase 16 cleanup and final verification_
+_Last updated: 2026-10-09 after v2.0 milestone start_
