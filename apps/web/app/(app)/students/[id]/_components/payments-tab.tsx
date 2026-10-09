@@ -87,11 +87,8 @@ export function PaymentsTab({ student, refreshKey, onChanged }: PaymentsTabProps
 
 	async function remove(payment: PaymentRow) {
 		const result = await apiRequest<undefined>('DELETE', `/payments/${payment.id}`)
-		if (!result.ok) {
-			if (result.status === 404) void load()
-			return false
-		}
-		toast.show({ title: 'Payment deleted', description: 'The balance was recalculated.' })
+		if (!result.ok && result.status !== 404) return false
+		if (result.ok) toast.show({ title: 'Payment deleted', description: 'The balance was recalculated.' })
 		setRemoving(null)
 		await load()
 		onChanged()
