@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 
 import type { StudentRow } from '@dv-lab/contracts'
 import { accounts } from '@dv-lab/db'
@@ -6,6 +6,7 @@ import type { Database } from '@dv-lab/db'
 
 import { studentRowColumns, toStudentRow } from './account-rows.ts'
 import { generatePassword, hashPassword } from './passwords.ts'
+import { revokeAccountSessions } from './sessions.ts'
 
 const ONE_ACTIVE_TEACHER_CONSTRAINT = 'accounts_one_active_teacher_uq'
 const ACTIVE_LOGIN_CONSTRAINT = 'accounts_active_login_uq'
@@ -19,6 +20,8 @@ type CreateStudentInput = { login: string; displayName: string; password: string
 
 export type CreateStudentResult =
 	{ kind: 'created'; student: StudentRow; generatedPassword: string | null } | { kind: 'login_taken' }
+
+export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentRow } | { kind: 'not_found' }
 
 export function violatesUnique(error: unknown, constraint: string): boolean {
 	let current: unknown = error
@@ -73,4 +76,32 @@ export async function createStudent(db: Database, input: CreateStudentInput): Pr
 		if (violatesUnique(error, ACTIVE_LOGIN_CONSTRAINT)) return { kind: 'login_taken' }
 		throw error
 	}
+}
+
+export async function listStudents(db: Database): Promise<StudentRow[]> {
+	const rows = await db
+		.select(studentRowColumns)
+		.from(accounts)
+		.where(eq(accounts.role, 'student'))
+		.orderBy(desc(accounts.createdAt))
+	return rows.map(toStudentRow)
+}
+
+export function deactivateStudent(db: Database, studentId: string): Promise<DeactivateStudentResult> {
+	return db.transaction(async (tx): Promise<DeactivateStudentResult> => {
+		const [locked] = await tx
+			.select({ id: accounts.id })
+			.from(accounts)
+			.where(and(eq(accounts.id, studentId), eq(accounts.role, 'student'), eq(accounts.status, 'active')))
+			.for('update')
+		if (!locked) return { kind: 'not_found' }
+		const [row] = await tx
+			.update(accounts)
+			.set({ status: 'deactivated', updatedAt: sql`now()` })
+			.where(eq(accounts.id, locked.id))
+			.returning(studentRowColumns)
+		if (!row) throw new Error('student update returned no row')
+		await revokeAccountSessions(tx, locked.id)
+		return { kind: 'deactivated', student: toStudentRow(row) }
+	})
 }
