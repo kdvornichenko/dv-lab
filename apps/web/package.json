@@ -2,6 +2,12 @@
 	"name": "@dv-lab/web",
 	"version": "0.1.0",
 	"private": true,
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"typecheck": "next typegen && tsc --noEmit"
+	},
 	"dependencies": {
 		"geist": "1.7.2",
 		"next": "16.4.0",
