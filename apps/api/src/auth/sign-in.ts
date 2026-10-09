@@ -22,10 +22,15 @@ type Refusal =
 
 export type SignInOutcome = { kind: 'ok'; token: string; account: AccountSummary } | Refusal
 
+export type CredentialCheck = { kind: 'ok'; passwordHash: string; authEpoch: number } | Refusal
+
 export type SignInAttempt = { login: string; password: string; ip: string | null | undefined }
+
+export type CredentialInput = SignInAttempt & { accountId: string }
 
 export type SignIn = {
 	attempt: (input: SignInAttempt) => Promise<SignInOutcome>
+	verifyCredentials: (input: CredentialInput) => Promise<CredentialCheck>
 }
 
 type SignInOptions = { db: Database; logger: Logger; requireClientIp: boolean }
@@ -130,6 +135,12 @@ export function createSignIn({ db, logger, requireClientIp }: SignInOptions): Si
 					token: await issueSession(db, { accountId: account.id, authEpoch: account.authEpoch }),
 					account: toAccountSummary(account),
 				})
+			),
+		verifyCredentials: ({ accountId, ...input }) =>
+			run(
+				input,
+				(account) => account.id === accountId,
+				async (account) => ({ kind: 'ok', passwordHash: account.passwordHash, authEpoch: account.authEpoch })
 			),
 	}
 }

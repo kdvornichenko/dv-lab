@@ -114,3 +114,11 @@ export async function reserveSignInAttempt(
 export async function settleSignInSuccess(db: DbExecutor, keys: ThrottleKeys): Promise<void> {
 	await db.delete(signInThrottles).where(inArray(signInThrottles.keyHash, [keys.loginKey, keys.pairKey]))
 }
+
+export async function pruneSignInThrottles(db: DbExecutor): Promise<void> {
+	await db
+		.delete(signInThrottles)
+		.where(
+			sql`${signInThrottles.windowStartedAt} <= now() - make_interval(secs => ${WINDOW_SECONDS}) and (${signInThrottles.lockedUntil} is null or ${signInThrottles.lockedUntil} <= now())`
+		)
+}
