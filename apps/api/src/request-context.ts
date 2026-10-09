@@ -9,6 +9,21 @@ const VALID_ID = /^[\w-]{8,64}$/
 
 const currentRequestId = () => storage.getStore()?.requestId
 
+type QueryCause = { code?: unknown; constraint?: unknown }
+
+function serializeError(err: unknown) {
+	if (err instanceof Error && 'query' in err && 'params' in err) {
+		const cause: QueryCause = typeof err.cause === 'object' && err.cause !== null ? err.cause : {}
+		return {
+			type: err.name,
+			message: 'Failed query',
+			...(typeof cause.code === 'string' ? { code: cause.code } : {}),
+			...(typeof cause.constraint === 'string' ? { constraint: cause.constraint } : {}),
+		}
+	}
+	return err instanceof Error ? pino.stdSerializers.err(err) : err
+}
+
 export function createLogger(level: string, destination?: DestinationStream): Logger {
 	return pino(
 		{
@@ -17,6 +32,7 @@ export function createLogger(level: string, destination?: DestinationStream): Lo
 			timestamp: pino.stdTimeFunctions.isoTime,
 			formatters: { level: (label) => ({ level: label }) },
 			mixin: () => ({ requestId: currentRequestId() }),
+			serializers: { err: serializeError },
 			redact: { paths: ['req.headers.authorization', 'req.headers.cookie'], censor: '[redacted]' },
 		},
 		destination

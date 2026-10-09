@@ -9,6 +9,7 @@ import { type AccountSummary, type Role, SESSION_COOKIE, SESSION_TTL_SECONDS } f
 
 import { errorBody } from '../request-context.ts'
 import { type DbExecutor, readSession } from './sessions.ts'
+import type { SignInOutcome } from './sign-in.ts'
 
 export type AppEnv = {
 	Variables: {
@@ -17,7 +18,44 @@ export type AppEnv = {
 	}
 }
 
+type Refusal = Extract<SignInOutcome, { kind: 'locked' | 'busy' | 'unavailable' }>
+
 const sessionCookie = { httpOnly: true, secure: true, sameSite: 'Lax', path: '/' } as const
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+
+export function originMatches(c: Context, appOrigin: string): boolean {
+	return c.req.header('origin') === appOrigin
+}
+
+export const sameOrigin =
+	(appOrigin: string): MiddlewareHandler =>
+	async (c, next) => {
+		if (SAFE_METHODS.has(c.req.method)) return next()
+		const proven =
+			c.req.header('origin') !== undefined
+				? originMatches(c, appOrigin)
+				: c.req.header('sec-fetch-site') === 'same-origin'
+		if (!proven) return c.json(errorBody('forbidden_origin', 'Forbidden'), 403)
+		await next()
+	}
+
+export function refusalResponse(c: Context, outcome: Refusal) {
+	if (outcome.kind === 'locked') {
+		c.header('Retry-After', String(outcome.retryAfterSeconds))
+		return c.json(
+			errorBody('locked', 'Too many attempts, try again in 15 minutes', {
+				retryAfterSeconds: outcome.retryAfterSeconds,
+			}),
+			429
+		)
+	}
+	if (outcome.kind === 'busy') {
+		c.header('Retry-After', '1')
+		return c.json(errorBody('busy', 'Sign-in is busy, try again in a moment'), 503)
+	}
+	return c.json(errorBody('unavailable', 'Sign-in is unavailable'), 503)
+}
 
 export function clientIp(c: Context, production: boolean): string | null {
 	const forwarded = c.req.header('x-forwarded-for')

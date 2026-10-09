@@ -44,7 +44,7 @@ describe('migrate.mjs', () => {
 		const result = await run({ ...process.env, MIGRATOR_DATABASE_URL: appUrl })
 
 		expect(result.code).not.toBe(0)
-		expect(result.output).toContain('permission denied')
+		expect(result.output).toContain('"code":"42501"')
 		expect(result.output).toContain('migrations failed')
 		expect(result.output).not.toContain(appUrl)
 	})

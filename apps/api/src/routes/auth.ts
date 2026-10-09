@@ -4,13 +4,21 @@ import type { Logger } from 'pino'
 import { type MeResponse, type SignInResponse, signInRequest } from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
 
-import { type AppEnv, clientIp, noStore, readJson, requireSession, setSessionCookie } from '../auth/middleware.ts'
+import {
+	type AppEnv,
+	clientIp,
+	noStore,
+	readJson,
+	refusalResponse,
+	requireSession,
+	setSessionCookie,
+} from '../auth/middleware.ts'
 import type { SignIn } from '../auth/sign-in.ts'
 import { errorBody } from '../request-context.ts'
 
 type AuthRouteDeps = { db: Database; signIn: SignIn; production: boolean; logger: Logger }
 
-export function authRoutes({ db, signIn, production }: AuthRouteDeps) {
+export function authRoutes({ db, signIn, production, logger }: AuthRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore)
 
@@ -23,7 +31,11 @@ export function authRoutes({ db, signIn, production }: AuthRouteDeps) {
 			setSessionCookie(c, outcome.token)
 			return c.json({ account: outcome.account } satisfies SignInResponse, 200)
 		}
-		return c.json(errorBody('invalid_credentials', 'Wrong login or password'), 401)
+		logger.warn({ outcome: outcome.kind, clientIp: ip }, 'sign-in refused')
+		if (outcome.kind === 'invalid_credentials') {
+			return c.json(errorBody('invalid_credentials', 'Wrong login or password'), 401)
+		}
+		return refusalResponse(c, outcome)
 	})
 
 	routes.get('/me', requireSession(db), (c) => {
