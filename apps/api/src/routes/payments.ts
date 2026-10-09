@@ -31,7 +31,7 @@ function paymentId(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
-function latestPaymentDate(now: Date): string {
+export function latestPaymentDate(now: Date): string {
 	const limit = new Date(now.getTime())
 	limit.setUTCDate(limit.getUTCDate() + 1)
 	return limit.toISOString().slice(0, 10)
