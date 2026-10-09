@@ -6,6 +6,11 @@
 	"exports": {
 		".": "./src/index.ts"
 	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"db:generate": "drizzle-kit generate"
+	},
 	"dependencies": {
 		"drizzle-orm": "1.0.0-rc.4",
 		"pg": "8.23.1",
