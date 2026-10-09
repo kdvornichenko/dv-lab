@@ -397,18 +397,21 @@ TTL — второе поле строки. Если он больше 60 с, TT
 (
   set -Eeuo pipefail
   for v in -4 -6; do
-    for p in /healthz /; do
+    for p in /healthz /login; do
       CODE=$(curl "$v" -s -o /dev/null -w '%{http_code}' --max-time 10 "https://dv-lab.dev$p")
       echo "$v $p $CODE"
       [ "$CODE" = 200 ]
     done
+    CODE=$(curl "$v" -s -o /dev/null -w '%{http_code}' --max-time 10 https://dv-lab.dev/api/auth/me)
+    echo "$v /api/auth/me $CODE"
+    [ "$CODE" = 401 ]
   done
   curl -4 -s --max-time 10 https://dv-lab.dev/healthz
   echo
 )
 ```
 
-Ожидаемо четыре строки с `200` и тело `/healthz` с `sha` текущего релиза и `"db":"ok"`.
+Ожидаемо по IPv4 и IPv6 строки `/healthz 200`, `/login 200` и `/api/auth/me 401` (маршрут входа api за префиксом `/api` отвечает без сессии), затем тело `/healthz` с `sha` текущего релиза и `"db":"ok"`. Корень `/` без сессии отвечает 307 на `/login`, поэтому в цикле его нет.
 
 ### 6.2. Нет alt-svc и HTTP/3
 
@@ -493,7 +496,7 @@ TTL — второе поле строки. Если он больше 60 с, TT
 )
 ```
 
-Если вместо адреса клиента в `remote_ip` адрес шлюза Docker, это записывается владельцу как вопрос до фазы 18 (ограничение попыток входа по IP).
+Адрес шлюза Docker в `remote_ip` вместо адреса клиента означает сеть compose без IPv6 — раздел 10.1.
 
 ### 6.6. Остановка api
 
@@ -520,7 +523,7 @@ TTL — второе поле строки. Если он больше 60 с, TT
 )
 ```
 
-Ожидаемо не больше 20 с и код выхода контейнера `0`; api снова `healthy`. Страница-заглушка `https://dv-lab.dev` открывается в браузере.
+Ожидаемо не больше 20 с и код выхода контейнера `0`; api снова `healthy`. `https://dv-lab.dev` открывается в браузере (без сессии — страница входа).
 
 ## 7. Бэкапы
 
@@ -572,11 +575,15 @@ TTL — второе поле строки. Если он больше 60 с, TT
 
 Успех — только `DEPLOY_OK`. `DEPLOY_SKIPPED` (код 0) — не успех: выкатка не выполнялась, потому что тег цели совпадает с записанным в файле состояния выкатки. После `DEPLOY_FAILED` первой выкатки там уже записан новый тег, поэтому повтор без `FORCE=1` печатает `DEPLOY_SKIPPED` и ничего не чинит. Код 75 и `DEPLOY_STOPPED` — идёт другая выкатка, повторить позже. При `DEPLOY_FAILED stage=…` скрипт печатает итог отката (`rolled back to sha-…`, `repo returned to sha-…`, `nothing to roll back to` или `ROLLBACK FAILED`); где смотреть — таблица 5.1.
 
+Блоки 8.1–8.3 сначала переключают клон на цель: `deploy.sh` запускается из клона, и выполняться должен скрипт выкатываемого релиза, а не прошлого (проверки после выкатки меняются вместе с приложением).
+
 ### 8.1. Выкатка `origin/master`
 
 ```bash
 (
   set -Eeuo pipefail
+  sudo git -C /opt/dv-lab/repo fetch -q origin
+  sudo git -C /opt/dv-lab/repo checkout -q --detach origin/master
   sudo /opt/dv-lab/repo/deploy/deploy.sh
 )
 ```
@@ -591,6 +598,8 @@ TTL — второе поле строки. Если он больше 60 с, TT
   SHA=
   case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
   [ "${#SHA}" -eq 40 ]
+  sudo git -C /opt/dv-lab/repo fetch -q origin
+  sudo git -C /opt/dv-lab/repo checkout -q --detach "$SHA"
   sudo /opt/dv-lab/repo/deploy/deploy.sh "$SHA"
 )
 ```
@@ -603,6 +612,8 @@ TTL — второе поле строки. Если он больше 60 с, TT
   SHA=
   case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
   [ "${#SHA}" -eq 40 ]
+  sudo git -C /opt/dv-lab/repo fetch -q origin
+  sudo git -C /opt/dv-lab/repo checkout -q --detach "$SHA"
   sudo env FORCE=1 /opt/dv-lab/repo/deploy/deploy.sh "$SHA"
 )
 ```
@@ -685,6 +696,63 @@ TTL — второе поле строки. Если он больше 60 с, TT
 
 Если `DEPLOY_FAILED` и итог отката пишет ошибку сети compose (`ROLLBACK FAILED` или сообщение о сети `dv-lab_default`): `dc down` той же формой в клоне на прошлом sha (`sudo git -C /opt/dv-lab/repo checkout -q --detach <прошлый sha>`, `SHA` в блоке — прошлый), затем раздел 8.2 с прошлым sha, затем сообщить владельцу. Прошлый sha — из поля `to=` последней строки `OK` журнала выкаток (8.4).
 
+### 10.2. Проверки после выкатки и адрес клиента (жёсткое условие D-26)
+
+После `DEPLOY_OK` из 10.1 и до 10.3: разделы 6.1–6.4, затем блоки ниже. Ограничение попыток входа считает неудачи по паре «логин + IP клиента», поэтому api должен видеть настоящий адрес клиента и по IPv4, и по IPv6, а подделанный заголовок `X-Forwarded-For` не должен на него влиять.
+
+С Mac или другого хоста с IPv4 и IPv6: по одной попытке входа с вымышленным логином, неверным паролем и подделанным `X-Forwarded-For: 192.0.2.1` по каждому протоколу.
+
+```bash
+(
+  set -Eeuo pipefail
+  for v in -4 -6; do
+    PROBE="probe-$RANDOM$RANDOM@invalid"
+    CODE=$(curl "$v" -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST https://dv-lab.dev/api/auth/sign-in -H 'Origin: https://dv-lab.dev' -H 'content-type: application/json' -H 'X-Forwarded-For: 192.0.2.1' --data "{\"login\":\"$PROBE\",\"password\":\"wrong-probe-password\"}")
+    echo "$v sign-in $CODE"
+    [ "$CODE" = 401 ]
+  done
+)
+```
+
+Ожидаемо две строки с `401`. `CLIENT_IPV4` и `CLIENT_IPV6` — внешние адреса этого хоста (например, `curl -4 -s https://ifconfig.co` и `curl -6 -s https://ifconfig.co`), IPv6 в сжатой форме. На сервере, в течение нескольких минут после попыток (блок читает последние 500 строк журналов):
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  CLIENT_IPV4=
+  CLIENT_IPV6=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  : "${CLIENT_IPV4:?}" "${CLIENT_IPV6:?}"
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  C=$(dc logs --no-color --no-log-prefix --tail 500 caddy)
+  A=$(dc logs --no-color --no-log-prefix --tail 500 api)
+  if ! R=$(grep -F '"msg":"sign-in refused"' <<< "$A"); then
+    echo "в журнале api нет строк sign-in refused" >&2
+    exit 1
+  fi
+  for ip in "$CLIENT_IPV4" "$CLIENT_IPV6"; do
+    if ! grep -F -q "\"remote_ip\":\"$ip\"" <<< "$C"; then
+      echo "адреса клиента нет в журнале Caddy" >&2
+      exit 1
+    fi
+    if ! grep -F -q "\"clientIp\":\"$ip\"" <<< "$R"; then
+      echo "адреса клиента нет в строках sign-in refused api" >&2
+      exit 1
+    fi
+  done
+  if grep -F -q '"clientIp":"192.0.2.1"' <<< "$R"; then
+    echo "api взял адрес из подделанного X-Forwarded-For" >&2
+    exit 1
+  fi
+  echo CLIENT_IP_OK
+)
+```
+
+Ожидаемо `CLIENT_IP_OK`. Назад присылается только этот маркер или текст ошибки, без адресов. Если `CLIENT_IPV6` не найден (вместо него адрес шлюза Docker или подделанный адрес) или найден `192.0.2.1`: остановиться, учителя не создавать и сообщить владельцу — правило «логин + IP» пересматривается до выдачи входа (D-26). Строки ограничения попыток для вымышленных логинов удаляет фоновая очистка api через 15 минут.
+
 ### 10.3. Первый учитель и вход владельца
 
 Только после того, как 10.2 напечатал `CLIENT_IP_OK`. `TEACHER_EMAIL` — e-mail владельца для входа, `TEACHER_NAME` — его имя, как оно показывается в оболочке. Скрипт печатает пароль один раз; контейнер `run --rm` удаляется вместе с журналом (драйвер `local`), блок проверяет, что контейнера `bootstrap` не осталось.
@@ -710,3 +778,44 @@ TTL — второе поле строки. Если он больше 60 с, TT
 Ожидаемо строки `Teacher created. Login: …`, `Password (shown once): …` и `NO_BOOTSTRAP_CONTAINER`. Пароль оператор передаёт владельцу лично и назад не присылает; назад присылаются только маркеры `Teacher created` и `NO_BOOTSTRAP_CONTAINER`, без логина и пароля. Код 3 и `An active teacher already exists` — учитель уже есть, повторять не нужно (забытый пароль — раздел 10.5). Код 2 и строка `Usage:` — пустое или неверное значение `TEACHER_EMAIL` или `TEACHER_NAME`. Код 1 и `Bootstrap failed` — ошибка базы, смотреть `SERVICE=db` (5.1).
 
 Последний шаг выполняет владелец: входит на `https://dv-lab.dev/login` этим e-mail и паролем, видит оболочку Today со своим именем и меняет пароль через меню аккаунта. Это закрывает критерий 1 ROADMAP фазы 18.
+
+### 10.4. Снятие блокировки входа
+
+Пять неверных паролей с одного адреса закрывают вход этого логина с этого адреса на 15 минут (форма входа и диалог смены пароля считаются вместе), двадцать — вход логина с любого адреса. Учитель видит `Too many attempts, try again in 15 minutes`. Если ждать нельзя, блок удаляет все счётчики попыток под ролью миграций (владелец таблицы); аккаунты и сессии не затрагиваются.
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  dc exec -T db psql -X -U dvlab_migrator -d dvlab -v ON_ERROR_STOP=1 -c 'delete from sign_in_throttles'
+)
+```
+
+Ожидаемо строка `DELETE <n>`. Локальный вход в контейнере `db` идёт через сокет без пароля; если `psql` отвечает ошибкой аутентификации для `dvlab_migrator`, та же команда выполняется с `-U postgres`, и это записывается в отчёт.
+
+### 10.5. Восстановление пароля учителя
+
+Учитель забыл пароль. `TEACHER_EMAIL` — e-mail активного учителя. Скрипт ставит новый пароль, закрывает все сессии учителя; id аккаунта и данные не меняются.
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  TEACHER_EMAIL=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  : "${TEACHER_EMAIL:?}"
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  dc --profile tools run --rm bootstrap --reset-password --email "$TEACHER_EMAIL"
+  LEFT=$(sudo docker ps -a -q --filter label=com.docker.compose.project=dv-lab --filter label=com.docker.compose.service=bootstrap)
+  [ -z "$LEFT" ]
+  echo NO_BOOTSTRAP_CONTAINER
+)
+```
+
+Ожидаемо строки `Password reset. Login: …`, `Password (shown once): …` и `NO_BOOTSTRAP_CONTAINER`. Пароль передаётся владельцу лично, назад присылаются только маркеры `Password reset` и `NO_BOOTSTRAP_CONTAINER`. Код 3 и `No active teacher with this email` — активного учителя с таким e-mail нет. Если вход закрыт ограничением попыток, после восстановления пароля нужен ещё раздел 10.4.

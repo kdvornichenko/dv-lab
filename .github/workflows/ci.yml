@@ -56,6 +56,47 @@ jobs:
             exit 1
           fi
           node -e "const p = require('./apps/web/package.json'); const all = { ...p.dependencies, ...p.devDependencies, ...p.peerDependencies, ...p.optionalDependencies }; const bad = ['@dv-lab/api', '@dv-lab/db'].filter((name) => name in all); if (bad.length) { console.error('apps/web must not depend on ' + bad.join(', ')); process.exit(1) }"
+          none() {
+            local rc=0
+            git grep -n "$@" || rc=$?
+            [ "$rc" -eq 1 ]
+          }
+          if ! none -E "['\"]@dv-lab/(api|db)(/[^'\"]*)?['\"]" -- apps/web; then
+            echo "apps/web must not import @dv-lab/api or @dv-lab/db"
+            exit 1
+          fi
+          if ! none -F transpilePackages -- apps/web/next.config.ts; then
+            echo "apps/web/next.config.ts must not set transpilePackages"
+            exit 1
+          fi
+          node -e "const p = require('./packages/contracts/package.json'); const deps = Object.keys(p.dependencies ?? {}); if (deps.length !== 1 || deps[0] !== 'zod') { console.error('packages/contracts must depend only on zod, found: ' + deps.join(', ')); process.exit(1) }"
+          if ! none -E "['\"](pg(/[^'\"]*)?|node:[^'\"]*|@dv-lab/[^'\"]*)['\"]" -- packages/contracts/src; then
+            echo "packages/contracts/src must not import pg, node:* or @dv-lab/*"
+            exit 1
+          fi
+          if ! none -F process.env -- packages/contracts/src; then
+            echo "packages/contracts/src must not read process.env"
+            exit 1
+          fi
+
+      - name: Client address trust
+        run: |
+          test -f deploy/caddy/Caddyfile
+          test -f deploy/compose.yaml
+          if grep -n trusted_proxies deploy/caddy/Caddyfile; then
+            echo "deploy/caddy/Caddyfile must not set trusted_proxies: api takes the client address from the X-Forwarded-For value Caddy appends"
+            exit 1
+          fi
+          api_ports=$(awk '/^[^ #]/ { top = $1 } /^  [^ #]/ { svc = (top == "services:") ? $1 : "" } svc == "api:" && /^    ports:/ { print }' deploy/compose.yaml)
+          if [ -n "$api_ports" ]; then
+            echo "the api service in deploy/compose.yaml must not publish ports: clients reach it only through Caddy"
+            exit 1
+          fi
+          ipv6=$(awk '/^[^ #]/ { top = $1 } /^  [^ #]/ { net = (top == "networks:") ? $1 : "" } net == "default:" && /^    enable_ipv6: true$/ { print "yes" }' deploy/compose.yaml)
+          if [ "$ipv6" != yes ]; then
+            echo "the default network in deploy/compose.yaml must have enable_ipv6: true, otherwise Caddy sees the Docker gateway instead of IPv6 clients"
+            exit 1
+          fi
 
       - name: Turbo version in Dockerfiles
         run: |

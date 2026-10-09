@@ -18,6 +18,8 @@ SWITCHED=0
 TMP_DB=""
 HEALTH=""
 WEB_CODE=""
+LOGIN_CODE=""
+ME=""
 T_START=$(date +%s)
 unset MIGRATE_DB
 
@@ -77,6 +79,8 @@ trap on_exit EXIT
 smoke_ok() {
 	HEALTH=$(curl -s --max-time 10 --resolve dv-lab.dev:443:127.0.0.1 "$SITE/healthz") || HEALTH=""
 	WEB_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve dv-lab.dev:443:127.0.0.1 "$SITE/") || WEB_CODE=""
+	LOGIN_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve dv-lab.dev:443:127.0.0.1 "$SITE/login") || LOGIN_CODE=""
+	ME=$(curl -s -w ' %{http_code}' --max-time 10 --resolve dv-lab.dev:443:127.0.0.1 "$SITE/api/auth/me") || ME=""
 	case "$HEALTH" in
 		*"\"sha\":\"$FULL\""*) ;;
 		*) return 1 ;;
@@ -85,7 +89,15 @@ smoke_ok() {
 		*'"db":"ok"'*) ;;
 		*) return 1 ;;
 	esac
-	[ "$WEB_CODE" = 200 ]
+	case "$WEB_CODE" in
+		200 | 307) ;;
+		*) return 1 ;;
+	esac
+	[ "$LOGIN_CODE" = 200 ] || return 1
+	case "$ME" in
+		*'"code":"unauthenticated"'*' 401') ;;
+		*) return 1 ;;
+	esac
 }
 
 mkdir -p "$STATE"
@@ -162,12 +174,12 @@ i=0
 until smoke_ok; do
 	i=$((i + 1))
 	if [ "$i" -ge 12 ]; then
-		echo "smoke failed: healthz=${HEALTH:-empty} web=${WEB_CODE:-none}" >&2
+		echo "smoke failed: healthz=${HEALTH:-empty} web=${WEB_CODE:-none} login=${LOGIN_CODE:-none} me=${ME##* }" >&2
 		false
 	fi
 	sleep 5
 done
-echo "smoke: healthz=$HEALTH web=$WEB_CODE"
+echo "smoke: healthz=$HEALTH web=$WEB_CODE login=$LOGIN_CODE me=${ME##* }"
 SWITCHED=0
 note "OK from=${PREV:-none} to=$TAG ref=$REF sec=$(( $(date +%s) - T_START ))"
 
