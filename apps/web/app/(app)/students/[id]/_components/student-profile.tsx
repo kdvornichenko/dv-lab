@@ -188,7 +188,7 @@ export function StudentProfile({ id }: { id: string }) {
 				title={
 					<span className="flex items-center gap-2">
 						<Avatar name={student.displayName} />
-						<span className="min-w-0 break-words">{student.displayName}</span>
+						<span className="min-w-0 wrap-anywhere">{student.displayName}</span>
 					</span>
 				}
 				description={<SummaryLine student={student} onSetBalance={focusOpeningBalance} />}
@@ -214,7 +214,7 @@ export function StudentProfile({ id }: { id: string }) {
 					<TabItem value="overview" label="Overview" />
 				</TabsList>
 				<TabPanel value="overview" className="mt-4">
-					<OverviewTab student={student} onSaved={() => void reload()} />
+					<OverviewTab student={student} lessonsInputRef={lessonsInput} onSaved={() => void reload()} />
 				</TabPanel>
 			</Tabs>
 			{confirm === 'archive' ? (

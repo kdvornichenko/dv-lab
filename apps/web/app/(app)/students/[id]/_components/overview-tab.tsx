@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode, type RefObject } from 'react'
 
 import { Pencil } from 'lucide-react'
 
@@ -11,9 +11,11 @@ import { Button } from '@/components/ui/button'
 import type { StudentDetail } from '@dv-lab/contracts'
 
 import { StudentFormDialog } from '../../_components/student-form-dialog'
+import { OpeningBalancePanel } from './opening-balance-panel'
 
 interface OverviewTabProps {
 	student: StudentDetail
+	lessonsInputRef: RefObject<HTMLInputElement | null>
 	onSaved: () => void
 }
 
@@ -29,12 +31,12 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 	return (
 		<div className="flex items-baseline justify-between gap-4 px-4 pb-2">
 			<dt className="w-32 shrink-0 text-body text-muted-foreground">{label}</dt>
-			<dd className="min-w-0 text-right text-body break-words text-foreground">{children}</dd>
+			<dd className="min-w-0 text-right text-body wrap-anywhere text-foreground">{children}</dd>
 		</div>
 	)
 }
 
-export function OverviewTab({ student, onSaved }: OverviewTabProps) {
+export function OverviewTab({ student, lessonsInputRef, onSaved }: OverviewTabProps) {
 	const [editOpen, setEditOpen] = useState(false)
 	const editButton = useRef<HTMLButtonElement>(null)
 
@@ -74,6 +76,9 @@ export function OverviewTab({ student, onSaved }: OverviewTabProps) {
 					<DetailRow label="Time zone">{student.timeZone ?? 'Same as teacher'}</DetailRow>
 				</dl>
 			</Panel>
+			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+				<OpeningBalancePanel student={student} lessonsInputRef={lessonsInputRef} onSaved={onSaved} />
+			</div>
 			{editOpen ? (
 				<StudentFormDialog
 					mode="edit"

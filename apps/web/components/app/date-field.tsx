@@ -50,9 +50,10 @@ export function DateField({ id, label, value, onChange, max, error, helper, disa
 					aria-label={`${label}: ${text}`}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={describedBy}
-					render={<Button variant="tertiary" className="h-9 w-full justify-start px-2 text-body" />}
+					render={
+						<Button variant="tertiary" leadingIcon={CalendarDays} className="h-9 w-full justify-start px-2 text-body" />
+					}
 				>
-					<CalendarDays />
 					{text}
 				</PopoverTrigger>
 				<PopoverContent align="start" className="w-auto p-0">
