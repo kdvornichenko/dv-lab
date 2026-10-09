@@ -52,6 +52,7 @@ export function isIsoDate(value: string): boolean {
 	const year = Number(value.slice(0, 4))
 	const month = Number(value.slice(5, 7))
 	const day = Number(value.slice(8, 10))
+	if (year < 1) return false
 	const date = new Date(0)
 	date.setUTCFullYear(year, month - 1, day)
 	return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
