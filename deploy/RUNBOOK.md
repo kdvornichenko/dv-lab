@@ -443,7 +443,7 @@ TTL — второе поле строки. Если он больше 60 с, TT
   for fam in 4 6; do
     if [ "$fam" = 4 ]; then ip=$VPS_IPV4; else ip=$VPS_IPV6; fi
     for port in 5432 3000 4000 2019; do
-      if nc -zv -w 5 "$ip" "$port" > /dev/null 2>&1; then
+      if nc -z -G 5 -w 5 "$ip" "$port" > /dev/null 2>&1; then
         echo "OPEN v$fam $port"
         OPEN=1
       fi
