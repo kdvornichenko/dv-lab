@@ -54,6 +54,7 @@ Requirements for milestone v2.0 Unified dv-lab. Each maps to a roadmap phase. Th
 - [ ] **LEDG-06**: The teacher can correct any mark and the balance recomputes.
 - [ ] **LEDG-07**: The "pays soon" list shows students with at most N lessons left or none; N is a setting that defaults to 2.
 - [ ] **LEDG-08**: Every balance number comes from `packages/core` functions shared by forms and chat tools.
+- [ ] **LEDG-09**: The teacher sets an opening balance (lessons left) for each student on the card, and the balance is counted from it, so imported students do not start with every lesson ever paid.
 
 ### Schedule
 
@@ -128,14 +129,81 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 | ----------- | ----- | ------ |
+| INFRA-01 | Phase 17 | Pending |
+| INFRA-02 | Phase 17 | Pending |
+| INFRA-03 | Phase 17 | Pending |
+| INFRA-04 | Phase 17 | Pending |
+| INFRA-05 | Phase 17 | Pending |
+| INFRA-06 | Phase 17 | Pending |
+| INFRA-07 | Phase 17 | Pending |
+| INFRA-08 | Phase 17 | Pending |
+| ACCT-01 | Phase 18 | Pending |
+| ACCT-02 | Phase 18 | Pending |
+| ACCT-03 | Phase 18 | Pending |
+| ACCT-04 | Phase 19 | Pending |
+| ACCT-05 | Phase 18 | Pending |
+| SHELL-01 | Phase 18 | Pending |
+| SHELL-02 | Phase 18 | Pending |
+| SHELL-03 | Phase 23 | Pending |
+| SHELL-04 | Phase 23 | Pending |
+| SHELL-05 | Phase 21 | Pending |
+| CARD-01 | Phase 19 | Pending |
+| CARD-02 | Phase 19 | Pending |
+| CARD-03 | Phase 19 | Pending |
+| CARD-04 | Phase 20 | Pending |
+| CARD-05 | Phase 23 | Pending |
+| CARD-06 | Phase 19 | Pending |
+| CARD-07 | Phase 19 | Pending |
+| LEDG-01 | Phase 19 | Pending |
+| LEDG-02 | Phase 19 | Pending |
+| LEDG-03 | Phase 21 | Pending |
+| LEDG-04 | Phase 21 | Pending |
+| LEDG-05 | Phase 21 | Pending |
+| LEDG-06 | Phase 21 | Pending |
+| LEDG-07 | Phase 21 | Pending |
+| LEDG-08 | Phase 21 | Pending |
+| LEDG-09 | Phase 19 | Pending |
+| SCHED-01 | Phase 20 | Pending |
+| SCHED-02 | Phase 20 | Pending |
+| SCHED-03 | Phase 20 | Pending |
+| SCHED-04 | Phase 20 | Pending |
+| SCHED-05 | Phase 20 | Pending |
+| GCAL-01 | Phase 24 | Pending |
+| GCAL-02 | Phase 24 | Pending |
+| GCAL-03 | Phase 24 | Pending |
+| GCAL-04 | Phase 25 | Pending |
+| GCAL-05 | Phase 25 | Pending |
+| GCAL-06 | Phase 25 | Pending |
+| GCAL-07 | Phase 25 | Pending |
+| GCAL-08 | Phase 25 | Pending |
+| GCAL-09 | Phase 24 | Pending |
+| GCAL-10 | Phase 24 | Pending |
+| CHAT-01 | Phase 22 | Pending |
+| CHAT-02 | Phase 22 | Pending |
+| CHAT-03 | Phase 22 | Pending |
+| CHAT-04 | Phase 22 | Pending |
+| CHAT-05 | Phase 23 | Pending |
+| CHAT-06 | Phase 23 | Pending |
+| CHAT-07 | Phase 22 | Pending |
+| CHAT-08 | Phase 22 | Pending |
+| CHAT-09 | Phase 22 | Pending |
+| CHAT-10 | Phase 23 | Pending |
+| CHAT-11 | Phase 22 | Pending |
+| CHAT-12 | Phase 23 | Pending |
+| IELTS-01 | Phase 26 | Pending |
+| IELTS-02 | Phase 26 | Pending |
+| IELTS-03 | Phase 26 | Pending |
+| IELTS-04 | Phase 26 | Pending |
+| IELTS-05 | Phase 26 | Pending |
+| IELTS-06 | Phase 26 | Pending |
 
 **Coverage:**
 
-- v2.0 requirements: 66 total
-- Mapped to phases: 0
-- Unmapped: 66 ⚠️
+- v2.0 requirements: 67 total
+- Mapped to phases: 67
+- Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-10-09_
-_Last updated: 2026-10-09 after v2.0 milestone start_
+_Last updated: 2026-10-09 after v2.0 roadmap creation (phases 17-26)_
