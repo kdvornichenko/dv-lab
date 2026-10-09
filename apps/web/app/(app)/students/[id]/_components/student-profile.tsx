@@ -17,9 +17,10 @@ import { Skeleton, SkeletonProfileHeader } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 
-import type { StudentDetail, StudentResponse } from '@dv-lab/contracts'
+import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
+import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
 import { RecordPaymentDialog } from './record-payment-dialog'
@@ -53,6 +54,7 @@ function SectionTabs({ children, disabled }: { children: ReactNode; disabled: bo
 		<Tabs defaultValue="overview">
 			<TabsList aria-label="Student sections">
 				<TabItem value="overview" label="Overview" disabled={disabled} />
+				<TabItem value="notes" label="Notes" disabled={disabled} />
 				<TabItem value="payments" label="Payments" disabled={disabled} />
 			</TabsList>
 			<TabPanel value="overview" className="mt-4">
@@ -121,6 +123,7 @@ export function StudentProfile({ id }: { id: string }) {
 	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
 	const [recordOpen, setRecordOpen] = useState(false)
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
+	const [drafts, setDrafts] = useState<SectionDrafts>({})
 	const lessonsInput = useRef<HTMLInputElement>(null)
 	const statusButton = useRef<HTMLButtonElement>(null)
 	const recordButton = useRef<HTMLButtonElement>(null)
@@ -139,6 +142,15 @@ export function StudentProfile({ id }: { id: string }) {
 			current = false
 		}
 	}, [id])
+
+	function changeDraft(kind: SectionKind, value: string | undefined) {
+		setDrafts((current) => {
+			const next = { ...current }
+			if (value === undefined) delete next[kind]
+			else next[kind] = value
+			return next
+		})
+	}
 
 	function focusOpeningBalance() {
 		setTab('overview')
@@ -233,10 +245,14 @@ export function StudentProfile({ id }: { id: string }) {
 			<Tabs value={tab} onValueChange={setTab}>
 				<TabsList aria-label="Student sections">
 					<TabItem value="overview" label="Overview" />
+					<TabItem value="notes" label="Notes" />
 					<TabItem value="payments" label="Payments" />
 				</TabsList>
 				<TabPanel value="overview" className="mt-4">
 					<OverviewTab student={student} lessonsInputRef={lessonsInput} onSaved={() => void reload()} />
+				</TabPanel>
+				<TabPanel value="notes" className="mt-4">
+					<NotesTab student={student} drafts={drafts} onDraftChange={changeDraft} />
 				</TabPanel>
 				<TabPanel value="payments" className="mt-4">
 					<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
