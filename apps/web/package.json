@@ -10,6 +10,7 @@
 		"typecheck": "next typegen && tsc --noEmit"
 	},
 	"dependencies": {
+		"@dv-lab/contracts": "workspace:*",
 		"geist": "1.7.2",
 		"next": "16.4.0",
 		"react": "19.3.0",

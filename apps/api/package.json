@@ -12,6 +12,7 @@
 		"db:migrate": "node --env-file-if-exists=../../.env src/migrate.ts"
 	},
 	"dependencies": {
+		"@dv-lab/contracts": "workspace:*",
 		"@dv-lab/db": "workspace:*",
 		"@hono/node-server": "2.1.4",
 		"drizzle-orm": "1.0.0-rc.4",
