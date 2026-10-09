@@ -1,36 +1,33 @@
 ---
-gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Audit Remediation
-status: complete
-stopped_at: Completed Phase 16 cleanup and final verification
-last_updated: '2026-05-03T18:00:12+03:00'
-last_activity: 2026-05-03 - Completed Phase 16 dependency hygiene, audit tooling, lint cleanup, and final verification.
+gsd_state_version: "1.0"
+milestone: v2.0
+milestone_name: Unified dv-lab
+status: planning
+last_updated: "2026-10-09T08:14:26.807Z"
+last_activity: 2026-10-09
 progress:
-  total_phases: 16
-  completed_phases: 16
-  total_plans: 51
-  completed_plans: 51
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-03)
+See: .planning/PROJECT.md (updated 2026-10-09)
 
-**Core value:** The teacher can always see who studies, which individual lessons are planned/completed/cancelled/rescheduled, who paid, and who owes money.
-**Current focus:** v1.1 remediation pass from tech-debt and architecture audits.
+**Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
+**Current focus:** v2.0 Unified dv-lab: requirements and roadmap.
 
 ## Current Position
 
-Phase: 16 of 16 (Cleanup, Tooling, and Component Decomposition)
-Plan: Complete
-Status: v1.1 audit remediation complete.
-Last activity: 2026-05-03 - Completed Phase 16 dependency hygiene, audit tooling, lint cleanup, and final verification.
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-10-09 — Milestone v2.0 started
 
 ## Performance Metrics
 
