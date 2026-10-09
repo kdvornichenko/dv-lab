@@ -1,0 +1,55 @@
+{
+	servers {
+		protocols h1 h2
+	}
+}
+
+(upstream) {
+	lb_try_duration 10s
+	lb_try_interval 250ms
+	header_up X-Request-Id {http.request.uuid}
+}
+
+dv-lab.dev {
+	log {
+		format json
+	}
+
+	encode zstd gzip
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	request_body {
+		max_size 1MB
+	}
+
+	handle /healthz {
+		reverse_proxy api:4000 {
+			import upstream
+		}
+	}
+
+	handle /ws {
+		reverse_proxy api:4000 {
+			import upstream
+		}
+	}
+
+	handle_path /api/* {
+		reverse_proxy api:4000 {
+			import upstream
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			import upstream
+		}
+	}
+}
