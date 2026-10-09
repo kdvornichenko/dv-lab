@@ -18,9 +18,14 @@ import {
 
 import { isSectionActive, sections } from './sections'
 
-export function AppSidebar() {
+export function AppSidebar({ onOpenSearch }: { onOpenSearch: (initialQuery?: string) => void }) {
 	const pathname = usePathname()
 	const { isMobile, setOpenMobile } = useSidebar()
+
+	function openSearch(initialQuery?: string) {
+		if (isMobile) setOpenMobile(false)
+		onOpenSearch(initialQuery)
+	}
 
 	return (
 		<Sidebar variant={isMobile ? 'sidebar' : 'inset'}>
@@ -32,6 +37,17 @@ export function AppSidebar() {
 					aria-haspopup="dialog"
 					readOnly
 					value=""
+					onClick={() => openSearch()}
+					onKeyDown={(event) => {
+						if (event.metaKey || event.ctrlKey || event.altKey) return
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault()
+							openSearch()
+						} else if (event.key.length === 1) {
+							event.preventDefault()
+							openSearch(event.key)
+						}
+					}}
 				/>
 			</SidebarHeader>
 			<SidebarContent>
