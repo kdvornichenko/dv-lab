@@ -159,7 +159,10 @@ Plans:
 - [ ] 19-18-PLAN.md — Account panel: create, link, deactivate from the card (W8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 19-19-PLAN.md — Final verification: AGENTS.md, full checks, privacy, six criteria by hand (W9)
+- [ ] 19-20-PLAN.md — Form fields: one look, one error line, Combobox empty state and time zone offsets, per the Design session (W9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 19-19-PLAN.md — Final verification: AGENTS.md, full checks, privacy, six criteria by hand (W10)
 
 **Notes**: The release and the server import are run later by the Server guy session (RUNBOOK 11) after the owner accepts the import on `dvlab_dev`.
 **UI hint**: yes
