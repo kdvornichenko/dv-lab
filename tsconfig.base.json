@@ -1,22 +1,15 @@
 {
 	"compilerOptions": {
-		"target": "ES2022",
-		"lib": ["DOM", "DOM.Iterable", "ES2022"],
-		"allowJs": false,
-		"skipLibCheck": true,
+		"target": "ES2023",
+		"module": "esnext",
+		"moduleResolution": "bundler",
 		"strict": true,
 		"noEmit": true,
-		"esModuleInterop": true,
-		"module": "ESNext",
-		"moduleResolution": "Bundler",
-		"resolveJsonModule": true,
+		"skipLibCheck": true,
 		"isolatedModules": true,
-		"jsx": "preserve",
-		"incremental": true,
-		"paths": {
-			"@teacher-crm/api-types": ["./packages/api-types/src/index.ts"],
-			"@teacher-crm/db": ["./packages/db/src/index.ts"],
-			"@teacher-crm/rbac": ["./packages/rbac/src/index.ts"]
-		}
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"erasableSyntaxOnly": true
 	}
 }

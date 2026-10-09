@@ -5,7 +5,7 @@
 	"semi": false,
 	"singleQuote": true,
 	"importOrderSeparation": true,
-	"importOrder": ["^react-scan$", "^react", "^[a-z]", "^@/", "^@teacher-crm/", "^[./]"],
+	"importOrder": ["^react-scan$", "^react", "^[a-z]", "^@/", "^@dv-lab/", "^[./]"],
 	"tailwindFunctions": ["clsx", "cn", "cva"],
 	"tailwindStylesheet": "./apps/web/app/globals.css",
 	"endOfLine": "lf",

@@ -21,6 +21,7 @@ apps/web/.next/
 /build
 dist
 apps/api/dist
+/apps/api/drizzle
 packages/*/dist
 
 # misc
@@ -46,4 +47,3 @@ yarn-error.log*
 next-env.d.ts
 
 .claude
-.gitnexus

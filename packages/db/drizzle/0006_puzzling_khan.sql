@@ -1,1 +1,0 @@
-ALTER TABLE "students" ADD COLUMN "package_lessons_per_week" integer DEFAULT 0 NOT NULL;
