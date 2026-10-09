@@ -103,4 +103,47 @@ describe('server.mjs shutdown', () => {
 		expect(await closeCode).toBe(1001)
 		expect(server.stdout()).toContain('shutdown complete')
 	})
+
+	it('SIGTERM with a WebSocket client that ignores the close frame terminates it at half the deadline and exits 0', async () => {
+		const port = 20000 + Math.floor(Math.random() * 20000)
+		const server = start(port)
+		await server.listening
+
+		const socket = connect(port, '127.0.0.1')
+		await new Promise<void>((resolve) => socket.on('connect', () => resolve()))
+		const socketClosed = new Promise<void>((resolve) => socket.on('close', () => resolve()))
+		socket.on('error', () => {})
+		let received = ''
+		const upgraded = new Promise<void>((resolve) =>
+			socket.on('data', (chunk) => {
+				received += chunk.toString('latin1')
+				if (received.startsWith('HTTP/1.1 101')) resolve()
+			})
+		)
+		socket.write(
+			[
+				'GET /ws HTTP/1.1',
+				`Host: 127.0.0.1:${port}`,
+				`Origin: http://127.0.0.1:${port}`,
+				'Upgrade: websocket',
+				'Connection: Upgrade',
+				'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+				'Sec-WebSocket-Version: 13',
+				'',
+				'',
+			].join('\r\n')
+		)
+		await upgraded
+
+		const started = performance.now()
+		server.proc.kill('SIGTERM')
+		const code = await server.exited
+		const elapsed = performance.now() - started
+		await socketClosed
+
+		expect(code).toBe(0)
+		expect(elapsed).toBeGreaterThanOrEqual(1400)
+		expect(elapsed).toBeLessThan(4000)
+		expect(server.stdout()).toContain('shutdown complete')
+	})
 })
