@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
 import {
-	DISPLAY_NAME_MAX_LENGTH,
 	LOGIN_MAX_LENGTH,
 	MANUAL_PASSWORD_MAX_LENGTH,
 	MANUAL_PASSWORD_MIN_LENGTH,
 	SIGN_IN_PASSWORD_MAX_LENGTH,
+	isDisplayNameLength,
 	isStudentLogin,
 	normalizeDisplayName,
 	normalizeLogin,
@@ -15,11 +15,6 @@ import {
 const isManualPasswordLength = (password: string) => {
 	const length = passwordLength(password)
 	return length >= MANUAL_PASSWORD_MIN_LENGTH && length <= MANUAL_PASSWORD_MAX_LENGTH
-}
-
-const isDisplayNameLength = (name: string) => {
-	const length = Array.from(name).length
-	return length >= 1 && length <= DISPLAY_NAME_MAX_LENGTH
 }
 
 export const signInRequest = z.object({
@@ -37,6 +32,8 @@ export const createStudentRequest = z.object({
 		.refine((password) => password === null || isManualPasswordLength(password)),
 })
 
+export const createStudentAccountRequest = createStudentRequest.omit({ displayName: true })
+
 export const changePasswordRequest = z.object({
 	currentPassword: z.string().min(1).max(SIGN_IN_PASSWORD_MAX_LENGTH),
 	newPassword: z.string().refine(isManualPasswordLength),
@@ -52,6 +49,10 @@ export const errorCodes = [
 	'login_taken',
 	'wrong_current_password',
 	'password_unchanged',
+	'card_has_account',
+	'account_already_linked',
+	'term_exists',
+	'payment_already_assigned',
 	'locked',
 	'busy',
 	'unavailable',

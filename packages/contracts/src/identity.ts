@@ -14,6 +14,11 @@ export function normalizeDisplayName(name: string): string {
 	return name.trim().replace(/\s+/g, ' ')
 }
 
+export function isDisplayNameLength(name: string): boolean {
+	const length = Array.from(name).length
+	return length >= 1 && length <= DISPLAY_NAME_MAX_LENGTH
+}
+
 export function isStudentLogin(login: string): boolean {
 	return STUDENT_LOGIN_PATTERN.test(login)
 }
