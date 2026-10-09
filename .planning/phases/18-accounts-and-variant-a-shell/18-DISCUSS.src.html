@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Фаза 18: вход и оболочка</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<body>
+
+<header>
+  <h1>Фаза 18: вход и оболочка варианта A</h1>
+  <details class="thread"><summary>Откуда фаза · цель, требования, решения до неё</summary>
+    <doc-quote via="doc" from="ROADMAP.md · Phase 18">The teacher signs in with an ielts-style account and works inside the variant A shell; student accounts can be created and deactivated.</doc-quote>
+    <doc-quote via="doc" from="REQUIREMENTS.md · ACCT-03">Sessions are stored in Postgres with hashed tokens; five failed sign-ins per login and IP within 15 minutes block further attempts for 15 minutes.</doc-quote>
+    <doc-quote via="doc" from="REQUIREMENTS.md · SHELL-02">Every screen uses Base UI components and variant A tokens, works in light and dark theme, and all text is in English.</doc-quote>
+    <doc-quote via="doc" from="память проекта · 2026-10-09">Радикс не используется: берём компоненты варианта A (Base UI) и пишем экраны заново. Интерфейс целиком на английском.</doc-quote>
+    <doc-quote via="doc" from="17-CONTEXT.md · D-07">Api — отдельный процесс за прокси. В web нет route.ts с монтированием api.</doc-quote>
+    <doc-quote via="doc" from="17-CONTEXT.md · D-13">Приложение и миграции идут под ролями без прав суперпользователя.</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ 1 · Где живёт вход ═════ -->
+<doc-claim>
+  <p>Api владеет аккаунтами и сессиями; браузер держит одну cookie.</p>
+  <doc-flow caption="Зелёное — новое. Как в ielts, но api отдельный процесс (D-07).">
+<script type="text/plain">
+br  = Браузер / cookie
+web = web / proxy.ts [green]
+api = api / вход и сессии [green]
+db  = Postgres / accounts [db]
+| br  | web | api |
+| .   | .   | db  |
+br -> web : страницы
+br -> api : /api/auth/*
+web -> api : проверка
+api -> db : хэши токенов
+</script>
+  </doc-flow>
+  <doc-note tone="idea"><strong>Решаю сам, как в ielts.</strong> Сессия 30 дней с продлением. Web смотрит только форму cookie, настоящая проверка в api. Пароли — scrypt из <code>node:crypto</code>. Неверный пароль и неизвестный логин выглядят одинаково, блокировку человек видит.</doc-note>
+</doc-claim>
+
+<!-- ═════ 2 · Аккаунты и пароли ═════ -->
+<doc-claim>
+  <p>Одна таблица <code>accounts</code>; одного активного учителя гарантирует индекс базы.</p>
+  <doc-schema id="accounts" lang="sql" diff title="accounts (набросок по ielts)" caption="Связь с карточкой ученика добавит фаза 19.">
+<script type="text/plain">
++ CREATE TABLE accounts (
++   id            uuid PRIMARY KEY,
++   login         text NOT NULL,
++   display_name  text NOT NULL,
++   role          text NOT NULL CHECK (role IN ('teacher','student')),
++   status        text NOT NULL CHECK (status IN ('active','deactivated')),
++   password_hash text NOT NULL,
++   auth_epoch    integer NOT NULL DEFAULT 0
++ );
++ CREATE UNIQUE INDEX accounts_active_login_uq ON accounts (login) WHERE status = 'active';
++ CREATE UNIQUE INDEX accounts_one_active_teacher_uq ON accounts (role) WHERE role = 'teacher' AND status = 'active';
+</script>
+  </doc-schema>
+  <doc-note tone="info"><strong>Почему важно.</strong> Критерий 1: второй активный учитель отклоняется базой. Деактивация повышает <code>auth_epoch</code> и удаляет сессии: ученик выходит везде.</doc-note>
+
+  <doc-claim>
+    <p>Пароль ученика генерируется и показывается один раз; можно ввести свой.</p>
+    <doc-ask id="studentpw">
+      <p>Как задаётся пароль нового ученика?</p>
+      <label><input type="radio" name="studentpw" value="gen" checked> Генерируется (12 символов), показ один раз; свой тоже можно <small>как в ielts</small></label>
+      <label><input type="radio" name="studentpw" value="manual"> Учитель всегда вводит сам <small>проще, но пароли слабее</small></label>
+      <label><input type="radio" name="studentpw" value="custom"> Свой вариант</label>
+      <input type="text" name="studentpw-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Учитель меняет пароль, вводя старый; остальные его устройства выходят.</p>
+    <doc-ask id="changepw">
+      <p>Как работает смена пароля учителя (ACCT-05)?</p>
+      <label><input type="radio" name="changepw" value="strict" checked> Старый пароль, другие сессии закрываются <small>в ielts смены нет; делаем безопасно</small></label>
+      <label><input type="radio" name="changepw" value="keep"> Старый пароль, другие сессии остаются <small>удобнее, украденная сессия живёт</small></label>
+      <label><input type="radio" name="changepw" value="custom"> Свой вариант</label>
+      <input type="text" name="changepw-custom">
+    </doc-ask>
+    <div data-if="changepw=keep"><doc-note tone="warn">Смена пароля тогда не отзывает украденную сессию; выход везде работает только при деактивации.</doc-note></div>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 3 · Защита входа ═════ -->
+<doc-claim>
+  <p>Пять неудач на пару «логин + IP» за 15 минут закрывают вход на 15 минут.</p>
+  <doc-schema id="throttle" lang="ts" title="лимиты (набросок по ielts)" caption="Ключи — хэши, строки лежат в Postgres и блокируются перед проверкой пароля.">
+<script type="text/plain">
+const PER_LOGIN_AND_IP = { failures: 5, windowSeconds: 900, lockSeconds: 900 }
+const PER_LOGIN_ANY_IP = { failures: 20 }
+</script>
+  </doc-schema>
+  <doc-note tone="info"><strong>Почему важно.</strong> Критерий 3. Api стоит за Caddy, поэтому IP берётся из заголовка прокси, которому api доверяет только в этой цепочке.</doc-note>
+
+  <doc-claim>
+    <p>Кроме правила roadmap действует общий потолок на логин с любых адресов.</p>
+    <doc-ask id="global">
+      <p>Добавить общий потолок на логин со всех IP?</p>
+      <label><input type="radio" name="global" value="yes" checked> Да, 20 неудач на логин со всех адресов <small>как в ielts; закрывает подбор с разных IP</small></label>
+      <label><input type="radio" name="global" value="no"> Нет, только правило roadmap <small>проще; подбор с разных IP не ограничен</small></label>
+      <label><input type="radio" name="global" value="custom"> Свой вариант</label>
+      <input type="text" name="global-custom">
+    </doc-ask>
+    <div data-if="global=yes"><doc-note tone="warn">Чужой человек может заблокировать вход самому учителю, перебирая его логин. Блокировка снимается сама через 15 минут.</doc-note></div>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 4 · Оболочка варианта A ═════ -->
+<doc-claim>
+  <p>Оболочка берёт компоненты и токены варианта A; экраны пишутся заново, текст английский.</p>
+  <doc-mock frame="none" w="440" label="Боковая панель варианта A" caption="Подписи переводятся на английский.">
+    <template>
+<div style="font:13px system-ui;width:440px;display:flex;border:1px solid #ddd;border-radius:10px;overflow:hidden;background:#fff;color:#222">
+  <div style="width:170px;padding:12px;background:#f6f6f7;border-right:1px solid #e4e4e7">
+    <div style="font-weight:600;margin-bottom:10px">dv-lab</div>
+    <div data-ref="search" style="padding:6px 8px;border:1px solid #d4d4d8;border-radius:8px;color:#888;margin-bottom:10px">Search…  ⌘K</div>
+    <div style="padding:6px 8px;border-radius:8px;background:#e9e9ec;font-weight:500">Today</div>
+    <div style="padding:6px 8px">Chat</div>
+    <div style="padding:6px 8px">Students</div>
+    <div style="padding:6px 8px">Schedule</div>
+    <div style="margin-top:60px;color:#888;padding:6px 8px">Account</div>
+  </div>
+  <div style="flex:1;padding:12px;color:#888" data-ref="main">Today<div style="margin-top:8px;color:#aaa">Nothing here yet</div></div>
+</div>
+    </template>
+    <doc-pin ref="search" title="Поле поиска">Открывает палитру по клику и по ⌘K.</doc-pin>
+    <doc-pin ref="main" title="Заглушка раздела">Содержимое приходит в фазах 20–23.</doc-pin>
+  </doc-mock>
+  <doc-note tone="idea"><strong>Решаю сам.</strong> Палитра знает разделы, смену темы и выход; поиск учеников и «New chat» добавит фаза 23. Тема по умолчанию как в системе, переключатель в верхней панели. В разделах без данных одна строка «Nothing here yet».</doc-note>
+
+  <doc-claim>
+    <p>Копируем готовые компоненты варианта A и переводим подписи.</p>
+    <doc-ask id="source">
+      <p>Откуда берём компоненты оболочки?</p>
+      <label><input type="radio" name="source" value="copy" checked> Копия из варианта A: sidebar, search, palette, button, input, popover, tabs, токены <small>выбор владельца; без повторной вёрстки</small></label>
+      <label><input type="radio" name="source" value="registry"> Свежий Base UI из реестра и перекраска <small>чище, но дизайн придётся подгонять</small></label>
+      <label><input type="radio" name="source" value="custom"> Свой вариант</label>
+      <input type="text" name="source-custom">
+    </doc-ask>
+    <div data-if="source=registry"><doc-note tone="warn">Токены и размеры шрифтов варианта A пришлось бы воспроизводить вручную; срок фазы растёт.</doc-note></div>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 5 · Первый запуск и ученик ═════ -->
+<doc-claim>
+  <p>Первого учителя создаёт скрипт на сервере; ученик видит минимальную страницу.</p>
+  <doc-mock frame="terminal" title="сервер" w="470"><template><span class="dim">$</span> docker compose run --rm api node dist/bootstrap-teacher.mjs --email teacher@example.com --name "Teacher"
+<span class="g">✓</span> Teacher account created
+Password (shown once): <b>••••••••••••</b></template></doc-mock>
+  <doc-note tone="idea"><strong>Решаю сам, как в ielts.</strong> Скрипт идёт в образе api под ролью приложения, печатает сгенерированный пароль один раз и отказывается, если активный учитель уже есть. В репозитории ни адреса, ни пароля.</doc-note>
+
+  <doc-claim>
+    <p>Ученик после входа видит страницу с именем и кнопкой выхода.</p>
+    <doc-ask id="studentland">
+      <p>Что видит ученик сразу после входа?</p>
+      <label><input type="radio" name="studentland" value="minimal" checked> Страница «Signed in as …» и кнопка выхода <small>критерий 2 выполнен; кабинета ученика в roadmap нет</small></label>
+      <label><input type="radio" name="studentland" value="shell"> Оболочка учителя с урезанными разделами <small>больше работы, показывать пока нечего</small></label>
+      <label><input type="radio" name="studentland" value="custom"> Свой вариант</label>
+      <input type="text" name="studentland-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ границы ═════ -->
+<doc-claim aux="scope">
+  <p>Чего фаза не делает и что я решаю сам.</p>
+  <ul>
+    <li><b>Не в фазе:</b> связь аккаунта с карточкой ученика (ACCT-04, фаза 19); поиск учеников и «New chat» в палитре (фаза 23); экраны с данными (фазы 20–23); телефонная вёрстка (SHELL-03, фаза 23).</li>
+    <li><b>Не делаю:</b> повторную активацию и удаление ученика, смену пароля учеником, сброс по почте, вход через Google.</li>
+    <li><b>Уже решено:</b> Hono и Drizzle v1, роли <code>dvlab_app</code> и <code>dvlab_migrator</code>, английский интерфейс, Base UI вместо Radix, вход учителя по e-mail.</li>
+    <li><b>Решаю сам:</b> логин ученика (латиница, цифры, <code>. _ -</code>, 3–32 символа); cookie <code>__Host-dvlab_session</code> (httpOnly, secure, sameSite lax); стиль экрана входа как в варианте A; имена маршрутов <code>/api/auth/*</code> и таблиц; тест-раннер.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>
