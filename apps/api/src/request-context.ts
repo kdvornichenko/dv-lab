@@ -5,7 +5,7 @@ import pino, { type DestinationStream, type Logger } from 'pino'
 const storage = new AsyncLocalStorage<{ requestId: string }>()
 const VALID_ID = /^[\w-]{8,64}$/
 
-export const currentRequestId = () => storage.getStore()?.requestId
+const currentRequestId = () => storage.getStore()?.requestId
 
 export function createLogger(level: string, destination?: DestinationStream): Logger {
 	return pino(

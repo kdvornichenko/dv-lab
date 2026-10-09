@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-superuser-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ci-superuser-password
+      DATABASE_URL: postgresql://dvlab_app:ci-app-password@127.0.0.1:5432/dvlab_test
+      MIGRATOR_DATABASE_URL: postgresql://dvlab_migrator:ci-migrator-password@127.0.0.1:5432/dvlab_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Legacy code check
+        run: |
+          rc=0
+          git grep -n -i -E 'supa[b]ase' -- . ':(exclude).planning' || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "legacy references found or git grep failed"
+            exit 1
+          fi
+
+      - name: Web and api boundary
+        run: |
+          if [ -e apps/web/app/api ]; then
+            echo "apps/web/app/api must not exist: api routes live in apps/api"
+            exit 1
+          fi
+          node -e "const p = require('./apps/web/package.json'); const all = { ...p.dependencies, ...p.devDependencies, ...p.peerDependencies, ...p.optionalDependencies }; const bad = ['@dv-lab/api', '@dv-lab/db'].filter((name) => name in all); if (bad.length) { console.error('apps/web must not depend on ' + bad.join(', ')); process.exit(1) }"
+
+      - name: Turbo version in Dockerfiles
+        run: |
+          node -e "const fs = require('node:fs'); const version = require('./package.json').devDependencies.turbo; const bad = ['apps/api/Dockerfile', 'apps/web/Dockerfile'].filter((file) => !fs.readFileSync(file, 'utf8').split('\n').includes('ARG TURBO_VERSION=' + version)); if (bad.length) { console.error('ARG TURBO_VERSION differs from turbo ' + version + ' in package.json: ' + bad.join(', ')); process.exit(1) }"
+
+      - run: corepack enable
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: yarn
+
+      - run: yarn install --immutable
+
+      - name: Prepare roles and database
+        run: |
+          for pass in 1 2; do
+            echo "ensure-db.sql pass $pass"
+            psql -X -v ON_ERROR_STOP=1 -d postgres -v db_name=dvlab_test -v migrator_password=ci-migrator-password -v app_password=ci-app-password -f deploy/postgres/ensure-db.sql
+          done
+
+      - name: Migrations are in sync with the schema
+        run: |
+          yarn db:generate
+          changes=$(git status --porcelain --untracked-files=all -- packages/db/drizzle)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "packages/db/drizzle is out of sync with the schema: run yarn db:generate and commit the result"
+            exit 1
+          fi
+
+      - run: yarn db:migrate
+      - run: yarn typecheck
+      - run: yarn lint
+      - run: yarn test
+      - run: yarn build
+      - run: yarn knip
+
+      - name: Caddyfile
+        run: docker run --rm -v "$PWD/deploy/caddy:/etc/caddy:ro" caddy:2.11.7 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Shell scripts
+        run: |
+          for f in deploy/*.sh deploy/*/*.sh; do
+            bash -n "$f"
+          done
+          shellcheck -S warning deploy/*.sh deploy/*/*.sh

@@ -18,7 +18,7 @@ export type ManagedSocketServer = {
 	close: (callback: () => void) => unknown
 }
 
-export type ManagedHandles = {
+type ManagedHandles = {
 	server: ManagedServer
 	wss?: ManagedSocketServer
 	resources: Closable[]

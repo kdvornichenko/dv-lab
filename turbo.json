@@ -1,5 +1,6 @@
 {
 	"$schema": "https://v2-11-7.turborepo.dev/schema.json",
+	"agentGuidance": false,
 	"globalPassThroughEnv": ["DATABASE_URL", "MIGRATOR_DATABASE_URL"],
 	"tasks": {
 		"build": {
