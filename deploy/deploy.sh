@@ -58,7 +58,8 @@ on_err() {
 		export APP_TAG="$PREV"
 		if printf 'APP_TAG=%s\n' "$PREV" > "$STATE/release.env" \
 			&& dc up -d --wait --wait-timeout 120 api web \
-			&& dc up -d --force-recreate --no-deps caddy; then
+			&& dc up -d --no-deps caddy \
+			&& dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile; then
 			result="rolled back to $PREV"
 		else
 			result="ROLLBACK FAILED: manual action needed"
@@ -74,8 +75,8 @@ trap on_err ERR
 trap on_exit EXIT
 
 smoke_ok() {
-	HEALTH=$(curl -s --max-time 10 "$SITE/healthz") || HEALTH=""
-	WEB_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$SITE/") || WEB_CODE=""
+	HEALTH=$(curl -s --max-time 10 --resolve dv-lab.dev:443:127.0.0.1 "$SITE/healthz") || HEALTH=""
+	WEB_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve dv-lab.dev:443:127.0.0.1 "$SITE/") || WEB_CODE=""
 	case "$HEALTH" in
 		*"\"sha\":\"$FULL\""*) ;;
 		*) return 1 ;;
@@ -153,7 +154,8 @@ STAGE=switch
 printf 'APP_TAG=%s\n' "$TAG" > "$STATE/release.env"
 SWITCHED=1
 dc up -d --wait --wait-timeout 120 api web
-dc up -d --force-recreate --no-deps caddy
+dc up -d --no-deps caddy
+dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 
 STAGE=smoke
 i=0
