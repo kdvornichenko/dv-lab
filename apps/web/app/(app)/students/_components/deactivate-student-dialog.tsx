@@ -14,15 +14,16 @@ import {
 } from '@/components/ui/dialog'
 import { apiRequest } from '@/lib/api-client'
 
-import type { DeactivateStudentResponse, StudentAccount } from '@dv-lab/contracts'
+import type { StudentAccount, StudentAccountResponse } from '@dv-lab/contracts'
 
 interface DeactivateStudentDialogProps {
-	student: StudentAccount
+	studentId: string
+	account: StudentAccount
 	onClose: () => void
-	onDeactivated: (student: StudentAccount) => void
+	onDeactivated: (account: StudentAccount) => void
 }
 
-export function DeactivateStudentDialog({ student, onClose, onDeactivated }: DeactivateStudentDialogProps) {
+export function DeactivateStudentDialog({ studentId, account, onClose, onDeactivated }: DeactivateStudentDialogProps) {
 	const [pending, setPending] = useState(false)
 	const [failed, setFailed] = useState(false)
 
@@ -30,13 +31,15 @@ export function DeactivateStudentDialog({ student, onClose, onDeactivated }: Dea
 		if (pending) return
 		setFailed(false)
 		setPending(true)
-		const result = await apiRequest<DeactivateStudentResponse>('POST', `/students/${student.id}/deactivate`)
+		const result = await apiRequest<StudentAccountResponse>('POST', `/students/${studentId}/account/deactivate`, {
+			accountId: account.id,
+		})
 		setPending(false)
 		if (!result.ok) {
 			setFailed(true)
 			return
 		}
-		onDeactivated(result.data.student)
+		onDeactivated(result.data.account)
 	}
 
 	return (
@@ -48,9 +51,9 @@ export function DeactivateStudentDialog({ student, onClose, onDeactivated }: Dea
 		>
 			<DialogContent size="sm">
 				<DialogHeader>
-					<DialogTitle>Deactivate {student.displayName}?</DialogTitle>
+					<DialogTitle>Deactivate {account.displayName}?</DialogTitle>
 					<DialogDescription>
-						{student.displayName} will be signed out on every device and cannot sign in again. This cannot be undone in
+						{account.displayName} will be signed out on every device and cannot sign in again. This cannot be undone in
 						the app.
 					</DialogDescription>
 				</DialogHeader>

@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode, type RefObject } from 'react'
 
-import { UserPlus } from 'lucide-react'
+import { Link2, UserPlus } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'
 import { StatusDot } from '@/components/app/status-dot'
@@ -10,12 +10,16 @@ import { Button } from '@/components/ui/button'
 
 import type { StudentDetail } from '@dv-lab/contracts'
 
+import { DeactivateStudentDialog } from '../../_components/deactivate-student-dialog'
 import { CreateAccountDialog } from './create-account-dialog'
+import { LinkAccountDialog } from './link-account-dialog'
 
 interface AccountPanelProps {
 	student: StudentDetail
 	onChanged: () => void
 }
+
+type DialogKind = 'create' | 'link' | 'deactivate'
 
 const createdFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
 
@@ -29,14 +33,21 @@ function AccountRow({ label, children }: { label: string; children: ReactNode })
 }
 
 export function AccountPanel({ student, onChanged }: AccountPanelProps) {
-	const [dialog, setDialog] = useState<'create' | null>(null)
+	const [dialog, setDialog] = useState<DialogKind | null>(null)
 	const createButton = useRef<HTMLButtonElement>(null)
+	const linkButton = useRef<HTMLButtonElement>(null)
+	const deactivateButton = useRef<HTMLButtonElement>(null)
 	const { account } = student
 	const active = account?.status === 'active'
 
-	function closeDialog() {
+	function closeDialog(opener: RefObject<HTMLButtonElement | null>) {
 		setDialog(null)
-		requestAnimationFrame(() => createButton.current?.focus())
+		requestAnimationFrame(() => opener.current?.focus())
+	}
+
+	function finish(opener: RefObject<HTMLButtonElement | null>) {
+		closeDialog(opener)
+		onChanged()
 	}
 
 	return (
@@ -59,24 +70,52 @@ export function AccountPanel({ student, onChanged }: AccountPanelProps) {
 				{active && student.status === 'archived' ? (
 					<p className="text-caption text-muted-foreground">This card is archived. The account can still sign in.</p>
 				) : null}
-				{active ? null : (
-					<div className="flex flex-wrap gap-2">
-						<Button ref={createButton} variant="secondary" leadingIcon={UserPlus} onClick={() => setDialog('create')}>
-							Create account
+				<div className="flex flex-wrap gap-2">
+					{active ? (
+						<Button
+							ref={deactivateButton}
+							variant="tertiary"
+							className="text-destructive"
+							onClick={() => setDialog('deactivate')}
+						>
+							Deactivate account
 						</Button>
-					</div>
-				)}
+					) : (
+						<>
+							<Button ref={createButton} variant="secondary" leadingIcon={UserPlus} onClick={() => setDialog('create')}>
+								Create account
+							</Button>
+							<Button ref={linkButton} variant="secondary" leadingIcon={Link2} onClick={() => setDialog('link')}>
+								Link existing account
+							</Button>
+						</>
+					)}
+				</div>
 			</div>
 			{dialog === 'create' ? (
 				<CreateAccountDialog
 					studentId={student.id}
 					name={student.displayName}
-					onClose={closeDialog}
-					onCreated={() => {
-						closeDialog()
-						onChanged()
-					}}
+					onClose={() => closeDialog(createButton)}
+					onCreated={() => finish(createButton)}
 					onConflict={onChanged}
+				/>
+			) : null}
+			{dialog === 'link' ? (
+				<LinkAccountDialog
+					studentId={student.id}
+					name={student.displayName}
+					onClose={() => closeDialog(linkButton)}
+					onLinked={() => finish(linkButton)}
+					onConflict={onChanged}
+				/>
+			) : null}
+			{dialog === 'deactivate' && account !== null ? (
+				<DeactivateStudentDialog
+					studentId={student.id}
+					account={account}
+					onClose={() => closeDialog(deactivateButton)}
+					onDeactivated={() => finish(createButton)}
 				/>
 			) : null}
 		</Panel>
