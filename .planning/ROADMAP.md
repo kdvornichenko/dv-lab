@@ -35,7 +35,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 **Depends on**: Nothing (first phase of v2.0)
 **Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, INFRA-08
 **Success Criteria** (what must be TRUE):
-  1. The repository holds only the new skeleton: the Supabase-era apps and packages are gone, a search for `supabase` in the code returns nothing, and build, typecheck, lint and tests pass on the latest stable versions (Next 16.4, React 19.3, TypeScript, Turbo, Yarn).
+  1. The repository holds only the new skeleton: the Supabase-era apps and packages are gone, the old `packages/db` and its 14 migrations are replaced by a new Drizzle v1 package with a fresh migration history, a search for `supabase` in the code returns nothing, and build, typecheck, lint and tests pass on the latest stable versions (Next 16.4, React 19.3, TypeScript, Turbo, Yarn).
   2. CI runs on every pull request and every push to `master`, including database tests on PostgreSQL 18 under the same non-superuser role as the server, and is green.
   3. A merge to `master` publishes the web and api images to GHCR, and the owner's server pulls and restarts them without building on the server.
   4. `https://dv-lab.dev` serves the web app and the API health check from the VPS over IPv4 and IPv6, only the proxy ports are reachable from outside, HTTP/3 is off, and `ielts.dv-lab.dev` still serves from Vercel.

@@ -16,7 +16,7 @@ Requirements for milestone v2.0 Unified dv-lab. Each maps to a roadmap phase. Th
 - [ ] **INFRA-05**: All workspace dependencies are at their latest stable versions (Next 16.4, React 19.3, TypeScript, Turbo, Yarn) and build, typecheck and tests pass.
 - [ ] **INFRA-06**: The API stops on `SIGTERM` within a bounded time even with open WebSocket connections.
 - [ ] **INFRA-07**: The API writes structured logs with request ids, and migrations run as a separate step under the migration role.
-- [ ] **INFRA-08**: The old Supabase-era `apps` and `packages` are removed; the repository contains only the new code.
+- [ ] **INFRA-08**: The old Supabase-era `apps` and `packages` are removed and the database is rewritten from zero on Drizzle v1 with a fresh migration history; the repository contains only the new code.
 
 ### Accounts
 

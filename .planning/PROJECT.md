@@ -77,6 +77,7 @@ The teacher can always see who studies, how many lessons remain for each student
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | --------- |
 | Rewrite instead of porting old dv-lab; port only ielts                   | Old code is unused; rewriting is cheaper than analysing and fixing it                       | — Pending |
 | Keep Turborepo and Yarn 4 skeleton, update all libraries                 | Skeleton works; dependencies are stale                                                      | — Pending |
+| Database rewritten from zero on Drizzle v1, old migrations dropped       | Old schema and data are not carried over; fixing old migrations is wasted work              | — Pending |
 | Keep Hono for `apps/api`                                                 | Already in place; WebSocket exists; logging, tracing and migrations are closed explicitly   | — Pending |
 | Login ported from ielts; Supabase Auth removed                           | ielts auth works and is tested; Supabase leaves the project                                 | — Pending |
 | One teacher, `teacher_id` stays in the schema                            | Cheaper than removing; no multi-teacher UI                                                  | — Pending |
