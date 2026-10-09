@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { Archive, ArchiveRestore, ArrowLeft } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowLeft, Wallet } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/app/avatar'
@@ -21,6 +21,7 @@ import type { StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
 import { OverviewTab } from './overview-tab'
+import { RecordPaymentDialog } from './record-payment-dialog'
 
 type ReadState =
 	{ kind: 'loading' } | { kind: 'error' } | { kind: 'not_found' } | { kind: 'ready'; student: StudentDetail }
@@ -116,8 +117,10 @@ export function StudentProfile({ id }: { id: string }) {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [tab, setTab] = useState('overview')
 	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
+	const [recordOpen, setRecordOpen] = useState(false)
 	const lessonsInput = useRef<HTMLInputElement>(null)
 	const statusButton = useRef<HTMLButtonElement>(null)
+	const recordButton = useRef<HTMLButtonElement>(null)
 	const toast = useToast()
 
 	const reload = useCallback(async () => {
@@ -137,6 +140,11 @@ export function StudentProfile({ id }: { id: string }) {
 	function focusOpeningBalance() {
 		setTab('overview')
 		requestAnimationFrame(() => lessonsInput.current?.focus())
+	}
+
+	function closeRecord() {
+		setRecordOpen(false)
+		requestAnimationFrame(() => recordButton.current?.focus())
 	}
 
 	function closeConfirm() {
@@ -193,20 +201,30 @@ export function StudentProfile({ id }: { id: string }) {
 				}
 				description={<SummaryLine student={student} onSetBalance={focusOpeningBalance} />}
 				actions={
-					student.status === 'active' ? (
-						<Button ref={statusButton} variant="secondary" leadingIcon={Archive} onClick={() => setConfirm('archive')}>
-							Archive
+					<>
+						{student.status === 'active' ? (
+							<Button
+								ref={statusButton}
+								variant="secondary"
+								leadingIcon={Archive}
+								onClick={() => setConfirm('archive')}
+							>
+								Archive
+							</Button>
+						) : (
+							<Button
+								ref={statusButton}
+								variant="secondary"
+								leadingIcon={ArchiveRestore}
+								onClick={() => setConfirm('restore')}
+							>
+								Restore
+							</Button>
+						)}
+						<Button ref={recordButton} leadingIcon={Wallet} onClick={() => setRecordOpen(true)}>
+							Record payment
 						</Button>
-					) : (
-						<Button
-							ref={statusButton}
-							variant="secondary"
-							leadingIcon={ArchiveRestore}
-							onClick={() => setConfirm('restore')}
-						>
-							Restore
-						</Button>
-					)
+					</>
 				}
 			/>
 			<Tabs value={tab} onValueChange={setTab}>
@@ -217,6 +235,16 @@ export function StudentProfile({ id }: { id: string }) {
 					<OverviewTab student={student} lessonsInputRef={lessonsInput} onSaved={() => void reload()} />
 				</TabPanel>
 			</Tabs>
+			{recordOpen ? (
+				<RecordPaymentDialog
+					student={student}
+					onClose={closeRecord}
+					onRecorded={() => {
+						closeRecord()
+						void reload()
+					}}
+				/>
+			) : null}
 			{confirm === 'archive' ? (
 				<ConfirmDialog
 					title={`Archive ${student.displayName}?`}
