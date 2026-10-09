@@ -30,6 +30,10 @@
 			"entry": ["src/index.ts"],
 			"project": ["src/**/*.ts"]
 		},
+		"packages/core": {
+			"entry": ["src/index.ts"],
+			"project": ["src/**/*.ts"]
+		},
 		"packages/db": {
 			"entry": ["src/index.ts", "drizzle.config.ts"],
 			"project": ["src/**/*.ts"]
