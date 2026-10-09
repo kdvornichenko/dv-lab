@@ -271,16 +271,19 @@ const popupShape = shapeMap.rounded
 
 const ALWAYS_HIGHLIGHT = 'always' as unknown as boolean
 
+const fieldRing = 'ring-1 ring-inset ring-input'
+
 const fieldVariants = cva(
 	[
-		'group flex cursor-text items-center ring-1',
+		'group flex cursor-text items-center rounded-md ring-1 ring-inset',
 		'transition-all duration-80',
+		'focus-within:outline-1 focus-within:outline-offset-2 focus-within:outline-focus-ring',
 		'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
 	],
 	{
 		variants: {
 			variant: {
-				bordered: 'bg-transparent ring-border focus-within:bg-card hover:bg-muted/50',
+				bordered: [fieldRing, 'bg-transparent hover:bg-muted/50'],
 
 				borderless:
 					'bg-transparent ring-transparent focus-within:bg-card focus-within:ring-border hover:bg-muted/50 hover:ring-border',
@@ -355,24 +358,37 @@ function FieldControls({ clearable, compact, iconSize }: { clearable: boolean; c
 }
 
 const ComboboxInput = forwardRef<HTMLInputElement, ComboboxInputProps>(
-	({ className, variant, icon: Icon, placeholder = 'Search…', error, clearable = false, size, ...props }, ref) => {
-		const shape = useShape()
+	(
+		{
+			className,
+			variant,
+			icon: Icon,
+			placeholder = 'Search…',
+			error,
+			clearable = false,
+			size,
+			id,
+			'aria-describedby': describedBy,
+			...props
+		},
+		ref
+	) => {
 		const sizeClasses = useSize(size)
 		const compact = sizeClasses.variant === 'compact'
 		const { anchorRef } = useComboboxContext()
+		const errorId = error && id ? `${id}-error` : undefined
 
 		return (
-			<div className="flex flex-col gap-1">
+			<div className="flex flex-col gap-2">
 				<ComboboxPrimitive.InputGroup
 					ref={anchorRef}
 					className={cn(
 						fieldVariants({ variant }),
 						sizeClasses.control,
 						sizeClasses.gap,
-						compact ? 'px-2' : 'px-2.5',
+						sizeClasses.px,
 						compact ? 'min-w-[128px]' : 'min-w-[160px]',
-						shape.input,
-						error && 'ring-destructive/50 focus-within:ring-destructive/50 hover:ring-destructive/50',
+						error && 'ring-destructive',
 						className
 					)}
 				>
@@ -385,8 +401,10 @@ const ComboboxInput = forwardRef<HTMLInputElement, ComboboxInputProps>(
 					)}
 					<ComboboxPrimitive.Input
 						ref={ref}
+						id={id}
 						placeholder={placeholder}
 						aria-invalid={!!error || undefined}
+						aria-describedby={errorId ?? describedBy}
 						className={cn(
 							'min-w-0 flex-1 rounded-none bg-transparent font-[inherit] text-foreground outline-none placeholder:text-muted-foreground',
 							sizeClasses.field,
@@ -398,7 +416,7 @@ const ComboboxInput = forwardRef<HTMLInputElement, ComboboxInputProps>(
 					<FieldControls clearable={clearable} compact={compact} iconSize={sizeClasses.icon} />
 				</ComboboxPrimitive.InputGroup>
 				{error && (
-					<span className="pl-3 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)] text-destructive">
+					<span id={errorId} className="text-caption text-destructive">
 						{error}
 					</span>
 				)}
@@ -440,7 +458,21 @@ function useChipRowHeight(padY: number) {
 }
 
 const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
-	({ className, variant, icon: Icon, placeholder = 'Search…', error, clearable = false, size, ...props }, ref) => {
+	(
+		{
+			className,
+			variant,
+			icon: Icon,
+			placeholder = 'Search…',
+			error,
+			clearable = false,
+			size,
+			id,
+			'aria-describedby': describedBy,
+			...props
+		},
+		ref
+	) => {
 		const icons = useIcons()
 		const XIcon = icons.x
 		const shape = useShape()
@@ -448,9 +480,10 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 		const compact = sizeClasses.variant === 'compact'
 		const { anchorRef, open, disabled, inputValue, values } = useComboboxContext()
 		const { measure: measureChipRows, height: chipRowsHeight } = useChipRowHeight(compact ? 8 : 12)
+		const errorId = error && id ? `${id}-error` : undefined
 
 		return (
-			<div className="flex flex-col gap-1">
+			<div className="flex flex-col gap-2">
 				<ComboboxPrimitive.Chips
 					ref={anchorRef}
 
@@ -466,10 +499,9 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 						'!items-start',
 						compact ? 'min-h-7 py-1' : 'min-h-9 py-1.5',
 						sizeClasses.gap,
-						compact ? 'px-2' : 'px-2.5',
+						sizeClasses.px,
 						compact ? 'min-w-[128px]' : 'min-w-[160px]',
-						shape.input,
-						error && 'ring-destructive/50 focus-within:ring-destructive/50 hover:ring-destructive/50',
+						error && 'ring-destructive',
 						className
 					)}
 				>
@@ -538,9 +570,11 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 									<span className="flex min-w-6 flex-auto">
 										<ComboboxPrimitive.Input
 											ref={ref}
+											id={id}
 											size={Math.max(1, inputValue.length + 1)}
 											placeholder={selected?.length ? undefined : placeholder}
 											aria-invalid={!!error || undefined}
+											aria-describedby={errorId ?? describedBy}
 											className={cn(
 												'w-full min-w-0 rounded-none bg-transparent font-[inherit] text-foreground outline-none placeholder:text-muted-foreground',
 												sizeClasses.field,
@@ -557,7 +591,7 @@ const ComboboxChips = forwardRef<HTMLInputElement, ComboboxChipsProps>(
 					<FieldControls clearable={clearable} compact={compact} iconSize={sizeClasses.icon} />
 				</ComboboxPrimitive.Chips>
 				{error && (
-					<span className="pl-3 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)] text-destructive">
+					<span id={errorId} className="text-caption text-destructive">
 						{error}
 					</span>
 				)}

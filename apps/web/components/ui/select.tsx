@@ -27,7 +27,7 @@ import { useKeyboardNavGate } from '@/hooks/use-keyboard-nav-gate'
 import { Elevated } from '@/lib/elevated'
 import type { IconComponent } from '@/lib/icon-context'
 import { popupMotionClass, popupScrollAreaClass, popupViewportClass, isDisabledRow } from '@/lib/popup'
-import { useShape, shapeMap } from '@/lib/shape-context'
+import { shapeMap } from '@/lib/shape-context'
 import { SizeProvider, useSize, typeClass, type SizeVariant } from '@/lib/size-context'
 import { spring, exitFallbackMs } from '@/lib/springs'
 import { cn } from '@/lib/utils'
@@ -155,17 +155,19 @@ function Select({ children, value, defaultValue, onValueChange, disabled = false
 
 Select.displayName = 'Select'
 
+const fieldRing = 'ring-1 ring-inset ring-input'
+
 const triggerVariants = cva(
 	[
-		'group inline-flex cursor-pointer items-center justify-between outline-none',
+		'group inline-flex cursor-pointer items-center justify-between rounded-md',
 		'transition-all duration-80',
 		'disabled:pointer-events-none disabled:opacity-50',
-		'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
+		'aria-invalid:ring-destructive',
 	],
 	{
 		variants: {
 			variant: {
-				bordered: 'border border-border bg-transparent text-foreground hover:bg-hover',
+				bordered: [fieldRing, 'bg-transparent text-foreground hover:bg-hover'],
 				borderless: 'border border-transparent bg-transparent text-foreground hover:bg-hover',
 			},
 		},
@@ -185,16 +187,31 @@ interface SelectTriggerProps
 }
 
 const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
-	({ className, variant, icon: Icon, placeholder = 'Select…', error, size, ...props }, ref) => {
-		const shape = useShape()
+	(
+		{
+			className,
+			variant,
+			icon: Icon,
+			placeholder = 'Select…',
+			error,
+			size,
+			id,
+			'aria-describedby': describedBy,
+			...props
+		},
+		ref
+	) => {
 		const sizeClasses = useSize(size)
 		const compact = sizeClasses.variant === 'compact'
+		const errorId = error && id ? `${id}-error` : undefined
 
 		return (
-			<div className="flex flex-col gap-1">
+			<div className="flex flex-col gap-2">
 				<SelectPrimitive.Trigger
 					ref={ref}
+					id={id}
 					aria-invalid={!!error || undefined}
+					aria-describedby={errorId ?? describedBy}
 					className={cn(
 						triggerVariants({ variant }),
 						sizeClasses.control,
@@ -202,8 +219,6 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
 						sizeClasses.px,
 						sizeClasses.gap,
 						compact ? 'min-w-[128px]' : 'min-w-[160px]',
-						shape.input,
-						error && 'border-destructive/50 hover:border-destructive/50',
 						className
 					)}
 					{...props}
@@ -238,7 +253,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
 					</svg>
 				</SelectPrimitive.Trigger>
 				{error && (
-					<span className="pl-3 text-[length:var(--fs-caption,12px)] leading-[var(--lh-caption,16px)] text-destructive">
+					<span id={errorId} className="text-caption text-destructive">
 						{error}
 					</span>
 				)}

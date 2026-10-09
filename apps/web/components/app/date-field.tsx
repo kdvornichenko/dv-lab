@@ -5,7 +5,6 @@ import { enUS } from 'react-day-picker/locale'
 
 import { CalendarDays } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -50,11 +49,10 @@ export function DateField({ id, label, value, onChange, max, error, helper, disa
 					aria-label={`${label}: ${text}`}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={describedBy}
-					render={
-						<Button variant="tertiary" leadingIcon={CalendarDays} className="h-9 w-full justify-start px-2 text-body" />
-					}
+					className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-left text-body text-foreground ring-1 ring-input transition-colors duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive"
 				>
-					{text}
+					<span className="min-w-0 truncate">{text}</span>
+					<CalendarDays aria-hidden size={16} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
 				</PopoverTrigger>
 				<PopoverContent align="start" className="w-auto p-0">
 					<Calendar

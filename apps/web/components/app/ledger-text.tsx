@@ -140,6 +140,7 @@ export function CurrencyField({
 					className="w-full min-w-0"
 					placeholder="Choose a currency"
 					error={error}
+					aria-describedby={helper ? `${id}-helper` : undefined}
 					onBlur={onBlur}
 				/>
 				<SelectContent>
@@ -150,7 +151,7 @@ export function CurrencyField({
 					))}
 				</SelectContent>
 			</Select>
-			{helper ? (
+			{helper && !error ? (
 				<p id={`${id}-helper`} className="text-caption text-muted-foreground">
 					{helper}
 				</p>
