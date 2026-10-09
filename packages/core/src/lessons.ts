@@ -37,7 +37,8 @@ export function suggestLessons(
 	rate: { rateMinor: number; currency: string } | null
 ): number | null {
 	if (rate === null || currency === null || rate.currency !== currency || rate.rateMinor <= 0) return null
-	return Math.round((amountMinor * 100) / rate.rateMinor)
+	const hundredths = Math.round((amountMinor * 100) / rate.rateMinor)
+	return hundredths > maxHundredths ? null : hundredths
 }
 
 export function creditedMinutes(hundredths: number | null, lessonMinutes: number): number {
