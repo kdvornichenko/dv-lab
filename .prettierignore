@@ -12,6 +12,7 @@ coverage
 .yarnrc.yml
 yarn.lock
 *.tsbuildinfo
+packages/db/drizzle
 .env
 .env.*
 AGENTS.md

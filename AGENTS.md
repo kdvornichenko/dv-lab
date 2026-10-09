@@ -1,101 +1,69 @@
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
+# dv-lab: инструкции для агентов
 
-This project is indexed by GitNexus as **dv-lab** (1557 symbols, 4542 relationships, 114 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+Личное рабочее пространство преподавателя. Монорепозиторий на Yarn 4 (workspaces, `nodeLinker: node-modules`) и Turbo, Node 24.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+## Структура
 
-## Always Do
+- `apps/web` — Next 16 (App Router), сборка `output: 'standalone'`. Шрифты из пакета `geist`, без обращения к Google при сборке.
+- `apps/api` — Hono на `@hono/node-server`, отдельный процесс за прокси. Сборка `tsdown` в `apps/api/dist/server.mjs` и `apps/api/dist/migrate.mjs`, `@dv-lab/db` вшивается в бандл, миграции копируются в `apps/api/drizzle`.
+- `packages/db` — JIT-пакет `@dv-lab/db` (экспортирует исходники `src/index.ts`, своей сборки нет): Drizzle v1, схема, подключение, мигратор. Миграции лежат в `packages/db/drizzle`.
+- `deploy/` — `compose.yaml`, Caddy (`deploy/caddy/Caddyfile`), `deploy.sh`, скрипты бэкапа, `deploy/postgres/ensure-db.sql` и `ensure-db.sh`, юниты systemd, `deploy/RUNBOOK.md`.
+- `apps/web/Dockerfile`, `apps/api/Dockerfile` — multi-stage сборка образов. Образы собирает и публикует в GHCR GitHub Actions (`.github/workflows/ci.yml`), на сервере сборки нет.
 
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+## Команды
 
-## When Debugging
+| Команда | Что делает |
+|---------|-----------|
+| `yarn install` | установка зависимостей |
+| `yarn dev` | web и api в режиме разработки |
+| `yarn build` | сборка всех workspace |
+| `yarn typecheck` | `tsc --noEmit` во всех workspace |
+| `yarn lint` | ESLint (web) |
+| `yarn test` | Vitest (api и db), тесты идут на настоящем Postgres |
+| `yarn knip` | неиспользуемые файлы, экспорты и зависимости |
+| `yarn format` / `yarn format:check` | Prettier |
+| `yarn db:generate` | `drizzle-kit generate`: новая миграция из `packages/db/src/schema.ts` |
+| `yarn db:migrate` | применение миграций под ролью миграций (`apps/api/src/migrate.ts`) |
 
-1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
-2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
-3. `READ gitnexus://repo/dv-lab/process/{processName}` — trace the full execution flow step by step
-4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
+CI (`.github/workflows/ci.yml`) на каждый pull request и push в `master`: job `Verify` поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, typecheck, lint, test, build, knip, `caddy validate` и shellcheck скриптов `deploy/`. Job `images` собирает образы после зелёного `Verify`; на push в `master` публикует их в GHCR с тегами `sha-<полный sha>` и `latest`.
 
-## When Refactoring
+## Окружение
 
-- **Renaming**: MUST use `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` first. Review the preview — graph edits are safe, text_search edits need manual review. Then run with `dry_run: false`.
-- **Extracting/Splitting**: MUST run `gitnexus_context({name: "target"})` to see all incoming/outgoing refs, then `gitnexus_impact({target: "target", direction: "upstream"})` to find all external callers before moving code.
-- After any refactor: run `gitnexus_detect_changes({scope: "all"})` to verify only expected files changed.
+- `.env` в корне — разработка, база `dvlab_dev`. `.env.test` — тесты, база `dvlab_test`. Оба файла в `.gitignore`.
+- Имена переменных — в `.env.example`: `NODE_ENV`, `DATABASE_URL`, `MIGRATOR_DATABASE_URL`, `APP_ORIGIN`, `PORT`, `LOG_LEVEL`, `SHUTDOWN_DEADLINE_MS`.
+- Роли Postgres без прав суперпользователя: `dvlab_app` — роль приложения (`DATABASE_URL`, только чтение и запись данных), `dvlab_migrator` — владелец базы и роль миграций (`MIGRATOR_DATABASE_URL`).
+- Переменные сервера — в `deploy/env.example` (только имена).
 
-## Never Do
+## Модули-владельцы
 
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+- URL базы для роли выбирает только `resolveDatabaseUrl` из `packages/db/src/connection.ts`. При `NODE_ENV=test` он принимает только базу с именем на `_test`.
+- Переменные окружения api читает только `loadConfig` из `apps/api/src/config.ts`. Неверные `PORT` и `APP_ORIGIN` дают ошибку запуска, значения по умолчанию за них не подставляются.
+- Request id, логгер pino и конверт ошибки (`errorBody`) принадлежат `apps/api/src/request-context.ts`. Одна JSON-строка лога на запрос с `requestId`.
+- Сигналы, срок остановки, закрытие HTTP-сервера, WebSocket и пула базы принадлежат `apps/api/src/lifecycle.ts`.
+- `apps/api/src/server.ts` — composition root: собирает конфиг, логгер, базу, приложение и жизненный цикл. `apps/api/src/app.ts` при импорте ничего не запускает.
+- Маршруты api — без префикса (`/healthz`, `/ws`, далее свои пути). Префикс `/api` принадлежит Caddy: `handle_path /api/*` срезает его перед api.
+- `apps/web` не импортирует код api и базы: в `apps/web/package.json` нет `@dv-lab/api` и `@dv-lab/db`, каталога `apps/web/app/api` нет. CI проверяет оба условия.
 
-## Tools Quick Reference
+## База
 
-| Tool | When to use | Command |
-|------|-------------|---------|
-| `query` | Find code by concept | `gitnexus_query({query: "auth validation"})` |
-| `context` | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})` |
-| `impact` | Blast radius before editing | `gitnexus_impact({target: "X", direction: "upstream"})` |
-| `detect_changes` | Pre-commit scope check | `gitnexus_detect_changes({scope: "staged"})` |
-| `rename` | Safe multi-file rename | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
-| `cypher` | Custom graph queries | `gitnexus_cypher({query: "MATCH ..."})` |
+- PostgreSQL 18. Роли, база, схема `extensions` и расширения создаёт только `deploy/postgres/ensure-db.sql` (идемпотентный, запускается суперпользователем). `CREATE EXTENSION` в миграциях не пишется.
+- Миграции генерирует `yarn db:generate`, руками сгенерированные файлы не правятся, `drizzle-kit push` не используется.
+- Миграции одного релиза только добавляют (новые таблицы, колонки, индексы). Удаление и переименование — отдельным релизом, когда код прошлой версии уже не работает с этими объектами.
+- Миграции применяются отдельным шагом под `dvlab_migrator`: локально `yarn db:migrate`, на сервере одноразовый сервис `migrate` из образа api (`node apps/api/dist/migrate.mjs`).
+- Тесты идут на настоящем Postgres в базе `dvlab_test` под ролями `dvlab_app` и `dvlab_migrator`. Данные между тестами очищаются `TRUNCATE` под `dvlab_migrator`. Адаптера базы в памяти нет.
 
-## Impact Risk Levels
+## Версии
 
-| Depth | Meaning | Action |
-|-------|---------|--------|
-| d=1 | WILL BREAK — direct callers/importers | MUST update these |
-| d=2 | LIKELY AFFECTED — indirect deps | Should test |
-| d=3 | MAY NEED TESTING — transitive | Test if critical path |
+- Версии зависимостей закреплены точно, без `^` и `~`.
+- Возрастной барьер Yarn (`npmMinimalAgeGate: 1440`, пакеты младше суток не ставятся) не отключается.
+- TypeScript 6.0.3, а не 7.x: `typescript-eslint` (через `eslint-config-next`) не поддерживает TypeScript 7.0.
+- `drizzle-orm` и `drizzle-kit` 1.0.0-rc.4: стабильного v1 нет, `latest` указывает на 0.45, проект работает на v1.
+- Версия `turbo` в `ARG TURBO_VERSION` обоих Dockerfile совпадает с `devDependencies.turbo` корневого `package.json`, CI это проверяет.
 
-## Resources
+## Публичный репозиторий
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/dv-lab/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/dv-lab/clusters` | All functional areas |
-| `gitnexus://repo/dv-lab/processes` | All execution flows |
-| `gitnexus://repo/dv-lab/process/{name}` | Step-by-step execution trace |
+Репозиторий публичный. Адресов серверов, паролей, ключей и данных учеников нет нигде, включая `.planning/`, `deploy/` и тестовые данные. `.env*` не коммитятся и не попадают в контекст сборки образов (`.dockerignore`). Секреты сервера лежат только на сервере.
 
-## Self-Check Before Finishing
+## Выкатка и сервер
 
-Before completing any code modification task, verify:
-1. `gitnexus_impact` was run for all modified symbols
-2. No HIGH/CRITICAL risk warnings were ignored
-3. `gitnexus_detect_changes()` confirms changes match expected scope
-4. All d=1 (WILL BREAK) dependents were updated
-
-## Keeping the Index Fresh
-
-After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:
-
-```bash
-npx gitnexus analyze
-```
-
-If the index previously included embeddings, preserve them by adding `--embeddings`:
-
-```bash
-npx gitnexus analyze --embeddings
-```
-
-To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` will delete any previously generated embeddings.**
-
-> Claude Code users: A PostToolUse hook handles this automatically after `git commit` and `git merge`.
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->
+Подготовка VPS, выкатка, откат, бэкапы и восстановление — `deploy/RUNBOOK.md`.

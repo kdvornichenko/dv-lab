@@ -1,43 +1,27 @@
-# Teacher English CRM
+# dv-lab
 
-Private operational CRM for an English teacher: students, lessons, attendance, payments, and daily risk dashboard.
+Личное рабочее пространство преподавателя. Сейчас в репозитории скелет v2.0: страница-заглушка, api с `/healthz` и `/ws`, база с ролями и миграциями, CI, образы и файлы выкатки на VPS.
 
-## Stack
+## Стек
 
-- Turborepo + Yarn 4 workspaces through Corepack
-- `apps/web`: Next.js 16, React 19, Tailwind CSS 4, shadcn-style local components
-- `apps/api`: Hono on Node.js
-- `packages/api-types`: shared Zod contracts
-- `packages/db`: Drizzle schema and ledger helpers for Supabase Postgres
-- `packages/rbac`: teacher CRM permission model
+- Next 16, React 19, Tailwind 4 — `apps/web`
+- Hono на Node 24 — `apps/api`
+- PostgreSQL 18, Drizzle v1 — `packages/db`
+- Yarn 4, Turbo, TypeScript 6, Vitest, ESLint, Prettier, knip
+- Docker-образы в GHCR, Caddy и Docker Compose на сервере — `deploy/`
 
-## Development
+## Быстрый старт
 
-```bash
+```sh
 corepack enable
 yarn install
+cp .env.example .env
 yarn dev
 ```
 
-Web runs on `http://localhost:3000`.
-API runs on `http://localhost:4000`.
+В `.env` указать URL базы для ролей `dvlab_app` и `dvlab_migrator` и применить миграции командой `yarn db:migrate`. Для тестов нужен `.env.test` с базой, имя которой заканчивается на `_test`.
 
-Install shadcn components from the web workspace:
+## Документация
 
-```bash
-cd apps/web
-yarn dlx shadcn@latest add button
-```
-
-## Supabase
-
-The project keeps the existing Supabase env contract:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `POSTGRES_URL` or `DATABASE_URL`
-
-Do not expose service-role keys to browser code.
+- [AGENTS.md](AGENTS.md) — структура, команды, правила модулей и базы.
+- [deploy/RUNBOOK.md](deploy/RUNBOOK.md) — подготовка сервера, выкатка, откат, бэкапы и восстановление.

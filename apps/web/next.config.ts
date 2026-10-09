@@ -1,8 +1,11 @@
 import type { NextConfig } from 'next'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const nextConfig: NextConfig = {
-	transpilePackages: ['@teacher-crm/api', '@teacher-crm/api-types', '@teacher-crm/rbac', '@teacher-crm/db'],
-	allowedDevOrigins: ['web.teacher-crm.localhost'],
+	output: 'standalone',
+	outputFileTracingRoot: path.join(path.dirname(fileURLToPath(import.meta.url)), '../..'),
+	poweredByHeader: false,
 }
 
 export default nextConfig

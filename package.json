@@ -1,39 +1,34 @@
 {
-	"name": "teacher-english-crm",
+	"name": "dv-lab",
 	"version": "0.1.0",
 	"private": true,
-	"packageManager": "yarn@4.14.1",
+	"packageManager": "yarn@4.18.1",
+	"engines": {
+		"node": ">=24"
+	},
 	"workspaces": [
 		"apps/*",
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "portless dv-lab turbo run dev --filter=@teacher-crm/api --filter=@teacher-crm/web",
+		"dev": "portless dv-lab turbo run dev --filter=@dv-lab/api --filter=@dv-lab/web",
 		"build": "turbo run build",
-		"build:apps": "turbo run build --filter=@teacher-crm/api --filter=@teacher-crm/web",
-		"start": "turbo run start --filter=@teacher-crm/api --filter=@teacher-crm/web",
-		"prod": "yarn build && yarn start",
 		"typecheck": "turbo run typecheck",
 		"lint": "turbo run lint",
 		"test": "turbo run test",
-		"test:api:memory": "yarn --cwd apps/api test:memory",
-		"test:api:db": "yarn --cwd apps/api test:db",
-		"test:web:pet": "yarn --cwd apps/web test:pet",
-		"audit:deps": "yarn npm audit --all --recursive",
-		"audit:cycles": "yarn dlx madge --circular --extensions ts,tsx apps packages",
-		"audit:dead-code": "yarn dlx knip --no-progress --exclude exports,types,duplicates --no-config-hints",
 		"format": "prettier --write . --config .prettierrc.json --cache --cache-location .cache/prettier",
 		"format:check": "prettier --check . --config .prettierrc.json --cache --cache-location .cache/prettier",
-		"db:generate": "yarn --cwd packages/db db:generate",
-		"db:migrate": "yarn --cwd packages/db db:migrate",
-		"db:studio": "yarn --cwd packages/db db:studio"
+		"knip": "knip --no-progress",
+		"db:generate": "yarn workspace @dv-lab/db db:generate",
+		"db:migrate": "yarn workspace @dv-lab/api db:migrate"
 	},
 	"devDependencies": {
-		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
-		"portless": "^0.12.0",
-		"prettier": "^3.6.2",
-		"prettier-plugin-tailwindcss": "^0.6.14",
-		"turbo": "^2.9.7",
-		"typescript": "^5.6.3"
+		"@trivago/prettier-plugin-sort-imports": "6.0.2",
+		"knip": "6.40.0",
+		"portless": "0.15.7",
+		"prettier": "3.9.9",
+		"prettier-plugin-tailwindcss": "0.8.1",
+		"turbo": "2.11.7",
+		"typescript": "6.0.3"
 	}
 }
