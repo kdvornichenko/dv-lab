@@ -154,27 +154,28 @@
 			opacity: 0;
 		}
 	}
-	@keyframes spinner-move {
-		to {
-			stroke-dashoffset: -100;
-		}
+}
+
+@keyframes spinner-move {
+	to {
+		stroke-dashoffset: -100;
 	}
-	@keyframes spinner-dash {
-		0%,
-		100% {
-			stroke-dasharray: 15 85;
-		}
-		50% {
-			stroke-dasharray: 40 60;
-		}
+}
+@keyframes spinner-dash {
+	0%,
+	100% {
+		stroke-dasharray: 15 85;
 	}
-	@keyframes shimmer {
-		0% {
-			background-position: 0% 0;
-		}
-		100% {
-			background-position: 100% 0;
-		}
+	50% {
+		stroke-dasharray: 40 60;
+	}
+}
+@keyframes shimmer {
+	0% {
+		background-position: 0% 0;
+	}
+	100% {
+		background-position: 100% 0;
 	}
 }
 

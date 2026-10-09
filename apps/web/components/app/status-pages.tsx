@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 
+import { RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 
 import { CenteredPanel, PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
@@ -10,7 +11,14 @@ import { Button } from '@/components/ui/button'
 const NOT_FOUND_TITLE = 'Page not found'
 const NOT_FOUND_TEXT = 'This page does not exist or was moved.'
 
-function HomeButton({ variant }: { variant: 'primary' | 'ghost' }) {
+function HomeButton({ variant, hardLink = false }: { variant: 'primary' | 'ghost'; hardLink?: boolean }) {
+	if (hardLink) {
+		return (
+			<Button variant={variant} onClick={() => window.location.assign(window.location.origin)}>
+				Go to Today
+			</Button>
+		)
+	}
 	return (
 		<Button variant={variant} nativeButton={false} render={<Link href="/" />}>
 			Go to Today
@@ -49,6 +57,17 @@ export function NotFoundPage({ inShell = false }: { inShell?: boolean }) {
 	return (
 		<StatusPage title={NOT_FOUND_TITLE} text={NOT_FOUND_TEXT}>
 			<HomeButton variant="primary" />
+		</StatusPage>
+	)
+}
+
+export function ErrorPage({ onRefresh, hardHomeLink = false }: { onRefresh: () => void; hardHomeLink?: boolean }) {
+	return (
+		<StatusPage title="Something went wrong" text="The page could not be loaded. Try again in a moment.">
+			<Button variant="secondary" leadingIcon={RefreshCw} onClick={onRefresh}>
+				Refresh
+			</Button>
+			<HomeButton variant="ghost" hardLink={hardHomeLink} />
 		</StatusPage>
 	)
 }

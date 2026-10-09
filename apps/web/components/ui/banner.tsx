@@ -43,7 +43,7 @@ const TONE: Record<BannerStatus, string> = {
 }
 function fillFor(status: BannerStatus, contrast: BannerContrast) {
 	if (contrast === 'low') return 'var(--hover)'
-	const amount = status === 'default' ? 8 : 12
+	const amount = status === 'default' ? 8 : 14
 	return `color-mix(in oklab, var(--banner-tone) ${amount}%, transparent)`
 }
 type ColoredStatus = Exclude<BannerStatus, 'default'>
@@ -223,7 +223,7 @@ const Banner = forwardRef<HTMLDivElement, BannerProps>(
 	(
 		{
 			status = 'default',
-			contrast = 'low',
+			contrast: contrastProp,
 			variant = 'inline',
 			icon: Icon,
 			dismissible = false,
@@ -248,6 +248,7 @@ const Banner = forwardRef<HTMLDivElement, BannerProps>(
 		const InfoIcon = icons.info
 		const reduceMotion = useReducedMotion() ?? false
 		const fixed = variant === 'fixed'
+		const contrast: BannerContrast = contrastProp ?? (status === 'default' ? 'low' : 'high')
 		const [openState, setOpenState] = useState(true)
 		const open = openProp ?? openState
 		const handleDismiss = () => {
@@ -259,7 +260,7 @@ const Banner = forwardRef<HTMLDivElement, BannerProps>(
 		const body = (
 			<div
 				ref={ref}
-				role={role ?? (status === 'error' || status === 'warning' ? 'alert' : 'status')}
+				role={role ?? (status === 'error' ? 'alert' : 'status')}
 				data-slot="banner"
 				data-status={status}
 				data-contrast={contrast}
