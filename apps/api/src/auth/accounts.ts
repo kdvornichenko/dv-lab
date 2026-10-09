@@ -11,15 +11,18 @@ import type { CredentialCheck, SignIn } from './sign-in.ts'
 
 const ONE_ACTIVE_TEACHER_CONSTRAINT = 'accounts_one_active_teacher_uq'
 const ACTIVE_LOGIN_CONSTRAINT = 'accounts_active_login_uq'
+const STUDENT_CARD_CONSTRAINT = 'accounts_student_uq'
 
 type CreateTeacherInput = { login: string; displayName: string; passwordHash: string }
 
 export type CreateTeacherResult = { kind: 'created'; login: string } | { kind: 'teacher_exists' }
 
-type CreateStudentInput = { login: string; displayName: string; password: string | null }
+type CreateStudentInput = { login: string; displayName: string; password: string | null; studentId: string | null }
 
 export type CreateStudentResult =
-	{ kind: 'created'; student: StudentAccount; generatedPassword: string | null } | { kind: 'login_taken' }
+	| { kind: 'created'; account: StudentAccount; generatedPassword: string | null }
+	| { kind: 'login_taken' }
+	| { kind: 'card_has_account' }
 
 export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentAccount } | { kind: 'not_found' }
 
@@ -66,19 +69,29 @@ export async function createTeacher(db: Database, input: CreateTeacherInput): Pr
 	}
 }
 
-export async function createStudent(db: Database, input: CreateStudentInput): Promise<CreateStudentResult> {
+export async function createStudent(executor: DbExecutor, input: CreateStudentInput): Promise<CreateStudentResult> {
 	const password = input.password ?? generatePassword()
 	const generatedPassword = input.password === null ? password : null
 	const passwordHash = await hashPassword(password)
 	try {
-		const [row] = await db
-			.insert(accounts)
-			.values({ login: input.login, displayName: input.displayName, role: 'student', passwordHash })
-			.returning(studentAccountColumns)
-		if (!row) throw new Error('student insert returned no row')
-		return { kind: 'created', student: toStudentAccount(row), generatedPassword }
+		const account = await executor.transaction(async (tx) => {
+			const [row] = await tx
+				.insert(accounts)
+				.values({
+					login: input.login,
+					displayName: input.displayName,
+					role: 'student',
+					passwordHash,
+					studentId: input.studentId,
+				})
+				.returning(studentAccountColumns)
+			if (!row) throw new Error('student insert returned no row')
+			return toStudentAccount(row)
+		})
+		return { kind: 'created', account, generatedPassword }
 	} catch (error) {
 		if (violatesUnique(error, ACTIVE_LOGIN_CONSTRAINT)) return { kind: 'login_taken' }
+		if (violatesUnique(error, STUDENT_CARD_CONSTRAINT)) return { kind: 'card_has_account' }
 		throw error
 	}
 }

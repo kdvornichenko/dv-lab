@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	type CreateStudentAccountResponse,
 	SECTION_KINDS,
 	type StudentResponse,
 	type StudentSectionResponse,
@@ -11,6 +12,7 @@ import {
 	type StudentTermsResponse,
 	type StudentsResponse,
 	addTermRequest,
+	createStudentAccountRequest,
 	openingBalanceRequest,
 	saveSectionRequest,
 	saveStudentRequest,
@@ -19,6 +21,7 @@ import {
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { createCardAccount } from '../cards/card-account.ts'
 import {
 	archiveCard,
 	createCard,
@@ -37,6 +40,9 @@ type StudentRouteDeps = { db: Database }
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
 const notFound = (c: Context<AppEnv>) => c.json(errorBody('not_found', 'Not Found'), 404)
+
+const cardHasAccount = (c: Context<AppEnv>) =>
+	c.json(errorBody('card_has_account', 'This card already has an account'), 409)
 
 function cardId(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('id'))
@@ -103,6 +109,21 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const student = await setOpeningBalance(db, id, input)
 		if (!student) return notFound(c)
 		return c.json({ student } satisfies StudentResponse, 200)
+	})
+
+	routes.post('/:id/account', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, createStudentAccountRequest)
+		if (!input) return invalidRequest(c)
+		const result = await createCardAccount(db, id, { login: input.login, password: input.password })
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'login_taken') return c.json(errorBody('login_taken', 'This login is already taken'), 409)
+		if (result.kind === 'card_has_account') return cardHasAccount(c)
+		return c.json(
+			{ account: result.account, generatedPassword: result.generatedPassword } satisfies CreateStudentAccountResponse,
+			201
+		)
 	})
 
 	routes.get('/:id/sections', async (c) => {
