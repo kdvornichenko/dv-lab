@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 17
 current_phase_name: Skeleton on the Server
 status: executing
-stopped_at: Completed 17-11-PLAN.md; 17-12 (PR and merge) and 17-13 (server, Server guy) pending
+stopped_at: Phase 17 executed (13/13 plans, live on VPS); verification human_needed (owner steps); phase 18 executing in parallel
 last_updated: "2026-10-09T12:13:36.406Z"
 last_activity: 2026-10-09
 last_activity_desc: Phase 17 execution started
@@ -14,8 +14,8 @@ progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 13
-  completed_plans: 11
-  percent: 85
+  completed_plans: 13
+  percent: 100
 ---
 
 # Project State
@@ -30,11 +30,19 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 17 (Skeleton on the Server) — EXECUTING
-Plan: 11 of 13
+Plan: 13 of 13
 Status: Ready to execute
 Last activity: 2026-10-09 — Phase 17 execution started
 
-Progress: [████████░░] 85%
+Progress: [██████████] 100%
+
+## Deferred Verification
+
+| Phase | State | Resume |
+|-------|-------|--------|
+| 17 | verification_deferred_human | /gsd-verify-work 17 |
+
+Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 in the Vercel panel (RUNBOOK 3.5); recreate network dv-lab_default once at the next release (commit 2bcd8c0); optional browser look at the stub.
 
 ## Performance Metrics
 

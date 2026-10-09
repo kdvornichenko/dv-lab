@@ -135,7 +135,7 @@ dc exec -T db /deploy/postgres/ensure-db.sh
 
 STAGE=pre-dump
 DUMP="$DUMPS/predeploy-$(date -u +%Y%m%d-%H%M%S)-${FULL:0:12}.dump"
-dc exec -T db pg_dump -U postgres -d dvlab -Fc > "$DUMP.part"
+(umask 077 && dc exec -T db pg_dump -U postgres -d dvlab -Fc > "$DUMP.part")
 dc exec -T db pg_restore --list < "$DUMP.part" > /dev/null
 mv "$DUMP.part" "$DUMP"
 echo "pre-deploy dump: $DUMP"
@@ -144,11 +144,11 @@ STAGE=dry-run
 TMP_DB="dvlab_migcheck_$(date +%s)"
 dc exec -T db psql -X -q -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"$TMP_DB\" OWNER dvlab_migrator"
 dc exec -T db pg_restore -U postgres -d "$TMP_DB" --exit-on-error < "$DUMP"
-MIGRATE_DB="$TMP_DB" dc --profile tools run --rm migrate
+MIGRATE_DB="$TMP_DB" dc --profile tools run --rm -T migrate
 drop_tmp_db
 
 STAGE=migrate
-dc --profile tools run --rm migrate
+dc --profile tools run --rm -T migrate
 
 STAGE=switch
 printf 'APP_TAG=%s\n' "$TAG" > "$STATE/release.env"

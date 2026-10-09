@@ -99,3 +99,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:d1ab:1::/64

@@ -319,7 +319,7 @@ TTL — второе поле строки. Если он больше 60 с, TT
   sudo git -C /opt/dv-lab/repo checkout -q --detach "$SHA"
   dc pull api web
   dc up -d --wait db
-  dc --profile tools run --rm migrate
+  dc --profile tools run --rm -T migrate
   dc up -d --wait --wait-timeout 120 api web
   dc ps --format 'table {{.Service}}\t{{.State}}\t{{.Status}}'
 )
