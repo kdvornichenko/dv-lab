@@ -97,6 +97,19 @@ services:
       db:
         condition: service_healthy
 
+  import:
+    image: ghcr.io/kdvornichenko/dv-lab-api:${APP_TAG:?}
+    profiles: ['tools']
+    restart: 'no'
+    logging: *logging
+    entrypoint: ['node', 'apps/api/dist/import-vault.mjs', 'apply']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://dvlab_app:${APP_PASSWORD:?}@db:5432/dvlab
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:18
     restart: unless-stopped
