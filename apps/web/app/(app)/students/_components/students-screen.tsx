@@ -72,7 +72,7 @@ function StudentsTable({ rows, onDeactivate }: { rows: StudentRow[]; onDeactivat
 						return (
 							<TableRow key={student.id} className="hover:bg-transparent">
 								<TableCell className="px-4 py-2">
-									<div className="flex min-w-0 items-center gap-2">
+									<div className="flex max-w-64 min-w-0 items-center gap-2">
 										<Avatar name={student.displayName} />
 										<span
 											className={cn('min-w-0 truncate text-body', active ? 'text-foreground' : 'text-muted-foreground')}
