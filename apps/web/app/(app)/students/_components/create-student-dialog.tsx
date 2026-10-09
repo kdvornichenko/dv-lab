@@ -17,7 +17,17 @@ import {
 } from '@/components/ui/dialog'
 import { apiRequest } from '@/lib/api-client'
 
-import type { CreateStudentResponse, StudentRow } from '@dv-lab/contracts'
+import {
+	DISPLAY_NAME_MAX_LENGTH,
+	MANUAL_PASSWORD_MAX_LENGTH,
+	MANUAL_PASSWORD_MIN_LENGTH,
+	isStudentLogin,
+	normalizeDisplayName,
+	normalizeLogin,
+	passwordLength,
+	type CreateStudentResponse,
+	type StudentRow,
+} from '@dv-lab/contracts'
 
 interface CreateStudentDialogProps {
 	onClose: () => void
@@ -95,20 +105,53 @@ function RevealBody({ revealed, onSaved }: { revealed: Revealed; onSaved: () => 
 	)
 }
 
+type Field = 'name' | 'login' | 'password'
+
+function validate(displayName: string, login: string, password: string): Partial<Record<Field, string>> {
+	const errors: Partial<Record<Field, string>> = {}
+	const name = normalizeDisplayName(displayName)
+	if (name === '') errors.name = "Enter the student's name."
+	else if (passwordLength(name) > DISPLAY_NAME_MAX_LENGTH)
+		errors.name = `Use ${DISPLAY_NAME_MAX_LENGTH} characters or fewer.`
+	if (!isStudentLogin(normalizeLogin(login))) {
+		errors.login = 'Use 3–32 lowercase letters, digits, dots, underscores or hyphens.'
+	}
+	if (password !== '') {
+		const length = passwordLength(password)
+		if (length < MANUAL_PASSWORD_MIN_LENGTH || length > MANUAL_PASSWORD_MAX_LENGTH) {
+			errors.password = 'Use 10 to 128 characters.'
+		}
+	}
+	return errors
+}
+
 export function CreateStudentDialog({ onClose, onFinished }: CreateStudentDialogProps) {
 	const [displayName, setDisplayName] = useState('')
 	const [login, setLogin] = useState('')
 	const [password, setPassword] = useState('')
-	const [loginError, setLoginError] = useState<string>()
+	const [touched, setTouched] = useState<Record<Field, boolean>>({ name: false, login: false, password: false })
+	const [submitted, setSubmitted] = useState(false)
+	const [loginTaken, setLoginTaken] = useState(false)
 	const [failed, setFailed] = useState(false)
 	const [pending, setPending] = useState(false)
 	const [revealed, setRevealed] = useState<Revealed | null>(null)
+	const nameRef = useRef<HTMLInputElement>(null)
+	const loginRef = useRef<HTMLInputElement>(null)
+	const passwordRef = useRef<HTMLInputElement>(null)
+
+	const errors = validate(displayName, login, password)
+	const shown = (field: Field) => (submitted || touched[field] ? errors[field] : undefined)
+	const touch = (field: Field) => setTouched((current) => ({ ...current, [field]: true }))
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
 		if (pending) return
+		setSubmitted(true)
 		setFailed(false)
-		setLoginError(undefined)
+		if (errors.name) return nameRef.current?.focus()
+		if (errors.login) return loginRef.current?.focus()
+		if (errors.password) return passwordRef.current?.focus()
+		setLoginTaken(false)
 		setPending(true)
 		const result = await apiRequest<CreateStudentResponse>('POST', '/students', {
 			login,
@@ -118,7 +161,7 @@ export function CreateStudentDialog({ onClose, onFinished }: CreateStudentDialog
 		setPending(false)
 		if (!result.ok) {
 			setPassword('')
-			if (result.error?.code === 'login_taken') setLoginError('This login is already taken.')
+			if (result.error?.code === 'login_taken') setLoginTaken(true)
 			else setFailed(true)
 			return
 		}
@@ -154,6 +197,7 @@ export function CreateStudentDialog({ onClose, onFinished }: CreateStudentDialog
 								</Banner>
 							) : null}
 							<TextField
+								ref={nameRef}
 								id="student-name"
 								name="displayName"
 								label="Name"
@@ -161,9 +205,12 @@ export function CreateStudentDialog({ onClose, onFinished }: CreateStudentDialog
 								autoFocus
 								value={displayName}
 								onChange={(event) => setDisplayName(event.target.value)}
+								onBlur={() => touch('name')}
 								disabled={pending}
+								error={shown('name')}
 							/>
 							<TextField
+								ref={loginRef}
 								id="student-login"
 								name="login"
 								label="Login"
@@ -172,11 +219,16 @@ export function CreateStudentDialog({ onClose, onFinished }: CreateStudentDialog
 								spellCheck={false}
 								helper="3–32 characters: lowercase letters, digits, dot, underscore, hyphen."
 								value={login}
-								onChange={(event) => setLogin(event.target.value)}
+								onChange={(event) => {
+									setLogin(event.target.value)
+									setLoginTaken(false)
+								}}
+								onBlur={() => touch('login')}
 								disabled={pending}
-								error={loginError}
+								error={loginTaken ? 'This login is already taken.' : shown('login')}
 							/>
 							<PasswordField
+								ref={passwordRef}
 								id="student-password"
 								name="password"
 								label="Password"
@@ -184,7 +236,9 @@ export function CreateStudentDialog({ onClose, onFinished }: CreateStudentDialog
 								helper="Leave empty to generate a 12-character password, or enter your own (10–128 characters)."
 								value={password}
 								onChange={(event) => setPassword(event.target.value)}
+								onBlur={() => touch('password')}
 								disabled={pending}
+								error={shown('password')}
 							/>
 						</div>
 						<DialogFooter>
