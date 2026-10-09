@@ -42,7 +42,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
   4. `https://dv-lab.dev` serves the web app and the API health check from the VPS over IPv4 and IPv6, only the proxy ports are reachable from outside, HTTP/3 is off, and `ielts.dv-lab.dev` still serves from Vercel.
   5. Postgres backups run on a schedule and the owner has restored the latest one once; the API stops on `SIGTERM` within a bounded time with open WebSocket connections, writes structured logs with request ids, and migrations run as a separate step under the migration role.
 
-**Plans**: 2/13 plans executed
+**Plans**: 3/13 plans executed
 
 Plans:
 **Wave 1**
@@ -50,7 +50,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 17-02-PLAN.md — Web placeholder on Next 16.4 standalone, web/api boundary (W2)
-- [ ] 17-03-PLAN.md — `packages/db` on Drizzle v1: DB role module, first migration, role tests on PostgreSQL (W2)
+- [x] 17-03-PLAN.md — `packages/db` on Drizzle v1: DB role module, first migration, role tests on PostgreSQL (W2)
 - [ ] 17-04-PLAN.md — API request context: request id, JSON access log, error envelope (W2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -222,7 +222,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 17. Skeleton on the Server | v2.0 | 2/13 | In Progress|  |
+| 17. Skeleton on the Server | v2.0 | 3/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 0/TBD | Not started | - |
 | 19. Student Cards and Vault Import | v2.0 | 0/TBD | Not started | - |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |

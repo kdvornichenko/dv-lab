@@ -5,16 +5,16 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 17
 current_phase_name: Skeleton on the Server
 status: executing
-stopped_at: Completed 17-02-PLAN.md
-last_updated: "2026-10-09T12:02:54.176Z"
+stopped_at: Completed 17-03-PLAN.md
+last_updated: "2026-10-09T12:13:36.406Z"
 last_activity: 2026-10-09
 last_activity_desc: Phase 17 execution started
-state_head: 1f3bd55e90fbe70d49ada9905a86e25bf58e6608
+state_head: 42897fd25fe687c4225879466fb38b4b8185e8e1
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 13
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 17 (Skeleton on the Server) — EXECUTING
-Plan: 2 of 13
+Plan: 3 of 13
 Status: Ready to execute
 Last activity: 2026-10-09 — Phase 17 execution started
 
@@ -57,6 +57,7 @@ Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 |------|----------|-------|-------|
 | Phase 17 P01 | 40min | 3 tasks | 16 files |
 | Phase 17 P02 | 15 min | 2 tasks | 9 files |
+| Phase 17 P03 | 5 min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,7 @@ Recent decisions affecting current work:
 - [v2.0 roadmap]: Requirements placed by their last dependency: ACCT-04 in Phase 19 (cards), CARD-04 in Phase 20 (schedule), SHELL-05 in Phase 21, SHELL-03, SHELL-04 and CARD-05 in Phase 23 (chat entry points).
 - [v2.0]: Calendar follows CODE-AUDIT.md: deterministic event ids, one writer per lesson, `events.watch` and `syncToken`, `410` triggers a full resync, series plus occurrence exceptions, Google wins.
 - [v2.0]: Every phase is a `gsd/*` branch merged into `master` through a PR after green CI; old dv-lab code is rewritten, ielts is ported as is.
+- [Phase 17]: 17-03: resolveDatabaseUrl in packages/db is the only reader of DATABASE_URL and MIGRATOR_DATABASE_URL; under NODE_ENV=test the database must end with _test, no CI exception (CI database is dvlab_test too)
 
 ### Pending Todos
 
@@ -93,6 +95,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T12:02:54.163Z
-Stopped at: Completed 17-02-PLAN.md
+Last session: 2026-10-09T12:13:32.095Z
+Stopped at: Completed 17-03-PLAN.md
 Resume file: None
