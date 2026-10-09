@@ -16,4 +16,6 @@ deploy
 .yarn/install-state.gz
 out
 **/*.tsbuildinfo
+*.vault-import.json
+**/*.vault-import.json
 .vscode
