@@ -121,7 +121,7 @@ Plans:
   5. A student account links to exactly one card; linking a second account to the same card, or one account to two cards, is rejected.
   6. The teacher sets an opening balance (lessons left) on each card, and the balance shown after the import is counted from that opening balance, not from every lesson ever paid.
 
-**Plans**: 14/20 plans executed
+**Plans**: 16/20 plans executed
 
 Plans:
 **Wave 1**
@@ -149,8 +149,8 @@ Plans:
 - [x] 19-14-PLAN.md — Profile: header, Overview, archive and restore, opening balance (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 19-15-PLAN.md — `import` compose service and RUNBOOK section 11 (W6)
-- [ ] 19-16-PLAN.md — Payments UI: Record payment, Payments tab, Unassigned payments and Assign (W6)
+- [x] 19-15-PLAN.md — `import` compose service and RUNBOOK section 11 (W6)
+- [x] 19-16-PLAN.md — Payments UI: Record payment, Payments tab, Unassigned payments and Assign (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 19-17-PLAN.md — Notes and Vocabulary tabs (W7)
@@ -284,7 +284,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 |-------|-----------|----------------|--------|-----------|
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
-| 19. Student Cards and Vault Import | v2.0 | 14/20 | In Progress|  |
+| 19. Student Cards and Vault Import | v2.0 | 16/20 | In Progress|  |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
