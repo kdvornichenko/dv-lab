@@ -16,7 +16,7 @@ actuals:
   tasks: 1
   commits: 1
 plan_head_before: e1132ee1c78f67e373d313475085b820423ed3bd
-plan_head_after: f27288f
+plan_head_after: f27288fff0e39e29e6bdfa00e7064a58b1fac048
 
 tech-stack:
   added: []
@@ -52,19 +52,19 @@ coverage:
     requirement: INFRA-04
     verification:
       - kind: manual_procedural
-        ref: "отчёт оператора по блокам 1.2, 1.5, 2.2, 2.3, 2.4, 3.1 и панели OVH (задача 2)"
-        status: unknown
+        ref: "отчёт оператора (сессия Server guy) по блокам 1.2, 1.5, 2.2, 2.3, 2.4, 3.1 и панели OVH (задача 2)"
+        status: pass
     human_judgment: true
-    rationale: "У агента нет доступа к серверу, панели OVH и Vercel"
+    rationale: "У агента нет доступа к серверу, панели OVH и Vercel; итоги прислал оператор"
 
 duration: 15min
 completed: 2026-10-09
-status: checkpoint
+status: complete
 ---
 
 # Phase 17 Plan 11: RUNBOOK сервера Summary
 
-**`deploy/RUNBOOK.md` ведёт оператора от пустого VPS до `DEPLOY_OK` и `RESTORE_OK` 34 блоками bash: подготовка VPS, каталоги и пароли, DNS корня в Vercel, два варианта GHCR, проверка образов до переключения DNS, первая выкатка с разбором этапов отказа, проверка снаружи по IPv4 и IPv6, бэкапы, обычная выкатка и откат, восстановление после аварии. План остановлен на checkpoint задачи 2 (отчёт оператора о подготовке VPS).**
+**`deploy/RUNBOOK.md` ведёт оператора от пустого VPS до `DEPLOY_OK` и `RESTORE_OK` 34 блоками bash: подготовка VPS, каталоги и пароли, DNS корня в Vercel, два варианта GHCR, проверка образов до переключения DNS, первая выкатка с разбором этапов отказа, проверка снаружи по IPv4 и IPv6, бэкапы, обычная выкатка и откат, восстановление после аварии. Подготовку VPS по разделам 1–2 оператор подтвердил отчётом (задача 2).**
 
 ## Performance
 
@@ -91,7 +91,25 @@ status: checkpoint
 
 1. **Задача 1: RUNBOOK от пустого VPS до DEPLOY_OK и RESTORE_OK** — `f27288f` (docs, tracer)
 
-Задача 2 (checkpoint:human-action) не выполнена: ждёт отчёта оператора.
+Задача 2 (checkpoint:human-action) закрыта отчётом оператора (сессия Server guy), см. раздел «Отчёт оператора».
+
+## Отчёт оператора (задача 2)
+
+Адреса, выводы и значения секретов в отчёт не входят; приведены итоги и коды.
+
+| Блок | Результат |
+|------|-----------|
+| 1.2 Docker и compose | Docker 29.9.0, compose 5.6.0, buildx 0.38.0 |
+| 1.5 время | Timezone=Etc/UTC, NTPSynchronized=yes |
+| 2.1, 2.2 каталоги и `db.env` | `/opt/dv-lab/{env,backups/db,state,data/pg,data/caddy/data,data/caddy/config}` созданы, `env` и `backups/db` с правами 700, `db.env` 600, три имени паролей, значения сгенерированы на сервере |
+| 2.3 клон | `/opt/dv-lab/repo` на master, HEAD 581632bb4aa228b931e1a7e2f1c2b26580b6ed5c; блоки 5a и 9 переводят его на `SHA` |
+| 2.4 ufw и ssh | ufw: OpenSSH, 80/tcp, 443/tcp на IPv4 и IPv6, 443/udp закрыт; вход по ключу, пароль и root отклонены |
+| 3.1 TTL | TTL всех записей уже 60 с; корень не привязан ни к одному проекту Vercel, записи AAAA нет |
+| 1.6 автобэкап OVH | включён (Standard), подтвердил владелец в панели |
+
+Решения владельца, переданные оператором: пакеты GHCR остаются приватными, на сервере `docker login ghcr.io` под root с токеном `read:packages`, который владелец вводит сам (блок 4.2, вариант B); переключение DNS апекса (блок 3.3) выполняет оператор через коннектор Vercel после блока 5a; копии бэкапов вне сервера в фазе нет (D-04).
+
+Проверки оператора на VPS по коммиту fe4ed85: `docker compose config -q` (в том числе `--profile tools`) rc=0, `caddy validate` на caddy:2.11.7 rc=0 (keepalive 4s принят), в `deploy.sh` есть `caddy reload` и `--resolve`, `--force-recreate` нет; `ensure-db.sql` на свежем postgres:18.6 дважды rc=0.
 
 Счёт `commits: 1` взят по области `(17-11)`: `git log --oneline e1132ee..HEAD --grep='(17-11)'`; в ветке параллельно коммитят другие исполнители.
 
@@ -130,12 +148,11 @@ status: checkpoint
 
 ## User Setup Required
 
-Задача 2: оператор выполняет на VPS блоки 1.2, 1.5, 2.2, 2.3, 2.4, на Mac блок 3.1, проверяет автобэкап OVH (1.6) и присылает итоги без адресов и паролей.
+Нет: подготовку VPS выполнил оператор, итоги записаны выше.
 
 ## Next Phase Readiness
 
-- Продолжение 17-11 после отчёта оператора: сверка вывода 2.4 и TTL, итог в этом SUMMARY, `status: complete`.
-- 17-13: разделы 4, 5a, 3.3–3.4, 5, 6, 7 RUNBOOK.
+- 17-13: разделы 4 (вариант B), 5a, 3.3–3.4, 5, 6, 7 RUNBOOK; оператор ждёт SHA образов после 17-12.
 
 ## Self-Check: PASSED
 
