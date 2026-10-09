@@ -83,8 +83,6 @@ export type StudentAccount = {
 	createdAt: string
 }
 
-export type StudentListResponse = { students: StudentAccount[] }
-
 export type CreateStudentResponse = { student: StudentAccount; generatedPassword: string | null }
 
 export type DeactivateStudentResponse = { student: StudentAccount }
