@@ -3,9 +3,13 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	SECTION_KINDS,
 	type StudentResponse,
+	type StudentSectionResponse,
+	type StudentSectionsResponse,
 	type StudentsResponse,
 	openingBalanceRequest,
+	saveSectionRequest,
 	saveStudentRequest,
 } from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
@@ -20,6 +24,7 @@ import {
 	setOpeningBalance,
 	updateCard,
 } from '../cards/cards.ts'
+import { listSections, saveSection } from '../cards/sections.ts'
 import { errorBody } from '../request-context.ts'
 
 type StudentRouteDeps = { db: Database }
@@ -88,6 +93,25 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const student = await setOpeningBalance(db, id, input)
 		if (!student) return notFound(c)
 		return c.json({ student } satisfies StudentResponse, 200)
+	})
+
+	routes.get('/:id/sections', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const sections = await listSections(db, id)
+		if (!sections) return notFound(c)
+		return c.json({ sections } satisfies StudentSectionsResponse, 200)
+	})
+
+	routes.put('/:id/sections/:kind', async (c) => {
+		const id = cardId(c)
+		const kind = z.enum(SECTION_KINDS).safeParse(c.req.param('kind'))
+		if (id === null || !kind.success) return notFound(c)
+		const input = await readJson(c, saveSectionRequest)
+		if (!input) return invalidRequest(c)
+		const section = await saveSection(db, id, kind.data, input.body)
+		if (!section) return notFound(c)
+		return c.json({ section } satisfies StudentSectionResponse, 200)
 	})
 
 	return routes
