@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 
 import type { AccountSummary, StudentAccount } from '@dv-lab/contracts'
 import { accounts, violatesUnique } from '@dv-lab/db'
@@ -24,7 +24,17 @@ export type CreateStudentResult =
 	| { kind: 'login_taken' }
 	| { kind: 'card_has_account' }
 
-export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentAccount } | { kind: 'not_found' }
+type LinkStudentAccountInput = { accountId: string; studentId: string }
+
+export type LinkStudentAccountResult =
+	| { kind: 'linked'; account: StudentAccount }
+	| { kind: 'account_already_linked' }
+	| { kind: 'card_has_account' }
+	| { kind: 'not_found' }
+
+type DeactivateStudentInput = { accountId: string; studentId: string }
+
+export type DeactivateStudentResult = { kind: 'deactivated'; account: StudentAccount } | { kind: 'not_found' }
 
 type ChangePasswordInput = {
 	account: AccountSummary
@@ -106,12 +116,61 @@ export async function findStudentAccount(executor: DbExecutor, studentId: string
 	return row ? toStudentAccount(row) : null
 }
 
-export function deactivateStudent(db: Database, studentId: string): Promise<DeactivateStudentResult> {
+export async function linkStudentAccount(
+	executor: DbExecutor,
+	input: LinkStudentAccountInput
+): Promise<LinkStudentAccountResult> {
+	try {
+		const account = await executor.transaction(async (tx) => {
+			const [row] = await tx
+				.update(accounts)
+				.set({ studentId: input.studentId, updatedAt: sql`now()` })
+				.where(
+					and(
+						eq(accounts.id, input.accountId),
+						eq(accounts.role, 'student'),
+						eq(accounts.status, 'active'),
+						isNull(accounts.studentId)
+					)
+				)
+				.returning(studentAccountColumns)
+			return row ? toStudentAccount(row) : null
+		})
+		if (account) return { kind: 'linked', account }
+	} catch (error) {
+		if (violatesUnique(error, STUDENT_CARD_CONSTRAINT)) return { kind: 'card_has_account' }
+		throw error
+	}
+	const [current] = await executor
+		.select({ studentId: accounts.studentId })
+		.from(accounts)
+		.where(and(eq(accounts.id, input.accountId), eq(accounts.role, 'student'), eq(accounts.status, 'active')))
+	if (!current || current.studentId === null) return { kind: 'not_found' }
+	return { kind: 'account_already_linked' }
+}
+
+export async function listUnlinkedStudentAccounts(executor: DbExecutor): Promise<StudentAccount[]> {
+	const rows = await executor
+		.select(studentAccountColumns)
+		.from(accounts)
+		.where(and(eq(accounts.role, 'student'), eq(accounts.status, 'active'), isNull(accounts.studentId)))
+		.orderBy(sql`lower(${accounts.displayName})`, accounts.login)
+	return rows.map(toStudentAccount)
+}
+
+export function deactivateStudent(db: Database, input: DeactivateStudentInput): Promise<DeactivateStudentResult> {
 	return db.transaction(async (tx): Promise<DeactivateStudentResult> => {
 		const [locked] = await tx
 			.select({ id: accounts.id })
 			.from(accounts)
-			.where(and(eq(accounts.id, studentId), eq(accounts.role, 'student'), eq(accounts.status, 'active')))
+			.where(
+				and(
+					eq(accounts.id, input.accountId),
+					eq(accounts.studentId, input.studentId),
+					eq(accounts.role, 'student'),
+					eq(accounts.status, 'active')
+				)
+			)
 			.for('update')
 		if (!locked) return { kind: 'not_found' }
 		const [row] = await tx
@@ -121,7 +180,7 @@ export function deactivateStudent(db: Database, studentId: string): Promise<Deac
 			.returning(studentAccountColumns)
 		if (!row) throw new Error('student update returned no row')
 		await revokeAccountSessions(tx, locked.id)
-		return { kind: 'deactivated', student: toStudentAccount(row) }
+		return { kind: 'deactivated', account: toStudentAccount(row) }
 	})
 }
 

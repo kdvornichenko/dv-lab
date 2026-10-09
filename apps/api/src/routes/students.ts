@@ -3,8 +3,10 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	type AccountCandidatesResponse,
 	type CreateStudentAccountResponse,
 	SECTION_KINDS,
+	type StudentAccountResponse,
 	type StudentResponse,
 	type StudentSectionResponse,
 	type StudentSectionsResponse,
@@ -13,6 +15,8 @@ import {
 	type StudentsResponse,
 	addTermRequest,
 	createStudentAccountRequest,
+	deactivateStudentAccountRequest,
+	linkStudentAccountRequest,
 	openingBalanceRequest,
 	saveSectionRequest,
 	saveStudentRequest,
@@ -21,7 +25,12 @@ import {
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
-import { createCardAccount } from '../cards/card-account.ts'
+import {
+	cardAccountCandidates,
+	createCardAccount,
+	deactivateCardAccount,
+	linkCardAccount,
+} from '../cards/card-account.ts'
 import {
 	archiveCard,
 	createCard,
@@ -124,6 +133,38 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 			{ account: result.account, generatedPassword: result.generatedPassword } satisfies CreateStudentAccountResponse,
 			201
 		)
+	})
+
+	routes.get('/:id/account/candidates', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const accounts = await cardAccountCandidates(db, id)
+		if (!accounts) return notFound(c)
+		return c.json({ accounts } satisfies AccountCandidatesResponse, 200)
+	})
+
+	routes.post('/:id/account/link', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, linkStudentAccountRequest)
+		if (!input) return invalidRequest(c)
+		const result = await linkCardAccount(db, id, input.accountId)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'card_has_account') return cardHasAccount(c)
+		if (result.kind === 'account_already_linked') {
+			return c.json(errorBody('account_already_linked', 'This account is already linked to a card'), 409)
+		}
+		return c.json({ account: result.account } satisfies StudentAccountResponse, 200)
+	})
+
+	routes.post('/:id/account/deactivate', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, deactivateStudentAccountRequest)
+		if (!input) return invalidRequest(c)
+		const result = await deactivateCardAccount(db, id, input.accountId)
+		if (result.kind === 'not_found') return notFound(c)
+		return c.json({ account: result.account } satisfies StudentAccountResponse, 200)
 	})
 
 	routes.get('/:id/sections', async (c) => {

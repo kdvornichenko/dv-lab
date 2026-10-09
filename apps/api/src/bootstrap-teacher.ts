@@ -1,9 +1,9 @@
 import { parseArgs } from 'node:util'
 
 import {
-	DISPLAY_NAME_MAX_LENGTH,
 	MANUAL_PASSWORD_MAX_LENGTH,
 	MANUAL_PASSWORD_MIN_LENGTH,
+	isDisplayNameLength,
 	isTeacherLogin,
 	normalizeDisplayName,
 	normalizeLogin,
@@ -42,7 +42,7 @@ function parseOptions(argv: string[]): Options | null {
 		if (!isTeacherLogin(login)) return null
 		if (values['reset-password'] === true) return { mode: 'reset', login, passwordFromStdin }
 		const displayName = normalizeDisplayName(values.name ?? '')
-		if (displayName.length < 1 || Array.from(displayName).length > DISPLAY_NAME_MAX_LENGTH) return null
+		if (!isDisplayNameLength(displayName)) return null
 		return { mode: 'create', login, displayName, passwordFromStdin }
 	} catch {
 		return null
