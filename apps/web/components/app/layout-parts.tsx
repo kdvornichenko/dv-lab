@@ -1,6 +1,24 @@
 import type { ReactNode } from 'react'
 
+import { WorkspaceTile } from '@/components/sidebar-app/workspace-header'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Elevated } from '@/lib/elevated'
+
+export function CenteredPanel({ children }: { children: ReactNode }) {
+	return (
+		<main className="grid min-h-svh place-items-center bg-surface-1 px-4 py-8">
+			<Elevated offset={1} shadowLevel={2} className="w-full max-w-sm rounded-2xl p-6">
+				<div className="flex flex-col gap-6">
+					<div className="flex items-center gap-2">
+						<WorkspaceTile>D</WorkspaceTile>
+						<span className="text-title font-semibold text-foreground">dv-lab</span>
+					</div>
+					{children}
+				</div>
+			</Elevated>
+		</main>
+	)
+}
 
 export function PageScroll({ children }: { children: ReactNode }) {
 	return (
