@@ -135,7 +135,7 @@ dc exec -T db /deploy/postgres/ensure-db.sh
 
 STAGE=pre-dump
 DUMP="$DUMPS/predeploy-$(date -u +%Y%m%d-%H%M%S)-${FULL:0:12}.dump"
-dc exec -T db pg_dump -U postgres -d dvlab -Fc > "$DUMP.part"
+(umask 077 && dc exec -T db pg_dump -U postgres -d dvlab -Fc > "$DUMP.part")
 dc exec -T db pg_restore --list < "$DUMP.part" > /dev/null
 mv "$DUMP.part" "$DUMP"
 echo "pre-deploy dump: $DUMP"
