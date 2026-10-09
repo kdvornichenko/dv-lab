@@ -31,6 +31,8 @@ services:
     restart: unless-stopped
     init: true
     logging: *logging
+    environment:
+      API_INTERNAL_URL: http://api:4000
     mem_limit: 512m
     healthcheck:
       test:
@@ -78,6 +80,19 @@ services:
     command: ['node', 'apps/api/dist/migrate.mjs']
     environment:
       MIGRATOR_DATABASE_URL: postgresql://dvlab_migrator:${MIGRATOR_PASSWORD:?}@db:5432/${MIGRATE_DB:-dvlab}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  bootstrap:
+    image: ghcr.io/kdvornichenko/dv-lab-api:${APP_TAG:?}
+    profiles: ['tools']
+    restart: 'no'
+    logging: *logging
+    entrypoint: ['node', 'apps/api/dist/bootstrap-teacher.mjs']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://dvlab_app:${APP_PASSWORD:?}@db:5432/dvlab
     depends_on:
       db:
         condition: service_healthy

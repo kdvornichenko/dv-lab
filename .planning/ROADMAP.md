@@ -89,6 +89,23 @@ Plans:
   5. Every screen of the shell uses Base UI components and variant A tokens, switches between light and dark themes, and shows only English text.
 
 **Plans**: TBD
+- [x] 18-01-PLAN.md
+- [x] 18-02-PLAN.md
+- [x] 18-04-PLAN.md
+- [x] 18-05-PLAN.md
+- [x] 18-06-PLAN.md
+- [x] 18-07-PLAN.md
+- [x] 18-08-PLAN.md
+- [x] 18-09-PLAN.md
+- [x] 18-10-PLAN.md
+- [x] 18-11-PLAN.md
+- [x] 18-12-PLAN.md
+- [x] 18-13-PLAN.md
+- [x] 18-14-PLAN.md
+- [x] 18-15-PLAN.md
+- [x] 18-16-PLAN.md
+- [x] 18-17-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 19: Student Cards and Vault Import
@@ -223,7 +240,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
-| 18. Accounts and Variant A Shell | v2.0 | 0/TBD | Not started | - |
+| 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 0/TBD | Not started | - |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |

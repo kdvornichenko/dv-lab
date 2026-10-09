@@ -2,10 +2,10 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 17
-current_phase_name: Skeleton on the Server
+current_phase: 18
+current_phase_name: Accounts and Variant A Shell
 status: executing
-stopped_at: Phase 17 executed (13/13 plans, live on VPS); verification human_needed (owner steps); phase 18 executing in parallel
+stopped_at: Phase 18 executed (16/16 plans, branch gsd/phase-18-accounts-and-variant-a-shell); release to the VPS and owner sign-in pending; phase 17 verification human_needed
 last_updated: "2026-10-09T12:13:36.406Z"
 last_activity: 2026-10-09
 last_activity_desc: Phase 17 execution started
@@ -13,8 +13,8 @@ state_head: 42897fd25fe687c4225879466fb38b4b8185e8e1
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 16
+  completed_plans: 16
   percent: 100
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 17 — Skeleton on the Server
+**Current focus:** Phase 18 — Accounts and Variant A Shell
 
 ## Current Position
 
-Phase: 17 (Skeleton on the Server) — EXECUTING
-Plan: 13 of 13
-Status: Ready to execute
-Last activity: 2026-10-09 — Phase 17 execution started
+Phase: 18 (Accounts and Variant A Shell) — EXECUTED, release and verification pending
+Plan: 16 of 16
+Status: Plans done; ROADMAP criterion 1 (sign-in on dv-lab.dev) closes after the server release (RUNBOOK 10.1-10.3) and the owner's sign-in
+Last activity: 2026-10-10 — Phase 18 execution finished, final verification (18-15) passed with two small gaps
 
 Progress: [██████████] 100%
 
@@ -41,6 +41,7 @@ Progress: [██████████] 100%
 | Phase | State | Resume |
 |-------|-------|--------|
 | 17 | verification_deferred_human | /gsd-verify-work 17 |
+| 18 | verification_deferred_human | /gsd-verify-work 18 |
 
 Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 in the Vercel panel (RUNBOOK 3.5); recreate network dv-lab_default once at the next release (commit 2bcd8c0); optional browser look at the stub.
 

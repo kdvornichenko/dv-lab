@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 1
+open_count: 2
 waived_count: 0
 fixed_count: 0
-total_count: 1
-last_updated: 2026-10-09T12:29:57.074Z
+total_count: 2
+last_updated: 2026-10-09T17:27:11.622Z
 ---
 
 # Broken Windows Ledger
@@ -16,6 +16,7 @@ last_updated: 2026-10-09T12:29:57.074Z
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
 | 1 | 18 | deviation | packages/db/src/connection.ts |  | Нет типа базы или транзакции и разбора нарушений уникальности в @dv-lab/db: отложено, см. 18-ARCH-REVIEW.md | open |  | 2026-10-09T12:29:57.074Z |  |
+| 2 | 18 | deviation | apps/web/app/(app)/_components/app-sidebar.tsx |  | Порядок Tab в оболочке отличается от 18-UI-SPEC (skip, поиск, разделы одной остановкой, аккаунт, триггер): принято, владелец не углубляет доступность | open |  | 2026-10-09T17:27:11.622Z |  |
 
 ````json
 [
@@ -29,6 +30,19 @@ last_updated: 2026-10-09T12:29:57.074Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-09T12:29:57.074Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 2,
+    "kind": "deviation",
+    "phase": "18",
+    "file": "apps/web/app/(app)/_components/app-sidebar.tsx",
+    "line": null,
+    "description": "Порядок Tab в оболочке отличается от 18-UI-SPEC (skip, поиск, разделы одной остановкой, аккаунт, триггер): принято, владелец не углубляет доступность",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-09T17:27:11.622Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }
