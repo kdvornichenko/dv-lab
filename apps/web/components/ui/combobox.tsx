@@ -24,7 +24,6 @@ import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useFluidHover, useRegisterFluidHoverItem, type ItemRect } from '@/hooks/use-fluid-hover'
 import { useMergeSplitBlocks, useSelectionRuns, SelectionBackgrounds } from '@/hooks/use-merge-split'
-import { Elevated } from '@/lib/elevated'
 import { useIcons, type IconComponent } from '@/lib/icon-context'
 import { popupMotionClass, popupScrollAreaClass, popupViewportClass, isDisabledRow } from '@/lib/popup'
 import { useShape, shapeMap } from '@/lib/shape-context'
@@ -34,7 +33,7 @@ import { cn } from '@/lib/utils'
 
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
-type ComboboxItemData = string | { value: string; label: string }
+type ComboboxItemData = string | { value: string; label: string; detail?: string }
 
 function itemValue(item: ComboboxItemData): string {
 	return typeof item === 'string' ? item : item.value
@@ -613,9 +612,8 @@ interface ComboboxContentProps {
 }
 
 const ComboboxContent = forwardRef<HTMLDivElement, ComboboxContentProps>(
-	({ className, children, side = 'bottom', align = 'start', sideOffset = 6 }, ref) => {
+	({ className, children, side = 'bottom', align = 'start', sideOffset = 4 }, ref) => {
 		const { open, actionsRef, anchorRef } = useComboboxContext()
-		const shape = popupShape
 
 		useEffect(() => {
 			if (open) return
@@ -643,9 +641,9 @@ const ComboboxContent = forwardRef<HTMLDivElement, ComboboxContentProps>(
 						}}
 					>
 						<ComboboxPrimitive.Popup
-							render={<Elevated offset={2} shadowLevel={3} ref={ref} />}
+							ref={ref}
 							className={cn(
-								`flex max-h-[min(300px,var(--available-height))] min-w-[var(--anchor-width)] flex-col overflow-hidden ${shape.container} outline-none select-none`,
+								'flex max-h-72 w-[var(--anchor-width)] flex-col overflow-hidden rounded-xl bg-surface-4 p-1 shadow-surface-4 outline-none select-none',
 								className
 							)}
 						>
@@ -664,149 +662,142 @@ interface ComboboxListProps {
 	className?: string
 
 	children: (item: ComboboxItemData, index: number) => ReactNode
+
+	emptyTitle?: ReactNode
+	emptyHint?: ReactNode
 }
 
-const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(({ className, children }, ref) => {
-	const { open, values, multiple, inputValue, createRow } = useComboboxContext()
-	const highlight = useContext(ComboboxHighlightContext)
-	const icons = useIcons()
-	const PlusIcon = icons.plus
-	const shape = popupShape
-	const containerRef = useRef<HTMLDivElement>(null)
+const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
+	({ className, children, emptyTitle, emptyHint }, ref) => {
+		const { open, values, multiple, inputValue, createRow } = useComboboxContext()
+		const highlight = useContext(ComboboxHighlightContext)
+		const icons = useIcons()
+		const PlusIcon = icons.plus
+		const shape = popupShape
+		const containerRef = useRef<HTMLDivElement>(null)
 
-	const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
-	const { activeIndex, setActiveIndex, itemRects, isMeasured, handlers, registerItem, remeasure } = hover
+		const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
+		const { activeIndex, setActiveIndex, itemRects, isMeasured, handlers, registerItem, remeasure } = hover
 
-	const [checkedIndices, setCheckedIndices] = useState<number[]>([])
+		const [checkedIndices, setCheckedIndices] = useState<number[]>([])
 
-	useEffect(() => {
-		if (!open) return
-		remeasure()
-	}, [open, remeasure])
+		useEffect(() => {
+			if (!open) return
+			remeasure()
+		}, [open, remeasure])
 
-	const [reflow, setReflow] = useState<{
-		query: string
-		armedRects: ItemRect[] | null
-	}>(() => ({ query: inputValue, armedRects: null }))
-	if (reflow.query !== inputValue) {
-		setReflow({ query: inputValue, armedRects: itemRects })
-	}
-	const reflowSnap = reflow.armedRects !== null
-	const reflowLanded = reflow.armedRects !== null && itemRects !== reflow.armedRects
-	useEffect(() => {
-		if (!reflowLanded) return
-		const armed = reflow.armedRects
-		const frame = requestAnimationFrame(() =>
-			setReflow((r) => (r.armedRects === armed ? { ...r, armedRects: null } : r))
-		)
-		return () => cancelAnimationFrame(frame)
-	}, [reflowLanded, reflow.armedRects])
+		const [reflow, setReflow] = useState<{
+			query: string
+			armedRects: ItemRect[] | null
+		}>(() => ({ query: inputValue, armedRects: null }))
+		if (reflow.query !== inputValue) {
+			setReflow({ query: inputValue, armedRects: itemRects })
+		}
+		const reflowSnap = reflow.armedRects !== null
+		const reflowLanded = reflow.armedRects !== null && itemRects !== reflow.armedRects
+		useEffect(() => {
+			if (!reflowLanded) return
+			const armed = reflow.armedRects
+			const frame = requestAnimationFrame(() =>
+				setReflow((r) => (r.armedRects === armed ? { ...r, armedRects: null } : r))
+			)
+			return () => cancelAnimationFrame(frame)
+		}, [reflowLanded, reflow.armedRects])
 
-	useEffect(() => {
-		if (!open) return
+		useEffect(() => {
+			if (!open) return
 
-		let inner: number
-		const outer = requestAnimationFrame(() => {
-			inner = requestAnimationFrame(() => {
-				const container = containerRef.current
-				if (container) {
-					const rows = Array.from(container.querySelectorAll('[data-fluid-hover-index]')) as HTMLElement[]
-					const next: number[] = []
-					rows.forEach((el, i) => {
-						if (values.includes(el.getAttribute('data-value') ?? '')) next.push(i)
-					})
-					setCheckedIndices(next)
-				}
+			let inner: number
+			const outer = requestAnimationFrame(() => {
+				inner = requestAnimationFrame(() => {
+					const container = containerRef.current
+					if (container) {
+						const rows = Array.from(container.querySelectorAll('[data-fluid-hover-index]')) as HTMLElement[]
+						const next: number[] = []
+						rows.forEach((el, i) => {
+							if (values.includes(el.getAttribute('data-value') ?? '')) next.push(i)
+						})
+						setCheckedIndices(next)
+					}
+				})
 			})
-		})
-		return () => {
-			cancelAnimationFrame(outer)
-			cancelAnimationFrame(inner)
+			return () => {
+				cancelAnimationFrame(outer)
+				cancelAnimationFrame(inner)
+			}
+		}, [open, values, inputValue])
+
+		useEffect(() => {
+			if (!highlight) setActiveIndex(null)
+			else if (highlight.keyboard) setActiveIndex(highlight.index)
+		}, [highlight, setActiveIndex])
+
+		const [overlaysOpen, setOverlaysOpen] = useState(open)
+		if (overlaysOpen !== open) {
+			setOverlaysOpen(open)
+			if (!open) {
+				setCheckedIndices([])
+				setActiveIndex(null)
+			}
 		}
-	}, [open, values, inputValue])
 
-	useEffect(() => {
-		if (!highlight) setActiveIndex(null)
-		else if (highlight.keyboard) setActiveIndex(highlight.index)
-	}, [highlight, setActiveIndex])
+		const runs = useSelectionRuns(multiple ? checkedIndices : [])
+		const blocks = useMergeSplitBlocks(runs, isMeasured && open ? itemRects : [], shape.bgRadius)
 
-	const [overlaysOpen, setOverlaysOpen] = useState(open)
-	if (overlaysOpen !== open) {
-		setOverlaysOpen(open)
-		if (!open) {
-			setCheckedIndices([])
-			setActiveIndex(null)
-		}
-	}
+		const contentCtx = useMemo(() => ({ registerItem, activeIndex }), [registerItem, activeIndex])
 
-	const checkedRect = isMeasured && !multiple && checkedIndices.length > 0 ? itemRects[checkedIndices[0]] : null
-	const runs = useSelectionRuns(multiple ? checkedIndices : [])
-	const blocks = useMergeSplitBlocks(runs, isMeasured && open ? itemRects : [], shape.bgRadius)
-
-	const contentCtx = useMemo(() => ({ registerItem, activeIndex }), [registerItem, activeIndex])
-
-	return (
-		<ComboboxContentContext.Provider value={contentCtx}>
-			<ScrollArea className={popupScrollAreaClass} viewportClassName={cn(popupViewportClass, 'scroll-fade')}>
-				<ComboboxPrimitive.List
-					ref={(node: HTMLDivElement | null) => {
-						;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
-						if (typeof ref === 'function') ref(node)
-						else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
-					}}
-					onMouseEnter={handlers.onMouseEnter}
-					onMouseMove={handlers.onMouseMove}
-					onMouseLeave={handlers.onMouseLeave}
-					onClick={handlers.onClick}
-					className={cn('relative flex flex-col p-1 outline-none data-[empty]:p-0', className)}
-				>
-					{open && multiple && (
-						<SelectionBackgrounds blocks={reflowSnap ? blocks.map((b) => ({ ...b, instant: true })) : blocks} />
-					)}
-					{open && !multiple && (
-						<AnimatePresence>
-							{checkedRect && (
-								<motion.div
-									key="checked"
-									aria-hidden
-									className={`absolute ${shape.bg} pointer-events-none bg-active`}
-									initial={false}
-									animate={{
-										top: checkedRect.top,
-										left: checkedRect.left,
-										width: checkedRect.width,
-										height: checkedRect.height,
-										opacity: 1,
-									}}
-									exit={{ opacity: 0, transition: spring.moderate.exit }}
-									transition={reflowSnap ? { duration: 0 } : { ...spring.moderate, opacity: { duration: 0.08 } }}
-								/>
-							)}
-						</AnimatePresence>
-					)}
-
-					{open && (
-						<FluidHoverHighlight hover={hover} className={shape.bg} transition={reflowSnap ? false : undefined} />
-					)}
-
-					<ComboboxPrimitive.Collection>
-						{(item: ComboboxItemData, index: number) => (
-							<ComboboxItemIndexContext.Provider key={itemValue(item)} value={index}>
-								{isCreateItem(item) ? (
-									<ComboboxItem value={CREATE_VALUE} icon={PlusIcon}>
-										{createRow}
-									</ComboboxItem>
-								) : (
-									children(item, index)
-								)}
-							</ComboboxItemIndexContext.Provider>
+		return (
+			<ComboboxContentContext.Provider value={contentCtx}>
+				<ScrollArea className={popupScrollAreaClass} viewportClassName={cn(popupViewportClass, 'scroll-fade')}>
+					<ComboboxPrimitive.List
+						ref={(node: HTMLDivElement | null) => {
+							;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+							if (typeof ref === 'function') ref(node)
+							else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+						}}
+						onMouseEnter={handlers.onMouseEnter}
+						onMouseMove={handlers.onMouseMove}
+						onMouseLeave={handlers.onMouseLeave}
+						onClick={handlers.onClick}
+						className={cn('relative flex flex-col outline-none', className)}
+					>
+						{open && multiple && (
+							<SelectionBackgrounds blocks={reflowSnap ? blocks.map((b) => ({ ...b, instant: true })) : blocks} />
 						)}
-					</ComboboxPrimitive.Collection>
-				</ComboboxPrimitive.List>
-			</ScrollArea>
-		</ComboboxContentContext.Provider>
-	)
-})
+
+						{open && (
+							<FluidHoverHighlight
+								hover={hover}
+								className={cn(shape.bg, 'bg-active')}
+								transition={reflowSnap ? false : undefined}
+							/>
+						)}
+
+						<ComboboxPrimitive.Collection>
+							{(item: ComboboxItemData, index: number) => (
+								<ComboboxItemIndexContext.Provider key={itemValue(item)} value={index}>
+									{isCreateItem(item) ? (
+										<ComboboxItem value={CREATE_VALUE} icon={PlusIcon}>
+											{createRow}
+										</ComboboxItem>
+									) : (
+										children(item, index)
+									)}
+								</ComboboxItemIndexContext.Provider>
+							)}
+						</ComboboxPrimitive.Collection>
+					</ComboboxPrimitive.List>
+				</ScrollArea>
+				{emptyTitle ? (
+					<ComboboxEmpty>
+						<div className="text-body text-muted-foreground">{emptyTitle}</div>
+						{emptyHint ? <div className="text-caption text-muted-foreground">{emptyHint}</div> : null}
+					</ComboboxEmpty>
+				) : null}
+			</ComboboxContentContext.Provider>
+		)
+	}
+)
 
 ComboboxList.displayName = 'ComboboxList'
 
@@ -815,10 +806,11 @@ interface ComboboxItemProps extends HTMLAttributes<HTMLDivElement> {
 
 	value: string
 	disabled?: boolean
+	detail?: ReactNode
 }
 
 const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
-	({ className, children, icon: Icon, value, disabled = false, ...props }, ref) => {
+	({ className, children, icon: Icon, value, disabled = false, detail, ...props }, ref) => {
 		const comboboxCtx = useComboboxContext()
 		const contentCtx = useContext(ComboboxContentContext)
 		const index = useContext(ComboboxItemIndexContext)
@@ -860,16 +852,6 @@ const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
 					/>
 				}
 			>
-				{Icon && (
-					<Icon
-						size={sizeClasses.icon}
-						strokeWidth={isActive || isChecked ? 2 : 1.5}
-						className="shrink-0 transition-[color,stroke-width] duration-80"
-					/>
-				)}
-
-				<span className="-my-1 min-w-0 flex-1 truncate py-1 [text-box:trim-both_cap_alphabetic]">{children}</span>
-
 				<span aria-hidden className={cn('shrink-0', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')}>
 					<AnimatePresence initial={false}>
 						{isChecked && (
@@ -904,6 +886,18 @@ const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
 						)}
 					</AnimatePresence>
 				</span>
+
+				{Icon && (
+					<Icon
+						size={sizeClasses.icon}
+						strokeWidth={isActive || isChecked ? 2 : 1.5}
+						className="shrink-0 transition-[color,stroke-width] duration-80"
+					/>
+				)}
+
+				<span className="-my-1 min-w-0 flex-1 truncate py-1 [text-box:trim-both_cap_alphabetic]">{children}</span>
+
+				{detail ? <span className="shrink-0 text-muted-foreground">{detail}</span> : null}
 			</ComboboxPrimitive.Item>
 		)
 	}

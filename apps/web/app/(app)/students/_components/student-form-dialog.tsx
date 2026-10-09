@@ -7,7 +7,14 @@ import { useRouter } from 'next/navigation'
 import { TextField } from '@/components/app/text-field'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import { Combobox, ComboboxContent, ComboboxInput, ComboboxItem, ComboboxList } from '@/components/ui/combobox'
+import {
+	Combobox,
+	ComboboxContent,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	type ComboboxItemData,
+} from '@/components/ui/combobox'
 import {
 	Dialog,
 	DialogContent,
@@ -142,12 +149,44 @@ function parse(values: Values): Parsed {
 	return { errors, rateMinor, currency, lessonMinutes }
 }
 
-function buildTimeZones(saved: string | null) {
+function utcOffset(zone: string, now: Date) {
+	try {
+		const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
+			.formatToParts(now)
+			.find((part) => part.type === 'timeZoneName')?.value
+		return name?.replace(/^GMT/, 'UTC').replace(/^UTC[+-]0$/, 'UTC')
+	} catch {
+		return undefined
+	}
+}
+
+function buildTimeZones(saved: string | null): ComboboxItemData[] {
 	const listed = Intl.supportedValuesOf('timeZone')
 	const extra = saved ? [...MODERN_TIME_ZONES, saved] : MODERN_TIME_ZONES
 	const zones = [...listed, ...extra.filter((zone) => !listed.includes(zone) && isTimeZone(zone))]
 	const unique = Array.from(new Set(zones)).sort()
-	return [{ value: SAME_TIME_ZONE, label: 'Same as teacher' }, ...unique]
+	const now = new Date()
+	return [
+		{ value: SAME_TIME_ZONE, label: 'Same as teacher' },
+		...unique.map((zone) => ({ value: zone, label: zone, detail: utcOffset(zone, now) })),
+	]
+}
+
+function offsetQuery(query: string) {
+	const compact = query.replace(/\s/g, '').replace(/^gmt/, 'utc')
+	return (/^[+-]/.test(compact) ? `utc${compact}` : compact).replace(/^utc[+-]0$/, 'utc')
+}
+
+function matchesTimeZone(item: ComboboxItemData, query: string) {
+	const text = query.trim().toLowerCase()
+	if (text === '') return true
+	if (typeof item === 'string') return item.toLowerCase().includes(text)
+	const name = item.label.toLowerCase()
+	if (name.includes(text) || name.replace(/_/g, ' ').includes(text)) return true
+	const detail = item.detail?.toLowerCase()
+	if (!detail) return false
+	const offset = offsetQuery(text)
+	return detail === offset || detail.startsWith(`${offset}:`)
 }
 
 function nullable(value: string) {
@@ -346,20 +385,30 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 									items={timeZones}
 									value={values.timeZone}
 									onValueChange={(value) => set('timeZone', value === '' ? SAME_TIME_ZONE : value)}
-									filter={(item, query) =>
-										(typeof item === 'string' ? item : item.label).toLowerCase().includes(query.trim().toLowerCase())
-									}
+									filter={matchesTimeZone}
 									disabled={pending}
 								>
-									<ComboboxInput id="student-form-time-zone" placeholder="Same as teacher" />
+									<ComboboxInput
+										id="student-form-time-zone"
+										placeholder="Same as teacher"
+										aria-describedby="student-form-time-zone-helper"
+									/>
 									<ComboboxContent>
-										<ComboboxList>
+										<ComboboxList
+											emptyTitle="No time zones found"
+											emptyHint="Try a city, a country or an offset like UTC+7."
+										>
 											{(item) => {
-												const value = typeof item === 'string' ? item : item.value
-												const label = typeof item === 'string' ? item : item.label
+												if (typeof item === 'string') {
+													return (
+														<ComboboxItem key={item} value={item}>
+															{item}
+														</ComboboxItem>
+													)
+												}
 												return (
-													<ComboboxItem key={value} value={value}>
-														{label}
+													<ComboboxItem key={item.value} value={item.value} detail={item.detail}>
+														{item.label}
 													</ComboboxItem>
 												)
 											}}
