@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Фаза 20: расписание</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+  .ui { font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1c1b19; background: #fff; border: 1px solid #ddd8cc; border-radius: 10px; overflow: hidden; }
+  .ui .hd { padding: 9px 14px; border-bottom: 1px solid #eee9dd; font-weight: 650; display: flex; gap: 10px; align-items: baseline; }
+  .ui .hd small { color: #8a8578; font-weight: 400; }
+  .ui .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 8px 14px; border-bottom: 1px solid #f3efe6; }
+  .ui .row small { color: #8a8578; }
+  .ui .btn { display: inline-block; font-weight: 600; padding: 5px 10px; border-radius: 7px; border: 1px solid #ddd8cc; background: #fff; }
+  .ui .btn.pri { background: #1c1b19; color: #fff; border-color: #1c1b19; }
+  .ui .ft { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #eee9dd; background: #faf8f3; }
+  .ui .ln { padding: 7px 14px; border-bottom: 1px solid #f3efe6; color: #5f5a4f; }
+  .ui .ev { margin: 4px 8px; padding: 4px 8px; border-radius: 6px; background: #dbe8fb; color: #1d3f78; }
+  .ui .ev.x { background: #eee; color: #888; text-decoration: line-through; }
+  .ui .ev.m { background: #fff; border: 1px dashed #1d3f78; }
+  .ui .dim { color: #8a8578; }
+  .ui .tabs span { padding: 3px 10px; border-radius: 6px; }
+  .ui .tabs .on { background: #eee9dd; font-weight: 650; }
+</style>
+<body>
+
+<header>
+  <h1>Фаза 20: расписание</h1>
+  <details class="thread"><summary>Откуда фаза · цель, требования, решения до неё</summary>
+    <doc-quote via="doc" from="ROADMAP.md · Phase 20">The teacher plans lessons on a week schedule built from single lessons, weekly series and occurrence exceptions, and sees each student's next lesson and remaining lessons.</doc-quote>
+    <doc-quote via="doc" from="ROADMAP.md · критерий 2">Moving or cancelling one occurrence changes only that occurrence; the rest of the series stays where it was, and later changes to the series keep that exception.</doc-quote>
+    <doc-quote via="doc" from="ROADMAP.md · критерий 3">Moving a whole series to a new weekday and time changes only future occurrences; past lessons, including those of an ended series, stay exactly as they were.</doc-quote>
+    <doc-quote via="doc" from="ROADMAP.md · критерий 4">The grid shows Vietnam time by default and can show a second time zone next to it.</doc-quote>
+    <doc-quote via="doc" from="REQUIREMENTS.md · CARD-04">The students list has status tabs, search, and shows remaining lessons and the next lesson per student.</doc-quote>
+    <doc-quote via="doc" from="память проекта · 2026-10-09">Экран Schedule в стиле Google Calendar; цвета событий придут из Google в фазах 24-25, модель цветов до спайка не строим.</doc-quote>
+    <doc-quote via="doc" from="19-CONTEXT.md · deferred">Разбор Teaching breaks.md в паузы расписания — фаза 20.</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ 1 · модель ═════ -->
+<doc-claim id="model">
+  <p>Серия хранится одним правилом, а исключения лежат отдельными строками.</p>
+  <doc-schema lang="sql" title="предлагаемые таблицы" caption="Зелёное предлагается. Статусы проведён и неявка добавит фаза 21.">
+<script type="text/plain">
++ lesson_series (
++   id uuid PK, student_id uuid FK,
++   weekday smallint,            -- 1 = Mon … 7 = Sun
++   start_time time,             -- местное время зоны серии
++   duration_minutes int,
++   starts_on date, ends_on date NULL   -- NULL = идёт дальше
++ )
++ lessons (                      -- одиночные уроки
++   id uuid PK, student_id uuid FK,
++   starts_at timestamptz, duration_minutes int
++ )
++ lesson_exceptions (            -- одно вхождение серии
++   series_id uuid FK, original_on date,
++   kind text,                   -- 'cancelled' | 'moved'
++   starts_at timestamptz NULL, duration_minutes int NULL,
++   PRIMARY KEY (series_id, original_on)
++ )
+</script>
+  </doc-schema>
+  <doc-note tone="info"><strong>Почему важно</strong> Фаза 21 вешает отметки на вхождения, фазы 24-25 дают каждому вхождению id события Google. Ключ вхождения: серия плюс исходная дата.</doc-note>
+
+  <doc-claim>
+    <p>Вхождения серии считаются на лету из правила, строк на каждое вхождение нет.</p>
+    <doc-ask id="storage">
+      <p>Где живут вхождения серии?</p>
+      <label><input type="radio" name="storage" value="rule" checked> Правило плюс исключения, вхождения считаются при показе <small>нет генератора; отметка фазы 21 создаст строку</small></label>
+      <label><input type="radio" name="storage" value="rows"> Строка на каждое вхождение на N недель вперёд <small>проще отметки, нужен генератор и догонка</small></label>
+      <label><input type="radio" name="storage" value="custom"> Свой вариант</label>
+      <input type="text" name="storage-custom">
+    </doc-ask>
+    <div data-if="storage=rows"><doc-note tone="warn">Нужна фоновая задача, которая досоздаёт вхождения. Это новый кусок инфраструктуры в фазе 20.</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Серия идёт, пока учитель её не закончит, у неё нет заранее заданного числа уроков.</p>
+    <doc-ask id="seriesend">
+      <p>Как задаётся конец серии?</p>
+      <label><input type="radio" name="seriesend" value="open" checked> Открытая, учитель заканчивает её кнопкой <small>конец = последняя дата; прошлые уроки целы</small></label>
+      <label><input type="radio" name="seriesend" value="count"> Число уроков при создании <small>удобно для пакета, но пакеты у нас по оплатам</small></label>
+      <label><input type="radio" name="seriesend" value="custom"> Свой вариант</label>
+      <input type="text" name="seriesend-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 2 · перенос и отмена ═════ -->
+<doc-claim id="change">
+  <p>Перенос серии режет её на две: старая заканчивается накануне, новая начинается с выбранной даты.</p>
+  <doc-mock frame="none" w="420"><template>
+<div class="ui">
+  <div class="hd">Move series <small>Anna · Tue 18:00</small></div>
+  <div class="ln">New day and time <b>Thu 19:00</b></div>
+  <div class="ln" data-ref="from">Starting from <b>Thu 16 Oct</b> <span class="dim">(next lesson)</span></div>
+  <div class="ft"><span class="btn pri">Move</span><span class="btn">Cancel</span></div>
+</div></template>
+    <doc-pin ref="from" title="Дата начала">Прошлые уроки остаются в старой серии.</doc-pin>
+  </doc-mock>
+  <doc-note tone="info"><strong>Почему важно</strong> Критерий 3: прошлые уроки не меняются. Разрез серии по дате даёт это без правки старых строк.</doc-note>
+
+  <doc-claim>
+    <p>Дата, с которой серия переезжает, по умолчанию равна следующему вхождению.</p>
+    <doc-ask id="movefrom">
+      <p>С какой даты действует перенос серии?</p>
+      <label><input type="radio" name="movefrom" value="next" checked> С ближайшего вхождения, дату можно изменить <small>как «это и следующие» в Google</small></label>
+      <label><input type="radio" name="movefrom" value="today"> Всегда с сегодняшнего дня <small>проще, но нет выбора даты</small></label>
+      <label><input type="radio" name="movefrom" value="custom"> Свой вариант</label>
+      <input type="text" name="movefrom-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Уже перенесённое вхождение остаётся там, где его поставил учитель.</p>
+    <doc-ask id="keepexc">
+      <p>Что с перенесёнными и отменёнными вхождениями, когда серия переезжает?</p>
+      <label><input type="radio" name="keepexc" value="keep" checked> Перенесённые остаются отдельными уроками, отменённые сбрасываются <small>старая дата в новой серии уже не существует</small></label>
+      <label><input type="radio" name="keepexc" value="reset"> Все исключения сбрасываются на новое правило <small>теряется ручная работа учителя</small></label>
+      <label><input type="radio" name="keepexc" value="custom"> Свой вариант</label>
+      <input type="text" name="keepexc-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Прошедшие уроки в этой фазе нельзя переносить и отменять.</p>
+    <doc-ask id="past">
+      <p>Можно ли менять прошедшее вхождение?</p>
+      <label><input type="radio" name="past" value="ro" checked> Нет, только смотреть; отметки добавит фаза 21 <small>ничего не ломает в учёте</small></label>
+      <label><input type="radio" name="past" value="cancel"> Можно отменить <small>раньше времени вмешивается в баланс фазы 21</small></label>
+      <label><input type="radio" name="past" value="custom"> Свой вариант</label>
+      <input type="text" name="past-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Перерывы из Teaching breaks.md в этой фазе не импортируются и не рисуются.</p>
+    <doc-ask id="breaks">
+      <p>Берём ли перерывы учителя в расписание сейчас?</p>
+      <label><input type="radio" name="breaks" value="later" checked> Нет, учитель отменяет вхождения сам <small>массовые переносы придут с чатом в фазе 23</small></label>
+      <label><input type="radio" name="breaks" value="now"> Да, список перерывов скрывает вхождения <small>новая таблица и экран, вне требований</small></label>
+      <label><input type="radio" name="breaks" value="custom"> Свой вариант</label>
+      <input type="text" name="breaks-custom">
+    </doc-ask>
+    <div data-if="breaks=now"><doc-note tone="warn">Это расширяет фазу: нет требования SCHED на перерывы, нужна своя таблица, форма и правила.</doc-note></div>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 3 · часовые пояса ═════ -->
+<doc-claim id="zones">
+  <p>Сетка показывает время Вьетнама, а вторая зона выбирается в шапке.</p>
+  <doc-mock frame="none" w="440"><template>
+<div class="ui">
+  <div class="hd">October 2026 <small>‹ Today ›</small><span class="dim" data-ref="zones">VN · MSK</span></div>
+  <div class="row"><span>18:00 VN <small>14:00 MSK</small></span><span class="ev">Anna · 60 min</span></div>
+  <div class="row"><span>19:30 VN <small>15:30 MSK</small></span><span class="ev m">Max → Thu 12</span></div>
+</div></template>
+    <doc-pin ref="zones" title="Вторая зона">Выбор в шапке сетки.</doc-pin>
+  </doc-mock>
+  <doc-note tone="info"><strong>Почему важно</strong> У карточки уже есть пустое поле <code>students.time_zone</code>. Варианту A нужны Вьетнам и Москва. Критерий 4 просит одну вторую зону рядом.</doc-note>
+
+  <doc-claim>
+    <p>Вторая зона одна на всю сетку, по умолчанию Москва, выбор помнит браузер.</p>
+    <doc-ask id="zone2">
+      <p>Откуда берётся вторая зона?</p>
+      <label><input type="radio" name="zone2" value="global" checked> Выбор в шапке сетки, по умолчанию Москва, запоминает браузер <small>ничего не пишем в базу</small></label>
+      <label><input type="radio" name="zone2" value="student"> Зона ученика из его карточки <small>поле пустое у всех 25 карточек</small></label>
+      <label><input type="radio" name="zone2" value="account"> Настройка аккаунта в базе <small>нужны таблица и экран настроек</small></label>
+      <label><input type="radio" name="zone2" value="custom"> Свой вариант</label>
+      <input type="text" name="zone2-custom">
+    </doc-ask>
+    <div data-if="zone2=account"><doc-note tone="warn">В проекте нет таблицы настроек. Потребуется миграция и экран, вне требований фазы.</doc-note></div>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 4 · сетка ═════ -->
+<doc-claim id="grid">
+  <p>Учитель создаёт урок кликом по пустой клетке сетки или кнопкой.</p>
+  <doc-mock frame="none" w="440"><template>
+<div class="ui">
+  <div class="hd">New lesson <small>Tue 14 Oct · 18:00 VN</small></div>
+  <div class="ln" data-ref="stu">Student <b>Anna</b></div>
+  <div class="ln">Length <b>60 min</b> <span class="dim">(from the card)</span></div>
+  <div class="ln">Repeats <b>Every week</b></div>
+  <div class="ft"><span class="btn pri">Create</span><span class="btn">Cancel</span></div>
+</div></template>
+    <doc-pin ref="stu" title="Подставляется из карточки">Длина урока берётся из <code>default_lesson_minutes</code>.</doc-pin>
+  </doc-mock>
+  <doc-note tone="info"><strong>Почему важно</strong> Фаза 23 приносит телефонную раскладку, здесь сетка для компьютера. Блоки по статусам из варианта A: отменён зачёркнут, перенесён с пунктиром.</doc-note>
+
+  <doc-claim>
+    <p>Клик по клетке открывает диалог с подставленными днём, временем и длиной.</p>
+    <doc-ask id="create">
+      <p>Как создаётся урок?</p>
+      <label><input type="radio" name="create" value="slot" checked> Клик по клетке и кнопка «New lesson» <small>как в Google Calendar</small></label>
+      <label><input type="radio" name="create" value="button"> Только кнопка «New lesson» <small>меньше кода, меньше привычности</small></label>
+      <label><input type="radio" name="create" value="custom"> Свой вариант</label>
+      <input type="text" name="create-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Пересекающиеся уроки показываются рядом с предупреждением и не блокируются.</p>
+    <doc-ask id="overlap">
+      <p>Что делать с уроками, которые пересекаются по времени?</p>
+      <label><input type="radio" name="overlap" value="warn" checked> Разрешить, показать рядом и предупредить <small>как в варианте A; групповые уроки возможны</small></label>
+      <label><input type="radio" name="overlap" value="block"> Не давать сохранить <small>исключает ошибки, мешает групповым урокам</small></label>
+      <label><input type="radio" name="overlap" value="custom"> Свой вариант</label>
+      <input type="text" name="overlap-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Сетка показывает сутки целиком и при открытии прокручена к рабочему дню.</p>
+    <doc-ask id="hours">
+      <p>Какие часы показывает сетка?</p>
+      <label><input type="radio" name="hours" value="full" checked> Сутки, открывается на 08:00 по Вьетнаму <small>вечерние и ночные уроки видны</small></label>
+      <label><input type="radio" name="hours" value="fixed"> Фиксированно 09:00-22:00 <small>как вариант A, но по московскому времени</small></label>
+      <label><input type="radio" name="hours" value="custom"> Свой вариант</label>
+      <input type="text" name="hours-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 5 · список учеников ═════ -->
+<doc-claim id="students">
+  <p>Список учеников получает вкладки статуса, поиск, остаток уроков и следующий урок.</p>
+  <doc-mock frame="none" w="440"><template>
+<div class="ui">
+  <div class="hd"><span class="tabs"><span class="on">Active</span><span>Archived</span></span><span class="dim" data-ref="q">Search…</span></div>
+  <div class="row"><b>Anna</b><span>6.5 left</span><small>Next: Tue 14 Oct, 18:00</small><span></span></div>
+  <div class="row"><b>Max</b><span class="dim" data-ref="unset">Set opening balance</span><small>Next: none</small><span></span></div>
+</div></template>
+    <doc-pin ref="unset" title="Остаток не задан">Число появится после ввода остатка.</doc-pin>
+  </doc-mock>
+  <doc-note tone="info"><strong>Почему важно</strong> Остаток считает <code>packages/core</code> по решению D-09 фазы 19; вычитание за уроки добавит фаза 21. Вкладка «pays soon» тоже появится в 21.</doc-note>
+
+  <doc-claim>
+    <p>Вкладок две: Active и Archived, поиск идёт по имени среди загруженных карточек.</p>
+    <doc-ask id="tabs">
+      <p>Какие вкладки статуса нужны сейчас?</p>
+      <label><input type="radio" name="tabs" value="two" checked> Active и Archived, поиск по имени на клиенте <small>карточек 25, сервер для поиска не нужен</small></label>
+      <label><input type="radio" name="tabs" value="three"> Active, Archived и All <small>All почти не нужна, вкладок больше</small></label>
+      <label><input type="radio" name="tabs" value="custom"> Свой вариант</label>
+      <input type="text" name="tabs-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Следующий урок берётся из расписания и показывается во времени Вьетнама.</p>
+    <doc-ask id="nextfmt">
+      <p>Как показывать следующий урок в списке?</p>
+      <label><input type="radio" name="nextfmt" value="abs" checked> Дата и время: «Tue 14 Oct, 18:00» <small>однозначно, без пересчёта «сегодня» и «завтра»</small></label>
+      <label><input type="radio" name="nextfmt" value="rel"> Относительно: «Tomorrow, 18:00» <small>короче, надо следить за границей суток</small></label>
+      <label><input type="radio" name="nextfmt" value="custom"> Свой вариант</label>
+      <input type="text" name="nextfmt-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ scope ═════ -->
+<doc-claim aux="scope">
+  <p>Фаза 20 не делает цвета Google, отметки уроков, вкладку «pays soon», телефонную раскладку и массовые переносы.</p>
+  <ul>
+    <li>Цвета событий и их модель: фазы 24-25, после спайка с <code>colors.get</code>.</li>
+    <li>Отметки «проведён», «неявка» и вычитание из остатка: фаза 21.</li>
+    <li>Расписание на телефоне: фаза 23 (SHELL-03).</li>
+    <li>Массовые переносы и отмена диапазона: чат, фаза 23.</li>
+    <li>Синхронизация с Google Calendar: фазы 24-25.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>

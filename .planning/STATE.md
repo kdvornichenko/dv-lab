@@ -5,16 +5,16 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 20
 current_phase_name: Schedule
 status: paused
-stopped_at: Phase 19 merged (PR #5, d24da59), released on the VPS and the vault import done (25 cards, 66 sections, 762 terms, 29 payments); paused before phase 20 (Schedule): discuss-phase 20 is the next step; owner items pending: change the password on dv-lab.dev, set the opening balance on each card, apex TTL (RUNBOOK 3.5)
-last_updated: "2026-10-09T19:21:09.223Z"
+stopped_at: Phase 20 context gathered
+last_updated: "2026-10-10T05:37:23.505Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 17 execution started
-state_head: 8cf535e5f1398d2ee3a313a11e9a2419af461b46
+state_head: 1e92d951af197b15aafcdee6ab37833d64481cf6
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 48
-  completed_plans: 16
+  total_plans: 49
+  completed_plans: 49
   percent: 0
 ---
 
@@ -34,7 +34,7 @@ Plan: 0 of 0
 Status: Phase 19 is done: merged, released on the VPS (DEPLOY_OK on d24da59) and the one-time vault import ran (RUNBOOK 11.2, never repeat). Phase 18 is live and the owner signed in; the password change is not confirmed (auth_epoch 0). Remaining human steps: change the password on dv-lab.dev, set the opening balance on every card, return the apex TTL (RUNBOOK 3.5).
 Last activity: 2026-10-10 — Phase 19 released and imported; session paused before phase 20
 
-Progress: [██████████] 100% of phases 17-19 executed
+Progress: [░░░░░░░░░░] 0% of phases 17-19 executed
 
 ## Deferred Verification
 
@@ -107,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T12:13:32.095Z
-Stopped at: Completed 17-03-PLAN.md
-Resume file: None
+Last session: 2026-10-10T05:37:23.430Z
+Stopped at: Phase 20 context gathered
+Resume file: .planning/phases/20-schedule/20-CONTEXT.md
