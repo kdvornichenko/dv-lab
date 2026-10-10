@@ -37,9 +37,16 @@ function wallParts(instant: number, zone: string): WallParts {
 	}
 }
 
+function utcMs(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): number {
+	const date = new Date(0)
+	date.setUTCFullYear(year, month - 1, day)
+	date.setUTCHours(hour, minute, second, 0)
+	return date.getTime()
+}
+
 function offsetMs(instant: number, zone: string): number {
 	const wall = wallParts(instant, zone)
-	const asUtc = Date.UTC(wall.year, wall.month - 1, wall.day, wall.hour, wall.minute, wall.second)
+	const asUtc = utcMs(wall.year, wall.month, wall.day, wall.hour, wall.minute, wall.second)
 	return asUtc - Math.floor(instant / 1000) * 1000
 }
 
@@ -50,7 +57,7 @@ function dateParts(date: string): [number, number, number] {
 }
 
 function utcDate(year: number, month: number, day: number): string {
-	return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10)
+	return new Date(utcMs(year, month, day)).toISOString().slice(0, 10)
 }
 
 export function addDays(date: string, days: number): string {
@@ -60,7 +67,7 @@ export function addDays(date: string, days: number): string {
 
 export function weekdayOf(date: string): Weekday {
 	const [year, month, day] = dateParts(date)
-	return (((new Date(Date.UTC(year, month - 1, day)).getUTCDay() + 6) % 7) + 1) as Weekday
+	return (((new Date(utcMs(year, month, day)).getUTCDay() + 6) % 7) + 1) as Weekday
 }
 
 export function mondayOf(date: string): string {
@@ -84,7 +91,7 @@ export function zonedParts(instant: Date, zone: string): ZonedParts {
 
 export function zonedInstant(date: string, time: string, zone: string): Date {
 	const [year, month, day] = dateParts(date)
-	const wall = Date.UTC(year, month - 1, day, Number(time.slice(0, 2)), Number(time.slice(3, 5)))
+	const wall = utcMs(year, month, day, Number(time.slice(0, 2)), Number(time.slice(3, 5)))
 	const first = wall - offsetMs(wall, zone)
 	const second = wall - offsetMs(first, zone)
 	return new Date(second)

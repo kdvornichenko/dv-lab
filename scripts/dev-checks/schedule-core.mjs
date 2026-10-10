@@ -25,6 +25,8 @@ function partOne() {
 		['2026-10-14', '18:00', 'Europe/Moscow'],
 		['2026-03-29', '12:00', 'Europe/Berlin'],
 		['2026-10-25', '12:00', 'Europe/Berlin'],
+		['0050-03-03', '10:00', 'UTC'],
+		['0099-12-31', '23:45', 'Europe/Moscow'],
 	]
 	const days = Array.from({ length: 14 }, (_, index) => core.addDays('2026-10-10', index))
 	const columns = [
@@ -52,6 +54,19 @@ function partOne() {
 	})
 	const weekdaysMatch = days.every((date, index) => core.weekdayOf(date) === row[`w${index}`])
 	check('weekdayOf = isodow for 14 days', weekdaysMatch)
+	const early = sql(
+		`select (date '0050-01-01' + 1)::text as next, (date '0099-12-31' + 1)::text as century, extract(isodow from date '0050-03-03')::int as weekday`
+	).rows[0]
+	const vnEarly = core.zonedParts(core.zonedInstant('0050-03-03', '10:00', VN), VN)
+	check(
+		'years 0001-0099 stay in their century',
+		core.addDays('0050-01-01', 1) === early.next &&
+			core.addDays('0099-12-31', 1) === early.century &&
+			core.weekdayOf('0050-03-03') === early.weekday &&
+			vnEarly.date === '0050-03-03' &&
+			vnEarly.time === '10:00',
+		JSON.stringify({ early, vnEarly })
+	)
 
 	const series = [
 		{
