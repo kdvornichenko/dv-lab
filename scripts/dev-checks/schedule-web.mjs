@@ -1208,8 +1208,8 @@ async function readPart2(page, fx, nav) {
 	)
 	check('dialog: body scrolls with the fade', facts.fade === true)
 	check(
-		'dialog: no actions in this plan for a future lesson',
-		!facts.buttons.some((text) => /Move|Cancel|Restore|Return/.test(text ?? ''))
+		'dialog: a future planned lesson offers Move lesson and Cancel lesson',
+		facts.buttons.includes('Move lesson') && facts.buttons.includes('Cancel lesson')
 	)
 	await shot(page, 'sched-read', 'dialog')
 	await page.keyboard.press('Escape')
@@ -1314,8 +1314,8 @@ function dayAttr(date) {
 	return `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}/${date.slice(0, 4)}`
 }
 
-async function pickDate(page, date) {
-	await page.locator('#new-lesson-date').click()
+async function pickDate(page, date, id = 'new-lesson-date') {
+	await page.locator(`#${id}`).click()
 	const cell = page.locator(`button[data-day="${dayAttr(date)}"]`).first()
 	for (let step = 0; step < 4 && (await cell.count()) === 0; step += 1) {
 		await page.getByRole('button', { name: /next month/i }).click()
@@ -1329,8 +1329,8 @@ async function pickDate(page, date) {
 	await page.waitForTimeout(250)
 }
 
-async function pickTime(page, time) {
-	await page.locator('#new-lesson-time').click()
+async function pickTime(page, time, id = 'new-lesson-time') {
+	await page.locator(`#${id}`).click()
 	await page
 		.getByRole('listbox', { name: 'Hours' })
 		.getByRole('option', { name: time.slice(0, 2), exact: true })
@@ -1692,7 +1692,328 @@ async function read() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_READ_OK')
 }
 
-const sections = { fade, frame, read }
+const CHANGES_LIKE = 'Alex Example 2008%'
+const CH_A = 'Alex Example 2008 A'
+const CH_B = 'Alex Example 2008 B'
+const CH_C = 'Alex Example 2008 C'
+const CH_D = 'Alex Example 2008 D'
+
+function shortDay(date) {
+	return `${WEEKDAYS[core.weekdayOf(date) - 1]} ${dayMonth(date)}`
+}
+
+const slotLocator = (page, name, date, slot = 'to') =>
+	page
+		.locator(`[data-slot="week-grid-column"][data-date="${date}"] button[data-slot="${slot}"][aria-label^="${name}, "]`)
+		.first()
+
+async function changesFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const wed = core.firstOnOrAfter(core.addDays(today, 1), 3)
+	const a = await createCard(page, CH_A, 60, null)
+	const b = await createCard(page, CH_B, 60, null)
+	const startsOn = core.addDays(wed, -21)
+	const inserted = sql(
+		`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on) values (${quote(a)}, 3, '18:00', 60, ${quote(startsOn)}) returning id`
+	)
+	check('series A with past lessons created through sql', inserted.rowCount === 1)
+	const single = await api(page, 'POST', '/schedule/lessons', {
+		studentId: b,
+		date: wed,
+		startTime: '12:00',
+		durationMinutes: 60,
+		repeats: 'once',
+	})
+	check('single B created through the api', single.status === 201, String(single.status))
+	return {
+		today,
+		a,
+		b,
+		seriesId: inserted.rows?.[0]?.id,
+		startsOn,
+		wed,
+		thursday: core.addDays(wed, 1),
+		friday: core.addDays(wed, 2),
+		pastWed: core.addDays(wed, -14),
+		staleWed: core.addDays(wed, 7),
+		laterWed: core.addDays(wed, 14),
+	}
+}
+
+async function pastSnapshot(page, fx) {
+	const lines = []
+	for (const monday of [core.mondayOf(fx.startsOn), core.mondayOf(fx.pastWed)]) {
+		const result = await api(page, 'GET', `/schedule/week?start=${monday}`)
+		for (const block of result.json?.blocks ?? []) {
+			if (block.studentId !== fx.a) continue
+			lines.push(
+				[block.key, block.startsAt, block.durationMinutes, block.status, block.movedTo, block.movedFrom].join('|')
+			)
+		}
+	}
+	return lines.sort()
+}
+
+async function dialogButtons(page) {
+	return page
+		.getByRole('dialog')
+		.evaluate((element) => Array.from(element.querySelectorAll('button')).map((button) => button.textContent?.trim()))
+}
+
+async function toastText(page, title, expected = '') {
+	const found = await page
+		.waitForFunction(
+			({ title, expected }) =>
+				Array.from(document.querySelectorAll('*'))
+					.filter((node) => node.childElementCount === 0 && node.textContent === title)
+					.map((node) => node.parentElement?.textContent ?? '')
+					.find((text) => text.includes(expected)) ?? false,
+			{ title, expected },
+			{ timeout: 15000 }
+		)
+		.then((handle) => handle.jsonValue())
+		.catch(() => null)
+	if (found !== null) return found
+	return (
+		(await page
+			.getByText(title, { exact: true })
+			.last()
+			.locator('xpath=..')
+			.textContent()
+			.catch(() => '')) ?? ''
+	)
+}
+
+async function waitBlock(page, name, date, slot, fragment) {
+	return page
+		.waitForFunction(
+			({ name, date, slot, fragment }) => {
+				const element = document.querySelector(
+					`[data-slot="week-grid-column"][data-date="${date}"] button[data-slot="${slot}"][aria-label^="${name}, "]`
+				)
+				return (element?.getAttribute('aria-label') ?? '').includes(fragment)
+			},
+			{ name, date, slot, fragment },
+			{ timeout: 15000 }
+		)
+		.then(() => true)
+		.catch(() => false)
+}
+
+async function blockFacts(page, name, date, slot = 'to') {
+	const data = await readBlocks(page)
+	return { data, block: ofCard(data, name).find((block) => block.date === date && block.slot === slot) ?? null }
+}
+
+async function closeDialog(page) {
+	await page.keyboard.press('Escape')
+	await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(300)
+}
+
+async function focusedBlock(page) {
+	return page.evaluate(() => ({
+		key: document.activeElement?.getAttribute('data-key') ?? null,
+		slot: document.activeElement?.getAttribute('data-slot') ?? null,
+		date: document.activeElement?.closest('[data-slot="week-grid-column"]')?.getAttribute('data-date') ?? null,
+		tag: document.activeElement?.tagName ?? null,
+	}))
+}
+
+async function changesPart1(page, fx, nav, posts) {
+	const dialog = page.getByRole('dialog')
+	await goToWeek(page, nav, core.mondayOf(fx.wed))
+	await slotLocator(page, CH_A, fx.wed).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	let buttons = await dialogButtons(page)
+	check(
+		'cancel: a future planned lesson has Move lesson and Cancel lesson in the footer',
+		buttons.includes('Move lesson') && buttons.includes('Cancel lesson'),
+		buttons.join('|')
+	)
+	await dialog.getByRole('button', { name: 'Cancel lesson' }).click()
+	await page.waitForTimeout(250)
+	const question = dialog.locator('[data-slot="lesson-cancel-question"]')
+	const asked = await question.evaluate((element) => ({
+		text: element.textContent,
+		role: element.getAttribute('role'),
+	}))
+	check(
+		'cancel: the footer asks with the date and time',
+		asked.text.includes(`Cancel the lesson on ${dayMonth(fx.wed)} at 18:00?`) && asked.role === 'alert',
+		asked.text
+	)
+	buttons = await dialogButtons(page)
+	check(
+		'cancel: the question offers Keep and Yes, cancel instead of the buttons',
+		buttons.includes('Keep') && buttons.includes('Yes, cancel') && !buttons.includes('Move lesson'),
+		buttons.join('|')
+	)
+	await shot(page, 'sched-changes', 'cancel-question')
+	await dialog.getByRole('button', { name: 'Keep', exact: true }).click()
+	await page.waitForTimeout(250)
+	buttons = await dialogButtons(page)
+	check(
+		'cancel: Keep brings the buttons back',
+		buttons.includes('Move lesson') && buttons.includes('Cancel lesson') && !buttons.includes('Yes, cancel'),
+		buttons.join('|')
+	)
+	await dialog.getByRole('button', { name: 'Cancel lesson' }).click()
+	await dialog.getByRole('button', { name: 'Yes, cancel' }).click()
+	const cancelledToast = await toastText(page, 'Lesson cancelled')
+	check(
+		'cancel: toast names the lesson',
+		cancelledToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00.`),
+		cancelledToast
+	)
+	check('cancel: the block turns cancelled on the grid', await waitBlock(page, CH_A, fx.wed, 'to', ', cancelled'))
+	let facts = await blockFacts(page, CH_A, fx.wed)
+	check(
+		'cancel: the block stays, without fill and struck through',
+		facts.block !== null &&
+			facts.block.background === facts.data.transparent &&
+			facts.block.decoration.includes('line-through'),
+		facts.block ? `${facts.block.background}/${facts.block.decoration}` : 'no block'
+	)
+	await page.waitForTimeout(300)
+	buttons = await dialogButtons(page)
+	const cancelledText = await dialog.textContent()
+	check(
+		'cancel: the dialog shows the cancelled lesson with Return to schedule',
+		cancelledText.includes('Cancelled') && buttons.includes('Return to schedule') && !buttons.includes('Cancel lesson'),
+		buttons.join('|')
+	)
+	await shot(page, 'sched-changes', 'cancelled')
+	await dialog.getByRole('button', { name: 'Return to schedule' }).click()
+	const restoredToast = await toastText(page, 'Lesson restored')
+	check(
+		'restore: toast names the lesson',
+		restoredToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00.`),
+		restoredToast
+	)
+	check('restore: the block is planned again', await waitBlock(page, CH_A, fx.wed, 'to', ', planned'))
+	facts = await blockFacts(page, CH_A, fx.wed)
+	check(
+		'restore: the block is filled again',
+		facts.block !== null && facts.block.background === facts.data.selected,
+		facts.block?.background
+	)
+	await page.waitForTimeout(300)
+	buttons = await dialogButtons(page)
+	check('restore: the dialog offers Move lesson again', buttons.includes('Move lesson'), buttons.join('|'))
+	await closeDialog(page)
+	const focusA = await focusedBlock(page)
+	check(
+		'restore: closing returns focus to the block',
+		focusA.slot === 'to' && focusA.date === fx.wed && focusA.key === facts.block?.key,
+		JSON.stringify(focusA)
+	)
+
+	await slotLocator(page, CH_B, fx.wed).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await dialog.getByRole('button', { name: 'Cancel lesson' }).click()
+	await dialog.getByRole('button', { name: 'Yes, cancel' }).click()
+	const singleToast = await toastText(page, 'Lesson cancelled', CH_B)
+	check('single cancel: toast names B', singleToast.includes(`${CH_B}, ${shortDay(fx.wed)}, 12:00.`), singleToast)
+	check('single cancel: B is cancelled on the grid', await waitBlock(page, CH_B, fx.wed, 'to', ', cancelled'))
+	await page.waitForTimeout(300)
+	await dialog.getByRole('button', { name: 'Return to schedule' }).click()
+	await toastText(page, 'Lesson restored', CH_B)
+	check('single restore: B is planned again', await waitBlock(page, CH_B, fx.wed, 'to', ', planned'))
+	await closeDialog(page)
+
+	await goToWeek(page, nav, core.mondayOf(fx.staleWed))
+	await slotLocator(page, CH_A, fx.staleWed).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	const moved = await api(page, 'POST', `/schedule/series/${fx.seriesId}/occurrences/${fx.staleWed}/move`, {
+		date: fx.staleWed,
+		startTime: '19:00',
+	})
+	check('stale: the occurrence is moved an hour later behind the dialog', moved.status === 200, String(moved.status))
+	const sent = posts.length
+	await dialog.getByRole('button', { name: 'Cancel lesson' }).click()
+	await dialog.getByRole('button', { name: 'Yes, cancel' }).click()
+	const stale = await dialog
+		.locator('[data-slot="lesson-stale"]')
+		.waitFor({ timeout: 15000 })
+		.then(() => dialog.locator('[data-slot="lesson-stale"]').textContent())
+		.catch(() => null)
+	check(
+		'stale: a 409 shows the banner of changed data',
+		stale !== null &&
+			stale.includes('This lesson was changed elsewhere') &&
+			stale.includes('The schedule has been refreshed.'),
+		stale ?? 'no banner'
+	)
+	const request = posts.slice(sent).find((post) => post.url.includes(`/occurrences/${fx.staleWed}/cancel`))
+	check(
+		'stale: the request carried the start the teacher saw',
+		request !== undefined && JSON.parse(request.body ?? '{}').expectedStartsAt === whenText(fx.staleWed, '18:00'),
+		request?.body ?? 'no request'
+	)
+	check(
+		'stale: the grid shows the new time after the refresh',
+		await waitBlock(page, CH_A, fx.staleWed, 'from', 'moved to')
+	)
+	facts = await blockFacts(page, CH_A, fx.staleWed)
+	check(
+		'stale: the destination stands at 19:00',
+		facts.block !== null && Math.abs(facts.block.top - 19 * 48) <= 1.5,
+		facts.block ? String(facts.block.top) : 'no block'
+	)
+	const staleText = await dialog.textContent()
+	check('stale: the dialog now shows 19:00', staleText.includes('19:00–20:00 VN'), staleText.slice(0, 200))
+	await shot(page, 'sched-changes', 'stale')
+	await closeDialog(page)
+
+	await goToWeek(page, nav, core.mondayOf(fx.pastWed))
+	await slotLocator(page, CH_A, fx.pastWed).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	buttons = await dialogButtons(page)
+	check(
+		'past: no Move lesson and no Cancel lesson',
+		!buttons.includes('Move lesson') && !buttons.includes('Cancel lesson'),
+		buttons.join('|')
+	)
+	await closeDialog(page)
+}
+
+async function changes() {
+	cleanupFixtures('changes start')
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	const posts = []
+	try {
+		await setTheme(page)
+		await signIn(page)
+		const fx = await changesFixtures(page)
+		const before = await pastSnapshot(page, fx)
+		check('past weeks snapshot holds two A blocks', before.length === 2, String(before.length))
+		page.on('request', (request) => {
+			if (request.method() === 'POST' && request.url().includes('/api/schedule/')) {
+				posts.push({ url: request.url(), body: request.postData() })
+			}
+		})
+		await openSchedule(page)
+		const nav = { monday: core.mondayOf(fx.today) }
+		await changesPart1(page, fx, nav, posts)
+		const afterPart1 = await pastSnapshot(page, fx)
+		check('past weeks snapshot is unchanged after part 1', afterPart1.join('\n') === before.join('\n'))
+		console.log('CHANGES_PART1_OK')
+		const real = problems.filter(
+			(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409)/.test(problem)
+		)
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+		cleanupFixtures('changes end', CHANGES_LIKE)
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_CHANGES_OK')
+}
+
+const sections = { fade, frame, read, changes }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)

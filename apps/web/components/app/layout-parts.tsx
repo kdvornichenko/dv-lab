@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 import { WorkspaceTile } from '@/components/sidebar-app/workspace-header'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -66,14 +66,21 @@ interface PageHeaderProps {
 	eyebrow?: ReactNode
 	description?: ReactNode
 	actions?: ReactNode
+	titleRef?: Ref<HTMLHeadingElement>
 }
 
-export function PageHeader({ title, eyebrow, description, actions }: PageHeaderProps) {
+export function PageHeader({ title, eyebrow, description, actions, titleRef }: PageHeaderProps) {
 	return (
 		<header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 			<div className="flex min-w-0 flex-col gap-1">
 				{eyebrow ? <p className="text-caption text-muted-foreground">{eyebrow}</p> : null}
-				<h1 className="text-display font-semibold tracking-tight text-foreground">{title}</h1>
+				<h1
+					ref={titleRef}
+					tabIndex={titleRef === undefined ? undefined : -1}
+					className="text-display font-semibold tracking-tight text-foreground outline-none"
+				>
+					{title}
+				</h1>
 				{description ? <div className="text-body text-muted-foreground">{description}</div> : null}
 			</div>
 			{actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

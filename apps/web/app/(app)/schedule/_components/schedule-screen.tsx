@@ -9,15 +9,25 @@ import { ReadError } from '@/components/app/read-error'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
-import { lessonCount, weekEyebrow, weekPhrase, weekRange, weekSummary, weeksBetween } from '@/lib/schedule-format'
+import {
+	formatWhen,
+	lessonCount,
+	weekEyebrow,
+	weekPhrase,
+	weekRange,
+	weekSummary,
+	weeksBetween,
+} from '@/lib/schedule-format'
 import { zoneCaption } from '@/lib/time-zones'
 
 import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
 
+import { useToast } from '../../_components/toasts'
 import { blockSlot, type BlockSlot } from './lesson-block'
-import { LessonDialog, type PairTarget } from './lesson-dialog'
+import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
+import { mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { SecondZoneSelect, useSecondZone } from './second-zone-select'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
@@ -81,7 +91,10 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
 	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
 	const newButton = useRef<HTMLButtonElement>(null)
+	const titleRef = useRef<HTMLHeadingElement>(null)
+	const toast = useToast()
 	const today = zonedParts(now, SCHEDULE_TIME_ZONE).date
+	const currentYear = Number(today.slice(0, 4))
 	const currentMonday = mondayOf(today)
 	const monday = addDays(currentMonday, offset * 7)
 	const [zone, setZone] = useSecondZone()
@@ -156,13 +169,30 @@ function LoadedSchedule({ now }: { now: Date }) {
 		requestAnimationFrame(() => newButton.current?.focus())
 	}
 
+	function focusBlock(target: OpenLesson) {
+		requestAnimationFrame(() => {
+			const element = document.querySelector<HTMLElement>(`[data-key="${target.key}"][data-slot="${target.slot}"]`)
+			if (element) element.focus()
+			else titleRef.current?.focus()
+		})
+	}
+
 	function closeLesson() {
 		const closed = lesson
 		setLesson(null)
-		if (closed === null) return
-		requestAnimationFrame(() =>
-			document.querySelector<HTMLElement>(`[data-key="${closed.key}"][data-slot="${closed.slot}"]`)?.focus()
-		)
+		if (closed !== null) focusBlock(closed)
+	}
+
+	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
+		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
+		if (result.kind === 'failed') return 'failed'
+		reload()
+		if (result.kind === 'stale') return 'stale'
+		toast.show({
+			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
+			description: `${block.studentName}, ${formatWhen(new Date(block.startsAt), SCHEDULE_TIME_ZONE, currentYear)}.`,
+		})
+		return 'ok'
 	}
 
 	function openPair(target: PairTarget) {
@@ -177,7 +207,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 
 	const week: WeekState = loaded !== null && loaded.monday === monday ? loaded.state : { kind: 'loading' }
-	const currentYear = Number(today.slice(0, 4))
 
 	if (week.kind === 'error') {
 		return (
@@ -201,6 +230,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	return (
 		<PageScroll>
 			<PageHeader
+				titleRef={titleRef}
 				eyebrow={weekEyebrow(monday, currentMonday)}
 				title={weekRange(monday)}
 				description={ready ? weekSummary(week.data.blocks) : <SkeletonText className="w-48 py-0.5" />}
@@ -254,6 +284,8 @@ function LoadedSchedule({ now }: { now: Date }) {
 					currentYear={currentYear}
 					onClose={closeLesson}
 					onOpenPair={openPair}
+					onCancel={() => changeLesson(openBlock, 'cancel')}
+					onRestore={() => changeLesson(openBlock, 'restore')}
 				/>
 			) : null}
 			{newLesson !== null ? (

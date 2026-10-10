@@ -1,11 +1,21 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
+import { CalendarCheck2, CalendarClock, CalendarX2 } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/app/avatar'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
 	formatDate,
@@ -21,12 +31,15 @@ import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { LessonStatus, type BlockSlot } from './lesson-block'
+import { STALE_LESSON, STALE_TITLE } from './schedule-mutations'
 
 export interface PairTarget {
 	key: string
 	slot: BlockSlot
 	at: Date
 }
+
+export type ActionOutcome = 'ok' | 'stale' | 'failed'
 
 interface LessonDialogProps {
 	block: ScheduleBlock
@@ -35,6 +48,15 @@ interface LessonDialogProps {
 	currentYear: number
 	onClose: () => void
 	onOpenPair: (target: PairTarget) => void
+	onCancel: () => Promise<ActionOutcome>
+	onRestore: () => Promise<ActionOutcome>
+}
+
+type Notice = 'stale' | 'cancel' | 'restore' | null
+
+const FAILURE: Record<Exclude<Notice, 'stale' | null>, string> = {
+	cancel: 'Could not cancel the lesson. Try again.',
+	restore: 'Could not restore the lesson. Try again.',
 }
 
 function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
@@ -46,10 +68,26 @@ function Detail({ label, wide, children }: { label: string; wide?: boolean; chil
 	)
 }
 
+function cancelQuestion(start: Date): string {
+	return `Cancel the lesson on ${formatDayMonth(start, SCHEDULE_TIME_ZONE)} at ${formatTime(start, SCHEDULE_TIME_ZONE)}?`
+}
+
 const pairButtonClass =
 	'cursor-pointer rounded-sm text-body text-foreground underline underline-offset-2 outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-focus-ring'
 
-export function LessonDialog({ block, series, secondZone, currentYear, onClose, onOpenPair }: LessonDialogProps) {
+export function LessonDialog({
+	block,
+	series,
+	secondZone,
+	currentYear,
+	onClose,
+	onOpenPair,
+	onCancel,
+	onRestore,
+}: LessonDialogProps) {
+	const [confirming, setConfirming] = useState(false)
+	const [pending, setPending] = useState(false)
+	const [notice, setNotice] = useState<Notice>(null)
 	const start = new Date(block.startsAt)
 	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
 	const second = secondRange(start, block.durationMinutes, secondZone)
@@ -60,15 +98,27 @@ export function LessonDialog({ block, series, secondZone, currentYear, onClose, 
 		`${range} VN`,
 		...(second === null ? [] : [second]),
 	].join(' · ')
+	const plannedActions = block.changeable && block.status === 'scheduled'
+	const restoreAction = block.changeable && block.status === 'cancelled'
+
+	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
+		if (pending) return
+		setPending(true)
+		setNotice(null)
+		const outcome = await action()
+		setPending(false)
+		setConfirming(false)
+		setNotice(outcome === 'ok' ? null : outcome === 'stale' ? 'stale' : failure)
+	}
 
 	return (
 		<Dialog
 			open
 			onOpenChange={(open) => {
-				if (!open) onClose()
+				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="lg">
+			<DialogContent size="lg" showCloseButton={!pending}>
 				<DialogHeader>
 					<div className="flex min-w-0 items-center gap-2 pr-8">
 						<Avatar name={block.studentName} />
@@ -85,6 +135,16 @@ export function LessonDialog({ block, series, secondZone, currentYear, onClose, 
 				</DialogHeader>
 				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 					<div className="flex flex-col gap-4 py-1">
+						{notice === 'stale' ? (
+							<Banner status="warning" data-slot="lesson-stale">
+								<BannerTitle>{STALE_TITLE}</BannerTitle>
+								<BannerDescription>{STALE_LESSON}</BannerDescription>
+							</Banner>
+						) : notice !== null ? (
+							<Banner status="error" data-slot="lesson-failed">
+								<BannerTitle>{FAILURE[notice]}</BannerTitle>
+							</Banner>
+						) : null}
 						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body">
 							<LessonStatus status={block.status} />
 							{movedTo !== null ? (
@@ -126,6 +186,69 @@ export function LessonDialog({ block, series, secondZone, currentYear, onClose, 
 						</dl>
 					</div>
 				</ScrollArea>
+				{plannedActions ? (
+					<DialogFooter>
+						{confirming ? (
+							<div
+								role="alert"
+								data-slot="lesson-cancel-question"
+								className="flex w-full flex-wrap items-center justify-end gap-2"
+							>
+								<span className="mr-auto text-body text-foreground">{cancelQuestion(start)}</span>
+								<Button
+									type="button"
+									variant="ghost"
+									size="compact"
+									disabled={pending}
+									onClick={() => setConfirming(false)}
+								>
+									Keep
+								</Button>
+								<Button
+									type="button"
+									size="compact"
+									leadingIcon={CalendarX2}
+									loading={pending}
+									onClick={() => void run(onCancel, 'cancel')}
+								>
+									{pending ? 'Cancelling…' : 'Yes, cancel'}
+								</Button>
+							</div>
+						) : (
+							<div className="flex w-full flex-wrap items-center justify-end gap-2">
+								<Button type="button" variant="secondary" size="compact" leadingIcon={CalendarClock}>
+									Move lesson
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="compact"
+									leadingIcon={CalendarX2}
+									onClick={() => {
+										setNotice(null)
+										setConfirming(true)
+									}}
+								>
+									Cancel lesson
+								</Button>
+							</div>
+						)}
+					</DialogFooter>
+				) : null}
+				{restoreAction ? (
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="secondary"
+							size="compact"
+							leadingIcon={CalendarCheck2}
+							loading={pending}
+							onClick={() => void run(onRestore, 'restore')}
+						>
+							Return to schedule
+						</Button>
+					</DialogFooter>
+				) : null}
 			</DialogContent>
 		</Dialog>
 	)
