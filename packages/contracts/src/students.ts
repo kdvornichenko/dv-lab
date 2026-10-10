@@ -144,6 +144,7 @@ export type StudentRow = {
 	currency: Currency | null
 	defaultLessonMinutes: number
 	balanceMinutes: number | null
+	nextLessonAt: string | null
 }
 
 export type StudentsResponse = { students: StudentRow[]; unassignedPayments: number }
