@@ -1,33 +1,38 @@
 {
   "version": "1.0",
-  "timestamp": "2026-10-10T18:30:00Z",
-  "phase": "20",
-  "phase_name": "Schedule",
-  "phase_dir": ".planning/phases/20-schedule",
-  "plan": 10,
-  "task": 3,
-  "total_tasks": 3,
+  "timestamp": "2026-10-10T14:50:03Z",
+  "phase": "21",
+  "phase_name": "Lesson Accounting and Today",
+  "phase_dir": ".planning/phases/21-lesson-accounting-and-today",
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 16,
   "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Планы 20-01..20-10, 20-TP, 20-ES выполнены", "status": "done", "commit": "dfdde1b"}
+    {"id": 1, "name": "Контекст, архитектурный осмотр, исследование, UI-SPEC (дизайн v36), паттерны", "status": "done", "commit": "87c6db2"},
+    {"id": 2, "name": "16 планов в 10 волнах, ревью-сквад, страница ревью планов принята без изменений", "status": "done", "commit": "978cfae"},
+    {"id": 3, "name": "Раздел «Дизайн интерфейса» перенесён в AGENTS.md", "status": "done", "commit": "1bad919"}
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "PR https://github.com/kdvornichenko/dv-lab/pull/6: дождаться CI и слить gh pr merge --merge", "status": "not_started"},
-    {"id": 2, "name": "Ручной просмотр сетки расписания владельцем (во встроенном браузере не смотрели)", "status": "not_started"},
-    {"id": 3, "name": "Выкат через Server guy: две миграции и GET /api/schedule/week (20-10-SUMMARY, Для выката)", "status": "not_started"}
+    {"id": 1, "name": "Исполнение 16 планов по волнам (bash scripts/gsd/dispatch.sh 21 перед каждой волной)", "status": "not_started"},
+    {"id": 2, "name": "Код-ревью, аудит безопасности, верификация, PR, слияние после зелёного CI", "status": "not_started"},
+    {"id": 3, "name": "После слияния: сигнал Server guy на выкат фазы 21 (одна миграция + revoke, перезагрузка вкладок)", "status": "not_started"}
   ],
   "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [
-    {"action": "Ответ Design dude на список замечаний по фазе 20 (отправлен)", "context": "End series подсказка, None/none D-13, вторая зона у времени серии, размер шрифта подсказки", "blocking": false},
-    {"action": "Выкат фазы 20 через Server guy", "context": "миграции 20261010075813_schedule и 20261010103628_schedule_revoke_delete", "blocking": false}
+    {"action": "Начальные балансы на карточках вводит владелец", "context": "импорт их не заполняет; до ввода To mark и Pays soon на dvlab_dev пусты", "blocking": false},
+    {"action": "Ответы на открытые вопросы OQ-1..OQ-4 UI-SPEC (Next payment в профиле, зазор названия на блоке, подпись начавшегося урока)", "context": "в планах взяты умолчания из UI-SPEC; Design dude может уточнить", "blocking": false},
+    {"action": "Критерий 5 ROADMAP «unit tests» выполняется скриптом ledger-core.mjs", "context": "отклонение записать в 21-13-SUMMARY", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Расписание не удаляет строки из БД", "rationale": "решение владельца: отмена, окончание и перенос меняют статус, kind или ends_on (D-16)", "phase": "20"},
-    {"decision": "Зона серии константой SCHEDULE_TIME_ZONE = Asia/Ho_Chi_Minh", "rationale": "D-15", "phase": "20"},
-    {"decision": "Restore возвращает отменённый перенесённый урок в слот переноса", "rationale": "выбор владельца по CR-01", "phase": "20"}
+    {"decision": "lesson_marks отдельной таблицей, вычет при чтении, no_show_deducts на все неявки", "rationale": "D-01..D-03, подтверждены владельцем", "phase": "21"},
+    {"decision": "Остаток считает уроки строго позже opening_balance_on по дате Вьетнама; долг показывается как owes", "rationale": "D-05, D-06", "phase": "21"},
+    {"decision": "Порог N в teacher_settings (0-20, по умолчанию 2), Settings → General", "rationale": "D-09, D-12e", "phase": "21"},
+    {"decision": "Снимать отметку у отменённого урока нельзя (409); status и changeable из контракта убираются сразу; Earlier, not marked за 366 дней; Add payment строится", "rationale": "страница ревью планов, ответы владельца", "phase": "21"},
+    {"decision": "Архитектурные находки 1-4 в фазе, находка 5 отложена", "rationale": "21-ARCH-REVIEW.md", "phase": "21"}
   ],
-  "uncommitted_files": ["?? .gsd/ (не наш каталог, не коммитить)"],
-  "next_action": "Открыть новую сессию в worktree фазы 21: /gsd-resume-work; PR #6 слить после зелёного CI (auto-fix включён)",
-  "context_notes": "Фаза 20 исполнена, проверена скриптами, ревью исправлено, безопасность 36/36, верификация 11/11. Пропущено осознанно: WR-09, WR-10, INFO, expectedStartsAt остаётся необязательным."
+  "uncommitted_files": ["?? .planning/state.json (не наш файл, не коммитить)"],
+  "next_action": "Открыть новую сессию в worktree .claude/worktrees/gsd+phase-21-lesson-accounting-and-today: /gsd-resume-work, затем /gsd-execute-phase 21 (волна 1: планы 21-01, 21-02, 21-03)",
+  "context_notes": "Фаза 21 спланирована полностью (16 планов, 10 волн), ветка gsd/phase-21-lesson-accounting-and-today запушена (1bad919). Дизайн v36 лежит в ~/dv-lab-design. Фаза 20 выкачена Server guy (sha-b32615ec). Основная копия на master уже подтянута до b32615e, CLAUDE.md в ней откачен."
 }
