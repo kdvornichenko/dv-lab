@@ -623,7 +623,123 @@ async function partOccurrence(ctx) {
 	return 'OCCURRENCE_OK'
 }
 
-const CHANGE_PARTS = [partOccurrence]
+async function raced(send) {
+	const results = await Promise.all([send(), send()])
+	return results.map((res) => res.status).sort((left, right) => left - right)
+}
+
+async function partSingle(ctx) {
+	const { api, cookie, s1, dW, today, studentId } = ctx
+	const lessonPath = (id, action) => `/lessons/${id}/${action}`
+	const thursday = core.addDays(dW, 1)
+	const nextThursday = core.addDays(dW, 8)
+	const created = await createLesson(api, cookie, {
+		studentId,
+		date: thursday,
+		startTime: '09:00',
+		durationMinutes: 45,
+		repeats: 'once',
+	})
+	if (created.status !== 201) throw new Error(`single lesson create returned ${created.status}`)
+	const l1 = created.json.lesson.id
+	const pastAt = new Date(Date.now() - 2 * 86400000).toISOString()
+	const l2 = sql(
+		`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(pastAt)}, 60, 'scheduled') returning id`
+	).rows[0].id
+	countRows(ctx)
+	const lessonBlocks = async (date) =>
+		(await weekBlocks(api, cookie, core.mondayOf(date))).filter((block) => block.key === `l:${l1}`)
+
+	const moved = await post(api, cookie, lessonPath(l1, 'move'), {
+		date: nextThursday,
+		startTime: '14:00',
+		expectedStartsAt: instant(thursday, '09:00'),
+	})
+	check(
+		'move L1 to next Thursday 14:00 gives 200',
+		moved.status === 200 &&
+			moved.json?.lesson?.startsAt === instant(nextThursday, '14:00') &&
+			moved.json?.lesson?.durationMinutes === 45,
+		`status ${moved.status}`
+	)
+	countRows(ctx)
+	const oldWeek = await lessonBlocks(thursday)
+	const newWeek = await lessonBlocks(nextThursday)
+	check(
+		'L1 shows only on its new place',
+		oldWeek.length === 0 &&
+			newWeek.length === 1 &&
+			newWeek[0].startsAt === instant(nextThursday, '14:00') &&
+			newWeek[0].status === 'scheduled'
+	)
+	await expectStatus(
+		'move L1 into today 00:00',
+		() => post(api, cookie, lessonPath(l1, 'move'), { date: today, startTime: '00:00' }),
+		400
+	)
+	const cancelled = await post(api, cookie, lessonPath(l1, 'cancel'))
+	check(
+		'cancel L1 gives 200 cancelled',
+		cancelled.status === 200 && cancelled.json?.lesson?.status === 'cancelled',
+		`status ${cancelled.status}`
+	)
+	countRows(ctx)
+	check('week shows L1 cancelled', (await lessonBlocks(nextThursday))[0]?.status === 'cancelled')
+	const restored = await post(api, cookie, lessonPath(l1, 'restore'), {
+		expectedStartsAt: instant(nextThursday, '14:00'),
+	})
+	check(
+		'restore L1 gives 200 scheduled',
+		restored.status === 200 && restored.json?.lesson?.status === 'scheduled',
+		`status ${restored.status}`
+	)
+	countRows(ctx)
+	check('week shows L1 scheduled', (await lessonBlocks(nextThursday))[0]?.status === 'scheduled')
+	await expectStatus(
+		'cancel L1 with a stale expectedStartsAt',
+		() => post(api, cookie, lessonPath(l1, 'cancel'), { expectedStartsAt: instant(thursday, '09:00') }),
+		409
+	)
+	const lessonRace = await raced(() => post(api, cookie, lessonPath(l1, 'cancel')))
+	check('two parallel cancels of L1 give one 200 and one 409', lessonRace.join() === '200,409', lessonRace.join())
+	countRows(ctx)
+	await expectStatus(
+		'move of the cancelled L1',
+		() => post(api, cookie, lessonPath(l1, 'move'), { date: nextThursday, startTime: '15:00' }),
+		409
+	)
+	await expectStatus(
+		'move of the past L2',
+		() => post(api, cookie, lessonPath(l2, 'move'), { date: nextThursday, startTime: '16:00' }),
+		409
+	)
+	await expectStatus('cancel of the past L2', () => post(api, cookie, lessonPath(l2, 'cancel')), 409)
+	await expectStatus(
+		'move of an unknown lesson',
+		() => post(api, cookie, lessonPath(randomUUID(), 'move'), { date: nextThursday, startTime: '16:00' }),
+		404
+	)
+	await expectStatus('restore of an unknown lesson', () => post(api, cookie, lessonPath(randomUUID(), 'restore')), 404)
+	await expectStatus('cancel of lesson id abc', () => post(api, cookie, lessonPath('abc', 'cancel')), 404)
+	const pastRow = sql(`select starts_at, status from lessons where id = ${quote(l2)}`).rows[0]
+	check(
+		'past L2 row is unchanged',
+		pastRow?.status === 'scheduled' && new Date(pastRow.starts_at).toISOString() === pastAt
+	)
+
+	const dW35 = core.addDays(dW, 35)
+	const occurrenceRace = await raced(() => post(api, cookie, occurrencePath(s1, dW35, 'cancel')))
+	check(
+		'two parallel cancels of S1 dW+35 give one 200 and one 409',
+		occurrenceRace.join() === '200,409',
+		occurrenceRace.join()
+	)
+	countRows(ctx)
+	check('S1 dW+35 exception row is cancelled', exceptionRow(s1, dW35)?.kind === 'cancelled')
+	return 'SINGLE_OK'
+}
+
+const CHANGE_PARTS = [partOccurrence, partSingle]
 
 async function sectionChanges(api, cookie, ids) {
 	const studentId = await createCard(api, cookie, ids, `${CHANGES_NAME} A`)

@@ -1,7 +1,7 @@
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
-import type { ScheduleOccurrence, lessonActionRequest, moveLessonRequest } from '@dv-lab/contracts'
+import type { ScheduleLesson, ScheduleOccurrence, lessonActionRequest, moveLessonRequest } from '@dv-lab/contracts'
 import {
 	type Occurrence,
 	SCHEDULE_TIME_ZONE,
@@ -12,9 +12,18 @@ import {
 	zonedInstant,
 	zonedParts,
 } from '@dv-lab/core'
-import { type Database, type DbExecutor, lessonExceptions } from '@dv-lab/db'
+import { type Database, type DbExecutor, lessonExceptions, lessons } from '@dv-lab/db'
 
-import { exceptionColumns, lockSeries, seriesException, toSeriesException } from './rows.ts'
+import {
+	exceptionColumns,
+	lessonColumns,
+	lockLesson,
+	lockSeries,
+	seriesException,
+	toSeriesException,
+	toSingleLesson,
+} from './rows.ts'
+import { toWireLesson } from './schedule.ts'
 
 type MoveInput = z.output<typeof moveLessonRequest>
 
@@ -23,6 +32,8 @@ type ActionInput = z.output<typeof lessonActionRequest>
 export type ChangeFailure = { kind: 'not_found' } | { kind: 'changed' } | { kind: 'invalid' }
 
 export type OccurrenceResult = { kind: 'ok'; occurrence: ScheduleOccurrence } | ChangeFailure
+
+export type LessonResult = { kind: 'ok'; lesson: ScheduleLesson } | ChangeFailure
 
 const NOT_FOUND = { kind: 'not_found' } as const
 
@@ -150,5 +161,66 @@ export function restoreOccurrence(
 			return CHANGED
 		}
 		return markException(tx, rule, { seriesId, originalOn, kind: 'restored' })
+	})
+}
+
+async function saveLesson(
+	executor: DbExecutor,
+	id: string,
+	set: { startsAt: Date } | { status: 'scheduled' | 'cancelled' }
+): Promise<LessonResult> {
+	const [row] = await executor
+		.update(lessons)
+		.set({ ...set, updatedAt: sql`now()` })
+		.where(eq(lessons.id, id))
+		.returning(lessonColumns)
+	if (!row) throw new Error('lesson update returned no row')
+	return { kind: 'ok', lesson: toWireLesson(toSingleLesson(row)) }
+}
+
+export function moveLesson(db: Database, id: string, input: MoveInput, now: Date): Promise<LessonResult> {
+	return db.transaction(async (tx): Promise<LessonResult> => {
+		const lesson = await lockLesson(tx, id)
+		if (lesson === null) return NOT_FOUND
+		if (
+			lesson.status === 'cancelled' ||
+			!canChange(lesson.startsAt, now) ||
+			stale(input.expectedStartsAt, lesson.startsAt)
+		) {
+			return CHANGED
+		}
+		const target = moveTarget(input, now)
+		if (target === null || target.getTime() === lesson.startsAt.getTime()) return INVALID
+		return saveLesson(tx, id, { startsAt: target })
+	})
+}
+
+export function cancelLesson(db: Database, id: string, input: ActionInput, now: Date): Promise<LessonResult> {
+	return db.transaction(async (tx): Promise<LessonResult> => {
+		const lesson = await lockLesson(tx, id)
+		if (lesson === null) return NOT_FOUND
+		if (
+			lesson.status !== 'scheduled' ||
+			!canChange(lesson.startsAt, now) ||
+			stale(input.expectedStartsAt, lesson.startsAt)
+		) {
+			return CHANGED
+		}
+		return saveLesson(tx, id, { status: 'cancelled' })
+	})
+}
+
+export function restoreLesson(db: Database, id: string, input: ActionInput, now: Date): Promise<LessonResult> {
+	return db.transaction(async (tx): Promise<LessonResult> => {
+		const lesson = await lockLesson(tx, id)
+		if (lesson === null) return NOT_FOUND
+		if (
+			lesson.status !== 'cancelled' ||
+			!canChange(lesson.startsAt, now) ||
+			stale(input.expectedStartsAt, lesson.startsAt)
+		) {
+			return CHANGED
+		}
+		return saveLesson(tx, id, { status: 'scheduled' })
 	})
 }

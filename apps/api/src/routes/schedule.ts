@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import {
 	type ScheduleCreateResponse,
+	type ScheduleLessonResponse,
 	type ScheduleOccurrenceResponse,
 	type ScheduleWeekResponse,
 	createLessonRequest,
@@ -17,7 +18,15 @@ import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import { errorBody } from '../request-context.ts'
-import { type ChangeFailure, cancelOccurrence, moveOccurrence, restoreOccurrence } from '../schedule/changes.ts'
+import {
+	type ChangeFailure,
+	cancelLesson,
+	cancelOccurrence,
+	moveLesson,
+	moveOccurrence,
+	restoreLesson,
+	restoreOccurrence,
+} from '../schedule/changes.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
 
 type ScheduleRouteDeps = { db: Database }
@@ -109,6 +118,31 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 			const result = await change(db, ref.seriesId, ref.originalOn, input, new Date())
 			if (result.kind !== 'ok') return refused(c, result)
 			return c.json({ occurrence: result.occurrence } satisfies ScheduleOccurrenceResponse, 200)
+		})
+	}
+
+	routes.post('/lessons/:id/move', async (c) => {
+		const id = idParam(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, moveLessonRequest)
+		if (!input) return invalidRequest(c)
+		const result = await moveLesson(db, id, input, new Date())
+		if (result.kind !== 'ok') return refused(c, result)
+		return c.json({ lesson: result.lesson } satisfies ScheduleLessonResponse, 200)
+	})
+
+	for (const [action, change] of [
+		['cancel', cancelLesson],
+		['restore', restoreLesson],
+	] as const) {
+		routes.post(`/lessons/:id/${action}`, async (c) => {
+			const id = idParam(c)
+			if (id === null) return notFound(c)
+			const input = await readJson(c, lessonActionRequest)
+			if (!input) return invalidRequest(c)
+			const result = await change(db, id, input, new Date())
+			if (result.kind !== 'ok') return refused(c, result)
+			return c.json({ lesson: result.lesson } satisfies ScheduleLessonResponse, 200)
 		})
 	}
 
