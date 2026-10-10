@@ -13,6 +13,8 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 
 ### v2.0 Unified dv-lab (In Progress)
 
+**Execution order (owner decision 2026-10-11):** 21 -> 24 -> 25 -> 22 -> 23 -> 26. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; phase numbers stay as they are.
+
 **Phase Numbering:**
 - Integer phases (17, 18, 19): planned v2.0 work, continuing from v1.1 (last phase 16)
 - Decimal phases (17.1, 17.2): urgent insertions (marked with INSERTED)
@@ -218,7 +220,7 @@ Plans:
   4. The "pays soon" list shows students with at most N lessons left or none, N is a setting with default 2, and Today shows counters, today's lessons and this list from real data.
   5. The students list, the profile, Today and "pays soon" show the same balance because they call the same `packages/core` functions, and those rules are covered by unit tests.
 
-**Plans**: 9/18 plans executed
+**Plans**: 10/18 plans executed
 
 Plans:
 - [x] 21-17-PLAN.md — Move of any lesson allowed like in Google Calendar (D-17), v38 toasts (W4)
@@ -238,7 +240,7 @@ Plans:
 - [x] 21-07-PLAN.md — API: balance by marks through core, no-show flag, `GET /today` (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 21-08-PLAN.md — UI-C schedule: Mark row in LessonDialog, signs on blocks, tooltip deduction (W4)
+- [x] 21-08-PLAN.md — UI-C schedule: Mark row in LessonDialog, signs on blocks, tooltip deduction (W4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 21-15-PLAN.md — Web on lesson outcome: overlaps and week summary by outcome, Vietnam dates from core, no block status reads (W5)
@@ -265,7 +267,7 @@ Plans:
 ### Phase 22: Chat with Mentions and Quick Marks
 
 **Goal**: The teacher records lesson outcomes by writing one line in chat and gets answers about any student from stored data, within the monthly budget.
-**Depends on**: Phase 21
+**Depends on**: Phase 25 (runs after the Google phases by owner decision 2026-10-11); Phase 21
 **Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-07, CHAT-08, CHAT-09, CHAT-11
 **Success Criteria** (what must be TRUE):
   1. The teacher starts, lists, renames and deletes conversations, and replies stream onto the screen as they are generated.
@@ -296,7 +298,7 @@ Plans:
 ### Phase 24: Google Calendar Connection and Outbound Sync
 
 **Goal**: Lessons, series and occurrence exceptions from the schedule appear in the teacher's Google Calendar exactly once, written by one queued writer over a server-side connection.
-**Depends on**: Phase 20 (lesson, series and exception model); runs after Phase 23 by priority
+**Depends on**: Phase 21 (lesson, series and exception model, marks); runs right after Phase 21 by owner decision 2026-10-11, before the chat phases
 **Requirements**: GCAL-01, GCAL-02, GCAL-03, GCAL-09, GCAL-10
 **Success Criteria** (what must be TRUE):
   1. The teacher connects Google Calendar through Google consent handled by the server; the refresh token is stored encrypted and never reaches the browser, and with the Google OAuth app in production status the connection still works 8 days later without reconnecting.
@@ -342,7 +344,8 @@ Plans:
 
 ## Backlog
 
-- **Base time zone as a setting**: `SCHEDULE_TIME_ZONE` (`Asia/Ho_Chi_Minh`) becomes a teacher setting. The zone is stored on each series and lesson (existing rows stay `Asia/Ho_Chi_Minh`, new ones use the current setting), "today" for the ledger comes from the setting, the "VN" label leaves the UI. Planned after Phase 23 and before Phase 24, because Google Calendar sync depends on zones. Design: artifact v37 (copy in `~/dv-lab-design`): Settings page (General tab), Default time zone card on the existing `TimeZonePicker`, `ZoneChangeDialog`, zone label instead of "VN". Owner decisions: existing lessons are shown in the new zone (same instant, the series zone appears only in lesson details); a lesson near midnight may change day in the ledger because the opening-balance boundary follows the new zone; the old default zone becomes the second zone when the new default equals the current second zone.
+- **Base time zone as a setting**: `SCHEDULE_TIME_ZONE` (`Asia/Ho_Chi_Minh`) becomes a teacher setting. The zone is stored on each series and lesson (existing rows stay `Asia/Ho_Chi_Minh`, new ones use the current setting), "today" for the ledger comes from the setting, the "VN" label leaves the UI. Planned right after Phase 21 and before Phase 24, because Google Calendar sync depends on zones. Design: artifact v37 (copy in `~/dv-lab-design`): Settings page (General tab), Default time zone card on the existing `TimeZonePicker`, `ZoneChangeDialog`, zone label instead of "VN". Owner decisions: existing lessons are shown in the new zone (same instant, the series zone appears only in lesson details); a lesson near midnight may change day in the ledger because the opening-balance boundary follows the new zone; the old default zone becomes the second zone when the new default equals the current second zone.
+- **Move form info line (design v40, optional)**: under the preview row of `LessonMoveForm` a caption for a marked lesson: "The mark stays: Done, deducts 1 lesson at the new time." (No-show with the flag off: "The mark stays: No-show, deducts nothing."; on or before the opening balance date: "The mark stays but is not counted: the new date is on or before the opening balance date (5 Oct)."). Not part of Phase 21 plans; add as a small plan after 21-08 or with the Google phases.
 
 ## Progress
 
@@ -355,7 +358,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 10/10 | In Progress|  |
-| 21. Lesson Accounting and Today | v2.0 | 9/18 | In Progress|  |
+| 21. Lesson Accounting and Today | v2.0 | 10/18 | In Progress|  |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
 | 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Not started | - |
