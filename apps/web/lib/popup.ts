@@ -7,8 +7,7 @@ export const popupMotionClass =
 	'data-[side=right]:origin-left data-[side=right]:[--popup-enter-y:0px] ' +
 	'[[data-side=right]_&]:origin-left [[data-side=right]_&]:[--popup-enter-y:0px]'
 export const popupScrollAreaClass = 'min-h-0 flex-1 max-h-[inherit]'
-export const popupViewportClass =
-	'!h-auto max-h-[inherit] [&>div[style]]:!block [&>div[style]]:!min-w-0 [--scroll-fade-size:32px]'
+export const popupViewportClass = '!h-auto max-h-[inherit] [&>div[style]]:!block [&>div[style]]:!min-w-0'
 export const POPUP_NAV_KEYS = [
 	'ArrowDown',
 	'ArrowUp',

@@ -23,7 +23,7 @@ export function CenteredPanel({ children }: { children: ReactNode }) {
 
 export function PageScroll({ children }: { children: ReactNode }) {
 	return (
-		<ScrollArea className="min-h-0 flex-1">
+		<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
 			<div className="mx-auto flex w-full flex-col gap-4 px-4 pt-4 pb-16 min-[1920px]:max-w-384 md:gap-6 md:px-8 md:pt-6">
 				{children}
 			</div>
