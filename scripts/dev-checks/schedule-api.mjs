@@ -143,6 +143,11 @@ async function sectionRead(api, cookie, ids) {
 				(res.json?.series ?? []).some((rule) => rule.id === seriesId && rule.startTime === '18:00'),
 			`status ${res.status} blocks ${own.length}`
 		)
+		check(
+			`week ${monday} blocks carry no status or changeable key`,
+			(res.json?.blocks ?? []).length > 0 &&
+				res.json.blocks.every((item) => !('status' in item) && !('changeable' in item) && 'outcome' in item)
+		)
 		if (index === 0) {
 			check('first series block equals SQL instant', block?.startsAt === new Date(sqlInstant).toISOString())
 		}
@@ -472,7 +477,7 @@ async function partPastOrigin(ctx) {
 	check(
 		'cancel of a lesson moved from yesterday to the future gives 200 on the moved time',
 		cancelled.status === 200 &&
-			cancelled.json?.occurrence?.status === 'cancelled' &&
+			cancelled.json?.occurrence?.outcome === 'cancelled' &&
 			cancelled.json?.occurrence?.startsAt === target,
 		`status ${cancelled.status} ${JSON.stringify(cancelled.json ?? null)}`
 	)
@@ -495,7 +500,7 @@ async function partPastOrigin(ctx) {
 	check(
 		'restore of that lesson gives 200 and returns it to the moved place',
 		restored.status === 200 &&
-			restored.json?.occurrence?.status === 'moved' &&
+			restored.json?.occurrence?.outcome === 'planned' &&
 			restored.json?.occurrence?.startsAt === target,
 		`status ${restored.status} ${JSON.stringify(restored.json ?? null)}`
 	)
@@ -521,9 +526,13 @@ async function partOccurrence(ctx) {
 	check(
 		'move dW to Friday 10:00 gives 200 moved',
 		moved.status === 200 &&
-			moved.json?.occurrence?.status === 'moved' &&
+			moved.json?.occurrence?.outcome === 'planned' &&
 			moved.json?.occurrence?.startsAt === instant(friday, '10:00'),
 		`status ${moved.status}`
+	)
+	check(
+		'occurrence response carries outcome and no status key',
+		moved.json?.occurrence !== undefined && 'outcome' in moved.json.occurrence && !('status' in moved.json.occurrence)
 	)
 	countRows(ctx)
 	let week = await seriesBlocks(api, cookie, dW, s1)
@@ -572,7 +581,9 @@ async function partOccurrence(ctx) {
 	const cancelled = await post(api, cookie, occurrencePath(s1, dW7, 'cancel'))
 	check(
 		'cancel dW+7 gives 200 cancelled',
-		cancelled.status === 200 && cancelled.json?.occurrence?.status === 'cancelled',
+		cancelled.status === 200 &&
+			cancelled.json?.occurrence?.outcome === 'cancelled' &&
+			!('status' in cancelled.json.occurrence),
 		`status ${cancelled.status}`
 	)
 	countRows(ctx)
@@ -585,7 +596,7 @@ async function partOccurrence(ctx) {
 	const restored = await post(api, cookie, occurrencePath(s1, dW7, 'restore'), { expectedStartsAt: at(dW7) })
 	check(
 		'restore dW+7 gives 200 scheduled',
-		restored.status === 200 && restored.json?.occurrence?.status === 'scheduled',
+		restored.status === 200 && restored.json?.occurrence?.outcome === 'planned',
 		`status ${restored.status}`
 	)
 	countRows(ctx)
@@ -639,7 +650,9 @@ async function partOccurrence(ctx) {
 	const back = await post(api, cookie, occurrencePath(s1, dW14, 'restore'), { expectedStartsAt: mondayNoon })
 	check(
 		'restore dW+14 returns it to Monday 12:00',
-		back.status === 200 && back.json?.occurrence?.status === 'moved' && back.json?.occurrence?.startsAt === mondayNoon,
+		back.status === 200 &&
+			back.json?.occurrence?.outcome === 'planned' &&
+			back.json?.occurrence?.startsAt === mondayNoon,
 		`status ${back.status} ${JSON.stringify(back.json?.occurrence ?? null)}`
 	)
 	countRows(ctx)
@@ -656,7 +669,7 @@ async function partOccurrence(ctx) {
 	const homeAgain = await post(api, cookie, occurrencePath(s1, dW14, 'move'), { date: dW14, startTime: '18:00' })
 	check(
 		'move dW+14 back to its Wednesday gives 200 scheduled',
-		homeAgain.status === 200 && homeAgain.json?.occurrence?.status === 'scheduled',
+		homeAgain.status === 200 && homeAgain.json?.occurrence?.outcome === 'planned',
 		`status ${homeAgain.status}`
 	)
 	countRows(ctx)
@@ -680,7 +693,7 @@ async function partOccurrence(ctx) {
 	check(
 		'restore dW+14 gives the Wednesday on its place',
 		plainBack.status === 200 &&
-			plainBack.json?.occurrence?.status === 'scheduled' &&
+			plainBack.json?.occurrence?.outcome === 'planned' &&
 			week.length === 1 &&
 			week[0].outcome === 'planned' &&
 			week[0].startsAt === at(dW14) &&
@@ -693,7 +706,7 @@ async function partOccurrence(ctx) {
 	const home = await post(api, cookie, occurrencePath(s1, dW, 'move'), { date: dW, startTime: '18:00' })
 	check(
 		'move dW back to Wednesday 18:00 gives 200 scheduled',
-		home.status === 200 && home.json?.occurrence?.status === 'scheduled' && home.json?.occurrence?.startsAt === at(dW),
+		home.status === 200 && home.json?.occurrence?.outcome === 'planned' && home.json?.occurrence?.startsAt === at(dW),
 		`status ${home.status}`
 	)
 	countRows(ctx)
@@ -1202,7 +1215,7 @@ async function partMoveAnywhere(ctx) {
 	check(
 		'move of a past occurrence to another past day 10:00 gives 200 moved',
 		toPast.status === 200 &&
-			toPast.json?.occurrence?.status === 'moved' &&
+			toPast.json?.occurrence?.outcome === 'planned' &&
 			toPast.json?.occurrence?.startsAt === pastTarget,
 		`status ${toPast.status} ${JSON.stringify(toPast.json?.error ?? '')}`
 	)
@@ -1227,7 +1240,7 @@ async function partMoveAnywhere(ctx) {
 	check(
 		'move of that occurrence to its natural time gives 200 and a restored row',
 		home.status === 200 &&
-			home.json?.occurrence?.status === 'scheduled' &&
+			home.json?.occurrence?.outcome === 'planned' &&
 			exceptionRow(s11, pastOn)?.kind === 'restored',
 		`status ${home.status}`
 	)
@@ -1250,10 +1263,7 @@ async function partMoveAnywhere(ctx) {
 		const startsAt = instant(target.date, target.startTime)
 		check(
 			`move of a future occurrence to ${label} gives 200 planned`,
-			res.status === 200 &&
-				res.json?.occurrence?.status === 'moved' &&
-				res.json?.occurrence?.outcome === 'planned' &&
-				res.json?.occurrence?.startsAt === startsAt,
+			res.status === 200 && res.json?.occurrence?.outcome === 'planned' && res.json?.occurrence?.startsAt === startsAt,
 			`status ${res.status} ${JSON.stringify(res.json?.error ?? '')}`
 		)
 		countRows(ctx)
