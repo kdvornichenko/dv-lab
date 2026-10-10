@@ -101,6 +101,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
 	const [seriesDialog, setSeriesDialog] = useState<SeriesDialogState | null>(null)
 	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
+	const focusAfterLoad = useRef<OpenLesson | null>(null)
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const toast = useToast()
@@ -134,22 +135,21 @@ function LoadedSchedule({ now }: { now: Date }) {
 		}
 	}, [])
 
-	async function refresh() {
-		const state = await readWeek(monday)
-		if (state.kind === 'ready') weeks.current.set(monday, state.data)
-		setLoaded({ monday, state })
-	}
+	useEffect(() => {
+		const target = focusAfterLoad.current
+		if (target === null || loaded === null) return
+		focusAfterLoad.current = null
+		focusBlock(target)
+	}, [loaded])
 
 	function reload() {
 		weeks.current.clear()
 		setVersion((value) => value + 1)
 	}
 
-	async function reloadNow() {
-		weeks.current.clear()
-		const state = await readWeek(monday)
-		if (state.kind === 'ready') weeks.current.set(monday, state.data)
-		setLoaded({ monday, state })
+	function refresh() {
+		setLoaded(null)
+		reload()
 	}
 
 	async function blocksOn(date: string): Promise<OverlapBlock[]> {
@@ -218,11 +218,11 @@ function LoadedSchedule({ now }: { now: Date }) {
 		if (closed !== null) focusBlock(closed.returnTo)
 	}
 
-	async function seriesChanged() {
+	function seriesChanged() {
 		const closed = seriesDialog
 		setSeriesDialog(null)
-		await reloadNow()
-		if (closed !== null) focusBlock(closed.returnTo)
+		focusAfterLoad.current = closed === null ? null : closed.returnTo
+		reload()
 	}
 
 	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
@@ -360,7 +360,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					currentYear={currentYear}
 					onClose={closeSeries}
 					onStale={reload}
-					onMoved={() => void seriesChanged()}
+					onMoved={seriesChanged}
 				/>
 			) : null}
 			{seriesRule !== null && seriesDialog?.kind === 'end' ? (
@@ -373,7 +373,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					currentYear={currentYear}
 					onClose={closeSeries}
 					onStale={reload}
-					onEnded={() => void seriesChanged()}
+					onEnded={seriesChanged}
 				/>
 			) : null}
 			{newLesson !== null ? (
