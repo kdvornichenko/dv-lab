@@ -6,7 +6,7 @@ import { parseEnv } from 'node:util'
 import { ENV_TEST, ROOT, quote, sql } from './api.mjs'
 
 const MIGRATIONS = `${ROOT}/packages/db/drizzle`
-const EXPECTED_FOLDERS = 5
+const EXPECTED_FOLDERS = 7
 const TABLES = ['lesson_series', 'lesson_exceptions', 'lessons']
 const PRIVILEGES = { select: true, insert: true, update: true, delete: false, truncate: false }
 
