@@ -8,6 +8,7 @@ import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { zoneLabel } from '@/lib/time-zones'
 
 import { useToast } from '../../_components/toasts'
+import { PaymentsCard } from './payments-card'
 
 const SETTINGS_TABS = ['general'] as const
 
@@ -70,6 +71,7 @@ export function SettingsScreen({ tab }: { tab: string | undefined }) {
 				<TabPanel value="general" className="mt-4">
 					<div className="flex max-w-180 flex-col gap-4">
 						<TimeZonesCard />
+						<PaymentsCard />
 					</div>
 				</TabPanel>
 			</Tabs>

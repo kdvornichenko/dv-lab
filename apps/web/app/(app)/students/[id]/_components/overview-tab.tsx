@@ -71,6 +71,13 @@ export function OverviewTab({ student, lessonsInputRef, onSaved }: OverviewTabPr
 					<DetailRow label="Lesson length">
 						<span className="tabular-nums">{student.defaultLessonMinutes} min</span>
 					</DetailRow>
+					<DetailRow label="No-show">
+						{student.noShowDeducts ? (
+							'Deducts a lesson'
+						) : (
+							<span className="text-muted-foreground">Deducts nothing</span>
+						)}
+					</DetailRow>
 					<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
 					<DetailRow label="Level">{textValue(student.level)}</DetailRow>
 					<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>

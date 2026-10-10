@@ -17,6 +17,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { apiRequest } from '@/lib/api-client'
 
 import {
@@ -167,6 +168,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const router = useRouter()
 	const toast = useToast()
 	const [values, setValues] = useState<Values>(() => initialValues(student))
+	const [noShowDeducts, setNoShowDeducts] = useState(student?.noShowDeducts ?? true)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
@@ -213,6 +215,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 				level: nullable(values.level),
 				goals: nullable(values.goals),
 				timeZone: values.timeZone === SAME_TIME_ZONE ? null : values.timeZone,
+				noShowDeducts,
 			}
 		)
 		setPending(false)
@@ -331,6 +334,19 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 									disabled={pending}
 								/>
 							</FieldFrame>
+						</div>
+						<div className="flex min-w-0 flex-col gap-1">
+							<Switch
+								label="No-show deducts a lesson"
+								checked={noShowDeducts}
+								onToggle={() => setNoShowDeducts((current) => !current)}
+								disabled={pending}
+								className="w-full flex-row-reverse justify-between px-0 py-0"
+							/>
+							<p id="student-form-no-show-helper" className="pr-13 text-caption text-muted-foreground">
+								A no-show takes the lesson&apos;s length from the balance. Turn this off to deduct nothing for any
+								no-show of this student, past ones too; the balance is recalculated.
+							</p>
 						</div>
 						<div className="grid gap-4 sm:grid-cols-2">
 							<TextField

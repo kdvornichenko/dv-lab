@@ -682,6 +682,11 @@ async function studentsFixtures(page) {
 	await setOpening(page, ids['Alex Example 2160 E'], opening, 0)
 	const debt = await createOnce(page, ids['Alex Example 2160 E'], yesterday, '09:00', 90)
 	await markApi(page, debt, 'done')
+	const flagged = await createCard(page, 'Alex Example 2161 A')
+	await setOpening(page, flagged, opening, 0)
+	const absence = await createOnce(page, flagged, yesterday, '08:00')
+	await markApi(page, absence, 'no_show')
+	ids['Alex Example 2161 A'] = flagged
 	return { today, yesterday, opening, ids }
 }
 
@@ -734,6 +739,222 @@ async function studentsPart1(page) {
 	console.log(failures() === 0 ? 'STUDENTS_WEB_PART1_OK' : 'STUDENTS_WEB_PART1_FAIL')
 }
 
+async function openProfile(page, id) {
+	await page.goto(`${BASE}/students/${id}`)
+	await page.locator('#student-opening-balance').waitFor({ timeout: 30000 })
+	await page.waitForTimeout(300)
+}
+
+function profileFacts(page) {
+	return page.evaluate(() => {
+		const panel = document.querySelector('#student-opening-balance').closest('section')
+		const row = Array.from(panel.querySelectorAll('div')).find(
+			(item) => item.firstElementChild?.textContent === 'Balance now'
+		)
+		const value = row?.lastElementChild
+		const dots = Array.from(document.querySelectorAll('main [role="img"]')).filter((item) => !panel.contains(item))
+		const summaryDot = dots.find(
+			(item) => !['Active', 'Archived', 'Deactivated'].includes(item.getAttribute('aria-label'))
+		)
+		const summary = summaryDot?.parentElement
+		const noShow = Array.from(document.querySelectorAll('dt')).find((item) => item.textContent === 'No-show')
+		const noShowValue = noShow?.nextElementSibling
+		const parts = noShowValue?.firstElementChild
+		return {
+			summaryText: summary?.lastElementChild?.textContent ?? null,
+			summaryLabel: summaryDot?.getAttribute('aria-label') ?? null,
+			summaryColor: summary?.lastElementChild ? getComputedStyle(summary.lastElementChild).color : null,
+			nowText: value?.textContent ?? null,
+			nowDots: panel.querySelectorAll('[role="img"]').length,
+			noShowText: noShowValue?.textContent ?? null,
+			noShowMuted: parts ? parts.className.includes('text-muted-foreground') : false,
+			noShowLabelWidth: noShow ? noShow.getBoundingClientRect().width : null,
+			noShowOrder: Array.from(document.querySelectorAll('dt')).map((item) => item.textContent),
+			setButton: Array.from(document.querySelectorAll('button')).some(
+				(item) => item.textContent?.trim() === 'Set opening balance'
+			),
+		}
+	})
+}
+
+async function openEdit(page) {
+	await page.getByRole('button', { name: 'Edit details' }).click()
+	const dialog = page.getByRole('dialog')
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	return dialog
+}
+
+function noShowSwitch(dialog) {
+	return dialog.getByRole('switch', { name: 'No-show deducts a lesson' })
+}
+
+async function saveEdit(page, dialog) {
+	const [request] = await Promise.all([
+		page.waitForRequest((item) => item.method() === 'PATCH' && /\/api\/students\/[^/]+$/.test(item.url())),
+		dialog.getByRole('button', { name: 'Save changes' }).click(),
+	])
+	await dialog.waitFor({ state: 'detached', timeout: 15000 })
+	await page.waitForTimeout(600)
+	return request.postData() ?? ''
+}
+
+async function studentsPart2(page, fx) {
+	const debtId = fx.ids['Alex Example 2160 E']
+	await openProfile(page, debtId)
+	let facts = await profileFacts(page)
+	check(
+		'profile E: the summary says owes 1.5 lessons',
+		facts.summaryText === 'owes 1.5 lessons',
+		String(facts.summaryText)
+	)
+	check(
+		'profile E: the summary dot says Owes lessons',
+		facts.summaryLabel === 'Owes lessons',
+		String(facts.summaryLabel)
+	)
+	check(
+		'profile E: Balance now says owes 1.5 lessons without a dot',
+		facts.nowText === 'owes 1.5 lessons' && facts.nowDots === 0,
+		`${facts.nowText} ${facts.nowDots}`
+	)
+	check('profile E: no Set opening balance button for a set balance', facts.setButton === false)
+	check(
+		'profile E: Details has No-show between Lesson length and Parent',
+		JSON.stringify(facts.noShowOrder.slice(0, 4)) === JSON.stringify(['Rate', 'Lesson length', 'No-show', 'Parent']),
+		facts.noShowOrder.join('|')
+	)
+	check(
+		'profile E: Details says Deducts a lesson in foreground',
+		facts.noShowText === 'Deducts a lesson' && facts.noShowMuted === false,
+		String(facts.noShowText)
+	)
+	check('profile E: the No-show label is 128px', facts.noShowLabelWidth === 128, String(facts.noShowLabelWidth))
+	await shot(page, 'ledger-students', 'profile-debt')
+
+	await openProfile(page, fx.ids['Alex Example 2160 D'])
+	facts = await profileFacts(page)
+	check(
+		'profile D: Balance now says Not set and the button stays',
+		facts.nowText === 'Not set' && facts.setButton === true && facts.summaryText === null,
+		`${facts.nowText} ${facts.setButton}`
+	)
+
+	const flagged = fx.ids['Alex Example 2161 A']
+	await openProfile(page, flagged)
+	facts = await profileFacts(page)
+	check(
+		'profile F: owes 1 lesson while the no-show deducts',
+		facts.summaryText === 'owes 1 lesson' && facts.summaryLabel === 'Owes lessons',
+		String(facts.summaryText)
+	)
+	let dialog = await openEdit(page)
+	const toggle = noShowSwitch(dialog)
+	check('form: the switch is on', (await toggle.getAttribute('aria-checked')) === 'true')
+	const geometry = await dialog.evaluate((element) => {
+		const lesson = element.querySelector('#student-form-lesson').getBoundingClientRect()
+		const control = element.querySelector('[role="switch"]').getBoundingClientRect()
+		const helper = element.querySelector('#student-form-no-show-helper')
+		const row = control.top
+		return {
+			lessonBottom: lesson.bottom,
+			switchTop: row,
+			helperTop: helper.getBoundingClientRect().top,
+			helperText: helper.textContent,
+			switchRight: control.right,
+			dialogRight: element.getBoundingClientRect().right,
+		}
+	})
+	check(
+		'form: the switch row sits under Lesson length',
+		geometry.switchTop > geometry.lessonBottom - 1,
+		`${geometry.lessonBottom} / ${geometry.switchTop}`
+	)
+	check(
+		'form: the helper is under the label',
+		geometry.helperTop > geometry.switchTop,
+		`${geometry.switchTop} / ${geometry.helperTop}`
+	)
+	check(
+		'form: the helper text is the spec text',
+		geometry.helperText ===
+			"A no-show takes the lesson's length from the balance. Turn this off to deduct nothing for any no-show of this student, past ones too; the balance is recalculated.",
+		String(geometry.helperText)
+	)
+	check(
+		'form: the switch is at the right edge',
+		geometry.dialogRight - geometry.switchRight < 60,
+		`${geometry.dialogRight - geometry.switchRight}`
+	)
+	await shot(page, 'ledger-students', 'form-on')
+	await dialog.getByText('No-show deducts a lesson', { exact: true }).click()
+	check('form: a click on the label turns the switch off', (await toggle.getAttribute('aria-checked')) === 'false')
+	check('form: the dialog stays open after the toggle', await dialog.isVisible())
+	const before = await api(page, 'GET', `/students/${flagged}`)
+	check(
+		'form: nothing is saved by the switch itself',
+		before.json?.student?.noShowDeducts === true,
+		String(before.json?.student?.noShowDeducts)
+	)
+	await shot(page, 'ledger-students', 'form-off')
+	let body = await saveEdit(page, dialog)
+	check('form: Save changes sends noShowDeducts false', body.includes('"noShowDeducts":false'), body.slice(0, 200))
+	facts = await profileFacts(page)
+	check(
+		'profile F: Details says Deducts nothing in muted',
+		facts.noShowText === 'Deducts nothing' && facts.noShowMuted === true,
+		String(facts.noShowText)
+	)
+	check(
+		'profile F: the balance is recalculated to 0 lessons left',
+		facts.summaryText === '0 lessons left' &&
+			facts.summaryLabel === 'No lessons left' &&
+			facts.nowText === '0 lessons left',
+		`${facts.summaryText} ${facts.nowText}`
+	)
+	await shot(page, 'ledger-students', 'profile-flag-off')
+	await openStudentsList(page)
+	let table = await balanceFacts(page, 'Alex Example 2161 A')
+	check(
+		'table F: the balance grew to 0 lessons left',
+		table.text === '0 lessons left' && table.dotLabel === 'No lessons left',
+		table.text
+	)
+
+	await openProfile(page, flagged)
+	dialog = await openEdit(page)
+	const again = noShowSwitch(dialog)
+	check(
+		'form: the switch is off for a student with the flag off',
+		(await again.getAttribute('aria-checked')) === 'false'
+	)
+	await again.focus()
+	await page.keyboard.press('Space')
+	check('form: Space turns the switch on', (await again.getAttribute('aria-checked')) === 'true')
+	body = await saveEdit(page, dialog)
+	check('form: Save changes sends noShowDeducts true', body.includes('"noShowDeducts":true'), body.slice(0, 200))
+	facts = await profileFacts(page)
+	check(
+		'profile F: Deducts a lesson and owes 1 lesson again',
+		facts.noShowText === 'Deducts a lesson' && facts.summaryText === 'owes 1 lesson',
+		`${facts.noShowText} ${facts.summaryText}`
+	)
+
+	await openStudentsList(page)
+	await page.getByRole('button', { name: 'New student' }).click()
+	dialog = page.getByRole('dialog')
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	check(
+		'new student: the switch is on by default',
+		(await noShowSwitch(dialog).getAttribute('aria-checked')) === 'true'
+	)
+	await shot(page, 'ledger-students', 'form-new')
+	await dialog.getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	console.log(failures() === 0 ? 'STUDENTS_WEB_PART2_OK' : 'STUDENTS_WEB_PART2_FAIL')
+}
+
 async function students() {
 	cleanupFixtures('students start')
 	await withTeacherSettings(async () => {
@@ -742,8 +963,9 @@ async function students() {
 			await setTheme(page)
 			await signIn(page)
 			await setThreshold(page, 2)
-			await studentsFixtures(page)
+			const fx = await studentsFixtures(page)
 			await studentsPart1(page)
+			await studentsPart2(page, fx)
 			const real = problems.filter(
 				(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409|500)/.test(problem)
 			)
@@ -756,7 +978,162 @@ async function students() {
 	if (failures() === 0) console.log('LEDGER_WEB_STUDENTS_OK')
 }
 
-const sections = { marks, students }
+async function paysSoonThreshold(page) {
+	const result = await api(page, 'GET', '/settings')
+	return result.json?.settings?.paysSoonLessons ?? null
+}
+
+async function waitThreshold(page, expected) {
+	for (let attempt = 0; attempt < 40; attempt += 1) {
+		if ((await paysSoonThreshold(page)) === expected) return true
+		await page.waitForTimeout(250)
+	}
+	return false
+}
+
+async function settingsSection() {
+	cleanupFixtures('settings start')
+	await withTeacherSettings(async () => {
+		const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+		const patches = []
+		try {
+			await setTheme(page)
+			await signIn(page)
+			page.on('request', (request) => {
+				if (request.method() === 'PATCH' && request.url().endsWith('/api/settings')) patches.push(request.postData())
+			})
+			await setThreshold(page, 2)
+			const holder = await createCard(page, 'Alex Example 2166 A')
+			await setOpening(page, holder, core.addDays(core.zonedParts(new Date(), VN).date, -3), 300)
+
+			await openStudentsList(page)
+			let facts = await balanceFacts(page, 'Alex Example 2166 A')
+			check(
+				'threshold 2: three lessons left is Plenty left',
+				facts.text === '3 lessons left' && facts.dotLabel === 'Plenty left',
+				`${facts.text} ${facts.dotLabel}`
+			)
+
+			await page.goto(`${BASE}/settings`)
+			const input = page.getByLabel('Pays soon threshold (lessons)')
+			await page.locator('#settings-payments').waitFor({ timeout: 30000 })
+			await page.waitForFunction(() => document.querySelector('#settings-pays-soon')?.value === '2', null, {
+				timeout: 15000,
+			})
+			const card = await page.evaluate(() => {
+				const titles = Array.from(document.querySelectorAll('h2')).map((item) => item.textContent)
+				const field = document.querySelector('#settings-pays-soon')
+				const panel = document.querySelector('#settings-payments').closest('section')
+				return {
+					titles,
+					width: field.getBoundingClientRect().width,
+					align: getComputedStyle(field).textAlign,
+					numeric: getComputedStyle(field).fontVariantNumeric,
+					text: panel.textContent,
+				}
+			})
+			check(
+				'settings: Payments follows Time zones',
+				JSON.stringify(card.titles.slice(-2)) === JSON.stringify(['Time zones', 'Payments']),
+				card.titles.join('|')
+			)
+			check(
+				'settings: the field is 96px, right aligned and tabular',
+				card.width === 96 && /right|end/.test(card.align) && card.numeric.includes('tabular-nums'),
+				`${card.width} ${card.align} ${card.numeric}`
+			)
+			check(
+				'settings: description, hint and caption are there',
+				card.text.includes('Decide when a student counts as paying soon.') &&
+					card.text.includes('Students with this many lessons left or fewer appear in Pays soon on Today.') &&
+					card.text.includes('Saved to your account.')
+			)
+			await shot(page, 'ledger-settings', 'payments')
+
+			await input.fill('3')
+			await input.blur()
+			await page.getByText('Pays soon threshold: 3 lessons.').waitFor({ timeout: 10000 })
+			check('save by blur: the toast says Saved', await page.getByText('Saved', { exact: true }).first().isVisible())
+			check('save by blur: GET /settings is 3', (await paysSoonThreshold(page)) === 3)
+			check('save by blur: one request left', patches.length === 1, String(patches.length))
+			await shot(page, 'ledger-settings', 'saved')
+			await openStudentsList(page)
+			facts = await balanceFacts(page, 'Alex Example 2166 A')
+			check(
+				'threshold 3: three lessons left is Pays soon',
+				facts.dotLabel === 'Pays soon' && facts.dotTone === 'bg-info',
+				String(facts.dotLabel)
+			)
+
+			await page.goto(`${BASE}/settings`)
+			await page.waitForFunction(() => document.querySelector('#settings-pays-soon')?.value === '3', null, {
+				timeout: 15000,
+			})
+			const error = page.getByText('Use a whole number from 0 to 20.', { exact: true })
+			const rejected = async (label, text, keepCaption) => {
+				const sent = patches.length
+				await input.fill(text)
+				await input.blur()
+				await page.waitForTimeout(500)
+				check(`${label}: the error shows`, await error.isVisible())
+				check(`${label}: the field is marked invalid`, (await input.getAttribute('aria-invalid')) === 'true')
+				check(`${label}: no request left`, patches.length === sent, `${patches.length} / ${sent}`)
+				check(`${label}: the value is still shown for a moment`, (await input.inputValue()) === text)
+				if (keepCaption) await shot(page, 'ledger-settings', 'invalid')
+				await page.waitForTimeout(2300)
+				check(
+					`${label}: the saved value returns`,
+					(await input.inputValue()) === '3' && !(await error.isVisible()),
+					await input.inputValue()
+				)
+				check(`${label}: the server value is unchanged`, (await paysSoonThreshold(page)) === 3)
+			}
+			await rejected('2.5', '2.5', true)
+			await rejected('21', '21', false)
+			await rejected('empty', '', false)
+			await rejected('spaces', '   ', false)
+			await rejected('minus one', '-1', false)
+
+			const sent = patches.length
+			await input.fill('2')
+			await input.press('Enter')
+			await page.getByText('Pays soon threshold: 2 lessons.').waitFor({ timeout: 10000 })
+			check('Enter saves 2', (await paysSoonThreshold(page)) === 2)
+			await input.blur()
+			await page.waitForTimeout(500)
+			check('Enter then blur sends one request', patches.length === sent + 1, `${patches.length} / ${sent}`)
+			await input.fill('1')
+			await input.blur()
+			await page.getByText('Pays soon threshold: 1 lesson.').waitFor({ timeout: 10000 })
+			await input.fill('2')
+			await input.press('Enter')
+			check('Enter saves 2 again', await waitThreshold(page, 2))
+			await page.waitForTimeout(500)
+
+			await page.route('**/api/settings', (route) =>
+				route.request().method() === 'PATCH' ? route.fulfill({ status: 500, body: '{}' }) : route.continue()
+			)
+			await input.fill('5')
+			await input.blur()
+			await page.getByText('Could not save the setting. Try again.').waitFor({ timeout: 10000 })
+			check('a failed save returns the saved value', (await input.inputValue()) === '2', await input.inputValue())
+			check('a failed save changes nothing on the server', (await paysSoonThreshold(page)) === 2)
+			await shot(page, 'ledger-settings', 'failed')
+			await page.unroute('**/api/settings')
+
+			const real = problems.filter(
+				(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409|500)/.test(problem)
+			)
+			check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+		} finally {
+			await browser.close()
+			cleanupFixtures('settings end')
+		}
+	})
+	if (failures() === 0) console.log('LEDGER_WEB_SETTINGS_OK')
+}
+
+const sections = { marks, students, settings: settingsSection }
 
 if (!sections[section]) {
 	console.log(`usage: ledger-web.mjs ${Object.keys(sections).join('|')} [dark]`)
