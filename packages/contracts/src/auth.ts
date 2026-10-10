@@ -53,6 +53,8 @@ export const errorCodes = [
 	'account_already_linked',
 	'term_exists',
 	'payment_already_assigned',
+	'lesson_changed',
+	'series_ends_before_new_day',
 	'locked',
 	'busy',
 	'unavailable',
