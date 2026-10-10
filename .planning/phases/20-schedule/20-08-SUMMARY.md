@@ -26,7 +26,7 @@ requirements-completed: [SCHED-02, SCHED-03, SCHED-05]
 actuals:
   tokens: 22000
   tasks: 3
-  commits: 4
+  commits: 3
 
 plan_head_before: 1c44459cce688736a00ab9497662cb3d991becd6
 plan_head_after: 8355cd1689e621ec80fc83804aea0648ec931e37
@@ -157,4 +157,4 @@ Tracer-гейт: после коммита задачи 1 повторены lin
 
 - Файлы на месте: schedule-mutations.ts, lesson-move-form.tsx, move-series-dialog.tsx, end-series-dialog.tsx, lesson-dialog.tsx, schedule-screen.tsx, layout-parts.tsx, schedule-web.mjs.
 - Коммиты 2bf596b, 2355abf, 8355cd1 есть в `git log`.
-- `commits: 4` = `git rev-list --count 1c44459..HEAD` (3 коммита задач) плюс этот коммит SUMMARY.
+- `commits: 3` = `git rev-list --count 1c44459..8355cd1` (коммиты задач от plan_head_before до plan_head_after).
