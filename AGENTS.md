@@ -2,6 +2,19 @@
 
 Личное рабочее пространство преподавателя. Монорепозиторий на Yarn 4 (workspaces, `nodeLinker: node-modules`) и Turbo, Node 24.
 
+## Дизайн интерфейса
+
+Источник правды по UI — Design System варианта A, выгруженная вне репозитория в `~/dv-lab-design/`. Версию бери из `~/dv-lab-design/VERSION` и записывай в план.
+
+Для любого экрана или компонента читай оттуда:
+
+- `project/principles.md` — решения владельца и глоссарий текстов;
+- `project/components/<Name>/README.md` и `preview.html` нужного компонента;
+- `project/tokens.css` — токены;
+- `project/assets/Reference/` — скриншоты лабораторной версии.
+
+Пересказ дизайна в промпте или плане не заменяет эти файлы. Нужного компонента или состояния там нет — запроси его у сессии дизайна (Design dude) и жди ответа с названием компонента и версией.
+
 ## Структура
 
 - `apps/web` — Next 16 (App Router), сборка `output: 'standalone'`. Шрифты Inter Variable и JetBrains Mono Variable из пакетов `@fontsource-variable/inter` и `@fontsource-variable/jetbrains-mono`, без обращения к Google.
