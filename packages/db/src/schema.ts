@@ -7,7 +7,9 @@ import {
 	numeric,
 	pgTable,
 	primaryKey,
+	smallint,
 	text,
+	time,
 	timestamp,
 	uniqueIndex,
 	uuid,
@@ -205,5 +207,81 @@ export const payments = pgTable(
 		check('payments_lessons_ck', sql`${table.lessonsCount} is null or ${table.lessonsCount} >= 0`),
 		check('payments_note_ck', sql`${table.note} is null or char_length(${table.note}) between 1 and 500`),
 		check('payments_source_ck', sql`${table.source} in ('manual', 'vault')`),
+	]
+)
+
+export const lessonSeries = pgTable(
+	'lesson_series',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		studentId: uuid('student_id')
+			.notNull()
+			.references(() => students.id, { onDelete: 'restrict' }),
+		weekday: smallint('weekday').notNull(),
+		startTime: time('start_time').notNull(),
+		durationMinutes: integer('duration_minutes').notNull(),
+		startsOn: date('starts_on').notNull(),
+		endsOn: date('ends_on'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		index('lesson_series_student_idx').on(table.studentId),
+		check('lesson_series_weekday_ck', sql`${table.weekday} between 1 and 7`),
+		check('lesson_series_starts_on_ck', sql`extract(isodow from ${table.startsOn}) = ${table.weekday}`),
+		check('lesson_series_ends_on_ck', sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn} - 1`),
+		check('lesson_series_start_time_ck', sql`extract(second from ${table.startTime}) = 0`),
+		check('lesson_series_minutes_ck', sql`${table.durationMinutes} between 15 and 240`),
+	]
+)
+
+export const lessonExceptions = pgTable(
+	'lesson_exceptions',
+	{
+		seriesId: uuid('series_id')
+			.notNull()
+			.references(() => lessonSeries.id, { onDelete: 'restrict' }),
+		originalOn: date('original_on').notNull(),
+		kind: text('kind').notNull(),
+		startsAt: timestamp('starts_at', { withTimezone: true }),
+		durationMinutes: integer('duration_minutes'),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		primaryKey({ name: 'lesson_exceptions_pk', columns: [table.seriesId, table.originalOn] }),
+		index('lesson_exceptions_moved_idx')
+			.on(table.startsAt)
+			.where(sql`${table.kind} = 'moved'`),
+		check('lesson_exceptions_kind_ck', sql`${table.kind} in ('cancelled', 'moved', 'restored')`),
+		check(
+			'lesson_exceptions_moved_ck',
+			sql`(${table.kind} <> 'moved' or ${table.startsAt} is not null) and (${table.startsAt} is null) = (${table.durationMinutes} is null)`
+		),
+		check(
+			'lesson_exceptions_minutes_ck',
+			sql`${table.durationMinutes} is null or ${table.durationMinutes} between 15 and 240`
+		),
+	]
+)
+
+export const lessons = pgTable(
+	'lessons',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		studentId: uuid('student_id')
+			.notNull()
+			.references(() => students.id, { onDelete: 'restrict' }),
+		startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+		durationMinutes: integer('duration_minutes').notNull(),
+		status: text('status').default('scheduled').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		index('lessons_starts_at_idx').on(table.startsAt),
+		index('lessons_student_starts_idx').on(table.studentId, table.startsAt),
+		check('lessons_status_ck', sql`${table.status} in ('scheduled', 'cancelled')`),
+		check('lessons_minutes_ck', sql`${table.durationMinutes} between 15 and 240`),
 	]
 )
