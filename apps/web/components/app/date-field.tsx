@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { Matcher } from 'react-day-picker'
 import { enUS } from 'react-day-picker/locale'
 
 import { CalendarDays } from 'lucide-react'
@@ -26,15 +27,19 @@ interface DateFieldProps {
 	label: string
 	value: string
 	onChange: (value: string) => void
+	min?: string
 	max?: string
 	error?: string
 	helper?: string
 	disabled?: boolean
 }
 
-export function DateField({ id, label, value, onChange, max, error, helper, disabled }: DateFieldProps) {
+export function DateField({ id, label, value, onChange, min, max, error, helper, disabled }: DateFieldProps) {
 	const [open, setOpen] = useState(false)
 	const text = dateFormat.format(toDate(value))
+	const disabledDays: Matcher[] = []
+	if (min) disabledDays.push({ before: toDate(min) })
+	if (max) disabledDays.push({ after: toDate(max) })
 	const errorId = `${id}-error`
 	const helperId = `${id}-helper`
 	const describedBy = error ? errorId : helper ? helperId : undefined
@@ -61,7 +66,7 @@ export function DateField({ id, label, value, onChange, max, error, helper, disa
 						weekStartsOn={1}
 						selected={toDate(value)}
 						defaultMonth={toDate(value)}
-						disabled={max ? { after: toDate(max) } : undefined}
+						disabled={disabledDays.length ? disabledDays : undefined}
 						onSelect={(next) => {
 							if (!next) return
 							onChange(fromDate(next))
