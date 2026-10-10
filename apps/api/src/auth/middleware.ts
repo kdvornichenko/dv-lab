@@ -6,9 +6,10 @@ import { isIP } from 'node:net'
 import type { z } from 'zod'
 
 import { type AccountSummary, type Role, SESSION_COOKIE, SESSION_TTL_SECONDS } from '@dv-lab/contracts'
+import type { DbExecutor } from '@dv-lab/db'
 
 import { errorBody } from '../request-context.ts'
-import { type DbExecutor, readSession } from './sessions.ts'
+import { readSession } from './sessions.ts'
 import type { SignInOutcome } from './sign-in.ts'
 
 export type AppEnv = {

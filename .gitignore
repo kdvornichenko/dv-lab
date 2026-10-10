@@ -27,6 +27,7 @@ packages/*/dist
 # misc
 .DS_Store
 *.pem
+*.vault-import.json
 
 # debug
 npm-debug.log*

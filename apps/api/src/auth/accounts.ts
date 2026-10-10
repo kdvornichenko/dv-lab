@@ -1,28 +1,40 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 
-import type { AccountSummary, StudentRow } from '@dv-lab/contracts'
-import { accounts } from '@dv-lab/db'
-import type { Database } from '@dv-lab/db'
+import type { AccountSummary, StudentAccount } from '@dv-lab/contracts'
+import { accounts, violatesUnique } from '@dv-lab/db'
+import type { Database, DbExecutor } from '@dv-lab/db'
 
-import { studentRowColumns, toStudentRow } from './account-rows.ts'
+import { studentAccountColumns, toStudentAccount } from './account-rows.ts'
 import { generatePassword, hashPassword, verifyPassword } from './passwords.ts'
 import { issueSession, revokeAccountSessions } from './sessions.ts'
 import type { CredentialCheck, SignIn } from './sign-in.ts'
 
 const ONE_ACTIVE_TEACHER_CONSTRAINT = 'accounts_one_active_teacher_uq'
 const ACTIVE_LOGIN_CONSTRAINT = 'accounts_active_login_uq'
-const CAUSE_DEPTH = 5
+const STUDENT_CARD_CONSTRAINT = 'accounts_student_uq'
 
 type CreateTeacherInput = { login: string; displayName: string; passwordHash: string }
 
 export type CreateTeacherResult = { kind: 'created'; login: string } | { kind: 'teacher_exists' }
 
-type CreateStudentInput = { login: string; displayName: string; password: string | null }
+type CreateStudentInput = { login: string; displayName: string; password: string | null; studentId: string | null }
 
 export type CreateStudentResult =
-	{ kind: 'created'; student: StudentRow; generatedPassword: string | null } | { kind: 'login_taken' }
+	| { kind: 'created'; account: StudentAccount; generatedPassword: string | null }
+	| { kind: 'login_taken' }
+	| { kind: 'card_has_account' }
 
-export type DeactivateStudentResult = { kind: 'deactivated'; student: StudentRow } | { kind: 'not_found' }
+type LinkStudentAccountInput = { accountId: string; studentId: string }
+
+export type LinkStudentAccountResult =
+	| { kind: 'linked'; account: StudentAccount }
+	| { kind: 'account_already_linked' }
+	| { kind: 'card_has_account' }
+	| { kind: 'not_found' }
+
+type DeactivateStudentInput = { accountId: string; studentId: string }
+
+export type DeactivateStudentResult = { kind: 'deactivated'; account: StudentAccount } | { kind: 'not_found' }
 
 type ChangePasswordInput = {
 	account: AccountSummary
@@ -38,16 +50,6 @@ export type ChangePasswordResult =
 	| Exclude<CredentialCheck, { kind: 'ok' | 'invalid_credentials' }>
 
 export type ResetTeacherPasswordResult = { kind: 'reset'; login: string } | { kind: 'not_found' }
-
-export function violatesUnique(error: unknown, constraint: string): boolean {
-	let current: unknown = error
-	for (let depth = 0; depth < CAUSE_DEPTH && current instanceof Error; depth += 1) {
-		const candidate = current as Error & { code?: unknown; constraint?: unknown }
-		if (candidate.code === '23505' && candidate.constraint === constraint) return true
-		current = candidate.cause
-	}
-	return false
-}
 
 export async function createTeacher(db: Database, input: CreateTeacherInput): Promise<CreateTeacherResult> {
 	try {
@@ -77,48 +79,108 @@ export async function createTeacher(db: Database, input: CreateTeacherInput): Pr
 	}
 }
 
-export async function createStudent(db: Database, input: CreateStudentInput): Promise<CreateStudentResult> {
+export async function createStudent(executor: DbExecutor, input: CreateStudentInput): Promise<CreateStudentResult> {
 	const password = input.password ?? generatePassword()
 	const generatedPassword = input.password === null ? password : null
 	const passwordHash = await hashPassword(password)
 	try {
-		const [row] = await db
-			.insert(accounts)
-			.values({ login: input.login, displayName: input.displayName, role: 'student', passwordHash })
-			.returning(studentRowColumns)
-		if (!row) throw new Error('student insert returned no row')
-		return { kind: 'created', student: toStudentRow(row), generatedPassword }
+		const account = await executor.transaction(async (tx) => {
+			const [row] = await tx
+				.insert(accounts)
+				.values({
+					login: input.login,
+					displayName: input.displayName,
+					role: 'student',
+					passwordHash,
+					studentId: input.studentId,
+				})
+				.returning(studentAccountColumns)
+			if (!row) throw new Error('student insert returned no row')
+			return toStudentAccount(row)
+		})
+		return { kind: 'created', account, generatedPassword }
 	} catch (error) {
 		if (violatesUnique(error, ACTIVE_LOGIN_CONSTRAINT)) return { kind: 'login_taken' }
+		if (violatesUnique(error, STUDENT_CARD_CONSTRAINT)) return { kind: 'card_has_account' }
 		throw error
 	}
 }
 
-export async function listStudents(db: Database): Promise<StudentRow[]> {
-	const rows = await db
-		.select(studentRowColumns)
+export async function findStudentAccount(executor: DbExecutor, studentId: string): Promise<StudentAccount | null> {
+	const [row] = await executor
+		.select(studentAccountColumns)
 		.from(accounts)
-		.where(eq(accounts.role, 'student'))
-		.orderBy(desc(accounts.createdAt))
-	return rows.map(toStudentRow)
+		.where(and(eq(accounts.studentId, studentId), eq(accounts.role, 'student')))
+		.orderBy(sql`${accounts.status} = 'active' desc`, desc(accounts.updatedAt), desc(accounts.createdAt))
+		.limit(1)
+	return row ? toStudentAccount(row) : null
 }
 
-export function deactivateStudent(db: Database, studentId: string): Promise<DeactivateStudentResult> {
+export async function linkStudentAccount(
+	executor: DbExecutor,
+	input: LinkStudentAccountInput
+): Promise<LinkStudentAccountResult> {
+	try {
+		const account = await executor.transaction(async (tx) => {
+			const [row] = await tx
+				.update(accounts)
+				.set({ studentId: input.studentId, updatedAt: sql`now()` })
+				.where(
+					and(
+						eq(accounts.id, input.accountId),
+						eq(accounts.role, 'student'),
+						eq(accounts.status, 'active'),
+						isNull(accounts.studentId)
+					)
+				)
+				.returning(studentAccountColumns)
+			return row ? toStudentAccount(row) : null
+		})
+		if (account) return { kind: 'linked', account }
+	} catch (error) {
+		if (violatesUnique(error, STUDENT_CARD_CONSTRAINT)) return { kind: 'card_has_account' }
+		throw error
+	}
+	const [current] = await executor
+		.select({ studentId: accounts.studentId })
+		.from(accounts)
+		.where(and(eq(accounts.id, input.accountId), eq(accounts.role, 'student'), eq(accounts.status, 'active')))
+	if (!current || current.studentId === null) return { kind: 'not_found' }
+	return { kind: 'account_already_linked' }
+}
+
+export async function listUnlinkedStudentAccounts(executor: DbExecutor): Promise<StudentAccount[]> {
+	const rows = await executor
+		.select(studentAccountColumns)
+		.from(accounts)
+		.where(and(eq(accounts.role, 'student'), eq(accounts.status, 'active'), isNull(accounts.studentId)))
+		.orderBy(sql`lower(${accounts.displayName})`, accounts.login)
+	return rows.map(toStudentAccount)
+}
+
+export function deactivateStudent(db: Database, input: DeactivateStudentInput): Promise<DeactivateStudentResult> {
 	return db.transaction(async (tx): Promise<DeactivateStudentResult> => {
 		const [locked] = await tx
 			.select({ id: accounts.id })
 			.from(accounts)
-			.where(and(eq(accounts.id, studentId), eq(accounts.role, 'student'), eq(accounts.status, 'active')))
+			.where(
+				and(
+					eq(accounts.id, input.accountId),
+					eq(accounts.studentId, input.studentId),
+					eq(accounts.role, 'student'),
+					eq(accounts.status, 'active')
+				)
+			)
 			.for('update')
 		if (!locked) return { kind: 'not_found' }
 		const [row] = await tx
 			.update(accounts)
 			.set({ status: 'deactivated', updatedAt: sql`now()` })
 			.where(eq(accounts.id, locked.id))
-			.returning(studentRowColumns)
+			.returning(studentAccountColumns)
 		if (!row) throw new Error('student update returned no row')
 		await revokeAccountSessions(tx, locked.id)
-		return { kind: 'deactivated', student: toStudentRow(row) }
+		return { kind: 'deactivated', account: toStudentAccount(row) }
 	})
 }
 

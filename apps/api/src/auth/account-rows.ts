@@ -1,4 +1,4 @@
-import type { AccountStatus, AccountSummary, Role, StudentRow } from '@dv-lab/contracts'
+import type { AccountStatus, AccountSummary, Role, StudentAccount } from '@dv-lab/contracts'
 import { accounts } from '@dv-lab/db'
 
 type AccountRecord = typeof accounts.$inferSelect
@@ -10,7 +10,7 @@ export const accountSummaryColumns = {
 	role: accounts.role,
 }
 
-export const studentRowColumns = {
+export const studentAccountColumns = {
 	id: accounts.id,
 	login: accounts.login,
 	displayName: accounts.displayName,
@@ -32,9 +32,9 @@ export function toAccountSummary(row: Pick<AccountRecord, 'id' | 'login' | 'disp
 	return { id: row.id, login: row.login, displayName: row.displayName, role: toRole(row.role) }
 }
 
-export function toStudentRow(
+export function toStudentAccount(
 	row: Pick<AccountRecord, 'id' | 'login' | 'displayName' | 'status' | 'createdAt'>
-): StudentRow {
+): StudentAccount {
 	return {
 		id: row.id,
 		login: row.login,

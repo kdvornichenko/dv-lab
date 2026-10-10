@@ -78,6 +78,15 @@ jobs:
             echo "packages/contracts/src must not read process.env"
             exit 1
           fi
+          node -e "const p = require('./packages/core/package.json'); const deps = Object.keys({ ...p.dependencies, ...p.peerDependencies, ...p.optionalDependencies }); if (deps.length) { console.error('packages/core must have no dependencies, found: ' + deps.join(', ')); process.exit(1) }"
+          if ! none -E "['\"](pg(/[^'\"]*)?|node:[^'\"]*|@dv-lab/[^'\"]*)['\"]" -- packages/core/src; then
+            echo "packages/core/src must not import pg, node:* or @dv-lab/*"
+            exit 1
+          fi
+          if ! none -F process.env -- packages/core/src; then
+            echo "packages/core/src must not read process.env"
+            exit 1
+          fi
 
       - name: Client address trust
         run: |

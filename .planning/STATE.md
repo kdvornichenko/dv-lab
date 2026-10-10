@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 18
-current_phase_name: Accounts and Variant A Shell
+current_phase: 19
+current_phase_name: Student Cards and Vault Import
 status: executing
-stopped_at: Phase 18 executed (16/16 plans, branch gsd/phase-18-accounts-and-variant-a-shell); release to the VPS and owner sign-in pending; phase 17 verification human_needed
-last_updated: "2026-10-09T12:13:36.406Z"
-last_activity: 2026-10-09
+stopped_at: Phase 19 executed (20/20 plans, branch gsd/phase-19-student-cards-and-vault-import); release to the VPS, the owner's acceptance of the import on dvlab_dev and the server import (RUNBOOK 11) pending; phase 18 is live on the VPS and waits for the owner's first sign-in; phase 17 verification human_needed
+last_updated: "2026-10-09T19:21:09.223Z"
+last_activity: 2026-10-10
 last_activity_desc: Phase 17 execution started
-state_head: 42897fd25fe687c4225879466fb38b4b8185e8e1
+state_head: 8cf535e5f1398d2ee3a313a11e9a2419af461b46
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 16
+  total_plans: 48
   completed_plans: 16
-  percent: 100
+  percent: 0
 ---
 
 # Project State
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 18 — Accounts and Variant A Shell
+**Current focus:** Phase 19 — Student Cards and Vault Import (executed; release pending)
 
 ## Current Position
 
-Phase: 18 (Accounts and Variant A Shell) — EXECUTED, release and verification pending
-Plan: 16 of 16
-Status: Plans done; ROADMAP criterion 1 (sign-in on dv-lab.dev) closes after the server release (RUNBOOK 10.1-10.3) and the owner's sign-in
-Last activity: 2026-10-10 — Phase 18 execution finished, final verification (18-15) passed with two small gaps
+Phase: 19 (Student Cards and Vault Import) — EXECUTED, release and import pending
+Plan: 20 of 20
+Status: Plans done, code review fixed, security audit SECURED, verification human_needed (no code gaps). Open human steps: the owner accepts the import on dvlab_dev, then RUNBOOK 11.1-11.3 (release and the one-time import on the VPS, Server guy). Phase 18 is live; ROADMAP criterion 1 of phase 18 waits for the owner's first sign-in (RUNBOOK 10.3).
+Last activity: 2026-10-10 — Phase 19 executed (20 plans, 10 waves) and verified
 
 Progress: [██████████] 100%
 
@@ -42,6 +42,7 @@ Progress: [██████████] 100%
 |-------|-------|--------|
 | 17 | verification_deferred_human | /gsd-verify-work 17 |
 | 18 | verification_deferred_human | /gsd-verify-work 18 |
+| 19 | verification_deferred_human | /gsd-verify-work 19 |
 
 Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 in the Vercel panel (RUNBOOK 3.5); recreate network dv-lab_default once at the next release (commit 2bcd8c0); optional browser look at the stub.
 

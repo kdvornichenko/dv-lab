@@ -1,15 +1,15 @@
 import { parseArgs } from 'node:util'
 
 import {
-	DISPLAY_NAME_MAX_LENGTH,
 	MANUAL_PASSWORD_MAX_LENGTH,
 	MANUAL_PASSWORD_MIN_LENGTH,
+	isDisplayNameLength,
 	isTeacherLogin,
 	normalizeDisplayName,
 	normalizeLogin,
 	passwordLength,
 } from '@dv-lab/contracts'
-import { createDb, resolveDatabaseUrl } from '@dv-lab/db'
+import { createDb, postgresCode, resolveDatabaseUrl } from '@dv-lab/db'
 import type { Database } from '@dv-lab/db'
 
 import { createTeacher, resetTeacherPassword } from './auth/accounts.ts'
@@ -21,7 +21,6 @@ const USAGE = [
 ].join('\n')
 const USAGE_EXIT_CODE = 2
 const REFUSED_EXIT_CODE = 3
-const CAUSE_DEPTH = 5
 
 type Options =
 	| { mode: 'create'; login: string; displayName: string; passwordFromStdin: boolean }
@@ -43,7 +42,7 @@ function parseOptions(argv: string[]): Options | null {
 		if (!isTeacherLogin(login)) return null
 		if (values['reset-password'] === true) return { mode: 'reset', login, passwordFromStdin }
 		const displayName = normalizeDisplayName(values.name ?? '')
-		if (displayName.length < 1 || Array.from(displayName).length > DISPLAY_NAME_MAX_LENGTH) return null
+		if (!isDisplayNameLength(displayName)) return null
 		return { mode: 'create', login, displayName, passwordFromStdin }
 	} catch {
 		return null
@@ -56,16 +55,6 @@ async function readStdin(): Promise<string> {
 	return Buffer.concat(chunks)
 		.toString('utf8')
 		.replace(/\r?\n$/, '')
-}
-
-function postgresCode(error: unknown): string | null {
-	let current: unknown = error
-	for (let depth = 0; depth < CAUSE_DEPTH && current instanceof Error; depth += 1) {
-		const code = (current as Error & { code?: unknown }).code
-		if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return code
-		current = current.cause
-	}
-	return null
 }
 
 async function runCreate(

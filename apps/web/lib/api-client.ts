@@ -3,7 +3,9 @@ import type { ErrorResponse } from '@dv-lab/contracts'
 export type ApiResult<T> =
 	{ ok: true; status: number; data: T } | { ok: false; status: number; error: ErrorResponse['error'] | null }
 
-export async function apiRequest<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<ApiResult<T>> {
+type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+export async function apiRequest<T>(method: ApiMethod, path: string, body?: unknown): Promise<ApiResult<T>> {
 	let response: Response
 	try {
 		response = await fetch(`/api${path}`, {

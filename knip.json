@@ -23,10 +23,14 @@
 			]
 		},
 		"apps/api": {
-			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts"],
+			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts", "src/import-vault.ts"],
 			"project": ["src/**/*.ts"]
 		},
 		"packages/contracts": {
+			"entry": ["src/index.ts"],
+			"project": ["src/**/*.ts"]
+		},
+		"packages/core": {
 			"entry": ["src/index.ts"],
 			"project": ["src/**/*.ts"]
 		},

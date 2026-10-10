@@ -121,7 +121,50 @@ Plans:
   5. A student account links to exactly one card; linking a second account to the same card, or one account to two cards, is rejected.
   6. The teacher sets an opening balance (lessons left) on each card, and the balance shown after the import is counted from that opening balance, not from every lesson ever paid.
 
-**Plans**: TBD
+**Plans**: 20/20 plans executed
+
+Plans:
+**Wave 1**
+- [x] 19-01-PLAN.md — All phase dependencies in one install: `packages/core` skeleton, pinned react-markdown, remark-gfm, react-day-picker (W1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 19-02-PLAN.md — `packages/db` owns `DbExecutor` and Postgres error parsing; four copies moved (W2)
+- [x] 19-03-PLAN.md — Contracts: name predicate, currencies, section kinds, request schemas, 409 codes (W2)
+- [x] 19-04-PLAN.md — `packages/core` money, lessons and balance functions; knip and CI boundary (W2)
+- [x] 19-05-PLAN.md — Schema for cards, sections, terms, payments, account link; migration applied [BLOCKING] (W2)
+- [x] 19-06-PLAN.md — Variant A Select, Combobox, Textarea, DateField copies, MarkdownView (DR-1), StatusDot (W2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 19-07-PLAN.md — Cards module and `/students` routes, opening balance, account and card names split (W3)
+- [x] 19-08-PLAN.md — `import-vault parse`: packet from the vault, ignore masks (W3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 19-09-PLAN.md — Sections and vocabulary in the cards module and routes (W4)
+- [x] 19-10-PLAN.md — Payments: record, delete, unassigned, assign (W4)
+- [x] 19-11-PLAN.md — Students screen: card list and New student dialog (W4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 19-12-PLAN.md — Account link to a card: create from card, link existing, deactivate (W5)
+- [x] 19-13-PLAN.md — `import-vault apply` through the cards module, run on `dvlab_dev` (W5)
+- [x] 19-14-PLAN.md — Profile: header, Overview, archive and restore, opening balance (W5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 19-15-PLAN.md — `import` compose service and RUNBOOK section 11 (W6)
+- [x] 19-16-PLAN.md — Payments UI: Record payment, Payments tab, Unassigned payments and Assign (W6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 19-17-PLAN.md — Notes and Vocabulary tabs (W7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 19-18-PLAN.md — Account panel: create, link, deactivate from the card (W8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 19-20-PLAN.md — Form fields: one look, one error line, Combobox empty state and time zone offsets, per the Design session (W9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 19-19-PLAN.md — Final verification: AGENTS.md, full checks, privacy, six criteria by hand (W10)
+
+**Notes**: The release and the server import are run later by the Server guy session (RUNBOOK 11) after the owner accepts the import on `dvlab_dev`.
 **UI hint**: yes
 
 ### Phase 20: Schedule
@@ -241,7 +284,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 |-------|-----------|----------------|--------|-----------|
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
-| 19. Student Cards and Vault Import | v2.0 | 0/TBD | Not started | - |
+| 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 0/TBD | Not started | - |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
