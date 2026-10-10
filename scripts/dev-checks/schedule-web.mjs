@@ -7,6 +7,10 @@ const dark = process.argv.includes('dark')
 const fixtureWhere = (like) => `display_name like '${like}' and import_key is null`
 
 const cleanupText = (like) => `do $$ begin
+if to_regclass('lesson_marks') is not null then
+delete from lesson_marks where lesson_id in (select id from lessons where student_id in (select id from students where ${fixtureWhere(like)}))
+or series_id in (select id from lesson_series where student_id in (select id from students where ${fixtureWhere(like)}));
+end if;
 if to_regclass('lesson_exceptions') is not null then
 delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in (select id from students where ${fixtureWhere(like)}));
 end if;
@@ -327,8 +331,8 @@ async function framePart1(page, label, at) {
 		)
 	}
 	check(
-		`${label} gutter: Vietnam sits against the grid`,
-		look.gridLeft - look.row[1].right >= 0 && look.gridLeft - look.row[1].right <= 6,
+		`${label} gutter: Vietnam sits 8px from the grid`,
+		Math.abs(look.gridLeft - look.row[1].right - 8) <= 1,
 		String(look.gridLeft - look.row[1].right)
 	)
 	check(`${label} body has scroll-fade`, data.bodyFade === true)
@@ -3127,7 +3131,158 @@ async function students() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_STUDENTS_OK')
 }
 
-const sections = { fade, frame, read, changes, students }
+const GRID_LIKE = 'Alex Example 2130%'
+const GRID_A = 'Alex Example 2130 A'
+const GRID_B = 'Alex Example 2130 B'
+const GCAL_LINE_PROBE = 'var(--gcal-line)'
+
+async function gridFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const wednesday = core.firstOnOrAfter(core.addDays(today, 1), 3)
+	const thursday = core.addDays(wednesday, 1)
+	const cancelledWednesday = core.addDays(wednesday, 63)
+	const a = await createCard(page, GRID_A, 60, null)
+	const b = await createCard(page, GRID_B, 60, null)
+	const make = async (studentId, date, startTime, durationMinutes) => {
+		const result = await api(page, 'POST', '/schedule/lessons', {
+			studentId,
+			date,
+			startTime,
+			durationMinutes,
+			repeats: 'once',
+		})
+		check(`lesson ${date} ${startTime} for ${durationMinutes} min created`, result.status === 201, String(result.status))
+		return result.json?.lesson
+	}
+	await make(a, wednesday, '18:00', 60)
+	await make(a, thursday, '09:00', 30)
+	await make(a, thursday, '11:00', 40)
+	await make(a, thursday, '14:00', 45)
+	await make(a, thursday, '16:00', 60)
+	const doomed = await make(b, cancelledWednesday, '12:00', 60)
+	const cancelled = await api(page, 'POST', `/schedule/lessons/${encodeURIComponent(doomed.id)}/cancel`, {
+		expectedStartsAt: doomed.startsAt,
+	})
+	check('lesson in the far week cancelled', cancelled.status === 200, String(cancelled.status))
+	return { today, wednesday, thursday, cancelledWednesday }
+}
+
+async function gutterGeometry(page) {
+	return page.evaluate((linePaint) => {
+		const rect = (element) => element.getBoundingClientRect()
+		const gutter = document.querySelector('[data-slot="week-grid-gutter"]')
+		const corner = document.querySelector('[data-slot="week-grid-corner"]')
+		const column = document.querySelector('[data-slot="week-grid-column"]')
+		const day = document.querySelector('[data-slot="week-grid-day"]')
+		const line = (hour) => document.querySelector(`[data-slot="week-grid-line"][data-hour="${hour}"]`)
+		const cells = (element) =>
+			Array.from(element.querySelectorAll('span')).map((span) => ({
+				text: span.textContent,
+				left: rect(span).left,
+				right: rect(span).right,
+				width: rect(span).width,
+			}))
+		const probe = document.createElement('div')
+		probe.style.borderLeft = `1px solid ${linePaint}`
+		document.body.append(probe)
+		const expectedBorder = getComputedStyle(probe).borderLeftColor
+		probe.remove()
+		const rowZero = gutter.children[0]
+		const rowEight = gutter.children[8]
+		return {
+			gutterLeft: rect(gutter).left,
+			gutterRight: rect(gutter).right,
+			gutterWidth: rect(gutter).width,
+			cornerWidth: rect(corner).width,
+			gridLeft: rect(column).left,
+			rowEight: cells(rowEight),
+			rowEightCenter: rect(rowEight).top + rect(rowEight).height / 2,
+			lineEightTop: rect(line(8)).top,
+			lineEightLeft: rect(line(8)).left,
+			rowZeroTop: rect(rowZero).top,
+			lineZeroTop: rect(line(0)).top,
+			corner: cells(corner),
+			dayLeft: rect(day).left,
+			dayBorderWidth: getComputedStyle(day).borderLeftWidth,
+			dayBorderColor: getComputedStyle(day).borderLeftColor,
+			expectedBorder,
+		}
+	}, GCAL_LINE_PROBE)
+}
+
+async function gridPart1(page) {
+	await openSchedule(page)
+	await page.evaluate(() => localStorage.removeItem('dv-lab.schedule.second-zone'))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(400)
+	const near = (value, expected, tolerance = 0.6) => Math.abs(value - expected) <= tolerance
+	let geo = await gutterGeometry(page)
+	check('gutter is 100px wide', near(geo.gutterWidth, 100) && near(geo.cornerWidth, 100), `${geo.gutterWidth}/${geo.cornerWidth}`)
+	const [second, vn] = geo.rowEight
+	check('row 08:00: second zone left, Vietnam right', second?.text === '04:00' && vn?.text === '08:00', JSON.stringify(geo.rowEight))
+	check('row 08:00: two columns of 36px', near(second.width, 36) && near(vn.width, 36), `${second.width}/${vn.width}`)
+	check('row 08:00: gap between the columns is 8px', near(vn.left - second.right, 8), String(vn.left - second.right))
+	check('row 08:00: Vietnam is 8px from the grid line', near(geo.gridLeft - vn.right, 8), String(geo.gridLeft - vn.right))
+	check('row 08:00: 12px from the card edge to the second zone', near(second.left - geo.gutterLeft, 12), String(second.left - geo.gutterLeft))
+	const [cornerSecond, cornerVn] = geo.corner
+	check('corner names MSK and VN', geo.corner.map((item) => item.text).join(' ') === 'MSK VN', JSON.stringify(geo.corner))
+	check(
+		'corner columns match the row columns',
+		near(cornerSecond.left, second.left) && near(cornerVn.left, vn.left) && near(cornerVn.width, 36),
+		JSON.stringify(geo.corner)
+	)
+	check('hour line starts at the grid edge', near(geo.lineEightLeft, geo.gridLeft), `${geo.lineEightLeft}/${geo.gridLeft}`)
+	check('hour label 08:00 is centred on its line', near(geo.rowEightCenter, geo.lineEightTop + 0.5, 1.5), `${geo.rowEightCenter}/${geo.lineEightTop}`)
+	check('first label sits under the top line', near(geo.rowZeroTop, geo.lineZeroTop, 1.5), `${geo.rowZeroTop}/${geo.lineZeroTop}`)
+	check(
+		'day header has a hairline in line with the body separators',
+		near(geo.dayLeft, geo.gridLeft) && geo.dayBorderWidth === '1px' && geo.dayBorderColor === geo.expectedBorder,
+		`${geo.dayLeft}/${geo.gridLeft} ${geo.dayBorderWidth} ${geo.dayBorderColor}`
+	)
+	const midnight = await page.evaluate(() =>
+		Array.from(document.querySelectorAll('[data-slot="week-grid-gutter"] > div')[4].querySelectorAll('span')).map(
+			(span) => span.textContent
+		)
+	)
+	check('midnight row of the second zone shows the weekday', midnight.join(' ') === 'Mon 04:00', midnight.join(' '))
+	await shot(page, 'sched-grid', 'gutter')
+
+	await page.evaluate(() => localStorage.setItem('dv-lab.schedule.second-zone', 'none'))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(400)
+	geo = await gutterGeometry(page)
+	check('no second zone: one column of 36px', geo.rowEight.length === 1 && near(geo.rowEight[0].width, 36), JSON.stringify(geo.rowEight))
+	check('no second zone: the label is 08:00, 8px from the line', geo.rowEight[0].text === '08:00' && near(geo.gridLeft - geo.rowEight[0].right, 8), String(geo.gridLeft - geo.rowEight[0].right))
+	check('no second zone: one caption VN', geo.corner.length === 1 && geo.corner[0].text === 'VN', JSON.stringify(geo.corner))
+	check('no second zone: the gutter is still 100px', near(geo.gutterWidth, 100), String(geo.gutterWidth))
+	await shot(page, 'sched-grid', 'gutter-none')
+	await page.evaluate(() => localStorage.removeItem('dv-lab.schedule.second-zone'))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(400)
+	console.log(failures() === 0 ? 'GRID_PART1_OK' : 'GRID_PART1_FAIL')
+}
+
+async function grid() {
+	cleanupFixtures('grid start', GRID_LIKE)
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	try {
+		await setTheme(page)
+		await signIn(page)
+		const fx = await gridFixtures(page)
+		await gridPart1(page)
+		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+		cleanupFixtures('grid end', GRID_LIKE)
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_GRID_OK')
+}
+
+const sections = { fade, frame, read, changes, students, grid }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)

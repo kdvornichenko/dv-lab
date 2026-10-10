@@ -20,7 +20,7 @@ const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const SLOT_MINUTES = 15
 const SLOT_HEIGHT = (HOUR_HEIGHT * SLOT_MINUTES) / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
-const COLUMNS = 'grid grid-cols-[5rem_repeat(7,minmax(0,1fr))]'
+const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
 const MIN_DISPLAY_MINUTES = 30
 const DAY_MINUTES = 24 * 60
 
@@ -119,12 +119,12 @@ function GutterPair({
 		<div
 			style={top === undefined ? undefined : { top }}
 			className={cn(
-				'flex justify-end gap-[12px] text-caption whitespace-nowrap text-muted-foreground tabular-nums',
+				'flex justify-end gap-2 pr-2 pl-[12px] text-caption whitespace-nowrap text-muted-foreground tabular-nums',
 				className
 			)}
 		>
-			{second !== null ? <span className="w-8 text-right">{second}</span> : null}
-			<span className="w-8 text-right">{local}</span>
+			{second !== null ? <span className="w-[36px] text-right">{second}</span> : null}
+			<span className="w-[36px] text-right">{local}</span>
 		</div>
 	)
 }
@@ -165,7 +165,7 @@ export function WeekGrid({
 				className={cn(FRAME_HEIGHT, 'flex flex-col overflow-hidden rounded-2xl')}
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
-					<div data-slot="week-grid-corner" className="flex items-end justify-end pr-1 pb-2">
+					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
 						<GutterPair local="VN" second={secondZone ? secondZone.caption : null} />
 					</div>
 					{dates.map((date) => {
@@ -214,7 +214,7 @@ export function WeekGrid({
 									local={hourLabel(hour)}
 									second={secondZone ? gutterLabel(monday, hour, secondZone.id) : null}
 									top={hour * HOUR_HEIGHT}
-									className={cn('absolute inset-x-0 pr-1', hour > 0 && '-translate-y-1/2')}
+									className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
 								/>
 							))}
 						</div>
@@ -259,7 +259,7 @@ export function WeekGrid({
 								key={hour}
 								data-slot="week-grid-line"
 								data-hour={hour}
-								className="pointer-events-none absolute right-0 left-20 h-px bg-gcal-line"
+								className="pointer-events-none absolute right-0 left-[100px] h-px bg-gcal-line"
 								style={{ top: hour * HOUR_HEIGHT }}
 							/>
 						))}
