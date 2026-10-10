@@ -100,7 +100,13 @@ export function toWireMark(mark: MarkKind | null): Mirror<MarkKind, LessonMarkKi
 }
 
 export function toWireActions(actions: LessonActions): Mirror<LessonActions, ScheduleLessonActions> {
-	return { move: actions.move, cancel: actions.cancel, restore: actions.restore, mark: actions.mark }
+	return {
+		move: actions.move,
+		cancel: actions.cancel,
+		restore: actions.restore,
+		mark: actions.mark,
+		series: actions.series,
+	}
 }
 
 export function toBalanceCard(row: BalanceRecord): BalanceCard {

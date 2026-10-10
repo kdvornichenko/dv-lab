@@ -56,8 +56,7 @@ export function markEffect(input: {
 	const { outcome, startsAt, durationMinutes, now, card } = input
 	if (outcome === 'cancelled') return { kind: 'cancelled' }
 	if (outcome === 'moved') return { kind: 'moved' }
-	if (canChange(startsAt, now)) return { kind: 'not_started' }
-	if (outcome === 'planned') return { kind: 'unmarked' }
+	if (outcome === 'planned') return canChange(startsAt, now) ? { kind: 'not_started' } : { kind: 'unmarked' }
 	if (card.openingOn === null) return { kind: 'no_opening' }
 	if (!countsAfterOpening(scheduleDate(startsAt), card.openingOn)) {
 		return { kind: 'before_opening', openingOn: card.openingOn }

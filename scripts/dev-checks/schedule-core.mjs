@@ -694,6 +694,41 @@ function partTwo() {
 		}
 	)
 
+	const movedOn = (originalOn, date, time) => ({
+		seriesId: 'series-a',
+		originalOn,
+		kind: 'moved',
+		startsAt: at(date, time),
+		durationMinutes: 60,
+	})
+	const nextOf = (exceptions) => entries(core.nextLessons({ series: [weekly], exceptions, lessons: [], now: NOW }))
+	expect(
+		's15 nextLessons follows an occurrence moved to the future or into the past',
+		{
+			pastToTomorrow: nextOf([movedOn('2026-10-07', '2026-10-13', '10:00')]),
+			nearestToYesterday: nextOf([movedOn('2026-10-14', '2026-10-11', '10:00')]),
+		},
+		{
+			pastToTomorrow: [[STUDENT, '2026-10-13T03:00:00.000Z']],
+			nearestToYesterday: [[STUDENT, '2026-10-21T11:00:00.000Z']],
+		}
+	)
+
+	const tailIntoPast = [movedOn('2026-10-21', '2026-10-09', '10:00')]
+	const intoPast = {
+		studentId: STUDENT,
+		startsAt: '2026-10-09T03:00:00.000Z',
+		durationMinutes: 60,
+		originalOn: '2026-10-21',
+	}
+	const tailCut = cut(weekly, tailIntoPast, { from: '2026-10-14', weekday: 4, startTime: '17:00' })
+	const tailEnd = core.endSeriesAt(weekly, tailIntoPast, '2026-10-14', NOW)
+	expect(
+		's16 End series and a series cut turn a tail occurrence moved into the past into a lesson on its past place',
+		{ cut: [tailCut.kind, tailCut.lessons], end: [tailEnd.kind, tailEnd.endsOn, tailEnd.lessons] },
+		{ cut: ['ok', [intoPast]], end: ['ok', '2026-10-14', [intoPast]] }
+	)
+
 	return { results, expected }
 }
 

@@ -178,7 +178,7 @@ function partTwo() {
 		]
 	)
 	const actions = (outcome, startsAt) => core.lessonActions(outcome, startsAt, NOW)
-	const none = { move: false, cancel: false, restore: false, mark: false }
+	const none = { move: false, cancel: false, restore: false, mark: false, series: false }
 	expect(
 		'p2 lessonActions matrix at the start boundary',
 		{
@@ -193,13 +193,13 @@ function partTwo() {
 			movedFuture: actions('moved', LATER),
 		},
 		{
-			plannedFuture: { move: true, cancel: true, restore: false, mark: false },
-			plannedStarted: { move: true, cancel: true, restore: false, mark: true },
-			doneStarted: { move: true, cancel: true, restore: false, mark: true },
-			doneFuture: { move: true, cancel: true, restore: false, mark: true },
-			noShowStarted: { move: true, cancel: true, restore: false, mark: true },
-			cancelledPast: { move: false, cancel: false, restore: true, mark: false },
-			cancelledFuture: { move: false, cancel: false, restore: true, mark: false },
+			plannedFuture: { move: true, cancel: true, restore: false, mark: false, series: true },
+			plannedStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
+			doneStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
+			doneFuture: { move: true, cancel: true, restore: false, mark: true, series: true },
+			noShowStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
+			cancelledPast: { move: false, cancel: false, restore: true, mark: false, series: false },
+			cancelledFuture: { move: false, cancel: false, restore: true, mark: false, series: true },
 			movedPast: none,
 			movedFuture: none,
 		}
@@ -300,6 +300,8 @@ function partTwo() {
 			moved: effect('moved', { startsAt: LATER }),
 			notStarted: effect('planned', { startsAt: LATER }),
 			notStartedMarked: effect('done', { startsAt: LATER, card: { openingOn: null } }),
+			futureDoneDeducts: effect('done', { startsAt: LATER }),
+			futureNoShowOff: effect('no_show', { startsAt: LATER, card: { noShowDeducts: false } }),
 			unmarked: effect('planned', { card: { openingOn: null } }),
 			noOpening: effect('no_show', { card: { openingOn: null, noShowDeducts: false } }),
 			beforeOpening: effect('done', { startsAt: at(OPEN, '23:30') }),
@@ -313,7 +315,9 @@ function partTwo() {
 			cancelledNotStarted: { kind: 'cancelled' },
 			moved: { kind: 'moved' },
 			notStarted: { kind: 'not_started' },
-			notStartedMarked: { kind: 'not_started' },
+			notStartedMarked: { kind: 'no_opening' },
+			futureDoneDeducts: { kind: 'deducts', minutes: 60 },
+			futureNoShowOff: { kind: 'no_show_off' },
 			unmarked: { kind: 'unmarked' },
 			noOpening: { kind: 'no_opening' },
 			beforeOpening: { kind: 'before_opening', openingOn: OPEN },

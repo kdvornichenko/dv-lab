@@ -70,7 +70,7 @@ export type ScheduleOccurrenceRef =
 
 export type ScheduleLessonOutcome = 'planned' | 'done' | 'no_show' | 'cancelled' | 'moved'
 
-export type ScheduleLessonActions = { move: boolean; cancel: boolean; restore: boolean; mark: boolean }
+export type ScheduleLessonActions = { move: boolean; cancel: boolean; restore: boolean; mark: boolean; series: boolean }
 
 export type ScheduleBlockLedger = { openingOn: string | null; noShowDeducts: boolean; lessonMinutes: number }
 
