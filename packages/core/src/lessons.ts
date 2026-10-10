@@ -61,6 +61,36 @@ export function lessonsPhrase(minutes: number, lessonMinutes: number): string {
 	return count === '1' ? '1 lesson' : `${count} lessons`
 }
 
+export const PAYS_SOON_LESSONS_DEFAULT = 2
+
+export type BalanceState = 'plenty' | 'pays_soon' | 'none_left' | 'owes' | 'not_set'
+
+export function balanceState(minutes: number | null, lessonMinutes: number, threshold: number): BalanceState {
+	if (minutes === null) return 'not_set'
+	if (minutes < 0) return 'owes'
+	if (minutes === 0) return 'none_left'
+	return minutes <= threshold * lessonMinutes ? 'pays_soon' : 'plenty'
+}
+
+export function paysSoon(minutes: number | null, lessonMinutes: number, threshold: number): boolean {
+	const state = balanceState(minutes, lessonMinutes, threshold)
+	return state === 'pays_soon' || state === 'none_left' || state === 'owes'
+}
+
+export function paysSoonList<
+	T extends { status: string; displayName: string; balanceMinutes: number | null; defaultLessonMinutes: number },
+>(cards: readonly T[], threshold: number): T[] {
+	const lessons = (card: T) => (card.balanceMinutes ?? 0) / card.defaultLessonMinutes
+	return cards
+		.filter((card) => card.status === 'active' && paysSoon(card.balanceMinutes, card.defaultLessonMinutes, threshold))
+		.sort((left, right) => lessons(left) - lessons(right) || left.displayName.localeCompare(right.displayName, 'en'))
+}
+
+export function balancePhrase(minutes: number, lessonMinutes: number): string {
+	if (minutes >= 0) return `${lessonsPhrase(minutes, lessonMinutes)} left`
+	return `owes ${lessonsPhrase(0 - minutes, lessonMinutes)}`
+}
+
 export function localIsoDate(date: Date): string {
 	const parts = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(
 		date

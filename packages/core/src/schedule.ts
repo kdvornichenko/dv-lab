@@ -62,6 +62,30 @@ export function occurrenceOutcome(occurrence: Pick<Occurrence, 'status'>, mark: 
 	return occurrence.status === 'cancelled' ? 'cancelled' : markedOutcome(mark)
 }
 
+export function countsAsLesson(outcome: LessonOutcome): boolean {
+	return outcome === 'planned' || outcome === 'done' || outcome === 'no_show'
+}
+
+export function isMarked(outcome: LessonOutcome): boolean {
+	return outcome === 'done' || outcome === 'no_show'
+}
+
+export type LessonActions = { move: boolean; cancel: boolean; restore: boolean; mark: boolean }
+
+export function lessonActions(outcome: LessonOutcome, startsAt: Date, now: Date): LessonActions {
+	const upcoming = canChange(startsAt, now)
+	return {
+		move: outcome === 'planned' && upcoming,
+		cancel: countsAsLesson(outcome),
+		restore: outcome === 'cancelled',
+		mark: countsAsLesson(outcome) && !upcoming,
+	}
+}
+
+export function awaitsMark(outcome: LessonOutcome, startsAt: Date, now: Date): boolean {
+	return outcome === 'planned' && !canChange(startsAt, now)
+}
+
 export type ScheduleBlock = {
 	key: string
 	ref: OccurrenceRef
@@ -206,7 +230,15 @@ export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }):
 	return blocks.sort(byStart)
 }
 
+export type OutcomeBlock = ScheduleBlock & { outcome: LessonOutcome }
+
+export function withOutcomes(blocks: readonly ScheduleBlock[], marks: ReadonlyMap<string, MarkKind>): OutcomeBlock[] {
+	return blocks.map((block) => ({ ...block, outcome: lessonOutcome(block.status, marks.get(block.key) ?? null) }))
+}
+
 const SEARCH_DAYS = 366
+
+export const MARK_LOOKBACK_DAYS = 366
 
 const laterDate = (left: string, right: string) => (left > right ? left : right)
 
@@ -349,9 +381,7 @@ export function cutSeries(
 }
 
 export type EndSeriesResult =
-	| { kind: 'invalid' }
-	| { kind: 'changed' }
-	| { kind: 'ok'; endsOn: string; lessons: CutLesson[] }
+	{ kind: 'invalid' } | { kind: 'changed' } | { kind: 'ok'; endsOn: string; lessons: CutLesson[] }
 
 export function endSeriesAt(
 	rule: SeriesRule,
