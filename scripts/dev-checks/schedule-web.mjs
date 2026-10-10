@@ -1416,6 +1416,11 @@ async function readPart2(page, fx, nav) {
 		pastFacts.buttons.join('|')
 	)
 	check(
+		'dialog: a past lesson has the Mark row',
+		(await dialog.getByRole('radiogroup', { name: 'Mark' }).count()) === 1 &&
+			(await dialog.getByRole('radio').count()) === 3
+	)
+	check(
 		'dialog: a single lesson has no Series row',
 		!pastFacts.text.includes('Series') && pastFacts.text.includes('RepeatsOnce')
 	)

@@ -32,9 +32,10 @@ import {
 	weekdayName,
 } from '@/lib/schedule-format'
 
-import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
+import type { LessonMarkKind, ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, nextSeriesDate } from '@dv-lab/core'
 
+import { LessonMarkRow } from './lesson-mark-row'
 import { LessonMoveForm } from './lesson-move-form'
 import type { OverlapBlock } from './new-lesson-dialog'
 import { STALE_LESSON, STALE_TITLE } from './schedule-mutations'
@@ -57,6 +58,7 @@ interface LessonDialogProps {
 	onOpenPair: (target: PairTarget) => void
 	onCancel: () => Promise<ActionOutcome>
 	onRestore: () => Promise<ActionOutcome>
+	onMark: (kind: LessonMarkKind) => Promise<ActionOutcome>
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	onStale: () => void
 	onMoved: (startsAt: Date) => void
@@ -69,6 +71,8 @@ const FAILURE: Record<Exclude<Notice, 'stale' | null>, string> = {
 	cancel: 'Could not cancel the lesson. Try again.',
 	restore: 'Could not restore the lesson. Try again.',
 }
+
+const MARK_FAILURE = 'Could not save the mark. Try again.'
 
 function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
 	return (
@@ -96,6 +100,7 @@ export function LessonDialog({
 	onOpenPair,
 	onCancel,
 	onRestore,
+	onMark,
 	blocksOn,
 	onStale,
 	onMoved,
@@ -106,6 +111,8 @@ export function LessonDialog({
 	const [pending, setPending] = useState(false)
 	const moveButton = useRef<HTMLButtonElement>(null)
 	const [notice, setNotice] = useState<Notice>(null)
+	const [choosing, setChoosing] = useState<LessonMarkKind | null>(null)
+	const [markFailed, setMarkFailed] = useState(false)
 	const start = new Date(block.startsAt)
 	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
 	const second = secondRange(start, block.durationMinutes, secondZone)
@@ -126,6 +133,17 @@ export function LessonDialog({
 		setPending(false)
 		setConfirming(false)
 		setNotice(outcome === 'ok' ? null : outcome === 'stale' ? outcome : failure)
+	}
+
+	async function choose(kind: LessonMarkKind) {
+		if (choosing !== null || pending) return
+		setChoosing(kind)
+		setNotice(null)
+		setMarkFailed(false)
+		const outcome = await onMark(kind)
+		setChoosing(null)
+		if (outcome === 'stale') setNotice('stale')
+		if (outcome === 'failed') setMarkFailed(true)
 	}
 
 	return (
@@ -189,6 +207,18 @@ export function LessonDialog({
 							) : null}
 							{block.studentGoal ? <span className="text-muted-foreground">· {block.studentGoal}</span> : null}
 						</div>
+						{markFailed ? (
+							<Banner status="error" data-slot="lesson-mark-failed">
+								<BannerTitle>{MARK_FAILURE}</BannerTitle>
+							</Banner>
+						) : null}
+						<LessonMarkRow
+							block={block}
+							now={now}
+							saving={choosing}
+							locked={pending}
+							onChoose={(kind) => void choose(kind)}
+						/>
 						<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
 							<Detail label="Length">{block.durationMinutes} min</Detail>
 							<Detail label="Repeats">{series === null ? 'Once' : `Every ${weekdayName(series.weekday)}`}</Detail>

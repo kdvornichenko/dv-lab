@@ -15,7 +15,13 @@ import { lessonCount, vnWhen, weekEyebrow, weekPhrase, weekRange, weekSummary } 
 import { exitFallbackMs, spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleSeries, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
+import type {
+	LessonMarkKind,
+	ScheduleBlock,
+	ScheduleSeries,
+	ScheduleWeekResponse,
+	StudentsResponse,
+} from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
@@ -23,7 +29,7 @@ import { EndSeriesDialog } from './end-series-dialog'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
 import { MoveSeriesDialog } from './move-series-dialog'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
-import { mutate } from './schedule-mutations'
+import { markLesson, mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
@@ -238,6 +244,24 @@ function LoadedSchedule({ now }: { now: Date }) {
 		return 'ok'
 	}
 
+	async function markBlock(block: ScheduleBlock, kind: LessonMarkKind): Promise<ActionOutcome> {
+		const result = await markLesson(block, kind)
+		if (result.kind === 'failed') return 'failed'
+		if (result.kind === 'stale') {
+			reload()
+			return 'stale'
+		}
+		weeks.current.clear()
+		const state = await readWeek(monday)
+		if (state.kind !== 'ready') {
+			reload()
+			return 'ok'
+		}
+		weeks.current.set(monday, state.data)
+		setLoaded({ monday, state })
+		return 'ok'
+	}
+
 	function openPair(target: PairTarget) {
 		const targetMonday = mondayOf(zonedParts(target.at, SCHEDULE_TIME_ZONE).date)
 		setMonday(targetMonday)
@@ -343,6 +367,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					onOpenPair={openPair}
 					onCancel={() => changeLesson(openBlock, 'cancel')}
 					onRestore={() => changeLesson(openBlock, 'restore')}
+					onMark={(kind) => markBlock(openBlock, kind)}
 					blocksOn={blocksOn}
 					onStale={reload}
 					onMoved={(startsAt) => {
