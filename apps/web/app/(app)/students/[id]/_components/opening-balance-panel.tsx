@@ -4,14 +4,14 @@ import { useState, type FormEvent, type RefObject } from 'react'
 
 import { DateField } from '@/components/app/date-field'
 import { Panel } from '@/components/app/layout-parts'
-import { LessonsText } from '@/components/app/ledger-text'
+import { StudentBalance } from '@/components/app/student-balance'
 import { TextField } from '@/components/app/text-field'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api-client'
 
 import type { StudentDetail, StudentResponse } from '@dv-lab/contracts'
-import { formatLessons, lessonsPhrase, localIsoDate, parseLessons } from '@dv-lab/core'
+import { balancePhrase, formatLessons, parseLessons, scheduleToday } from '@dv-lab/core'
 
 import { useToast } from '../../../_components/toasts'
 
@@ -35,7 +35,7 @@ function savedLessons(student: StudentDetail) {
 }
 
 function savedDay(student: StudentDetail) {
-	return student.openingBalance?.on ?? localIsoDate(new Date())
+	return student.openingBalance?.on ?? scheduleToday(new Date())
 }
 
 function sourceKey(student: StudentDetail) {
@@ -90,7 +90,7 @@ export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: Openi
 		const minutes = saved.openingBalance?.minutes ?? 0
 		toast.show({
 			title: 'Opening balance saved',
-			description: `${lessonsPhrase(minutes, saved.defaultLessonMinutes)} left as of ${formatDay(on)}.`,
+			description: `${balancePhrase(minutes, saved.defaultLessonMinutes)} as of ${formatDay(on)}.`,
 		})
 		onSaved()
 	}
@@ -109,13 +109,7 @@ export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: Openi
 				) : null}
 				<div className="flex items-baseline justify-between gap-4 text-body">
 					<span className="text-muted-foreground">Balance now</span>
-					<span className="text-foreground">
-						{student.balanceMinutes === null ? (
-							<span className="text-muted-foreground">Not set</span>
-						) : (
-							<LessonsText minutes={student.balanceMinutes} lessonMinutes={student.defaultLessonMinutes} phrase />
-						)}
-					</span>
+					<StudentBalance minutes={student.balanceMinutes} lessonMinutes={student.defaultLessonMinutes} />
 				</div>
 				<TextField
 					ref={lessonsInputRef}
@@ -137,7 +131,7 @@ export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: Openi
 						label="As of"
 						value={on}
 						onChange={setOn}
-						max={localIsoDate(new Date())}
+						max={scheduleToday(new Date())}
 						disabled={pending}
 					/>
 					<p className="text-caption text-muted-foreground">

@@ -22,9 +22,9 @@ import {
 	currencyDigits,
 	formatHundredths,
 	formatMoney,
-	localIsoDate,
 	parseLessons,
 	parseMoney,
+	scheduleToday,
 	suggestLessons,
 } from '@dv-lab/core'
 
@@ -54,7 +54,7 @@ function amountProblem(text: string, currency: string) {
 
 export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaymentDialogProps) {
 	const toast = useToast()
-	const today = localIsoDate(new Date())
+	const today = scheduleToday(new Date())
 	const rate = rateOf(student)
 	const [amount, setAmount] = useState('')
 	const [currency, setCurrency] = useState(student.currency ?? '')

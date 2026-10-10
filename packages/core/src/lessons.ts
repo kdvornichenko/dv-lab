@@ -90,11 +90,3 @@ export function balancePhrase(minutes: number, lessonMinutes: number): string {
 	if (minutes >= 0) return `${lessonsPhrase(minutes, lessonMinutes)} left`
 	return `owes ${lessonsPhrase(0 - minutes, lessonMinutes)}`
 }
-
-export function localIsoDate(date: Date): string {
-	const parts = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(
-		date
-	)
-	const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? ''
-	return `${part('year')}-${part('month')}-${part('day')}`
-}

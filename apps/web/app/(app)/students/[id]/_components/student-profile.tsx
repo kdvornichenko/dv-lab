@@ -8,16 +8,17 @@ import Link from 'next/link'
 import { Avatar } from '@/components/app/avatar'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
-import { LessonsText, MoneyText } from '@/components/app/ledger-text'
+import { MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
 import { NotFoundPage } from '@/components/app/status-pages'
+import { StudentBalance } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonProfileHeader } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 
-import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
+import type { SectionKind, SettingsResponse, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
 import { NotesTab, type SectionDrafts } from './notes-tab'
@@ -27,12 +28,20 @@ import { RecordPaymentDialog } from './record-payment-dialog'
 import { VocabularyTab } from './vocabulary-tab'
 
 type ReadState =
-	{ kind: 'loading' } | { kind: 'error' } | { kind: 'not_found' } | { kind: 'ready'; student: StudentDetail }
+	| { kind: 'loading' }
+	| { kind: 'error' }
+	| { kind: 'not_found' }
+	| { kind: 'ready'; student: StudentDetail; threshold: number }
 
 async function readStudent(id: string): Promise<ReadState> {
-	const result = await apiRequest<StudentResponse>('GET', `/students/${id}`)
-	if (result.ok) return { kind: 'ready', student: result.data.student }
-	return result.status === 404 ? { kind: 'not_found' } : { kind: 'error' }
+	const [student, settings] = await Promise.all([
+		apiRequest<StudentResponse>('GET', `/students/${id}`),
+		apiRequest<SettingsResponse>('GET', '/settings'),
+	])
+	if (student.ok && settings.ok) {
+		return { kind: 'ready', student: student.data.student, threshold: settings.data.settings.paysSoonLessons }
+	}
+	return !student.ok && student.status === 404 ? { kind: 'not_found' } : { kind: 'error' }
 }
 
 function BackButton() {
@@ -88,7 +97,15 @@ function LoadingBody() {
 	)
 }
 
-function SummaryLine({ student, onSetBalance }: { student: StudentDetail; onSetBalance: () => void }) {
+function SummaryLine({
+	student,
+	threshold,
+	onSetBalance,
+}: {
+	student: StudentDetail
+	threshold: number
+	onSetBalance: () => void
+}) {
 	const balance = student.balanceMinutes
 	const rate = student.rateMinor
 	return (
@@ -111,9 +128,7 @@ function SummaryLine({ student, onSetBalance }: { student: StudentDetail; onSetB
 					Set opening balance
 				</Button>
 			) : (
-				<span>
-					<LessonsText minutes={balance} lessonMinutes={student.defaultLessonMinutes} phrase /> left
-				</span>
+				<StudentBalance dot minutes={balance} lessonMinutes={student.defaultLessonMinutes} threshold={threshold} />
 			)}
 		</div>
 	)
@@ -205,7 +220,7 @@ export function StudentProfile({ id }: { id: string }) {
 		)
 	}
 
-	const { student } = state
+	const { student, threshold } = state
 	return (
 		<PageScroll>
 			<BackButton />
@@ -216,7 +231,7 @@ export function StudentProfile({ id }: { id: string }) {
 						<span className="min-w-0 wrap-anywhere">{student.displayName}</span>
 					</span>
 				}
-				description={<SummaryLine student={student} onSetBalance={focusOpeningBalance} />}
+				description={<SummaryLine student={student} threshold={threshold} onSetBalance={focusOpeningBalance} />}
 				actions={
 					<>
 						{student.status === 'active' ? (
