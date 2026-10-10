@@ -1,45 +1,42 @@
-import { and, eq, gt, inArray, isNotNull } from 'drizzle-orm'
+import { inArray } from 'drizzle-orm'
 
-import { balanceMinutes, nextLessons } from '@dv-lab/core'
-import { type DbExecutor, payments, students } from '@dv-lab/db'
+import { type BalanceLesson, type BalancePayment, nextLessons, studentBalance } from '@dv-lab/core'
+import { type DbExecutor, payments } from '@dv-lab/db'
 
-import { loadScheduleRows } from '../schedule/rows.ts'
+import { loadMarkRows, loadScheduleRows, toBalanceCard } from '../schedule/rows.ts'
 import type { CardRecord } from './card-rows.ts'
 
 export type CardFacts = { balanceMinutes: number | null; nextLessonAt: string | null }
 
 export const NO_CARD_FACTS: CardFacts = { balanceMinutes: null, nextLessonAt: null }
 
-type FactSource = Pick<CardRecord, 'id' | 'openingBalanceMinutes' | 'openingBalanceOn'>
+type FactSource = Pick<CardRecord, 'id' | 'openingBalanceMinutes' | 'openingBalanceOn' | 'noShowDeducts'>
+
+function groupBy<T extends { studentId: string | null }>(rows: readonly T[]): Map<string, T[]> {
+	const groups = new Map<string, T[]>()
+	for (const row of rows) {
+		if (row.studentId === null) continue
+		const list = groups.get(row.studentId) ?? []
+		list.push(row)
+		groups.set(row.studentId, list)
+	}
+	return groups
+}
 
 async function cardBalances(executor: DbExecutor, cards: readonly FactSource[]): Promise<Map<string, number | null>> {
-	const opened = cards.filter((card) => card.openingBalanceMinutes !== null && card.openingBalanceOn !== null)
-	const credited = new Map<string, number[]>()
-	if (opened.length > 0) {
-		const rows = await executor
-			.select({ studentId: payments.studentId, creditedMinutes: payments.creditedMinutes })
-			.from(payments)
-			.innerJoin(students, eq(payments.studentId, students.id))
-			.where(
-				and(
-					inArray(
-						payments.studentId,
-						opened.map((card) => card.id)
-					),
-					isNotNull(students.openingBalanceOn),
-					gt(payments.paidOn, students.openingBalanceOn),
-					gt(payments.creditedMinutes, 0)
-				)
-			)
-		for (const row of rows) {
-			if (row.studentId === null) continue
-			const list = credited.get(row.studentId) ?? []
-			list.push(row.creditedMinutes)
-			credited.set(row.studentId, list)
-		}
-	}
+	if (cards.length === 0) return new Map()
+	const ids = cards.map((card) => card.id)
+	const paymentRows = await executor
+		.select({ studentId: payments.studentId, paidOn: payments.paidOn, creditedMinutes: payments.creditedMinutes })
+		.from(payments)
+		.where(inArray(payments.studentId, ids))
+	const paid: Map<string, BalancePayment[]> = groupBy(paymentRows)
+	const held: Map<string, BalanceLesson[]> = groupBy(await loadMarkRows(executor, ids))
 	return new Map(
-		cards.map((card) => [card.id, balanceMinutes(card.openingBalanceMinutes, credited.get(card.id) ?? [])])
+		cards.map((card) => [
+			card.id,
+			studentBalance(toBalanceCard(card), paid.get(card.id) ?? [], held.get(card.id) ?? []),
+		])
 	)
 }
 

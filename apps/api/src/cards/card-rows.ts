@@ -23,6 +23,7 @@ export const cardColumns = {
 	timeZone: students.timeZone,
 	openingBalanceMinutes: students.openingBalanceMinutes,
 	openingBalanceOn: students.openingBalanceOn,
+	noShowDeducts: students.noShowDeducts,
 	archivedAt: students.archivedAt,
 }
 

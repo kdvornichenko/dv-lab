@@ -5,7 +5,7 @@ import { call, quote, sql, startApi, studentCookie, teacherCookie } from './api.
 
 const VN = core.SCHEDULE_TIME_ZONE
 const PORT = 4202
-const FIXTURE_PREFIX = 'Alex Example 211'
+const FIXTURE_PREFIXES = ['Alex Example 211', 'Alex Example 212']
 let failures = 0
 
 function check(name, ok, detail = '') {
@@ -25,6 +25,7 @@ function removeCards(where) {
 	const singles = `select id from lessons where student_id in (${cards})`
 	let removed = 0
 	removed += sql(`delete from lesson_marks where series_id in (${series}) or lesson_id in (${singles})`).rowCount
+	removed += sql(`delete from payments where student_id in (${cards})`).rowCount
 	removed += sql(`delete from lesson_exceptions where series_id in (${series})`).rowCount
 	removed += sql(`delete from lessons where student_id in (${cards})`).rowCount
 	removed += sql(`delete from lesson_series where student_id in (${cards})`).rowCount
@@ -33,7 +34,10 @@ function removeCards(where) {
 }
 
 function removeTails() {
-	const removed = removeCards(`display_name like ${quote(`${FIXTURE_PREFIX}%`)} and import_key is null`)
+	let removed = 0
+	for (const prefix of FIXTURE_PREFIXES) {
+		removed += removeCards(`display_name like ${quote(`${prefix}%`)} and import_key is null`)
+	}
 	console.log(`fixture tails removed ${removed}`)
 }
 
@@ -42,20 +46,19 @@ function removeOwn(ids) {
 	removeCards(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 }
 
+const cardBody = (displayName) => ({
+	displayName,
+	rateMinor: null,
+	currency: null,
+	defaultLessonMinutes: 60,
+	parent: null,
+	level: null,
+	goals: null,
+	timeZone: null,
+})
+
 async function createCard(ctx, displayName) {
-	const res = await call(ctx.api, 'POST', '/students', {
-		cookie: ctx.cookie,
-		body: {
-			displayName,
-			rateMinor: null,
-			currency: null,
-			defaultLessonMinutes: 60,
-			parent: null,
-			level: null,
-			goals: null,
-			timeZone: null,
-		},
-	})
+	const res = await call(ctx.api, 'POST', '/students', { cookie: ctx.cookie, body: cardBody(displayName) })
 	if (res.status !== 201) throw new Error(`card create returned ${res.status}`)
 	ctx.ids.push(res.json.student.id)
 	return res.json.student.id
@@ -137,11 +140,11 @@ async function marksPart1(ctx) {
 	return { studentId, seriesId, date, key, startsAt }
 }
 
-const createLesson = (ctx, studentId, date, startTime) =>
-	post(ctx, '/lessons', { studentId, date, startTime, durationMinutes: 60, repeats: 'once' })
+const createLesson = (ctx, studentId, date, startTime, durationMinutes = 60) =>
+	post(ctx, '/lessons', { studentId, date, startTime, durationMinutes, repeats: 'once' })
 
-async function onceLesson(ctx, studentId, date, startTime) {
-	const res = await createLesson(ctx, studentId, date, startTime)
+async function onceLesson(ctx, studentId, date, startTime, durationMinutes = 60) {
+	const res = await createLesson(ctx, studentId, date, startTime, durationMinutes)
 	if (res.status !== 201) throw new Error(`single lesson create returned ${res.status}`)
 	return res.json.lesson.id
 }
@@ -506,7 +509,111 @@ async function sectionRace(ctx) {
 	return 'SCHEDULE_LEDGER_RACE_OK'
 }
 
-const SECTIONS = { marks: sectionMarks, past: sectionPast, cut: sectionCut, race: sectionRace }
+async function setOpening(ctx, studentId, lessonsHundredths, on) {
+	const res = await call(ctx.api, 'PUT', `/students/${studentId}/opening-balance`, {
+		cookie: ctx.cookie,
+		body: { lessonsHundredths, on },
+	})
+	if (res.status !== 200) throw new Error(`opening balance returned ${res.status}`)
+}
+
+async function balances(ctx, studentId) {
+	const list = await call(ctx.api, 'GET', '/students', { cookie: ctx.cookie })
+	const profile = await call(ctx.api, 'GET', `/students/${studentId}`, { cookie: ctx.cookie })
+	const row = list.json?.students?.find((student) => student.id === studentId)
+	return { list: row?.balanceMinutes, profile: profile.json?.student?.balanceMinutes, detail: profile.json?.student }
+}
+
+async function expectBalance(ctx, studentId, label, expected) {
+	const got = await balances(ctx, studentId)
+	check(
+		`${label}: balance ${expected} in the list and the profile`,
+		got.list === expected && got.profile === expected,
+		`list ${got.list} profile ${got.profile}`
+	)
+	return got
+}
+
+const markSingle = (ctx, lessonId, kind) => post(ctx, `/lessons/${lessonId}/mark`, { kind })
+
+async function stepOk(label, send) {
+	const res = await send()
+	if (res.status !== 200 && res.status !== 201) {
+		failures += 1
+		console.log(`FAIL ${label} returned ${res.status} ${JSON.stringify(res.json?.error ?? '')}`)
+	}
+	return res
+}
+
+async function sectionBalance(ctx) {
+	const studentId = await createCard(ctx, 'Alex Example 2120')
+	const opening = core.addDays(ctx.today, -3)
+	const dayAfter = core.addDays(opening, 1)
+	await setOpening(ctx, studentId, 0, opening)
+	const hour = await onceLesson(ctx, studentId, dayAfter, '10:00')
+	const long = await onceLesson(ctx, studentId, core.addDays(opening, 2), '10:00', 90)
+	const night = await onceLesson(ctx, studentId, dayAfter, '00:30')
+	const openingDay = await onceLesson(ctx, studentId, opening, '10:00')
+	const nightAt = core.zonedInstant(dayAfter, '00:30', VN)
+	check(
+		'the 00:30 Vietnam lesson is still the opening day in Moscow and UTC',
+		core.zonedParts(nightAt, 'Europe/Moscow').date === opening &&
+			nightAt.toISOString().slice(0, 10) === opening &&
+			core.scheduleDate(nightAt) === dayAfter
+	)
+	await expectBalance(ctx, studentId, 'opening 0 with unmarked lessons', 0)
+	await stepOk('done of the 60 minute lesson', () => markSingle(ctx, hour, 'done'))
+	await expectBalance(ctx, studentId, 'done of the 60 minute lesson', -60)
+	await stepOk('done of the 90 minute lesson', () => markSingle(ctx, long, 'done'))
+	await expectBalance(ctx, studentId, 'done of the 90 minute lesson', -150)
+	await stepOk('done of the opening day lesson', () => markSingle(ctx, openingDay, 'done'))
+	await expectBalance(ctx, studentId, 'done on the opening day does not count', -150)
+	await stepOk('done of the night lesson', () => markSingle(ctx, night, 'done'))
+	await expectBalance(ctx, studentId, 'done of the night lesson after the opening day', -210)
+	await stepOk('none of the 90 minute lesson', () => markSingle(ctx, long, 'none'))
+	await expectBalance(ctx, studentId, 'none of the 90 minute lesson', -120)
+	await stepOk('no_show of the 90 minute lesson', () => markSingle(ctx, long, 'no_show'))
+	await expectBalance(ctx, studentId, 'no_show of the 90 minute lesson deducts by default', -210)
+	await stepOk('cancel of the started 90 minute lesson', () => post(ctx, `/lessons/${long}/cancel`))
+	await expectBalance(ctx, studentId, 'cancel of the started 90 minute lesson', -120)
+	const kept = lessonMarks(long)
+	check('cancel keeps the no_show mark row', kept.length === 1 && kept[0].kind === 'no_show')
+	await stepOk('restore of the 90 minute lesson', () => post(ctx, `/lessons/${long}/restore`))
+	await expectBalance(ctx, studentId, 'restore of the 90 minute lesson', -210)
+	await stepOk('payment after the opening day', () =>
+		call(ctx.api, 'POST', '/payments', {
+			cookie: ctx.cookie,
+			body: {
+				studentId,
+				paidOn: ctx.today,
+				amountMinor: 100000,
+				currency: 'RUB',
+				lessonsHundredths: 200,
+				note: null,
+			},
+		})
+	)
+	await expectBalance(ctx, studentId, 'payment of 2 lessons after the opening day', -210 + 2 * 60)
+	const seriesOn = core.addDays(opening, 2)
+	const seriesId = insertSeries(studentId, core.weekdayOf(seriesOn), '14:00', core.addDays(seriesOn, -14))
+	await stepOk('done of a series occurrence', () =>
+		post(ctx, occurrencePath(seriesId, seriesOn, 'mark'), { kind: 'done' })
+	)
+	await expectBalance(ctx, studentId, 'done of a series occurrence', -150)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(seriesId)}, ${quote(seriesOn)}, 'moved', ${quote(instant(opening, '15:00'))}, 60)`
+	)
+	await expectBalance(ctx, studentId, 'the marked occurrence moved onto the opening day stops counting', -90)
+	return 'SCHEDULE_LEDGER_BALANCE_OK'
+}
+
+const SECTIONS = {
+	marks: sectionMarks,
+	past: sectionPast,
+	cut: sectionCut,
+	race: sectionRace,
+	balance: sectionBalance,
+}
 
 const section = process.argv[2]
 const run = SECTIONS[section]

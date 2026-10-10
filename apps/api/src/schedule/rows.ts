@@ -8,6 +8,7 @@ import {
 } from '@dv-lab/contracts'
 import {
 	type BalanceCard,
+	type BalanceLesson,
 	type LessonActions,
 	type LessonOutcome,
 	type MarkKind,
@@ -17,7 +18,9 @@ import {
 	type SeriesRule,
 	type SingleLesson,
 	type Weekday,
+	occurrenceAt,
 	occurrenceKey,
+	occurrenceOutcome,
 	scheduleDate,
 	windowDates,
 } from '@dv-lab/core'
@@ -243,6 +246,64 @@ export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<
 				: eq(lessonMarks.lessonId, ref.lessonId)
 		)
 	return row ? toMarkKind(row.kind) : null
+}
+
+export async function loadMarkRows(
+	executor: DbExecutor,
+	studentIds: readonly string[]
+): Promise<Array<BalanceLesson & { studentId: string }>> {
+	if (studentIds.length === 0) return []
+	const ids = [...studentIds]
+	const seriesRows = await executor
+		.select({ ...seriesColumns, markOn: lessonMarks.originalOn, markKind: lessonMarks.kind })
+		.from(lessonMarks)
+		.innerJoin(lessonSeries, eq(lessonMarks.seriesId, lessonSeries.id))
+		.where(inArray(lessonSeries.studentId, ids))
+	const seriesIds = [...new Set(seriesRows.map((row) => row.id))]
+	const exceptionRows =
+		seriesIds.length === 0
+			? []
+			: await executor
+					.select(exceptionColumns)
+					.from(lessonExceptions)
+					.where(inArray(lessonExceptions.seriesId, seriesIds))
+	const exceptions = new Map<string, SeriesException>()
+	for (const row of exceptionRows) {
+		const exception = toSeriesException(row)
+		exceptions.set(
+			occurrenceKey({ kind: 'series', seriesId: exception.seriesId, originalOn: exception.originalOn }),
+			exception
+		)
+	}
+	const lessonRows = await executor
+		.select({ ...lessonColumns, markKind: lessonMarks.kind })
+		.from(lessonMarks)
+		.innerJoin(lessons, eq(lessonMarks.lessonId, lessons.id))
+		.where(inArray(lessons.studentId, ids))
+
+	const result: Array<BalanceLesson & { studentId: string }> = []
+	for (const row of seriesRows) {
+		if (row.markOn === null) continue
+		const exception = exceptions.get(occurrenceKey({ kind: 'series', seriesId: row.id, originalOn: row.markOn }))
+		const occurrence = occurrenceAt(toSeriesRule(row), row.markOn, exception)
+		if (occurrence === null) continue
+		result.push({
+			studentId: occurrence.studentId,
+			startsAt: occurrence.startsAt,
+			durationMinutes: occurrence.durationMinutes,
+			outcome: occurrenceOutcome(occurrence, toMarkKind(row.markKind)),
+		})
+	}
+	for (const row of lessonRows) {
+		const lesson = toSingleLesson(row)
+		result.push({
+			studentId: lesson.studentId,
+			startsAt: lesson.startsAt,
+			durationMinutes: lesson.durationMinutes,
+			outcome: occurrenceOutcome(lesson, toMarkKind(row.markKind)),
+		})
+	}
+	return result
 }
 
 export function readSnapshot<T>(db: Database, read: (executor: DbExecutor) => Promise<T>): Promise<T> {
