@@ -1,34 +1,33 @@
 {
   "version": "1.0",
-  "timestamp": "2026-10-10T05:16:09.857Z",
+  "timestamp": "2026-10-10T18:30:00Z",
   "phase": "20",
   "phase_name": "Schedule",
-  "phase_dir": null,
-  "plan": 0,
-  "task": 0,
-  "total_tasks": 0,
+  "phase_dir": ".planning/phases/20-schedule",
+  "plan": 10,
+  "task": 3,
+  "total_tasks": 3,
   "status": "paused",
-  "completed_tasks": [],
+  "completed_tasks": [
+    {"id": 1, "name": "Планы 20-01..20-10, 20-TP, 20-ES выполнены", "status": "done", "commit": "dfdde1b"}
+  ],
   "remaining_tasks": [
-    {"id": 1, "name": "discuss-phase 20: decisions for series, occurrence exceptions, second time zone, students list tabs and search", "status": "not_started"},
-    {"id": 2, "name": "plan-phase 20 (UI-SPEC, research, planning, review squad)", "status": "not_started"},
-    {"id": 3, "name": "execute-phase 20, review, verification, PR", "status": "not_started"}
+    {"id": 1, "name": "PR https://github.com/kdvornichenko/dv-lab/pull/6: дождаться CI и слить gh pr merge --merge", "status": "not_started"},
+    {"id": 2, "name": "Ручной просмотр сетки расписания владельцем (во встроенном браузере не смотрели)", "status": "not_started"},
+    {"id": 3, "name": "Выкат через Server guy: две миграции и GET /api/schedule/week (20-10-SUMMARY, Для выката)", "status": "not_started"}
   ],
   "blockers": [],
   "async_jobs": [],
   "human_actions_pending": [
-    {"action": "Change the teacher password on dv-lab.dev (account menu, Change password)", "context": "auth_epoch is still 0 on the VPS, so the password has not been changed since bootstrap", "blocking": false},
-    {"action": "Set the opening balance on every student card in the app", "context": "the vault import does not fill it; until set, a card shows 'Set opening balance'", "blocking": false},
-    {"action": "Return the apex TTL to 300-3600 in the Vercel panel (RUNBOOK 3.5)", "context": "phase 17 human item", "blocking": false}
+    {"action": "Ответ Design dude на список замечаний по фазе 20 (отправлен)", "context": "End series подсказка, None/none D-13, вторая зона у времени серии, размер шрифта подсказки", "blocking": false},
+    {"action": "Выкат фазы 20 через Server guy", "context": "миграции 20261010075813_schedule и 20261010103628_schedule_revoke_delete", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Phase 19 merged (PR #5, merge commit d24da59a3b0cb52607a300939f414854c152e4d1), released on the VPS and the vault import ran once (25 cards, 66 sections, 762 terms, 29 payments); never repeat the import (RUNBOOK 11.3)", "rationale": "a repeat would bring back vault payments the teacher deleted", "phase": "19"},
-    {"decision": "Design is owned by the separate session 'Design dude'; every missing element is requested from it (answers so far: DR-1 MarkdownView, DR-2 Set currency, FormFields look, Esc closes only the top layer, popup two levels above the underlay, server form errors only as a banner)", "rationale": "owner decision 2026-10-09 (design-system-everywhere)", "phase": "19"},
-    {"decision": "No new unit/integration/e2e tests; verification by scripts, logs, SQL counts and browser checks in both themes", "rationale": "owner directive 2026-10-09", "phase": "all"},
-    {"decision": "Phase 20 schedule screen follows Google Calendar style; event colours come from Google later (phases 24-25), no colour model before the phase 24 spike", "rationale": "owner decision via Design dude, memory schedule-google-calendar-style", "phase": "20"},
-    {"decision": "Full GSD cycle with commits in worktree gsd/phase-N-*, executors commit per task, orchestrator pushes and opens the PR; gh pr merge is allowed by a permission rule the owner added", "rationale": "owner decision (memory feedback-gsd-full-cycle-commits)", "phase": "all"}
+    {"decision": "Расписание не удаляет строки из БД", "rationale": "решение владельца: отмена, окончание и перенос меняют статус, kind или ends_on (D-16)", "phase": "20"},
+    {"decision": "Зона серии константой SCHEDULE_TIME_ZONE = Asia/Ho_Chi_Minh", "rationale": "D-15", "phase": "20"},
+    {"decision": "Restore возвращает отменённый перенесённый урок в слот переноса", "rationale": "выбор владельца по CR-01", "phase": "20"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Open a new session in this worktree and run /gsd-resume-work, then /gsd-discuss-phase 20 (or /gsd-autonomous --only 20). Before discussing, read memory schedule-google-calendar-style, ask Design dude for the updated tokens.css and the Schedule screen, and remember that CARD-04 (students list tabs, search, remaining lessons, next lesson) belongs to this phase.",
-  "context_notes": "Worktree gsd+phase-20-schedule branches from master d24da59 (phase 19 merged). .env and .env.test were copied from the phase 19 worktree; node_modules are not installed here (yarn install is done by the first plan that needs it). dvlab_dev holds the real vault import: use fictitious cards (Alex Example NNNN) for checks and never change or record real cards. Before each executor dispatch: node ~/.claude/gsd-core/bin/gsd-tools.cjs query dispatch-isolation --raw --phase 20 --force-isolation none. The previous worktrees gsd+phase-18-... and gsd+phase-19-... may be removed once the owner is done with them."
+  "uncommitted_files": ["?? .gsd/ (не наш каталог, не коммитить)"],
+  "next_action": "Открыть новую сессию в worktree фазы 21: /gsd-resume-work; PR #6 слить после зелёного CI (auto-fix включён)",
+  "context_notes": "Фаза 20 исполнена, проверена скриптами, ревью исправлено, безопасность 36/36, верификация 11/11. Пропущено осознанно: WR-09, WR-10, INFO, expectedStartsAt остаётся необязательным."
 }
