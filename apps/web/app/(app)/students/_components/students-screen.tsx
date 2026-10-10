@@ -18,9 +18,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
+import { formatWhen, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
+import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { StudentFormDialog } from './student-form-dialog'
 import { UnassignedPayments } from './unassigned-payments'
@@ -44,6 +46,7 @@ function byName(left: StudentRow, right: StudentRow) {
 function StudentsTable({ rows }: { rows: StudentRow[] }) {
 	const router = useRouter()
 	if (rows.length === 0) return <EmptyLine />
+	const currentYear = yearInZone(new Date())
 	function open(event: MouseEvent<HTMLTableRowElement>, id: string) {
 		if ((event.target as HTMLElement).closest('a')) return
 		router.push(`/students/${id}`)
@@ -57,6 +60,7 @@ function StudentsTable({ rows }: { rows: StudentRow[] }) {
 						<TableHead className={headClass}>Status</TableHead>
 						<TableHead className={headClass}>Rate</TableHead>
 						<TableHead className={cn(headClass, 'text-right')}>Lessons left</TableHead>
+						<TableHead className={headClass}>Next lesson</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -99,6 +103,13 @@ function StudentsTable({ rows }: { rows: StudentRow[] }) {
 										<span className="text-muted-foreground">Set opening balance</span>
 									) : (
 										<LessonsText minutes={student.balanceMinutes} lessonMinutes={student.defaultLessonMinutes} />
+									)}
+								</TableCell>
+								<TableCell className="px-4 py-2 text-body tabular-nums">
+									{student.nextLessonAt === null ? (
+										<span className="text-muted-foreground">None</span>
+									) : (
+										formatWhen(new Date(student.nextLessonAt), SCHEDULE_TIME_ZONE, currentYear)
 									)}
 								</TableCell>
 							</TableRow>

@@ -2554,7 +2554,97 @@ async function changes() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_CHANGES_OK')
 }
 
-const sections = { fade, frame, read, changes }
+const STUDENTS_LIKE = 'Alex Example 2009%'
+const ST_A = 'Alex Example 2009 A'
+const ST_B = 'Alex Example 2009 B'
+const ST_C = 'Alex Example 2009 C'
+
+function expectedWhen(iso, currentYear) {
+	const parts = core.zonedParts(new Date(iso), VN)
+	const year = Number(parts.date.slice(0, 4)) === currentYear ? '' : ` ${parts.date.slice(0, 4)}`
+	return `${shortDay(parts.date)}${year}, ${parts.time}`
+}
+
+async function studentsFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const wednesday = core.firstOnOrAfter(core.addDays(today, 1), 3)
+	const a = await createCard(page, ST_A, 60, null)
+	const b = await createCard(page, ST_B, 60, null)
+	const c = await createCard(page, ST_C, 60, null)
+	const series = await api(page, 'POST', '/schedule/lessons', {
+		studentId: a,
+		date: wednesday,
+		startTime: '18:00',
+		durationMinutes: 60,
+		repeats: 'weekly',
+	})
+	check('series A created', series.status === 201, String(series.status))
+	const archived = await api(page, 'POST', `/students/${c}/archive`)
+	check('card C archived', archived.status === 200, String(archived.status))
+	return { today, wednesday, a, b, c }
+}
+
+const studentRow = (page, name) => page.locator('tbody tr', { hasText: name })
+
+async function openStudentsList(page) {
+	await page.goto(`${BASE}/students`)
+	await page.getByRole('heading', { name: 'Students', level: 1 }).waitFor({ timeout: 30000 })
+	await page.getByRole('tab', { name: 'Active', exact: true }).waitFor({ timeout: 15000 })
+	await studentRow(page, ST_A).first().waitFor({ timeout: 15000 })
+}
+
+async function studentsPart1(page, fx) {
+	const list = await api(page, 'GET', '/students')
+	const rowA = list.json.students.find((student) => student.id === fx.a)
+	const rowB = list.json.students.find((student) => student.id === fx.b)
+	check('api: nextLessonAt of A is the first Wednesday 18:00 Vietnam', rowA?.nextLessonAt === whenText(fx.wednesday, '18:00'))
+	check('api: nextLessonAt of B is null', rowB?.nextLessonAt === null)
+	await openStudentsList(page)
+	const heads = await page.locator('thead th').allTextContents()
+	check(
+		'columns are Student, Status, Rate, Lessons left, Next lesson',
+		heads.map((text) => text.trim()).join('|') === 'Student|Status|Rate|Lessons left|Next lesson',
+		heads.join('|')
+	)
+	const currentYear = Number(core.zonedParts(new Date(), VN).date.slice(0, 4))
+	const cellsA = await studentRow(page, ST_A).first().locator('td').allTextContents()
+	const cellsB = await studentRow(page, ST_B).first().locator('td').allTextContents()
+	const wantA = expectedWhen(rowA.nextLessonAt, currentYear)
+	check('row A: Next lesson is formatted from the api value', cellsA[4]?.trim() === wantA, `${cellsA[4]?.trim()} / ${wantA}`)
+	const handMade = `${shortDay(fx.wednesday)}${fx.wednesday.slice(0, 4) === String(currentYear) ? '' : ` ${fx.wednesday.slice(0, 4)}`}, 18:00`
+	check('row A: Next lesson equals the first Wednesday 18:00', cellsA[4]?.trim() === handMade, handMade)
+	check('row A: no second zone and no relative words', !/VN|MSK|UTC|today|tomorrow/i.test(cellsA[4] ?? ''))
+	check('row B: Next lesson is None', cellsB[4]?.trim() === 'None', cellsB[4]?.trim())
+	const noneMuted = await studentRow(page, ST_B)
+		.first()
+		.locator('td')
+		.nth(4)
+		.locator('span')
+		.evaluate((element) => element.className.includes('text-muted-foreground'))
+	check('row B: None is muted', noneMuted)
+	check('row A: Lessons left cell is unchanged', cellsA[3]?.trim() === 'Set opening balance', cellsA[3]?.trim())
+	await shot(page, 'sched-students', 'next-lesson')
+}
+
+async function students() {
+	cleanupFixtures('students start', STUDENTS_LIKE)
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	try {
+		await setTheme(page)
+		await signIn(page)
+		const fx = await studentsFixtures(page)
+		await studentsPart1(page, fx)
+		console.log('STUDENTS_PART1_OK')
+		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+		cleanupFixtures('students end', STUDENTS_LIKE)
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_STUDENTS_OK')
+}
+
+const sections = { fade, frame, read, changes, students }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)
