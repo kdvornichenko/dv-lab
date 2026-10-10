@@ -1929,7 +1929,7 @@ async function pastSnapshot(page, fx) {
 		for (const block of result.json?.blocks ?? []) {
 			if (block.studentId !== fx.a) continue
 			lines.push(
-				[block.key, block.startsAt, block.durationMinutes, block.status, block.movedTo, block.movedFrom].join('|')
+				[block.key, block.startsAt, block.durationMinutes, block.outcome, block.movedTo, block.movedFrom].join('|')
 			)
 		}
 	}

@@ -3,10 +3,13 @@ import { zoneLabel } from '@/lib/time-zones'
 import {
 	SCHEDULE_TIME_ZONE,
 	addDays,
+	countsAsLesson,
 	firstOnOrAfter,
 	nextSeriesDate,
+	scheduleDate,
 	zonedInstant,
 	zonedParts,
+	type LessonOutcome,
 	type SeriesTiming,
 } from '@dv-lab/core'
 
@@ -188,9 +191,9 @@ export function lessonCount(count: number): string {
 	return count === 1 ? '1 lesson' : `${count} lessons`
 }
 
-export function weekSummary(blocks: readonly { status: string; studentId: string }[]): string {
-	const planned = blocks.filter((block) => block.status === 'scheduled')
-	const cancelled = blocks.filter((block) => block.status === 'cancelled').length
+export function weekSummary(blocks: readonly { outcome: LessonOutcome; studentId: string }[]): string {
+	const planned = blocks.filter((block) => countsAsLesson(block.outcome))
+	const cancelled = blocks.filter((block) => block.outcome === 'cancelled').length
 	if (planned.length === 0)
 		return cancelled > 0 ? `No lessons this week · ${cancelled} cancelled` : 'No lessons this week'
 	const students = new Set(planned.map((block) => block.studentId)).size
@@ -204,7 +207,7 @@ export function secondRange(start: Date, minutes: number, zone: string | null): 
 	if (zone === null) return null
 	const range = `${formatRange(start, minutes, zone)} ${zoneLabel(zone, start)}`
 	const date = dateOf(start, zone)
-	if (date === dateOf(start, SCHEDULE_TIME_ZONE)) return range
+	if (date === scheduleDate(start)) return range
 	return `${weekdayShort(date)} ${range}`
 }
 
@@ -213,7 +216,7 @@ export function secondWhen(instant: Date, zone: string | null): string | null {
 	const caption = zoneLabel(zone, instant)
 	const time = formatTime(instant, zone)
 	const date = dateOf(instant, zone)
-	if (date === dateOf(instant, SCHEDULE_TIME_ZONE)) return `${time} ${caption}`
+	if (date === scheduleDate(instant)) return `${time} ${caption}`
 	return `${weekdayShort(date)} ${time} ${caption}`
 }
 

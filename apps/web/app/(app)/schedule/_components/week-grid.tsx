@@ -9,7 +9,7 @@ import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-f
 import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, addDays, zonedParts } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, addDays, scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { EventTooltip } from './event-tooltip'
 import type { BlockLayout } from './lesson-block'
@@ -112,7 +112,7 @@ function placeDay(blocks: readonly ScheduleBlock[]): PlacedBlock[] {
 function groupByDate(blocks: readonly ScheduleBlock[]): Map<string, ScheduleBlock[]> {
 	const groups = new Map<string, ScheduleBlock[]>()
 	for (const block of blocks) {
-		const date = zonedParts(new Date(block.startsAt), SCHEDULE_TIME_ZONE).date
+		const date = scheduleDate(new Date(block.startsAt))
 		const list = groups.get(date)
 		if (list) list.push(block)
 		else groups.set(date, [block])

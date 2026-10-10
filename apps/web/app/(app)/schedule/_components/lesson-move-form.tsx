@@ -12,7 +12,7 @@ import { formatDate, formatDay, formatRange, formatTime, formatWhen, vnRange, vn
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, overlaps, zonedInstant, zonedParts } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, overlaps, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import type { OverlapBlock } from './new-lesson-dialog'
@@ -44,7 +44,7 @@ export function LessonMoveForm({
 	const toast = useToast()
 	const start = new Date(block.startsAt)
 	const current = zonedParts(start, SCHEDULE_TIME_ZONE)
-	const [date, setDate] = useState(current.date)
+	const [date, setDate] = useState(scheduleDate(start))
 	const [time, setTime] = useState<string | null>(current.time)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
@@ -158,7 +158,7 @@ export function LessonMoveForm({
 			<div aria-live="polite" data-slot="move-lesson-change" className="flex flex-col gap-1 tabular-nums">
 				<p data-slot="move-lesson-vn" className="flex flex-wrap items-center gap-x-2 text-body text-foreground">
 					<span className="text-muted-foreground">
-						{formatDate(current.date, currentYear)}, {formatTime(start, SCHEDULE_TIME_ZONE)}
+						{formatDate(scheduleDate(start), currentYear)}, {formatTime(start, SCHEDULE_TIME_ZONE)}
 					</span>
 					<ArrowRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
 					{target === null ? null : (

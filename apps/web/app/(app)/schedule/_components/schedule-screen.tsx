@@ -22,7 +22,16 @@ import type {
 	ScheduleWeekResponse,
 	StudentsResponse,
 } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
+import {
+	SCHEDULE_TIME_ZONE,
+	addDays,
+	countsAsLesson,
+	mondayOf,
+	scheduleDate,
+	scheduleToday,
+	zonedInstant,
+	zonedParts,
+} from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EndSeriesDialog } from './end-series-dialog'
@@ -91,7 +100,7 @@ export function ScheduleScreen() {
 }
 
 function LoadedSchedule({ now }: { now: Date }) {
-	const [monday, setMonday] = useState(() => mondayOf(zonedParts(now, SCHEDULE_TIME_ZONE).date))
+	const [monday, setMonday] = useState(() => mondayOf(scheduleToday(now)))
 	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
@@ -104,7 +113,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const toast = useToast()
-	const today = zonedParts(now, SCHEDULE_TIME_ZONE).date
+	const today = scheduleToday(now)
 	const currentYear = Number(today.slice(0, 4))
 	const currentMonday = mondayOf(today)
 	const [zone, setZone] = useSecondZone()
@@ -170,12 +179,11 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 
 	function openNew() {
-		const parts = zonedParts(now, SCHEDULE_TIME_ZONE)
-		const hour = Math.floor(parts.minutes / 60) + 1
+		const hour = Math.floor(zonedParts(now, SCHEDULE_TIME_ZONE).minutes / 60) + 1
 		setNewLesson(
 			hour >= 24
-				? { date: addDays(parts.date, 1), time: '00:00' }
-				: { date: parts.date, time: `${String(hour).padStart(2, '0')}:00` }
+				? { date: addDays(today, 1), time: '00:00' }
+				: { date: today, time: `${String(hour).padStart(2, '0')}:00` }
 		)
 	}
 
@@ -263,7 +271,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 
 	function openPair(target: PairTarget) {
-		const targetMonday = mondayOf(zonedParts(target.at, SCHEDULE_TIME_ZONE).date)
+		const targetMonday = mondayOf(scheduleDate(target.at))
 		setMonday(targetMonday)
 		setLesson({ key: target.key, slot: target.slot })
 	}
@@ -293,7 +301,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const openSeriesId = openBlock !== null && openBlock.ref.kind === 'series' ? openBlock.ref.seriesId : null
 	const openSeries =
 		ready && openSeriesId !== null ? (week.data.series.find((rule) => rule.id === openSeriesId) ?? null) : null
-	const planned = ready ? week.data.blocks.filter((block) => block.status === 'scheduled').length : 0
+	const planned = ready ? week.data.blocks.filter((block) => countsAsLesson(block.outcome)).length : 0
 	const seriesRule =
 		seriesDialog === null
 			? null
