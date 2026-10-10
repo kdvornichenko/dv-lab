@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 20
 current_phase_name: Schedule
 status: executed
-stopped_at: Phase 20 executed, verified and reviewed; PR next
+stopped_at: Phase 21 context gathered; next /gsd-plan-phase 21
 last_updated: "2026-10-10T18:00:00.000Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 20 executed (10/10 plans), review fixes and End series fix applied
@@ -108,5 +108,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-10T05:54:03.047Z
-Stopped at: Phase 20 UI-SPEC approved
-Resume file: .planning/phases/20-schedule/20-UI-SPEC.md
+Stopped at: Phase 21 context gathered
+Resume file: .planning/phases/21-lesson-accounting-and-today/21-CONTEXT.md
