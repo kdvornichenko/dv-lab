@@ -172,8 +172,8 @@ async function sectionRead(api, cookie, ids) {
 	const pastWeek = await readWeek(api, cookie, core.mondayOf(past))
 	const pastBlock = (pastWeek.json?.blocks ?? []).find((block) => block.key === `l:${pastLessonId}`)
 	check(
-		'past lesson block cannot be moved but can be cancelled',
-		pastWeek.status === 200 && pastBlock?.actions?.move === false && pastBlock?.actions?.cancel === true
+		'past lesson block can be moved and cancelled',
+		pastWeek.status === 200 && pastBlock?.actions?.move === true && pastBlock?.actions?.cancel === true
 	)
 
 	const stored = sql(`select start_time::text as t from lesson_series where id = ${quote(seriesId)}`).rows[0]?.t
@@ -702,7 +702,6 @@ async function partOccurrence(ctx) {
 	check('week dW shows one Wednesday block', week.length === 1 && week[0].outcome === 'planned')
 
 	const past = core.addDays(dW, -14)
-	const nowParts = core.zonedParts(new Date(), VN)
 	const refusals = [
 		[
 			'move of a Thursday originalOn',
@@ -710,33 +709,9 @@ async function partOccurrence(ctx) {
 			409,
 		],
 		[
-			'move of a past Wednesday',
-			() => post(api, cookie, occurrencePath(s1, past, 'move'), { date: friday, startTime: '11:00' }),
-			400,
-			'lesson_in_past',
-		],
-		[
-			'move into today 00:00',
-			() => post(api, cookie, occurrencePath(s1, dW7, 'move'), { date: today, startTime: '00:00' }),
-			400,
-			'target_in_past',
-		],
-		[
 			'cancel with expectedStartsAt one hour early',
 			() => post(api, cookie, occurrencePath(s1, dW7, 'cancel'), { expectedStartsAt: instant(dW7, '17:00') }),
 			409,
-		],
-		[
-			'move to yesterday',
-			() => post(api, cookie, occurrencePath(s1, dW7, 'move'), { date: core.addDays(today, -1), startTime: '18:00' }),
-			400,
-			'target_in_past',
-		],
-		[
-			'move to the current time',
-			() => post(api, cookie, occurrencePath(s1, dW7, 'move'), { date: nowParts.date, startTime: nowParts.time }),
-			400,
-			'target_in_past',
 		],
 		[
 			'move of an unknown series',
@@ -796,7 +771,7 @@ async function partSingle(ctx) {
 	})
 	if (created.status !== 201) throw new Error(`single lesson create returned ${created.status}`)
 	const l1 = created.json.lesson.id
-	const pastAt = new Date(Date.now() - 2 * 86400000).toISOString()
+	const pastAt = new Date(Math.floor((Date.now() - 2 * 86400000) / 60000) * 60000).toISOString()
 	const l2 = sql(
 		`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(pastAt)}, 60, 'scheduled') returning id`
 	).rows[0].id
@@ -830,11 +805,6 @@ async function partSingle(ctx) {
 			newWeek[0].startsAt === instant(nextThursday, '14:00') &&
 			newWeek[0].outcome === 'planned'
 	)
-	await expectStatus(
-		'move L1 into today 00:00',
-		() => post(api, cookie, lessonPath(l1, 'move'), { date: today, startTime: '00:00' }),
-		400
-	)
 	const cancelled = await post(api, cookie, lessonPath(l1, 'cancel'))
 	check(
 		'cancel L1 gives 200 cancelled',
@@ -866,11 +836,22 @@ async function partSingle(ctx) {
 		() => post(api, cookie, lessonPath(l1, 'move'), { date: nextThursday, startTime: '15:00' }),
 		409
 	)
+	const earlier = new Date(new Date(pastAt).getTime() - 3600000).toISOString()
+	const wall = (iso) => {
+		const parts = core.zonedParts(new Date(iso), VN)
+		return { date: parts.date, startTime: parts.time }
+	}
 	await expectStatus(
-		'move of the past L2',
-		() => post(api, cookie, lessonPath(l2, 'move'), { date: nextThursday, startTime: '16:00' }),
-		400,
-		'lesson_in_past'
+		'move of the past L2 one hour earlier',
+		() => post(api, cookie, lessonPath(l2, 'move'), { ...wall(earlier), expectedStartsAt: pastAt }),
+		200
+	)
+	const earlierRow = sql(`select starts_at from lessons where id = ${quote(l2)}`).rows[0]
+	check('past L2 row moved one hour earlier', new Date(earlierRow?.starts_at).toISOString() === earlier)
+	await expectStatus(
+		'move of the past L2 back',
+		() => post(api, cookie, lessonPath(l2, 'move'), { ...wall(pastAt), expectedStartsAt: earlier }),
+		200
 	)
 	await expectStatus('cancel of the past L2', () => post(api, cookie, lessonPath(l2, 'cancel')), 200)
 	check('week shows the past L2 cancelled', (await pastLessonBlock())?.outcome === 'cancelled')
@@ -1187,7 +1168,153 @@ async function partEndKeepsMoved(ctx) {
 	return 'END_KEEPS_MOVED_OK'
 }
 
-const CHANGE_PARTS = [partOccurrence, partSingle, partSeries, partEndKeepsMoved]
+async function partMoveAnywhere(ctx) {
+	const { api, cookie, today } = ctx
+	const cardP = await createCard(api, cookie, ctx.ids, `${CHANGES_NAME} P`)
+	const s11 = insertSeries(cardP, core.weekdayOf(today), '18:00', core.addDays(today, -14), null)
+	const pastOn = core.addDays(today, -7)
+	const cancelledOn = core.addDays(today, -14)
+	const futureOn = core.addDays(today, 7)
+	const pastDay = core.addDays(today, -9)
+	const key = (date) => `s:${s11}:${date}`
+	const noActions = (block) =>
+		block.actions?.move === false &&
+		block.actions?.cancel === false &&
+		block.actions?.restore === false &&
+		block.actions?.mark === false
+	const blocksOf = async (dates, wanted) => {
+		const seen = new Map()
+		for (const date of dates) {
+			for (const block of await seriesBlocks(api, cookie, date, s11)) {
+				if (block.key === wanted) seen.set(`${block.startsAt}|${block.outcome}`, block)
+			}
+		}
+		return [...seen.values()]
+	}
+	countRows(ctx)
+
+	const pastTarget = instant(pastDay, '10:00')
+	const toPast = await post(api, cookie, occurrencePath(s11, pastOn, 'move'), {
+		date: pastDay,
+		startTime: '10:00',
+		expectedStartsAt: instant(pastOn, '18:00'),
+	})
+	check(
+		'move of a past occurrence to another past day 10:00 gives 200 moved',
+		toPast.status === 200 &&
+			toPast.json?.occurrence?.status === 'moved' &&
+			toPast.json?.occurrence?.startsAt === pastTarget,
+		`status ${toPast.status} ${JSON.stringify(toPast.json?.error ?? '')}`
+	)
+	countRows(ctx)
+	let blocks = await blocksOf([pastOn, pastDay], key(pastOn))
+	const ghost = blocks.find((block) => block.outcome === 'moved')
+	const lesson = blocks.find((block) => block.outcome === 'planned')
+	check(
+		'the week shows the ghost on the old place and the lesson on the new past place',
+		blocks.length === 2 &&
+			ghost?.startsAt === instant(pastOn, '18:00') &&
+			noActions(ghost) &&
+			lesson?.startsAt === pastTarget &&
+			lesson?.actions?.move === true,
+		JSON.stringify(blocks.map((block) => [block.outcome, block.startsAt, block.actions]))
+	)
+	const home = await post(api, cookie, occurrencePath(s11, pastOn, 'move'), {
+		date: pastOn,
+		startTime: '18:00',
+		expectedStartsAt: pastTarget,
+	})
+	check(
+		'move of that occurrence to its natural time gives 200 and a restored row',
+		home.status === 200 &&
+			home.json?.occurrence?.status === 'scheduled' &&
+			exceptionRow(s11, pastOn)?.kind === 'restored',
+		`status ${home.status}`
+	)
+	countRows(ctx)
+
+	const yesterday = core.addDays(today, -1)
+	const steps = [
+		['yesterday 18:00', { date: yesterday, startTime: '18:00' }],
+		['today 00:00', { date: today, startTime: '00:00' }],
+	]
+	const nowParts = core.zonedParts(new Date(), VN)
+	if (nowParts.time !== '00:00')
+		steps.push(['the current Vietnam time', { date: nowParts.date, startTime: nowParts.time }])
+	let expected = instant(futureOn, '18:00')
+	for (const [label, target] of steps) {
+		const res = await post(api, cookie, occurrencePath(s11, futureOn, 'move'), {
+			...target,
+			expectedStartsAt: expected,
+		})
+		const startsAt = instant(target.date, target.startTime)
+		check(
+			`move of a future occurrence to ${label} gives 200 planned`,
+			res.status === 200 &&
+				res.json?.occurrence?.status === 'moved' &&
+				res.json?.occurrence?.outcome === 'planned' &&
+				res.json?.occurrence?.startsAt === startsAt,
+			`status ${res.status} ${JSON.stringify(res.json?.error ?? '')}`
+		)
+		countRows(ctx)
+		expected = startsAt
+	}
+	blocks = await blocksOf([futureOn, core.zonedParts(new Date(expected), VN).date], key(futureOn))
+	check(
+		'the future occurrence stands planned on its last past place',
+		blocks.some(
+			(block) => block.outcome === 'planned' && block.startsAt === expected && block.actions?.move === true
+		) && blocks.some((block) => block.outcome === 'moved' && block.startsAt === instant(futureOn, '18:00')),
+		JSON.stringify(blocks.map((block) => [block.outcome, block.startsAt]))
+	)
+
+	const singleAt = instant(core.addDays(today, -3), '11:00')
+	const single = sql(
+		`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(cardP)}, ${quote(singleAt)}, 60, 'scheduled') returning id`
+	).rows[0].id
+	countRows(ctx)
+	const singleRow = () => new Date(sql(`select starts_at from lessons where id = ${quote(single)}`).rows[0].starts_at)
+	const earlierAt = instant(core.addDays(today, -3), '10:00')
+	await expectStatus(
+		'move of a past single lesson one hour earlier',
+		() =>
+			post(api, cookie, `/lessons/${single}/move`, {
+				date: core.addDays(today, -3),
+				startTime: '10:00',
+				expectedStartsAt: singleAt,
+			}),
+		200
+	)
+	check('the past single lesson row moved one hour earlier', singleRow().toISOString() === earlierAt)
+	await expectStatus(
+		'move of the past single lesson back',
+		() =>
+			post(api, cookie, `/lessons/${single}/move`, {
+				date: core.addDays(today, -3),
+				startTime: '11:00',
+				expectedStartsAt: earlierAt,
+			}),
+		200
+	)
+	check('the past single lesson row is back on its time', singleRow().toISOString() === singleAt)
+	countRows(ctx)
+
+	await expectStatus(
+		'cancel of a past occurrence',
+		() => post(api, cookie, occurrencePath(s11, cancelledOn, 'cancel')),
+		200
+	)
+	countRows(ctx)
+	await expectStatus(
+		'move of the cancelled occurrence',
+		() => post(api, cookie, occurrencePath(s11, cancelledOn, 'move'), { date: pastDay, startTime: '12:00' }),
+		409,
+		'lesson_changed'
+	)
+	return 'MOVE_ANYWHERE_OK'
+}
+
+const CHANGE_PARTS = [partOccurrence, partSingle, partSeries, partEndKeepsMoved, partMoveAnywhere]
 
 async function sectionChanges(api, cookie, ids) {
 	const studentId = await createCard(api, cookie, ids, `${CHANGES_NAME} A`)

@@ -121,7 +121,7 @@ async function marksPart1(ctx) {
 		blocks.length === 1 &&
 			block.outcome === 'done' &&
 			block.mark === 'done' &&
-			sameActions(block.actions, { move: false, cancel: true, restore: false, mark: true }),
+			sameActions(block.actions, { move: true, cancel: true, restore: false, mark: true }),
 		JSON.stringify(blocks.map((item) => [item.outcome, item.mark, item.actions]))
 	)
 	check(
@@ -252,7 +252,10 @@ async function pastSeriesOccurrence(ctx, studentId) {
 	const path = (action) => occurrencePath(seriesId, date, action)
 	return {
 		label: 'series occurrence',
+		key,
+		date,
 		startsAt,
+		moveTime: '12:00',
 		block,
 		markRow,
 		path,
@@ -268,7 +271,25 @@ async function pastSingleLesson(ctx, studentId) {
 	const markRow = () => lessonMarks(lessonId)
 	const path = (action) => `/lessons/${lessonId}/${action}`
 	const cancelOutcome = (res) => (res.json?.lesson?.status === 'cancelled' ? 'cancelled' : res.json?.lesson?.status)
-	return { label: 'single lesson', startsAt, block, markRow, path, cancelOutcome }
+	return {
+		label: 'single lesson',
+		key: `l:${lessonId}`,
+		date,
+		startsAt,
+		moveTime: '14:00',
+		block,
+		markRow,
+		path,
+		cancelOutcome,
+	}
+}
+
+const noActions = (actions) =>
+	actions?.move === false && actions?.cancel === false && actions?.restore === false && actions?.mark === false
+
+async function placedAt(ctx, key, startsAt) {
+	const date = core.zonedParts(new Date(startsAt), VN).date
+	return (await blockOf(ctx, date, key)).filter((block) => block.startsAt === startsAt)
 }
 
 async function pastFlow(ctx, target) {
@@ -309,12 +330,41 @@ async function pastFlow(ctx, target) {
 		restored.status === 200 && shown?.outcome === 'done' && shown?.mark === 'done',
 		`status ${restored.status} ${JSON.stringify(shown?.outcome)}`
 	)
+	const moved = instant(core.addDays(ctx.today, 2), target.moveTime)
 	await expectStatus(
-		`move of the started ${label}`,
-		() => post(ctx, path('move'), { date: core.addDays(ctx.today, 2), startTime: '12:00' }),
-		400,
-		'lesson_in_past'
+		`move of the started marked ${label} to today + 2 days`,
+		() =>
+			post(ctx, path('move'), {
+				date: core.addDays(ctx.today, 2),
+				startTime: target.moveTime,
+				expectedStartsAt: startsAt,
+			}),
+		200
 	)
+	rows = markRow()
+	check(
+		`the moved ${label} keeps one done mark row`,
+		rows.length === 1 && rows[0].kind === 'done',
+		`rows ${rows.length}`
+	)
+	const placed = await placedAt(ctx, target.key, moved)
+	check(
+		`the moved ${label} stands on its new place with outcome done and can be moved and marked`,
+		placed.length === 1 &&
+			placed[0].outcome === 'done' &&
+			placed[0].mark === 'done' &&
+			placed[0].actions?.move === true &&
+			placed[0].actions?.mark === true,
+		JSON.stringify(placed.map((block) => [block.outcome, block.mark, block.actions]))
+	)
+	if (target.key.startsWith('s:')) {
+		const ghost = await placedAt(ctx, target.key, startsAt)
+		check(
+			`the old place of the ${label} keeps a ghost with the done mark and no actions`,
+			ghost.length === 1 && ghost[0].outcome === 'moved' && ghost[0].mark === 'done' && noActions(ghost[0].actions),
+			JSON.stringify(ghost.map((block) => [block.outcome, block.mark, block.actions]))
+		)
+	}
 }
 
 async function sectionPast(ctx) {
@@ -322,6 +372,85 @@ async function sectionPast(ctx) {
 	await pastFlow(ctx, await pastSeriesOccurrence(ctx, studentId))
 	await pastFlow(ctx, await pastSingleLesson(ctx, studentId))
 	return 'SCHEDULE_LEDGER_PAST_OK'
+}
+
+function cardMarks(studentId) {
+	return sql(
+		`select kind, lesson_id, series_id, original_on::text as original_on from lesson_marks where lesson_id in (select id from lessons where student_id = ${quote(studentId)}) or series_id in (select id from lesson_series where student_id = ${quote(studentId)}) order by created_at, kind`
+	).rows
+}
+
+const moveTo = (ctx, path, date, startTime, expectedStartsAt) =>
+	post(ctx, path, { date, startTime, ...(expectedStartsAt ? { expectedStartsAt } : {}) })
+
+async function movesPart1(ctx) {
+	const before = failures
+	const studentId = await createCard(ctx, 'Alex Example 2115')
+	const yesterday = core.addDays(ctx.today, -1)
+	const twoDaysAgo = core.addDays(ctx.today, -2)
+	const single = await onceLesson(ctx, studentId, yesterday, '10:00')
+	await stepOk('done of the yesterday lesson', () => markSingle(ctx, single, 'done'))
+	await expectStatus(
+		'move of the started marked single lesson to the day before yesterday',
+		() => moveTo(ctx, `/lessons/${single}/move`, twoDaysAgo, '10:00', instant(yesterday, '10:00')),
+		200
+	)
+	let marks = cardMarks(studentId)
+	check(
+		'the card keeps one done mark row on the same lesson',
+		marks.length === 1 && marks[0].kind === 'done' && marks[0].lesson_id === single,
+		JSON.stringify(marks.map((row) => row.kind))
+	)
+	const singlePlaced = await placedAt(ctx, `l:${single}`, instant(twoDaysAgo, '10:00'))
+	check(
+		'the week shows the single lesson on its new past place with outcome done',
+		singlePlaced.length === 1 && singlePlaced[0].outcome === 'done',
+		JSON.stringify(singlePlaced.map((block) => block.outcome))
+	)
+
+	const occurrence = await pastSeriesOccurrence(ctx, studentId)
+	await expectStatus(
+		'mark done of the started series occurrence',
+		() => post(ctx, occurrence.path('mark'), { kind: 'done' }),
+		200
+	)
+	const otherDay = core.addDays(occurrence.date, -1)
+	const otherAt = instant(otherDay, '09:00')
+	await expectStatus(
+		'move of the started marked series occurrence to another past day',
+		() => moveTo(ctx, occurrence.path('move'), otherDay, '09:00', occurrence.startsAt),
+		200
+	)
+	const ghost = await placedAt(ctx, occurrence.key, occurrence.startsAt)
+	check(
+		'the old place keeps a ghost with outcome moved, mark done and no actions',
+		ghost.length === 1 && ghost[0].outcome === 'moved' && ghost[0].mark === 'done' && noActions(ghost[0].actions),
+		JSON.stringify(ghost.map((block) => [block.outcome, block.mark, block.actions]))
+	)
+	const placed = await placedAt(ctx, occurrence.key, otherAt)
+	check(
+		'the series occurrence stands on the other past day with outcome done',
+		placed.length === 1 && placed[0].outcome === 'done',
+		JSON.stringify(placed.map((block) => block.outcome))
+	)
+	marks = cardMarks(studentId)
+	check('the card has two done mark rows', marks.length === 2 && marks.every((row) => row.kind === 'done'))
+
+	const cancelledDay = core.addDays(ctx.today, -3)
+	const cancelled = await onceLesson(ctx, studentId, cancelledDay, '12:00')
+	await stepOk('cancel of the past lesson', () => post(ctx, `/lessons/${cancelled}/cancel`))
+	await expectStatus(
+		'move of the cancelled single lesson',
+		() => moveTo(ctx, `/lessons/${cancelled}/move`, cancelledDay, '13:00'),
+		409,
+		'lesson_changed'
+	)
+	if (failures === before) console.log('MOVES_PART1_OK')
+}
+
+async function sectionMoves(ctx) {
+	await movesPart1(ctx)
+	return 'SCHEDULE_LEDGER_MOVES_OK'
 }
 
 const isServerError = (status) => status >= 500
@@ -841,6 +970,7 @@ async function sectionToday(ctx) {
 const SECTIONS = {
 	marks: sectionMarks,
 	past: sectionPast,
+	moves: sectionMoves,
 	cut: sectionCut,
 	race: sectionRace,
 	balance: sectionBalance,

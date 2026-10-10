@@ -10,13 +10,10 @@ import {
 	type SeriesException,
 	type SeriesRule,
 	type SingleLesson,
-	canChange,
-	countsAsLesson,
 	lessonActions,
 	movedAway,
 	occurrenceAt,
 	occurrenceOutcome,
-	scheduleToday,
 	zonedInstant,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonExceptions, lessons } from '@dv-lab/db'
@@ -38,13 +35,7 @@ type MoveInput = z.output<typeof moveLessonRequest>
 
 type ActionInput = z.output<typeof lessonActionRequest>
 
-export type ChangeFailure =
-	| { kind: 'not_found' }
-	| { kind: 'changed' }
-	| { kind: 'invalid' }
-	| { kind: 'in_past' }
-	| { kind: 'target_in_past' }
-	| { kind: 'not_started' }
+export type ChangeFailure = { kind: 'not_found' } | { kind: 'changed' } | { kind: 'invalid' } | { kind: 'not_started' }
 
 export type OccurrenceResult = { kind: 'ok'; occurrence: ScheduleOccurrence } | ChangeFailure
 
@@ -55,10 +46,6 @@ const NOT_FOUND = { kind: 'not_found' } as const
 const CHANGED = { kind: 'changed' } as const
 
 const INVALID = { kind: 'invalid' } as const
-
-const IN_PAST = { kind: 'in_past' } as const
-
-const TARGET_IN_PAST = { kind: 'target_in_past' } as const
 
 export function stale(expected: string | undefined, startsAt: Date): boolean {
 	return expected !== undefined && new Date(expected).getTime() !== startsAt.getTime()
@@ -74,19 +61,15 @@ function refusal(
 	now: Date
 ): ChangeFailure | null {
 	if (stale(expected, startsAt)) return CHANGED
-	if (lessonActions(outcome, startsAt, now)[change]) return null
-	const started = countsAsLesson(outcome) && !canChange(startsAt, now)
-	return change === 'move' && started ? IN_PAST : CHANGED
+	return lessonActions(outcome, startsAt, now)[change] ? null : CHANGED
 }
 
 async function singleOutcome(executor: DbExecutor, lesson: SingleLesson): Promise<LessonOutcome> {
 	return occurrenceOutcome(lesson, await markOf(executor, { kind: 'single', lessonId: lesson.id }))
 }
 
-function moveTarget(input: MoveInput, now: Date): Date | null {
-	if (input.date < scheduleToday(now)) return null
-	const target = zonedInstant(input.date, input.startTime, SCHEDULE_TIME_ZONE)
-	return canChange(target, now) ? target : null
+function moveTarget(input: MoveInput): Date {
+	return zonedInstant(input.date, input.startTime, SCHEDULE_TIME_ZONE)
 }
 
 type LockedOccurrence = { rule: SeriesRule; occurrence: Occurrence | null }
@@ -151,8 +134,7 @@ export function moveOccurrence(
 		const outcome = occurrenceOutcome(occurrence, mark)
 		const refused = refusal('move', outcome, occurrence.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
-		const target = moveTarget(input, now)
-		if (target === null) return TARGET_IN_PAST
+		const target = moveTarget(input)
 		if (target.getTime() === occurrence.startsAt.getTime()) return INVALID
 		const exception: SeriesException =
 			target.getTime() === occurrence.naturalStart.getTime()
@@ -241,8 +223,7 @@ export function moveLesson(db: Database, id: string, input: MoveInput, now: Date
 		const outcome = await singleOutcome(tx, lesson)
 		const refused = refusal('move', outcome, lesson.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
-		const target = moveTarget(input, now)
-		if (target === null) return TARGET_IN_PAST
+		const target = moveTarget(input)
 		if (target.getTime() === lesson.startsAt.getTime()) return INVALID
 		return saveLesson(tx, id, { startsAt: target })
 	})

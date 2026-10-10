@@ -58,10 +58,6 @@ function refused(c: Context<AppEnv>, failure: ChangeFailure) {
 			return lessonChanged(c)
 		case 'invalid':
 			return invalidRequest(c)
-		case 'in_past':
-			return c.json(errorBody('lesson_in_past', 'This lesson has already started'), 400)
-		case 'target_in_past':
-			return c.json(errorBody('target_in_past', 'The new time has already passed'), 400)
 		case 'not_started':
 			return c.json(errorBody('lesson_not_started', 'This lesson has not started yet'), 400)
 	}

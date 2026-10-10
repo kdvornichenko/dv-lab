@@ -75,10 +75,10 @@ export type LessonActions = { move: boolean; cancel: boolean; restore: boolean; 
 export function lessonActions(outcome: LessonOutcome, startsAt: Date, now: Date): LessonActions {
 	const upcoming = canChange(startsAt, now)
 	return {
-		move: outcome === 'planned' && upcoming,
+		move: countsAsLesson(outcome),
 		cancel: countsAsLesson(outcome),
 		restore: outcome === 'cancelled',
-		mark: countsAsLesson(outcome) && !upcoming,
+		mark: countsAsLesson(outcome) && (isMarked(outcome) || !upcoming),
 	}
 }
 
