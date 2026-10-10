@@ -6,8 +6,8 @@ import {
 	type SeriesRule,
 	type SingleLesson,
 	type Weekday,
+	scheduleDate,
 	windowDates,
-	zonedParts,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonExceptions, lessonSeries, lessons } from '@dv-lab/db'
 
@@ -101,7 +101,7 @@ export function toSingleLesson(row: LessonRecord): SingleLesson {
 }
 
 function dateBounds(from: Date, to: Date | null): { fromDate: string; toDate: string | null } | null {
-	if (to === null) return { fromDate: zonedParts(from, SCHEDULE_TIME_ZONE).date, toDate: null }
+	if (to === null) return { fromDate: scheduleDate(from), toDate: null }
 	const dates = windowDates(from, to, SCHEDULE_TIME_ZONE)
 	const first = dates[0]
 	const last = dates[dates.length - 1]

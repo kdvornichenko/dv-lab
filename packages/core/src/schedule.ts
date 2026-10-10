@@ -381,7 +381,9 @@ export function cutSeries(
 }
 
 export type EndSeriesResult =
-	{ kind: 'invalid' } | { kind: 'changed' } | { kind: 'ok'; endsOn: string; lessons: CutLesson[] }
+	| { kind: 'invalid' }
+	| { kind: 'changed' }
+	| { kind: 'ok'; endsOn: string; lessons: CutLesson[] }
 
 export function endSeriesAt(
 	rule: SeriesRule,

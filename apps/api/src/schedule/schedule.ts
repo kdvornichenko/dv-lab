@@ -18,10 +18,10 @@ import {
 	addDays,
 	canChange,
 	nextSeriesDate,
+	scheduleToday,
 	scheduleWindow,
 	weekdayOf,
 	zonedInstant,
-	zonedParts,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonSeries, lessons, students } from '@dv-lab/db'
 
@@ -128,7 +128,7 @@ export function createLesson(db: Database, input: CreateLessonInput, now: Date):
 			if (!row) throw new Error('lesson insert returned no row')
 			return { kind: 'lesson', lesson: toWireLesson(toSingleLesson(row)) }
 		}
-		if (input.date < zonedParts(now, SCHEDULE_TIME_ZONE).date) return { kind: 'invalid' }
+		if (input.date < scheduleToday(now)) return { kind: 'invalid' }
 		const weekday = weekdayOf(input.date)
 		const startsOn = nextSeriesDate({ weekday, startTime: input.startTime, startsOn: input.date, endsOn: null }, now)
 		if (startsOn === null) return { kind: 'invalid' }

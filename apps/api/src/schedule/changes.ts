@@ -10,8 +10,8 @@ import {
 	canChange,
 	movedAway,
 	occurrenceAt,
+	scheduleToday,
 	zonedInstant,
-	zonedParts,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonExceptions, lessons } from '@dv-lab/db'
 
@@ -61,7 +61,7 @@ function refusal(allowed: boolean, startsAt: Date, expected: string | undefined,
 }
 
 function moveTarget(input: MoveInput, now: Date): Date | null {
-	if (input.date < zonedParts(now, SCHEDULE_TIME_ZONE).date) return null
+	if (input.date < scheduleToday(now)) return null
 	const target = zonedInstant(input.date, input.startTime, SCHEDULE_TIME_ZONE)
 	return canChange(target, now) ? target : null
 }

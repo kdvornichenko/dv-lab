@@ -8,6 +8,7 @@ import {
 	assignPaymentRequest,
 	recordPaymentRequest,
 } from '@dv-lab/contracts'
+import { isAfterScheduleToday } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
@@ -31,12 +32,6 @@ function paymentId(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
-export function latestPaymentDate(now: Date): string {
-	const limit = new Date(now.getTime())
-	limit.setUTCDate(limit.getUTCDate() + 1)
-	return limit.toISOString().slice(0, 10)
-}
-
 export function paymentRoutes({ db }: PaymentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
@@ -52,7 +47,7 @@ export function paymentRoutes({ db }: PaymentRouteDeps) {
 	routes.post('/', async (c) => {
 		const input = await readJson(c, recordPaymentRequest)
 		if (!input) return invalidRequest(c)
-		if (input.paidOn > latestPaymentDate(new Date())) return invalidRequest(c)
+		if (isAfterScheduleToday(input.paidOn, new Date())) return invalidRequest(c)
 		const result = await recordPayment(db, input)
 		if (result.kind === 'not_found') return notFound(c)
 		return c.json({ payment: result.payment } satisfies PaymentResponse, 201)
