@@ -1,3 +1,4 @@
+import * as core from '../../packages/core/src/index.ts'
 import { BASE, check, failures, launch, shot, signIn, sql } from './web.mjs'
 
 const section = process.argv[2]
@@ -146,7 +147,182 @@ async function fade() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_FADE_OK')
 }
 
-const sections = { fade }
+const VN = core.SCHEDULE_TIME_ZONE
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function dayNum(date) {
+	return Number(date.slice(8, 10))
+}
+
+function monthName(date) {
+	return MONTHS[Number(date.slice(5, 7)) - 1]
+}
+
+function expectedRange(monday) {
+	const sunday = core.addDays(monday, 6)
+	const left = `${dayNum(monday)}`
+	if (monday.slice(0, 4) !== sunday.slice(0, 4)) {
+		return `${left} ${monthName(monday)} ${monday.slice(0, 4)} – ${dayNum(sunday)} ${monthName(sunday)} ${sunday.slice(0, 4)}`
+	}
+	if (monthName(monday) !== monthName(sunday))
+		return `${left} ${monthName(monday)} – ${dayNum(sunday)} ${monthName(sunday)}`
+	return `${left} – ${dayNum(sunday)} ${monthName(sunday)}`
+}
+
+function expectedNow() {
+	return core.zonedParts(new Date(), VN)
+}
+
+async function openSchedule(page) {
+	await page.goto(`${BASE}/schedule`)
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(400)
+}
+
+async function framePart1(page, label) {
+	const nowVn = expectedNow()
+	const monday = core.mondayOf(nowVn.date)
+	const data = await page.evaluate(() => {
+		const query = (selector, root = document) => Array.from(root.querySelectorAll(selector))
+		const body = document.querySelector('[data-slot="week-grid-body"]')
+		const head = document.querySelector('[data-slot="week-grid-head"]')
+		const probe = document.createElement('div')
+		probe.style.background = 'var(--gcal-today)'
+		document.body.append(probe)
+		const todayColor = getComputedStyle(probe).backgroundColor
+		probe.remove()
+		const transparent = 'rgba(0, 0, 0, 0)'
+		const columns = query('[data-slot="week-grid-column"]')
+		const lineTop = (hour) =>
+			document.querySelector(`[data-slot="week-grid-line"][data-hour="${hour}"]`)?.getBoundingClientRect().top
+		const gutter = (hour) =>
+			query('span', query('[data-slot="week-grid-gutter"] > div')[hour]).map((element) => element.textContent)
+		const nowElement = document.querySelector('[data-slot="week-grid-now"]')
+		const nowColumn = nowElement?.closest('[data-slot="week-grid-column"]')
+		const nowRect = nowElement?.getBoundingClientRect()
+		const columnRect = nowColumn?.getBoundingClientRect()
+		return {
+			h1: document.querySelector('h1')?.textContent,
+			weekdays: query('[data-slot="week-grid-day"] > span:first-child').map((element) => element.textContent),
+			dates: query('[data-slot="week-grid-day"]').map((element) => element.dataset.date),
+			circles: query('[data-slot="week-grid-date"]').map((element) => ({
+				text: element.textContent,
+				background: getComputedStyle(element).backgroundColor,
+			})),
+			todayColor,
+			columns: columns.map((element) => ({
+				date: element.dataset.date,
+				background: getComputedStyle(element).backgroundColor,
+			})),
+			transparent,
+			hourStep: lineTop(11) - lineTop(10),
+			corner: query('span', document.querySelector('[data-slot="week-grid-corner"]')).map(
+				(element) => element.textContent
+			),
+			gutter8: gutter(8),
+			gutter4: gutter(4),
+			bodyFade: body?.classList.contains('scroll-fade'),
+			scrollTop: body?.scrollTop,
+			headInsideBody: Boolean(body && head && body.contains(head)),
+			nowText: nowElement?.querySelector('.sr-only')?.textContent,
+			nowCenter: nowRect ? nowRect.top + nowRect.height / 2 - columnRect.top : null,
+			nowHeight: nowRect?.height,
+			nowColors: nowElement ? getComputedStyle(nowElement).backgroundColor : null,
+			nowColumns: query('[data-slot="week-grid-now"]').length,
+		}
+	})
+	check(`${label} h1 is the week range`, data.h1 === expectedRange(monday), data.h1)
+	check(
+		`${label} seven weekday captions`,
+		data.weekdays.join(' ') === WEEKDAYS.map((name) => name.toUpperCase()).join(' '),
+		data.weekdays.join(' ')
+	)
+	check(
+		`${label} columns follow the week`,
+		data.dates[0] === monday && data.dates[6] === core.addDays(monday, 6),
+		data.dates.join(',')
+	)
+	const todayIndex = data.dates.indexOf(nowVn.date)
+	check(`${label} today is in the week`, todayIndex >= 0)
+	const circle = data.circles[todayIndex]
+	check(`${label} today circle shows the Vietnam day`, circle?.text === String(dayNum(nowVn.date)), circle?.text)
+	check(
+		`${label} today circle uses gcal-today`,
+		circle?.background === data.todayColor,
+		`${circle?.background} / ${data.todayColor}`
+	)
+	check(
+		`${label} only one filled circle`,
+		data.circles.filter((item) => item.background !== data.transparent).length === 1
+	)
+	const column = data.columns.find((item) => item.date === nowVn.date)
+	check(
+		`${label} today column has bg-hover`,
+		column !== undefined && column.background !== data.transparent,
+		column?.background
+	)
+	check(
+		`${label} other columns are empty`,
+		data.columns.filter((item) => item.date !== nowVn.date).every((item) => item.background === data.transparent)
+	)
+	check(`${label} hour is 48px`, Math.abs(data.hourStep - 48) < 0.6, String(data.hourStep))
+	check(`${label} corner names VN and MSK`, data.corner.join(' ') === 'VN MSK', data.corner.join(' '))
+	check(`${label} 08:00 VN is 04:00 MSK`, data.gutter8.join(' ') === '08:00 04:00', data.gutter8.join(' '))
+	check(`${label} midnight row shows the weekday`, data.gutter4.join(' ') === '04:00 Mon', data.gutter4.join(' '))
+	check(`${label} body has scroll-fade`, data.bodyFade === true)
+	check(`${label} scrollTop is 336`, Math.abs(data.scrollTop - 336) <= 2, String(data.scrollTop))
+	check(`${label} day header is outside the scroller`, data.headInsideBody === false)
+	const after = expectedNow()
+	const shown = data.nowText?.replace(/^Now /, '')
+	const shownMinutes = shown ? Number(shown.slice(0, 2)) * 60 + Number(shown.slice(3, 5)) : -1000
+	check(
+		`${label} sr-only Now matches Vietnam time`,
+		Math.abs(shownMinutes - after.minutes) <= 1,
+		`${data.nowText} / ${after.time}`
+	)
+	check(
+		`${label} now line sits at the Vietnam minute`,
+		data.nowCenter !== null && Math.abs(data.nowCenter - after.minutes * 0.8) <= 2,
+		`${data.nowCenter} / ${after.minutes * 0.8}`
+	)
+	check(
+		`${label} now line is 2px and drawn once`,
+		data.nowHeight === 2 && data.nowColumns === 1,
+		`${data.nowHeight}/${data.nowColumns}`
+	)
+	return { monday, nowVn }
+}
+
+async function frame() {
+	const { browser, page, problems } = await launch()
+	try {
+		await setTheme(page)
+		await signIn(page)
+		await openSchedule(page)
+		await framePart1(page, 'frame')
+		await shot(page, 'sched-frame', 'week')
+		await page.setViewportSize({ width: 320, height: 800 })
+		await page.waitForTimeout(300)
+		const narrow = await page.evaluate(() => ({
+			scroll: document.documentElement.scrollWidth,
+			client: document.documentElement.clientWidth,
+			body: document.body.scrollWidth,
+		}))
+		check(
+			'320px has no horizontal page scroll',
+			narrow.scroll <= narrow.client && narrow.body <= narrow.client,
+			JSON.stringify(narrow)
+		)
+		await shot(page, 'sched-frame', 'narrow')
+		check('no console problems', problems.length === 0, problems.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_FRAME_OK')
+}
+
+const sections = { fade, frame }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)
