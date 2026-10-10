@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Users } from 'lucide-react'
 import Link from 'next/link'
 
 import { EmptyState } from '@/components/app/empty-state'
@@ -26,10 +26,12 @@ import {
 	type TodayCounts,
 } from '@dv-lab/core'
 
+import { DueList } from './due-list'
 import { LessonRows } from './today-lessons'
 import { useMinuteNow } from './use-minute-now'
 
 const SCHEDULE_HREF = '/schedule'
+const STUDENTS_HREF = '/students'
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: TodayResponse }
 
@@ -115,11 +117,11 @@ function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
 	return Date.parse(left.startsAt) - Date.parse(right.startsAt)
 }
 
-function SkeletonRows({ count }: { count: number }) {
+function SkeletonRows({ count, rowClass }: { count: number; rowClass: string }) {
 	return (
 		<ul className="flex flex-col px-1 pb-2">
 			{Array.from({ length: count }, (_, index) => (
-				<li key={index} className="flex h-10 items-center gap-3 px-3">
+				<li key={index} className={`flex items-center gap-3 px-3 ${rowClass}`}>
 					<Skeleton className="h-3 w-14" />
 					<Skeleton className="h-3 w-30" />
 				</li>
@@ -132,7 +134,10 @@ function LoadingPanels() {
 	return (
 		<div className="flex flex-col gap-4">
 			<Panel id="today-lessons" title="Lessons today">
-				<SkeletonRows count={5} />
+				<SkeletonRows count={5} rowClass="h-10" />
+			</Panel>
+			<Panel id="today-pays-soon" title="Pays soon">
+				<SkeletonRows count={3} rowClass="h-8" />
 			</Panel>
 		</div>
 	)
@@ -186,6 +191,21 @@ function Panels({
 					<LessonRows blocks={earlier} now={now} showDate nextKey={null} secondZone={zone} moreHref={SCHEDULE_HREF} />
 				</Panel>
 			) : null}
+			<Panel
+				id="today-pays-soon"
+				title="Pays soon"
+				description={`${lessonsPhrase(data.paysSoonLessons, 1)} or fewer left, or owing`}
+			>
+				{data.paysSoon.length === 0 ? (
+					<EmptyState
+						icon={Users}
+						title="Nobody needs to pay soon"
+						description={`Students appear here when they have ${lessonsPhrase(data.paysSoonLessons, 1)} left or fewer, or owe lessons.`}
+					/>
+				) : (
+					<DueList students={data.paysSoon} threshold={data.paysSoonLessons} moreHref={STUDENTS_HREF} />
+				)}
+			</Panel>
 		</div>
 	)
 }
