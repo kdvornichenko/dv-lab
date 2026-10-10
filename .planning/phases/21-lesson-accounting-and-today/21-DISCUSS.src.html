@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Фаза 21: отметки уроков и Today</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+  .ui { font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1c1b19; background: #fff; border: 1px solid #ddd8cc; border-radius: 10px; overflow: hidden; }
+  .ui .hd { padding: 9px 14px; border-bottom: 1px solid #eee9dd; font-weight: 650; display: flex; gap: 8px; align-items: baseline; } .ui .hd small { color: #8a8578; font-weight: 400; }
+  .ui .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 14px; border-bottom: 1px solid #eee9dd; } .ui .stats div { border: 1px solid #eee9dd; border-radius: 8px; padding: 6px 8px; } .ui .stats b { display: block; font-size: 18px; } .ui .stats small { color: #8a8578; }
+  .ui .row { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 9px 14px; border-bottom: 1px solid #f3efe6; } .ui .row small { color: #8a8578; }
+  .ui .btn { font-weight: 600; font-size: 12.5px; padding: 4px 9px; border-radius: 7px; border: 1px solid #ddd8cc; background: #fff; margin-left: 4px; }
+  .ui .sec { padding: 8px 14px 4px; color: #8a8578; font-size: 12px; }
+  .ui .bad { color: #b42318; font-weight: 650; } .ui .dim { color: #8a8578; }
+</style>
+<body>
+
+<header>
+  <h1>Фаза 21: отметки уроков и Today</h1>
+  <details class="thread"><summary>Зачем · цель, требования, прошлые решения</summary>
+    <doc-quote via="doc" from="ROADMAP, фаза 21">Marking lessons keeps every student's remaining lessons right through one set of rules in packages/core, and Today shows who studies and who pays soon.</doc-quote>
+    <doc-quote via="doc" from="REQUIREMENTS">LEDG-03 проведённый урок вычитает фактическую длительность (60 минут = 1, 90 = 1.5). LEDG-04 неявка вычитает урок, отключается по ученику. LEDG-05 отмена и перенос ничего не вычитают. LEDG-06 любую отметку можно исправить. LEDG-07 «скоро платить»: не больше N уроков, N по умолчанию 2. LEDG-08 каждое число остатка идёт из packages/core. SHELL-05 Today: счётчики, уроки дня, «скоро платить».</doc-quote>
+    <doc-quote via="doc" from="19-CONTEXT D-09">Остаток = opening_balance_minutes + сумма credited_minutes оплат с paid_on позже opening_balance_on. Пока открывающий остаток не задан, остаток «не задан».</doc-quote>
+    <doc-quote via="doc" from="20-CONTEXT D-05, D-16, D-17">Прошедшие вхождения в фазе 20 только смотреть, отметки добавляет фаза 21. Приложение ничего не удаляет из базы. Состояние вхождения читают через occurrenceAt в core/schedule.ts.</doc-quote>
+    <doc-quote via="doc" from="память phase21-design-followups">Правки дизайна фазы 20 (пункты 1-18, артефакт v35) идут отдельным UI-планом в фазе 21, не в PR фазы 20.</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ A ═════ -->
+<doc-claim>
+  <p>Учитель отмечает прошедший урок как «проведён» или «неявка». Отметка лежит в одной новой таблице, ничего не удаляется.</p>
+  <doc-schema id="marks" lang="sql" diff title="lesson_marks" caption="Предложение. Ключ вхождения: серия плюс исходная дата, либо id одиночного урока.">
+<script type="text/plain">
++ CREATE TABLE lesson_marks (
++   series_id    uuid REFERENCES lesson_series(id) ON DELETE RESTRICT,
++   original_on  date,
++   lesson_id    uuid REFERENCES lessons(id) ON DELETE RESTRICT,
++   kind         text NOT NULL CHECK (kind IN ('done', 'no_show', 'none')),
++   updated_at   timestamptz NOT NULL DEFAULT now()
++ );
++ ALTER TABLE students ADD COLUMN no_show_deducts boolean NOT NULL DEFAULT true;
+</script>
+  </doc-schema>
+  <doc-note tone="info"><strong>Опора</strong> Ключ вхождения зафиксирован в 20-CONTEXT D-01. Исправление отметки меняет kind, строка не удаляется (D-16).</doc-note>
+
+  <doc-claim>
+    <p>Отметки хранятся отдельной таблицей, а отмена и перенос остаются в расписании.</p>
+    <doc-ask id="a-store">
+      <p>Где хранить отметку «проведён» или «неявка»?</p>
+      <label><input type="radio" name="a-store" value="table" checked> Отдельная таблица lesson_marks <small>схема расписания не меняется</small></label>
+      <label><input type="radio" name="a-store" value="status"> Новые значения в status и kind <small>меньше таблиц, но исход смешан со временем переноса</small></label>
+      <label><input type="radio" name="a-store" value="custom"> Свой вариант</label>
+      <input type="text" name="a-store-custom">
+    </doc-ask>
+    <div data-if="a-store=status"><doc-note tone="warn">Повторяет трюк CR-01 (исход и время в одном поле) и трогает 8 мест на четырёх слоях.</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Вычет считается при чтении по длительности вхождения, снимка минут нет.</p>
+    <doc-ask id="a-minutes">
+      <p>Фиксировать минуты в момент отметки или считать при чтении?</p>
+      <label><input type="radio" name="a-minutes" value="live" checked> Считать при чтении <small>правка длительности и исправление видны на всех экранах</small></label>
+      <label><input type="radio" name="a-minutes" value="snap"> Записывать минуты при отметке <small>история стабильна, но правки длительности не доходят до остатка</small></label>
+      <label><input type="radio" name="a-minutes" value="custom"> Свой вариант</label>
+      <input type="text" name="a-minutes-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Флаг «неявка вычитает» один на ученика и действует на все его неявки, прошлые тоже.</p>
+    <doc-ask id="a-noshow">
+      <p>Как действует выключение вычета за неявку у ученика?</p>
+      <label><input type="radio" name="a-noshow" value="all" checked> На все неявки, остаток пересчитывается <small>остаток всегда функция текущих данных</small></label>
+      <label><input type="radio" name="a-noshow" value="future"> Только на будущие отметки <small>нужен снимок на каждой отметке</small></label>
+      <label><input type="radio" name="a-noshow" value="custom"> Свой вариант</label>
+      <input type="text" name="a-noshow-custom">
+    </doc-ask>
+    <div data-if="a-noshow=future"><doc-note tone="warn">Тогда ответ про снимок минут выше должен быть «записывать при отметке».</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Отметить можно урок, который уже начался; исправить можно в любое время.</p>
+    <doc-ask id="a-when">
+      <p>Когда разрешено ставить отметку?</p>
+      <label><input type="radio" name="a-when" value="started" checked> После начала урока <small>ошибки в будущем невозможны</small></label>
+      <label><input type="radio" name="a-when" value="ended"> Только после конца урока <small>строже, но идущий урок не отметить</small></label>
+      <label><input type="radio" name="a-when" value="any"> В любое время <small>можно отметить заранее, риск случайного клика</small></label>
+      <label><input type="radio" name="a-when" value="custom"> Свой вариант</label>
+      <input type="text" name="a-when-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ B ═════ -->
+<doc-claim>
+  <p>Остаток вычитает только проведённые уроки и неявки после даты открытия; отмена и перенос не вычитают ничего.</p>
+  <doc-code src="apps/api/src/cards/card-facts.ts" lines="15-44" hl="30">
+    <doc-pin line="30" tone="info" title="Граница оплат">Оплаты считаются строго позже opening_balance_on.</doc-pin>
+  </doc-code>
+  <doc-note tone="info"><strong>Опора</strong> D-09 фазы 19: так же отбираются оплаты. Уроки идут по той же границе, чтобы старые отметки не меняли открывающий остаток.</doc-note>
+
+  <doc-claim>
+    <p>Урок вычитается, если его дата по Вьетнаму строго позже даты открытия остатка.</p>
+    <doc-ask id="b-edge">
+      <p>Считать ли уроки в сам день открытия остатка?</p>
+      <label><input type="radio" name="b-edge" value="after" checked> Нет, строго позже, как оплаты <small>открывающий остаток уже включает этот день</small></label>
+      <label><input type="radio" name="b-edge" value="incl"> Да, включая день открытия <small>оплаты и уроки считаются по-разному</small></label>
+      <label><input type="radio" name="b-edge" value="custom"> Свой вариант</label>
+      <input type="text" name="b-edge-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Остаток может уйти ниже нуля и показывается как долг: «owes 1.5 lessons».</p>
+    <doc-ask id="b-neg">
+      <p>Как показывать отрицательный остаток?</p>
+      <label><input type="radio" name="b-neg" value="owes" checked> Как долг, например -1.5 и «owes» <small>учитель видит, сколько ученик должен</small></label>
+      <label><input type="radio" name="b-neg" value="zero"> Не ниже нуля <small>теряется информация о проведённых без оплаты</small></label>
+      <label><input type="radio" name="b-neg" value="custom"> Свой вариант</label>
+      <input type="text" name="b-neg-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Если отмеченный урок отменить, вычет пропадает; отметка остаётся и возвращается вместе с уроком при Restore.</p>
+    <doc-ask id="b-cancel">
+      <p>Что делать с отметкой, когда урок отменяют или переносят?</p>
+      <label><input type="radio" name="b-cancel" value="keep" checked> Отметку хранить, вычет не считать <small>Restore возвращает вычет, история цела</small></label>
+      <label><input type="radio" name="b-cancel" value="block"> Не давать отменять отмеченный урок <small>сначала надо снять отметку</small></label>
+      <label><input type="radio" name="b-cancel" value="custom"> Свой вариант</label>
+      <input type="text" name="b-cancel-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ D ═════ -->
+<doc-claim>
+  <p>Today показывает четыре счётчика, уроки дня с быстрыми отметками и список «скоро платить» с порогом N из настроек.</p>
+  <doc-mock frame="none" w="440"><template>
+<div class="ui">
+  <div class="hd">Today <small>Sat 10 Oct</small></div>
+  <div class="stats" data-ref="stats">
+    <div><b>4</b><small>Today</small></div><div><b>1</b><small>Done</small></div><div><b>2</b><small>To mark</small></div><div><b>3</b><small>Pays soon</small></div>
+  </div>
+  <div class="sec">Lessons today</div>
+  <div class="row" data-ref="marks"><div>Alex E. <small>18:00–19:00 VN</small></div><div><span class="btn">Done</span><span class="btn">No-show</span></div></div>
+  <div class="sec">Pays soon</div>
+  <div class="row" data-ref="due"><div>Sam E. <small>0.5 lessons left</small></div><div class="bad">owes 1</div></div>
+</div></template>
+    <doc-pin ref="stats" title="Счётчики">Какие четыре, решает вопрос ниже.</doc-pin>
+    <doc-pin ref="marks" anchor="r" title="Быстрые отметки">Done и No-show без диалога.</doc-pin>
+    <doc-pin ref="due" anchor="r" title="Скоро платить">Показан остаток в уроках.</doc-pin>
+  </doc-mock>
+  <doc-note tone="warn"><strong>Дизайн</strong> В дизайн-системе v35 нет экрана Today для dv-lab, отметок в LessonDialog и EventTooltip, настройки N и флага неявки. DueList содержит срок и сумму, а LEDG-07 считает уроки. Всё это уходит Design dude, планы с UI ждут ответа.</doc-note>
+
+  <doc-claim>
+    <p>В «скоро платить» попадают активные ученики с остатком не больше N уроков, включая долг; ученики без открывающего остатка в список не входят.</p>
+    <doc-ask id="d-list">
+      <p>Кто попадает в «скоро платить»?</p>
+      <label><input type="radio" name="d-list" value="active" checked> Активные с остатком не больше N, без «не задан» <small>«не задан» не равен нулю (D-09)</small></label>
+      <label><input type="radio" name="d-list" value="unset"> То же, плюс «не задан» отдельной строкой <small>учитель видит, кому не введён остаток</small></label>
+      <label><input type="radio" name="d-list" value="custom"> Свой вариант</label>
+      <input type="text" name="d-list-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Порог N хранится в базе на аккаунте учителя, меняется в Settings → General, по умолчанию 2.</p>
+    <doc-ask id="d-n">
+      <p>Где хранить порог N?</p>
+      <label><input type="radio" name="d-n" value="db" checked> В базе на аккаунте учителя <small>чат фазы 22 читает те же данные</small></label>
+      <label><input type="radio" name="d-n" value="browser"> В браузере (localStorage) <small>проще, но чат не видит порог</small></label>
+      <label><input type="radio" name="d-n" value="custom"> Свой вариант</label>
+      <input type="text" name="d-n-custom">
+    </doc-ask>
+    <div data-if="d-n=browser"><doc-note tone="warn">Чат и Today могут показать разные списки «скоро платить» (критерий 5).</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Счётчики: уроков сегодня, проведено, ждут отметки, скоро платить.</p>
+    <doc-ask id="d-counters">
+      <p>Какие счётчики нужны на Today?</p>
+      <label><input type="radio" name="d-counters" value="four" checked> Сегодня, проведено, ждут отметки, скоро платить <small>«ждут отметки» ловит забытые уроки</small></label>
+      <label><input type="radio" name="d-counters" value="three"> Сегодня, проведено, скоро платить <small>без прошедших неотмеченных уроков</small></label>
+      <label><input type="radio" name="d-counters" value="custom"> Свой вариант</label>
+      <input type="text" name="d-counters-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Отметки ставятся из списка уроков на Today и из диалога урока в расписании; профиль ученика получит их в фазе 23.</p>
+    <doc-ask id="d-marks">
+      <p>Откуда учитель ставит и исправляет отметки?</p>
+      <label><input type="radio" name="d-marks" value="both" checked> Today и диалог урока в расписании <small>два входа, одна логика</small></label>
+      <label><input type="radio" name="d-marks" value="today"> Только Today <small>прошлые недели не поправить</small></label>
+      <label><input type="radio" name="d-marks" value="custom"> Свой вариант</label>
+      <input type="text" name="d-marks-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ E ═════ -->
+<doc-claim>
+  <p>Правки дизайна фазы 20 (пункты 1-18, артефакт v35) выполняются двумя UI-планами до работы с отметками.</p>
+  <doc-tree caption="Объём разбит на два плана.">
+<script type="text/plain">
+phase-21/
+  + ui-polish-plan   # 1-11: подсказки, None, TimePair, токены текста, гаттер, тулбар, баг обрезки времени
+  + ui-new-plan      # 12-18: протяжка создания, метки зон, TimeZonePicker, избранные зоны
+</script>
+  </doc-tree>
+  <doc-note tone="info"><strong>Почему</strong> Диалог урока, который правят эти планы, получает кнопки отметок. Править его после отметок значит переписывать дважды.</doc-note>
+
+  <doc-claim>
+    <p>Правки идут двумя планами: мелкие правки отдельно от новых компонентов.</p>
+    <doc-ask id="e-split">
+      <p>Как нарезать правки дизайна фазы 20?</p>
+      <label><input type="radio" name="e-split" value="two" checked> Два плана: правки 1-11 и новое 12-18 <small>мелкое выходит быстро, новое идёт после ответа дизайна</small></label>
+      <label><input type="radio" name="e-split" value="one"> Один план на всё <small>проще учёт, но план большой и рискованный</small></label>
+      <label><input type="radio" name="e-split" value="later"> Новое 12-18 вынести в фазу 20.1 после этой <small>фаза 21 остаётся про баланс</small></label>
+      <label><input type="radio" name="e-split" value="custom"> Свой вариант</label>
+      <input type="text" name="e-split-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ C ═════ -->
+<doc-claim>
+  <p>Правила остатка собираются в packages/core, чтобы число было одним на всех экранах и в чате.</p>
+  <doc-code src="packages/core/src/balance.ts" lines="1-4">
+    <doc-pin line="1" tone="warn" title="Только сумма">Отбор строк делает SQL в apps/api, подпись формы повторяет правило в web.</doc-pin>
+  </doc-code>
+  <doc-note tone="info"><strong>Архитектурный осмотр</strong> Пять находок в 21-ARCH-REVIEW.md. Пятая («две формулы минут», слабая) отложена, остальные четыре ниже.</doc-note>
+
+  <doc-claim>
+    <p>Правило «что входит в остаток» переезжает в core: SQL отдаёт строки, core решает.</p>
+    <doc-ask id="c-1">
+      <p>Находка 1: отбор оплат и уроков в core. Делать в этой фазе?</p>
+      <label><input type="radio" name="c-1" value="phase" checked> В этой фазе <small>до планов, которые трогают остаток</small></label>
+      <label><input type="radio" name="c-1" value="defer"> Отложить <small>вычеты лягут рядом со старым SQL</small></label>
+      <label><input type="radio" name="c-1" value="reject"> Отклонить <small>правило остаётся в apps/api</small></label>
+      <label><input type="radio" name="c-1" value="custom"> Свой вариант</label>
+      <input type="text" name="c-1-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Исход вхождения (запланирован, проведён, неявка, отменён, перенесён) определяет один владелец в core.</p>
+    <doc-ask id="c-2">
+      <p>Находка 2: единый владелец исхода урока. Делать в этой фазе?</p>
+      <label><input type="radio" name="c-2" value="phase" checked> В этой фазе <small>новый исход не размножается по четырём слоям</small></label>
+      <label><input type="radio" name="c-2" value="defer"> Отложить <small>отметки добавятся в 8 мест вручную</small></label>
+      <label><input type="radio" name="c-2" value="reject"> Отклонить <small>оставить как есть</small></label>
+      <label><input type="radio" name="c-2" value="custom"> Свой вариант</label>
+      <input type="text" name="c-2-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>«Сегодня» и граница даты считаются одной функцией в зоне Вьетнама.</p>
+    <doc-ask id="c-3">
+      <p>Находка 3: одна «сегодня» вместо трёх зон. Делать в этой фазе?</p>
+      <label><input type="radio" name="c-3" value="phase" checked> В этой фазе <small>откладывалось в фазе 20 именно до этой</small></label>
+      <label><input type="radio" name="c-3" value="defer"> Отложить <small>ночные уроки могут попасть не на ту сторону даты</small></label>
+      <label><input type="radio" name="c-3" value="reject"> Отклонить <small>оставить три зоны</small></label>
+      <label><input type="radio" name="c-3" value="custom"> Свой вариант</label>
+      <input type="text" name="c-3-custom">
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Перевод минут в уроки и проверка порога N — одна функция core, клиент её не дублирует.</p>
+    <doc-ask id="c-4">
+      <p>Находка 4: порог и уроки считает core. Делать в этой фазе?</p>
+      <label><input type="radio" name="c-4" value="phase" checked> В этой фазе <small>вместе с находкой 1, один предикат</small></label>
+      <label><input type="radio" name="c-4" value="defer"> Отложить <small>Today и список считают порог каждый сам</small></label>
+      <label><input type="radio" name="c-4" value="reject"> Отклонить <small>оставить деление в браузере</small></label>
+      <label><input type="radio" name="c-4" value="custom"> Свой вариант</label>
+      <input type="text" name="c-4-custom">
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ scope ═════ -->
+<doc-claim aux="scope">
+  <p>В эту фазу не входят отметки из чата, профиль ученика и телефон.</p>
+  <ul>
+    <li>Быстрые отметки и отмена из чата, ответы из данных: фаза 22.</li>
+    <li>Профиль ученика с уроками и «Ask in chat», расписание и Today на телефоне: фаза 23.</li>
+    <li>Синхронизация отметок с Google Calendar: фазы 24-25.</li>
+    <li>Находка 5 архитектурного осмотра (две формулы минут): отложена.</li>
+    <li>Начальные балансы владелец вводит сам после выката, импорт их не заполняет.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>
