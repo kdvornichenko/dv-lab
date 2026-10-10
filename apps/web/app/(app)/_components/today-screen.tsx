@@ -2,11 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { PageHeader, PageScroll } from '@/components/app/layout-parts'
+import { CalendarDays } from 'lucide-react'
+import Link from 'next/link'
+
+import { EmptyState } from '@/components/app/empty-state'
+import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
 import { Stat } from '@/components/app/stat'
 import { useSecondZone } from '@/components/app/time-zone-picker'
-import { SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
 
@@ -21,7 +26,10 @@ import {
 	type TodayCounts,
 } from '@dv-lab/core'
 
+import { LessonRows } from './today-lessons'
 import { useMinuteNow } from './use-minute-now'
+
+const SCHEDULE_HREF = '/schedule'
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: TodayResponse }
 
@@ -103,6 +111,85 @@ function LoadingCounters() {
 	)
 }
 
+function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
+	return Date.parse(left.startsAt) - Date.parse(right.startsAt)
+}
+
+function SkeletonRows({ count }: { count: number }) {
+	return (
+		<ul className="flex flex-col px-1 pb-2">
+			{Array.from({ length: count }, (_, index) => (
+				<li key={index} className="flex h-10 items-center gap-3 px-3">
+					<Skeleton className="h-3 w-14" />
+					<Skeleton className="h-3 w-30" />
+				</li>
+			))}
+		</ul>
+	)
+}
+
+function LoadingPanels() {
+	return (
+		<div className="flex flex-col gap-4">
+			<Panel id="today-lessons" title="Lessons today">
+				<SkeletonRows count={5} />
+			</Panel>
+		</div>
+	)
+}
+
+function WeekLink() {
+	return (
+		<Button variant="ghost" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
+			Week
+		</Button>
+	)
+}
+
+function Panels({
+	data,
+	counts,
+	now,
+	zone,
+}: {
+	data: TodayResponse
+	counts: TodayCounts
+	now: Date
+	zone: string | null
+}) {
+	const lessons = [...data.lessons].sort(byStart)
+	const earlier = [...data.earlier].sort(byStart)
+	return (
+		<div className="flex flex-col gap-4">
+			<Panel id="today-lessons" title="Lessons today" action={<WeekLink />}>
+				{lessons.length === 0 ? (
+					<EmptyState
+						icon={CalendarDays}
+						title="No lessons today"
+						description="Add a lesson in the schedule."
+						action={
+							<Button variant="secondary" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
+								Open schedule
+							</Button>
+						}
+					/>
+				) : (
+					<LessonRows blocks={lessons} now={now} showDate={false} nextKey={counts.nextKey} secondZone={zone} />
+				)}
+			</Panel>
+			{earlier.length > 0 ? (
+				<Panel
+					id="today-earlier"
+					title="Earlier, not marked"
+					description="Lessons that took place and still need a mark."
+				>
+					<LessonRows blocks={earlier} now={now} showDate nextKey={null} secondZone={zone} moreHref={SCHEDULE_HREF} />
+				</Panel>
+			) : null}
+		</div>
+	)
+}
+
 function Shell({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
 	return (
 		<PageScroll>
@@ -118,6 +205,7 @@ export function TodayScreen() {
 		return (
 			<Shell title="Today" description={<SkeletonText className="w-64 py-0.5" />}>
 				<LoadingCounters />
+				<LoadingPanels />
 			</Shell>
 		)
 	}
@@ -167,6 +255,7 @@ function LoadedToday({ now }: { now: Date }) {
 		return (
 			<Shell title={dayTitle(today)} description={<SkeletonText className="w-64 py-0.5" />}>
 				<LoadingCounters />
+				<LoadingPanels />
 			</Shell>
 		)
 	}
@@ -177,6 +266,7 @@ function LoadedToday({ now }: { now: Date }) {
 	return (
 		<Shell title={dayTitle(data.date)} description={summaryLine(counts, next, zone)}>
 			<Counters counts={counts} threshold={data.paysSoonLessons} />
+			<Panels data={data} counts={counts} now={now} zone={zone} />
 		</Shell>
 	)
 }
