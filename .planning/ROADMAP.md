@@ -218,13 +218,13 @@ Plans:
   4. The "pays soon" list shows students with at most N lessons left or none, N is a setting with default 2, and Today shows counters, today's lessons and this list from real data.
   5. The students list, the profile, Today and "pays soon" show the same balance because they call the same `packages/core` functions, and those rules are covered by unit tests.
 
-**Plans**: 16 plans
+**Plans**: 3/16 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 21-01-PLAN.md — Schema: `lesson_marks`, `teacher_settings`, `students.no_show_deducts`, revoke migration, `yarn install`, migrations applied [BLOCKING] (W1)
-- [ ] 21-02-PLAN.md — `packages/core`: one Vietnam "today", balance rule from raw rows, lesson outcome and actions, needs-mark rule, threshold and balance words, `ledger-core.mjs` (W1)
-- [ ] 21-03-PLAN.md — UI-A1: phase 20 design fixes 4 (tooltip), 5, 6, 7, 11 per design v36 (gutter, toolbar, short blocks, week summary, tooltip tokens) (W1)
+- [x] 21-01-PLAN.md — Schema: `lesson_marks`, `teacher_settings`, `students.no_show_deducts`, revoke migration, `yarn install`, migrations applied [BLOCKING] (W1)
+- [x] 21-02-PLAN.md — `packages/core`: one Vietnam "today", balance rule from raw rows, lesson outcome and actions, needs-mark rule, threshold and balance words, `ledger-core.mjs` (W1)
+- [x] 21-03-PLAN.md — UI-A1: phase 20 design fixes 4 (tooltip), 5, 6, 7, 11 per design v36 (gutter, toolbar, short blocks, week summary, tooltip tokens) (W1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 21-04-PLAN.md — API marks: `POST …/mark`, week with outcome and actions, cancel and restore of started lessons, marks survive series cuts, concurrent requests (W2)
@@ -348,7 +348,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 10/10 | In Progress|  |
-| 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
+| 21. Lesson Accounting and Today | v2.0 | 3/16 | In Progress|  |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
 | 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Not started | - |
