@@ -1409,13 +1409,11 @@ async function readPart2(page, fx, nav) {
 		text: element.textContent,
 		buttons: Array.from(element.querySelectorAll('button')).map((button) => button.textContent?.trim()),
 	}))
+	check('dialog: a past lesson has no line that it cannot be changed', !pastFacts.text.includes('cannot be changed'))
 	check(
-		'dialog: a past lesson says it cannot be changed',
-		pastFacts.text.includes('This lesson has already taken place and cannot be changed.')
-	)
-	check(
-		'dialog: a past lesson has no Move lesson or Cancel lesson',
-		!pastFacts.buttons.some((text) => /Move lesson|Cancel lesson/.test(text ?? ''))
+		'dialog: a past lesson has Move lesson and Cancel lesson',
+		pastFacts.buttons.includes('Move lesson') && pastFacts.buttons.includes('Cancel lesson'),
+		pastFacts.buttons.join('|')
 	)
 	check(
 		'dialog: a single lesson has no Series row',
@@ -1742,7 +1740,7 @@ async function readPart3(page, fx, nav) {
 	const seriesToast = await page.getByText('Series added', { exact: true }).locator('xpath=..').textContent()
 	check(
 		'new lesson: series toast names the weekday and time',
-		seriesToast.includes(`${NAME_A} every Monday at 09:00.`),
+		seriesToast.includes(`${NAME_A} every Monday at 09:00 VN.`),
 		seriesToast
 	)
 	for (const monday of [fx.week1, fx.week2]) {
@@ -2019,8 +2017,10 @@ async function changesPart1(page, fx, nav, posts) {
 		role: element.getAttribute('role'),
 	}))
 	check(
-		'cancel: the footer asks with the date and time',
-		asked.text.includes(`Cancel the lesson on ${dayMonth(fx.wed)} at 18:00 VN (14:00 MSK)?`) && asked.role === 'alert',
+		'cancel: the footer asks with the date and time in the main zone only',
+		asked.text.includes(`Cancel the lesson on ${dayMonth(fx.wed)} at 18:00 VN?`) &&
+			!asked.text.includes('MSK') &&
+			asked.role === 'alert',
 		asked.text
 	)
 	buttons = await dialogButtons(page)
@@ -2042,8 +2042,8 @@ async function changesPart1(page, fx, nav, posts) {
 	await dialog.getByRole('button', { name: 'Yes, cancel' }).click()
 	const cancelledToast = await toastText(page, 'Lesson cancelled')
 	check(
-		'cancel: toast names the lesson',
-		cancelledToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00 VN (14:00 MSK).`),
+		'cancel: toast names the lesson in the main zone only',
+		cancelledToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00 VN.`) && !cancelledToast.includes('MSK'),
 		cancelledToast
 	)
 	check('cancel: the block turns cancelled on the grid', await waitBlock(page, CH_A, fx.wed, 'to', ', cancelled'))
@@ -2067,8 +2067,8 @@ async function changesPart1(page, fx, nav, posts) {
 	await dialog.getByRole('button', { name: 'Return to schedule' }).click()
 	const restoredToast = await toastText(page, 'Lesson restored')
 	check(
-		'restore: toast names the lesson',
-		restoredToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00 VN (14:00 MSK).`),
+		'restore: toast names the lesson in the main zone only',
+		restoredToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00 VN.`) && !restoredToast.includes('MSK'),
 		restoredToast
 	)
 	check('restore: the block is planned again', await waitBlock(page, CH_A, fx.wed, 'to', ', planned'))
@@ -2096,7 +2096,7 @@ async function changesPart1(page, fx, nav, posts) {
 	const singleToast = await toastText(page, 'Lesson cancelled', CH_B)
 	check(
 		'single cancel: toast names B',
-		singleToast.includes(`${CH_B}, ${shortDay(fx.wed)}, 12:00 VN (08:00 MSK).`),
+		singleToast.includes(`${CH_B}, ${shortDay(fx.wed)}, 12:00 VN.`) && !singleToast.includes('MSK'),
 		singleToast
 	)
 	check('single cancel: B is cancelled on the grid', await waitBlock(page, CH_B, fx.wed, 'to', ', cancelled'))
@@ -2157,8 +2157,8 @@ async function changesPart1(page, fx, nav, posts) {
 	await page.waitForTimeout(300)
 	buttons = await dialogButtons(page)
 	check(
-		'past: no Move lesson and no Cancel lesson',
-		!buttons.includes('Move lesson') && !buttons.includes('Cancel lesson'),
+		'past: Move lesson and Cancel lesson in the footer',
+		buttons.includes('Move lesson') && buttons.includes('Cancel lesson'),
 		buttons.join('|')
 	)
 	await closeDialog(page)
@@ -2254,7 +2254,7 @@ async function changesPart2(page, fx, nav, posts) {
 	await page.waitForTimeout(300)
 	const yesterday = core.addDays(fx.today, -1)
 	const yesterdayOff = await calendarDayState(page, yesterday)
-	check('move: days before today cannot be picked', yesterdayOff === true, String(yesterdayOff))
+	check('move: days before today can be picked', yesterdayOff === false, String(yesterdayOff))
 	const todayCell = page.locator(`button[data-day="${dayAttr(fx.today)}"]`).first()
 	const todayOff = (await todayCell.count()) === 0 ? null : await todayCell.evaluate((element) => element.disabled)
 	check('move: today can be picked', todayOff === false || todayOff === null, String(todayOff))
@@ -2498,7 +2498,7 @@ async function changesPart3(page, fx, nav, posts, before) {
 	const movedToast = await toastText(page, 'Series moved', CH_A)
 	check(
 		'move series: toast names the new day and the first date',
-		movedToast.includes(`${CH_A} now meets on Thursdays at 17:00 from ${appDate(fx.thursday, fx.today)}.`),
+		movedToast.includes(`${CH_A} now meets on Thursdays at 17:00 VN from ${appDate(fx.thursday, fx.today)}.`),
 		movedToast
 	)
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
@@ -2705,8 +2705,106 @@ async function changesPart3(page, fx, nav, posts, before) {
 	check('end series C: no blocks of C remain', ofCard(week, CH_C).length === 0, String(ofCard(week, CH_C).length))
 }
 
+const MOVE_PAST_LIKE = 'Alex Example 2141%'
+const MOVE_PAST = 'Alex Example 2141 A'
+
+async function weekHasBlock(page, studentId, date, time) {
+	const result = await api(page, 'GET', `/schedule/week?start=${core.mondayOf(date)}`)
+	const prefix = date
+	return (result.json?.blocks ?? []).filter(
+		(block) =>
+			block.studentId === studentId &&
+			core.zonedParts(new Date(block.startsAt), VN).date === prefix &&
+			(time === undefined || block.startsAt === whenText(date, time))
+	).length
+}
+
+async function moveThroughDialog(page, nav, from, to, time) {
+	const dialog = page.getByRole('dialog')
+	await goToWeek(page, nav, core.mondayOf(from))
+	await openBlockDialog(page, MOVE_PAST, from)
+	const buttons = await dialogButtons(page)
+	await dialog.getByRole('button', { name: 'Move lesson' }).click()
+	await page.waitForTimeout(400)
+	await pickDate(page, to, 'move-lesson-date')
+	await pickTime(page, time, 'move-lesson-time')
+	const form = await moveFormFacts(page)
+	const fieldError = await page.locator('#move-lesson-time-error').count()
+	await dialog.getByRole('group', { name: 'Move lesson' }).getByRole('button', { name: 'Move lesson' }).click()
+	const toast = await toastText(page, 'Lesson moved', MOVE_PAST)
+	nav.monday = core.mondayOf(to)
+	const placed = await waitBlock(page, MOVE_PAST, to, 'to', `${time}–`)
+	return { buttons, form, fieldError, toast, placed }
+}
+
+async function changesMovePast(page, fx, nav) {
+	const studentId = await createCard(page, MOVE_PAST, 60, null)
+	const yesterday = core.addDays(fx.today, -1)
+	const dayBefore = core.addDays(fx.today, -2)
+	const tomorrow = core.addDays(fx.today, 1)
+	const once = (date, startTime) =>
+		api(page, 'POST', '/schedule/lessons', { studentId, date, startTime, durationMinutes: 60, repeats: 'once' })
+	const past = await once(yesterday, '10:00')
+	check('move-past: the past lesson is created', past.status === 201, String(past.status))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	nav.monday = core.mondayOf(fx.today)
+
+	const dialog = page.getByRole('dialog')
+	await goToWeek(page, nav, core.mondayOf(yesterday))
+	await openBlockDialog(page, MOVE_PAST, yesterday)
+	const pastButtons = await dialogButtons(page)
+	check(
+		'move-past: the past lesson has Move lesson and Cancel lesson',
+		pastButtons.includes('Move lesson') && pastButtons.includes('Cancel lesson'),
+		pastButtons.join('|')
+	)
+	await dialog.getByRole('button', { name: 'Move lesson' }).click()
+	await page.waitForTimeout(400)
+	await page.locator('#move-lesson-date').click()
+	await page.waitForTimeout(300)
+	const dayBeforeOff = await calendarDayState(page, dayBefore)
+	check('move-past: the day before yesterday can be picked', dayBeforeOff === false, String(dayBeforeOff))
+	await shot(page, 'sched-changes', 'move-past-calendar')
+	await page.locator('#move-lesson-date').click()
+	await page.waitForTimeout(300)
+	await closeDialog(page)
+
+	const back = await moveThroughDialog(page, nav, yesterday, dayBefore, '09:00')
+	check(
+		'move-past: 09:00 the day before yesterday gives no field error',
+		back.fieldError === 0 && back.form !== null && !back.form.text.includes('Choose'),
+		back.form?.text.slice(0, 200)
+	)
+	check('move-past: the toast says Lesson moved', back.toast.includes(MOVE_PAST), back.toast)
+	check('move-past: the block stands the day before yesterday at 09:00', back.placed)
+	await shot(page, 'sched-changes', 'move-past-moved')
+	await closeDialog(page)
+	check(
+		'move-past: the lesson is on the day before yesterday at 09:00 and nothing is left yesterday',
+		(await weekHasBlock(page, studentId, dayBefore, '09:00')) === 1 &&
+			(await weekHasBlock(page, studentId, yesterday)) === 0
+	)
+
+	const future = await once(tomorrow, '10:00')
+	check('move-past: the future lesson is created', future.status === 201, String(future.status))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	nav.monday = core.mondayOf(fx.today)
+	const pulled = await moveThroughDialog(page, nav, tomorrow, yesterday, '12:00')
+	check('move-past: the future lesson moved to yesterday gives no field error', pulled.fieldError === 0)
+	check('move-past: the future lesson stands yesterday at 12:00', pulled.placed)
+	await closeDialog(page)
+	check(
+		'move-past: the week has the lesson yesterday at 12:00',
+		(await weekHasBlock(page, studentId, yesterday, '12:00')) === 1 &&
+			(await weekHasBlock(page, studentId, tomorrow)) === 0
+	)
+}
+
 async function changes() {
 	cleanupFixtures('changes start')
+	cleanupFixtures('changes move-past start', MOVE_PAST_LIKE)
 	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
 	const posts = []
 	try {
@@ -2734,6 +2832,8 @@ async function changes() {
 		const afterAll = await pastSnapshot(page, fx)
 		check('past weeks snapshot is unchanged after every change', afterAll.join('\n') === before.join('\n'))
 		console.log('CHANGES_PART3_OK')
+		await changesMovePast(page, fx, nav)
+		console.log('CHANGES_MOVE_PAST_OK')
 		const real = problems.filter(
 			(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409)/.test(problem)
 		)
@@ -2741,6 +2841,7 @@ async function changes() {
 	} finally {
 		await browser.close()
 		cleanupFixtures('changes end', CHANGES_LIKE)
+		cleanupFixtures('changes move-past end', MOVE_PAST_LIKE)
 	}
 	if (failures() === 0) console.log('SCHEDULE_WEB_CHANGES_OK')
 }

@@ -31,7 +31,7 @@ import {
 } from '@/lib/schedule-format'
 
 import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, canChange } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, nextSeriesDate } from '@dv-lab/core'
 
 import { LessonStatus, type BlockSlot } from './lesson-block'
 import { LessonMoveForm } from './lesson-move-form'
@@ -44,7 +44,7 @@ export interface PairTarget {
 	at: Date
 }
 
-export type ActionOutcome = 'ok' | 'stale' | 'past' | 'failed'
+export type ActionOutcome = 'ok' | 'stale' | 'failed'
 
 interface LessonDialogProps {
 	block: ScheduleBlock
@@ -56,17 +56,15 @@ interface LessonDialogProps {
 	onOpenPair: (target: PairTarget) => void
 	onCancel: () => Promise<ActionOutcome>
 	onRestore: () => Promise<ActionOutcome>
-	today: string
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	onStale: () => void
 	onMoved: (startsAt: Date) => void
 	onSeries: (kind: 'move' | 'end') => void
 }
 
-type Notice = 'stale' | 'past' | 'cancel' | 'restore' | null
+type Notice = 'stale' | 'cancel' | 'restore' | null
 
 const FAILURE: Record<Exclude<Notice, 'stale' | null>, string> = {
-	past: 'This lesson has already started and cannot be changed.',
 	cancel: 'Could not cancel the lesson. Try again.',
 	restore: 'Could not restore the lesson. Try again.',
 }
@@ -80,8 +78,8 @@ function Detail({ label, wide, children }: { label: string; wide?: boolean; chil
 	)
 }
 
-function cancelQuestion(start: Date, zone: string | null): string {
-	return `Cancel the lesson on ${vnDayAt(start, zone)}?`
+function cancelQuestion(start: Date): string {
+	return `Cancel the lesson on ${vnDayAt(start, null)}?`
 }
 
 const pairButtonClass =
@@ -97,7 +95,6 @@ export function LessonDialog({
 	onOpenPair,
 	onCancel,
 	onRestore,
-	today,
 	blocksOn,
 	onStale,
 	onMoved,
@@ -114,10 +111,9 @@ export function LessonDialog({
 	const movedTo = block.movedTo === null ? null : new Date(block.movedTo)
 	const movedFrom = block.movedFrom === null ? null : new Date(block.movedFrom)
 	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
-	const live = block.changeable && canChange(start, now)
-	const plannedActions = live && block.status === 'scheduled'
-	const restoreAction = live && block.status === 'cancelled'
-	const seriesActions = live && block.ref.kind === 'series' && block.status !== 'moved'
+	const { actions } = block
+	const footerActions = actions.move || actions.cancel
+	const seriesActions = actions.series && series !== null && nextSeriesDate(series, now) !== null
 	const seriesSecond = series === null ? null : seriesSecondLine(series, secondZone, now)
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
@@ -127,7 +123,7 @@ export function LessonDialog({
 		const outcome = await action()
 		setPending(false)
 		setConfirming(false)
-		setNotice(outcome === 'ok' ? null : outcome === 'stale' || outcome === 'past' ? outcome : failure)
+		setNotice(outcome === 'ok' ? null : outcome === 'stale' ? outcome : failure)
 	}
 
 	return (
@@ -188,11 +184,6 @@ export function LessonDialog({
 							) : null}
 							{block.studentGoal ? <span className="text-muted-foreground">· {block.studentGoal}</span> : null}
 						</div>
-						{live || block.status !== 'scheduled' || notice === 'past' ? null : (
-							<p className="text-caption text-muted-foreground">
-								This lesson has already taken place and cannot be changed.
-							</p>
-						)}
 						<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
 							<Detail label="Length">{block.durationMinutes} min</Detail>
 							<Detail label="Repeats">{series === null ? 'Once' : `Every ${weekdayName(series.weekday)}`}</Detail>
@@ -242,11 +233,9 @@ export function LessonDialog({
 								</div>
 							</div>
 						) : null}
-						{moving && plannedActions ? (
+						{moving && actions.move ? (
 							<LessonMoveForm
 								block={block}
-								now={now}
-								today={today}
 								secondZone={secondZone}
 								currentYear={currentYear}
 								blocksOn={blocksOn}
@@ -268,15 +257,15 @@ export function LessonDialog({
 						) : null}
 					</div>
 				</ScrollArea>
-				{plannedActions && !moving ? (
+				{footerActions && !moving ? (
 					<DialogFooter>
-						{confirming ? (
+						{confirming && actions.cancel ? (
 							<div
 								role="alert"
 								data-slot="lesson-cancel-question"
 								className="flex w-full flex-wrap items-center justify-end gap-2"
 							>
-								<span className="mr-auto text-body text-foreground">{cancelQuestion(start, secondZone)}</span>
+								<span className="mr-auto text-body text-foreground">{cancelQuestion(start)}</span>
 								<Button
 									type="button"
 									variant="ghost"
@@ -298,36 +287,40 @@ export function LessonDialog({
 							</div>
 						) : (
 							<div className="flex w-full flex-wrap items-center justify-end gap-2">
-								<Button
-									ref={moveButton}
-									type="button"
-									variant="secondary"
-									size="compact"
-									leadingIcon={CalendarClock}
-									onClick={() => {
-										setNotice(null)
-										setMoving(true)
-									}}
-								>
-									Move lesson
-								</Button>
-								<Button
-									type="button"
-									variant="ghost"
-									size="compact"
-									leadingIcon={CalendarX2}
-									onClick={() => {
-										setNotice(null)
-										setConfirming(true)
-									}}
-								>
-									Cancel lesson
-								</Button>
+								{actions.move ? (
+									<Button
+										ref={moveButton}
+										type="button"
+										variant="secondary"
+										size="compact"
+										leadingIcon={CalendarClock}
+										onClick={() => {
+											setNotice(null)
+											setMoving(true)
+										}}
+									>
+										Move lesson
+									</Button>
+								) : null}
+								{actions.cancel ? (
+									<Button
+										type="button"
+										variant="ghost"
+										size="compact"
+										leadingIcon={CalendarX2}
+										onClick={() => {
+											setNotice(null)
+											setConfirming(true)
+										}}
+									>
+										Cancel lesson
+									</Button>
+								) : null}
 							</div>
 						)}
 					</DialogFooter>
 				) : null}
-				{restoreAction ? (
+				{actions.restore ? (
 					<DialogFooter>
 						<Button
 							type="button"

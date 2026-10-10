@@ -12,7 +12,7 @@ import { formatDate, formatDay, formatRange, formatTime, formatWhen, vnRange, vn
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, canChange, overlaps, zonedInstant, zonedParts } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, overlaps, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import type { OverlapBlock } from './new-lesson-dialog'
@@ -20,8 +20,6 @@ import { changedStart, mutate } from './schedule-mutations'
 
 interface LessonMoveFormProps {
 	block: ScheduleBlock
-	now: Date
-	today: string
 	secondZone: string | null
 	currentYear: number
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
@@ -33,15 +31,8 @@ interface LessonMoveFormProps {
 
 type Field = 'date' | 'time'
 
-const MOVE_FAILURE: Record<string, string> = {
-	lesson_in_past: 'This lesson has already started and cannot be moved.',
-	target_in_past: 'The new time has already passed. Choose a later time.',
-}
-
 export function LessonMoveForm({
 	block,
-	now,
-	today,
 	secondZone,
 	currentYear,
 	blocksOn,
@@ -83,7 +74,6 @@ export function LessonMoveForm({
 	if (date === '') errors.date = 'Choose a date.'
 	if (time === null) errors.time = 'Choose a start time.'
 	else if (target !== null && target.getTime() === start.getTime()) errors.time = 'Choose a different date or time.'
-	else if (target !== null && !canChange(target, now)) errors.time = 'Choose a time later than now.'
 	const shown = (field: Field) => (submitted || touched[field] ? errors[field] : undefined)
 	const clashes =
 		target !== null && day !== null && day.date === date
@@ -105,9 +95,7 @@ export function LessonMoveForm({
 		const result = await mutate(block.ref, 'move', { date, startTime: time, expectedStartsAt: block.startsAt })
 		setBusy(false)
 		if (result.kind === 'failed') {
-			setFailed(
-				(result.code === null ? undefined : MOVE_FAILURE[result.code]) ?? 'Could not move the lesson. Try again.'
-			)
+			setFailed('Could not move the lesson. Try again.')
 			return
 		}
 		if (result.kind === 'stale') {
@@ -134,7 +122,6 @@ export function LessonMoveForm({
 					id="move-lesson-date"
 					label="New date"
 					value={date}
-					min={today}
 					onChange={(value) => {
 						setDate(value)
 						setTouched((state) => ({ ...state, date: true }))

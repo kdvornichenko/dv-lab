@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
 import { formatDate, formatRange, secondWhen, seriesWhen, weekdayName, weekdayPlural } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleSeries, ScheduleWeekday } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, cutSeries, nextSeriesDate, zonedInstant } from '@dv-lab/core'
@@ -140,9 +141,10 @@ export function MoveSeriesDialog({
 			return
 		}
 		const series = result.data.series
+		const first = zonedInstant(series.startsOn, series.startTime, SCHEDULE_TIME_ZONE)
 		toast.show({
 			title: 'Series moved',
-			description: `${studentName} now meets on ${weekdayPlural(series.weekday)} at ${series.startTime} from ${formatDate(series.startsOn, currentYear)}.`,
+			description: `${studentName} now meets on ${weekdayPlural(series.weekday)} at ${series.startTime} ${zoneLabel(SCHEDULE_TIME_ZONE, first)} from ${formatDate(series.startsOn, currentYear)}.`,
 		})
 		onMoved()
 	}

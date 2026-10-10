@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { TimePicker } from '@/components/ui/time-picker'
 import { apiRequest } from '@/lib/api-client'
 import { secondWhen, seriesPhrase, vnRange, vnWhen, weekdayName } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
 
 import {
 	LESSON_MINUTES_MAX,
@@ -163,9 +164,11 @@ export function NewLessonDialog({
 				description: `${name}, ${vnWhen(new Date(result.data.lesson.startsAt), null, currentYear)}.`,
 			})
 		} else {
+			const added = result.data.series
+			const first = zonedInstant(added.startsOn, added.startTime, SCHEDULE_TIME_ZONE)
 			toast.show({
 				title: result.status === 200 ? 'This series already exists' : 'Series added',
-				description: `${name} every ${weekdayName(result.data.series.weekday)} at ${result.data.series.startTime}.`,
+				description: `${name} every ${weekdayName(added.weekday)} at ${added.startTime} ${zoneLabel(SCHEDULE_TIME_ZONE, first)}.`,
 			})
 		}
 		onCreated()

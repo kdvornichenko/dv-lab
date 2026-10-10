@@ -228,16 +228,12 @@ function LoadedSchedule({ now }: { now: Date }) {
 
 	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
 		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
-		if (result.kind === 'failed' && result.code === 'lesson_in_past') {
-			reload()
-			return 'past'
-		}
 		if (result.kind === 'failed') return 'failed'
 		reload()
 		if (result.kind === 'stale') return 'stale'
 		toast.show({
 			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
-			description: `${block.studentName}, ${vnWhen(new Date(block.startsAt), zone, currentYear)}.`,
+			description: `${block.studentName}, ${vnWhen(new Date(block.startsAt), null, currentYear)}.`,
 		})
 		return 'ok'
 	}
@@ -346,7 +342,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 					onOpenPair={openPair}
 					onCancel={() => changeLesson(openBlock, 'cancel')}
 					onRestore={() => changeLesson(openBlock, 'restore')}
-					today={today}
 					blocksOn={blocksOn}
 					onStale={reload}
 					onMoved={(startsAt) => {
