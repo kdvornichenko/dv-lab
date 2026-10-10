@@ -2610,27 +2610,109 @@ async function studentsPart1(page, fx) {
 		heads.join('|')
 	)
 	const currentYear = Number(core.zonedParts(new Date(), VN).date.slice(0, 4))
-	const cellsA = await studentRow(page, ST_A).first().locator('td').allTextContents()
-	const cellsB = await studentRow(page, ST_B).first().locator('td').allTextContents()
+	const cellA = studentRow(page, ST_A).first().locator('td').nth(4)
+	const cellB = studentRow(page, ST_B).first().locator('td').nth(4)
+	const lessonsLeftA = await studentRow(page, ST_A).first().locator('td').nth(3).textContent()
+	const mainA = (await cellA.locator('span').first().textContent())?.trim()
 	const wantA = expectedWhen(rowA.nextLessonAt, currentYear)
-	check(
-		'row A: Next lesson is formatted from the api value',
-		cellsA[4]?.trim() === wantA,
-		`${cellsA[4]?.trim()} / ${wantA}`
-	)
+	check('row A: main line is formatted from the api value', mainA === wantA, `${mainA} / ${wantA}`)
 	const handMade = `${shortDay(fx.wednesday)}${fx.wednesday.slice(0, 4) === String(currentYear) ? '' : ` ${fx.wednesday.slice(0, 4)}`}, 18:00`
-	check('row A: Next lesson equals the first Wednesday 18:00', cellsA[4]?.trim() === handMade, handMade)
-	check('row A: no second zone and no relative words', !/VN|MSK|UTC|today|tomorrow/i.test(cellsA[4] ?? ''))
-	check('row B: Next lesson is None', cellsB[4]?.trim() === 'None', cellsB[4]?.trim())
-	const noneMuted = await studentRow(page, ST_B)
-		.first()
-		.locator('td')
-		.nth(4)
+	check('row A: main line equals the first Wednesday 18:00', mainA === handMade, handMade)
+	check('row A: main line has no zone label and no relative words', !/VN|MSK|UTC|today|tomorrow/i.test(mainA ?? ''))
+	const secondA = await secondLineOf(cellA)
+	const wantSecond = expectedSecond(rowA.nextLessonAt, 'Europe/Moscow')
+	check('row A: second line is the default Moscow zone', secondA === wantSecond, `${secondA} / ${wantSecond}`)
+	check('row A: Moscow second line is 14:00 MSK', secondA === '14:00 MSK', String(secondA))
+	const secondStyle = await cellA
+		.locator('span')
+		.nth(1)
+		.evaluate((element) => {
+			const style = getComputedStyle(element)
+			return {
+				size: style.fontSize,
+				line: style.lineHeight,
+				muted: element.className.includes('text-muted-foreground'),
+				numeric: getComputedStyle(element.closest('td')).fontVariantNumeric,
+			}
+		})
+	check(
+		'row A: second line is 11px over 14px',
+		secondStyle.size === '11px' && secondStyle.line === '14px',
+		`${secondStyle.size}/${secondStyle.line}`
+	)
+	check(
+		'row A: second line is muted and tabular',
+		secondStyle.muted && secondStyle.numeric.includes('tabular-nums'),
+		secondStyle.numeric
+	)
+	const cellsB = await cellB.textContent()
+	check('row B: Next lesson is None with no second line', cellsB?.trim() === 'None', cellsB?.trim())
+	const noneMuted = await cellB
 		.locator('span')
 		.evaluate((element) => element.className.includes('text-muted-foreground'))
 	check('row B: None is muted', noneMuted)
-	check('row A: Lessons left cell is unchanged', cellsA[3]?.trim() === 'Set opening balance', cellsA[3]?.trim())
+	check('row A: Lessons left cell is unchanged', lessonsLeftA?.trim() === 'Set opening balance', lessonsLeftA?.trim())
+	const heightA = await studentRow(page, ST_A)
+		.first()
+		.evaluate((row) => row.getBoundingClientRect().height)
+	const heightB = await studentRow(page, ST_B)
+		.first()
+		.evaluate((row) => row.getBoundingClientRect().height)
+	check('row heights match with and without a second line', heightA === heightB, `${heightA}/${heightB}`)
 	await shot(page, 'sched-students', 'next-lesson')
+
+	await setSecondZone(page, 'Pacific/Auckland')
+	await openStudentsList(page)
+	const nextDay = await secondLineOf(cellA)
+	const wantNextDay = expectedSecond(rowA.nextLessonAt, 'Pacific/Auckland')
+	check('another zone: the second line follows the stored zone', nextDay === wantNextDay, `${nextDay} / ${wantNextDay}`)
+	check(
+		'another zone: a different date starts with the weekday',
+		/^[A-Z][a-z]{2} \d\d:\d\d UTC\+\d+(:\d\d)?$/.test(nextDay ?? ''),
+		String(nextDay)
+	)
+	check('another zone: main line is unchanged', (await cellA.locator('span').first().textContent())?.trim() === wantA)
+	await shot(page, 'sched-students', 'next-day')
+
+	await setSecondZone(page, 'none')
+	await openStudentsList(page)
+	check(
+		'no second zone: only the main line',
+		(await cellA.locator('span').count()) === 1,
+		String(await cellA.locator('span').count())
+	)
+	const heightNone = await studentRow(page, ST_A)
+		.first()
+		.evaluate((row) => row.getBoundingClientRect().height)
+	check('no second zone: row height is unchanged', heightNone === heightA, `${heightNone}/${heightA}`)
+	await setSecondZone(page, null)
+}
+
+async function setSecondZone(page, zone) {
+	await page.evaluate((value) => {
+		if (value === null) localStorage.removeItem('dv-lab.schedule.second-zone')
+		else localStorage.setItem('dv-lab.schedule.second-zone', value)
+	}, zone)
+}
+
+async function secondLineOf(cell) {
+	const spans = cell.locator('span')
+	if ((await spans.count()) < 2) return null
+	return (await spans.nth(1).textContent())?.trim() ?? null
+}
+
+function expectedSecond(iso, zone) {
+	const instant = new Date(iso)
+	const parts = core.zonedParts(instant, zone)
+	const caption =
+		zone === 'Europe/Moscow'
+			? 'MSK'
+			: new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
+					.formatToParts(instant)
+					.find((part) => part.type === 'timeZoneName')
+					.value.replace(/^GMT/, 'UTC')
+	const day = core.zonedParts(instant, VN).date === parts.date ? '' : `${WEEKDAYS[parts.weekday - 1]} `
+	return `${day}${parts.time} ${caption}`
 }
 
 const searchField = (page) => page.getByRole('searchbox', { name: 'Search students' })

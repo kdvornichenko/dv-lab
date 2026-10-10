@@ -19,12 +19,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
-import { formatWhen, yearInZone } from '@/lib/schedule-format'
+import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
+import { useSecondZone } from '../../schedule/_components/second-zone-select'
 import { StudentFormDialog } from './student-form-dialog'
 import { UnassignedPayments } from './unassigned-payments'
 
@@ -49,8 +50,19 @@ function matchesQuery(student: StudentRow, query: string) {
 	return text === '' || student.displayName.toLowerCase().includes(text)
 }
 
+function NextLesson({ at, zone, currentYear }: { at: Date; zone: string | null; currentYear: number }) {
+	const second = secondWhen(at, zone)
+	return (
+		<div className="flex flex-col">
+			<span>{formatWhen(at, SCHEDULE_TIME_ZONE, currentYear)}</span>
+			{second === null ? null : <span className="text-micro text-muted-foreground">{second}</span>}
+		</div>
+	)
+}
+
 function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boolean }) {
 	const router = useRouter()
+	const [zone] = useSecondZone()
 	if (rows.length === 0) return searching ? <EmptyLine text="No students found" /> : <EmptyLine />
 	const currentYear = yearInZone(new Date())
 	function open(event: MouseEvent<HTMLTableRowElement>, id: string) {
@@ -111,11 +123,11 @@ function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boo
 										<LessonsText minutes={student.balanceMinutes} lessonMinutes={student.defaultLessonMinutes} />
 									)}
 								</TableCell>
-								<TableCell className="px-4 py-2 text-body tabular-nums">
+								<TableCell className="px-4 py-1 text-body tabular-nums">
 									{student.nextLessonAt === null ? (
 										<span className="text-muted-foreground">None</span>
 									) : (
-										formatWhen(new Date(student.nextLessonAt), SCHEDULE_TIME_ZONE, currentYear)
+										<NextLesson at={new Date(student.nextLessonAt)} zone={zone} currentYear={currentYear} />
 									)}
 								</TableCell>
 							</TableRow>

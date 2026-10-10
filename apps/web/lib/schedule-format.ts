@@ -169,6 +169,15 @@ export function secondRange(start: Date, minutes: number, zone: string | null): 
 	return `${formatRange(start, minutes, zone)} ${zoneCaption(zone, start, 'toolbar')}`
 }
 
+export function secondWhen(instant: Date, zone: string | null): string | null {
+	if (zone === null) return null
+	const caption = zoneCaption(zone, instant, 'toolbar')
+	const time = formatTime(instant, zone)
+	const date = dateOf(instant, zone)
+	if (date === dateOf(instant, SCHEDULE_TIME_ZONE)) return `${time} ${caption}`
+	return `${weekdayShort(date)} ${time} ${caption}`
+}
+
 export function weeksBetween(fromMonday: string, toMonday: string): number {
 	return Math.round((Date.parse(`${toMonday}T00:00:00Z`) - Date.parse(`${fromMonday}T00:00:00Z`)) / (7 * 86400000))
 }
