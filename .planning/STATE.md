@@ -108,5 +108,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-10T05:54:03.047Z
-Stopped at: Phase 21 context gathered
-Resume file: .planning/phases/21-lesson-accounting-and-today/21-CONTEXT.md
+Stopped at: Phase 21 planned (16 plans, 10 waves), plan review accepted; next /gsd-execute-phase 21
+Resume file: .planning/phases/21-lesson-accounting-and-today/21-01-PLAN.md
