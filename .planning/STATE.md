@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 21
 current_phase_name: Lesson Accounting and Today
 status: executing
-stopped_at: Phase 21 planned (16 plans, 10 waves), plan review accepted; next /gsd-execute-phase 21
+stopped_at: Phase 21 waves 1-8 executed (through 21-10); paused; next 21-11 (wave 9), then 21-12, 21-13, 21-18
 last_updated: "2026-10-10T14:56:00.187Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 21 execution started
@@ -108,5 +108,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-10T05:54:03.047Z
-Stopped at: Phase 21 planned (16 plans, 10 waves), plan review accepted; next /gsd-execute-phase 21
-Resume file: .planning/phases/21-lesson-accounting-and-today/21-01-PLAN.md
+Stopped at: Phase 21 waves 1-8 executed (through 21-10); paused; next 21-11 (wave 9), then 21-12, 21-13, 21-18
+Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md
