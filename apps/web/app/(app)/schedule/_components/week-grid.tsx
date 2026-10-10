@@ -2,6 +2,7 @@
 
 import { useCallback, type MouseEvent } from 'react'
 
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
 import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
@@ -9,7 +10,8 @@ import { cn } from '@/lib/utils'
 import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, zonedParts } from '@dv-lab/core'
 
-import { LessonBlock, type BlockLayout } from './lesson-block'
+import { EventTooltip } from './event-tooltip'
+import { blockSlot, type BlockLayout } from './lesson-block'
 
 export const HOUR_HEIGHT = 48
 export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
@@ -154,113 +156,115 @@ export function WeekGrid({
 	}
 
 	return (
-		<Elevated
-			offset={1}
-			shadowLevel={2}
-			data-slot="week-grid"
-			className="flex h-[max(28rem,calc(100svh-18rem))] flex-col overflow-hidden rounded-2xl"
-		>
-			<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
-				<div data-slot="week-grid-corner" className="flex items-end justify-end pr-1 pb-2">
-					<GutterPair first="VN" second={secondZone ? secondZone.caption : null} />
-				</div>
-				{dates.map((date) => {
-					const isToday = date === today
-					return (
-						<div
-							key={date}
-							data-slot="week-grid-day"
-							data-date={date}
-							className="flex flex-col items-center gap-1 border-l border-gcal-line pt-2 pb-2"
-						>
-							<span
-								className={cn(
-									'text-caption tracking-wider text-muted-foreground uppercase',
-									isToday && 'text-gcal-today'
-								)}
-							>
-								{weekdayCaps(date)}
-							</span>
-							<span
-								data-slot="week-grid-date"
-								className={cn(
-									'flex size-11 items-center justify-center rounded-full text-display font-normal tabular-nums',
-									isToday ? 'bg-gcal-today text-gcal-today-ink' : 'text-foreground'
-								)}
-							>
-								{dayNumber(date)}
-							</span>
-						</div>
-					)
-				})}
-			</div>
-			<div
-				ref={scroller}
-				data-slot="week-grid-body"
-				onScroll={(event) => {
-					if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
-				}}
-				className="scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto"
+		<TooltipProvider>
+			<Elevated
+				offset={1}
+				shadowLevel={2}
+				data-slot="week-grid"
+				className="flex h-[max(28rem,calc(100svh-18rem))] flex-col overflow-hidden rounded-2xl"
 			>
-				<div className={cn(COLUMNS, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
-					<div data-slot="week-grid-gutter" className="relative">
-						{HOURS.map((hour) => (
-							<GutterPair
-								key={hour}
-								first={hourLabel(hour)}
-								second={secondZone ? gutterLabel(monday, hour, secondZone.id) : null}
-								top={hour * HOUR_HEIGHT}
-								className={cn('absolute inset-x-0 pr-1', hour > 0 && '-translate-y-1/2')}
-							/>
-						))}
+				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
+					<div data-slot="week-grid-corner" className="flex items-end justify-end pr-1 pb-2">
+						<GutterPair first="VN" second={secondZone ? secondZone.caption : null} />
 					</div>
 					{dates.map((date) => {
 						const isToday = date === today
 						return (
 							<div
 								key={date}
-								data-slot="week-grid-column"
+								data-slot="week-grid-day"
 								data-date={date}
-								onClick={(event) => handleSlot(event, date)}
-								className={cn('relative border-l border-gcal-line', isToday && 'bg-hover')}
+								className="flex flex-col items-center gap-1 border-l border-gcal-line pt-2 pb-2"
 							>
-								{isToday ? (
-									<div
-										data-slot="week-grid-now"
-										className="pointer-events-none absolute inset-x-0 z-20 h-0.5 -translate-y-1/2 bg-gcal-now"
-										style={{ top: nowParts.minutes * MINUTE_HEIGHT }}
-									>
-										<span
-											aria-hidden
-											className="absolute top-1/2 left-0 size-3 -translate-y-1/2 rounded-full bg-gcal-now"
-										/>
-										<span className="sr-only">Now {nowParts.time}</span>
-									</div>
-								) : null}
-								{placeDay(groups.get(date) ?? []).map(({ block, layout }) => (
-									<LessonBlock
-										key={`${block.key}:${block.status === 'moved' ? 'from' : 'to'}`}
-										block={block}
-										layout={layout}
-										secondZone={secondZone ? secondZone.id : null}
-										currentYear={currentYear}
-										onOpen={(chosen) => onOpen?.(chosen)}
-									/>
-								))}
+								<span
+									className={cn(
+										'text-caption tracking-wider text-muted-foreground uppercase',
+										isToday && 'text-gcal-today'
+									)}
+								>
+									{weekdayCaps(date)}
+								</span>
+								<span
+									data-slot="week-grid-date"
+									className={cn(
+										'flex size-11 items-center justify-center rounded-full text-display font-normal tabular-nums',
+										isToday ? 'bg-gcal-today text-gcal-today-ink' : 'text-foreground'
+									)}
+								>
+									{dayNumber(date)}
+								</span>
 							</div>
 						)
 					})}
-					{HOURS.map((hour) => (
-						<div
-							key={hour}
-							data-slot="week-grid-line"
-							data-hour={hour}
-							className="pointer-events-none absolute right-0 left-20 h-px bg-gcal-line"
-							style={{ top: hour * HOUR_HEIGHT }}
-						/>
-					))}
 				</div>
-			</div>
-		</Elevated>
+				<div
+					ref={scroller}
+					data-slot="week-grid-body"
+					onScroll={(event) => {
+						if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
+					}}
+					className="scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto"
+				>
+					<div className={cn(COLUMNS, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
+						<div data-slot="week-grid-gutter" className="relative">
+							{HOURS.map((hour) => (
+								<GutterPair
+									key={hour}
+									first={hourLabel(hour)}
+									second={secondZone ? gutterLabel(monday, hour, secondZone.id) : null}
+									top={hour * HOUR_HEIGHT}
+									className={cn('absolute inset-x-0 pr-1', hour > 0 && '-translate-y-1/2')}
+								/>
+							))}
+						</div>
+						{dates.map((date) => {
+							const isToday = date === today
+							return (
+								<div
+									key={date}
+									data-slot="week-grid-column"
+									data-date={date}
+									onClick={(event) => handleSlot(event, date)}
+									className={cn('relative border-l border-gcal-line', isToday && 'bg-hover')}
+								>
+									{isToday ? (
+										<div
+											data-slot="week-grid-now"
+											className="pointer-events-none absolute inset-x-0 z-20 h-0.5 -translate-y-1/2 bg-gcal-now"
+											style={{ top: nowParts.minutes * MINUTE_HEIGHT }}
+										>
+											<span
+												aria-hidden
+												className="absolute top-1/2 left-0 size-3 -translate-y-1/2 rounded-full bg-gcal-now"
+											/>
+											<span className="sr-only">Now {nowParts.time}</span>
+										</div>
+									) : null}
+									{placeDay(groups.get(date) ?? []).map(({ block, layout }) => (
+										<EventTooltip
+											key={`${block.key}:${blockSlot(block)}`}
+											block={block}
+											layout={layout}
+											secondZone={secondZone ? secondZone.id : null}
+											currentYear={currentYear}
+											onOpen={(chosen) => onOpen?.(chosen)}
+										/>
+									))}
+								</div>
+							)
+						})}
+						{HOURS.map((hour) => (
+							<div
+								key={hour}
+								data-slot="week-grid-line"
+								data-hour={hour}
+								className="pointer-events-none absolute right-0 left-20 h-px bg-gcal-line"
+								style={{ top: hour * HOUR_HEIGHT }}
+							/>
+						))}
+					</div>
+				</div>
+			</Elevated>
+		</TooltipProvider>
 	)
 }
