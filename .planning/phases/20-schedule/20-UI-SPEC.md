@@ -21,6 +21,93 @@ created: "2026-10-10"
 
 ---
 
+## Amendments: design system artifact (D-18, 2026-10-10)
+
+Source order (20-CONTEXT «Порядок источников дизайна»): 1) the design system artifact https://claude.ai/artifact/P9JxkriLSszvf5y8JZyv9v, read with the Artifact tool, action `read`, `path` per file: `project/principles.md`, `project/components/WeekGrid/README.md`, `project/components/WeekGrid/preview.html`, `project/components/ScheduleToolbar/README.md`, `project/components/EventColors/README.md`, `project/components/EventTooltip/README.md`, `project/components/LessonDialog/README.md`, `project/components/ScheduleAgenda/README.md`, and from version 23 `project/components/NewLessonDialog/README.md` and `preview.html`, `project/components/MoveSeriesDialog/README.md` and `preview.html`, `project/components/EndSeriesDialog/README.md` and `preview.html` (updated in v23: ScheduleToolbar, WeekGrid, LessonDialog, EventTooltip, principles); 2) `tokens.css` for token values; 3) the lab (`design-lab`, snapshot cda53ee) for code and behaviour of parts the artifact has no code for (`time-picker.tsx`, `input-group.tsx`, `lesson-dialog.tsx` `MoveForm` and footers). The lab `schedule-view.tsx` is the old look: logic only. This section overrides every line below that contradicts it. Where the artifact differs from owner decisions D-07, D-10, D-11, D-09, D-12 or D-05, the owner decision wins and the executor writes the difference into its SUMMARY for Design dude. The extract below is the working copy for executors who cannot open the artifact; the artifact wins over the extract.
+
+### ScheduleToolbar (replaces the header actions row above the grid)
+
+- A bar directly above the week frame, left to right as in Google Calendar: "Today" outline button (`Button variant="tertiary" size="compact"`), two round chevron buttons (`ghost`, `icon-compact`, `rounded-full`, tooltip and `aria-label` "Previous week" / "Next week"), the period title in `text-title` ("October 2026"; a week crossing two months "Oct – Nov 2026", two years "Dec 2026 – Jan 2027"), then at the end the second-zone selector and the view select ("Week"), both outline buttons with a chevron. Only the Week view exists in this phase (D-10; Day is not planned, the agenda is phase 23): the select has the single item "Week". Difference for Design dude.
+- Today is disabled on the current week. Keyboard (from the artifact): `t` today, `j` / `ArrowRight` next week, `k` / `ArrowLeft` previous week; ignored while focus is in a field, while a dialog is open, or with a modifier key. `w` / `d` / `a` are not bound (one view only).
+- **Second time zone (v23, DR-7).** A round outline button before "Week": `Globe` icon, the zone caption and a 12px chevron, `aria-label` "Second time zone". Caption "MSK" for Europe/Moscow, otherwise the offset "UTC+1" / "UTC+5:30" (offset in force on the week's Monday), "No second zone" when none. It opens a combobox popup 280px wide, 4px under the button, right-aligned, `surface-4`, `shadow-4`: a search field "Search time zones" with a hairline under it, then 36px rows with a 16px check slot, the IANA id ("Europe/Moscow") and the offset at the right ("UTC+3"), like the Time zone field of the student form. First row "None" with the muted "Hide the second zone". The list is every zone the browser knows except Vietnam (both aliases); the search matches any part of the id or the offset; the first match is highlighted and Enter picks it. No match: "No time zones found" and the hint "Try a city, a country or an offset like UTC+7." The popup list scrolls with the compact 24px fade; Esc closes only the popup. One zone for the whole grid, default Moscow, kept in `localStorage` (`dv-lab.schedule.second-zone`), nothing stored with the account (D-07); an unreadable or unknown saved value falls back to Moscow; the button renders after mount. The choice drives the gutter's second column, the tooltip, the lesson dialog header and the live line under Start time in the forms.
+- `PageHeader` above the bar (variant A): eyebrow "This week" / "Past week" / "Coming weeks", `h1` the week range ("6 – 12 Oct", rules below), description the summary line "{n} lessons with {m} students" (`·` "{k} cancelled" when there are cancellations; empty week "No lessons this week"; one lesson / one student singular), and in the actions the primary **New lesson** button (`CalendarPlus`), disabled until the students and the week have loaded (v23, DR-6). `PageHeader` gets an optional `eyebrow` prop (E9).
+
+### WeekGrid (resolves DR-3 with owner overrides)
+
+- Day header outside the scroller: weekday in small capitals (`text-caption uppercase tracking-wider text-muted-foreground`, artifact 11px mapped to the 12px caption) over a large date (`text-display font-normal tabular-nums`, artifact 24px mapped to the 22px display) in a 44px circle (`size-11`); today: circle `bg-gcal-today text-gcal-today-ink` and weekday `text-gcal-today`.
+- One hairline `bg-gcal-line` per hour and between days. Hour height **48px** (12px per 15 minutes), the whole day 1152px.
+- Gutter **80px** with two right-aligned hour labels side by side, each centred on its hour line (`text-caption tabular-nums text-muted-foreground`, artifact 10px mapped to 12px): Vietnam time first, the second zone second at `opacity-70` (v23 follows D-07). Labels are computed per hour by the zone rules (half-hour zones read "05:30"), with the second zone's offset in force on the week's Monday. No "−1d / +1d" suffix: the row where the second zone passes midnight shows the weekday of its new day ("Thu", computed on the week's Monday like the offset) instead of "00:00". The corner above the gutter names the two columns, bottom-aligned, 32px each, 12px apart: "VN" and the second-zone caption at 70% ("MSK"; any other zone its offset without "UTC": "+1", "+5:30"). With no second zone there is one column, right-aligned, and one caption "VN". The day header and the corner stay outside the faded scroller (D-14).
+- A click on an empty space in a day column opens New lesson with that date and the time under the pointer, snapped down to 15 minutes; empty cells have no hover effect (v23).
+- Now line: `gcal-now`, 2px high, across today's column only, with a 12px dot (`size-3`) at its left end.
+- Today's column also keeps `bg-hover` (D-10 owner decision; the artifact is silent).
+- The grid runs 00:00 to 24:00 and opens with 08:00 48px below the top edge, `scrollTop = 7 × 48 = 336` (D-10 wins over the artifact's 9:00–22:00).
+- Frame: `Elevated offset={1} shadowLevel={2}` `rounded-2xl` wrapper as before; the scroller inside with `scroll-fade`.
+
+### Blocks (EventColors with D-11; replaces "Block status styling")
+
+- No Google colours in this phase (D-11). EventColors rule "colour from the event, else its calendar, else `selected`" gives `selected` for every block: the block colour token is **`selected`** (`--selected`, `bg-selected`). Text on a `selected` block is `text-foreground` (the artifact defines `gcal-event-ink` only for the classic palette; difference for Design dude). `gcal-event-*` tokens are not added.
+- Planned (also past, also the destination of a moved lesson): `bg-selected text-foreground`. Cancelled: transparent, `text-muted-foreground`, inset 1px ring in `selected` (`ring-1 ring-inset ring-selected`), name struck through. Moved (original slot): transparent, `text-foreground`, 2px dashed outline in `selected` (`outline-2 outline-dashed outline-selected -outline-offset-2`), second line "→ 17 Oct". Held (60%) belongs to phase 21.
+- Block metrics from `preview.html` (component dimensions, exceptions to the spacing scale): radius 6px (`rounded-md`), padding 2px 6px, inset 2px from the column's left and 4px from its right inside its lane, a 1px `surface-2` ring that separates neighbours, height = length − 2px. Name `text-caption font-semibold truncate`; second line `text-caption tabular-nums` "10:00–11:00". Lessons of 30 minutes or less show "Name, 10:00" on one line; a lesson shorter than 30 minutes is drawn at the 30-minute height (22px) so the line fits (the artifact has no such case; difference for Design dude). No hover colour change; focus ring `focus-visible:ring-2 focus-visible:ring-focus-ring`.
+- No `title` attribute: the `EventTooltip` replaces it. `aria-label` stays: "{name}, {day}, {range} VN, {second range} {caption}, {status}" with status words "planned", "cancelled", "moved to {d MMM}".
+
+### EventTooltip (new)
+
+- Built on `components/ui/tooltip.tsx` inside one `TooltipProvider` (delay 200ms = `tooltip-delay`, skip 300ms = `tooltip-skip-delay`). Opens on mouse hover only (never on touch or focus), closes on leave, on scroll of the grid body and when the lesson dialog opens; not focusable, not interactive. Surface `bg-surface-4`, `shadow-3`, `rounded-xl`, `p-3`, `max-w-[280px]`, 8px from the block on the side with room, the component's `fast` spring.
+- Content top to bottom: student name (`text-body font-semibold`, artifact `subtitle` mapped), full date ("Wednesday, 14 October"), "16:30–17:30 VN · 12:30–13:30 MSK" (VN first per D-07; second part omitted with no second zone), a status dot and its word: Planned (`bg-info`), Cancelled (`bg-destructive`), Moved to 17 Oct (`bg-warning`) — tones from the lab `status.tsx`. Topics do not exist in this phase. A cancelled lesson keeps its original time; a moved one names the new date.
+
+### LessonDialog (replaces the Lesson dialog, Move this lesson dialog and the cancel ConfirmDialog)
+
+- Header: `Avatar`, the name as a link to `/students/{id}`, description "{full date} · {range} VN · {second range} {caption}".
+- Status row: status dot with its label (Planned, Cancelled, Moved), "moved to {d MMM}, {HH:MM} VN" or "moved from {d MMM}, {HH:MM}" text buttons that open the other lesson, then "· {goal}" when the card has a goal. The `hover` box (`rounded-xl bg-hover p-4`) shows Length, Repeats and Series (this phase has no topic, homework or lesson note: D-01 schema; difference for Design dude).
+- Footer of a future planned lesson: Move lesson (`secondary`, compact, `CalendarClock`) and Cancel lesson (`ghost`, compact, `CalendarX2`).
+- Move lesson opens an inline form in the dialog body (lab `MoveForm`): `rounded-xl bg-hover p-4`, New date (`DateField`, `min` today in Vietnam) and "Time, VN" (`TimePicker`, 15-minute list, 24h), the line "{old day}, {old time} → {new full date} · {range} VN · {second range} {caption}" (`aria-live="polite"`), a clash line "A lesson is already at this time: {name} {range}, …" (`text-body text-destructive`). D-09 wins over the artifact: taken slots are **not** disabled and the clash never disables Move. Buttons: Discard changes (`ghost`, compact) / Move lesson (`primary`, compact, pending "Moving…"). Success: toast "Lesson moved", the dialog shows the lesson at its new time.
+- Cancel lesson asks inline in the footer: "Cancel the lesson on {d MMM} at {HH:MM}?" with Keep (`ghost`) and Yes, cancel (`primary`, `CalendarX2`, pending "Cancelling…"), then the toast "Lesson cancelled".
+- A cancelled future lesson's footer: Return to schedule (`secondary`, compact, `CalendarCheck2`), toast "Lesson restored".
+- Past lessons: no actions; the caption "This lesson has already taken place and cannot be changed." (the artifact's "Held / Cancelled" radio is phase 21, D-05).
+- Failures inside the dialog: `Banner status="error"` "Could not move the lesson. Try again." / "Could not cancel the lesson. Try again." / "Could not restore the lesson. Try again."; 409 or 404: "This lesson was changed elsewhere. The schedule has been refreshed." and the week is refetched.
+- **Whole series (v23, DR-8).** A second `hover` box under the details, only on future lessons of a series (not on single or past lessons, not on the moved original): heading "Whole series" (`text-body font-semibold`), caption "Every Wednesday at 18:00 VN · from Wed 7 Oct", and at the right two compact secondary buttons Move series (`CalendarClock`) and End series (`CalendarX2`). The footer keeps the buttons for this one lesson. Choosing a series button closes the lesson dialog and opens its own dialog; on close, focus returns to the block.
+
+### NewLessonDialog (v23, DR-6)
+
+- Entry: the primary New lesson button in the `PageHeader` actions (`CalendarPlus`), disabled until the student list and the week have loaded; the empty-cell click is a shortcut (WeekGrid).
+- `Dialog` `lg` (540px), fields 16px apart: Student (full-width `Select`, active students A to Z, placeholder "Choose a student"), a row Date (`DateField`) + "Start time, VN" (`TimePicker`, 15 minutes, 24 hours), a row "Length, min" (`TextField`, numeric) + Repeats (`Select`: Once, Every week). Title "New lesson", description "Add a lesson to the schedule. Times are in Vietnam time." The body scrolls with the fade; header and footer stay outside.
+- Defaults: from the button — today and the next whole hour in Vietnam time, Student empty and focused; from a cell — the cell's date and time. Length starts at 60; choosing a student sets it to the card's usual length until the teacher edits Length, never after. Helper under Length: "Taken from the student's usual lesson length. 15 to 240 minutes." while untouched, otherwise "15 to 240 minutes.".
+- Live helpers: under Start time the same moment in the second zone, "14:00 MSK", with ", the day before" / ", the day after" when the date differs; absent with no second zone. Under Repeats = Every week: "Every Wednesday at 18:00 until you end the series."; the primary button then reads "Add series".
+- Overlap (D-09): `Banner status="warning"` above the fields, title "This overlaps another lesson", description "Daniel R. 18:00–19:00. You can still save."; two: "Daniel R. 18:00–19:00 and Anna K. 18:30–19:30. You can still save."; three or more: the first two and "and 2 more". First lesson's date only; cancelled and moved originals ignored; updates live; never disables saving.
+- Errors under the field: "Choose a student.", "Choose a date.", for a repeating lesson dated in the past "Choose today or a later date for a repeating lesson.", "Choose a start time.", "Use 15 to 240 minutes."; server failure: banner "Could not add the lesson. Try again.", values stay.
+- Loading and empty: students loading — Student disabled with "Loading students…", Add disabled; failed — banner "Could not load students. Close this window and try again."; no active students — caption "No active students. Add a card on the Students page." and Add disabled.
+- Buttons: "Discard changes" (`ghost`) and the primary "Add lesson" / "Add series"; pending "Adding…" with a spinner, everything disabled. Success: close, toast "Lesson added" / "Anna K., Wed 14 Oct, 18:00." or "Series added" / "Anna K. every Wednesday at 18:00.", the week refetches, the scroll stays.
+- A repeating lesson dated today whose start time has already passed in Vietnam starts on the same weekday next week (the api stores `starts_on` = the first date whose start is after now; the toast and the grid show it); no extra copy.
+- `DateField` keeps its current trigger text (the preview draws "Wednesday, 14 October"; difference for Design dude).
+
+### MoveSeriesDialog (v23, DR-8)
+
+- `Dialog` `lg`. Title "Move series", description "{name}. Now every Wednesday at 18:00 VN." Fields: From (`DateField`, no past dates, default the series' next lesson), then one row New day (`Select`, Monday to Sunday, default the current weekday) + "New start time, VN" (`TimePicker`, 15 minutes).
+- Preview: a `hover` row "First lesson" with "Thu 15 Oct, 19:00–20:00", updated live, absent when no such date exists. Under it, always visible, `text-caption text-muted-foreground`: "Lessons before this date stay as they are. Lessons you already moved keep their new time. Cancelled lessons from this date on are reset."
+- Errors: under the day-and-time row with both fields ringed — "Choose a different day or time." (same as now) and "This series ends on Sat 31 Oct; no Thursday falls between From and that date."; missing values "Choose a date.", "Choose a day.", "Choose a start time."; server failure banner "Could not move the series. Try again."; stale (409 or 404): warning banner "This lesson was changed elsewhere" with "The schedule has been refreshed. Check the dates and try again.", the week refetches.
+- Buttons: "Discard changes" (`ghost`) and the primary "Move series"; pending "Moving…". Success: toast "Series moved" / "Anna K. now meets on Thursdays at 19:00 from Thu 15 Oct.", the week refetches.
+
+### EndSeriesDialog (v23, DR-8)
+
+- `Dialog` `sm` (400px). Title "End this series?", description "{name}, every Wednesday at 18:00 VN." One field "Last lesson on" (`DateField`, no past dates), default the date of the lesson that was open.
+- Live helper `text-caption text-muted-foreground`: "The last lesson will be on Wed 14 Oct. Later lessons are removed from the schedule. Earlier lessons stay."; when no lesson falls on or before the date: "No lessons will remain. Earlier lessons stay." in `text-foreground`.
+- Buttons: "Keep series" (`secondary`, initial focus) first, then "End series" as an outline button (`tertiary`) with a `text-destructive` label (never a fill); pending "Ending…".
+- Errors: "Choose a date."; server failure banner "Could not end the series. Try again."; stale: warning banner "This lesson was changed elsewhere" with "The schedule has been refreshed. Check the date and try again.", the week refetches.
+- Success: toast "Series ended" / "Anna K.'s last lesson is on Wed 14 Oct." or, when none remains, "Anna K.'s series was removed from the schedule."; the week refetches.
+
+### ScheduleAgenda
+
+Not built: phones are phase 23 (D-18). Below `lg` the week grid squashes as in Screen Contracts 8.
+
+### Required edit added
+
+| # | File | Edit |
+|---|------|------|
+| E9 | `apps/web/components/app/layout-parts.tsx` | `PageHeader` gets optional `eyebrow?: ReactNode` rendered above the `h1` as `text-caption text-muted-foreground` (lab `layout-parts.tsx`) and optional `titleRef` (focus return) |
+| E10 | `apps/web/lib/time-zones.ts` (new) and `students/_components/student-form-dialog.tsx` | One owner of the zone list, the offset text "UTC+N" and the zone search (`listTimeZones`, `utcOffset`, `matchesTimeZone`, `zoneCaption`), moved out of `student-form-dialog.tsx`; the student form and the second-zone selector both import it |
+
+---
+
 ## Required Edits To Existing Files
 
 Closed list. Each is needed by this contract; the planner turns each into a task.
@@ -113,7 +200,7 @@ Not copied: A's `RadioGroup` (496 lines; "Repeats" is a `Select`), A's `LessonDi
 
 Identical to the baseline [19]: 4 / 8 / 16 / 24 / 32 / 48 / 64, no half steps, no `3`, `5`, `7`, `28` step classes in new or edited code. Dialog form groups `gap-4`; label to input `gap-2`; two-column field rows `grid gap-4 sm:grid-cols-2`; page block gap `gap-4 md:gap-6`; table cell padding `px-4 py-2`.
 
-Exceptions (component dimensions only):
+Exceptions (component dimensions only). Superseded by Amendments for the grid: hour 48px (not 14px per 15 minutes), gutter 80px (not 72px), date circle 44px (not 28px), now dot 12px (not 8px), block metrics from `preview.html` (not the 28px minimum):
 
 | Dimension | Value | Where |
 |-----------|-------|-------|
@@ -164,7 +251,7 @@ Accent reserved for, exhaustive:
 
 Not used for: buttons, tabs, links, block fills, icons. Event colours are neutral in this phase [D-11]; `gcal-event-*` tokens are not added.
 
-Block status styling [D-11, A]:
+Block status styling [D-11, A] — superseded by Amendments «Blocks» (colour token `selected`, outline and dashed treatments from the artifact):
 
 | Status | Classes | Name | Second line |
 |--------|---------|------|-------------|
@@ -211,6 +298,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 
 ### Schedule screen `/schedule`
 
+Header actions, `h1` and block lines below are superseded by Amendments «ScheduleToolbar», «WeekGrid» and «Blocks»; toasts and the live region stay.
+
 | Element | Copy |
 |---------|------|
 | `h1` / description | "October 2026" / "6 – 12 Oct" (rules above). Loading: the real `h1` and week range render at once (dates need no data) |
@@ -225,6 +314,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 
 ### New lesson dialog (`lg`)
 
+Superseded by Amendments «NewLessonDialog» (artifact v23, DR-6 RESOLVED).
+
 | Element | Copy |
 |---------|------|
 | Title / description | New lesson / "Add a lesson to the schedule. Times are in Vietnam time." |
@@ -237,6 +328,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 | Errors | Student: "Choose a student." · Date: "Choose a date." · Start time: "Choose a start time." · Length: "Use 15 to 240 minutes." · Repeating lesson in the past: "Choose today or a later date for a repeating lesson." · Banner "Could not add the lesson. Try again." · Students could not load: Banner "Could not load students. Close this window and try again." · No active students: caption under the select "No active students. Add a card on the Students page." and Add disabled |
 
 ### Lesson dialog (`lg`, opened by a block)
+
+Superseded by Amendments «LessonDialog», except the details rows and the past-lesson caption, which the amendment keeps; the series box is Amendments «Whole series» (DR-8 RESOLVED).
 
 | Element | Copy |
 |---------|------|
@@ -252,6 +345,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 
 ### Move this lesson dialog (`lg`)
 
+Superseded by the inline move form of Amendments «LessonDialog»; only the error copy "Choose a different date or time.", "Choose a date.", "Choose a start time." stays.
+
 | Element | Copy |
 |---------|------|
 | Title / description | Move this lesson / "{name}, {when} VN." |
@@ -262,6 +357,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 | Errors | "Choose a different date or time." (unchanged) · "Choose a date." · "Choose a start time." · Banner "Could not move the lesson. Try again." |
 
 ### Move series dialog (`lg`)
+
+Superseded by Amendments «MoveSeriesDialog» (artifact v23, DR-8 RESOLVED).
 
 | Element | Copy |
 |---------|------|
@@ -274,6 +371,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 
 ### End series dialog (`sm`)
 
+Superseded by Amendments «EndSeriesDialog» (artifact v23, DR-8 RESOLVED).
+
 | Element | Copy |
 |---------|------|
 | Title / description | End this series? / "{name}, every {Wednesday} at {time} VN." |
@@ -283,6 +382,8 @@ English only, sentence case, ellipsis `…` only for in-progress labels. `{name}
 | Errors | "Choose a date." · Banner "Could not end the series. Try again." |
 
 ### Confirmations
+
+Superseded for Cancel by the inline footer question of Amendments «LessonDialog» ("Cancel the lesson on {d MMM} at {HH:MM}?", Keep / Yes, cancel); the stale-data banner copy stays.
 
 | Action | Title | Body | Buttons |
 |--------|-------|------|---------|
@@ -315,7 +416,7 @@ Cancel uses `ConfirmDialog tone="primary"`, pending "Cancelling…", failure Ban
 
 **Schedule page.** `PageScroll` (+E3) > `PageHeader` (title, description, actions per the Copywriting Contract) > week frame. Failure: header `h1` "Schedule" and `ReadError`. Loading: header real, frame height as below, inside it `SkeletonTable rows={10}` with the frame's height [default]; the Today/arrow buttons are enabled so the teacher can leave a slow week, New lesson is disabled until the student list and the week have loaded.
 
-**Week frame (`WeekGrid`).** Outer: `Elevated offset={1} shadowLevel={2} className="flex flex-col overflow-hidden rounded-2xl"` with the height from the Spacing exceptions; the ring, background and shadow live on this wrapper, never on the scroller [D-14].
+**Week frame (`WeekGrid`).** Geometry, header, gutter, now line and block look are superseded by Amendments «WeekGrid» and «Blocks»; the frame and scroller split below stays. Outer: `Elevated offset={1} shadowLevel={2} className="flex flex-col overflow-hidden rounded-2xl"` with the height from the Spacing exceptions; the ring, background and shadow live on this wrapper, never on the scroller [D-14].
 
 1. Header row (outside the scroller, so it never fades): `grid grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] px-4 pt-4 pb-2 overflow-y-hidden [scrollbar-gutter:stable]`. Column 1 is the corner caption ("VN", second zone caption; `text-caption text-muted-foreground`, right-aligned, bottom-aligned). Columns 2 to 8: weekday abbreviation (`text-caption text-muted-foreground`) beside the date number in a 28px circle (`text-body font-semibold tabular-nums`; today `bg-gcal-today text-gcal-today-ink`, others `text-foreground`).
 2. Body: `min-h-0 flex-1 overflow-y-auto scroll-fade [scrollbar-gutter:stable]` containing one grid `grid-cols-[4.5rem_repeat(7,minmax(0,1fr))] grid-rows-[repeat(96,0.875rem)] px-4 pt-2 pb-4`. `scrollbar-gutter: stable` on both header and body keeps the day columns aligned with the weekday labels when a classic scrollbar is shown. Default 48px fade [D-14]; the body is far taller than 200px.
@@ -349,13 +450,16 @@ Cancel uses `ConfirmDialog tone="primary"`, pending "Cancelling…", failure Ban
 
 ## Design Requests
 
-Design system everywhere, no exceptions: elements missing from the design system go to the "Design dude" session before they are built. The planner puts a "request from design" step before the UI tasks. Until an answer arrives, the fallback in this contract (assembled only from variant A parts and tokens) is binding.
+Design system everywhere, no exceptions: elements missing from the design system go to the "Design dude" session before they are built. The planner puts a "request from design" step before the UI tasks. Amended 2026-10-10 (D-18): the artifact wins over the fallbacks of this contract; DR-3 to DR-8 are resolved by the artifact (version 23 for DR-6, DR-7, DR-8). Any new gap found during execution: the executor stops at that element and reports to the orchestrator (screen and element, data and states, where it sits, constraints).
 
 | ID | Element | Screen | States needed | Status / fallback |
 |----|---------|--------|---------------|-------------------|
-| DR-3 | Google-style Schedule: header (Today, arrows, month title, second-zone selector, New lesson) and week grid (weekday header with blue today circle, red now line, 24h axis with VN plus second zone, overlap lanes, three block statuses) | `/schedule` | Current and other week; empty week; overlapping blocks; scheduled, cancelled, moved; initial scroll at 08:00; loading and error; light and dark | **OPEN.** Memory says the session drew a Google-style frame in the artifact, which this run cannot read. Fallback: the A remaps in "Screen Contracts" and "Color" above, with `gcal-line / gcal-today / gcal-today-ink / gcal-now` tokens. If the artifact differs, the artifact wins and this contract is amended before planning |
-| DR-4 | New lesson, lesson details, Move this lesson, Move series, End series dialogs | `/schedule` | Empty, filled, overlap warning, pending, error; single vs series; past read-only; cancelled with Restore | **OPEN.** A has only a view dialog and a blocking move form. Fallback: the field-by-field composition above from existing `Dialog`, `Select`, `DateField`, `TimePicker`, `TextField`, `Banner` |
-| DR-5 | `TimePicker` scroll columns with the library fade | Inside DR-4 dialogs | Overflow start, middle, end; 24px fade | **OPEN.** A's picker ships its own static `data-fade` mask; D-14 forbids static fades. Fallback: strip `data-fade*` and apply `scroll-fade [--scroll-fade-size:var(--scroll-fade-size-compact)]` |
+| DR-3 | Google-style Schedule: toolbar and week grid | `/schedule` | — | **RESOLVED** by the artifact (ScheduleToolbar, WeekGrid, EventColors, EventTooltip; see Amendments) with owner overrides D-07, D-10, D-11 |
+| DR-4 | Lesson dialogs | `/schedule` | — | **SPLIT.** Lesson details, move one lesson, cancel and restore: **RESOLVED** by the artifact LessonDialog (Amendments, D-09 override). New lesson moved to DR-6, series actions to DR-8 |
+| DR-5 | `TimePicker` scroll columns with the library fade | Inside dialogs | — | **RESOLVED** by `principles.md` (ScrollFade: every scroller fades, compact 24px for lists under about 200px): strip the static mask, put `scroll-fade` with the compact size on the column list |
+| DR-6 | New lesson entry and dialog | `/schedule`, dialog | — | **RESOLVED** by the artifact v23 `NewLessonDialog` (Amendments «NewLessonDialog») |
+| DR-7 | Second time zone choice and gutter captions | `/schedule`, ScheduleToolbar, WeekGrid | — | **RESOLVED** by the artifact v23 `ScheduleToolbar` and `WeekGrid` (Amendments «ScheduleToolbar», «WeekGrid») |
+| DR-8 | Whole-series actions | `/schedule`, LessonDialog | — | **RESOLVED** by the artifact v23 `MoveSeriesDialog`, `EndSeriesDialog` and the updated `LessonDialog` («Whole series» box) (Amendments «Whole series») |
 
 Everything else exists in the variant A copy and is mapped here; no custom look is invented. Any new gap found during execution is sent to the Design session before the element is built.
 

@@ -179,7 +179,31 @@ Plans:
   4. The grid shows Vietnam time by default and can show a second time zone next to it.
   5. The students list has status tabs and search and shows each student's remaining lessons and next lesson.
 
-**Plans**: TBD
+**Plans**: 10 plans
+
+Plans:
+**Wave 1**
+- [ ] 20-01-PLAN.md — Schema for series, exceptions and single lessons, `yarn install`, migration applied [BLOCKING] (W1)
+- [ ] 20-02-PLAN.md — `packages/core` zones and the one occurrence rule, schedule contracts and `lesson_changed` (W1)
+- [ ] 20-03-PLAN.md — Web base: fade and gcal tokens, page and table fades, DateField `min`, EmptyLine text, TimePicker copy (W1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 20-04-PLAN.md — API week read and lesson creation, one rows loader, `nextLessonAt` through the card facts owner (W2)
+- [ ] 20-05-PLAN.md — Schedule frame per the design artifact v23: WeekGrid, ScheduleToolbar with the second-zone selector, today and now line, shared time-zones module (W2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 20-06-PLAN.md — API changes: occurrence and single move, cancel, restore; series cut and end without deletes (W3)
+- [ ] 20-07-PLAN.md — Lesson blocks in `selected`, EventTooltip, LessonDialog view, NewLessonDialog (W3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 20-08-PLAN.md — LessonDialog actions through one mutate helper: Cancel lesson, Return to schedule, inline move form, Whole series with MoveSeriesDialog and EndSeriesDialog (W4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 20-09-PLAN.md — Students list: search, controlled tabs, Next lesson column; student form on the shared time-zones module (W5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 20-10-PLAN.md — Final verification: AGENTS.md, full checks, privacy, five criteria by hand (W6)
+
 **UI hint**: yes
 
 ### Phase 21: Lesson Accounting and Today
