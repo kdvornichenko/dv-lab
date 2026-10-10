@@ -122,6 +122,10 @@
 	--color-warning: var(--warning);
 	--color-success: var(--success);
 	--color-info: var(--info);
+	--color-gcal-line: var(--gcal-line);
+	--color-gcal-today: var(--gcal-today);
+	--color-gcal-today-ink: var(--gcal-today-ink);
+	--color-gcal-now: var(--gcal-now);
 	@keyframes sf-reveal-start {
 		from {
 			--sf-start: 1;
@@ -279,6 +283,12 @@
 	--info: #3b82f6;
 	--success: #22c55e;
 	--warning: #f59e0b;
+	--gcal-line: #dadce0;
+	--gcal-today: #1a73e8;
+	--gcal-today-ink: #ffffff;
+	--gcal-now: #ea4335;
+	--scroll-fade-size: 48px;
+	--scroll-fade-size-compact: 24px;
 }
 
 .dark {
@@ -367,6 +377,10 @@
 	--info: #93c5fd;
 	--success: #86efac;
 	--warning: #fcd34d;
+	--gcal-line: #3c4043;
+	--gcal-today: #8ab4f8;
+	--gcal-today-ink: #202124;
+	--gcal-now: #f28b82;
 }
 
 .app-scale {
@@ -418,11 +432,6 @@ html.transitioning *::after {
 	syntax: '<number>';
 	inherits: false;
 	initial-value: 1;
-}
-
-.scroll-fade,
-.scroll-fade-x {
-	--scroll-fade-size: 48px;
 }
 
 @supports (timeline-scope: --sf) {

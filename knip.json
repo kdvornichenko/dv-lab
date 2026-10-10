@@ -2,6 +2,11 @@
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"ignoreExportsUsedInFile": true,
 	"workspaces": {
+		".": {
+			"entry": ["scripts/**/*.mjs"],
+			"project": ["scripts/**/*.mjs"],
+			"ignoreDependencies": ["pg"]
+		},
 		"apps/web": {
 			"ignore": [
 				"components/ui/**",

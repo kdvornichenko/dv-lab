@@ -1,11 +1,12 @@
-import { and, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type { StudentDetail, StudentsResponse, openingBalanceRequest, saveStudentRequest } from '@dv-lab/contracts'
-import { balanceMinutes, lessonsToMinutes } from '@dv-lab/core'
+import { lessonsToMinutes } from '@dv-lab/core'
 import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
 
 import { findStudentAccount } from '../auth/accounts.ts'
+import { NO_CARD_FACTS, cardFacts } from './card-facts.ts'
 import { type CardRecord, cardColumns, toCardRow, toStudentDetail } from './card-rows.ts'
 
 type SaveStudentInput = z.output<typeof saveStudentRequest>
@@ -15,8 +16,6 @@ type OpeningBalanceInput = z.output<typeof openingBalanceRequest>
 type ImportCardInput = Pick<SaveStudentInput, 'displayName' | 'rateMinor' | 'currency' | 'defaultLessonMinutes'> & {
 	importKey: string
 }
-
-type BalanceSource = Pick<CardRecord, 'id' | 'openingBalanceMinutes' | 'openingBalanceOn'>
 
 function cardValues(input: SaveStudentInput) {
 	return {
@@ -31,50 +30,16 @@ function cardValues(input: SaveStudentInput) {
 	}
 }
 
-async function cardBalances(
-	executor: DbExecutor,
-	cards: readonly BalanceSource[]
-): Promise<Map<string, number | null>> {
-	const opened = cards.filter((card) => card.openingBalanceMinutes !== null && card.openingBalanceOn !== null)
-	const credited = new Map<string, number[]>()
-	if (opened.length > 0) {
-		const rows = await executor
-			.select({ studentId: payments.studentId, creditedMinutes: payments.creditedMinutes })
-			.from(payments)
-			.innerJoin(students, eq(payments.studentId, students.id))
-			.where(
-				and(
-					inArray(
-						payments.studentId,
-						opened.map((card) => card.id)
-					),
-					isNotNull(students.openingBalanceOn),
-					gt(payments.paidOn, students.openingBalanceOn),
-					gt(payments.creditedMinutes, 0)
-				)
-			)
-		for (const row of rows) {
-			if (row.studentId === null) continue
-			const list = credited.get(row.studentId) ?? []
-			list.push(row.creditedMinutes)
-			credited.set(row.studentId, list)
-		}
-	}
-	return new Map(
-		cards.map((card) => [card.id, balanceMinutes(card.openingBalanceMinutes, credited.get(card.id) ?? [])])
-	)
-}
-
 async function toDetail(executor: DbExecutor, row: CardRecord): Promise<StudentDetail> {
-	const balances = await cardBalances(executor, [row])
+	const facts = await cardFacts(executor, [row], new Date())
 	const account = await findStudentAccount(executor, row.id)
-	return toStudentDetail(row, balances.get(row.id) ?? null, account)
+	return toStudentDetail(row, facts.get(row.id) ?? NO_CARD_FACTS, account)
 }
 
 export async function createCard(executor: DbExecutor, input: SaveStudentInput): Promise<StudentDetail> {
 	const [row] = await executor.insert(students).values(cardValues(input)).returning(cardColumns)
 	if (!row) throw new Error('student card insert returned no row')
-	return toStudentDetail(row, null, null)
+	return toStudentDetail(row, NO_CARD_FACTS, null)
 }
 
 export async function getCard(executor: DbExecutor, id: string): Promise<StudentDetail | null> {
@@ -87,13 +52,13 @@ export async function listCards(executor: DbExecutor): Promise<StudentsResponse>
 		.select(cardColumns)
 		.from(students)
 		.orderBy(sql`lower(${students.displayName})`, students.id)
-	const balances = await cardBalances(executor, rows)
+	const facts = await cardFacts(executor, rows, new Date())
 	const [unassigned] = await executor
 		.select({ count: sql<number>`count(*)::int` })
 		.from(payments)
 		.where(isNull(payments.studentId))
 	return {
-		students: rows.map((row) => toCardRow(row, balances.get(row.id) ?? null)),
+		students: rows.map((row) => toCardRow(row, facts.get(row.id) ?? NO_CARD_FACTS)),
 		unassignedPayments: unassigned?.count ?? 0,
 	}
 }

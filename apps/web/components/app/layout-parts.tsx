@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 import { WorkspaceTile } from '@/components/sidebar-app/workspace-header'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -23,7 +23,7 @@ export function CenteredPanel({ children }: { children: ReactNode }) {
 
 export function PageScroll({ children }: { children: ReactNode }) {
 	return (
-		<ScrollArea className="min-h-0 flex-1">
+		<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
 			<div className="mx-auto flex w-full flex-col gap-4 px-4 pt-4 pb-16 min-[1920px]:max-w-384 md:gap-6 md:px-8 md:pt-6">
 				{children}
 			</div>
@@ -63,15 +63,24 @@ export function Panel({ title, description, action, children, className, id }: P
 
 interface PageHeaderProps {
 	title: ReactNode
+	eyebrow?: ReactNode
 	description?: ReactNode
 	actions?: ReactNode
+	titleRef?: Ref<HTMLHeadingElement>
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({ title, eyebrow, description, actions, titleRef }: PageHeaderProps) {
 	return (
 		<header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 			<div className="flex min-w-0 flex-col gap-1">
-				<h1 className="text-display font-semibold tracking-tight text-foreground">{title}</h1>
+				{eyebrow ? <p className="text-caption text-muted-foreground">{eyebrow}</p> : null}
+				<h1
+					ref={titleRef}
+					tabIndex={titleRef === undefined ? undefined : -1}
+					className="text-display font-semibold tracking-tight text-foreground outline-none"
+				>
+					{title}
+				</h1>
 				{description ? <div className="text-body text-muted-foreground">{description}</div> : null}
 			</div>
 			{actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

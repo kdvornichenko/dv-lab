@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 19
-current_phase_name: Student Cards and Vault Import
-status: executing
-stopped_at: Phase 19 executed (20/20 plans, branch gsd/phase-19-student-cards-and-vault-import); release to the VPS, the owner's acceptance of the import on dvlab_dev and the server import (RUNBOOK 11) pending; phase 18 is live on the VPS and waits for the owner's first sign-in; phase 17 verification human_needed
-last_updated: "2026-10-09T19:21:09.223Z"
+current_phase: 20
+current_phase_name: Schedule
+status: executed
+stopped_at: Phase 20 executed, verified and reviewed; PR next
+last_updated: "2026-10-10T18:00:00.000Z"
 last_activity: 2026-10-10
-last_activity_desc: Phase 17 execution started
-state_head: 8cf535e5f1398d2ee3a313a11e9a2419af461b46
+last_activity_desc: Phase 20 executed (10/10 plans), review fixes and End series fix applied
+state_head: 9936205159f2139b122bac247411e28617962f08
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 48
-  completed_plans: 16
+  total_plans: 49
+  completed_plans: 49
   percent: 0
 ---
 
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 19 — Student Cards and Vault Import (executed; release pending)
+**Current focus:** Phase 20 — Schedule (executed; PR and release next, then Phase 21)
 
 ## Current Position
 
-Phase: 19 (Student Cards and Vault Import) — EXECUTED, release and import pending
-Plan: 20 of 20
-Status: Plans done, code review fixed, security audit SECURED, verification human_needed (no code gaps). Open human steps: the owner accepts the import on dvlab_dev, then RUNBOOK 11.1-11.3 (release and the one-time import on the VPS, Server guy). Phase 18 is live; ROADMAP criterion 1 of phase 18 waits for the owner's first sign-in (RUNBOOK 10.3).
-Last activity: 2026-10-10 — Phase 19 executed (20 plans, 10 waves) and verified
+Phase: 20 (Schedule) — EXECUTED
+Plan: 10 of 10
+Status: Phase 20 is built and verified by scripts (schedule-db/core/api/web, both themes); review and security (36/36) are closed. Needs the owner and Server guy: manual look at the week grid, the migrations 20261010075813_schedule and 20261010103628_schedule_revoke_delete on the server (see 20-10-SUMMARY, "Для выката"). Phase 19 is released; remaining human steps from before: change the password on dv-lab.dev, set the opening balance on every card, return the apex TTL (RUNBOOK 3.5).
+Last activity: 2026-10-10 — Phase 20 executed
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0% of phases 17-19 executed
 
 ## Deferred Verification
 
@@ -43,6 +43,8 @@ Progress: [██████████] 100%
 | 17 | verification_deferred_human | /gsd-verify-work 17 |
 | 18 | verification_deferred_human | /gsd-verify-work 18 |
 | 19 | verification_deferred_human | /gsd-verify-work 19 |
+
+Phase 19 human items left: the owner sets the opening balance on each card (the import does not fill it). Release and import are done.
 
 Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 in the Vercel panel (RUNBOOK 3.5); recreate network dv-lab_default once at the next release (commit 2bcd8c0); optional browser look at the stub.
 
@@ -105,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-09T12:13:32.095Z
-Stopped at: Completed 17-03-PLAN.md
-Resume file: None
+Last session: 2026-10-10T05:54:03.047Z
+Stopped at: Phase 20 UI-SPEC approved
+Resume file: .planning/phases/20-schedule/20-UI-SPEC.md

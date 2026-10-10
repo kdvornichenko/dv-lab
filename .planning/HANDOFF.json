@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-10-10T18:30:00Z",
+  "phase": "20",
+  "phase_name": "Schedule",
+  "phase_dir": ".planning/phases/20-schedule",
+  "plan": 10,
+  "task": 3,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Планы 20-01..20-10, 20-TP, 20-ES выполнены", "status": "done", "commit": "dfdde1b"}
+  ],
+  "remaining_tasks": [
+    {"id": 1, "name": "PR https://github.com/kdvornichenko/dv-lab/pull/6: дождаться CI и слить gh pr merge --merge", "status": "not_started"},
+    {"id": 2, "name": "Ручной просмотр сетки расписания владельцем (во встроенном браузере не смотрели)", "status": "not_started"},
+    {"id": 3, "name": "Выкат через Server guy: две миграции и GET /api/schedule/week (20-10-SUMMARY, Для выката)", "status": "not_started"}
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {"action": "Ответ Design dude на список замечаний по фазе 20 (отправлен)", "context": "End series подсказка, None/none D-13, вторая зона у времени серии, размер шрифта подсказки", "blocking": false},
+    {"action": "Выкат фазы 20 через Server guy", "context": "миграции 20261010075813_schedule и 20261010103628_schedule_revoke_delete", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Расписание не удаляет строки из БД", "rationale": "решение владельца: отмена, окончание и перенос меняют статус, kind или ends_on (D-16)", "phase": "20"},
+    {"decision": "Зона серии константой SCHEDULE_TIME_ZONE = Asia/Ho_Chi_Minh", "rationale": "D-15", "phase": "20"},
+    {"decision": "Restore возвращает отменённый перенесённый урок в слот переноса", "rationale": "выбор владельца по CR-01", "phase": "20"}
+  ],
+  "uncommitted_files": ["?? .gsd/ (не наш каталог, не коммитить)"],
+  "next_action": "Открыть новую сессию в worktree фазы 21: /gsd-resume-work; PR #6 слить после зелёного CI (auto-fix включён)",
+  "context_notes": "Фаза 20 исполнена, проверена скриптами, ревью исправлено, безопасность 36/36, верификация 11/11. Пропущено осознанно: WR-09, WR-10, INFO, expectedStartsAt остаётся необязательным."
+}

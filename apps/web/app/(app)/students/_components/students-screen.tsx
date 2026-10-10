@@ -12,16 +12,21 @@ import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { LessonsText, MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
+import { TimePair } from '@/components/app/time-pair'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
+import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
+import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
+import { useSecondZone } from '../../schedule/_components/second-zone-select'
 import { StudentFormDialog } from './student-form-dialog'
 import { UnassignedPayments } from './unassigned-payments'
 
@@ -41,9 +46,21 @@ function byName(left: StudentRow, right: StudentRow) {
 	return nameCollator.compare(left.displayName, right.displayName)
 }
 
-function StudentsTable({ rows }: { rows: StudentRow[] }) {
+function matchesQuery(student: StudentRow, query: string) {
+	const text = query.trim().toLowerCase()
+	return text === '' || student.displayName.toLowerCase().includes(text)
+}
+
+function NextLesson({ at, zone, currentYear }: { at: Date; zone: string | null; currentYear: number }) {
+	const second = secondWhen(at, zone)
+	return <TimePair main={formatWhen(at, SCHEDULE_TIME_ZONE, currentYear)} second={second} />
+}
+
+function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boolean }) {
 	const router = useRouter()
-	if (rows.length === 0) return <EmptyLine />
+	const [zone] = useSecondZone()
+	if (rows.length === 0) return searching ? <EmptyLine text="No students found" /> : <EmptyLine />
+	const currentYear = yearInZone(new Date())
 	function open(event: MouseEvent<HTMLTableRowElement>, id: string) {
 		if ((event.target as HTMLElement).closest('a')) return
 		router.push(`/students/${id}`)
@@ -57,6 +74,7 @@ function StudentsTable({ rows }: { rows: StudentRow[] }) {
 						<TableHead className={headClass}>Status</TableHead>
 						<TableHead className={headClass}>Rate</TableHead>
 						<TableHead className={cn(headClass, 'text-right')}>Lessons left</TableHead>
+						<TableHead className={headClass}>Next lesson</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -101,6 +119,13 @@ function StudentsTable({ rows }: { rows: StudentRow[] }) {
 										<LessonsText minutes={student.balanceMinutes} lessonMinutes={student.defaultLessonMinutes} />
 									)}
 								</TableCell>
+								<TableCell className="px-4 py-1 text-body tabular-nums">
+									{student.nextLessonAt === null ? (
+										<span className="text-muted-foreground">None</span>
+									) : (
+										<NextLesson at={new Date(student.nextLessonAt)} zone={zone} currentYear={currentYear} />
+									)}
+								</TableCell>
 							</TableRow>
 						)
 					})}
@@ -113,6 +138,8 @@ function StudentsTable({ rows }: { rows: StudentRow[] }) {
 export function StudentsScreen() {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [createOpen, setCreateOpen] = useState(false)
+	const [tab, setTab] = useState('active')
+	const [query, setQuery] = useState('')
 	const createButton = useRef<HTMLButtonElement>(null)
 
 	const load = useCallback(async () => {
@@ -138,6 +165,9 @@ export function StudentsScreen() {
 		() => (students ?? []).filter((student) => student.status === 'archived').sort(byName),
 		[students]
 	)
+	const shownActive = useMemo(() => active.filter((student) => matchesQuery(student, query)), [active, query])
+	const shownArchived = useMemo(() => archived.filter((student) => matchesQuery(student, query)), [archived, query])
+	const searching = query.trim() !== ''
 
 	let header: ReactNode
 	let body: ReactNode
@@ -160,20 +190,38 @@ export function StudentsScreen() {
 			/>
 		)
 		body = (
-			<Tabs defaultValue="active">
-				<TabsList aria-label="Student lists" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
-					<TabItem value="active" label="Active" />
-					<TabItem value="archived" label="Archived" />
-					<TabItem
-						value="unassigned"
-						label={state.kind === 'ready' ? `Unassigned payments (${state.unassigned})` : 'Unassigned payments'}
-					/>
-				</TabsList>
+			<Tabs value={tab} onValueChange={setTab}>
+				<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+					<div className="flex min-w-0 rounded-xl bg-muted">
+						<TabsList
+							aria-label="Student lists"
+							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+						>
+							<TabItem value="active" label="Active" />
+							<TabItem value="archived" label="Archived" />
+							<TabItem
+								value="unassigned"
+								label={state.kind === 'ready' ? `Unassigned payments (${state.unassigned})` : 'Unassigned payments'}
+							/>
+						</TabsList>
+					</div>
+					{tab === 'unassigned' ? null : (
+						<Input
+							type="search"
+							aria-label="Search students"
+							placeholder="Search students"
+							autoComplete="off"
+							className="w-full sm:w-72"
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+						/>
+					)}
+				</div>
 				<TabPanel value="active" className="mt-4">
-					{loading ? <SkeletonTable /> : <StudentsTable rows={active} />}
+					{loading ? <SkeletonTable /> : <StudentsTable rows={shownActive} searching={searching} />}
 				</TabPanel>
 				<TabPanel value="archived" className="mt-4">
-					{loading ? <SkeletonTable /> : <StudentsTable rows={archived} />}
+					{loading ? <SkeletonTable /> : <StudentsTable rows={shownArchived} searching={searching} />}
 				</TabPanel>
 				<TabPanel value="unassigned" className="mt-4">
 					{loading ? <SkeletonTable /> : <UnassignedPayments students={active} onChanged={() => void load()} />}

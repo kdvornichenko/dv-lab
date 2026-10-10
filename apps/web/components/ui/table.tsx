@@ -5,7 +5,10 @@ import { cn } from '@/lib/utils'
 
 function Table({ className, ...props }: React.ComponentProps<'table'>) {
 	return (
-		<div data-slot="table-container" className="relative w-full overflow-x-auto">
+		<div
+			data-slot="table-container"
+			className="scroll-fade-x relative w-full overflow-x-auto [--scroll-fade-size:var(--scroll-fade-size-compact)]"
+		>
 			<table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props} />
 		</div>
 	)

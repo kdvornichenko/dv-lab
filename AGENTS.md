@@ -6,7 +6,7 @@
 
 - `apps/web` — Next 16 (App Router), сборка `output: 'standalone'`. Шрифты Inter Variable и JetBrains Mono Variable из пакетов `@fontsource-variable/inter` и `@fontsource-variable/jetbrains-mono`, без обращения к Google.
 - `apps/api` — Hono на `@hono/node-server`, отдельный процесс за прокси. Сборка `tsdown` в `apps/api/dist/server.mjs`, `apps/api/dist/migrate.mjs`, `apps/api/dist/bootstrap-teacher.mjs` (CLI первого учителя и восстановления его пароля) и `apps/api/dist/import-vault.mjs` (импорт vault: команды `parse` и `apply`), `@dv-lab/*` вшиваются в бандл, миграции копируются в `apps/api/drizzle`.
-- `packages/core` — JIT-пакет `@dv-lab/core` (экспортирует исходники `src/index.ts`): чистые функции денег, уроков и остатка. Без зависимостей, без Node API и без базы. Его вызывают web, api и импорт vault.
+- `packages/core` — JIT-пакет `@dv-lab/core` (экспортирует исходники `src/index.ts`): чистые функции денег, уроков и остатка, зоны (`zoned.ts`) и правило вхождений расписания (`schedule.ts`) с константой `SCHEDULE_TIME_ZONE` = `Asia/Ho_Chi_Minh`. Без зависимостей, без Node API и без базы. Его вызывают web, api и импорт vault.
 - `packages/contracts` — JIT-пакет `@dv-lab/contracts`: только типы, схемы zod и константы общего контракта web и api (запросы, ответы, коды ошибок, имя cookie сессии, пределы логина и пароля). Зависит только от `zod`. web и api импортируют его; web не зависит от `@dv-lab/api` и `@dv-lab/db`.
 - `packages/db` — JIT-пакет `@dv-lab/db` (экспортирует исходники `src/index.ts`, своей сборки нет): Drizzle v1, схема, подключение, мигратор. Миграции лежат в `packages/db/drizzle`.
 - `deploy/` — `compose.yaml`, Caddy (`deploy/caddy/Caddyfile`), `deploy.sh`, скрипты бэкапа, `deploy/postgres/ensure-db.sql` и `ensure-db.sh`, юниты systemd, `deploy/RUNBOOK.md`.
@@ -63,6 +63,11 @@ CI (`.github/workflows/ci.yml`) на каждый pull request и push в `maste
 - Проверка формы cookie сессии и редирект на `/login` — `apps/web/proxy.ts`; «кто я» на сервере web — `apps/web/lib/session.ts` (`getMe`, `requireTeacherPage`).
 - Страницы 404 и ошибки — `apps/web/components/app/status-pages.tsx`; корневые `not-found.tsx`, `error.tsx` и `global-error.tsx` только вызывают их. Ошибка чтения целого экрана — `apps/web/components/app/read-error.tsx`. Скелетоны — `apps/web/components/ui/skeleton.tsx`.
 - Вид markdown в web — `apps/web/components/app/markdown-view.tsx` (`react-markdown` со `skipHtml`). Строки денег, уроков и дат оплат — `apps/web/components/app/ledger-text.tsx` поверх `packages/core`.
+- Правило видимости вхождения (дата серии в диапазоне `[starts_on, ends_on]`, исключение учитывается только через `occurrenceAt`, история за концом серии и пустая серия скрыты), правило «урок ещё можно менять» (`canChange`), разрез и окончание серии (`cutSeries`, `endSeriesAt`) и даты окна (`windowDates`) принадлежат `packages/core` (`schedule.ts`, `zoned.ts`). api и web второго правила не держат, браузер серии не раскрывает.
+- Модуль `apps/api/src/schedule` владеет чтением недели и мутациями расписания. `rows.ts` — единственный загрузчик строк для окна недели и «от сейчас», мапперы строк и блокировки `lockSeries` и `lockLesson`. Мутации идут в транзакциях с `FOR UPDATE`: 409 `lesson_changed` при смене состояния, устаревшем `expectedStartsAt` или попытке изменить прошлое, 400 `series_ends_before_new_day`. Строки расписания не удаляются: меняются статус, `kind` или `ends_on`. Маршруты — `apps/api/src/routes/schedule.ts`.
+- Производные факты карточки (остаток и `nextLessonAt`) считает `apps/api/src/cards/card-facts.ts`. `schedule` не импортирует `cards`.
+- Показ дат расписания — `apps/web/lib/schedule-format.ts` (`Intl` с явной зоной). Список зон, текст смещения «UTC+N» и поиск по зонам — `apps/web/lib/time-zones.ts`, им пользуются расписание и форма карточки. Все мутации расписания в web идут через `mutate` из `apps/web/app/(app)/schedule/_components/schedule-mutations.ts`. Время урока во второй зоне показывает `apps/web/components/app/time-pair.tsx`. Вторая зона хранится только в `localStorage` браузера.
+- Дизайн расписания — артефакт дизайн-системы (WeekGrid, ScheduleToolbar, EventColors, EventTooltip, LessonDialog); цвет блоков в этой фазе — токен `selected`.
 - UI web — только Base UI и копия компонентов варианта A (`components/ui`, `components/sidebar-app`, `components/fluid-hover-highlight.tsx`, `hooks`, двенадцать файлов `lib`; knip их не проверяет). Импорты `radix-ui`, `@radix-ui/*` и `cmdk` запрещены правилом ESLint. Рукописные части экранов лежат в `apps/web/components/app` и `apps/web/app`.
 
 ## База
@@ -71,6 +76,8 @@ CI (`.github/workflows/ci.yml`) на каждый pull request и push в `maste
 - Миграции генерирует `yarn db:generate`, руками сгенерированные файлы не правятся, `drizzle-kit push` не используется.
 - Миграции одного релиза только добавляют (новые таблицы, колонки, индексы). Удаление и переименование — отдельным релизом, когда код прошлой версии уже не работает с этими объектами.
 - Миграции применяются отдельным шагом под `dvlab_migrator`: локально `yarn db:migrate`, на сервере одноразовый сервис `migrate` из образа api (`node apps/api/dist/migrate.mjs`).
+- Расписание: таблицы `lesson_series`, `lesson_exceptions` (ключ `series_id` + `original_on`, `kind` — `cancelled`, `moved` или `restored`) и `lessons`; внешние ключи `ON DELETE RESTRICT`. Вхождение считается через `occurrenceAt`, а не по наличию строки исключения; время переноса у `cancelled` и `restored` — только история. Пустая серия — `ends_on = starts_on - 1`. Колонки правила серии после вставки не меняются.
+- Ключ вхождения стабилен только для прошлых вхождений и для серии после её последнего разреза: разрез даёт новую серию с новыми ключами будущих вхождений, а перенесённые вхождения становятся одиночными уроками. Синхронизации с Google (фаза 24) нужен маппинг или пересборка событий при разрезе.
 - Тесты идут на настоящем Postgres в базе `dvlab_test` под ролями `dvlab_app` и `dvlab_migrator`. Данные между тестами очищаются `TRUNCATE` под `dvlab_migrator`. Адаптера базы в памяти нет.
 
 ## Версии
@@ -80,6 +87,13 @@ CI (`.github/workflows/ci.yml`) на каждый pull request и push в `maste
 - TypeScript 6.0.3, а не 7.x: `typescript-eslint` (через `eslint-config-next`) не поддерживает TypeScript 7.0.
 - `drizzle-orm` и `drizzle-kit` 1.0.0-rc.4: стабильного v1 нет, `latest` указывает на 0.45, проект работает на v1.
 - Версия `turbo` в `ARG TURBO_VERSION` обоих Dockerfile совпадает с `devDependencies.turbo` корневого `package.json`, CI это проверяет.
+
+## Помощники для агентов
+
+- Правила исполнителя фазы GSD: `.planning/EXECUTOR-RULES.md`; охрана корня worktree: `scripts/gsd/root-pin.sh`; режим изоляции перед запуском исполнителей: `scripts/gsd/dispatch.sh <фаза>`.
+- Разовый SQL, фикстуры api и браузер: `scripts/dev-checks/` (описание в `README.md`).
+- Приёмка расписания: `scripts/dev-checks/schedule-db.mjs` (`catalog`), `schedule-core.mjs`, `schedule-api.mjs` (разделы `read`, `next`, `changes`), `schedule-web.mjs` (разделы `fade`, `frame`, `read`, `changes`, `students`, тема светлая или тёмная) и `wait-dev.mjs` (`up` — ждать dev-стек на портах 3000 и 4000, `down` — порты свободны).
+- Проверка коммита на имена учеников и пакеты импорта: `scripts/privacy-check.mjs` (ставится один раз командой `node scripts/privacy-check.mjs --install`, список имён обновляется `--refresh` и лежит вне репозитория).
 
 ## Публичный репозиторий
 

@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { apiRequest } from '@/lib/api-client'
+import { listTimeZones, matchesTimeZone, utcOffset } from '@/lib/time-zones'
 
 import {
 	CURRENCIES,
@@ -34,7 +35,6 @@ import {
 	LESSON_MINUTES_MIN,
 	STUDENT_TEXT_MAX_LENGTH,
 	isDisplayNameLength,
-	isTimeZone,
 	normalizeDisplayName,
 	type Currency,
 	type StudentDetail,
@@ -43,16 +43,6 @@ import {
 import { currencyDigits, currencySymbol, minorToInput, parseMoney } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
-
-const MODERN_TIME_ZONES = [
-	'Asia/Ho_Chi_Minh',
-	'Asia/Kolkata',
-	'Asia/Kathmandu',
-	'Asia/Yangon',
-	'Europe/Kyiv',
-	'America/Argentina/Buenos_Aires',
-	'Atlantic/Faroe',
-]
 
 const NO_CURRENCY = 'none'
 const SAME_TIME_ZONE = 'same-as-teacher'
@@ -149,44 +139,12 @@ function parse(values: Values): Parsed {
 	return { errors, rateMinor, currency, lessonMinutes }
 }
 
-function utcOffset(zone: string, now: Date) {
-	try {
-		const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
-			.formatToParts(now)
-			.find((part) => part.type === 'timeZoneName')?.value
-		return name?.replace(/^GMT/, 'UTC').replace(/^UTC[+-]0$/, 'UTC')
-	} catch {
-		return undefined
-	}
-}
-
 function buildTimeZones(saved: string | null): ComboboxItemData[] {
-	const listed = Intl.supportedValuesOf('timeZone')
-	const extra = saved ? [...MODERN_TIME_ZONES, saved] : MODERN_TIME_ZONES
-	const zones = [...listed, ...extra.filter((zone) => !listed.includes(zone) && isTimeZone(zone))]
-	const unique = Array.from(new Set(zones)).sort()
 	const now = new Date()
 	return [
 		{ value: SAME_TIME_ZONE, label: 'Same as teacher' },
-		...unique.map((zone) => ({ value: zone, label: zone, detail: utcOffset(zone, now) })),
+		...listTimeZones(saved ? [saved] : []).map((zone) => ({ value: zone, label: zone, detail: utcOffset(zone, now) })),
 	]
-}
-
-function offsetQuery(query: string) {
-	const compact = query.replace(/\s/g, '').replace(/^gmt/, 'utc')
-	return (/^[+-]/.test(compact) ? `utc${compact}` : compact).replace(/^utc[+-]0$/, 'utc')
-}
-
-function matchesTimeZone(item: ComboboxItemData, query: string) {
-	const text = query.trim().toLowerCase()
-	if (text === '') return true
-	if (typeof item === 'string') return item.toLowerCase().includes(text)
-	const name = item.label.toLowerCase()
-	if (name.includes(text) || name.replace(/_/g, ' ').includes(text)) return true
-	const detail = item.detail?.toLowerCase()
-	if (!detail) return false
-	const offset = offsetQuery(text)
-	return detail === offset || detail.startsWith(`${offset}:`)
 }
 
 function nullable(value: string) {

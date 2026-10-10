@@ -8,6 +8,8 @@ import {
 } from '@dv-lab/contracts'
 import { students } from '@dv-lab/db'
 
+import type { CardFacts } from './card-facts.ts'
+
 export const cardColumns = {
 	id: students.id,
 	displayName: students.displayName,
@@ -38,7 +40,7 @@ function toCurrency(value: string | null): Currency | null {
 	return known
 }
 
-export function toCardRow(row: CardRecord, balanceMinutes: number | null): StudentRow {
+export function toCardRow(row: CardRecord, facts: CardFacts): StudentRow {
 	return {
 		id: row.id,
 		displayName: row.displayName,
@@ -46,17 +48,14 @@ export function toCardRow(row: CardRecord, balanceMinutes: number | null): Stude
 		rateMinor: row.rateMinor,
 		currency: toCurrency(row.currency),
 		defaultLessonMinutes: row.defaultLessonMinutes,
-		balanceMinutes,
+		balanceMinutes: facts.balanceMinutes,
+		nextLessonAt: facts.nextLessonAt,
 	}
 }
 
-export function toStudentDetail(
-	row: CardRecord,
-	balanceMinutes: number | null,
-	account: StudentAccount | null
-): StudentDetail {
+export function toStudentDetail(row: CardRecord, facts: CardFacts, account: StudentAccount | null): StudentDetail {
 	return {
-		...toCardRow(row, balanceMinutes),
+		...toCardRow(row, facts),
 		parent: row.parent,
 		level: row.level,
 		goals: row.goals,
