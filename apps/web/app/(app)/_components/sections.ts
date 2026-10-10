@@ -1,4 +1,4 @@
-import { CalendarDays, MessagesSquare, Sun, Users, type LucideIcon } from 'lucide-react'
+import { CalendarDays, MessagesSquare, Settings, Sun, Users, type LucideIcon } from 'lucide-react'
 
 export interface Section {
 	id: string
@@ -13,6 +13,7 @@ export const sections: Section[] = [
 	{ id: 'chat', label: 'Chat', href: '/chat', icon: MessagesSquare },
 	{ id: 'students', label: 'Students', href: '/students', icon: Users },
 	{ id: 'schedule', label: 'Schedule', href: '/schedule', icon: CalendarDays },
+	{ id: 'settings', label: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export function isSectionActive(section: Section, pathname: string) {
