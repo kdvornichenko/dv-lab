@@ -220,7 +220,7 @@ Plans:
   4. The "pays soon" list shows students with at most N lessons left or none, N is a setting with default 2, and Today shows counters, today's lessons and this list from real data.
   5. The students list, the profile, Today and "pays soon" show the same balance because they call the same `packages/core` functions, and those rules are covered by unit tests.
 
-**Plans**: 13/18 plans executed
+**Plans**: 14/18 plans executed
 
 Plans:
 - [x] 21-17-PLAN.md — Move of any lesson allowed like in Google Calendar (D-17), v38 toasts (W4)
@@ -250,7 +250,7 @@ Plans:
 - [x] 21-16-PLAN.md — API and contract: block status and changeable flag removed, reload-tabs rollout (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 21-10-PLAN.md — UI-C Today: header, four counters, Lessons today, Earlier not marked, Pays soon (W7)
+- [x] 21-10-PLAN.md — UI-C Today: header, four counters, Lessons today, Earlier not marked, Pays soon (W7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 21-11-PLAN.md — UI-C Today actions: quick Done and No-show, shared lesson dialog host, isolated Add payment with a Student field (W8)
@@ -358,7 +358,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 10/10 | In Progress|  |
-| 21. Lesson Accounting and Today | v2.0 | 13/18 | In Progress|  |
+| 21. Lesson Accounting and Today | v2.0 | 14/18 | In Progress|  |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
 | 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Not started | - |
