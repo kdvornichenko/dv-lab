@@ -4,7 +4,8 @@
 	"workspaces": {
 		".": {
 			"entry": ["scripts/**/*.mjs"],
-			"project": ["scripts/**/*.mjs"]
+			"project": ["scripts/**/*.mjs"],
+			"ignoreDependencies": ["pg"]
 		},
 		"apps/web": {
 			"ignore": [
