@@ -235,6 +235,24 @@ async function framePart1(page, label, at) {
 			),
 			gutter8: gutter(8),
 			gutter4: gutter(4),
+			gutterLook: (() => {
+				const describe = (root) =>
+					query('span', root).map((element) => ({
+						width: Math.round(element.getBoundingClientRect().width),
+						weight: getComputedStyle(element).fontWeight,
+						size: getComputedStyle(element).fontSize,
+						opacity: getComputedStyle(element).opacity,
+						color: getComputedStyle(element).color,
+						right: element.getBoundingClientRect().right,
+					}))
+				const row = query('[data-slot="week-grid-gutter"] > div')[8]
+				const first = document.querySelector('[data-slot="week-grid-column"]')
+				return {
+					row: describe(row),
+					corner: describe(document.querySelector('[data-slot="week-grid-corner"]')),
+					gridLeft: first?.getBoundingClientRect().left,
+				}
+			})(),
 			bodyFade: body?.classList.contains('scroll-fade'),
 			scrollTop: body?.scrollTop,
 			headInsideBody: Boolean(body && head && body.contains(head)),
@@ -280,9 +298,39 @@ async function framePart1(page, label, at) {
 		data.columns.filter((item) => item.date !== nowVn.date).every((item) => item.background === data.transparent)
 	)
 	check(`${label} hour is 48px`, Math.abs(data.hourStep - 48) < 0.6, String(data.hourStep))
-	check(`${label} corner names VN and MSK`, data.corner.join(' ') === 'VN MSK', data.corner.join(' '))
-	check(`${label} 08:00 VN is 04:00 MSK`, data.gutter8.join(' ') === '08:00 04:00', data.gutter8.join(' '))
-	check(`${label} midnight row shows the weekday`, data.gutter4.join(' ') === '04:00 Mon', data.gutter4.join(' '))
+	check(
+		`${label} corner names MSK on the left and VN on the right`,
+		data.corner.join(' ') === 'MSK VN',
+		data.corner.join(' ')
+	)
+	check(
+		`${label} 08:00 VN is 04:00 MSK, second zone first`,
+		data.gutter8.join(' ') === '04:00 08:00',
+		data.gutter8.join(' ')
+	)
+	check(`${label} midnight row shows the weekday`, data.gutter4.join(' ') === 'Mon 04:00', data.gutter4.join(' '))
+	const look = data.gutterLook
+	const same = (items, key) => items.length === 2 && items[0][key] === items[1][key]
+	for (const [name, items] of [
+		['row', look.row],
+		['corner', look.corner],
+	]) {
+		check(
+			`${label} gutter ${name}: two columns of the same width, size, weight and colour`,
+			same(items, 'width') && same(items, 'size') && same(items, 'weight') && same(items, 'color'),
+			JSON.stringify(items)
+		)
+		check(
+			`${label} gutter ${name}: nothing is faded`,
+			items.every((item) => item.opacity === '1'),
+			JSON.stringify(items)
+		)
+	}
+	check(
+		`${label} gutter: Vietnam sits against the grid`,
+		look.gridLeft - look.row[1].right >= 0 && look.gridLeft - look.row[1].right <= 6,
+		String(look.gridLeft - look.row[1].right)
+	)
 	check(`${label} body has scroll-fade`, data.bodyFade === true)
 	check(`${label} scrollTop is 336`, Math.abs(data.scrollTop - 336) <= 2, String(data.scrollTop))
 	check(`${label} day header is outside the scroller`, data.headInsideBody === false)
@@ -535,12 +583,12 @@ async function framePart3(page, label, requests) {
 	let state = await readCorner(page)
 	check(
 		`${label} corner shows the short offset`,
-		state.corner.join(' ') === `VN ${facts.offset}`,
+		state.corner.join(' ') === `${facts.offset} VN`,
 		state.corner.join(' ')
 	)
 	check(
 		`${label} 08:00 VN is ${facts.hour} in Berlin`,
-		state.gutter8.join(' ') === `08:00 ${facts.hour}`,
+		state.gutter8.join(' ') === `${facts.hour} 08:00`,
 		state.gutter8.join(' ')
 	)
 	check(`${label} choice is stored`, state.stored === 'Europe/Berlin', state.stored)
@@ -548,15 +596,16 @@ async function framePart3(page, label, requests) {
 	await page.waitForTimeout(300)
 	const later = core.addDays(monday, 21)
 	const laterFacts = berlinFacts(later)
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 15000 })
 	state = await readCorner(page)
 	check(
 		`${label} offset follows the Monday of the week`,
-		(await button.textContent())?.trim() === laterFacts.toolbar && state.corner[1] === laterFacts.offset,
+		(await button.textContent())?.trim() === laterFacts.toolbar && state.corner[0] === laterFacts.offset,
 		`${await button.textContent()} ${state.corner.join(' ')}`
 	)
 	check(
 		`${label} gutter follows the Monday of the week`,
-		state.gutter8.join(' ') === `08:00 ${laterFacts.hour}`,
+		state.gutter8.join(' ') === `${laterFacts.hour} 08:00`,
 		state.gutter8.join(' ')
 	)
 	for (let step = 0; step < 3; step += 1) await page.getByRole('button', { name: 'Previous week' }).click()
@@ -593,7 +642,7 @@ async function framePart3(page, label, requests) {
 		state = await readCorner(page)
 		check(
 			`${label} stored "${bad}" falls back to MSK`,
-			(await button.textContent())?.trim() === 'MSK' && state.corner.join(' ') === 'VN MSK',
+			(await button.textContent())?.trim() === 'MSK' && state.corner.join(' ') === 'MSK VN',
 			`${await button.textContent()} ${state.corner.join(' ')}`
 		)
 	}

@@ -105,12 +105,12 @@ function slotTime(offsetY: number): string {
 }
 
 function GutterPair({
-	first,
+	local,
 	second,
 	className,
 	top,
 }: {
-	first: string
+	local: string
 	second: string | null
 	className?: string
 	top?: number
@@ -123,8 +123,8 @@ function GutterPair({
 				className
 			)}
 		>
-			<span className="w-8 text-right">{first}</span>
-			{second !== null ? <span className="w-8 text-right opacity-70">{second}</span> : null}
+			{second !== null ? <span className="w-8 text-right">{second}</span> : null}
+			<span className="w-8 text-right">{local}</span>
 		</div>
 	)
 }
@@ -166,7 +166,7 @@ export function WeekGrid({
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pr-1 pb-2">
-						<GutterPair first="VN" second={secondZone ? secondZone.caption : null} />
+						<GutterPair local="VN" second={secondZone ? secondZone.caption : null} />
 					</div>
 					{dates.map((date) => {
 						const isToday = date === today
@@ -211,7 +211,7 @@ export function WeekGrid({
 							{HOURS.map((hour) => (
 								<GutterPair
 									key={hour}
-									first={hourLabel(hour)}
+									local={hourLabel(hour)}
 									second={secondZone ? gutterLabel(monday, hour, secondZone.id) : null}
 									top={hour * HOUR_HEIGHT}
 									className={cn('absolute inset-x-0 pr-1', hour > 0 && '-translate-y-1/2')}
