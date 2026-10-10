@@ -38,11 +38,8 @@
 - **D-12:** Вкладки статуса Active и Archived; поиск по имени на клиенте среди загруженных карточек (карточек 25, серверный поиск не нужен).
 - **D-13:** В строке: остаток уроков из `packages/core` по правилу D-09 фазы 19 (до ввода открывающего остатка «Set opening balance»; вычитание за уроки добавит фаза 21) и следующий урок из расписания в формате «Tue 14 Oct, 18:00» по времени Вьетнама; нет урока = «none».
 
-### Исследование Google Calendar API (из комментария владельца)
-- **D-14:** В этой фазе исследователь составляет полный перечень методов и ресурсов Google Calendar API v3 (events, calendars, calendarList, colors, acl, settings, freebusy, channels и др.) с коротким описанием, зачем каждый может понадобиться продукту. Это справочный документ для фаз 24-25 (`20-GCAL-API-CATALOG.md` в каталоге фазы), чтобы будущая интеграция не сводилась к одним цветам. Код интеграции и вызовы Google в фазе 20 не пишутся.
-
 ### Фэйд на скроллерах (правило владельца 2026-10-10, через «Design dude»)
-- **D-15:** Все скроллящиеся контейнеры сайта получают фэйд: класс `scroll-fade` (вертикаль) или `scroll-fade-x` (горизонталь) на элементе с overflow; компонент ScrollFade design system v21, токены `--scroll-fade-size` 48px и `--scroll-fade-size-compact` 24px уже в `tokens.css`. Фэйд только у края, куда ещё есть что листать, появляется за первые 48px скролла; контейнер ниже 96px без фэйда; 24px для контейнеров ниже ~200px и горизонтальных лент (`[--scroll-fade-size:var(--scroll-fade-size-compact)]`). Исключение только input и textarea. В этой фазе: тело страницы, WeekGrid (вертикаль), таблица списка учеников, диалоги и выпадающие списки новых экранов.
+- **D-14:** Все скроллящиеся контейнеры сайта получают фэйд: класс `scroll-fade` (вертикаль) или `scroll-fade-x` (горизонталь) на элементе с overflow; компонент ScrollFade design system v21, токены `--scroll-fade-size` 48px и `--scroll-fade-size-compact` 24px уже в `tokens.css`. Фэйд только у края, куда ещё есть что листать, появляется за первые 48px скролла; контейнер ниже 96px без фэйда; 24px для контейнеров ниже ~200px и горизонтальных лент (`[--scroll-fade-size:var(--scroll-fade-size-compact)]`). Исключение только input и textarea. В этой фазе: тело страницы, WeekGrid (вертикаль), таблица списка учеников, диалоги и выпадающие списки новых экранов.
 - Ловушки: фэйд — маска самого скроллера, поэтому рамку, кольцо, фон и тень переносить на обёртку, скроллер класть внутрь; sticky-шапку и колонку времени WeekGrid держать выше скроллера (день недели и подпись зон не внутри); с ScrollArea класс ставить на viewport (`viewportClassName="scroll-fade"`); маска не мешает кликам и drag-and-drop; без scroll-driven animations фэйда нет, статичный фэйд не делать; `useReducedMotion` не нужен. Не копировать утилиту `scroll-fade` из shadcn/tailwind.css (96px, ease-in-out, статичный fallback): нужна версия из лаборатории (`src/app/globals.css`: `@property --sf-start/--sf-end`, keyframes `sf-reveal-*`, `animation-timeline: scroll(self)`); правило `.scroll-fade, .scroll-fade-x { --scroll-fade-size: 48px }` из лаборатории при переносе удалить (без слоя, перебивает переопределение на элементе). — **Reversibility:** reversible — классы на элементах.
 
 ### Claude's Discretion
@@ -68,10 +65,10 @@
 - `/Volumes/T7/personal/dv-lab/.planning/design/variant-a/tokens.css` — токены дизайн-системы (в основной копии репозитория, не в git).
 - `/Volumes/T7/personal/vault/.planning/research/VARIANT-A-FUNCTIONS.md` §1.8 «Расписание» — функции сетки, диалога урока, статусов блоков.
 - `/Volumes/T7/personal/vault/.claude/worktrees/design-lab/src/app/lab/a/schedule/` и `src/components/lab/a/ui/` — экран расписания варианта A.
-- `/Volumes/T7/personal/vault/.claude/worktrees/design-lab/src/app/globals.css` — реализация фэйда (D-15); образец обёртки в MarkdownView.
+- `/Volumes/T7/personal/vault/.claude/worktrees/design-lab/src/app/globals.css` — реализация фэйда (D-14); образец обёртки в MarkdownView.
 - Память `schedule-google-calendar-style` — экран в стиле Google Calendar (панель Today, стрелки, заголовок месяца, сетка недели, красная линия «сейчас»), цвета Google позже.
 
-### Google Calendar (для D-14 и будущих фаз)
+### Google Calendar (для будущих фаз)
 - `CODE-AUDIT.md` (аудит календаря, упомянут в STATE.md Decisions) — детерминированные id, один писатель на урок, `events.watch` и `syncToken`, серия плюс исключения.
 
 </canonical_refs>
@@ -109,6 +106,7 @@
 ## Deferred Ideas
 
 - Цвета событий Google и модель цветов — фазы 24-25 после спайка `colors.get`.
+- Каталог всех методов Google Calendar API v3 (events, calendars, calendarList, colors, acl, settings, freebusy, channels и др.) с кратким «зачем нужен» — в фазе 24, когда проектируем работу с Google и получаем цвета: не останавливаться на цветах, держать список рядом (решение владельца 2026-10-10).
 - Отметки проведён / неявка, вычитание из остатка, вкладка «pays soon» — фаза 21.
 - Расписание на телефоне — фаза 23 (SHELL-03).
 - Массовые переносы, отмена диапазона и учёт перерывов из `Teaching breaks.md` — чат, фаза 23 (или по запросу владельца).
