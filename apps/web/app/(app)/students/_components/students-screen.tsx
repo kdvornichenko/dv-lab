@@ -12,6 +12,7 @@ import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { LessonsText, MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
+import { TimePair } from '@/components/app/time-pair'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
@@ -52,12 +53,7 @@ function matchesQuery(student: StudentRow, query: string) {
 
 function NextLesson({ at, zone, currentYear }: { at: Date; zone: string | null; currentYear: number }) {
 	const second = secondWhen(at, zone)
-	return (
-		<div className="flex flex-col">
-			<span>{formatWhen(at, SCHEDULE_TIME_ZONE, currentYear)}</span>
-			{second === null ? null : <span className="text-micro text-muted-foreground">{second}</span>}
-		</div>
-	)
+	return <TimePair main={formatWhen(at, SCHEDULE_TIME_ZONE, currentYear)} second={second} />
 }
 
 function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boolean }) {

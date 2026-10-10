@@ -2,7 +2,7 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
-import { formatDay, formatDayMonth, formatRange, formatTime, secondRange } from '@/lib/schedule-format'
+import { formatDay, formatDayMonth, formatRange, formatTime, vnRange } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock, ScheduleBlockStatus } from '@dv-lab/contracts'
@@ -82,12 +82,10 @@ export function LessonBlock({
 			: block.status === 'cancelled'
 				? 'cancelled'
 				: `moved to ${movedLabel ?? ''}`
-	const second = secondRange(start, block.durationMinutes, secondZone)
 	const label = [
 		block.studentName,
 		formatDay(start, SCHEDULE_TIME_ZONE, currentYear),
-		`${range} VN`,
-		...(second === null ? [] : [second]),
+		vnRange(start, block.durationMinutes, secondZone),
 		statusWord,
 	].join(', ')
 	const short = block.durationMinutes <= 30

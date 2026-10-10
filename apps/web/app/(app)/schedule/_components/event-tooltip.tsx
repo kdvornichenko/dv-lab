@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
+import { TimePair } from '@/components/app/time-pair'
 import { Tooltip } from '@/components/ui/tooltip'
 import { formatDayMonth, formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
 
@@ -86,9 +87,12 @@ export function EventTooltip({ block, layout, secondZone, currentYear, onOpen }:
 					<span className="text-caption text-muted-foreground">
 						{formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)}
 					</span>
-					<span className="text-caption tabular-nums">
-						{formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN{second === null ? '' : ` · ${second}`}
-					</span>
+					<TimePair
+						as="span"
+						main={`${formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN`}
+						second={second}
+						mainClassName="text-caption tabular-nums"
+					/>
 					<span className="text-caption">
 						<LessonStatus status={block.status} movedTo={movedTo} />
 					</span>

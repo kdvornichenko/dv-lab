@@ -6,6 +6,7 @@ import { CalendarCheck2, CalendarClock, CalendarX2 } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/app/avatar'
+import { TimePair } from '@/components/app/time-pair'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,12 +20,12 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
 	formatDate,
-	formatDayMonth,
 	formatFullDate,
 	formatRange,
-	formatTime,
 	secondRange,
 	seriesPhrase,
+	vnDayAt,
+	vnDayTime,
 	weekdayName,
 } from '@/lib/schedule-format'
 
@@ -76,8 +77,8 @@ function Detail({ label, wide, children }: { label: string; wide?: boolean; chil
 	)
 }
 
-function cancelQuestion(start: Date): string {
-	return `Cancel the lesson on ${formatDayMonth(start, SCHEDULE_TIME_ZONE)} at ${formatTime(start, SCHEDULE_TIME_ZONE)}?`
+function cancelQuestion(start: Date, zone: string | null): string {
+	return `Cancel the lesson on ${vnDayAt(start, zone)}?`
 }
 
 const pairButtonClass =
@@ -108,11 +109,7 @@ export function LessonDialog({
 	const second = secondRange(start, block.durationMinutes, secondZone)
 	const movedTo = block.movedTo === null ? null : new Date(block.movedTo)
 	const movedFrom = block.movedFrom === null ? null : new Date(block.movedFrom)
-	const description = [
-		formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear),
-		`${range} VN`,
-		...(second === null ? [] : [second]),
-	].join(' · ')
+	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
 	const plannedActions = block.changeable && block.status === 'scheduled'
 	const restoreAction = block.changeable && block.status === 'cancelled'
 	const seriesActions = block.changeable && block.ref.kind === 'series' && block.status !== 'moved'
@@ -147,7 +144,9 @@ export function LessonDialog({
 							</Link>
 						</DialogTitle>
 					</div>
-					<DialogDescription className="tabular-nums">{description}</DialogDescription>
+					<DialogDescription className="tabular-nums">
+						<TimePair as="span" main={description} second={second} />
+					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 					<div className="flex flex-col gap-4 py-1">
@@ -169,7 +168,7 @@ export function LessonDialog({
 									className={pairButtonClass}
 									onClick={() => onOpenPair({ key: block.key, slot: 'to', at: movedTo })}
 								>
-									moved to {formatDayMonth(movedTo, SCHEDULE_TIME_ZONE)}, {formatTime(movedTo, SCHEDULE_TIME_ZONE)} VN
+									moved to {vnDayTime(movedTo, secondZone)}
 								</button>
 							) : null}
 							{movedFrom !== null ? (
@@ -178,8 +177,7 @@ export function LessonDialog({
 									className={pairButtonClass}
 									onClick={() => onOpenPair({ key: block.key, slot: 'from', at: movedFrom })}
 								>
-									moved from {formatDayMonth(movedFrom, SCHEDULE_TIME_ZONE)},{' '}
-									{formatTime(movedFrom, SCHEDULE_TIME_ZONE)}
+									moved from {vnDayTime(movedFrom, secondZone)}
 								</button>
 							) : null}
 							{block.studentGoal ? <span className="text-muted-foreground">· {block.studentGoal}</span> : null}
@@ -269,7 +267,7 @@ export function LessonDialog({
 								data-slot="lesson-cancel-question"
 								className="flex w-full flex-wrap items-center justify-end gap-2"
 							>
-								<span className="mr-auto text-body text-foreground">{cancelQuestion(start)}</span>
+								<span className="mr-auto text-body text-foreground">{cancelQuestion(start, secondZone)}</span>
 								<Button
 									type="button"
 									variant="ghost"

@@ -5,10 +5,20 @@ import { useEffect, useEffectEvent, useState } from 'react'
 import { ArrowRight, CalendarClock } from 'lucide-react'
 
 import { DateField } from '@/components/app/date-field'
+import { TimePair } from '@/components/app/time-pair'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
-import { formatDate, formatFullDate, formatRange, formatTime, formatWhen, secondRange } from '@/lib/schedule-format'
+import {
+	formatDate,
+	formatFullDate,
+	formatRange,
+	formatTime,
+	secondRange,
+	secondWhen,
+	vnRange,
+	vnWhen,
+} from '@/lib/schedule-format'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, overlaps, zonedInstant, zonedParts } from '@dv-lab/core'
@@ -107,7 +117,7 @@ export function LessonMoveForm({
 		const moved = new Date(changedStart(result.data))
 		toast.show({
 			title: 'Lesson moved',
-			description: `${block.studentName}: ${formatWhen(start, SCHEDULE_TIME_ZONE, currentYear)} to ${formatWhen(moved, SCHEDULE_TIME_ZONE, currentYear)}.`,
+			description: `${block.studentName}: ${vnWhen(start, secondZone, currentYear)} to ${vnWhen(moved, secondZone, currentYear)}.`,
 		})
 		onMoved(moved)
 	}
@@ -161,29 +171,28 @@ export function LessonMoveForm({
 			<p
 				aria-live="polite"
 				data-slot="move-lesson-change"
-				className="flex flex-wrap items-center gap-1.5 text-body text-foreground tabular-nums"
+				className="flex flex-wrap items-start gap-1.5 text-body text-foreground tabular-nums"
 			>
-				<span className="text-muted-foreground">
-					{formatDate(current.date, currentYear)}, {formatTime(start, SCHEDULE_TIME_ZONE)}
-				</span>
-				<ArrowRight aria-hidden className="size-4 text-muted-foreground" />
+				<TimePair
+					as="span"
+					main={`${formatDate(current.date, currentYear)}, ${formatTime(start, SCHEDULE_TIME_ZONE)}`}
+					second={secondWhen(start, secondZone)}
+					className="text-muted-foreground"
+				/>
+				<ArrowRight aria-hidden className="mt-0.5 size-4 text-muted-foreground" />
 				{target === null ? null : (
-					<>
-						<span>
-							{formatFullDate(target, SCHEDULE_TIME_ZONE, currentYear)} ·{' '}
-							{formatRange(target, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN
-						</span>
-						{second === null ? null : <span className="text-muted-foreground">· {second}</span>}
-					</>
+					<TimePair
+						as="span"
+						main={`${formatFullDate(target, SCHEDULE_TIME_ZONE, currentYear)} · ${formatRange(target, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN`}
+						second={second}
+					/>
 				)}
 			</p>
 			{clashes.length > 0 ? (
 				<p data-slot="move-lesson-clash" className="text-body text-destructive">
 					A lesson is already at this time:{' '}
 					{clashes
-						.map(
-							(item) => `${item.studentName} ${formatRange(item.startsAt, item.durationMinutes, SCHEDULE_TIME_ZONE)}`
-						)
+						.map((item) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, secondZone)}`)
 						.join(', ')}
 				</p>
 			) : null}

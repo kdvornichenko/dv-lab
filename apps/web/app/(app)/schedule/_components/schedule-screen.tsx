@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 import {
-	formatWhen,
 	lessonCount,
+	vnWhen,
 	weekEyebrow,
 	weekPhrase,
 	weekRange,
@@ -234,7 +234,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 		if (result.kind === 'stale') return 'stale'
 		toast.show({
 			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
-			description: `${block.studentName}, ${formatWhen(new Date(block.startsAt), SCHEDULE_TIME_ZONE, currentYear)}.`,
+			description: `${block.studentName}, ${vnWhen(new Date(block.startsAt), zone, currentYear)}.`,
 		})
 		return 'ok'
 	}

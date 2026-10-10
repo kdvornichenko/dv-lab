@@ -18,8 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
 import { apiRequest } from '@/lib/api-client'
-import { formatRange, formatWhen, weekdayName } from '@/lib/schedule-format'
-import { zoneCaption } from '@/lib/time-zones'
+import { secondWhen, vnRange, vnWhen, weekdayName } from '@/lib/schedule-format'
 
 import {
 	LESSON_MINUTES_MAX,
@@ -28,7 +27,7 @@ import {
 	type ScheduleCreateResponse,
 	type StudentRow,
 } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, overlaps, weekdayOf, zonedInstant, zonedParts, type OverlapItem } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, overlaps, weekdayOf, zonedInstant, type OverlapItem } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 
@@ -59,16 +58,12 @@ function parseLength(text: string): number | null {
 }
 
 function secondZoneLine(date: string, time: string | null, zone: string | null): string | null {
-	if (zone === null || time === null) return null
-	const instant = zonedInstant(date, time, SCHEDULE_TIME_ZONE)
-	const parts = zonedParts(instant, zone)
-	const suffix = parts.date < date ? ', the day before' : parts.date > date ? ', the day after' : ''
-	return `${parts.time} ${zoneCaption(zone, instant, 'toolbar')}${suffix}`
+	if (time === null) return null
+	return secondWhen(zonedInstant(date, time, SCHEDULE_TIME_ZONE), zone)
 }
 
-function clashText(items: readonly OverlapBlock[]): string {
-	const label = (item: OverlapBlock) =>
-		`${item.studentName} ${formatRange(item.startsAt, item.durationMinutes, SCHEDULE_TIME_ZONE)}`
+function clashText(items: readonly OverlapBlock[], zone: string | null): string {
+	const label = (item: OverlapBlock) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, zone)}`
 	if (items.length === 1) return `${label(items[0])}. You can still save.`
 	if (items.length === 2) return `${label(items[0])} and ${label(items[1])}. You can still save.`
 	return `${label(items[0])}, ${label(items[1])} and ${items.length - 2} more. You can still save.`
@@ -165,7 +160,7 @@ export function NewLessonDialog({
 		if ('lesson' in result.data) {
 			toast.show({
 				title: 'Lesson added',
-				description: `${name}, ${formatWhen(new Date(result.data.lesson.startsAt), SCHEDULE_TIME_ZONE, currentYear)}.`,
+				description: `${name}, ${vnWhen(new Date(result.data.lesson.startsAt), secondZone, currentYear)}.`,
 			})
 		} else {
 			toast.show({
@@ -204,7 +199,7 @@ export function NewLessonDialog({
 							{clashes.length > 0 ? (
 								<Banner status="warning" data-slot="new-lesson-overlap">
 									<BannerTitle>This overlaps another lesson</BannerTitle>
-									<BannerDescription>{clashText(clashes)}</BannerDescription>
+									<BannerDescription>{clashText(clashes, secondZone)}</BannerDescription>
 								</Banner>
 							) : null}
 							<div className="flex min-w-0 flex-col gap-2">

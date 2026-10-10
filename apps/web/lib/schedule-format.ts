@@ -166,7 +166,10 @@ export function weekSummary(blocks: readonly { status: string; studentId: string
 
 export function secondRange(start: Date, minutes: number, zone: string | null): string | null {
 	if (zone === null) return null
-	return `${formatRange(start, minutes, zone)} ${zoneCaption(zone, start, 'toolbar')}`
+	const range = `${formatRange(start, minutes, zone)} ${zoneCaption(zone, start, 'toolbar')}`
+	const date = dateOf(start, zone)
+	if (date === dateOf(start, SCHEDULE_TIME_ZONE)) return range
+	return `${weekdayShort(date)} ${range}`
 }
 
 export function secondWhen(instant: Date, zone: string | null): string | null {
@@ -180,4 +183,26 @@ export function secondWhen(instant: Date, zone: string | null): string | null {
 
 export function weeksBetween(fromMonday: string, toMonday: string): number {
 	return Math.round((Date.parse(`${toMonday}T00:00:00Z`) - Date.parse(`${fromMonday}T00:00:00Z`)) / (7 * 86400000))
+}
+
+export function withSecond(main: string, second: string | null): string {
+	return second === null ? main : `${main} (${second})`
+}
+
+export function vnWhen(instant: Date, zone: string | null, currentYear: number): string {
+	return withSecond(`${formatWhen(instant, SCHEDULE_TIME_ZONE, currentYear)} VN`, secondWhen(instant, zone))
+}
+
+export function vnDayTime(instant: Date, zone: string | null): string {
+	const main = `${formatDayMonth(instant, SCHEDULE_TIME_ZONE)}, ${formatTime(instant, SCHEDULE_TIME_ZONE)} VN`
+	return withSecond(main, secondWhen(instant, zone))
+}
+
+export function vnDayAt(instant: Date, zone: string | null): string {
+	const main = `${formatDayMonth(instant, SCHEDULE_TIME_ZONE)} at ${formatTime(instant, SCHEDULE_TIME_ZONE)} VN`
+	return withSecond(main, secondWhen(instant, zone))
+}
+
+export function vnRange(start: Date, minutes: number, zone: string | null): string {
+	return withSecond(`${formatRange(start, minutes, SCHEDULE_TIME_ZONE)} VN`, secondRange(start, minutes, zone))
 }

@@ -940,7 +940,11 @@ async function readPart1(page, fx, nav) {
 		Boolean(a0) && a0.label.endsWith(', planned') && a0.label.includes('18:00–19:00 VN'),
 		a0?.label
 	)
-	check('week 0: second zone is in the label', Boolean(a0) && a0.label.includes('MSK'), a0?.label)
+	check(
+		'week 0: second zone is in brackets in the label',
+		Boolean(a0) && a0.label.includes('18:00–19:00 VN (14:00–15:00 MSK), planned'),
+		a0?.label
+	)
 	check(
 		'week 0: name line and range line',
 		Boolean(a0) && a0.lines.join('|') === `${NAME_A}|18:00–19:00`,
@@ -1135,6 +1139,43 @@ function fullDate(date) {
 const blockLocator = (page, name, date) =>
 	page.locator(`[data-slot="week-grid-column"][data-date="${date}"] button[aria-label^="${name}, "]`).first()
 
+async function pairOf(locator) {
+	return locator.evaluate((root) => {
+		const main = root.querySelector('[data-slot="time-main"]')
+		const second = root.querySelector('[data-slot="time-second"]')
+		const style = second ? getComputedStyle(second) : null
+		return {
+			main: main?.textContent ?? null,
+			second: second?.textContent ?? null,
+			size: style?.fontSize,
+			line: style?.lineHeight,
+			muted: second ? second.className.includes('text-muted-foreground') : false,
+			numeric: style?.fontVariantNumeric ?? '',
+			after: main && second ? Boolean(main.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) : false,
+			stacked: main && second ? second.getBoundingClientRect().top >= main.getBoundingClientRect().bottom - 1 : false,
+		}
+	})
+}
+
+function checkPair(label, pair, main, second) {
+	check(`${label}: main line is ${main}`, pair.main === main, String(pair.main))
+	if (second === null) {
+		check(`${label}: no second line without a second zone`, pair.second === null, String(pair.second))
+		return
+	}
+	check(`${label}: second line is ${second}`, pair.second === second, String(pair.second))
+	check(
+		`${label}: second line is 11px over 14px`,
+		pair.size === '11px' && pair.line === '14px',
+		`${pair.size}/${pair.line}`
+	)
+	check(
+		`${label}: second line is muted, tabular and under the main line`,
+		pair.muted && pair.numeric.includes('tabular-nums') && pair.after && pair.stacked,
+		JSON.stringify(pair)
+	)
+}
+
 async function tooltipFacts(page) {
 	return page.evaluate(() => {
 		const content = document.querySelector('[data-slot="event-tooltip"]')
@@ -1149,6 +1190,7 @@ async function tooltipFacts(page) {
 		const expectedRadius = getComputedStyle(probe).borderTopLeftRadius
 		probe.remove()
 		return {
+			nameWeight: getComputedStyle(content.querySelector('span')).fontWeight,
 			expectedRadius,
 			text: content.textContent,
 			background: style.backgroundColor,
@@ -1180,10 +1222,12 @@ async function readPart2(page, fx, nav) {
 		tip !== null &&
 			tip.text.includes(NAME_A) &&
 			tip.text.includes(fullDate(fx.wednesday)) &&
-			tip.text.includes('18:00–19:00 VN · 14:00–15:00 MSK') &&
+			tip.text.includes('18:00–19:00 VN14:00–15:00 MSK') &&
 			tip.text.endsWith('Planned'),
 		tip?.text
 	)
+	check('tooltip: the name is semibold', tip !== null && tip.nameWeight === '600', tip?.nameWeight)
+	checkPair('tooltip', await pairOf(page.locator('[data-slot="event-tooltip"]')), '18:00–19:00 VN', '14:00–15:00 MSK')
 	check(
 		'tooltip: surface-4, rounded-xl, p-3, up to 280px, shadow',
 		tip !== null &&
@@ -1240,9 +1284,15 @@ async function readPart2(page, fx, nav) {
 		`${facts.href} ${facts.linkText}`
 	)
 	check(
-		'dialog: description has the date, both zones',
-		facts.text.includes(`${fullDate(fx.wednesday)} · 18:00–19:00 VN · 14:00–15:00 MSK`),
+		'dialog: description has the date and the Vietnam range',
+		facts.text.includes(`${fullDate(fx.wednesday)} · 18:00–19:00 VN`),
 		facts.text.slice(0, 160)
+	)
+	checkPair(
+		'dialog header',
+		await pairOf(dialog.locator('[data-slot="time-pair"]').first()),
+		`${fullDate(fx.wednesday)} · 18:00–19:00 VN`,
+		'14:00–15:00 MSK'
 	)
 	check(
 		'dialog: status row says Planned with the card goal',
@@ -1282,7 +1332,7 @@ async function readPart2(page, fx, nav) {
 	const movedText = await dialog.textContent()
 	check(
 		'dialog: moved original says Moved and where to',
-		/Moved/.test(movedText) && movedText.includes(`moved to ${dayMonth(fx.movedTo)}, 10:00 VN`),
+		/Moved/.test(movedText) && movedText.includes(`moved to ${dayMonth(fx.movedTo)}, 10:00 VN (06:00 MSK)`),
 		movedText.slice(0, 200)
 	)
 	check(
@@ -1296,7 +1346,7 @@ async function readPart2(page, fx, nav) {
 		'dialog: the button opens the destination lesson',
 		toText.includes('Planned') &&
 			toText.includes('10:00–11:00 VN') &&
-			toText.includes(`moved from ${dayMonth(fx.movedFrom)}, 18:00`),
+			toText.includes(`moved from ${dayMonth(fx.movedFrom)}, 18:00 VN (14:00 MSK)`),
 		toText.slice(0, 200)
 	)
 	await page
@@ -1307,7 +1357,7 @@ async function readPart2(page, fx, nav) {
 	const backText = await page.getByRole('dialog').textContent()
 	check(
 		'dialog: and back to the original',
-		backText.includes(`moved to ${dayMonth(fx.movedTo)}, 10:00 VN`),
+		backText.includes(`moved to ${dayMonth(fx.movedTo)}, 10:00 VN (06:00 MSK)`),
 		backText.slice(0, 160)
 	)
 	await page.keyboard.press('Escape')
@@ -1327,7 +1377,8 @@ async function readPart2(page, fx, nav) {
 	const crossText = await page.getByRole('dialog').textContent()
 	check(
 		'dialog: the pair in another week opens after that week loads',
-		crossText.includes(`moved from ${dayMonth(fx.farFrom)}, 18:00`) && crossText.includes('11:00–12:00 VN'),
+		crossText.includes(`moved from ${dayMonth(fx.farFrom)}, 18:00 VN (14:00 MSK)`) &&
+			crossText.includes('11:00–12:00 VN'),
 		crossText.slice(0, 200)
 	)
 	await page.keyboard.press('Escape')
@@ -1355,6 +1406,67 @@ async function readPart2(page, fx, nav) {
 	await shot(page, 'sched-read', 'dialog-past')
 	await page.keyboard.press('Escape')
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+
+	const reopenWeek = async (zone) => {
+		await setSecondZone(page, zone)
+		await page.reload()
+		await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+		nav.monday = core.mondayOf(fx.today)
+		await goToWeek(page, nav, fx.week0)
+	}
+	await reopenWeek('Pacific/Auckland')
+	const lessonStart = new Date(whenText(fx.wednesday, '18:00'))
+	const startParts = core.zonedParts(lessonStart, 'Pacific/Auckland')
+	const endParts = core.zonedParts(new Date(lessonStart.getTime() + 3600000), 'Pacific/Auckland')
+	const dayPrefix =
+		startParts.date === core.zonedParts(lessonStart, VN).date ? '' : `${WEEKDAYS[startParts.weekday - 1]} `
+	const offsetCaption = expectedSecond(lessonStart.toISOString(), 'Pacific/Auckland').split(' ').pop()
+	await blockLocator(page, NAME_A, fx.wednesday).click()
+	await dialog.waitFor({ timeout: 10000 })
+	check(
+		'dialog: another date in the second zone puts the weekday before the whole range',
+		(await pairOf(dialog.locator('[data-slot="time-pair"]').first())).second ===
+			`${dayPrefix}${startParts.time}–${endParts.time} ${offsetCaption}`,
+		`${dayPrefix}${startParts.time}–${endParts.time} ${offsetCaption}`
+	)
+	check('dialog: that weekday is really shown', dayPrefix !== '', dayPrefix)
+	await page.keyboard.press('Escape')
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await reopenWeek('none')
+	const plain = blockLocator(page, NAME_A, fx.wednesday)
+	await plain.scrollIntoViewIfNeeded()
+	await plain.hover()
+	await page.waitForFunction(() => document.querySelector('[data-slot="event-tooltip"]') !== null, null, {
+		timeout: 2000,
+	})
+	await page.waitForTimeout(250)
+	checkPair(
+		'tooltip without a second zone',
+		await pairOf(page.locator('[data-slot="event-tooltip"]')),
+		'18:00–19:00 VN',
+		null
+	)
+	const plainLabel = (await plain.getAttribute('aria-label')) ?? ''
+	check(
+		'block label without a second zone has no brackets',
+		plainLabel.includes('18:00–19:00 VN, planned') && !plainLabel.includes('('),
+		plainLabel
+	)
+	await page.mouse.move(4, 4)
+	await plain.click()
+	await dialog.waitFor({ timeout: 10000 })
+	checkPair(
+		'dialog header without a second zone',
+		await pairOf(dialog.locator('[data-slot="time-pair"]').first()),
+		`${fullDate(fx.wednesday)} · 18:00–19:00 VN`,
+		null
+	)
+	await page.keyboard.press('Escape')
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await setSecondZone(page, null)
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	nav.monday = core.mondayOf(fx.today)
 }
 
 const newButton = (page) => page.getByRole('button', { name: 'New lesson', exact: true })
@@ -1516,8 +1628,8 @@ async function readPart3(page, fx, nav) {
 	await pickTime(page, '02:00')
 	facts = await dialogFacts(page)
 	check(
-		'new lesson: the second zone is shown under Start time with the day',
-		facts.zone === '22:00 MSK, the day before',
+		'new lesson: the second zone is shown under Start time, with the weekday when the date differs',
+		facts.zone === `${WEEKDAYS[core.weekdayOf(core.addDays(expectedDate, -1)) - 1]} 22:00 MSK`,
 		facts.zone
 	)
 	await pickTime(page, '14:00')
@@ -1561,7 +1673,7 @@ async function readPart3(page, fx, nav) {
 	check(
 		'new lesson: toast names the card and the time',
 		toast.includes(
-			`${NAME_A}, ${new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${fx.thursday}T12:00:00Z`))} ${dayMonth(fx.thursday)}, 14:00.`
+			`${NAME_A}, ${new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${fx.thursday}T12:00:00Z`))} ${dayMonth(fx.thursday)}, 14:00 VN (10:00 MSK).`
 		),
 		toast
 	)
@@ -1641,8 +1753,8 @@ async function readPart3(page, fx, nav) {
 		'new lesson: overlapping lessons give a warning with both names',
 		facts.overlap !== null &&
 			facts.overlap.includes('This overlaps another lesson') &&
-			facts.overlap.includes(`${NAME_A} 18:00–19:00`) &&
-			facts.overlap.includes(`${NAME_B} 18:30–19:30`) &&
+			facts.overlap.includes(`${NAME_A} 18:00–19:00 VN (14:00–15:00 MSK)`) &&
+			facts.overlap.includes(`${NAME_B} 18:30–19:30 VN (14:30–15:30 MSK)`) &&
 			facts.overlap.includes('You can still save.'),
 		facts.overlap ?? 'no banner'
 	)
@@ -1890,7 +2002,7 @@ async function changesPart1(page, fx, nav, posts) {
 	}))
 	check(
 		'cancel: the footer asks with the date and time',
-		asked.text.includes(`Cancel the lesson on ${dayMonth(fx.wed)} at 18:00?`) && asked.role === 'alert',
+		asked.text.includes(`Cancel the lesson on ${dayMonth(fx.wed)} at 18:00 VN (14:00 MSK)?`) && asked.role === 'alert',
 		asked.text
 	)
 	buttons = await dialogButtons(page)
@@ -1913,7 +2025,7 @@ async function changesPart1(page, fx, nav, posts) {
 	const cancelledToast = await toastText(page, 'Lesson cancelled')
 	check(
 		'cancel: toast names the lesson',
-		cancelledToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00.`),
+		cancelledToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00 VN (14:00 MSK).`),
 		cancelledToast
 	)
 	check('cancel: the block turns cancelled on the grid', await waitBlock(page, CH_A, fx.wed, 'to', ', cancelled'))
@@ -1938,7 +2050,7 @@ async function changesPart1(page, fx, nav, posts) {
 	const restoredToast = await toastText(page, 'Lesson restored')
 	check(
 		'restore: toast names the lesson',
-		restoredToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00.`),
+		restoredToast.includes(`${CH_A}, ${shortDay(fx.wed)}, 18:00 VN (14:00 MSK).`),
 		restoredToast
 	)
 	check('restore: the block is planned again', await waitBlock(page, CH_A, fx.wed, 'to', ', planned'))
@@ -1964,7 +2076,11 @@ async function changesPart1(page, fx, nav, posts) {
 	await dialog.getByRole('button', { name: 'Cancel lesson' }).click()
 	await dialog.getByRole('button', { name: 'Yes, cancel' }).click()
 	const singleToast = await toastText(page, 'Lesson cancelled', CH_B)
-	check('single cancel: toast names B', singleToast.includes(`${CH_B}, ${shortDay(fx.wed)}, 12:00.`), singleToast)
+	check(
+		'single cancel: toast names B',
+		singleToast.includes(`${CH_B}, ${shortDay(fx.wed)}, 12:00 VN (08:00 MSK).`),
+		singleToast
+	)
 	check('single cancel: B is cancelled on the grid', await waitBlock(page, CH_B, fx.wed, 'to', ', cancelled'))
 	await page.waitForTimeout(300)
 	await dialog.getByRole('button', { name: 'Return to schedule' }).click()
@@ -2084,8 +2200,16 @@ async function changesPart2(page, fx, nav, posts) {
 		form !== null &&
 			form.change.includes(`${shortDay(fx.wed)}, 18:00`) &&
 			form.change.includes(`${fullDate(fx.wed)} · 18:00–19:00 VN`) &&
-			form.change.includes('· 14:00–15:00 MSK'),
+			form.change.includes('14:00–15:00 MSK'),
 		form?.change
+	)
+	const changePairs = dialog.locator('[data-slot="move-lesson-change"] [data-slot="time-pair"]')
+	checkPair('move: old time', await pairOf(changePairs.nth(0)), `${shortDay(fx.wed)}, 18:00`, '14:00 MSK')
+	checkPair(
+		'move: new time',
+		await pairOf(changePairs.nth(1)),
+		`${fullDate(fx.wed)} · 18:00–19:00 VN`,
+		'14:00–15:00 MSK'
 	)
 	check(
 		'move: focus moves into the form',
@@ -2150,7 +2274,7 @@ async function changesPart2(page, fx, nav, posts) {
 	form = await moveFormFacts(page)
 	check(
 		'move: a clash shows the lesson already at this time',
-		form?.clash === `A lesson is already at this time: ${CH_B} 12:00–13:00`,
+		form?.clash === `A lesson is already at this time: ${CH_B} 12:00–13:00 VN (08:00–09:00 MSK)`,
 		form?.clash ?? 'no clash line'
 	)
 	check('move: the clash does not disable Move lesson', form?.submit === false, String(form?.submit))
@@ -2168,7 +2292,9 @@ async function changesPart2(page, fx, nav, posts) {
 	const movedToast = await toastText(page, 'Lesson moved', CH_A)
 	check(
 		'move: toast names the old and the new time',
-		movedToast.includes(`${CH_A}: ${shortDay(fx.wed)}, 18:00 to ${shortDay(fx.friday)}, 10:00.`),
+		movedToast.includes(
+			`${CH_A}: ${shortDay(fx.wed)}, 18:00 VN (14:00 MSK) to ${shortDay(fx.friday)}, 10:00 VN (06:00 MSK).`
+		),
 		movedToast
 	)
 	check('move: the destination stands on Friday', await waitBlock(page, CH_A, fx.friday, 'to', ', planned'))
