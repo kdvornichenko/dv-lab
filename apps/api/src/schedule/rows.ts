@@ -72,7 +72,9 @@ export function toSeriesException(row: ExceptionRecord): SeriesException {
 	const originalOn = row.originalOn
 	switch (row.kind) {
 		case 'cancelled':
-			return { seriesId, originalOn, kind: 'cancelled' }
+			return row.startsAt === null || row.durationMinutes === null
+				? { seriesId, originalOn, kind: 'cancelled' }
+				: { seriesId, originalOn, kind: 'cancelled', startsAt: row.startsAt, durationMinutes: row.durationMinutes }
 		case 'restored':
 			return { seriesId, originalOn, kind: 'restored' }
 		case 'moved':
@@ -183,7 +185,7 @@ export async function loadScheduleRows(executor: DbExecutor, range: ScheduleRang
 					toDate === null ? undefined : lte(lessonExceptions.originalOn, toDate)
 				)
 	const movedInWindow = and(
-		eq(lessonExceptions.kind, 'moved'),
+		inArray(lessonExceptions.kind, ['moved', 'cancelled']),
 		gte(lessonExceptions.startsAt, from),
 		to === null ? undefined : lt(lessonExceptions.startsAt, to)
 	)

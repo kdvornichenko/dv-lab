@@ -8,6 +8,7 @@ import {
 	type SeriesException,
 	type SeriesRule,
 	canChange,
+	movedAway,
 	occurrenceAt,
 	zonedInstant,
 	zonedParts,
@@ -66,7 +67,9 @@ async function lockOccurrence(
 
 async function markException(executor: DbExecutor, rule: SeriesRule, exception: SeriesException) {
 	const time =
-		exception.kind === 'moved' ? { startsAt: exception.startsAt, durationMinutes: exception.durationMinutes } : {}
+		exception.kind === 'restored'
+			? { startsAt: null, durationMinutes: null }
+			: { startsAt: exception.startsAt ?? null, durationMinutes: exception.durationMinutes ?? null }
 	const [row] = await executor
 		.insert(lessonExceptions)
 		.values({ seriesId: exception.seriesId, originalOn: exception.originalOn, kind: exception.kind, ...time })
@@ -137,7 +140,16 @@ export function cancelOccurrence(
 		) {
 			return CHANGED
 		}
-		return markException(tx, rule, { seriesId, originalOn, kind: 'cancelled' })
+		const exception: SeriesException = movedAway(occurrence)
+			? {
+					seriesId,
+					originalOn,
+					kind: 'cancelled',
+					startsAt: occurrence.startsAt,
+					durationMinutes: occurrence.durationMinutes,
+				}
+			: { seriesId, originalOn, kind: 'cancelled' }
+		return markException(tx, rule, exception)
 	})
 }
 
@@ -155,12 +167,21 @@ export function restoreOccurrence(
 		if (
 			occurrence === null ||
 			occurrence.status !== 'cancelled' ||
-			!canChange(occurrence.naturalStart, now) ||
-			stale(input.expectedStartsAt, occurrence.naturalStart)
+			!canChange(occurrence.startsAt, now) ||
+			stale(input.expectedStartsAt, occurrence.startsAt)
 		) {
 			return CHANGED
 		}
-		return markException(tx, rule, { seriesId, originalOn, kind: 'restored' })
+		const exception: SeriesException = movedAway(occurrence)
+			? {
+					seriesId,
+					originalOn,
+					kind: 'moved',
+					startsAt: occurrence.startsAt,
+					durationMinutes: occurrence.durationMinutes,
+				}
+			: { seriesId, originalOn, kind: 'restored' }
+		return markException(tx, rule, exception)
 	})
 }
 

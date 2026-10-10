@@ -514,6 +514,90 @@ function partTwo() {
 		}
 	)
 
+	const cancelledMoved = [
+		{
+			seriesId: 'series-a',
+			originalOn: '2026-10-14',
+			kind: 'cancelled',
+			startsAt: at('2026-10-16', '09:00'),
+			durationMinutes: 45,
+		},
+	]
+	const cancelledAcross = [
+		{
+			seriesId: 'series-a',
+			originalOn: '2026-10-21',
+			kind: 'cancelled',
+			startsAt: at('2026-10-12', '16:00'),
+			durationMinutes: 60,
+		},
+	]
+	const occurrence = core.occurrenceAt(weekly, '2026-10-14', cancelledMoved[0])
+	expect(
+		's13 a cancelled moved occurrence stands cancelled on the moved place',
+		{
+			occurrence: {
+				status: occurrence?.status,
+				startsAt: occurrence?.startsAt,
+				naturalStart: occurrence?.naturalStart,
+				durationMinutes: occurrence?.durationMinutes,
+			},
+			insideWeek: windowOf([weekly], cancelledMoved, [], '2026-10-12'),
+			thisWeek: windowOf([weekly], cancelledAcross, [], '2026-10-12').filter((block) => block.key === movedKey),
+			nextWeek: windowOf([weekly], cancelledAcross, [], '2026-10-19').filter((block) => block.key === movedKey),
+			next: entries(core.nextLessons({ series: [weekly], exceptions: cancelledMoved, lessons: [], now: NOW })),
+			cutLessons: cut(weekly, cancelledMoved, { from: '2026-10-14', weekday: 4, startTime: '17:00' }).lessons,
+		},
+		{
+			occurrence: {
+				status: 'cancelled',
+				startsAt: '2026-10-16T02:00:00.000Z',
+				naturalStart: '2026-10-14T11:00:00.000Z',
+				durationMinutes: 45,
+			},
+			insideWeek: [
+				{
+					key: 's:series-a:2026-10-14',
+					status: 'moved',
+					startsAt: '2026-10-14T11:00:00.000Z',
+					durationMinutes: 60,
+					movedTo: '2026-10-16T02:00:00.000Z',
+					movedFrom: null,
+				},
+				{
+					key: 's:series-a:2026-10-14',
+					status: 'cancelled',
+					startsAt: '2026-10-16T02:00:00.000Z',
+					durationMinutes: 45,
+					movedTo: null,
+					movedFrom: '2026-10-14T11:00:00.000Z',
+				},
+			],
+			thisWeek: [
+				{
+					key: movedKey,
+					status: 'cancelled',
+					startsAt: '2026-10-12T09:00:00.000Z',
+					durationMinutes: 60,
+					movedTo: null,
+					movedFrom: '2026-10-21T11:00:00.000Z',
+				},
+			],
+			nextWeek: [
+				{
+					key: movedKey,
+					status: 'moved',
+					startsAt: '2026-10-21T11:00:00.000Z',
+					durationMinutes: 60,
+					movedTo: '2026-10-12T09:00:00.000Z',
+					movedFrom: null,
+				},
+			],
+			next: [[STUDENT, '2026-10-21T11:00:00.000Z']],
+			cutLessons: [],
+		}
+	)
+
 	return { results, expected }
 }
 

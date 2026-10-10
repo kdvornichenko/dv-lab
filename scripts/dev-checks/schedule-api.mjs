@@ -426,6 +426,66 @@ async function expectStatus(label, send, status) {
 	return res
 }
 
+async function partPastOrigin(ctx) {
+	const { api, cookie, today } = ctx
+	const cardC = await createCard(api, cookie, ctx.ids, `${CHANGES_NAME} C`)
+	const yesterday = core.addDays(today, -1)
+	const natural = instant(yesterday, '07:00')
+	const target = instant(core.addDays(today, 2), '07:00')
+	const s9 = insertSeries(cardC, core.weekdayOf(yesterday), '07:00', core.addDays(yesterday, -7), null)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(s9)}, ${quote(yesterday)}, 'moved', ${quote(target)}, 60)`
+	)
+	countRows(ctx)
+	const key = `s:${s9}:${yesterday}`
+	const placed = async () => {
+		const blocks = [
+			...(await seriesBlocks(api, cookie, yesterday, s9)),
+			...(await seriesBlocks(api, cookie, core.addDays(today, 2), s9)),
+		]
+		const unique = new Map(blocks.map((block) => [`${block.key}|${block.startsAt}|${block.status}`, block]))
+		return [...unique.values()].filter((block) => block.key === key)
+	}
+	const cancelled = await post(api, cookie, occurrencePath(s9, yesterday, 'cancel'), { expectedStartsAt: target })
+	check(
+		'cancel of a lesson moved from yesterday to the future gives 200 on the moved time',
+		cancelled.status === 200 &&
+			cancelled.json?.occurrence?.status === 'cancelled' &&
+			cancelled.json?.occurrence?.startsAt === target,
+		`status ${cancelled.status} ${JSON.stringify(cancelled.json ?? null)}`
+	)
+	countRows(ctx)
+	let blocks = await placed()
+	check(
+		'the cancelled lesson stands on the moved place, changeable, and yesterday keeps the ghost',
+		blocks.length === 2 &&
+			blocks.some(
+				(block) =>
+					block.status === 'cancelled' &&
+					block.startsAt === target &&
+					block.movedFrom === natural &&
+					block.changeable === true
+			) &&
+			blocks.some((block) => block.status === 'moved' && block.startsAt === natural && block.movedTo === target),
+		JSON.stringify(blocks.map((block) => [block.status, block.startsAt, block.changeable]))
+	)
+	const restored = await post(api, cookie, occurrencePath(s9, yesterday, 'restore'), { expectedStartsAt: target })
+	check(
+		'restore of that lesson gives 200 and returns it to the moved place',
+		restored.status === 200 &&
+			restored.json?.occurrence?.status === 'moved' &&
+			restored.json?.occurrence?.startsAt === target,
+		`status ${restored.status} ${JSON.stringify(restored.json ?? null)}`
+	)
+	countRows(ctx)
+	blocks = await placed()
+	check(
+		'after restore the lesson is planned on the moved place again',
+		blocks.some((block) => block.status === 'scheduled' && block.startsAt === target) &&
+			exceptionRow(s9, yesterday)?.kind === 'moved'
+	)
+}
+
 async function partOccurrence(ctx) {
 	const { api, cookie, s1, dW, today } = ctx
 	const at = (date) => instant(date, '18:00')
@@ -524,34 +584,89 @@ async function partOccurrence(ctx) {
 	})
 	check('cancel the moved dW+14 gives 200', cancelMoved.status === 200, `status ${cancelMoved.status}`)
 	countRows(ctx)
+	const mondayNoon = instant(mondayNext, '12:00')
+	week = await seriesBlocks(api, cookie, dW7, s1)
+	check(
+		'week dW+7 shows the moved dW+14 cancelled on Monday 12:00 with Return to schedule allowed',
+		week.some(
+			(block) =>
+				block.key === key(dW14) &&
+				block.status === 'cancelled' &&
+				block.startsAt === mondayNoon &&
+				block.movedFrom === at(dW14) &&
+				block.changeable === true
+		)
+	)
 	week = await seriesBlocks(api, cookie, dW14, s1)
 	check(
-		'week dW+14 shows the cancelled Wednesday on its natural place',
-		week.length === 1 && week[0].status === 'cancelled' && week[0].startsAt === at(dW14) && week[0].movedTo === null
+		'week dW+14 keeps the ghost of the moved Wednesday',
+		week.length === 1 && week[0].status === 'moved' && week[0].startsAt === at(dW14) && week[0].movedTo === mondayNoon
 	)
-	week = await seriesBlocks(api, cookie, dW7, s1)
-	check('week dW+7 no longer has the destination of dW+14', !week.some((block) => block.key === key(dW14)))
 	const history = exceptionRow(s1, dW14)
 	check(
 		'cancelled dW+14 keeps the moved time in its row',
 		history?.kind === 'cancelled' &&
 			history?.starts_at !== null &&
-			new Date(history.starts_at).toISOString() === instant(mondayNext, '12:00')
+			new Date(history.starts_at).toISOString() === mondayNoon
 	)
-	const back = await post(api, cookie, occurrencePath(s1, dW14, 'restore'))
+	await expectStatus(
+		'restore dW+14 with the natural time as expectedStartsAt',
+		() => post(api, cookie, occurrencePath(s1, dW14, 'restore'), { expectedStartsAt: at(dW14) }),
+		409
+	)
+	const back = await post(api, cookie, occurrencePath(s1, dW14, 'restore'), { expectedStartsAt: mondayNoon })
 	check(
-		'restore dW+14 gives the Wednesday on its place',
-		back.status === 200 &&
-			back.json?.occurrence?.status === 'scheduled' &&
-			back.json?.occurrence?.startsAt === at(dW14),
-		`status ${back.status}`
+		'restore dW+14 returns it to Monday 12:00',
+		back.status === 200 && back.json?.occurrence?.status === 'moved' && back.json?.occurrence?.startsAt === mondayNoon,
+		`status ${back.status} ${JSON.stringify(back.json?.occurrence ?? null)}`
 	)
+	countRows(ctx)
+	const restoredRow = exceptionRow(s1, dW14)
+	check(
+		'restored dW+14 row is moved with the Monday time',
+		restoredRow?.kind === 'moved' && new Date(restoredRow.starts_at).toISOString() === mondayNoon
+	)
+	week = await seriesBlocks(api, cookie, dW7, s1)
+	check(
+		'week dW+7 shows the dW+14 lesson planned on Monday 12:00 again',
+		week.some((block) => block.key === key(dW14) && block.status === 'scheduled' && block.startsAt === mondayNoon)
+	)
+	const homeAgain = await post(api, cookie, occurrencePath(s1, dW14, 'move'), { date: dW14, startTime: '18:00' })
+	check(
+		'move dW+14 back to its Wednesday gives 200 scheduled',
+		homeAgain.status === 200 && homeAgain.json?.occurrence?.status === 'scheduled',
+		`status ${homeAgain.status}`
+	)
+	countRows(ctx)
+	const homeRow = exceptionRow(s1, dW14)
+	check('restored dW+14 row has no time left', homeRow?.kind === 'restored' && homeRow?.starts_at === null)
+	const plainCancel = await post(api, cookie, occurrencePath(s1, dW14, 'cancel'), { expectedStartsAt: at(dW14) })
 	countRows(ctx)
 	week = await seriesBlocks(api, cookie, dW14, s1)
 	check(
-		'week dW+14 shows the Wednesday scheduled',
-		week.length === 1 && week[0].status === 'scheduled' && week[0].startsAt === at(dW14)
+		'cancel after the move back stands on the natural Wednesday',
+		plainCancel.status === 200 &&
+			week.length === 1 &&
+			week[0].status === 'cancelled' &&
+			week[0].startsAt === at(dW14) &&
+			week[0].movedTo === null &&
+			exceptionRow(s1, dW14)?.starts_at === null
 	)
+	const plainBack = await post(api, cookie, occurrencePath(s1, dW14, 'restore'), { expectedStartsAt: at(dW14) })
+	countRows(ctx)
+	week = await seriesBlocks(api, cookie, dW14, s1)
+	check(
+		'restore dW+14 gives the Wednesday on its place',
+		plainBack.status === 200 &&
+			plainBack.json?.occurrence?.status === 'scheduled' &&
+			week.length === 1 &&
+			week[0].status === 'scheduled' &&
+			week[0].startsAt === at(dW14) &&
+			exceptionRow(s1, dW14)?.kind === 'restored',
+		`status ${plainBack.status}`
+	)
+
+	await partPastOrigin(ctx)
 
 	const home = await post(api, cookie, occurrencePath(s1, dW, 'move'), { date: dW, startTime: '18:00' })
 	check(

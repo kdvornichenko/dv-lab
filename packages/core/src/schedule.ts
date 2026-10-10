@@ -15,7 +15,7 @@ export type SeriesRule = {
 export type SeriesTiming = Pick<SeriesRule, 'weekday' | 'startTime' | 'startsOn' | 'endsOn'>
 
 export type SeriesException =
-	| { seriesId: string; originalOn: string; kind: 'cancelled' }
+	| { seriesId: string; originalOn: string; kind: 'cancelled'; startsAt?: Date; durationMinutes?: number }
 	| { seriesId: string; originalOn: string; kind: 'restored' }
 	| { seriesId: string; originalOn: string; kind: 'moved'; startsAt: Date; durationMinutes: number }
 
@@ -99,12 +99,19 @@ export function occurrenceAt(rule: SeriesRule, date: string, exception?: SeriesE
 	if (own?.kind === 'moved') {
 		return { ...base, startsAt: own.startsAt, durationMinutes: own.durationMinutes, status: 'moved' }
 	}
+	if (own?.kind === 'cancelled' && own.startsAt !== undefined && own.durationMinutes !== undefined) {
+		return { ...base, startsAt: own.startsAt, durationMinutes: own.durationMinutes, status: 'cancelled' }
+	}
 	return {
 		...base,
 		startsAt: naturalStart,
 		durationMinutes: rule.durationMinutes,
 		status: own?.kind === 'cancelled' ? 'cancelled' : 'scheduled',
 	}
+}
+
+export function movedAway(occurrence: Pick<Occurrence, 'naturalStart' | 'startsAt'>): boolean {
+	return occurrence.startsAt.getTime() !== occurrence.naturalStart.getTime()
 }
 
 function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
@@ -122,32 +129,32 @@ export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }):
 		for (const rule of series) {
 			const occurrence = occurrenceAt(rule, date, index.get(seriesKey(rule.id, date)))
 			if (occurrence === null || !inWindow(occurrence.naturalStart, from, to)) continue
-			const moved = occurrence.status === 'moved'
+			const away = movedAway(occurrence)
 			blocks.push({
 				key: occurrence.key,
 				ref: occurrence.ref,
 				studentId: occurrence.studentId,
 				startsAt: occurrence.naturalStart,
-				durationMinutes: moved ? rule.durationMinutes : occurrence.durationMinutes,
-				status: occurrence.status,
-				movedTo: moved ? occurrence.startsAt : null,
+				durationMinutes: away ? rule.durationMinutes : occurrence.durationMinutes,
+				status: away ? 'moved' : occurrence.status,
+				movedTo: away ? occurrence.startsAt : null,
 				movedFrom: null,
 			})
 		}
 	}
 	for (const exception of exceptions) {
-		if (exception.kind !== 'moved') continue
+		if (exception.kind === 'restored') continue
 		const rule = rules.get(exception.seriesId)
 		if (rule === undefined) continue
 		const occurrence = occurrenceAt(rule, exception.originalOn, exception)
-		if (occurrence === null || occurrence.status !== 'moved' || !inWindow(occurrence.startsAt, from, to)) continue
+		if (occurrence === null || !movedAway(occurrence) || !inWindow(occurrence.startsAt, from, to)) continue
 		blocks.push({
 			key: occurrence.key,
 			ref: occurrence.ref,
 			studentId: occurrence.studentId,
 			startsAt: occurrence.startsAt,
 			durationMinutes: occurrence.durationMinutes,
-			status: 'scheduled',
+			status: occurrence.status === 'cancelled' ? 'cancelled' : 'scheduled',
 			movedTo: null,
 			movedFrom: occurrence.naturalStart,
 		})

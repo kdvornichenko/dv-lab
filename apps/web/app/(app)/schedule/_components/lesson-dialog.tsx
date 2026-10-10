@@ -182,7 +182,7 @@ export function LessonDialog({
 							) : null}
 							{block.studentGoal ? <span className="text-muted-foreground">· {block.studentGoal}</span> : null}
 						</div>
-						{block.changeable ? null : (
+						{block.changeable || block.status !== 'scheduled' ? null : (
 							<p className="text-caption text-muted-foreground">
 								This lesson has already taken place and cannot be changed.
 							</p>
