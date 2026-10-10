@@ -106,6 +106,40 @@ function dateBounds(from: Date, to: Date | null): { fromDate: string; toDate: st
 	return first === undefined || last === undefined ? null : { fromDate: first, toDate: last }
 }
 
+export async function lockSeries(executor: DbExecutor, id: string): Promise<SeriesRule | null> {
+	const [row] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, id)).for('update')
+	return row ? toSeriesRule(row) : null
+}
+
+export async function lockLesson(executor: DbExecutor, id: string): Promise<SingleLesson | null> {
+	const [row] = await executor.select(lessonColumns).from(lessons).where(eq(lessons.id, id)).for('update')
+	return row ? toSingleLesson(row) : null
+}
+
+export async function seriesException(
+	executor: DbExecutor,
+	seriesId: string,
+	originalOn: string
+): Promise<SeriesException | null> {
+	const [row] = await executor
+		.select(exceptionColumns)
+		.from(lessonExceptions)
+		.where(and(eq(lessonExceptions.seriesId, seriesId), eq(lessonExceptions.originalOn, originalOn)))
+	return row ? toSeriesException(row) : null
+}
+
+export async function seriesExceptionsFrom(
+	executor: DbExecutor,
+	seriesId: string,
+	from: string
+): Promise<SeriesException[]> {
+	const rows = await executor
+		.select(exceptionColumns)
+		.from(lessonExceptions)
+		.where(and(eq(lessonExceptions.seriesId, seriesId), gte(lessonExceptions.originalOn, from)))
+	return rows.map(toSeriesException)
+}
+
 const EMPTY_ROWS: ScheduleRows = { series: [], exceptions: [], lessons: [] }
 
 export async function loadScheduleRows(executor: DbExecutor, range: ScheduleRange): Promise<ScheduleRows> {

@@ -42,7 +42,7 @@ function toStudentStatus(value: string): StudentStatus {
 	return known
 }
 
-function toWireSeries(rule: SeriesRule): ScheduleSeries {
+export function toWireSeries(rule: SeriesRule): ScheduleSeries {
 	return {
 		id: rule.id,
 		studentId: rule.studentId,
@@ -54,7 +54,7 @@ function toWireSeries(rule: SeriesRule): ScheduleSeries {
 	}
 }
 
-function toWireLesson(lesson: SingleLesson): ScheduleLesson {
+export function toWireLesson(lesson: SingleLesson): ScheduleLesson {
 	return {
 		id: lesson.id,
 		studentId: lesson.studentId,
