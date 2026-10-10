@@ -62,8 +62,8 @@ function secondZoneLine(date: string, time: string | null, zone: string | null):
 	return secondWhen(zonedInstant(date, time, SCHEDULE_TIME_ZONE), zone)
 }
 
-function clashText(items: readonly OverlapBlock[], zone: string | null): string {
-	const label = (item: OverlapBlock) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, zone)}`
+function clashText(items: readonly OverlapBlock[]): string {
+	const label = (item: OverlapBlock) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, null)}`
 	if (items.length === 1) return `${label(items[0])}. You can still save.`
 	if (items.length === 2) return `${label(items[0])} and ${label(items[1])}. You can still save.`
 	return `${label(items[0])}, ${label(items[1])} and ${items.length - 2} more. You can still save.`
@@ -199,7 +199,7 @@ export function NewLessonDialog({
 							{clashes.length > 0 ? (
 								<Banner status="warning" data-slot="new-lesson-overlap">
 									<BannerTitle>This overlaps another lesson</BannerTitle>
-									<BannerDescription>{clashText(clashes, secondZone)}</BannerDescription>
+									<BannerDescription>{clashText(clashes)}</BannerDescription>
 								</Banner>
 							) : null}
 							<div className="flex min-w-0 flex-col gap-2">

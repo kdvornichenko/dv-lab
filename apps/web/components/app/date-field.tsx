@@ -56,7 +56,9 @@ export function DateField({ id, label, value, onChange, min, max, error, helper,
 					aria-describedby={describedBy}
 					className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-left text-body text-foreground ring-1 ring-input transition-colors duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive"
 				>
-					<span className="min-w-0 truncate">{text}</span>
+					<span data-slot="date-field-value" className="min-w-0 truncate leading-5">
+						{text}
+					</span>
 					<CalendarDays aria-hidden size={16} strokeWidth={1.5} className="shrink-0 text-muted-foreground" />
 				</PopoverTrigger>
 				<PopoverContent align="start" className="w-auto p-0">

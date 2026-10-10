@@ -5,20 +5,11 @@ import { useEffect, useEffectEvent, useState } from 'react'
 import { ArrowRight, CalendarClock } from 'lucide-react'
 
 import { DateField } from '@/components/app/date-field'
-import { TimePair } from '@/components/app/time-pair'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
-import {
-	formatDate,
-	formatFullDate,
-	formatRange,
-	formatTime,
-	secondRange,
-	secondWhen,
-	vnRange,
-	vnWhen,
-} from '@/lib/schedule-format'
+import { formatDate, formatDay, formatRange, formatTime, formatWhen, vnRange, vnWhen } from '@/lib/schedule-format'
+import { zoneCaption } from '@/lib/time-zones'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, canChange, overlaps, zonedInstant, zonedParts } from '@dv-lab/core'
@@ -98,7 +89,6 @@ export function LessonMoveForm({
 		target !== null && day !== null && day.date === date
 			? overlaps(day.items, { startsAt: target, durationMinutes: block.durationMinutes }, block.key)
 			: []
-	const second = target === null ? null : secondRange(target, block.durationMinutes, secondZone)
 
 	function setBusy(value: boolean) {
 		setPending(value)
@@ -127,7 +117,7 @@ export function LessonMoveForm({
 		const moved = new Date(changedStart(result.data))
 		toast.show({
 			title: 'Lesson moved',
-			description: `${block.studentName}: ${vnWhen(start, secondZone, currentYear)} to ${vnWhen(moved, secondZone, currentYear)}.`,
+			description: `${block.studentName}: ${vnWhen(start, null, currentYear)} to ${vnWhen(moved, null, currentYear)}.`,
 		})
 		onMoved(moved)
 	}
@@ -178,31 +168,39 @@ export function LessonMoveForm({
 					) : null}
 				</div>
 			</div>
-			<p
-				aria-live="polite"
-				data-slot="move-lesson-change"
-				className="flex flex-wrap items-start gap-1.5 text-body text-foreground tabular-nums"
-			>
-				<TimePair
-					as="span"
-					main={`${formatDate(current.date, currentYear)}, ${formatTime(start, SCHEDULE_TIME_ZONE)}`}
-					second={secondWhen(start, secondZone)}
-					className="text-muted-foreground"
-				/>
-				<ArrowRight aria-hidden className="mt-0.5 size-4 text-muted-foreground" />
-				{target === null ? null : (
-					<TimePair
-						as="span"
-						main={`${formatFullDate(target, SCHEDULE_TIME_ZONE, currentYear)} · ${formatRange(target, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN`}
-						second={second}
-					/>
+			<div aria-live="polite" data-slot="move-lesson-change" className="flex flex-col gap-1 tabular-nums">
+				<p data-slot="move-lesson-vn" className="flex flex-wrap items-center gap-x-2 text-body text-foreground">
+					<span className="text-muted-foreground">
+						{formatDate(current.date, currentYear)}, {formatTime(start, SCHEDULE_TIME_ZONE)}
+					</span>
+					<ArrowRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+					{target === null ? null : (
+						<span>
+							{formatDate(date, currentYear)}, {formatRange(target, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN
+						</span>
+					)}
+				</p>
+				{secondZone === null ? null : (
+					<p
+						data-slot="move-lesson-second"
+						className="flex flex-wrap items-center gap-x-1 text-micro text-muted-foreground"
+					>
+						<span>{formatWhen(start, secondZone, currentYear)}</span>
+						<ArrowRight aria-hidden className="size-3 shrink-0" />
+						{target === null ? null : (
+							<span>
+								{formatDay(target, secondZone, currentYear)}, {formatRange(target, block.durationMinutes, secondZone)}{' '}
+								{zoneCaption(secondZone, target, 'toolbar')}
+							</span>
+						)}
+					</p>
 				)}
-			</p>
+			</div>
 			{clashes.length > 0 ? (
 				<p data-slot="move-lesson-clash" className="text-body text-destructive">
 					A lesson is already at this time:{' '}
 					{clashes
-						.map((item) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, secondZone)}`)
+						.map((item) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, null)}`)
 						.join(', ')}
 				</p>
 			) : null}

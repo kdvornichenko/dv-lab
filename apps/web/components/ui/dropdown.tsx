@@ -48,7 +48,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useFluidHover, isOwnEvent } from '@/hooks/use-fluid-hover'
 import { useMergeSplitBlocks, useSelectionRuns, SelectionBackgrounds } from '@/hooks/use-merge-split'
 import { Elevated } from '@/lib/elevated'
-import { popupMotionClass, popupScrollAreaClass, popupViewportClass, isDisabledRow } from '@/lib/popup'
+import {
+	popupCompactFadeClass,
+	popupMotionClass,
+	popupScrollAreaClass,
+	popupViewportClass,
+	isDisabledRow,
+	useCompactFade,
+} from '@/lib/popup'
 import { shapeMap } from '@/lib/shape-context'
 import { SizeProvider, useSize, typeClass, type SizeVariant } from '@/lib/size-context'
 import { spring, exitFallbackMs } from '@/lib/springs'
@@ -260,6 +267,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
 	) => {
 		const { open, actionsRef, sub } = useDropdownMenuContext()
 		const containerRef = useRef<HTMLDivElement>(null)
+		const compactFade = useCompactFade(containerRef, open)
 		const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
 		const { activeIndex, setActiveIndex, itemRects, handlers, registerItem, remeasure } = hover
 		const submenus = useSubmenuHost(containerRef, hover, open)
@@ -443,7 +451,7 @@ const DropdownContent = forwardRef<HTMLDivElement, DropdownContentProps>(
 									)}
 								>
 									<ScrollArea
-										className={popupScrollAreaClass}
+										className={cn(popupScrollAreaClass, compactFade && popupCompactFadeClass)}
 										viewportClassName={cn(popupViewportClass, !searchMounted && 'scroll-fade')}
 									>
 										<div ref={containerRef} className="relative flex flex-col p-1">

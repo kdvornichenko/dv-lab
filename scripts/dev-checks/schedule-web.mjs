@@ -107,11 +107,16 @@ async function fade() {
 			return {
 				fade: target.classList.contains('scroll-fade'),
 				size: getComputedStyle(target).getPropertyValue('--scroll-fade-size').trim(),
+				height: target.getBoundingClientRect().height,
 			}
 		})
 		check('Select list viewport found', select !== null)
 		check('Select list has scroll-fade', select?.fade === true)
-		check('Select list fade size is 48px', select?.size === '48px', select?.size)
+		check(
+			'Select list fade size is 24px under 200px and 48px from 200px',
+			select !== null && select.size === (select.height < 200 ? '24px' : '48px'),
+			`${select?.size} at ${select?.height}`
+		)
 		await shot(page, 'sched-fade', 'select')
 		await page.keyboard.press('Escape')
 		await page.keyboard.press('Escape')
@@ -1757,8 +1762,8 @@ async function readPart3(page, fx, nav) {
 		'new lesson: overlapping lessons give a warning with both names',
 		facts.overlap !== null &&
 			facts.overlap.includes('This overlaps another lesson') &&
-			facts.overlap.includes(`${NAME_A} 18:00–19:00 VN (14:00–15:00 MSK)`) &&
-			facts.overlap.includes(`${NAME_B} 18:30–19:30 VN (14:30–15:30 MSK)`) &&
+			facts.overlap.includes(`${NAME_A} 18:00–19:00 VN`) &&
+			facts.overlap.includes(`${NAME_B} 18:30–19:30 VN`) &&
 			facts.overlap.includes('You can still save.'),
 		facts.overlap ?? 'no banner'
 	)
@@ -2172,6 +2177,9 @@ async function moveFormFacts(page) {
 		.evaluate((element) => ({
 			text: element.textContent,
 			change: element.querySelector('[data-slot="move-lesson-change"]')?.textContent ?? '',
+			vn: element.querySelector('[data-slot="move-lesson-vn"]')?.textContent ?? '',
+			second: element.querySelector('[data-slot="move-lesson-second"]')?.textContent ?? null,
+			secondClass: element.querySelector('[data-slot="move-lesson-second"]')?.className ?? '',
 			clash: element.querySelector('[data-slot="move-lesson-clash"]')?.textContent ?? null,
 			submit: Array.from(element.querySelectorAll('button')).find(
 				(button) => button.textContent?.trim() === 'Move lesson'
@@ -2200,20 +2208,16 @@ async function changesPart2(page, fx, nav, posts) {
 		form !== null && form.text.includes('New date') && form.text.includes('Time, VN')
 	)
 	check(
-		'move: the change line shows the old and the new time with both zones',
+		'move: the change line shows was and now in VN, and the same two moments in the second zone',
 		form !== null &&
-			form.change.includes(`${shortDay(fx.wed)}, 18:00`) &&
-			form.change.includes(`${fullDate(fx.wed)} · 18:00–19:00 VN`) &&
-			form.change.includes('14:00–15:00 MSK'),
-		form?.change
+			form.vn === `${shortDay(fx.wed)}, 18:00${shortDay(fx.wed)}, 18:00–19:00 VN` &&
+			form.second === `${shortDay(fx.wed)}, 14:00${shortDay(fx.wed)}, 14:00–15:00 MSK`,
+		`${form?.vn} | ${form?.second}`
 	)
-	const changePairs = dialog.locator('[data-slot="move-lesson-change"] [data-slot="time-pair"]')
-	checkPair('move: old time', await pairOf(changePairs.nth(0)), `${shortDay(fx.wed)}, 18:00`, '14:00 MSK')
-	checkPair(
-		'move: new time',
-		await pairOf(changePairs.nth(1)),
-		`${fullDate(fx.wed)} · 18:00–19:00 VN`,
-		'14:00–15:00 MSK'
+	check(
+		'move: the second-zone line is micro and muted',
+		form !== null && form.secondClass.includes('text-micro') && form.secondClass.includes('text-muted-foreground'),
+		form?.secondClass
 	)
 	check(
 		'move: focus moves into the form',
@@ -2278,7 +2282,7 @@ async function changesPart2(page, fx, nav, posts) {
 	form = await moveFormFacts(page)
 	check(
 		'move: a clash shows the lesson already at this time',
-		form?.clash === `A lesson is already at this time: ${CH_B} 12:00–13:00 VN (08:00–09:00 MSK)`,
+		form?.clash === `A lesson is already at this time: ${CH_B} 12:00–13:00 VN`,
 		form?.clash ?? 'no clash line'
 	)
 	check('move: the clash does not disable Move lesson', form?.submit === false, String(form?.submit))
@@ -2289,16 +2293,14 @@ async function changesPart2(page, fx, nav, posts) {
 	form = await moveFormFacts(page)
 	check(
 		'move: the change line follows the new date',
-		form !== null && form.change.includes(`${fullDate(fx.friday)} · 10:00–11:00 VN`) && form.clash === null,
+		form !== null && form.vn.endsWith(`${shortDay(fx.friday)}, 10:00–11:00 VN`) && form.clash === null,
 		form?.change
 	)
 	await dialog.getByRole('group', { name: 'Move lesson' }).getByRole('button', { name: 'Move lesson' }).click()
 	const movedToast = await toastText(page, 'Lesson moved', CH_A)
 	check(
 		'move: toast names the old and the new time',
-		movedToast.includes(
-			`${CH_A}: ${shortDay(fx.wed)}, 18:00 VN (14:00 MSK) to ${shortDay(fx.friday)}, 10:00 VN (06:00 MSK).`
-		),
+		movedToast.includes(`${CH_A}: ${shortDay(fx.wed)}, 18:00 VN to ${shortDay(fx.friday)}, 10:00 VN.`),
 		movedToast
 	)
 	check('move: the destination stands on Friday', await waitBlock(page, CH_A, fx.friday, 'to', ', planned'))
@@ -3471,6 +3473,8 @@ const FORMS_A = 'Alex Example 2131 A'
 const FORMS_B = 'Alex Example 2131 B'
 const FORMS_C = 'Alex Example 2131 C'
 const FORMS_D = 'Alex Example 2131 D'
+const FORMS_E = 'Alex Example 2131 E'
+const FORMS_F = 'Alex Example 2131 F'
 
 async function formsFixtures(page) {
 	const today = core.zonedParts(new Date(), VN).date
@@ -3491,6 +3495,8 @@ async function formsFixtures(page) {
 	await make(FORMS_B, '02:00')
 	await make(FORMS_C, '22:00')
 	await createCard(page, FORMS_D, 60, null)
+	await createCard(page, FORMS_E, 60, null)
+	await createCard(page, FORMS_F, 60, null)
 	return { today, wednesday }
 }
 
@@ -3747,6 +3753,209 @@ async function formsPart1(page, fx, nav) {
 	console.log('FORMS_PART1_OK')
 }
 
+async function valueFacts(page, selector, valueSelector) {
+	return page.evaluate(
+		({ selector, valueSelector }) => {
+			const root = document.querySelector(selector)
+			const node = valueSelector ? root.querySelector(valueSelector) : root
+			const style = getComputedStyle(node)
+			const rect = node.getBoundingClientRect()
+			const wrapper = node.closest('span[class*="text-box"]')
+			return {
+				text: node.textContent?.trim() ?? '',
+				lineHeight: style.lineHeight,
+				overflow: `${style.overflowX}/${style.overflowY}`,
+				height: Math.round(rect.height * 100) / 100,
+				clientHeight: node.clientHeight,
+				scrollHeight: node.scrollHeight,
+				trim: wrapper ? getComputedStyle(wrapper).getPropertyValue('text-box-trim') : 'none',
+			}
+		},
+		{ selector, valueSelector }
+	)
+}
+
+function valueClear(facts) {
+	return facts.height >= 20 && facts.scrollHeight <= facts.clientHeight && facts.lineHeight === '20px'
+}
+
+async function listFade(page) {
+	return page.evaluate(() => {
+		const viewports = Array.from(document.querySelectorAll('[data-slot="scroll-area-viewport"]')).filter(
+			(element) => element.closest('[role="listbox"]') !== null || element.querySelector('[role="listbox"]') !== null
+		)
+		const viewport = viewports[viewports.length - 1]
+		return {
+			size: getComputedStyle(viewport).getPropertyValue('--scroll-fade-size').trim(),
+			height: viewport.getBoundingClientRect().height,
+			fade: getComputedStyle(viewport).maskImage !== 'none',
+		}
+	})
+}
+
+async function formsPart2(page, fx, nav) {
+	const dialog = page.getByRole('dialog')
+	await openSchedule(page)
+	nav.monday = core.mondayOf(fx.today)
+
+	await newButton(page).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	await pickOption(page, 'new-lesson-student', FORMS_D)
+	await pickTime(page, '09:15')
+	const time = await valueFacts(page, '#new-lesson-time', '[data-slot="time-picker-value"]')
+	check(
+		'new lesson: the "09:15" value is whole, 20px line, not clipped',
+		time.text === '09:15' && valueClear(time),
+		JSON.stringify(time)
+	)
+	const date = await valueFacts(page, '#new-lesson-date', '[data-slot="date-field-value"]')
+	check('new lesson: the date value is whole, 20px line, not clipped', valueClear(date), JSON.stringify(date))
+	const student = await valueFacts(page, '#new-lesson-student', 'span[class*="truncate"]')
+	check(
+		'new lesson: the Select value is whole, 20px line, not clipped',
+		student.text === FORMS_D && valueClear(student),
+		JSON.stringify(student)
+	)
+	await shot(page, 'sched-forms', 'values')
+
+	await page.mouse.move(4, 4)
+	await page.waitForTimeout(300)
+	const rest = await page.evaluate(() => {
+		const trigger = document.querySelector('#new-lesson-time')
+		return {
+			triggerHeight: trigger.getBoundingClientRect().height,
+			triggerFill: getComputedStyle(trigger.querySelector('span[aria-hidden]')).backgroundColor,
+		}
+	})
+	await page.locator('#new-lesson-time').click()
+	await page.getByRole('listbox', { name: 'Hours' }).waitFor({ timeout: 5000 })
+	await page.waitForTimeout(300)
+	const open = await page.evaluate(() => {
+		const footer = document.querySelector('[data-slot="time-picker-footer"]')
+		const label = document.querySelector('[data-slot="time-picker-column-label"]')
+		return {
+			footer: getComputedStyle(footer).padding,
+			label: getComputedStyle(label).paddingBottom,
+		}
+	})
+	const panel = { ...rest, ...open }
+	check(
+		'time picker: 36px trigger without a fill, footer p-2, column label pb-1',
+		panel.triggerHeight === 36 &&
+			panel.footer === '8px' &&
+			panel.label === '4px' &&
+			panel.triggerFill === 'rgba(0, 0, 0, 0)',
+		JSON.stringify(panel)
+	)
+	await shot(page, 'sched-forms', 'time-picker')
+	await page.keyboard.press('Escape')
+	await page.waitForTimeout(300)
+
+	await page.locator('#new-lesson-repeats').click()
+	await page.getByRole('listbox').waitFor({ timeout: 5000 })
+	await page.waitForTimeout(500)
+	const shortList = await listFade(page)
+	check(
+		'select: a short list (Repeats) gets the compact 24px fade',
+		shortList.height < 200 && shortList.size === '24px',
+		JSON.stringify(shortList)
+	)
+	await page.keyboard.press('Escape')
+	await page.waitForTimeout(400)
+	await page.locator('#new-lesson-student').click()
+	await page.getByRole('listbox').waitFor({ timeout: 5000 })
+	await page.waitForTimeout(500)
+	const longList = await listFade(page)
+	check(
+		'select: a long list (Student) keeps the 48px fade',
+		longList.height >= 200 && longList.size === '48px' && longList.fade,
+		JSON.stringify(longList)
+	)
+	await shot(page, 'sched-forms', 'select-long')
+	await page.keyboard.press('Escape')
+	await page.waitForTimeout(400)
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(300)
+
+	await page.locator('[aria-label="Second time zone"]').click()
+	await page
+		.getByRole('searchbox', { name: 'Search time zones' })
+		.or(page.getByLabel('Search time zones'))
+		.first()
+		.waitFor({ timeout: 5000 })
+	await page.waitForTimeout(500)
+	const zoneInput = await valueFacts(page, 'input[aria-label="Search time zones"]')
+	check(
+		'combobox: the search value is whole and not clipped',
+		zoneInput.height >= 20 && zoneInput.scrollHeight <= zoneInput.clientHeight,
+		JSON.stringify(zoneInput)
+	)
+	const zoneList = await listFade(page)
+	check(
+		'combobox: the time zone popup uses the compact 24px fade it is drawn with',
+		zoneList.size === '24px' && zoneList.fade,
+		JSON.stringify(zoneList)
+	)
+	await page.keyboard.press('Escape')
+	await page.waitForTimeout(400)
+
+	await openSchedule(page)
+	nav.monday = core.mondayOf(fx.today)
+	await goToWeek(page, nav, core.mondayOf(fx.wednesday))
+	await openBlockDialog(page, FORMS_A, fx.wednesday)
+	await dialog.getByRole('button', { name: 'Move series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'Lessons before this date stay' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	await page.getByRole('dialog').getByRole('button', { name: 'Move series' }).click()
+	await page.waitForTimeout(400)
+	const invalid = await page.evaluate(() => {
+		const probe = document.createElement('div')
+		probe.style.color = 'var(--destructive)'
+		document.body.append(probe)
+		const destructive = getComputedStyle(probe).color
+		probe.remove()
+		const time = document.querySelector('#move-series-time')
+		const day = document.querySelector('#move-series-day')
+		return {
+			timeInvalid: time.getAttribute('aria-invalid'),
+			dayInvalid: day.getAttribute('aria-invalid'),
+			ring: getComputedStyle(time.querySelector('span[aria-hidden]')).boxShadow,
+			destructive,
+		}
+	})
+	check(
+		'move series: an invalid time has aria-invalid and a destructive ring, like the day',
+		invalid.timeInvalid === 'true' && invalid.dayInvalid === 'true' && invalid.ring.includes(invalid.destructive),
+		JSON.stringify(invalid)
+	)
+	await shot(page, 'sched-forms', 'move-series-invalid')
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(300)
+
+	await openBlockDialog(page, FORMS_A, fx.wednesday)
+	await dialog.getByRole('button', { name: 'Move lesson' }).click()
+	await page.getByRole('group', { name: 'Move lesson' }).waitFor({ timeout: 5000 })
+	await page.waitForTimeout(400)
+	await pickTime(page, '19:15', 'move-lesson-time')
+	const moveForm = await moveFormFacts(page)
+	check(
+		'move lesson: was and now in VN on one line, the second zone on a micro line under it',
+		moveForm !== null &&
+			moveForm.vn === `${shortDay(fx.wednesday)}, 18:00${shortDay(fx.wednesday)}, 19:15–20:15 VN` &&
+			moveForm.second === `${shortDay(fx.wednesday)}, 14:00${shortDay(fx.wednesday)}, 15:15–16:15 MSK` &&
+			moveForm.secondClass.includes('text-micro'),
+		`${moveForm?.vn} | ${moveForm?.second}`
+	)
+	await shot(page, 'sched-forms', 'move-lesson')
+	await dialog.getByRole('button', { name: 'Discard changes' }).click()
+	await page.waitForTimeout(300)
+	await closeDialog(page)
+	console.log('FORMS_PART2_OK')
+}
+
 async function forms() {
 	cleanupFixtures('forms start', FORMS_LIKE)
 	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
@@ -3756,12 +3965,14 @@ async function forms() {
 		const fx = await formsFixtures(page)
 		const nav = { monday: core.mondayOf(fx.today) }
 		await formsPart1(page, fx, nav)
+		await formsPart2(page, fx, nav)
 		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
 		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
 	} finally {
 		await browser.close()
 		cleanupFixtures('forms end', FORMS_LIKE)
 	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_FORMS_OK')
 }
 
 const sections = { fade, frame, read, changes, students, grid, forms }

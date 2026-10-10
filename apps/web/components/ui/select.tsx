@@ -26,7 +26,14 @@ import { useFluidHover, useRegisterFluidHoverItem } from '@/hooks/use-fluid-hove
 import { useKeyboardNavGate } from '@/hooks/use-keyboard-nav-gate'
 import { Elevated } from '@/lib/elevated'
 import type { IconComponent } from '@/lib/icon-context'
-import { popupMotionClass, popupScrollAreaClass, popupViewportClass, isDisabledRow } from '@/lib/popup'
+import {
+	popupCompactFadeClass,
+	popupMotionClass,
+	popupScrollAreaClass,
+	popupViewportClass,
+	isDisabledRow,
+	useCompactFade,
+} from '@/lib/popup'
 import { shapeMap } from '@/lib/shape-context'
 import { SizeProvider, useSize, typeClass, type SizeVariant } from '@/lib/size-context'
 import { spring, exitFallbackMs } from '@/lib/springs'
@@ -234,7 +241,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
 						<SelectPrimitive.Value
 							placeholder={placeholder}
 
-							className="-my-1 min-w-0 flex-1 truncate py-1 text-left [text-box:trim-both_cap_alphabetic] data-[placeholder]:text-muted-foreground"
+							className="min-w-0 flex-1 truncate text-left leading-5 data-[placeholder]:text-muted-foreground"
 						/>
 					</span>
 
@@ -273,6 +280,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 	const { open, value, actionsRef } = useSelectContext()
 	const shape = popupShape
 	const containerRef = useRef<HTMLDivElement>(null)
+	const compactFade = useCompactFade(containerRef, open)
 
 	const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
 	const { activeIndex, setActiveIndex, itemRects, isMeasured, handlers, registerItem, remeasure } = hover
@@ -384,7 +392,10 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 								className
 							)}
 						>
-							<ScrollArea className={popupScrollAreaClass} viewportClassName={cn(popupViewportClass, 'scroll-fade')}>
+							<ScrollArea
+								className={cn(popupScrollAreaClass, compactFade && popupCompactFadeClass)}
+								viewportClassName={cn(popupViewportClass, 'scroll-fade')}
+							>
 								<div ref={containerRef} className="relative flex flex-col p-1">
 									{open && (
 										<AnimatePresence>

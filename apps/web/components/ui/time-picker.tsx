@@ -617,7 +617,7 @@ export function TimePickerValue({ placeholder, className, ...props }: TimePicker
 			id={`${context.id}-value`}
 			data-slot="time-picker-value"
 			data-placeholder={context.time ? undefined : ''}
-			className={cn('truncate', className)}
+			className={cn('block min-w-0 overflow-x-clip leading-5 text-ellipsis whitespace-nowrap', className)}
 			{...props}
 		>
 			{context.time ? context.format(context.time) : (placeholder ?? context.i18n.labels.placeholder)}
@@ -625,7 +625,7 @@ export function TimePickerValue({ placeholder, className, ...props }: TimePicker
 	)
 }
 const TRIGGER_CLASS =
-	'justify-between font-normal normal-case tracking-normal tabular-nums data-placeholder:text-muted-foreground [&>span:last-child]:w-full [&>span:last-child]:min-w-0 [&>span:last-child>span]:w-full [&>span:last-child>span]:min-w-0'
+	'justify-between font-normal normal-case tracking-normal tabular-nums data-placeholder:text-muted-foreground [&>span:last-child]:w-full [&>span:last-child]:min-w-0 [&>span:last-child>span]:w-full [&>span:last-child>span]:min-w-0 [&>span:last-child>span]:[text-box:normal] data-invalid:[&>span:first-child]:shadow-[0_0_0_1px_var(--destructive)]'
 export type TimePickerTriggerProps = ComponentProps<typeof Button> & {
 	placeholder?: ReactNode
 }
@@ -906,7 +906,7 @@ const LIST_SELECTOR = '[data-slot="time-picker-column-list"]:not([aria-disabled=
 const COLUMN_CLASS =
 	'group/time-picker-column flex min-w-16 flex-1 flex-col [--time-picker-option-height:calc(var(--spacing)*7)] [--time-picker-list-padding:calc(var(--spacing)*1)]'
 const LABEL_CLASS =
-	'text-muted-foreground text-center text-caption whitespace-nowrap transition-colors select-none group-has-focus-visible/time-picker-column:text-foreground px-2 pt-2 pb-1.5'
+	'text-muted-foreground text-center text-caption whitespace-nowrap transition-colors select-none group-has-focus-visible/time-picker-column:text-foreground px-2 pt-2 pb-1'
 const LIST_CLASS =
 	'group/time-picker-list relative flex h-[calc(var(--time-picker-option-height)*var(--time-picker-rows,5)+var(--spacing)*(var(--time-picker-rows,5)-1)+var(--time-picker-list-padding)*2)] flex-col gap-1 overflow-y-auto overscroll-contain px-2 py-(--time-picker-list-padding) outline-none [scrollbar-width:none] data-empty:focus-visible:outline-solid data-empty:focus-visible:outline-2 data-empty:focus-visible:-outline-offset-2 data-empty:focus-visible:outline-ring scroll-fade [--scroll-fade-size:var(--scroll-fade-size-compact)] [&::-webkit-scrollbar]:hidden'
 const OPTION_CLASS =
@@ -1203,7 +1203,7 @@ function findLast<T>(items: T[], test: (item: T) => boolean) {
 	}
 	return undefined
 }
-const FOOTER_CLASS = 'flex items-center justify-between gap-2 border-t p-1.5'
+const FOOTER_CLASS = 'flex items-center justify-between gap-2 border-t p-2'
 export type TimePickerFooterProps = ComponentProps<'div'>
 export function TimePickerFooter({ className, children, ...props }: TimePickerFooterProps) {
 	const context = useTimePickerContext('TimePickerFooter')

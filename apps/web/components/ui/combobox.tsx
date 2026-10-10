@@ -26,7 +26,14 @@ import { useFluidHover, useRegisterFluidHoverItem, type ItemRect } from '@/hooks
 import { useMergeSplitBlocks, useSelectionRuns, SelectionBackgrounds } from '@/hooks/use-merge-split'
 import { Elevated } from '@/lib/elevated'
 import { useIcons, type IconComponent } from '@/lib/icon-context'
-import { popupMotionClass, popupScrollAreaClass, popupViewportClass, isDisabledRow } from '@/lib/popup'
+import {
+	popupCompactFadeClass,
+	popupMotionClass,
+	popupScrollAreaClass,
+	popupViewportClass,
+	isDisabledRow,
+	useCompactFade,
+} from '@/lib/popup'
 import { useShape, shapeMap } from '@/lib/shape-context'
 import { SizeProvider, useSize, typeClass, type SizeVariant } from '@/lib/size-context'
 import { spring, exitFallbackMs } from '@/lib/springs'
@@ -684,6 +691,7 @@ const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
 		const PlusIcon = icons.plus
 		const shape = popupShape
 		const containerRef = useRef<HTMLDivElement>(null)
+		const compactFade = useCompactFade(containerRef, open)
 
 		const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
 		const { activeIndex, setActiveIndex, itemRects, isMeasured, handlers, registerItem, remeasure } = hover
@@ -757,7 +765,10 @@ const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
 
 		return (
 			<ComboboxContentContext.Provider value={contentCtx}>
-				<ScrollArea className={popupScrollAreaClass} viewportClassName={cn(popupViewportClass, 'scroll-fade')}>
+				<ScrollArea
+					className={cn(popupScrollAreaClass, compactFade && popupCompactFadeClass)}
+					viewportClassName={cn(popupViewportClass, 'scroll-fade')}
+				>
 					<ComboboxPrimitive.List
 						ref={(node: HTMLDivElement | null) => {
 							;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
