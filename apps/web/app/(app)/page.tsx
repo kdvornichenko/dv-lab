@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 
-import { EmptyLine } from '@/components/app/empty-line'
-import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { getMe } from '@/lib/session'
+
+import { TodayScreen } from './_components/today-screen'
 
 export async function generateMetadata(): Promise<Metadata> {
 	const me = await getMe()
@@ -12,10 +12,5 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function TodayPage() {
 	const me = await getMe()
 	if (me?.account.role !== 'teacher') return null
-	return (
-		<PageScroll>
-			<PageHeader title="Today" />
-			<EmptyLine />
-		</PageScroll>
-	)
+	return <TodayScreen />
 }

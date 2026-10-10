@@ -5,7 +5,7 @@ const section = process.argv[2]
 const dark = process.argv.includes('dark')
 const VN = core.SCHEDULE_TIME_ZONE
 
-const fixtureWhere = `(display_name like 'Alex Example 215%' or display_name like 'Alex Example 216%') and import_key is null`
+const fixtureWhere = `(display_name like 'Alex Example 215%' or display_name like 'Alex Example 216%' or display_name like 'Alex Example 217%') and import_key is null`
 
 const cleanupText = `do $$ begin
 if to_regclass('lesson_marks') is not null then
@@ -1133,7 +1133,304 @@ async function settingsSection() {
 	if (failures() === 0) console.log('LEDGER_WEB_SETTINGS_OK')
 }
 
-const sections = { marks, students, settings: settingsSection }
+const hhmm = (minutes) =>
+	`${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+
+const TODAY_NAMES = {
+	past: 'Alex Example 2170 A',
+	done: 'Alex Example 2170 B',
+	cancelled: 'Alex Example 2170 E',
+	moved: 'Alex Example 2170 F',
+	future: 'Alex Example 2170 C',
+	earlier: 'Alex Example 2170 D',
+}
+
+async function todayFixtures(page) {
+	const parts = core.zonedParts(new Date(), VN)
+	const today = parts.date
+	const opening = core.addDays(today, -3)
+	const distinct = parts.minutes >= 40
+	const at = (back) => hhmm(Math.max(0, parts.minutes - back))
+	const futureMinutes = Math.min(parts.minutes + 120, 23 * 60 + 59)
+	const fx = {
+		today,
+		yesterday: core.addDays(today, -1),
+		tomorrow: core.addDays(today, 1),
+		distinct,
+		futureAt: futureMinutes > parts.minutes ? hhmm(futureMinutes) : null,
+		ids: {},
+		lessons: {},
+		series: null,
+	}
+	for (const [key, name] of Object.entries(TODAY_NAMES)) {
+		fx.ids[key] = await createCard(page, name)
+		await setOpening(page, fx.ids[key], opening)
+	}
+	fx.lessons.past = await createOnce(page, fx.ids.past, today, at(40))
+	fx.lessons.done = await createOnce(page, fx.ids.done, today, at(30))
+	await markApi(page, fx.lessons.done, 'done')
+	fx.lessons.cancelled = await createOnce(page, fx.ids.cancelled, today, at(20))
+	const cancel = await api(page, 'POST', `/schedule/lessons/${fx.lessons.cancelled}/cancel`, {})
+	check('api cancel of the started lesson', cancel.status === 200, String(cancel.status))
+	fx.series = sql(
+		`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on, ends_on) values ('${fx.ids.moved}', ${core.weekdayOf(today)}, '${at(10)}', 60, '${core.addDays(today, -14)}', null) returning id`
+	).rows[0].id
+	const moved = await api(page, 'POST', `/schedule/series/${fx.series}/occurrences/${today}/move`, {
+		date: fx.tomorrow,
+		startTime: '10:00',
+	})
+	check('api move of the series occurrence to tomorrow', moved.status === 200, String(moved.status))
+	if (fx.futureAt !== null) fx.lessons.future = await createOnce(page, fx.ids.future, today, fx.futureAt)
+	fx.lessons.earlier = await createOnce(page, fx.ids.earlier, fx.yesterday, '09:00')
+	return fx
+}
+
+async function openToday(page) {
+	await page.goto(`${BASE}/`)
+	await page.locator('[data-slot="stat"]').first().waitFor({ timeout: 30000 })
+	await page.waitForTimeout(400)
+}
+
+function expectedTitle(date) {
+	const at = new Date(`${date}T12:00:00Z`)
+	const part = (options) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', ...options }).format(at)
+	return `${part({ weekday: 'long' })}, ${Number(date.slice(8, 10))} ${part({ month: 'long' })}`
+}
+
+function minuteNow() {
+	return new Date(Math.floor(Date.now() / 60000) * 60000)
+}
+
+async function readTodayApi(page) {
+	const result = await api(page, 'GET', '/today')
+	return result.json
+}
+
+function countsOf(data, now) {
+	return core.todayCounts(
+		{
+			lessons: data.lessons.map((block) => ({
+				key: block.key,
+				startsAt: new Date(block.startsAt),
+				outcome: block.outcome,
+				studentStatus: block.studentStatus,
+				openingOn: block.ledger.openingOn,
+			})),
+			earlier: data.earlier.length,
+			paysSoon: data.paysSoon.length,
+		},
+		now
+	)
+}
+
+function plural(count) {
+	return count === 1 ? '1 lesson' : `${count} lessons`
+}
+
+function expectedTiles(counts, threshold) {
+	const quiet = counts.lessons === 0
+	return {
+		Today: {
+			value: String(counts.lessons),
+			hint: quiet ? null : counts.toCome === 0 ? 'All started' : `${counts.toCome} still to come`,
+		},
+		Done: { value: String(counts.done), hint: quiet ? null : `of ${counts.started} started` },
+		'To mark': {
+			value: String(counts.toMark),
+			hint: counts.toMark === 0 ? null : `${counts.toMarkToday} today, ${counts.toMarkEarlier} earlier`,
+		},
+		'Pays soon': { value: String(counts.paysSoon), hint: `${plural(threshold)} or fewer left` },
+	}
+}
+
+function tileFacts(page) {
+	return page.evaluate(() =>
+		Array.from(document.querySelectorAll('[data-slot="stat"]')).map((tile) => {
+			const box = tile.getBoundingClientRect()
+			return {
+				label: tile.querySelector('[data-slot="stat-label"]')?.textContent ?? '',
+				value: tile.querySelector('[data-slot="stat-value"]')?.textContent ?? '',
+				hint: tile.querySelector('[data-slot="stat-hint"]')?.textContent ?? null,
+				top: Math.round(box.top),
+				left: Math.round(box.left),
+				width: Math.round(box.width),
+			}
+		})
+	)
+}
+
+async function titleOf(page) {
+	return page.getByRole('heading', { level: 1 }).first().textContent()
+}
+
+async function todayPart1(page, context, fx) {
+	await openToday(page)
+	const browserZone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+	check('the browser zone is America/New_York', browserZone === 'America/New_York', browserZone)
+	const date = core.zonedParts(new Date(), VN).date
+	check('the h1 is the full date in Vietnam, not in the browser zone', (await titleOf(page)) === expectedTitle(date))
+	const summary = await page.locator('header div.text-body').first().textContent()
+	await shot(page, 'ledger-today', 'part1')
+
+	const data = await readTodayApi(page)
+	const counts = countsOf(data, minuteNow())
+	const tiles = await tileFacts(page)
+	const expected = expectedTiles(counts, data.paysSoonLessons)
+	check(
+		'four tiles Today, Done, To mark, Pays soon in this order',
+		tiles.map((tile) => tile.label).join('|') === 'Today|Done|To mark|Pays soon'
+	)
+	const wrong = tiles.filter((tile) => {
+		const want = expected[tile.label]
+		return !want || tile.value !== want.value || tile.hint !== want.hint
+	})
+	check(
+		'the four tiles equal todayCounts of GET /today',
+		wrong.length === 0,
+		wrong.map((tile) => tile.label).join(', ')
+	)
+	const quiet = counts.lessons === 0
+	const summaryOk = quiet
+		? summary === 'No lessons today'
+		: new RegExp(
+				`^${plural(counts.lessons)}( · next: .+ at \\d\\d:\\d\\d VN( \\(.*\\d\\d:\\d\\d [A-Z]{2,5}\\))?)?$`
+			).test(summary ?? '')
+	check('the summary line has the v40 shape and the right count', summaryOk)
+	const hasNext = (summary ?? '').includes(' · next: ')
+	check('the summary names a next lesson exactly when todayCounts has one', hasNext === (counts.nextKey !== null))
+	console.log(
+		`today shows ${data.lessons.length} lesson blocks, ${data.earlier.length} earlier, ${data.paysSoon.length} pays soon rows`
+	)
+
+	check(
+		'1280px: the four tiles stand in one row',
+		new Set(tiles.map((tile) => tile.top)).size === 1 && tiles.length === 4
+	)
+	await page.setViewportSize({ width: 600, height: 800 })
+	await page.waitForTimeout(500)
+	const narrow = await tileFacts(page)
+	check(
+		'600px: the tiles are two by two',
+		new Set(narrow.map((tile) => tile.top)).size === 2 && new Set(narrow.map((tile) => tile.left)).size === 2
+	)
+	check(
+		'the grid gap is 12px',
+		(await page.evaluate(() => getComputedStyle(document.querySelector('[data-slot="today-counters"]')).columnGap)) ===
+			'12px'
+	)
+	await shot(page, 'ledger-today', 'narrow')
+	await page.setViewportSize({ width: 1280, height: 800 })
+	await page.waitForTimeout(400)
+
+	await page.route('**/api/today', (route) => route.fulfill({ status: 500, body: '{}' }))
+	await page.goto(`${BASE}/`)
+	await page.getByText('Could not load Today', { exact: true }).waitFor({ timeout: 30000 })
+	check(
+		'a failed read shows one ReadError',
+		(await page.getByText('Could not load Today', { exact: true }).count()) === 1
+	)
+	check(
+		'a failed read shows no tile and the h1 stays',
+		(await page.locator('[data-slot="stat"]').count()) === 0 && (await titleOf(page)) === expectedTitle(date)
+	)
+	check('a failed read names the next step', await page.getByRole('button', { name: 'Refresh' }).isVisible())
+	await shot(page, 'ledger-today', 'error')
+	await page.unroute('**/api/today')
+	await page.getByRole('button', { name: 'Refresh' }).click()
+	await page.locator('[data-slot="stat"]').first().waitFor({ timeout: 15000 })
+	check('Refresh reads Today again', (await page.locator('[data-slot="stat"]').count()) === 4)
+
+	await dayChange(page, context, fx)
+	console.log(failures() === 0 ? 'TODAY_WEB_PART1_OK' : 'TODAY_WEB_PART1_FAIL')
+}
+
+async function dayChange(page, context, fx) {
+	if (!page.clock?.install) {
+		console.log('SKIP day change: page.clock is not available in this playwright, not checked')
+		return
+	}
+	const today = core.zonedParts(new Date(), VN).date
+	const stale = core.addDays(today, -1)
+	const hits = { count: 0 }
+	const state = { answered: 0 }
+	const fakeUntilFirstAnswer = async (route) => {
+		hits.count += 1
+		const response = await route.fetch()
+		const json = await response.json()
+		if (state.answered === 0) json.date = stale
+		await route.fulfill({ response, json })
+		state.answered += 1
+	}
+	const fakeAlways = async (route) => {
+		hits.count += 1
+		const response = await route.fetch()
+		const json = await response.json()
+		json.date = stale
+		await route.fulfill({ response, json })
+	}
+	await page.clock.install()
+	await page.route('**/api/today', fakeUntilFirstAnswer)
+	await page.goto(`${BASE}/`)
+	await page.locator('[data-slot="stat"]').first().waitFor({ timeout: 30000 })
+	await page
+		.waitForFunction((expected) => document.querySelector('h1')?.textContent === expected, expectedTitle(today), {
+			timeout: 15000,
+		})
+		.catch(() => {})
+	check('day change: a stale answer date makes the page read /api/today again', hits.count >= 2, String(hits.count))
+	check('day change: the h1 shows today after the new answer', (await titleOf(page)) === expectedTitle(today))
+	await page.unroute('**/api/today', fakeUntilFirstAnswer)
+
+	hits.count = 0
+	await page.route('**/api/today', fakeAlways)
+	await page.goto(`${BASE}/`)
+	await page.locator('[data-slot="stat"]').first().waitFor({ timeout: 30000 })
+	await page.waitForTimeout(1500)
+	const settled = hits.count
+	await page.waitForTimeout(1500)
+	check(
+		'day change: with a wrong date the page rests after its own re-read',
+		hits.count === settled && settled >= 2,
+		String(settled)
+	)
+	await page.clock.runFor(61000)
+	await page.waitForTimeout(1500)
+	const extra = hits.count - settled
+	check(
+		'day change: one minute of a wrong date gives at most two more requests',
+		extra >= 1 && extra <= 2,
+		String(extra)
+	)
+	await page.unrouteAll({ behavior: 'ignoreErrors' })
+}
+
+async function todaySection() {
+	cleanupFixtures('today start')
+	await withTeacherSettings(async () => {
+		const { browser, context, page, problems } = await launch({
+			width: 1280,
+			height: 800,
+			timezoneId: 'America/New_York',
+		})
+		try {
+			await setTheme(page)
+			await signIn(page)
+			await setThreshold(page, 2)
+			const fx = await todayFixtures(page)
+			await todayPart1(page, context, fx)
+			const real = problems.filter(
+				(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409|500)/.test(problem)
+			)
+			check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+		} finally {
+			await browser.close()
+			cleanupFixtures('today end')
+		}
+	})
+	if (failures() === 0) console.log('LEDGER_WEB_TODAY_OK')
+}
+
+const sections = { marks, students, settings: settingsSection, today: todaySection }
 
 if (!sections[section]) {
 	console.log(`usage: ledger-web.mjs ${Object.keys(sections).join('|')} [dark]`)

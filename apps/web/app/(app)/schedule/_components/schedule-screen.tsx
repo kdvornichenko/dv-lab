@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { CalendarPlus } from 'lucide-react'
 
@@ -34,6 +34,7 @@ import {
 } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import { useMinuteNow } from '../../_components/use-minute-now'
 import { EndSeriesDialog } from './end-series-dialog'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
 import { MoveSeriesDialog } from './move-series-dialog'
@@ -61,31 +62,8 @@ async function readWeek(monday: string): Promise<WeekState> {
 	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
 }
 
-function subscribeMinute(callback: () => void) {
-	let timer: ReturnType<typeof setTimeout>
-	const schedule = () => {
-		timer = setTimeout(
-			() => {
-				callback()
-				schedule()
-			},
-			60000 - (Date.now() % 60000) + 50
-		)
-	}
-	schedule()
-	return () => clearTimeout(timer)
-}
-
-const minuteNow = () => Math.floor(Date.now() / 60000)
-const serverNow = () => null
-
-function useScheduleNow(): Date | null {
-	const minute = useSyncExternalStore(subscribeMinute, minuteNow, serverNow)
-	return useMemo(() => (minute === null ? null : new Date(minute * 60000)), [minute])
-}
-
 export function ScheduleScreen() {
-	const now = useScheduleNow()
+	const now = useMinuteNow()
 	if (now === null) {
 		return (
 			<PageScroll>
