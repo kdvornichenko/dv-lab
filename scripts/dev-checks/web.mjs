@@ -32,9 +32,13 @@ export function sql(text) {
 	}
 }
 
-export async function launch({ width = 1280, height = 800, colorScheme = theme } = {}) {
+export async function launch({ width = 1280, height = 800, colorScheme = theme, timezoneId } = {}) {
 	const browser = await chromium.launch()
-	const context = await browser.newContext({ viewport: { width, height }, colorScheme })
+	const context = await browser.newContext({
+		viewport: { width, height },
+		colorScheme,
+		...(timezoneId ? { timezoneId } : {}),
+	})
 	const page = await context.newPage()
 	const problems = []
 	page.on('console', (message) => {

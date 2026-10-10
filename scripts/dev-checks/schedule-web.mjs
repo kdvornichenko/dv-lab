@@ -170,8 +170,21 @@ function expectedRange(monday) {
 	return `${left} – ${dayNum(sunday)} ${monthName(sunday)}`
 }
 
-function expectedNow() {
-	return core.zonedParts(new Date(), VN)
+function expectedNow(at) {
+	return core.zonedParts(at ?? new Date(), VN)
+}
+
+function expectedTitle(monday) {
+	const sunday = core.addDays(monday, 6)
+	if (monday.slice(0, 4) !== sunday.slice(0, 4)) {
+		return `${monthName(monday)} ${monday.slice(0, 4)} – ${monthName(sunday)} ${sunday.slice(0, 4)}`
+	}
+	if (monthName(monday) !== monthName(sunday))
+		return `${monthName(monday)} – ${monthName(sunday)} ${sunday.slice(0, 4)}`
+	const long = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long' }).format(
+		new Date(`${monday}T12:00:00Z`)
+	)
+	return `${long} ${monday.slice(0, 4)}`
 }
 
 async function openSchedule(page) {
@@ -180,8 +193,8 @@ async function openSchedule(page) {
 	await page.waitForTimeout(400)
 }
 
-async function framePart1(page, label) {
-	const nowVn = expectedNow()
+async function framePart1(page, label, at) {
+	const nowVn = expectedNow(at)
 	const monday = core.mondayOf(nowVn.date)
 	const data = await page.evaluate(() => {
 		const query = (selector, root = document) => Array.from(root.querySelectorAll(selector))
@@ -273,7 +286,7 @@ async function framePart1(page, label) {
 	check(`${label} body has scroll-fade`, data.bodyFade === true)
 	check(`${label} scrollTop is 336`, Math.abs(data.scrollTop - 336) <= 2, String(data.scrollTop))
 	check(`${label} day header is outside the scroller`, data.headInsideBody === false)
-	const after = expectedNow()
+	const after = expectedNow(at)
 	const shown = data.nowText?.replace(/^Now /, '')
 	const shownMinutes = shown ? Number(shown.slice(0, 2)) * 60 + Number(shown.slice(3, 5)) : -1000
 	check(
@@ -294,6 +307,96 @@ async function framePart1(page, label) {
 	return { monday, nowVn }
 }
 
+async function readHeader(page) {
+	return page.evaluate(() => {
+		const h1 = document.querySelector('h1')
+		return {
+			h1: h1?.textContent,
+			eyebrow: h1?.parentElement?.querySelector('p')?.textContent,
+			title: document.querySelector('[data-slot="schedule-period"]')?.textContent,
+			first: document.querySelector('[data-slot="week-grid-day"]')?.dataset.date,
+			scrollTop: document.querySelector('[data-slot="week-grid-body"]')?.scrollTop,
+			nowLines: document.querySelectorAll('[data-slot="week-grid-now"]').length,
+		}
+	})
+}
+
+async function framePart2(page, label, at) {
+	const nowVn = expectedNow(at)
+	const monday = core.mondayOf(nowVn.date)
+	const today = page.getByRole('button', { name: 'Today', exact: true })
+	const settle = () => page.waitForTimeout(250)
+	const expectWeek = async (name, offset, eyebrow, todayDisabled) => {
+		const week = core.addDays(monday, offset * 7)
+		const header = await readHeader(page)
+		check(`${label} ${name}: h1`, header.h1 === expectedRange(week), header.h1)
+		check(`${label} ${name}: period title`, header.title === expectedTitle(week), header.title)
+		check(`${label} ${name}: eyebrow ${eyebrow}`, header.eyebrow === eyebrow, header.eyebrow)
+		check(`${label} ${name}: columns start on Monday`, header.first === week, header.first)
+		check(
+			`${label} ${name}: Today ${todayDisabled ? 'disabled' : 'enabled'}`,
+			(await today.isDisabled()) === todayDisabled
+		)
+		check(
+			`${label} ${name}: now line ${offset === 0 ? 'shown' : 'hidden'}`,
+			header.nowLines === (offset === 0 ? 1 : 0),
+			String(header.nowLines)
+		)
+		check(`${label} ${name}: scroll offset kept`, Math.abs(header.scrollTop - 336) <= 2, String(header.scrollTop))
+	}
+	await expectWeek('current', 0, 'This week', true)
+	const view = await page.getByRole('combobox', { name: 'Calendar view' }).textContent()
+	check(`${label} view select shows Week`, view?.trim() === 'Week', view)
+	await page.getByRole('button', { name: 'Next week' }).click()
+	await settle()
+	await expectWeek('next by button', 1, 'Coming weeks', false)
+	await page.keyboard.press('k')
+	await settle()
+	await expectWeek('k once', 0, 'This week', true)
+	await page.keyboard.press('k')
+	await settle()
+	await expectWeek('k twice', -1, 'Past week', false)
+	await page.keyboard.press('t')
+	await settle()
+	await expectWeek('t', 0, 'This week', true)
+	await page.keyboard.press('ArrowRight')
+	await settle()
+	await expectWeek('ArrowRight', 1, 'Coming weeks', false)
+	await page.keyboard.press('j')
+	await settle()
+	await expectWeek('j', 2, 'Coming weeks', false)
+	await page.keyboard.press('ArrowLeft')
+	await settle()
+	await expectWeek('ArrowLeft', 1, 'Coming weeks', false)
+	await page.evaluate(() => {
+		const input = document.createElement('input')
+		input.id = 'probe-input'
+		document.body.append(input)
+		input.focus()
+	})
+	await page.keyboard.press('t')
+	await page.keyboard.press('j')
+	await settle()
+	await expectWeek('keys inside an input do nothing', 1, 'Coming weeks', false)
+	await page.evaluate(() => document.getElementById('probe-input')?.remove())
+	await page.evaluate(() => {
+		const dialog = document.createElement('div')
+		dialog.setAttribute('role', 'dialog')
+		dialog.id = 'probe-dialog'
+		document.body.append(dialog)
+	})
+	await page.keyboard.press('t')
+	await settle()
+	await expectWeek('keys with a dialog open do nothing', 1, 'Coming weeks', false)
+	await page.evaluate(() => document.getElementById('probe-dialog')?.remove())
+	await page.keyboard.press('t')
+	await settle()
+	await expectWeek('t after the probes', 0, 'This week', true)
+	await page.keyboard.press('Control+t')
+	await settle()
+	await expectWeek('modifier ignored', 0, 'This week', true)
+}
+
 async function frame() {
 	const { browser, page, problems } = await launch()
 	try {
@@ -302,6 +405,8 @@ async function frame() {
 		await openSchedule(page)
 		await framePart1(page, 'frame')
 		await shot(page, 'sched-frame', 'week')
+		await framePart2(page, 'frame')
+		await shot(page, 'sched-frame', 'toolbar')
 		await page.setViewportSize({ width: 320, height: 800 })
 		await page.waitForTimeout(300)
 		const narrow = await page.evaluate(() => ({
@@ -319,7 +424,27 @@ async function frame() {
 	} finally {
 		await browser.close()
 	}
+	await frameNewYork()
 	if (failures() === 0) console.log('SCHEDULE_WEB_FRAME_OK')
+}
+
+async function frameNewYork() {
+	const at = new Date('2026-10-11T19:00:00Z')
+	const { browser, page, problems } = await launch({ timezoneId: 'America/New_York' })
+	try {
+		await setTheme(page)
+		await page.clock.setFixedTime(at)
+		await signIn(page)
+		await openSchedule(page)
+		const zone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+		check('New York: browser zone is America/New_York', zone === 'America/New_York', zone)
+		await framePart1(page, 'New York', at)
+		await framePart2(page, 'New York', at)
+		await shot(page, 'sched-frame', 'new-york')
+		check('New York: no console problems', problems.length === 0, problems.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+	}
 }
 
 const sections = { fade, frame }

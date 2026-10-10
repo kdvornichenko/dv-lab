@@ -1,13 +1,14 @@
 'use client'
 
-import { useMemo, useSyncExternalStore } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { SkeletonTable } from '@/components/ui/skeleton'
-import { weekRange } from '@/lib/schedule-format'
+import { weekEyebrow, weekRange } from '@/lib/schedule-format'
 
-import { SCHEDULE_TIME_ZONE, mondayOf, zonedParts } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedParts } from '@dv-lab/core'
 
+import { ScheduleToolbar } from './schedule-toolbar'
 import { WeekGrid, type SecondZone } from './week-grid'
 
 const FRAME_HEIGHT = 'h-[max(28rem,calc(100svh-18rem))]'
@@ -52,11 +53,20 @@ export function ScheduleScreen() {
 }
 
 function LoadedSchedule({ now }: { now: Date }) {
+	const [offset, setOffset] = useState(0)
 	const today = zonedParts(now, SCHEDULE_TIME_ZONE).date
-	const monday = mondayOf(today)
+	const currentMonday = mondayOf(today)
+	const monday = addDays(currentMonday, offset * 7)
 	return (
 		<PageScroll>
-			<PageHeader title={weekRange(monday)} />
+			<PageHeader eyebrow={weekEyebrow(monday, currentMonday)} title={weekRange(monday)} />
+			<ScheduleToolbar
+				monday={monday}
+				currentMonday={currentMonday}
+				onToday={() => setOffset(0)}
+				onPrevious={() => setOffset((value) => value - 1)}
+				onNext={() => setOffset((value) => value + 1)}
+			/>
 			<WeekGrid monday={monday} today={today} now={now} secondZone={DEFAULT_SECOND_ZONE} />
 		</PageScroll>
 	)

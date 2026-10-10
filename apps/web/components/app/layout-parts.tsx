@@ -63,14 +63,16 @@ export function Panel({ title, description, action, children, className, id }: P
 
 interface PageHeaderProps {
 	title: ReactNode
+	eyebrow?: ReactNode
 	description?: ReactNode
 	actions?: ReactNode
 }
 
-export function PageHeader({ title, description, actions }: PageHeaderProps) {
+export function PageHeader({ title, eyebrow, description, actions }: PageHeaderProps) {
 	return (
 		<header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 			<div className="flex min-w-0 flex-col gap-1">
+				{eyebrow ? <p className="text-caption text-muted-foreground">{eyebrow}</p> : null}
 				<h1 className="text-display font-semibold tracking-tight text-foreground">{title}</h1>
 				{description ? <div className="text-body text-muted-foreground">{description}</div> : null}
 			</div>
