@@ -320,7 +320,7 @@ export function hasOccurrences(rule: Pick<SeriesRule, 'startsOn' | 'endsOn'>): b
 
 export type NewSeriesRule = Omit<SeriesRule, 'id'>
 
-export type CutLesson = { studentId: string; startsAt: Date; durationMinutes: number }
+export type CutLesson = { studentId: string; startsAt: Date; durationMinutes: number; originalOn: string }
 
 export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
 
@@ -333,6 +333,7 @@ function movedLessons(tail: SeriesRule, exceptions: readonly SeriesException[]):
 			studentId: tail.studentId,
 			startsAt: occurrence.startsAt,
 			durationMinutes: occurrence.durationMinutes,
+			originalOn: exception.originalOn,
 		})
 	}
 	return lessons

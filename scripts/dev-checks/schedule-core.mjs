@@ -473,7 +473,9 @@ function partTwo() {
 					startsOn: '2026-10-22',
 					endsOn: null,
 				},
-				lessons: [{ studentId: STUDENT, startsAt: '2026-10-30T05:00:00.000Z', durationMinutes: 50 }],
+				lessons: [
+					{ studentId: STUDENT, startsAt: '2026-10-30T05:00:00.000Z', durationMinutes: 50, originalOn: '2026-10-28' },
+				],
 			},
 			endsBefore: { kind: 'ends_before_new_day', endsOn: '2026-10-14' },
 			beforeFirst: {
@@ -587,14 +589,16 @@ function partTwo() {
 				kind: 'ok',
 				endsOn: '2026-10-14',
 				lessons: [
-					{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60 },
-					{ studentId: STUDENT, startsAt: '2026-11-06T05:00:00.000Z', durationMinutes: 45 },
+					{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60, originalOn: '2026-10-21' },
+					{ studentId: STUDENT, startsAt: '2026-11-06T05:00:00.000Z', durationMinutes: 45, originalOn: '2026-11-04' },
 				],
 			},
 			bounded: {
 				kind: 'ok',
 				endsOn: '2026-10-14',
-				lessons: [{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60 }],
+				lessons: [
+					{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60, originalOn: '2026-10-21' },
+				],
 			},
 			before: [['s:series-a:2026-10-21', 'scheduled']],
 			after: [['l:kept-1', 'scheduled']],

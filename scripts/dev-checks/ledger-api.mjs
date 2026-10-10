@@ -401,12 +401,112 @@ async function raceAgreement(ctx, label, [mark, cancel], markRow, block) {
 	)
 }
 
-async function sectionRace(ctx) {
-	await racePart1(ctx)
-	return 'RACE_PART1_OK'
+function startedToday(ctx) {
+	const midnight = core.zonedInstant(ctx.today, '00:00', VN).getTime()
+	const hourAgo = Math.floor((Date.now() - 3600000) / 1000) * 1000
+	return new Date(Math.max(midnight, hourAgo)).toISOString()
 }
 
-const SECTIONS = { marks: sectionMarks, past: sectionPast, race: sectionRace }
+async function movedIntoToday(ctx, name) {
+	const studentId = await createCard(ctx, name)
+	const originalOn = core.addDays(ctx.today, 8)
+	const seriesId = insertSeries(studentId, core.weekdayOf(originalOn), '19:00', core.addDays(originalOn, -21))
+	const startsAt = startedToday(ctx)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(seriesId)}, ${quote(originalOn)}, 'moved', ${quote(startsAt)}, 60)`
+	)
+	return { studentId, seriesId, originalOn, startsAt }
+}
+
+const cutBody = (ctx) => ({ from: ctx.today, weekday: core.weekdayOf(core.addDays(ctx.today, 2)), startTime: '10:00' })
+
+async function todayBlocks(ctx, studentId) {
+	return (await weekBlocks(ctx, ctx.today)).filter((block) => block.studentId === studentId)
+}
+
+function cutLessonMarks(studentId, startsAt) {
+	return sql(
+		`select l.id, m.kind from lessons l left join lesson_marks m on m.lesson_id = l.id where l.student_id = ${quote(studentId)} and l.starts_at = ${quote(startsAt)}`
+	).rows
+}
+
+function sharedStarts(blocks) {
+	const starts = blocks.map((block) => block.startsAt)
+	return starts.length !== new Set(starts).size
+}
+
+async function cutFlow(ctx, name, label, send) {
+	const fixture = await movedIntoToday(ctx, name)
+	const { studentId, seriesId, originalOn, startsAt } = fixture
+	sql(
+		`insert into lesson_marks (series_id, original_on, kind) values (${quote(seriesId)}, ${quote(originalOn)}, 'done')`
+	)
+	const before = (await todayBlocks(ctx, studentId)).filter((block) => block.startsAt === startsAt)
+	check(
+		`before ${label} the moved lesson stands today with outcome done`,
+		before.length === 1 && before[0].ref.kind === 'series' && before[0].outcome === 'done',
+		JSON.stringify(before.map((block) => [block.ref.kind, block.outcome]))
+	)
+	const res = await send(fixture)
+	check(`${label} gives 200`, res.status === 200, `got ${res.status} ${JSON.stringify(res.json?.error ?? '')}`)
+	const rows = cutLessonMarks(studentId, startsAt)
+	check(
+		`${label} copies the done mark to the new lessons row`,
+		rows.length === 1 && rows[0].kind === 'done',
+		JSON.stringify(rows.map((row) => row.kind))
+	)
+	const old = seriesMarks(seriesId, originalOn)
+	check(`${label} keeps the old mark row`, old.length === 1 && old[0].kind === 'done')
+	const blocks = await todayBlocks(ctx, studentId)
+	const at = blocks.filter((block) => block.startsAt === startsAt)
+	check(
+		`after ${label} the week shows the lesson once with outcome done`,
+		at.length === 1 && at[0].ref.kind === 'single' && at[0].outcome === 'done' && !sharedStarts(blocks),
+		JSON.stringify(at.map((block) => [block.ref.kind, block.outcome]))
+	)
+}
+
+async function sectionCut(ctx) {
+	await cutFlow(ctx, 'Alex Example 2111', 'series move', ({ seriesId }) =>
+		post(ctx, `/series/${seriesId}/move`, cutBody(ctx))
+	)
+	await cutFlow(ctx, 'Alex Example 2111 E', 'series end', ({ seriesId }) =>
+		post(ctx, `/series/${seriesId}/end`, { lastOn: ctx.today })
+	)
+	return 'SCHEDULE_LEDGER_CUT_OK'
+}
+
+async function racePart3(ctx) {
+	const { studentId, seriesId, originalOn, startsAt } = await movedIntoToday(ctx, 'Alex Example 2113')
+	const [mark, move] = await Promise.all([
+		post(ctx, occurrencePath(seriesId, originalOn, 'mark'), { kind: 'done' }),
+		post(ctx, `/series/${seriesId}/move`, cutBody(ctx)),
+	])
+	const statuses = [mark.status, move.status]
+	check(
+		'parallel mark and series move give only 200 or 409',
+		statuses.every((status) => status === 200 || status === 409),
+		statuses.join()
+	)
+	const blocks = await todayBlocks(ctx, studentId)
+	const at = blocks.filter((block) => block.startsAt === startsAt)
+	check('after the race no two blocks share a start', !sharedStarts(blocks) && at.length === 1, `blocks ${at.length}`)
+	if (mark.status === 200) {
+		check('accepted mark survives the series move once', at[0]?.outcome === 'done', `${at[0]?.outcome}`)
+	}
+	if (mark.status === 200 && move.status === 200) {
+		const rows = cutLessonMarks(studentId, startsAt)
+		check('the new lessons row carries the done mark', rows.length === 1 && rows[0].kind === 'done')
+	}
+}
+
+async function sectionRace(ctx) {
+	await racePart1(ctx)
+	await racePart3(ctx)
+	return 'SCHEDULE_LEDGER_RACE_OK'
+}
+
+const SECTIONS = { marks: sectionMarks, past: sectionPast, cut: sectionCut, race: sectionRace }
 
 const section = process.argv[2]
 const run = SECTIONS[section]
