@@ -286,6 +286,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 					onOpenPair={openPair}
 					onCancel={() => changeLesson(openBlock, 'cancel')}
 					onRestore={() => changeLesson(openBlock, 'restore')}
+					today={today}
+					blocksOn={blocksOn}
+					onStale={reload}
+					onMoved={(startsAt) => {
+						reload()
+						openPair({ key: openBlock.key, slot: 'to', at: startsAt })
+					}}
 				/>
 			) : null}
 			{newLesson !== null ? (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 
 import { CalendarCheck2, CalendarClock, CalendarX2 } from 'lucide-react'
 import Link from 'next/link'
@@ -31,6 +31,8 @@ import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { LessonStatus, type BlockSlot } from './lesson-block'
+import { LessonMoveForm } from './lesson-move-form'
+import type { OverlapBlock } from './new-lesson-dialog'
 import { STALE_LESSON, STALE_TITLE } from './schedule-mutations'
 
 export interface PairTarget {
@@ -50,6 +52,10 @@ interface LessonDialogProps {
 	onOpenPair: (target: PairTarget) => void
 	onCancel: () => Promise<ActionOutcome>
 	onRestore: () => Promise<ActionOutcome>
+	today: string
+	blocksOn: (date: string) => Promise<OverlapBlock[]>
+	onStale: () => void
+	onMoved: (startsAt: Date) => void
 }
 
 type Notice = 'stale' | 'cancel' | 'restore' | null
@@ -84,9 +90,15 @@ export function LessonDialog({
 	onOpenPair,
 	onCancel,
 	onRestore,
+	today,
+	blocksOn,
+	onStale,
+	onMoved,
 }: LessonDialogProps) {
 	const [confirming, setConfirming] = useState(false)
+	const [moving, setMoving] = useState(false)
 	const [pending, setPending] = useState(false)
+	const moveButton = useRef<HTMLButtonElement>(null)
 	const [notice, setNotice] = useState<Notice>(null)
 	const start = new Date(block.startsAt)
 	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
@@ -184,9 +196,32 @@ export function LessonDialog({
 								</Detail>
 							)}
 						</dl>
+						{moving && plannedActions ? (
+							<LessonMoveForm
+								block={block}
+								today={today}
+								secondZone={secondZone}
+								currentYear={currentYear}
+								blocksOn={blocksOn}
+								onPendingChange={setPending}
+								onDiscard={() => {
+									setMoving(false)
+									setTimeout(() => moveButton.current?.focus(), 50)
+								}}
+								onStale={() => {
+									setNotice('stale')
+									onStale()
+								}}
+								onMoved={(startsAt) => {
+									setMoving(false)
+									setNotice(null)
+									onMoved(startsAt)
+								}}
+							/>
+						) : null}
 					</div>
 				</ScrollArea>
-				{plannedActions ? (
+				{plannedActions && !moving ? (
 					<DialogFooter>
 						{confirming ? (
 							<div
@@ -216,7 +251,17 @@ export function LessonDialog({
 							</div>
 						) : (
 							<div className="flex w-full flex-wrap items-center justify-end gap-2">
-								<Button type="button" variant="secondary" size="compact" leadingIcon={CalendarClock}>
+								<Button
+									ref={moveButton}
+									type="button"
+									variant="secondary"
+									size="compact"
+									leadingIcon={CalendarClock}
+									onClick={() => {
+										setNotice(null)
+										setMoving(true)
+									}}
+								>
 									Move lesson
 								</Button>
 								<Button

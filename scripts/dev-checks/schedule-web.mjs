@@ -1981,6 +1981,207 @@ async function changesPart1(page, fx, nav, posts) {
 	await closeDialog(page)
 }
 
+async function calendarDayState(page, date) {
+	const cell = page.locator(`button[data-day="${dayAttr(date)}"]`).first()
+	for (let step = 0; step < 3 && (await cell.count()) === 0; step += 1) {
+		await page.getByRole('button', { name: /previous month/i }).click()
+		await page.waitForTimeout(150)
+	}
+	if ((await cell.count()) === 0) return null
+	return cell.evaluate(
+		(element) =>
+			element.disabled ||
+			element.getAttribute('aria-disabled') === 'true' ||
+			element.closest('[aria-disabled="true"], [data-disabled="true"]') !== null
+	)
+}
+
+async function moveFormFacts(page) {
+	const group = page.getByRole('dialog').getByRole('group', { name: 'Move lesson' })
+	if ((await group.count()) === 0) return null
+	return group
+		.evaluate((element) => ({
+			text: element.textContent,
+			change: element.querySelector('[data-slot="move-lesson-change"]')?.textContent ?? '',
+			clash: element.querySelector('[data-slot="move-lesson-clash"]')?.textContent ?? null,
+			submit: Array.from(element.querySelectorAll('button')).find(
+				(button) => button.textContent?.trim() === 'Move lesson'
+			)?.disabled,
+		}))
+		.catch(() => null)
+}
+
+async function changesPart2(page, fx, nav, posts) {
+	const dialog = page.getByRole('dialog')
+	await goToWeek(page, nav, core.mondayOf(fx.wed))
+	await slotLocator(page, CH_A, fx.wed).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	await dialog.getByRole('button', { name: 'Move lesson' }).click()
+	await page.waitForTimeout(400)
+	let form = await moveFormFacts(page)
+	const buttons = await dialogButtons(page)
+	check(
+		'move: Move lesson opens the form in the dialog body and hides the footer',
+		form !== null && !buttons.includes('Cancel lesson'),
+		buttons.join('|')
+	)
+	check(
+		'move: the form has New date and Time, VN',
+		form !== null && form.text.includes('New date') && form.text.includes('Time, VN')
+	)
+	check(
+		'move: the change line shows the old and the new time with both zones',
+		form !== null &&
+			form.change.includes(`${shortDay(fx.wed)}, 18:00`) &&
+			form.change.includes(`${fullDate(fx.wed)} · 18:00–19:00 VN`) &&
+			form.change.includes('· 14:00–15:00 MSK'),
+		form?.change
+	)
+	check(
+		'move: focus moves into the form',
+		await page.evaluate(() => document.activeElement?.id === 'move-lesson-date'),
+		await page.evaluate(
+			() =>
+				`${document.activeElement?.tagName}/${document.activeElement?.getAttribute('role')}/${document.activeElement?.id}`
+		)
+	)
+	await shot(page, 'sched-changes', 'move-form')
+	await dialog.getByRole('button', { name: 'Discard changes' }).click()
+	await page.waitForTimeout(300)
+	const discarded = await dialogButtons(page)
+	check(
+		'move: Discard changes brings the footer back with focus on Move lesson',
+		discarded.includes('Cancel lesson') &&
+			(await moveFormFacts(page)) === null &&
+			(await page.evaluate(() => document.activeElement?.textContent?.trim() === 'Move lesson')),
+		discarded.join('|')
+	)
+	await dialog.getByRole('button', { name: 'Move lesson' }).click()
+	await page.waitForTimeout(400)
+
+	await page.locator('#move-lesson-date').click()
+	await page.waitForTimeout(300)
+	const yesterday = core.addDays(fx.today, -1)
+	const yesterdayOff = await calendarDayState(page, yesterday)
+	check('move: days before today cannot be picked', yesterdayOff === true, String(yesterdayOff))
+	const todayCell = page.locator(`button[data-day="${dayAttr(fx.today)}"]`).first()
+	const todayOff = (await todayCell.count()) === 0 ? null : await todayCell.evaluate((element) => element.disabled)
+	check('move: today can be picked', todayOff === false || todayOff === null, String(todayOff))
+	await shot(page, 'sched-changes', 'move-calendar')
+	await page.locator('#move-lesson-date').click()
+	await page.waitForTimeout(300)
+
+	const sent = posts.length
+	await dialog.getByRole('group', { name: 'Move lesson' }).getByRole('button', { name: 'Move lesson' }).click()
+	await page.waitForTimeout(400)
+	form = await moveFormFacts(page)
+	check(
+		'move: the same time asks for a different date or time',
+		form !== null && form.text.includes('Choose a different date or time.'),
+		form?.text.slice(0, 200)
+	)
+	check(
+		'move: and sends nothing',
+		posts.slice(sent).every((post) => !post.url.includes('/move')),
+		String(posts.length - sent)
+	)
+
+	await page.locator('#move-lesson-time').click()
+	await page.waitForTimeout(250)
+	const hour12 = await page
+		.getByRole('listbox', { name: 'Hours' })
+		.getByRole('option', { name: '12', exact: true })
+		.getAttribute('aria-disabled')
+	check('move: a taken hour is not disabled in the time list', hour12 !== 'true', String(hour12))
+	await page.getByRole('listbox', { name: 'Hours' }).getByRole('option', { name: '12', exact: true }).click()
+	await page.getByRole('listbox', { name: 'Minutes' }).getByRole('option', { name: '00', exact: true }).click()
+	await page.getByRole('button', { name: 'Done' }).click()
+	await page.waitForTimeout(400)
+	form = await moveFormFacts(page)
+	check(
+		'move: a clash shows the lesson already at this time',
+		form?.clash === `A lesson is already at this time: ${CH_B} 12:00–13:00`,
+		form?.clash ?? 'no clash line'
+	)
+	check('move: the clash does not disable Move lesson', form?.submit === false, String(form?.submit))
+	await shot(page, 'sched-changes', 'move-clash')
+
+	await pickDate(page, fx.friday, 'move-lesson-date')
+	await pickTime(page, '10:00', 'move-lesson-time')
+	form = await moveFormFacts(page)
+	check(
+		'move: the change line follows the new date',
+		form !== null && form.change.includes(`${fullDate(fx.friday)} · 10:00–11:00 VN`) && form.clash === null,
+		form?.change
+	)
+	await dialog.getByRole('group', { name: 'Move lesson' }).getByRole('button', { name: 'Move lesson' }).click()
+	const movedToast = await toastText(page, 'Lesson moved', CH_A)
+	check(
+		'move: toast names the old and the new time',
+		movedToast.includes(`${CH_A}: ${shortDay(fx.wed)}, 18:00 to ${shortDay(fx.friday)}, 10:00.`),
+		movedToast
+	)
+	check('move: the destination stands on Friday', await waitBlock(page, CH_A, fx.friday, 'to', ', planned'))
+	check('move: the original place is marked moved', await waitBlock(page, CH_A, fx.wed, 'from', 'moved to'))
+	await page.waitForTimeout(400)
+	const movedText = await dialog.textContent()
+	check(
+		'move: the dialog shows the lesson at its new place',
+		movedText.includes(`moved from ${dayMonth(fx.wed)}, 18:00`) && movedText.includes('10:00–11:00 VN'),
+		movedText.slice(0, 200)
+	)
+	let facts = await blockFacts(page, CH_A, fx.wed, 'from')
+	check(
+		'move: the original place is dashed and names the new day',
+		facts.block !== null &&
+			facts.block.outlineStyle === 'dashed' &&
+			facts.block.lines[1] === `→ ${dayMonth(fx.friday)}`,
+		facts.block ? `${facts.block.outlineStyle}/${facts.block.lines.join('|')}` : 'no block'
+	)
+	const destination = await blockFacts(page, CH_A, fx.friday, 'to')
+	check(
+		'move: the destination is at 10:00',
+		destination.block !== null && Math.abs(destination.block.top - 10 * 48) <= 1.5,
+		destination.block ? String(destination.block.top) : 'no block'
+	)
+	await shot(page, 'sched-changes', 'moved')
+	await closeDialog(page)
+	const focus = await focusedBlock(page)
+	check(
+		'move: after Esc focus is on the destination block',
+		focus.slot === 'to' && focus.date === fx.friday && focus.key === facts.block?.key,
+		JSON.stringify(focus)
+	)
+
+	await slotLocator(page, CH_B, fx.wed).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	await dialog.getByRole('button', { name: 'Move lesson' }).click()
+	await page.waitForTimeout(300)
+	await pickDate(page, fx.thursday, 'move-lesson-date')
+	await dialog.getByRole('group', { name: 'Move lesson' }).getByRole('button', { name: 'Move lesson' }).click()
+	await toastText(page, 'Lesson moved', CH_B)
+	check('single move: B stands on Thursday', await waitBlock(page, CH_B, fx.thursday, 'to', ', planned'))
+	await page.waitForTimeout(300)
+	facts = await readBlocks(page)
+	const leftB = ofCard(facts, CH_B)
+	check(
+		'single move: no dashed original and nothing left on Wednesday',
+		leftB.every((block) => block.slot === 'to' && block.date !== fx.wed),
+		leftB.map((block) => `${block.date}/${block.slot}`).join(',')
+	)
+	await closeDialog(page)
+
+	await goToWeek(page, nav, core.mondayOf(fx.laterWed))
+	facts = await blockFacts(page, CH_A, fx.laterWed)
+	check(
+		'move: a later Wednesday is untouched',
+		facts.block !== null && Math.abs(facts.block.top - 18 * 48) <= 1.5 && facts.block.label.endsWith(', planned'),
+		facts.block?.label ?? 'no block'
+	)
+}
+
 async function changes() {
 	cleanupFixtures('changes start')
 	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
@@ -2002,6 +2203,10 @@ async function changes() {
 		const afterPart1 = await pastSnapshot(page, fx)
 		check('past weeks snapshot is unchanged after part 1', afterPart1.join('\n') === before.join('\n'))
 		console.log('CHANGES_PART1_OK')
+		await changesPart2(page, fx, nav, posts)
+		const afterPart2 = await pastSnapshot(page, fx)
+		check('past weeks snapshot is unchanged after part 2', afterPart2.join('\n') === before.join('\n'))
+		console.log('CHANGES_PART2_OK')
 		const real = problems.filter(
 			(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409)/.test(problem)
 		)
