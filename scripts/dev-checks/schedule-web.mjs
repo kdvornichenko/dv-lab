@@ -2902,8 +2902,8 @@ async function studentsPart1(page, fx) {
 	await openStudentsList(page)
 	const heads = await page.locator('thead th').allTextContents()
 	check(
-		'columns are Student, Status, Rate, Lessons left, Next lesson',
-		heads.map((text) => text.trim()).join('|') === 'Student|Status|Rate|Lessons left|Next lesson',
+		'columns are Student, Status, Rate, Balance, Next lesson',
+		heads.map((text) => text.trim()).join('|') === 'Student|Status|Rate|Balance|Next lesson',
 		heads.join('|')
 	)
 	const currentYear = Number(core.zonedParts(new Date(), VN).date.slice(0, 4))
@@ -2948,7 +2948,7 @@ async function studentsPart1(page, fx) {
 		.locator('span')
 		.evaluate((element) => element.className.includes('text-muted-foreground'))
 	check('row B: None is muted', noneMuted)
-	check('row A: Lessons left cell is unchanged', lessonsLeftA?.trim() === 'Set opening balance', lessonsLeftA?.trim())
+	check('row A: Balance cell says Not set', lessonsLeftA?.trim() === 'Not set', lessonsLeftA?.trim())
 	const heightA = await studentRow(page, ST_A)
 		.first()
 		.evaluate((row) => row.getBoundingClientRect().height)

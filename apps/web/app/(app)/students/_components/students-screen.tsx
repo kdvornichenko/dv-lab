@@ -9,9 +9,10 @@ import { useRouter } from 'next/navigation'
 import { Avatar } from '@/components/app/avatar'
 import { EmptyLine } from '@/components/app/empty-line'
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
-import { LessonsText, MoneyText } from '@/components/app/ledger-text'
+import { MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
+import { StudentBalance } from '@/components/app/student-balance'
 import { TimePair } from '@/components/app/time-pair'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
@@ -24,19 +25,29 @@ import { Elevated } from '@/lib/elevated'
 import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
-import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
+import type { SettingsResponse, StudentRow, StudentsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { StudentFormDialog } from './student-form-dialog'
 import { UnassignedPayments } from './unassigned-payments'
 
-type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; students: StudentRow[]; unassigned: number }
+type ReadState =
+	| { kind: 'loading' }
+	| { kind: 'error' }
+	| { kind: 'ready'; students: StudentRow[]; unassigned: number; threshold: number }
 
 async function readStudents(): Promise<ReadState> {
-	const result = await apiRequest<StudentsResponse>('GET', '/students')
-	return result.ok
-		? { kind: 'ready', students: result.data.students, unassigned: result.data.unassignedPayments }
-		: { kind: 'error' }
+	const [students, settings] = await Promise.all([
+		apiRequest<StudentsResponse>('GET', '/students'),
+		apiRequest<SettingsResponse>('GET', '/settings'),
+	])
+	if (!students.ok || !settings.ok) return { kind: 'error' }
+	return {
+		kind: 'ready',
+		students: students.data.students,
+		unassigned: students.data.unassignedPayments,
+		threshold: settings.data.settings.paysSoonLessons,
+	}
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
@@ -56,7 +67,7 @@ function NextLesson({ at, zone, currentYear }: { at: Date; zone: string | null; 
 	return <TimePair main={formatWhen(at, SCHEDULE_TIME_ZONE, currentYear)} second={second} />
 }
 
-function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boolean }) {
+function StudentsTable({ rows, searching, threshold }: { rows: StudentRow[]; searching: boolean; threshold: number }) {
 	const router = useRouter()
 	const [zone] = useSecondZone()
 	if (rows.length === 0) return searching ? <EmptyLine text="No students found" /> : <EmptyLine />
@@ -73,7 +84,7 @@ function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boo
 						<TableHead className={headClass}>Student</TableHead>
 						<TableHead className={headClass}>Status</TableHead>
 						<TableHead className={headClass}>Rate</TableHead>
-						<TableHead className={cn(headClass, 'text-right')}>Lessons left</TableHead>
+						<TableHead className={headClass}>Balance</TableHead>
 						<TableHead className={headClass}>Next lesson</TableHead>
 					</TableRow>
 				</TableHeader>
@@ -112,12 +123,13 @@ function StudentsTable({ rows, searching }: { rows: StudentRow[]; searching: boo
 										</>
 									)}
 								</TableCell>
-								<TableCell className="px-4 py-2 text-right text-body tabular-nums">
-									{student.balanceMinutes === null ? (
-										<span className="text-muted-foreground">Set opening balance</span>
-									) : (
-										<LessonsText minutes={student.balanceMinutes} lessonMinutes={student.defaultLessonMinutes} />
-									)}
+								<TableCell className="px-4 py-2 text-body">
+									<StudentBalance
+										dot
+										minutes={student.balanceMinutes}
+										lessonMinutes={student.defaultLessonMinutes}
+										threshold={threshold}
+									/>
 								</TableCell>
 								<TableCell className="px-4 py-1 text-body tabular-nums">
 									{student.nextLessonAt === null ? (
@@ -157,6 +169,7 @@ export function StudentsScreen() {
 	}, [])
 
 	const students = state.kind === 'ready' ? state.students : null
+	const threshold = state.kind === 'ready' ? state.threshold : 0
 	const active = useMemo(
 		() => (students ?? []).filter((student) => student.status === 'active').sort(byName),
 		[students]
@@ -218,10 +231,18 @@ export function StudentsScreen() {
 					)}
 				</div>
 				<TabPanel value="active" className="mt-4">
-					{loading ? <SkeletonTable /> : <StudentsTable rows={shownActive} searching={searching} />}
+					{loading ? (
+						<SkeletonTable />
+					) : (
+						<StudentsTable rows={shownActive} searching={searching} threshold={threshold} />
+					)}
 				</TabPanel>
 				<TabPanel value="archived" className="mt-4">
-					{loading ? <SkeletonTable /> : <StudentsTable rows={shownArchived} searching={searching} />}
+					{loading ? (
+						<SkeletonTable />
+					) : (
+						<StudentsTable rows={shownArchived} searching={searching} threshold={threshold} />
+					)}
 				</TabPanel>
 				<TabPanel value="unassigned" className="mt-4">
 					{loading ? <SkeletonTable /> : <UnassignedPayments students={active} onChanged={() => void load()} />}

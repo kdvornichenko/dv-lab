@@ -1,12 +1,11 @@
 import * as core from '../../packages/core/src/index.ts'
-import { BASE, api, check, failures, launch, shot, signIn, sql } from './web.mjs'
+import { BASE, api, check, env, failures, launch, shot, signIn, sql } from './web.mjs'
 
 const section = process.argv[2]
 const dark = process.argv.includes('dark')
 const VN = core.SCHEDULE_TIME_ZONE
 
-const LIKE = 'Alex Example 215%'
-const fixtureWhere = `display_name like '${LIKE}' and import_key is null`
+const fixtureWhere = `(display_name like 'Alex Example 215%' or display_name like 'Alex Example 216%') and import_key is null`
 
 const cleanupText = `do $$ begin
 if to_regclass('lesson_marks') is not null then
@@ -81,17 +80,17 @@ async function createCard(page, name, minutes = 60) {
 	return result.json.student.id
 }
 
-async function setOpening(page, studentId, on) {
-	const result = await api(page, 'PUT', `/students/${studentId}/opening-balance`, { lessonsHundredths: 0, on })
+async function setOpening(page, studentId, on, hundredths = 0) {
+	const result = await api(page, 'PUT', `/students/${studentId}/opening-balance`, { lessonsHundredths: hundredths, on })
 	check(`opening balance set for ${studentId.slice(0, 4)}`, result.status === 200, String(result.status))
 }
 
-async function createOnce(page, studentId, date, startTime) {
+async function createOnce(page, studentId, date, startTime, durationMinutes = 60) {
 	const result = await api(page, 'POST', '/schedule/lessons', {
 		studentId,
 		date,
 		startTime,
-		durationMinutes: 60,
+		durationMinutes,
 		repeats: 'once',
 	})
 	check(`lesson created ${date} ${startTime}`, result.status === 201, String(result.status))
@@ -587,7 +586,177 @@ async function marks() {
 	if (failures() === 0) console.log('LEDGER_WEB_MARKS_OK')
 }
 
-const sections = { marks }
+const loginLiteral = `'${String(env.DEV_TEACHER_LOGIN).replaceAll("'", "''")}'`
+const teacherAccount = `select id from accounts where login = ${loginLiteral} and role = 'teacher'`
+
+function readSettingsRow() {
+	const result = sql(`select pays_soon_lessons as value from teacher_settings where account_id in (${teacherAccount})`)
+	const rows = result.rows ?? []
+	return rows.length === 0 ? { existed: false, value: null } : { existed: true, value: rows[0].value }
+}
+
+function restoreSettingsRow(original) {
+	const where = `account_id in (${teacherAccount})`
+	const result = original.existed
+		? sql(`update teacher_settings set pays_soon_lessons = ${Number(original.value)} where ${where}`)
+		: sql(`delete from teacher_settings where ${where}`)
+	const now = readSettingsRow()
+	const same = now.existed === original.existed && now.value === original.value
+	check(
+		'teacher settings are back to the state before the run',
+		same && !result.error,
+		`existed ${original.existed} value ${original.value} -> existed ${now.existed} value ${now.value}`
+	)
+}
+
+async function setThreshold(page, value) {
+	const result = await api(page, 'PATCH', '/settings', { paysSoonLessons: value })
+	check(`api threshold set to ${value}`, result.status === 200, String(result.status))
+}
+
+async function withTeacherSettings(run) {
+	const original = readSettingsRow()
+	console.log(`teacher settings before: row ${original.existed ? 'present' : 'absent'}`)
+	try {
+		await run()
+	} finally {
+		restoreSettingsRow(original)
+	}
+}
+
+async function openStudentsList(page) {
+	await page.goto(`${BASE}/students`)
+	await page.getByRole('heading', { name: 'Students', level: 1 }).waitFor({ timeout: 30000 })
+	await page.getByRole('tab', { name: 'Active', exact: true }).waitFor({ timeout: 15000 })
+	await page.locator('tbody tr').first().waitFor({ timeout: 15000 })
+}
+
+function balanceFacts(page, name) {
+	return page
+		.locator('tbody tr', { hasText: name })
+		.first()
+		.evaluate((row) => {
+			const heads = Array.from(row.closest('table').querySelectorAll('thead th'))
+			const head = heads[3]
+			const cell = row.querySelectorAll('td')[3]
+			const line = cell.firstElementChild
+			const text = line.lastElementChild
+			const dot = cell.querySelector('[role="img"]')
+			const mark = dot?.querySelector('i')
+			const link = row.querySelector('a')
+			return {
+				heading: head.textContent?.trim() ?? '',
+				headingAlign: getComputedStyle(head).textAlign,
+				headLeft: head.getBoundingClientRect().left + parseFloat(getComputedStyle(head).paddingLeft),
+				text: text.textContent ?? '',
+				textClass: text.className,
+				textColor: getComputedStyle(text).color,
+				nameColor: link ? getComputedStyle(link).color : '',
+				dotLabel: dot?.getAttribute('aria-label') ?? null,
+				dotTone: mark ? Array.from(mark.classList).find((item) => item.startsWith('bg-')) : null,
+				dotSlot: dot ? dot.getBoundingClientRect().width : null,
+				dotLeft: mark ? mark.getBoundingClientRect().left : null,
+				textLeft: text.getBoundingClientRect().left,
+				cellText: cell.textContent?.trim() ?? '',
+			}
+		})
+}
+
+const BALANCE_FIXTURES = [
+	{ name: 'Alex Example 2160 A', text: '10 lessons left', label: 'Plenty left', tone: 'bg-success' },
+	{ name: 'Alex Example 2160 B', text: '1 lesson left', label: 'Pays soon', tone: 'bg-info' },
+	{ name: 'Alex Example 2160 C', text: '0 lessons left', label: 'No lessons left', tone: 'bg-warning' },
+	{ name: 'Alex Example 2160 E', text: 'owes 1.5 lessons', label: 'Owes lessons', tone: 'bg-destructive' },
+	{ name: 'Alex Example 2160 D', text: 'Not set', label: null, tone: null },
+]
+
+async function studentsFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const yesterday = core.addDays(today, -1)
+	const opening = core.addDays(today, -3)
+	const ids = {}
+	for (const item of BALANCE_FIXTURES) ids[item.name] = await createCard(page, item.name)
+	await setOpening(page, ids['Alex Example 2160 A'], opening, 1000)
+	await setOpening(page, ids['Alex Example 2160 B'], opening, 100)
+	await setOpening(page, ids['Alex Example 2160 C'], opening, 0)
+	await setOpening(page, ids['Alex Example 2160 E'], opening, 0)
+	const debt = await createOnce(page, ids['Alex Example 2160 E'], yesterday, '09:00', 90)
+	await markApi(page, debt, 'done')
+	return { today, yesterday, opening, ids }
+}
+
+async function studentsPart1(page) {
+	await openStudentsList(page)
+	let leftOfText = null
+	for (const item of BALANCE_FIXTURES) {
+		const facts = await balanceFacts(page, item.name)
+		check(`${item.name}: cell says ${item.text}`, facts.text === item.text, facts.text)
+		check(`${item.name}: dot label is ${item.label ?? 'absent'}`, facts.dotLabel === item.label, String(facts.dotLabel))
+		check(`${item.name}: dot tone is ${item.tone ?? 'absent'}`, facts.dotTone === item.tone, String(facts.dotTone))
+		check(`${item.name}: no minus sign in the cell`, !/[-\u2212]/.test(facts.cellText), facts.cellText)
+		if (item.label === null) {
+			check(`${item.name}: Not set is muted`, facts.textClass.includes('text-muted-foreground'), facts.textClass)
+		} else {
+			check(
+				`${item.name}: the text is not coloured by the state`,
+				!facts.textClass.includes('destructive') && facts.textColor === facts.nameColor,
+				`${facts.textColor} / ${facts.nameColor}`
+			)
+			check(`${item.name}: the dot has a 24px hit area`, facts.dotSlot === 24, String(facts.dotSlot))
+			check(
+				`${item.name}: the dot starts where the heading text starts`,
+				Math.abs(facts.dotLeft - facts.headLeft) < 0.6,
+				`${facts.dotLeft} / ${facts.headLeft}`
+			)
+		}
+		check(`${item.name}: the text follows the dot slot by 16px`, Math.abs(facts.textLeft - facts.headLeft - 16) < 0.6)
+		leftOfText ??= facts.textLeft
+		check(`${item.name}: text column is aligned`, Math.abs(facts.textLeft - leftOfText) < 0.6)
+		check(
+			`${item.name}: heading is Balance and left aligned`,
+			facts.heading === 'Balance' && /left|start/.test(facts.headingAlign)
+		)
+	}
+	await shot(page, 'ledger-students', 'balance-column')
+	const dot = page
+		.locator('tbody tr', { hasText: 'Alex Example 2160 E' })
+		.first()
+		.locator('[role="img"][aria-label="Owes lessons"]')
+	await dot.hover()
+	await page.waitForTimeout(400)
+	const tip = await page
+		.getByText('Owes lessons', { exact: true })
+		.first()
+		.isVisible()
+		.catch(() => false)
+	check('the dot tooltip names the state', tip)
+	await page.mouse.move(2, 2)
+	console.log(failures() === 0 ? 'STUDENTS_WEB_PART1_OK' : 'STUDENTS_WEB_PART1_FAIL')
+}
+
+async function students() {
+	cleanupFixtures('students start')
+	await withTeacherSettings(async () => {
+		const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+		try {
+			await setTheme(page)
+			await signIn(page)
+			await setThreshold(page, 2)
+			await studentsFixtures(page)
+			await studentsPart1(page)
+			const real = problems.filter(
+				(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409|500)/.test(problem)
+			)
+			check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+		} finally {
+			await browser.close()
+			cleanupFixtures('students end')
+		}
+	})
+	if (failures() === 0) console.log('LEDGER_WEB_STUDENTS_OK')
+}
+
+const sections = { marks, students }
 
 if (!sections[section]) {
 	console.log(`usage: ledger-web.mjs ${Object.keys(sections).join('|')} [dark]`)
