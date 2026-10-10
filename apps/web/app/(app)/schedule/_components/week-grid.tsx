@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
+import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +12,7 @@ import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, zonedParts } from '@dv-lab/core'
 
 import { EventTooltip } from './event-tooltip'
-import { blockSlot, type BlockLayout } from './lesson-block'
+import type { BlockLayout } from './lesson-block'
 
 export const HOUR_HEIGHT = 48
 export const FRAME_HEIGHT = 'h-[max(28rem,calc(100svh-20rem))]'
@@ -463,11 +464,12 @@ export function WeekGrid({
 									) : null}
 									{placeDay(groups.get(date) ?? []).map(({ block, layout }) => (
 										<EventTooltip
-											key={`${block.key}:${blockSlot(block)}`}
+											key={`${block.key}:${occurrenceSlot(block.outcome)}`}
 											block={block}
 											layout={layout}
 											secondZone={secondZone ? secondZone.id : null}
 											currentYear={currentYear}
+											now={now}
 											onOpen={(chosen) => onOpen?.(chosen)}
 										/>
 									))}

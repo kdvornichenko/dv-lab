@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
+import { StatusDot } from '@/components/app/status-dot'
 import { TimePair } from '@/components/app/time-pair'
 import { Tooltip } from '@/components/ui/tooltip'
-import { formatDayMonth, formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
+import { blockEffect, statusTone, statusWord, tooltipDeduction } from '@/lib/lesson-mark-text'
+import { formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
-import { LessonBlock, LessonStatus, type BlockLayout } from './lesson-block'
+import { LessonBlock, type BlockLayout } from './lesson-block'
 
 const OPEN_DELAY = 200
 const SKIP_DELAY = 300
@@ -21,10 +23,11 @@ interface EventTooltipProps {
 	layout: BlockLayout
 	secondZone: string | null
 	currentYear: number
+	now: Date
 	onOpen: (block: ScheduleBlock) => void
 }
 
-export function EventTooltip({ block, layout, secondZone, currentYear, onOpen }: EventTooltipProps) {
+export function EventTooltip({ block, layout, secondZone, currentYear, now, onOpen }: EventTooltipProps) {
 	const [open, setOpen] = useState(false)
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -70,10 +73,8 @@ export function EventTooltip({ block, layout, secondZone, currentYear, onOpen }:
 
 	const start = new Date(block.startsAt)
 	const second = secondRange(start, block.durationMinutes, secondZone)
-	const movedTo =
-		block.status === 'moved' && block.movedTo !== null
-			? formatDayMonth(new Date(block.movedTo), SCHEDULE_TIME_ZONE)
-			: undefined
+	const word = statusWord(block, now)
+	const deduction = tooltipDeduction(blockEffect(block, now), block.ledger.lessonMinutes)
 
 	return (
 		<Tooltip
@@ -93,9 +94,15 @@ export function EventTooltip({ block, layout, secondZone, currentYear, onOpen }:
 						second={second}
 						mainClassName="text-body tabular-nums"
 					/>
-					<span className="text-body">
-						<LessonStatus status={block.status} movedTo={movedTo} />
+					<span className="inline-flex items-center gap-2 text-body">
+						<StatusDot tone={statusTone(block, now)} label={word} passive />
+						<span>{word}</span>
 					</span>
+					{deduction === null ? null : (
+						<span data-slot="event-tooltip-deduction" className="text-caption text-muted-foreground">
+							{deduction}
+						</span>
+					)}
 				</div>
 			}
 		>
@@ -104,6 +111,7 @@ export function EventTooltip({ block, layout, secondZone, currentYear, onOpen }:
 				layout={layout}
 				secondZone={secondZone}
 				currentYear={currentYear}
+				now={now}
 				onOpen={(chosen) => {
 					close()
 					onOpen(chosen)

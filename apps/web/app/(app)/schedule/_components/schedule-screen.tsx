@@ -10,6 +10,7 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
+import { occurrenceSlot, type OccurrenceSlot } from '@/lib/lesson-mark-text'
 import { lessonCount, vnWhen, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
 import { exitFallbackMs, spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
@@ -19,7 +20,6 @@ import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from 
 
 import { useToast } from '../../_components/toasts'
 import { EndSeriesDialog } from './end-series-dialog'
-import { blockSlot, type BlockSlot } from './lesson-block'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
 import { MoveSeriesDialog } from './move-series-dialog'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
@@ -27,7 +27,7 @@ import { mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
-type OpenLesson = { key: string; slot: BlockSlot }
+type OpenLesson = { key: string; slot: OccurrenceSlot }
 
 type SeriesDialogState = {
 	kind: 'move' | 'end'
@@ -207,7 +207,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			rule,
 			studentName: block.studentName,
 			lessonDate: block.ref.kind === 'series' ? block.ref.originalOn : today,
-			returnTo: { key: block.key, slot: blockSlot(block) },
+			returnTo: { key: block.key, slot: occurrenceSlot(block.outcome) },
 		}
 		setLesson(null)
 		setTimeout(() => setSeriesDialog(next), exitFallbackMs(spring.slow))
@@ -263,7 +263,8 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const ready = week.kind === 'ready'
 	const openBlock =
 		ready && lesson !== null
-			? (week.data.blocks.find((block) => block.key === lesson.key && blockSlot(block) === lesson.slot) ?? null)
+			? (week.data.blocks.find((block) => block.key === lesson.key && occurrenceSlot(block.outcome) === lesson.slot) ??
+				null)
 			: null
 	const openSeriesId = openBlock !== null && openBlock.ref.kind === 'series' ? openBlock.ref.seriesId : null
 	const openSeries =
@@ -311,7 +312,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					secondZone={secondZone}
 					blocks={week.data.blocks}
 					currentYear={currentYear}
-					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: blockSlot(block) })}
+					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: occurrenceSlot(block.outcome) })}
 					onSlot={openSlot}
 					frame={
 						newLesson?.frame === undefined
@@ -332,7 +333,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			) : null}
 			{openBlock !== null && ready ? (
 				<LessonDialog
-					key={`${openBlock.key}:${blockSlot(openBlock)}`}
+					key={`${openBlock.key}:${occurrenceSlot(openBlock.outcome)}`}
 					block={openBlock}
 					series={openSeries}
 					now={now}

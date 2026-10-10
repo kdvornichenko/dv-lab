@@ -6,6 +6,7 @@ import { CalendarCheck2, CalendarClock, CalendarX2 } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/app/avatar'
+import { StatusDot } from '@/components/app/status-dot'
 import { TimePair } from '@/components/app/time-pair'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { statusTone, statusWord, type OccurrenceSlot } from '@/lib/lesson-mark-text'
 import {
 	formatDate,
 	formatFullDate,
@@ -33,14 +35,13 @@ import {
 import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, nextSeriesDate } from '@dv-lab/core'
 
-import { LessonStatus, type BlockSlot } from './lesson-block'
 import { LessonMoveForm } from './lesson-move-form'
 import type { OverlapBlock } from './new-lesson-dialog'
 import { STALE_LESSON, STALE_TITLE } from './schedule-mutations'
 
 export interface PairTarget {
 	key: string
-	slot: BlockSlot
+	slot: OccurrenceSlot
 	at: Date
 }
 
@@ -112,6 +113,7 @@ export function LessonDialog({
 	const movedFrom = block.movedFrom === null ? null : new Date(block.movedFrom)
 	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
 	const { actions } = block
+	const word = statusWord(block, now, false)
 	const footerActions = actions.move || actions.cancel
 	const seriesActions = actions.series && series !== null && nextSeriesDate(series, now) !== null
 	const seriesSecond = series === null ? null : seriesSecondLine(series, secondZone, now)
@@ -163,7 +165,10 @@ export function LessonDialog({
 							</Banner>
 						) : null}
 						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body">
-							<LessonStatus status={block.status} />
+							<span className="inline-flex items-center gap-2">
+								<StatusDot tone={statusTone(block, now)} label={word} />
+								<span>{word}</span>
+							</span>
 							{movedTo !== null ? (
 								<button
 									type="button"

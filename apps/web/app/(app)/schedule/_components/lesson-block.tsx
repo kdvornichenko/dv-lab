@@ -2,17 +2,15 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
-import { formatDay, formatDayMonth, formatRange, formatTime, vnRange } from '@/lib/schedule-format'
+import { Check, UserX } from 'lucide-react'
+
+import { DotShape } from '@/components/app/status-dot'
+import { movedDate, occurrenceSlot, statusKey, statusLabel, type StatusKey } from '@/lib/lesson-mark-text'
+import { formatDay, formatRange, formatTime, vnRange } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
-import type { ScheduleBlock, ScheduleBlockStatus } from '@dv-lab/contracts'
+import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
-
-export type BlockSlot = 'from' | 'to'
-
-export function blockSlot(block: Pick<ScheduleBlock, 'status'>): BlockSlot {
-	return block.status === 'moved' ? 'from' : 'to'
-}
 
 export interface BlockLayout {
 	top: number
@@ -21,33 +19,32 @@ export interface BlockLayout {
 	lanes: number
 }
 
-const DOT: Record<ScheduleBlockStatus, string> = {
-	scheduled: 'bg-info',
-	cancelled: 'bg-destructive',
-	moved: 'bg-warning',
+type Sign = 'dot' | 'check' | 'user-x' | null
+
+const PLANNED_LOOK = 'bg-selected text-foreground ring-1 ring-surface-2'
+const DIMMED_LOOK = `${PLANNED_LOOK} opacity-60`
+
+const BLOCK_LOOK: Record<StatusKey, { shell: string; struck: boolean; sign: Sign }> = {
+	planned: { shell: PLANNED_LOOK, struck: false, sign: null },
+	needs_mark: { shell: PLANNED_LOOK, struck: false, sign: 'dot' },
+	done: { shell: DIMMED_LOOK, struck: false, sign: 'check' },
+	no_show: { shell: DIMMED_LOOK, struck: false, sign: 'user-x' },
+	cancelled: { shell: 'text-muted-foreground ring-1 ring-selected ring-inset', struck: true, sign: null },
+	moved: {
+		shell: 'text-foreground outline-2 -outline-offset-2 outline-selected outline-dashed',
+		struck: false,
+		sign: null,
+	},
 }
 
-export function LessonStatus({ status, movedTo }: { status: ScheduleBlockStatus; movedTo?: string }) {
-	const word =
-		status === 'scheduled'
-			? 'Planned'
-			: status === 'cancelled'
-				? 'Cancelled'
-				: movedTo
-					? `Moved to ${movedTo}`
-					: 'Moved'
-	return (
-		<span className="inline-flex items-center gap-2">
-			<span aria-hidden className={cn('size-2 shrink-0 rounded-full', DOT[status])} />
-			<span>{word}</span>
-		</span>
-	)
-}
-
-const STATUS_CLASS: Record<ScheduleBlockStatus, string> = {
-	scheduled: 'bg-selected text-foreground ring-1 ring-surface-2',
-	cancelled: 'text-muted-foreground ring-1 ring-selected ring-inset',
-	moved: 'text-foreground outline-2 -outline-offset-2 outline-selected outline-dashed',
+function BlockSign({ sign }: { sign: Exclude<Sign, null> }) {
+	if (sign === 'dot') {
+		return (
+			<DotShape tone="amber" className="absolute top-[6px] right-[6px] ring-1 ring-surface-2" data-slot="block-sign" />
+		)
+	}
+	const Icon = sign === 'check' ? Check : UserX
+	return <Icon aria-hidden data-slot="block-sign" data-sign={sign} className="absolute top-[4px] right-[4px] size-3" />
 }
 
 interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
@@ -55,6 +52,7 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	layout: BlockLayout
 	secondZone: string | null
 	currentYear: number
+	now: Date
 	onOpen: (block: ScheduleBlock) => void
 	onClick?: ComponentProps<'button'>['onClick']
 }
@@ -64,6 +62,7 @@ export function LessonBlock({
 	layout,
 	secondZone,
 	currentYear,
+	now,
 	onOpen,
 	onClick,
 	className,
@@ -72,21 +71,13 @@ export function LessonBlock({
 }: LessonBlockProps) {
 	const start = new Date(block.startsAt)
 	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
-	const movedLabel =
-		block.status === 'moved' && block.movedTo !== null
-			? formatDayMonth(new Date(block.movedTo), SCHEDULE_TIME_ZONE)
-			: null
-	const statusWord =
-		block.status === 'scheduled'
-			? 'planned'
-			: block.status === 'cancelled'
-				? 'cancelled'
-				: `moved to ${movedLabel ?? ''}`
+	const movedLabel = movedDate(block)
+	const look = BLOCK_LOOK[statusKey(block, now)]
 	const label = [
 		block.studentName,
 		formatDay(start, SCHEDULE_TIME_ZONE, currentYear),
 		vnRange(start, block.durationMinutes, secondZone),
-		statusWord,
+		statusLabel(block, now),
 	].join(', ')
 	const short = block.durationMinutes < 45
 	const lines = short
@@ -107,7 +98,7 @@ export function LessonBlock({
 			type="button"
 			{...props}
 			data-key={block.key}
-			data-slot={blockSlot(block)}
+			data-slot={occurrenceSlot(block.outcome)}
 			aria-label={label}
 			style={{ ...position, ...style }}
 			onClick={(event) => {
@@ -116,14 +107,17 @@ export function LessonBlock({
 			}}
 			className={cn(
 				'absolute z-10 block cursor-pointer overflow-hidden rounded-md px-[6px] py-[2px] text-left focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
-				STATUS_CLASS[block.status],
+				look.shell,
 				className
 			)}
 		>
-			<span className={cn('block truncate text-caption font-semibold', block.status === 'cancelled' && 'line-through')}>
+			<span
+				className={cn('block truncate text-caption font-semibold', look.struck && 'line-through', look.sign && 'pr-4')}
+			>
 				{lines[0]}
 			</span>
 			{lines.length > 1 ? <span className="block truncate text-caption tabular-nums">{lines[1]}</span> : null}
+			{look.sign === null ? null : <BlockSign sign={look.sign} />}
 		</button>
 	)
 }
