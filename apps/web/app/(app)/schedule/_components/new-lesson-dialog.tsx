@@ -37,7 +37,7 @@ export type StudentsState = { kind: 'loading' } | { kind: 'error' } | { kind: 'r
 
 interface NewLessonDialogProps {
 	students: StudentsState
-	seed: { date: string; time: string }
+	seed: { date: string; time: string; durationMinutes?: number }
 	today: string
 	secondZone: string | null
 	currentYear: number
@@ -83,8 +83,8 @@ export function NewLessonDialog({
 	const [studentId, setStudentId] = useState('')
 	const [date, setDate] = useState(seed.date)
 	const [time, setTime] = useState<string | null>(seed.time)
-	const [lengthText, setLengthText] = useState('60')
-	const [lengthEdited, setLengthEdited] = useState(false)
+	const [lengthText, setLengthText] = useState(String(seed.durationMinutes ?? 60))
+	const [lengthEdited, setLengthEdited] = useState(seed.durationMinutes !== undefined)
 	const [repeats, setRepeats] = useState<LessonRepeats>('once')
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)

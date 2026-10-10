@@ -7,8 +7,6 @@ import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { zoneLabel } from '@/lib/time-zones'
 
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
-
 import { useToast } from '../../_components/toasts'
 
 const SETTINGS_TABS = ['general'] as const

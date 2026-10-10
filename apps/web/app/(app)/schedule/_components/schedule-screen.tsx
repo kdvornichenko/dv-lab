@@ -25,7 +25,7 @@ import { MoveSeriesDialog } from './move-series-dialog'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
 import { mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
-import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
+import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
 type OpenLesson = { key: string; slot: BlockSlot }
 
@@ -37,7 +37,7 @@ type SeriesDialogState = {
 	returnTo: OpenLesson
 }
 
-type NewLessonSeed = { date: string; time: string }
+type NewLessonSeed = { date: string; time: string; durationMinutes?: number; frame?: number }
 
 type WeekState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: ScheduleWeekResponse }
 
@@ -163,8 +163,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 		}))
 	}
 
-	function openNew(seed?: NewLessonSeed) {
-		if (seed) return setNewLesson(seed)
+	function openNew() {
 		const parts = zonedParts(now, SCHEDULE_TIME_ZONE)
 		const hour = Math.floor(parts.minutes / 60) + 1
 		setNewLesson(
@@ -172,6 +171,15 @@ function LoadedSchedule({ now }: { now: Date }) {
 				? { date: addDays(parts.date, 1), time: '00:00' }
 				: { date: parts.date, time: `${String(hour).padStart(2, '0')}:00` }
 		)
+	}
+
+	function openSlot(choice: SlotChoice) {
+		setNewLesson({
+			date: choice.date,
+			time: choice.time,
+			durationMinutes: choice.dragged ? choice.durationMinutes : undefined,
+			frame: choice.durationMinutes,
+		})
 	}
 
 	function closeNew() {
@@ -308,7 +316,12 @@ function LoadedSchedule({ now }: { now: Date }) {
 					blocks={week.data.blocks}
 					currentYear={currentYear}
 					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: blockSlot(block) })}
-					onSlot={(date, time) => openNew({ date, time })}
+					onSlot={openSlot}
+					frame={
+						newLesson?.frame === undefined
+							? null
+							: { date: newLesson.date, time: newLesson.time, durationMinutes: newLesson.frame }
+					}
 					scrollTopRef={scrollTopRef}
 				/>
 			) : (

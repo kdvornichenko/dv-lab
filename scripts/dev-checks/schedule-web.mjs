@@ -4495,7 +4495,468 @@ async function settings() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_SETTINGS_OK')
 }
 
-const sections = { fade, frame, read, changes, students, grid, forms, zones, settings }
+const DRAG_LIKE = 'Alex Example 2132%'
+const DRAG_A = 'Alex Example 2132 A'
+const MINUTE_PX = 0.8
+
+const dragColumn = (page, date) => page.locator(`[data-slot="week-grid-column"][data-date="${date}"]`)
+
+async function dragScrollFor(page, minutesA, minutesB) {
+	await page.evaluate(
+		({ from, to, px }) => {
+			const body = document.querySelector('[data-slot="week-grid-body"]')
+			body.scrollTop = Math.max(0, ((from + to) / 2) * px - body.clientHeight / 2)
+		},
+		{ from: minutesA, to: minutesB, px: MINUTE_PX }
+	)
+	await page.waitForTimeout(80)
+}
+
+async function dragPoint(page, date, minutes, offset = 0) {
+	const box = await dragColumn(page, date).boundingBox()
+	return { x: box.x + 10, y: box.y + minutes * MINUTE_PX + offset }
+}
+
+async function frameFacts(page) {
+	return page.evaluate(() => {
+		const frame = document.querySelector('[data-slot="week-grid-frame"]')
+		if (!frame) return null
+		const column = frame.closest('[data-slot="week-grid-column"]')
+		const style = getComputedStyle(frame)
+		const rect = frame.getBoundingClientRect()
+		const columnRect = column.getBoundingClientRect()
+		const chip = frame.querySelector('[data-slot="week-grid-frame-chip"]')
+		const caption = frame.querySelector('span.text-caption')
+		return {
+			range: frame.getAttribute('data-range'),
+			minutes: Number(frame.getAttribute('data-minutes')),
+			state: frame.getAttribute('data-state'),
+			top: rect.top - columnRect.top,
+			height: rect.height,
+			left: rect.left - columnRect.left,
+			width: rect.width,
+			columnWidth: columnRect.width,
+			radius: style.borderTopLeftRadius,
+			pointerEvents: style.pointerEvents,
+			zIndex: style.zIndex,
+			cls: frame.className,
+			text: frame.textContent,
+			caption: caption ? caption.textContent : null,
+			captionSize: caption ? getComputedStyle(caption).fontSize : null,
+			captionWrap: caption ? getComputedStyle(caption).whiteSpace : null,
+			chip: chip ? chip.textContent : null,
+			chipSize: chip ? getComputedStyle(chip).fontSize : null,
+			chipLeft: chip ? chip.getBoundingClientRect().left - rect.right : null,
+			count: document.querySelectorAll('[data-slot="week-grid-frame"]').length,
+			cursor: getComputedStyle(column).cursor,
+		}
+	})
+}
+
+async function dragSteps(page, date, fromMinutes, toMinutes, pressOffset = 2, toOffset = 2) {
+	await dragScrollFor(page, fromMinutes, toMinutes)
+	const start = await dragPoint(page, date, fromMinutes, pressOffset)
+	const end = await dragPoint(page, date, toMinutes, toOffset)
+	await page.mouse.move(start.x, start.y)
+	await page.mouse.down()
+	await page.mouse.move(end.x, end.y, { steps: 8 })
+	await page.waitForTimeout(120)
+	return { start, end }
+}
+
+async function discardNew(page) {
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(250)
+}
+
+async function dragFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const wednesday = core.firstOnOrAfter(core.addDays(today, 1), 3)
+	const card = await createCard(page, DRAG_A, 60, null)
+	const made = await api(page, 'POST', '/schedule/lessons', {
+		studentId: card,
+		date: wednesday,
+		startTime: '18:00',
+		durationMinutes: 60,
+		repeats: 'once',
+	})
+	check('fixture lesson at 18:00 created', made.status === 201, String(made.status))
+	return { today, wednesday }
+}
+
+async function dragPart1(page, fx) {
+	const date = fx.wednesday
+	const dialog = page.getByRole('dialog')
+	const column = dragColumn(page, date)
+	check('before a press the cursor is the default and the grid has no frame', (await frameFacts(page)) === null)
+	check(
+		'before a press empty cells show the default cursor',
+		(await column.evaluate((element) => getComputedStyle(element).cursor)) !== 'ns-resize'
+	)
+
+	await dragSteps(page, date, 540, 605)
+	let frame = await frameFacts(page)
+	check(
+		'drag 09:00 to 10:05: the frame reads 09:00–10:15',
+		frame?.range === '09:00–10:15' && frame.caption === '09:00–10:15',
+		JSON.stringify(frame?.range)
+	)
+	check('drag: the frame is 75 minutes', frame?.minutes === 75, String(frame?.minutes))
+	check(
+		'frame geometry: slot-aligned top and height, block inset, block radius',
+		frame !== null &&
+			Math.abs(frame.top - 540 * MINUTE_PX) <= 1.5 &&
+			Math.abs(frame.height - 75 * MINUTE_PX) <= 1.5 &&
+			Math.abs(frame.left - 2) <= 1 &&
+			Math.abs(frame.width - (frame.columnWidth - 6)) <= 1.5 &&
+			frame.radius === '8px',
+		JSON.stringify(frame)
+	)
+	check(
+		'frame look: selected 85%, 40% foreground ring, text caption 12px on one line, above blocks, no pointer events',
+		frame !== null &&
+			frame.cls.includes('bg-selected/85') &&
+			frame.cls.includes('ring-foreground/40') &&
+			frame.captionSize === '12px' &&
+			frame.captionWrap === 'nowrap' &&
+			frame.pointerEvents === 'none' &&
+			Number(frame.zIndex) >= 20 &&
+			frame.chip === null,
+		JSON.stringify({ cls: frame?.cls, size: frame?.captionSize, z: frame?.zIndex })
+	)
+	check('frame text has no title, length or zone label', frame?.text === '09:00–10:15', frame?.text)
+	check('while the frame exists the cursor is ns-resize', frame?.cursor === 'ns-resize', frame?.cursor)
+	await shot(page, 'sched-drag', 'frame')
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	let facts = await dialogFacts(page)
+	check(
+		'release: New lesson opens on the column date with start 09:00 and length 75',
+		facts.dateLabel?.includes(`${monthName(date)} ${dayNum(date)}, `) &&
+			facts.time === '09:00' &&
+			facts.length === '75',
+		`${facts.dateLabel} ${facts.time} ${facts.length}`
+	)
+	frame = await frameFacts(page)
+	check(
+		'release: the frame stays under the dialog, still 09:00–10:15 and static',
+		frame?.state === 'draft' && frame.range === '09:00–10:15' && frame.count === 1,
+		JSON.stringify(frame?.range)
+	)
+	check(
+		'release: the cursor over the grid is back to normal',
+		(await column.evaluate((element) => getComputedStyle(element).cursor)) !== 'ns-resize'
+	)
+	check(
+		'release: the length helper keeps 15 to 240 minutes',
+		facts.text.includes('15 to 240 minutes.') && !facts.text.includes("Taken from the student's")
+	)
+	await shot(page, 'sched-drag', 'dialog')
+	await discardNew(page)
+	check('Discard changes removes the frame', (await frameFacts(page)) === null)
+
+	await dragSteps(page, date, 600, 665)
+	frame = await frameFacts(page)
+	check('flip: 10:00 down to 11:05 reads 10:00–11:15', frame?.range === '10:00–11:15', frame?.range)
+	const up = await dragPoint(page, date, 545, 2)
+	await page.mouse.move(up.x, up.y, { steps: 8 })
+	await page.waitForTimeout(120)
+	frame = await frameFacts(page)
+	check(
+		'flip: dragging up through the anchor reads 09:00–10:15',
+		frame?.range === '09:00–10:15' && frame.minutes === 75,
+		frame?.range
+	)
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	facts = await dialogFacts(page)
+	check(
+		'flip: release gives start 09:00 and length 75',
+		facts.time === '09:00' && facts.length === '75',
+		`${facts.time} ${facts.length}`
+	)
+	await discardNew(page)
+
+	await dragSteps(page, date, 660, 700)
+	check('Esc test: a frame exists before Esc', (await frameFacts(page)) !== null)
+	await page.keyboard.press('Escape')
+	await page.waitForTimeout(200)
+	await page.mouse.up()
+	await page.waitForTimeout(300)
+	check(
+		'Esc: the frame is gone and no dialog opened',
+		(await frameFacts(page)) === null && (await dialog.count()) === 0
+	)
+	await dragSteps(page, date, 660, 700)
+	await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+	await page.waitForTimeout(200)
+	await page.mouse.up()
+	await page.waitForTimeout(300)
+	check(
+		'window blur: the frame is gone and no dialog opened',
+		(await frameFacts(page)) === null && (await dialog.count()) === 0
+	)
+
+	await dragScrollFor(page, 840, 840)
+	const click = await dragPoint(page, date, 840, 3)
+	await page.mouse.click(click.x, click.y)
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	facts = await dialogFacts(page)
+	frame = await frameFacts(page)
+	check(
+		'plain click: the dialog opens at 14:00 with length 60',
+		facts.time === '14:00' && facts.length === '60',
+		`${facts.time} ${facts.length}`
+	)
+	check(
+		'plain click: a 60 minute frame stays at 14:00–15:00',
+		frame?.state === 'draft' && frame.minutes === 60 && frame.range === '14:00–15:00',
+		JSON.stringify(frame?.range)
+	)
+	await discardNew(page)
+	check('plain click: Discard changes removes the frame', (await frameFacts(page)) === null)
+
+	await dragScrollFor(page, 660, 660)
+	await page.mouse.move(...Object.values(await dragPoint(page, date, 660, 1)))
+	await page.mouse.down()
+	const nudge = await dragPoint(page, date, 660, 7)
+	await page.mouse.move(nudge.x, nudge.y, { steps: 4 })
+	await page.waitForTimeout(120)
+	frame = await frameFacts(page)
+	check(
+		'one slot: the 15 minute frame puts its range in a chip, not inside',
+		frame?.minutes === 15 && frame.chip === '11:00–11:15' && frame.caption === null,
+		JSON.stringify({ minutes: frame?.minutes, chip: frame?.chip })
+	)
+	check(
+		'one slot: the chip is micro and sits right of the frame',
+		frame?.chipSize === '11px' && frame.chipLeft !== null && frame.chipLeft > 0,
+		JSON.stringify({ size: frame?.chipSize, left: frame?.chipLeft })
+	)
+	await shot(page, 'sched-drag', 'chip')
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	facts = await dialogFacts(page)
+	check(
+		'one slot: release gives length 15',
+		facts.length === '15' && facts.time === '11:00',
+		`${facts.time} ${facts.length}`
+	)
+	await discardNew(page)
+
+	await dragSteps(page, date, 300, 720)
+	frame = await frameFacts(page)
+	check(
+		'longest frame: stops at 240 minutes, 05:00–09:00',
+		frame?.minutes === 240 && frame.range === '05:00–09:00',
+		`${frame?.minutes} ${frame?.range}`
+	)
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	facts = await dialogFacts(page)
+	check(
+		'longest frame: release gives length 240',
+		facts.length === '240' && facts.time === '05:00',
+		`${facts.time} ${facts.length}`
+	)
+	await discardNew(page)
+
+	await dragSteps(page, date, 1410, 1432)
+	frame = await frameFacts(page)
+	check(
+		'day end: the frame stops at 24:00 and reads 23:30–24:00',
+		frame?.range === '23:30–24:00' && frame.minutes === 30,
+		`${frame?.range} ${frame?.minutes}`
+	)
+	const beyond = await dragPoint(page, date, 1439, 40)
+	await page.mouse.move(beyond.x, beyond.y, { steps: 4 })
+	await page.waitForTimeout(120)
+	frame = await frameFacts(page)
+	check('day end: moving below the column changes nothing', frame?.range === '23:30–24:00', frame?.range)
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	facts = await dialogFacts(page)
+	check(
+		'day end: release gives 23:30 with length 30',
+		facts.time === '23:30' && facts.length === '30',
+		`${facts.time} ${facts.length}`
+	)
+	await discardNew(page)
+
+	await dragSteps(page, date, 15, 2)
+	frame = await frameFacts(page)
+	check(
+		'day start: the frame stops at 00:00 and reads 00:00–00:30',
+		frame?.range === '00:00–00:30' && frame.minutes === 30,
+		`${frame?.range} ${frame?.minutes}`
+	)
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await discardNew(page)
+
+	const sideways = await dragSteps(page, date, 600, 640)
+	const next = core.addDays(date, 1)
+	const other = await dragColumn(page, next).boundingBox()
+	await page.mouse.move(other.x + 30, sideways.end.y, { steps: 5 })
+	await page.waitForTimeout(120)
+	frame = await frameFacts(page)
+	check(
+		'sideways: leaving the column does not move the frame to another day',
+		frame !== null && frame.range === '10:00–10:45',
+		JSON.stringify(frame?.range)
+	)
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	facts = await dialogFacts(page)
+	check(
+		'sideways: release keeps the day of the press',
+		facts.dateLabel?.includes(`${monthName(date)} ${dayNum(date)}, `) === true,
+		String(facts.dateLabel)
+	)
+	await page.keyboard.press('Escape')
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(250)
+	check('Esc on the open dialog closes it and takes the frame with it', (await frameFacts(page)) === null)
+}
+
+async function dragPart2(page, fx) {
+	const date = fx.wednesday
+	const dialog = page.getByRole('dialog')
+	const block = blockLocator(page, DRAG_A, date)
+	await dragScrollFor(page, 1080, 1080)
+	const box = await block.boundingBox()
+	await page.mouse.move(box.x + box.width / 2, box.y + 8)
+	await page.mouse.down()
+	await page.mouse.move(box.x + box.width / 2, box.y + 60, { steps: 6 })
+	await page.waitForTimeout(150)
+	check('a press on a lesson block starts no drag', (await frameFacts(page)) === null)
+	await page.mouse.up()
+	await page.waitForTimeout(500)
+	if ((await dialog.count()) > 0) {
+		await page.keyboard.press('Escape')
+		await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	}
+
+	await dragSteps(page, date, 1020, 1110)
+	let frame = await frameFacts(page)
+	check('overlap: the frame passes over the lesson block', frame?.range === '17:00–18:45', frame?.range)
+	await shot(page, 'sched-drag', 'overlap-frame')
+	await page.mouse.up()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	let facts = await dialogFacts(page)
+	check(
+		'overlap: the dialog warns with the lesson and still allows saving',
+		facts.overlap !== null && facts.overlap.includes(`${DRAG_A} 18:00–19:00 VN`) && facts.submit?.disabled === false,
+		facts.overlap ?? 'no banner'
+	)
+	await pickOption(page, 'new-lesson-student', DRAG_A)
+	facts = await dialogFacts(page)
+	check('choosing a student keeps the length taken from the frame', facts.length === '105', facts.length)
+	await dialog.getByRole('button', { name: 'Add lesson' }).click()
+	await page.getByText('Lesson added', { exact: true }).last().waitFor({ timeout: 15000 })
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(800)
+	frame = await frameFacts(page)
+	const made = await dragColumn(page, date)
+		.locator(`button[aria-label^="${DRAG_A}, "]`)
+		.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))
+	check(
+		'saving replaces the frame with the real block',
+		frame === null && made.some((label) => label.includes('17:00–18:45 VN')),
+		made.join(' | ')
+	)
+}
+
+async function dragPart3(page, fx) {
+	const date = fx.wednesday
+	await page.evaluate(() => {
+		const body = document.querySelector('[data-slot="week-grid-body"]')
+		body.scrollTop = 250
+	})
+	await page.waitForTimeout(100)
+	const bodyBox = await page.locator('[data-slot="week-grid-body"]').boundingBox()
+	const columnBox = await dragColumn(page, date).boundingBox()
+	const x = columnBox.x + 10
+	await page.mouse.move(x, bodyBox.y + bodyBox.height - 90)
+	await page.mouse.down()
+	await page.mouse.move(x, bodyBox.y + bodyBox.height - 8, { steps: 6 })
+	await page.waitForTimeout(80)
+	const before = await page.evaluate(() => document.querySelector('[data-slot="week-grid-body"]').scrollTop)
+	const framed = await frameFacts(page)
+	await page.waitForTimeout(700)
+	const after = await page.evaluate(() => document.querySelector('[data-slot="week-grid-body"]').scrollTop)
+	const grown = await frameFacts(page)
+	check('near the bottom edge the grid scrolls by itself', after > before + 40, `${before} -> ${after}`)
+	check(
+		'while scrolling the frame keeps following',
+		grown !== null && grown.minutes >= 180,
+		`${framed?.minutes} -> ${grown?.minutes}`
+	)
+	await page.keyboard.press('Escape')
+	await page.mouse.up()
+	await page.waitForTimeout(200)
+
+	await page.evaluate(() => {
+		document.querySelector('[data-slot="week-grid-body"]').scrollTop = 450
+	})
+	await page.waitForTimeout(100)
+	await page.mouse.move(x, bodyBox.y + 90)
+	await page.mouse.down()
+	await page.mouse.move(x, bodyBox.y + 8, { steps: 6 })
+	await page.waitForTimeout(80)
+	const topBefore = await page.evaluate(() => document.querySelector('[data-slot="week-grid-body"]').scrollTop)
+	const topFramed = await frameFacts(page)
+	await page.waitForTimeout(700)
+	const topAfter = await page.evaluate(() => document.querySelector('[data-slot="week-grid-body"]').scrollTop)
+	const topGrown = await frameFacts(page)
+	check('near the top edge the grid scrolls up by itself', topAfter < topBefore - 40, `${topBefore} -> ${topAfter}`)
+	check(
+		'near the top edge the frame keeps following',
+		topGrown !== null && topGrown.minutes >= 180,
+		`${topFramed?.minutes} -> ${topGrown?.minutes}`
+	)
+	await page.keyboard.press('Escape')
+	await page.mouse.up()
+	await page.waitForTimeout(200)
+	check(
+		'auto scroll: Esc leaves no frame and no dialog',
+		(await frameFacts(page)) === null && (await page.getByRole('dialog').count()) === 0
+	)
+}
+
+async function drag() {
+	cleanupFixtures('drag start', DRAG_LIKE)
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	try {
+		await setTheme(page)
+		await signIn(page)
+		const fx = await dragFixtures(page)
+		await openSchedule(page)
+		const nav = { monday: core.mondayOf(fx.today) }
+		await goToWeek(page, nav, core.mondayOf(fx.wednesday))
+		await dragPart1(page, fx)
+		console.log('DRAG_PART1_OK')
+		await dragPart2(page, fx)
+		await dragPart3(page, fx)
+		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+		cleanupFixtures('drag end', DRAG_LIKE)
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_DRAG_OK')
+}
+
+const sections = { fade, frame, read, changes, students, grid, forms, zones, settings, drag }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)
