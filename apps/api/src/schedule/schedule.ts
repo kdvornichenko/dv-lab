@@ -11,21 +11,37 @@ import {
 	type createLessonRequest,
 } from '@dv-lab/contracts'
 import {
+	type BalanceCard,
 	type ScheduleBlock as CoreBlock,
+	type MarkKind,
+	type OutcomeBlock,
 	SCHEDULE_TIME_ZONE,
 	type SeriesRule,
 	type SingleLesson,
 	addDays,
 	canChange,
+	lessonActions,
 	nextSeriesDate,
 	scheduleToday,
 	scheduleWindow,
 	weekdayOf,
+	withOutcomes,
 	zonedInstant,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonSeries, lessons, students } from '@dv-lab/db'
 
-import { lessonColumns, loadScheduleRows, seriesColumns, toSeriesRule, toSingleLesson } from './rows.ts'
+import {
+	lessonColumns,
+	loadMarks,
+	loadScheduleRows,
+	seriesColumns,
+	toBalanceCard,
+	toSeriesRule,
+	toSingleLesson,
+	toWireActions,
+	toWireMark,
+	toWireOutcome,
+} from './rows.ts'
 
 type CreateLessonInput = z.output<typeof createLessonRequest>
 
@@ -34,7 +50,13 @@ type CreateLessonResult =
 	| { kind: 'lesson'; lesson: ScheduleLesson }
 	| { kind: 'series'; series: ScheduleSeries; existing: boolean }
 
-type BlockStudent = { name: string; status: StudentStatus; goal: string | null }
+type BlockStudent = {
+	name: string
+	status: StudentStatus
+	goal: string | null
+	card: BalanceCard
+	lessonMinutes: number
+}
 
 function toStudentStatus(value: string): StudentStatus {
 	const known = STUDENT_STATUSES.find((status) => status === value)
@@ -64,7 +86,12 @@ export function toWireLesson(lesson: SingleLesson): ScheduleLesson {
 	}
 }
 
-function toWireBlock(block: CoreBlock, people: Map<string, BlockStudent>, now: Date): WireBlock {
+function toWireBlock(
+	block: OutcomeBlock,
+	people: Map<string, BlockStudent>,
+	marks: ReadonlyMap<string, MarkKind>,
+	now: Date
+): WireBlock {
 	const student = people.get(block.studentId)
 	if (!student) throw new Error('schedule block student is missing')
 	return {
@@ -80,6 +107,14 @@ function toWireBlock(block: CoreBlock, people: Map<string, BlockStudent>, now: D
 		movedTo: block.movedTo === null ? null : block.movedTo.toISOString(),
 		movedFrom: block.movedFrom === null ? null : block.movedFrom.toISOString(),
 		changeable: canChange(block.startsAt, now),
+		outcome: toWireOutcome(block.outcome),
+		actions: toWireActions(lessonActions(block.outcome, block.startsAt, now)),
+		ledger: {
+			openingOn: student.card.openingOn,
+			noShowDeducts: student.card.noShowDeducts,
+			lessonMinutes: student.lessonMinutes,
+		},
+		mark: toWireMark(marks.get(block.key) ?? null),
 	}
 }
 
@@ -87,24 +122,57 @@ async function blockStudents(executor: DbExecutor, blocks: readonly CoreBlock[])
 	const ids = [...new Set(blocks.map((block) => block.studentId))]
 	if (ids.length === 0) return new Map()
 	const rows = await executor
-		.select({ id: students.id, name: students.displayName, status: students.status, goal: students.goals })
+		.select({
+			id: students.id,
+			name: students.displayName,
+			status: students.status,
+			goal: students.goals,
+			openingBalanceMinutes: students.openingBalanceMinutes,
+			openingBalanceOn: students.openingBalanceOn,
+			noShowDeducts: students.noShowDeducts,
+			lessonMinutes: students.defaultLessonMinutes,
+		})
 		.from(students)
 		.where(inArray(students.id, ids))
-	return new Map(rows.map((row) => [row.id, { name: row.name, status: toStudentStatus(row.status), goal: row.goal }]))
+	return new Map(
+		rows.map((row) => [
+			row.id,
+			{
+				name: row.name,
+				status: toStudentStatus(row.status),
+				goal: row.goal,
+				card: toBalanceCard(row),
+				lessonMinutes: row.lessonMinutes,
+			},
+		])
+	)
+}
+
+export async function readWindow(
+	executor: DbExecutor,
+	from: Date,
+	to: Date,
+	now: Date
+): Promise<{ blocks: WireBlock[]; series: ScheduleSeries[] }> {
+	const rows = await loadScheduleRows(executor, { from, to })
+	const placed = scheduleWindow({ ...rows, from, to })
+	const marks = await loadMarks(
+		executor,
+		placed.map((block) => block.ref)
+	)
+	const blocks = withOutcomes(placed, marks)
+	const people = await blockStudents(executor, blocks)
+	const shown = new Set(blocks.flatMap((block) => (block.ref.kind === 'series' ? [block.ref.seriesId] : [])))
+	return {
+		blocks: blocks.map((block) => toWireBlock(block, people, marks, now)),
+		series: rows.series.filter((rule) => shown.has(rule.id)).map(toWireSeries),
+	}
 }
 
 export async function readWeek(executor: DbExecutor, monday: string, now: Date): Promise<ScheduleWeekResponse> {
 	const from = zonedInstant(monday, '00:00', SCHEDULE_TIME_ZONE)
 	const to = zonedInstant(addDays(monday, 7), '00:00', SCHEDULE_TIME_ZONE)
-	const rows = await loadScheduleRows(executor, { from, to })
-	const blocks = scheduleWindow({ ...rows, from, to })
-	const people = await blockStudents(executor, blocks)
-	const shown = new Set(blocks.flatMap((block) => (block.ref.kind === 'series' ? [block.ref.seriesId] : [])))
-	return {
-		start: monday,
-		blocks: blocks.map((block) => toWireBlock(block, people, now)),
-		series: rows.series.filter((rule) => shown.has(rule.id)).map(toWireSeries),
-	}
+	return { start: monday, ...(await readWindow(executor, from, to, now)) }
 }
 
 export function createLesson(db: Database, input: CreateLessonInput, now: Date): Promise<CreateLessonResult> {

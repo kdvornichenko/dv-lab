@@ -156,6 +156,7 @@ describe('errorCodes', () => {
 			'lesson_changed',
 			'series_ends_before_new_day',
 			'lesson_in_past',
+			'lesson_not_started',
 			'target_in_past',
 			'series_today_passed',
 			'locked',

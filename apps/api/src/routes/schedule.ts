@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
 	type ScheduleCreateResponse,
 	type ScheduleLessonResponse,
+	type ScheduleMarkResponse,
 	type ScheduleOccurrenceResponse,
 	type ScheduleSeriesResponse,
 	type ScheduleWeekResponse,
@@ -12,6 +13,7 @@ import {
 	endSeriesRequest,
 	isIsoDate,
 	lessonActionRequest,
+	markLessonRequest,
 	moveLessonRequest,
 	moveSeriesRequest,
 	scheduleWeekStart,
@@ -30,6 +32,7 @@ import {
 	restoreLesson,
 	restoreOccurrence,
 } from '../schedule/changes.ts'
+import { markOccurrence } from '../schedule/marks.ts'
 import { readSnapshot } from '../schedule/rows.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
 import { endSeries, moveSeries } from '../schedule/series.ts'
@@ -59,6 +62,8 @@ function refused(c: Context<AppEnv>, failure: ChangeFailure) {
 			return c.json(errorBody('lesson_in_past', 'This lesson has already started'), 400)
 		case 'target_in_past':
 			return c.json(errorBody('target_in_past', 'The new time has already passed'), 400)
+		case 'not_started':
+			return c.json(errorBody('lesson_not_started', 'This lesson has not started yet'), 400)
 	}
 }
 
@@ -131,6 +136,16 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 			return c.json({ occurrence: result.occurrence } satisfies ScheduleOccurrenceResponse, 200)
 		})
 	}
+
+	routes.post('/series/:id/occurrences/:originalOn/mark', async (c) => {
+		const ref = occurrenceParam(c)
+		if (ref === null) return notFound(c)
+		const input = await readJson(c, markLessonRequest)
+		if (!input) return invalidRequest(c)
+		const result = await markOccurrence(db, ref.seriesId, ref.originalOn, input, new Date())
+		if (result.kind !== 'ok') return refused(c, result)
+		return c.json({ mark: result.mark } satisfies ScheduleMarkResponse, 200)
+	})
 
 	routes.post('/lessons/:id/move', async (c) => {
 		const id = idParam(c)

@@ -3,6 +3,7 @@ import type { z } from 'zod'
 
 import type { ScheduleLesson, ScheduleOccurrence, lessonActionRequest, moveLessonRequest } from '@dv-lab/contracts'
 import {
+	type MarkKind,
 	type Occurrence,
 	SCHEDULE_TIME_ZONE,
 	type SeriesException,
@@ -10,6 +11,7 @@ import {
 	canChange,
 	movedAway,
 	occurrenceAt,
+	occurrenceOutcome,
 	scheduleToday,
 	zonedInstant,
 } from '@dv-lab/core'
@@ -20,9 +22,11 @@ import {
 	lessonColumns,
 	lockLesson,
 	lockSeries,
+	markOf,
 	seriesException,
 	toSeriesException,
 	toSingleLesson,
+	toWireOutcome,
 } from './rows.ts'
 import { toWireLesson } from './schedule.ts'
 
@@ -36,6 +40,7 @@ export type ChangeFailure =
 	| { kind: 'invalid' }
 	| { kind: 'in_past' }
 	| { kind: 'target_in_past' }
+	| { kind: 'not_started' }
 
 export type OccurrenceResult = { kind: 'ok'; occurrence: ScheduleOccurrence } | ChangeFailure
 
@@ -51,7 +56,7 @@ const IN_PAST = { kind: 'in_past' } as const
 
 const TARGET_IN_PAST = { kind: 'target_in_past' } as const
 
-function stale(expected: string | undefined, startsAt: Date): boolean {
+export function stale(expected: string | undefined, startsAt: Date): boolean {
 	return expected !== undefined && new Date(expected).getTime() !== startsAt.getTime()
 }
 
@@ -68,7 +73,7 @@ function moveTarget(input: MoveInput, now: Date): Date | null {
 
 type LockedOccurrence = { rule: SeriesRule; occurrence: Occurrence | null }
 
-async function lockOccurrence(
+export async function lockOccurrence(
 	executor: DbExecutor,
 	seriesId: string,
 	originalOn: string
@@ -79,7 +84,12 @@ async function lockOccurrence(
 	return { rule, occurrence: occurrenceAt(rule, originalOn, exception ?? undefined) }
 }
 
-async function markException(executor: DbExecutor, rule: SeriesRule, exception: SeriesException) {
+async function markException(
+	executor: DbExecutor,
+	rule: SeriesRule,
+	exception: SeriesException,
+	mark: MarkKind | null
+) {
 	const time =
 		exception.kind === 'restored'
 			? { startsAt: null, durationMinutes: null }
@@ -101,6 +111,7 @@ async function markException(executor: DbExecutor, rule: SeriesRule, exception: 
 			seriesId: rule.id,
 			originalOn: exception.originalOn,
 			status: occurrence.status,
+			outcome: toWireOutcome(occurrenceOutcome(occurrence, mark)),
 			startsAt: occurrence.startsAt.toISOString(),
 		},
 	} satisfies OccurrenceResult
@@ -127,7 +138,7 @@ export function moveOccurrence(
 			target.getTime() === occurrence.naturalStart.getTime()
 				? { seriesId, originalOn, kind: 'restored' }
 				: { seriesId, originalOn, kind: 'moved', startsAt: target, durationMinutes: occurrence.durationMinutes }
-		return markException(tx, rule, exception)
+		return markException(tx, rule, exception, await markOf(tx, occurrence.ref))
 	})
 }
 
@@ -154,7 +165,7 @@ export function cancelOccurrence(
 					durationMinutes: occurrence.durationMinutes,
 				}
 			: { seriesId, originalOn, kind: 'cancelled' }
-		return markException(tx, rule, exception)
+		return markException(tx, rule, exception, await markOf(tx, occurrence.ref))
 	})
 }
 
@@ -181,7 +192,7 @@ export function restoreOccurrence(
 					durationMinutes: occurrence.durationMinutes,
 				}
 			: { seriesId, originalOn, kind: 'restored' }
-		return markException(tx, rule, exception)
+		return markException(tx, rule, exception, await markOf(tx, occurrence.ref))
 	})
 }
 
