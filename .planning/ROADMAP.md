@@ -218,7 +218,45 @@ Plans:
   4. The "pays soon" list shows students with at most N lessons left or none, N is a setting with default 2, and Today shows counters, today's lessons and this list from real data.
   5. The students list, the profile, Today and "pays soon" show the same balance because they call the same `packages/core` functions, and those rules are covered by unit tests.
 
-**Plans**: TBD
+**Plans**: 16 plans
+
+Plans:
+**Wave 1**
+- [ ] 21-01-PLAN.md — Schema: `lesson_marks`, `teacher_settings`, `students.no_show_deducts`, revoke migration, `yarn install`, migrations applied [BLOCKING] (W1)
+- [ ] 21-02-PLAN.md — `packages/core`: one Vietnam "today", balance rule from raw rows, lesson outcome and actions, needs-mark rule, threshold and balance words, `ledger-core.mjs` (W1)
+- [ ] 21-03-PLAN.md — UI-A1: phase 20 design fixes 4 (tooltip), 5, 6, 7, 11 per design v36 (gutter, toolbar, short blocks, week summary, tooltip tokens) (W1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 21-04-PLAN.md — API marks: `POST …/mark`, week with outcome and actions, cancel and restore of started lessons, marks survive series cuts, concurrent requests (W2)
+- [ ] 21-05-PLAN.md — API settings: Pays soon threshold on the teacher account, `GET/PATCH /settings` (W2)
+- [ ] 21-14-PLAN.md — UI-A2: phase 20 design fixes 1-3, 4 (dialogs), 8-10 per design v36 (series texts, First lesson and Start time caption, move form, fields, fades) (W2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 21-06-PLAN.md — UI-B: phase 20 design fixes 12-18 (zone labels, TimeZonePicker with favorites, Settings General, drag to create) (W3)
+- [ ] 21-07-PLAN.md — API: balance by marks through core, no-show flag, `GET /today` (W3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 21-08-PLAN.md — UI-C schedule: Mark row in LessonDialog, signs on blocks, tooltip deduction (W4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 21-15-PLAN.md — Web on lesson outcome: overlaps and week summary by outcome, Vietnam dates from core, no block status reads (W5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 21-09-PLAN.md — UI-C students and settings: balance and debt words with status dots, no-show switch, Payments card (W6)
+- [ ] 21-16-PLAN.md — API and contract: block status and changeable flag removed, reload-tabs rollout (W6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 21-10-PLAN.md — UI-C Today: header, four counters, Lessons today, Earlier not marked, Pays soon (W7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 21-11-PLAN.md — UI-C Today actions: quick Done and No-show, shared lesson dialog host, isolated Add payment with a Student field (W8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 21-12-PLAN.md — Docs: RUNBOOK operator line, AGENTS.md owners, release notes for Server guy (W9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 21-13-PLAN.md — Final verification: full checks, privacy, AGENTS.md against code, all acceptance scripts, five criteria by hand (W10)
+
 **UI hint**: yes
 
 ### Phase 22: Chat with Mentions and Quick Marks

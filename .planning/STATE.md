@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 20
-current_phase_name: Schedule
+current_phase: 21
+current_phase_name: Lesson Accounting and Today
 status: executed
 stopped_at: Phase 21 context gathered; next /gsd-plan-phase 21
-last_updated: "2026-10-10T18:00:00.000Z"
+last_updated: "2026-10-10T14:27:56.151Z"
 last_activity: 2026-10-10
 last_activity_desc: Phase 20 executed (10/10 plans), review fixes and End series fix applied
-state_head: 9936205159f2139b122bac247411e28617962f08
+state_head: 3be745e60dc05f55e7c2793392d3eac1686c1099
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 49
+  total_plans: 75
   completed_plans: 49
   percent: 0
 ---
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 ## Current Position
 
-Phase: 20 (Schedule) — EXECUTED
+Phase: 21 (Lesson Accounting and Today) — READY TO EXECUTE
 Plan: 10 of 10
 Status: Phase 20 is built and verified by scripts (schedule-db/core/api/web, both themes); review and security (36/36) are closed. Needs the owner and Server guy: manual look at the week grid, the migrations 20261010075813_schedule and 20261010103628_schedule_revoke_delete on the server (see 20-10-SUMMARY, "Для выката"). Phase 19 is released; remaining human steps from before: change the password on dv-lab.dev, set the opening balance on every card, return the apex TTL (RUNBOOK 3.5).
 Last activity: 2026-10-10 — Phase 20 executed
