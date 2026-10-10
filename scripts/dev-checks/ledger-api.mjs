@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto'
+
 import * as core from '../../packages/core/src/index.ts'
-import { call, quote, sql, startApi, teacherCookie } from './api.mjs'
+import { call, quote, sql, startApi, studentCookie, teacherCookie } from './api.mjs'
 
 const VN = core.SCHEDULE_TIME_ZONE
 const PORT = 4202
@@ -135,12 +137,276 @@ async function marksPart1(ctx) {
 	return { studentId, seriesId, date, key, startsAt }
 }
 
-async function sectionMarks(ctx) {
-	await marksPart1(ctx)
-	return 'MARKS_PART1_OK'
+const createLesson = (ctx, studentId, date, startTime) =>
+	post(ctx, '/lessons', { studentId, date, startTime, durationMinutes: 60, repeats: 'once' })
+
+async function onceLesson(ctx, studentId, date, startTime) {
+	const res = await createLesson(ctx, studentId, date, startTime)
+	if (res.status !== 201) throw new Error(`single lesson create returned ${res.status}`)
+	return res.json.lesson.id
 }
 
-const SECTIONS = { marks: sectionMarks }
+function lessonMarks(lessonId) {
+	return sql(`select kind from lesson_marks where lesson_id = ${quote(lessonId)}`).rows
+}
+
+async function expectStatus(label, send, status, code) {
+	const res = await send()
+	check(
+		`${label} gives ${status}${code ? ` ${code}` : ''}`,
+		res.status === status && (code === undefined || res.json?.error?.code === code),
+		`got ${res.status} ${JSON.stringify(res.json?.error ?? '')}`
+	)
+	return res
+}
+
+async function marksPart2(ctx, first) {
+	const { seriesId, date, key, studentId } = first
+	const path = occurrencePath(seriesId, date, 'mark')
+	const noShow = await post(ctx, path, { kind: 'no_show' })
+	check(
+		'mark no_show gives outcome no_show in the answer and the week',
+		noShow.status === 200 &&
+			noShow.json?.mark?.outcome === 'no_show' &&
+			(await blockOf(ctx, date, key))[0]?.outcome === 'no_show',
+		`status ${noShow.status}`
+	)
+	const none = await post(ctx, path, { kind: 'none' })
+	const rows = seriesMarks(seriesId, date)
+	const block = (await blockOf(ctx, date, key))[0]
+	check(
+		'mark none gives outcome planned and keeps the row with kind none',
+		none.status === 200 &&
+			none.json?.mark?.kind === 'none' &&
+			none.json?.mark?.outcome === 'planned' &&
+			block?.outcome === 'planned' &&
+			block?.mark === 'none' &&
+			rows.length === 1 &&
+			rows[0].kind === 'none',
+		`status ${none.status} rows ${rows.length}`
+	)
+
+	const pastDay = core.addDays(ctx.today, -3)
+	const pastLesson = await onceLesson(ctx, studentId, pastDay, '09:00')
+	const single = await post(ctx, `/lessons/${pastLesson}/mark`, {
+		kind: 'done',
+		expectedStartsAt: instant(pastDay, '09:00'),
+	})
+	check(
+		'mark done of a past single lesson gives 200',
+		single.status === 200 &&
+			single.json?.mark?.ref?.kind === 'single' &&
+			single.json?.mark?.ref?.lessonId === pastLesson &&
+			single.json?.mark?.outcome === 'done' &&
+			(await blockOf(ctx, pastDay, `l:${pastLesson}`))[0]?.outcome === 'done',
+		`status ${single.status}`
+	)
+	check('past single lesson has one mark row', lessonMarks(pastLesson).length === 1)
+
+	const futureDay = core.addDays(ctx.today, 3)
+	const futureLesson = await onceLesson(ctx, studentId, futureDay, '09:00')
+	for (const kind of ['done', 'none']) {
+		await expectStatus(
+			`mark ${kind} of a future single lesson`,
+			() => post(ctx, `/lessons/${futureLesson}/mark`, { kind }),
+			400,
+			'lesson_not_started'
+		)
+	}
+	check('future single lesson has no mark row', lessonMarks(futureLesson).length === 0)
+	await expectStatus(
+		'mark with a stale expectedStartsAt',
+		() => post(ctx, path, { kind: 'done', expectedStartsAt: instant(date, '09:00') }),
+		409,
+		'lesson_changed'
+	)
+	await expectStatus(
+		'mark of an unknown lesson',
+		() => post(ctx, `/lessons/${randomUUID()}/mark`, { kind: 'done' }),
+		404,
+		'not_found'
+	)
+	await expectStatus('mark with kind held', () => post(ctx, path, { kind: 'held' }), 400, 'invalid_request')
+	const student = await studentCookie(ctx.api)
+	await expectStatus('mark as a student', () => post(ctx, path, { kind: 'done' }, student), 403)
+	const after = seriesMarks(seriesId, date)
+	check('refused marks keep the row with kind none', after.length === 1 && after[0].kind === 'none')
+}
+
+async function sectionMarks(ctx) {
+	const first = await marksPart1(ctx)
+	await marksPart2(ctx, first)
+	return 'SCHEDULE_LEDGER_MARKS_OK'
+}
+
+async function pastSeriesOccurrence(ctx, studentId) {
+	const date = core.addDays(ctx.today, -5)
+	const seriesId = pastSeries(studentId, date, '11:00')
+	const key = `s:${seriesId}:${date}`
+	const startsAt = instant(date, '11:00')
+	const block = async () => (await blockOf(ctx, date, key))[0]
+	const markRow = () => seriesMarks(seriesId, date)
+	const path = (action) => occurrencePath(seriesId, date, action)
+	return {
+		label: 'series occurrence',
+		startsAt,
+		block,
+		markRow,
+		path,
+		cancelOutcome: (res) => res.json?.occurrence?.outcome,
+	}
+}
+
+async function pastSingleLesson(ctx, studentId) {
+	const date = core.addDays(ctx.today, -4)
+	const lessonId = await onceLesson(ctx, studentId, date, '11:00')
+	const startsAt = instant(date, '11:00')
+	const block = async () => (await blockOf(ctx, date, `l:${lessonId}`))[0]
+	const markRow = () => lessonMarks(lessonId)
+	const path = (action) => `/lessons/${lessonId}/${action}`
+	const cancelOutcome = (res) => (res.json?.lesson?.status === 'cancelled' ? 'cancelled' : res.json?.lesson?.status)
+	return { label: 'single lesson', startsAt, block, markRow, path, cancelOutcome }
+}
+
+async function pastFlow(ctx, target) {
+	const { label, startsAt, block, markRow, path } = target
+	await expectStatus(`mark done of the past ${label}`, () => post(ctx, path('mark'), { kind: 'done' }), 200)
+	const cancelled = await post(ctx, path('cancel'), { expectedStartsAt: startsAt })
+	let shown = await block()
+	let rows = markRow()
+	check(
+		`cancel of the marked past ${label} gives 200 and keeps the done mark`,
+		cancelled.status === 200 &&
+			target.cancelOutcome(cancelled) === 'cancelled' &&
+			shown?.outcome === 'cancelled' &&
+			shown?.mark === 'done' &&
+			rows.length === 1 &&
+			rows[0].kind === 'done',
+		`status ${cancelled.status} ${JSON.stringify(shown?.outcome)} rows ${rows.length}`
+	)
+	check(
+		`cancelled past ${label} can be restored and cannot be marked`,
+		shown?.actions?.restore === true && shown?.actions?.mark === false && shown?.actions?.cancel === false,
+		JSON.stringify(shown?.actions ?? null)
+	)
+	for (const kind of ['none', 'no_show']) {
+		await expectStatus(
+			`mark ${kind} of the cancelled past ${label}`,
+			() => post(ctx, path('mark'), { kind }),
+			409,
+			'lesson_changed'
+		)
+	}
+	rows = markRow()
+	check(`cancelled past ${label} keeps the done mark`, rows.length === 1 && rows[0].kind === 'done')
+	const restored = await post(ctx, path('restore'), { expectedStartsAt: startsAt })
+	shown = await block()
+	check(
+		`restore of the past ${label} gives 200 and outcome done again`,
+		restored.status === 200 && shown?.outcome === 'done' && shown?.mark === 'done',
+		`status ${restored.status} ${JSON.stringify(shown?.outcome)}`
+	)
+	await expectStatus(
+		`move of the started ${label}`,
+		() => post(ctx, path('move'), { date: core.addDays(ctx.today, 2), startTime: '12:00' }),
+		400,
+		'lesson_in_past'
+	)
+}
+
+async function sectionPast(ctx) {
+	const studentId = await createCard(ctx, 'Alex Example 2114')
+	await pastFlow(ctx, await pastSeriesOccurrence(ctx, studentId))
+	await pastFlow(ctx, await pastSingleLesson(ctx, studentId))
+	return 'SCHEDULE_LEDGER_PAST_OK'
+}
+
+const isServerError = (status) => status >= 500
+
+async function racePart1(ctx) {
+	const studentId = await createCard(ctx, 'Alex Example 2112')
+	const date = core.addDays(ctx.today, -6)
+	const seriesId = pastSeries(studentId, date, '08:00')
+	const key = `s:${seriesId}:${date}`
+	const kinds = ['done', 'no_show', 'none', 'done', 'no_show']
+	const answers = await Promise.all(kinds.map((kind) => post(ctx, occurrencePath(seriesId, date, 'mark'), { kind })))
+	const statuses = answers.map((res) => res.status)
+	check(
+		'five parallel marks give only 200 or 409',
+		statuses.every((status) => status === 200 || status === 409) && !statuses.some(isServerError),
+		statuses.join()
+	)
+	const rows = seriesMarks(seriesId, date)
+	const block = (await blockOf(ctx, date, key))[0]
+	const expected = { done: 'done', no_show: 'no_show', none: 'planned' }
+	check(
+		'one mark row after the parallel marks and the week agrees with it',
+		rows.length === 1 &&
+			kinds.includes(rows[0].kind) &&
+			block?.mark === rows[0].kind &&
+			block?.outcome === expected[rows[0].kind],
+		`rows ${rows.length} ${rows[0]?.kind} ${block?.mark} ${block?.outcome}`
+	)
+
+	const second = core.addDays(date, -7)
+	const markAndCancel = await Promise.all([
+		post(ctx, occurrencePath(seriesId, second, 'mark'), { kind: 'done' }),
+		post(ctx, occurrencePath(seriesId, second, 'cancel')),
+	])
+	await raceAgreement(
+		ctx,
+		'series occurrence',
+		markAndCancel,
+		() => seriesMarks(seriesId, second),
+		async () => (await blockOf(ctx, second, `s:${seriesId}:${second}`))[0]
+	)
+
+	const lessonDay = core.addDays(ctx.today, -2)
+	const lessonId = await onceLesson(ctx, studentId, lessonDay, '08:00')
+	const lessonRace = await Promise.all([
+		post(ctx, `/lessons/${lessonId}/mark`, { kind: 'done' }),
+		post(ctx, `/lessons/${lessonId}/cancel`),
+	])
+	await raceAgreement(
+		ctx,
+		'single lesson',
+		lessonRace,
+		() => lessonMarks(lessonId),
+		async () => (await blockOf(ctx, lessonDay, `l:${lessonId}`))[0]
+	)
+	if (failures === ctx.before) console.log('RACE_PART1_OK')
+}
+
+async function raceAgreement(ctx, label, [mark, cancel], markRow, block) {
+	const statuses = [mark.status, cancel.status]
+	check(
+		`parallel mark and cancel of a ${label} give only 200 or 409`,
+		statuses.every((status) => status === 200 || status === 409),
+		statuses.join()
+	)
+	const rows = markRow()
+	if (mark.status === 200) {
+		check(
+			`accepted mark of the ${label} is stored`,
+			rows.length === 1 && rows[0].kind === 'done',
+			`rows ${rows.length}`
+		)
+	}
+	const shown = await block()
+	const expected = cancel.status === 200 ? 'cancelled' : mark.status === 200 ? 'done' : 'planned'
+	check(
+		`week block of the ${label} agrees after the race`,
+		shown?.outcome === expected,
+		`${shown?.outcome} ${expected}`
+	)
+}
+
+async function sectionRace(ctx) {
+	await racePart1(ctx)
+	return 'RACE_PART1_OK'
+}
+
+const SECTIONS = { marks: sectionMarks, past: sectionPast, race: sectionRace }
 
 const section = process.argv[2]
 const run = SECTIONS[section]

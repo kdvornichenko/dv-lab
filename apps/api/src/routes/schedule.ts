@@ -32,7 +32,7 @@ import {
 	restoreLesson,
 	restoreOccurrence,
 } from '../schedule/changes.ts'
-import { markOccurrence } from '../schedule/marks.ts'
+import { markLesson, markOccurrence } from '../schedule/marks.ts'
 import { readSnapshot } from '../schedule/rows.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
 import { endSeries, moveSeries } from '../schedule/series.ts'
@@ -155,6 +155,16 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 		const result = await moveLesson(db, id, input, new Date())
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ lesson: result.lesson } satisfies ScheduleLessonResponse, 200)
+	})
+
+	routes.post('/lessons/:id/mark', async (c) => {
+		const id = idParam(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, markLessonRequest)
+		if (!input) return invalidRequest(c)
+		const result = await markLesson(db, id, input, new Date())
+		if (result.kind !== 'ok') return refused(c, result)
+		return c.json({ mark: result.mark } satisfies ScheduleMarkResponse, 200)
 	})
 
 	for (const [action, change] of [

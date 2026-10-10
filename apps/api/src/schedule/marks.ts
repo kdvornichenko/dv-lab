@@ -2,11 +2,18 @@ import { sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type { ScheduleMark, markLessonRequest } from '@dv-lab/contracts'
-import { type LessonOutcome, countsAsLesson, lessonActions, occurrenceOutcome } from '@dv-lab/core'
+import {
+	type LessonOutcome,
+	type Occurrence,
+	type OccurrenceRef,
+	countsAsLesson,
+	lessonActions,
+	occurrenceOutcome,
+} from '@dv-lab/core'
 import { type Database, lessonMarks } from '@dv-lab/db'
 
 import { type ChangeFailure, lockOccurrence, stale } from './changes.ts'
-import { markOf, toMarkKind, toWireMark, toWireOutcome } from './rows.ts'
+import { lockLesson, markOf, toMarkKind, toWireMark, toWireOutcome } from './rows.ts'
 
 type MarkInput = z.output<typeof markLessonRequest>
 
@@ -22,6 +29,15 @@ function markRefusal(outcome: LessonOutcome, startsAt: Date, expected: string | 
 	if (stale(expected, startsAt)) return CHANGED
 	if (lessonActions(outcome, startsAt, now).mark) return null
 	return countsAsLesson(outcome) ? NOT_STARTED : CHANGED
+}
+
+function savedMark(ref: OccurrenceRef, subject: Pick<Occurrence, 'status'>, row: { kind: string } | undefined) {
+	if (!row) throw new Error('lesson mark upsert returned no row')
+	const stored = toMarkKind(row.kind)
+	return {
+		kind: 'ok',
+		mark: { ref, kind: toWireMark(stored), outcome: toWireOutcome(occurrenceOutcome(subject, stored)) },
+	} satisfies MarkResult
 }
 
 export function markOccurrence(
@@ -48,15 +64,24 @@ export function markOccurrence(
 				set: { kind, updatedAt: sql`now()` },
 			})
 			.returning({ kind: lessonMarks.kind })
-		if (!row) throw new Error('lesson mark upsert returned no row')
-		const stored = toMarkKind(row.kind)
-		return {
-			kind: 'ok',
-			mark: {
-				ref: occurrence.ref,
-				kind: toWireMark(stored),
-				outcome: toWireOutcome(occurrenceOutcome(occurrence, stored)),
-			},
-		}
+		return savedMark(occurrence.ref, occurrence, row)
+	})
+}
+
+export function markLesson(db: Database, id: string, input: MarkInput, now: Date): Promise<MarkResult> {
+	return db.transaction(async (tx): Promise<MarkResult> => {
+		const lesson = await lockLesson(tx, id)
+		if (lesson === null) return NOT_FOUND
+		const ref: OccurrenceRef = { kind: 'single', lessonId: id }
+		const current = occurrenceOutcome(lesson, await markOf(tx, ref))
+		const refused = markRefusal(current, lesson.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
+		const kind = toMarkKind(input.kind)
+		const [row] = await tx
+			.insert(lessonMarks)
+			.values({ lessonId: id, kind })
+			.onConflictDoUpdate({ target: lessonMarks.lessonId, set: { kind, updatedAt: sql`now()` } })
+			.returning({ kind: lessonMarks.kind })
+		return savedMark(ref, lesson, row)
 	})
 }
