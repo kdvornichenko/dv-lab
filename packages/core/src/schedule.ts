@@ -2,6 +2,18 @@ import { addDays, firstOnOrAfter, weekdayOf, windowDates, zonedInstant, zonedPar
 
 export const SCHEDULE_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
+export function scheduleDate(instant: Date): string {
+	return zonedParts(instant, SCHEDULE_TIME_ZONE).date
+}
+
+export function scheduleToday(now: Date): string {
+	return scheduleDate(now)
+}
+
+export function isAfterScheduleToday(date: string, now: Date): boolean {
+	return date > scheduleToday(now)
+}
+
 export type SeriesRule = {
 	id: string
 	studentId: string
@@ -31,6 +43,24 @@ export type OccurrenceRef =
 	{ kind: 'single'; lessonId: string } | { kind: 'series'; seriesId: string; originalOn: string }
 
 export type BlockStatus = 'scheduled' | 'cancelled' | 'moved'
+
+export type MarkKind = 'done' | 'no_show' | 'none'
+
+export type LessonOutcome = 'planned' | 'done' | 'no_show' | 'cancelled' | 'moved'
+
+function markedOutcome(mark: MarkKind | null): LessonOutcome {
+	return mark === 'done' || mark === 'no_show' ? mark : 'planned'
+}
+
+export function lessonOutcome(status: BlockStatus, mark: MarkKind | null): LessonOutcome {
+	if (status === 'moved') return 'moved'
+	if (status === 'cancelled') return 'cancelled'
+	return markedOutcome(mark)
+}
+
+export function occurrenceOutcome(occurrence: Pick<Occurrence, 'status'>, mark: MarkKind | null): LessonOutcome {
+	return occurrence.status === 'cancelled' ? 'cancelled' : markedOutcome(mark)
+}
 
 export type ScheduleBlock = {
 	key: string
@@ -180,10 +210,8 @@ const SEARCH_DAYS = 366
 
 const laterDate = (left: string, right: string) => (left > right ? left : right)
 
-const todayOf = (now: Date) => zonedParts(now, SCHEDULE_TIME_ZONE).date
-
 export function nextSeriesDate(rule: SeriesTiming, now: Date): string | null {
-	const start = laterDate(todayOf(now), rule.startsOn)
+	const start = laterDate(scheduleToday(now), rule.startsOn)
 	const limit = addDays(start, SEARCH_DAYS)
 	for (let date = firstOnOrAfter(start, rule.weekday); date <= limit; date = addDays(date, 7)) {
 		if (!isSeriesDate(rule, date)) return null
@@ -208,7 +236,7 @@ export function nextLessons(input: ScheduleInput & { now: Date }): Map<string, D
 		const current = next.get(studentId)
 		if (current === undefined || startsAt.getTime() < current.getTime()) next.set(studentId, startsAt)
 	}
-	const today = todayOf(now)
+	const today = scheduleToday(now)
 	for (const rule of series) {
 		const start = laterDate(today, rule.startsOn)
 		const limit = addDays(start, SEARCH_DAYS)
@@ -292,7 +320,7 @@ export function cutSeries(
 	now: Date
 ): CutSeriesResult {
 	const { from, weekday, startTime } = change
-	const today = todayOf(now)
+	const today = scheduleToday(now)
 	if (from < today) return { kind: 'invalid' }
 	if (rule.endsOn !== null && rule.endsOn < from) return { kind: 'changed' }
 	if (weekday === rule.weekday && startTime === rule.startTime) return { kind: 'invalid' }
@@ -331,7 +359,7 @@ export function endSeriesAt(
 	lastOn: string,
 	now: Date
 ): EndSeriesResult {
-	const today = todayOf(now)
+	const today = scheduleToday(now)
 	if (rule.endsOn !== null && rule.endsOn < today) return { kind: 'changed' }
 	if (lastOn < today) return { kind: 'invalid' }
 	if (rule.endsOn !== null && lastOn > rule.endsOn) return { kind: 'invalid' }
