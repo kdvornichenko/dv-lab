@@ -81,6 +81,12 @@ CI (`.github/workflows/ci.yml`) на каждый pull request и push в `maste
 - `drizzle-orm` и `drizzle-kit` 1.0.0-rc.4: стабильного v1 нет, `latest` указывает на 0.45, проект работает на v1.
 - Версия `turbo` в `ARG TURBO_VERSION` обоих Dockerfile совпадает с `devDependencies.turbo` корневого `package.json`, CI это проверяет.
 
+## Помощники для агентов
+
+- Правила исполнителя фазы GSD: `.planning/EXECUTOR-RULES.md`; охрана корня worktree: `scripts/gsd/root-pin.sh`; режим изоляции перед запуском исполнителей: `scripts/gsd/dispatch.sh <фаза>`.
+- Разовый SQL, фикстуры api и браузер: `scripts/dev-checks/` (описание в `README.md`).
+- Проверка коммита на имена учеников и пакеты импорта: `scripts/privacy-check.mjs` (ставится один раз командой `node scripts/privacy-check.mjs --install`, список имён обновляется `--refresh` и лежит вне репозитория).
+
 ## Публичный репозиторий
 
 Репозиторий публичный. Адресов серверов, паролей, ключей и данных учеников нет нигде, включая `.planning/`, `deploy/` и тестовые данные. `.env*` не коммитятся и не попадают в контекст сборки образов (`.dockerignore`). Секреты сервера лежат только на сервере.
