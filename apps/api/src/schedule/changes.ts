@@ -111,7 +111,6 @@ async function markException(
 		occurrence: {
 			seriesId: rule.id,
 			originalOn: exception.originalOn,
-			status: occurrence.status,
 			outcome: toWireOutcome(occurrenceOutcome(occurrence, mark)),
 			startsAt: occurrence.startsAt.toISOString(),
 		},

@@ -19,7 +19,6 @@ import {
 	type SeriesRule,
 	type SingleLesson,
 	addDays,
-	canChange,
 	lessonActions,
 	nextSeriesDate,
 	scheduleToday,
@@ -103,10 +102,8 @@ function toWireBlock(
 		studentGoal: student.goal,
 		startsAt: block.startsAt.toISOString(),
 		durationMinutes: block.durationMinutes,
-		status: block.status,
 		movedTo: block.movedTo === null ? null : block.movedTo.toISOString(),
 		movedFrom: block.movedFrom === null ? null : block.movedFrom.toISOString(),
-		changeable: canChange(block.startsAt, now),
 		outcome: toWireOutcome(block.outcome),
 		actions: toWireActions(lessonActions(block.outcome, block.startsAt, now)),
 		ledger: {

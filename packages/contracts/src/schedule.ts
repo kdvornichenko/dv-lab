@@ -63,8 +63,6 @@ export const endSeriesRequest = z.object({
 
 export const scheduleWeekStart = isoDate
 
-export type ScheduleBlockStatus = 'scheduled' | 'cancelled' | 'moved'
-
 export type ScheduleOccurrenceRef =
 	{ kind: 'single'; lessonId: string } | { kind: 'series'; seriesId: string; originalOn: string }
 
@@ -83,10 +81,8 @@ export type ScheduleBlock = {
 	studentGoal: string | null
 	startsAt: string
 	durationMinutes: number
-	status: ScheduleBlockStatus
 	movedTo: string | null
 	movedFrom: string | null
-	changeable: boolean
 	outcome: ScheduleLessonOutcome
 	actions: ScheduleLessonActions
 	ledger: ScheduleBlockLedger
@@ -120,7 +116,6 @@ export type ScheduleSeriesResponse = { series: ScheduleSeries }
 export type ScheduleOccurrence = {
 	seriesId: string
 	originalOn: string
-	status: ScheduleBlockStatus
 	outcome: ScheduleLessonOutcome
 	startsAt: string
 }
