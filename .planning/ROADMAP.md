@@ -179,7 +179,7 @@ Plans:
   4. The grid shows Vietnam time by default and can show a second time zone next to it.
   5. The students list has status tabs and search and shows each student's remaining lessons and next lesson.
 
-**Plans**: 5/10 plans executed
+**Plans**: 7/10 plans executed
 
 Plans:
 **Wave 1**
@@ -192,8 +192,8 @@ Plans:
 - [x] 20-05-PLAN.md — Schedule frame per the design artifact v23: WeekGrid, ScheduleToolbar with the second-zone selector, today and now line, shared time-zones module (W2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 20-06-PLAN.md — API changes: occurrence and single move, cancel, restore; series cut and end without deletes (W3)
-- [ ] 20-07-PLAN.md — Lesson blocks in `selected`, EventTooltip, LessonDialog view, NewLessonDialog (W3)
+- [x] 20-06-PLAN.md — API changes: occurrence and single move, cancel, restore; series cut and end without deletes (W3)
+- [x] 20-07-PLAN.md — Lesson blocks in `selected`, EventTooltip, LessonDialog view, NewLessonDialog (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 20-08-PLAN.md — LessonDialog actions through one mutate helper: Cancel lesson, Return to schedule, inline move form, Whole series with MoveSeriesDialog and EndSeriesDialog (W4)
@@ -309,7 +309,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
-| 20. Schedule | v2.0 | 5/10 | In Progress|  |
+| 20. Schedule | v2.0 | 7/10 | In Progress|  |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
