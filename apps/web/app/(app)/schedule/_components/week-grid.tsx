@@ -14,6 +14,7 @@ import { EventTooltip } from './event-tooltip'
 import { blockSlot, type BlockLayout } from './lesson-block'
 
 export const HOUR_HEIGHT = 48
+export const FRAME_HEIGHT = 'h-[max(28rem,calc(100svh-20rem))]'
 export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const SLOT_MINUTES = 15
@@ -161,7 +162,7 @@ export function WeekGrid({
 				offset={1}
 				shadowLevel={2}
 				data-slot="week-grid"
-				className="flex h-[max(28rem,calc(100svh-18rem))] flex-col overflow-hidden rounded-2xl"
+				className={cn(FRAME_HEIGHT, 'flex flex-col overflow-hidden rounded-2xl')}
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pr-1 pb-2">

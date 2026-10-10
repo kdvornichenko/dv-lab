@@ -2,25 +2,29 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
+import { CalendarPlus } from 'lucide-react'
+
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
+import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 import { lessonCount, weekEyebrow, weekPhrase, weekRange, weekSummary, weeksBetween } from '@/lib/schedule-format'
 import { zoneCaption } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleWeekResponse } from '@dv-lab/contracts'
+import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { blockSlot, type BlockSlot } from './lesson-block'
 import { LessonDialog, type PairTarget } from './lesson-dialog'
+import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { SecondZoneSelect, useSecondZone } from './second-zone-select'
-import { OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
-
-const FRAME_HEIGHT = 'h-[max(28rem,calc(100svh-18rem))]'
+import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
 
 type OpenLesson = { key: string; slot: BlockSlot }
+
+type NewLessonSeed = { date: string; time: string }
 
 type WeekState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: ScheduleWeekResponse }
 
@@ -72,6 +76,11 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
+	const [version, setVersion] = useState(0)
+	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
+	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
+	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
+	const newButton = useRef<HTMLButtonElement>(null)
 	const today = zonedParts(now, SCHEDULE_TIME_ZONE).date
 	const currentMonday = mondayOf(today)
 	const monday = addDays(currentMonday, offset * 7)
@@ -83,15 +92,68 @@ function LoadedSchedule({ now }: { now: Date }) {
 	useEffect(() => {
 		let current = true
 		void readWeek(monday).then((state) => {
-			if (current) setLoaded({ monday, state })
+			if (!current) return
+			if (state.kind === 'ready') weeks.current.set(monday, state.data)
+			setLoaded({ monday, state })
 		})
 		return () => {
 			current = false
 		}
-	}, [monday])
+	}, [monday, version])
+
+	useEffect(() => {
+		let current = true
+		void apiRequest<StudentsResponse>('GET', '/students').then((result) => {
+			if (current) setStudents(result.ok ? { kind: 'ready', rows: result.data.students } : { kind: 'error' })
+		})
+		return () => {
+			current = false
+		}
+	}, [])
 
 	async function refresh() {
-		setLoaded({ monday, state: await readWeek(monday) })
+		const state = await readWeek(monday)
+		if (state.kind === 'ready') weeks.current.set(monday, state.data)
+		setLoaded({ monday, state })
+	}
+
+	function reload() {
+		weeks.current.clear()
+		setVersion((value) => value + 1)
+	}
+
+	async function blocksOn(date: string): Promise<OverlapBlock[]> {
+		const target = mondayOf(date)
+		let data = weeks.current.get(target)
+		if (data === undefined) {
+			const state = await readWeek(target)
+			if (state.kind !== 'ready') return []
+			data = state.data
+			weeks.current.set(target, data)
+		}
+		return data.blocks.map((block) => ({
+			key: block.key,
+			startsAt: new Date(block.startsAt),
+			durationMinutes: block.durationMinutes,
+			status: block.status,
+			studentName: block.studentName,
+		}))
+	}
+
+	function openNew(seed?: NewLessonSeed) {
+		if (seed) return setNewLesson(seed)
+		const parts = zonedParts(now, SCHEDULE_TIME_ZONE)
+		const hour = Math.floor(parts.minutes / 60) + 1
+		setNewLesson(
+			hour >= 24
+				? { date: addDays(parts.date, 1), time: '00:00' }
+				: { date: parts.date, time: `${String(hour).padStart(2, '0')}:00` }
+		)
+	}
+
+	function closeNew() {
+		setNewLesson(null)
+		requestAnimationFrame(() => newButton.current?.focus())
 	}
 
 	function closeLesson() {
@@ -142,6 +204,16 @@ function LoadedSchedule({ now }: { now: Date }) {
 				eyebrow={weekEyebrow(monday, currentMonday)}
 				title={weekRange(monday)}
 				description={ready ? weekSummary(week.data.blocks) : <SkeletonText className="w-48 py-0.5" />}
+				actions={
+					<Button
+						ref={newButton}
+						leadingIcon={CalendarPlus}
+						disabled={!ready || students.kind === 'loading'}
+						onClick={() => openNew()}
+					>
+						New lesson
+					</Button>
+				}
 			/>
 			<ScheduleToolbar
 				monday={monday}
@@ -160,6 +232,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					blocks={week.data.blocks}
 					currentYear={currentYear}
 					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: blockSlot(block) })}
+					onSlot={(date, time) => openNew({ date, time })}
 					scrollTopRef={scrollTopRef}
 				/>
 			) : (
@@ -181,6 +254,21 @@ function LoadedSchedule({ now }: { now: Date }) {
 					currentYear={currentYear}
 					onClose={closeLesson}
 					onOpenPair={openPair}
+				/>
+			) : null}
+			{newLesson !== null ? (
+				<NewLessonDialog
+					students={students}
+					seed={newLesson}
+					today={today}
+					secondZone={zone}
+					currentYear={currentYear}
+					blocksOn={blocksOn}
+					onClose={closeNew}
+					onCreated={() => {
+						closeNew()
+						reload()
+					}}
 				/>
 			) : null}
 		</PageScroll>
