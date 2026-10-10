@@ -30,7 +30,12 @@ type MoveInput = z.output<typeof moveLessonRequest>
 
 type ActionInput = z.output<typeof lessonActionRequest>
 
-export type ChangeFailure = { kind: 'not_found' } | { kind: 'changed' } | { kind: 'invalid' }
+export type ChangeFailure =
+	| { kind: 'not_found' }
+	| { kind: 'changed' }
+	| { kind: 'invalid' }
+	| { kind: 'in_past' }
+	| { kind: 'target_in_past' }
 
 export type OccurrenceResult = { kind: 'ok'; occurrence: ScheduleOccurrence } | ChangeFailure
 
@@ -42,8 +47,17 @@ const CHANGED = { kind: 'changed' } as const
 
 const INVALID = { kind: 'invalid' } as const
 
+const IN_PAST = { kind: 'in_past' } as const
+
+const TARGET_IN_PAST = { kind: 'target_in_past' } as const
+
 function stale(expected: string | undefined, startsAt: Date): boolean {
 	return expected !== undefined && new Date(expected).getTime() !== startsAt.getTime()
+}
+
+function refusal(allowed: boolean, startsAt: Date, expected: string | undefined, now: Date): ChangeFailure | null {
+	if (!allowed || stale(expected, startsAt)) return CHANGED
+	return canChange(startsAt, now) ? null : IN_PAST
 }
 
 function moveTarget(input: MoveInput, now: Date): Date | null {
@@ -103,16 +117,12 @@ export function moveOccurrence(
 		const locked = await lockOccurrence(tx, seriesId, originalOn)
 		if (locked === null) return NOT_FOUND
 		const { rule, occurrence } = locked
-		if (
-			occurrence === null ||
-			occurrence.status === 'cancelled' ||
-			!canChange(occurrence.startsAt, now) ||
-			stale(input.expectedStartsAt, occurrence.startsAt)
-		) {
-			return CHANGED
-		}
+		if (occurrence === null) return CHANGED
+		const refused = refusal(occurrence.status !== 'cancelled', occurrence.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
 		const target = moveTarget(input, now)
-		if (target === null || target.getTime() === occurrence.startsAt.getTime()) return INVALID
+		if (target === null) return TARGET_IN_PAST
+		if (target.getTime() === occurrence.startsAt.getTime()) return INVALID
 		const exception: SeriesException =
 			target.getTime() === occurrence.naturalStart.getTime()
 				? { seriesId, originalOn, kind: 'restored' }
@@ -132,14 +142,9 @@ export function cancelOccurrence(
 		const locked = await lockOccurrence(tx, seriesId, originalOn)
 		if (locked === null) return NOT_FOUND
 		const { rule, occurrence } = locked
-		if (
-			occurrence === null ||
-			occurrence.status === 'cancelled' ||
-			!canChange(occurrence.startsAt, now) ||
-			stale(input.expectedStartsAt, occurrence.startsAt)
-		) {
-			return CHANGED
-		}
+		if (occurrence === null) return CHANGED
+		const refused = refusal(occurrence.status !== 'cancelled', occurrence.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
 		const exception: SeriesException = movedAway(occurrence)
 			? {
 					seriesId,
@@ -164,14 +169,9 @@ export function restoreOccurrence(
 		const locked = await lockOccurrence(tx, seriesId, originalOn)
 		if (locked === null) return NOT_FOUND
 		const { rule, occurrence } = locked
-		if (
-			occurrence === null ||
-			occurrence.status !== 'cancelled' ||
-			!canChange(occurrence.startsAt, now) ||
-			stale(input.expectedStartsAt, occurrence.startsAt)
-		) {
-			return CHANGED
-		}
+		if (occurrence === null) return CHANGED
+		const refused = refusal(occurrence.status === 'cancelled', occurrence.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
 		const exception: SeriesException = movedAway(occurrence)
 			? {
 					seriesId,
@@ -203,15 +203,11 @@ export function moveLesson(db: Database, id: string, input: MoveInput, now: Date
 	return db.transaction(async (tx): Promise<LessonResult> => {
 		const lesson = await lockLesson(tx, id)
 		if (lesson === null) return NOT_FOUND
-		if (
-			lesson.status === 'cancelled' ||
-			!canChange(lesson.startsAt, now) ||
-			stale(input.expectedStartsAt, lesson.startsAt)
-		) {
-			return CHANGED
-		}
+		const refused = refusal(lesson.status !== 'cancelled', lesson.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
 		const target = moveTarget(input, now)
-		if (target === null || target.getTime() === lesson.startsAt.getTime()) return INVALID
+		if (target === null) return TARGET_IN_PAST
+		if (target.getTime() === lesson.startsAt.getTime()) return INVALID
 		return saveLesson(tx, id, { startsAt: target })
 	})
 }
@@ -220,13 +216,8 @@ export function cancelLesson(db: Database, id: string, input: ActionInput, now: 
 	return db.transaction(async (tx): Promise<LessonResult> => {
 		const lesson = await lockLesson(tx, id)
 		if (lesson === null) return NOT_FOUND
-		if (
-			lesson.status !== 'scheduled' ||
-			!canChange(lesson.startsAt, now) ||
-			stale(input.expectedStartsAt, lesson.startsAt)
-		) {
-			return CHANGED
-		}
+		const refused = refusal(lesson.status === 'scheduled', lesson.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
 		return saveLesson(tx, id, { status: 'cancelled' })
 	})
 }
@@ -235,13 +226,8 @@ export function restoreLesson(db: Database, id: string, input: ActionInput, now:
 	return db.transaction(async (tx): Promise<LessonResult> => {
 		const lesson = await lockLesson(tx, id)
 		if (lesson === null) return NOT_FOUND
-		if (
-			lesson.status !== 'cancelled' ||
-			!canChange(lesson.startsAt, now) ||
-			stale(input.expectedStartsAt, lesson.startsAt)
-		) {
-			return CHANGED
-		}
+		const refused = refusal(lesson.status === 'cancelled', lesson.startsAt, input.expectedStartsAt, now)
+		if (refused !== null) return refused
 		return saveLesson(tx, id, { status: 'scheduled' })
 	})
 }

@@ -54,6 +54,10 @@ function refused(c: Context<AppEnv>, failure: ChangeFailure) {
 			return lessonChanged(c)
 		case 'invalid':
 			return invalidRequest(c)
+		case 'in_past':
+			return c.json(errorBody('lesson_in_past', 'This lesson has already started'), 400)
+		case 'target_in_past':
+			return c.json(errorBody('target_in_past', 'The new time has already passed'), 400)
 	}
 }
 
@@ -161,6 +165,9 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 				errorBody('series_ends_before_new_day', 'The series ends before the first lesson on the new day'),
 				400
 			)
+		}
+		if (result.kind === 'today_passed') {
+			return c.json(errorBody('series_today_passed', "Today's lesson of this series has already started"), 400)
 		}
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ series: result.series } satisfies ScheduleSeriesResponse, 200)

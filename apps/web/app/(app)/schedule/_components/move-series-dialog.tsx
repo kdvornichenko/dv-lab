@@ -62,6 +62,7 @@ export function MoveSeriesDialog({
 	const [pending, setPending] = useState(false)
 	const [notice, setNotice] = useState<'stale' | 'failed' | null>(null)
 	const [serverEnds, setServerEnds] = useState(false)
+	const [serverStarted, setServerStarted] = useState(false)
 
 	const cut =
 		from !== '' && weekday !== null && time !== null
@@ -77,8 +78,14 @@ export function MoveSeriesDialog({
 	} else if (serverEnds) {
 		rowError = endsText(rule.endsOn ?? from)
 	}
+	const startedToday = cut?.kind === 'today_passed' || serverStarted
 	const errors = {
-		from: from === '' ? 'Choose a date.' : undefined,
+		from:
+			from === ''
+				? 'Choose a date.'
+				: startedToday
+					? "Today's lesson has already started. Choose a later date."
+					: undefined,
 		day: weekday === null ? 'Choose a day.' : undefined,
 		time: time === null ? 'Choose a start time.' : undefined,
 	}
@@ -99,6 +106,7 @@ export function MoveSeriesDialog({
 		return (value: T) => {
 			set(value)
 			setServerEnds(false)
+			setServerStarted(false)
 			if (field) setTouched((state) => ({ ...state, [field]: true }))
 		}
 	}
@@ -121,6 +129,7 @@ export function MoveSeriesDialog({
 		}
 		if (result.kind === 'failed') {
 			if (result.code === 'series_ends_before_new_day') setServerEnds(true)
+			else if (result.code === 'series_today_passed') setServerStarted(true)
 			else setNotice('failed')
 			return
 		}
@@ -165,7 +174,7 @@ export function MoveSeriesDialog({
 							min={today}
 							onChange={edit(setFrom)}
 							disabled={pending}
-							error={submitted ? errors.from : undefined}
+							error={submitted || startedToday ? errors.from : undefined}
 						/>
 						<div className="flex flex-col gap-2">
 							<div className="grid items-start gap-4 sm:grid-cols-2">

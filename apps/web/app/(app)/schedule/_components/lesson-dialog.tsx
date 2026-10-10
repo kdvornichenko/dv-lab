@@ -30,7 +30,7 @@ import {
 } from '@/lib/schedule-format'
 
 import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, canChange } from '@dv-lab/core'
 
 import { LessonStatus, type BlockSlot } from './lesson-block'
 import { LessonMoveForm } from './lesson-move-form'
@@ -43,11 +43,12 @@ export interface PairTarget {
 	at: Date
 }
 
-export type ActionOutcome = 'ok' | 'stale' | 'failed'
+export type ActionOutcome = 'ok' | 'stale' | 'past' | 'failed'
 
 interface LessonDialogProps {
 	block: ScheduleBlock
 	series: ScheduleSeries | null
+	now: Date
 	secondZone: string | null
 	currentYear: number
 	onClose: () => void
@@ -61,9 +62,10 @@ interface LessonDialogProps {
 	onSeries: (kind: 'move' | 'end') => void
 }
 
-type Notice = 'stale' | 'cancel' | 'restore' | null
+type Notice = 'stale' | 'past' | 'cancel' | 'restore' | null
 
 const FAILURE: Record<Exclude<Notice, 'stale' | null>, string> = {
+	past: 'This lesson has already started and cannot be changed.',
 	cancel: 'Could not cancel the lesson. Try again.',
 	restore: 'Could not restore the lesson. Try again.',
 }
@@ -87,6 +89,7 @@ const pairButtonClass =
 export function LessonDialog({
 	block,
 	series,
+	now,
 	secondZone,
 	currentYear,
 	onClose,
@@ -110,9 +113,10 @@ export function LessonDialog({
 	const movedTo = block.movedTo === null ? null : new Date(block.movedTo)
 	const movedFrom = block.movedFrom === null ? null : new Date(block.movedFrom)
 	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
-	const plannedActions = block.changeable && block.status === 'scheduled'
-	const restoreAction = block.changeable && block.status === 'cancelled'
-	const seriesActions = block.changeable && block.ref.kind === 'series' && block.status !== 'moved'
+	const live = block.changeable && canChange(start, now)
+	const plannedActions = live && block.status === 'scheduled'
+	const restoreAction = live && block.status === 'cancelled'
+	const seriesActions = live && block.ref.kind === 'series' && block.status !== 'moved'
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
 		if (pending) return
@@ -121,7 +125,7 @@ export function LessonDialog({
 		const outcome = await action()
 		setPending(false)
 		setConfirming(false)
-		setNotice(outcome === 'ok' ? null : outcome === 'stale' ? 'stale' : failure)
+		setNotice(outcome === 'ok' ? null : outcome === 'stale' || outcome === 'past' ? outcome : failure)
 	}
 
 	return (
@@ -182,7 +186,7 @@ export function LessonDialog({
 							) : null}
 							{block.studentGoal ? <span className="text-muted-foreground">· {block.studentGoal}</span> : null}
 						</div>
-						{block.changeable || block.status !== 'scheduled' ? null : (
+						{live || block.status !== 'scheduled' || notice === 'past' ? null : (
 							<p className="text-caption text-muted-foreground">
 								This lesson has already taken place and cannot be changed.
 							</p>
@@ -237,6 +241,7 @@ export function LessonDialog({
 						{moving && plannedActions ? (
 							<LessonMoveForm
 								block={block}
+								now={now}
 								today={today}
 								secondZone={secondZone}
 								currentYear={currentYear}

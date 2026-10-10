@@ -267,6 +267,7 @@ export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
 export type CutSeriesResult =
 	| { kind: 'invalid' }
 	| { kind: 'changed' }
+	| { kind: 'today_passed' }
 	| { kind: 'ends_before_new_day'; endsOn: string }
 	| { kind: 'ok'; oldEndsOn: string; newRule: NewSeriesRule; lessons: CutLesson[] }
 
@@ -282,7 +283,7 @@ export function cutSeries(
 	if (rule.endsOn !== null && rule.endsOn < from) return { kind: 'changed' }
 	if (weekday === rule.weekday && startTime === rule.startTime) return { kind: 'invalid' }
 	if (from === today && isSeriesDate(rule, today) && !canChange(seriesStart(rule, today), now)) {
-		return { kind: 'changed' }
+		return { kind: 'today_passed' }
 	}
 	const startsOn = nextSeriesDate({ weekday, startTime, startsOn: from, endsOn: null }, now)
 	if (startsOn === null) return { kind: 'invalid' }

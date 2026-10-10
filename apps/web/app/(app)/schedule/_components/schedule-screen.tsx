@@ -229,6 +229,10 @@ function LoadedSchedule({ now }: { now: Date }) {
 
 	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
 		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
+		if (result.kind === 'failed' && result.code === 'lesson_in_past') {
+			reload()
+			return 'past'
+		}
 		if (result.kind === 'failed') return 'failed'
 		reload()
 		if (result.kind === 'stale') return 'stale'
@@ -330,6 +334,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					key={`${openBlock.key}:${blockSlot(openBlock)}`}
 					block={openBlock}
 					series={openSeries}
+					now={now}
 					secondZone={zone}
 					currentYear={currentYear}
 					onClose={closeLesson}

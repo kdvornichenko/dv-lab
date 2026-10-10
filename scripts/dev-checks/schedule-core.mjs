@@ -446,7 +446,7 @@ function partTwo() {
 			yesterday: 'invalid',
 			repeated: 'changed',
 			sameSlot: 'invalid',
-			startedToday: 'changed',
+			startedToday: 'today_passed',
 			opened: {
 				kind: 'ok',
 				oldEndsOn: '2026-10-20',

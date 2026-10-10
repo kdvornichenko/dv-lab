@@ -420,9 +420,13 @@ function insertSeries(studentId, weekday, startTime, startsOn, endsOn) {
 	).rows[0].id
 }
 
-async function expectStatus(label, send, status) {
+async function expectStatus(label, send, status, code) {
 	const res = await send()
-	check(`${label} gives ${status}`, res.status === status, `got ${res.status} ${JSON.stringify(res.json?.error ?? '')}`)
+	check(
+		`${label} gives ${status}${code ? ` ${code}` : ''}`,
+		res.status === status && (code === undefined || res.json?.error?.code === code),
+		`got ${res.status} ${JSON.stringify(res.json?.error ?? '')}`
+	)
 	return res
 }
 
@@ -690,13 +694,15 @@ async function partOccurrence(ctx) {
 		[
 			'move of a past Wednesday',
 			() => post(api, cookie, occurrencePath(s1, past, 'move'), { date: friday, startTime: '11:00' }),
-			409,
+			400,
+			'lesson_in_past',
 		],
-		['cancel of a past Wednesday', () => post(api, cookie, occurrencePath(s1, past, 'cancel')), 409],
+		['cancel of a past Wednesday', () => post(api, cookie, occurrencePath(s1, past, 'cancel')), 400, 'lesson_in_past'],
 		[
 			'move into today 00:00',
 			() => post(api, cookie, occurrencePath(s1, dW7, 'move'), { date: today, startTime: '00:00' }),
 			400,
+			'target_in_past',
 		],
 		[
 			'cancel with expectedStartsAt one hour early',
@@ -707,11 +713,13 @@ async function partOccurrence(ctx) {
 			'move to yesterday',
 			() => post(api, cookie, occurrencePath(s1, dW7, 'move'), { date: core.addDays(today, -1), startTime: '18:00' }),
 			400,
+			'target_in_past',
 		],
 		[
 			'move to the current time',
 			() => post(api, cookie, occurrencePath(s1, dW7, 'move'), { date: nowParts.date, startTime: nowParts.time }),
 			400,
+			'target_in_past',
 		],
 		[
 			'move of an unknown series',
@@ -729,7 +737,7 @@ async function partOccurrence(ctx) {
 			400,
 		],
 	]
-	for (const [label, send, status] of refusals) await expectStatus(label, send, status)
+	for (const [label, send, status, code] of refusals) await expectStatus(label, send, status, code)
 	countRows(ctx)
 
 	const rows = sql(`select count(*)::int as n from lesson_exceptions where series_id = ${quote(s1)}`).rows[0].n
@@ -826,9 +834,10 @@ async function partSingle(ctx) {
 	await expectStatus(
 		'move of the past L2',
 		() => post(api, cookie, lessonPath(l2, 'move'), { date: nextThursday, startTime: '16:00' }),
-		409
+		400,
+		'lesson_in_past'
 	)
-	await expectStatus('cancel of the past L2', () => post(api, cookie, lessonPath(l2, 'cancel')), 409)
+	await expectStatus('cancel of the past L2', () => post(api, cookie, lessonPath(l2, 'cancel')), 400, 'lesson_in_past')
 	await expectStatus(
 		'move of an unknown lesson',
 		() => post(api, cookie, lessonPath(randomUUID(), 'move'), { date: nextThursday, startTime: '16:00' }),
@@ -975,7 +984,8 @@ async function partSeries(ctx) {
 	await expectStatus(
 		'cut with From today after the started lesson of today',
 		() => post(api, cookie, `/series/${s2}/move`, { from: today, weekday: (todayWeekday % 7) + 1, startTime: '10:00' }),
-		409
+		400,
+		'series_today_passed'
 	)
 	await expectStatus(
 		'cut to the same day and time',

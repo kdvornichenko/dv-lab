@@ -15,7 +15,7 @@ type EndSeriesInput = z.output<typeof endSeriesRequest>
 
 export type SeriesResult = { kind: 'ok'; series: ScheduleSeries } | ChangeFailure
 
-export type MoveSeriesResult = SeriesResult | { kind: 'ends_before_new_day' }
+export type MoveSeriesResult = SeriesResult | { kind: 'ends_before_new_day' } | { kind: 'today_passed' }
 
 export function moveSeries(db: Database, id: string, input: MoveSeriesInput, now: Date): Promise<MoveSeriesResult> {
 	return db.transaction(async (tx): Promise<MoveSeriesResult> => {
