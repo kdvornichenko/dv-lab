@@ -221,7 +221,7 @@ Plans:
 **Plans**: 8/17 plans executed
 
 Plans:
-- [ ] 21-17-PLAN.md
+- [ ] 21-17-PLAN.md — Move of any lesson allowed like in Google Calendar (D-17), v38 toasts (W4)
 
 **Wave 1**
 - [x] 21-01-PLAN.md — Schema: `lesson_marks`, `teacher_settings`, `students.no_show_deducts`, revoke migration, `yarn install`, migrations applied [BLOCKING] (W1)
@@ -257,7 +257,8 @@ Plans:
 - [ ] 21-12-PLAN.md — Docs: RUNBOOK operator line, AGENTS.md owners, release notes for Server guy (W9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 21-13-PLAN.md — Final verification: full checks, privacy, AGENTS.md against code, all acceptance scripts, five criteria by hand (W10)
+- [ ] 21-13-PLAN.md — Final verification: full checks, privacy, AGENTS.md against code, all acceptance scripts, five criteria by hand (W11)
+- [ ] 21-18-PLAN.md — e2e: Playwright suite for marks, no-show flag, move of a started lesson, Today (W12)
 
 **UI hint**: yes
 
@@ -275,7 +276,7 @@ Plans:
 
 **Plans**: TBD
 **UI hint**: yes
-**Notes**: Model `claude-haiku-5-5`. The transport choice (Vercel AI SDK with `@ai-sdk/anthropic` or `@anthropic-ai/sdk`) is settled by a spike covering a write-tool call, a pause for confirmation and resuming after a page reload.
+**Notes**: Model `claude-haiku-5-5`. Owner decision 2026-10-10: use the official Anthropic SDK (`@anthropic-ai/sdk`) with a server-side API key from the Console organization already linked to the Claude plan API credits (https://platform.claude.com/docs/en/about-claude/api-credits-for-subscribers); the key lives only on the server (env var, never in the browser or the repository). Vercel AI SDK is dropped unless the spike shows a need. Reference implementation reviewed: github.com/ThariqS/ai-newtab (Claude Managed Agents, beta `managed-agents-2026-04-01`). The spike compares two transports on the same three checks (write-tool call, pause for confirmation, resume after page reload), plus per-conversation token usage and where the student data is stored: (a) Messages API with tool use and our own conversation store; (b) Managed Agents session as in ai-newtab. Lessons from ai-newtab to apply either way: every tool call must always get a result (errors become `is_error` results); open the event stream before sending and dedupe replayed events; idle is not done (stop only on `end_turn`/terminated, not `requires_action`); cache agent and environment IDs and fingerprint the agent definition; keep dangerous built-in tools (bash) off; treat stored student text as untrusted input to the model; delete server-side sessions and files when done. Owner request 2026-10-10: the teacher can choose the chat model (Haiku may not cope with some questions) and the effort level, like the Claude app composer (model menu with a Default mark, effort slider from faster to smarter). The default is a teacher setting in `teacher_settings` and the choice can be overridden per conversation; the list of models comes from configuration, not a constant; token usage is recorded per conversation together with the model and effort. Effort is `output_config.effort` (`low`, `medium`, `high`, `xhigh`, `max`; GA, no beta header) on Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.1; per-message change keeps the prompt cache and needs the beta header `mid-conversation-output-config-2026-07-01`; on Haiku 5.5 `low` skips checks in long tool prompts. Support under Managed Agents is checked in the spike. The API does not expose the remaining credit balance (only Console, Settings > Billing; the Usage & Cost Admin API needs a separate admin key and shows spend with a few minutes lag), so the monthly cap is our own: spend from response `usage` per conversation, the remaining amount shown as an estimate, and the "credit balance too low" API error maps to the "Monthly budget reached" state. Design: artifact v39 (copy in `~/dv-lab-design`): `ChatModelControls` (composer chips, model menu, effort popover with five levels, unavailable model and budget states), Settings > Assistant "Chat model" card; open for the owner: level names and the "Recommended" mark, model order from configuration, optional relative cost like "x3". Credits do not roll over and exhausting them stops API requests; the in-app monthly cap (criterion 5) stays below the credit amount.
 
 ### Phase 23: Confirmed Chat Changes and Entry Points
 
