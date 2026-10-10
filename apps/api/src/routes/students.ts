@@ -43,6 +43,7 @@ import {
 import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
+import { readSnapshot } from '../schedule/rows.ts'
 import { latestPaymentDate } from './payments.ts'
 
 type StudentRouteDeps = { db: Database }
@@ -68,7 +69,7 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
-	routes.get('/', async (c) => c.json((await listCards(db)) satisfies StudentsResponse, 200))
+	routes.get('/', async (c) => c.json((await readSnapshot(db, listCards)) satisfies StudentsResponse, 200))
 
 	routes.post('/', async (c) => {
 		const input = await readJson(c, saveStudentRequest)
@@ -80,7 +81,7 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	routes.get('/:id', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const student = await getCard(db, id)
+		const student = await readSnapshot(db, (executor) => getCard(executor, id))
 		if (!student) return notFound(c)
 		return c.json({ student } satisfies StudentResponse, 200)
 	})

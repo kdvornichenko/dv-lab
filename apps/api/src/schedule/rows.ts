@@ -9,7 +9,7 @@ import {
 	windowDates,
 	zonedParts,
 } from '@dv-lab/core'
-import { type DbExecutor, lessonExceptions, lessonSeries, lessons } from '@dv-lab/db'
+import { type Database, type DbExecutor, lessonExceptions, lessonSeries, lessons } from '@dv-lab/db'
 
 type ScheduleRange = { from: Date; to: Date | null; studentIds?: readonly string[] }
 
@@ -140,6 +140,10 @@ export async function seriesExceptionsFrom(
 		.from(lessonExceptions)
 		.where(and(eq(lessonExceptions.seriesId, seriesId), gte(lessonExceptions.originalOn, from)))
 	return rows.map(toSeriesException)
+}
+
+export function readSnapshot<T>(db: Database, read: (executor: DbExecutor) => Promise<T>): Promise<T> {
+	return db.transaction((tx) => read(tx), { isolationLevel: 'repeatable read', accessMode: 'read only' })
 }
 
 const EMPTY_ROWS: ScheduleRows = { series: [], exceptions: [], lessons: [] }

@@ -30,6 +30,7 @@ import {
 	restoreLesson,
 	restoreOccurrence,
 } from '../schedule/changes.ts'
+import { readSnapshot } from '../schedule/rows.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
 import { endSeries, moveSeries } from '../schedule/series.ts'
 
@@ -87,7 +88,9 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 	routes.get('/week', async (c) => {
 		const start = weekStart(c.req.query('start'))
 		if (start === null) return invalidRequest(c)
-		return c.json((await readWeek(db, start, new Date())) satisfies ScheduleWeekResponse, 200)
+		const now = new Date()
+		const week = await readSnapshot(db, (executor) => readWeek(executor, start, now))
+		return c.json(week satisfies ScheduleWeekResponse, 200)
 	})
 
 	routes.post('/lessons', async (c) => {
