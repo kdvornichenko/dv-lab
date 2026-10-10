@@ -6,11 +6,14 @@ import {
 	type ScheduleCreateResponse,
 	type ScheduleLessonResponse,
 	type ScheduleOccurrenceResponse,
+	type ScheduleSeriesResponse,
 	type ScheduleWeekResponse,
 	createLessonRequest,
+	endSeriesRequest,
 	isIsoDate,
 	lessonActionRequest,
 	moveLessonRequest,
+	moveSeriesRequest,
 	scheduleWeekStart,
 } from '@dv-lab/contracts'
 import { weekdayOf } from '@dv-lab/core'
@@ -28,6 +31,7 @@ import {
 	restoreOccurrence,
 } from '../schedule/changes.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
+import { endSeries, moveSeries } from '../schedule/series.ts'
 
 type ScheduleRouteDeps = { db: Database }
 
@@ -145,6 +149,32 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 			return c.json({ lesson: result.lesson } satisfies ScheduleLessonResponse, 200)
 		})
 	}
+
+	routes.post('/series/:id/move', async (c) => {
+		const id = idParam(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, moveSeriesRequest)
+		if (!input) return invalidRequest(c)
+		const result = await moveSeries(db, id, input, new Date())
+		if (result.kind === 'ends_before_new_day') {
+			return c.json(
+				errorBody('series_ends_before_new_day', 'The series ends before the first lesson on the new day'),
+				400
+			)
+		}
+		if (result.kind !== 'ok') return refused(c, result)
+		return c.json({ series: result.series } satisfies ScheduleSeriesResponse, 200)
+	})
+
+	routes.post('/series/:id/end', async (c) => {
+		const id = idParam(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, endSeriesRequest)
+		if (!input) return invalidRequest(c)
+		const result = await endSeries(db, id, input, new Date())
+		if (result.kind !== 'ok') return refused(c, result)
+		return c.json({ series: result.series } satisfies ScheduleSeriesResponse, 200)
+	})
 
 	return routes
 }
