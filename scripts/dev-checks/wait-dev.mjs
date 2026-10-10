@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { get } from 'node:http'
 import { createConnection } from 'node:net'
 
@@ -63,6 +64,17 @@ async function down() {
 		return 0
 	}
 	console.log(`DEV_DOWN_FAIL port ${busy.join(', ')} still listening`)
+	for (const port of busy) {
+		try {
+			const pids = execFileSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { encoding: 'utf8' }).trim().split('\n')
+			for (const pid of pids) {
+				const cwd = execFileSync('lsof', ['-a', '-p', pid, '-d', 'cwd', '-Fn'], { encoding: 'utf8' }).split('\n').find((line) => line.startsWith('n'))
+				console.log(`port ${port}: pid ${pid} cwd ${cwd?.slice(1) ?? 'unknown'}`)
+			}
+		} catch {
+			console.log(`port ${port}: owner unknown`)
+		}
+	}
 	return 1
 }
 
