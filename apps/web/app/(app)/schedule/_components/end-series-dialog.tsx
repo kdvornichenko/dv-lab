@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import { DateField } from '@/components/app/date-field'
+import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +21,6 @@ import { endSeriesAt, hasOccurrences } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { STALE_DATE, STALE_TITLE, mutate } from './schedule-mutations'
-import { useSecondZone } from './second-zone-select'
 
 interface EndSeriesDialogProps {
 	rule: ScheduleSeries

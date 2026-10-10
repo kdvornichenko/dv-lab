@@ -9,7 +9,7 @@ import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
 import { formatDate, formatDay, formatRange, formatTime, formatWhen, vnRange, vnWhen } from '@/lib/schedule-format'
-import { zoneCaption } from '@/lib/time-zones'
+import { zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, canChange, overlaps, zonedInstant, zonedParts } from '@dv-lab/core'
@@ -190,7 +190,7 @@ export function LessonMoveForm({
 						{target === null ? null : (
 							<span>
 								{formatDay(target, secondZone, currentYear)}, {formatRange(target, block.durationMinutes, secondZone)}{' '}
-								{zoneCaption(secondZone, target, 'toolbar')}
+								{zoneLabel(secondZone, target)}
 							</span>
 						)}
 					</p>

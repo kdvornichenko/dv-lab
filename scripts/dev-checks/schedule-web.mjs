@@ -469,6 +469,16 @@ async function readCorner(page) {
 	}))
 }
 
+function zoneOffset(zone, at) {
+	const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
+		.formatToParts(at)
+		.find((part) => part.type === 'timeZoneName').value
+	const match = /^GMT([+-])(\d+)(?::(\d+))?$/.exec(name)
+	if (!match) return 0
+	const minutes = Number(match[2]) * 60 + Number(match[3] ?? 0)
+	return match[1] === '-' ? -minutes : minutes
+}
+
 function berlinFacts(monday) {
 	const instant = core.zonedInstant(monday, '08:00', VN)
 	const hour = new Intl.DateTimeFormat('en-GB', {
@@ -477,11 +487,14 @@ function berlinFacts(monday) {
 		minute: '2-digit',
 		hourCycle: 'h23',
 	}).format(instant)
-	const name = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Berlin', timeZoneName: 'shortOffset' })
-		.formatToParts(core.zonedInstant(monday, '12:00', VN))
-		.find((part) => part.type === 'timeZoneName').value
-	const offset = name.replace('GMT', '')
-	return { hour, offset, toolbar: `UTC${offset}` }
+	const noon = core.zonedInstant(monday, '12:00', VN)
+	const year = Number(monday.slice(0, 4))
+	const standard = Math.min(
+		zoneOffset('Europe/Berlin', new Date(Date.UTC(year, 0, 1))),
+		zoneOffset('Europe/Berlin', new Date(Date.UTC(year, 6, 1)))
+	)
+	const label = zoneOffset('Europe/Berlin', noon) > standard ? 'CEST' : 'CET'
+	return { hour, label }
 }
 
 async function framePart3(page, label, requests) {
@@ -541,8 +554,8 @@ async function framePart3(page, label, requests) {
 		String(geometry?.right)
 	)
 	check(
-		`${label} popup rows are 36px`,
-		geometry !== null && geometry.rows.every((height) => Math.abs(height - 36) <= 0.6),
+		`${label} popup rows are 28px`,
+		geometry !== null && geometry.rows.every((height) => Math.abs(height - 28) <= 0.6),
 		String(geometry?.rows)
 	)
 	check(
@@ -563,7 +576,7 @@ async function framePart3(page, label, requests) {
 	await search.fill('zzz')
 	await page.waitForTimeout(300)
 	const empty = await page.getByText('No time zones found').isVisible()
-	const hint = await page.getByText('Try a city, a country or an offset like UTC+7.').isVisible()
+	const hint = await page.getByText('Try a city, a country or an abbreviation like CET.').isVisible()
 	check(`${label} empty result copy`, empty && hint)
 	await shot(page, 'sched-frame', 'zone-empty')
 	await search.fill('saigon')
@@ -585,14 +598,14 @@ async function framePart3(page, label, requests) {
 	await page.waitForTimeout(400)
 	const facts = berlinFacts(monday)
 	check(
-		`${label} button shows the Berlin offset`,
-		(await button.textContent())?.trim() === facts.toolbar,
+		`${label} button shows the Berlin label`,
+		(await button.textContent())?.trim() === facts.label,
 		await button.textContent()
 	)
 	let state = await readCorner(page)
 	check(
-		`${label} corner shows the short offset`,
-		state.corner.join(' ') === `${facts.offset} VN`,
+		`${label} corner shows the short label`,
+		state.corner.join(' ') === `${facts.label} VN`,
 		state.corner.join(' ')
 	)
 	check(
@@ -608,8 +621,8 @@ async function framePart3(page, label, requests) {
 	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 15000 })
 	state = await readCorner(page)
 	check(
-		`${label} offset follows the Monday of the week`,
-		(await button.textContent())?.trim() === laterFacts.toolbar && state.corner[0] === laterFacts.offset,
+		`${label} label follows the Monday of the week`,
+		(await button.textContent())?.trim() === laterFacts.label && state.corner[0] === laterFacts.label,
 		`${await button.textContent()} ${state.corner.join(' ')}`
 	)
 	check(
@@ -2850,7 +2863,7 @@ async function studentsPart1(page, fx) {
 	check('another zone: the second line follows the stored zone', nextDay === wantNextDay, `${nextDay} / ${wantNextDay}`)
 	check(
 		'another zone: a different date starts with the weekday',
-		/^[A-Z][a-z]{2} \d\d:\d\d UTC\+\d+(:\d\d)?$/.test(nextDay ?? ''),
+		/^[A-Z][a-z]{2} \d\d:\d\d NZ(ST|DT)$/.test(nextDay ?? ''),
 		String(nextDay)
 	)
 	check('another zone: main line is unchanged', (await cellA.locator('span').first().textContent())?.trim() === wantA)
@@ -2883,18 +2896,31 @@ async function secondLineOf(cell) {
 	return (await spans.nth(1).textContent())?.trim() ?? null
 }
 
+const LABEL_TABLE = {
+	'Europe/Moscow': ['MSK'],
+	'Pacific/Auckland': ['NZST', 'NZDT'],
+	'Europe/Berlin': ['CET', 'CEST'],
+	'Asia/Kolkata': ['IST'],
+	'Asia/Yekaterinburg': ['YEKT'],
+}
+
+function expectedLabel(zone, instant) {
+	const known = LABEL_TABLE[zone]
+	if (!known) return zone.split('/').pop().replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase()
+	if (known.length === 1) return known[0]
+	const year = instant.getUTCFullYear()
+	const standard = Math.min(
+		zoneOffset(zone, new Date(Date.UTC(year, 0, 1))),
+		zoneOffset(zone, new Date(Date.UTC(year, 6, 1)))
+	)
+	return zoneOffset(zone, instant) > standard ? known[1] : known[0]
+}
+
 function expectedSecond(iso, zone) {
 	const instant = new Date(iso)
 	const parts = core.zonedParts(instant, zone)
-	const caption =
-		zone === 'Europe/Moscow'
-			? 'MSK'
-			: new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
-					.formatToParts(instant)
-					.find((part) => part.type === 'timeZoneName')
-					.value.replace(/^GMT/, 'UTC')
 	const day = core.zonedParts(instant, VN).date === parts.date ? '' : `${WEEKDAYS[parts.weekday - 1]} `
-	return `${day}${parts.time} ${caption}`
+	return `${day}${parts.time} ${expectedLabel(zone, instant)}`
 }
 
 const searchField = (page) => page.getByRole('searchbox', { name: 'Search students' })
@@ -3058,13 +3084,19 @@ async function studentsPart3(page) {
 	await page.getByRole('button', { name: 'New student' }).click()
 	const dialog = page.getByRole('dialog')
 	await dialog.waitFor({ timeout: 10000 })
-	const zoneInput = dialog.locator('#student-form-time-zone')
+	await dialog.locator('#student-form-time-zone').click()
+	const zoneInput = page.getByPlaceholder('Search time zones')
+	await zoneInput.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	const firstRow = await page.getByRole('option').first().textContent()
+	check('time zone field: first row is Same as teacher', firstRow?.trim() === 'Same as teacher', String(firstRow))
+	check('time zone field: no None row', (await page.getByRole('option', { name: /^None/ }).count()) === 0)
 	await zoneInput.fill('kolk')
-	await page.getByRole('option').first().waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
 	const kolkata = await page.getByRole('option').allTextContents()
 	check(
-		'time zone search kolk finds Asia/Kolkata with UTC+5:30',
-		kolkata.length === 1 && kolkata[0].includes('Asia/Kolkata') && kolkata[0].includes('UTC+5:30'),
+		'time zone search kolk finds Asia/Kolkata with IST',
+		kolkata.length === 1 && kolkata[0].includes('Asia/Kolkata') && kolkata[0].includes('IST'),
 		kolkata.join(' | ')
 	)
 	await zoneInput.fill('+7')
@@ -3072,27 +3104,25 @@ async function studentsPart3(page) {
 	const seven = await page.getByRole('option').allTextContents()
 	check('time zone search +7 lists zones', seven.length > 0, String(seven.length))
 	check(
-		'time zone search +7 lists only UTC+7 zones',
-		seven.every((text) => /UTC\+7(:\d\d)?$/.test(text.trim())),
-		seven.filter((text) => !/UTC\+7(:\d\d)?$/.test(text.trim())).join(' | ')
-	)
-	check(
-		'time zone search +7 includes Asia/Ho_Chi_Minh',
-		seven.some((text) => text.includes('Asia/Ho_Chi_Minh'))
+		'time zone search +7 lists Bangkok and Ho Chi Minh, not Kolkata',
+		seven.some((text) => text.includes('Asia/Bangkok')) &&
+			seven.some((text) => text.includes('Asia/Ho_Chi_Minh')) &&
+			!seven.some((text) => text.includes('Asia/Kolkata')),
+		String(seven.length)
 	)
 	await zoneInput.fill('utc+5:30')
 	await page.waitForTimeout(300)
 	const half = await page.getByRole('option').allTextContents()
 	check(
-		'time zone search UTC+5:30 finds Asia/Kolkata',
+		'time zone search 5:30 finds Asia/Kolkata',
 		half.some((text) => text.includes('Asia/Kolkata'))
 	)
 	await zoneInput.fill('kathm')
 	await page.waitForTimeout(300)
 	const modern = await page.getByRole('option').allTextContents()
 	check(
-		'time zone search kathm finds Asia/Kathmandu with UTC+5:45',
-		modern.some((text) => text.includes('Asia/Kathmandu') && text.includes('UTC+5:45')),
+		'time zone search kathm finds Asia/Kathmandu with KATH',
+		modern.some((text) => text.includes('Asia/Kathmandu') && text.includes('KATH')),
 		modern.join(' | ')
 	)
 	await zoneInput.fill('zz-no-zone')
@@ -3975,7 +4005,231 @@ async function forms() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_FORMS_OK')
 }
 
-const sections = { fade, frame, read, changes, students, grid, forms }
+const ZONE_KEYS = ['dv-lab.schedule.second-zone', 'dv-lab.time-zones.favorites']
+const OFFSET_TEXT = /UTC[+−-]\d|GMT[+−-]\d/
+
+async function clearZoneStorage(page) {
+	await page.evaluate((keys) => keys.forEach((key) => localStorage.removeItem(key)), ZONE_KEYS)
+}
+
+async function listSequence(page) {
+	return page.evaluate(() => {
+		const list = document.querySelector('[role="listbox"]')
+		if (!list) return []
+		return Array.from(list.children)
+			.map((child) => (child.textContent ?? '').trim())
+			.filter((text) => text !== '')
+	})
+}
+
+async function pageHasOffsetText(page) {
+	return page.evaluate((source) => new RegExp(source).test(document.body.innerText), OFFSET_TEXT.source)
+}
+
+async function zones() {
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	try {
+		await setTheme(page)
+		await signIn(page)
+		await openSchedule(page)
+		await clearZoneStorage(page)
+		await page.reload()
+		await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+		await page.waitForTimeout(400)
+		const button = page.locator('[aria-label="Second time zone"]')
+		const search = page.getByPlaceholder('Search time zones')
+		const options = page.getByRole('option')
+
+		check('schedule: no offset text such as UTC+7 or GMT-3', !(await pageHasOffsetText(page)))
+		let state = await readCorner(page)
+		check('corner names MSK and VN', state.corner.join(' ') === 'MSK VN', state.corner.join(' '))
+		check('toolbar button says MSK', (await button.textContent())?.trim() === 'MSK')
+		await page.goto(`${BASE}/students`)
+		await page.getByRole('heading', { name: 'Students', level: 1 }).waitFor({ timeout: 30000 })
+		check('students: no offset text such as UTC+7 or GMT-3', !(await pageHasOffsetText(page)))
+
+		await page.evaluate(() => localStorage.setItem('dv-lab.schedule.second-zone', 'Asia/Hovd'))
+		await openSchedule(page)
+		state = await readCorner(page)
+		check('zone without a usual abbreviation shows four city letters', state.corner[0] === 'HOVD', state.corner.join(' '))
+		const cornerFit = await page.evaluate(() => {
+			const span = document.querySelector('[data-slot="week-grid-corner"] span')
+			return span ? { scroll: span.scrollWidth, client: span.clientWidth } : null
+		})
+		check(
+			'the four-letter label fits the 36px corner column',
+			cornerFit !== null && cornerFit.scroll <= cornerFit.client,
+			JSON.stringify(cornerFit)
+		)
+		check('toolbar button says HOVD', (await button.textContent())?.trim() === 'HOVD')
+		await page.evaluate(() => localStorage.removeItem('dv-lab.schedule.second-zone'))
+		await openSchedule(page)
+
+		await button.click()
+		await search.waitFor({ timeout: 10000 })
+		await page.waitForTimeout(500)
+		const sequence = await listSequence(page)
+		check(
+			'popup: None, Favorites with Moscow and Almaty, then All time zones',
+			sequence[0] === 'NoneHide the second zone' &&
+				sequence[1] === 'Favorites' &&
+				sequence[2]?.startsWith('Europe/Moscow') &&
+				sequence[3]?.startsWith('Asia/Almaty') &&
+				sequence[4] === 'All time zones',
+			sequence.slice(0, 6).join(' | ')
+		)
+		const headings = await page.evaluate(() => {
+			const find = (text) =>
+				Array.from(document.querySelectorAll('[role="presentation"]')).find((element) => element.textContent === text)
+			const favorites = find('Favorites')
+			if (!favorites) return null
+			const style = getComputedStyle(favorites)
+			return { cls: favorites.className, size: style.fontSize, top: style.paddingTop, bottom: style.paddingBottom }
+		})
+		check(
+			'popup: Favorites heading is micro, 8px above and 4px below',
+			headings !== null &&
+				headings.cls.includes('text-micro') &&
+				headings.cls.includes('text-muted-foreground') &&
+				headings.size === '11px' &&
+				headings.top === '8px' &&
+				headings.bottom === '4px',
+			JSON.stringify(headings)
+		)
+		const noneStar = await options.first().locator('[data-slot="time-zone-star"]').count()
+		check('popup: None has no star', noneStar === 0)
+		const checkedRow = await options.filter({ hasText: 'Europe/Moscow' }).first().getAttribute('aria-selected')
+		check('popup: the chosen zone is marked selected', checkedRow === 'true', String(checkedRow))
+		const moscowStar = options.filter({ hasText: 'Europe/Moscow' }).first().locator('[data-slot="time-zone-star"]')
+		check(
+			'popup: a favorite has a pressed, labelled star',
+			(await moscowStar.getAttribute('aria-pressed')) === 'true' &&
+				(await moscowStar.getAttribute('aria-label')) === 'Remove Europe/Moscow from favorites'
+		)
+		await shot(page, 'sched-zones', 'popup')
+
+		const berlinRow = options.filter({ hasText: 'Europe/Berlin' }).first()
+		await berlinRow.scrollIntoViewIfNeeded()
+		await berlinRow.hover()
+		const berlinStar = berlinRow.locator('[data-slot="time-zone-star"]')
+		check(
+			'popup: Berlin star is named Add to favorites and not pressed',
+			(await berlinStar.getAttribute('aria-label')) === 'Add Europe/Berlin to favorites' &&
+				(await berlinStar.getAttribute('aria-pressed')) === 'false'
+		)
+		await berlinStar.click()
+		await page.waitForTimeout(400)
+		check('star: the popup stays open', (await search.count()) === 1)
+		check('star: the chosen zone does not change', (await button.textContent())?.trim() === 'MSK')
+		const afterStar = await listSequence(page)
+		check(
+			'star: Berlin moved into Favorites after Almaty',
+			afterStar[1] === 'Favorites' && afterStar[4]?.startsWith('Europe/Berlin') && afterStar[5] === 'All time zones',
+			afterStar.slice(0, 7).join(' | ')
+		)
+		const storedFavorites = await page.evaluate(() => localStorage.getItem('dv-lab.time-zones.favorites'))
+		check(
+			'star: favorites are kept in the browser in order',
+			storedFavorites === JSON.stringify(['Europe/Moscow', 'Asia/Almaty', 'Europe/Berlin']),
+			String(storedFavorites)
+		)
+
+		await search.fill('CET')
+		await page.waitForTimeout(300)
+		const cet = await options.allTextContents()
+		check('search CET finds Europe/Berlin', cet.some((text) => text.startsWith('Europe/Berlin')), cet.slice(0, 4).join(' | '))
+		const flat = await listSequence(page)
+		check('search: groups and headings are gone', !flat.includes('Favorites') && !flat.includes('All time zones'))
+		const berlinFirst = await options.first().textContent()
+		check('search: favorites come first', berlinFirst?.startsWith('Europe/Berlin') === true, String(berlinFirst))
+		await search.fill('zzzz')
+		await page.waitForTimeout(300)
+		check(
+			'search zzzz: empty copy',
+			(await page.getByText('No time zones found').isVisible()) &&
+				(await page.getByText('Try a city, a country or an abbreviation like CET.').isVisible())
+		)
+		await search.fill('+5:30')
+		await page.waitForTimeout(300)
+		const half = await options.allTextContents()
+		check('search +5:30 finds Asia/Kolkata', half.some((text) => text.startsWith('Asia/Kolkata')), half.slice(0, 3).join(' | '))
+		await search.fill('kolk')
+		await page.waitForTimeout(300)
+		await search.press('Enter')
+		await page.waitForTimeout(400)
+		check('choosing Kolkata: toolbar says IST', (await button.textContent())?.trim() === 'IST')
+		state = await readCorner(page)
+		check('choosing Kolkata: corner says IST VN', state.corner.join(' ') === 'IST VN', state.corner.join(' '))
+		check('choosing Kolkata: nothing but a zone is written', state.stored === 'Asia/Kolkata', String(state.stored))
+		check('the search field is empty on reopening', await (async () => {
+			await button.click()
+			await search.waitFor({ timeout: 10000 })
+			const empty = (await search.inputValue()) === ''
+			await page.keyboard.press('Escape')
+			await page.waitForTimeout(400)
+			return empty
+		})())
+
+		await page.reload()
+		await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+		await page.waitForTimeout(400)
+		check('after a reload the choice is kept', (await button.textContent())?.trim() === 'IST')
+		check(
+			'after a reload the favorites are kept',
+			(await page.evaluate(() => localStorage.getItem('dv-lab.time-zones.favorites'))) === JSON.stringify(['Europe/Moscow', 'Asia/Almaty', 'Europe/Berlin'])
+		)
+
+		await page.evaluate(() => localStorage.setItem('dv-lab.schedule.second-zone', 'Pacific/Auckland'))
+		await page.reload()
+		await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+		await page.waitForTimeout(400)
+		await button.click()
+		await search.waitFor({ timeout: 10000 })
+		await page.waitForTimeout(700)
+		const visible = await page.evaluate(() => {
+			const row = Array.from(document.querySelectorAll('[role="option"]')).find((element) =>
+				element.textContent?.startsWith('Pacific/Auckland')
+			)
+			const viewport = row?.closest('[data-slot="scroll-area-viewport"]')
+			if (!row || !viewport) return null
+			const box = row.getBoundingClientRect()
+			const view = viewport.getBoundingClientRect()
+			return { top: box.top - view.top, bottom: view.bottom - box.bottom, selected: row.getAttribute('aria-selected') }
+		})
+		check(
+			'opening scrolls the chosen zone into view',
+			visible !== null && visible.top >= 0 && visible.bottom >= 0 && visible.selected === 'true',
+			JSON.stringify(visible)
+		)
+		await shot(page, 'sched-zones', 'scrolled')
+		await page.keyboard.press('Escape')
+		await page.waitForTimeout(400)
+
+		await page.evaluate(() => localStorage.setItem('dv-lab.time-zones.favorites', '{"broken":'))
+		await page.evaluate(() => localStorage.setItem('dv-lab.schedule.second-zone', 'not-a-zone'))
+		await page.reload()
+		await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+		await page.waitForTimeout(400)
+		await button.click()
+		await search.waitFor({ timeout: 10000 })
+		await page.waitForTimeout(400)
+		const fallback = await listSequence(page)
+		check(
+			'unreadable values fall back to the defaults',
+			(await button.textContent())?.trim() === 'MSK' && fallback[2]?.startsWith('Europe/Moscow') && fallback[3]?.startsWith('Asia/Almaty'),
+			fallback.slice(0, 4).join(' | ')
+		)
+		await page.keyboard.press('Escape')
+		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await clearZoneStorage(page).catch(() => {})
+		await browser.close()
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_ZONES_OK')
+}
+
+const sections = { fade, frame, read, changes, students, grid, forms, zones }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)

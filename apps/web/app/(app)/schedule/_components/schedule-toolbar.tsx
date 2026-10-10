@@ -1,13 +1,16 @@
 'use client'
 
-import { useEffect, useEffectEvent, type ReactNode } from 'react'
+import { useEffect, useEffectEvent, useMemo } from 'react'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
+import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Tooltip } from '@/components/ui/tooltip'
 import { periodTitle } from '@/lib/schedule-format'
+
+import { SCHEDULE_TIME_ZONE, zonedInstant } from '@dv-lab/core'
 
 interface ScheduleToolbarProps {
 	monday: string
@@ -15,7 +18,8 @@ interface ScheduleToolbarProps {
 	onToday: () => void
 	onPrevious: () => void
 	onNext: () => void
-	zoneControl?: ReactNode
+	zone: string | null
+	onZoneChange: (zone: string | null) => void
 }
 
 const FIELD_SELECTOR = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="combobox"]'
@@ -30,8 +34,10 @@ export function ScheduleToolbar({
 	onToday,
 	onPrevious,
 	onNext,
-	zoneControl,
+	zone,
+	onZoneChange,
 }: ScheduleToolbarProps) {
+	const labelAt = useMemo(() => zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE), [monday])
 	const onKey = useEffectEvent((event: KeyboardEvent) => {
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
 		if (typingTarget(event.target) || typingTarget(document.activeElement)) return
@@ -82,7 +88,14 @@ export function ScheduleToolbar({
 				{periodTitle(monday)}
 			</span>
 			<div className="ml-auto flex items-center gap-2">
-				{zoneControl}
+				<TimeZonePicker
+					trigger="toolbar"
+					value={zone}
+					onChange={onZoneChange}
+					allowNone
+					excludeMain
+					labelAt={labelAt}
+				/>
 				<Select value="week" size="compact">
 					<SelectTrigger aria-label="Calendar view" className="w-28 min-w-0 rounded-full" />
 					<SelectContent>

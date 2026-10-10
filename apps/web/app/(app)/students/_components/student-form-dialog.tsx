@@ -1,20 +1,13 @@
 'use client'
 
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import { TextField } from '@/components/app/text-field'
+import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import {
-	Combobox,
-	ComboboxContent,
-	ComboboxInput,
-	ComboboxItem,
-	ComboboxList,
-	type ComboboxItemData,
-} from '@/components/ui/combobox'
 import {
 	Dialog,
 	DialogContent,
@@ -25,7 +18,6 @@ import {
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { apiRequest } from '@/lib/api-client'
-import { listTimeZones, matchesTimeZone, utcOffset } from '@/lib/time-zones'
 
 import {
 	CURRENCIES,
@@ -46,6 +38,7 @@ import { useToast } from '../../_components/toasts'
 
 const NO_CURRENCY = 'none'
 const SAME_TIME_ZONE = 'same-as-teacher'
+const SAME_AS_TEACHER = { value: SAME_TIME_ZONE, label: 'Same as teacher' }
 
 type Field = 'name' | 'rate' | 'currency' | 'lessonMinutes' | 'parent' | 'level' | 'goals'
 
@@ -139,14 +132,6 @@ function parse(values: Values): Parsed {
 	return { errors, rateMinor, currency, lessonMinutes }
 }
 
-function buildTimeZones(saved: string | null): ComboboxItemData[] {
-	const now = new Date()
-	return [
-		{ value: SAME_TIME_ZONE, label: 'Same as teacher' },
-		...listTimeZones(saved ? [saved] : []).map((zone) => ({ value: zone, label: zone, detail: utcOffset(zone, now) })),
-	]
-}
-
 function nullable(value: string) {
 	const trimmed = value.trim()
 	return trimmed === '' ? null : trimmed
@@ -193,9 +178,6 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const parentRef = useRef<HTMLInputElement>(null)
 	const levelRef = useRef<HTMLInputElement>(null)
 	const goalsRef = useRef<HTMLInputElement>(null)
-
-	const savedTimeZone = student?.timeZone ?? null
-	const timeZones = useMemo(() => buildTimeZones(savedTimeZone), [savedTimeZone])
 
 	const parsed = parse(values)
 	const shown = (field: Field) => (submitted || touched[field] ? parsed.errors[field] : undefined)
@@ -339,40 +321,15 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 								error={shown('lessonMinutes')}
 							/>
 							<FieldFrame id="student-form-time-zone" label="Time zone" helper="Empty means the same as yours.">
-								<Combobox
-									items={timeZones}
+								<TimeZonePicker
+									trigger="field"
+									id="student-form-time-zone"
+									aria-describedby="student-form-time-zone-helper"
 									value={values.timeZone}
-									onValueChange={(value) => set('timeZone', value === '' ? SAME_TIME_ZONE : value)}
-									filter={matchesTimeZone}
+									onChange={(zone) => set('timeZone', zone ?? SAME_TIME_ZONE)}
+									firstOption={SAME_AS_TEACHER}
 									disabled={pending}
-								>
-									<ComboboxInput
-										id="student-form-time-zone"
-										placeholder="Same as teacher"
-										aria-describedby="student-form-time-zone-helper"
-									/>
-									<ComboboxContent>
-										<ComboboxList
-											emptyTitle="No time zones found"
-											emptyHint="Try a city, a country or an offset like UTC+7."
-										>
-											{(item) => {
-												if (typeof item === 'string') {
-													return (
-														<ComboboxItem key={item} value={item}>
-															{item}
-														</ComboboxItem>
-													)
-												}
-												return (
-													<ComboboxItem key={item.value} value={item.value} detail={item.detail}>
-														{item.label}
-													</ComboboxItem>
-												)
-											}}
-										</ComboboxList>
-									</ComboboxContent>
-								</Combobox>
+								/>
 							</FieldFrame>
 						</div>
 						<div className="grid gap-4 sm:grid-cols-2">

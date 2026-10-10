@@ -6,19 +6,13 @@ import { CalendarPlus } from 'lucide-react'
 
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
+import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
-import {
-	lessonCount,
-	vnWhen,
-	weekEyebrow,
-	weekPhrase,
-	weekRange,
-	weekSummary,
-} from '@/lib/schedule-format'
+import { lessonCount, vnWhen, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
 import { exitFallbackMs, spring } from '@/lib/springs'
-import { zoneCaption } from '@/lib/time-zones'
+import { zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleBlock, ScheduleSeries, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
@@ -31,7 +25,6 @@ import { MoveSeriesDialog } from './move-series-dialog'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
 import { mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
-import { SecondZoneSelect, useSecondZone } from './second-zone-select'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
 
 type OpenLesson = { key: string; slot: BlockSlot }
@@ -110,7 +103,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const currentMonday = mondayOf(today)
 	const [zone, setZone] = useSecondZone()
 	const secondZone: SecondZone | null = zone
-		? { id: zone, caption: zoneCaption(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE), 'gutter') }
+		? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE)) }
 		: null
 
 	useEffect(() => {
@@ -303,7 +296,8 @@ function LoadedSchedule({ now }: { now: Date }) {
 				onToday={() => go(() => currentMonday)}
 				onPrevious={() => go((value) => addDays(value, -7))}
 				onNext={() => go((value) => addDays(value, 7))}
-				zoneControl={<SecondZoneSelect zone={zone} monday={monday} onChange={setZone} />}
+				zone={zone}
+				onZoneChange={setZone}
 			/>
 			{ready ? (
 				<WeekGrid

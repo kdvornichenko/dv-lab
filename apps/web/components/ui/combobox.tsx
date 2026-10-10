@@ -125,6 +125,9 @@ interface ComboboxProps<T extends ComboboxItemData = ComboboxItemData, Multiple 
 	required?: boolean
 
 	size?: SizeVariant
+
+	onOpenChange?: (open: boolean) => void
+	onInputValueChange?: (value: string) => void
 }
 
 function toValues(v: string | readonly string[] | undefined): string[] {
@@ -148,6 +151,8 @@ function Combobox<T extends ComboboxItemData = ComboboxItemData, Multiple extend
 	name,
 	required,
 	size,
+	onOpenChange,
+	onInputValueChange,
 }: ComboboxProps<T, Multiple>) {
 	const isMultiple = !!multiple
 	const [internalValues, setInternalValues] = useState<string[]>(() => toValues(defaultValue))
@@ -250,8 +255,14 @@ function Combobox<T extends ComboboxItemData = ComboboxItemData, Multiple extend
 					itemToStringValue={itemValue}
 					filter={filterFn}
 					open={open}
-					onOpenChange={(next) => setOpen(next)}
-					onInputValueChange={(next) => setInputValue(next)}
+					onOpenChange={(next) => {
+						setOpen(next)
+						onOpenChange?.(next)
+					}}
+					onInputValueChange={(next) => {
+						setInputValue(next)
+						onInputValueChange?.(next)
+					}}
 					actionsRef={actionsRef}
 					autoHighlight={ALWAYS_HIGHLIGHT}
 					onItemHighlighted={(item, details) =>

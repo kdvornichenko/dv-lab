@@ -1,4 +1,4 @@
-import { zoneCaption } from '@/lib/time-zones'
+import { zoneLabel } from '@/lib/time-zones'
 
 import {
 	SCHEDULE_TIME_ZONE,
@@ -152,7 +152,7 @@ function seriesSecond(rule: SeriesTiming, zone: string | null, now: Date) {
 		weekday: parts.weekday,
 		shifted: parts.weekday !== rule.weekday,
 		time: parts.time,
-		caption: zoneCaption(zone, instant, 'toolbar'),
+		caption: zoneLabel(zone, instant),
 	}
 }
 
@@ -202,7 +202,7 @@ export function weekSummary(blocks: readonly { status: string; studentId: string
 
 export function secondRange(start: Date, minutes: number, zone: string | null): string | null {
 	if (zone === null) return null
-	const range = `${formatRange(start, minutes, zone)} ${zoneCaption(zone, start, 'toolbar')}`
+	const range = `${formatRange(start, minutes, zone)} ${zoneLabel(zone, start)}`
 	const date = dateOf(start, zone)
 	if (date === dateOf(start, SCHEDULE_TIME_ZONE)) return range
 	return `${weekdayShort(date)} ${range}`
@@ -210,7 +210,7 @@ export function secondRange(start: Date, minutes: number, zone: string | null): 
 
 export function secondWhen(instant: Date, zone: string | null): string | null {
 	if (zone === null) return null
-	const caption = zoneCaption(zone, instant, 'toolbar')
+	const caption = zoneLabel(zone, instant)
 	const time = formatTime(instant, zone)
 	const date = dateOf(instant, zone)
 	if (date === dateOf(instant, SCHEDULE_TIME_ZONE)) return `${time} ${caption}`
