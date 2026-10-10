@@ -127,11 +127,11 @@ export function EndSeriesDialog({
 							remains ? (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-muted-foreground">
 									The last lesson will be on {formatDate(result.endsOn, currentYear)}. Later lessons are removed from
-									the schedule. Earlier lessons stay.
+									the schedule, including any you moved to an earlier day. Earlier lessons stay.
 								</p>
 							) : (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-foreground">
-									No lessons will remain. Earlier lessons stay.
+									No lessons will remain, including any you moved to an earlier day. Earlier lessons stay.
 								</p>
 							)
 						) : null}
