@@ -353,26 +353,34 @@ function partTwo() {
 	)
 
 	const base = at('2026-10-14', '18:00')
-	const item = (key, status, startsAt, durationMinutes = 60) => ({ key, status, startsAt, durationMinutes })
+	const item = (key, outcome, startsAt, durationMinutes = 60) => ({ key, outcome, startsAt, durationMinutes })
 	const items = [
-		item('k1', 'scheduled', base),
+		item('k1', 'planned', base),
 		item('k2', 'cancelled', base),
 		item('k3', 'moved', base),
-		item('k4', 'scheduled', at('2026-10-14', '19:00')),
-		item('k5', 'scheduled', at('2026-10-14', '17:00')),
+		item('k4', 'planned', at('2026-10-14', '19:00')),
+		item('k5', 'planned', at('2026-10-14', '17:00')),
+		item('k6', 'done', base),
+		item('k7', 'no_show', at('2026-10-14', '18:30')),
 	]
+	const insideItems = insideBlocks.map((block) => ({
+		key: block.key,
+		startsAt: block.startsAt,
+		durationMinutes: block.durationMinutes,
+		outcome: core.lessonOutcome(block.status, null),
+	}))
 	const candidate = { startsAt: base, durationMinutes: 60 }
 	expect(
-		's7 overlaps skip cancelled and moved, touching ends do not overlap, excludeKey works',
+		's7 overlaps follow the outcome: planned, done and no_show occupy the slot, cancelled and moved do not, touching ends do not overlap, excludeKey works',
 		{
 			all: core.overlaps(items, candidate).map((found) => found.key),
 			excluded: core.overlaps(items, candidate, 'k1').map((found) => found.key),
-			ghost: core.overlaps(insideBlocks, { startsAt: base, durationMinutes: 60 }).map((found) => found.status),
+			ghost: core.overlaps(insideItems, { startsAt: base, durationMinutes: 60 }).map((found) => found.outcome),
 			destination: core
-				.overlaps(insideBlocks, { startsAt: at('2026-10-16', '09:30'), durationMinutes: 30 })
-				.map((found) => found.status),
+				.overlaps(insideItems, { startsAt: at('2026-10-16', '09:30'), durationMinutes: 30 })
+				.map((found) => found.outcome),
 		},
-		{ all: ['k1'], excluded: [], ghost: [], destination: ['scheduled'] }
+		{ all: ['k1', 'k6', 'k7'], excluded: ['k6', 'k7'], ghost: [], destination: ['planned'] }
 	)
 
 	const bounded = rule({ startsOn: '2026-10-14', endsOn: '2026-10-28' })

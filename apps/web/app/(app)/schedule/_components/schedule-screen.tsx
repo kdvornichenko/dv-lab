@@ -164,7 +164,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			key: block.key,
 			startsAt: new Date(block.startsAt),
 			durationMinutes: block.durationMinutes,
-			status: block.status,
+			outcome: block.outcome,
 			studentName: block.studentName,
 		}))
 	}

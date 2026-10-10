@@ -295,7 +295,7 @@ export function nextLessons(input: ScheduleInput & { now: Date }): Map<string, D
 	return next
 }
 
-export type OverlapItem = { key: string; startsAt: Date; durationMinutes: number; status: BlockStatus }
+export type OverlapItem = { key: string; startsAt: Date; durationMinutes: number; outcome: LessonOutcome }
 
 export function overlaps<T extends OverlapItem>(
 	items: readonly T[],
@@ -305,7 +305,7 @@ export function overlaps<T extends OverlapItem>(
 	const start = candidate.startsAt.getTime()
 	const end = start + candidate.durationMinutes * 60000
 	return items.filter((item) => {
-		if (item.status !== 'scheduled' || item.key === excludeKey) return false
+		if (!countsAsLesson(item.outcome) || item.key === excludeKey) return false
 		const itemStart = item.startsAt.getTime()
 		return itemStart < end && start < itemStart + item.durationMinutes * 60000
 	})
