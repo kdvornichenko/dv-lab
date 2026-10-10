@@ -1,7 +1,7 @@
 ---
 phase: "20"
 slug: "schedule"
-status: draft
+status: approved
 shadcn_initialized: false
 preset: "variant A (vault design-lab, manual copy)"
 created: "2026-10-10"
