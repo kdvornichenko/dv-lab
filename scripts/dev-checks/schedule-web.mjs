@@ -397,16 +397,244 @@ async function framePart2(page, label, at) {
 	await expectWeek('modifier ignored', 0, 'This week', true)
 }
 
+async function readCorner(page) {
+	return page.evaluate(() => ({
+		corner: Array.from(document.querySelectorAll('[data-slot="week-grid-corner"] span')).map(
+			(element) => element.textContent
+		),
+		gutter8: Array.from(
+			document.querySelectorAll('[data-slot="week-grid-gutter"] > div')[8]?.querySelectorAll('span') ?? []
+		).map((element) => element.textContent),
+		stored: localStorage.getItem('dv-lab.schedule.second-zone'),
+	}))
+}
+
+function berlinFacts(monday) {
+	const instant = core.zonedInstant(monday, '08:00', VN)
+	const hour = new Intl.DateTimeFormat('en-GB', {
+		timeZone: 'Europe/Berlin',
+		hour: '2-digit',
+		minute: '2-digit',
+		hourCycle: 'h23',
+	}).format(instant)
+	const name = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Berlin', timeZoneName: 'shortOffset' })
+		.formatToParts(core.zonedInstant(monday, '12:00', VN))
+		.find((part) => part.type === 'timeZoneName').value
+	const offset = name.replace('GMT', '')
+	return { hour, offset, toolbar: `UTC${offset}` }
+}
+
+async function framePart3(page, label, requests) {
+	const button = page.locator('[aria-label="Second time zone"]')
+	const search = page.getByPlaceholder('Search time zones')
+	const options = page.getByRole('option')
+	const nowVn = expectedNow()
+	const monday = core.mondayOf(nowVn.date)
+	check(
+		`${label} zone button caption is MSK`,
+		(await button.textContent())?.trim() === 'MSK',
+		await button.textContent()
+	)
+	await button.click()
+	await search.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	const first = await options.first().textContent()
+	check(`${label} popup first row is None`, first?.startsWith('None') && first.includes('Hide the second zone'), first)
+	const count = await options.count()
+	check(`${label} popup lists many zones`, count > 100, String(count))
+	const geometry = await page.evaluate(() => {
+		const input = document.querySelector('input[placeholder="Search time zones"]')
+		let node = input
+		while (node && Math.abs(node.getBoundingClientRect().width - 280) > 1.5) node = node.parentElement
+		const button = document.querySelector('[aria-label="Second time zone"]')
+		if (!node || !button) return null
+		const popup = node.getBoundingClientRect()
+		const trigger = button.getBoundingClientRect()
+		const fade = document.querySelector('[role="listbox"]')?.closest('[data-slot="scroll-area-viewport"]')
+		const style = fade ? getComputedStyle(fade) : null
+		const rows = Array.from(document.querySelectorAll('[role="option"]'))
+			.slice(0, 3)
+			.map((row) => row.getBoundingClientRect().height)
+		return {
+			width: popup.width,
+			gap: popup.top - trigger.bottom,
+			right: popup.right - trigger.right,
+			fadeClass: fade?.classList.contains('scroll-fade'),
+			fadeSize: style?.getPropertyValue('--scroll-fade-size').trim(),
+			rows,
+			background: getComputedStyle(node).backgroundColor,
+		}
+	})
+	check(
+		`${label} popup is 280px wide`,
+		geometry !== null && Math.abs(geometry.width - 280) <= 1.5,
+		JSON.stringify(geometry)
+	)
+	check(
+		`${label} popup sits 4px under the button`,
+		geometry !== null && Math.abs(geometry.gap - 4) <= 2,
+		String(geometry?.gap)
+	)
+	check(
+		`${label} popup is right-aligned to the button`,
+		geometry !== null && Math.abs(geometry.right) <= 2,
+		String(geometry?.right)
+	)
+	check(
+		`${label} popup rows are 36px`,
+		geometry !== null && geometry.rows.every((height) => Math.abs(height - 36) <= 0.6),
+		String(geometry?.rows)
+	)
+	check(
+		`${label} popup list fades at 24px`,
+		geometry?.fadeClass === true && geometry.fadeSize === '24px',
+		`${geometry?.fadeClass}/${geometry?.fadeSize}`
+	)
+	await shot(page, 'sched-frame', 'zone-popup')
+	const texts = await options.allTextContents()
+	check(
+		`${label} list has no Vietnam zone`,
+		!texts.some((text) => text.includes('Asia/Ho_Chi_Minh') || text.includes('Asia/Saigon'))
+	)
+	check(
+		`${label} list has Europe/Berlin and Asia/Kolkata`,
+		texts.some((text) => text.startsWith('Europe/Berlin')) && texts.some((text) => text.startsWith('Asia/Kolkata'))
+	)
+	await search.fill('zzz')
+	await page.waitForTimeout(300)
+	const empty = await page.getByText('No time zones found').isVisible()
+	const hint = await page.getByText('Try a city, a country or an offset like UTC+7.').isVisible()
+	check(`${label} empty result copy`, empty && hint)
+	await shot(page, 'sched-frame', 'zone-empty')
+	await search.fill('saigon')
+	await page.waitForTimeout(300)
+	check(`${label} Saigon is not offered`, (await options.count()) === 0)
+	await page.keyboard.press('Escape')
+	await page.waitForTimeout(500)
+	check(
+		`${label} Esc closes the popup only`,
+		(await search.count()) === 0 && page.url().endsWith('/schedule') && (await page.locator('h1').count()) === 1
+	)
+
+	await button.click()
+	await search.fill('berl')
+	await page.waitForTimeout(300)
+	const berlin = await options.allTextContents()
+	check(`${label} search berl finds Berlin first`, berlin[0]?.startsWith('Europe/Berlin'), berlin[0])
+	await search.press('Enter')
+	await page.waitForTimeout(400)
+	const facts = berlinFacts(monday)
+	check(
+		`${label} button shows the Berlin offset`,
+		(await button.textContent())?.trim() === facts.toolbar,
+		await button.textContent()
+	)
+	let state = await readCorner(page)
+	check(
+		`${label} corner shows the short offset`,
+		state.corner.join(' ') === `VN ${facts.offset}`,
+		state.corner.join(' ')
+	)
+	check(
+		`${label} 08:00 VN is ${facts.hour} in Berlin`,
+		state.gutter8.join(' ') === `08:00 ${facts.hour}`,
+		state.gutter8.join(' ')
+	)
+	check(`${label} choice is stored`, state.stored === 'Europe/Berlin', state.stored)
+	for (let step = 0; step < 3; step += 1) await page.getByRole('button', { name: 'Next week' }).click()
+	await page.waitForTimeout(300)
+	const later = core.addDays(monday, 21)
+	const laterFacts = berlinFacts(later)
+	state = await readCorner(page)
+	check(
+		`${label} offset follows the Monday of the week`,
+		(await button.textContent())?.trim() === laterFacts.toolbar && state.corner[1] === laterFacts.offset,
+		`${await button.textContent()} ${state.corner.join(' ')}`
+	)
+	check(
+		`${label} gutter follows the Monday of the week`,
+		state.gutter8.join(' ') === `08:00 ${laterFacts.hour}`,
+		state.gutter8.join(' ')
+	)
+	for (let step = 0; step < 3; step += 1) await page.getByRole('button', { name: 'Previous week' }).click()
+
+	await button.click()
+	await search.waitFor({ timeout: 10000 })
+	await options.first().click()
+	await page.waitForTimeout(400)
+	state = await readCorner(page)
+	check(
+		`${label} None: button says No second zone`,
+		(await button.textContent())?.trim() === 'No second zone',
+		await button.textContent()
+	)
+	check(`${label} None: corner has only VN`, state.corner.join(' ') === 'VN', state.corner.join(' '))
+	check(`${label} None: one label per hour`, state.gutter8.join(' ') === '08:00', state.gutter8.join(' '))
+	check(`${label} None: stored as none`, state.stored === 'none', state.stored)
+	await shot(page, 'sched-frame', 'zone-none')
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(300)
+	state = await readCorner(page)
+	check(
+		`${label} None survives a reload`,
+		(await button.textContent())?.trim() === 'No second zone' && state.corner.join(' ') === 'VN',
+		`${await button.textContent()} ${state.corner.join(' ')}`
+	)
+
+	for (const bad of ['not-a-zone', 'Asia/Saigon', 'Asia/Ho_Chi_Minh', '']) {
+		await page.evaluate((value) => localStorage.setItem('dv-lab.schedule.second-zone', value), bad)
+		await page.reload()
+		await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+		await page.waitForTimeout(300)
+		state = await readCorner(page)
+		check(
+			`${label} stored "${bad}" falls back to MSK`,
+			(await button.textContent())?.trim() === 'MSK' && state.corner.join(' ') === 'VN MSK',
+			`${await button.textContent()} ${state.corner.join(' ')}`
+		)
+	}
+	await page.evaluate(() => localStorage.removeItem('dv-lab.schedule.second-zone'))
+	const writes = requests.filter((request) => request.method !== 'GET')
+	check(
+		`${label} the choice reaches no api (no write requests)`,
+		writes.length === 0,
+		writes
+			.map((request) => `${request.method} ${request.url}`)
+			.slice(0, 2)
+			.join(' | ')
+	)
+}
+
 async function frame() {
 	const { browser, page, problems } = await launch()
+	const requests = []
+	page.on('request', (request) => requests.push({ method: request.method(), url: request.url() }))
 	try {
 		await setTheme(page)
 		await signIn(page)
+		requests.length = 0
 		await openSchedule(page)
 		await framePart1(page, 'frame')
 		await shot(page, 'sched-frame', 'week')
 		await framePart2(page, 'frame')
 		await shot(page, 'sched-frame', 'toolbar')
+		await framePart3(page, 'frame', requests)
+		await page.setViewportSize({ width: 1920, height: 1080 })
+		await page.waitForTimeout(400)
+		const tall = await page.evaluate(() => {
+			const viewport = document.querySelector('h1')?.closest('[data-slot="scroll-area-viewport"]')
+			const grid = document.querySelector('[data-slot="week-grid"]')?.getBoundingClientRect()
+			return {
+				scroll: viewport?.scrollHeight,
+				client: viewport?.clientHeight,
+				bottom: grid?.bottom,
+				innerHeight: window.innerHeight,
+			}
+		})
+		check('1080px high: no second page scroll', tall.scroll <= tall.client + 1, JSON.stringify(tall))
+		check('1080px high: the grid ends above the bottom edge', tall.bottom <= tall.innerHeight - 8, JSON.stringify(tall))
+		await shot(page, 'sched-frame', 'tall')
 		await page.setViewportSize({ width: 320, height: 800 })
 		await page.waitForTimeout(300)
 		const narrow = await page.evaluate(() => ({
