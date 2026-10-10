@@ -607,12 +607,66 @@ async function sectionBalance(ctx) {
 	return 'SCHEDULE_LEDGER_BALANCE_OK'
 }
 
+const patchCard = (ctx, studentId, body) =>
+	call(ctx.api, 'PATCH', `/students/${studentId}`, { cookie: ctx.cookie, body })
+
+async function sectionFlag(ctx) {
+	const name = 'Alex Example 2121'
+	const studentId = await createCard(ctx, name)
+	const opening = core.addDays(ctx.today, -3)
+	await setOpening(ctx, studentId, 200, opening)
+	const lessonId = await onceLesson(ctx, studentId, core.addDays(opening, 1), '10:00')
+	await stepOk('no_show of the past lesson', () => markSingle(ctx, lessonId, 'no_show'))
+	const first = await expectBalance(ctx, studentId, 'no_show with the flag on', 60)
+	check('new card has noShowDeducts true', first.detail?.noShowDeducts === true)
+
+	const off = await patchCard(ctx, studentId, { ...cardBody(name), noShowDeducts: false })
+	check(
+		'PATCH with noShowDeducts false gives 200 and the flag off',
+		off.status === 200 && off.json?.student?.noShowDeducts === false,
+		`status ${off.status} ${JSON.stringify(off.json?.student?.noShowDeducts)}`
+	)
+	const offBalance = await expectBalance(ctx, studentId, 'flag off returns the no_show deduction', 120)
+	check('profile shows the flag off', offBalance.detail?.noShowDeducts === false)
+	const rows = lessonMarks(lessonId)
+	check('flag off keeps the no_show mark row', rows.length === 1 && rows[0].kind === 'no_show')
+
+	const renamed = await patchCard(ctx, studentId, cardBody(`${name} B`))
+	check(
+		'PATCH without noShowDeducts gives 200 and keeps the flag off',
+		renamed.status === 200 &&
+			renamed.json?.student?.noShowDeducts === false &&
+			renamed.json?.student?.displayName === `${name} B`,
+		`status ${renamed.status} ${JSON.stringify(renamed.json?.student?.noShowDeducts)}`
+	)
+	await expectBalance(ctx, studentId, 'PATCH without the field leaves the column', 120)
+
+	const on = await patchCard(ctx, studentId, { ...cardBody(`${name} B`), noShowDeducts: true })
+	check('PATCH with noShowDeducts true gives 200', on.status === 200 && on.json?.student?.noShowDeducts === true)
+	await expectBalance(ctx, studentId, 'flag on deducts the no_show again', 60)
+
+	const created = await call(ctx.api, 'POST', '/students', {
+		cookie: ctx.cookie,
+		body: cardBody('Alex Example 2121 C'),
+	})
+	if (created.status === 201) ctx.ids.push(created.json.student.id)
+	check(
+		'POST without noShowDeducts gives the flag true',
+		created.status === 201 && created.json?.student?.noShowDeducts === true,
+		`status ${created.status}`
+	)
+	const wrong = await patchCard(ctx, studentId, { ...cardBody(`${name} B`), noShowDeducts: 'no' })
+	check('PATCH with a non-boolean flag gives 400', wrong.status === 400, `status ${wrong.status}`)
+	return 'SCHEDULE_LEDGER_FLAG_OK'
+}
+
 const SECTIONS = {
 	marks: sectionMarks,
 	past: sectionPast,
 	cut: sectionCut,
 	race: sectionRace,
 	balance: sectionBalance,
+	flag: sectionFlag,
 }
 
 const section = process.argv[2]

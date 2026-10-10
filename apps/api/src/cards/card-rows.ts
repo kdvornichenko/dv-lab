@@ -65,6 +65,7 @@ export function toStudentDetail(row: CardRecord, facts: CardFacts, account: Stud
 			row.openingBalanceMinutes === null || row.openingBalanceOn === null
 				? null
 				: { minutes: row.openingBalanceMinutes, on: row.openingBalanceOn },
+		noShowDeducts: row.noShowDeducts,
 		archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
 		account,
 	}
