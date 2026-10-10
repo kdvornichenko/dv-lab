@@ -264,6 +264,20 @@ export type CutLesson = { studentId: string; startsAt: Date; durationMinutes: nu
 
 export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
 
+function movedLessons(tail: SeriesRule, exceptions: readonly SeriesException[]): CutLesson[] {
+	const lessons: CutLesson[] = []
+	for (const exception of exceptions) {
+		const occurrence = occurrenceAt(tail, exception.originalOn, exception)
+		if (occurrence?.status !== 'moved') continue
+		lessons.push({
+			studentId: tail.studentId,
+			startsAt: occurrence.startsAt,
+			durationMinutes: occurrence.durationMinutes,
+		})
+	}
+	return lessons
+}
+
 export type CutSeriesResult =
 	| { kind: 'invalid' }
 	| { kind: 'changed' }
@@ -290,17 +304,7 @@ export function cutSeries(
 	const endsOn =
 		rule.endsOn === null ? null : lastSeriesDateOnOrBefore({ weekday, startTime, startsOn, endsOn: null }, rule.endsOn)
 	if (rule.endsOn !== null && endsOn === null) return { kind: 'ends_before_new_day', endsOn: rule.endsOn }
-	const tail: SeriesRule = { ...rule, startsOn: laterDate(rule.startsOn, from) }
-	const lessons: CutLesson[] = []
-	for (const exception of exceptions) {
-		const occurrence = occurrenceAt(tail, exception.originalOn, exception)
-		if (occurrence?.status !== 'moved') continue
-		lessons.push({
-			studentId: rule.studentId,
-			startsAt: occurrence.startsAt,
-			durationMinutes: occurrence.durationMinutes,
-		})
-	}
+	const lessons = movedLessons({ ...rule, startsOn: laterDate(rule.startsOn, from) }, exceptions)
 	return {
 		kind: 'ok',
 		oldEndsOn: laterDate(addDays(from, -1), emptySeriesEnd(rule)),
@@ -316,12 +320,22 @@ export function cutSeries(
 	}
 }
 
-export type EndSeriesResult = { kind: 'invalid' } | { kind: 'changed' } | { kind: 'ok'; endsOn: string }
+export type EndSeriesResult =
+	| { kind: 'invalid' }
+	| { kind: 'changed' }
+	| { kind: 'ok'; endsOn: string; lessons: CutLesson[] }
 
-export function endSeriesAt(rule: SeriesTiming, lastOn: string, now: Date): EndSeriesResult {
+export function endSeriesAt(
+	rule: SeriesRule,
+	exceptions: readonly SeriesException[],
+	lastOn: string,
+	now: Date
+): EndSeriesResult {
 	const today = todayOf(now)
 	if (rule.endsOn !== null && rule.endsOn < today) return { kind: 'changed' }
 	if (lastOn < today) return { kind: 'invalid' }
 	if (rule.endsOn !== null && lastOn > rule.endsOn) return { kind: 'invalid' }
-	return { kind: 'ok', endsOn: lastSeriesDateOnOrBefore(rule, lastOn) ?? emptySeriesEnd(rule) }
+	const endsOn = lastSeriesDateOnOrBefore(rule, lastOn) ?? emptySeriesEnd(rule)
+	const tail: SeriesRule = { ...rule, startsOn: laterDate(rule.startsOn, addDays(endsOn, 1)) }
+	return { kind: 'ok', endsOn, lessons: movedLessons(tail, exceptions) }
 }

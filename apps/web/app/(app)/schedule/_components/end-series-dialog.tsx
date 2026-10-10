@@ -56,7 +56,7 @@ export function EndSeriesDialog({
 	const [notice, setNotice] = useState<'stale' | 'failed' | null>(null)
 
 	const error = lastOn === '' ? 'Choose a date.' : undefined
-	const result = lastOn === '' ? null : endSeriesAt(rule, lastOn, now)
+	const result = lastOn === '' ? null : endSeriesAt(rule, [], lastOn, now)
 	const remains = result?.kind === 'ok' ? hasOccurrences({ startsOn: rule.startsOn, endsOn: result.endsOn }) : null
 
 	async function submit() {
@@ -127,11 +127,11 @@ export function EndSeriesDialog({
 							remains ? (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-muted-foreground">
 									The last lesson will be on {formatDate(result.endsOn, currentYear)}. Later lessons are removed from
-									the schedule, including any you moved to an earlier day. Earlier lessons stay.
+									the schedule. Earlier lessons and any lessons you moved stay where they are.
 								</p>
 							) : (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-foreground">
-									No lessons will remain, including any you moved to an earlier day. Earlier lessons stay.
+									No lessons of this series will remain. Any lessons you moved stay where they are.
 								</p>
 							)
 						) : null}

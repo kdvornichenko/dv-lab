@@ -2604,7 +2604,7 @@ async function changesPart3(page, fx, nav, posts, before) {
 	check(
 		'end series: the hint names the last lesson',
 		facts.hint ===
-			`The last lesson will be on ${appDate(second, fx.today)}. Later lessons are removed from the schedule, including any you moved to an earlier day. Earlier lessons stay.` &&
+			`The last lesson will be on ${appDate(second, fx.today)}. Later lessons are removed from the schedule. Earlier lessons and any lessons you moved stay where they are.` &&
 			facts.hintClass.includes('text-muted-foreground'),
 		facts.hint
 	)
@@ -2672,7 +2672,7 @@ async function changesPart3(page, fx, nav, posts, before) {
 	facts = await seriesDialogFacts(page)
 	check(
 		'end series C: no lesson remains',
-		facts.hint === 'No lessons will remain, including any you moved to an earlier day. Earlier lessons stay.' &&
+		facts.hint === 'No lessons of this series will remain. Any lessons you moved stay where they are.' &&
 			facts.hintClass.includes('text-foreground'),
 		`${facts.hint} ${facts.hintClass}`
 	)

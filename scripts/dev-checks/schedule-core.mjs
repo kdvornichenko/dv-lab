@@ -506,26 +506,103 @@ function partTwo() {
 	)
 
 	const fresh = rule({ startsOn: '2026-10-14' })
-	const beforeFirst = core.endSeriesAt(fresh, '2026-10-13', NOW)
+	const beforeFirst = core.endSeriesAt(fresh, [], '2026-10-13', NOW)
 	expect(
 		's11 endSeriesAt checks and resulting ends_on',
 		{
-			yesterday: core.endSeriesAt(fresh, '2026-10-11', NOW),
-			pastEnd: core.endSeriesAt(rule({ startsOn: '2026-10-14', endsOn: '2026-10-21' }), '2026-10-28', NOW),
-			alreadyEnded: core.endSeriesAt(rule({ endsOn: '2026-10-07' }), '2026-10-12', NOW),
+			yesterday: core.endSeriesAt(fresh, [], '2026-10-11', NOW),
+			pastEnd: core.endSeriesAt(rule({ startsOn: '2026-10-14', endsOn: '2026-10-21' }), [], '2026-10-28', NOW),
+			alreadyEnded: core.endSeriesAt(rule({ endsOn: '2026-10-07' }), [], '2026-10-12', NOW),
 			beforeFirst,
 			beforeFirstHas: core.hasOccurrences({ ...fresh, endsOn: beforeFirst.endsOn }),
-			secondDate: core.endSeriesAt(fresh, '2026-10-21', NOW),
-			afterSecond: core.endSeriesAt(fresh, '2026-10-23', NOW),
+			secondDate: core.endSeriesAt(fresh, [], '2026-10-21', NOW),
+			afterSecond: core.endSeriesAt(fresh, [], '2026-10-23', NOW),
 		},
 		{
 			yesterday: { kind: 'invalid' },
 			pastEnd: { kind: 'invalid' },
 			alreadyEnded: { kind: 'changed' },
-			beforeFirst: { kind: 'ok', endsOn: '2026-10-13' },
+			beforeFirst: { kind: 'ok', endsOn: '2026-10-13', lessons: [] },
 			beforeFirstHas: false,
-			secondDate: { kind: 'ok', endsOn: '2026-10-21' },
-			afterSecond: { kind: 'ok', endsOn: '2026-10-21' },
+			secondDate: { kind: 'ok', endsOn: '2026-10-21', lessons: [] },
+			afterSecond: { kind: 'ok', endsOn: '2026-10-21', lessons: [] },
+		}
+	)
+
+	const endExceptions = [
+		{
+			seriesId: 'series-a',
+			originalOn: '2026-10-21',
+			kind: 'moved',
+			startsAt: at('2026-10-08', '18:00'),
+			durationMinutes: 60,
+		},
+		{
+			seriesId: 'series-a',
+			originalOn: '2026-10-14',
+			kind: 'moved',
+			startsAt: at('2026-10-09', '18:00'),
+			durationMinutes: 60,
+		},
+		{
+			seriesId: 'series-a',
+			originalOn: '2026-10-28',
+			kind: 'cancelled',
+			startsAt: at('2026-10-06', '10:00'),
+			durationMinutes: 60,
+		},
+		{
+			seriesId: 'series-a',
+			originalOn: '2026-11-04',
+			kind: 'moved',
+			startsAt: at('2026-11-06', '12:00'),
+			durationMinutes: 45,
+		},
+	]
+	const endResult = core.endSeriesAt(weekly, endExceptions, '2026-10-14', NOW)
+	const keptLessons = (endResult.lessons ?? []).map((lesson, index) => ({
+		...lesson,
+		id: `kept-${index + 1}`,
+		status: 'scheduled',
+	}))
+	const endedWeekly = { ...weekly, endsOn: endResult.endsOn }
+	const thursday = (blocks) =>
+		blocks
+			.filter((block) => iso(block.startsAt) === '2026-10-08T11:00:00.000Z')
+			.map((block) => [block.key, block.status])
+	expect(
+		's14 End series keeps moved occurrences after the new end as lessons, past ones included',
+		{
+			result: endResult,
+			bounded: core.endSeriesAt(rule({ endsOn: '2026-10-28' }), endExceptions, '2026-10-14', NOW),
+			before: thursday(windowOf([weekly], endExceptions, [], '2026-10-05')),
+			after: thursday(windowOf([endedWeekly], endExceptions, keptLessons, '2026-10-05')),
+			afterWeek: windowOf([endedWeekly], endExceptions, keptLessons, '2026-10-05').map((block) => [
+				block.key,
+				block.status,
+			]),
+		},
+		{
+			result: {
+				kind: 'ok',
+				endsOn: '2026-10-14',
+				lessons: [
+					{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60 },
+					{ studentId: STUDENT, startsAt: '2026-11-06T05:00:00.000Z', durationMinutes: 45 },
+				],
+			},
+			bounded: {
+				kind: 'ok',
+				endsOn: '2026-10-14',
+				lessons: [{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60 }],
+			},
+			before: [['s:series-a:2026-10-21', 'scheduled']],
+			after: [['l:kept-1', 'scheduled']],
+			afterWeek: [
+				['s:series-a:2026-10-07', 'scheduled'],
+				['l:kept-1', 'scheduled'],
+				['s:series-a:2026-10-14', 'scheduled'],
+			],
 		}
 	)
 

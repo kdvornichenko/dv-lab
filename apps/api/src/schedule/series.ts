@@ -41,7 +41,8 @@ export function endSeries(db: Database, id: string, input: EndSeriesInput, now: 
 	return db.transaction(async (tx): Promise<SeriesResult> => {
 		const rule = await lockSeries(tx, id)
 		if (rule === null) return { kind: 'not_found' }
-		const result = endSeriesAt(rule, input.lastOn, now)
+		const exceptions = await seriesExceptionsFrom(tx, id, input.lastOn)
+		const result = endSeriesAt(rule, exceptions, input.lastOn, now)
 		if (result.kind !== 'ok') return { kind: result.kind }
 		const [row] = await tx
 			.update(lessonSeries)
@@ -49,6 +50,9 @@ export function endSeries(db: Database, id: string, input: EndSeriesInput, now: 
 			.where(eq(lessonSeries.id, id))
 			.returning(seriesColumns)
 		if (!row) throw new Error('lesson series update returned no row')
+		if (result.lessons.length > 0) {
+			await tx.insert(lessons).values(result.lessons.map((lesson) => ({ ...lesson, status: 'scheduled' })))
+		}
 		return { kind: 'ok', series: toWireSeries(toSeriesRule(row)) }
 	})
 }
