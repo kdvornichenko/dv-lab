@@ -164,7 +164,7 @@ export function NewLessonDialog({
 			})
 		} else {
 			toast.show({
-				title: 'Series added',
+				title: result.status === 200 ? 'This series already exists' : 'Series added',
 				description: `${name} every ${weekdayName(result.data.series.weekday)} at ${result.data.series.startTime}.`,
 			})
 		}

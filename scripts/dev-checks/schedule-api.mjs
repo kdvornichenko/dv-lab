@@ -187,6 +187,18 @@ async function sectionRead(api, cookie, ids) {
 		repeat.status === 200 && repeat.json?.series?.id === seriesId && seriesCount === 1,
 		`status ${repeat.status} series ${seriesCount}`
 	)
+	const longer = await createLesson(api, cookie, {
+		studentId,
+		date: wednesday,
+		startTime: '18:00',
+		durationMinutes: 90,
+		repeats: 'weekly',
+	})
+	check(
+		'weekly request with another length gives 201 with a second series of that length',
+		longer.status === 201 && longer.json?.series?.id !== seriesId && longer.json?.series?.durationMinutes === 90,
+		`status ${longer.status} ${JSON.stringify(longer.json?.series ?? null)}`
+	)
 
 	const todayMidnight = await createLesson(api, cookie, {
 		studentId,

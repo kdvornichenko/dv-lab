@@ -140,6 +140,7 @@ export function createLesson(db: Database, input: CreateLessonInput, now: Date):
 					eq(lessonSeries.studentId, input.studentId),
 					eq(lessonSeries.weekday, weekday),
 					eq(lessonSeries.startTime, input.startTime),
+					eq(lessonSeries.durationMinutes, input.durationMinutes),
 					eq(lessonSeries.startsOn, startsOn),
 					isNull(lessonSeries.endsOn)
 				)
