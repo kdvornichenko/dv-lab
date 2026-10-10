@@ -24,6 +24,7 @@ import {
 	formatRange,
 	formatTime,
 	secondRange,
+	seriesPhrase,
 	weekdayName,
 } from '@/lib/schedule-format'
 
@@ -56,6 +57,7 @@ interface LessonDialogProps {
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	onStale: () => void
 	onMoved: (startsAt: Date) => void
+	onSeries: (kind: 'move' | 'end') => void
 }
 
 type Notice = 'stale' | 'cancel' | 'restore' | null
@@ -94,6 +96,7 @@ export function LessonDialog({
 	blocksOn,
 	onStale,
 	onMoved,
+	onSeries,
 }: LessonDialogProps) {
 	const [confirming, setConfirming] = useState(false)
 	const [moving, setMoving] = useState(false)
@@ -112,6 +115,7 @@ export function LessonDialog({
 	].join(' · ')
 	const plannedActions = block.changeable && block.status === 'scheduled'
 	const restoreAction = block.changeable && block.status === 'cancelled'
+	const seriesActions = block.changeable && block.ref.kind === 'series' && block.status !== 'moved'
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
 		if (pending) return
@@ -196,6 +200,42 @@ export function LessonDialog({
 								</Detail>
 							)}
 						</dl>
+						{seriesActions && series !== null ? (
+							<div
+								data-slot="lesson-series"
+								className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-hover p-4"
+							>
+								<div className="flex min-w-0 flex-col gap-1">
+									<p className="text-body font-semibold text-foreground">Whole series</p>
+									<p className="text-caption text-muted-foreground tabular-nums">
+										{seriesPhrase(series.weekday, series.startTime)} VN · from{' '}
+										{formatDate(series.startsOn, currentYear)}
+									</p>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									<Button
+										type="button"
+										variant="secondary"
+										size="compact"
+										leadingIcon={CalendarClock}
+										disabled={pending}
+										onClick={() => onSeries('move')}
+									>
+										Move series
+									</Button>
+									<Button
+										type="button"
+										variant="secondary"
+										size="compact"
+										leadingIcon={CalendarX2}
+										disabled={pending}
+										onClick={() => onSeries('end')}
+									>
+										End series
+									</Button>
+								</div>
+							</div>
+						) : null}
 						{moving && plannedActions ? (
 							<LessonMoveForm
 								block={block}

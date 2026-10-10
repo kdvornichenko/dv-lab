@@ -1321,7 +1321,7 @@ async function pickDate(page, date, id = 'new-lesson-date') {
 		await page.getByRole('button', { name: /next month/i }).click()
 		await page.waitForTimeout(150)
 	}
-	for (let step = 0; step < 4 && (await cell.count()) === 0; step += 1) {
+	for (let step = 0; step < 8 && (await cell.count()) === 0; step += 1) {
 		await page.getByRole('button', { name: /previous month/i }).click()
 		await page.waitForTimeout(150)
 	}
@@ -2182,6 +2182,338 @@ async function changesPart2(page, fx, nav, posts) {
 	)
 }
 
+function mediumDate(date) {
+	return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(
+		new Date(`${date}T12:00:00Z`)
+	)
+}
+
+function appDate(date, today) {
+	return date.slice(0, 4) === today.slice(0, 4) ? shortDay(date) : `${shortDay(date)} ${date.slice(0, 4)}`
+}
+
+async function seriesBox(page) {
+	const box = page.getByRole('dialog').locator('[data-slot="lesson-series"]')
+	if ((await box.count()) === 0) return null
+	return box.evaluate((element) => ({
+		text: element.textContent,
+		buttons: Array.from(element.querySelectorAll('button')).map((button) => button.textContent?.trim()),
+	}))
+}
+
+async function seriesDialogFacts(page) {
+	return page.getByRole('dialog').evaluate((element) => ({
+		text: element.textContent,
+		error: element.querySelector('[data-slot="move-series-error"]')?.textContent ?? null,
+		preview: element.querySelector('[data-slot="move-series-preview"]')?.textContent ?? null,
+		note: element.querySelector('[data-slot="move-series-note"]')?.textContent ?? null,
+		hint: element.querySelector('[data-slot="end-series-hint"]')?.textContent ?? null,
+		hintClass: element.querySelector('[data-slot="end-series-hint"]')?.className ?? '',
+		from: element.querySelector('#move-series-from')?.getAttribute('aria-label') ?? null,
+		last: element.querySelector('#end-series-last')?.getAttribute('aria-label') ?? null,
+		dayInvalid: element.querySelector('#move-series-day')?.getAttribute('aria-invalid') ?? null,
+		focus: document.activeElement?.textContent?.trim() ?? '',
+		focusInside: element.contains(document.activeElement),
+	}))
+}
+
+async function openBlockDialog(page, name, date, slot = 'to') {
+	await slotLocator(page, name, date, slot).click()
+	await page.getByRole('dialog').waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+}
+
+async function changesPart3(page, fx, nav, posts, before) {
+	const dialog = page.getByRole('dialog')
+	await goToWeek(page, nav, core.mondayOf(fx.laterWed))
+	await openBlockDialog(page, CH_A, fx.laterWed)
+	let box = await seriesBox(page)
+	check(
+		'series: a future lesson of the series has the Whole series box',
+		box !== null &&
+			box.text.includes('Whole series') &&
+			box.text.includes(`Every Wednesday at 18:00 VN · from ${appDate(fx.startsOn, fx.today)}`),
+		box?.text
+	)
+	check(
+		'series: the box offers Move series and End series',
+		box !== null && box.buttons.includes('Move series') && box.buttons.includes('End series'),
+		box?.buttons.join('|')
+	)
+	const lessonButtons = await dialogButtons(page)
+	check(
+		'series: the footer keeps the buttons for one lesson',
+		lessonButtons.includes('Move lesson') && lessonButtons.includes('Cancel lesson'),
+		lessonButtons.join('|')
+	)
+	await shot(page, 'sched-changes', 'whole-series')
+	await closeDialog(page)
+
+	await goToWeek(page, nav, core.mondayOf(fx.pastWed))
+	await openBlockDialog(page, CH_A, fx.pastWed)
+	check('series: a past lesson has no Whole series box', (await seriesBox(page)) === null)
+	await closeDialog(page)
+	await goToWeek(page, nav, core.mondayOf(fx.thursday))
+	await openBlockDialog(page, CH_B, fx.thursday)
+	check('series: a single lesson has no Whole series box', (await seriesBox(page)) === null)
+	await closeDialog(page)
+
+	await goToWeek(page, nav, core.mondayOf(fx.laterWed))
+	await openBlockDialog(page, CH_A, fx.laterWed)
+	await dialog.getByRole('button', { name: 'Move series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'Lessons before this date stay' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	check('move series: the lesson dialog is replaced by Move series', (await dialog.count()) === 1)
+	let facts = await seriesDialogFacts(page)
+	check(
+		'move series: title and description',
+		facts.text.includes('Move series') && facts.text.includes(`${CH_A}. Now every Wednesday at 18:00 VN.`),
+		facts.text.slice(0, 120)
+	)
+	check(
+		'move series: From defaults to the nearest future Wednesday',
+		facts.from === `From: ${mediumDate(fx.wed)}`,
+		facts.from
+	)
+	check('move series: focus is inside the dialog', facts.focusInside === true, facts.focus)
+	check(
+		'move series: the note about earlier, moved and cancelled lessons is shown',
+		facts.note ===
+			'Lessons before this date stay as they are. Lessons you already moved keep their new time. Cancelled lessons from this date on are reset.',
+		facts.note
+	)
+	let sent = posts.length
+	await page.getByRole('dialog').getByRole('button', { name: 'Move series' }).click()
+	await page.waitForTimeout(400)
+	facts = await seriesDialogFacts(page)
+	check(
+		'move series: the same day and time give an error under the row',
+		facts.error === 'Choose a different day or time.' && facts.dayInvalid === 'true',
+		`${facts.error} ${facts.dayInvalid}`
+	)
+	check(
+		'move series: and nothing is sent',
+		posts.slice(sent).every((post) => !post.url.includes(`/series/${fx.seriesId}/move`))
+	)
+	await pickOption(page, 'move-series-day', 'Thursday')
+	await pickTime(page, '17:00', 'move-series-time')
+	facts = await seriesDialogFacts(page)
+	check(
+		'move series: preview of the first lesson',
+		facts.preview === `First lesson${appDate(fx.thursday, fx.today)}, 17:00–18:00` && facts.error === null,
+		`${facts.preview} ${facts.error}`
+	)
+	await shot(page, 'sched-changes', 'move-series')
+	await page.getByRole('dialog').getByRole('button', { name: 'Move series' }).click()
+	const movedToast = await toastText(page, 'Series moved', CH_A)
+	check(
+		'move series: toast names the new day and the first date',
+		movedToast.includes(`${CH_A} now meets on Thursdays at 17:00 from ${appDate(fx.thursday, fx.today)}.`),
+		movedToast
+	)
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	check(
+		'move series: the week shows Thursday 17:00 instead of Wednesday',
+		await waitBlock(page, CH_A, core.addDays(fx.laterWed, 1), 'to', '17:00–18:00 VN')
+	)
+	await page.waitForTimeout(400)
+	const focus = await focusedBlock(page)
+	check('move series: the gone block hands focus to the page heading', focus.tag === 'H1', JSON.stringify(focus))
+	let week = await readBlocks(page)
+	check(
+		'move series: no Wednesday of A in that week',
+		!ofCard(week, CH_A).some((block) => block.date === fx.laterWed),
+		ofCard(week, CH_A)
+			.map((block) => block.date)
+			.join(',')
+	)
+	await goToWeek(page, nav, core.mondayOf(fx.wed))
+	week = await readBlocks(page)
+	const friday = ofCard(week, CH_A).find((block) => block.date === fx.friday)
+	const thursday = ofCard(week, CH_A).find((block) => block.date === fx.thursday)
+	check(
+		'move series: the lesson moved in part 2 stays on Friday 10:00',
+		friday !== undefined && Math.abs(friday.top - 10 * 48) <= 1.5 && friday.label.endsWith(', planned'),
+		friday?.label ?? 'no block'
+	)
+	check(
+		'move series: the first Thursday 17:00 is drawn',
+		thursday !== undefined && Math.abs(thursday.top - 17 * 48) <= 1.5,
+		thursday?.label ?? 'no block'
+	)
+	check('move series: past weeks did not change', (await pastSnapshot(page, fx)).join('\n') === before.join('\n'))
+
+	const d = await createCard(page, CH_D, 60, null)
+	const inserted = sql(
+		`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on, ends_on) values (${quote(d)}, 3, '18:00', 60, ${quote(core.addDays(fx.wed, -7))}, ${quote(fx.wed)}) returning id`
+	)
+	check('series D ending on the nearest Wednesday created through sql', inserted.rowCount === 1)
+	const seriesD = inserted.rows?.[0]?.id
+	await page.keyboard.press('k')
+	await page.waitForTimeout(300)
+	await page.keyboard.press('j')
+	await page.waitForFunction(
+		(expected) => document.querySelector('[data-slot="week-grid-day"]')?.dataset.date === expected,
+		core.mondayOf(fx.wed),
+		{ timeout: 30000 }
+	)
+	await page.waitForTimeout(500)
+	await openBlockDialog(page, CH_D, fx.wed)
+	await dialog.getByRole('button', { name: 'Move series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'Lessons before this date stay' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	facts = await seriesDialogFacts(page)
+	check('move series D: From is the last Wednesday of D', facts.from === `From: ${mediumDate(fx.wed)}`, facts.from)
+	await pickOption(page, 'move-series-day', 'Thursday')
+	facts = await seriesDialogFacts(page)
+	const endsText = `This series ends on ${appDate(fx.wed, fx.today)}; no Thursday falls between From and that date.`
+	check('move series D: the end before the new day is explained', facts.error === endsText, facts.error)
+	check('move series D: no preview without a first lesson', facts.preview === null, facts.preview)
+	sent = posts.length
+	await page.getByRole('dialog').getByRole('button', { name: 'Move series' }).click()
+	await page.waitForTimeout(500)
+	check(
+		'move series D: and the request does not go out',
+		posts.slice(sent).every((post) => !post.url.includes(`/series/${seriesD}/move`))
+	)
+	await shot(page, 'sched-changes', 'move-series-ends')
+	await pickOption(page, 'move-series-day', 'Wednesday')
+	await pickTime(page, '19:00', 'move-series-time')
+	await page.route('**/api/schedule/series/*/move', (route) =>
+		route.fulfill({
+			status: 400,
+			contentType: 'application/json',
+			body: JSON.stringify({ error: { code: 'series_ends_before_new_day', message: 'Invalid request' } }),
+		})
+	)
+	await page.getByRole('dialog').getByRole('button', { name: 'Move series' }).click()
+	await page.waitForTimeout(800)
+	facts = await seriesDialogFacts(page)
+	check(
+		'move series D: the api code series_ends_before_new_day shows the same error',
+		facts.error === `This series ends on ${appDate(fx.wed, fx.today)}; no Wednesday falls between From and that date.`,
+		facts.error
+	)
+	await page.unroute('**/api/schedule/series/*/move')
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(400)
+	const focusD = await focusedBlock(page)
+	check(
+		'move series D: closing returns focus to the block',
+		focusD.date === fx.wed && focusD.slot === 'to' && focusD.key?.includes(seriesD),
+		JSON.stringify(focusD)
+	)
+
+	await openBlockDialog(page, CH_A, fx.thursday)
+	box = await seriesBox(page)
+	check(
+		'end series: the new series has its own Whole series box',
+		box !== null && box.text.includes(`Every Thursday at 17:00 VN · from ${appDate(fx.thursday, fx.today)}`),
+		box?.text
+	)
+	await dialog.getByRole('button', { name: 'End series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'End this series?' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(500)
+	facts = await seriesDialogFacts(page)
+	check(
+		'end series: title, description and the open lesson date',
+		facts.text.includes(`${CH_A}, every Thursday at 17:00 VN.`) &&
+			facts.last === `Last lesson on: ${mediumDate(fx.thursday)}`,
+		`${facts.text.slice(0, 120)} ${facts.last}`
+	)
+	check('end series: Keep series has the initial focus', facts.focus === 'Keep series', facts.focus)
+	const second = core.addDays(fx.thursday, 7)
+	await pickDate(page, second, 'end-series-last')
+	facts = await seriesDialogFacts(page)
+	check(
+		'end series: the hint names the last lesson',
+		facts.hint ===
+			`The last lesson will be on ${appDate(second, fx.today)}. Later lessons are removed from the schedule. Earlier lessons stay.` &&
+			facts.hintClass.includes('text-muted-foreground'),
+		facts.hint
+	)
+	const buttonStyle = await page
+		.getByRole('dialog')
+		.getByRole('button', { name: 'End series' })
+		.evaluate((element) => {
+			const probe = document.createElement('div')
+			probe.className = 'text-destructive'
+			document.body.append(probe)
+			const destructive = getComputedStyle(probe).color
+			probe.remove()
+			return { color: getComputedStyle(element).color, destructive }
+		})
+	check(
+		'end series: End series is an outline button with a red label',
+		buttonStyle.color === buttonStyle.destructive,
+		JSON.stringify(buttonStyle)
+	)
+	await shot(page, 'sched-changes', 'end-series')
+	await page.getByRole('dialog').getByRole('button', { name: 'End series' }).click()
+	const endedToast = await toastText(page, 'Series ended', CH_A)
+	check(
+		'end series: toast names the last lesson',
+		endedToast.includes(`${CH_A}'s last lesson is on ${appDate(second, fx.today)}.`),
+		endedToast
+	)
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await goToWeek(page, nav, core.mondayOf(second))
+	week = await readBlocks(page)
+	check(
+		'end series: the last Thursday stays',
+		ofCard(week, CH_A).some((block) => block.date === second),
+		ofCard(week, CH_A)
+			.map((block) => block.date)
+			.join(',')
+	)
+	await goToWeek(page, nav, core.mondayOf(core.addDays(second, 7)))
+	week = await readBlocks(page)
+	check(
+		'end series: no Thursday after it',
+		!ofCard(week, CH_A).some((block) => block.date === core.addDays(second, 7)),
+		ofCard(week, CH_A)
+			.map((block) => block.date)
+			.join(',')
+	)
+
+	const c = await createCard(page, CH_C, 60, null)
+	const cDate = core.addDays(fx.today, 14)
+	const seriesC = await api(page, 'POST', '/schedule/lessons', {
+		studentId: c,
+		date: cDate,
+		startTime: '15:00',
+		durationMinutes: 60,
+		repeats: 'weekly',
+	})
+	check('series C starting in two weeks created through the api', seriesC.status === 201, String(seriesC.status))
+	await goToWeek(page, nav, core.mondayOf(core.addDays(cDate, -7)))
+	await goToWeek(page, nav, core.mondayOf(cDate))
+	await openBlockDialog(page, CH_C, cDate)
+	await dialog.getByRole('button', { name: 'End series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'End this series?' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	await pickDate(page, fx.today, 'end-series-last')
+	facts = await seriesDialogFacts(page)
+	check(
+		'end series C: no lesson remains',
+		facts.hint === 'No lessons will remain. Earlier lessons stay.' && facts.hintClass.includes('text-foreground'),
+		`${facts.hint} ${facts.hintClass}`
+	)
+	await shot(page, 'sched-changes', 'end-series-empty')
+	await page.getByRole('dialog').getByRole('button', { name: 'End series' }).click()
+	const removedToast = await toastText(page, 'Series ended', CH_C)
+	check(
+		'end series C: toast says the series was removed',
+		removedToast.includes(`${CH_C}'s series was removed from the schedule.`),
+		removedToast
+	)
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(500)
+	week = await readBlocks(page)
+	check('end series C: no blocks of C remain', ofCard(week, CH_C).length === 0, String(ofCard(week, CH_C).length))
+}
+
 async function changes() {
 	cleanupFixtures('changes start')
 	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
@@ -2207,6 +2539,10 @@ async function changes() {
 		const afterPart2 = await pastSnapshot(page, fx)
 		check('past weeks snapshot is unchanged after part 2', afterPart2.join('\n') === before.join('\n'))
 		console.log('CHANGES_PART2_OK')
+		await changesPart3(page, fx, nav, posts, before)
+		const afterAll = await pastSnapshot(page, fx)
+		check('past weeks snapshot is unchanged after every change', afterAll.join('\n') === before.join('\n'))
+		console.log('CHANGES_PART3_OK')
 		const real = problems.filter(
 			(problem) => !problem.includes('net::ERR_FAILED') && !/status of (400|404|409)/.test(problem)
 		)

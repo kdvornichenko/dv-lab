@@ -18,14 +18,17 @@ import {
 	weekSummary,
 	weeksBetween,
 } from '@/lib/schedule-format'
+import { exitFallbackMs, spring } from '@/lib/springs'
 import { zoneCaption } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
+import type { ScheduleBlock, ScheduleSeries, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import { EndSeriesDialog } from './end-series-dialog'
 import { blockSlot, type BlockSlot } from './lesson-block'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
+import { MoveSeriesDialog } from './move-series-dialog'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
 import { mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
@@ -33,6 +36,14 @@ import { SecondZoneSelect, useSecondZone } from './second-zone-select'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
 
 type OpenLesson = { key: string; slot: BlockSlot }
+
+type SeriesDialogState = {
+	kind: 'move' | 'end'
+	rule: ScheduleSeries
+	studentName: string
+	lessonDate: string
+	returnTo: OpenLesson
+}
 
 type NewLessonSeed = { date: string; time: string }
 
@@ -89,6 +100,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [version, setVersion] = useState(0)
 	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
+	const [seriesDialog, setSeriesDialog] = useState<SeriesDialogState | null>(null)
 	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
@@ -133,6 +145,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 	function reload() {
 		weeks.current.clear()
 		setVersion((value) => value + 1)
+	}
+
+	async function reloadNow() {
+		weeks.current.clear()
+		const state = await readWeek(monday)
+		if (state.kind === 'ready') weeks.current.set(monday, state.data)
+		setLoaded({ monday, state })
 	}
 
 	async function blocksOn(date: string): Promise<OverlapBlock[]> {
@@ -183,6 +202,31 @@ function LoadedSchedule({ now }: { now: Date }) {
 		if (closed !== null) focusBlock(closed)
 	}
 
+	function startSeriesDialog(block: ScheduleBlock, rule: ScheduleSeries, kind: 'move' | 'end') {
+		const next: SeriesDialogState = {
+			kind,
+			rule,
+			studentName: block.studentName,
+			lessonDate: block.ref.kind === 'series' ? block.ref.originalOn : today,
+			returnTo: { key: block.key, slot: blockSlot(block) },
+		}
+		setLesson(null)
+		setTimeout(() => setSeriesDialog(next), exitFallbackMs(spring.slow))
+	}
+
+	function closeSeries() {
+		const closed = seriesDialog
+		setSeriesDialog(null)
+		if (closed !== null) focusBlock(closed.returnTo)
+	}
+
+	async function seriesChanged() {
+		const closed = seriesDialog
+		setSeriesDialog(null)
+		await reloadNow()
+		if (closed !== null) focusBlock(closed.returnTo)
+	}
+
 	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
 		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
 		if (result.kind === 'failed') return 'failed'
@@ -226,6 +270,12 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const openSeries =
 		ready && openSeriesId !== null ? (week.data.series.find((rule) => rule.id === openSeriesId) ?? null) : null
 	const planned = ready ? week.data.blocks.filter((block) => block.status === 'scheduled').length : 0
+	const seriesRule =
+		seriesDialog === null
+			? null
+			: ready
+				? (week.data.series.find((rule) => rule.id === seriesDialog.rule.id) ?? seriesDialog.rule)
+				: seriesDialog.rule
 
 	return (
 		<PageScroll>
@@ -293,6 +343,34 @@ function LoadedSchedule({ now }: { now: Date }) {
 						reload()
 						openPair({ key: openBlock.key, slot: 'to', at: startsAt })
 					}}
+					onSeries={(kind) => {
+						if (openSeries !== null) startSeriesDialog(openBlock, openSeries, kind)
+					}}
+				/>
+			) : null}
+			{seriesRule !== null && seriesDialog?.kind === 'move' ? (
+				<MoveSeriesDialog
+					rule={seriesRule}
+					studentName={seriesDialog.studentName}
+					now={now}
+					today={today}
+					currentYear={currentYear}
+					onClose={closeSeries}
+					onStale={reload}
+					onMoved={() => void seriesChanged()}
+				/>
+			) : null}
+			{seriesRule !== null && seriesDialog?.kind === 'end' ? (
+				<EndSeriesDialog
+					rule={seriesRule}
+					studentName={seriesDialog.studentName}
+					lessonDate={seriesDialog.lessonDate}
+					now={now}
+					today={today}
+					currentYear={currentYear}
+					onClose={closeSeries}
+					onStale={reload}
+					onEnded={() => void seriesChanged()}
 				/>
 			) : null}
 			{newLesson !== null ? (
