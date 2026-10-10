@@ -23,6 +23,7 @@
 		"db:migrate": "yarn workspace @dv-lab/api db:migrate"
 	},
 	"devDependencies": {
+		"@playwright/test": "1.63.0",
 		"@trivago/prettier-plugin-sort-imports": "6.0.2",
 		"knip": "6.40.0",
 		"portless": "0.15.7",
