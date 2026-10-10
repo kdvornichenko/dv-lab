@@ -1,28 +1,28 @@
 import * as core from '../../packages/core/src/index.ts'
-import { BASE, check, failures, launch, shot, signIn, sql } from './web.mjs'
+import { BASE, api, check, failures, launch, shot, signIn, sql } from './web.mjs'
 
 const section = process.argv[2]
 const dark = process.argv.includes('dark')
 
-const fixtureWhere = `display_name like 'Alex Example 20%' and import_key is null`
+const fixtureWhere = (like) => `display_name like '${like}' and import_key is null`
 
-const cleanupText = `do $$ begin
+const cleanupText = (like) => `do $$ begin
 if to_regclass('lesson_exceptions') is not null then
-delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in (select id from students where ${fixtureWhere}));
+delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in (select id from students where ${fixtureWhere(like)}));
 end if;
 if to_regclass('lessons') is not null then
-delete from lessons where student_id in (select id from students where ${fixtureWhere});
+delete from lessons where student_id in (select id from students where ${fixtureWhere(like)});
 end if;
 if to_regclass('lesson_series') is not null then
-delete from lesson_series where student_id in (select id from students where ${fixtureWhere});
+delete from lesson_series where student_id in (select id from students where ${fixtureWhere(like)});
 end if;
-delete from students where ${fixtureWhere};
+delete from students where ${fixtureWhere(like)};
 end $$`
 
-export function cleanupFixtures(label) {
-	const before = sql(`select count(*)::int as n from students where ${fixtureWhere}`)
+export function cleanupFixtures(label, like = 'Alex Example 20%') {
+	const before = sql(`select count(*)::int as n from students where ${fixtureWhere(like)}`)
 	const found = before.rows?.[0]?.n ?? 0
-	const result = sql(cleanupText)
+	const result = sql(cleanupText(like))
 	console.log(`${label}: fixture cards removed ${found}${result.error || result.raw ? ' (cleanup failed)' : ''}`)
 	return found
 }
@@ -675,7 +675,380 @@ async function frameNewYork() {
 	}
 }
 
-const sections = { fade, frame }
+const READ_LIKE = 'Alex Example 2007%'
+const NAME_A = 'Alex Example 2007 A'
+const NAME_B = 'Alex Example 2007 B'
+
+function quote(value) {
+	return `'${String(value).replace(/'/g, "''")}'`
+}
+
+function whenText(date, time) {
+	return core.zonedInstant(date, time, VN).toISOString()
+}
+
+function weeksFrom(left, right) {
+	return Math.round((Date.parse(`${right}T00:00:00Z`) - Date.parse(`${left}T00:00:00Z`)) / 604800000)
+}
+
+function dayMonth(date) {
+	return `${dayNum(date)} ${monthName(date)}`
+}
+
+async function createCard(page, name, minutes, goals) {
+	const result = await api(page, 'POST', '/students', {
+		displayName: name,
+		rateMinor: null,
+		currency: null,
+		defaultLessonMinutes: minutes,
+		parent: null,
+		level: null,
+		goals,
+		timeZone: null,
+	})
+	check(`${name} card created`, result.status === 201, String(result.status))
+	return result.json.student.id
+}
+
+async function readFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const wednesday = core.firstOnOrAfter(core.addDays(today, 1), 3)
+	const a = await createCard(page, NAME_A, 60, 'Prepare for a speaking test')
+	const b = await createCard(page, NAME_B, 30, null)
+	const series = await api(page, 'POST', '/schedule/lessons', {
+		studentId: a,
+		date: wednesday,
+		startTime: '18:00',
+		durationMinutes: 60,
+		repeats: 'weekly',
+	})
+	check('series A created', series.status === 201 && Boolean(series.json?.series?.id), String(series.status))
+	const single = await api(page, 'POST', '/schedule/lessons', {
+		studentId: b,
+		date: wednesday,
+		startTime: '18:30',
+		durationMinutes: 60,
+		repeats: 'once',
+	})
+	check('single B on the same Wednesday created', single.status === 201, String(single.status))
+	const thursday = core.addDays(wednesday, 1)
+	const short = await api(page, 'POST', '/schedule/lessons', {
+		studentId: b,
+		date: thursday,
+		startTime: '09:00',
+		durationMinutes: 30,
+		repeats: 'once',
+	})
+	check('short single B on Thursday created', short.status === 201, String(short.status))
+	const seriesId = series.json.series.id
+	const movedFrom = core.addDays(wednesday, 7)
+	const movedTo = core.addDays(wednesday, 9)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(seriesId)}, ${quote(movedFrom)}, 'moved', ${quote(whenText(movedTo, '10:00'))}, 60)`
+	)
+	const cancelledOn = core.addDays(wednesday, 14)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind) values (${quote(seriesId)}, ${quote(cancelledOn)}, 'cancelled')`
+	)
+	return {
+		today,
+		a,
+		b,
+		seriesId,
+		wednesday,
+		thursday,
+		movedFrom,
+		movedTo,
+		cancelledOn,
+		week0: core.mondayOf(wednesday),
+		week1: core.mondayOf(movedFrom),
+		week2: core.mondayOf(cancelledOn),
+	}
+}
+
+async function goToWeek(page, nav, target) {
+	const diff = weeksFrom(nav.monday, target)
+	for (let step = 0; step < Math.abs(diff); step += 1) await page.keyboard.press(diff > 0 ? 'j' : 'k')
+	nav.monday = target
+	await page.waitForFunction(
+		(expected) => document.querySelector('[data-slot="week-grid-day"]')?.dataset.date === expected,
+		target,
+		{ timeout: 30000 }
+	)
+	await page.waitForTimeout(150)
+}
+
+async function readBlocks(page) {
+	return page.evaluate(() => {
+		const probe = document.createElement('div')
+		probe.style.background = 'var(--selected)'
+		document.body.append(probe)
+		const selected = getComputedStyle(probe).backgroundColor
+		probe.remove()
+		const columns = Array.from(document.querySelectorAll('[data-slot="week-grid-column"]'))
+		const blocks = Array.from(document.querySelectorAll('[data-slot="week-grid-column"] button[data-key]')).map(
+			(element) => {
+				const column = element.closest('[data-slot="week-grid-column"]')
+				const rect = element.getBoundingClientRect()
+				const columnRect = column.getBoundingClientRect()
+				const style = getComputedStyle(element)
+				const name = element.querySelector('span')
+				return {
+					key: element.dataset.key,
+					slot: element.getAttribute('data-slot'),
+					label: element.getAttribute('aria-label'),
+					text: element.textContent,
+					lines: Array.from(element.querySelectorAll('span')).map((span) => span.textContent),
+					title: element.getAttribute('title'),
+					date: column.dataset.date,
+					left: rect.left - columnRect.left,
+					width: rect.width,
+					top: rect.top - columnRect.top,
+					height: rect.height,
+					background: style.backgroundColor,
+					color: style.color,
+					outlineStyle: style.outlineStyle,
+					outlineWidth: style.outlineWidth,
+					decoration: name ? getComputedStyle(name).textDecorationLine : '',
+				}
+			}
+		)
+		return {
+			selected,
+			transparent: 'rgba(0, 0, 0, 0)',
+			columnWidth: columns[0]?.getBoundingClientRect().width ?? 0,
+			blocks,
+			description: document.querySelector('h1')?.parentElement?.querySelector('div')?.textContent ?? '',
+			live: document.querySelector('[aria-live="polite"].sr-only')?.textContent ?? '',
+			h1: document.querySelector('h1')?.textContent,
+		}
+	})
+}
+
+const ofCard = (data, name) => data.blocks.filter((block) => block.label.startsWith(`${name},`))
+
+async function readPart1(page, fx, nav) {
+	await goToWeek(page, nav, fx.week0)
+	const w0 = await readBlocks(page)
+	const a0 = ofCard(w0, NAME_A).find((block) => block.date === fx.wednesday)
+	const b0 = ofCard(w0, NAME_B).find((block) => block.date === fx.wednesday)
+	const b1 = ofCard(w0, NAME_B).find((block) => block.date === fx.thursday)
+	check('week 0: both Wednesday blocks drawn', Boolean(a0) && Boolean(b0))
+	check(
+		'week 0: overlapping blocks sit side by side',
+		Boolean(a0 && b0) &&
+			a0.left !== b0.left &&
+			Math.abs(a0.width - (w0.columnWidth / 2 - 6)) <= 1.5 &&
+			Math.abs(b0.width - (w0.columnWidth / 2 - 6)) <= 1.5,
+		a0 && b0 ? `${a0.left}/${b0.left}/${a0.width}/${w0.columnWidth}` : ''
+	)
+	check(
+		'week 0: block starts at 18:00 with 48px hours',
+		Boolean(a0) && Math.abs(a0.top - 18 * 48) <= 1.5 && Math.abs(a0.height - 46) <= 1.5,
+		a0 ? `${a0.top}/${a0.height}` : ''
+	)
+	check(
+		'week 0: planned block is filled with --selected',
+		Boolean(a0) && a0.background === w0.selected && w0.selected !== w0.transparent,
+		a0 ? `${a0.background} / ${w0.selected}` : ''
+	)
+	check('week 0: block text is not painted in the fill colour', Boolean(a0) && a0.color !== a0.background)
+	check(
+		'week 0: aria-label says planned',
+		Boolean(a0) && a0.label.endsWith(', planned') && a0.label.includes('18:00–19:00 VN'),
+		a0?.label
+	)
+	check('week 0: second zone is in the label', Boolean(a0) && a0.label.includes('MSK'), a0?.label)
+	check(
+		'week 0: name line and range line',
+		Boolean(a0) && a0.lines.join('|') === `${NAME_A}|18:00–19:00`,
+		a0?.lines.join('|')
+	)
+	check(
+		'week 0: no title attribute on blocks',
+		w0.blocks.every((block) => block.title === null)
+	)
+	check(
+		'week 0: 30 minute lesson is one line "Name, 09:00"',
+		Boolean(b1) && b1.text === `${NAME_B}, 09:00` && b1.lines.length === 1,
+		b1?.text
+	)
+	check(
+		'week 0: 30 minute lesson is 22px high',
+		Boolean(b1) && Math.abs(b1.height - 22) <= 1.5 && Math.abs(b1.top - 9 * 48) <= 1.5,
+		b1 ? `${b1.top}/${b1.height}` : ''
+	)
+	check(
+		'week 0: every fixture block carries data-key and data-slot to',
+		[a0, b0, b1].every((block) => block && block.key && block.slot === 'to')
+	)
+	check(
+		'week 0: summary line has the lessons-with-students shape',
+		/^\d+ lessons? with \d+ students?( · \d+ cancelled)?$/.test(w0.description),
+		w0.description
+	)
+	const counts = /^(\d+) lessons? with (\d+) students?/.exec(w0.description)
+	check(
+		'week 0: summary counts the fixture lessons',
+		Boolean(counts) && Number(counts[1]) >= 3 && Number(counts[2]) >= 2,
+		w0.description
+	)
+	check(
+		'week 0: live line names the week and the lesson count',
+		w0.live.startsWith('Week of ') && /, \d+ lessons?$/.test(w0.live),
+		w0.live
+	)
+	await shot(page, 'sched-read', 'week0')
+
+	await goToWeek(page, nav, fx.week1)
+	const w1 = await readBlocks(page)
+	const from1 = ofCard(w1, NAME_A).find((block) => block.slot === 'from')
+	const to1 = ofCard(w1, NAME_A).find((block) => block.slot === 'to' && block.date === fx.movedTo)
+	check('week +1: moved original is drawn on Wednesday', Boolean(from1) && from1.date === fx.movedFrom)
+	check(
+		'week +1: moved original has a dashed outline and no fill',
+		Boolean(from1) &&
+			from1.outlineStyle === 'dashed' &&
+			from1.outlineWidth === '2px' &&
+			from1.background === w1.transparent,
+		from1 ? `${from1.outlineStyle}/${from1.outlineWidth}/${from1.background}` : ''
+	)
+	check(
+		'week +1: moved original names the new day',
+		Boolean(from1) &&
+			from1.lines[1] === `→ ${dayMonth(fx.movedTo)}` &&
+			from1.label.endsWith(`moved to ${dayMonth(fx.movedTo)}`),
+		from1 ? `${from1.lines.join('|')} / ${from1.label}` : ''
+	)
+	check(
+		'week +1: destination is planned on Friday at 10:00',
+		Boolean(to1) && Math.abs(to1.top - 10 * 48) <= 1.5 && to1.background === w1.selected && to1.key === from1?.key,
+		to1 ? `${to1.top}` : ''
+	)
+	await shot(page, 'sched-read', 'week1')
+
+	await goToWeek(page, nav, fx.week2)
+	const w2 = await readBlocks(page)
+	const cancelled = ofCard(w2, NAME_A).find((block) => block.date === fx.cancelledOn)
+	check('week +2: cancelled block is drawn', Boolean(cancelled))
+	check(
+		'week +2: cancelled block is struck through and has no fill',
+		Boolean(cancelled) && cancelled.decoration.includes('line-through') && cancelled.background === w2.transparent,
+		cancelled ? `${cancelled.decoration}/${cancelled.background}` : ''
+	)
+	check(
+		'week +2: aria-label says cancelled',
+		Boolean(cancelled) && cancelled.label.endsWith(', cancelled'),
+		cancelled?.label
+	)
+	check('week +2: summary shows the cancellation', / · \d+ cancelled$/.test(w2.description), w2.description)
+
+	const empty = core.addDays(fx.week0, -40 * 7)
+	await goToWeek(page, nav, empty)
+	const w3 = await readBlocks(page)
+	check(
+		'far week: no fixture blocks',
+		w3.blocks.every((block) => !block.label.includes('Alex Example 2007'))
+	)
+	check(
+		'far week: summary is empty or in shape',
+		w3.description === 'No lessons this week' || /^\d+ lessons? with \d+ students?/.test(w3.description),
+		w3.description
+	)
+	await shot(page, 'sched-read', 'far')
+}
+
+async function readPart1Loading(page, fx, nav) {
+	await goToWeek(page, nav, fx.week1)
+	const w1 = await readBlocks(page)
+	await goToWeek(page, nav, core.addDays(fx.week0, -7))
+	let release
+	const held = new Promise((resolve) => {
+		release = resolve
+	})
+	await page.route('**/api/schedule/week*', async (route) => {
+		if (route.request().url().includes(`start=${fx.week0}`)) await held
+		await route.continue()
+	})
+	await page.keyboard.press('j')
+	nav.monday = fx.week0
+	await page.waitForTimeout(150)
+	const loading = await page.evaluate(() => ({
+		h1: document.querySelector('h1')?.textContent,
+		grid: document.querySelectorAll('[data-slot="week-grid"]').length,
+		skeleton: document.querySelectorAll('[data-slot="skeleton"]').length,
+		next: document.querySelector('button[aria-label="Next week"]')?.disabled,
+	}))
+	check(
+		'loading: real header and a skeleton instead of the grid',
+		loading.h1 === expectedRange(fx.week0) && loading.grid === 0 && loading.skeleton > 0,
+		JSON.stringify(loading)
+	)
+	check('loading: week navigation stays enabled', loading.next === false)
+	await page.keyboard.press('j')
+	nav.monday = fx.week1
+	await page.waitForFunction(
+		(expected) => document.querySelector('[data-slot="week-grid-day"]')?.dataset.date === expected,
+		fx.week1,
+		{ timeout: 30000 }
+	)
+	release()
+	await page.waitForTimeout(800)
+	const after = await readBlocks(page)
+	check(
+		'stale week response is ignored',
+		after.h1 === expectedRange(fx.week1) && after.description === w1.description && after.live === w1.live,
+		`${after.description} / ${w1.description}`
+	)
+	await page.unroute('**/api/schedule/week*')
+}
+
+async function readPartError(page, fx, nav) {
+	await goToWeek(page, nav, fx.week0)
+	await page.route('**/api/schedule/week*', (route) => route.abort())
+	await page.keyboard.press('j')
+	nav.monday = fx.week1
+	await page.getByText('Could not load schedule').waitFor({ timeout: 15000 })
+	const shown = await page.evaluate(() => ({
+		h1: document.querySelector('h1')?.textContent,
+		refresh: Array.from(document.querySelectorAll('button')).some((button) => button.textContent?.trim() === 'Refresh'),
+		grid: document.querySelectorAll('[data-slot="week-grid"]').length,
+	}))
+	check(
+		'read error: h1 is Schedule with a Refresh button and no grid',
+		shown.h1 === 'Schedule' && shown.refresh && shown.grid === 0,
+		JSON.stringify(shown)
+	)
+	await shot(page, 'sched-read', 'error')
+	await page.unroute('**/api/schedule/week*')
+	await page.getByRole('button', { name: 'Refresh' }).click()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 15000 })
+	const back = await page.evaluate(() => document.querySelector('h1')?.textContent)
+	check('read error: Refresh brings the grid back on the same week', back === expectedRange(fx.week1), back)
+}
+
+async function read() {
+	cleanupFixtures('read start', READ_LIKE)
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	try {
+		await setTheme(page)
+		await signIn(page)
+		const fx = await readFixtures(page)
+		await openSchedule(page)
+		const nav = { monday: core.mondayOf(fx.today) }
+		await readPart1(page, fx, nav)
+		await readPart1Loading(page, fx, nav)
+		await readPartError(page, fx, nav)
+		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+		cleanupFixtures('read end', READ_LIKE)
+	}
+	if (failures() === 0) console.log('SCHEDULE_WEB_READ_OK')
+}
+
+const sections = { fade, frame, read }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)

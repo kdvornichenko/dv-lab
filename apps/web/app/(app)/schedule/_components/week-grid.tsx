@@ -6,7 +6,10 @@ import { Elevated } from '@/lib/elevated'
 import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
+import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, addDays, zonedParts } from '@dv-lab/core'
+
+import { LessonBlock, type BlockLayout } from './lesson-block'
 
 export const HOUR_HEIGHT = 48
 export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
@@ -15,6 +18,8 @@ const SLOT_MINUTES = 15
 const SLOT_HEIGHT = (HOUR_HEIGHT * SLOT_MINUTES) / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[5rem_repeat(7,minmax(0,1fr))]'
+const MIN_DISPLAY_MINUTES = 30
+const DAY_MINUTES = 24 * 60
 
 export interface SecondZone {
 	id: string
@@ -26,7 +31,68 @@ interface WeekGridProps {
 	today: string
 	now: Date
 	secondZone: SecondZone | null
+	blocks?: readonly ScheduleBlock[]
+	currentYear?: number
+	onOpen?: (block: ScheduleBlock) => void
 	onSlot?: (date: string, time: string) => void
+	scrollTopRef?: { current: number }
+}
+
+interface PlacedBlock {
+	block: ScheduleBlock
+	layout: BlockLayout
+}
+
+function placeDay(blocks: readonly ScheduleBlock[]): PlacedBlock[] {
+	const items = blocks
+		.map((block) => {
+			const start = zonedParts(new Date(block.startsAt), SCHEDULE_TIME_ZONE).minutes
+			const shown = Math.min(Math.max(block.durationMinutes, MIN_DISPLAY_MINUTES), DAY_MINUTES - start)
+			return { block, start, end: start + shown, shown }
+		})
+		.sort((left, right) => left.start - right.start || (left.block.key < right.block.key ? -1 : 1))
+	const placed: PlacedBlock[] = []
+	let cluster: typeof items = []
+	let clusterEnd = -1
+	const flush = () => {
+		const laneEnds: number[] = []
+		const lanes = cluster.map((item) => {
+			let lane = laneEnds.findIndex((end) => end <= item.start)
+			if (lane === -1) lane = laneEnds.length
+			laneEnds[lane] = item.end
+			return lane
+		})
+		cluster.forEach((item, index) => {
+			placed.push({
+				block: item.block,
+				layout: {
+					top: item.start * MINUTE_HEIGHT,
+					height: item.shown * MINUTE_HEIGHT - 2,
+					lane: lanes[index],
+					lanes: laneEnds.length,
+				},
+			})
+		})
+		cluster = []
+	}
+	for (const item of items) {
+		if (cluster.length > 0 && item.start >= clusterEnd) flush()
+		cluster.push(item)
+		clusterEnd = cluster.length === 1 ? item.end : Math.max(clusterEnd, item.end)
+	}
+	flush()
+	return placed
+}
+
+function groupByDate(blocks: readonly ScheduleBlock[]): Map<string, ScheduleBlock[]> {
+	const groups = new Map<string, ScheduleBlock[]>()
+	for (const block of blocks) {
+		const date = zonedParts(new Date(block.startsAt), SCHEDULE_TIME_ZONE).date
+		const list = groups.get(date)
+		if (list) list.push(block)
+		else groups.set(date, [block])
+	}
+	return groups
 }
 
 function slotTime(offsetY: number): string {
@@ -60,12 +126,26 @@ function GutterPair({
 	)
 }
 
-export function WeekGrid({ monday, today, now, secondZone, onSlot }: WeekGridProps) {
+export function WeekGrid({
+	monday,
+	today,
+	now,
+	secondZone,
+	blocks = [],
+	currentYear = 0,
+	onOpen,
+	onSlot,
+	scrollTopRef,
+}: WeekGridProps) {
 	const dates = Array.from({ length: 7 }, (_, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, SCHEDULE_TIME_ZONE)
-	const scroller = useCallback((node: HTMLDivElement | null) => {
-		if (node) node.scrollTop = OPEN_SCROLL_TOP
-	}, [])
+	const scroller = useCallback(
+		(node: HTMLDivElement | null) => {
+			if (node) node.scrollTop = scrollTopRef ? scrollTopRef.current : OPEN_SCROLL_TOP
+		},
+		[scrollTopRef]
+	)
+	const groups = groupByDate(blocks)
 
 	function handleSlot(event: MouseEvent<HTMLDivElement>, date: string) {
 		if (!onSlot || event.target !== event.currentTarget) return
@@ -117,6 +197,9 @@ export function WeekGrid({ monday, today, now, secondZone, onSlot }: WeekGridPro
 			<div
 				ref={scroller}
 				data-slot="week-grid-body"
+				onScroll={(event) => {
+					if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
+				}}
 				className="scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto"
 			>
 				<div className={cn(COLUMNS, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
@@ -154,6 +237,16 @@ export function WeekGrid({ monday, today, now, secondZone, onSlot }: WeekGridPro
 										<span className="sr-only">Now {nowParts.time}</span>
 									</div>
 								) : null}
+								{placeDay(groups.get(date) ?? []).map(({ block, layout }) => (
+									<LessonBlock
+										key={`${block.key}:${block.status === 'moved' ? 'from' : 'to'}`}
+										block={block}
+										layout={layout}
+										secondZone={secondZone ? secondZone.id : null}
+										currentYear={currentYear}
+										onOpen={(chosen) => onOpen?.(chosen)}
+									/>
+								))}
 							</div>
 						)
 					})}
