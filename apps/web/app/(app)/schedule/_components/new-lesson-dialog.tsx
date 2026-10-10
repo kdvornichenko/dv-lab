@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
 import { apiRequest } from '@/lib/api-client'
-import { secondWhen, vnRange, vnWhen, weekdayName } from '@/lib/schedule-format'
+import { secondWhen, seriesPhrase, vnRange, vnWhen, weekdayName } from '@/lib/schedule-format'
 
 import {
 	LESSON_MINUTES_MAX,
@@ -160,7 +160,7 @@ export function NewLessonDialog({
 		if ('lesson' in result.data) {
 			toast.show({
 				title: 'Lesson added',
-				description: `${name}, ${vnWhen(new Date(result.data.lesson.startsAt), secondZone, currentYear)}.`,
+				description: `${name}, ${vnWhen(new Date(result.data.lesson.startsAt), null, currentYear)}.`,
 			})
 		} else {
 			toast.show({
@@ -316,7 +316,7 @@ export function NewLessonDialog({
 									</Select>
 									{repeats === 'weekly' && time !== null ? (
 										<p data-slot="new-lesson-repeat-note" className="text-caption text-muted-foreground">
-											Every {weekdayName(weekday)} at {time} until you end the series.
+											{seriesPhrase(weekday, time)} VN until you end the series.
 										</p>
 									) : null}
 								</div>

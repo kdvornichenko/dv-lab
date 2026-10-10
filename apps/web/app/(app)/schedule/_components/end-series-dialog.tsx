@@ -13,13 +13,14 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
-import { formatDate, weekdayName } from '@/lib/schedule-format'
+import { formatDate, seriesWhen } from '@/lib/schedule-format'
 
 import type { ScheduleSeries } from '@dv-lab/contracts'
 import { endSeriesAt, hasOccurrences } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { STALE_DATE, STALE_TITLE, mutate } from './schedule-mutations'
+import { useSecondZone } from './second-zone-select'
 
 interface EndSeriesDialogProps {
 	rule: ScheduleSeries
@@ -32,6 +33,9 @@ interface EndSeriesDialogProps {
 	onStale: () => void
 	onEnded: () => void
 }
+
+const KEPT_HINT =
+	'Later lessons are removed from the schedule. Earlier lessons and any lessons you moved stay where they are.'
 
 function initialDate(lessonDate: string, today: string, endsOn: string | null): string {
 	const floor = lessonDate < today ? today : lessonDate
@@ -50,6 +54,7 @@ export function EndSeriesDialog({
 	onEnded,
 }: EndSeriesDialogProps) {
 	const toast = useToast()
+	const [secondZone] = useSecondZone()
 	const [lastOn, setLastOn] = useState(() => initialDate(lessonDate, today, rule.endsOn))
 	const [submitted, setSubmitted] = useState(false)
 	const [pending, setPending] = useState(false)
@@ -98,7 +103,7 @@ export function EndSeriesDialog({
 				<DialogHeader>
 					<DialogTitle>End this series?</DialogTitle>
 					<DialogDescription>
-						{studentName}, every {weekdayName(rule.weekday)} at {rule.startTime} VN.
+						{studentName}, every {seriesWhen(rule, secondZone, now)}.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="flex flex-col gap-4">
@@ -126,8 +131,7 @@ export function EndSeriesDialog({
 						{result?.kind === 'ok' ? (
 							remains ? (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-muted-foreground">
-									The last lesson will be on {formatDate(result.endsOn, currentYear)}. Later lessons are removed from
-									the schedule. Earlier lessons and any lessons you moved stay where they are.
+									The last lesson will be on {formatDate(result.endsOn, currentYear)}. {KEPT_HINT}
 								</p>
 							) : (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-foreground">

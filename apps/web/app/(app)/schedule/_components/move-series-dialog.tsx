@@ -16,13 +16,14 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
-import { formatDate, formatRange, weekdayName, weekdayPlural } from '@/lib/schedule-format'
+import { formatDate, formatRange, secondWhen, seriesWhen, weekdayName, weekdayPlural } from '@/lib/schedule-format'
 
 import type { ScheduleSeries, ScheduleWeekday } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, cutSeries, nextSeriesDate, zonedInstant } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { STALE_DATES, STALE_TITLE, mutate } from './schedule-mutations'
+import { useSecondZone } from './second-zone-select'
 
 interface MoveSeriesDialogProps {
 	rule: ScheduleSeries
@@ -54,6 +55,7 @@ export function MoveSeriesDialog({
 	onMoved,
 }: MoveSeriesDialogProps) {
 	const toast = useToast()
+	const [secondZone] = useSecondZone()
 	const [from, setFrom] = useState(() => nextSeriesDate(rule, now) ?? today)
 	const [weekday, setWeekday] = useState<ScheduleWeekday | null>(rule.weekday)
 	const [time, setTime] = useState<string | null>(rule.startTime)
@@ -101,6 +103,10 @@ export function MoveSeriesDialog({
 					SCHEDULE_TIME_ZONE
 				)}`
 			: null
+
+	const zoneDate = cut?.kind === 'ok' ? cut.newRule.startsOn : from
+	const zoneLine =
+		zoneDate !== '' && time !== null ? secondWhen(zonedInstant(zoneDate, time, SCHEDULE_TIME_ZONE), secondZone) : null
 
 	function edit<T>(set: (value: T) => void, field?: Field) {
 		return (value: T) => {
@@ -152,7 +158,7 @@ export function MoveSeriesDialog({
 				<DialogHeader>
 					<DialogTitle>Move series</DialogTitle>
 					<DialogDescription>
-						{studentName}. Now every {weekdayName(rule.weekday)} at {rule.startTime} VN.
+						{studentName}. Now every {seriesWhen(rule, secondZone, now)}.
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
@@ -211,7 +217,14 @@ export function MoveSeriesDialog({
 									<TimePicker
 										id="move-series-time"
 										aria-labelledby="move-series-time-label"
-										aria-describedby={shownRow ? 'move-series-row-error' : undefined}
+										aria-describedby={
+											[
+												shownRow ? 'move-series-row-error' : null,
+												shownTime || zoneLine ? 'move-series-time-note' : null,
+											]
+												.filter(Boolean)
+												.join(' ') || undefined
+										}
 										value={time}
 										onValueChange={edit(setTime, 'time')}
 										minuteStep={15}
@@ -220,7 +233,19 @@ export function MoveSeriesDialog({
 										invalid={Boolean(shownRow || shownTime)}
 										className="w-full"
 									/>
-									{shownTime ? <p className="text-caption text-destructive">{shownTime}</p> : null}
+									{shownTime ? (
+										<p id="move-series-time-note" className="text-caption text-destructive">
+											{shownTime}
+										</p>
+									) : zoneLine !== null ? (
+										<p
+											id="move-series-time-note"
+											data-slot="move-series-zone"
+											className="text-caption text-muted-foreground"
+										>
+											{zoneLine}
+										</p>
+									) : null}
 								</div>
 							</div>
 							{shownRow ? (
@@ -234,8 +259,10 @@ export function MoveSeriesDialog({
 								data-slot="move-series-preview"
 								className="flex items-center justify-between gap-4 rounded-xl bg-hover px-4 py-3 text-body"
 							>
-								<span className="text-muted-foreground">First lesson</span>
-								<span className="text-foreground tabular-nums">{preview}</span>
+								<span data-slot="move-series-preview-label" className="text-body text-muted-foreground">
+									First lesson
+								</span>
+								<span className="text-body text-foreground tabular-nums">{preview}</span>
 							</div>
 						) : null}
 						<p data-slot="move-series-note" className="text-caption text-muted-foreground">

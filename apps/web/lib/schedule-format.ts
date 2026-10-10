@@ -1,6 +1,14 @@
 import { zoneCaption } from '@/lib/time-zones'
 
-import { SCHEDULE_TIME_ZONE, addDays, zonedInstant, zonedParts } from '@dv-lab/core'
+import {
+	SCHEDULE_TIME_ZONE,
+	addDays,
+	firstOnOrAfter,
+	nextSeriesDate,
+	zonedInstant,
+	zonedParts,
+	type SeriesTiming,
+} from '@dv-lab/core'
 
 const dash = ' – '
 
@@ -133,6 +141,33 @@ export function formatWhen(instant: Date, zone: string, currentYear: number): st
 
 export function seriesPhrase(weekday: number, time: string): string {
 	return `Every ${weekdayName(weekday)} at ${time}`
+}
+
+function seriesSecond(rule: SeriesTiming, zone: string | null, now: Date) {
+	if (zone === null) return null
+	const date = nextSeriesDate(rule, now) ?? firstOnOrAfter(rule.startsOn, rule.weekday)
+	const instant = zonedInstant(date, rule.startTime, SCHEDULE_TIME_ZONE)
+	const parts = zonedParts(instant, zone)
+	return {
+		weekday: parts.weekday,
+		shifted: parts.weekday !== rule.weekday,
+		time: parts.time,
+		caption: zoneCaption(zone, instant, 'toolbar'),
+	}
+}
+
+export function seriesWhen(rule: SeriesTiming, zone: string | null, now: Date): string {
+	const main = `${weekdayName(rule.weekday)} at ${rule.startTime} VN`
+	const second = seriesSecond(rule, zone, now)
+	if (second === null) return main
+	const day = second.shifted ? `${WEEKDAY_NAMES[second.weekday - 1]} ` : ''
+	return `${main} (${day}${second.time} ${second.caption})`
+}
+
+export function seriesSecondLine(rule: SeriesTiming, zone: string | null, now: Date): string | null {
+	const second = seriesSecond(rule, zone, now)
+	if (second === null) return null
+	return `Every ${weekdayName(second.weekday)} at ${second.time} ${second.caption}`
 }
 
 export function weekPhrase(monday: string): string {

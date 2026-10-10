@@ -1677,7 +1677,7 @@ async function readPart3(page, fx, nav) {
 	check(
 		'new lesson: toast names the card and the time',
 		toast.includes(
-			`${NAME_A}, ${new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${fx.thursday}T12:00:00Z`))} ${dayMonth(fx.thursday)}, 14:00 VN (10:00 MSK).`
+			`${NAME_A}, ${new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${fx.thursday}T12:00:00Z`))} ${dayMonth(fx.thursday)}, 14:00 VN.`
 		),
 		toast
 	)
@@ -1708,7 +1708,7 @@ async function readPart3(page, fx, nav) {
 	facts = await dialogFacts(page)
 	check(
 		'new lesson: Every week shows the series note and Add series',
-		facts.repeatNote === 'Every Monday at 09:00 until you end the series.' && facts.submit?.text === 'Add series',
+		facts.repeatNote === 'Every Monday at 09:00 VN until you end the series.' && facts.submit?.text === 'Add series',
 		`${facts.repeatNote} ${facts.submit?.text}`
 	)
 	await shot(page, 'sched-read', 'new-series')
@@ -2446,7 +2446,7 @@ async function changesPart3(page, fx, nav, posts, before) {
 	let facts = await seriesDialogFacts(page)
 	check(
 		'move series: title and description',
-		facts.text.includes('Move series') && facts.text.includes(`${CH_A}. Now every Wednesday at 18:00 VN.`),
+		facts.text.includes('Move series') && facts.text.includes(`${CH_A}. Now every Wednesday at 18:00 VN (14:00 MSK).`),
 		facts.text.slice(0, 120)
 	)
 	check(
@@ -2597,7 +2597,7 @@ async function changesPart3(page, fx, nav, posts, before) {
 	facts = await seriesDialogFacts(page)
 	check(
 		'end series: title, description and the open lesson date',
-		facts.text.includes(`${CH_A}, every Thursday at 17:00 VN.`) &&
+		facts.text.includes(`${CH_A}, every Thursday at 17:00 VN (13:00 MSK).`) &&
 			facts.last === `Last lesson on: ${mediumDate(fx.thursday)}`,
 		`${facts.text.slice(0, 120)} ${facts.last}`
 	)
@@ -3466,7 +3466,305 @@ async function grid() {
 	if (failures() === 0) console.log('SCHEDULE_WEB_GRID_OK')
 }
 
-const sections = { fade, frame, read, changes, students, grid }
+const FORMS_LIKE = 'Alex Example 2131%'
+const FORMS_A = 'Alex Example 2131 A'
+const FORMS_B = 'Alex Example 2131 B'
+const FORMS_C = 'Alex Example 2131 C'
+const FORMS_D = 'Alex Example 2131 D'
+
+async function formsFixtures(page) {
+	const today = core.zonedParts(new Date(), VN).date
+	const wednesday = core.firstOnOrAfter(core.addDays(today, 1), 3)
+	const make = async (name, startTime) => {
+		const id = await createCard(page, name, 60, null)
+		const result = await api(page, 'POST', '/schedule/lessons', {
+			studentId: id,
+			date: wednesday,
+			startTime,
+			durationMinutes: 60,
+			repeats: 'weekly',
+		})
+		check(`series ${name} at ${startTime} created`, result.status === 201, String(result.status))
+		return id
+	}
+	await make(FORMS_A, '18:00')
+	await make(FORMS_B, '02:00')
+	await make(FORMS_C, '22:00')
+	await createCard(page, FORMS_D, 60, null)
+	return { today, wednesday }
+}
+
+async function formsSeriesBox(page) {
+	return page
+		.getByRole('dialog')
+		.locator('[data-slot="lesson-series"]')
+		.evaluate((element) => {
+			const rect = (node) => node.getBoundingClientRect()
+			const main = element.querySelector('[data-slot="lesson-series-main"]')
+			const second = element.querySelector('[data-slot="lesson-series-second"]')
+			const actions = element.querySelector('[data-slot="lesson-series-actions"]')
+			const title = element.querySelector('p')
+			const style = (node) => (node ? getComputedStyle(node) : null)
+			return {
+				title: title?.textContent,
+				titleWeight: style(title)?.fontWeight,
+				titleSize: style(title)?.fontSize,
+				main: main?.textContent,
+				mainClass: main?.className ?? '',
+				second: second?.textContent ?? null,
+				secondClass: second?.className ?? '',
+				secondSize: style(second)?.fontSize ?? null,
+				secondBottom: second ? rect(second).bottom : rect(main).bottom,
+				mainBottom: rect(main).bottom,
+				actionsTop: rect(actions).top,
+				buttons: Array.from(actions.querySelectorAll('button')).map((button) => button.textContent?.trim()),
+			}
+		})
+}
+
+async function formsSeriesDialogs(page, name, expected) {
+	const dialog = page.getByRole('dialog')
+	const label = expected.label
+	const box = await formsSeriesBox(page)
+	check(
+		`${label}: Whole series box is a column with Move series and End series under the text`,
+		box.title === 'Whole series' &&
+			box.titleWeight === '600' &&
+			box.buttons.join('|') === 'Move series|End series' &&
+			box.actionsTop >= box.secondBottom,
+		JSON.stringify({ title: box.title, buttons: box.buttons, top: box.actionsTop, bottom: box.secondBottom })
+	)
+	check(
+		`${label}: caption line is caption and names the series in VN`,
+		box.mainClass.includes('text-caption') && box.main.includes(`Every Wednesday at ${expected.time} VN · from `),
+		box.main
+	)
+	check(
+		`${label}: second zone line is micro and reads "${expected.line}"`,
+		box.second === expected.line && box.secondClass.includes('text-micro') && box.secondSize === '11px',
+		`${box.second} ${box.secondClass} ${box.secondSize}`
+	)
+	await dialog.getByRole('button', { name: 'End series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'End this series?' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	let facts = await seriesDialogFacts(page)
+	check(
+		`${label}: End series description is "${name}, every ${expected.when}."`,
+		facts.text.includes(`${name}, every ${expected.when}.`),
+		facts.text.slice(0, 140)
+	)
+	check(
+		`${label}: End series hint is caption and muted`,
+		facts.hint !== null &&
+			facts.hint.startsWith('The last lesson will be on ') &&
+			facts.hintClass.includes('text-caption') &&
+			facts.hintClass.includes('text-muted-foreground'),
+		`${facts.hint} ${facts.hintClass}`
+	)
+	return facts
+}
+
+async function formsPart1(page, fx, nav) {
+	const dialog = page.getByRole('dialog')
+	await openSchedule(page)
+	await page.evaluate(() => localStorage.removeItem('dv-lab.schedule.second-zone'))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(400)
+	nav.monday = core.mondayOf(fx.today)
+	await goToWeek(page, nav, core.mondayOf(fx.wednesday))
+
+	await openBlockDialog(page, FORMS_A, fx.wednesday)
+	await formsSeriesDialogs(page, FORMS_A, {
+		label: 'A',
+		time: '18:00',
+		when: 'Wednesday at 18:00 VN (14:00 MSK)',
+		line: 'Every Wednesday at 14:00 MSK',
+	})
+	await pickDate(page, fx.today, 'end-series-last')
+	let facts = await seriesDialogFacts(page)
+	check(
+		'A: End series with no lessons left says so, in caption and foreground',
+		facts.hint === 'No lessons of this series will remain. Any lessons you moved stay where they are.' &&
+			facts.hintClass.includes('text-caption') &&
+			facts.hintClass.includes('text-foreground'),
+		`${facts.hint} ${facts.hintClass}`
+	)
+	await shot(page, 'sched-forms', 'end-series-empty')
+	await page.getByRole('dialog').getByRole('button', { name: 'Keep series' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(400)
+
+	await openBlockDialog(page, FORMS_A, fx.wednesday)
+	await dialog.getByRole('button', { name: 'Move series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'Lessons before this date stay' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	facts = await seriesDialogFacts(page)
+	check(
+		'A: Move series description is "Now every Wednesday at 18:00 VN (14:00 MSK)."',
+		facts.text.includes(`${FORMS_A}. Now every Wednesday at 18:00 VN (14:00 MSK).`),
+		facts.text.slice(0, 140)
+	)
+	await pickTime(page, '17:00', 'move-series-time')
+	await pickOption(page, 'move-series-day', 'Thursday')
+	const move = await page.getByRole('dialog').evaluate((element) => {
+		const label = element.querySelector('[data-slot="move-series-preview-label"]')
+		const preview = element.querySelector('[data-slot="move-series-preview"]')
+		const zone = element.querySelector('[data-slot="move-series-zone"]')
+		const note = element.querySelector('[data-slot="move-series-note"]')
+		const sizes = (node) => (node ? getComputedStyle(node).fontSize : null)
+		return {
+			labelClass: label?.className ?? '',
+			labelSize: sizes(label),
+			valueSize: sizes(preview?.lastElementChild),
+			zoneClass: zone?.className ?? '',
+			zone: zone?.textContent ?? null,
+			zoneSize: sizes(zone),
+			noteClass: note?.className ?? '',
+			noteSize: sizes(note),
+		}
+	})
+	check(
+		'A: "First lesson" is body, 13px',
+		move.labelClass.includes('text-body') && move.labelSize === '13px' && move.valueSize === '13px',
+		JSON.stringify(move)
+	)
+	check(
+		'A: the second-zone line under New start time is caption, 12px',
+		move.zoneClass.includes('text-caption') && move.zoneSize === '12px' && move.zone === '13:00 MSK',
+		`${move.zone} ${move.zoneClass} ${move.zoneSize}`
+	)
+	check(
+		'A: the rule under the preview is caption, 12px',
+		move.noteClass.includes('text-caption') && move.noteSize === '12px',
+		`${move.noteClass} ${move.noteSize}`
+	)
+	await shot(page, 'sched-forms', 'move-series')
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(400)
+
+	await newButton(page).click()
+	await dialog.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	await pickTime(page, '18:00')
+	await pickOption(page, 'new-lesson-repeats', 'Every week')
+	const created = await page.getByRole('dialog').evaluate((element) => {
+		const zone = element.querySelector('[data-slot="new-lesson-zone"]')
+		const repeat = element.querySelector('[data-slot="new-lesson-repeat-note"]')
+		return {
+			zone: zone?.textContent ?? null,
+			zoneClass: zone?.className ?? '',
+			zoneSize: zone ? getComputedStyle(zone).fontSize : null,
+			repeat: repeat?.textContent ?? null,
+			repeatClass: repeat?.className ?? '',
+		}
+	})
+	check(
+		'new lesson: the line under Start time is caption, 12px',
+		created.zoneClass.includes('text-caption') && created.zoneSize === '12px' && created.zone === '14:00 MSK',
+		`${created.zone} ${created.zoneClass} ${created.zoneSize}`
+	)
+	check(
+		'new lesson: Repeats names the series in VN until it is ended',
+		/^Every [A-Z][a-z]+day at 18:00 VN until you end the series\.$/.test(created.repeat ?? '') &&
+			created.repeatClass.includes('text-caption'),
+		`${created.repeat} ${created.repeatClass}`
+	)
+	await shot(page, 'sched-forms', 'new-lesson-repeats')
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(400)
+
+	await openBlockDialog(page, FORMS_B, fx.wednesday)
+	await formsSeriesDialogs(page, FORMS_B, {
+		label: 'B (Moscow, previous day)',
+		time: '02:00',
+		when: 'Wednesday at 02:00 VN (Tue 22:00 MSK)',
+		line: 'Every Tuesday at 22:00 MSK',
+	})
+	await shot(page, 'sched-forms', 'end-series-shifted')
+	await page.getByRole('dialog').getByRole('button', { name: 'Keep series' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.waitForTimeout(400)
+	await openBlockDialog(page, FORMS_B, fx.wednesday)
+	await dialog.getByRole('button', { name: 'Move series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'Lessons before this date stay' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	facts = await seriesDialogFacts(page)
+	check(
+		'B: Move series description carries the day of the second zone',
+		facts.text.includes(`${FORMS_B}. Now every Wednesday at 02:00 VN (Tue 22:00 MSK).`),
+		facts.text.slice(0, 140)
+	)
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+
+	await page.evaluate(() => localStorage.setItem('dv-lab.schedule.second-zone', 'Pacific/Auckland'))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	await page.waitForTimeout(400)
+	nav.monday = core.mondayOf(fx.today)
+	await goToWeek(page, nav, core.mondayOf(fx.wednesday))
+	await openBlockDialog(page, FORMS_C, fx.wednesday)
+	const auckland = await formsSeriesBox(page)
+	check(
+		'C (Auckland): the second zone line starts with the other weekday',
+		/^Every Thursday at \d\d:\d\d /.test(auckland.second ?? '') && auckland.secondClass.includes('text-micro'),
+		auckland.second ?? 'none'
+	)
+	await dialog.getByRole('button', { name: 'End series' }).click()
+	await page.getByRole('dialog').filter({ hasText: 'End this series?' }).waitFor({ timeout: 10000 })
+	await page.waitForTimeout(400)
+	facts = await seriesDialogFacts(page)
+	check(
+		'C (Auckland): End series description carries the short weekday of the second zone',
+		new RegExp(`${FORMS_C}, every Wednesday at 22:00 VN \\(Thu \\d\\d:\\d\\d [^)]+\\)\\.`).test(facts.text),
+		facts.text.slice(0, 140)
+	)
+	await page.getByRole('dialog').getByRole('button', { name: 'Keep series' }).click()
+	await dialog.waitFor({ state: 'detached', timeout: 10000 })
+	await page.evaluate(() => localStorage.removeItem('dv-lab.schedule.second-zone'))
+	await page.reload()
+	await page.locator('[data-slot="week-grid"]').waitFor({ timeout: 45000 })
+	nav.monday = core.mondayOf(fx.today)
+
+	await page.goto(`${BASE}/students`)
+	await page.getByRole('heading', { name: 'Students', level: 1 }).waitFor({ timeout: 30000 })
+	const row = page.locator('tbody tr', { hasText: FORMS_D })
+	await row.waitFor({ timeout: 15000 })
+	const noneSpans = await row.evaluate((element) =>
+		Array.from(element.querySelectorAll('span'))
+			.filter((span) => span.textContent === 'None')
+			.map((span) => span.className)
+	)
+	check(
+		'students: Next lesson of a card without lessons reads "None", muted',
+		noneSpans.length === 1 && noneSpans[0].includes('text-muted-foreground'),
+		noneSpans.join('|')
+	)
+	check('students: no lowercase "none" anywhere', (await page.getByText('none', { exact: true }).count()) === 0)
+	console.log('FORMS_PART1_OK')
+}
+
+async function forms() {
+	cleanupFixtures('forms start', FORMS_LIKE)
+	const { browser, page, problems } = await launch({ width: 1440, height: 900 })
+	try {
+		await setTheme(page)
+		await signIn(page)
+		const fx = await formsFixtures(page)
+		const nav = { monday: core.mondayOf(fx.today) }
+		await formsPart1(page, fx, nav)
+		const real = problems.filter((problem) => !problem.includes('net::ERR_FAILED'))
+		check('no console problems', real.length === 0, real.slice(0, 2).join(' | '))
+	} finally {
+		await browser.close()
+		cleanupFixtures('forms end', FORMS_LIKE)
+	}
+}
+
+const sections = { fade, frame, read, changes, students, grid, forms }
 
 if (!sections[section]) {
 	console.log(`usage: schedule-web.mjs ${Object.keys(sections).join('|')} [dark]`)

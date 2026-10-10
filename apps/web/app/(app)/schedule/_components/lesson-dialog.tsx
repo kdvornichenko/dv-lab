@@ -24,6 +24,7 @@ import {
 	formatRange,
 	secondRange,
 	seriesPhrase,
+	seriesSecondLine,
 	vnDayAt,
 	vnDayTime,
 	weekdayName,
@@ -117,6 +118,7 @@ export function LessonDialog({
 	const plannedActions = live && block.status === 'scheduled'
 	const restoreAction = live && block.status === 'cancelled'
 	const seriesActions = live && block.ref.kind === 'series' && block.status !== 'moved'
+	const seriesSecond = series === null ? null : seriesSecondLine(series, secondZone, now)
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
 		if (pending) return
@@ -203,18 +205,20 @@ export function LessonDialog({
 							)}
 						</dl>
 						{seriesActions && series !== null ? (
-							<div
-								data-slot="lesson-series"
-								className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-hover p-4"
-							>
+							<div data-slot="lesson-series" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
 								<div className="flex min-w-0 flex-col gap-1">
 									<p className="text-body font-semibold text-foreground">Whole series</p>
-									<p className="text-caption text-muted-foreground tabular-nums">
+									<p data-slot="lesson-series-main" className="text-caption text-muted-foreground tabular-nums">
 										{seriesPhrase(series.weekday, series.startTime)} VN · from{' '}
 										{formatDate(series.startsOn, currentYear)}
 									</p>
+									{seriesSecond === null ? null : (
+										<p data-slot="lesson-series-second" className="text-micro text-muted-foreground tabular-nums">
+											{seriesSecond}
+										</p>
+									)}
 								</div>
-								<div className="flex flex-wrap gap-2">
+								<div data-slot="lesson-series-actions" className="flex flex-wrap gap-2">
 									<Button
 										type="button"
 										variant="secondary"
