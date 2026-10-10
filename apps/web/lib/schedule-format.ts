@@ -181,10 +181,6 @@ export function secondWhen(instant: Date, zone: string | null): string | null {
 	return `${weekdayShort(date)} ${time} ${caption}`
 }
 
-export function weeksBetween(fromMonday: string, toMonday: string): number {
-	return Math.round((Date.parse(`${toMonday}T00:00:00Z`) - Date.parse(`${fromMonday}T00:00:00Z`)) / (7 * 86400000))
-}
-
 export function withSecond(main: string, second: string | null): string {
 	return second === null ? main : `${main} (${second})`
 }

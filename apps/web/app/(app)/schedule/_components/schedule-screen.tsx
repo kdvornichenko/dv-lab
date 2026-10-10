@@ -16,7 +16,6 @@ import {
 	weekPhrase,
 	weekRange,
 	weekSummary,
-	weeksBetween,
 } from '@/lib/schedule-format'
 import { exitFallbackMs, spring } from '@/lib/springs'
 import { zoneCaption } from '@/lib/time-zones'
@@ -93,7 +92,7 @@ export function ScheduleScreen() {
 }
 
 function LoadedSchedule({ now }: { now: Date }) {
-	const [offset, setOffset] = useState(0)
+	const [monday, setMonday] = useState(() => mondayOf(zonedParts(now, SCHEDULE_TIME_ZONE).date))
 	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
@@ -108,7 +107,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const today = zonedParts(now, SCHEDULE_TIME_ZONE).date
 	const currentYear = Number(today.slice(0, 4))
 	const currentMonday = mondayOf(today)
-	const monday = addDays(currentMonday, offset * 7)
 	const [zone, setZone] = useSecondZone()
 	const secondZone: SecondZone | null = zone
 		? { id: zone, caption: zoneCaption(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE), 'gutter') }
@@ -245,13 +243,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 
 	function openPair(target: PairTarget) {
 		const targetMonday = mondayOf(zonedParts(target.at, SCHEDULE_TIME_ZONE).date)
-		setOffset(weeksBetween(currentMonday, targetMonday))
+		setMonday(targetMonday)
 		setLesson({ key: target.key, slot: target.slot })
 	}
 
-	function go(change: (value: number) => number) {
+	function go(change: (value: string) => string) {
 		setLesson(null)
-		setOffset(change)
+		setMonday(change)
 	}
 
 	const week: WeekState = loaded !== null && loaded.monday === monday ? loaded.state : { kind: 'loading' }
@@ -302,9 +300,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 			<ScheduleToolbar
 				monday={monday}
 				currentMonday={currentMonday}
-				onToday={() => go(() => 0)}
-				onPrevious={() => go((value) => value - 1)}
-				onNext={() => go((value) => value + 1)}
+				onToday={() => go(() => currentMonday)}
+				onPrevious={() => go((value) => addDays(value, -7))}
+				onNext={() => go((value) => addDays(value, 7))}
 				zoneControl={<SecondZoneSelect zone={zone} monday={monday} onChange={setZone} />}
 			/>
 			{ready ? (
