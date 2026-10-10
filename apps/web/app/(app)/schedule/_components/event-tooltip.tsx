@@ -84,16 +84,16 @@ export function EventTooltip({ block, layout, secondZone, currentYear, onOpen }:
 			content={
 				<div data-slot="event-tooltip" className="flex flex-col gap-1">
 					<span className="text-body font-semibold">{block.studentName}</span>
-					<span className="text-caption text-muted-foreground">
+					<span className="text-body text-muted-foreground">
 						{formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)}
 					</span>
 					<TimePair
 						as="span"
 						main={`${formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN`}
 						second={second}
-						mainClassName="text-caption tabular-nums"
+						mainClassName="text-body tabular-nums"
 					/>
-					<span className="text-caption">
+					<span className="text-body">
 						<LessonStatus status={block.status} movedTo={movedTo} />
 					</span>
 				</div>

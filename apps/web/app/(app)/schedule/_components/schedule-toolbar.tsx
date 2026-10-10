@@ -51,7 +51,13 @@ export function ScheduleToolbar({
 
 	return (
 		<div data-slot="schedule-toolbar" className="flex flex-wrap items-center gap-2">
-			<Button variant="tertiary" size="compact" disabled={monday === currentMonday} onClick={onToday}>
+			<Button
+				variant="tertiary"
+				size="compact"
+				className="rounded-full"
+				disabled={monday === currentMonday}
+				onClick={onToday}
+			>
 				Today
 			</Button>
 			<div className="flex items-center gap-1">

@@ -156,7 +156,8 @@ export function lessonCount(count: number): string {
 export function weekSummary(blocks: readonly { status: string; studentId: string }[]): string {
 	const planned = blocks.filter((block) => block.status === 'scheduled')
 	const cancelled = blocks.filter((block) => block.status === 'cancelled').length
-	if (planned.length === 0 && cancelled === 0) return 'No lessons this week'
+	if (planned.length === 0)
+		return cancelled > 0 ? `No lessons this week · ${cancelled} cancelled` : 'No lessons this week'
 	const students = new Set(planned.map((block) => block.studentId)).size
 	const lessons = `${planned.length} ${planned.length === 1 ? 'lesson' : 'lessons'}`
 	const people = `${students} ${students === 1 ? 'student' : 'students'}`

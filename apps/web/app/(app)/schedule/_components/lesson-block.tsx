@@ -88,7 +88,7 @@ export function LessonBlock({
 		vnRange(start, block.durationMinutes, secondZone),
 		statusWord,
 	].join(', ')
-	const short = block.durationMinutes <= 30
+	const short = block.durationMinutes < 45
 	const lines = short
 		? [
 				movedLabel !== null
