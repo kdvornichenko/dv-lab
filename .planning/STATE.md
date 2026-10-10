@@ -4,17 +4,17 @@ milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
 current_phase: 21
 current_phase_name: Lesson Accounting and Today
-status: executed
-stopped_at: Phase 21 context gathered; next /gsd-plan-phase 21
-last_updated: "2026-10-10T14:27:56.151Z"
+status: executing
+stopped_at: Phase 21 planned (16 plans, 10 waves), plan review accepted; next /gsd-execute-phase 21
+last_updated: "2026-10-10T14:56:00.187Z"
 last_activity: 2026-10-10
-last_activity_desc: Phase 20 executed (10/10 plans), review fixes and End series fix applied
-state_head: 3be745e60dc05f55e7c2793392d3eac1686c1099
+last_activity_desc: Phase 21 execution started
+state_head: 05b1634f8d8b3fe7f8dbaee41c37acfe8b34bee4
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 75
-  completed_plans: 49
+  completed_plans: 59
   percent: 0
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 20 — Schedule (executed; PR and release next, then Phase 21)
+**Current focus:** Phase 21 — Lesson Accounting and Today
 
 ## Current Position
 
-Phase: 21 (Lesson Accounting and Today) — READY TO EXECUTE
-Plan: 10 of 10
-Status: Phase 20 is built and verified by scripts (schedule-db/core/api/web, both themes); review and security (36/36) are closed. Needs the owner and Server guy: manual look at the week grid, the migrations 20261010075813_schedule and 20261010103628_schedule_revoke_delete on the server (see 20-10-SUMMARY, "Для выката"). Phase 19 is released; remaining human steps from before: change the password on dv-lab.dev, set the opening balance on every card, return the apex TTL (RUNBOOK 3.5).
-Last activity: 2026-10-10 — Phase 20 executed
+Phase: 21 (Lesson Accounting and Today) — EXECUTING
+Plan: 1 of 16
+Status: Executing Phase 21
+Last activity: 2026-10-10 — Phase 21 execution started
 
 Progress: [░░░░░░░░░░] 0% of phases 17-19 executed
 
