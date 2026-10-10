@@ -4,11 +4,11 @@ milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
 current_phase: 20
 current_phase_name: Schedule
-status: paused
-stopped_at: Phase 20 UI-SPEC approved
-last_updated: "2026-10-10T05:54:03.119Z"
+status: executed
+stopped_at: Phase 20 executed, verified and reviewed; PR next
+last_updated: "2026-10-10T18:00:00.000Z"
 last_activity: 2026-10-10
-last_activity_desc: Phase 17 execution started
+last_activity_desc: Phase 20 executed (10/10 plans), review fixes and End series fix applied
 state_head: 9936205159f2139b122bac247411e28617962f08
 progress:
   total_phases: 10
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 20 — Schedule (not started; discuss-phase next)
+**Current focus:** Phase 20 — Schedule (executed; PR and release next, then Phase 21)
 
 ## Current Position
 
-Phase: 20 (Schedule) — NOT STARTED
-Plan: 0 of 0
-Status: Phase 19 is done: merged, released on the VPS (DEPLOY_OK on d24da59) and the one-time vault import ran (RUNBOOK 11.2, never repeat). Phase 18 is live and the owner signed in; the password change is not confirmed (auth_epoch 0). Remaining human steps: change the password on dv-lab.dev, set the opening balance on every card, return the apex TTL (RUNBOOK 3.5).
-Last activity: 2026-10-10 — Phase 19 released and imported; session paused before phase 20
+Phase: 20 (Schedule) — EXECUTED
+Plan: 10 of 10
+Status: Phase 20 is built and verified by scripts (schedule-db/core/api/web, both themes); review and security (36/36) are closed. Needs the owner and Server guy: manual look at the week grid, the migrations 20261010075813_schedule and 20261010103628_schedule_revoke_delete on the server (see 20-10-SUMMARY, "Для выката"). Phase 19 is released; remaining human steps from before: change the password on dv-lab.dev, set the opening balance on every card, return the apex TTL (RUNBOOK 3.5).
+Last activity: 2026-10-10 — Phase 20 executed
 
 Progress: [░░░░░░░░░░] 0% of phases 17-19 executed
 

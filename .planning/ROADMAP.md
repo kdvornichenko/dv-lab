@@ -179,7 +179,7 @@ Plans:
   4. The grid shows Vietnam time by default and can show a second time zone next to it.
   5. The students list has status tabs and search and shows each student's remaining lessons and next lesson.
 
-**Plans**: 9/10 plans executed
+**Plans**: 10/10 plans executed
 
 Plans:
 **Wave 1**
@@ -202,7 +202,7 @@ Plans:
 - [x] 20-09-PLAN.md — Students list: search, controlled tabs, Next lesson column; student form on the shared time-zones module (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 20-10-PLAN.md — Final verification: AGENTS.md, full checks, privacy, five criteria by hand (W6)
+- [x] 20-10-PLAN.md — Final verification: AGENTS.md, full checks, privacy, five criteria by hand (W6)
 
 **UI hint**: yes
 
@@ -309,7 +309,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 17. Skeleton on the Server | v2.0 | 13/13 | In Progress|  |
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
-| 20. Schedule | v2.0 | 9/10 | In Progress|  |
+| 20. Schedule | v2.0 | 10/10 | In Progress|  |
 | 21. Lesson Accounting and Today | v2.0 | 0/TBD | Not started | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
