@@ -218,7 +218,7 @@ Plans:
   4. The "pays soon" list shows students with at most N lessons left or none, N is a setting with default 2, and Today shows counters, today's lessons and this list from real data.
   5. The students list, the profile, Today and "pays soon" show the same balance because they call the same `packages/core` functions, and those rules are covered by unit tests.
 
-**Plans**: 3/16 plans executed
+**Plans**: 6/16 plans executed
 
 Plans:
 **Wave 1**
@@ -227,9 +227,9 @@ Plans:
 - [x] 21-03-PLAN.md — UI-A1: phase 20 design fixes 4 (tooltip), 5, 6, 7, 11 per design v36 (gutter, toolbar, short blocks, week summary, tooltip tokens) (W1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 21-04-PLAN.md — API marks: `POST …/mark`, week with outcome and actions, cancel and restore of started lessons, marks survive series cuts, concurrent requests (W2)
-- [ ] 21-05-PLAN.md — API settings: Pays soon threshold on the teacher account, `GET/PATCH /settings` (W2)
-- [ ] 21-14-PLAN.md — UI-A2: phase 20 design fixes 1-3, 4 (dialogs), 8-10 per design v36 (series texts, First lesson and Start time caption, move form, fields, fades) (W2)
+- [x] 21-04-PLAN.md — API marks: `POST …/mark`, week with outcome and actions, cancel and restore of started lessons, marks survive series cuts, concurrent requests (W2)
+- [x] 21-05-PLAN.md — API settings: Pays soon threshold on the teacher account, `GET/PATCH /settings` (W2)
+- [x] 21-14-PLAN.md — UI-A2: phase 20 design fixes 1-3, 4 (dialogs), 8-10 per design v36 (series texts, First lesson and Start time caption, move form, fields, fades) (W2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 21-06-PLAN.md — UI-B: phase 20 design fixes 12-18 (zone labels, TimeZonePicker with favorites, Settings General, drag to create) (W3)
@@ -337,6 +337,10 @@ Plans:
 **UI hint**: yes
 **Notes**: ielts code is ported as is. A rollout is not started while an ielts room has active students.
 
+## Backlog
+
+- **Base time zone as a setting**: `SCHEDULE_TIME_ZONE` (`Asia/Ho_Chi_Minh`) becomes a teacher setting. The zone is stored on each series and lesson (existing rows stay `Asia/Ho_Chi_Minh`, new ones use the current setting), "today" for the ledger comes from the setting, the "VN" label leaves the UI. Planned after Phase 23 and before Phase 24, because Google Calendar sync depends on zones. Design: artifact v37 (copy in `~/dv-lab-design`): Settings page (General tab), Default time zone card on the existing `TimeZonePicker`, `ZoneChangeDialog`, zone label instead of "VN". Owner decisions: existing lessons are shown in the new zone (same instant, the series zone appears only in lesson details); a lesson near midnight may change day in the ledger because the opening-balance boundary follows the new zone; the old default zone becomes the second zone when the new default equals the current second zone.
+
 ## Progress
 
 **Execution Order:**
@@ -348,7 +352,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 10/10 | In Progress|  |
-| 21. Lesson Accounting and Today | v2.0 | 3/16 | In Progress|  |
+| 21. Lesson Accounting and Today | v2.0 | 6/16 | In Progress|  |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
 | 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Not started | - |
