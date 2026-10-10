@@ -6,9 +6,9 @@ import { parseEnv } from 'node:util'
 import { ENV_TEST, ROOT, quote, sql } from './api.mjs'
 
 const MIGRATIONS = `${ROOT}/packages/db/drizzle`
-const EXPECTED_FOLDERS = 4
+const EXPECTED_FOLDERS = 5
 const TABLES = ['lesson_series', 'lesson_exceptions', 'lessons']
-const PRIVILEGES = { select: true, insert: true, update: true, delete: true, truncate: false }
+const PRIVILEGES = { select: true, insert: true, update: true, delete: false, truncate: false }
 
 const folders = () =>
 	readdirSync(MIGRATIONS, { withFileTypes: true })
@@ -58,7 +58,13 @@ function checkMigrationFile() {
 	for (const word of [/\bDROP\b/, /\bRENAME\b/, /CREATE EXTENSION/]) {
 		if (word.test(text)) fail(`migration.sql contains ${word.source}`)
 	}
-	console.log(`PASS migration file ${schedule[0]} folders ${names.length}`)
+	const revoke = names.filter((name) => name.endsWith('_schedule_revoke_delete'))
+	if (revoke.length !== 1) fail(`schedule_revoke_delete migration folders ${revoke.length}, expected 1`)
+	const revokeText = readFileSync(`${MIGRATIONS}/${revoke[0]}/migration.sql`, 'utf8')
+	if (!/REVOKE DELETE, TRUNCATE ON "lesson_series", "lesson_exceptions", "lessons" FROM "dvlab_app"/.test(revokeText)) {
+		fail('schedule_revoke_delete migration lacks the REVOKE')
+	}
+	console.log(`PASS migration files ${schedule[0]} ${revoke[0]} folders ${names.length}`)
 }
 
 function runProbes() {
@@ -142,7 +148,7 @@ function checkPrivileges() {
 			if (got !== expected) fail(`dvlab_app ${privilege} on ${table} is ${got}, expected ${expected}`)
 		}
 	}
-	console.log('PASS privileges dvlab_app select insert update delete, no truncate')
+	console.log('PASS privileges dvlab_app select insert update, no delete, no truncate')
 }
 
 function catalog() {
