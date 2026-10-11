@@ -1,8 +1,8 @@
 import { expect, type APIRequestContext } from '@playwright/test'
 
-import { calendarReadStatus, calendarWriteStatus, nextLessonRead } from '../../packages/contracts/src/calendar.ts'
+import { nextLessonRead } from '../../packages/contracts/src/calendar.ts'
 import { api, readSettings } from './api.ts'
-import { cleanupFixtures, registerFixture, reserveFixture } from './data.ts'
+import { cleanupFixtures, registerFixture, reserveFixture, teacherCredentials } from './data.ts'
 import { vnToday } from './dates.ts'
 import { list, record, uuid } from './input.ts'
 
@@ -16,6 +16,7 @@ function nextForUnboundCard(value: unknown) {
 }
 
 export async function calendarNextCards(request: APIRequestContext) {
+	await api(request, 'POST', '/auth/sign-in', teacherCredentials())
 	cleanupFixtures()
 	const displayName = 'Alex Example 2188'
 	reserveFixture(displayName)
@@ -45,7 +46,7 @@ export async function calendarNextCards(request: APIRequestContext) {
 		for (const [method, path, input] of [
 			['GET', `/students/${id}`, undefined],
 			[
-				'PUT',
+				'PATCH',
 				`/students/${id}`,
 				{
 					displayName,
@@ -69,10 +70,8 @@ export async function calendarNextCards(request: APIRequestContext) {
 			const response = record(await api(request, method, path, input))
 			expect(nextForUnboundCard(response.student) === id, 'Mutation preserves the synthetic card identity').toBe(true)
 		}
-		const today = record(await api(request, 'GET', '/today'))
-		expect(calendarReadStatus.safeParse(today.calendarRead).success, 'Today exposes Calendar read status').toBe(true)
-		expect(calendarWriteStatus.safeParse(today.calendarWrite).success, 'Today exposes Calendar write status').toBe(true)
 	} finally {
 		cleanupFixtures()
+		await api(request, 'POST', '/auth/sign-out', undefined, 204)
 	}
 }

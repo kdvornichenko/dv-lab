@@ -1,11 +1,34 @@
 import type { ScheduleSeries, TodayResponse } from '@dv-lab/contracts'
-import { MARK_LOOKBACK_DAYS, addDays, needsMark, paysSoonList, scheduleToday, startOfZonedDay } from '@dv-lab/core'
+import {
+	MARK_LOOKBACK_DAYS,
+	addDays,
+	needsMark,
+	paysSoonList,
+	scheduleToday,
+	startOfZonedDay,
+	weekdayOf,
+} from '@dv-lab/core'
 import type { DbExecutor } from '@dv-lab/db'
 
+import { readCalendarWindow } from '../calendar/read-model.ts'
+import type { CalendarReadSelection } from '../calendar/reads.ts'
+import type { CardReadContext } from '../cards/card-facts.ts'
 import { listCards } from '../cards/cards.ts'
 import { filterHistoryBlocks } from '../schedule/rows.ts'
 import { readWindow } from '../schedule/schedule.ts'
 import type { TeacherTimeContext } from '../settings/settings.ts'
+import { calendarLessons } from './calendar-lessons.ts'
+
+export function todayWindow(context: TeacherTimeContext): Extract<CalendarReadSelection, { kind: 'window' }> {
+	const date = scheduleToday(context.now, context.defaultTimeZone)
+	const monday = addDays(date, 1 - weekdayOf(date))
+	return {
+		kind: 'window',
+		start: startOfZonedDay(monday, context.defaultTimeZone),
+		end: startOfZonedDay(addDays(monday, 7), context.defaultTimeZone),
+		displayTimeZone: context.defaultTimeZone,
+	}
+}
 
 function uniqueSeries(...lists: ScheduleSeries[][]): ScheduleSeries[] {
 	const byId = new Map<string, ScheduleSeries>()
@@ -15,13 +38,16 @@ function uniqueSeries(...lists: ScheduleSeries[][]): ScheduleSeries[] {
 
 export async function readToday(
 	executor: DbExecutor,
-	context: TeacherTimeContext & { accountId: string },
+	context: CardReadContext,
 	paysSoonLessons: number
 ): Promise<TodayResponse> {
 	const { now, defaultTimeZone } = context
 	const date = scheduleToday(now, defaultTimeZone)
 	const dayStart = startOfZonedDay(date, defaultTimeZone)
-	const day = await readWindow(executor, dayStart, startOfZonedDay(addDays(date, 1), defaultTimeZone), context)
+	const dayEnd = startOfZonedDay(addDays(date, 1), defaultTimeZone)
+	const calendar = await readCalendarWindow(executor, context, todayWindow(context))
+	const upcoming = await calendarLessons(executor, calendar.events, now, dayEnd)
+	const day = await readWindow(executor, dayStart, new Date(now.getTime() + 1), context)
 	const past = await readWindow(
 		executor,
 		startOfZonedDay(addDays(date, -MARK_LOOKBACK_DAYS), defaultTimeZone),
@@ -30,7 +56,9 @@ export async function readToday(
 	)
 	const history = await filterHistoryBlocks(executor, context.accountId, [...day.blocks, ...past.blocks])
 	const allowed = new Set(history.map((block) => block.key))
-	const lessons = day.blocks.filter((block) => allowed.has(block.key))
+	const lessons = [...day.blocks.filter((block) => allowed.has(block.key)), ...upcoming].sort((left, right) =>
+		left.startsAt.localeCompare(right.startsAt)
+	)
 	const daySeries = new Set(lessons.flatMap((block) => (block.ref.kind === 'series' ? [block.ref.seriesId] : [])))
 	const earlier = past.blocks
 		.filter((block) => allowed.has(block.key))
@@ -48,11 +76,14 @@ export async function readToday(
 		date,
 		defaultTimeZone,
 		asOf: now.toISOString(),
+		calendarRead: calendar.read,
+		calendarWrite: calendar.write,
 		lessons,
 		earlier,
 		series: uniqueSeries(
 			day.series.filter((series) => daySeries.has(series.id)),
-			past.series.filter((series) => earlierSeries.has(series.id))
+			past.series.filter((series) => earlierSeries.has(series.id)),
+			calendar.series.map((item) => item.series).filter((series) => daySeries.has(series.id))
 		),
 		paysSoon: paysSoonList(cards.students, paysSoonLessons),
 		paysSoonLessons,

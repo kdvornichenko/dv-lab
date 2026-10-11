@@ -8,12 +8,12 @@ import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
 import { EmptyLine } from '@/components/app/empty-line'
+import { NextLessonTime } from '@/components/app/google-calendar-state'
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
 import { StudentBalance } from '@/components/app/student-balance'
-import { TimePair } from '@/components/app/time-pair'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
-import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
+import { yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
@@ -47,21 +47,6 @@ function byName(left: StudentRow, right: StudentRow) {
 function matchesQuery(student: StudentRow, query: string) {
 	const text = query.trim().toLowerCase()
 	return text === '' || student.displayName.toLowerCase().includes(text)
-}
-
-function NextLesson({
-	at,
-	mainTimeZone,
-	zone,
-	currentYear,
-}: {
-	at: Date
-	mainTimeZone: string
-	zone: string | null
-	currentYear: number
-}) {
-	const second = secondWhen(at, mainTimeZone, zone)
-	return <TimePair main={formatWhen(at, mainTimeZone, currentYear)} second={second} />
 }
 
 function StudentsTable({ rows, searching, data }: { rows: StudentRow[]; searching: boolean; data: StudentsResponse }) {
@@ -130,16 +115,12 @@ function StudentsTable({ rows, searching, data }: { rows: StudentRow[]; searchin
 									/>
 								</TableCell>
 								<TableCell className="px-4 py-1 text-body tabular-nums">
-									{student.nextLessonAt === null ? (
-										<span className="text-muted-foreground">None</span>
-									) : (
-										<NextLesson
-											at={new Date(student.nextLessonAt)}
-											mainTimeZone={mainTimeZone}
-											zone={zone}
-											currentYear={currentYear}
-										/>
-									)}
+									<NextLessonTime
+										next={student.nextLesson}
+										timeZone={mainTimeZone}
+										secondZone={zone}
+										currentYear={currentYear}
+									/>
 								</TableCell>
 							</TableRow>
 						)
@@ -199,9 +180,14 @@ export function StudentsScreen() {
 					loading ? <SkeletonText className="w-48 py-0.5" /> : `${active.length} active, ${archived.length} archived`
 				}
 				actions={
-					<Button ref={createButton} leadingIcon={UserPlus} onClick={() => setCreateOpen(true)}>
-						New student
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button variant="secondary" onClick={() => void load()}>
+							Refresh
+						</Button>
+						<Button ref={createButton} leadingIcon={UserPlus} onClick={() => setCreateOpen(true)}>
+							New student
+						</Button>
+					</div>
 				}
 			/>
 		)
