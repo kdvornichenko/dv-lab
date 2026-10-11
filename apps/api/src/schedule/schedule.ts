@@ -170,22 +170,27 @@ export async function readWindow(
 ): Promise<Omit<ScheduleWeekResponse, 'start'>> {
 	const rows = await loadScheduleRows(executor, { from, to })
 	const placed = scheduleWindow({ ...rows, from, to })
+	const blocks = await wireBlocks(executor, placed, context.now)
+	const shown = new Set(blocks.flatMap((block) => (block.ref.kind === 'series' ? [block.ref.seriesId] : [])))
+	const references = await seriesReferenceExceptions(executor, [...shown])
+	return {
+		defaultTimeZone: context.defaultTimeZone,
+		asOf: context.now.toISOString(),
+		blocks,
+		series: rows.series
+			.filter((rule) => shown.has(rule.id))
+			.map((rule) => toWireSeries(rule, nextSeriesReference({ rule, exceptions: references, now: context.now }))),
+	}
+}
+
+export async function wireBlocks(executor: DbExecutor, placed: readonly CoreBlock[], now: Date): Promise<WireBlock[]> {
 	const marks = await loadMarks(
 		executor,
 		placed.map((block) => block.ref)
 	)
 	const blocks = withOutcomes(placed, marks)
 	const people = await blockStudents(executor, blocks)
-	const shown = new Set(blocks.flatMap((block) => (block.ref.kind === 'series' ? [block.ref.seriesId] : [])))
-	const references = await seriesReferenceExceptions(executor, [...shown])
-	return {
-		defaultTimeZone: context.defaultTimeZone,
-		asOf: context.now.toISOString(),
-		blocks: blocks.map((block) => toWireBlock(block, people, marks, context.now)),
-		series: rows.series
-			.filter((rule) => shown.has(rule.id))
-			.map((rule) => toWireSeries(rule, nextSeriesReference({ rule, exceptions: references, now: context.now }))),
-	}
+	return blocks.map((block) => toWireBlock(block, people, marks, now))
 }
 
 export async function readWeek(

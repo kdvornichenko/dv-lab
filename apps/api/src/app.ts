@@ -87,7 +87,7 @@ export function createApp(deps: AppDeps) {
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
 	app.route('/settings', settingsRoutes({ db: deps.db }))
-	app.route('/today', todayRoutes({ db: deps.db }))
+	app.route('/today', todayRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {
 			return c.json(clientErrorBody(err.status), err.status)
