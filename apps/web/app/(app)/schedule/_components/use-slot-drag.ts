@@ -47,12 +47,13 @@ interface Press {
 export function useSlotDrag(
 	bodyRef: RefObject<HTMLDivElement | null>,
 	hourHeight: number,
-	onSlot?: (choice: SlotChoice) => void
+	onSlot: ((choice: SlotChoice) => void) | undefined,
+	enabled: boolean
 ) {
 	const SLOT_HEIGHT = (hourHeight * SLOT_MINUTES) / 60
 	const pressRef = useRef<Press | null>(null)
 	const [drag, setDrag] = useState<DragState | null>(null)
-	const dragging = drag !== null
+	const dragging = enabled && drag !== null
 
 	const cancelDrag = useCallback(() => {
 		const press = pressRef.current
@@ -64,6 +65,10 @@ export function useSlotDrag(
 		}
 		setDrag(null)
 	}, [])
+
+	useEffect(() => {
+		return cancelDrag
+	}, [enabled, cancelDrag])
 
 	useEffect(() => {
 		if (!dragging) return
@@ -113,7 +118,7 @@ export function useSlotDrag(
 	}, [dragging, bodyRef, SLOT_HEIGHT])
 
 	function pressColumn(event: ReactPointerEvent<HTMLDivElement>, date: string) {
-		if (!onSlot || event.target !== event.currentTarget) return
+		if (!enabled || !onSlot || event.target !== event.currentTarget) return
 		if (event.button !== 0 || event.pointerType === 'touch') return
 		const column = event.currentTarget
 		pressRef.current = {
@@ -133,6 +138,7 @@ export function useSlotDrag(
 	}
 
 	function moveColumn(event: ReactPointerEvent<HTMLDivElement>) {
+		if (!enabled) return cancelDrag()
 		const press = pressRef.current
 		if (!press || event.pointerId !== press.pointerId) return
 		press.lastY = event.clientY
@@ -150,6 +156,7 @@ export function useSlotDrag(
 	}
 
 	function releaseColumn(event: ReactPointerEvent<HTMLDivElement>) {
+		if (!enabled) return cancelDrag()
 		const press = pressRef.current
 		if (!press || event.pointerId !== press.pointerId) return
 		const slot = press.slot
@@ -176,5 +183,5 @@ export function useSlotDrag(
 		})
 	}
 
-	return { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn }
+	return { drag: enabled ? drag : null, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn }
 }
