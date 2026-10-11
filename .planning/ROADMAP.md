@@ -491,7 +491,7 @@ Plans:
 4. When the same lesson changed in the app and in Google, the Google version is what remains after sync.
 5. Watch channels are renewed before they expire, and a change made while notifications were not delivered (for example while the API was stopped) appears after the nightly reconcile.
 
-**Plans**: TBD
+**Plans**: 12 plans, 30 tasks, 11 waves. Research, UI and independent plan checks prepared; implementation remains pending final Phase 24 interfaces.
 **UI hint**: yes
 
 ### Phase 26: IELTS Section
