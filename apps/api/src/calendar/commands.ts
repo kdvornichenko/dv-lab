@@ -4,7 +4,6 @@ import type { CalendarCommandReceipt, CalendarCommandSnapshot, ValidatedCalendar
 import { googleReadEvents, type Database } from '@dv-lab/db'
 
 import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
-import type { SingleCommand } from '../schedule/single-command.ts'
 import type { Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import { observeInstance } from './instance-observation.ts'
@@ -21,6 +20,7 @@ import {
 import type { ProviderEvent } from './provider-events.ts'
 import { traverseEvents } from './read-pages.ts'
 import type { CalendarReadContext } from './reads.ts'
+import { observeSeries, seriesBinding } from './series-observation.ts'
 import { observeSingle } from './single-observation.ts'
 
 export function createCalendarCommands(deps: {
@@ -36,6 +36,8 @@ export function createCalendarCommands(deps: {
 	): Promise<CalendarCommandReceipt> {
 		const existing = await findRequest(deps.db, context.accountId, input.input.requestId)
 		if (existing) return matchingReceipt(existing, input)
+		if (input.operation === 'move_series' || input.operation === 'end_series')
+			await seriesBinding(deps.db, context.accountId, input.seriesId)
 		const deadline = context.now.getTime() + 30000
 		if (Date.now() >= deadline) throw new CommandFault('not_applied')
 		const budget = AbortSignal.timeout(Math.max(0, deadline - Date.now()))
@@ -48,9 +50,7 @@ export function createCalendarCommands(deps: {
 						if (repeated) return matchingReceipt(repeated, input)
 						if ((await unresolvedCommands(access.db, context.accountId)).length)
 							throw new CommandFault('command_pending')
-						if (input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore')
-							return await admitSingle(access, context, input)
-						if (input.operation !== 'create') throw new CommandFault('history_only')
+						if (input.operation !== 'create') return await admitChange(access, context, input)
 						const window = await commandWindow(access.db, context.accountId, input.input.expectedVersion)
 						if (
 							window.snapshotRevision !== access.connection.snapshotRevision ||
@@ -105,15 +105,17 @@ export function createCalendarCommands(deps: {
 		await deps.wake(outcome.commandId).catch(() => undefined)
 		return outcome
 	}
-	async function admitSingle(
+	async function admitChange(
 		access: Parameters<Parameters<Credentials['withAccessToken']>[1]>[0],
 		context: CalendarReadContext,
-		input: SingleCommand
+		input: Exclude<ValidatedCalendarCommand, { operation: 'create' }>
 	) {
 		const observed =
-			input.ref.kind === 'series'
-				? await observeInstance(access, input, deps.gateway)
-				: await observeSingle(access, input, deps.gateway)
+			input.operation === 'move_series' || input.operation === 'end_series'
+				? await observeSeries(access, input, context.now, deps.gateway)
+				: input.ref.kind === 'series'
+					? await observeInstance(access, input, deps.gateway)
+					: await observeSingle(access, input, deps.gateway)
 		return access.db.transaction(async (tx) => {
 			access.signal.throwIfAborted()
 			const prepared = await prepareScheduleCommand(tx, input, context, observed)

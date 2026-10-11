@@ -7,6 +7,8 @@ import {
 	createCalendarLessonRequest,
 	moveCalendarLessonRequest,
 	calendarLessonActionRequest,
+	moveCalendarSeriesRequest,
+	endCalendarSeriesRequest,
 	isIsoDate,
 	markLessonRequest,
 	scheduleWeekStart,
@@ -175,8 +177,25 @@ export function scheduleRoutes({ db, calendarReads, calendarCommands }: Schedule
 			}
 		})
 	}
-	for (const path of ['/series/:id/move', '/series/:id/end']) {
-		routes.post(path, (c) => c.json(errorBody('history_only', 'This calendar action is not available yet'), 409))
+	for (const operation of ['move_series', 'end_series'] as const) {
+		routes.post(`/series/:id/${operation === 'move_series' ? 'move' : 'end'}`, async (c) => {
+			const id = idParam(c)
+			if (!id) return notFound(c)
+			if (!calendarCommands) return commandRefusal(c, new CalendarFault('connection_required'))
+			try {
+				const context = { accountId: c.get('session').account.id, now: new Date() }
+				if (operation === 'move_series') {
+					const input = await readJson(c, moveCalendarSeriesRequest)
+					if (!input) return invalidRequest(c)
+					return c.json(await calendarCommands.submitCalendarCommand(context, { operation, seriesId: id, input }), 202)
+				}
+				const input = await readJson(c, endCalendarSeriesRequest)
+				if (!input) return invalidRequest(c)
+				return c.json(await calendarCommands.submitCalendarCommand(context, { operation, seriesId: id, input }), 202)
+			} catch (error) {
+				return commandRefusal(c, error)
+			}
+		})
 	}
 
 	routes.post('/series/:id/occurrences/:originalOn/mark', async (c) => {

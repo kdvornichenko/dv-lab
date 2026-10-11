@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { googleCutPlan, googleCutAcknowledgements } from './calendar-transition-values.ts'
+
 const instant = z.iso.datetime({ offset: true })
 const isoDate = z.iso.date()
 const zone = z.string().min(1).max(64)
@@ -131,6 +133,7 @@ const lineage = z.strictObject({
 	beforeStartsAt: instant.optional(),
 	beforeDurationMinutes: z.number().int().min(15).max(240).optional(),
 	beforeStatus: z.enum(['scheduled', 'cancelled', 'moved']).optional(),
+	status: z.enum(['scheduled', 'cancelled']).optional(),
 })
 
 export const googleUnownedWritable = z.strictObject({
@@ -176,6 +179,7 @@ export const googleCommandPlan = z
 		affectedRefs: z.array(googleLocalRef.readonly()).readonly(),
 		oldEndsOn: isoDate.nullable(),
 		newRule: googleSeriesRule.nullable(),
+		cut: googleCutPlan.optional(),
 	})
 	.readonly()
 
@@ -254,10 +258,12 @@ export const googleStageRequest = z
 		}),
 		z.strictObject({ method: z.literal('get'), eventId }),
 		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
+		z.strictObject({ method: z.literal('family'), eventId }),
 	])
 	.readonly()
 
 export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
+	...googleCutAcknowledgements,
 	z.strictObject({
 		kind: z.literal('master'),
 		event: googleEventFact,
