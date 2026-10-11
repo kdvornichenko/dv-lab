@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { LoaderCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
 import { commitDefaultZoneChange, TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker'
@@ -17,10 +17,11 @@ import type { SettingsResponse, StudentsResponse, TeacherSettings } from '@dv-la
 
 import { useToast } from '../../_components/toasts'
 import { useMinuteNow } from '../../_components/use-minute-now'
+import { CalendarCard } from './calendar-card'
 import { PaymentsCard } from './payments-card'
 import { ZoneChangeDialog, type ZoneChangeExample } from './zone-change-dialog'
 
-const SETTINGS_TABS = ['general'] as const
+const SETTINGS_TABS = ['general', 'calendar'] as const
 
 type SettingsTab = (typeof SETTINGS_TABS)[number]
 type LoadState = 'loading' | 'ready' | 'failed'
@@ -352,6 +353,8 @@ function SecondZoneCard({
 
 export function SettingsScreen({ tab }: { tab: string | undefined }) {
 	const router = useRouter()
+	const callbackOutcome = useSearchParams().get('google')
+	const activeTab = callbackOutcome !== null ? 'calendar' : resolveTab(tab)
 	const state = useSettings()
 	const now = useMinuteNow()
 	const mainTimeZone = state.settings?.defaultTimeZone ?? null
@@ -359,9 +362,10 @@ export function SettingsScreen({ tab }: { tab: string | undefined }) {
 	return (
 		<PageScroll>
 			<PageHeader title="Settings" />
-			<Tabs value={resolveTab(tab)} onValueChange={(next) => router.replace(`/settings?tab=${resolveTab(next)}`)}>
+			<Tabs value={activeTab} onValueChange={(next) => router.replace(`/settings?tab=${resolveTab(next)}`)}>
 				<TabsList aria-label="Settings sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
 					<TabItem value="general" label="General" />
+					<TabItem value="calendar" label="Google Calendar" />
 				</TabsList>
 				<TabPanel value="general" className="mt-4">
 					<div className="flex max-w-180 flex-col gap-4">
@@ -375,6 +379,9 @@ export function SettingsScreen({ tab }: { tab: string | undefined }) {
 						/>
 						<PaymentsCard value={state.settings?.paysSoonLessons ?? null} onSaved={state.saveThreshold} />
 					</div>
+				</TabPanel>
+				<TabPanel value="calendar" className="mt-4">
+					{activeTab === 'calendar' ? <CalendarCard callbackOutcome={callbackOutcome} /> : null}
 				</TabPanel>
 			</Tabs>
 			{state.candidate !== null && mainTimeZone !== null && now !== null ? (
