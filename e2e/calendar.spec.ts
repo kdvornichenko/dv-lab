@@ -1,3 +1,5 @@
+import type { APIRequestContext } from '@playwright/test'
+
 import { googleConnectionSnapshot } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
 import { AUTH_FILE, BASE, teacherCredentials } from './support/data.ts'
@@ -54,48 +56,82 @@ test('[calendar] oauth refuses anonymous access and strips callback input', asyn
 	}
 })
 
-test.describe('teacher calendar authorization', () => {
-	test.use({ storageState: AUTH_FILE })
+const oauthTest = test.extend({
+	trace: 'off',
+	video: 'off',
+	screenshot: 'off',
+})
 
-	test('[calendar] oauth rejects foreign Origin and invalid state without replacing the grant', async ({ page }) => {
-		const before = googleConnectionSnapshot.parse(await api(page.request, 'GET', '/google/connection'))
-		const foreign = await page.request.post<unknown>(`${BASE}/api/google/connect`, {
-			headers: { origin: 'https://invalid.example' },
-			data: {},
+oauthTest.describe('teacher calendar authorization', () => {
+	oauthTest.use({ storageState: AUTH_FILE })
+
+	async function readConnection(request: APIRequestContext) {
+		const result = googleConnectionSnapshot.safeParse(await api(request, 'GET', '/google/connection'))
+		if (!result.success) throw new Error('Calendar connection response failed schema validation')
+		return result.data
+	}
+
+	async function callback(request: APIRequestContext, query: string) {
+		return request.get<unknown>(`${BASE}/api/google/callback?${query}`, { maxRedirects: 0 }).catch(() => {
+			throw new Error('OAuth callback request failed; request details suppressed')
 		})
-		expect(foreign.status()).toBe(403)
-		for (const query of ['code=synthetic-code', 'state=' + 'x'.repeat(43) + '&code=synthetic-code']) {
-			const response = await page.request.get<unknown>(`${BASE}/api/google/callback?${query}`, { maxRedirects: 0 })
-			expect(response.status()).toBe(303)
-			expect(response.headers()['location']).toBe('/settings?google=invalid_state')
-			expect(response.headers()['referrer-policy']).toBe('no-referrer')
-			expect(response.headers()['cache-control']).toBe('no-store')
-		}
-		expect(await api(page.request, 'GET', '/google/connection')).toEqual(before)
-	})
+	}
 
-	test('[calendar] oauth consumes denial once and binds state to the initiating session', async ({ page, browser }) => {
-		const before = googleConnectionSnapshot.parse(await api(page.request, 'GET', '/google/connection'))
-		const result = record(await api(page.request, 'POST', '/google/connect', {}))
-		const authorization = new URL(text(result.url))
-		const state = authorization.searchParams.get('state')
-		expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/)
-		expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
-		const callback = `${BASE}/api/google/callback?state=${state}&error=access_denied`
-		const other = await browser.newContext({ storageState: { cookies: [], origins: [] } })
-		try {
-			await api(other.request, 'POST', '/auth/sign-in', teacherCredentials())
-			const wrongSession = await other.request.get<unknown>(callback, { maxRedirects: 0 })
-			expect(wrongSession.headers()['location']).toBe('/settings?google=invalid_state')
-		} finally {
-			await other.close()
+	oauthTest(
+		'[calendar] oauth rejects foreign Origin and invalid state without replacing the grant',
+		async ({ page }) => {
+			const before = await readConnection(page.request)
+			const foreign = await page.request.post<unknown>(`${BASE}/api/google/connect`, {
+				headers: { origin: 'https://invalid.example' },
+				data: {},
+			})
+			expect(foreign.status()).toBe(403)
+			for (const query of ['code=synthetic-code', 'state=' + 'x'.repeat(43) + '&code=synthetic-code']) {
+				const response = await callback(page.request, query)
+				expect(response.status()).toBe(303)
+				expect(
+					response.headers()['location'] === '/settings?google=invalid_state',
+					'Clean invalid-state redirect'
+				).toBe(true)
+				expect(response.headers()['referrer-policy']).toBe('no-referrer')
+				expect(response.headers()['cache-control']).toBe('no-store')
+			}
+			expect(JSON.stringify(await readConnection(page.request)) === JSON.stringify(before), 'Grant is unchanged').toBe(
+				true
+			)
 		}
-		const denied = await page.request.get<unknown>(callback, { maxRedirects: 0 })
-		expect(denied.headers()['location']).toBe('/settings?google=denied')
-		const replay = await page.request.get<unknown>(callback, { maxRedirects: 0 })
-		expect(replay.headers()['location']).toBe('/settings?google=invalid_state')
-		expect(await api(page.request, 'GET', '/google/connection')).toEqual(before)
-	})
+	)
+
+	oauthTest(
+		'[calendar] oauth consumes denial once and binds state to the initiating session',
+		async ({ page, browser }) => {
+			const before = await readConnection(page.request)
+			const result = record(await api(page.request, 'POST', '/google/connect', {}))
+			const authorization = new URL(text(result.url))
+			const state = text(authorization.searchParams.get('state'))
+			expect(/^[A-Za-z0-9_-]{43}$/.test(state), 'OAuth state has the expected format').toBe(true)
+			expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
+			const query = `state=${encodeURIComponent(state)}&error=access_denied`
+			const other = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+			try {
+				await api(other.request, 'POST', '/auth/sign-in', teacherCredentials())
+				const wrongSession = await callback(other.request, query)
+				expect(
+					wrongSession.headers()['location'] === '/settings?google=invalid_state',
+					'Clean wrong-session redirect'
+				).toBe(true)
+			} finally {
+				await other.close()
+			}
+			const denied = await callback(page.request, query)
+			expect(denied.headers()['location'] === '/settings?google=denied', 'Clean denial redirect').toBe(true)
+			const replay = await callback(page.request, query)
+			expect(replay.headers()['location'] === '/settings?google=invalid_state', 'Clean replay redirect').toBe(true)
+			expect(JSON.stringify(await readConnection(page.request)) === JSON.stringify(before), 'Grant is unchanged').toBe(
+				true
+			)
+		}
+	)
 })
 
 test('[calendar] public pages keep the workspace private', async ({ page }) => {
