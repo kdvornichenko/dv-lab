@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 21
-current_phase_name: Lesson Accounting and Today
-status: executing
-stopped_at: Phase 21 all 18 plans executed; final reviews and verifier remain
-last_updated: "2026-10-11T08:49:00Z"
+current_phase: "21.1"
+current_phase_name: Default Time Zone
+status: planning
+stopped_at: Phase 21.1 context captured; technical research and plans pending
+last_updated: "2026-10-11T09:06:07.262Z"
 last_activity: 2026-10-11
-last_activity_desc: Phase 21 E2E complete; final root test and build passed
-state_head: f5e7083c7db741ec6a6d94b02dfd52ac85c21668
+last_activity_desc: Phase 21.1 started in a separate worktree while Phase 21 reviews finish
+state_head: 8c3cb5d8c01ed22f8512b66a155756d01c153430
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 0
   total_plans: 77
   completed_plans: 77
-  percent: 100
+  percent: 0
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 21 — Lesson Accounting and Today
+**Current focus:** Phase 21.1 — Default Time Zone
 
 ## Current Position
 
-Phase: 21 (Lesson Accounting and Today) — EXECUTING
-Plan: 18 of 18 completed
-Status: All waves executed; final reviews and phase verification remain
-Last activity: 2026-10-11 — 9 E2E journeys in both themes; final root test and build passed
+Phase: 21.1 (Default Time Zone) — PLANNING
+Plan: Not yet planned
+Status: Context captured; research and plans pending. Phase 21 final reviews continue in its own worktree.
+Last activity: 2026-10-11 — Added TZ-01…TZ-05 and recovered accepted time-zone decisions
 
-Progress: [██████████] 100% of Phase 21 plans executed (18/18)
+Progress: [░░░░░░░░░░] 0%
 
 ## Deferred Verification
 
@@ -97,6 +97,10 @@ None yet.
 - [Phase 26] No rollout while an ielts room has active students. ielts keeps running on Vercel and Neon until Phase 26; its phase 6.2 UAT is open in the ielts repository.
 - [Launch] Access from Russian networks to OVH is checked when the app is ready, before the 12-month commitment.
 
+### Roadmap Evolution
+
+- Phase 21.1 inserted after Phase 21: Default Time Zone before Google Calendar; parallel planning authorized 2026-10-11
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -107,6 +111,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T03:18:24Z
-Stopped at: Phase 21 all 18 plans executed; final reviews and verifier remain
-Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md
+Last session: 2026-10-11T09:06:07.134Z
+Stopped at: Phase 21.1 context captured; technical research and plans pending
+Resume file: .planning/phases/21.1-default-time-zone/21.1-CONTEXT.md
