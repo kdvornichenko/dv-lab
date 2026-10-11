@@ -8,7 +8,6 @@ import {
 	type ScheduleMarkResponse,
 	type ScheduleOccurrenceResponse,
 	type ScheduleSeriesResponse,
-	type ScheduleWeekResponse,
 	createLessonRequest,
 	endSeriesRequest,
 	isIsoDate,
@@ -18,10 +17,12 @@ import {
 	moveSeriesRequest,
 	scheduleWeekStart,
 } from '@dv-lab/contracts'
-import { weekdayOf } from '@dv-lab/core'
+import { addDays, startOfZonedDay, weekdayOf } from '@dv-lab/core'
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { readCalendarWindow } from '../calendar/read-model.ts'
+import type { CalendarReads, CalendarReadContext, CalendarReadSelection } from '../calendar/reads.ts'
 import { errorBody } from '../request-context.ts'
 import {
 	type ChangeFailure,
@@ -33,11 +34,11 @@ import {
 	restoreOccurrence,
 } from '../schedule/changes.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
-import { createLesson, readWeek } from '../schedule/schedule.ts'
+import { createLesson } from '../schedule/schedule.ts'
 import { endSeries, moveSeries } from '../schedule/series.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type ScheduleRouteDeps = { db: Database }
+type ScheduleRouteDeps = { db: Database; calendarReads?: CalendarReads }
 
 const WEEK_START_MIN = '2000-01-03'
 
@@ -92,7 +93,7 @@ function occurrenceParam(c: Context<AppEnv>): { seriesId: string; originalOn: st
 	return { seriesId, originalOn }
 }
 
-export function scheduleRoutes({ db }: ScheduleRouteDeps) {
+export function scheduleRoutes({ db, calendarReads }: ScheduleRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -100,12 +101,17 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 		const start = weekStart(c.req.query('start'))
 		if (start === null) return invalidRequest(c)
 		const accountId = c.get('session').account.id
-		const week = await readSnapshot(db, async (executor) => {
-			const now = new Date()
-			const settings = await readTeacherSettings(executor, accountId)
-			return readWeek(executor, start, { now, defaultTimeZone: settings.defaultTimeZone })
-		})
-		return c.json(week satisfies ScheduleWeekResponse, 200)
+		const context: CalendarReadContext = { accountId, now: new Date() }
+		const settings = await readTeacherSettings(db, accountId)
+		const selection: CalendarReadSelection = {
+			kind: 'window',
+			start: startOfZonedDay(start, settings.defaultTimeZone),
+			end: startOfZonedDay(addDays(start, 7), settings.defaultTimeZone),
+			displayTimeZone: settings.defaultTimeZone,
+		}
+		await calendarReads?.refreshCalendarRead(context, selection)
+		const week = await readSnapshot(db, (executor) => readCalendarWindow(executor, context, selection))
+		return c.json(week, 200)
 	})
 
 	routes.post('/lessons', async (c) => {

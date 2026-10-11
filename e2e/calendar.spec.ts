@@ -1,12 +1,26 @@
 import type { APIRequestContext } from '@playwright/test'
 
-import { googleConnectionSnapshot } from '../packages/contracts/src/calendar.ts'
+import { googleConnectionSnapshot, googleScheduleWindow } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
 import { AUTH_FILE, BASE, teacherCredentials } from './support/data.ts'
 import { record, text } from './support/input.ts'
 import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test('[calendar] window stays unavailable without a connection and never returns local fallback', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	for (const start of ['2030-01-07', '2030-01-14', '2030-01-07']) {
+		const parsed = googleScheduleWindow.safeParse(await api(page.request, 'GET', `/schedule/week?start=${start}`))
+		if (!parsed.success) throw new Error('Calendar window response failed schema validation')
+		const window = parsed.data
+		expect(window.connection.state === 'not_connected', 'The fixture has no active Calendar connection').toBe(true)
+		expect(window.read.state === 'unavailable', 'Disconnected window is unavailable').toBe(true)
+		expect(window.write.state === 'blocked', 'Disconnected window blocks writes').toBe(true)
+		expect(window.snapshotRange === null, 'No complete provider snapshot is claimed').toBe(true)
+		expect(window.events.length === 0 && window.series.length === 0, 'No legacy fallback is published').toBe(true)
+	}
+})
 
 test('[calendar] credential recovery refuses anonymous control requests', async ({ page }) => {
 	for (const path of ['/google/disconnect', '/google/disconnect/confirm-revoked']) {

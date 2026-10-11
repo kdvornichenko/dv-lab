@@ -1,0 +1,52 @@
+import { readSnapshot, type Database } from '@dv-lab/db'
+
+import type { Credentials } from './credentials.ts'
+import { loadMappings } from './event-mapping.ts'
+import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import { completeWindow, type ReadTransport } from './read-pages.ts'
+import { recordRead, type CalendarReadContext, type CalendarReadSelection } from './read-state.ts'
+import { publishWindow } from './read-store.ts'
+import { readSeriesContexts } from './series-context.ts'
+
+export type { CalendarReadContext, CalendarReadSelection } from './read-state.ts'
+
+export function createCalendarReads(deps: { db: Database; gateway: GoogleGateway; credentials: Credentials }) {
+	return {
+		async refreshCalendarRead(context: CalendarReadContext, selection: CalendarReadSelection): Promise<void> {
+			recordRead(context, 'provider_unavailable')
+			try {
+				await deps.credentials.withAccessToken(context.accountId, async (access) => {
+					if (!access.connection.calendarId) throw new CalendarFault('connection_required')
+					const transport: ReadTransport = {
+						gateway: deps.gateway,
+						accessToken: access.accessToken,
+						calendarId: access.connection.calendarId,
+						signal: AbortSignal.any([access.signal, AbortSignal.timeout(30000)]),
+					}
+					const mappings = await readSnapshot(access.db, (executor) =>
+						loadMappings(executor, context.accountId, access.connection.id)
+					)
+					if (selection.kind !== 'window') return
+					const result = await completeWindow(transport, selection.start, selection.end, mappings)
+					const series = await readSeriesContexts(transport, mappings, context.now).catch(() => [])
+					access.signal.throwIfAborted()
+					await publishWindow({
+						db: access.db,
+						context,
+						selection,
+						connection: access.connection,
+						mappings,
+						...result,
+						series,
+					})
+				})
+			} catch (error) {
+				const reason = error instanceof CalendarFault ? error.code : 'provider_unavailable'
+				if (reason === 'reconnect_required' || reason === 'permission_required' || reason === 'invalid_provider_data')
+					recordRead(context, reason)
+			}
+		},
+	}
+}
+
+export type CalendarReads = ReturnType<typeof createCalendarReads>

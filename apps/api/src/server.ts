@@ -13,6 +13,7 @@ import { createConnection } from './calendar/connection.ts'
 import { createCredentials } from './calendar/credentials.ts'
 import { createGoogleGateway } from './calendar/gateway.ts'
 import { createConnectionLease } from './calendar/lease.ts'
+import { createCalendarReads } from './calendar/reads.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
@@ -49,7 +50,8 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		logger,
 		isStopping: lifecycle.isStopping,
 	})
-	return { connection, control, resources: [control, lease, credentials] }
+	const reads = createCalendarReads({ db, gateway, credentials })
+	return { connection, control, reads, resources: [control, lease, credentials] }
 }
 
 const app = createApp({
@@ -62,6 +64,7 @@ const app = createApp({
 	signIn,
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
+	calendarReads: calendar?.reads,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
