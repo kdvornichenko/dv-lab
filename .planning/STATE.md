@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: '24'
 current_phase_name: Google Calendar Connection and Outbound Sync
 status: planning
-stopped_at: Phase 24 plans drafted; independent review pending
+stopped_at: Phase 24 contract changed to Google-authoritative commands; planning revision
 last_updated: '2026-10-11T10:09:31.887029+00:00'
 last_activity: 2026-10-11
 last_activity_desc: Phase 24 plans drafted; verified Phase 21.1 plans integrated
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 24 (Google Calendar Connection and Outbound Sync) — PLANNING
-Plan: 14 draft plans; independent review pending
-Status: 14 plans drafted; independent review pending. Phase 21 merged in PR #7 (893689f) after green CI.
+Plan: Previous draft superseded; revising for D-13 and D-14
+Status: Google-authoritative contract accepted; dependent preparation is being revised. Phase 21 merged in PR #7 (893689f) after green CI.
 Last activity: 2026-10-11 — Completed preparation inputs and integrated Phase 21 closure
 
 Progress: [█░░░░░░░░░] 9%

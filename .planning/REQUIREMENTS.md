@@ -74,9 +74,9 @@ Requirements for milestone v2.0 Unified dv-lab. Each maps to a roadmap phase. Th
 
 ### Google Calendar
 
-- [ ] **GCAL-01**: The teacher connects Google Calendar through a server-side OAuth flow with calendar scopes, and the refresh token is stored encrypted.
-- [ ] **GCAL-02**: Each lesson, series and occurrence exception has a deterministic Google event id derived from its own id, so a retry never creates a second event.
-- [ ] **GCAL-03**: Writes to Google go through a queue with a single writer per lesson.
+- [ ] **GCAL-01**: The teacher connects the primary Google Calendar through a server-side OAuth flow with encrypted refresh credentials. Google is the event source; schedule features require a working connection and show its events.
+- [ ] **GCAL-02**: Each app command and Google representation has a stable deterministic identity linked to the lesson, series or occurrence. Retry and recovery leave one active representation and preserve lesson history.
+- [ ] **GCAL-03**: Commands to Google go through one serialized writer per lesson. Saved state is published only after Google confirms the result. Without Google availability, the last known calendar is read-only and new offline edits are not accepted.
 - [ ] **GCAL-04**: Changes made in Google reach the schedule through push notifications (`events.watch`) and incremental sync with `syncToken`; a `410` response triggers a full resync.
 - [ ] **GCAL-05**: Watch channels renew before they expire, and a nightly reconcile catches missed notifications.
 - [ ] **GCAL-06**: Events created by the app carry the lesson id; other events whose title matches a student's short name become lessons; unmatched events are listed to assign or ignore; all other events count only as busy time.

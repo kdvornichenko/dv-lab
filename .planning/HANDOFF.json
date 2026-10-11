@@ -1,13 +1,13 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T10:35:21.015499+00:00",
+	"timestamp": "2026-10-11T10:46:44.830434+00:00",
 	"phase": "24-google-calendar-connection-and-outbound-sync",
 	"phase_name": "Google Calendar Connection and Outbound Sync",
 	"phase_dir": ".planning/phases/24-google-calendar-connection-and-outbound-sync",
 	"plan": null,
 	"task": 0,
 	"total_tasks": 0,
-	"status": "planning",
+	"status": "planning_revision",
 	"completed_tasks": [
 		"technical research and architecture",
 		"approved UI contract",
@@ -16,7 +16,11 @@
 		"14 draft executable plans",
 		"Phase 21.1 verified plans integrated"
 	],
-	"remaining_tasks": ["independent plan check and squad review", "HTML plan review"],
+	"remaining_tasks": [
+		"revise research/architecture/UI for D-13 and D-14",
+		"revise patterns and executable plans",
+		"independent checks and HTML review"
+	],
 	"blockers": [],
 	"human_actions_pending": [
 		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
@@ -28,9 +32,11 @@
 		"Default zone is an account setting; existing instants and creation zones stay unchanged",
 		"Second zone stays in this browser and swaps with the old default on collision after a successful save",
 		"Today and opening-balance lesson dates follow the current default zone",
-		"Only public-interface E2E tests may be extended"
+		"Only public-interface E2E tests may be extended",
+		"Google is the event source from Phase24; no schedule without connection",
+		"No saved confirmation before Google response; temporary outage shows read-only last-known state"
 	],
 	"uncommitted_files": [],
-	"next_action": "Independently verify Phase 24 plans and complete HTML review. Read docs/google-calendar/READING.md and relevant articles. Phase 21.1 plans are verified; implementation remains a dependency. Do not start implementation.",
+	"next_action": "Revise Phase24 preparation for D-13/D-14. Previous14-plan draft/review findings concern superseded local-first contract. Phase21.1 plan is owner-confirmed; no implementation starts here.",
 	"context_notes": "Primary Google calendar only. Disconnect stops dispatch, revokes credentials and preserves events, mapping and pending work. Research/UI/patterns are complete. Production and day-8 acceptance remain external and unverified."
 }

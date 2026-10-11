@@ -406,21 +406,21 @@ Plans:
 
 ### Phase 24: Google Calendar Connection and Outbound Sync
 
-**Goal**: Lessons, series and occurrence exceptions from the schedule appear in the teacher's Google Calendar exactly once, written by one queued writer over a server-side connection.
+**Goal**: Google Calendar is the source of calendar events. The teacher views its events and sends confirmed commands through dv-lab; schedule features require a working Google connection, and local state never claims a save before Google confirms it.
 **Depends on**: Phase 21.1 (stored creation zones and configurable account zone), Phase 21 (lesson, series and exception model, marks); runs before the chat phases
 **Requirements**: GCAL-01, GCAL-02, GCAL-03, GCAL-09, GCAL-10
 **Success Criteria** (what must be TRUE):
 
 1. The teacher connects Google Calendar through Google consent handled by the server; the refresh token is stored encrypted and never reaches the browser, and with the Google OAuth app in production status the connection still works 8 days later without reconnecting.
-2. Creating, moving or cancelling a single lesson, a series or one occurrence leaves exactly one matching event in Google (a series is one recurring event with its exceptions), and retries or an API restart in the middle of a write never create a second event.
-3. Every write to Google goes through the queue with one writer per lesson, so two quick edits of the same lesson end as the last edit in Google.
-4. When authorization expires or is revoked, the connection screen says so and offers reconnect, and queued writes continue after reconnecting.
+2. The calendar reads every Google page for the selected window and shows the provider events. Creating, moving, cancelling or restoring a single lesson, series or occurrence succeeds only after Google confirms the result; retries/restarts retain one active representation and preserve local marks/history.
+3. Every Google command goes through one serialized writer. Confirmed local projection follows the provider result. Concurrent edits use explicit preconditions; a delayed response never confirms a different command. Lost replies remain pending/unknown until reconciled.
+4. Without a connected Google Calendar, schedule operations are blocked and Settings offers connection/reconnect. During temporary Google failure, the last known state is read-only and new offline edits are rejected. Reconnect to the same target resolves previously dispatched work before new edits.
 5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
 6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
 **Plans**: TBD
 **UI hint**: yes
-**Notes**: Built on AUD-CAL-1..10 in `.planning/research/CODE-AUDIT.md`: event id derived from the lesson, series or exception id in Google's id alphabet, one writer per lesson through `pg-boss`, event time zone taken from the lesson, not from the server.
+**Notes**: Owner decision 2026-10-11 supersedes the offline/local-first design. Initial connection reads Google; it does not publish the existing local schedule automatically. Ordinary window reads belong to Phase 24; watch/incremental sync and event matching remain Phase 25. Built on AUD-CAL-1..10 in `.planning/research/CODE-AUDIT.md`: event id derived from the lesson, series or exception id in Google's id alphabet, one writer per lesson through `pg-boss`, event time zone taken from the lesson, not from the server.
 **OAuth setup**: Calendar API is enabled. The web client uses `https://dv-lab.dev/api/google/callback`; the server must implement this exact callback. The declared Calendar scopes are `calendar.events` and `calendar.calendarlist.readonly`. Credentials are stored outside the repository. The app remains in Testing while Branding is incomplete; public privacy policy and terms pages belong to this phase. Publication and the connection test are still pending.
 
 ### Phase 25: Google Calendar Two-Way Sync
