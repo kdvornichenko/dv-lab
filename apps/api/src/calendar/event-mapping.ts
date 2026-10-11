@@ -9,6 +9,22 @@ import type { ProviderEvent } from './provider-events.ts'
 import type { MappingRow } from './read-state.ts'
 
 export type MappingSnapshot = Awaited<ReturnType<typeof loadMappings>>
+
+export async function confirmEventMapping(executor: DbExecutor, accountId: string, commandId: string, eventId: string) {
+	const rows = await executor
+		.update(googleEventMappings)
+		.set({ state: 'active' })
+		.where(
+			and(
+				eq(googleEventMappings.accountId, accountId),
+				eq(googleEventMappings.commandId, commandId),
+				eq(googleEventMappings.eventId, eventId),
+				eq(googleEventMappings.state, 'reserved')
+			)
+		)
+		.returning({ id: googleEventMappings.id })
+	if (rows.length !== 1) throw new Error('Calendar command mapping is not reserved')
+}
 export type BoundEvent = ProviderEvent & {
 	localRef: GoogleLocalRef | null
 	studentId: string | null

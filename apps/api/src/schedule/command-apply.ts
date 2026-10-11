@@ -1,0 +1,80 @@
+import { and, eq, sql } from 'drizzle-orm'
+
+import { googleCommands, googleConnections, lessons, type DbExecutor } from '@dv-lab/db'
+
+import type { VerifiedGoogleResult } from '../calendar/command-result.ts'
+import { confirmEventMapping } from '../calendar/event-mapping.ts'
+import { CommandFault } from '../calendar/journal.ts'
+import { advanceCommandRevision } from '../calendar/read-store.ts'
+import type { PreparedCalendarCommand } from './command-plan.ts'
+
+export async function applyConfirmedCommand(
+	tx: DbExecutor,
+	command: PreparedCalendarCommand,
+	confirmation: VerifiedGoogleResult
+): Promise<void> {
+	const [connection] = await tx
+		.select()
+		.from(googleConnections)
+		.where(and(eq(googleConnections.id, command.connectionId), eq(googleConnections.accountId, command.accountId)))
+		.for('update')
+	if (
+		!connection ||
+		connection.state !== 'connected' ||
+		connection.generation !== confirmation.generation ||
+		connection.calendarId !== command.calendarId
+	)
+		throw new CommandFault('reconnect_required')
+	const [current] = await tx
+		.select()
+		.from(googleCommands)
+		.where(and(eq(googleCommands.id, command.id), eq(googleCommands.accountId, command.accountId)))
+		.for('update')
+	if (current?.state === 'applied') return
+	if (
+		!current ||
+		current.state !== 'projection_pending' ||
+		confirmation.commandId !== command.id ||
+		confirmation.acknowledgement.ownedDigest !== command.request.digest
+	)
+		throw new CommandFault('precondition_failed')
+	const reservation = command.plan.reservations[0]
+	const input = command.plan.input
+	const event = confirmation.acknowledgement.event
+	if (
+		!reservation ||
+		reservation.entityKind !== 'single' ||
+		input.operation !== 'create' ||
+		!event.start ||
+		!('dateTime' in event.start) ||
+		event.eventId !== reservation.eventId
+	)
+		throw new CommandFault('precondition_failed')
+	await tx.insert(lessons).values({
+		id: reservation.localEntityId,
+		studentId: input.studentId,
+		startsAt: new Date(event.start.dateTime),
+		timeZone: command.plan.capturedTimeZone,
+		durationMinutes: input.durationMinutes,
+		status: 'scheduled',
+	})
+	await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
+	const confirmedRevision = await advanceCommandRevision(
+		tx,
+		command.accountId,
+		command.connectionId,
+		confirmation.generation
+	)
+	await tx
+		.update(googleCommands)
+		.set({
+			state: 'applied',
+			effect: 'confirmed',
+			issue: null,
+			nextAction: 'none',
+			confirmedRevision,
+			appliedAt: sql`now()`,
+			updatedAt: sql`now()`,
+		})
+		.where(eq(googleCommands.id, command.id))
+}

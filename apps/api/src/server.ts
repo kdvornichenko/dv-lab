@@ -8,6 +8,7 @@ import { createDb } from '@dv-lab/db'
 import { createApp } from './app.ts'
 import { createHousekeeping } from './auth/housekeeping.ts'
 import { createSignIn } from './auth/sign-in.ts'
+import { createCalendarCommands } from './calendar/commands.ts'
 import { createConnectionControl } from './calendar/connection-control.ts'
 import { createConnection } from './calendar/connection.ts'
 import { createCredentials } from './calendar/credentials.ts'
@@ -16,6 +17,7 @@ import { createConnectionLease } from './calendar/lease.ts'
 import { createCalendarObservation } from './calendar/observation.ts'
 import { createCalendarReads } from './calendar/reads.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
+import { createCalendarWorker } from './calendar/worker.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
 import { createLogger } from './request-context.ts'
@@ -35,6 +37,7 @@ const production = config.NODE_ENV === 'production'
 const signIn = createSignIn({ db, logger, requireClientIp: production })
 const housekeeping = createHousekeeping({ db, logger })
 const calendar = config.calendar.enabled ? createCalendar(config.calendar) : undefined
+await calendar?.worker.start()
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)
@@ -54,7 +57,17 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		isStopping: lifecycle.isStopping,
 	})
 	const reads = createCalendarReads({ db, gateway, credentials, observation })
-	return { connection, control, reads, observation, resources: [control, lease, credentials] }
+	const worker = createCalendarWorker({
+		db,
+		lease,
+		databaseUrl: config.databaseUrl,
+		credentials,
+		gateway,
+		logger,
+		isStopping: lifecycle.isStopping,
+	})
+	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
+	return { connection, control, reads, commands, worker, observation, resources: [worker, control, lease, credentials] }
 }
 
 const app = createApp({
@@ -68,6 +81,7 @@ const app = createApp({
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
 	calendarReads: calendar?.reads,
+	calendarCommands: calendar?.commands,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })

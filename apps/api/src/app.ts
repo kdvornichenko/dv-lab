@@ -10,6 +10,7 @@ import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, originMatches, sameOrigin } from './auth/middleware.ts'
 import type { SignIn } from './auth/sign-in.ts'
+import type { CalendarCommands } from './calendar/commands.ts'
 import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
 import type { CalendarReads } from './calendar/reads.ts'
@@ -33,6 +34,7 @@ export type AppDeps = {
 	calendar?: CalendarConnection
 	calendarControl?: ConnectionControl
 	calendarReads?: CalendarReads
+	calendarCommands?: CalendarCommands
 }
 
 function clientErrorBody(status: number) {
@@ -81,11 +83,20 @@ export function createApp(deps: AppDeps) {
 	app.route('/auth', authRoutes({ db: deps.db, signIn: deps.signIn, production: deps.production, logger: deps.logger }))
 	app.route(
 		'/google',
-		googleRoutes({ db: deps.db, connection: deps.calendar, control: deps.calendarControl, isStopping: deps.isStopping })
+		googleRoutes({
+			db: deps.db,
+			connection: deps.calendar,
+			control: deps.calendarControl,
+			commands: deps.calendarCommands,
+			isStopping: deps.isStopping,
+		})
 	)
 	app.route('/students', studentRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
-	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
+	app.route(
+		'/schedule',
+		scheduleRoutes({ db: deps.db, calendarReads: deps.calendarReads, calendarCommands: deps.calendarCommands })
+	)
 	app.route('/settings', settingsRoutes({ db: deps.db }))
 	app.route('/today', todayRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {

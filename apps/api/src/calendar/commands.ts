@@ -1,0 +1,99 @@
+import { eq } from 'drizzle-orm'
+
+import type { CalendarCommandReceipt, CalendarCommandSnapshot, ValidatedCalendarCommand } from '@dv-lab/contracts'
+import { googleReadEvents, type Database } from '@dv-lab/db'
+
+import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
+import type { Credentials } from './credentials.ts'
+import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import {
+	CommandFault,
+	commandSnapshot,
+	findRequest,
+	matchingReceipt,
+	persistCommand,
+	readCommand,
+	receipt,
+	unresolvedCommands,
+} from './journal.ts'
+import type { ProviderEvent } from './provider-events.ts'
+import { traverseEvents } from './read-pages.ts'
+import type { CalendarReadContext } from './reads.ts'
+
+export function createCalendarCommands(deps: {
+	db: Database
+	credentials: Credentials
+	gateway: GoogleGateway
+	wake: (commandId: string) => Promise<void>
+	resume: (accountId: string, commandId: string) => Promise<void>
+}) {
+	async function submitCalendarCommand(
+		context: CalendarReadContext,
+		input: ValidatedCalendarCommand
+	): Promise<CalendarCommandReceipt> {
+		const existing = await findRequest(deps.db, context.accountId, input.input.requestId)
+		if (existing) return matchingReceipt(existing, input)
+		const outcome = await deps.credentials.withAccessToken(context.accountId, async (access) => {
+			try {
+				const repeated = await findRequest(access.db, context.accountId, input.input.requestId)
+				if (repeated) return matchingReceipt(repeated, input)
+				if (input.operation !== 'create' || input.input.repeats !== 'once') throw new CommandFault('history_only')
+				if ((await unresolvedCommands(access.db, context.accountId)).length) throw new CommandFault('command_pending')
+				const window = await commandWindow(access.db, context.accountId, input.input.expectedVersion)
+				if (
+					window.snapshotRevision !== access.connection.snapshotRevision ||
+					window.generation !== access.connection.generation
+				)
+					throw new CommandFault('precondition_failed')
+				if (!access.connection.calendarId) throw new CalendarFault('connection_required')
+				const primary = await deps.gateway.primary(access.accessToken, access.signal)
+				if (primary.id !== access.connection.calendarId) throw new CommandFault('external_change')
+				const previous = await access.db.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
+				const current: ProviderEvent[] = []
+				await traverseEvents(
+					{ ...access, gateway: deps.gateway, calendarId: primary.id },
+					{
+						timeMin: window.windowStart.toISOString(),
+						timeMax: window.windowEnd.toISOString(),
+					},
+					(events) => {
+						current.push(...events)
+						return false
+					}
+				)
+				const before = new Map(previous.map((event) => [event.eventId, event.etag]))
+				if (before.size !== current.length || current.some((event) => before.get(event.eventId) !== event.etag))
+					throw new CommandFault('external_change')
+				access.signal.throwIfAborted()
+				return await access.db.transaction(async (tx) => {
+					const prepared = await prepareScheduleCommand(tx, input, context)
+					if (prepared.generation !== access.connection.generation) throw new CommandFault('precondition_failed')
+					access.signal.throwIfAborted()
+					await persistCommand(tx, prepared)
+					return receipt(prepared)
+				})
+			} catch (error) {
+				if (error instanceof CommandFault) return error
+				throw error
+			}
+		})
+		if (outcome instanceof CommandFault) throw outcome
+		await deps.wake(outcome.commandId).catch(() => undefined)
+		return outcome
+	}
+	return {
+		submitCalendarCommand,
+		async readCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandSnapshot> {
+			return commandSnapshot(await readCommand(deps.db, context.accountId, commandId))
+		},
+		async resumeCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandReceipt> {
+			const command = await readCommand(deps.db, context.accountId, commandId)
+			if (!['partial_recovery', 'recovery_required'].includes(command.state))
+				throw new CommandFault('precondition_failed')
+			await deps.resume(context.accountId, commandId)
+			return receipt(command)
+		},
+	}
+}
+
+export type CalendarCommands = ReturnType<typeof createCalendarCommands>
