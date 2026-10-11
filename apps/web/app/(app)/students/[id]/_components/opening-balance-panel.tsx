@@ -11,14 +11,18 @@ import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api-client'
 
 import type { StudentDetail, StudentResponse } from '@dv-lab/contracts'
-import { balancePhrase, formatLessons, parseLessons, scheduleToday } from '@dv-lab/core'
+import { balancePhrase, formatLessons, parseLessons } from '@dv-lab/core'
 
 import { useToast } from '../../../_components/toasts'
+import { TimeZoneStaleNotice, useScheduleFormContext } from '../../../schedule/_components/schedule-form-context'
 
 interface OpeningBalancePanelProps {
 	student: StudentDetail
+	mainTimeZone: string
+	asOf: string
 	lessonsInputRef: RefObject<HTMLInputElement | null>
 	onSaved: () => void
+	onRefresh: () => void
 }
 
 const dayFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' })
@@ -34,55 +38,48 @@ function savedLessons(student: StudentDetail) {
 		: formatLessons(openingBalance.minutes, student.defaultLessonMinutes).replaceAll(',', '')
 }
 
-function savedDay(student: StudentDetail) {
-	return student.openingBalance?.on ?? scheduleToday(new Date())
-}
-
-function sourceKey(student: StudentDetail) {
-	const { openingBalance } = student
-	return `${openingBalance?.minutes ?? ''}|${openingBalance?.on ?? ''}|${student.defaultLessonMinutes}`
-}
-
-export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: OpeningBalancePanelProps) {
+export function OpeningBalancePanel({
+	student,
+	mainTimeZone,
+	asOf,
+	lessonsInputRef,
+	onSaved,
+	onRefresh,
+}: OpeningBalancePanelProps) {
 	const toast = useToast()
-	const [seen, setSeen] = useState(() => sourceKey(student))
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, mainTimeZone)
 	const [lessons, setLessons] = useState(() => savedLessons(student))
-	const [on, setOn] = useState(() => savedDay(student))
+	const [on, setOn] = useState(() => student.openingBalance?.on ?? context.today)
 	const [touched, setTouched] = useState(false)
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
 	const [pending, setPending] = useState(false)
 
-	const key = sourceKey(student)
-	if (seen !== key) {
-		setSeen(key)
-		setLessons(savedLessons(student))
-		setOn(savedDay(student))
-		setTouched(false)
-		setSubmitted(false)
-	}
-
 	const { openingBalance } = student
 	const hundredths = parseLessons(lessons)
 	const lessonsError =
 		(submitted || touched) && hundredths === null ? 'Enter 0 or more lessons, up to two decimals.' : undefined
+	const dateError = on === '' ? 'Choose a date.' : on > context.today ? 'Choose today or an earlier date.' : undefined
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending) return
+		if (pending || context.stale) return
 		setSubmitted(true)
 		setFailed(false)
 		if (hundredths === null) {
 			lessonsInputRef.current?.focus()
 			return
 		}
+		if (dateError) return document.getElementById('opening-balance-on')?.focus()
 		setPending(true)
 		const result = await apiRequest<StudentResponse>('PUT', `/students/${student.id}/opening-balance`, {
 			lessonsHundredths: hundredths,
 			on,
+			expectedDefaultTimeZone: context.mainTimeZone,
 		})
 		setPending(false)
 		if (!result.ok) {
+			if (result.error?.code === 'default_time_zone_changed') return context.markStale()
 			setFailed(true)
 			return
 		}
@@ -102,6 +99,7 @@ export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: Openi
 			description="Lessons left on the day you start counting here."
 		>
 			<form noValidate onSubmit={onSubmit} className="flex flex-col gap-4 px-4 pt-2 pb-4">
+				<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 				{failed ? (
 					<Banner status="error">
 						<BannerTitle>Could not save the opening balance. Try again.</BannerTitle>
@@ -131,7 +129,8 @@ export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: Openi
 						label="As of"
 						value={on}
 						onChange={setOn}
-						max={scheduleToday(new Date())}
+						max={context.today}
+						error={submitted ? dateError : undefined}
 						disabled={pending}
 					/>
 					<p className="text-caption text-muted-foreground">
@@ -139,7 +138,7 @@ export function OpeningBalancePanel({ student, lessonsInputRef, onSaved }: Openi
 					</p>
 				</div>
 				<div>
-					<Button type="submit" loading={pending}>
+					<Button type="submit" loading={pending} disabled={context.stale}>
 						{pending ? 'Saving…' : openingBalance === null ? 'Save opening balance' : 'Update opening balance'}
 					</Button>
 				</div>
