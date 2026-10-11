@@ -16,7 +16,7 @@ import {
 } from '@dv-lab/db'
 
 import type { CommandAccess } from './dispatch.ts'
-import { GoogleWriteFault } from './gateway.ts'
+import { CalendarFault, GoogleWriteFault } from './gateway.ts'
 import { CommandFault, digest, readCommand, retireReservations, type CommandRow, type StageRow } from './journal.ts'
 import { publishTransition } from './transition-view.ts'
 
@@ -38,6 +38,29 @@ export async function transitionStage(
 	return row
 }
 
+export function cutCompletionIsCurrent(
+	stage: Pick<StageRow, 'generation' | 'acknowledgement'>,
+	connection: Pick<CommandAccess['connection'], 'generation' | 'credentialGeneration'>
+) {
+	return (
+		stage.generation === connection.generation &&
+		stage.acknowledgement?.kind === 'cut_complete' &&
+		stage.acknowledgement.credentialGeneration === connection.credentialGeneration
+	)
+}
+
+export function isTransitionAuthFault(error: unknown): error is CalendarFault & {
+	code: 'reconnect_required' | 'permission_required'
+} {
+	return error instanceof CalendarFault && (error.code === 'reconnect_required' || error.code === 'permission_required')
+}
+
+function canRestartAcknowledgement(row: StageRow, connection: CommandAccess['connection']) {
+	if (row.kind === 'write') return false
+	if (row.generation !== connection.generation) return true
+	return row.acknowledgement?.kind === 'cut_complete' && !cutCompletionIsCurrent(row, connection)
+}
+
 function checkGrant(
 	connection: typeof googleConnections.$inferSelect | undefined,
 	command: CommandRow,
@@ -46,6 +69,7 @@ function checkGrant(
 	if (
 		!connection ||
 		connection.state !== 'connected' ||
+		connection.credentialMode !== 'active' ||
 		connection.calendarId !== command.calendarId ||
 		connection.generation !== access.connection.generation ||
 		connection.credentialGeneration !== access.connection.credentialGeneration
@@ -97,11 +121,7 @@ export async function beginTransitionStage(
 			.for('update')
 		if (!row || !isDeepStrictEqual(googleStageRequest.parse(row.request), googleStageRequest.parse(request)))
 			throw new CommandFault('precondition_failed')
-		if (
-			row.state === 'acknowledged' &&
-			!recoveryOf &&
-			(row.kind === 'write' || row.generation === connection.generation)
-		)
+		if (row.state === 'acknowledged' && !recoveryOf && !canRestartAcknowledgement(row, connection))
 			throw new CommandFault('precondition_failed')
 		const attempt: GoogleStageAttempt = {
 			attemptId: randomUUID(),
@@ -258,8 +278,8 @@ export async function pauseTransition(
 		const issue =
 			error instanceof CommandFault && error.code === 'external_change'
 				? 'external_change'
-				: error instanceof CommandFault && error.code === 'reconnect_required'
-					? 'reconnect_required'
+				: isTransitionAuthFault(error) || (error instanceof CommandFault && error.code === 'reconnect_required')
+					? error.code
 					: 'provider_unavailable'
 		await tx
 			.update(googleCommands)

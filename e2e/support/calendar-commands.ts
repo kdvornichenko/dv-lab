@@ -38,6 +38,16 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 			cuts: z
 				.strictObject({
 					legacySeriesId: z.uuid(),
+					recoveryBoundaries: z
+						.array(
+							z.strictObject({
+								commandId: z.uuid(),
+								seriesId: z.uuid(),
+								failure: z.enum(['credential_rollover', 'reconnect_required', 'permission_required']),
+							})
+						)
+						.length(2)
+						.optional(),
 					cases: z
 						.array(
 							z.strictObject({

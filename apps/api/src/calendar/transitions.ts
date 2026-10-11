@@ -5,7 +5,14 @@ import { projectCommand, type CommandAccess } from './dispatch.ts'
 import type { GoogleGateway } from './gateway.ts'
 import { CommandFault, preparedCommand, readCommand, type CommandRow, type StageRow } from './journal.ts'
 import { replayCancelledPrefix } from './transition-cancellations.ts'
-import { acknowledgeTransition, beginTransitionStage, pauseTransition, transitionStage } from './transition-journal.ts'
+import {
+	acknowledgeTransition,
+	beginTransitionStage,
+	cutCompletionIsCurrent,
+	isTransitionAuthFault,
+	pauseTransition,
+	transitionStage,
+} from './transition-journal.ts'
 import { readCutCapture, readOldInactive, sameResource } from './transition-proof.ts'
 import {
 	cancelDetached,
@@ -104,7 +111,7 @@ export async function executeTransition(access: CommandAccess, command: CommandR
 			currentStage = await transitionStage(access, command, step.stage)
 			if (
 				currentStage?.state === 'acknowledged' &&
-				(step.purpose !== 'complete' || currentStage.generation === access.connection.generation)
+				(step.purpose !== 'complete' || cutCompletionIsCurrent(currentStage, access.connection))
 			)
 				continue
 			await runStep(access, current, prepared, step, currentStage, gateway)
@@ -112,14 +119,19 @@ export async function executeTransition(access: CommandAccess, command: CommandR
 		const current = await readCommand(access.db, command.accountId, command.id)
 		if (current.state === 'projection_pending') await projectCommand(access, current)
 	} catch (error) {
-		const steps = transitionSteps(prepared)
-		const pending: StageRow[] = []
-		for (const step of steps) {
-			const row = await transitionStage(access, command, step.stage)
-			if (row && row.state !== 'acknowledged') pending.push(row)
-		}
-		await pauseTransition(access, command, pending.at(-1) ?? currentStage, error)
+		const pending = await lastPendingStage(access, command, transitionSteps(prepared))
+		await pauseTransition(access, command, pending ?? currentStage, error)
+		if (isTransitionAuthFault(error)) throw error
 	}
+}
+
+async function lastPendingStage(access: CommandAccess, command: CommandRow, steps: TransitionStep[]) {
+	let pending: StageRow | undefined
+	for (const step of steps) {
+		const row = await transitionStage(access, command, step.stage)
+		if (row && row.state !== 'acknowledged') pending = row
+	}
+	return pending
 }
 
 async function runReservation(

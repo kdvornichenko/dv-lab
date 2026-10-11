@@ -6,15 +6,16 @@ import {
 	calendarCommandReceipt,
 	calendarCommandSnapshot,
 	googleScheduleWindow,
+	googleConnectionSnapshot,
 } from '../../packages/contracts/src/calendar.ts'
-import { googleCommandPlan } from '../../packages/db/src/calendar-values.ts'
+import { googleCommandPlan, googleStageAcknowledgement } from '../../packages/db/src/calendar-values.ts'
 import { api, readSettings, studentFacts } from './api.ts'
 import { calendarCommandFixture, parseCalendarResponse } from './calendar-commands.ts'
 import { armCalendarFault, calendarFaultEvidence, disarmCalendarFault } from './calendar-fault-control.ts'
 import { recurringJourney } from './calendar-recurring.ts'
 import { quote, sql } from './data.ts'
 import { mondayOf } from './dates.ts'
-import { record } from './input.ts'
+import { integer, record } from './input.ts'
 import { expect, test } from './test.ts'
 import { setMain } from './tz-settings.ts'
 
@@ -207,7 +208,98 @@ export async function calendarJourney(
 	if (kind === 'recurring master') return recurringJourney(request, 'master')
 	if (kind === 'recurring instance') return recurringJourney(request, 'instance')
 	if (kind === 'cut prepare') return prepareJourney(request)
-	return recoveryJourney(request)
+	await recoveryJourney(request)
+	await recoveryBoundaries(request)
+}
+
+async function recoveryBoundaries(request: APIRequestContext) {
+	const fixture = await calendarCommandFixture(request)
+	const boundaries = fixture.cuts?.recoveryBoundaries
+	if (!boundaries) throw new Error('Actual restart/refresh and provider auth failure boundaries are required')
+	expect(boundaries[0].failure).toBe('credential_rollover')
+	expect(boundaries[1].failure).toMatch(/reconnect_required|permission_required/)
+	for (const boundary of boundaries) {
+		const commandId = quote(boundary.commandId)
+		const command = sql(`select account_id, plan from google_commands where id = ${commandId}::uuid`)[0]
+		expect(command.account_id).toBe(fixture.accountId)
+		const plan = googleCommandPlan.parse(command.plan)
+		if (plan.input.operation !== 'move_series' && plan.input.operation !== 'end_series')
+			throw new Error('Retained cut command is required')
+		expect(plan.input.seriesId).toBe(boundary.seriesId)
+		expect(plan.cut?.studentId).toBe(fixture.studentId)
+		const writes = () =>
+			sql(
+				`select id, request, acknowledgement, attempts, state from google_command_stages where command_id = ${commandId}::uuid and kind = 'write' and state = 'acknowledged' order by stage`
+			)
+		const prefix = writes()
+		expect(prefix.length).toBeGreaterThan(0)
+		const before = domain(boundary.seriesId)
+		const snapshot = await status(request, boundary.commandId)
+		expect(snapshot.confirmedRevision).toBeNull()
+		expect(snapshot.state).toMatch(/partial_recovery|recovery_required/)
+		expect(parseCalendarResponse(googleConnectionSnapshot, await api(request, 'GET', '/google/connection')).state).toBe(
+			'connected'
+		)
+		if (boundary.failure === 'credential_rollover') {
+			const previous = completeProof(boundary.commandId)
+			const connection = sql(
+				`select generation, credential_generation, credential_mode from google_connections where account_id = ${quote(fixture.accountId)}::uuid`
+			)[0]
+			expect(connection.credential_mode).toBe('active')
+			expect(previous.generation).toBe(connection.generation)
+			expect(previous.ack.credentialGeneration).toBeLessThan(integer(connection.credential_generation))
+			await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 202)
+			await expect
+				.poll(async () => (await status(request, boundary.commandId)).state, { timeout: 90000 })
+				.toBe('applied')
+			const current = completeProof(boundary.commandId)
+			expect(current.attempts).toBeGreaterThan(previous.attempts)
+			expect(current.ack.credentialGeneration).toBe(
+				integer(
+					sql(
+						`select credential_generation from google_connections where account_id = ${quote(fixture.accountId)}::uuid`
+					)[0].credential_generation
+				)
+			)
+			expect(sql(`select plan from google_commands where id = ${commandId}::uuid`)[0].plan).toEqual(command.plan)
+			const sample = fixture.cuts?.cases.find((item) => item.seriesId === boundary.seriesId)
+			if (!sample) throw new Error('Retained cut case is required')
+			verifyHistory(plan, sample, false, false)
+		} else {
+			expect(
+				sql(
+					`select id from google_command_stages where command_id = ${commandId}::uuid and kind = 'verify' and state <> 'acknowledged'`
+				).length
+			).toBeGreaterThan(0)
+			const refusal = record(
+				await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 409)
+			)
+			expect(record(refusal.error).code).toBe(boundary.failure)
+			await expect
+				.poll(async () => (await status(request, boundary.commandId)).issue, { timeout: 90000 })
+				.toBe(boundary.failure)
+			const connection = parseCalendarResponse(
+				googleConnectionSnapshot,
+				await api(request, 'GET', '/google/connection')
+			)
+			expect(connection.state).toBe(boundary.failure)
+			expect(connection.issue).toBe(boundary.failure)
+			expect((await status(request, boundary.commandId)).confirmedRevision).toBeNull()
+			expect((await status(request, boundary.commandId)).state).toBe('partial_recovery')
+			expect(domain(boundary.seriesId)).toEqual(before)
+		}
+		expect(writes()).toEqual(prefix)
+	}
+}
+
+function completeProof(commandId: string) {
+	const row = sql(
+		`select generation, acknowledgement, jsonb_array_length(attempts) as attempts from google_command_stages where command_id = ${quote(commandId)}::uuid and state = 'acknowledged' and acknowledgement->>'kind' = 'cut_complete'`
+	)[0]
+	if (!row) throw new Error('Actual acknowledged complete proof is required')
+	const ack = googleStageAcknowledgement.parse(row.acknowledgement)
+	if (ack.kind !== 'cut_complete') throw new Error('Actual cut complete proof is required')
+	return { generation: row.generation, attempts: integer(row.attempts), ack }
 }
 
 export async function cutHistory(request: APIRequestContext) {
