@@ -9,6 +9,7 @@ import {
 	registerFixture,
 	reserveFixture,
 	restoreTeacherSettings,
+	saveTeacherSettings,
 	sql,
 	type FixtureName,
 } from './data.ts'
@@ -153,6 +154,7 @@ export const test = base.extend<{ fx: Fx }>({
 		const day = vnToday()
 		cleanupFixtures()
 		const id = await teacherId(page.request)
+		saveTeacherSettings(id)
 		try {
 			await use(createFixtures(page))
 		} finally {

@@ -97,31 +97,44 @@ function count(text: string): number {
 
 type SettingsSnapshot = {
 	accountId: string
-	row: { paysSoonLessons: number; updatedAt: string } | null
+	row: { paysSoonLessons: number; defaultTimeZone: string; updatedAt: string } | null
 }
 
 function snapshotSettings(accountId: string): SettingsSnapshot {
 	const rows = readRows(
-		`select pays_soon_lessons, updated_at::text as updated_at from teacher_settings where account_id = ${quote(accountId)}`
+		`select pays_soon_lessons, default_time_zone, updated_at::text as updated_at from teacher_settings where account_id = ${quote(accountId)}`
 	)
 	if (rows.length === 0) return { accountId, row: null }
 	if (rows.length !== 1) throw new Error('invalid teacher settings snapshot count')
 	const row = rows[0]
-	if (typeof row.pays_soon_lessons !== 'number' || typeof row.updated_at !== 'string') {
+	if (
+		typeof row.pays_soon_lessons !== 'number' ||
+		typeof row.default_time_zone !== 'string' ||
+		typeof row.updated_at !== 'string'
+	) {
 		throw new Error('invalid teacher settings snapshot')
 	}
-	return { accountId, row: { paysSoonLessons: row.pays_soon_lessons, updatedAt: row.updated_at } }
+	return {
+		accountId,
+		row: {
+			paysSoonLessons: row.pays_soon_lessons,
+			defaultTimeZone: row.default_time_zone,
+			updatedAt: row.updated_at,
+		},
+	}
 }
 
 function restoreSettings(snapshot: SettingsSnapshot): void {
 	const { accountId, row } = snapshot
 	if (row === null) {
 		removeFixtureRow(accountId)
-		return
+	} else {
+		execute(
+			`insert into teacher_settings (account_id, pays_soon_lessons, default_time_zone, updated_at) values (${quote(accountId)}, ${row.paysSoonLessons}, ${quote(row.defaultTimeZone)}, ${quote(row.updatedAt)}::timestamptz) on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_lessons, default_time_zone = excluded.default_time_zone, updated_at = excluded.updated_at`
+		)
 	}
-	execute(
-		`insert into teacher_settings (account_id, pays_soon_lessons, updated_at) values (${quote(accountId)}, ${row.paysSoonLessons}, ${quote(row.updatedAt)}::timestamptz) on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_lessons, updated_at = excluded.updated_at`
-	)
+	if (JSON.stringify(snapshotSettings(accountId)) !== JSON.stringify(snapshot))
+		throw new Error('Teacher settings restoration did not match the snapshot')
 }
 
 class ApiCloseError extends Error {

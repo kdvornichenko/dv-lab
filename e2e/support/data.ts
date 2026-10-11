@@ -25,7 +25,12 @@ export const NAMES = [
 ] as const
 export type FixtureName = (typeof NAMES)[number]
 type Owned = { name: FixtureName; id: string | null }
-type SettingsSnapshot = { accountId: string; paysSoonLessons: number | null; updatedAt: string | null }
+type SettingsSnapshot = {
+	accountId: string
+	paysSoonLessons: number | null
+	defaultTimeZone: string | null
+	updatedAt: string | null
+}
 
 export function prepareState(): void {
 	process.umask(0o077)
@@ -147,6 +152,7 @@ function savedSettings(): SettingsSnapshot | null {
 	return {
 		accountId: uuid(row.accountId),
 		paysSoonLessons: row.paysSoonLessons === null ? null : integer(row.paysSoonLessons),
+		defaultTimeZone: row.defaultTimeZone === null ? null : text(row.defaultTimeZone),
 		updatedAt: row.updatedAt === null ? null : text(row.updatedAt),
 	}
 }
@@ -158,9 +164,10 @@ export function restoreTeacherSettings(accountId: string, keep = false): void {
 	const id = quote(saved.accountId)
 	if (saved.paysSoonLessons === null) sql(`delete from teacher_settings where account_id = ${id}::uuid`)
 	else
-		sql(`insert into teacher_settings (account_id, pays_soon_lessons, updated_at)
-values (${id}::uuid, ${saved.paysSoonLessons}, ${quote(text(saved.updatedAt))}::timestamptz)
-on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_lessons, updated_at = excluded.updated_at`)
+		sql(`insert into teacher_settings (account_id, pays_soon_lessons, default_time_zone, updated_at)
+values (${id}::uuid, ${saved.paysSoonLessons}, ${quote(text(saved.defaultTimeZone))}, ${quote(text(saved.updatedAt))}::timestamptz)
+on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_lessons,
+default_time_zone = excluded.default_time_zone, updated_at = excluded.updated_at`)
 	const current = readTeacherSettings(accountId)
 	if (JSON.stringify(current) !== JSON.stringify(saved))
 		throw new Error('Settings restoration differs from the saved row')
@@ -169,17 +176,23 @@ on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_le
 
 function readTeacherSettings(accountId: string): SettingsSnapshot {
 	const rows = sql(
-		`select pays_soon_lessons, updated_at::text as updated_at from teacher_settings where account_id = ${quote(uuid(accountId))}::uuid`
+		`select pays_soon_lessons, default_time_zone, updated_at::text as updated_at from teacher_settings where account_id = ${quote(uuid(accountId))}::uuid`
 	)
 	const row = rows[0]
 	return {
 		accountId,
 		paysSoonLessons: row ? integer(row.pays_soon_lessons) : null,
+		defaultTimeZone: row ? text(row.default_time_zone) : null,
 		updatedAt: row ? text(row.updated_at) : null,
 	}
 }
 
 export function saveTeacherSettings(accountId: string): void {
+	const saved = savedSettings()
+	if (saved) {
+		if (saved.accountId !== uuid(accountId)) throw new Error('Settings recovery belongs to another teacher')
+		return
+	}
 	writePrivate(SETTINGS_FILE, readTeacherSettings(accountId))
 }
 
