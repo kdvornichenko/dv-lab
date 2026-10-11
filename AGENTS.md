@@ -36,6 +36,7 @@
 | `yarn typecheck` | `tsc --noEmit` во всех workspace |
 | `yarn lint` | ESLint (web) |
 | `yarn test` | Vitest в `packages/db`, `packages/contracts` и `apps/api`; тесты db и api идут на настоящем Postgres. У web тест-раннера нет |
+| `yarn test:e2e` | Playwright: девять journeys фазы 21 в light/dark, один воркер; нужен dev-стек, `.env` с dev-учителем и установленный Chromium. Артефакты только в `STATE_DIR` вне репозитория; в CI не входит |
 | `yarn knip` | неиспользуемые файлы, экспорты и зависимости |
 | `yarn format` / `yarn format:check` | Prettier |
 | `yarn db:generate` | `drizzle-kit generate`: новая миграция из `packages/db/src/schema.ts` |
