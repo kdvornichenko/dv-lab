@@ -252,6 +252,23 @@ export async function secondZoneIdentity(page: Page): Promise<void> {
 	await changeZone(page, NY)
 	await expectZones(page, NY, VN)
 	const favorites = (await preferences(page))[1]
+	await page.goto('/')
+	await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Today')
+	await setMain(page.request, VN)
+	await Promise.all([
+		page.waitForResponse((response) => response.url() === `${BASE}/api/today`),
+		page.evaluate(() => window.dispatchEvent(new Event('focus'))),
+	])
+	await expect.poll(async () => (await preferences(page))[0]).toBe(NY)
+	await page.evaluate((key) => {
+		localStorage.setItem(key, 'invalid/zone')
+		window.dispatchEvent(new Event('dv-lab:time-zones'))
+	}, SECOND)
+	await expect.poll(async () => (await preferences(page))[0]).toBe(NY)
+	await settingsPage(page)
+	await expectZones(page, VN, NY)
+	await changeZone(page, NY)
+	await expectZones(page, NY, VN)
 	await page.evaluate((key) => localStorage.setItem(key, 'US/Eastern'), SECOND)
 	await page.reload()
 	await expectZones(page, NY, 'none')
@@ -332,6 +349,10 @@ export async function keyboardLayout(page: Page): Promise<void> {
 		await page.keyboard.press('ArrowDown')
 		await page.keyboard.press('Enter')
 		const dialog = zoneDialog(page)
+		await expect(dialog.getByRole('heading', { name: 'Change the default time zone?' })).toHaveCSS(
+			'font-variation-settings',
+			'"wght" 600'
+		)
 		await expect(dialog.getByText('What changes', { exact: true })).toBeVisible()
 		await expect(dialog.getByText('What stays', { exact: true })).toBeVisible()
 		const keep = dialog.getByRole('button', { name: 'Keep Vietnam', exact: true })

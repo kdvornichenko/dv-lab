@@ -95,7 +95,7 @@ export function ZoneChangeDialog({
 				className="max-h-[calc(100dvh-2rem)] max-w-110 overflow-y-auto rounded-xl bg-surface-5 p-5 [overflow-wrap:anywhere] shadow-surface-5"
 			>
 				<DialogHeader className="gap-1">
-					<DialogTitle>Change the default time zone?</DialogTitle>
+					<DialogTitle style={{ fontVariationSettings: '"wght" 600' }}>Change the default time zone?</DialogTitle>
 					<DialogDescription id={descriptionId}>
 						From {oldName} time ({oldLabel}) to {newName} time ({newLabel}).
 					</DialogDescription>

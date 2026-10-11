@@ -48,10 +48,11 @@ function writeItem(key: string, value: string, deferred = false) {
 	else publish()
 }
 
-function normalizeSecond(raw: string | null, mainTimeZone: string): string {
+function normalizeSecond(raw: string | null, mainTimeZone: string, previousMain: string | null = null): string {
 	if (raw === NONE) return NONE
 	const zone = raw ?? DEFAULT_SECOND_ZONE
-	return !isTimeZone(zone) || sameTimeZone(zone, mainTimeZone) ? NONE : zone
+	if (isTimeZone(zone) && !sameTimeZone(zone, mainTimeZone)) return zone
+	return previousMain !== null && !sameTimeZone(previousMain, mainTimeZone) ? previousMain : NONE
 }
 
 export function commitDefaultZoneChange(oldMain: string, newMain: string): void {
@@ -60,12 +61,23 @@ export function commitDefaultZoneChange(oldMain: string, newMain: string): void 
 }
 
 export function useSecondZone(mainTimeZone: string | null): [string | null, (zone: string | null) => void] {
+	const [knownMain, setKnownMain] = useState<{ current: string | null; previous: string | null }>({
+		current: mainTimeZone,
+		previous: null,
+	})
+	const previousMain =
+		knownMain.current !== null && mainTimeZone !== null && !sameTimeZone(knownMain.current, mainTimeZone)
+			? knownMain.current
+			: knownMain.previous
+	if (mainTimeZone !== null && mainTimeZone !== knownMain.current) {
+		setKnownMain({ current: mainTimeZone, previous: previousMain })
+	}
 	const raw = useSyncExternalStore<string | null | undefined>(
 		subscribe,
 		() => readItem(SECOND_ZONE_KEY),
 		() => undefined
 	)
-	const stored = mainTimeZone === null || raw === undefined ? NONE : normalizeSecond(raw, mainTimeZone)
+	const stored = mainTimeZone === null || raw === undefined ? NONE : normalizeSecond(raw, mainTimeZone, previousMain)
 	useEffect(() => {
 		if (mainTimeZone === null || raw === undefined || raw === stored || (raw === null && stored !== NONE)) return
 		if (readItem(SECOND_ZONE_KEY) === raw) writeItem(SECOND_ZONE_KEY, stored)
