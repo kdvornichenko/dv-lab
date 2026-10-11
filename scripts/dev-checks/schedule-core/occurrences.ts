@@ -343,22 +343,11 @@ function cancelledMoveVectors(expect: Expect): void {
 }
 
 function nextLessonVectors(expect: Expect): void {
+	const mondayRule = rule({ weekday: 1, startTime: '09:00', startsOn: '2026-10-05' })
 	const nextSeries = [
 		rule({ id: 'series-a', studentId: 'student-a' }),
-		rule({
-			id: 'series-b',
-			studentId: 'student-b',
-			weekday: 1,
-			startTime: '09:00',
-			startsOn: '2026-10-05',
-		}),
-		rule({
-			id: 'series-c',
-			studentId: 'student-c',
-			weekday: 1,
-			startTime: '09:00',
-			startsOn: '2026-10-05',
-		}),
+		{ ...mondayRule, id: 'series-b', studentId: 'student-b' },
+		{ ...mondayRule, id: 'series-c', studentId: 'student-c' },
 		rule({ id: 'series-d', studentId: 'student-d', weekday: 4, startsOn: '2026-09-03', endsOn: '2026-10-08' }),
 	]
 	const nextExceptions: core.SeriesException[] = [
