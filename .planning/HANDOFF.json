@@ -1,10 +1,10 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T12:07:53.705165+00:00",
+	"timestamp": "2026-10-11T12:30:46.940610+00:00",
 	"phase": "21.1-default-time-zone",
 	"phase_name": "Default Time Zone",
 	"phase_dir": ".planning/phases/21.1-default-time-zone",
-	"plan": "21.1-02",
+	"plan": "21.1-05",
 	"task": 0,
 	"total_tasks": 3,
 	"status": "executing",
@@ -15,10 +15,13 @@
 		"13 executable plans / 37 tasks / 9 waves",
 		"independent plan check and squad review: all five findings closed",
 		"HTML plan review",
-		"21.1-01 complete: migration8/8 on _test/_dev, catalog/roles pass, synthetic history unchanged"
+		"21.1-01 complete: migration8/8 on _test/_dev, catalog/roles pass, synthetic history unchanged",
+		"21.1-02 complete: 52 public [tz] scenarios listed; behavior unverified until plan13",
+		"21.1-03 complete: strict partial settings, account-first guard, shared readSnapshot",
+		"21.1-04 complete: exact zones, mixed recurrence, accounting signatures, cut/end owner; core typecheck passed"
 	],
 	"remaining_tasks": [
-		"Execute Phase 21.1 plans 01–13 and verify TZ-01…05",
+		"Execute Phase 21.1 plans 05–13 and verify TZ-01…05",
 		"Integrate Phase 21.1 prerequisite and execute prepared Phase 24 plans"
 	],
 	"blockers": [],
@@ -35,6 +38,6 @@
 		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Execute plan 21.1-02: write public [tz] E2E scenarios before behavior implementation, then wave3 plans03/04. Plan01 complete; no repeated implementation approval.",
+	"next_action": "Execute 21.1-05 schedule DTO, rows, read/create/move and routes with explicit account context. Plans01–04 complete; wave-post gates unblocked; final functional E2E remains plan13.",
 	"context_notes": "Read 21.1-CONTEXT, RESEARCH, ARCH-REVIEW, UI-SPEC and PATTERNS. TZ-01 through TZ-05. Phase 21 source is unchanged by this metadata merge; accepted manual deferrals remain explicit."
 }
