@@ -99,6 +99,7 @@ export const saveStudentRequest = z
 export const openingBalanceRequest = z.object({
 	lessonsHundredths,
 	on: isoDate,
+	expectedDefaultTimeZone: z.string().refine(isTimeZone),
 })
 
 export const saveSectionRequest = z.object({
@@ -120,6 +121,7 @@ export const updateTermNoteRequest = z.object({
 export const recordPaymentRequest = z.object({
 	studentId: z.uuid(),
 	paidOn: isoDate,
+	expectedDefaultTimeZone: z.string().refine(isTimeZone),
 	amountMinor,
 	currency,
 	lessonsHundredths: lessonsHundredths.nullable(),
@@ -151,7 +153,13 @@ export type StudentRow = {
 	nextLessonAt: string | null
 }
 
-export type StudentsResponse = { students: StudentRow[]; unassignedPayments: number }
+export type StudentsResponse = {
+	students: StudentRow[]
+	unassignedPayments: number
+	defaultTimeZone: string
+	asOf: string
+	paysSoonLessons: number
+}
 
 export type StudentDetail = StudentRow & {
 	parent: string | null
@@ -164,7 +172,12 @@ export type StudentDetail = StudentRow & {
 	account: StudentAccount | null
 }
 
-export type StudentResponse = { student: StudentDetail }
+export type StudentResponse = {
+	student: StudentDetail
+	defaultTimeZone: string
+	asOf: string
+	paysSoonLessons: number
+}
 
 export type StudentSection = { kind: SectionKind; body: string; updatedAt: string | null }
 
