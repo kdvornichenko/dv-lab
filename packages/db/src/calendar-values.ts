@@ -247,7 +247,6 @@ export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
 		checkedAt: instant,
 		ownedDigest: digest,
 		unownedWritableFingerprint: digest,
-		conditionalCancellation: z.literal(true).optional(),
 		unownedWritable: googleUnownedWritable.nullable().optional(),
 	}),
 	z.strictObject({

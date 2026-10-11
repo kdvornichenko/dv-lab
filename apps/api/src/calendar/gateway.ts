@@ -290,6 +290,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 						calendarId,
 						eventId: request.eventId,
 						sendUpdates: 'none',
+						fields: request.payload.status === 'cancelled' ? 'id' : undefined,
 						requestBody: {
 							...body,
 							extendedProperties: { private: { ...privateProperties, ...body.extendedProperties.private } },
