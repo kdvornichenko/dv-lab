@@ -2,7 +2,7 @@ import type { StatusTone } from '@/components/app/status-dot'
 import { formatDayMonth } from '@/lib/schedule-format'
 
 import type { LessonMarkKind, ScheduleBlock, ScheduleLessonOutcome } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, awaitsMark, lessonsPhrase, markEffect, type MarkEffect } from '@dv-lab/core'
+import { awaitsMark, lessonsPhrase, markEffect, type MarkEffect } from '@dv-lab/core'
 
 export type OccurrenceSlot = 'from' | 'to'
 
@@ -44,23 +44,23 @@ export function statusKey(block: Pick<StatusBlock, 'outcome' | 'startsAt'>, now:
 	return awaitsMark(block.outcome, new Date(block.startsAt), now) ? 'needs_mark' : block.outcome
 }
 
-export function movedDate(block: Pick<StatusBlock, 'movedTo'>): string | null {
-	return block.movedTo === null ? null : formatDayMonth(new Date(block.movedTo), SCHEDULE_TIME_ZONE)
+export function movedDate(block: Pick<StatusBlock, 'movedTo'>, mainTimeZone: string): string | null {
+	return block.movedTo === null ? null : formatDayMonth(new Date(block.movedTo), mainTimeZone)
 }
 
-function withDate(text: string, dated: boolean, block: Pick<StatusBlock, 'movedTo'>): string {
-	const date = movedDate(block)
+function withDate(text: string, dated: boolean, block: Pick<StatusBlock, 'movedTo'>, mainTimeZone: string): string {
+	const date = movedDate(block, mainTimeZone)
 	return dated && date !== null ? `${text} to ${date}` : text
 }
 
-export function statusWord(block: StatusBlock, now: Date, dated = true): string {
+export function statusWord(block: StatusBlock, now: Date, mainTimeZone: string, dated = true): string {
 	const entry = STATUS[statusKey(block, now)]
-	return withDate(entry.word, entry.dated && dated, block)
+	return withDate(entry.word, entry.dated && dated, block, mainTimeZone)
 }
 
-export function statusLabel(block: StatusBlock, now: Date): string {
+export function statusLabel(block: StatusBlock, now: Date, mainTimeZone: string): string {
 	const entry = STATUS[statusKey(block, now)]
-	return withDate(entry.label, entry.dated, block)
+	return withDate(entry.label, entry.dated, block, mainTimeZone)
 }
 
 export function statusTone(block: StatusBlock, now: Date): StatusTone {
@@ -73,13 +73,15 @@ export function markLabel(kind: LessonMarkKind): string {
 
 export function blockEffect(
 	block: Pick<ScheduleBlock, 'outcome' | 'startsAt' | 'durationMinutes' | 'ledger'>,
-	now: Date
+	now: Date,
+	mainTimeZone: string
 ): MarkEffect {
 	return markEffect({
 		outcome: block.outcome,
 		startsAt: new Date(block.startsAt),
 		durationMinutes: block.durationMinutes,
 		now,
+		timeZone: mainTimeZone,
 		card: { openingOn: block.ledger.openingOn, noShowDeducts: block.ledger.noShowDeducts },
 	})
 }
@@ -88,7 +90,12 @@ function isoDayMonth(date: string): string {
 	return formatDayMonth(new Date(`${date}T12:00:00Z`), 'UTC')
 }
 
-export function markHelp(effect: MarkEffect, lessonMinutes: number, movedTo: string | null): string {
+export function markHelp(
+	effect: MarkEffect,
+	lessonMinutes: number,
+	movedTo: string | null,
+	mainTimeZone: string
+): string {
 	switch (effect.kind) {
 		case 'not_started':
 			return 'You can mark a lesson once it has started.'
@@ -105,7 +112,7 @@ export function markHelp(effect: MarkEffect, lessonMinutes: number, movedTo: str
 		case 'cancelled':
 			return 'Cancelled lessons deduct nothing. The mark is kept and counts again if you return the lesson to the schedule.'
 		case 'moved':
-			return `This lesson was moved to ${movedTo ?? 'a new time'}, so nothing is deducted here. Mark it at its new time.`
+			return `This lesson was moved to ${movedDate({ movedTo }, mainTimeZone) ?? 'a new time'}, so nothing is deducted here. Mark it at its new time.`
 	}
 }
 

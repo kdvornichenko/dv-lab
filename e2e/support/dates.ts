@@ -1,8 +1,8 @@
 export const VN = 'Asia/Ho_Chi_Minh'
 
-function parts(now: Date) {
+function parts(now: Date, timeZone: string) {
 	return new Intl.DateTimeFormat('en-GB', {
-		timeZone: VN,
+		timeZone,
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -12,14 +12,22 @@ function parts(now: Date) {
 	}).formatToParts(now)
 }
 
-function part(now: Date, kind: Intl.DateTimeFormatPartTypes): string {
-	const found = parts(now).find((entry) => entry.type === kind)
-	if (!found) throw new Error('Vietnam clock is unavailable')
+function part(now: Date, timeZone: string, kind: Intl.DateTimeFormatPartTypes): string {
+	const found = parts(now, timeZone).find((entry) => entry.type === kind)
+	if (!found) throw new Error('Zoned clock is unavailable')
 	return found.value
 }
 
 export function vnToday(now = new Date()): string {
-	return `${part(now, 'year')}-${part(now, 'month')}-${part(now, 'day')}`
+	return zonedDate(now, VN)
+}
+
+export function zonedDate(now: Date, timeZone: string): string {
+	return `${part(now, timeZone, 'year')}-${part(now, timeZone, 'month')}-${part(now, timeZone, 'day')}`
+}
+
+export function zonedTime(now: Date, timeZone: string): string {
+	return `${part(now, timeZone, 'hour')}:${part(now, timeZone, 'minute')}`
 }
 
 export function addDays(date: string, amount: number): string {
@@ -33,22 +41,22 @@ export function mondayOf(date: string): string {
 	return addDays(date, 1 - weekday)
 }
 
-function minuteNow(now: Date): number {
-	return Number(part(now, 'hour')) * 60 + Number(part(now, 'minute'))
+function minuteNow(now: Date, timeZone: string): number {
+	return Number(part(now, timeZone, 'hour')) * 60 + Number(part(now, timeZone, 'minute'))
 }
 
-export function assertDayWindow(): void {
-	const minute = minuteNow(new Date())
-	if (minute < 10 || minute >= 1420) throw new Error('Vietnam midnight is close: run after 00:10 VN')
+export function assertDayWindow(timeZone = VN): void {
+	const minute = minuteNow(new Date(), timeZone)
+	if (minute < 10 || minute >= 1420) throw new Error('Account midnight is close; rerun outside the boundary window')
 }
 
-export function startedSlotToday(): string {
-	const slot = Math.max(0, Math.floor((minuteNow(new Date()) - 30) / 15) * 15)
+export function startedSlotToday(timeZone = VN): string {
+	const slot = Math.max(0, Math.floor((minuteNow(new Date(), timeZone) - 30) / 15) * 15)
 	return `${String(Math.floor(slot / 60)).padStart(2, '0')}:${String(slot % 60).padStart(2, '0')}`
 }
 
 export function shortDay(date: string): string {
-	return new Intl.DateTimeFormat('en-GB', { timeZone: VN, day: 'numeric', month: 'short' }).format(
+	return new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(
 		new Date(`${date}T12:00:00Z`)
 	)
 }

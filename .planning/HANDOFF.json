@@ -1,34 +1,24 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T09:35:19Z",
-	"phase": "21-lesson-accounting-and-today",
-	"phase_name": "Lesson Accounting and Today",
-	"phase_dir": ".planning/phases/21-lesson-accounting-and-today",
-	"plan": null,
-	"task": 0,
-	"total_tasks": 18,
-	"status": "complete",
+	"timestamp": "2026-10-11T15:34:20Z",
+	"phase": "21.1-default-time-zone",
+	"phase_name": "Default Time Zone",
+	"phase_dir": ".planning/phases/21.1-default-time-zone",
+	"plan": "21.1 complete",
+	"task": 2,
+	"total_tasks": 2,
+	"status": "verified",
 	"completed_tasks": [
-		"21-01",
-		"21-02",
-		"21-03",
-		"21-04",
-		"21-05",
-		"21-06",
-		"21-07",
-		"21-08",
-		"21-09",
-		"21-10",
-		"21-11",
-		"21-12",
-		"21-13",
-		"21-14",
-		"21-15",
-		"21-16",
-		"21-17",
-		"21-18"
+		"Phase21.1: 13/13 plans complete; TZ-01…05 verified, 20/20 must-haves",
+		"Quality:94 handwritten files,any0,semantic0,all49 unknown boundaries reviewed",
+		"Public E2E:25 scenarios in two themes,50 unique passing variants across12 runs;fixtures0/settingsrestored",
+		"Security/UI/architecture/code reviews complete; findings fixed; native verification passed",
+		"Existing116tests,workspace typecheck/lint/knip/build and scoped regression passed"
 	],
-	"remaining_tasks": [],
+	"remaining_tasks": [
+		"Push Phase21.1, open PR, merge after green CI",
+		"Integrate merged prerequisite into prepared Phase24 worktree and execute accepted14plans"
+	],
 	"blockers": [],
 	"human_actions_pending": [
 		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
@@ -36,13 +26,13 @@
 		"Server guy: deploy phase 21 after merge (two migrations, breaking contract, paired api/web release)"
 	],
 	"decisions": [
-		"D-17: any lesson can be moved, mark follows the occurrence key",
-		"Phase order 21 -> 21.1 Default Time Zone -> 24 -> 25 -> 22 -> 23 -> 26",
-		"Constants that may change become settings",
-		"e2e tests allowed since 2026-10-10, no unit or integration tests",
-		"Phase 24 includes public homepage, privacy policy and terms pages before retrying Google OAuth Production publication"
+		"Phase order 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26",
+		"Default zone is an account setting; existing instants and creation zones stay unchanged",
+		"Second zone stays in this browser and swaps with the old default on collision after a successful save",
+		"Today and opening-balance lesson dates follow the current default zone",
+		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Final reviews are closed and verifier passed 37/37 active truths. Open the Phase 21 PR and merge after green CI. Continue the already authorized preparation of Phase 21.1 and Phase 24 in their separate worktrees; do not start their implementation. Runtime source remains f5e7083; reuse passing checks while inputs remain unchanged.",
-	"context_notes": "Read .continue-here.md in the phase directory for full state, anti-patterns and infrastructure notes."
+	"next_action": "Finish the authorized Phase21.1 PR cycle, then continue Phase24. Native phase.complete returned Phase17 because it follows numeric incomplete phases; owner-approved order is Phase24. Prior human deferrals stay unverified. WINDOW6 was closed from passed E2E; five earlier entries are untouched. Phase.complete warnings parse command strings and external evidence paths as missing files; verification.status remains passed.",
+	"context_notes": "Final source f185ec9; handwritten fingerprint c5f34d04cf3e6aeaf2d26763838c129acfe672182171bb43197c6946242c17c2. Native verification covers139files,digest v3:sha256:0f45bc8ed8a701a0e0bc971f916f7246e1a382ed572728180d09934c07f9b0ce. No app processes running. All evidence details and changed-file reasons are in21.1-13-SUMMARY. No deployment or live Google action authorized by this completion."
 }

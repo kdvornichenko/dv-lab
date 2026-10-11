@@ -25,29 +25,16 @@ import { Elevated } from '@/lib/elevated'
 import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
-import type { SettingsResponse, StudentRow, StudentsResponse } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
+import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
 
 import { StudentFormDialog } from './student-form-dialog'
 import { UnassignedPayments } from './unassigned-payments'
 
-type ReadState =
-	| { kind: 'loading' }
-	| { kind: 'error' }
-	| { kind: 'ready'; students: StudentRow[]; unassigned: number; threshold: number }
+type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: StudentsResponse }
 
 async function readStudents(): Promise<ReadState> {
-	const [students, settings] = await Promise.all([
-		apiRequest<StudentsResponse>('GET', '/students'),
-		apiRequest<SettingsResponse>('GET', '/settings'),
-	])
-	if (!students.ok || !settings.ok) return { kind: 'error' }
-	return {
-		kind: 'ready',
-		students: students.data.students,
-		unassigned: students.data.unassignedPayments,
-		threshold: settings.data.settings.paysSoonLessons,
-	}
+	const result = await apiRequest<StudentsResponse>('GET', '/students')
+	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
@@ -62,16 +49,27 @@ function matchesQuery(student: StudentRow, query: string) {
 	return text === '' || student.displayName.toLowerCase().includes(text)
 }
 
-function NextLesson({ at, zone, currentYear }: { at: Date; zone: string | null; currentYear: number }) {
-	const second = secondWhen(at, zone)
-	return <TimePair main={formatWhen(at, SCHEDULE_TIME_ZONE, currentYear)} second={second} />
+function NextLesson({
+	at,
+	mainTimeZone,
+	zone,
+	currentYear,
+}: {
+	at: Date
+	mainTimeZone: string
+	zone: string | null
+	currentYear: number
+}) {
+	const second = secondWhen(at, mainTimeZone, zone)
+	return <TimePair main={formatWhen(at, mainTimeZone, currentYear)} second={second} />
 }
 
-function StudentsTable({ rows, searching, threshold }: { rows: StudentRow[]; searching: boolean; threshold: number }) {
+function StudentsTable({ rows, searching, data }: { rows: StudentRow[]; searching: boolean; data: StudentsResponse }) {
 	const router = useRouter()
-	const [zone] = useSecondZone()
+	const { defaultTimeZone: mainTimeZone, asOf, paysSoonLessons: threshold } = data
+	const [zone] = useSecondZone(mainTimeZone)
 	if (rows.length === 0) return searching ? <EmptyLine text="No students found" /> : <EmptyLine />
-	const currentYear = yearInZone(new Date())
+	const currentYear = yearInZone(new Date(asOf), mainTimeZone)
 	function open(event: MouseEvent<HTMLTableRowElement>, id: string) {
 		if ((event.target as HTMLElement).closest('a')) return
 		router.push(`/students/${id}`)
@@ -135,7 +133,12 @@ function StudentsTable({ rows, searching, threshold }: { rows: StudentRow[]; sea
 									{student.nextLessonAt === null ? (
 										<span className="text-muted-foreground">None</span>
 									) : (
-										<NextLesson at={new Date(student.nextLessonAt)} zone={zone} currentYear={currentYear} />
+										<NextLesson
+											at={new Date(student.nextLessonAt)}
+											mainTimeZone={mainTimeZone}
+											zone={zone}
+											currentYear={currentYear}
+										/>
 									)}
 								</TableCell>
 							</TableRow>
@@ -153,23 +156,23 @@ export function StudentsScreen() {
 	const [tab, setTab] = useState('active')
 	const [query, setQuery] = useState('')
 	const createButton = useRef<HTMLButtonElement>(null)
+	const requests = useRef(0)
 
 	const load = useCallback(async () => {
-		setState(await readStudents())
+		const id = ++requests.current
+		const next = await readStudents()
+		if (id === requests.current) setState(next)
 	}, [])
 
 	useEffect(() => {
-		let current = true
-		void readStudents().then((next) => {
-			if (current) setState(next)
-		})
+		const counter = requests
+		void load()
 		return () => {
-			current = false
+			counter.current++
 		}
-	}, [])
+	}, [load])
 
-	const students = state.kind === 'ready' ? state.students : null
-	const threshold = state.kind === 'ready' ? state.threshold : 0
+	const students = state.kind === 'ready' ? state.data.students : null
 	const active = useMemo(
 		() => (students ?? []).filter((student) => student.status === 'active').sort(byName),
 		[students]
@@ -214,7 +217,11 @@ export function StudentsScreen() {
 							<TabItem value="archived" label="Archived" />
 							<TabItem
 								value="unassigned"
-								label={state.kind === 'ready' ? `Unassigned payments (${state.unassigned})` : 'Unassigned payments'}
+								label={
+									state.kind === 'ready'
+										? `Unassigned payments (${state.data.unassignedPayments})`
+										: 'Unassigned payments'
+								}
 							/>
 						</TabsList>
 					</div>
@@ -231,18 +238,10 @@ export function StudentsScreen() {
 					)}
 				</div>
 				<TabPanel value="active" className="mt-4">
-					{loading ? (
-						<SkeletonTable />
-					) : (
-						<StudentsTable rows={shownActive} searching={searching} threshold={threshold} />
-					)}
+					{loading ? <SkeletonTable /> : <StudentsTable rows={shownActive} searching={searching} data={state.data} />}
 				</TabPanel>
 				<TabPanel value="archived" className="mt-4">
-					{loading ? (
-						<SkeletonTable />
-					) : (
-						<StudentsTable rows={shownArchived} searching={searching} threshold={threshold} />
-					)}
+					{loading ? <SkeletonTable /> : <StudentsTable rows={shownArchived} searching={searching} data={state.data} />}
 				</TabPanel>
 				<TabPanel value="unassigned" className="mt-4">
 					{loading ? <SkeletonTable /> : <UnassignedPayments students={active} onChanged={() => void load()} />}

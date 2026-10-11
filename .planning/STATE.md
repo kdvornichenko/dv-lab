@@ -1,21 +1,21 @@
 ---
-gsd_state_version: '1.0'
+gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 21
-current_phase_name: Lesson Accounting and Today
+current_phase: '21.1'
+current_phase_name: Default Time Zone
 status: complete
-stopped_at: Phase 21 verified; PR and green CI merge remain
-last_updated: '2026-10-11T09:34:02.195Z'
+stopped_at: Phase 21.1 verified; PR/CI pending, then prepared Phase 24
+last_updated: "2026-10-11T15:33:53.547Z"
 last_activity: 2026-10-11
-last_activity_desc: Phase 21 passed 37 active truths; two manual scenarios deferred after Phase 25
-state_head: 3669b45cca1572857aea71f49fa11dba6175c35f
+last_activity_desc: "Phase 21.1 verified: 20/20 must-haves and 5/5 requirements; next Phase 24"
+state_head: b610dd7eba051c3bd40ddaaeedd2f1e6f5cc76c4
 progress:
-  total_phases: 10
-  completed_phases: 1
-  total_plans: 77
-  completed_plans: 77
-  percent: 100
+  total_phases: 11
+  completed_phases: 2
+  total_plans: 90
+  completed_plans: 90
+  percent: 18
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 21 — Lesson Accounting and Today
+**Current focus:** Phase 21.1 — Default Time Zone
 
 ## Current Position
 
-Phase: 21 — Lesson Accounting and Today
-Plan: 18 of 18 completed
-Status: Verified; PR and green CI merge remain
-Last activity: 2026-10-11 — Final reviews closed; verifier passed 37/37 active truths
+Phase: 21.1 — Default Time Zone
+Plan: 13 of 13 — complete
+Status: Verified; PR and green CI merge pending. Prepared Phase 24 is next by the owner-approved order.
+Last activity: 2026-10-11 — Phase 21.1 verified: 20/20 must-haves and 5/5 requirements; next Phase 24
 
-Progress: [██████████] 100% of Phase 21 plans executed (18/18)
+Progress: [██░░░░░░░░] 18%
 
 ## Deferred Verification
 
@@ -62,6 +62,7 @@ Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 i
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 21    | 18    | -     | -        |
+| 21.1  | 13    | -     | -        |
 
 Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 **Per-Plan Metrics:**
@@ -98,6 +99,10 @@ None yet.
 - [Phase 26] No rollout while an ielts room has active students. ielts keeps running on Vercel and Neon until Phase 26; its phase 6.2 UAT is open in the ielts repository.
 - [Launch] Access from Russian networks to OVH is checked when the app is ready, before the 12-month commitment.
 
+### Roadmap Evolution
+
+- Phase 21.1 inserted after Phase 21: Default Time Zone before Google Calendar; parallel planning authorized 2026-10-11
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -108,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T03:18:24Z
-Stopped at: Phase 21 verified; PR and green CI merge remain. Phase 21.1 and Phase 24 preparation runs in separate worktrees; implementation is not started.
-Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md
+Last session: 2026-10-11T15:34:20Z
+Stopped at: Phase 21.1 verified; PR/CI pending, then prepared Phase 24
+Resume file: .planning/phases/21.1-default-time-zone/21.1-VERIFICATION.md

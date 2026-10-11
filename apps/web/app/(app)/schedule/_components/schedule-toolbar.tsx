@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/u
 import { Tooltip } from '@/components/ui/tooltip'
 import { periodTitle } from '@/lib/schedule-format'
 
-import { SCHEDULE_TIME_ZONE, zonedInstant } from '@dv-lab/core'
+import { zonedInstant } from '@dv-lab/core'
 
 interface ScheduleToolbarProps {
 	monday: string
 	currentMonday: string
+	mainTimeZone: string
 	onToday: () => void
 	onPrevious: () => void
 	onNext: () => void
@@ -31,13 +32,14 @@ function typingTarget(target: EventTarget | null): boolean {
 export function ScheduleToolbar({
 	monday,
 	currentMonday,
+	mainTimeZone,
 	onToday,
 	onPrevious,
 	onNext,
 	zone,
 	onZoneChange,
 }: ScheduleToolbarProps) {
-	const labelAt = useMemo(() => zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE), [monday])
+	const labelAt = useMemo(() => zonedInstant(monday, '12:00', mainTimeZone), [monday, mainTimeZone])
 	const onKey = useEffectEvent((event: KeyboardEvent) => {
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return
 		if (typingTarget(event.target) || typingTarget(document.activeElement)) return
@@ -93,7 +95,7 @@ export function ScheduleToolbar({
 					value={zone}
 					onChange={onZoneChange}
 					allowNone
-					excludeMain
+					excludeMain={mainTimeZone}
 					labelAt={labelAt}
 				/>
 				<Select value="week" size="compact">

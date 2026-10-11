@@ -1,6 +1,7 @@
 import type { APIRequestContext } from '@playwright/test'
 
 import type { ScheduleBlock } from '../../packages/contracts/src/schedule.ts'
+import type { TeacherSettings } from '../../packages/contracts/src/settings.ts'
 import { BASE } from './data.ts'
 import { flag, integer, list, record, text, uuid } from './input.ts'
 
@@ -99,8 +100,12 @@ export async function readStudents(request: APIRequestContext): Promise<StudentF
 	return list(record(await api(request, 'GET', '/students')).students).map(studentFacts)
 }
 
-export async function readSettings(request: APIRequestContext): Promise<number> {
-	return integer(record(record(await api(request, 'GET', '/settings')).settings).paysSoonLessons)
+export async function readSettings(request: APIRequestContext): Promise<TeacherSettings> {
+	const settings = record(record(await api(request, 'GET', '/settings')).settings)
+	return {
+		paysSoonLessons: integer(settings.paysSoonLessons),
+		defaultTimeZone: text(settings.defaultTimeZone),
+	}
 }
 
 export async function teacherId(request: APIRequestContext): Promise<string> {

@@ -11,12 +11,13 @@ import { CLEAR_MARK_LABEL, markLabel } from '@/lib/lesson-mark-text'
 import { formatTime } from '@/lib/schedule-format'
 
 import type { LessonMarkKind, ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, isMarked } from '@dv-lab/core'
+import { isMarked } from '@dv-lab/core'
 
 import { markLesson } from '../schedule/_components/schedule-mutations'
 
 interface TodayMarkControlsProps {
 	block: ScheduleBlock
+	mainTimeZone: string
 	pending: LessonMarkKind | null
 	onPendingChange: (kind: LessonMarkKind | null) => void
 	onSaved: () => Promise<void>
@@ -31,6 +32,7 @@ const QUICK_MARKS = [
 
 export function TodayMarkControls({
 	block,
+	mainTimeZone,
 	pending,
 	onPendingChange,
 	onSaved,
@@ -46,9 +48,9 @@ export function TodayMarkControls({
 		onError(false)
 		try {
 			const result = await markLesson(block, kind)
-			if (result.kind === 'failed') onError(true)
+			if (result.kind === 'ok') await onSaved()
 			else if (result.kind === 'stale') await onStale()
-			else await onSaved()
+			else onError(true)
 		} finally {
 			saving.current = false
 			onPendingChange(null)
@@ -56,7 +58,7 @@ export function TodayMarkControls({
 	}
 
 	if (!block.actions.mark) return null
-	const subject = `${block.studentName}, ${formatTime(new Date(block.startsAt), SCHEDULE_TIME_ZONE)}`
+	const subject = `${block.studentName}, ${formatTime(new Date(block.startsAt), mainTimeZone)}`
 	const disabled = pending !== null
 	if (isMarked(block.outcome)) {
 		const label = markLabel(block.mark ?? 'none')

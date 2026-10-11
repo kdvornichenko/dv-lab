@@ -38,13 +38,16 @@ export const PAYMENT_NOTE_MAX_LENGTH = 500
 export const AMOUNT_MINOR_MAX = 2000000000
 export const LESSONS_HUNDREDTHS_MAX = 9999999
 
-export function isTimeZone(value: string): boolean {
+export function timeZoneIdentity(value: string): string | null {
 	try {
-		new Intl.DateTimeFormat('en-US', { timeZone: value })
-		return true
+		return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone
 	} catch {
-		return false
+		return null
 	}
+}
+
+export function isTimeZone(value: string): boolean {
+	return timeZoneIdentity(value) !== null
 }
 
 export function isIsoDate(value: string): boolean {
@@ -96,6 +99,7 @@ export const saveStudentRequest = z
 export const openingBalanceRequest = z.object({
 	lessonsHundredths,
 	on: isoDate,
+	expectedDefaultTimeZone: z.string().refine(isTimeZone),
 })
 
 export const saveSectionRequest = z.object({
@@ -117,6 +121,7 @@ export const updateTermNoteRequest = z.object({
 export const recordPaymentRequest = z.object({
 	studentId: z.uuid(),
 	paidOn: isoDate,
+	expectedDefaultTimeZone: z.string().refine(isTimeZone),
 	amountMinor,
 	currency,
 	lessonsHundredths: lessonsHundredths.nullable(),
@@ -148,7 +153,13 @@ export type StudentRow = {
 	nextLessonAt: string | null
 }
 
-export type StudentsResponse = { students: StudentRow[]; unassignedPayments: number }
+export type StudentsResponse = {
+	students: StudentRow[]
+	unassignedPayments: number
+	defaultTimeZone: string
+	asOf: string
+	paysSoonLessons: number
+}
 
 export type StudentDetail = StudentRow & {
 	parent: string | null
@@ -161,7 +172,12 @@ export type StudentDetail = StudentRow & {
 	account: StudentAccount | null
 }
 
-export type StudentResponse = { student: StudentDetail }
+export type StudentResponse = {
+	student: StudentDetail
+	defaultTimeZone: string
+	asOf: string
+	paysSoonLessons: number
+}
 
 export type StudentSection = { kind: SectionKind; body: string; updatedAt: string | null }
 

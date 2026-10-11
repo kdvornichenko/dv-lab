@@ -64,6 +64,14 @@ Requirements for milestone v2.0 Unified dv-lab. Each maps to a roadmap phase. Th
 - [ ] **SCHED-04**: The schedule shows a week grid with week navigation and displays Vietnam time by default with a second zone available.
 - [ ] **SCHED-05**: Past lessons are kept intact when a series is changed or ended.
 
+### Default Time Zone
+
+- [x] **TZ-01**: The teacher confirms an account-level default time zone in Settings; new accounts start with Vietnam. Cancel or failed save leaves the value unchanged.
+- [x] **TZ-02**: Lessons and series persist their creation zone. Existing rows stay in Vietnam; new rows use the default. Changing the setting preserves existing instants, rules and occurrence identities.
+- [x] **TZ-03**: All schedule and lesson displays use the default zone. Different creation zones appear in details; recurrences preserve wall time in their stored zone across daylight saving changes.
+- [x] **TZ-04**: Today and lesson accounting dates follow the default zone, including the opening-balance boundary. Date-only payment values do not shift.
+- [x] **TZ-05**: The browser's second zone stays distinct from the default and synchronized between Settings and schedule. On collision, a successful default-zone change swaps in the old default as second.
+
 ### Google Calendar
 
 - [ ] **GCAL-01**: The teacher connects Google Calendar through a server-side OAuth flow with calendar scopes, and the refresh token is stored encrypted.
@@ -127,83 +135,88 @@ Deferred, tracked but not in the current roadmap.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-| Requirement | Phase    | Status   |
-| ----------- | -------- | -------- |
-| INFRA-01    | Phase 17 | Pending  |
-| INFRA-02    | Phase 17 | Pending  |
-| INFRA-03    | Phase 17 | Pending  |
-| INFRA-04    | Phase 17 | Pending  |
-| INFRA-05    | Phase 17 | Pending  |
-| INFRA-06    | Phase 17 | Pending  |
-| INFRA-07    | Phase 17 | Pending  |
-| INFRA-08    | Phase 17 | Pending  |
-| ACCT-01     | Phase 18 | Pending  |
-| ACCT-02     | Phase 18 | Pending  |
-| ACCT-03     | Phase 18 | Pending  |
-| ACCT-04     | Phase 19 | Pending  |
-| ACCT-05     | Phase 18 | Pending  |
-| SHELL-01    | Phase 18 | Pending  |
-| SHELL-02    | Phase 18 | Pending  |
-| SHELL-03    | Phase 23 | Pending  |
-| SHELL-04    | Phase 23 | Pending  |
-| SHELL-05    | Phase 21 | Complete |
-| CARD-01     | Phase 19 | Pending  |
-| CARD-02     | Phase 19 | Pending  |
-| CARD-03     | Phase 19 | Pending  |
-| CARD-04     | Phase 20 | Pending  |
-| CARD-05     | Phase 23 | Pending  |
-| CARD-06     | Phase 19 | Pending  |
-| CARD-07     | Phase 19 | Pending  |
-| LEDG-01     | Phase 19 | Pending  |
-| LEDG-02     | Phase 19 | Pending  |
-| LEDG-03     | Phase 21 | Complete |
-| LEDG-04     | Phase 21 | Complete |
-| LEDG-05     | Phase 21 | Complete |
-| LEDG-06     | Phase 21 | Complete |
-| LEDG-07     | Phase 21 | Complete |
-| LEDG-08     | Phase 21 | Complete |
-| LEDG-09     | Phase 19 | Pending  |
-| SCHED-01    | Phase 20 | Pending  |
-| SCHED-02    | Phase 20 | Pending  |
-| SCHED-03    | Phase 20 | Pending  |
-| SCHED-04    | Phase 20 | Pending  |
-| SCHED-05    | Phase 20 | Pending  |
-| GCAL-01     | Phase 24 | Pending  |
-| GCAL-02     | Phase 24 | Pending  |
-| GCAL-03     | Phase 24 | Pending  |
-| GCAL-04     | Phase 25 | Pending  |
-| GCAL-05     | Phase 25 | Pending  |
-| GCAL-06     | Phase 25 | Pending  |
-| GCAL-07     | Phase 25 | Pending  |
-| GCAL-08     | Phase 25 | Pending  |
-| GCAL-09     | Phase 24 | Pending  |
-| GCAL-10     | Phase 24 | Pending  |
-| CHAT-01     | Phase 22 | Pending  |
-| CHAT-02     | Phase 22 | Pending  |
-| CHAT-03     | Phase 22 | Pending  |
-| CHAT-04     | Phase 22 | Pending  |
-| CHAT-05     | Phase 23 | Pending  |
-| CHAT-06     | Phase 23 | Pending  |
-| CHAT-07     | Phase 22 | Pending  |
-| CHAT-08     | Phase 22 | Pending  |
-| CHAT-09     | Phase 22 | Pending  |
-| CHAT-10     | Phase 23 | Pending  |
-| CHAT-11     | Phase 22 | Pending  |
-| CHAT-12     | Phase 23 | Pending  |
-| IELTS-01    | Phase 26 | Pending  |
-| IELTS-02    | Phase 26 | Pending  |
-| IELTS-03    | Phase 26 | Pending  |
-| IELTS-04    | Phase 26 | Pending  |
-| IELTS-05    | Phase 26 | Pending  |
-| IELTS-06    | Phase 26 | Pending  |
+| Requirement | Phase      | Status   |
+| ----------- | ---------- | -------- |
+| INFRA-01    | Phase 17   | Pending  |
+| INFRA-02    | Phase 17   | Pending  |
+| INFRA-03    | Phase 17   | Pending  |
+| INFRA-04    | Phase 17   | Pending  |
+| INFRA-05    | Phase 17   | Pending  |
+| INFRA-06    | Phase 17   | Pending  |
+| INFRA-07    | Phase 17   | Pending  |
+| INFRA-08    | Phase 17   | Pending  |
+| ACCT-01     | Phase 18   | Pending  |
+| ACCT-02     | Phase 18   | Pending  |
+| ACCT-03     | Phase 18   | Pending  |
+| ACCT-04     | Phase 19   | Pending  |
+| ACCT-05     | Phase 18   | Pending  |
+| SHELL-01    | Phase 18   | Pending  |
+| SHELL-02    | Phase 18   | Pending  |
+| SHELL-03    | Phase 23   | Pending  |
+| SHELL-04    | Phase 23   | Pending  |
+| SHELL-05    | Phase 21   | Complete |
+| CARD-01     | Phase 19   | Pending  |
+| CARD-02     | Phase 19   | Pending  |
+| CARD-03     | Phase 19   | Pending  |
+| CARD-04     | Phase 20   | Pending  |
+| CARD-05     | Phase 23   | Pending  |
+| CARD-06     | Phase 19   | Pending  |
+| CARD-07     | Phase 19   | Pending  |
+| LEDG-01     | Phase 19   | Pending  |
+| LEDG-02     | Phase 19   | Pending  |
+| LEDG-03     | Phase 21   | Complete |
+| LEDG-04     | Phase 21   | Complete |
+| LEDG-05     | Phase 21   | Complete |
+| LEDG-06     | Phase 21   | Complete |
+| LEDG-07     | Phase 21   | Complete |
+| LEDG-08     | Phase 21   | Complete |
+| LEDG-09     | Phase 19   | Pending  |
+| SCHED-01    | Phase 20   | Pending  |
+| SCHED-02    | Phase 20   | Pending  |
+| SCHED-03    | Phase 20   | Pending  |
+| SCHED-04    | Phase 20   | Pending  |
+| SCHED-05    | Phase 20   | Pending  |
+| TZ-01       | Phase 21.1 | Complete |
+| TZ-02       | Phase 21.1 | Complete |
+| TZ-03       | Phase 21.1 | Complete |
+| TZ-04       | Phase 21.1 | Complete |
+| TZ-05       | Phase 21.1 | Complete |
+| GCAL-01     | Phase 24   | Pending  |
+| GCAL-02     | Phase 24   | Pending  |
+| GCAL-03     | Phase 24   | Pending  |
+| GCAL-04     | Phase 25   | Pending  |
+| GCAL-05     | Phase 25   | Pending  |
+| GCAL-06     | Phase 25   | Pending  |
+| GCAL-07     | Phase 25   | Pending  |
+| GCAL-08     | Phase 25   | Pending  |
+| GCAL-09     | Phase 24   | Pending  |
+| GCAL-10     | Phase 24   | Pending  |
+| CHAT-01     | Phase 22   | Pending  |
+| CHAT-02     | Phase 22   | Pending  |
+| CHAT-03     | Phase 22   | Pending  |
+| CHAT-04     | Phase 22   | Pending  |
+| CHAT-05     | Phase 23   | Pending  |
+| CHAT-06     | Phase 23   | Pending  |
+| CHAT-07     | Phase 22   | Pending  |
+| CHAT-08     | Phase 22   | Pending  |
+| CHAT-09     | Phase 22   | Pending  |
+| CHAT-10     | Phase 23   | Pending  |
+| CHAT-11     | Phase 22   | Pending  |
+| CHAT-12     | Phase 23   | Pending  |
+| IELTS-01    | Phase 26   | Pending  |
+| IELTS-02    | Phase 26   | Pending  |
+| IELTS-03    | Phase 26   | Pending  |
+| IELTS-04    | Phase 26   | Pending  |
+| IELTS-05    | Phase 26   | Pending  |
+| IELTS-06    | Phase 26   | Pending  |
 
 **Coverage:**
 
-- v2.0 requirements: 67 total
-- Mapped to phases: 67
+- v2.0 requirements: 72 total
+- Mapped to phases: 72
 - Unmapped: 0
 
 ---
 
 _Requirements defined: 2026-10-09_
-_Last updated: 2026-10-09 after v2.0 roadmap creation (phases 17-26)_
+_Last updated: 2026-10-11 after verifying TZ-01…TZ-05 in Phase 21.1_

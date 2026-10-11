@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, isIsoDate, type StudentStatus } from './students.ts'
+import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, isIsoDate, isTimeZone, type StudentStatus } from './students.ts'
 
 export const CLOCK_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -24,18 +24,22 @@ const weekday = z.literal([1, 2, 3, 4, 5, 6, 7])
 
 const expectedStartsAt = z.iso.datetime().optional()
 
+const expectedDefaultTimeZone = z.string().refine(isTimeZone)
+
 export const createLessonRequest = z.object({
 	studentId: z.uuid(),
 	date: isoDate,
 	startTime: clockTime,
 	durationMinutes: lessonMinutes,
 	repeats: z.enum(REPEATS),
+	expectedDefaultTimeZone,
 })
 
 export const moveLessonRequest = z.object({
 	date: isoDate,
 	startTime: clockTime,
 	expectedStartsAt,
+	expectedDefaultTimeZone,
 })
 
 export const lessonActionRequest = z.object({
@@ -55,10 +59,12 @@ export const moveSeriesRequest = z.object({
 	from: isoDate,
 	weekday,
 	startTime: clockTime,
+	expectedDefaultTimeZone,
 })
 
 export const endSeriesRequest = z.object({
 	lastOn: isoDate,
+	expectedDefaultTimeZone,
 })
 
 export const scheduleWeekStart = isoDate
@@ -80,6 +86,7 @@ export type ScheduleBlock = {
 	studentStatus: StudentStatus
 	studentGoal: string | null
 	startsAt: string
+	timeZone: string
 	durationMinutes: number
 	movedTo: string | null
 	movedFrom: string | null
@@ -89,22 +96,33 @@ export type ScheduleBlock = {
 	mark: LessonMarkKind | null
 }
 
+export type ScheduleSeriesReference = { originalOn: string; actualStartsAt: string; ruleStartsAt: string | null }
+
 export type ScheduleSeries = {
 	id: string
 	studentId: string
 	weekday: ScheduleWeekday
 	startTime: string
+	timeZone: string
 	durationMinutes: number
 	startsOn: string
 	endsOn: string | null
+	referenceOccurrence: ScheduleSeriesReference | null
 }
 
-export type ScheduleWeekResponse = { start: string; blocks: ScheduleBlock[]; series: ScheduleSeries[] }
+export type ScheduleWeekResponse = {
+	start: string
+	blocks: ScheduleBlock[]
+	series: ScheduleSeries[]
+	defaultTimeZone: string
+	asOf: string
+}
 
 export type ScheduleLesson = {
 	id: string
 	studentId: string
 	startsAt: string
+	timeZone: string
 	durationMinutes: number
 	status: 'scheduled' | 'cancelled'
 }

@@ -1,10 +1,10 @@
 import { Hono } from 'hono'
 
 import type { TodayResponse } from '@dv-lab/contracts'
-import type { Database } from '@dv-lab/db'
+import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, requireRole, requireSession } from '../auth/middleware.ts'
-import { readSnapshot } from '../schedule/rows.ts'
+import { readTeacherSettings } from '../settings/settings.ts'
 import { readToday } from '../today/today.ts'
 
 type TodayRouteDeps = { db: Database }
@@ -15,7 +15,11 @@ export function todayRoutes({ db }: TodayRouteDeps) {
 
 	routes.get('/', async (c) => {
 		const accountId = c.get('session').account.id
-		const today = await readSnapshot(db, (executor) => readToday(executor, accountId, new Date()))
+		const today = await readSnapshot(db, async (executor) => {
+			const now = new Date()
+			const settings = await readTeacherSettings(executor, accountId)
+			return readToday(executor, { now, defaultTimeZone: settings.defaultTimeZone }, settings.paysSoonLessons)
+		})
 		return c.json(today satisfies TodayResponse, 200)
 	})
 

@@ -4,14 +4,15 @@ import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { vnRange } from '@/lib/schedule-format'
+import { mainRange } from '@/lib/schedule-format'
 
 import type { LessonRepeats, StudentRow } from '@dv-lab/contracts'
 
 import type { OverlapBlock, StudentsState } from './new-lesson-dialog'
 
-function clashText(items: readonly OverlapBlock[]): string {
-	const label = (item: OverlapBlock) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, null)}`
+function clashText(items: readonly OverlapBlock[], mainTimeZone: string): string {
+	const label = (item: OverlapBlock) =>
+		`${item.studentName} ${mainRange(item.startsAt, item.durationMinutes, mainTimeZone, null)}`
 	if (items.length === 1) return `${label(items[0])}. You can still save.`
 	if (items.length === 2) return `${label(items[0])} and ${label(items[1])}. You can still save.`
 	return `${label(items[0])}, ${label(items[1])} and ${items.length - 2} more. You can still save.`
@@ -21,10 +22,12 @@ export function NewLessonNotices({
 	students,
 	failed,
 	clashes,
+	mainTimeZone,
 }: {
 	students: StudentsState
 	failed: boolean
 	clashes: OverlapBlock[]
+	mainTimeZone: string
 }) {
 	return (
 		<>
@@ -41,7 +44,7 @@ export function NewLessonNotices({
 			{clashes.length > 0 ? (
 				<Banner status="warning" data-slot="new-lesson-overlap">
 					<BannerTitle>This overlaps another lesson</BannerTitle>
-					<BannerDescription>{clashText(clashes)}</BannerDescription>
+					<BannerDescription>{clashText(clashes, mainTimeZone)}</BannerDescription>
 				</Banner>
 			) : null}
 		</>

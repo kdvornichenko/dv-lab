@@ -6,11 +6,10 @@ import { Check, UserX } from 'lucide-react'
 
 import { DotShape } from '@/components/app/status-dot'
 import { movedDate, occurrenceSlot, statusKey, statusLabel, type StatusKey } from '@/lib/lesson-mark-text'
-import { formatDay, formatRange, formatTime, vnRange } from '@/lib/schedule-format'
+import { formatDay, formatRange, formatTime, mainRange } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 export interface BlockLayout {
 	top: number
@@ -53,6 +52,7 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	secondZone: string | null
 	currentYear: number
 	now: Date
+	mainTimeZone: string
 	onOpen: (block: ScheduleBlock) => void
 	onClick?: ComponentProps<'button'>['onClick']
 }
@@ -63,6 +63,7 @@ export function LessonBlock({
 	secondZone,
 	currentYear,
 	now,
+	mainTimeZone,
 	onOpen,
 	onClick,
 	className,
@@ -70,21 +71,21 @@ export function LessonBlock({
 	...props
 }: LessonBlockProps) {
 	const start = new Date(block.startsAt)
-	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
-	const movedLabel = movedDate(block)
+	const range = formatRange(start, block.durationMinutes, mainTimeZone)
+	const movedLabel = movedDate(block, mainTimeZone)
 	const look = BLOCK_LOOK[statusKey(block, now)]
 	const label = [
 		block.studentName,
-		formatDay(start, SCHEDULE_TIME_ZONE, currentYear),
-		vnRange(start, block.durationMinutes, secondZone),
-		statusLabel(block, now),
+		formatDay(start, mainTimeZone, currentYear),
+		mainRange(start, block.durationMinutes, mainTimeZone, secondZone),
+		statusLabel(block, now, mainTimeZone),
 	].join(', ')
 	const short = block.durationMinutes < 45
 	const lines = short
 		? [
 				movedLabel !== null
 					? `${block.studentName} → ${movedLabel}`
-					: `${block.studentName}, ${formatTime(start, SCHEDULE_TIME_ZONE)}`,
+					: `${block.studentName}, ${formatTime(start, mainTimeZone)}`,
 			]
 		: [block.studentName, movedLabel !== null ? `→ ${movedLabel}` : range]
 	const position: CSSProperties = {

@@ -6,6 +6,18 @@ import { addDays, mondayOf, startedSlotToday, VN, vnToday } from './support/date
 import { record, text } from './support/input.ts'
 import { expect, test, type Card, type Fx } from './support/test.ts'
 import {
+	civilWindows,
+	duplicateZone,
+	dstRules,
+	foldInstants,
+	immutableSchedule,
+	missingRuleReference,
+	mixedWindow,
+	referenceSelection,
+	schedule,
+} from './support/tz-schedule.ts'
+import { NY, setMain } from './support/tz-settings.ts'
+import {
 	balanceEverywhere,
 	block,
 	changeSeries,
@@ -17,6 +29,7 @@ import {
 	openToday,
 	openTodayLesson,
 	openWeekOf,
+	pickTime,
 	screenshot,
 	shortDay,
 } from './support/ui.ts'
@@ -209,6 +222,160 @@ test('a marked started lesson moves with its mark', async ({ page, fx }, info) =
 	await screenshot(dialog, info)
 	await page.keyboard.press('Escape')
 	await balanceEverywhere(page, fx, card, '2 lessons left', 120)
+})
+
+async function chooseCalendarDate(page: Page, date: string): Promise<void> {
+	await page.locator('#new-lesson-date').click()
+	const cells = page.locator('button[data-day]')
+	const anchor = await cells.nth(15).getAttribute('data-day')
+	if (!anchor) throw new Error('Calendar month is unavailable')
+	const [month, , year] = anchor.split('/').map(Number)
+	const steps = (Number(date.slice(0, 4)) - year) * 12 + Number(date.slice(5, 7)) - month
+	for (let n = 0; n < Math.abs(steps); n += 1)
+		await page.getByRole('button', { name: steps > 0 ? /next month/i : /previous month/i }).click()
+	await page
+		.locator(`button[data-day="${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}/${date.slice(0, 4)}"]`)
+		.first()
+		.click()
+}
+
+async function creationForm(page: Page, card: Card, date: string, time: string): Promise<void> {
+	await page.goto('/schedule')
+	await page.getByRole('button', { name: 'New lesson', exact: true }).click()
+	await page.getByLabel('Student', { exact: true }).click()
+	await page.getByRole('option', { name: card.name, exact: true }).click()
+	await chooseCalendarDate(page, date)
+	await pickTime(page, time, 'new-lesson-time')
+}
+
+async function gapAndFoldForm(page: Page, fx: Fx): Promise<void> {
+	const card = await fx.card('Alex Example 2185')
+	await setMain(page.request, NY)
+	const before = fx.scheduleCounts(card.id)
+	const rejected = record(
+		await api(
+			page.request,
+			'POST',
+			'/schedule/lessons',
+			{
+				studentId: card.id,
+				date: '2027-03-14',
+				startTime: '02:30',
+				durationMinutes: 60,
+				repeats: 'once',
+				expectedDefaultTimeZone: NY,
+			},
+			400
+		)
+	)
+	expect(record(rejected.error).code).toBe('nonexistent_local_time')
+	expect(fx.scheduleCounts(card.id)).toEqual(before)
+	await creationForm(page, card, '2027-03-14', '02:30')
+	const dialog = page.getByRole('dialog', { name: 'New lesson', exact: true })
+	await dialog.getByRole('button', { name: 'Add lesson', exact: true }).click()
+	await expect(
+		dialog.getByText(/^This time does not exist in .+ because the clocks move forward\. Choose another start time\.$/)
+	).toBeVisible()
+	await expect(page.locator('#new-lesson-time')).toContainText('02:30')
+	expect(fx.scheduleCounts(card.id)).toEqual(before)
+	await chooseCalendarDate(page, '2027-11-07')
+	await pickTime(page, '01:30', 'new-lesson-time')
+	await expect(
+		dialog.getByText(/^This time occurs twice in .+\. The first occurrence \(.+\) will be used\.$/)
+	).toBeVisible()
+	const saved = page.waitForResponse(
+		(response) => new URL(response.url()).pathname === '/api/schedule/lessons' && response.request().method() === 'POST'
+	)
+	await dialog.getByRole('button', { name: 'Add lesson', exact: true }).click()
+	const response = await saved
+	expect(response.ok()).toBe(true)
+	const body: unknown = await response.json()
+	const lesson = record(record(body).lesson)
+	expect(lesson).toMatchObject({ startsAt: '2027-11-07T05:30:00.000Z', durationMinutes: 60, timeZone: NY })
+	await expect(dialog).toHaveCount(0)
+	await page.reload()
+	expect(
+		(await schedule(page, card, '2027-11-07')).blocks.find((row) => row.key === `l:${text(lesson.id)}`)?.startsAt
+	).toBe(lesson.startsAt)
+}
+
+async function createInMain(page: Page, fx: Fx): Promise<void> {
+	const card = await fx.card('Alex Example 2185')
+	const day = addDays(vnToday(), 7)
+	const old = await fx.once(card.id, day, '16:00')
+	await setMain(page.request, NY)
+	await creationForm(page, card, day, '09:00')
+	const dialog = page.getByRole('dialog', { name: 'New lesson', exact: true })
+	await expect(dialog.getByText(/Add a lesson to the schedule\. Times are in /)).not.toContainText('Vietnam')
+	await dialog.getByLabel('Repeats', { exact: true }).click()
+	await page.getByRole('option', { name: 'Every week', exact: true }).click()
+	await expect(dialog.locator('[data-slot="new-lesson-repeat-note"]')).toContainText('09:00')
+	await dialog.getByRole('button', { name: 'Add series', exact: true }).click()
+	await expect(dialog).toHaveCount(0)
+	await page.reload()
+	const state = await schedule(page, card, day)
+	expect(state.series).toHaveLength(1)
+	expect(state.series[0]).toMatchObject({ timeZone: NY, startTime: '09:00' })
+	const row = record(state.blocks.find((entry) => entry.key === `l:${old}`))
+	const date = new Intl.DateTimeFormat('en-CA', {
+		timeZone: NY,
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+	}).format(new Date(text(row.startsAt)))
+	const time = new Intl.DateTimeFormat('en-GB', {
+		timeZone: NY,
+		hour: '2-digit',
+		minute: '2-digit',
+		hourCycle: 'h23',
+	}).format(new Date(text(row.startsAt)))
+	const details = await openLesson(page, card, date, time)
+	await expect(details.getByText('Created in', { exact: true })).toBeVisible()
+	await expect(details.getByText(/Vietnam time/)).toBeVisible()
+	await page.keyboard.press('Escape')
+	await setMain(page.request, VN)
+	const original = await openLesson(page, card, day, '16:00')
+	await expect(original.getByText('Created in', { exact: true })).toHaveCount(0)
+}
+
+test.describe('schedule zones [tz]', () => {
+	test.use({ timezoneId: 'UTC' })
+	test('E05 settings preserve stored instants, creation zones, refs, rules and marks', async ({ page, fx }) => {
+		await immutableSchedule(page, fx)
+	})
+	test('E06 forms create in main and details show a distinct creation zone', async ({ page, fx }) => {
+		await createInMain(page, fx)
+	})
+	test('E06 weekly duplicate matching distinguishes zones and canonicalizes aliases', async ({ page, fx }) => {
+		await duplicateZone(page, fx)
+	})
+	test('E07 a creation date outside the main week appears once in the correct window', async ({ page, fx }) => {
+		await mixedWindow(page, fx)
+	})
+	test('E08 spring and fall rules retain wall time and weekly gaps skip only one occurrence', async ({ page, fx }) => {
+		await dstRules(page, fx)
+	})
+	test('E08 both fold instants and their durations survive a main zone change', async ({ page, fx }) => {
+		await foldInstants(page, fx)
+	})
+	test('E08 23-hour, 25-hour, midnight-gap and skipped-day windows retain every boundary lesson', async ({
+		page,
+		fx,
+	}) => {
+		await civilWindows(page, fx)
+	})
+	test('E09 gap refuses persistence and fold previews and saves its earliest instant', async ({ page, fx }) => {
+		await gapAndFoldForm(page, fx)
+	})
+	test('E09 reference skips cancellation and keeps natural rule time separate from moved time', async ({
+		page,
+		fx,
+	}) => {
+		await referenceSelection(page, fx)
+	})
+	test('E09 moved gap history exposes a null natural reference without fallback', async ({ page, fx }) => {
+		await missingRuleReference(page, fx)
+	})
 })
 
 test('a moved series occurrence leaves a ghost that deducts nothing', async ({ page, fx }, info) => {

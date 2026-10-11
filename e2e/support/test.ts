@@ -1,7 +1,7 @@
 import { test as base, expect, type Page } from '@playwright/test'
 
 import type { LessonMarkKind } from '../../packages/contracts/src/schedule.ts'
-import { api, readStudent, readStudents, readToday, readWeek, teacherId } from './api.ts'
+import { api, readSettings, readStudent, readStudents, readToday, readWeek, teacherId } from './api.ts'
 import {
 	cleanupFixtures,
 	ownedStudent,
@@ -9,10 +9,11 @@ import {
 	registerFixture,
 	reserveFixture,
 	restoreTeacherSettings,
+	saveTeacherSettings,
 	sql,
 	type FixtureName,
 } from './data.ts'
-import { vnToday } from './dates.ts'
+import { VN, vnToday } from './dates.ts'
 import { integer, record, text, uuid } from './input.ts'
 
 function createFixtures(page: Page) {
@@ -36,10 +37,14 @@ function createFixtures(page: Page) {
 			registerFixture(name, id)
 			return { id, name }
 		},
-		async opening(id: string, lessonsHundredths: number, on: string) {
-			await api(request, 'PUT', `/students/${uuid(id)}/opening-balance`, { lessonsHundredths, on })
+		async opening(id: string, lessonsHundredths: number, on: string, expectedDefaultTimeZone = VN) {
+			await api(request, 'PUT', `/students/${uuid(id)}/opening-balance`, {
+				lessonsHundredths,
+				on,
+				expectedDefaultTimeZone,
+			})
 		},
-		async once(id: string, date: string, startTime: string, durationMinutes = 60) {
+		async once(id: string, date: string, startTime: string, durationMinutes = 60, expectedDefaultTimeZone = VN) {
 			const response = record(
 				await api(request, 'POST', '/schedule/lessons', {
 					studentId: uuid(id),
@@ -47,18 +52,20 @@ function createFixtures(page: Page) {
 					startTime,
 					durationMinutes,
 					repeats: 'once',
+					expectedDefaultTimeZone,
 				})
 			)
 			return uuid(record(response.lesson).id)
 		},
-		pastSeries(id: string, date: string, startTime: string) {
+		pastSeries(id: string, date: string, startTime: string, timeZone = VN) {
 			const weekday = new Date(`${date}T00:00:00Z`).getUTCDay() || 7
 			return uuid(
-				sql(`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on)
-values (${quote(ownedStudent(id))}::uuid, ${weekday}, ${quote(startTime)}, 60, ${quote(date)}) returning id`)[0]?.id
+				sql(`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on, time_zone)
+values (${quote(ownedStudent(id))}::uuid, ${weekday}, ${quote(startTime)}, 60, ${quote(date)}, ${quote(timeZone)}) returning id`)[0]
+					?.id
 			)
 		},
-		async weekly(id: string, date: string, startTime: string) {
+		async weekly(id: string, date: string, startTime: string, expectedDefaultTimeZone = VN) {
 			const response = record(
 				await api(request, 'POST', '/schedule/lessons', {
 					studentId: uuid(id),
@@ -66,6 +73,7 @@ values (${quote(ownedStudent(id))}::uuid, ${weekday}, ${quote(startTime)}, 60, $
 					startTime,
 					durationMinutes: 60,
 					repeats: 'weekly',
+					expectedDefaultTimeZone,
 				})
 			)
 			return uuid(record(response.series).id)
@@ -73,14 +81,58 @@ values (${quote(ownedStudent(id))}::uuid, ${weekday}, ${quote(startTime)}, 60, $
 		async mark(id: string, kind: LessonMarkKind) {
 			await api(request, 'POST', `/schedule/lessons/${uuid(id)}/mark`, { kind })
 		},
-		async moveOccurrence(seriesId: string, originalOn: string, date: string, startTime: string) {
+		async moveOccurrence(
+			seriesId: string,
+			originalOn: string,
+			date: string,
+			startTime: string,
+			expectedDefaultTimeZone = VN
+		) {
 			await api(request, 'POST', `/schedule/series/${uuid(seriesId)}/occurrences/${originalOn}/move`, {
 				date,
 				startTime,
+				expectedDefaultTimeZone,
 			})
 		},
 		async markOccurrence(seriesId: string, originalOn: string, kind: LessonMarkKind) {
 			await api(request, 'POST', `/schedule/series/${uuid(seriesId)}/occurrences/${originalOn}/mark`, { kind })
+		},
+		async move(id: string, date: string, startTime: string, expectedStartsAt: string, expectedDefaultTimeZone: string) {
+			return api(request, 'POST', `/schedule/lessons/${uuid(id)}/move`, {
+				date,
+				startTime,
+				expectedStartsAt,
+				expectedDefaultTimeZone,
+			})
+		},
+		async cut(id: string, from: string, weekday: number, startTime: string, expectedDefaultTimeZone: string) {
+			return api(request, 'POST', `/schedule/series/${uuid(id)}/move`, {
+				from,
+				weekday,
+				startTime,
+				expectedDefaultTimeZone,
+			})
+		},
+		async end(id: string, lastOn: string, expectedDefaultTimeZone: string) {
+			return api(request, 'POST', `/schedule/series/${uuid(id)}/end`, { lastOn, expectedDefaultTimeZone })
+		},
+		async payment(id: string, paidOn: string, lessonsHundredths: number, expectedDefaultTimeZone: string) {
+			return api(request, 'POST', '/payments', {
+				studentId: uuid(id),
+				paidOn,
+				lessonsHundredths,
+				amountMinor: 100,
+				currency: 'USD',
+				note: null,
+				expectedDefaultTimeZone,
+			})
+		},
+		historicalLesson(id: string, startsAt: string, timeZone: string, durationMinutes = 60) {
+			return uuid(
+				sql(`insert into lessons (student_id, starts_at, duration_minutes, time_zone)
+values (${quote(ownedStudent(id))}::uuid, ${quote(startsAt)}::timestamptz, ${durationMinutes}, ${quote(timeZone)}) returning id`)[0]
+					?.id
+			)
 		},
 		student: (id: string) => readStudent(request, id),
 		students: () => readStudents(request),
@@ -153,7 +205,15 @@ export const test = base.extend<{ fx: Fx }>({
 		const day = vnToday()
 		cleanupFixtures()
 		const id = await teacherId(page.request)
+		saveTeacherSettings(id)
 		try {
+			const settings = await readSettings(page.request)
+			if (settings.defaultTimeZone !== VN) {
+				await api(page.request, 'PATCH', '/settings', {
+					defaultTimeZone: VN,
+					expectedDefaultTimeZone: settings.defaultTimeZone,
+				})
+			}
 			await use(createFixtures(page))
 		} finally {
 			try {

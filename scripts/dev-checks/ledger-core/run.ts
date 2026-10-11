@@ -149,7 +149,7 @@ function devBalancesMatch() {
 	for (const row of cards) {
 		const card = { openingMinutes: row.opening_minutes, openingOn: row.opening_on, noShowDeducts: true }
 		const own = byStudent.get(row.id) ?? []
-		if (core.studentBalance(card, own, []) === oldBalance(card, own)) equal += 1
+		if (core.studentBalance(card, own, [], VN) === oldBalance(card, own)) equal += 1
 	}
 	console.log(`cards ${cards.length} equal ${equal}`)
 	check('p1 dvlab_dev balances equal the current SQL rule', equal === cards.length, `${cards.length - equal} differ`)
@@ -160,7 +160,7 @@ function datesMatchSql() {
 		([text], index) => `(timestamptz ${quote(text)} at time zone ${quote(VN)})::date::text as d${index}`
 	)
 	const row = sql(`select ${columns.join(', ')}`).rows[0]
-	const mismatched = DATE_CASES.filter(([text], index) => core.scheduleDate(instant(text)) !== row[`d${index}`])
+	const mismatched = DATE_CASES.filter(([text], index) => core.scheduleDate(instant(text), VN) !== row[`d${index}`])
 	check('p1 scheduleDate = SQL at time zone for every case', mismatched.length === 0, `${mismatched.length} differ`)
 }
 

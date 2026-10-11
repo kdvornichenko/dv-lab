@@ -4,16 +4,17 @@ import { CalendarCheck2, CalendarClock, CalendarX2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
-import { vnDayAt } from '@/lib/schedule-format'
+import { mainDayAt } from '@/lib/schedule-format'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
 
-function cancelQuestion(start: Date): string {
-	return `Cancel the lesson on ${vnDayAt(start, null)}?`
+function cancelQuestion(start: Date, mainTimeZone: string): string {
+	return `Cancel the lesson on ${mainDayAt(start, mainTimeZone, null)}?`
 }
 
 export function LessonFooter({
 	block,
+	mainTimeZone,
 	confirming,
 	moving,
 	pending,
@@ -26,6 +27,7 @@ export function LessonFooter({
 	onConfirm,
 }: {
 	block: ScheduleBlock
+	mainTimeZone: string
 	confirming: boolean
 	moving: boolean
 	pending: boolean
@@ -50,7 +52,7 @@ export function LessonFooter({
 							data-slot="lesson-cancel-question"
 							className="flex w-full flex-wrap items-center justify-end gap-2"
 						>
-							<span className="mr-auto text-body text-foreground">{cancelQuestion(start)}</span>
+							<span className="mr-auto text-body text-foreground">{cancelQuestion(start, mainTimeZone)}</span>
 							<Button type="button" variant="ghost" size="compact" disabled={locked} onClick={onKeep}>
 								Keep
 							</Button>

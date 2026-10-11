@@ -5,6 +5,22 @@ import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, VN, vnToday } from './support/dates.ts'
 import { expect, test, type Card, type Fx } from './support/test.ts'
 import {
+	concurrentSettings,
+	fixtureDefaults,
+	midnightAccounting,
+	settingsExamples,
+	staleDates,
+} from './support/tz-ledger.ts'
+import {
+	cancelAndRetry,
+	keyboardLayout,
+	latePaysSoon,
+	loadingFailure,
+	pendingZone,
+	secondZoneIdentity,
+	staleSetting,
+} from './support/tz-settings.ts'
+import {
 	balanceEverywhere,
 	dueRow,
 	expectDue,
@@ -30,21 +46,17 @@ async function profileHeader(page: Page, card: Card, unset: boolean): Promise<vo
 }
 
 async function initialTodayHeading(page: Page): Promise<void> {
-	const response = await page.request.get(`${BASE}/`)
+	const response = await page.request.get<unknown>(`${BASE}/`)
 	try {
 		expect(response.status()).toBe(200)
 		const serverNow = new Date(response.headers()['date'] ?? '')
 		if (!Number.isFinite(serverNow.getTime())) throw new Error('SSR Date header is unavailable')
 		expect(Math.abs(Date.now() - serverNow.getTime())).toBeLessThanOrEqual(5000)
 		expect(vnToday(serverNow)).toBe(vnToday())
-		const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: VN, weekday: 'long' }).format(serverNow)
-		const date = new Intl.DateTimeFormat('en-GB', { timeZone: VN, day: 'numeric', month: 'long' }).format(serverNow)
-		const expected = `${weekday}, ${date}`
 		const h1 = (await response.text()).match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
 		if (h1 === undefined) throw new Error('SSR h1 is missing')
 		const title = h1.replace(/<!--[\s\S]*?-->|<[^>]*>/g, '').trim()
-		expect(title).not.toBe('Today')
-		expect(title).toBe(expected)
+		expect(title).toBe('Today')
 	} finally {
 		await response.dispose()
 	}
@@ -106,19 +118,21 @@ async function observeExit(row: Locator): Promise<JSHandle<{ state: ExitState; s
 			const style = getComputedStyle(element)
 			const opacity = Number(style.opacity)
 			if (opacity < 1 && state.firstExitAt === null) state.firstExitAt = now
-			if (state.firstExitAt !== null) {
-				state.maxFrameGap = Math.max(state.maxFrameGap, now - previous)
-				state.intermediateOpacity ||= opacity > 0 && opacity < 1
-				state.panelRetained &&= panel?.isConnected === true
-				state.transformChanged ||= style.transform !== initialTransform
-				for (const animation of element.getAnimations()) {
-					const effect = animation.effect
-					if (!(effect instanceof KeyframeEffect) || effect.target !== element) continue
-					if (Number(effect.getKeyframes().at(-1)?.opacity) !== 0) continue
-					const timing = effect.getTiming()
-					if (typeof timing?.duration === 'number') state.durations.push(timing.duration)
-					if (typeof timing?.delay === 'number') state.delays.push(timing.delay)
-				}
+			if (state.firstExitAt === null) {
+				previous = now
+				return
+			}
+			state.maxFrameGap = Math.max(state.maxFrameGap, now - previous)
+			state.intermediateOpacity ||= opacity > 0 && opacity < 1
+			state.panelRetained &&= panel?.isConnected === true
+			state.transformChanged ||= style.transform !== initialTransform
+			for (const animation of element.getAnimations()) {
+				const effect = animation.effect
+				if (!(effect instanceof KeyframeEffect) || effect.target !== element) continue
+				if (Number(effect.getKeyframes().at(-1)?.opacity) !== 0) continue
+				const timing = effect.getTiming()
+				if (typeof timing?.duration === 'number') state.durations.push(timing.duration)
+				if (typeof timing?.delay === 'number') state.delays.push(timing.delay)
 			}
 			previous = now
 		}
@@ -267,12 +281,12 @@ async function thresholdWhileSaving(page: Page): Promise<void> {
 		await seen.promise
 		await expect(field).toBeDisabled()
 		await expect(field).toHaveValue('3')
-		expect(await readSettings(page.request)).toBe(0)
+		expect((await readSettings(page.request)).paysSoonLessons).toBe(0)
 		held.release()
 		expect((await pending).status()).toBe(200)
 		await expect(field).toBeEnabled()
 		await expect(field).toHaveValue('3')
-		expect(await readSettings(page.request)).toBe(3)
+		expect((await readSettings(page.request)).paysSoonLessons).toBe(3)
 	} finally {
 		held.release()
 		try {
@@ -289,7 +303,7 @@ async function thresholdWhileSaving(page: Page): Promise<void> {
 	expect((await next).status()).toBe(200)
 	await expect(field).toBeEnabled()
 	await expect(field).toHaveValue('4')
-	expect(await readSettings(page.request)).toBe(4)
+	expect((await readSettings(page.request)).paysSoonLessons).toBe(4)
 }
 
 test('Pays soon follows the threshold and the balance', async ({ page, fx }, info) => {
@@ -346,7 +360,7 @@ test('Pays soon follows the threshold and the balance', async ({ page, fx }, inf
 	await field.fill('21')
 	await field.press('Enter')
 	await expect(page.getByText('Use a whole number from 0 to 20.', { exact: true })).toBeVisible()
-	expect(await readSettings(page.request)).toBe(0)
+	expect((await readSettings(page.request)).paysSoonLessons).toBe(0)
 	await panelHeaders(page, ['settings-payments'])
 	await screenshot(page.locator('section[aria-labelledby="settings-payments"]'), info)
 	await thresholdWhileSaving(page)
@@ -360,4 +374,76 @@ test('Earlier, not marked lists a past unmarked lesson until it is marked', asyn
 	} finally {
 		await page.emulateMedia({ reducedMotion: null })
 	}
+})
+
+test('[tz] E01 E11 fixture teacher defaults and missing settings preserve access boundaries', async ({
+	playwright,
+}) => {
+	await fixtureDefaults(playwright.request)
+})
+
+test.describe('account time zone [tz]', () => {
+	test.use({ timezoneId: 'UTC' })
+	test.beforeEach(async ({ fx }) => {
+		void fx
+	})
+	test('E01 E02 same selection, Keep, Escape, scrim and failure preserve both zones; retry persists', async ({
+		page,
+	}) => {
+		await cancelAndRetry(page)
+	})
+	test('E03 pending PATCH blocks repeated input and every close path', async ({ page }) => {
+		await pendingZone(page)
+	})
+	test('E04 independent second, None, favorites and canonical collisions survive navigation', async ({ page }) => {
+		await secondZoneIdentity(page)
+	})
+	test('E11 concurrent partial writes preserve both fields; raw invalid and stale input is refused', async ({
+		page,
+		playwright,
+	}) => {
+		await concurrentSettings(page, playwright.request)
+	})
+	test('E03 E04 E11 late real Pays soon response cannot roll back main or collision swap', async ({ page }) => {
+		await latePaysSoon(page)
+	})
+	test('E11 settings opened before another writer require refresh without resubmission', async ({
+		page,
+		playwright,
+	}) => {
+		const other = await playwright.request.newContext({ storageState: await page.context().storageState() })
+		try {
+			await staleSetting(page, other)
+		} finally {
+			await other.dispose()
+		}
+	})
+	test('E11 stale create, move, cut, end, opening and payment return 409 without writes', async ({
+		page,
+		fx,
+		playwright,
+	}) => {
+		const other = await playwright.request.newContext({ storageState: await page.context().storageState() })
+		try {
+			await staleDates(page, fx, other)
+		} finally {
+			await other.dispose()
+		}
+	})
+	test('E10 account midnight changes lesson deduction consistently and preserves calendar dates', async ({
+		page,
+		fx,
+	}) => {
+		await midnightAccounting(page, fx)
+	})
+	test('E12 unknown main never flashes Vietnam; failed initial read can be retried', async ({ page }) => {
+		await initialTodayHeading(page)
+		await loadingFailure(page)
+	})
+	test('E12 320px and desktop keep keyboard focus, readable actions and bounded layout', async ({ page }) => {
+		await keyboardLayout(page)
+	})
+	test('E12 unavailable example is omitted; one real next lesson uses one instant', async ({ page, fx }) => {
+		await settingsExamples(page, fx)
+	})
 })

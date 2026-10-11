@@ -1,4 +1,4 @@
-import { isTimeZone } from '@dv-lab/contracts'
+import { isTimeZone, timeZoneIdentity } from '@dv-lab/contracts'
 
 export const MODERN_TIME_ZONES = [
 	'Asia/Ho_Chi_Minh',
@@ -9,8 +9,6 @@ export const MODERN_TIME_ZONES = [
 	'America/Argentina/Buenos_Aires',
 	'Atlantic/Faroe',
 ]
-
-const VIETNAM_ZONES = ['Asia/Ho_Chi_Minh', 'Asia/Saigon']
 
 type Abbreviations = readonly [string] | readonly [string, string]
 
@@ -70,8 +68,19 @@ const ABBREVIATIONS: Record<string, Abbreviations> = {
 
 const LABEL_LENGTH = 4
 
-export function isVietnamZone(zone: string): boolean {
-	return VIETNAM_ZONES.includes(zone)
+function isVietnamZone(zone: string): boolean {
+	return sameTimeZone(zone, 'Asia/Ho_Chi_Minh')
+}
+
+export function sameTimeZone(left: string, right: string): boolean {
+	const identity = timeZoneIdentity(left)
+	return identity !== null && identity === timeZoneIdentity(right)
+}
+
+export function zoneName(zone: string): string {
+	if (isVietnamZone(zone)) return 'Vietnam'
+	const identity = timeZoneIdentity(zone) ?? zone
+	return (identity.split('/').pop() ?? identity).replace(/_/g, ' ')
 }
 
 const offsetFormats = new Map<string, Intl.DateTimeFormat>()
@@ -100,6 +109,15 @@ function cityLabel(zone: string): string {
 	return (city === '' ? zone : city).slice(0, LABEL_LENGTH).toUpperCase()
 }
 
+export function offsetLabel(zone: string, at: Date): string {
+	const minutes = offsetMinutes(zone, at)
+	if (minutes === undefined) return zoneLabel(zone, at)
+	const absolute = Math.abs(minutes)
+	const hours = String(Math.floor(absolute / 60)).padStart(2, '0')
+	const remainder = String(absolute % 60).padStart(2, '0')
+	return `UTC${minutes < 0 ? '-' : '+'}${hours}:${remainder}`
+}
+
 function summerTime(zone: string, at: Date): boolean {
 	const current = offsetMinutes(zone, at)
 	const year = at.getUTCFullYear()
@@ -111,7 +129,7 @@ function summerTime(zone: string, at: Date): boolean {
 
 export function zoneLabel(zone: string, at: Date): string {
 	if (isVietnamZone(zone)) return 'VN'
-	const known = ABBREVIATIONS[zone]
+	const known = ABBREVIATIONS[zone] ?? ABBREVIATIONS[timeZoneIdentity(zone) ?? zone]
 	if (known === undefined) return cityLabel(zone)
 	if (known.length === 1) return known[0]
 	return summerTime(zone, at) ? known[1] : known[0]
@@ -119,12 +137,12 @@ export function zoneLabel(zone: string, at: Date): string {
 
 function labelVariants(zone: string): readonly string[] {
 	if (isVietnamZone(zone)) return ['VN']
-	return ABBREVIATIONS[zone] ?? [cityLabel(zone)]
+	return ABBREVIATIONS[zone] ?? ABBREVIATIONS[timeZoneIdentity(zone) ?? zone] ?? [cityLabel(zone)]
 }
 
 export function listTimeZones(extra: readonly string[] = []): string[] {
 	const listed = Intl.supportedValuesOf('timeZone')
-	const added = [...MODERN_TIME_ZONES, ...extra].filter((zone) => !listed.includes(zone) && isTimeZone(zone))
+	const added = ['UTC', ...MODERN_TIME_ZONES, ...extra].filter((zone) => !listed.includes(zone) && isTimeZone(zone))
 	return Array.from(new Set([...listed, ...added])).sort()
 }
 

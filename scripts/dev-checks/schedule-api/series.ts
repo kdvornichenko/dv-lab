@@ -93,9 +93,9 @@ async function inspectCutPersistence(
 	const after = countRows(ctx)
 	check('old series ends on dW+13', seriesRow(s1)?.ends_on === day(13), seriesRow(s1)?.ends_on)
 	check(
-		'cut adds one series and two lessons and keeps every exception row',
+		'cut adds one series, two moved and two cancelled lessons, and keeps every exception row',
 		after.series === before.series + 1 &&
-			after.lessons === before.lessons + 2 &&
+			after.lessons === before.lessons + 4 &&
 			after.exceptions === before.exceptions,
 		JSON.stringify({ before, after })
 	)
@@ -135,14 +135,23 @@ async function inspectFutureCutWeeks(
 	)
 	blocks = await cardBlocks(day(28))
 	check(
-		'week dW+28 has no cancelled Wednesday and has the new Thursday',
+		'week dW+28 keeps the cancelled Wednesday as a single lesson and has the new Thursday',
 		ofSeries(blocks, s1).length === 0 &&
+			blocks.some(
+				(block) =>
+					block.ref.kind === 'single' && block.outcome === 'cancelled' && block.startsAt === instant(day(28), '18:00')
+			) &&
 			ofSeries(blocks, n).some((block) => block.startsAt === instant(day(29), '17:00'))
 	)
 	blocks = await cardBlocks(day(35))
 	check(
-		'week dW+35 drops the cancelled exception of S1',
-		ofSeries(blocks, s1).length === 0 && ofSeries(blocks, n).length === 1
+		'week dW+35 keeps the cancelled occurrence as a single lesson',
+		ofSeries(blocks, s1).length === 0 &&
+			ofSeries(blocks, n).length === 1 &&
+			blocks.some(
+				(block) =>
+					block.ref.kind === 'single' && block.outcome === 'cancelled' && block.startsAt === instant(day(35), '18:00')
+			)
 	)
 	return { cardBlocks, ofSeries }
 }

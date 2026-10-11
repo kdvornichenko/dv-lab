@@ -24,6 +24,10 @@ function formatter(zone: string): Intl.DateTimeFormat {
 	return found
 }
 
+export function sameTimeZone(left: string, right: string): boolean {
+	return formatter(left).resolvedOptions().timeZone === formatter(right).resolvedOptions().timeZone
+}
+
 function wallParts(instant: number, zone: string): WallParts {
 	const parts: Record<string, string> = {}
 	for (const part of formatter(zone).formatToParts(instant)) parts[part.type] = part.value
@@ -89,12 +93,39 @@ export function zonedParts(instant: Date, zone: string): ZonedParts {
 	}
 }
 
-export function zonedInstant(date: string, time: string, zone: string): Date {
+export function localTimeCandidates(date: string, time: string, zone: string): readonly Date[] {
 	const [year, month, day] = dateParts(date)
 	const wall = utcMs(year, month, day, Number(time.slice(0, 2)), Number(time.slice(3, 5)))
-	const first = wall - offsetMs(wall, zone)
-	const second = wall - offsetMs(first, zone)
-	return new Date(second)
+	const offsets = new Set<number>()
+	for (let hours = -48; hours <= 48; hours += 6) offsets.add(offsetMs(wall + hours * 3600000, zone))
+	const candidates: Date[] = []
+	for (const offset of offsets) {
+		const candidate = new Date(wall - offset)
+		const parts = zonedParts(candidate, zone)
+		if (parts.date === date && parts.time === time) candidates.push(candidate)
+	}
+	return candidates.sort((left, right) => left.getTime() - right.getTime())
+}
+
+export function zonedInstant(date: string, time: string, zone: string): Date {
+	const first = localTimeCandidates(date, time, zone)[0]
+	if (first === undefined) throw new RangeError('nonexistent_local_time')
+	return first
+}
+
+export function startOfZonedDay(date: string, zone: string): Date {
+	const midnight = localTimeCandidates(date, '00:00', zone)[0]
+	if (midnight !== undefined) return midnight
+	const [year, month, day] = dateParts(date)
+	const wall = utcMs(year, month, day)
+	let before = wall - 48 * 3600000
+	let after = wall + 48 * 3600000
+	while (after - before > 1) {
+		const middle = Math.floor((before + after) / 2)
+		if (zonedParts(new Date(middle), zone).date < date) before = middle
+		else after = middle
+	}
+	return new Date(after)
 }
 
 export function windowDates(from: Date, to: Date, zone: string): string[] {

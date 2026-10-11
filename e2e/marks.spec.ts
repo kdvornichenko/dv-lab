@@ -3,6 +3,7 @@ import type { Locator, Page, Request, Route, TestInfo } from '@playwright/test'
 import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, mondayOf, startedSlotToday, VN, vnToday } from './support/dates.ts'
 import { expect, test, type Fx } from './support/test.ts'
+import { crossZoneTail, markedPastMove } from './support/tz-schedule.ts'
 import {
 	balanceEverywhere,
 	changeQuickMark,
@@ -427,4 +428,22 @@ test('Today quick marks set and correct a mark', async ({ page, fx }, info) => {
 	await screenshot(row, info)
 	await balanceEverywhere(page, fx, card, '3 lessons left', 180)
 	await clockPermissions(page, fx)
+})
+
+test.describe('mark history across zones [tz]', () => {
+	test.use({ timezoneId: 'UTC' })
+	test('E05 E10 D-17 moves a marked past lesson and rejects stale expectedStartsAt without double deduction', async ({
+		page,
+		fx,
+	}) => {
+		await markedPastMove(page, fx)
+	})
+	for (const action of ['cut', 'end'] as const) {
+		test(`E09 E10 ${action} keeps the natural prefix, finite tail, moved-past marks and lineage once`, async ({
+			page,
+			fx,
+		}) => {
+			await crossZoneTail(page, fx, action)
+		})
+	}
 })

@@ -221,6 +221,7 @@ export const lessonSeries = pgTable(
 			.references(() => students.id, { onDelete: 'restrict' }),
 		weekday: smallint('weekday').notNull(),
 		startTime: time('start_time').notNull(),
+		timeZone: text('time_zone').default('Asia/Ho_Chi_Minh').notNull(),
 		durationMinutes: integer('duration_minutes').notNull(),
 		startsOn: date('starts_on').notNull(),
 		endsOn: date('ends_on'),
@@ -275,6 +276,7 @@ export const lessons = pgTable(
 			.notNull()
 			.references(() => students.id, { onDelete: 'restrict' }),
 		startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+		timeZone: text('time_zone').default('Asia/Ho_Chi_Minh').notNull(),
 		durationMinutes: integer('duration_minutes').notNull(),
 		status: text('status').default('scheduled').notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -317,6 +319,7 @@ export const teacherSettings = pgTable(
 			.primaryKey()
 			.references(() => accounts.id, { onDelete: 'restrict' }),
 		paysSoonLessons: integer('pays_soon_lessons').notNull(),
+		defaultTimeZone: text('default_time_zone').default('Asia/Ho_Chi_Minh').notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`)]

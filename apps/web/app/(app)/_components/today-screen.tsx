@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useRef, useState, type ReactNode, type Ref } from 'react'
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarDays, Users, Wallet } from 'lucide-react'
@@ -14,43 +14,27 @@ import { Stat } from '@/components/app/stat'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
-import { apiRequest } from '@/lib/api-client'
-import { hasStaleActions } from '@/lib/lesson-actions'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
-import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
+import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond, yearInZone } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
+import { zoneLabel } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleWeekResponse, TodayResponse } from '@dv-lab/contracts'
-import {
-	SCHEDULE_TIME_ZONE,
-	countsAsLesson,
-	scheduleDate,
-	lessonsPhrase,
-	scheduleToday,
-	todayCounts,
-	zonedInstant,
-	type TodayCounts,
-} from '@dv-lab/core'
+import type { ScheduleBlock, TodayResponse } from '@dv-lab/contracts'
+import { countsAsLesson, scheduleDate, lessonsPhrase, todayCounts, zonedInstant, type TodayCounts } from '@dv-lab/core'
 
 import type { PairTarget } from '../schedule/_components/lesson-dialog'
-import { LessonDialogs, readOverlapBlocks, type LessonSelection } from '../schedule/_components/lesson-dialogs'
+import { LessonDialogs, type LessonSelection } from '../schedule/_components/lesson-dialogs'
 import { RecordPaymentDialog } from '../students/[id]/_components/record-payment-dialog'
 import { DueList } from './due-list'
 import { LessonRows } from './today-lessons'
 import { useMinuteNow } from './use-minute-now'
+import { useToday } from './use-today'
 
 const SCHEDULE_HREF = '/schedule'
 const STUDENTS_HREF = '/students'
 
-type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: TodayResponse }
-
-async function readToday(): Promise<ReadState> {
-	const result = await apiRequest<TodayResponse>('GET', '/today')
-	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
-}
-
-function dayTitle(date: string): string {
-	return formatFullDate(zonedInstant(date, '12:00', SCHEDULE_TIME_ZONE), SCHEDULE_TIME_ZONE, Number(date.slice(0, 4)))
+function dayTitle(date: string, mainTimeZone: string): string {
+	return formatFullDate(zonedInstant(date, '12:00', mainTimeZone), mainTimeZone, Number(date.slice(0, 4)))
 }
 
 function countsOf(data: TodayResponse, now: Date): TodayCounts {
@@ -66,7 +50,8 @@ function countsOf(data: TodayResponse, now: Date): TodayCounts {
 			earlier: data.earlier.length,
 			paysSoon: data.paysSoon.length,
 		},
-		now
+		now,
+		data.defaultTimeZone
 	)
 }
 
@@ -75,12 +60,20 @@ function nextBlock(blocks: readonly ScheduleBlock[], counts: TodayCounts): Sched
 	return blocks.find((block) => block.key === counts.nextKey && countsAsLesson(block.outcome)) ?? null
 }
 
-function summaryLine(counts: TodayCounts, next: ScheduleBlock | null, zone: string | null): string {
+function summaryLine(
+	counts: TodayCounts,
+	next: ScheduleBlock | null,
+	mainTimeZone: string,
+	zone: string | null
+): string {
 	if (counts.lessons === 0) return 'No lessons today'
 	const count = lessonCount(counts.lessons)
 	if (next === null) return count
 	const start = new Date(next.startsAt)
-	const when = withSecond(`${formatTime(start, SCHEDULE_TIME_ZONE)} VN`, secondWhen(start, zone))
+	const when = withSecond(
+		`${formatTime(start, mainTimeZone)} ${zoneLabel(mainTimeZone, start)}`,
+		secondWhen(start, mainTimeZone, zone)
+	)
 	return `${count} · next: ${next.studentName} at ${when}`
 }
 
@@ -114,7 +107,7 @@ function LoadingCounters() {
 	return (
 		<div className="@container">
 			<div className="grid grid-cols-2 gap-3 @min-[40rem]:grid-cols-4">
-				{Array.from({ length: 4 }, (_, index) => (
+				{Array.from({ length: 4 }, (_: undefined, index) => (
 					<SkeletonStat key={index} />
 				))}
 			</div>
@@ -129,7 +122,7 @@ function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
 function SkeletonRows({ count, rowClass }: { count: number; rowClass: string }) {
 	return (
 		<ul className="flex flex-col px-1 pb-2">
-			{Array.from({ length: count }, (_, index) => (
+			{Array.from({ length: count }, (_: undefined, index) => (
 				<li key={index} className={`flex items-center gap-3 px-3 ${rowClass}`}>
 					<Skeleton className="h-3 w-14" />
 					<Skeleton className="h-3 w-30" />
@@ -194,6 +187,7 @@ function Panels({
 				) : (
 					<LessonRows
 						blocks={lessons}
+						mainTimeZone={data.defaultTimeZone}
 						now={now}
 						showDate={false}
 						nextKey={counts.nextKey}
@@ -220,6 +214,7 @@ function Panels({
 						>
 							<LessonRows
 								blocks={earlier}
+								mainTimeZone={data.defaultTimeZone}
 								now={now}
 								showDate
 								nextKey={null}
@@ -273,94 +268,35 @@ function Shell({
 	)
 }
 
-export function TodayScreen({ initialDate }: { initialDate: string }) {
-	const now = useMinuteNow()
-	const [payment, setPayment] = useState(false)
-	const [paymentsVersion, setPaymentsVersion] = useState(0)
-	const paymentButton = useRef<HTMLButtonElement>(null)
-	const actions = (
-		<Button ref={paymentButton} variant="tertiary" size="compact" leadingIcon={Wallet} onClick={() => setPayment(true)}>
-			Add payment
-		</Button>
+function TodayLoading() {
+	return (
+		<Shell title="Today" description={<SkeletonText className="w-64 py-0.5" />}>
+			<LoadingCounters />
+			<LoadingPanels />
+		</Shell>
 	)
+}
+
+export function TodayScreen() {
+	const minuteNow = useMinuteNow()
+	return minuteNow === null ? <TodayLoading /> : <LoadedToday minuteNow={minuteNow} />
+}
+
+function LoadedToday({ minuteNow }: { minuteNow: Date }) {
+	const { state, now, reload, blocksOn, getData } = useToday(minuteNow)
+	const { data } = state
+	const [zone] = useSecondZone(data?.defaultTimeZone ?? null)
+	const [selected, setSelected] = useState<LessonSelection | null>(null)
+	const [payment, setPayment] = useState(false)
+	const paymentButton = useRef<HTMLButtonElement>(null)
+	const trigger = useRef<HTMLButtonElement | null>(null)
+	const titleRef = useRef<HTMLHeadingElement>(null)
+	const router = useRouter()
 
 	function closePayment() {
 		setPayment(false)
 		requestAnimationFrame(() => paymentButton.current?.focus())
 	}
-
-	return (
-		<>
-			{now === null ? (
-				<Shell title={dayTitle(initialDate)} description={<SkeletonText className="w-64 py-0.5" />} actions={actions}>
-					<LoadingCounters />
-					<LoadingPanels />
-				</Shell>
-			) : (
-				<LoadedToday now={now} actions={actions} paymentsVersion={paymentsVersion} />
-			)}
-			{payment ? (
-				<RecordPaymentDialog
-					onClose={closePayment}
-					onRecorded={() => {
-						closePayment()
-						setPaymentsVersion((value) => value + 1)
-					}}
-				/>
-			) : null}
-		</>
-	)
-}
-
-function LoadedToday({ now, actions, paymentsVersion }: { now: Date; actions: ReactNode; paymentsVersion: number }) {
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
-	const [zone] = useSecondZone()
-	const requests = useRef(0)
-	const [selected, setSelected] = useState<LessonSelection | null>(null)
-	const trigger = useRef<HTMLButtonElement | null>(null)
-	const titleRef = useRef<HTMLHeadingElement>(null)
-	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
-	const latest = useRef<TodayResponse | null>(null)
-	const router = useRouter()
-
-	const load = useCallback(async () => {
-		requests.current += 1
-		const id = requests.current
-		const next = await readToday()
-		if (id === requests.current) {
-			latest.current = next.kind === 'ready' ? next.data : null
-			weeks.current.clear()
-			setState(next)
-		}
-	}, [])
-
-	useEffect(() => {
-		let current = true
-		requests.current += 1
-		const id = requests.current
-		void readToday().then((next) => {
-			if (current && id === requests.current) {
-				latest.current = next.kind === 'ready' ? next.data : null
-				setState(next)
-			}
-		})
-		return () => {
-			current = false
-		}
-	}, [])
-
-	useEffect(() => {
-		if (paymentsVersion > 0) void load()
-	}, [paymentsVersion, load])
-
-	const today = scheduleToday(now)
-	const answered = state.kind === 'ready' ? state.data.date : null
-	const staleActions = state.kind === 'ready' && hasStaleActions(state.data.lessons, now)
-
-	useEffect(() => {
-		if (answered === null || (answered === today && !staleActions)) return
-		void load()
-	}, [now, answered, today, staleActions, load])
 
 	function openLesson(block: ScheduleBlock, button: HTMLButtonElement) {
 		trigger.current = button
@@ -377,35 +313,31 @@ function LoadedToday({ now, actions, paymentsVersion }: { now: Date; actions: Re
 	}
 
 	function openPair(target: PairTarget) {
-		const data = latest.current
-		const blocks = data === null ? [] : [...data.lessons, ...data.earlier]
-		const exists = blocks.some(
-			(block) =>
-				block.key === target.key &&
-				occurrenceSlot(block.outcome) === target.slot &&
-				scheduleDate(target.at) === scheduleDate(new Date(block.startsAt))
-		)
+		const current = getData()
+		const exists =
+			current !== null &&
+			[...current.lessons, ...current.earlier].some(
+				(block) =>
+					block.key === target.key &&
+					occurrenceSlot(block.outcome) === target.slot &&
+					scheduleDate(target.at, current.defaultTimeZone) ===
+						scheduleDate(new Date(block.startsAt), current.defaultTimeZone)
+			)
 		if (exists) setSelected({ key: target.key, slot: target.slot })
 		else router.push(SCHEDULE_HREF)
 	}
 
-	if (state.kind === 'error') {
-		return (
-			<Shell title={dayTitle(today)} actions={actions}>
-				<ReadError screen="Today" onRefresh={load} />
+	if (data === null) {
+		return state.kind === 'error' ? (
+			<Shell title="Today">
+				<ReadError screen="Today" onRefresh={reload} />
 			</Shell>
-		)
-	}
-	if (state.kind === 'loading') {
-		return (
-			<Shell title={dayTitle(today)} description={<SkeletonText className="w-64 py-0.5" />} actions={actions}>
-				<LoadingCounters />
-				<LoadingPanels />
-			</Shell>
+		) : (
+			<TodayLoading />
 		)
 	}
 
-	const { data } = state
+	const mainTimeZone = data.defaultTimeZone
 	const counts = countsOf(data, now)
 	const next = nextBlock(data.lessons, counts)
 	const openBlock =
@@ -415,26 +347,71 @@ function LoadedToday({ now, actions, paymentsVersion }: { now: Date; actions: Re
 					(block) => block.key === selected.key && occurrenceSlot(block.outcome) === selected.slot
 				) ?? null)
 	return (
-		<Shell
-			title={dayTitle(data.date)}
-			description={summaryLine(counts, next, zone)}
-			titleRef={titleRef}
-			actions={actions}
-		>
-			<Counters counts={counts} threshold={data.paysSoonLessons} />
-			<Panels data={data} counts={counts} now={now} zone={zone} onReload={load} onOpen={openLesson} />
+		<>
+			{state.kind === 'error' ? (
+				<Shell title="Today">
+					<ReadError screen="Today" onRefresh={reload} />
+				</Shell>
+			) : (
+				<Shell
+					title={dayTitle(data.date, mainTimeZone)}
+					description={summaryLine(counts, next, mainTimeZone, zone)}
+					titleRef={titleRef}
+					actions={
+						<Button
+							ref={paymentButton}
+							variant="tertiary"
+							size="compact"
+							leadingIcon={Wallet}
+							onClick={() => setPayment(true)}
+						>
+							Add payment
+						</Button>
+					}
+				>
+					<Counters counts={counts} threshold={data.paysSoonLessons} />
+					<Panels
+						key={`${mainTimeZone}:${data.date}`}
+						data={data}
+						counts={counts}
+						now={now}
+						zone={zone}
+						onReload={reload}
+						onOpen={openLesson}
+					/>
+				</Shell>
+			)}
 			<LessonDialogs
+				selection={selected}
 				selected={openBlock}
+				mainTimeZone={mainTimeZone}
+				currentMainTimeZone={mainTimeZone}
+				asOf={data.asOf}
 				series={data.series}
 				now={now}
 				secondZone={zone}
-				currentYear={Number(today.slice(0, 4))}
-				today={today}
-				blocksOn={(date) => readOverlapBlocks(date, weeks.current)}
-				reload={load}
+				currentYear={yearInZone(now, mainTimeZone)}
+				blocksOn={blocksOn}
+				reload={reload}
 				onClose={closeLesson}
 				onOpenPair={openPair}
 			/>
-		</Shell>
+			{payment ? (
+				<RecordPaymentDialog
+					mainTimeZone={mainTimeZone}
+					currentMainTimeZone={mainTimeZone}
+					asOf={data.asOf}
+					onClose={closePayment}
+					onRefresh={() => {
+						closePayment()
+						void reload()
+					}}
+					onRecorded={() => {
+						closePayment()
+						void reload()
+					}}
+				/>
+			) : null}
+		</>
 	)
 }

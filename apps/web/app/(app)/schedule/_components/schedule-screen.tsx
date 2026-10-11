@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { CalendarPlus } from 'lucide-react'
 
@@ -13,84 +13,50 @@ import { apiRequest } from '@/lib/api-client'
 import { hasStaleActions } from '@/lib/lesson-actions'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { lessonCount, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
-import { zoneLabel } from '@/lib/time-zones'
+import { sameTimeZone, zoneLabel } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
-import {
-	SCHEDULE_TIME_ZONE,
-	addDays,
-	countsAsLesson,
-	mondayOf,
-	scheduleDate,
-	scheduleToday,
-	zonedInstant,
-	zonedParts,
-} from '@dv-lab/core'
+import type { ScheduleBlock, StudentsResponse } from '@dv-lab/contracts'
+import { addDays, countsAsLesson, mondayOf, scheduleDate, scheduleToday, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import type { PairTarget } from './lesson-dialog'
-import { LessonDialogs, readLessonWeek, readOverlapBlocks, type LessonSelection } from './lesson-dialogs'
-import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
+import { LessonDialogs, lessonWeekKey, type LessonSelection } from './lesson-dialogs'
+import { NewLessonDialog, type StudentsState } from './new-lesson-dialog'
+import type { ScheduleFormContext } from './schedule-form-context'
 import { ScheduleToolbar } from './schedule-toolbar'
+import { useScheduleWeek } from './use-schedule-week'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
 type OpenLesson = LessonSelection
 
-type NewLessonSeed = { date: string; time: string; durationMinutes?: number; frame?: number }
+type NewLessonSeed = ScheduleFormContext & { date: string; time: string; durationMinutes?: number; frame?: number }
 
-type WeekState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: ScheduleWeekResponse }
-
-async function readWeek(monday: string): Promise<WeekState> {
-	const result = await readLessonWeek(monday)
-	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
+function ScheduleLoading() {
+	return (
+		<PageScroll>
+			<PageHeader title="Schedule" />
+			<div className={FRAME_HEIGHT}>
+				<SkeletonTable rows={10} className="h-full" />
+			</div>
+		</PageScroll>
+	)
 }
 
 export function ScheduleScreen() {
 	const now = useMinuteNow()
-	if (now === null) {
-		return (
-			<PageScroll>
-				<PageHeader title="Schedule" />
-				<div className={FRAME_HEIGHT}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			</PageScroll>
-		)
-	}
-	return <LoadedSchedule now={now} />
+	if (now === null) return <ScheduleLoading />
+	return <LoadedSchedule minuteNow={now} />
 }
 
-function LoadedSchedule({ now }: { now: Date }) {
-	const [monday, setMonday] = useState(() => mondayOf(scheduleToday(now)))
-	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
+function LoadedSchedule({ minuteNow }: { minuteNow: Date }) {
+	const { state: week, now, reload, navigate, blocksOn } = useScheduleWeek(minuteNow)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
-	const requests = useRef(0)
 	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
-	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
-	const today = scheduleToday(now)
-	const currentYear = Number(today.slice(0, 4))
-	const currentMonday = mondayOf(today)
-	const [zone, setZone] = useSecondZone()
-	const secondZone: SecondZone | null = zone
-		? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE)) }
-		: null
-
-	useEffect(() => {
-		let current = true
-		const id = ++requests.current
-		void readWeek(monday).then((state) => {
-			if (!current || id !== requests.current) return
-			if (state.kind === 'ready') weeks.current.set(monday, state.data)
-			setLoaded({ monday, state })
-		})
-		return () => {
-			current = false
-		}
-	}, [monday])
+	const [zone, setZone] = useSecondZone(week.kind === 'error' ? null : (week.query?.mainTimeZone ?? null))
 
 	useEffect(() => {
 		let current = true
@@ -102,42 +68,46 @@ function LoadedSchedule({ now }: { now: Date }) {
 		}
 	}, [])
 
-	const reload = useCallback(async () => {
-		weeks.current.clear()
-		const id = ++requests.current
-		const state = await readWeek(monday)
-		if (id !== requests.current) return
-		if (state.kind === 'ready') weeks.current.set(monday, state.data)
-		setLoaded({ monday, state })
-	}, [monday])
-
-	const week: WeekState = loaded !== null && loaded.monday === monday ? loaded.state : { kind: 'loading' }
 	const staleActions = week.kind === 'ready' && hasStaleActions(week.data.blocks, now)
 
 	useEffect(() => {
 		if (staleActions) void reload()
 	}, [now, staleActions, reload])
 
-	function refresh() {
-		setLoaded(null)
-		reload()
+	function readError() {
+		return (
+			<PageScroll>
+				<PageHeader title="Schedule" />
+				<ReadError screen="schedule" onRefresh={() => void reload()} />
+			</PageScroll>
+		)
 	}
+	if (week.data === null) return week.kind === 'error' ? readError() : <ScheduleLoading />
 
-	function blocksOn(date: string): Promise<OverlapBlock[]> {
-		return readOverlapBlocks(date, weeks.current)
-	}
+	const data = week.data
+	const mainTimeZone = data.defaultTimeZone
+	const currentMainTimeZone = week.query?.mainTimeZone ?? mainTimeZone
+	const monday = week.query?.monday ?? data.start
+	const today = scheduleToday(now, mainTimeZone)
+	const currentYear = Number(today.slice(0, 4))
+	const currentMonday = mondayOf(today)
+	const secondZone: SecondZone | null = zone
+		? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) }
+		: null
 
 	function openNew() {
-		const hour = Math.floor(zonedParts(now, SCHEDULE_TIME_ZONE).minutes / 60) + 1
+		const hour = Math.floor(zonedParts(now, mainTimeZone).minutes / 60) + 1
 		setNewLesson(
 			hour >= 24
-				? { date: addDays(today, 1), time: '00:00' }
-				: { date: today, time: `${String(hour).padStart(2, '0')}:00` }
+				? { date: addDays(today, 1), time: '00:00', mainTimeZone, asOf: data.asOf }
+				: { date: today, time: `${String(hour).padStart(2, '0')}:00`, mainTimeZone, asOf: data.asOf }
 		)
 	}
 
 	function openSlot(choice: SlotChoice) {
 		setNewLesson({
+			mainTimeZone,
+			asOf: data.asOf,
 			date: choice.date,
 			time: choice.time,
 			durationMinutes: choice.dragged ? choice.durationMinutes : undefined,
@@ -164,94 +134,99 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 
 	function openPair(target: PairTarget) {
-		const targetMonday = mondayOf(scheduleDate(target.at))
-		setMonday(targetMonday)
+		const targetMonday = mondayOf(scheduleDate(target.at, mainTimeZone))
+		if (targetMonday !== monday) navigate(targetMonday, false)
 		setLesson({ key: target.key, slot: target.slot })
 	}
 
-	function go(change: (value: string) => string) {
+	function go(targetMonday: string, current: boolean) {
 		setLesson(null)
-		setMonday(change)
-	}
-
-	if (week.kind === 'error') {
-		return (
-			<PageScroll>
-				<PageHeader title="Schedule" />
-				<ReadError screen="schedule" onRefresh={refresh} />
-			</PageScroll>
-		)
+		navigate(targetMonday, current)
 	}
 
 	const ready = week.kind === 'ready'
 	const openBlock =
-		ready && lesson !== null
-			? (week.data.blocks.find((block) => block.key === lesson.key && occurrenceSlot(block.outcome) === lesson.slot) ??
-				null)
+		lesson !== null
+			? (data.blocks.find((block) => block.key === lesson.key && occurrenceSlot(block.outcome) === lesson.slot) ?? null)
 			: null
 	const planned = ready ? week.data.blocks.filter((block) => countsAsLesson(block.outcome)).length : 0
 
-	return (
-		<PageScroll>
-			<PageHeader
-				titleRef={titleRef}
-				eyebrow={weekEyebrow(monday, currentMonday)}
-				title={weekRange(monday)}
-				description={ready ? weekSummary(week.data.blocks) : <SkeletonText className="w-48 py-0.5" />}
-				actions={
-					<Button
-						ref={newButton}
-						leadingIcon={CalendarPlus}
-						disabled={!ready || students.kind === 'loading'}
-						onClick={() => openNew()}
-					>
-						New lesson
-					</Button>
-				}
-			/>
-			<ScheduleToolbar
-				monday={monday}
-				currentMonday={currentMonday}
-				onToday={() => go(() => currentMonday)}
-				onPrevious={() => go((value) => addDays(value, -7))}
-				onNext={() => go((value) => addDays(value, 7))}
-				zone={zone}
-				onZoneChange={setZone}
-			/>
-			{ready ? (
-				<WeekGrid
-					monday={monday}
-					today={today}
-					now={now}
-					secondZone={secondZone}
-					blocks={week.data.blocks}
-					currentYear={currentYear}
-					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: occurrenceSlot(block.outcome) })}
-					onSlot={openSlot}
-					frame={
-						newLesson?.frame === undefined
-							? null
-							: { date: newLesson.date, time: newLesson.time, durationMinutes: newLesson.frame }
+	function renderWeek() {
+		if (week.kind === 'error') return readError()
+		return (
+			<PageScroll>
+				<PageHeader
+					titleRef={titleRef}
+					eyebrow={weekEyebrow(monday, currentMonday)}
+					title={weekRange(monday)}
+					description={ready ? weekSummary(week.data.blocks) : <SkeletonText className="w-48 py-0.5" />}
+					actions={
+						<Button
+							ref={newButton}
+							leadingIcon={CalendarPlus}
+							disabled={!ready || students.kind === 'loading'}
+							onClick={() => openNew()}
+						>
+							New lesson
+						</Button>
 					}
-					scrollTopRef={scrollTopRef}
 				/>
-			) : (
-				<div className={FRAME_HEIGHT}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			)}
-			{ready ? (
-				<p aria-live="polite" className="sr-only">
-					{weekPhrase(monday)}, {lessonCount(planned)}
-				</p>
-			) : null}
+				<ScheduleToolbar
+					monday={monday}
+					currentMonday={currentMonday}
+					mainTimeZone={mainTimeZone}
+					onToday={() => go(currentMonday, true)}
+					onPrevious={() => go(addDays(monday, -7), false)}
+					onNext={() => go(addDays(monday, 7), false)}
+					zone={zone}
+					onZoneChange={setZone}
+				/>
+				{ready ? (
+					<WeekGrid
+						key={lessonWeekKey(mainTimeZone, monday)}
+						mainTimeZone={mainTimeZone}
+						monday={monday}
+						today={today}
+						now={now}
+						secondZone={secondZone}
+						blocks={week.data.blocks}
+						currentYear={currentYear}
+						onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: occurrenceSlot(block.outcome) })}
+						onSlot={openSlot}
+						frame={
+							newLesson?.frame === undefined || !sameTimeZone(newLesson.mainTimeZone, mainTimeZone)
+								? null
+								: { date: newLesson.date, time: newLesson.time, durationMinutes: newLesson.frame }
+						}
+						scrollTopRef={scrollTopRef}
+					/>
+				) : (
+					<div className={FRAME_HEIGHT}>
+						<SkeletonTable rows={10} className="h-full" />
+					</div>
+				)}
+				{ready ? (
+					<p aria-live="polite" className="sr-only">
+						{weekPhrase(monday)}, {lessonCount(planned)}
+					</p>
+				) : null}
+			</PageScroll>
+		)
+	}
+
+	return (
+		<>
+			{renderWeek()}
 			<LessonDialogs
+				selection={lesson}
+				mainTimeZone={mainTimeZone}
+				currentMainTimeZone={currentMainTimeZone}
+				asOf={data.asOf}
 				selected={openBlock}
-				series={ready ? week.data.series : []}
+				series={data.series}
 				now={now}
 				secondZone={zone}
 				currentYear={currentYear}
-				today={today}
 				blocksOn={blocksOn}
 				reload={reload}
 				onClose={closeLesson}
@@ -259,19 +234,24 @@ function LoadedSchedule({ now }: { now: Date }) {
 			/>
 			{newLesson !== null ? (
 				<NewLessonDialog
+					mainTimeZone={newLesson.mainTimeZone}
+					asOf={newLesson.asOf}
+					currentMainTimeZone={currentMainTimeZone}
 					students={students}
 					seed={newLesson}
-					today={today}
 					secondZone={zone}
-					currentYear={currentYear}
 					blocksOn={blocksOn}
 					onClose={closeNew}
+					onRefresh={() => {
+						closeNew()
+						void reload()
+					}}
 					onCreated={() => {
 						closeNew()
 						reload()
 					}}
 				/>
 			) : null}
-		</PageScroll>
+		</>
 	)
 }

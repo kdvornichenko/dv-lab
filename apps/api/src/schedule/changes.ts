@@ -6,7 +6,6 @@ import {
 	type LessonOutcome,
 	type MarkKind,
 	type Occurrence,
-	SCHEDULE_TIME_ZONE,
 	type SeriesException,
 	type SeriesRule,
 	type SingleLesson,
@@ -14,10 +13,11 @@ import {
 	movedAway,
 	occurrenceAt,
 	occurrenceOutcome,
-	zonedInstant,
+	localTimeCandidates,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonExceptions, lessons } from '@dv-lab/db'
 
+import { lockTeacherTimeContext } from '../settings/settings.ts'
 import {
 	exceptionColumns,
 	lessonColumns,
@@ -35,7 +35,13 @@ type MoveInput = z.output<typeof moveLessonRequest>
 
 type ActionInput = z.output<typeof lessonActionRequest>
 
-export type ChangeFailure = { kind: 'not_found' } | { kind: 'changed' } | { kind: 'invalid' } | { kind: 'not_started' }
+export type ChangeFailure =
+	| { kind: 'not_found' }
+	| { kind: 'changed' }
+	| { kind: 'invalid' }
+	| { kind: 'not_started' }
+	| { kind: 'default_time_zone_changed' }
+	| { kind: 'nonexistent_local_time' }
 
 export type OccurrenceResult = { kind: 'ok'; occurrence: ScheduleOccurrence } | ChangeFailure
 
@@ -66,10 +72,6 @@ function refusal(
 
 async function singleOutcome(executor: DbExecutor, lesson: SingleLesson): Promise<LessonOutcome> {
 	return occurrenceOutcome(lesson, await markOf(executor, { kind: 'single', lessonId: lesson.id }))
-}
-
-function moveTarget(input: MoveInput): Date {
-	return zonedInstant(input.date, input.startTime, SCHEDULE_TIME_ZONE)
 }
 
 type LockedOccurrence = { rule: SeriesRule; occurrence: Occurrence | null }
@@ -119,12 +121,15 @@ async function markException(
 
 export function moveOccurrence(
 	db: Database,
+	accountId: string,
 	seriesId: string,
 	originalOn: string,
 	input: MoveInput,
-	now: Date
+	now = new Date()
 ): Promise<OccurrenceResult> {
 	return db.transaction(async (tx): Promise<OccurrenceResult> => {
+		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
+		if (!time.ok) return { kind: time.error }
 		const locked = await lockOccurrence(tx, seriesId, originalOn)
 		if (locked === null) return NOT_FOUND
 		const { rule, occurrence } = locked
@@ -133,10 +138,11 @@ export function moveOccurrence(
 		const outcome = occurrenceOutcome(occurrence, mark)
 		const refused = refusal('move', outcome, occurrence.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
-		const target = moveTarget(input)
+		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
+		if (target === undefined) return { kind: 'nonexistent_local_time' }
 		if (target.getTime() === occurrence.startsAt.getTime()) return INVALID
 		const exception: SeriesException =
-			target.getTime() === occurrence.naturalStart.getTime()
+			target.getTime() === occurrence.naturalStart?.getTime()
 				? { seriesId, originalOn, kind: 'restored' }
 				: { seriesId, originalOn, kind: 'moved', startsAt: target, durationMinutes: occurrence.durationMinutes }
 		return markException(tx, rule, exception, mark)
@@ -215,14 +221,23 @@ async function saveLesson(
 	return { kind: 'ok', lesson: toWireLesson(toSingleLesson(row)) }
 }
 
-export function moveLesson(db: Database, id: string, input: MoveInput, now: Date): Promise<LessonResult> {
+export function moveLesson(
+	db: Database,
+	accountId: string,
+	id: string,
+	input: MoveInput,
+	now = new Date()
+): Promise<LessonResult> {
 	return db.transaction(async (tx): Promise<LessonResult> => {
+		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
+		if (!time.ok) return { kind: time.error }
 		const lesson = await lockLesson(tx, id)
 		if (lesson === null) return NOT_FOUND
 		const outcome = await singleOutcome(tx, lesson)
 		const refused = refusal('move', outcome, lesson.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
-		const target = moveTarget(input)
+		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
+		if (target === undefined) return { kind: 'nonexistent_local_time' }
 		if (target.getTime() === lesson.startsAt.getTime()) return INVALID
 		return saveLesson(tx, id, { startsAt: target })
 	})

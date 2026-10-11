@@ -1,17 +1,7 @@
-import { zoneLabel } from '@/lib/time-zones'
+import { offsetLabel, zoneLabel } from '@/lib/time-zones'
 
-import {
-	SCHEDULE_TIME_ZONE,
-	addDays,
-	countsAsLesson,
-	firstOnOrAfter,
-	nextSeriesDate,
-	scheduleDate,
-	zonedInstant,
-	zonedParts,
-	type LessonOutcome,
-	type SeriesTiming,
-} from '@dv-lab/core'
+import type { ScheduleSeriesReference } from '@dv-lab/contracts'
+import { addDays, countsAsLesson, localTimeCandidates, zonedParts, type LessonOutcome } from '@dv-lab/core'
 
 const dash = ' – '
 
@@ -90,9 +80,13 @@ export function hourLabel(hour: number): string {
 	return `${String(hour).padStart(2, '0')}:00`
 }
 
-export function gutterLabel(monday: string, hour: number, zone: string): string {
-	const instant = zonedInstant(monday, hourLabel(hour), SCHEDULE_TIME_ZONE)
-	const parts = zonedParts(instant, zone)
+export function gutterLabel(monday: string, hour: number, mainTimeZone: string, secondTimeZone: string): string {
+	const [instant] = localTimeCandidates(monday, hourLabel(hour), mainTimeZone)
+	if (instant === undefined) return '—'
+	const parts = zonedParts(instant, secondTimeZone)
+	if (localTimeCandidates(parts.date, parts.time, secondTimeZone).length > 1) {
+		return `${parts.time} ${offsetLabel(secondTimeZone, instant)}`
+	}
 	if (parts.minutes === 0) return WEEKDAY_NAMES[parts.weekday - 1]
 	return parts.time
 }
@@ -109,13 +103,25 @@ function dateOf(instant: Date, zone: string): string {
 	return zonedParts(instant, zone).date
 }
 
-export function yearInZone(instant: Date, zone: string = SCHEDULE_TIME_ZONE): number {
+export function yearInZone(instant: Date, zone: string): number {
 	return yearOf(dateOf(instant, zone))
 }
 
 export function formatRange(start: Date, minutes: number, zone: string): string {
 	const end = new Date(start.getTime() + minutes * 60000)
-	return `${formatTime(start, zone)}–${formatTime(end, zone)}`
+	const endDay = dateOf(start, zone) === dateOf(end, zone) ? '' : `${weekdayShort(dateOf(end, zone))} `
+	return `${formatTime(start, zone)}–${endDay}${formatTime(end, zone)}`
+}
+
+function labelledRange(start: Date, minutes: number, zone: string): string {
+	const end = new Date(start.getTime() + minutes * 60000)
+	if (offsetLabel(zone, start) === offsetLabel(zone, end))
+		return `${formatRange(start, minutes, zone)} ${zoneLabel(zone, start)}`
+	const startLabel = zoneLabel(zone, start)
+	const endLabel = zoneLabel(zone, end)
+	const exact = startLabel === endLabel
+	const endDay = dateOf(start, zone) === dateOf(end, zone) ? '' : `${weekdayShort(dateOf(end, zone))} `
+	return `${formatTime(start, zone)} ${exact ? offsetLabel(zone, start) : startLabel}–${endDay}${formatTime(end, zone)} ${exact ? offsetLabel(zone, end) : endLabel}`
 }
 
 export function formatDayMonth(instant: Date, zone: string): string {
@@ -146,31 +152,27 @@ export function seriesPhrase(weekday: number, time: string): string {
 	return `Every ${weekdayName(weekday)} at ${time}`
 }
 
-function seriesSecond(rule: SeriesTiming, zone: string | null, now: Date) {
-	if (zone === null) return null
-	const date = nextSeriesDate(rule, now) ?? firstOnOrAfter(rule.startsOn, rule.weekday)
-	const instant = zonedInstant(date, rule.startTime, SCHEDULE_TIME_ZONE)
-	const parts = zonedParts(instant, zone)
-	return {
-		weekday: parts.weekday,
-		shifted: parts.weekday !== rule.weekday,
-		time: parts.time,
-		caption: zoneLabel(zone, instant),
-	}
+export function seriesWhen(
+	reference: ScheduleSeriesReference | null,
+	mainTimeZone: string,
+	secondTimeZone: string | null
+): string | null {
+	if (reference?.ruleStartsAt == null) return null
+	const instant = new Date(reference.ruleStartsAt)
+	const main = zonedParts(instant, mainTimeZone)
+	return withSecond(
+		`${weekdayName(main.weekday)} at ${main.time} ${zoneLabel(mainTimeZone, instant)}`,
+		secondWhen(instant, mainTimeZone, secondTimeZone)
+	)
 }
 
-export function seriesWhen(rule: SeriesTiming, zone: string | null, now: Date): string {
-	const main = `${weekdayName(rule.weekday)} at ${rule.startTime} VN`
-	const second = seriesSecond(rule, zone, now)
-	if (second === null) return main
-	const day = second.shifted ? `${WEEKDAY_NAMES[second.weekday - 1]} ` : ''
-	return `${main} (${day}${second.time} ${second.caption})`
-}
-
-export function seriesSecondLine(rule: SeriesTiming, zone: string | null, now: Date): string | null {
-	const second = seriesSecond(rule, zone, now)
-	if (second === null) return null
-	return `Every ${weekdayName(second.weekday)} at ${second.time} ${second.caption}`
+export function seriesSecondLine(
+	reference: ScheduleSeriesReference | null,
+	mainTimeZone: string,
+	secondTimeZone: string | null
+): string | null {
+	if (reference?.ruleStartsAt == null) return null
+	return secondWhen(new Date(reference.ruleStartsAt), mainTimeZone, secondTimeZone)
 }
 
 export function weekPhrase(monday: string): string {
@@ -203,20 +205,20 @@ export function weekSummary(blocks: readonly { outcome: LessonOutcome; studentId
 	return cancelled > 0 ? `${base} · ${cancelled} cancelled` : base
 }
 
-export function secondRange(start: Date, minutes: number, zone: string | null): string | null {
+export function secondRange(start: Date, minutes: number, mainTimeZone: string, zone: string | null): string | null {
 	if (zone === null) return null
-	const range = `${formatRange(start, minutes, zone)} ${zoneLabel(zone, start)}`
+	const range = labelledRange(start, minutes, zone)
 	const date = dateOf(start, zone)
-	if (date === scheduleDate(start)) return range
+	if (date === dateOf(start, mainTimeZone)) return range
 	return `${weekdayShort(date)} ${range}`
 }
 
-export function secondWhen(instant: Date, zone: string | null): string | null {
+export function secondWhen(instant: Date, mainTimeZone: string, zone: string | null): string | null {
 	if (zone === null) return null
 	const caption = zoneLabel(zone, instant)
 	const time = formatTime(instant, zone)
 	const date = dateOf(instant, zone)
-	if (date === scheduleDate(instant)) return `${time} ${caption}`
+	if (date === dateOf(instant, mainTimeZone)) return `${time} ${caption}`
 	return `${weekdayShort(date)} ${time} ${caption}`
 }
 
@@ -224,20 +226,31 @@ export function withSecond(main: string, second: string | null): string {
 	return second === null ? main : `${main} (${second})`
 }
 
-export function vnWhen(instant: Date, zone: string | null, currentYear: number): string {
-	return withSecond(`${formatWhen(instant, SCHEDULE_TIME_ZONE, currentYear)} VN`, secondWhen(instant, zone))
+export function mainWhen(
+	instant: Date,
+	mainTimeZone: string,
+	secondTimeZone: string | null,
+	currentYear: number
+): string {
+	return withSecond(
+		`${formatWhen(instant, mainTimeZone, currentYear)} ${zoneLabel(mainTimeZone, instant)}`,
+		secondWhen(instant, mainTimeZone, secondTimeZone)
+	)
 }
 
-export function vnDayTime(instant: Date, zone: string | null): string {
-	const main = `${formatDayMonth(instant, SCHEDULE_TIME_ZONE)}, ${formatTime(instant, SCHEDULE_TIME_ZONE)} VN`
-	return withSecond(main, secondWhen(instant, zone))
+export function mainDayTime(instant: Date, mainTimeZone: string, secondTimeZone: string | null): string {
+	const main = `${formatDayMonth(instant, mainTimeZone)}, ${formatTime(instant, mainTimeZone)} ${zoneLabel(mainTimeZone, instant)}`
+	return withSecond(main, secondWhen(instant, mainTimeZone, secondTimeZone))
 }
 
-export function vnDayAt(instant: Date, zone: string | null): string {
-	const main = `${formatDayMonth(instant, SCHEDULE_TIME_ZONE)} at ${formatTime(instant, SCHEDULE_TIME_ZONE)} VN`
-	return withSecond(main, secondWhen(instant, zone))
+export function mainDayAt(instant: Date, mainTimeZone: string, secondTimeZone: string | null): string {
+	const main = `${formatDayMonth(instant, mainTimeZone)} at ${formatTime(instant, mainTimeZone)} ${zoneLabel(mainTimeZone, instant)}`
+	return withSecond(main, secondWhen(instant, mainTimeZone, secondTimeZone))
 }
 
-export function vnRange(start: Date, minutes: number, zone: string | null): string {
-	return withSecond(`${formatRange(start, minutes, SCHEDULE_TIME_ZONE)} VN`, secondRange(start, minutes, zone))
+export function mainRange(start: Date, minutes: number, mainTimeZone: string, secondTimeZone: string | null): string {
+	return withSecond(
+		labelledRange(start, minutes, mainTimeZone),
+		secondRange(start, minutes, mainTimeZone, secondTimeZone)
+	)
 }

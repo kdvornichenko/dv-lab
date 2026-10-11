@@ -7,6 +7,7 @@ import {
 	type CreateStudentAccountResponse,
 	SECTION_KINDS,
 	type StudentAccountResponse,
+	type StudentDetail,
 	type StudentResponse,
 	type StudentSectionResponse,
 	type StudentSectionsResponse,
@@ -22,8 +23,7 @@ import {
 	saveStudentRequest,
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
-import { isAfterScheduleToday } from '@dv-lab/core'
-import type { Database } from '@dv-lab/db'
+import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import {
@@ -44,7 +44,7 @@ import {
 import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
-import { readSnapshot } from '../schedule/rows.ts'
+import { readTeacherSettings, type TeacherTimeContext } from '../settings/settings.ts'
 
 type StudentRouteDeps = { db: Database }
 
@@ -65,25 +65,66 @@ function termIdParam(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
+async function studentResponse(
+	executor: DbExecutor,
+	accountId: string,
+	read: (executor: DbExecutor, context: TeacherTimeContext) => Promise<StudentDetail | null>
+): Promise<StudentResponse | null> {
+	const now = new Date()
+	const settings = await readTeacherSettings(executor, accountId)
+	const context = { now, defaultTimeZone: settings.defaultTimeZone }
+	const student = await read(executor, context)
+	return student === null ? null : { student, ...settings, asOf: now.toISOString() }
+}
+
+function mutateStudent(
+	db: Database,
+	accountId: string,
+	change: (executor: DbExecutor, context: TeacherTimeContext) => Promise<StudentDetail | null>
+): Promise<StudentResponse | null> {
+	return db.transaction((tx) => studentResponse(tx, accountId, change), { isolationLevel: 'repeatable read' })
+}
+
 export function studentRoutes({ db }: StudentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
-	routes.get('/', async (c) => c.json((await readSnapshot(db, listCards)) satisfies StudentsResponse, 200))
+	routes.get('/', async (c) => {
+		const accountId = c.get('session').account.id
+		const response = await readSnapshot(db, async (executor) => {
+			const now = new Date()
+			const settings = await readTeacherSettings(executor, accountId)
+			const cards = await listCards(executor, { now, defaultTimeZone: settings.defaultTimeZone })
+			return { ...cards, ...settings, asOf: now.toISOString() }
+		})
+		return c.json(response satisfies StudentsResponse, 200)
+	})
 
 	routes.post('/', async (c) => {
 		const input = await readJson(c, saveStudentRequest)
 		if (!input) return invalidRequest(c)
-		const student = await createCard(db, input)
-		return c.json({ student } satisfies StudentResponse, 201)
+		const accountId = c.get('session').account.id
+		const response = await db.transaction(
+			async (tx) => {
+				const now = new Date()
+				const settings = await readTeacherSettings(tx, accountId)
+				const student = await createCard(tx, input)
+				return { student, ...settings, asOf: now.toISOString() }
+			},
+			{ isolationLevel: 'repeatable read' }
+		)
+		return c.json(response satisfies StudentResponse, 201)
 	})
 
 	routes.get('/:id', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const student = await readSnapshot(db, (executor) => getCard(executor, id))
-		if (!student) return notFound(c)
-		return c.json({ student } satisfies StudentResponse, 200)
+		const accountId = c.get('session').account.id
+		const response = await readSnapshot(db, (executor) =>
+			studentResponse(executor, accountId, (tx, context) => getCard(tx, id, context))
+		)
+		if (!response) return notFound(c)
+		return c.json(response satisfies StudentResponse, 200)
 	})
 
 	routes.patch('/:id', async (c) => {
@@ -91,25 +132,27 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, saveStudentRequest)
 		if (!input) return invalidRequest(c)
-		const student = await updateCard(db, id, input)
-		if (!student) return notFound(c)
-		return c.json({ student } satisfies StudentResponse, 200)
+		const response = await mutateStudent(db, c.get('session').account.id, (tx, context) =>
+			updateCard(tx, id, input, context)
+		)
+		if (!response) return notFound(c)
+		return c.json(response satisfies StudentResponse, 200)
 	})
 
 	routes.post('/:id/archive', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const student = await archiveCard(db, id)
-		if (!student) return notFound(c)
-		return c.json({ student } satisfies StudentResponse, 200)
+		const response = await mutateStudent(db, c.get('session').account.id, (tx, context) => archiveCard(tx, id, context))
+		if (!response) return notFound(c)
+		return c.json(response satisfies StudentResponse, 200)
 	})
 
 	routes.post('/:id/restore', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const student = await restoreCard(db, id)
-		if (!student) return notFound(c)
-		return c.json({ student } satisfies StudentResponse, 200)
+		const response = await mutateStudent(db, c.get('session').account.id, (tx, context) => restoreCard(tx, id, context))
+		if (!response) return notFound(c)
+		return c.json(response satisfies StudentResponse, 200)
 	})
 
 	routes.put('/:id/opening-balance', async (c) => {
@@ -117,10 +160,12 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, openingBalanceRequest)
 		if (!input) return invalidRequest(c)
-		if (isAfterScheduleToday(input.on, new Date())) return invalidRequest(c)
-		const student = await setOpeningBalance(db, id, input)
-		if (!student) return notFound(c)
-		return c.json({ student } satisfies StudentResponse, 200)
+		const result = await setOpeningBalance(db, c.get('session').account.id, id, input)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'invalid') return invalidRequest(c)
+		if (result.kind === 'default_time_zone_changed')
+			return c.json(errorBody(result.kind, 'Default time zone changed elsewhere. Refresh the page and try again.'), 409)
+		return c.json(result.response satisfies StudentResponse, 200)
 	})
 
 	routes.post('/:id/account', async (c) => {

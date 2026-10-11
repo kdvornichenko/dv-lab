@@ -119,6 +119,25 @@ function runProbes() {
 		['teacher_settings pays_soon_lessons 0', 'ok', tx(accountRow, settings(0))],
 		['teacher_settings pays_soon_lessons 20', 'ok', tx(accountRow, settings(20))],
 		[
+			'teacher_settings default_time_zone null',
+			'23502',
+			tx(
+				accountRow,
+				`insert into teacher_settings (account_id, pays_soon_lessons, default_time_zone) values (${quote(account)}, 4, null);`
+			),
+		],
+		[
+			'new teacher settings default to Vietnam',
+			'ok',
+			tx(
+				accountRow,
+				settings(4),
+				`do $$ begin
+if (select default_time_zone from teacher_settings where account_id = ${quote(account)}) is distinct from 'Asia/Ho_Chi_Minh'
+then raise exception 'settings zone default differs'; end if; end $$;`
+			),
+		],
+		[
 			'teacher_settings without pays_soon_lessons',
 			'23502',
 			tx(accountRow, `insert into teacher_settings (account_id) values (${quote(account)});`),
@@ -163,6 +182,11 @@ function checkPrivileges() {
 }
 
 function catalog() {
+	const state = sql(`select current_user = 'dvlab_migrator' and current_database() like '%_test' as guarded,
+(select count(*)::int from information_schema.columns where table_schema = 'public'
+and table_name = 'teacher_settings' and column_name = 'default_time_zone' and data_type = 'text'
+and is_nullable = 'NO' and column_default = '''Asia/Ho_Chi_Minh''::text') as zones`).rows[0]
+	if (state.guarded !== true || state.zones !== 1) fail('teacher settings catalog or database guard differs')
 	checkMigrationFiles()
 	runProbes()
 	checkPrivileges()

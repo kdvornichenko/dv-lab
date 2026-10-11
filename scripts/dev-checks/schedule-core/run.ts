@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
 
 import * as core from '../../../packages/core/src/index.ts'
 import { sql as rawSql, quote } from '../api.mjs'
@@ -140,6 +141,7 @@ function weekdayChecks(days: string[], row: SqlRow): void {
 function weekWindowCheck(): void {
 	const series: core.SeriesRule[] = [
 		{
+			timeZone: VN,
 			id: 'series-wed',
 			studentId: 'student-alex-0001',
 			weekday: 3,
@@ -186,6 +188,12 @@ const partTwo = () =>
 		movedTailVectors(expect)
 	})
 
+function parseResult(text: string | undefined): unknown {
+	if (text === undefined) return undefined
+	const value: unknown = JSON.parse(text)
+	return value
+}
+
 function run(cliUrl: string): void {
 	if (process.argv.includes('--child')) {
 		console.log(JSON.stringify({ zone: Intl.DateTimeFormat().resolvedOptions().timeZone, results: partTwo().results }))
@@ -200,7 +208,9 @@ function run(cliUrl: string): void {
 	for (const name of Object.keys(results)) {
 		const got = JSON.stringify(results[name])
 		const wanted = JSON.stringify(expected[name])
-		check(name, got === wanted, `got ${got} wanted ${wanted}`)
+		const actualValue = parseResult(got)
+		const expectedValue = parseResult(wanted)
+		check(name, isDeepStrictEqual(actualValue, expectedValue), `got ${got} wanted ${wanted}`)
 	}
 	const newYork = processZone(cliUrl, 'America/New_York')
 	const vietnam = processZone(cliUrl, 'Asia/Ho_Chi_Minh')

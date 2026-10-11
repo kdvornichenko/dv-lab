@@ -19,7 +19,7 @@ import {
 	scheduleWeekStart,
 } from '@dv-lab/contracts'
 import { weekdayOf } from '@dv-lab/core'
-import type { Database } from '@dv-lab/db'
+import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import { errorBody } from '../request-context.ts'
@@ -33,9 +33,9 @@ import {
 	restoreOccurrence,
 } from '../schedule/changes.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
-import { readSnapshot } from '../schedule/rows.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
 import { endSeries, moveSeries } from '../schedule/series.ts'
+import { readTeacherSettings } from '../settings/settings.ts'
 
 type ScheduleRouteDeps = { db: Database }
 
@@ -50,7 +50,7 @@ const notFound = (c: Context<AppEnv>) => c.json(errorBody('not_found', 'Not Foun
 const lessonChanged = (c: Context<AppEnv>) =>
 	c.json(errorBody('lesson_changed', 'This lesson was changed elsewhere'), 409)
 
-function refused(c: Context<AppEnv>, failure: ChangeFailure) {
+function refused(c: Context<AppEnv, string>, failure: ChangeFailure) {
 	switch (failure.kind) {
 		case 'not_found':
 			return notFound(c)
@@ -60,6 +60,16 @@ function refused(c: Context<AppEnv>, failure: ChangeFailure) {
 			return invalidRequest(c)
 		case 'not_started':
 			return c.json(errorBody('lesson_not_started', 'This lesson has not started yet'), 400)
+		case 'default_time_zone_changed':
+			return c.json(
+				errorBody(failure.kind, 'Default time zone changed elsewhere. Refresh the page and try again.'),
+				409
+			)
+		case 'nonexistent_local_time':
+			return c.json(
+				errorBody(failure.kind, 'This time does not exist in the selected time zone. Choose another time.'),
+				400
+			)
 	}
 }
 
@@ -89,18 +99,25 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 	routes.get('/week', async (c) => {
 		const start = weekStart(c.req.query('start'))
 		if (start === null) return invalidRequest(c)
-		const now = new Date()
-		const week = await readSnapshot(db, (executor) => readWeek(executor, start, now))
+		const accountId = c.get('session').account.id
+		const week = await readSnapshot(db, async (executor) => {
+			const now = new Date()
+			const settings = await readTeacherSettings(executor, accountId)
+			return readWeek(executor, start, { now, defaultTimeZone: settings.defaultTimeZone })
+		})
 		return c.json(week satisfies ScheduleWeekResponse, 200)
 	})
 
 	routes.post('/lessons', async (c) => {
 		const input = await readJson(c, createLessonRequest)
 		if (!input) return invalidRequest(c)
-		const result = await createLesson(db, input, new Date())
+		const result = await createLesson(db, c.get('session').account.id, input)
 		switch (result.kind) {
 			case 'invalid':
 				return invalidRequest(c)
+			case 'default_time_zone_changed':
+			case 'nonexistent_local_time':
+				return refused(c, result)
 			case 'lesson':
 				return c.json({ lesson: result.lesson } satisfies ScheduleCreateResponse, 201)
 			case 'series':
@@ -113,7 +130,7 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 		if (ref === null) return notFound(c)
 		const input = await readJson(c, moveLessonRequest)
 		if (!input) return invalidRequest(c)
-		const result = await moveOccurrence(db, ref.seriesId, ref.originalOn, input, new Date())
+		const result = await moveOccurrence(db, c.get('session').account.id, ref.seriesId, ref.originalOn, input)
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ occurrence: result.occurrence } satisfies ScheduleOccurrenceResponse, 200)
 	})
@@ -148,7 +165,7 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, moveLessonRequest)
 		if (!input) return invalidRequest(c)
-		const result = await moveLesson(db, id, input, new Date())
+		const result = await moveLesson(db, c.get('session').account.id, id, input)
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ lesson: result.lesson } satisfies ScheduleLessonResponse, 200)
 	})
@@ -183,7 +200,7 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, moveSeriesRequest)
 		if (!input) return invalidRequest(c)
-		const result = await moveSeries(db, id, input, new Date())
+		const result = await moveSeries(db, c.get('session').account.id, id, input)
 		if (result.kind === 'ends_before_new_day') {
 			return c.json(
 				errorBody('series_ends_before_new_day', 'The series ends before the first lesson on the new day'),
@@ -202,7 +219,7 @@ export function scheduleRoutes({ db }: ScheduleRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, endSeriesRequest)
 		if (!input) return invalidRequest(c)
-		const result = await endSeries(db, id, input, new Date())
+		const result = await endSeries(db, c.get('session').account.id, id, input)
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ series: result.series } satisfies ScheduleSeriesResponse, 200)
 	})

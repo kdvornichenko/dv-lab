@@ -4,6 +4,8 @@ import { weekdayName } from '@/lib/schedule-format'
 
 import type { ScheduleWeekday } from '@dv-lab/contracts'
 
+import { LocalTimeHint } from './schedule-form-context'
+
 export const WEEKDAYS: ScheduleWeekday[] = [1, 2, 3, 4, 5, 6, 7]
 
 export function MoveSeriesFields({
@@ -14,6 +16,8 @@ export function MoveSeriesFields({
 	shownDay,
 	shownTime,
 	zoneLine,
+	timeLabel,
+	foldHint,
 	onDayChange,
 	onTimeChange,
 }: {
@@ -24,6 +28,8 @@ export function MoveSeriesFields({
 	shownDay: string | undefined
 	shownTime: string | undefined
 	zoneLine: string | null
+	timeLabel: string
+	foldHint: string | null
 	onDayChange: (value: string) => void
 	onTimeChange: (value: string | null) => void
 }) {
@@ -54,13 +60,17 @@ export function MoveSeriesFields({
 				</div>
 				<div className="flex min-w-0 flex-col gap-2">
 					<span id="move-series-time-label" className="text-body text-muted-foreground">
-						New start time, VN
+						New start time, {timeLabel}
 					</span>
 					<TimePicker
 						id="move-series-time"
 						aria-labelledby="move-series-time-label"
 						aria-describedby={
-							[shownRow ? 'move-series-row-error' : null, shownTime || zoneLine ? 'move-series-time-note' : null]
+							[
+								shownRow ? 'move-series-row-error' : null,
+								shownTime || zoneLine ? 'move-series-time-note' : null,
+								foldHint ? 'move-series-time-dst' : null,
+							]
 								.filter(Boolean)
 								.join(' ') || undefined
 						}
@@ -81,6 +91,7 @@ export function MoveSeriesFields({
 							{zoneLine}
 						</p>
 					) : null}
+					<LocalTimeHint id="move-series-time-dst" hint={foldHint} />
 				</div>
 			</div>
 			{shownRow ? (

@@ -25,19 +25,25 @@ import {
 	formatMoney,
 	parseLessons,
 	parseMoney,
-	scheduleToday,
 	suggestLessons,
 } from '@dv-lab/core'
 
 import { useToast } from '../../../_components/toasts'
+import {
+	TimeZoneStaleNotice,
+	useScheduleFormContext,
+	type ScheduleFormContext,
+} from '../../../schedule/_components/schedule-form-context'
 import { PaymentStudentPicker } from './payment-student-picker'
 
-type Field = 'amount' | 'currency' | 'lessons' | 'note'
+type Field = 'amount' | 'currency' | 'lessons' | 'note' | 'date'
 
-interface RecordPaymentDialogProps {
+interface RecordPaymentDialogProps extends ScheduleFormContext {
 	student?: StudentDetail
+	currentMainTimeZone: string
 	onClose: () => void
 	onRecorded: () => void
+	onRefresh: () => void
 }
 
 export function suggestLessonsText(amountMinor: number | null, currency: string, rate: Rate | null) {
@@ -54,11 +60,21 @@ function amountProblem(text: string, currency: string) {
 	return parseMoney(text, code) === null ? 'Enter an amount greater than 0.' : undefined
 }
 
-export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: RecordPaymentDialogProps) {
+export function RecordPaymentDialog({
+	student: initialStudent,
+	mainTimeZone,
+	asOf,
+	currentMainTimeZone,
+	onClose,
+	onRecorded,
+	onRefresh,
+}: RecordPaymentDialogProps) {
+	const [preset] = useState(initialStudent)
 	const [chosen, setChosen] = useState<StudentDetail | null>(null)
 	const student = preset ?? chosen
 	const toast = useToast()
-	const today = scheduleToday(new Date())
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
+	const { today } = context
 	const rate = student === null ? null : rateOf(student)
 	const [amount, setAmount] = useState('')
 	const [currency, setCurrency] = useState(preset?.currency ?? '')
@@ -79,12 +95,13 @@ export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: Re
 	const lessons = lessonsDraft ?? suggestion
 	const prefilled = lessonsDraft === null && suggestion !== ''
 
-	const errors = paymentErrors(amount, currency, lessons, note)
+	const errors = paymentErrors(amount, currency, lessons, note, paidOn, today)
 
 	const shown = (field: Field) => (submitted || touched[field] ? errors[field] : undefined)
 	const touch = (field: Field) => setTouched((current) => ({ ...current, [field]: true }))
 	const blocked = pending || student === null
-	const saveDisabled = pending || (preset === undefined && !canSavePayment(student, errors, lessons, paidOn))
+	const saveDisabled =
+		pending || context.stale || (preset === undefined && !canSavePayment(student, errors, lessons, paidOn))
 
 	function chooseStudent(value: StudentDetail | null) {
 		setChosen(value)
@@ -98,13 +115,14 @@ export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: Re
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (saving.current || student === null) return
+		if (saving.current || student === null || context.stale) return
 		setSubmitted(true)
 		setFailed(false)
 		if (errors.amount) return amountRef.current?.focus()
 		if (errors.currency) return currencyRef.current?.focus()
 		if (errors.lessons) return lessonsRef.current?.focus()
 		if (errors.note) return noteRef.current?.focus()
+		if (errors.date) return document.getElementById('record-payment-date')?.focus()
 		const amountMinor = parseMoney(amount, currency)
 		if (amountMinor === null) return amountRef.current?.focus()
 		const trimmedNote = note.trim()
@@ -113,6 +131,7 @@ export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: Re
 		const result = await apiRequest<PaymentResponse>('POST', '/payments', {
 			studentId: student.id,
 			paidOn,
+			expectedDefaultTimeZone: context.mainTimeZone,
 			amountMinor,
 			currency: currency as Currency,
 			lessonsHundredths: lessons.trim() === '' ? null : parseLessons(lessons),
@@ -121,6 +140,7 @@ export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: Re
 		setPending(false)
 		saving.current = false
 		if (!result.ok) {
+			if (result.error?.code === 'default_time_zone_changed') return context.markStale()
 			setFailed(true)
 			return
 		}
@@ -145,6 +165,7 @@ export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: Re
 						<DialogDescription>{paymentDescription(student, rate)}</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-4">
+						<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 						{preset === undefined ? <PaymentStudentPicker disabled={pending} onChoose={chooseStudent} /> : null}
 						{failed ? (
 							<Banner status="error">
@@ -184,6 +205,7 @@ export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: Re
 								value={paidOn}
 								onChange={setPaidOn}
 								max={today}
+								error={shown('date')}
 								disabled={blocked}
 							/>
 							<TextField
@@ -239,9 +261,13 @@ function paymentErrors(
 	amount: string,
 	currency: string,
 	lessons: string,
-	note: string
+	note: string,
+	date: string,
+	today: string
 ): Partial<Record<Field, string>> {
 	const errors: Partial<Record<Field, string>> = {}
+	if (date === '') errors.date = 'Choose a date.'
+	else if (date > today) errors.date = 'Choose today or an earlier date.'
 	const amountError = amountProblem(amount, currency)
 	if (amountError) errors.amount = amountError
 	if (currency === '') errors.currency = 'Choose a currency.'

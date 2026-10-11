@@ -2,12 +2,11 @@ import type { Context } from 'hono'
 import { Hono } from 'hono'
 
 import { type SettingsResponse, updateSettingsRequest } from '@dv-lab/contracts'
-import type { Database } from '@dv-lab/db'
+import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import { errorBody } from '../request-context.ts'
-import { readSnapshot } from '../schedule/rows.ts'
-import { readPaysSoonLessons, savePaysSoonLessons } from '../settings/settings.ts'
+import { readTeacherSettings, saveTeacherSettings } from '../settings/settings.ts'
 
 type SettingsRouteDeps = { db: Database }
 
@@ -19,15 +18,20 @@ export function settingsRoutes({ db }: SettingsRouteDeps) {
 
 	routes.get('/', async (c) => {
 		const accountId = c.get('session').account.id
-		const paysSoonLessons = await readSnapshot(db, (executor) => readPaysSoonLessons(executor, accountId))
-		return c.json({ settings: { paysSoonLessons } } satisfies SettingsResponse, 200)
+		const settings = await readSnapshot(db, (executor) => readTeacherSettings(executor, accountId))
+		return c.json({ settings } satisfies SettingsResponse, 200)
 	})
 
 	routes.patch('/', async (c) => {
 		const input = await readJson(c, updateSettingsRequest)
 		if (!input) return invalidRequest(c)
-		const paysSoonLessons = await savePaysSoonLessons(db, c.get('session').account.id, input.paysSoonLessons)
-		return c.json({ settings: { paysSoonLessons } } satisfies SettingsResponse, 200)
+		const result = await saveTeacherSettings(db, c.get('session').account.id, input)
+		if (!result.ok)
+			return c.json(
+				errorBody(result.error, 'Default time zone changed elsewhere. Refresh the page and try again.'),
+				409
+			)
+		return c.json({ settings: result.settings } satisfies SettingsResponse, 200)
 	})
 
 	return routes
