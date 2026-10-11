@@ -106,7 +106,7 @@ export async function setOpening(page: Page, studentId: string, on: string, hund
 		page,
 		'PUT',
 		`/students/${studentId}/opening-balance`,
-		{ lessonsHundredths: hundredths, on }
+		{ lessonsHundredths: hundredths, on, expectedDefaultTimeZone: VN }
 	)
 	check(`opening balance set for ${studentId.slice(0, 4)}`, result.status === 200, String(result.status))
 }
@@ -119,6 +119,7 @@ export async function createOnce(
 	durationMinutes: number = 60
 ) {
 	const result = await api<ScheduleLessonResponse & Partial<ErrorResponse>>(page, 'POST', '/schedule/lessons', {
+		expectedDefaultTimeZone: VN,
 		studentId,
 		date,
 		startTime,
@@ -312,7 +313,8 @@ export function countsOf(data: TodayResponse, now: Date) {
 			earlier: data.earlier.length,
 			paysSoon: data.paysSoon.length,
 		},
-		now
+		now,
+		VN
 	)
 }
 
