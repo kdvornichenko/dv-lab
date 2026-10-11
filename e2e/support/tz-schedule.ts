@@ -6,7 +6,7 @@ import { addDays, mondayOf, VN, vnToday, zonedDate, zonedTime } from './dates.ts
 import { integer, list, record, text, uuid } from './input.ts'
 import type { Card, Fx } from './test.ts'
 import { MSK, NY, setMain } from './tz-settings.ts'
-import { balanceEverywhere } from './ui.ts'
+import { balanceEverywhere, openLesson } from './ui.ts'
 
 export const KIR = 'Pacific/Kiritimati'
 
@@ -101,7 +101,22 @@ export async function duplicateZone(page: Page, fx: Fx): Promise<void> {
 	expect(await fx.weekly(card.id, day, '09:00', 'US/Eastern')).toBe(next)
 	expect(fx.scheduleCounts(card.id).series).toBe(2)
 	expect((await seriesAt(page, card, day, old)).timeZone).toBe(VN)
-	expect((await seriesAt(page, card, day, next)).timeZone).toBe(NY)
+	const before = await seriesAt(page, card, day, next)
+	expect(before.timeZone).toBe(NY)
+	const counts = fx.scheduleCounts(card.id)
+	await api(
+		page.request,
+		'POST',
+		`/schedule/series/${next}/move`,
+		{ from: day, weekday: integer(before.weekday), startTime: '09:00', expectedDefaultTimeZone: 'US/Eastern' },
+		400
+	)
+	const dialog = await openLesson(page, card, day, '09:00')
+	await dialog.getByRole('button', { name: 'Move series', exact: true }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Move series', exact: true }).click()
+	await expect(page.getByText('Choose a different day or time.', { exact: true })).toBeVisible()
+	expect(fx.scheduleCounts(card.id)).toEqual(counts)
+	expect(await seriesAt(page, card, day, next)).toEqual(before)
 }
 
 export async function dstRules(page: Page, fx: Fx): Promise<void> {

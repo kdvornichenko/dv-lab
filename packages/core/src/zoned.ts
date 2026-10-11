@@ -24,6 +24,10 @@ function formatter(zone: string): Intl.DateTimeFormat {
 	return found
 }
 
+export function sameTimeZone(left: string, right: string): boolean {
+	return formatter(left).resolvedOptions().timeZone === formatter(right).resolvedOptions().timeZone
+}
+
 function wallParts(instant: number, zone: string): WallParts {
 	const parts: Record<string, string> = {}
 	for (const part of formatter(zone).formatToParts(instant)) parts[part.type] = part.value

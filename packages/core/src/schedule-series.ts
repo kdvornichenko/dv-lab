@@ -13,7 +13,7 @@ import {
 	type SeriesRule,
 	type SeriesTiming,
 } from './schedule.ts'
-import { addDays, firstOnOrAfter, startOfZonedDay, type Weekday } from './zoned.ts'
+import { addDays, firstOnOrAfter, sameTimeZone, startOfZonedDay, type Weekday } from './zoned.ts'
 
 export type NewSeriesRule = Omit<SeriesRule, 'id'>
 
@@ -138,7 +138,11 @@ export function cutSeries(
 	const boundary = seriesCutBoundary(rule, change.from, defaultTimeZone, 'from')
 	const end = finiteBoundary(rule)
 	if (end !== null && end.instant.getTime() <= boundary.instant.getTime()) return { kind: 'changed' }
-	if (change.weekday === rule.weekday && change.startTime === rule.startTime && defaultTimeZone === rule.timeZone) {
+	if (
+		change.weekday === rule.weekday &&
+		change.startTime === rule.startTime &&
+		sameTimeZone(defaultTimeZone, rule.timeZone)
+	) {
 		return { kind: 'invalid' }
 	}
 	const naturalStart = seriesStart(rule, boundary.naturalCutoff)
