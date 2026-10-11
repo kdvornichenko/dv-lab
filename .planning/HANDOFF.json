@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-10-11T04:33:22Z",
+  "timestamp": "2026-10-11T08:13:21Z",
   "phase": "21-lesson-accounting-and-today",
   "phase_name": "Lesson Accounting and Today",
   "phase_dir": ".planning/phases/21-lesson-accounting-and-today",
@@ -9,13 +9,29 @@
   "total_tasks": 18,
   "status": "executing",
   "completed_tasks": [
-    "21-01", "21-02", "21-03", "21-04", "21-05", "21-06", "21-07", "21-08",
-    "21-09", "21-10", "21-11", "21-12", "21-14", "21-15", "21-16", "21-17"
+    "21-01",
+    "21-02",
+    "21-03",
+    "21-04",
+    "21-05",
+    "21-06",
+    "21-07",
+    "21-08",
+    "21-09",
+    "21-10",
+    "21-11",
+    "21-12",
+    "21-13",
+    "21-14",
+    "21-15",
+    "21-16",
+    "21-17"
   ],
-  "remaining_tasks": ["21-13", "21-18"],
+  "remaining_tasks": [
+    "21-18"
+  ],
   "blockers": [],
   "human_actions_pending": [
-    "Design dude: open minor items on Switch track colour, read-error banner, EmptyState padding, ReadError icon",
     "Owner: effort level names, Recommended marker, model order, relative cost (design v39)",
     "Server guy: deploy phase 21 after merge (two migrations, breaking contract, paired api/web release)"
   ],
@@ -23,9 +39,10 @@
     "D-17: any lesson can be moved, mark follows the occurrence key",
     "Phase order 21 -> 24 -> 25 -> 22 -> 23 -> 26",
     "Constants that may change become settings",
-    "e2e tests allowed since 2026-10-10, no unit or integration tests"
+    "e2e tests allowed since 2026-10-10, no unit or integration tests",
+    "Phase 24 includes public homepage, privacy policy and terms pages before retrying Google OAuth Production publication"
   ],
   "uncommitted_files": [],
-  "next_action": "Close confirmed frontend and helper review fixes, then execute 21-13 and 21-18. Backend fixes fbe2af0, 0337da2 and abae816 are committed; runtime evidence belongs to 21-13/21-18. Run bash scripts/gsd/dispatch.sh 21 before each wave",
+  "next_action": "Execute 21-18 from the prepared TypeScript E2E draft. Read 21-13-SUMMARY.md (f1d44b6). Playwright 1.63.0 is already installed; no repeat approval or install. Final security/UI/architecture/code review and verifier follow 21-18.",
   "context_notes": "Read .continue-here.md in the phase directory for full state, anti-patterns and infrastructure notes."
 }
