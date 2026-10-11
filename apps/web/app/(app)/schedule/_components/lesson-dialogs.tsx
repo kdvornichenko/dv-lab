@@ -30,7 +30,8 @@ type SeriesDialogState = {
 	kind: 'move' | 'end'
 	rule: ScheduleSeries
 	studentName: string
-	lessonDate: string
+	mainTimeZone: string
+	asOf: string
 	returnTo: LessonSelection
 }
 
@@ -67,29 +68,49 @@ export async function readOverlapBlocks(
 }
 
 interface LessonDialogsProps {
+	selection: LessonSelection | null
 	selected: ScheduleBlock | null
 	series: readonly ScheduleSeries[]
 	now: Date
 	mainTimeZone: string
+	currentMainTimeZone: string
 	asOf: string
 	secondZone: string | null
 	currentYear: number
-	today: string
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	reload: () => Promise<void>
 	onClose: (target: LessonSelection | null) => void
 	onOpenPair: (target: PairTarget) => void
 }
 
+function useSelectedLesson(
+	selected: ScheduleBlock | null,
+	selection: LessonSelection | null,
+	series: readonly ScheduleSeries[]
+) {
+	const [snapshot, setSnapshot] = useState<{ block: ScheduleBlock; rule: ScheduleSeries | null } | null>(null)
+	const seriesId = selected?.ref.kind === 'series' ? selected.ref.seriesId : null
+	const rule = series.find((item) => item.id === seriesId) ?? null
+	if (selected !== null && (snapshot?.block !== selected || snapshot.rule !== rule)) {
+		setSnapshot({ block: selected, rule })
+	}
+	if (selection === null && snapshot !== null) setSnapshot(null)
+	if (snapshot === null || selection === null) return null
+	return snapshot.block.key === selection.key && occurrenceSlot(snapshot.block.outcome) === selection.slot
+		? snapshot
+		: null
+}
+
 export function LessonDialogs({
 	selected,
+	selection,
 	series,
 	now,
 	mainTimeZone,
+	currentMainTimeZone,
 	asOf,
 	secondZone,
 	currentYear,
-	today,
 	blocksOn,
 	reload,
 	onClose,
@@ -97,15 +118,15 @@ export function LessonDialogs({
 }: LessonDialogsProps) {
 	const [seriesDialog, setSeriesDialog] = useState<SeriesDialogState | null>(null)
 	const toast = useToast()
-	const selectedSeriesId = selected?.ref.kind === 'series' ? selected.ref.seriesId : null
-	const selectedSeries =
-		selectedSeriesId === null ? null : (series.find((rule) => rule.id === selectedSeriesId) ?? null)
+	const snapshot = useSelectedLesson(selected, selection, series)
+	const shown = snapshot?.block ?? null
+	const selectedSeries = snapshot?.rule ?? null
 	const seriesRule =
 		seriesDialog === null ? null : (series.find((rule) => rule.id === seriesDialog.rule.id) ?? seriesDialog.rule)
 
 	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
 		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
-		if (result.kind === 'failed') return 'failed'
+		if (result.kind !== 'ok' && result.kind !== 'stale') return 'failed'
 		await reload()
 		if (result.kind === 'stale') return 'stale'
 		toast.show({
@@ -117,17 +138,22 @@ export function LessonDialogs({
 
 	async function markBlock(block: ScheduleBlock, kind: LessonMarkKind): Promise<ActionOutcome> {
 		const result = await markLesson(block, kind)
-		if (result.kind === 'failed') return 'failed'
+		if (result.kind !== 'ok' && result.kind !== 'stale') return 'failed'
 		await reload()
 		return result.kind
 	}
 
-	function startSeries(block: ScheduleBlock, rule: ScheduleSeries, kind: 'move' | 'end') {
+	function startSeries(
+		block: ScheduleBlock,
+		rule: ScheduleSeries,
+		kind: 'move' | 'end',
+		context: { mainTimeZone: string; asOf: string }
+	) {
 		const next: SeriesDialogState = {
 			kind,
 			rule,
 			studentName: block.studentName,
-			lessonDate: block.ref.kind === 'series' ? block.ref.originalOn : today,
+			...context,
 			returnTo: { key: block.key, slot: occurrenceSlot(block.outcome) },
 		}
 		onClose(null)
@@ -147,59 +173,65 @@ export function LessonDialogs({
 		if (closed !== null) onClose(closed.returnTo)
 	}
 
+	function refreshForms() {
+		setSeriesDialog(null)
+		onClose(null)
+		void reload()
+	}
+
 	return (
 		<>
-			{selected !== null ? (
+			{shown !== null ? (
 				<LessonDialog
-					key={`${selected.key}:${occurrenceSlot(selected.outcome)}`}
-					block={selected}
+					key={`${shown.key}:${occurrenceSlot(shown.outcome)}`}
+					block={shown}
 					series={selectedSeries}
 					mainTimeZone={mainTimeZone}
+					currentMainTimeZone={currentMainTimeZone}
 					asOf={asOf}
 					now={now}
 					secondZone={secondZone}
-					currentYear={currentYear}
-					onClose={() => onClose({ key: selected.key, slot: occurrenceSlot(selected.outcome) })}
+					onClose={() => onClose({ key: shown.key, slot: occurrenceSlot(shown.outcome) })}
 					onOpenPair={onOpenPair}
-					onCancel={() => changeLesson(selected, 'cancel')}
-					onRestore={() => changeLesson(selected, 'restore')}
-					onMark={(kind) => markBlock(selected, kind)}
+					onCancel={() => changeLesson(shown, 'cancel')}
+					onRestore={() => changeLesson(shown, 'restore')}
+					onMark={(kind) => markBlock(shown, kind)}
 					blocksOn={blocksOn}
 					onStale={() => void reload()}
+					onRefresh={refreshForms}
 					onMoved={(at) => {
-						void reload().then(() => onOpenPair({ key: selected.key, slot: 'to', at }))
+						void reload().then(() => onOpenPair({ key: shown.key, slot: 'to', at }))
 					}}
-					onSeries={(kind) => {
-						if (selectedSeries !== null) startSeries(selected, selectedSeries, kind)
+					onSeries={(kind, context) => {
+						if (selectedSeries !== null) startSeries(shown, selectedSeries, kind, context)
 					}}
 				/>
 			) : null}
 			{seriesRule !== null && seriesDialog?.kind === 'move' ? (
 				<MoveSeriesDialog
-					mainTimeZone={mainTimeZone}
-					asOf={asOf}
+					mainTimeZone={seriesDialog.mainTimeZone}
+					asOf={seriesDialog.asOf}
+					currentMainTimeZone={currentMainTimeZone}
 					rule={seriesRule}
 					studentName={seriesDialog.studentName}
 					now={now}
-					today={today}
-					currentYear={currentYear}
 					onClose={closeSeries}
 					onStale={() => void reload()}
+					onRefresh={refreshForms}
 					onMoved={() => void seriesChanged()}
 				/>
 			) : null}
 			{seriesRule !== null && seriesDialog?.kind === 'end' ? (
 				<EndSeriesDialog
-					mainTimeZone={mainTimeZone}
-					asOf={asOf}
+					mainTimeZone={seriesDialog.mainTimeZone}
+					asOf={seriesDialog.asOf}
+					currentMainTimeZone={currentMainTimeZone}
 					rule={seriesRule}
 					studentName={seriesDialog.studentName}
-					lessonDate={seriesDialog.lessonDate}
 					now={now}
-					today={today}
-					currentYear={currentYear}
 					onClose={closeSeries}
 					onStale={() => void reload()}
+					onRefresh={refreshForms}
 					onEnded={() => void seriesChanged()}
 				/>
 			) : null}

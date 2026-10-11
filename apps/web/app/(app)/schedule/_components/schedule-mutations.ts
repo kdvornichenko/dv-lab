@@ -3,6 +3,8 @@ import { apiRequest } from '@/lib/api-client'
 import type {
 	ErrorCode,
 	LessonMarkKind,
+	LessonRepeats,
+	ScheduleCreateResponse,
 	ScheduleLessonResponse,
 	ScheduleMarkResponse,
 	ScheduleOccurrenceRef,
@@ -20,17 +22,41 @@ export type RuleTarget = { kind: 'rule'; seriesId: string }
 
 export type LessonAction = 'move' | 'cancel' | 'restore'
 
-export type LessonBody = { date?: string; startTime?: string; expectedStartsAt?: string }
+export type LessonBody = { expectedStartsAt?: string }
 
-export type MoveSeriesBody = { from: string; weekday: ScheduleWeekday; startTime: string }
+export type MoveLessonBody = LessonBody & { date: string; startTime: string; expectedDefaultTimeZone: string }
 
-export type EndSeriesBody = { lastOn: string }
+export type MoveSeriesBody = {
+	from: string
+	weekday: ScheduleWeekday
+	startTime: string
+	expectedDefaultTimeZone: string
+}
+
+export type EndSeriesBody = { lastOn: string; expectedDefaultTimeZone: string }
+
+export type CreateLessonBody = {
+	studentId: string
+	date: string
+	startTime: string
+	durationMinutes: number
+	repeats: LessonRepeats
+	expectedDefaultTimeZone: string
+}
 
 export type LessonChange = ScheduleOccurrenceResponse | ScheduleLessonResponse
 
-export type MutationResult<T> = { kind: 'ok'; data: T } | { kind: 'stale' } | { kind: 'failed'; code: ErrorCode | null }
+export type MutationResult<T> =
+	| { kind: 'ok'; data: T; status: number }
+	| { kind: 'stale' }
+	| { kind: 'zone_changed' }
+	| { kind: 'gap' }
+	| { kind: 'failed'; code: ErrorCode | null }
 
-function pathOf(target: ScheduleOccurrenceRef | RuleTarget, action: string): string {
+type NewTarget = { kind: 'new' }
+
+function pathOf(target: ScheduleOccurrenceRef | RuleTarget | NewTarget, action: string): string {
+	if (target.kind === 'new') return '/schedule/lessons'
 	if (target.kind === 'single') return `/schedule/lessons/${encodeURIComponent(target.lessonId)}/${action}`
 	if (target.kind === 'series') {
 		return `/schedule/series/${encodeURIComponent(target.seriesId)}/occurrences/${encodeURIComponent(target.originalOn)}/${action}`
@@ -44,9 +70,19 @@ export function changedStart(data: LessonChange): string {
 
 export function mutate(
 	target: ScheduleOccurrenceRef,
-	action: LessonAction,
+	action: 'cancel' | 'restore',
 	body?: LessonBody
 ): Promise<MutationResult<LessonChange>>
+export function mutate(
+	target: ScheduleOccurrenceRef,
+	action: 'move',
+	body: MoveLessonBody
+): Promise<MutationResult<LessonChange>>
+export function mutate(
+	target: NewTarget,
+	action: 'create',
+	body: CreateLessonBody
+): Promise<MutationResult<ScheduleCreateResponse>>
 export function mutate(
 	target: RuleTarget,
 	action: 'move',
@@ -58,17 +94,19 @@ export function mutate(
 	body: EndSeriesBody
 ): Promise<MutationResult<ScheduleSeriesResponse>>
 export async function mutate(
-	target: ScheduleOccurrenceRef | RuleTarget,
+	target: ScheduleOccurrenceRef | RuleTarget | NewTarget,
 	action: string,
-	body?: LessonBody | MoveSeriesBody | EndSeriesBody
-): Promise<MutationResult<LessonChange | ScheduleSeriesResponse>> {
-	return post<LessonChange | ScheduleSeriesResponse>(pathOf(target, action), body ?? {})
+	body?: LessonBody | MoveLessonBody | MoveSeriesBody | EndSeriesBody | CreateLessonBody
+): Promise<MutationResult<LessonChange | ScheduleSeriesResponse | ScheduleCreateResponse>> {
+	return post<LessonChange | ScheduleSeriesResponse | ScheduleCreateResponse>(pathOf(target, action), body ?? {})
 }
 
 async function post<T>(path: string, body: object): Promise<MutationResult<T>> {
 	const result = await apiRequest<T>('POST', path, body)
-	if (result.ok) return { kind: 'ok', data: result.data }
-	if (result.status === 409 || result.status === 404) return { kind: 'stale' }
+	if (result.ok) return { kind: 'ok', data: result.data, status: result.status }
+	if (result.error?.code === 'default_time_zone_changed') return { kind: 'zone_changed' }
+	if (result.error?.code === 'nonexistent_local_time') return { kind: 'gap' }
+	if (result.error?.code === 'lesson_changed' || result.status === 404) return { kind: 'stale' }
 	return { kind: 'failed', code: result.error?.code ?? null }
 }
 
