@@ -1,22 +1,26 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T10:33:06.744316+00:00",
+	"timestamp": "2026-10-11T12:07:53.705165+00:00",
 	"phase": "21.1-default-time-zone",
 	"phase_name": "Default Time Zone",
 	"phase_dir": ".planning/phases/21.1-default-time-zone",
-	"plan": null,
+	"plan": "21.1-02",
 	"task": 0,
-	"total_tasks": 0,
-	"status": "ready_to_execute",
+	"total_tasks": 3,
+	"status": "executing",
 	"completed_tasks": [
 		"technical research and architecture",
 		"approved UI contract",
 		"pattern map",
 		"13 executable plans / 37 tasks / 9 waves",
 		"independent plan check and squad review: all five findings closed",
-		"HTML plan review"
+		"HTML plan review",
+		"21.1-01 complete: migration8/8 on _test/_dev, catalog/roles pass, synthetic history unchanged"
 	],
-	"remaining_tasks": ["Phase 21.1 implementation (not started)"],
+	"remaining_tasks": [
+		"Execute Phase 21.1 plans 01–13 and verify TZ-01…05",
+		"Integrate Phase 21.1 prerequisite and execute prepared Phase 24 plans"
+	],
 	"blockers": [],
 	"human_actions_pending": [
 		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
@@ -31,6 +35,6 @@
 		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Phase 21.1 preparation is complete. Read PLAN-INDEX, PLAN-CHECK, SQUAD-REVIEW and PLAN-REVIEW. Phase 24 preparation continues in its own worktree. This session does not start implementation.",
+	"next_action": "Execute plan 21.1-02: write public [tz] E2E scenarios before behavior implementation, then wave3 plans03/04. Plan01 complete; no repeated implementation approval.",
 	"context_notes": "Read 21.1-CONTEXT, RESEARCH, ARCH-REVIEW, UI-SPEC and PATTERNS. TZ-01 through TZ-05. Phase 21 source is unchanged by this metadata merge; accepted manual deferrals remain explicit."
 }

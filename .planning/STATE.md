@@ -4,17 +4,17 @@ milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
 current_phase: '21.1'
 current_phase_name: Default Time Zone
-status: ready_to_execute
-stopped_at: Phase 21.1 plans verified; implementation not started
-last_updated: '2026-10-11T10:32:54.130Z'
+status: executing
+stopped_at: Plan 21.1-01 complete; executing 21.1-02
+last_updated: '2026-10-11T12:07:53.594Z'
 last_activity: 2026-10-11
-last_activity_desc: Phase 21.1 plans and reviews complete; Phase 24 preparation continues
-state_head: aad976e70e8cf5efdb90ce2526c1579bf33e367f
+last_activity_desc: Started Phase 21.1 execution; Phase 24 preparation complete
+state_head: 743199a0fcb46286759d6e7682a0e2f77480bf3d
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 90
-  completed_plans: 77
+  completed_plans: 78
   percent: 9
 ---
 
@@ -29,10 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 ## Current Position
 
-Phase: 21.1 (Default Time Zone) — READY TO EXECUTE
-Plan: 13 plans verified; execution not started
-Status: Ready to execute. Independent plan check and squad review passed. Phase 21 merged in PR #7 (893689f) after green CI.
-Last activity: 2026-10-11 — Verified 13 plans, closed five review findings and packed HTML overview
+Phase: 21.1 (Default Time Zone) — EXECUTING
+Plan: 02 of 13 — public E2E contract; 01 completed
+Status: Execution authorized by owner. Phase 21.1 runs before Phase 24. Phase 21 merged in PR #7 (893689f) after green CI.
+Last activity: 2026-10-11 — Plan 01 complete; migrations 8/8 and catalog PASS on _test/_dev
 
 Progress: [█░░░░░░░░░] 9%
 
