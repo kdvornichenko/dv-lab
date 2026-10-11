@@ -17,6 +17,7 @@ export function LessonFooter({
 	confirming,
 	moving,
 	pending,
+	locked,
 	moveButton,
 	onKeep,
 	onCancel,
@@ -28,6 +29,7 @@ export function LessonFooter({
 	confirming: boolean
 	moving: boolean
 	pending: boolean
+	locked: boolean
 	moveButton: RefObject<HTMLButtonElement | null>
 	onKeep: () => void
 	onCancel: () => void
@@ -49,10 +51,17 @@ export function LessonFooter({
 							className="flex w-full flex-wrap items-center justify-end gap-2"
 						>
 							<span className="mr-auto text-body text-foreground">{cancelQuestion(start)}</span>
-							<Button type="button" variant="ghost" size="compact" disabled={pending} onClick={onKeep}>
+							<Button type="button" variant="ghost" size="compact" disabled={locked} onClick={onKeep}>
 								Keep
 							</Button>
-							<Button type="button" size="compact" leadingIcon={CalendarX2} loading={pending} onClick={onCancel}>
+							<Button
+								type="button"
+								size="compact"
+								leadingIcon={CalendarX2}
+								loading={pending}
+								disabled={locked}
+								onClick={onCancel}
+							>
 								{pending ? 'Cancelling…' : 'Yes, cancel'}
 							</Button>
 						</div>
@@ -65,13 +74,21 @@ export function LessonFooter({
 									variant="secondary"
 									size="compact"
 									leadingIcon={CalendarClock}
+									disabled={locked}
 									onClick={onMove}
 								>
 									Move lesson
 								</Button>
 							) : null}
 							{actions.cancel ? (
-								<Button type="button" variant="ghost" size="compact" leadingIcon={CalendarX2} onClick={onConfirm}>
+								<Button
+									type="button"
+									variant="ghost"
+									size="compact"
+									leadingIcon={CalendarX2}
+									disabled={locked}
+									onClick={onConfirm}
+								>
 									Cancel lesson
 								</Button>
 							) : null}
@@ -87,6 +104,7 @@ export function LessonFooter({
 						size="compact"
 						leadingIcon={CalendarCheck2}
 						loading={pending}
+						disabled={locked}
 						onClick={onRestore}
 					>
 						Return to schedule

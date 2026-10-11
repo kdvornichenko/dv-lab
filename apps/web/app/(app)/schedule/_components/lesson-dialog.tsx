@@ -199,16 +199,21 @@ export function LessonDialog({
 					block={block}
 					confirming={confirming}
 					moving={moving}
-					pending={busy}
+					pending={pending}
+					locked={busy}
 					moveButton={moveButton}
-					onKeep={() => setConfirming(false)}
+					onKeep={() => {
+						if (!busy) setConfirming(false)
+					}}
 					onCancel={() => void run(onCancel, 'cancel')}
 					onRestore={() => void run(onRestore, 'restore')}
 					onMove={() => {
+						if (busy) return
 						setNotice(null)
 						setMoving(true)
 					}}
 					onConfirm={() => {
+						if (busy) return
 						setNotice(null)
 						setConfirming(true)
 					}}
