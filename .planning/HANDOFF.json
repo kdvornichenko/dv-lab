@@ -26,7 +26,11 @@
 		"CI 69a43dd publishes sha-tagged images for gsd/phase-* pushes only after Verify; latest remains limited to the default branch. Phase branch pushed; initial CI exposed stale fixtures and random shutdown port allocation, fixed in scoped test commits. Deployment remains pending green CI.",
 		"24-06 source integrated: 25b7d72,65b778f,d9dc066,c0d67ee. Disconnected cards/Today API and light/dark narrow UI passed; connected provider cases and exact-asOf equality remain unverified. Parent reviewed all source changes.",
 		"24-13 partial: prelaunch target/ownership harness 7f815b6+8199568 integrated. Static gates pass for five files; SSH-only transport must replace local main DSN before execution. Existing CI test repairs 4c92a1d+4a915f3 passed scoped tests, including 19 config/shutdown cases.",
-		"Documentation API-key example replaced in HTML/Markdown; manifest hashes updated. Complete snapshot hash check: 100 pages and 17 assets passed."
+		"Documentation API-key example replaced in HTML/Markdown; manifest hashes updated. Complete snapshot hash check: 100 pages and 17 assets passed.",
+		"CI knip repairs integrated: root zod4.6.5 declared with explicit owner authorization, quality CLI registered, unused readWeek removed. Knip and API typecheck passed; 18 existing non-blocking configuration hints remain.",
+		"24-12 Task2 provider-window UI cfc9206 integrated and independently reviewed. Static gates passed; runtime/browser unverified. Shared recovery controller and mutation wiring remain in progress; their actual consumers must close the new knip findings.",
+		"24-13 SSH-only adapter 6cfafa3 integrated and independently reviewed. Same-transaction target/role/persistence/ownership guards and server-side credentials preserved. Static and generated remote-program checks passed; live SSH/DB/E2E unverified.",
+		"Main teacher credential input recovered with explicit owner authorization into a canonical private0600 file outside the repository. No sign-in or consent executed. Automatic screenshots disabled for HTTPS E2E targets."
 	],
 	"remaining_tasks": [
 		"Execute 24-07 through 24-11 and finish remaining 24-12 command/UI scope in accepted dependency order.",
@@ -37,7 +41,7 @@
 	"human_actions_pending": [
 		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
 		"After Phase 25: real VN midnight and final Earlier panel removal; explicitly deferred by the owner, still unverified",
-		"Perform actual consent with the separate TEST Google account after target readiness. Main teacher credentials were not found in known private configuration; arrange owner sign-in or a private credential input before E2E."
+		"Perform actual consent with the separate TEST Google account after target readiness. Teacher credential input is prepared; final day0 baseline follows all disruptive consent/revoke journeys."
 	],
 	"decisions": [
 		"Phase order 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26",
@@ -51,6 +55,6 @@
 		"Main database secrets stay on the server. Prelaunch E2E must use an attested SSH-only SQL transport; do not copy the server DSN into local env or add public database ports."
 	],
 	"uncommitted_files": [],
-	"next_action": "Execute 24-07. Arendt adapts prelaunch SQL after Server guy provides the checked SSH-only mechanism. Prepare 24-12 provider-window UI once the sole web owner is free. Push the integrated candidate, verify CI and paired images, then coordinate the existing target and first real consent/read without consuming refresh evidence early.",
+	"next_action": "Finish and review 24-07. The sole web owner completes 24-12 shared recovery and mutation wiring. Server guy reviews the private SSH operator configuration. Push the coherent candidate after knip passes, verify CI and paired images, then coordinate the existing target and initial real consent/read. Final day0 follows disruptive acceptance journeys.",
 	"context_notes": "Base8116e48 and immutable86path baseline unchanged. Plans01–06 source integrated. Native wave5 gates exit0/blockfalse: schema detector found no ORM, UI scope degraded, codebase skipped; not runtime proof. Integration API typecheck passed. Partial12 Settings and13 observers/harness are integrated, not whole-plan completion. OAuth client JSON was recovered and validated outside the repository; Server guy configures the existing runtime without restarting until verified candidate signal. Main prelaunch synthetic fixtures and TEST PRIMARY event/disconnect/reconnect cycle are authorized. Keep database secrets server-side; use exact build/database attestation and one runtime/fixture writer. No separate environment, file deletion or unrelated data changes. Preserve apps/web/AGENTS.md and milestone.lock."
 }
