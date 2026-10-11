@@ -17,7 +17,7 @@
 
 ## Структура
 
-- `apps/web` — Next 16 (App Router), сборка `output: 'standalone'`. Шрифты Inter Variable и JetBrains Mono Variable из пакетов `@fontsource-variable/inter` и `@fontsource-variable/jetbrains-mono`, без обращения к Google.
+- `apps/web` — Next 16 (App Router), сборка `next build --webpack` с `output: 'standalone'`. Шрифты Inter Variable и JetBrains Mono Variable из пакетов `@fontsource-variable/inter` и `@fontsource-variable/jetbrains-mono`, без обращения к Google.
 - `apps/api` — Hono на `@hono/node-server`, отдельный процесс за прокси. Сборка `tsdown` в `apps/api/dist/server.mjs`, `apps/api/dist/migrate.mjs`, `apps/api/dist/bootstrap-teacher.mjs` (CLI первого учителя и восстановления его пароля) и `apps/api/dist/import-vault.mjs` (импорт vault: команды `parse` и `apply`), `@dv-lab/*` вшиваются в бандл, миграции копируются в `apps/api/drizzle`.
 - `packages/core` — JIT-пакет `@dv-lab/core` (экспортирует исходники `src/index.ts`): чистые функции денег и уроков, правило остатка (`balance.ts`), исход и действия урока (`schedule.ts`), зоны (`zoned.ts`) и порог Pays soon (`lessons.ts`). `SCHEDULE_TIME_ZONE` = `Asia/Ho_Chi_Minh`. Без зависимостей, без Node API и без базы. Его вызывают web, api и импорт vault.
 - `packages/contracts` — JIT-пакет `@dv-lab/contracts`: только типы, схемы zod и константы общего контракта web и api (запросы, ответы, коды ошибок, имя cookie сессии, пределы логина и пароля). Зависит только от `zod`. web и api импортируют его; web не зависит от `@dv-lab/api` и `@dv-lab/db`.
