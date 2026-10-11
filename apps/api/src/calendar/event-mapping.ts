@@ -105,6 +105,83 @@ export async function reserveReplacement(executor: DbExecutor, command: Prepared
 
 export type MappingSnapshot = Awaited<ReturnType<typeof loadMappings>>
 
+export async function confirmOccurrenceMapping(executor: DbExecutor, command: PreparedCalendarCommand) {
+	const input = command.plan.input
+	const instance = command.request.method === 'patch' ? command.request.instance : undefined
+	if (!instance?.lookupVerified || !('ref' in input) || input.ref.kind !== 'series')
+		throw new CommandFault('precondition_failed')
+	const [parent] = await executor
+		.select()
+		.from(googleEventMappings)
+		.where(
+			and(
+				eq(googleEventMappings.accountId, command.accountId),
+				eq(googleEventMappings.connectionId, command.connectionId),
+				eq(googleEventMappings.calendarId, command.calendarId),
+				eq(googleEventMappings.eventId, instance.masterEventId),
+				eq(googleEventMappings.state, 'active')
+			)
+		)
+		.for('update')
+	if (
+		!parent ||
+		parent.entityKind !== 'series' ||
+		parent.localEntityId !== input.ref.seriesId ||
+		parent.representationGeneration !== command.request.payload.markers.representationGeneration
+	)
+		throw new CommandFault('precondition_failed')
+	const expected = {
+		accountId: command.accountId,
+		connectionId: command.connectionId,
+		calendarId: command.calendarId,
+		entityKind: 'occurrence' as const,
+		localEntityId: input.ref.seriesId,
+		representationGeneration: parent.representationGeneration,
+		eventId: command.request.eventId,
+		originalOn: input.ref.originalOn,
+		recurringEventId: instance.masterEventId,
+		originalStartTime: instance.originalStartTime,
+		studentId: parent.studentId,
+		commandId: command.id,
+		state: 'active' as const,
+	}
+	await executor.insert(googleEventMappings).values(expected).onConflictDoNothing()
+	const [actual] = await executor
+		.select()
+		.from(googleEventMappings)
+		.where(
+			and(
+				eq(googleEventMappings.accountId, command.accountId),
+				eq(googleEventMappings.connectionId, command.connectionId),
+				eq(googleEventMappings.eventId, expected.eventId)
+			)
+		)
+		.for('update')
+	if (!actual) throw new CommandFault('precondition_failed')
+	for (const field of [
+		'calendarId',
+		'entityKind',
+		'localEntityId',
+		'representationGeneration',
+		'originalOn',
+		'recurringEventId',
+		'studentId',
+		'state',
+	] as const) {
+		if (actual[field] !== expected[field]) throw new CommandFault('precondition_failed')
+	}
+	const original = actual.originalStartTime
+	const captured = expected.originalStartTime
+	if (
+		!original ||
+		!('dateTime' in original) ||
+		!('dateTime' in captured) ||
+		original.dateTime !== captured.dateTime ||
+		original.timeZone !== captured.timeZone
+	)
+		throw new CommandFault('precondition_failed')
+}
+
 export async function confirmEventMapping(executor: DbExecutor, accountId: string, commandId: string, eventId: string) {
 	const rows = await executor
 		.update(googleEventMappings)

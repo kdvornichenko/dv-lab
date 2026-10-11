@@ -4,6 +4,7 @@ import { api } from './support/api.ts'
 import { admissionBudget } from './support/calendar-admission.ts'
 import { delayedCommand, lostProviderResponse, unknownAbsence } from './support/calendar-command-recovery.ts'
 import { calendarCommandFixture, commandTracer, disconnectedCommand } from './support/calendar-commands.ts'
+import { recurringJourney } from './support/calendar-recurring.ts'
 import {
 	disappearedTombstone,
 	lostSingleResponse,
@@ -45,6 +46,10 @@ import {
 	shortDay,
 } from './support/ui.ts'
 
+for (const kind of ['master', 'instance'] as const)
+	test(`[calendar] recurring ${kind} retains canonical identity after verified ACK`, async ({ page }) => {
+		await recurringJourney(page.request, kind)
+	})
 test('[calendar] command tracer rejects disconnected create and blocks unsupported writes', async ({ page }) => {
 	await disconnectedCommand(page.request)
 })

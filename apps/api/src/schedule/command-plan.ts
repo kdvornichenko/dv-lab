@@ -15,10 +15,13 @@ import {
 	type GoogleStageRequest,
 } from '@dv-lab/db'
 
+import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'
 import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
+import { prepareOccurrenceCommand } from './occurrence-command.ts'
+import { recurringCreation } from './recurring-command.ts'
 import { prepareSingleCommand } from './single-command.ts'
 
 export type PreparedCalendarCommand = {
@@ -61,9 +64,18 @@ export async function prepareScheduleCommand(
 	executor: DbExecutor,
 	input: ValidatedCalendarCommand,
 	context: CalendarReadContext,
-	observed?: SingleEvidence
+	observed?: SingleEvidence | InstanceEvidence
 ): Promise<PreparedCalendarCommand> {
-	if ((input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') && observed)
+	if (
+		(input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') &&
+		observed?.kind === 'instance'
+	)
+		return prepareOccurrenceCommand(executor, input, context, observed)
+	if (
+		(input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') &&
+		observed &&
+		observed.kind !== 'instance'
+	)
 		return prepareSingleCommand(executor, input, context, observed)
 	return prepareCreateCommand(executor, input, context)
 }
@@ -73,7 +85,31 @@ async function prepareCreateCommand(
 	input: ValidatedCalendarCommand,
 	context: CalendarReadContext
 ): Promise<PreparedCalendarCommand> {
-	if (input.operation !== 'create' || input.input.repeats !== 'once') throw new CommandFault('history_only')
+	if (input.operation !== 'create') throw new CommandFault('history_only')
+	const { connection, timeZone } = await lockCreationContext(executor, input, context)
+	const startsAt = localTimeCandidates(input.input.date, input.input.startTime, timeZone)[0]
+	if (!startsAt) throw new CommandFault('nonexistent_local_time', 400)
+	if (!canChange(startsAt, context.now)) throw new CommandFault('history_only')
+	const [student] = await executor
+		.select({ name: students.displayName, status: students.status })
+		.from(students)
+		.where(eq(students.id, input.input.studentId))
+		.for('update')
+	if (!student || student.status !== 'active') throw new CommandFault('invalid_request', 400)
+	const window = await commandWindow(executor, context.accountId, input.input.expectedVersion)
+	const endsAt = new Date(startsAt.getTime() + input.input.durationMinutes * 60000)
+	validateCreationWindow(connection, window, startsAt, endsAt, timeZone)
+	const events = await executor.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
+	const recurring =
+		input.input.repeats === 'weekly' ? await recurringCreation(executor, input, timeZone, connection) : null
+	return buildCreation(input, context, connection, timeZone, startsAt, endsAt, student.name, events, recurring)
+}
+
+async function lockCreationContext(
+	executor: DbExecutor,
+	input: Extract<ValidatedCalendarCommand, { operation: 'create' }>,
+	context: CalendarReadContext
+) {
 	const [connection] = await executor
 		.select()
 		.from(googleConnections)
@@ -90,18 +126,19 @@ async function prepareCreateCommand(
 		context.now
 	)
 	if (!settings.ok) throw new CommandFault(settings.error)
-	const timeZone = settings.context.defaultTimeZone
-	const startsAt = localTimeCandidates(input.input.date, input.input.startTime, timeZone)[0]
-	if (!startsAt) throw new CommandFault('nonexistent_local_time', 400)
-	if (!canChange(startsAt, context.now)) throw new CommandFault('history_only')
-	const [student] = await executor
-		.select({ name: students.displayName, status: students.status })
-		.from(students)
-		.where(eq(students.id, input.input.studentId))
-		.for('update')
-	if (!student || student.status !== 'active') throw new CommandFault('invalid_request', 400)
-	const window = await commandWindow(executor, context.accountId, input.input.expectedVersion)
-	const endsAt = new Date(startsAt.getTime() + input.input.durationMinutes * 60000)
+	return {
+		connection: { ...connection, calendarId: connection.calendarId },
+		timeZone: settings.context.defaultTimeZone,
+	}
+}
+
+function validateCreationWindow(
+	connection: typeof googleConnections.$inferSelect,
+	window: typeof googleReadWindows.$inferSelect,
+	startsAt: Date,
+	endsAt: Date,
+	timeZone: string
+) {
 	if (
 		startsAt < window.windowStart ||
 		endsAt > window.windowEnd ||
@@ -110,21 +147,33 @@ async function prepareCreateCommand(
 		throw new CommandFault('precondition_failed')
 	if (window.generation !== connection.generation || window.connectionId !== connection.id)
 		throw new CommandFault('precondition_failed')
-	const events = await executor.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
+}
+
+function buildCreation(
+	input: Extract<ValidatedCalendarCommand, { operation: 'create' }>,
+	context: CalendarReadContext,
+	connection: Awaited<ReturnType<typeof lockCreationContext>>['connection'],
+	timeZone: string,
+	startsAt: Date,
+	endsAt: Date,
+	studentName: string,
+	events: (typeof googleReadEvents.$inferSelect)[],
+	recurring: Awaited<ReturnType<typeof recurringCreation>> | null
+): PreparedCalendarCommand {
 	const id = randomUUID()
 	const localEntityId = randomUUID()
 	const reservation = {
-		entityKind: 'single' as const,
+		entityKind: recurring ? ('series' as const) : ('single' as const),
 		localEntityId,
 		representationGeneration: 0,
-		eventId: `dv${digest(JSON.stringify([connection.id, connection.calendarId, 'single', localEntityId, 0]))}`,
+		eventId: `dv${digest(JSON.stringify([connection.id, connection.calendarId, recurring ? 'series' : 'single', localEntityId, 0]))}`,
 	}
 	const { requestId, expectedVersion, ...value } = input.input
 	const plan = googleCommandPlan.parse({
 		version: 1,
 		input: { operation: 'create', ...value },
 		capturedTimeZone: timeZone,
-		capturedRule: null,
+		capturedRule: recurring?.rule ?? null,
 		reservations: [reservation],
 		lineage: [],
 		preconditions: events.map((event) => ({
@@ -132,15 +181,22 @@ async function prepareCreateCommand(
 			etag: event.etag,
 			unownedWritableFingerprint: digest(event.etag),
 		})),
-		affectedRefs: [{ kind: 'single', lessonId: localEntityId }],
+		affectedRefs: [
+			recurring
+				? { kind: 'series', seriesId: localEntityId, originalOn: recurring.rule.startsOn }
+				: { kind: 'single', lessonId: localEntityId },
+		],
 		oldEndsOn: null,
 		newRule: null,
 	})
 	const payload = {
-		summary: student.name,
+		summary: studentName,
 		start: { dateTime: startsAt.toISOString(), timeZone },
 		end: { dateTime: endsAt.toISOString(), timeZone },
 		status: 'confirmed' as const,
+		...(recurring
+			? { start: recurring.master.start, end: recurring.master.end, recurrence: recurring.master.recurrence }
+			: {}),
 	}
 	const stageDigest = digest(JSON.stringify({ eventId: reservation.eventId, ...payload }))
 	const request = googleStageRequest.parse({
@@ -150,7 +206,7 @@ async function prepareCreateCommand(
 		payload: {
 			...payload,
 			markers: {
-				entityKind: 'single',
+				entityKind: reservation.entityKind,
 				localEntityId,
 				representationGeneration: 0,
 				commandId: id,

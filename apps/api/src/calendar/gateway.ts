@@ -2,7 +2,7 @@ import { Auth, google } from 'googleapis'
 import { z } from 'zod'
 
 import { calendarIssue, type CalendarIssue } from '@dv-lab/contracts'
-import type { GoogleStageRequest } from '@dv-lab/db'
+import { googleInstancePage, type GoogleStageRequest } from '@dv-lab/db'
 
 import type { CalendarConfig } from '../config.ts'
 import { insertEventBody, observeGoogleEvent, verifyGoogleResult, type WriteRequest } from './command-result.ts'
@@ -200,6 +200,53 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 		}
 	}
 	return {
+		async canonicalInstance(
+			accessToken: string,
+			calendarId: string,
+			masterEventId: string,
+			originalStart: string,
+			signal: AbortSignal
+		) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const ids = new Set<string>()
+			const tokens = new Set<string>()
+			let pageToken: string | undefined
+			do {
+				signal.throwIfAborted()
+				const response = await writeCall(() =>
+					google.calendar({ version: 'v3', auth: oauth }).events.instances(
+						{
+							calendarId,
+							eventId: masterEventId,
+							originalStart,
+							showDeleted: true,
+							maxResults: 2500,
+							pageToken,
+							fields: 'nextPageToken,items(id,recurringEventId,originalStartTime)',
+						},
+						{ retry: false }
+					)
+				)
+				const page = googleInstancePage.parse(response.data)
+				for (const item of page.items ?? []) {
+					if (
+						item.recurringEventId !== masterEventId ||
+						Date.parse(item.originalStartTime.dateTime) !== Date.parse(originalStart) ||
+						ids.has(item.id)
+					)
+						throw new CalendarFault('invalid_provider_data')
+					ids.add(item.id)
+				}
+				pageToken = page.nextPageToken
+				if (pageToken && (tokens.has(pageToken) || tokens.size >= 1000))
+					throw new CalendarFault('invalid_provider_data')
+				if (pageToken) tokens.add(pageToken)
+			} while (pageToken)
+			return ids.size === 1
+				? { kind: 'found' as const, eventId: [...ids][0] }
+				: { kind: ids.size === 0 ? ('missing' as const) : ('ambiguous' as const) }
+		},
 		authorizationUrl(state: string, challenge: string): string {
 			return client(new AbortController().signal).generateAuthUrl({
 				access_type: 'offline',
