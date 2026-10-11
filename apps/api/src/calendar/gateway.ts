@@ -9,6 +9,7 @@ export const CALENDAR_SCOPES = [
 	'https://www.googleapis.com/auth/calendar.events',
 	'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
 ] as const
+export const GOOGLE_REQUEST_TIMEOUT_MS = 10000
 
 export type CalendarFaultCode = CalendarIssue | 'invalid_state' | 'denied' | 'missing_refresh_token' | 'wrong_primary'
 
@@ -83,8 +84,8 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 			resolved: async (options) => {
 				options.retry = false
 				options.retryConfig = { retry: 0 }
-				options.timeout = 10000
-				options.signal = AbortSignal.any([signal, AbortSignal.timeout(10000)])
+				options.timeout = GOOGLE_REQUEST_TIMEOUT_MS
+				options.signal = AbortSignal.any([signal, AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS)])
 				return options
 			},
 		})

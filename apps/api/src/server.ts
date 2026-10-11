@@ -8,6 +8,7 @@ import { createDb } from '@dv-lab/db'
 import { createApp } from './app.ts'
 import { createHousekeeping } from './auth/housekeeping.ts'
 import { createSignIn } from './auth/sign-in.ts'
+import { createConnectionControl } from './calendar/connection-control.ts'
 import { createConnection } from './calendar/connection.ts'
 import { createCredentials } from './calendar/credentials.ts'
 import { createGoogleGateway } from './calendar/gateway.ts'
@@ -39,7 +40,16 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 	const gateway = createGoogleGateway(calendarConfig)
 	const credentials = createCredentials({ lease, envelope, gateway })
 	const connection = createConnection({ db, lease, envelope, gateway, credentials })
-	return { connection, resources: [lease, credentials] }
+	const control = createConnectionControl({
+		db,
+		lease,
+		credentials,
+		envelope,
+		gateway,
+		logger,
+		isStopping: lifecycle.isStopping,
+	})
+	return { connection, control, resources: [control, lease, credentials] }
 }
 
 const app = createApp({
@@ -51,6 +61,7 @@ const app = createApp({
 	isStopping: lifecycle.isStopping,
 	signIn,
 	calendar: calendar?.connection,
+	calendarControl: calendar?.control,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
@@ -60,6 +71,7 @@ const server = serve({ fetch: app.fetch, port: config.PORT, websocket: { server:
 ) as Server
 
 housekeeping.start()
+calendar?.control.start()
 
 lifecycle.manage({
 	server,

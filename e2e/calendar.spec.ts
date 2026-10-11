@@ -6,6 +6,45 @@ import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
+test('[calendar] credential recovery refuses anonymous control requests', async ({ page }) => {
+	for (const path of ['/google/disconnect', '/google/disconnect/confirm-revoked']) {
+		const response = await page.request.post<unknown>(`${BASE}/api${path}`, {
+			headers: { origin: BASE },
+			data: { confirmed: true },
+		})
+		expect(response.status()).toBe(401)
+		expect(response.headers()['cache-control']).toBe('no-store')
+	}
+})
+
+test('[calendar] credential recovery requires explicit confirmation and same Origin', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	const before = await page.request.get<unknown>(`${BASE}/api/google/connection`)
+	const beforeBody = record(await before.json())
+	for (const body of [{}, { confirmed: false }, { confirmed: true, unexpected: true }]) {
+		const response = await page.request.post<unknown>(`${BASE}/api/google/disconnect/confirm-revoked`, {
+			headers: { origin: BASE },
+			data: body,
+		})
+		expect(response.status()).toBe(400)
+	}
+	const foreign = await page.request.post<unknown>(`${BASE}/api/google/disconnect/confirm-revoked`, {
+		headers: { origin: 'https://invalid.example' },
+		data: { confirmed: true },
+	})
+	expect(foreign.status()).toBe(403)
+	const after = await page.request.get<unknown>(`${BASE}/api/google/connection`)
+	const afterBody = record(await after.json())
+	if (before.status() === 200) {
+		expect(after.status()).toBe(200)
+		expect(JSON.stringify(afterBody) === JSON.stringify(beforeBody)).toBe(true)
+	} else {
+		expect(before.status()).toBe(503)
+		expect(after.status()).toBe(503)
+		expect(text(record(afterBody.error).code)).toBe('provider_unavailable')
+	}
+})
+
 test('[calendar] oauth refuses anonymous access and strips callback input', async ({ page }) => {
 	for (const path of ['/google/connection', '/google/callback?code=synthetic-code&state=synthetic-state']) {
 		const response = await page.request.get<unknown>(`${BASE}/api${path}`, { maxRedirects: 0 })

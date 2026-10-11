@@ -10,6 +10,7 @@ import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, originMatches, sameOrigin } from './auth/middleware.ts'
 import type { SignIn } from './auth/sign-in.ts'
+import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
@@ -29,6 +30,7 @@ export type AppDeps = {
 	isStopping: () => boolean
 	signIn: SignIn
 	calendar?: CalendarConnection
+	calendarControl?: ConnectionControl
 }
 
 function clientErrorBody(status: number) {
@@ -75,7 +77,10 @@ export function createApp(deps: AppDeps) {
 		}))
 	)
 	app.route('/auth', authRoutes({ db: deps.db, signIn: deps.signIn, production: deps.production, logger: deps.logger }))
-	app.route('/google', googleRoutes({ db: deps.db, connection: deps.calendar, isStopping: deps.isStopping }))
+	app.route(
+		'/google',
+		googleRoutes({ db: deps.db, connection: deps.calendar, control: deps.calendarControl, isStopping: deps.isStopping })
+	)
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db }))
