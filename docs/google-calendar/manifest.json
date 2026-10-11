@@ -6597,8 +6597,8 @@
       "article_sha256": "db4238213dae70affe383ddc240ca7160bf1eef8d46ad5e21cc7c7eeb8a84e0f",
       "license_notice": true,
       "path": "pages/related/workspace/guides/create-credentials.html",
-      "sha256": "94c1ee476292af5abcd7f1c8c89c1a8f3db5a85d117a5c7e79badbb4f8de8356",
-      "bytes": 30022,
+      "sha256": "e2b57a77bcbbbf91e7f71bff209ce347cd6e471fc7ee4308a046e58eb1aea9d3",
+      "bytes": 29995,
       "internal_links": [
         "https://developers.google.com/workspace/guides/auth-overview",
         "https://developers.google.com/workspace/guides/configure-oauth-consent",
@@ -6609,7 +6609,8 @@
       "pre_blocks": 1,
       "tables": 2,
       "markdown_path": "articles/related/workspace/guides/create-credentials.md",
-      "markdown_sha256": "26816be9614132f6e1c09956e112b3a2a6d32c23dfb4ec04062da8f139fdd570",
+      "markdown_sha256": "2e23149a7e49c9ba59087c10cce3ef9d1e9df619b30dcdf40983ecabed52faa7",
+      "redacted_example": "Google API key replaced with YOUR_API_KEY",
       "markdown_verification": {
         "code_blocks": 1,
         "tables": 2,
