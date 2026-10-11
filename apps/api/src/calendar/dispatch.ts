@@ -12,7 +12,7 @@ import {
 
 import { applyConfirmedCommand } from '../schedule/command-apply.ts'
 import { commandWindow, type PreparedCalendarCommand } from '../schedule/command-plan.ts'
-import { storedGoogleResult, type VerifiedGoogleResponse } from './command-result.ts'
+import { storedGoogleResult, unownedFingerprint, type VerifiedGoogleResponse } from './command-result.ts'
 import type { ConnectionRow } from './credentials.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import {
@@ -320,7 +320,10 @@ export async function dispatchCommand(
 }
 
 export function preservesUnowned(command: PreparedCalendarCommand, result: VerifiedGoogleResponse) {
-	if (command.request.method !== 'patch') return true
+	if (command.request.method === 'insert') {
+		if (!command.request.payload.preserved) return command.operation === 'create'
+		return unownedFingerprint(command.request.payload.preserved) === result.acknowledgement.unownedWritableFingerprint
+	}
 	return (
 		command.plan.preconditions.find((item) => item.eventId === command.request.eventId)?.unownedWritableFingerprint ===
 		result.acknowledgement.unownedWritableFingerprint

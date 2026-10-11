@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
-import { timeZoneIdentity, type ValidatedCalendarCommand } from '@dv-lab/contracts'
+import { timeZoneIdentity, type CalendarIssue, type ValidatedCalendarCommand } from '@dv-lab/contracts'
 import { canChange, localTimeCandidates } from '@dv-lab/core'
 import {
 	googleCommandPlan,
@@ -38,6 +38,7 @@ export type PreparedCalendarCommand = {
 	createdAt: Date
 	absenceProof?: AbsenceProof
 	recoveryRequired?: boolean
+	recoveryIssue?: CalendarIssue
 }
 
 export async function commandWindow(executor: DbExecutor, accountId: string, expectedVersion: string) {

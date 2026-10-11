@@ -175,11 +175,15 @@ export function matchingReceipt(command: CommandRow, input: ValidatedCalendarCom
 }
 
 export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarCommand) {
-	const { request, absenceProof, recoveryRequired, ...command } = prepared
+	const { request, absenceProof, recoveryRequired, recoveryIssue, ...command } = prepared
 	await tx.insert(googleCommands).values({
 		...command,
 		...(recoveryRequired
-			? { state: 'recovery_required' as const, issue: 'provider_unavailable', nextAction: 'resume_recovery' as const }
+			? {
+					state: 'recovery_required' as const,
+					issue: recoveryIssue ?? 'provider_unavailable',
+					nextAction: 'resume_recovery' as const,
+				}
 			: {}),
 	})
 	await tx.insert(googleCommandStages).values({

@@ -70,6 +70,7 @@ test('[calendar] tombstone replaces a naturally disappeared cancelled single onl
 	page,
 }) => {
 	await disappearedTombstone(page.request)
+	await disappearedTombstone(page.request, 'unsupported')
 })
 
 test('[calendar] command tracer confirms one real event and reuses the immutable request', async ({ page }) => {

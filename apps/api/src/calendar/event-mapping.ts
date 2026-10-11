@@ -32,6 +32,8 @@ export async function replacementCommand(
 		command.plan.reservations.length
 	)
 		throw new CommandFault('precondition_failed')
+	const preserved = command.plan.preconditions[0]?.unownedWritable
+	if (!preserved) return { ...command, recoveryRequired: true, recoveryIssue: 'external_change' }
 	const mappings = await executor
 		.select()
 		.from(googleEventMappings)
@@ -52,12 +54,16 @@ export async function replacementCommand(
 		eventId,
 	}
 	const { markers, ...payload } = command.request.payload
-	const stageDigest = digest(JSON.stringify({ eventId, ...payload }))
+	const stageDigest = digest(JSON.stringify({ eventId, ...payload, preserved }))
 	const request = googleStageRequest.parse({
 		method: 'insert',
 		eventId,
 		digest: stageDigest,
-		payload: { ...payload, markers: { ...markers, representationGeneration: generation, stage, digest: stageDigest } },
+		payload: {
+			...payload,
+			preserved,
+			markers: { ...markers, representationGeneration: generation, stage, digest: stageDigest },
+		},
 	})
 	if (request.method !== 'insert') throw new CommandFault('precondition_failed')
 	return {

@@ -1,7 +1,12 @@
 import { z } from 'zod'
 
 import { timeZoneIdentity, type CalendarIssue } from '@dv-lab/contracts'
-import { googleStageAcknowledgement, type GoogleStageAcknowledgement, type GoogleStageRequest } from '@dv-lab/db'
+import {
+	googleStageAcknowledgement,
+	googleUnownedWritable,
+	type GoogleStageAcknowledgement,
+	type GoogleStageRequest,
+} from '@dv-lab/db'
 
 import { CalendarFault } from './gateway.ts'
 import { digest } from './journal.ts'
@@ -50,12 +55,15 @@ function canonical(value: JsonValue): string {
 }
 
 export function insertEventBody(request: WriteRequest) {
-	const { markers, ...payload } = request.payload
+	const { markers, preserved, ...payload } = request.payload
 	return {
+		...(request.method === 'insert' ? preserved : {}),
 		...(request.method === 'insert' ? { id: request.eventId } : {}),
 		...payload,
 		extendedProperties: {
+			...(request.method === 'insert' ? preserved?.extendedProperties : {}),
 			private: {
+				...(request.method === 'insert' ? preserved?.extendedProperties?.private : {}),
 				dvLocalId: markers.localEntityId,
 				dvKind: markers.entityKind,
 				dvGeneration: String(markers.representationGeneration),
@@ -93,6 +101,7 @@ export function verifyGoogleResult(
 		checkedAt: new Date().toISOString(),
 		ownedDigest: request.digest,
 		unownedWritableFingerprint: unownedFingerprint(raw.data),
+		unownedWritable: captureUnownedWritable(raw.data),
 	})
 	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
@@ -117,6 +126,7 @@ function verifyCancellation(
 		ownedDigest: request.digest,
 		unownedWritableFingerprint: request.cancellationBaseline.unownedWritableFingerprint,
 		conditionalCancellation: true,
+		unownedWritable: request.cancellationBaseline.unownedWritable ?? null,
 	})
 	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
@@ -158,7 +168,7 @@ export function storedGoogleResult(
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement: parsed }
 }
 
-export function unownedFingerprint(input: unknown): string {
+function unownedValues(input: unknown) {
 	const raw = z.record(z.string(), json).parse(input)
 	const unowned = Object.fromEntries(writable.filter((key) => key in raw).map((key) => [key, raw[key]]))
 	const properties = z
@@ -177,7 +187,16 @@ export function unownedFingerprint(input: unknown): string {
 		)
 		unowned.extendedProperties = { private: privateFields, shared: properties.shared ?? {} }
 	}
-	return digest(canonical(unowned))
+	return unowned
+}
+
+export function unownedFingerprint(input: unknown): string {
+	return digest(canonical(unownedValues(input)))
+}
+
+function captureUnownedWritable(input: unknown) {
+	const parsed = googleUnownedWritable.safeParse(unownedValues(input))
+	return parsed.success ? parsed.data : null
 }
 
 export function observeGoogleEvent(input: unknown, timeZone: string) {
@@ -187,6 +206,7 @@ export function observeGoogleEvent(input: unknown, timeZone: string) {
 	return {
 		...parseMaster(input, timeZone),
 		unownedWritableFingerprint: unownedFingerprint(input),
+		unownedWritable: captureUnownedWritable(input),
 		privateProperties: properties.extendedProperties?.private ?? {},
 	}
 }

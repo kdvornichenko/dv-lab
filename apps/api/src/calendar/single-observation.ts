@@ -174,6 +174,7 @@ export async function resumeUnsentRestore(access: CommandAccess, command: Comman
 		gateway
 	)
 	if (evidence.kind === 'unresolved') return command
+	if (evidence.kind === 'absent' && !prepared.plan.preconditions[0]?.unownedWritable) return command
 	if (
 		evidence.kind === 'present' &&
 		(evidence.observation.event.etag !== prepared.request.ifMatch ||

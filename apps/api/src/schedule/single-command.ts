@@ -135,16 +135,7 @@ export async function prepareSingleCommand(
 				durationMinutes: change.lesson.durationMinutes,
 			},
 		],
-		preconditions: [
-			{
-				eventId: target.mapping.eventId,
-				etag: target.event.etag,
-				unownedWritableFingerprint:
-					evidence.kind === 'present'
-						? evidence.observation.unownedWritableFingerprint
-						: evidence.cancellation.unownedWritableFingerprint,
-			},
-		],
+		preconditions: [singlePrecondition(evidence, target.mapping.eventId, target.event.etag)],
 		affectedRefs: [input.ref],
 		oldEndsOn: null,
 		newRule: null,
@@ -171,6 +162,7 @@ export async function prepareSingleCommand(
 			? {
 					cancellationBaseline: {
 						unownedWritableFingerprint: plan.preconditions[0].unownedWritableFingerprint,
+						unownedWritable: plan.preconditions[0].unownedWritable,
 					},
 				}
 			: {}),
@@ -207,6 +199,16 @@ export async function prepareSingleCommand(
 	}
 	if (evidence.kind === 'absent') return replacementCommand(executor, prepared, evidence.proof)
 	return evidence.kind === 'unresolved' ? { ...prepared, recoveryRequired: true } : prepared
+}
+
+function singlePrecondition(evidence: SingleEvidence, eventId: string, etag: string) {
+	const observed = evidence.kind === 'present' ? evidence.observation : evidence.cancellation
+	return {
+		eventId,
+		etag,
+		unownedWritableFingerprint: observed.unownedWritableFingerprint,
+		unownedWritable: observed.unownedWritable ?? null,
+	}
 }
 
 function changeRefusal(failure: Exclude<Awaited<ReturnType<typeof prepareLessonChange>>, { kind: 'ok' }>): never {

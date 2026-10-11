@@ -8,6 +8,7 @@ import {
 	calendarCommandSnapshot,
 	googleScheduleWindow,
 } from '../../packages/contracts/src/calendar.ts'
+import { googleUnownedWritable } from '../../packages/db/src/calendar-values.ts'
 import { api } from './api.ts'
 import { calendarCommandFixture, commandInput, parseCalendarResponse } from './calendar-commands.ts'
 import { armCalendarFault, calendarFaultEvidence, disarmCalendarFault } from './calendar-fault-control.ts'
@@ -80,9 +81,13 @@ export async function minimalCancellation(request: APIRequestContext) {
 	)
 	expect(stages).toHaveLength(1)
 	expect(record(stages[0].acknowledgement).conditionalCancellation).toBe(true)
+	expect(record(record(stages[0].acknowledgement).event)).toMatchObject({ summary: null, start: null, end: null })
 }
 
-export async function disappearedTombstone(request: APIRequestContext) {
+export async function disappearedTombstone(
+	request: APIRequestContext,
+	fields: 'supported' | 'unsupported' = 'supported'
+) {
 	const fixture = await calendarCommandFixture(request)
 	const binding = targetBinding()
 	const retained = z
@@ -95,7 +100,11 @@ export async function disappearedTombstone(request: APIRequestContext) {
 			date: z.iso.date(),
 			naturalDisappearanceObserved: z.literal(true),
 		})
-		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-single.json`))
+		.parse(
+			readPrivateJson(
+				`${PRIVATE_DIR}/${fields === 'supported' ? 'calendar-single' : 'calendar-single-unsupported'}.json`
+			)
+		)
 	if (
 		retained.origin !== binding.origin ||
 		retained.apiBuildSha !== binding.apiBuildSha ||
@@ -111,12 +120,43 @@ export async function disappearedTombstone(request: APIRequestContext) {
 		`select event_id, representation_generation::text from google_event_mappings where local_entity_id = ${quote(retained.lessonId)}::uuid and state = 'active'`
 	)
 	expect(before).toHaveLength(1)
+	const cancellation = sql(
+		`select s.acknowledgement from google_command_stages s join google_commands c on c.id = s.command_id where c.state = 'applied' and c.operation = 'cancel' and s.kind = 'write' and s.acknowledgement->'event'->>'eventId' = ${quote(text(before[0].event_id))} order by c.applied_at desc limit 1`
+	)
+	expect(cancellation).toHaveLength(1)
+	const saved = googleUnownedWritable.nullable().parse(record(cancellation[0].acknowledgement).unownedWritable)
 	const meta = await target(request, retained.date, retained.lessonId)
 	const receipt = parseCalendarResponse(
 		calendarCommandReceipt,
 		await api(request, 'POST', `/schedule/lessons/${retained.lessonId}/restore`, meta, 202)
 	)
+	if (fields === 'unsupported') {
+		expect(saved).toBeNull()
+		const status = parseCalendarResponse(
+			calendarCommandSnapshot,
+			await api(request, 'GET', `/google/commands/${receipt.commandId}`)
+		)
+		expect(status).toMatchObject({ state: 'recovery_required', confirmedRevision: null, issue: 'external_change' })
+		expect(
+			sql(
+				`select id from google_command_stages where command_id = ${quote(receipt.commandId)}::uuid and kind = 'write' and jsonb_array_length(attempts) > 0`
+			)
+		).toHaveLength(0)
+		expect(record(lessonState(retained.lessonId)[0]).status).toBe('cancelled')
+		return
+	}
+	const captured = record(saved)
+	expect(text(captured.description).length).toBeGreaterThan(0)
+	expect(text(captured.location).length).toBeGreaterThan(0)
 	await applied(request, receipt.commandId)
+	const replacement = sql(
+		`select request, acknowledgement from google_command_stages where command_id = ${quote(receipt.commandId)}::uuid and kind = 'write' and request->>'method' = 'insert'`
+	)
+	expect(replacement).toHaveLength(1)
+	expect(record(record(replacement[0].request).payload).preserved).toEqual(captured)
+	expect(record(replacement[0].acknowledgement).unownedWritableFingerprint).toBe(
+		record(cancellation[0].acknowledgement).unownedWritableFingerprint
+	)
 	const proof = sql(
 		`select acknowledgement from google_command_stages where command_id = ${quote(receipt.commandId)}::uuid and acknowledgement->>'kind' = 'absence'`
 	)
