@@ -6,6 +6,7 @@ import { calendarCommandFixture, commandTracer, disconnectedCommand } from './su
 import {
 	disappearedTombstone,
 	lostSingleResponse,
+	minimalCancellation,
 	presentTombstone,
 	retainedFence,
 	singleChanges,
@@ -62,6 +63,7 @@ test('[calendar] command races reject a second Save on one base version and reta
 
 test('[calendar] tombstone restores a present cancelled single with its original representation', async ({ page }) => {
 	await presentTombstone(page.request)
+	await minimalCancellation(page.request)
 })
 
 test('[calendar] tombstone replaces a naturally disappeared cancelled single only after authentic complete absence proof', async ({

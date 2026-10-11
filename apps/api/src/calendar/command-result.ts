@@ -73,8 +73,11 @@ export function verifyGoogleResult(
 	request: WriteRequest,
 	timeZone: string,
 	generation: number,
-	httpStatus: number
+	httpStatus: number,
+	conditionalPatch = false
 ): VerifiedGoogleResponse {
+	if (conditionalPatch && request.method === 'patch' && request.payload.status === 'cancelled')
+		return verifyCancellation(input, request, timeZone, generation, httpStatus)
 	const markers = identity.safeParse(input)
 	const raw = z.record(z.string(), json).safeParse(input)
 	if (!raw.success) throw new CalendarFault('invalid_provider_data')
@@ -90,6 +93,30 @@ export function verifyGoogleResult(
 		checkedAt: new Date().toISOString(),
 		ownedDigest: request.digest,
 		unownedWritableFingerprint: unownedFingerprint(raw.data),
+	})
+	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
+	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
+}
+
+function verifyCancellation(
+	input: unknown,
+	request: Extract<WriteRequest, { method: 'patch' }>,
+	timeZone: string,
+	generation: number,
+	httpStatus: number
+): VerifiedGoogleResponse {
+	if (httpStatus < 200 || httpStatus >= 300 || !request.ifMatch || !request.cancellationBaseline)
+		throw new CalendarFault('invalid_provider_data')
+	const actual = parseMaster(input, timeZone)
+	verifyOwnedFields(actual.event, request)
+	if (actual.recurrence.length) throw new CalendarFault('external_change')
+	const acknowledgement = googleStageAcknowledgement.parse({
+		kind: 'event',
+		event: actual.event,
+		checkedAt: new Date().toISOString(),
+		ownedDigest: request.digest,
+		unownedWritableFingerprint: request.cancellationBaseline.unownedWritableFingerprint,
+		conditionalCancellation: true,
 	})
 	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }

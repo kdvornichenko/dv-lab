@@ -167,6 +167,13 @@ export async function prepareSingleCommand(
 		method: 'patch',
 		eventId: target.mapping.eventId,
 		ifMatch: target.event.etag,
+		...(input.operation === 'cancel'
+			? {
+					cancellationBaseline: {
+						unownedWritableFingerprint: plan.preconditions[0].unownedWritableFingerprint,
+					},
+				}
+			: {}),
 		digest: stageDigest,
 		payload: {
 			...payload,

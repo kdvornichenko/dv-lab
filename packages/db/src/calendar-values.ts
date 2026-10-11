@@ -173,6 +173,7 @@ export const googleStageRequest = z
 			ifMatch: z.string().min(1),
 			payload: googleOwnedPayload,
 			digest,
+			cancellationBaseline: z.strictObject({ unownedWritableFingerprint: digest }).optional(),
 		}),
 		z.strictObject({ method: z.literal('get'), eventId }),
 		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
@@ -202,6 +203,7 @@ export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
 		checkedAt: instant,
 		ownedDigest: digest,
 		unownedWritableFingerprint: digest,
+		conditionalCancellation: z.literal(true).optional(),
 	}),
 	z.strictObject({
 		kind: z.literal('absence'),

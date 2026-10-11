@@ -298,7 +298,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 					{ retry: false, headers: { 'If-Match': request.ifMatch } }
 				)
 			)
-			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status, true)
 		},
 		async identityAbsent(
 			accessToken: string,
