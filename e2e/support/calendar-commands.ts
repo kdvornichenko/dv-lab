@@ -10,7 +10,7 @@ import {
 	googleUnresolvedCommandsResponse,
 } from '../../packages/contracts/src/calendar.ts'
 import { api, readSettings, teacherId } from './api.ts'
-import { HTTPS_TARGET, NAMES, ownedStudent, PRIVATE_DIR, quote, sql, teacherCredentials } from './data.ts'
+import { HTTPS_TARGET, NAMES, PRIVATE_DIR, quote, retainedStudent, sql, teacherCredentials } from './data.ts'
 import { addDays, mondayOf, vnToday } from './dates.ts'
 import { integer, record } from './input.ts'
 import { readPrivateJson, targetBinding } from './target.ts'
@@ -47,7 +47,7 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 		Date.parse(fixture.expiresAt) <= Date.now()
 	)
 		throw new Error('Calendar command fixture does not match the active runtime authority')
-	ownedStudent(fixture.studentId)
+	retainedStudent(fixture.studentId)
 	if ((await teacherId(request)) !== fixture.accountId)
 		throw new Error('Calendar command fixture belongs to another teacher')
 	const rows = sql(
