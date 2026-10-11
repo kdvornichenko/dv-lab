@@ -116,4 +116,4 @@ Mutable control меняется атомарной rename. Arm/disarm испо�
 
 После последнего scenario: disarm owned rule; вернуть ordinary API invocation без флага; проверить public health/build через parent; закончить lease. После expiry loader перестаёт менять requests/page size. Private proofs, manifests и released locks сохранить для приёмки; не удалять. Synthetic fixture cleanup остаётся existing fixture/provider owner; этот harness не удаляет rows/events и не предоставляет cleanup SQL.
 
-API build выполнен локально; runner packaging проверяется COPY chain. Docker image build и функциональная работа в main container остаются UNVERIFIED до CI/Server guy.
+API build выполнен локально; runner packaging проверяется COPY chain. `apps/api/turbo.json` добавляет три внешних loader sources в API build inputs и сохраняет `$TURBO_DEFAULT$`; `turbo run build --filter=@dv-lab/api --dry=json` должен показать их hashes. Это защищает bundle от stale cache при изменении только harness. Docker image build и функциональная работа в main container остаются UNVERIFIED до CI/Server guy.
