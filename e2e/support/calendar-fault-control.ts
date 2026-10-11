@@ -1,148 +1,77 @@
-import { createHash, randomUUID } from 'node:crypto'
-import {
-	closeSync,
-	constants,
-	fstatSync,
-	ftruncateSync,
-	openSync,
-	readdirSync,
-	realpathSync,
-	writeFileSync,
-	writeSync,
-} from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import { z } from 'zod'
 
-import { HTTPS_TARGET, PRIVATE_DIR, readPrivateJson, targetBinding } from './target.ts'
+import { ROOT } from '../../scripts/dev-checks/paths.mjs'
+import {
+	calendarFaultIdentity,
+	faultManifest,
+	faultObservation,
+	faultRule,
+	readFaultJson,
+	type CalendarFaultOperation,
+	type CalendarFaultRule,
+} from './calendar-fault-protocol.ts'
+import { executeCalendarFault } from './calendar-fault-ssh.ts'
+import { FIXTURE_DATABASE, HTTPS_TARGET, PRIVATE_DIR, targetBinding } from './target.ts'
 
-const faultRule = z.strictObject({
-	id: z.uuid(),
-	method: z.enum(['GET', 'POST', 'PATCH']),
-	resource: z.enum(['events', 'event', 'calendarList']),
-	page: z.enum(['first', 'next', 'any']),
-	action: z.enum(['drop_response', 'delay_response', 'stop_before_request', 'stop_after_response']),
-	delayMs: z.number().int().min(0).max(15000),
-})
+export type { CalendarFaultRule, CalendarFaultManifest } from './calendar-fault-protocol.ts'
 
-const faultManifest = z.strictObject({
-	runId: z.uuid(),
-	pid: z.number().int().positive(),
-	apiBuildSha: z.string().regex(/^[a-f0-9]{40}$/),
-	entrySha256: z.string().regex(/^[a-f0-9]{64}$/),
-	origin: z.url(),
-	persistenceFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
-	calendarFaultsAuthorized: z.literal(true),
-	exclusiveSyntheticProcess: z.literal(true),
-	expiresAt: z.iso.datetime(),
-	rule: faultRule.nullable(),
-})
-
-const faultObservation = z.strictObject({
-	runId: z.uuid(),
-	ruleId: z.uuid(),
-	pid: z.number().int().positive(),
-	apiBuildSha: z.string(),
-	entrySha256: z.string(),
-	at: z.iso.datetime(),
-	phase: z.enum(['request_matched', 'response_held', 'response_released', 'response_dropped', 'process_stopping']),
-	status: z.number().int().nullable(),
-})
-
-export type CalendarFaultRule = z.infer<typeof faultRule>
-export type CalendarFaultManifest = z.infer<typeof faultManifest>
-type ObservationPhase = z.infer<typeof faultObservation>['phase']
-
-function controlPath() {
+function localOperation(operation: CalendarFaultOperation) {
 	const file = process.env.E2E_CALENDAR_FAULTS
-	if (!file || file !== resolve(PRIVATE_DIR, 'calendar-faults.json') || realpathSync(file) !== file)
-		throw new Error('Calendar faults require the existing canonical private control file')
-	return file
-}
-
-export function readCalendarFaultControl(): CalendarFaultManifest {
-	const parsed = faultManifest.safeParse(readPrivateJson(controlPath()))
-	if (!parsed.success || !HTTPS_TARGET) throw new Error('Calendar fault control failed validation')
-	const manifest = parsed.data
+	if (!HTTPS_TARGET || !file || file !== resolve(PRIVATE_DIR, 'calendar-faults.json'))
+		throw new Error('Local calendar faults require the owned HTTPS private control')
+	const manifest = faultManifest.parse(readFaultJson(file, ROOT))
 	const binding = targetBinding()
 	if (
+		manifest.runtimeRoot !== ROOT ||
 		manifest.origin !== binding.origin ||
 		manifest.apiBuildSha !== binding.apiBuildSha ||
-		manifest.persistenceFingerprint !== binding.persistenceFingerprint ||
-		Date.parse(manifest.expiresAt) <= Date.now()
+		manifest.persistenceFingerprint !== binding.persistenceFingerprint
 	)
-		throw new Error('Calendar fault authority does not match the current target')
-	return manifest
+		throw new Error('Local calendar fault target mismatch')
+	const result = spawnSync('node', [resolve(ROOT, 'apps/api/dist/calendar-fault-operator.mjs')], {
+		input: JSON.stringify({
+			runId: manifest.runId,
+			identitySha256: calendarFaultIdentity(manifest),
+			binding,
+			operation,
+		}),
+		encoding: 'utf8',
+		timeout: 30000,
+		maxBuffer: 1048576,
+	})
+	if (result.status !== 0 || result.error)
+		throw new Error('Local calendar fault outcome uncertain; inspect owned state before retrying')
+	const input: unknown = JSON.parse(result.stdout)
+	return z
+		.strictObject({
+			schema: z.literal('dv-lab-calendar-fault-result-v1'),
+			runId: z.literal(manifest.runId),
+			identitySha256: z.literal(calendarFaultIdentity(manifest)),
+			ruleId: z.uuid().nullable(),
+			observations: z.array(faultObservation).max(1000),
+		})
+		.parse(input)
 }
 
-export function calendarFaultIdentity(manifest: CalendarFaultManifest) {
-	const { rule: _rule, ...identity } = manifest
-	return createHash('sha256').update(JSON.stringify(identity)).digest('hex')
+function execute(operation: CalendarFaultOperation) {
+	return FIXTURE_DATABASE === 'prelaunch' ? executeCalendarFault(operation) : localOperation(operation)
 }
 
-function writeControl(manifest: CalendarFaultManifest) {
-	const descriptor = openSync(controlPath(), constants.O_WRONLY | constants.O_NOFOLLOW)
-	try {
-		const stat = fstatSync(descriptor)
-		if (!stat.isFile() || (stat.mode & 0o777) !== 0o600) throw new Error('Invalid calendar fault control permissions')
-		const value = JSON.stringify(manifest)
-		writeSync(descriptor, value, 0, 'utf8')
-		ftruncateSync(descriptor, Buffer.byteLength(value))
-	} finally {
-		closeSync(descriptor)
-	}
-}
-
-export function armCalendarFault(input: Omit<CalendarFaultRule, 'id'>) {
-	const manifest = readCalendarFaultControl()
-	if (manifest.rule !== null) throw new Error('Another calendar fault is already armed')
-	process.kill(manifest.pid, 0)
+export function armCalendarFault(input: Omit<CalendarFaultRule, 'id'>): string {
 	const rule = faultRule.parse({ ...input, id: randomUUID() })
-	writeControl({ ...manifest, rule })
+	const result = execute({ action: 'arm', rule })
+	if (result.ruleId !== rule.id) throw new Error('Calendar fault arm result mismatch')
 	return rule.id
 }
 
-export function disarmCalendarFault(ruleId: string) {
-	const manifest = readCalendarFaultControl()
-	if (manifest.rule?.id !== ruleId) throw new Error('Calendar fault ownership changed')
-	writeControl({ ...manifest, rule: null })
-}
-
-export function recordCalendarFault(
-	manifest: CalendarFaultManifest,
-	rule: CalendarFaultRule,
-	phase: ObservationPhase,
-	status: number | null = null
-) {
-	const record = {
-		runId: manifest.runId,
-		ruleId: rule.id,
-		pid: manifest.pid,
-		apiBuildSha: manifest.apiBuildSha,
-		entrySha256: manifest.entrySha256,
-		at: new Date().toISOString(),
-		phase,
-		status,
-	}
-	writeFileSync(resolve(PRIVATE_DIR, `calendar-fault-${rule.id}-${randomUUID()}.json`), JSON.stringify(record), {
-		mode: 0o600,
-		flag: 'wx',
-	})
+export function disarmCalendarFault(ruleId: string): void {
+	const result = execute({ action: 'disarm', ruleId })
+	if (result.ruleId !== null) throw new Error('Calendar fault disarm result mismatch')
 }
 
 export function calendarFaultEvidence(ruleId: string) {
-	const manifest = readCalendarFaultControl()
-	const result: z.infer<typeof faultObservation>[] = []
-	for (const file of readdirSync(PRIVATE_DIR).filter((name) => name.startsWith(`calendar-fault-${ruleId}-`))) {
-		const parsed = faultObservation.safeParse(readPrivateJson(resolve(PRIVATE_DIR, file)))
-		if (
-			!parsed.success ||
-			parsed.data.runId !== manifest.runId ||
-			parsed.data.pid !== manifest.pid ||
-			parsed.data.apiBuildSha !== manifest.apiBuildSha ||
-			parsed.data.entrySha256 !== manifest.entrySha256
-		)
-			throw new Error('Calendar fault evidence does not match the owned process')
-		result.push(parsed.data)
-	}
-	return result
+	return execute({ action: 'evidence', ruleId }).observations
 }

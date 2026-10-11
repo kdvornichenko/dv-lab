@@ -1,0 +1,13 @@
+{
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/e2e/support/calendar-faults.ts",
+				"$TURBO_ROOT$/e2e/support/calendar-fault-protocol.ts",
+				"$TURBO_ROOT$/e2e/support/calendar-fault-auth.ts"
+			]
+		}
+	}
+}
