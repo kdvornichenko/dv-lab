@@ -52,6 +52,7 @@ const observation = z.discriminatedUnion('event', [
 	}),
 	common.extend({
 		event: z.enum(['google_disconnect_started', 'google_disconnect_failed', 'google_disconnect_resolved']),
+		accountSha256: hash,
 		connectionSha256: hash,
 		connectionGenerationBefore: generation,
 		connectionGenerationAfter: generation,
@@ -93,17 +94,21 @@ function parseLine(line: string) {
 export function calendarEvidence() {
 	const prefix = readLog()
 	return {
+		history: () => observations(prefix),
 		read() {
 			const current = readLog()
 			if (!current.startsWith(prefix)) throw new Error('Calendar observation log rotated or changed during the journey')
-			return current
-				.slice(prefix.length)
-				.split('\n')
-				.filter(Boolean)
-				.map(parseLine)
-				.flatMap((line) =>
-					line.calendarObservation ? [{ requestId: line.requestId, value: line.calendarObservation }] : []
-				)
+			return observations(current.slice(prefix.length))
 		},
 	}
+}
+
+function observations(content: string) {
+	return content
+		.split('\n')
+		.filter(Boolean)
+		.map(parseLine)
+		.flatMap((line) =>
+			line.calendarObservation ? [{ requestId: line.requestId, value: line.calendarObservation }] : []
+		)
 }

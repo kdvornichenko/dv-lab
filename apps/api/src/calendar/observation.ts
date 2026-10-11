@@ -11,7 +11,7 @@ type Access = {
 	expiresAt: string
 	sourceEvent: Reference
 }
-type Control = Grant & { disconnectResolution: 'none' | 'provider_confirmed' | 'operator_confirmed' }
+type Control = Grant & { accountId: string; disconnectResolution: 'none' | 'provider_confirmed' | 'operator_confirmed' }
 type Detail =
 	| { event: 'google_consent_started'; connectionSha256: string; connectionGeneration: number }
 	| {
@@ -36,6 +36,7 @@ type Detail =
 	  }
 	| {
 			event: 'google_disconnect_started' | 'google_disconnect_failed' | 'google_disconnect_resolved'
+			accountSha256: string
 			connectionSha256: string
 			connectionGenerationBefore: number
 			connectionGenerationAfter: number
@@ -146,6 +147,7 @@ export function createCalendarObservation(deps: { logger: Logger; gitSha: string
 				access.delete(after.id)
 				return {
 					event,
+					accountSha256: digest(`calendar-account:${after.accountId}`),
 					connectionSha256: connectionHash(after),
 					connectionGenerationBefore: before.generation,
 					connectionGenerationAfter: after.generation,
