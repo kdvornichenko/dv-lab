@@ -4,7 +4,7 @@ plan: '12'
 subsystem: ui
 tags: [google-calendar, commands, recovery, nextjs, playwright]
 status: halted
-source-status: partial
+source-status: complete
 source-review: unverified
 real-runtime: unverified
 requires:
@@ -70,11 +70,11 @@ coverage:
 
 ## Граница результата
 
-- Source revision: `97cb2c33ff3e1d78d7ee93f1d26cef19bcfb7588`.
-- Task 1 и Task 2 реализованы в исходниках. Task 3 содержит открытый пункт student identity для одиночного события в Schedule.
-- **SourceReview: UNVERIFIED для полного плана.** Parent принял исправления `47b305f` и `97cb2c3`: all-day bounds, generation fence, retained fixture guard и сохранение original correlation. Полная приёмка плана этим review не подменяется.
+- Source revision: `9e51f90539e9eda1473780e7ac3a0b3f921d2613`.
+- **Task 1–3 завершены в исходниках.** Student identity получен из обязательного DTO и подключён к ссылке Schedule. Открытых source gaps в owned scope нет.
+- **SourceReview: UNVERIFIED для полного плана.** Parent принял исправления `47b305f` и `97cb2c3`: all-day bounds, generation fence, retained fixture guard и сохранение original correlation. Новый student-link delta `9e51f90` ожидает parent review. Полная приёмка плана этим review не подменяется.
 - **RealRuntime / provider / browser: UNVERIFIED.** Runtime lease и grant synthetic PRIMARY этому исполнителю не выданы. Серверы, браузер, SQL fixtures и Google не запускались.
-- `status: halted` фиксирует незавершённый план. Это не отказ статических проверок и не разрешение на runtime.
+- `source-status: complete` фиксирует завершённый source scope. `status: halted` сохраняет незавершённую runtime-приёмку плана. Это не отказ статических проверок и не разрешение на runtime.
 - Full series/cut/conflict acceptance принадлежит 24-11. Общая provider regression принадлежит 24-13; release — 24-14. STATE и ROADMAP остаются у parent.
 
 ## Task 1 — Settings и shared command recovery
@@ -103,25 +103,30 @@ Advisory overlap hint учитывает busy all-day events. Начало и ex
 
 Known failed/effect none сохраняет inputs в памяти. Новое явное Save получает fresh version и новый requestId. View schedule отсоединяет форму без отмены server command. Today и Students подключены к общему refresh. Historical marks сохраняют existing eligible path.
 
-### Открытая source-зависимость
+### Student identity
 
-`CalendarEventView.binding` для lesson содержит `ref` и `version`, но не `studentId`. В Schedule у одиночного mapped event нет достоверного id карточки для существующей ссылки на ученика. Today передаёт реального ученика; series context содержит studentId. Подбор по title и фиктивный ScheduleBlock не используются.
+`CalendarEventView.binding` для lesson содержит обязательный `studentId: z.uuid()` вместе с ref и version. Parent commit `aa3ceb6` получает id из уже сохранённого ReadEventRow.studentId. Если lesson mapping не содержит studentId, read model оставляет event external. Новая миграция или DB query не требуются.
 
-Владелец API/contracts — parent. Минимальное продолжение: добавить `binding.studentId` из server mapping, затем подключить web caller к реальной карточке и проверить этот flow. Это отдельный вопрос от generation fence. До закрытия этого пункта весь Task 3 и план не помечаются complete.
+`CalendarLessonDialog` строит ссылку из `event.binding.studentId`. Внутренний `LessonTitle.studentId` имеет тип string; ветка отсутствующего id удалена. Caller и series не подменяют target ссылки. Подбор по title и фиктивный ScheduleBlock не используются.
+
+Existing `pendingUi` расширен до изменения web behavior. Journey находит реальный applied single event по affectedRefs, сверяет studentId с retained fixture и проверяет `/students/<actual id>` после pointer и Enter открытия dialog. Сценарий остаётся UNVERIFIED до разрешённого functional run.
 
 ## Коммиты
 
-| Коммит    | Результат                                                       |
-| --------- | --------------------------------------------------------------- |
-| `a518af3` | Settings connection controls и 16 source scenarios              |
-| `cfc9206` | Provider window, all-day/external view и durable view journeys  |
-| `9a45bb1` | Shared command controller и foundation journeys                 |
-| `2be2ae3` | Confirmed mutation forms, Today и Students                      |
-| `e371b7e` | Epoch/callback guards и resume source scenario                  |
-| `47b305f` | Busy all-day advisory hint и boundary scenario                  |
-| `97cb2c3` | Same-target reconnect confirmation, retained fixture и simplify |
+| Коммит    | Результат                                                        |
+| --------- | ---------------------------------------------------------------- |
+| `a518af3` | Settings connection controls и 16 source scenarios               |
+| `cfc9206` | Provider window, all-day/external view и durable view journeys   |
+| `9a45bb1` | Shared command controller и foundation journeys                  |
+| `2be2ae3` | Confirmed mutation forms, Today и Students                       |
+| `e371b7e` | Epoch/callback guards и resume source scenario                   |
+| `47b305f` | Busy all-day advisory hint и boundary scenario                   |
+| `97cb2c3` | Same-target reconnect confirmation, retained fixture и simplify  |
+| `9e51f90` | Actual student card link и pointer/keyboard проверки в pendingUi |
 
-Разрешённые merge: `d74b6a2` из parent `e5a9001`; `596d3e3` из parent `8d5d182`. В последнем merge разрешён один конфликт импортов `e2e/calendar.spec.ts`. Diff к parent содержит только импорт UI helper и шесть foundation cases; parent cases сохранены. `data.ts`, `prelaunch-sql.ts` и parent read helpers не редактировались исполнителем.
+Разрешённые merge: `d74b6a2` из parent `e5a9001`; `596d3e3` из parent `8d5d182`; `775afd2` из parent `aa3ceb6`. В `596d3e3` разрешён один конфликт импортов `e2e/calendar.spec.ts`. Diff к parent содержит только импорт UI helper и шесть foundation cases; parent cases сохранены. `data.ts`, `prelaunch-sql.ts` и parent read helpers не редактировались исполнителем.
+
+Parent-owned delta `aa3ceb6`: `packages/contracts/src/calendar.ts` — required lesson studentId; `apps/api/src/calendar/read-model.ts` — фактический studentId или fail-closed external; `24-12-PLAN.md` — inventory и failure modes. Parent сообщил contracts/API typecheck exit 0 и scoped quality PASS (`cc727473438cc588555386ccd5f71dbc1d88463e9a13bf0063cd2f71f75ddd74`). Исполнитель не повторял API build.
 
 ## Изменённые файлы
 
@@ -170,7 +175,7 @@ Known failed/effect none сохраняет inputs в памяти. Новое �
 
 ## Проверки
 
-Все процессы завершены с исходным exit status. Последние source edits не менялись после проверок.
+Все процессы завершены с исходным exit status. Typecheck, lint, build, format и scoped quality повторены для `9e51f90`. Knip evidence относится к `97cb2c3`; student-link delta не меняет imports или exports. API findings не переоткрывались.
 
 | Команда                                                                                                                                                                                                                 | Статус       | Краткий результат                                      |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------------------ |
@@ -179,28 +184,31 @@ Known failed/effect none сохраняет inputs в памяти. Новое �
 | `yarn workspace @dv-lab/web build`                                                                                                                                                                                      | PASS, exit 0 | Compiled successfully; static pages 11/11.             |
 | `yarn prettier --check apps/web/components/app/calendar-command-store.ts apps/web/components/app/calendar-command-transport.ts e2e/support/calendar-ui.ts 'apps/web/app/(app)/schedule/_components/lesson-dialogs.tsx'` | PASS, exit 0 | All matched files use Prettier code style.             |
 | `git diff --check`                                                                                                                                                                                                      | PASS, exit 0 | Diagnostics нет.                                       |
+| `yarn prettier --check 'apps/web/app/(app)/schedule/_components/calendar-lesson-dialog.tsx' e2e/support/calendar-ui.ts`                                                                                                 | PASS, exit 0 | All matched files use Prettier code style.             |
 | `yarn knip`                                                                                                                                                                                                             | FAIL, exit 1 | 1 unused file и 9 exports в API; web/E2E findings нет. |
 
 Knip findings вне owned scope: `apps/api/src/schedule/series.ts`; `moveOccurrence`, `cancelOccurrence`, `restoreOccurrence`, `moveLesson`, `cancelLesson`, `restoreLesson` из `changes.ts`; `seriesExceptionsFrom`, `seriesMarksFrom` из `rows.ts`; `createLesson` из `schedule.ts`. Файлы не удалялись. Configuration hints не объявлены подтверждёнными findings.
 
 ### Quality evidence
 
-Текущее сопоставление: 38/38 source files, 641 function/callback; max CC 21, cognitive 18, Halstead Difficulty 34.65, physical lines 458. Все значения ниже обязательных пределов. Missing или несовпадающих source hashes нет. Aggregate fingerprint: `aca897bed025a11816e65642bc5bfa1af4d1c913c3fa873aab47a04d30222af8` (SHA256 по отсортированным path + NUL + file SHA256 + LF). Quality tooling измерено отдельно в исходных отчётах; оно не входит в эти 38 файлов.
+Текущее сопоставление: 38/38 source files, 644 function/callback; max CC 21, cognitive 18, Halstead Difficulty 34.65, physical lines 469. Все значения ниже обязательных пределов. Missing или несовпадающих source hashes нет. Aggregate fingerprint: `727cdedb386864851c3c98b7ce5025ea63385bb76a34b8002a9dff2f358a6efb` (SHA256 по отсортированным path + NUL + file SHA256 + LF). Quality tooling измерено отдельно в исходных отчётах; оно не входит в эти 38 файлов.
 
 Метод: Node 24.17.0, TypeScript 6.0.3, ESLint 10.12.0 classic cyclomatic complexity; DVLab AST cognitive v1; Halstead executable AST leaf tokens v1. Imports, type syntax и trivia не являются executable tokens. Explicit/inferred any в проверяемом diff не обнаружены. Unknown разрешён только на проверенных входных границах. Method source hashes, file hashes, line ranges, denominators и ограничения находятся в JSON.
 
 Private evidence в существующем STATE_DIR:
 
-| Файл                                                                               | Назначение                                                                     |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `24-settings-proof.json`, `24-settings-quality.json`                               | Первоначальный Settings scope и точные команды.                                |
-| `24-12-task2-1d75d27-cfc9206-proof.json`, `24-12-task2-1d75d27-04-quality.json`    | Provider view scope и первоначальная проверка.                                 |
-| `24-12-task13-quality-08.json`, `24-12-task13-quality-08-command.json`             | Controller/form wiring, 29 owned files и 3 quality tools.                      |
-| `24-12-resume-quality-03.json`, `24-12-resume-quality-03-command.json`             | Epoch/callback guards.                                                         |
-| `24-12-all-day-quality-01.json`, `24-12-all-day-quality-01-command.json`           | 3 all-day files и 3 quality tools; PASS, exit 0.                               |
-| `24-12-confirmation-quality-02.json`, `24-12-confirmation-quality-02-command.json` | 4 reconnect/fixture/simplify files и 3 tools; PASS, exit 0.                    |
-| `24-12-merged-quality-02.json`, `24-12-merged-quality-02-command.json`             | Актуальные общие Settings/spec files после parent merge.                       |
-| `24-12-current-source-proof.json`                                                  | Current file fingerprints и сопоставление с точными source versions в отчётах. |
+| Файл                                                                               | Назначение                                                                                                                             |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `24-settings-proof.json`, `24-settings-quality.json`                               | Первоначальный Settings scope и точные команды.                                                                                        |
+| `24-12-task2-1d75d27-cfc9206-proof.json`, `24-12-task2-1d75d27-04-quality.json`    | Provider view scope и первоначальная проверка.                                                                                         |
+| `24-12-task13-quality-08.json`, `24-12-task13-quality-08-command.json`             | Controller/form wiring, 29 owned files и 3 quality tools.                                                                              |
+| `24-12-resume-quality-03.json`, `24-12-resume-quality-03-command.json`             | Epoch/callback guards.                                                                                                                 |
+| `24-12-all-day-quality-01.json`, `24-12-all-day-quality-01-command.json`           | 3 all-day files и 3 quality tools; PASS, exit 0.                                                                                       |
+| `24-12-confirmation-quality-02.json`, `24-12-confirmation-quality-02-command.json` | 4 reconnect/fixture/simplify files и 3 tools; PASS, exit 0.                                                                            |
+| `24-12-merged-quality-02.json`, `24-12-merged-quality-02-command.json`             | Актуальные общие Settings/spec files после parent merge.                                                                               |
+| `24-12-current-source-proof.json`                                                  | Предыдущий aggregate proof для `97cb2c3`.                                                                                              |
+| `24-12-student-link-quality-02.json`, `24-12-student-link-quality-02-command.json` | Последний delta: 2 owned files и 3 tools, PASS exit 0; fingerprint `bde6407b40f08c91e5319059cf4d18fd365bcc1b8df8df66dbd4874c345fc077`. |
+| `24-12-student-link-source-proof.json`                                             | Current file fingerprints для `9e51f90`, 38/38 matches.                                                                                |
 
 `*-command.json` хранит точные argv, cwd и exit для `node scripts/dev-checks/calendar-quality.ts --base ... --json --owned ... --boundary-review ...`. Старый PASS повторно используется только при совпадении source hash. Старые type-input fingerprints не объявляются текущим global type proof. Измерения не доказывают runtime, отсутствие всех dead-code paths или качество provider behavior.
 
@@ -212,14 +220,18 @@ Private evidence в существующем STATE_DIR:
 | `LessonDialogs.mark`                    | 4 → 3         |
 | `recoveryUi`                            | 4 → 5         |
 | `assertResumed`                         | 3 → 4         |
+| `LessonContent`                         | 21 → 18       |
+| `LessonTitle`                           | 2 → 1         |
 
 Новые функции: `sameConnection` CC 7, `refreshChangedConnection` 4, `readCalendarConnection` 3, `assertCurrentConnection` 3. Для новых функций baseline не придумывается. Промежуточный `finish` с CC 22 исправлен; итоговый report PASS. Simplify применён к owned diff. Новые features, зависимости, комментарии и отдельные test suites этим проходом не добавлены.
+
+Student-link delta: новый `studentCardLinkUi` CC 6. Scoped report содержит 136 functions/callbacks, 44 changed; max CC 18, cognitive 15, Halstead Difficulty 31.0431, lines 469. Первый quality run получил UNVERIFIED из-за одновременной перегенерации `.next/types` сборкой. Последовательный run после успешной build завершился PASS без изменений source. Исходный результат сохранён в `24-12-student-link-quality-01.json`.
 
 ### E2E source и пределы доказательства
 
 Сценарии записаны до поведения. Они используют public UI/API и real persistence/provider responses. Runtime не выполнялся. Исторический discovery: `yarn playwright test e2e/calendar-settings.spec.ts --grep '\[calendar\] settings' --project=light --project=dark --list` — exit 0, 34 tests; `yarn playwright test e2e/calendar-view.spec.ts --grep '\[calendar-view\]' --list` — exit 0, 14 tests; `yarn playwright test e2e/calendar.spec.ts --grep '\[calendar\] complete UI foundation' --list` — exit 0, 14 tests. `--list` не считается functional PASS.
 
-- Ready fixture: 202 не закрывает форму; applied даёт один toast; Schedule → Today → Students показывают фактические read/revision/next facts.
+- Ready fixture: 202 не закрывает форму; applied даёт один toast; actual event studentId совпадает с retained fixture; pointer/keyboard dialog содержит ссылку на эту карточку; Schedule → Today → Students показывают фактические read/revision/next facts.
 - Lost POST: фактический lookup 404, затем тот же requestId и byte-identical body. Reload не replay draft.
 - Resume fixture: реальная unresolved команда с captured generation меньше текущей, тот же target; explicit Resume один раз; unchanged command identity; applied + fresh revision; reload без toast.
 - Failed-none fixture: inputs сохранены, второе явное Save использует новый requestId и actual fresh version.
@@ -239,7 +251,6 @@ E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar-view.spec
 
 ## Следующие действия владельцев
 
-1. Parent API/contracts: предоставить настоящий studentId для mapped single event.
-2. Sole web owner: подключить этот DTO к student link и обновить scoped proof.
-3. Parent: завершить SourceReview всего 24-12 и согласовать runtime lease с provider owner.
-4. Runtime owner: выполнить применимые Settings/view/foundation journeys, сохранить evidence; затем снять halted и обновить acceptance metadata.
+1. Parent: проверить новый student identity caller и E2E delta `9e51f90`; закрытые generation/all-day claims не пересматривать без нового evidence.
+2. Parent: завершить SourceReview всего 24-12 и согласовать runtime lease с provider owner.
+3. Runtime owner: выполнить применимые Settings/view/foundation journeys, сохранить evidence; затем снять halted и обновить acceptance metadata.
