@@ -223,7 +223,6 @@ Plans:
 **Plans**: 14/18 plans executed
 
 Plans:
-- [x] 21-17-PLAN.md — Move of any lesson allowed like in Google Calendar (D-17), v38 toasts (W4)
 
 **Wave 1**
 - [x] 21-01-PLAN.md — Schema: `lesson_marks`, `teacher_settings`, `students.no_show_deducts`, revoke migration, `yarn install`, migrations applied [BLOCKING] (W1)
@@ -240,26 +239,31 @@ Plans:
 - [x] 21-07-PLAN.md — API: balance by marks through core, no-show flag, `GET /today` (W3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [x] 21-08-PLAN.md — UI-C schedule: Mark row in LessonDialog, signs on blocks, tooltip deduction (W4)
+- [x] 21-17-PLAN.md — Move of any lesson allowed like in Google Calendar (D-17), v38 toasts (W4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [x] 21-15-PLAN.md — Web on lesson outcome: overlaps and week summary by outcome, Vietnam dates from core, no block status reads (W5)
+- [x] 21-08-PLAN.md — UI-C schedule: Mark row in LessonDialog, signs on blocks, tooltip deduction (W5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [x] 21-09-PLAN.md — UI-C students and settings: balance and debt words with status dots, no-show switch, Payments card (W6)
-- [x] 21-16-PLAN.md — API and contract: block status and changeable flag removed, reload-tabs rollout (W6)
+- [x] 21-15-PLAN.md — Web on lesson outcome: overlaps and week summary by outcome, Vietnam dates from core, no block status reads (W6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [x] 21-10-PLAN.md — UI-C Today: header, four counters, Lessons today, Earlier not marked, Pays soon (W7)
+- [x] 21-09-PLAN.md — UI-C students and settings: balance and debt words with status dots, no-show switch, Payments card (W7)
+- [x] 21-16-PLAN.md — API and contract: block status and changeable flag removed, reload-tabs rollout (W7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 21-11-PLAN.md — UI-C Today actions: quick Done and No-show, shared lesson dialog host, isolated Add payment with a Student field (W8)
+- [x] 21-10-PLAN.md — UI-C Today: header, four counters, Lessons today, Earlier not marked, Pays soon (W8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 21-12-PLAN.md — Docs: RUNBOOK operator line, AGENTS.md owners, release notes for Server guy (W9)
+- [ ] 21-11-PLAN.md — UI-C Today actions: quick Done and No-show, shared lesson dialog host, isolated Add payment with a Student field (W9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 21-12-PLAN.md — Docs: RUNBOOK operator line, AGENTS.md owners, release notes for Server guy (W10)
+
+**Wave 11** *(blocked on Wave 10 completion)*
 - [ ] 21-13-PLAN.md — Final verification: full checks, privacy, AGENTS.md against code, all acceptance scripts, five criteria by hand (W11)
+
+**Wave 12** *(blocked on Wave 11 completion)*
 - [ ] 21-18-PLAN.md — e2e: Playwright suite for marks, no-show flag, move of a started lesson, Today (W12)
 
 **UI hint**: yes

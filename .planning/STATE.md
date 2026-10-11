@@ -5,17 +5,17 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 21
 current_phase_name: Lesson Accounting and Today
 status: executing
-stopped_at: Phase 21 waves 1-8 executed (through 21-10); paused; next 21-11 (wave 9), then 21-12, 21-13, 21-18
-last_updated: "2026-10-10T14:56:00.187Z"
-last_activity: 2026-10-10
+stopped_at: Phase 21 execution resumed; 14/18 plans executed; running 21-11 (wave 9), then 21-12, 21-13, 21-18
+last_updated: "2026-10-11T03:30:17.589Z"
+last_activity: 2026-10-11
 last_activity_desc: Phase 21 execution started
-state_head: 05b1634f8d8b3fe7f8dbaee41c37acfe8b34bee4
+state_head: a5c0152eaf38b1dac85677d4d27720e5c3015a4b
 progress:
   total_phases: 10
   completed_phases: 0
-  total_plans: 75
-  completed_plans: 59
-  percent: 0
+  total_plans: 77
+  completed_plans: 73
+  percent: 95
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 21 (Lesson Accounting and Today) — EXECUTING
-Plan: 1 of 16
-Status: Executing Phase 21
-Last activity: 2026-10-10 — Phase 21 execution started
+Plan: 14 of 18 completed; executing 21-11 (wave 9)
+Status: Waves 1-8 executed; execution resumed at wave 9
+Last activity: 2026-10-11 — Phase 21 execution started
 
-Progress: [░░░░░░░░░░] 0% of phases 17-19 executed
+Progress: [████████░░] 78% of Phase 21 plans executed (14/18)
 
 ## Deferred Verification
 
@@ -78,7 +78,7 @@ Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v2.0 roadmap]: Phases 17-26 follow the owner's priority: server and skeleton, accounts and shell, cards and vault import, schedule, lesson accounting, chat (two phases), Google Calendar (two phases), IELTS last.
+- [v2.0 roadmap, owner decision 2026-10-11]: After Phase 21, default time zone becomes a setting before Google Calendar (24-25), then chat (22-23), then IELTS (26). Calendar UAT waits for full Google sync.
 - [v2.0 roadmap]: The manual schedule (Phase 20) comes before chat because chat marks and moves lessons; Google Calendar (Phases 24-25) builds on the same lesson, series and exception model.
 - [v2.0 roadmap]: Requirements placed by their last dependency: ACCT-04 in Phase 19 (cards), CARD-04 in Phase 20 (schedule), SHELL-05 in Phase 21, SHELL-03, SHELL-04 and CARD-05 in Phase 23 (chat entry points).
 - [v2.0]: Calendar follows CODE-AUDIT.md: deterministic event ids, one writer per lesson, `events.watch` and `syncToken`, `410` triggers a full resync, series plus occurrence exceptions, Google wins.
@@ -107,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-10T05:54:03.047Z
-Stopped at: Phase 21 waves 1-8 executed (through 21-10); paused; next 21-11 (wave 9), then 21-12, 21-13, 21-18
+Last session: 2026-10-11T03:18:24Z
+Stopped at: Phase 21 execution resumed; 14/18 plans executed; running 21-11 (wave 9), then 21-12, 21-13, 21-18
 Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md

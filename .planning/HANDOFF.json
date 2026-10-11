@@ -7,7 +7,7 @@
   "plan": null,
   "task": 0,
   "total_tasks": 18,
-  "status": "paused",
+  "status": "executing",
   "completed_tasks": [
     "21-01", "21-02", "21-03", "21-04", "21-05", "21-06", "21-07", "21-08",
     "21-09", "21-10", "21-14", "21-15", "21-16", "21-17"
@@ -26,6 +26,6 @@
     "e2e tests allowed since 2026-10-10, no unit or integration tests"
   ],
   "uncommitted_files": [],
-  "next_action": "In worktree: /gsd-resume-work, then /gsd-execute-phase 21 (wave 9, plan 21-11); run bash scripts/gsd/dispatch.sh 21 before the wave",
+  "next_action": "Phase 21 resumed at plan 21-11, wave 9; then 21-12, 21-13, 21-18. Run bash scripts/gsd/dispatch.sh 21 before each wave",
   "context_notes": "Read .continue-here.md in the phase directory for full state, anti-patterns and infrastructure notes."
 }
