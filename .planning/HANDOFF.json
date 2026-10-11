@@ -1,12 +1,12 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T13:23:36Z",
+	"timestamp": "2026-10-11T13:42:50Z",
 	"phase": "21.1-default-time-zone",
 	"phase_name": "Default Time Zone",
 	"phase_dir": ".planning/phases/21.1-default-time-zone",
-	"plan": "21.1-11 + prepared 21.1-13 static tooling and fixes",
-	"task": 0,
-	"total_tasks": 3,
+	"plan": "21.1-13 final quality and runtime gate",
+	"task": 2,
+	"total_tasks": 2,
 	"status": "executing",
 	"completed_tasks": [
 		"technical research and architecture",
@@ -25,10 +25,11 @@
 		"21.1-08 complete: settings UI, canonical browser second-zone store and explicit formatters; scoped static checks passed",
 		"21.1-09 complete: authoritative week/cache, explicit display context and creation details; scoped static checks passed",
 		"21.1-10 complete: pinned form context, DST helpers and distinct stale-zone recovery; scoped static checks passed",
+		"21.1-11 complete: coherent Today/student aggregates and pinned ledger form context; full web typecheck passed",
 		"21.1-12 complete: existing regression fixtures adapted to explicit zone contract; runtime pending"
 	],
 	"remaining_tasks": [
-		"Execute Phase21.1 plan11 and final13; verify TZ-01…05",
+		"Finish Phase21.1 plan13 workspace checks and public E2E; verify TZ-01…05",
 		"Integrate Phase 21.1 prerequisite and execute prepared Phase 24 plans"
 	],
 	"blockers": [],
@@ -45,6 +46,6 @@
 		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Only web executor runs11 with no-Git adapter; parent commits finished tasks. Today and ledger forms must use one aggregate context and preserve date-only values. Metrics/quality tooling and confirmed static fixes are prepared; final checks and runtime wait for11. Source fixes are recorded in fde36a0 and d5024c5; runtime remains unverified.",
+	"next_action": "Parent is the sole runtime owner. Run the exact INDEX sequence: typecheck, lint, knip, test, build, preserved runners, then public [tz] E2E in both themes with workers=1. Quality and format already passed for 91 source files; fingerprint d053f0f97c2febbf99c3ea9b4ba8a1c1f70e2dcf9c6d9e4c74123ebcaf688acf. Preserve this evidence while sources remain unchanged. No runtime is verified yet.",
 	"context_notes": "Read 21.1-CONTEXT, RESEARCH, ARCH-REVIEW, UI-SPEC and PATTERNS. TZ-01 through TZ-05. Phase 21 source is unchanged by this metadata merge; accepted manual deferrals remain explicit."
 }
