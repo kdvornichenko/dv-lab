@@ -310,10 +310,12 @@ Plans:
   3. Every write to Google goes through the queue with one writer per lesson, so two quick edits of the same lesson end as the last edit in Google.
   4. When authorization expires or is revoked, the connection screen says so and offers reconnect, and queued writes continue after reconnecting.
   5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
+  6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
 **Plans**: TBD
 **UI hint**: yes
 **Notes**: Built on AUD-CAL-1..10 in `.planning/research/CODE-AUDIT.md`: event id derived from the lesson, series or exception id in Google's id alphabet, one writer per lesson through `pg-boss`, event time zone taken from the lesson, not from the server.
+**OAuth setup**: Calendar API is enabled. The web client uses `https://dv-lab.dev/api/google/callback`; the server must implement this exact callback. The declared Calendar scopes are `calendar.events` and `calendar.calendarlist.readonly`. Credentials are stored outside the repository. The app remains in Testing while Branding is incomplete; public privacy policy and terms pages belong to this phase. Publication and the connection test are still pending.
 
 ### Phase 25: Google Calendar Two-Way Sync
 
