@@ -196,7 +196,7 @@ export function WeekGrid({
 	frame = null,
 	scrollTopRef,
 }: WeekGridProps) {
-	const dates = Array.from({ length: 7 }, (_, index) => addDays(monday, index))
+	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, mainTimeZone)
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)

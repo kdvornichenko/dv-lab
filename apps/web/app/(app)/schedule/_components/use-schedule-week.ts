@@ -12,8 +12,7 @@ import { lessonWeekKey, readLessonWeek, readOverlapBlocks } from './lesson-dialo
 type WeekQuery = { mainTimeZone: string; monday: string; current: boolean }
 type WeekResult = { query: WeekQuery; data: ScheduleWeekResponse }
 type WeekState =
-	| { kind: 'loading'; query: WeekQuery | null }
-	| { kind: 'error' }
+	| { kind: 'loading' | 'error'; query: WeekQuery | null; data: ScheduleWeekResponse | null; receivedAt: number }
 	| ({ kind: 'ready'; receivedAt: number } & WeekResult)
 
 async function bootstrap(): Promise<WeekQuery | null> {
@@ -45,7 +44,7 @@ async function readAuthoritativeWeek(
 }
 
 export function useScheduleWeek(minuteNow: Date) {
-	const [state, setState] = useState<WeekState>({ kind: 'loading', query: null })
+	const [state, setState] = useState<WeekState>({ kind: 'loading', query: null, data: null, receivedAt: 0 })
 	const query = useRef<WeekQuery | null>(null)
 	const requests = useRef(0)
 	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
@@ -62,17 +61,18 @@ export function useScheduleWeek(minuteNow: Date) {
 						target,
 						() => id !== requests.current,
 						(next) => {
-							weeks.current = new Map()
+							weeks.current = new Map<string, ScheduleWeekResponse>()
 							query.current = next
-							setState({ kind: 'loading', query: next })
+							setState((previous) => ({ ...previous, kind: 'loading', query: next }))
 						}
 					)
 		if (id !== requests.current) return
 		if (result === null) {
-			setState({ kind: 'error' })
+			setState((previous) => ({ ...previous, kind: 'error' }))
 			return
 		}
-		if (query.current?.mainTimeZone !== result.query.mainTimeZone) weeks.current = new Map()
+		if (query.current?.mainTimeZone !== result.query.mainTimeZone)
+			weeks.current = new Map<string, ScheduleWeekResponse>()
 		query.current = result.query
 		weeks.current.set(lessonWeekKey(result.query.mainTimeZone, result.query.monday), result.data)
 		setState({ kind: 'ready', ...result, receivedAt: Date.now() })
@@ -87,14 +87,14 @@ export function useScheduleWeek(minuteNow: Date) {
 	}, [load])
 
 	const reload = useCallback(async () => {
-		weeks.current = new Map()
+		weeks.current = new Map<string, ScheduleWeekResponse>()
 		await load(query.current)
 	}, [load])
 
 	function navigate(monday: string, current: boolean) {
 		if (query.current === null) return
 		const next = { ...query.current, monday, current }
-		setState({ kind: 'loading', query: next })
+		setState((previous) => ({ ...previous, kind: 'loading', query: next }))
 		void load(next)
 	}
 
@@ -105,7 +105,7 @@ export function useScheduleWeek(minuteNow: Date) {
 
 	const now = useMemo(
 		() =>
-			state.kind === 'ready'
+			state.data !== null
 				? new Date(new Date(state.data.asOf).getTime() + Math.max(0, minuteNow.getTime() - state.receivedAt))
 				: minuteNow,
 		[state, minuteNow]
