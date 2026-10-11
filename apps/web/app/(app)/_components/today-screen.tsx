@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 
-import { CalendarDays, Users } from 'lucide-react'
+import { CalendarDays, Users, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -32,6 +32,7 @@ import {
 
 import type { PairTarget } from '../schedule/_components/lesson-dialog'
 import { LessonDialogs, readOverlapBlocks, type LessonSelection } from '../schedule/_components/lesson-dialogs'
+import { RecordPaymentDialog } from '../students/[id]/_components/record-payment-dialog'
 import { DueList } from './due-list'
 import { LessonRows } from './today-lessons'
 import { useMinuteNow } from './use-minute-now'
@@ -244,15 +245,17 @@ function Shell({
 	description,
 	children,
 	titleRef,
+	actions,
 }: {
 	title: string
 	description?: ReactNode
 	children: ReactNode
 	titleRef?: Ref<HTMLHeadingElement>
+	actions?: ReactNode
 }) {
 	return (
 		<PageScroll>
-			<PageHeader title={title} description={description} titleRef={titleRef} />
+			<PageHeader title={title} description={description} titleRef={titleRef} actions={actions} />
 			{children}
 		</PageScroll>
 	)
@@ -260,18 +263,44 @@ function Shell({
 
 export function TodayScreen() {
 	const now = useMinuteNow()
-	if (now === null) {
-		return (
-			<Shell title="Today" description={<SkeletonText className="w-64 py-0.5" />}>
-				<LoadingCounters />
-				<LoadingPanels />
-			</Shell>
-		)
+	const [payment, setPayment] = useState(false)
+	const [paymentsVersion, setPaymentsVersion] = useState(0)
+	const paymentButton = useRef<HTMLButtonElement>(null)
+	const actions = (
+		<Button ref={paymentButton} variant="tertiary" size="compact" leadingIcon={Wallet} onClick={() => setPayment(true)}>
+			Add payment
+		</Button>
+	)
+
+	function closePayment() {
+		setPayment(false)
+		requestAnimationFrame(() => paymentButton.current?.focus())
 	}
-	return <LoadedToday now={now} />
+
+	return (
+		<>
+			{now === null ? (
+				<Shell title="Today" description={<SkeletonText className="w-64 py-0.5" />} actions={actions}>
+					<LoadingCounters />
+					<LoadingPanels />
+				</Shell>
+			) : (
+				<LoadedToday now={now} actions={actions} paymentsVersion={paymentsVersion} />
+			)}
+			{payment ? (
+				<RecordPaymentDialog
+					onClose={closePayment}
+					onRecorded={() => {
+						closePayment()
+						setPaymentsVersion((value) => value + 1)
+					}}
+				/>
+			) : null}
+		</>
+	)
 }
 
-function LoadedToday({ now }: { now: Date }) {
+function LoadedToday({ now, actions, paymentsVersion }: { now: Date; actions: ReactNode; paymentsVersion: number }) {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [zone] = useSecondZone()
 	const requests = useRef(0)
@@ -307,6 +336,10 @@ function LoadedToday({ now }: { now: Date }) {
 			current = false
 		}
 	}, [])
+
+	useEffect(() => {
+		if (paymentsVersion > 0) void load()
+	}, [paymentsVersion, load])
 
 	const today = scheduleToday(now)
 	const answered = state.kind === 'ready' ? state.data.date : null
@@ -350,14 +383,14 @@ function LoadedToday({ now }: { now: Date }) {
 
 	if (state.kind === 'error') {
 		return (
-			<Shell title={dayTitle(today)}>
+			<Shell title={dayTitle(today)} actions={actions}>
 				<ReadError screen="Today" onRefresh={load} />
 			</Shell>
 		)
 	}
 	if (state.kind === 'loading') {
 		return (
-			<Shell title={dayTitle(today)} description={<SkeletonText className="w-64 py-0.5" />}>
+			<Shell title={dayTitle(today)} description={<SkeletonText className="w-64 py-0.5" />} actions={actions}>
 				<LoadingCounters />
 				<LoadingPanels />
 			</Shell>
@@ -374,7 +407,12 @@ function LoadedToday({ now }: { now: Date }) {
 					(block) => block.key === selected.key && occurrenceSlot(block.outcome) === selected.slot
 				) ?? null)
 	return (
-		<Shell title={dayTitle(data.date)} description={summaryLine(counts, next, zone)} titleRef={titleRef}>
+		<Shell
+			title={dayTitle(data.date)}
+			description={summaryLine(counts, next, zone)}
+			titleRef={titleRef}
+			actions={actions}
+		>
 			<Counters counts={counts} threshold={data.paysSoonLessons} />
 			<Panels data={data} counts={counts} now={now} zone={zone} onReload={load} onOpen={openLesson} />
 			<LessonDialogs

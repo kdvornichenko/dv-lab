@@ -21,6 +21,7 @@ end if;
 if to_regclass('lesson_series') is not null then
 delete from lesson_series where student_id in (select id from students where ${where});
 end if;
+delete from payments where student_id in (select id from students where ${where});
 delete from students where ${where};
 end $$`
 
@@ -71,7 +72,7 @@ export async function goToWeek(page, nav, target) {
 
 const ownedCards = new Set()
 
-export async function createCard(page, name, minutes = 60) {
+export async function createCard(page, name, minutes = 60, fields = {}) {
 	const result = await api(page, 'POST', '/students', {
 		displayName: name,
 		rateMinor: null,
@@ -81,6 +82,7 @@ export async function createCard(page, name, minutes = 60) {
 		level: null,
 		goals: null,
 		timeZone: null,
+		...fields,
 	})
 	check(`${name} card created`, result.status === 201, String(result.status))
 	ownedCards.add(result.json.student.id)
