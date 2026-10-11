@@ -1,10 +1,12 @@
 import { useState, type MouseEvent } from 'react'
 
+import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
 import { occurrenceSlot, statusKey, statusLabel, statusWord, type StatusKey } from '@/lib/lesson-mark-text'
 import { formatDay, formatTime, secondWhen } from '@/lib/schedule-format'
+import { spring } from '@/lib/springs'
 import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
@@ -55,9 +57,11 @@ export function LessonRows({ blocks, moreHref, ...rowProps }: LessonRowsProps) {
 	const shown = moreHref === undefined ? blocks : blocks.slice(0, ROW_LIMIT)
 	return (
 		<ul data-slot="today-rows" className="flex flex-col px-1 pb-2">
-			{shown.map((block) => (
-				<LessonRow key={`${block.key}:${occurrenceSlot(block.outcome)}`} block={block} {...rowProps} />
-			))}
+			<AnimatePresence initial={false} propagate>
+				{shown.map((block) => (
+					<LessonRow key={`${block.key}:${occurrenceSlot(block.outcome)}`} block={block} {...rowProps} />
+				))}
+			</AnimatePresence>
 			{moreHref !== undefined && blocks.length > ROW_LIMIT ? (
 				<MoreRow count={blocks.length - ROW_LIMIT} href={moreHref} />
 			) : null}
@@ -76,13 +80,20 @@ function LessonRow({
 	onOpen,
 }: Omit<LessonRowsProps, 'blocks' | 'moreHref'> & { block: ScheduleBlock }) {
 	const [failed, setFailed] = useState(false)
+	const present = useIsPresent()
+	const reduced = useReducedMotion()
 	const year = Number(scheduleToday(now).slice(0, 4))
 	const start = new Date(block.startsAt)
 	const key = statusKey(block, now)
 	const style = ROW_STYLE[key]
 	const next = block.key === nextKey && occurrenceSlot(block.outcome) === 'to'
 	return (
-		<li
+		<motion.li
+			initial={false}
+			animate={{ opacity: 1 }}
+			exit={showDate ? { opacity: 0 } : undefined}
+			transition={reduced ? { duration: spring.fast.duration, ease: 'easeOut' } : spring.fast}
+			inert={!present}
 			data-slot="today-row"
 			data-key={block.key}
 			data-student-id={block.studentId}
@@ -129,6 +140,6 @@ function LessonRow({
 					{statusWord(block, now)}
 				</span>
 			) : null}
-		</li>
+		</motion.li>
 	)
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { CalendarDays, Users, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -14,14 +15,15 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
+import { hasStaleActions } from '@/lib/lesson-actions'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
+import { spring } from '@/lib/springs'
 
 import type { ScheduleBlock, ScheduleWeekResponse, TodayResponse } from '@dv-lab/contracts'
 import {
 	SCHEDULE_TIME_ZONE,
 	countsAsLesson,
-	lessonActions,
 	scheduleDate,
 	lessonsPhrase,
 	scheduleToday,
@@ -175,6 +177,7 @@ function Panels({
 }) {
 	const lessons = [...data.lessons].sort(byStart)
 	const earlier = [...data.earlier].sort(byStart)
+	const reduced = useReducedMotion()
 	return (
 		<div className="flex flex-col gap-4">
 			<Panel id="today-lessons" title="Lessons today" action={<WeekLink />}>
@@ -202,25 +205,35 @@ function Panels({
 					/>
 				)}
 			</Panel>
-			{earlier.length > 0 ? (
-				<Panel
-					id="today-earlier"
-					title="Earlier, not marked"
-					description="Lessons that took place and still need a mark."
-				>
-					<LessonRows
-						blocks={earlier}
-						now={now}
-						showDate
-						nextKey={null}
-						secondZone={zone}
-						moreHref={SCHEDULE_HREF}
-						onSaved={onReload}
-						onStale={onReload}
-						onOpen={onOpen}
-					/>
-				</Panel>
-			) : null}
+			<AnimatePresence initial={false}>
+				{earlier.length > 0 ? (
+					<motion.div
+						key="earlier"
+						initial={false}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={reduced ? { duration: spring.fast.duration, ease: 'easeOut' } : spring.fast}
+					>
+						<Panel
+							id="today-earlier"
+							title="Earlier, not marked"
+							description="Lessons that took place and still need a mark."
+						>
+							<LessonRows
+								blocks={earlier}
+								now={now}
+								showDate
+								nextKey={null}
+								secondZone={zone}
+								moreHref={SCHEDULE_HREF}
+								onSaved={onReload}
+								onStale={onReload}
+								onOpen={onOpen}
+							/>
+						</Panel>
+					</motion.div>
+				) : null}
+			</AnimatePresence>
 			<Panel
 				id="today-pays-soon"
 				title="Pays soon"
@@ -343,11 +356,7 @@ function LoadedToday({ now, actions, paymentsVersion }: { now: Date; actions: Re
 
 	const today = scheduleToday(now)
 	const answered = state.kind === 'ready' ? state.data.date : null
-	const staleActions =
-		state.kind === 'ready' &&
-		state.data.lessons.some(
-			(block) => block.actions.mark !== lessonActions(block.outcome, new Date(block.startsAt), now).mark
-		)
+	const staleActions = state.kind === 'ready' && hasStaleActions(state.data.lessons, now)
 
 	useEffect(() => {
 		if (answered === null || (answered === today && !staleActions)) return

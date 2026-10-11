@@ -19,6 +19,7 @@ import { apiRequest } from '@/lib/api-client'
 
 import { PAYMENT_NOTE_MAX_LENGTH, type Currency, type PaymentResponse, type StudentDetail } from '@dv-lab/contracts'
 import {
+	balancePhrase,
 	currencyDigits,
 	formatHundredths,
 	formatMoney,
@@ -262,6 +263,8 @@ function canSavePayment(
 
 function paymentDescription(student: StudentDetail | null, rate: Rate | null): string {
 	if (student === null) return 'Choose a student; the amount and the number of lessons fill in on their own'
-	if (rate === null) return `${student.displayName}. No rate is set.`
-	return `${student.displayName}. ${formatMoney(rate.rateMinor, rate.currency)} per lesson.`
+	const balance =
+		student.balanceMinutes === null ? 'Not set' : balancePhrase(student.balanceMinutes, student.defaultLessonMinutes)
+	const price = rate === null ? 'No rate is set.' : `${formatMoney(rate.rateMinor, rate.currency)} per lesson.`
+	return `${balance}, ${price}`
 }

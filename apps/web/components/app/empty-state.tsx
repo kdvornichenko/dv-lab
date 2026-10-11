@@ -16,7 +16,7 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
 				<Icon size={20} strokeWidth={1.5} />
 			</span>
 			<div className="flex flex-col gap-1">
-				<p className="text-body font-semibold text-foreground">{title}</p>
+				<p className="text-subtitle font-semibold text-foreground">{title}</p>
 				{description ? <p className="max-w-96 text-body text-muted-foreground">{description}</p> : null}
 			</div>
 			{action}

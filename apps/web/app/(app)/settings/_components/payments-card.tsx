@@ -33,6 +33,7 @@ export function PaymentsCard() {
 	const [text, setText] = useState('')
 	const [error, setError] = useState<string | null>(null)
 	const [saveFailed, setSaveFailed] = useState(false)
+	const [saving, setSaving] = useState(false)
 	const saved = useRef<number | null>(null)
 	const inflight = useRef(false)
 	const revert = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -79,20 +80,25 @@ export function PaymentsCard() {
 		setError(null)
 		if (value === saved.current) return
 		inflight.current = true
+		setSaving(true)
 		setSaveFailed(false)
-		const result = await apiRequest<SettingsResponse>('PATCH', '/settings', { paysSoonLessons: value })
-		inflight.current = false
-		if (!result.ok) {
-			setSaveFailed(true)
-			putBack()
-			return
+		try {
+			const result = await apiRequest<SettingsResponse>('PATCH', '/settings', { paysSoonLessons: value })
+			if (!result.ok) {
+				setSaveFailed(true)
+				putBack()
+				return
+			}
+			saved.current = result.data.settings.paysSoonLessons
+			setText(String(result.data.settings.paysSoonLessons))
+			toast.show({
+				title: 'Saved',
+				description: `Pays soon threshold: ${lessonsPhrase(result.data.settings.paysSoonLessons, 1)}.`,
+			})
+		} finally {
+			inflight.current = false
+			setSaving(false)
 		}
-		saved.current = result.data.settings.paysSoonLessons
-		setText(String(result.data.settings.paysSoonLessons))
-		toast.show({
-			title: 'Saved',
-			description: `Pays soon threshold: ${lessonsPhrase(result.data.settings.paysSoonLessons, 1)}.`,
-		})
 	}
 
 	function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -131,7 +137,8 @@ export function PaymentsCard() {
 					inputMode="numeric"
 					autoComplete="off"
 					value={text}
-					disabled={!ready}
+					disabled={!ready || saving}
+					aria-busy={saving}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={error ? 'settings-pays-soon-error' : 'settings-pays-soon-hint'}
 					className="w-24 shrink-0 text-right tabular-nums"
