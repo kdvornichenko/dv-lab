@@ -8,6 +8,7 @@ import { googleCommands, type Database } from '@dv-lab/db'
 import type { Credentials } from './credentials.ts'
 import { dispatchCommand, projectCommand } from './dispatch.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import { resumeUnsentInstance } from './instance-recovery.ts'
 import { failUnsentCommand, readCommand, type CommandRow } from './journal.ts'
 import type { ConnectionLease } from './lease.ts'
 import { calendarCommandQueue, calendarQueueOptions } from './queue-schema.ts'
@@ -175,6 +176,25 @@ export function createCalendarWorker(deps: {
 				const command = await readCommand(access.db, accountId, commandId)
 				if (!['partial_recovery', 'recovery_required'].includes(command.state))
 					throw new CalendarFault('command_pending')
+				if (
+					!command.dispatchedAt &&
+					command.effect === 'none' &&
+					'ref' in command.plan.input &&
+					command.plan.input.ref.kind === 'series'
+				) {
+					const context = {
+						...access,
+						signal: AbortSignal.any([
+							access.signal,
+							stopped.signal,
+							AbortSignal.timeout(Math.max(0, command.dispatchDeadline.getTime() - Date.now())),
+						]),
+					}
+					const resumed = await resumeUnsentInstance(context, command, deps.gateway)
+					if (resumed.state === 'pending')
+						await dispatchCommand(context, resumed, deps.gateway, deps.credentials.refreshRejectedAccess)
+					return
+				}
 				if (command.operation === 'restore' && !command.dispatchedAt && command.effect === 'none') {
 					const context = {
 						...access,

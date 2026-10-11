@@ -10,11 +10,12 @@ import {
 } from '@dv-lab/db'
 
 import type { VerifiedGoogleResult, WriteAcknowledgement } from '../calendar/command-result.ts'
-import { confirmEventMapping } from '../calendar/event-mapping.ts'
+import { confirmEventMapping, confirmOccurrenceMapping } from '../calendar/event-mapping.ts'
 import { CommandFault } from '../calendar/journal.ts'
 import { advanceCommandRevision } from '../calendar/read-store.ts'
 import { applyLessonChange } from './changes.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
+import { applyOccurrenceChange } from './occurrence-change.ts'
 
 export async function applyConfirmedCommand(
 	tx: DbExecutor,
@@ -99,16 +100,14 @@ async function applyCreation(
 			.values({ id: reservation.localEntityId, studentId: input.studentId, ...command.plan.capturedRule })
 	} else {
 		if (reservation.entityKind !== 'single') throw new CommandFault('precondition_failed')
-		await tx
-			.insert(lessons)
-			.values({
-				id: reservation.localEntityId,
-				studentId: input.studentId,
-				startsAt: new Date(event.start.dateTime),
-				timeZone: command.plan.capturedTimeZone,
-				durationMinutes: input.durationMinutes,
-				status: 'scheduled',
-			})
+		await tx.insert(lessons).values({
+			id: reservation.localEntityId,
+			studentId: input.studentId,
+			startsAt: new Date(event.start.dateTime),
+			timeZone: command.plan.capturedTimeZone,
+			durationMinutes: input.durationMinutes,
+			status: 'scheduled',
+		})
 	}
 	await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
 }
@@ -117,8 +116,21 @@ async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {
 	const input = command.plan.input
 	if (input.operation !== 'move' && input.operation !== 'cancel' && input.operation !== 'restore')
 		throw new CommandFault('precondition_failed')
-	if (input.ref.kind !== 'single') throw new CommandFault('precondition_failed')
 	const lineage = command.plan.lineage[0]
+	if (input.ref.kind === 'series') {
+		const instance = command.request.method === 'patch' ? command.request.instance : undefined
+		if (
+			!instance?.lookupVerified ||
+			!lineage ||
+			lineage.to.kind !== 'series' ||
+			lineage.to.seriesId !== input.ref.seriesId ||
+			lineage.to.originalOn !== input.ref.originalOn
+		)
+			throw new CommandFault('precondition_failed')
+		await confirmOccurrenceMapping(tx, command)
+		await applyOccurrenceChange(tx, input, command.plan)
+		return
+	}
 	if (!lineage || lineage.to.kind !== 'single' || lineage.to.lessonId !== input.ref.lessonId)
 		throw new CommandFault('precondition_failed')
 	await applyLessonChange(

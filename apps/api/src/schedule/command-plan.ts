@@ -15,10 +15,12 @@ import {
 	type GoogleStageRequest,
 } from '@dv-lab/db'
 
+import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'
 import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
+import { prepareOccurrenceCommand } from './occurrence-command.ts'
 import { recurringCreation } from './recurring-command.ts'
 import { prepareSingleCommand } from './single-command.ts'
 
@@ -62,9 +64,18 @@ export async function prepareScheduleCommand(
 	executor: DbExecutor,
 	input: ValidatedCalendarCommand,
 	context: CalendarReadContext,
-	observed?: SingleEvidence
+	observed?: SingleEvidence | InstanceEvidence
 ): Promise<PreparedCalendarCommand> {
-	if ((input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') && observed)
+	if (
+		(input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') &&
+		observed?.kind === 'instance'
+	)
+		return prepareOccurrenceCommand(executor, input, context, observed)
+	if (
+		(input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') &&
+		observed &&
+		observed.kind !== 'instance'
+	)
 		return prepareSingleCommand(executor, input, context, observed)
 	return prepareCreateCommand(executor, input, context)
 }

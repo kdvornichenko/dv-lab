@@ -107,12 +107,30 @@ const reservation = z.strictObject({
 		.regex(/^[0-9a-v]+$/),
 })
 
+const googleInstanceIdentity = z.strictObject({
+	masterEventId: eventId,
+	originalOn: isoDate,
+	originalStartTime: googleEventTime,
+	lookupVerified: z.boolean(),
+})
+const googleInstanceCandidate = z.object({
+	id: eventId,
+	recurringEventId: eventId,
+	originalStartTime: z.object({ dateTime: instant, timeZone: zone.optional() }),
+})
+export const googleInstancePage = z.object({
+	items: z.array(googleInstanceCandidate).optional(),
+	nextPageToken: z.string().min(1).optional(),
+})
 const lineage = z.strictObject({
 	from: googleLocalRef,
 	to: googleLocalRef,
 	startsAt: instant,
 	timeZone: zone,
 	durationMinutes: z.number().int().min(15).max(240),
+	beforeStartsAt: instant.optional(),
+	beforeDurationMinutes: z.number().int().min(15).max(240).optional(),
+	beforeStatus: z.enum(['scheduled', 'cancelled', 'moved']).optional(),
 })
 
 export const googleUnownedWritable = z.strictObject({
@@ -142,7 +160,7 @@ export const googleUnownedWritable = z.strictObject({
 const precondition = z.strictObject({
 	eventId,
 	etag: z.string().min(1),
-	unownedWritableFingerprint: digest,
+	unownedWritableFingerprint: digest.nullable(),
 	unownedWritable: googleUnownedWritable.nullable().optional(),
 })
 
@@ -232,6 +250,7 @@ export const googleStageRequest = z
 					baselineEvent: googleEventFact.optional(),
 				})
 				.optional(),
+			instance: googleInstanceIdentity.optional(),
 		}),
 		z.strictObject({ method: z.literal('get'), eventId }),
 		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
@@ -259,6 +278,7 @@ export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
 		unownedWritableFingerprint: digest,
 		unownedWritable: googleUnownedWritable.nullable().optional(),
 		baselineEvent: googleEventFact.optional(),
+		instance: googleInstanceIdentity.optional(),
 	}),
 	z.strictObject({
 		kind: z.literal('event'),
@@ -280,6 +300,14 @@ export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
 		checkedAt: instant,
 		complete: z.literal(true),
 		events: z.array(googleEventFact),
+	}),
+	z.strictObject({
+		kind: z.literal('instance_lookup'),
+		checkedAt: instant,
+		complete: z.literal(true),
+		masterEventId: eventId,
+		originalStartTime: googleEventTime,
+		eventIds: z.array(eventId),
 	}),
 ])
 

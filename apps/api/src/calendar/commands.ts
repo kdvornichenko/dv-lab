@@ -7,6 +7,7 @@ import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.
 import type { SingleCommand } from '../schedule/single-command.ts'
 import type { Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import { observeInstance } from './instance-observation.ts'
 import {
 	CommandFault,
 	commandSnapshot,
@@ -109,7 +110,10 @@ export function createCalendarCommands(deps: {
 		context: CalendarReadContext,
 		input: SingleCommand
 	) {
-		const observed = await observeSingle(access, input, deps.gateway)
+		const observed =
+			input.ref.kind === 'series'
+				? await observeInstance(access, input, deps.gateway)
+				: await observeSingle(access, input, deps.gateway)
 		return access.db.transaction(async (tx) => {
 			access.signal.throwIfAborted()
 			const prepared = await prepareScheduleCommand(tx, input, context, observed)

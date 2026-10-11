@@ -154,13 +154,28 @@ export function scheduleRoutes({ db, calendarReads, calendarCommands }: Schedule
 		})
 	}
 
-	for (const path of [
-		'/series/:id/occurrences/:originalOn/move',
-		'/series/:id/occurrences/:originalOn/cancel',
-		'/series/:id/occurrences/:originalOn/restore',
-		'/series/:id/move',
-		'/series/:id/end',
-	]) {
+	for (const operation of ['move', 'cancel', 'restore'] as const) {
+		routes.post(`/series/:id/occurrences/:originalOn/${operation}`, async (c) => {
+			const occurrence = occurrenceParam(c)
+			if (!occurrence) return notFound(c)
+			if (!calendarCommands) return commandRefusal(c, new CalendarFault('connection_required'))
+			try {
+				const context = { accountId: c.get('session').account.id, now: new Date() }
+				const ref = { kind: 'series' as const, ...occurrence }
+				if (operation === 'move') {
+					const input = await readJson(c, moveCalendarLessonRequest)
+					if (!input) return invalidRequest(c)
+					return c.json(await calendarCommands.submitCalendarCommand(context, { operation, ref, input }), 202)
+				}
+				const input = await readJson(c, calendarLessonActionRequest)
+				if (!input) return invalidRequest(c)
+				return c.json(await calendarCommands.submitCalendarCommand(context, { operation, ref, input }), 202)
+			} catch (error) {
+				return commandRefusal(c, error)
+			}
+		})
+	}
+	for (const path of ['/series/:id/move', '/series/:id/end']) {
 		routes.post(path, (c) => c.json(errorBody('history_only', 'This calendar action is not available yet'), 409))
 	}
 

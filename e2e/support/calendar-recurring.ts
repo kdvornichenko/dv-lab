@@ -8,7 +8,7 @@ import {
 	calendarCommandSnapshot,
 	googleScheduleWindow,
 } from '../../packages/contracts/src/calendar.ts'
-import { occurrenceAt, scheduleDate, seriesStart } from '../../packages/core/src/index.ts'
+import { occurrenceAt, scheduleDate, seriesStart, zonedParts } from '../../packages/core/src/index.ts'
 import { api, readSettings } from './api.ts'
 import { calendarCommandFixture, parseCalendarResponse } from './calendar-commands.ts'
 import { armCalendarFault, calendarFaultEvidence, disarmCalendarFault } from './calendar-fault-control.ts'
@@ -16,7 +16,7 @@ import { PRIVATE_DIR, quote, sql } from './data.ts'
 import { mondayOf } from './dates.ts'
 import { record } from './input.ts'
 import { readPrivateJson, targetBinding } from './target.ts'
-import { expect } from './test.ts'
+import { expect, test } from './test.ts'
 import { setMain } from './tz-settings.ts'
 
 const sample = z.strictObject({
@@ -229,6 +229,7 @@ async function instanceJourney(request: APIRequestContext) {
 	const natural = seriesStart(context.series, originalOn)
 	if (!natural) throw new Error('Natural instance must exist')
 	const before = sql(`select id from lessons where student_id = ${quote(fixture.studentId)}::uuid`)
+	const marks = sql(`select id, kind from lesson_marks where series_id = ${quote(id)}::uuid order by id`)
 	for (const operation of ['move', 'cancel', 'restore'] as const) {
 		const settings = await readSettings(request)
 		const current = await window(request, scheduleDate(natural, settings.defaultTimeZone))
@@ -250,22 +251,82 @@ async function instanceJourney(request: APIRequestContext) {
 			operation === 'move'
 				? {
 						...body,
-						date: fixture.instance.date,
-						startTime: '18:00',
+						date: scheduleDate(natural, settings.defaultTimeZone),
+						startTime:
+							zonedParts(new Date(event.when.startsAt), settings.defaultTimeZone).time === '18:00' ? '19:00' : '18:00',
 						expectedDefaultTimeZone: settings.defaultTimeZone,
 					}
 				: body
-		const receipt = parseCalendarResponse(
-			calendarCommandReceipt,
-			await api(request, 'POST', `/schedule/series/${id}/occurrences/${originalOn}/${operation}`, input, 202)
+		const previous = sql(
+			`select original_on, kind, starts_at from lesson_exceptions where series_id = ${quote(id)}::uuid`
 		)
-		await applied(request, receipt.commandId)
+		const siblings = current.events
+			.filter(
+				(item) =>
+					item.binding.kind === 'lesson' &&
+					item.binding.ref.kind === 'series' &&
+					item.binding.ref.seriesId === id &&
+					item.binding.ref.originalOn !== originalOn
+			)
+			.map((item) => ({ eventKey: item.eventKey, when: item.when }))
+		const fault = armCalendarFault({
+			method: 'PATCH',
+			resource: 'events',
+			page: 'any',
+			action: operation === 'move' ? 'drop_response' : 'delay_response',
+			delayMs: operation === 'move' ? 0 : 5000,
+		})
+		try {
+			const receipt = parseCalendarResponse(
+				calendarCommandReceipt,
+				await api(request, 'POST', `/schedule/series/${id}/occurrences/${originalOn}/${operation}`, input, 202)
+			)
+			if (operation !== 'move') {
+				await expect
+					.poll(() => calendarFaultEvidence(fault).some((item) => item.phase === 'response_held'), { timeout: 20000 })
+					.toBe(true)
+				expect(
+					sql(`select original_on, kind, starts_at from lesson_exceptions where series_id = ${quote(id)}::uuid`)
+				).toEqual(previous)
+			}
+			await applied(request, receipt.commandId)
+			const stale = record(
+				await api(
+					request,
+					'POST',
+					`/schedule/series/${id}/occurrences/${originalOn}/${operation}`,
+					{ ...input, requestId: randomUUID() },
+					409
+				)
+			)
+			expect(record(stale.error).code).toBe('precondition_failed')
+			const after = await window(request, scheduleDate(natural, settings.defaultTimeZone))
+			expect(
+				after.events
+					.filter(
+						(item) =>
+							item.binding.kind === 'lesson' &&
+							item.binding.ref.kind === 'series' &&
+							item.binding.ref.seriesId === id &&
+							item.binding.ref.originalOn !== originalOn
+					)
+					.map((item) => ({ eventKey: item.eventKey, when: item.when }))
+			).toEqual(siblings)
+			expect(calendarFaultEvidence(fault).filter((item) => item.phase === 'request_matched')).toHaveLength(1)
+			const stages = sql(
+				`select request from google_command_stages where command_id = ${quote(receipt.commandId)}::uuid and kind = 'write'`
+			)
+			expect(stages.every((stage) => record(stage.request).method === 'patch')).toBe(true)
+		} finally {
+			disarmCalendarFault(fault)
+		}
 		expect(
 			sql(
 				`select original_on, kind from lesson_exceptions where series_id = ${quote(id)}::uuid and original_on = ${quote(originalOn)}::date`
 			)
 		).toHaveLength(1)
 		expect(sql(`select id from lessons where student_id = ${quote(fixture.studentId)}::uuid`)).toEqual(before)
+		expect(sql(`select id, kind from lesson_marks where series_id = ${quote(id)}::uuid order by id`)).toEqual(marks)
 	}
 	const mapping = sql(
 		`select event_id, original_start_time from google_event_mappings where local_entity_id = ${quote(id)}::uuid and entity_kind = 'occurrence' and original_on = ${quote(originalOn)}::date and state = 'active'`
@@ -289,10 +350,21 @@ async function instanceJourney(request: APIRequestContext) {
 		)
 		expect(status.state).toBe('recovery_required')
 		expect(status.confirmedRevision).toBeNull()
+		await expect
+			.poll(
+				async () =>
+					parseCalendarResponse(
+						calendarCommandSnapshot,
+						await api(request, 'GET', `/google/commands/${receipt.commandId}`)
+					).state,
+				{ timeout: 40000 }
+			)
+			.toBe('failed')
 	}
 }
 
 export async function recurringJourney(request: APIRequestContext, kind: 'master' | 'instance') {
+	test.setTimeout(240000)
 	if (kind === 'master') await masterJourney(request)
 	else await instanceJourney(request)
 }

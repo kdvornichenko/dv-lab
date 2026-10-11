@@ -123,6 +123,7 @@ function verifyCancellation(
 		unownedWritableFingerprint: request.cancellationBaseline.unownedWritableFingerprint,
 		unownedWritable: request.cancellationBaseline.unownedWritable ?? null,
 		baselineEvent: request.cancellationBaseline.baselineEvent,
+		instance: request.instance,
 	})
 	if (acknowledgement.kind !== 'cancellation') throw new CalendarFault('invalid_provider_data')
 	verifyStoredCancellation(acknowledgement, request)
@@ -136,10 +137,10 @@ function verifyOwnedFields(event: ProviderEvent, request: WriteRequest) {
 		event.status !== expected.status ||
 		event.eventType !== 'default' ||
 		(expected.summary !== undefined && event.summary !== expected.summary) ||
-		event.recurringEventId ||
-		event.originalStartTime
+		((!('instance' in request) || !request.instance) && (event.recurringEventId || event.originalStartTime))
 	)
 		throw new CalendarFault('external_change')
+	verifyInstanceIdentity(event, request)
 	for (const field of ['start', 'end'] as const) {
 		const actualTime = event[field]
 		const expectedTime = expected[field]
@@ -149,6 +150,22 @@ function verifyOwnedFields(event: ProviderEvent, request: WriteRequest) {
 		if (
 			Date.parse(actualTime.dateTime) !== Date.parse(expectedTime.dateTime) ||
 			timeZoneIdentity(actualTime.timeZone) !== timeZoneIdentity(expectedTime.timeZone)
+		)
+			throw new CalendarFault('external_change')
+	}
+}
+
+function verifyInstanceIdentity(event: ProviderEvent, request: WriteRequest) {
+	if (request.method === 'patch' && request.instance) {
+		const original = event.originalStartTime
+		const expectedOriginal = request.instance.originalStartTime
+		if (
+			!request.instance.lookupVerified ||
+			event.recurringEventId !== request.instance.masterEventId ||
+			!original ||
+			!('dateTime' in original) ||
+			!('dateTime' in expectedOriginal) ||
+			Date.parse(original.dateTime) !== Date.parse(expectedOriginal.dateTime)
 		)
 			throw new CalendarFault('external_change')
 	}
@@ -177,6 +194,12 @@ function verifyRecurrence(actual: readonly string[], request: WriteRequest) {
 }
 
 function verifyStoredCancellation(ack: Extract<WriteAcknowledgement, { kind: 'cancellation' }>, request: WriteRequest) {
+	if (
+		request.method === 'patch' &&
+		request.instance &&
+		(!request.instance.lookupVerified || JSON.stringify(ack.instance) !== JSON.stringify(request.instance))
+	)
+		throw new CalendarFault('external_change')
 	if (
 		request.method !== 'patch' ||
 		request.payload.status !== 'cancelled' ||

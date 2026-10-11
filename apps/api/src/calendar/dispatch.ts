@@ -25,6 +25,7 @@ import {
 	type StageRow,
 } from './journal.ts'
 import { traverseEvents } from './read-pages.ts'
+import { matchesMaster } from './recurring.ts'
 import { checkReplacement } from './single-observation.ts'
 
 export type CommandAccess = { db: Database; accessToken: string; connection: ConnectionRow; signal: AbortSignal }
@@ -82,6 +83,32 @@ async function prepareDispatch(access: CommandAccess, command: PreparedCalendarC
 	})
 }
 
+async function checkInstanceDispatch(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
+	if (command.request.method !== 'patch') return
+	if (command.request.instance) {
+		const identity = command.request.instance
+		if (!identity.lookupVerified || !command.plan.capturedRule || !('dateTime' in identity.originalStartTime))
+			throw new CommandFault('external_change')
+		const master = await gateway.master(
+			access.accessToken,
+			command.calendarId,
+			identity.masterEventId,
+			command.plan.capturedTimeZone,
+			access.signal
+		)
+		if (!matchesMaster(master, command.plan.capturedRule)) throw new CommandFault('external_change')
+		const instance = await gateway.canonicalInstance(
+			access.accessToken,
+			command.calendarId,
+			identity.masterEventId,
+			identity.originalStartTime.dateTime,
+			access.signal
+		)
+		if (instance.kind !== 'found' || instance.eventId !== command.request.eventId)
+			throw new CommandFault('external_change')
+	}
+}
+
 async function checkDispatchWindow(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
 	if (access.connection.generation !== command.generation || access.connection.calendarId !== command.calendarId)
 		throw new CommandFault('not_applied')
@@ -92,6 +119,7 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 		return {}
 	}
 	if (command.request.method === 'patch') {
+		await checkInstanceDispatch(access, command, gateway)
 		const observed = await gateway.observeEvent(
 			access.accessToken,
 			command.calendarId,
