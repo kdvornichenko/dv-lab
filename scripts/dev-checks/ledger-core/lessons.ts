@@ -19,7 +19,7 @@ const iso = (value: Date | string | null | undefined) => (value instanceof Date 
 function dateVectors(expect: Expect): void {
 	expect(
 		'p1 scheduleDate gives the Vietnam date',
-		DATE_CASES.map(([text]) => core.scheduleDate(instant(text))),
+		DATE_CASES.map(([text]) => core.scheduleDate(instant(text), VN)),
 		DATE_CASES.map(([, date]) => date)
 	)
 	const before = instant('2026-10-10T16:59:59Z')
@@ -27,10 +27,10 @@ function dateVectors(expect: Expect): void {
 	expect(
 		'p1 isAfterScheduleToday on both sides of Vietnam midnight',
 		{
-			todayBefore: core.isAfterScheduleToday('2026-10-10', before),
-			tomorrowBefore: core.isAfterScheduleToday('2026-10-11', before),
-			tomorrowAfter: core.isAfterScheduleToday('2026-10-11', after),
-			todayAfter: core.scheduleToday(after),
+			todayBefore: core.isAfterScheduleToday('2026-10-10', before, VN),
+			tomorrowBefore: core.isAfterScheduleToday('2026-10-11', before, VN),
+			tomorrowAfter: core.isAfterScheduleToday('2026-10-11', after, VN),
+			todayAfter: core.scheduleToday(after, VN),
 		},
 		{ todayBefore: false, tomorrowBefore: true, tomorrowAfter: false, todayAfter: '2026-10-11' }
 	)
@@ -53,6 +53,7 @@ function outcomeVectors(expect: Expect): void {
 		}
 	)
 	const single = (status: core.SingleLesson['status']): core.SingleLesson => ({
+		timeZone: VN,
 		id: 'lesson-2101',
 		studentId: 'student-2101',
 		startsAt: NOW,
@@ -137,12 +138,12 @@ function actionVectors(expect: Expect): void {
 	expect(
 		'p2 needsMark skips archived students and lessons on or before the opening day',
 		{
-			activeAfterOpening: core.needsMark(lessonOn('2026-10-05'), active, NOW),
-			archived: core.needsMark(lessonOn('2026-10-05'), { status: 'archived', openingOn: OPEN }, NOW),
-			onOpeningDay: core.needsMark(lessonOn(OPEN), active, NOW),
-			noOpening: core.needsMark(lessonOn('2026-10-05'), { status: 'active', openingOn: null }, NOW),
-			notStarted: core.needsMark({ outcome: 'planned', startsAt: LATER }, active, NOW),
-			marked: core.needsMark(lessonOn('2026-10-05', 'done'), active, NOW),
+			activeAfterOpening: core.needsMark(lessonOn('2026-10-05'), active, NOW, VN),
+			archived: core.needsMark(lessonOn('2026-10-05'), { status: 'archived', openingOn: OPEN }, NOW, VN),
+			onOpeningDay: core.needsMark(lessonOn(OPEN), active, NOW, VN),
+			noOpening: core.needsMark(lessonOn('2026-10-05'), { status: 'active', openingOn: null }, NOW, VN),
+			notStarted: core.needsMark({ outcome: 'planned', startsAt: LATER }, active, NOW, VN),
+			marked: core.needsMark(lessonOn('2026-10-05', 'done'), active, NOW, VN),
 		},
 		{
 			activeAfterOpening: true,
@@ -157,6 +158,7 @@ function actionVectors(expect: Expect): void {
 
 function occurrenceVectors(expect: Expect): void {
 	const weekly: core.SeriesRule = {
+		timeZone: VN,
 		id: 'series-2101',
 		studentId: 'student-2101',
 		weekday: 3,
@@ -227,7 +229,8 @@ function todayVectors(expect: Expect): void {
 				earlier: 2,
 				paysSoon: 1,
 			},
-			NOW
+			NOW,
+			VN
 		),
 		{
 			lessons: 5,
@@ -243,7 +246,7 @@ function todayVectors(expect: Expect): void {
 	)
 	expect(
 		'p2 todayCounts with no lesson ahead',
-		core.todayCounts({ lessons: [day('l:done', '09:00', 'done')], earlier: 0, paysSoon: 0 }, NOW).nextKey,
+		core.todayCounts({ lessons: [day('l:done', '09:00', 'done')], earlier: 0, paysSoon: 0 }, NOW, VN).nextKey,
 		null
 	)
 }

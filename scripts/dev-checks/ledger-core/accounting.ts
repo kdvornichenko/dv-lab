@@ -1,5 +1,5 @@
 import * as core from '../../../packages/core/src/index.ts'
-import { at, NOW, LATER } from './lessons.ts'
+import { VN, at, NOW, LATER } from './lessons.ts'
 import type { Expect } from './run.ts'
 
 function balanceVectors(expect: Expect): void {
@@ -20,7 +20,7 @@ function balanceVectors(expect: Expect): void {
 		over: Partial<core.BalanceCard>,
 		payments: core.BalancePayment[] = [],
 		lessons: core.BalanceLesson[] = []
-	) => core.studentBalance(card(over), payments, lessons)
+	) => core.studentBalance(card(over), payments, lessons, VN)
 	const late = balance({}, [], [lesson('2026-10-02', '18:00', 90, 'done')])
 	expect(
 		'p1 studentBalance cases',
@@ -69,7 +69,7 @@ function balanceVectors(expect: Expect): void {
 		{
 			utc: nightLesson.toISOString().slice(0, 10),
 			moscow: core.zonedParts(nightLesson, 'Europe/Moscow').date,
-			vietnam: core.scheduleDate(nightLesson),
+			vietnam: core.scheduleDate(nightLesson, VN),
 		},
 		{ utc: OPEN, moscow: OPEN, vietnam: '2026-10-02' }
 	)
@@ -84,6 +84,7 @@ function deductionVectors(expect: Expect): void {
 		} = {}
 	) =>
 		core.markEffect({
+			timeZone: VN,
 			outcome,
 			startsAt: at('2026-10-05', '09:00'),
 			durationMinutes: 60,
