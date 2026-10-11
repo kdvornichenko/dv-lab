@@ -25,6 +25,7 @@ import {
 	type StageRow,
 } from './journal.ts'
 import { traverseEvents } from './read-pages.ts'
+import { checkReplacement } from './single-observation.ts'
 
 export type CommandAccess = { db: Database; accessToken: string; connection: ConnectionRow; signal: AbortSignal }
 
@@ -78,6 +79,10 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 		throw new CommandFault('not_applied')
 	const primary = await gateway.primary(access.accessToken, access.signal)
 	if (primary.id !== command.calendarId) throw new CommandFault('external_change')
+	if (command.operation === 'restore' && command.request.method === 'insert') {
+		await checkReplacement(access, command, gateway)
+		return {}
+	}
 	if (command.request.method === 'patch') {
 		const observed = await gateway.observeEvent(
 			access.accessToken,

@@ -17,7 +17,7 @@ const marker = z.object({
 	dvKind: z.literal('single'),
 	dvGeneration: z.string().regex(/^(0|[1-9]\d*)$/),
 	dvCommandId: z.uuid(),
-	dvStage: z.literal('0'),
+	dvStage: z.string().regex(/^(0|[1-9]\d*)$/),
 	dvDigest: z.string().regex(/^[0-9a-f]{64}$/),
 	dvSchema: z.literal('1'),
 })

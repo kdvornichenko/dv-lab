@@ -1,12 +1,103 @@
-import { and, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, eq, inArray, notInArray, sql } from 'drizzle-orm'
 
 import { occurrenceAt, scheduleDate, type SeriesRule } from '@dv-lab/core'
-import { googleCommands, googleEventMappings, type DbExecutor, type GoogleLocalRef } from '@dv-lab/db'
+import {
+	googleCommands,
+	googleEventMappings,
+	googleCommandPlan,
+	googleStageRequest,
+	type DbExecutor,
+	type GoogleLocalRef,
+} from '@dv-lab/db'
 import { lessonSeries } from '@dv-lab/db'
 
+import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
+import { CommandFault, digest } from './journal.ts'
 import type { ProviderEvent } from './provider-events.ts'
 import type { MappingRow } from './read-state.ts'
+import type { AbsenceProof } from './single-observation.ts'
+
+export async function replacementCommand(
+	executor: DbExecutor,
+	command: PreparedCalendarCommand,
+	proof: AbsenceProof,
+	stage = 0
+): Promise<PreparedCalendarCommand> {
+	const input = command.plan.input
+	if (
+		input.operation !== 'restore' ||
+		input.ref.kind !== 'single' ||
+		proof.eventId !== command.request.eventId ||
+		command.plan.reservations.length
+	)
+		throw new CommandFault('precondition_failed')
+	const mappings = await executor
+		.select()
+		.from(googleEventMappings)
+		.where(
+			and(
+				eq(googleEventMappings.accountId, command.accountId),
+				eq(googleEventMappings.connectionId, command.connectionId),
+				eq(googleEventMappings.localEntityId, input.ref.lessonId)
+			)
+		)
+	const generation = Math.max(...mappings.map((mapping) => mapping.representationGeneration)) + 1
+	if (!Number.isSafeInteger(generation)) throw new CommandFault('precondition_failed')
+	const eventId = `dv${digest(JSON.stringify([command.connectionId, command.calendarId, 'single', input.ref.lessonId, generation]))}`
+	const reservation = {
+		entityKind: 'single' as const,
+		localEntityId: input.ref.lessonId,
+		representationGeneration: generation,
+		eventId,
+	}
+	const { markers, ...payload } = command.request.payload
+	const stageDigest = digest(JSON.stringify({ eventId, ...payload }))
+	const request = googleStageRequest.parse({
+		method: 'insert',
+		eventId,
+		digest: stageDigest,
+		payload: { ...payload, markers: { ...markers, representationGeneration: generation, stage, digest: stageDigest } },
+	})
+	if (request.method !== 'insert') throw new CommandFault('precondition_failed')
+	return {
+		...command,
+		plan: googleCommandPlan.parse({ ...command.plan, reservations: [reservation] }),
+		request,
+		absenceProof: proof,
+		recoveryRequired: false,
+	}
+}
+
+export async function reserveReplacement(executor: DbExecutor, command: PreparedCalendarCommand) {
+	const reservation = command.plan.reservations[0]
+	const proof = command.absenceProof
+	if (!reservation || !proof || command.operation !== 'restore') throw new CommandFault('precondition_failed')
+	const [old] = await executor
+		.update(googleEventMappings)
+		.set({ state: 'retired', retiredAt: sql`now()` })
+		.where(
+			and(
+				eq(googleEventMappings.accountId, command.accountId),
+				eq(googleEventMappings.connectionId, command.connectionId),
+				eq(googleEventMappings.localEntityId, reservation.localEntityId),
+				eq(googleEventMappings.eventId, proof.eventId),
+				eq(googleEventMappings.state, 'active')
+			)
+		)
+		.returning()
+	if (!old) throw new CommandFault('precondition_failed')
+	await executor
+		.insert(googleEventMappings)
+		.values({
+			...reservation,
+			accountId: command.accountId,
+			connectionId: command.connectionId,
+			calendarId: command.calendarId,
+			commandId: command.id,
+			studentId: old.studentId,
+		})
+}
 
 export type MappingSnapshot = Awaited<ReturnType<typeof loadMappings>>
 

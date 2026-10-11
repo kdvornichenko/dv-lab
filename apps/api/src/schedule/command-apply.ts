@@ -51,19 +51,18 @@ export async function applyConfirmedCommand(
 			event.eventId !== reservation.eventId
 		)
 			throw new CommandFault('precondition_failed')
-		await tx
-			.insert(lessons)
-			.values({
-				id: reservation.localEntityId,
-				studentId: input.studentId,
-				startsAt: new Date(event.start.dateTime),
-				timeZone: command.plan.capturedTimeZone,
-				durationMinutes: input.durationMinutes,
-				status: 'scheduled',
-			})
+		await tx.insert(lessons).values({
+			id: reservation.localEntityId,
+			studentId: input.studentId,
+			startsAt: new Date(event.start.dateTime),
+			timeZone: command.plan.capturedTimeZone,
+			durationMinutes: input.durationMinutes,
+			status: 'scheduled',
+		})
 		await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
 	} else {
 		await applySingle(tx, command)
+		if (command.request.method === 'insert') await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
 	}
 	const confirmedRevision = await advanceCommandRevision(
 		tx,

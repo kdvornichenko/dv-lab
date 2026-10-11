@@ -12,6 +12,7 @@ import { failUnsentCommand, readCommand, type CommandRow } from './journal.ts'
 import type { ConnectionLease } from './lease.ts'
 import { calendarCommandQueue, calendarQueueOptions } from './queue-schema.ts'
 import { reconcileCommand, recoveryExpired, requireRecovery } from './recovery.ts'
+import { resumeUnsentRestore } from './single-observation.ts'
 
 const jobData = z.strictObject({ commandId: z.uuid() })
 
@@ -159,6 +160,15 @@ export function createCalendarWorker(deps: {
 				const command = await readCommand(access.db, accountId, commandId)
 				if (!['partial_recovery', 'recovery_required'].includes(command.state))
 					throw new CalendarFault('command_pending')
+				if (command.operation === 'restore' && !command.dispatchedAt && command.effect === 'none') {
+					const context = {
+						...access,
+						signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]),
+					}
+					const resumed = await resumeUnsentRestore(context, command, deps.gateway)
+					if (resumed.state === 'pending') await dispatchCommand(context, resumed, deps.gateway)
+					return
+				}
 				await reconcileCommand(
 					{ ...access, signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]) },
 					command,

@@ -1,4 +1,4 @@
-import { and, eq, notInArray, sql } from 'drizzle-orm'
+import { and, desc, eq, notInArray, sql } from 'drizzle-orm'
 import { createHash } from 'node:crypto'
 
 import {
@@ -20,6 +20,7 @@ import {
 } from '@dv-lab/db'
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
+import { reserveReplacement } from './event-mapping.ts'
 
 export type CommandRow = typeof googleCommands.$inferSelect
 export type StageRow = typeof googleCommandStages.$inferSelect
@@ -28,7 +29,9 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 	const [stage] = await executor
 		.select()
 		.from(googleCommandStages)
-		.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.stage, 0)))
+		.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.kind, 'write')))
+		.orderBy(desc(googleCommandStages.stage))
+		.limit(1)
 	const plan = googleCommandPlan.parse(command.plan)
 	const request = googleStageRequest.parse(stage?.request)
 	if (
@@ -51,7 +54,13 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 export async function failUnsentCommand(db: Database, commandId: string) {
 	await db.transaction(async (tx) => {
 		const [command] = await tx.select().from(googleCommands).where(eq(googleCommands.id, commandId)).for('update')
-		if (!command || command.state !== 'pending' || command.dispatchedAt) return
+		if (
+			!command ||
+			!['pending', 'recovery_required'].includes(command.state) ||
+			command.dispatchedAt ||
+			command.effect !== 'none'
+		)
+			return
 		await tx
 			.update(googleCommands)
 			.set({
@@ -71,10 +80,27 @@ export async function failUnsentCommand(db: Database, commandId: string) {
 }
 
 export async function retireReservations(tx: DbExecutor, commandId: string) {
-	await tx
+	const retired = await tx
 		.update(googleEventMappings)
 		.set({ state: 'retired', retiredAt: sql`now()` })
 		.where(and(eq(googleEventMappings.commandId, commandId), eq(googleEventMappings.state, 'reserved')))
+		.returning()
+	if (!retired.length) return
+	const [command] = await tx.select().from(googleCommands).where(eq(googleCommands.id, commandId))
+	if (command?.operation !== 'restore' || command.effect !== 'none') return
+	const oldId = command.plan.preconditions[0]?.eventId
+	if (!oldId) throw new CommandFault('precondition_failed')
+	await tx
+		.update(googleEventMappings)
+		.set({ state: 'active', retiredAt: null })
+		.where(
+			and(
+				eq(googleEventMappings.accountId, command.accountId),
+				eq(googleEventMappings.connectionId, command.connectionId),
+				eq(googleEventMappings.eventId, oldId),
+				eq(googleEventMappings.state, 'retired')
+			)
+		)
 }
 
 export class CommandFault extends Error {
@@ -146,8 +172,15 @@ export function matchingReceipt(command: CommandRow, input: ValidatedCalendarCom
 }
 
 export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarCommand) {
-	const { request, ...command } = prepared
-	await tx.insert(googleCommands).values(command)
+	const { request, absenceProof, recoveryRequired, ...command } = prepared
+	await tx
+		.insert(googleCommands)
+		.values({
+			...command,
+			...(recoveryRequired
+				? { state: 'recovery_required' as const, issue: 'provider_unavailable', nextAction: 'resume_recovery' as const }
+				: {}),
+		})
 	await tx.insert(googleCommandStages).values({
 		accountId: command.accountId,
 		connectionId: command.connectionId,
@@ -157,6 +190,25 @@ export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarC
 		kind: 'write',
 		request,
 	})
+	if (absenceProof) {
+		await reserveReplacement(tx, prepared)
+		await tx
+			.insert(googleCommandStages)
+			.values({
+				accountId: command.accountId,
+				connectionId: command.connectionId,
+				commandId: command.id,
+				stage: 2,
+				previousStage: 0,
+				generation: command.generation,
+				kind: 'verify',
+				request: { method: 'get', eventId: absenceProof.eventId },
+				state: 'acknowledged',
+				effect: 'confirmed',
+				acknowledgement: absenceProof,
+				acknowledgedAt: new Date(absenceProof.checkedAt),
+			})
+	}
 	if (command.plan.input.operation !== 'create') return
 	for (const reservation of command.plan.reservations) {
 		await tx.insert(googleEventMappings).values({

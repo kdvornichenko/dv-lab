@@ -20,6 +20,7 @@ import {
 import type { ProviderEvent } from './provider-events.ts'
 import { traverseEvents } from './read-pages.ts'
 import type { CalendarReadContext } from './reads.ts'
+import { observeSingle } from './single-observation.ts'
 
 export function createCalendarCommands(deps: {
 	db: Database
@@ -40,7 +41,7 @@ export function createCalendarCommands(deps: {
 				if (repeated) return matchingReceipt(repeated, input)
 				if ((await unresolvedCommands(access.db, context.accountId)).length) throw new CommandFault('command_pending')
 				if (input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore')
-					return admitSingle(access, context, input)
+					return await admitSingle(access, context, input)
 				if (input.operation !== 'create' || input.input.repeats !== 'once') throw new CommandFault('history_only')
 				const window = await commandWindow(access.db, context.accountId, input.input.expectedVersion)
 				if (
@@ -95,15 +96,7 @@ export function createCalendarCommands(deps: {
 			target.event.generation !== access.connection.generation
 		)
 			throw new CommandFault('precondition_failed')
-		const primary = await deps.gateway.primary(access.accessToken, access.signal)
-		if (primary.id !== target.mapping.calendarId) throw new CommandFault('external_change')
-		const observed = await deps.gateway.observeEvent(
-			access.accessToken,
-			primary.id,
-			target.mapping.eventId,
-			target.window.displayTimeZone,
-			access.signal
-		)
+		const observed = await observeSingle(access, input, deps.gateway)
 		return access.db.transaction(async (tx) => {
 			access.signal.throwIfAborted()
 			const prepared = await prepareScheduleCommand(tx, input, context, observed)

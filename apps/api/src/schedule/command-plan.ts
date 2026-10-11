@@ -17,8 +17,9 @@ import {
 
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'
+import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
-import { prepareSingleCommand, type SingleObservation } from './single-command.ts'
+import { prepareSingleCommand } from './single-command.ts'
 
 export type PreparedCalendarCommand = {
 	id: string
@@ -35,6 +36,8 @@ export type PreparedCalendarCommand = {
 	request: Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
 	dispatchDeadline: Date
 	createdAt: Date
+	absenceProof?: AbsenceProof
+	recoveryRequired?: boolean
 }
 
 export async function commandWindow(executor: DbExecutor, accountId: string, expectedVersion: string) {
@@ -57,7 +60,7 @@ export async function prepareScheduleCommand(
 	executor: DbExecutor,
 	input: ValidatedCalendarCommand,
 	context: CalendarReadContext,
-	observed?: SingleObservation
+	observed?: SingleEvidence
 ): Promise<PreparedCalendarCommand> {
 	if ((input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') && observed)
 		return prepareSingleCommand(executor, input, context, observed)

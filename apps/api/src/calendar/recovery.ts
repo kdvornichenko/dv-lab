@@ -45,8 +45,8 @@ async function beginRead(access: CommandAccess, command: PreparedCalendarCommand
 				accountId: command.accountId,
 				connectionId: command.connectionId,
 				commandId: command.id,
-				stage: 1,
-				previousStage: 0,
+				stage: command.request.payload.markers.stage + 1,
+				previousStage: command.request.payload.markers.stage,
 				generation: access.connection.generation,
 				kind: 'verify',
 				request,
@@ -55,7 +55,12 @@ async function beginRead(access: CommandAccess, command: PreparedCalendarCommand
 		const [stage] = await tx
 			.select()
 			.from(googleCommandStages)
-			.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.stage, 1)))
+			.where(
+				and(
+					eq(googleCommandStages.commandId, command.id),
+					eq(googleCommandStages.stage, command.request.payload.markers.stage + 1)
+				)
+			)
 			.for('update')
 		if (!stage) throw new CommandFault('precondition_failed')
 		const attempt: GoogleStageAttempt = {
@@ -157,7 +162,12 @@ export async function reconcileCommand(
 	const [previous] = await access.db
 		.select()
 		.from(googleCommandStages)
-		.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.stage, 1)))
+		.where(
+			and(
+				eq(googleCommandStages.commandId, command.id),
+				eq(googleCommandStages.stage, prepared.request.payload.markers.stage + 1)
+			)
+		)
 	if (!explicit && (recoveryExpired(command) || (previous?.attempts.length ?? 0) >= MAX_READ_ATTEMPTS))
 		return requireRecovery(access.db, command, 'provider_unavailable')
 	const lastAttempt = previous?.attempts.at(-1)

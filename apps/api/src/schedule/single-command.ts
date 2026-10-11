@@ -14,9 +14,11 @@ import {
 } from '@dv-lab/db'
 
 import { cancelledSingles } from '../calendar/cancelled-singles.ts'
+import { replacementCommand } from '../calendar/event-mapping.ts'
 import type { GoogleGateway } from '../calendar/gateway.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
+import type { SingleEvidence } from '../calendar/single-observation.ts'
 import { prepareLessonChange } from './changes.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
 
@@ -77,7 +79,7 @@ export async function prepareSingleCommand(
 	executor: DbExecutor,
 	input: SingleCommand,
 	context: CalendarReadContext,
-	observed: SingleObservation
+	evidence: SingleEvidence
 ): Promise<PreparedCalendarCommand> {
 	const [connection] = await executor
 		.select()
@@ -92,15 +94,7 @@ export async function prepareSingleCommand(
 		target.event.generation !== connection.generation
 	)
 		throw new CommandFault('precondition_failed')
-	if (observed.event.etag !== target.event.etag || observed.event.eventId !== target.mapping.eventId)
-		throw new CommandFault('external_change')
-	const markers = observed.privateProperties
-	if (
-		markers.dvLocalId !== target.mapping.localEntityId ||
-		markers.dvKind !== 'single' ||
-		markers.dvGeneration !== String(target.mapping.representationGeneration)
-	)
-		throw new CommandFault('external_change')
+	validateEvidence(evidence, target, input)
 	if (input.ref.kind !== 'single') throw new CommandFault('history_only')
 	const change = await prepareLessonChange(
 		executor,
@@ -138,8 +132,11 @@ export async function prepareSingleCommand(
 		preconditions: [
 			{
 				eventId: target.mapping.eventId,
-				etag: observed.event.etag,
-				unownedWritableFingerprint: observed.unownedWritableFingerprint,
+				etag: target.event.etag,
+				unownedWritableFingerprint:
+					evidence.kind === 'present'
+						? evidence.observation.unownedWritableFingerprint
+						: evidence.cancellation.unownedWritableFingerprint,
 			},
 		],
 		affectedRefs: [input.ref],
@@ -163,7 +160,7 @@ export async function prepareSingleCommand(
 	const request = googleStageRequest.parse({
 		method: 'patch',
 		eventId: target.mapping.eventId,
-		ifMatch: observed.event.etag,
+		ifMatch: target.event.etag,
 		digest: stageDigest,
 		payload: {
 			...payload,
@@ -179,7 +176,7 @@ export async function prepareSingleCommand(
 		},
 	})
 	if (request.method !== 'patch') throw new CommandFault('invalid_request', 400)
-	return {
+	const prepared: PreparedCalendarCommand = {
 		id,
 		accountId: context.accountId,
 		connectionId: connection.id,
@@ -195,4 +192,28 @@ export async function prepareSingleCommand(
 		createdAt: context.now,
 		dispatchDeadline: new Date(context.now.getTime() + 30000),
 	}
+	if (evidence.kind === 'absent') return replacementCommand(executor, prepared, evidence.proof)
+	return evidence.kind === 'unresolved' ? { ...prepared, recoveryRequired: true } : prepared
+}
+
+function validateEvidence(
+	evidence: SingleEvidence,
+	target: Awaited<ReturnType<typeof singleTarget>>,
+	input: SingleCommand
+) {
+	if (evidence.kind !== 'present') {
+		if (input.operation !== 'restore' || target.event.status !== 'cancelled') throw new CommandFault('external_change')
+		return
+	}
+	const observed = evidence.observation
+	if (observed.event.etag !== target.event.etag || observed.event.eventId !== target.mapping.eventId)
+		throw new CommandFault('external_change')
+	const markers = observed.privateProperties
+	if (input.operation === 'restore' && observed.event.status === 'cancelled' && !markers.dvLocalId) return
+	if (
+		markers.dvLocalId !== target.mapping.localEntityId ||
+		markers.dvKind !== 'single' ||
+		markers.dvGeneration !== String(target.mapping.representationGeneration)
+	)
+		throw new CommandFault('external_change')
 }

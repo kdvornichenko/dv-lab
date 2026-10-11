@@ -85,7 +85,13 @@ const calendarPage = z.object({
 })
 const identityPage = z.object({
 	items: z
-		.array(z.object({ id: z.string().min(1), status: z.enum(['confirmed', 'tentative', 'cancelled']).optional() }))
+		.array(
+			z.object({
+				id: z.string().min(1),
+				status: z.enum(['confirmed', 'tentative', 'cancelled']).optional(),
+				extendedProperties: z.object({ private: z.record(z.string(), z.string()).optional() }).optional(),
+			})
+		)
 		.optional(),
 	nextPageToken: z.string().min(1).optional(),
 })
@@ -222,24 +228,28 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 			oauth.setCredentials({ access_token: accessToken })
 			const body = insertEventBody(request)
 			const response = await writeCall(() =>
-				google
-					.calendar({ version: 'v3', auth: oauth })
-					.events.patch(
-						{
-							calendarId,
-							eventId: request.eventId,
-							sendUpdates: 'none',
-							requestBody: {
-								...body,
-								extendedProperties: { private: { ...privateProperties, ...body.extendedProperties.private } },
-							},
+				google.calendar({ version: 'v3', auth: oauth }).events.patch(
+					{
+						calendarId,
+						eventId: request.eventId,
+						sendUpdates: 'none',
+						requestBody: {
+							...body,
+							extendedProperties: { private: { ...privateProperties, ...body.extendedProperties.private } },
 						},
-						{ retry: false, headers: { 'If-Match': request.ifMatch } }
-					)
+					},
+					{ retry: false, headers: { 'If-Match': request.ifMatch } }
+				)
 			)
 			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
 		},
-		async identityAbsent(accessToken: string, calendarId: string, localEntityId: string, signal: AbortSignal) {
+		async identityAbsent(
+			accessToken: string,
+			calendarId: string,
+			localEntityId: string,
+			signal: AbortSignal,
+			missingEventId?: string
+		) {
 			const oauth = client(signal)
 			oauth.setCredentials({ access_token: accessToken })
 			const pages = new Set<string>()
@@ -254,14 +264,22 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 							maxResults: 2500,
 							pageToken,
 							privateExtendedProperty: [`dvLocalId=${localEntityId}`],
-							fields: 'nextPageToken,items(id,status)',
+							fields: 'nextPageToken,items(id,status,extendedProperties/private)',
 						},
 						{ retry: false }
 					)
 				)
 				const parsed = identityPage.safeParse(response.data)
 				if (!parsed.success) throw new CalendarFault('invalid_provider_data')
-				if (parsed.data.items?.some((event) => event.status !== 'cancelled')) return false
+				if (
+					parsed.data.items?.some(
+						(event) =>
+							event.status !== 'cancelled' ||
+							event.id === missingEventId ||
+							event.extendedProperties?.private?.dvLocalId !== localEntityId
+					)
+				)
+					return false
 				pageToken = parsed.data.nextPageToken
 				if (pageToken && (pages.has(pageToken) || pages.size >= 1000)) throw new CalendarFault('invalid_provider_data')
 				if (pageToken) pages.add(pageToken)
