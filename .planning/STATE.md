@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: '21.1'
 current_phase_name: Default Time Zone
 status: executing
-stopped_at: Plans 21.1-01 through 04 complete; executing 21.1-05
+stopped_at: Plans 21.1-01 through 05 complete; executing 21.1-06 and 08
 last_updated: '2026-10-11T12:07:53.594Z'
 last_activity: 2026-10-11
 last_activity_desc: Started Phase 21.1 execution; Phase 24 preparation complete
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 21.1 (Default Time Zone) — EXECUTING
-Plan: 05 of 13 — schedule API; 01–04 completed
+Plan: 06 and 08 of 13 — series mutations and settings UI; 01–05 completed
 Status: Execution authorized by owner. Phase 21.1 runs before Phase 24. Phase 21 merged in PR #7 (893689f) after green CI.
 Last activity: 2026-10-11 — Plans 01–04 complete; 52 [tz] scenarios listed, contracts/db/core static checks passed; runtime E2E pending plan 13
 
