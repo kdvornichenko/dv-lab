@@ -6,7 +6,14 @@ import { parseEnv } from 'node:util'
 
 import { ROOT } from '../../scripts/dev-checks/paths.mjs'
 import { integer, list, record, text, uuid } from './input.ts'
-import { DATABASE_IDENTITY_SQL, ENV_FILE, FIXTURE_DATABASE, HTTPS_TARGET, PRIVATE_DIR } from './target.ts'
+import {
+	DATABASE_IDENTITY_SQL,
+	ENV_FILE,
+	FIXTURE_DATABASE,
+	HTTPS_TARGET,
+	PRIVATE_DIR,
+	prelaunchEnvironment,
+} from './target.ts'
 import type { TargetBinding } from './target.ts'
 
 export { BASE, FIXTURE_DATABASE, HTTPS_TARGET, PRIVATE_DIR } from './target.ts'
@@ -83,7 +90,8 @@ function readPrivate(path: string): unknown {
 
 export function teacherCredentials(): { login: string; password: string } {
 	requireTargetDatabase()
-	const env = parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
+	const env =
+		FIXTURE_DATABASE === 'prelaunch' ? prelaunchEnvironment() : parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
 	const login = env.DEV_TEACHER_LOGIN
 	const password = env.DEV_TEACHER_PASSWORD
 	if (!login) throw new Error('Set DEV_TEACHER_LOGIN')

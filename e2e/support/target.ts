@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { constants, closeSync, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs'
 import { isAbsolute, relative, resolve } from 'node:path'
+import { parseEnv } from 'node:util'
 
 import { ROOT, STATE_DIR } from '../../scripts/dev-checks/paths.mjs'
 import { record, text } from './input.ts'
@@ -47,7 +48,7 @@ function targetOrigin(): string {
 	return value
 }
 
-export function readPrivateJson(file: string): unknown {
+function readPrivateText(file: string): string {
 	let descriptor: number | undefined
 	try {
 		const path = resolve(file)
@@ -58,12 +59,27 @@ export function readPrivateJson(file: string): unknown {
 		descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
 		const stat = fstatSync(descriptor)
 		if (!stat.isFile() || (stat.mode & 0o777) !== 0o600) throw new Error('Invalid private file')
-		return JSON.parse(readFileSync(descriptor, 'utf8')) as unknown
+		return readFileSync(descriptor, 'utf8')
 	} catch {
-		throw new Error('E2E requires a canonical private 0600 JSON file outside the repository')
+		throw new Error('E2E requires a canonical private 0600 file outside the repository')
 	} finally {
 		if (descriptor !== undefined) closeSync(descriptor)
 	}
+}
+
+export function readPrivateJson(file: string): unknown {
+	try {
+		return JSON.parse(readPrivateText(file)) as unknown
+	} catch {
+		throw new Error('E2E requires a canonical private 0600 JSON file outside the repository')
+	}
+}
+
+export function prelaunchEnvironment(): Record<string, string | undefined> {
+	const file = process.env.E2E_PRELAUNCH_ENV_FILE
+	if (FIXTURE_DATABASE !== 'prelaunch' || !file || !isAbsolute(file) || resolve(file) !== file)
+		throw new Error('Prelaunch requires an absolute canonical E2E_PRELAUNCH_ENV_FILE')
+	return parseEnv(readPrivateText(file))
 }
 
 export function targetBinding(): TargetBinding {

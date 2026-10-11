@@ -1,17 +1,15 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { parseEnv } from 'node:util'
 import { Client } from 'pg'
 
-import { ROOT } from '../../scripts/dev-checks/paths.mjs'
 import { NAMES } from './data.ts'
 import { list, record, text, uuid } from './input.ts'
 import {
 	DATABASE_IDENTITY_SQL,
-	ENV_FILE,
 	FIXTURE_DATABASE,
 	PRIVATE_DIR,
+	prelaunchEnvironment,
 	readPrivateJson,
 	targetBinding,
 	verifyTargetHealth,
@@ -33,7 +31,7 @@ function request(): Request {
 }
 
 function connectionString(): string {
-	const env = parseEnv(readFileSync(resolve(ROOT, ENV_FILE), 'utf8'))
+	const env = prelaunchEnvironment()
 	const value = text(env.MIGRATOR_DATABASE_URL)
 	const url = new URL(value)
 	if (!['postgres:', 'postgresql:'].includes(url.protocol) || url.username !== 'dvlab_migrator')
