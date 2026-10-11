@@ -5,12 +5,11 @@ import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
 import { occurrenceSlot, statusKey, statusLabel, statusWord, type StatusKey } from '@/lib/lesson-mark-text'
-import { formatDay, formatTime, secondWhen } from '@/lib/schedule-format'
+import { formatDay, formatTime, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
 import { cn } from '@/lib/utils'
 
 import type { LessonMarkKind, ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, scheduleToday } from '@dv-lab/core'
 
 import { TodayMarkControls } from './today-mark-controls'
 
@@ -44,6 +43,7 @@ export function MoreRow({ count, href }: { count: number; href: string }) {
 interface LessonRowsProps {
 	blocks: readonly ScheduleBlock[]
 	now: Date
+	mainTimeZone: string
 	showDate: boolean
 	nextKey: string | null
 	secondZone: string | null
@@ -72,6 +72,7 @@ export function LessonRows({ blocks, moreHref, ...rowProps }: LessonRowsProps) {
 function LessonRow({
 	block,
 	now,
+	mainTimeZone,
 	showDate,
 	nextKey,
 	secondZone,
@@ -83,7 +84,7 @@ function LessonRow({
 	const [pending, setPending] = useState<LessonMarkKind | null>(null)
 	const busy = pending !== null
 	const present = useIsPresent()
-	const year = Number(scheduleToday(now).slice(0, 4))
+	const year = yearInZone(now, mainTimeZone)
 	const start = new Date(block.startsAt)
 	const key = statusKey(block, now)
 	const style = ROW_STYLE[key]
@@ -108,13 +109,13 @@ function LessonRow({
 		>
 			{showDate ? (
 				<span data-slot="today-row-date" className="min-w-0 truncate text-muted-foreground sm:min-w-18 sm:shrink-0">
-					{formatDay(start, SCHEDULE_TIME_ZONE, year)}
+					{formatDay(start, mainTimeZone, year)}
 				</span>
 			) : null}
 			<TimePair
 				className="min-w-0 overflow-hidden whitespace-nowrap sm:min-w-22 sm:shrink-0"
-				main={formatTime(start, SCHEDULE_TIME_ZONE)}
-				second={secondWhen(start, secondZone)}
+				main={formatTime(start, mainTimeZone)}
+				second={secondWhen(start, mainTimeZone, secondZone)}
 			/>
 			<span data-slot="today-row-name" className={cn('flex min-w-0 flex-1 flex-col', style.struck && 'line-through')}>
 				<button
@@ -122,7 +123,7 @@ function LessonRow({
 					disabled={busy}
 					data-slot="today-row-open"
 					className="min-w-0 cursor-pointer truncate text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-focus-ring"
-					aria-label={`${block.studentName}, ${formatDay(start, SCHEDULE_TIME_ZONE, year)}, ${formatTime(start, SCHEDULE_TIME_ZONE)}: ${statusLabel(block, now)}`}
+					aria-label={`${block.studentName}, ${formatDay(start, mainTimeZone, year)}, ${formatTime(start, mainTimeZone)}: ${statusLabel(block, now, mainTimeZone)}`}
 					onClick={(event: MouseEvent<HTMLButtonElement>) => {
 						if (!busy) onOpen(block, event.currentTarget)
 					}}
@@ -139,6 +140,7 @@ function LessonRow({
 				<span data-slot="today-row-note" className="relative z-10 shrink-0 font-normal">
 					<TodayMarkControls
 						block={block}
+						mainTimeZone={mainTimeZone}
 						pending={pending}
 						onPendingChange={setPending}
 						onSaved={onSaved}
@@ -148,7 +150,7 @@ function LessonRow({
 				</span>
 			) : style.note ? (
 				<span data-slot="today-row-note" className="shrink-0 text-caption font-normal text-muted-foreground">
-					{statusWord(block, now)}
+					{statusWord(block, now, mainTimeZone)}
 				</span>
 			) : null}
 		</motion.li>
