@@ -1,68 +1,68 @@
 {
-  "contract": "1.0.0",
-  "flavor": "core",
-  "milestone": "v2.0 — Unified dv-lab (In Progress)",
-  "phases": [
-    {
-      "number": "17",
-      "name": "Skeleton on the Server",
-      "status": "in_progress"
-    },
-    {
-      "number": "18",
-      "name": "Accounts and Variant A Shell",
-      "status": "in_progress"
-    },
-    {
-      "number": "19",
-      "name": "Student Cards and Vault Import",
-      "status": "in_progress"
-    },
-    {
-      "number": "20",
-      "name": "Schedule",
-      "status": "in_progress"
-    },
-    {
-      "number": "21",
-      "name": "Lesson Accounting and Today",
-      "status": "complete"
-    },
-    {
-      "number": "21.1",
-      "name": "Default Time Zone",
-      "status": "complete"
-    },
-    {
-      "number": "22",
-      "name": "Chat with Mentions and Quick Marks",
-      "status": "pending"
-    },
-    {
-      "number": "23",
-      "name": "Confirmed Chat Changes and Entry Points",
-      "status": "pending"
-    },
-    {
-      "number": "24",
-      "name": "Google Calendar Connection and Outbound Sync",
-      "status": "pending"
-    },
-    {
-      "number": "25",
-      "name": "Google Calendar Two-Way Sync",
-      "status": "pending"
-    },
-    {
-      "number": "26",
-      "name": "IELTS Section",
-      "status": "pending"
-    }
-  ],
-  "next": {
-    "command": "/gsd:progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 24 of 11 · 18% · executing"
-  },
-  "updated_at": "2026-10-11T16:03:55.049Z"
+	"contract": "1.0.0",
+	"flavor": "core",
+	"milestone": "v2.0 — Unified dv-lab (In Progress)",
+	"phases": [
+		{
+			"number": "17",
+			"name": "Skeleton on the Server",
+			"status": "in_progress"
+		},
+		{
+			"number": "18",
+			"name": "Accounts and Variant A Shell",
+			"status": "in_progress"
+		},
+		{
+			"number": "19",
+			"name": "Student Cards and Vault Import",
+			"status": "in_progress"
+		},
+		{
+			"number": "20",
+			"name": "Schedule",
+			"status": "in_progress"
+		},
+		{
+			"number": "21",
+			"name": "Lesson Accounting and Today",
+			"status": "complete"
+		},
+		{
+			"number": "21.1",
+			"name": "Default Time Zone",
+			"status": "complete"
+		},
+		{
+			"number": "22",
+			"name": "Chat with Mentions and Quick Marks",
+			"status": "pending"
+		},
+		{
+			"number": "23",
+			"name": "Confirmed Chat Changes and Entry Points",
+			"status": "pending"
+		},
+		{
+			"number": "24",
+			"name": "Google Calendar Connection and Outbound Sync",
+			"status": "pending"
+		},
+		{
+			"number": "25",
+			"name": "Google Calendar Two-Way Sync",
+			"status": "pending"
+		},
+		{
+			"number": "26",
+			"name": "IELTS Section",
+			"status": "pending"
+		}
+	],
+	"next": {
+		"command": "/gsd:progress --next",
+		"label": "Advance to the next step",
+		"reason": "Phase 24 of 11 · 18% · executing"
+	},
+	"updated_at": "2026-10-11T16:24:47.832Z"
 }
