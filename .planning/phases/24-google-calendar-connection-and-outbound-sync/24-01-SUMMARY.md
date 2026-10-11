@@ -64,7 +64,7 @@ coverage:
         status: unknown
     human_judgment: true
     rationale: Actual operator binding and Google fixture authority are required for the remote run.
-duration: 45min
+duration: 15min
 completed: 2026-10-11
 status: complete
 ---
