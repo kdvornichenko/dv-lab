@@ -18,6 +18,7 @@ export const RESULTS_DIR = resolve(PRIVATE_DIR, 'results', randomUUID())
 export const AUTH_FILE = resolve(PRIVATE_DIR, 'auth.json')
 const SETTINGS_FILE = resolve(PRIVATE_DIR, 'settings.json')
 const OWNED_FILE = resolve(PRIVATE_DIR, 'owned.json')
+const TARGET_FILE = resolve(PRIVATE_DIR, 'target.json')
 let targetDatabaseReady = false
 
 function targetOrigin(): string {
@@ -43,6 +44,10 @@ inet_server_addr()::text as address, inet_server_port() as port,
 (select oid::text from pg_database where datname = current_database()) as oid;`)
 	if (rows.length !== 1 || createHash('sha256').update(JSON.stringify(rows[0])).digest('hex') !== expected)
 		throw new Error('E2E target persistence identity mismatch')
+	const saved = readPrivate(TARGET_FILE)
+	if (saved !== null && text(record(saved).persistenceFingerprint) !== expected)
+		throw new Error('E2E fixture state belongs to a different persistence target')
+	writePrivate(TARGET_FILE, { persistenceFingerprint: expected })
 	targetDatabaseReady = true
 }
 export const NAMES = [
