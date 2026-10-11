@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core'
+import type { Page } from '@playwright/test'
 
 import { readBlocks, ofCard } from './block-probes.ts'
 

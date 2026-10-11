@@ -1,7 +1,8 @@
+import type { BrowserType, Page } from '@playwright/test'
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
-import type { BrowserType, Page } from 'playwright-core'
 
 import { ROOT, STATE_DIR } from './paths.mjs'
 

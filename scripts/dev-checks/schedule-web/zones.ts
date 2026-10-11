@@ -1,4 +1,4 @@
-import type { Page, Locator } from 'playwright-core'
+import type { Page, Locator } from '@playwright/test'
 
 import { BASE, check, failures, launch, shot, signIn } from '../browser-context.ts'
 import { setTheme, openSchedule } from './navigation.ts'

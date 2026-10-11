@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core'
+import type { Page } from '@playwright/test'
 
 import * as core from '../../../packages/core/src/index.ts'
 import { BASE, shot } from '../browser-context.ts'

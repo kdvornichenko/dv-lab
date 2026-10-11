@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core'
+import type { Page } from '@playwright/test'
 
 import type { TodayResponse } from '../../../packages/contracts/src/index.ts'
 import type { StudentsResponse, ErrorResponse } from '../../../packages/contracts/src/index.ts'

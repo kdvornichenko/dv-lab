@@ -1,4 +1,4 @@
-import type { Page, Locator } from 'playwright-core'
+import type { Page, Locator } from '@playwright/test'
 
 import * as core from '../../../packages/core/src/index.ts'
 import { check, shot } from '../browser-context.ts'

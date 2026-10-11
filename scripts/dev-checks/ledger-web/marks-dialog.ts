@@ -1,5 +1,5 @@
-import type { Route } from 'playwright-core'
-import type { Page } from 'playwright-core'
+import type { Route } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 import type { ScheduleOccurrenceResponse, ErrorResponse } from '../../../packages/contracts/src/index.ts'
 import * as core from '../../../packages/core/src/index.ts'

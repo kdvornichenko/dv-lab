@@ -1,5 +1,5 @@
-import type { Route } from 'playwright-core'
-import type { Page, BrowserContext } from 'playwright-core'
+import type { Route } from '@playwright/test'
+import type { Page, BrowserContext } from '@playwright/test'
 
 import type { TodayResponse } from '../../../packages/contracts/src/index.ts'
 import type {

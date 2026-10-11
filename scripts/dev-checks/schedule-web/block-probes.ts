@@ -1,4 +1,4 @@
-import type { Page, Locator } from 'playwright-core'
+import type { Page, Locator } from '@playwright/test'
 
 import { check } from '../browser-context.ts'
 

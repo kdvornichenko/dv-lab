@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core'
+import type { Page } from '@playwright/test'
 
 import { BASE, check, failures, shot, signIn, sql } from '../browser-context.ts'
 import { withBrowser } from '../browser-journey.ts'

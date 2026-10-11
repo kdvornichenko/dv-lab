@@ -1,6 +1,5 @@
 import { expect } from '@playwright/test'
-
-import type { Page, Locator } from 'playwright-core'
+import type { Page, Locator } from '@playwright/test'
 
 import type { PaymentsResponse, ErrorResponse } from '../../../packages/contracts/src/index.ts'
 import * as core from '../../../packages/core/src/index.ts'

@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core'
+import type { Page } from '@playwright/test'
 
 import type { ScheduleSeriesResponse, ErrorResponse } from '../../../packages/contracts/src/index.ts'
 import * as core from '../../../packages/core/src/index.ts'

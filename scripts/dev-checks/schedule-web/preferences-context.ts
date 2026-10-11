@@ -1,4 +1,4 @@
-import type { Page } from 'playwright-core'
+import type { Page } from '@playwright/test'
 
 export const ZONE_KEYS = ['dv-lab.schedule.second-zone', 'dv-lab.time-zones.favorites']
 
