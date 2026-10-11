@@ -5,16 +5,16 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: '21.1'
 current_phase_name: Default Time Zone
 status: executing
-stopped_at: Plans 21.1-01 through 05 complete; executing 21.1-06 and 08
-last_updated: '2026-10-11T12:07:53.594Z'
+stopped_at: Plans 21.1-01 through 08 and 12 complete; executing 09 and preparing static quality tooling
+last_updated: '2026-10-11T12:56:00Z'
 last_activity: 2026-10-11
-last_activity_desc: Started Phase 21.1 execution; Phase 24 preparation complete
-state_head: cfbe3e8
+last_activity_desc: Completed settings UI and backend; schedule UI in progress, runtime verification pending
+state_head: ec50698
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 90
-  completed_plans: 78
+  completed_plans: 82
   percent: 9
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 21.1 (Default Time Zone) — EXECUTING
-Plan: 06 and 08 of 13 — series mutations and settings UI; 01–05 completed
+Plan: 09 of 13 — schedule UI; 01–08 and 12 completed. Static quality tooling from 13 is prepared independently; final checks wait for 09–11.
 Status: Execution authorized by owner. Phase 21.1 runs before Phase 24. Phase 21 merged in PR #7 (893689f) after green CI.
-Last activity: 2026-10-11 — Plans 01–04 complete; 52 [tz] scenarios listed, contracts/db/core static checks passed; runtime E2E pending plan 13
+Last activity: 2026-10-11 — Backend API typecheck and scoped settings UI checks passed. 52 [tz] scenarios listed; runtime E2E remains pending plan 13.
 
 Progress: [█░░░░░░░░░] 9%
 
@@ -112,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T09:06:07.134Z
-Stopped at: Phase 21.1 research, UI and patterns complete; plans pending
+Last session: 2026-10-11T12:56:00Z
+Stopped at: Phase 21.1 executing 09; plans 01–08 and 12 complete. Phase 24 prepared and waits for 21.1.
 Resume file: .planning/phases/21.1-default-time-zone/21.1-CONTEXT.md
