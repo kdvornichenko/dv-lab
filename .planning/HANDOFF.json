@@ -1,12 +1,12 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T17:04:59.913Z",
+	"timestamp": "2026-10-11T17:43:46.169250+00:00",
 	"phase": "24-google-calendar-connection-and-outbound-sync",
 	"phase_name": "Google Calendar Connection and Outbound Sync",
 	"phase_dir": ".planning/phases/24-google-calendar-connection-and-outbound-sync",
-	"plan": "24-05 / wave 4",
+	"plan": "24-06 / wave 5",
 	"task": 0,
-	"total_tasks": 0,
+	"total_tasks": 3,
 	"status": "executing",
 	"completed_tasks": [
 		"Phase21.1 implemented, native verification passed20/20 and5/5, PR8 mergedc1ddae4 after all3green CI checks",
@@ -19,18 +19,22 @@
 		"24-02 contracts/eighttables merged; wave1 yarn typecheck5/5exit0; native schema/ui gatesblockfalse; codebasegate skipped(noSTRUCTURE). PublicE2E6passed reused; broadbuild/test reserved13 byprojectpolicy.",
 		"24-13 Task1: read-only quality CLI integrated from15fa28d;23 files/203 functions,CC14/cognitive13/Halstead27/368lines. Exact commands/fingerprints in private STATE_DIR24-task1-result.md. Plan13 remainingtasks pending.",
 		"24-03 integrated:31b3c40,a21ea47,f7ef02c. Exactapprovedpins installed; additive8tables+singletonqueue; devmigration twiceexit0; appmaintenanceerrors0 andCREATEfalse; typecheckexit0. TestDB/Google/deploy unverified.",
-		"24-04 source integrated from5456b45: OAuth/crypto/refresh/Disconnect. Three local negative cases PASS; two OAuth cases source-ready/unexecuted; provider/fault cases still require authoring and execution in14. Caddy unverified. Parent review findings closed.",
-		"24-13 Task2 CLI portion integrated from36ebe42: pages/day0/day8 validates private evidence. Static checks PASS. Actual observer instrumentation, E2E and external provider proof remain pending."
+		"24-04 source integrated: OAuth, crypto, refresh and disconnect. Three local negative E2E passed. Real consent/provider/fault cases remain open for incremental execution on the now-authorized prelaunch target.",
+		"24-13 partial: quality CLI, acceptance CLI and actual consent/refresh/provider-window/public-response observation source integrated. Public evidence E2E source-ready; real provider/runtime proof pending.",
+		"24-05 source integrated: 70d47e8,9314fa9,f788f43,892dff0. Full windows, next prefix, history eligibility. Disconnected E2E 1 passed. Connected/history/fault journeys remain unverified; authoring gaps are explicit in SUMMARY.",
+		"24-12 partial: Settings connection UI a518af3 integrated. Static checks passed; runtime/browser scenarios unexecuted. Command controller and other UI tasks remain open.",
+		"CI 69a43dd publishes sha-tagged images for gsd/phase-* pushes only after Verify; latest remains limited to the default branch. Not yet pushed or deployed."
 	],
 	"remaining_tasks": [
-		"Execute24-05 through24-12 in accepted dependency order, then finish24-13 readiness/observer/E2E",
-		"Complete native verification and authorized PR cycle;24-14 requires actual operator/runtime authority and real Production/day8 evidence"
+		"Execute 24-06 through 24-11 and finish the remaining 24-12 command/UI scope in accepted dependency order.",
+		"Finish 24-13 checks, missing E2E journeys and real provider fault/recovery proof. Run incremental E2E when the exact candidate and prelaunch target are attested.",
+		"Complete authorized PR/release cycle and actual 24-14 Production/day0/day8 evidence. Do not substitute static/source proof for runtime results."
 	],
 	"blockers": [],
 	"human_actions_pending": [
 		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
 		"After Phase 25: real VN midnight and final Earlier panel removal; explicitly deferred by the owner, still unverified",
-		"Server guy: deploy phase 21 after merge (two migrations, breaking contract, paired api/web release)"
+		"Supply the recoverable private OAuth client input if Server guy cannot locate it; perform actual consent with the separate TEST Google account after target readiness."
 	],
 	"decisions": [
 		"Phase order 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26",
@@ -39,9 +43,10 @@
 		"Today and opening-balance lesson dates follow the current default zone",
 		"Only public-interface E2E tests may be extended",
 		"Google is the event source from Phase24; no schedule without connection",
-		"No saved confirmation before Google response; temporary outage shows read-only last-known state"
+		"No saved confirmation before Google response; temporary outage shows read-only last-known state",
+		"Current dv-lab.dev and its existing database are authorized for prelaunch synthetic E2E; separate environment is deferred until full Calendar and chat testing. Keep exact build/database attestation and preserve unrelated data."
 	],
 	"uncommitted_files": [],
-	"next_action": "Execute24-05 in agent-24-contracts after fast-forward. Sole runtime/DB writer05. Public next consumer proof belongs06; real provider journeys await authorized synthetic identities and matching HTTPS attestation.",
-	"context_notes": "Implementation base8116e48; immutable86path baseline unchanged. Plans01–04 source integrated. 03 existing_dev migrations and queue maintenance proved; _test not yet migrated. Exact approved dependencies pg-boss12.37.1,googleapis185.0.0,@opentelemetry/api1.9.1 installed. 04 TS source checks passed; Caddy validation/metrics unsupported locally. WINDOWS7 tracks OAuth authoring/execution gaps;8 tracks Caddy. Native wave3 gates exit0/blockfalse but schema detector foundnoORM, UI degraded(no-task-commit-rows), codebase skipped(noSTRUCTURE); these are not runtime proof. Quality Task13.1 complete. Task13.2 acceptance CLI complete only: input records are not authenticated provider evidence, observer instrumentation and E2E pending. No full build/test before13, no deployment/Google writes/new environments/CUA or file deletions. apps/web/AGENTS.md and milestone.lock preserved untracked."
+	"next_action": "Execute 24-06 from the integrated parent commit. Arendt prepares narrow attested-main E2E database access; generic SQL remains dev/test only. Server guy prepares the existing target and OAuth. Coordinate one runtime/fixture writer and an exact verified candidate SHA before live tests.",
+	"context_notes": "Base8116e48; immutable86path baseline unchanged. Plans01–05 source integrated. Native wave4 gates exit0/blockfalse; schema detector foundnoORM, UI degraded(no-task-commit-rows), codebase skipped(noSTRUCTURE), not runtime proof. API tsc after integration passed. Partial12 Settings and13 actual observer hooks are integrated, not whole-plan completion. Current user permits synthetic fixtures on existing prelaunch dv-lab.dev and its database and full TEST PRIMARY event/disconnect/reconnect cycle. Consent/client inputs, build/database attestation and actual runtime lease are still required. Server guy owns external config/deployment. No separate environment, CUA, file deletion or unrelated data changes. Full local build/test remains13; CI retains its normal Verify/build jobs. apps/web/AGENTS.md and milestone.lock preserved."
 }

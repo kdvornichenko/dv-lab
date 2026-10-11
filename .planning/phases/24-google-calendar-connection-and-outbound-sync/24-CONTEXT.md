@@ -1,7 +1,7 @@
 # Phase 24: Google Calendar Connection and Outbound Sync — Context
 
 **Gathered:** 2026-10-11
-**Status:** Preparation complete: checked Google-authoritative plans; implementation depends on Phase 21.1
+**Status:** Implementation active; Phase 21.1 implemented and merged
 
 <domain>
 ## Phase Boundary
@@ -10,7 +10,7 @@ Google Calendar — источник событий. dv-lab читает и по
 
 Требования: GCAL-01, GCAL-02, GCAL-03, GCAL-09, GCAL-10. Шесть критериев находятся в `.planning/ROADMAP.md`, раздел Phase 24. Публичные страницы и Production относятся к GCAL-01 и критерию 6.
 
-Пользователь разрешил начать подготовку 24 параллельно 21.1. Сейчас выполняются только исследование, UI-контракт и планирование. Код 21.1 ещё не реализован; рабочие сигнатуры зон нельзя выдавать за существующий код.
+Реализация Phase 24 использует выполненную Phase 21.1 и её действующие сигнатуры зон. Исследование, UI-контракт и проверенные планы приняты.
 
 В Phase 24 входит обычное чтение Google events для окна календаря и обновление проекции после подтверждённой команды. Вне фазы: постоянная доставка внешних изменений через watch channels/syncToken, обработка 410, matching/assign/ignore внешних событий и nightly reconciliation — Phase 25. Чат — 22–23. Выкатка и изменение OAuth Console — отдельные внешние действия.
 </domain>
@@ -20,6 +20,7 @@ Google Calendar — источник событий. dv-lab читает и по
 
 ### Принятые границы
 
+- **D-15 — Prelaunch target:** Владелец разрешил тестировать текущий `https://dv-lab.dev` и его базу: проект ещё не запущен и не используется. Отдельный тестовый контур отложен до полной проверки календаря и чата. Допуск к основной базе ограничен E2E с явной приватной аттестацией origin, точного SHA и persistence fingerprint до записи синтетических фикстур. Общий разовый SQL сохраняет ограничение `_dev`/`_test`. Существующие данные не сбрасываются; cleanup ограничен доказанно принадлежащими проверке фикстурами. Server guy готовит текущий runtime и OAuth и выкатывает согласованный проверенный SHA через существующий release process. Callback D-03 сохраняется. Реальный consent отдельного Google-аккаунта выполняет владелец; разрешён полный цикл синтетических событий PRIMARY и disconnect/reconnect этого grant.
 - **D-01:** Google Calendar — источник истины уже в Phase 24; фазы идут 21 → 21.1 → 24 → 25 → 22 → 23 → 26. Полная ручная приёмка календаря проводится после двухсторонней синхронизации.
 - **D-02:** OAuth обрабатывает API. Refresh token хранится зашифрованным; браузер, URL логов и публичные артефакты его не получают. Calendar OAuth не заменяет существующий вход в приложение.
 - **D-03:** Callback уже задан как `https://dv-lab.dev/api/google/callback`. Его нельзя молча заменить. Calendar API включён; заявленные scopes — `calendar.events` и `calendar.calendarlist.readonly`. Client credentials сохранены вне репозитория. При подготовке секреты не требуются и не читаются.

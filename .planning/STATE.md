@@ -6,15 +6,15 @@ current_phase: 24
 current_phase_name: Google Calendar Connection and Outbound Sync
 status: executing
 stopped_at: Phase24 plans01-04 integrated; atomic Calendar reads plan05 next
-last_updated: '2026-10-11T17:04:59.913Z'
+last_updated: '2026-10-11T17:42:35.783Z'
 last_activity: 2026-10-11
 last_activity_desc: OAuth source and acceptance CLI integrated; provider evidence pending
-state_head: 51caf715edd5231595c5bf9f81a575d99e47f658
+state_head: feb466e56cf81be51cba77c2d6b9f2ca7003cba1
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 104
-  completed_plans: 94
+  completed_plans: 95
   percent: 18
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 24 (Google Calendar Connection and Outbound Sync) — EXECUTING
-Plan: 5 of 14
+Plan: 6 of 14
 Status: Ready to execute
-Last activity: 2026-10-11 — Plans01–04 source complete;05 next;13Task1 and Task2 CLI portion complete
+Last activity: 2026-10-12 — Plans01–05 source complete;06 next;12 Settings and13 observer source integrated; real-provider verification pending
 
 Progress: [██░░░░░░░░] 18%
 
@@ -81,6 +81,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
 - [v2.0 roadmap, owner decision 2026-10-11]: After Phase 21, default time zone becomes a setting before Google Calendar (24-25), then chat (22-23), then IELTS (26). Calendar UAT waits for full Google sync.
+- [Phase 24, owner decision 2026-10-12]: Current dv-lab.dev and its database are the authorized prelaunch test target. Use synthetic fixtures and a separate Google PRIMARY account after exact build/persistence attestation. A separate test environment is deferred until Calendar and chat are fully tested. Server guy owns target preparation and coordinated release.
 - [v2.0 roadmap]: The manual schedule (Phase 20) comes before chat because chat marks and moves lessons; Google Calendar (Phases 24-25) builds on the same lesson, series and exception model.
 - [v2.0 roadmap]: Requirements placed by their last dependency: ACCT-04 in Phase 19 (cards), CARD-04 in Phase 20 (schedule), SHELL-05 in Phase 21, SHELL-03, SHELL-04 and CARD-05 in Phase 23 (chat entry points).
 - [v2.0]: Calendar follows CODE-AUDIT.md: deterministic event ids, one writer per lesson, `events.watch` and `syncToken`, `410` triggers a full resync, series plus occurrence exceptions, Google wins.
@@ -113,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T15:40:59Z
-Stopped at: Phase24 wave1 ready; Phase21.1 merged and verified
+Last session: 2026-10-11T17:42:00Z
+Stopped at: Phase24 Plan05 source integrated;06 next; live prelaunch target preparation active
 Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md
