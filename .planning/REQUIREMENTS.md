@@ -66,11 +66,11 @@ Requirements for milestone v2.0 Unified dv-lab. Each maps to a roadmap phase. Th
 
 ### Default Time Zone
 
-- [ ] **TZ-01**: The teacher confirms an account-level default time zone in Settings; new accounts start with Vietnam. Cancel or failed save leaves the value unchanged.
-- [ ] **TZ-02**: Lessons and series persist their creation zone. Existing rows stay in Vietnam; new rows use the default. Changing the setting preserves existing instants, rules and occurrence identities.
-- [ ] **TZ-03**: All schedule and lesson displays use the default zone. Different creation zones appear in details; recurrences preserve wall time in their stored zone across daylight saving changes.
-- [ ] **TZ-04**: Today and lesson accounting dates follow the default zone, including the opening-balance boundary. Date-only payment values do not shift.
-- [ ] **TZ-05**: The browser's second zone stays distinct from the default and synchronized between Settings and schedule. On collision, a successful default-zone change swaps in the old default as second.
+- [x] **TZ-01**: The teacher confirms an account-level default time zone in Settings; new accounts start with Vietnam. Cancel or failed save leaves the value unchanged.
+- [x] **TZ-02**: Lessons and series persist their creation zone. Existing rows stay in Vietnam; new rows use the default. Changing the setting preserves existing instants, rules and occurrence identities.
+- [x] **TZ-03**: All schedule and lesson displays use the default zone. Different creation zones appear in details; recurrences preserve wall time in their stored zone across daylight saving changes.
+- [x] **TZ-04**: Today and lesson accounting dates follow the default zone, including the opening-balance boundary. Date-only payment values do not shift.
+- [x] **TZ-05**: The browser's second zone stays distinct from the default and synchronized between Settings and schedule. On collision, a successful default-zone change swaps in the old default as second.
 
 ### Google Calendar
 
@@ -176,11 +176,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCHED-03    | Phase 20   | Pending  |
 | SCHED-04    | Phase 20   | Pending  |
 | SCHED-05    | Phase 20   | Pending  |
-| TZ-01       | Phase 21.1 | Pending  |
-| TZ-02       | Phase 21.1 | Pending  |
-| TZ-03       | Phase 21.1 | Pending  |
-| TZ-04       | Phase 21.1 | Pending  |
-| TZ-05       | Phase 21.1 | Pending  |
+| TZ-01       | Phase 21.1 | Complete |
+| TZ-02       | Phase 21.1 | Complete |
+| TZ-03       | Phase 21.1 | Complete |
+| TZ-04       | Phase 21.1 | Complete |
+| TZ-05       | Phase 21.1 | Complete |
 | GCAL-01     | Phase 24   | Pending  |
 | GCAL-02     | Phase 24   | Pending  |
 | GCAL-03     | Phase 24   | Pending  |
@@ -219,4 +219,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 ---
 
 _Requirements defined: 2026-10-09_
-_Last updated: 2026-10-11 after adding Phase 21.1 before Google Calendar_
+_Last updated: 2026-10-11 after verifying TZ-01…TZ-05 in Phase 21.1_

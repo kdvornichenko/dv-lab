@@ -13,7 +13,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 
 ### v2.0 Unified dv-lab (In Progress)
 
-**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI; preparation of 21.1 and 24 remains separate from implementation.
+**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and awaits its PR merge.
 
 **Phase Numbering:**
 
@@ -25,7 +25,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [ ] **Phase 19: Student Cards and Vault Import** - Cards with sections, vocabulary and payments; all 25 vault students imported
 - [ ] **Phase 20: Schedule** - Week grid with single lessons, weekly series and occurrence exceptions
 - [x] **Phase 21: Lesson Accounting and Today** - Lesson marks deduct minutes by shared core rules; Today and "pays soon" from real data (completed 2026-10-11)
-- [ ] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates
+- [x] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates (completed 2026-10-11)
 - [ ] **Phase 22: Chat with Mentions and Quick Marks** - Conversations, `@student` mentions, instant marks with undo, answers from data, budget cap
 - [ ] **Phase 23: Confirmed Chat Changes and Entry Points** - Payments, new students, deletions and bulk moves after confirmation; palette, profile and phone layouts
 - [ ] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check
@@ -326,7 +326,7 @@ Plans:
 3. Schedule, Today, next lesson, lesson dialogs and time labels use the default zone. A different creation zone appears in lesson/series details. Recurrences preserve wall time in their stored zone across daylight saving changes.
 4. Today and lesson dates used at the opening-balance boundary use the account zone. A near-midnight lesson can change accounting day after a zone change; forms and API agree. Payment date-only values remain dates.
 5. The second zone remains a browser preference and differs from the default. Choosing the second zone as default makes the old default second, only after a successful save. Settings and the schedule toolbar stay synchronized.
-   **Plans:** 12/13 plans executed, 9 waves; independently verified
+   **Plans:** 13/13 plans complete, 9 waves; independently verified
    **UI hint:** yes
    **Design:** Accepted default-zone design introduced in v37; current local copy v40, `SettingsGeneral`, `ZoneChangeDialog`, `TimePair`, `WeekGrid`, `LessonDialog`, `TimeZonePicker`. The old “after 23” note in the design is superseded by this execution order.
 
@@ -369,7 +369,7 @@ Plans:
 
 **Wave 9** _(blocked on Wave 8 completion)_
 
-- [ ] 21.1-13-PLAN.md — Единственный final gate: quality, regression и public E2E
+- [x] 21.1-13-PLAN.md — Единственный final gate: quality, regression и public E2E
 
 ### Phase 22: Chat with Mentions and Quick Marks
 
@@ -466,16 +466,16 @@ Plans:
 **Execution Order:**
 17 → 18 → 19 → 20 → 21 → 21.1 → 24 → 25 → 22 → 23 → 26
 
-| Phase                                            | Milestone | Plans Complete | Status           | Completed  |
-| ------------------------------------------------ | --------- | -------------- | ---------------- | ---------- |
-| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress      |            |
-| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress      |            |
-| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress      |            |
-| 20. Schedule                                     | v2.0      | 10/10          | In Progress      |            |
-| 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete         | 2026-10-11 |
-| 21.1. Default Time Zone                          | v2.0      | 12/13          | In Progress      | -          |
-| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Not started      | -          |
-| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started      | -          |
-| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started      | -          |
+| Phase                                            | Milestone | Plans Complete | Status      | Completed  |
+| ------------------------------------------------ | --------- | -------------- | ----------- | ---------- |
+| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress |            |
+| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress |            |
+| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress |            |
+| 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
+| 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
+| 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
+| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started | -          |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Not started | -          |
+| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started | -          |
+| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started | -          |
