@@ -49,7 +49,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-/apps/web/AGENTS.md
 
 .claude
 .gsd
