@@ -175,6 +175,33 @@ function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
 	return left.key < right.key ? -1 : left.key > right.key ? 1 : 0
 }
 
+function naturalBlock(occurrence: Occurrence, naturalDurationMinutes: number): ScheduleBlock {
+	const away = movedAway(occurrence)
+	return {
+		key: occurrence.key,
+		ref: occurrence.ref,
+		studentId: occurrence.studentId,
+		startsAt: occurrence.naturalStart,
+		durationMinutes: away ? naturalDurationMinutes : occurrence.durationMinutes,
+		status: away ? 'moved' : occurrence.status,
+		movedTo: away ? occurrence.startsAt : null,
+		movedFrom: null,
+	}
+}
+
+function destinationBlock(occurrence: Occurrence): ScheduleBlock {
+	return {
+		key: occurrence.key,
+		ref: occurrence.ref,
+		studentId: occurrence.studentId,
+		startsAt: occurrence.startsAt,
+		durationMinutes: occurrence.durationMinutes,
+		status: occurrence.status === 'cancelled' ? 'cancelled' : 'scheduled',
+		movedTo: null,
+		movedFrom: occurrence.naturalStart,
+	}
+}
+
 export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }): ScheduleBlock[] {
 	const { series, exceptions, lessons, from, to } = input
 	const index = exceptionIndex(exceptions)
@@ -184,17 +211,7 @@ export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }):
 		for (const rule of series) {
 			const occurrence = occurrenceAt(rule, date, index.get(seriesKey(rule.id, date)))
 			if (occurrence === null || !inWindow(occurrence.naturalStart, from, to)) continue
-			const away = movedAway(occurrence)
-			blocks.push({
-				key: occurrence.key,
-				ref: occurrence.ref,
-				studentId: occurrence.studentId,
-				startsAt: occurrence.naturalStart,
-				durationMinutes: away ? rule.durationMinutes : occurrence.durationMinutes,
-				status: away ? 'moved' : occurrence.status,
-				movedTo: away ? occurrence.startsAt : null,
-				movedFrom: null,
-			})
+			blocks.push(naturalBlock(occurrence, rule.durationMinutes))
 		}
 	}
 	for (const exception of exceptions) {
@@ -203,16 +220,7 @@ export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }):
 		if (rule === undefined) continue
 		const occurrence = occurrenceAt(rule, exception.originalOn, exception)
 		if (occurrence === null || !movedAway(occurrence) || !inWindow(occurrence.startsAt, from, to)) continue
-		blocks.push({
-			key: occurrence.key,
-			ref: occurrence.ref,
-			studentId: occurrence.studentId,
-			startsAt: occurrence.startsAt,
-			durationMinutes: occurrence.durationMinutes,
-			status: occurrence.status === 'cancelled' ? 'cancelled' : 'scheduled',
-			movedTo: null,
-			movedFrom: occurrence.naturalStart,
-		})
+		blocks.push(destinationBlock(occurrence))
 	}
 	for (const lesson of lessons) {
 		if (!inWindow(lesson.startsAt, from, to)) continue
