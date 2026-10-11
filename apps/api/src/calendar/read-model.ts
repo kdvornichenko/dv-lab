@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 
 import {
 	googleScheduleWindow,
@@ -7,11 +7,13 @@ import {
 	type CalendarReadStatus,
 	type GoogleConnectionSnapshot,
 	type GoogleScheduleWindow,
+	type NextLessonRead,
 } from '@dv-lab/contracts'
-import { googleReadEvents, googleReadWindows, type DbExecutor } from '@dv-lab/db'
+import { googleReadEvents, googleReadWindows, googleNextLessons, type DbExecutor } from '@dv-lab/db'
 
 import { readConnection } from './connection.ts'
 import { findConnection } from './credentials.ts'
+import type { ConnectionRow } from './credentials.ts'
 import {
 	currentRead,
 	eventVersion,
@@ -19,6 +21,7 @@ import {
 	type CalendarReadContext,
 	type ReadEventRow,
 	type WindowSelection,
+	type ReadReceipt,
 } from './read-state.ts'
 
 export function readIssue(connection: GoogleConnectionSnapshot, context: CalendarReadContext): CalendarIssue {
@@ -143,4 +146,89 @@ export async function readCalendarWindow(
 		series,
 		write: blocked ? { state: 'blocked', reason: blocked } : { state: 'ready' },
 	})
+}
+
+function validReceipt(context: CalendarReadContext, connection: ConnectionRow | undefined): ReadReceipt | null {
+	const receipt = currentRead(context)
+	if (!connection || !receipt || typeof receipt === 'string') return null
+	return receipt.connectionId === connection.id &&
+		receipt.generation === connection.generation &&
+		receipt.revision === connection.snapshotRevision &&
+		connection.state === 'connected'
+		? receipt
+		: null
+}
+
+function nextValue(
+	row: typeof googleNextLessons.$inferSelect,
+	context: CalendarReadContext,
+	connection: ConnectionRow,
+	receipt: ReadReceipt | null,
+	reason: CalendarIssue
+): NextLessonRead {
+	const current = row.revision === connection.snapshotRevision && row.generation === connection.generation
+	const fresh = Boolean(receipt && current && receipt.windowId === null)
+	const stamp = { fetchedAt: row.checkedAt.toISOString(), revision: row.revision.toString() }
+	const status: CalendarReadStatus = fresh ? { ...stamp, state: 'fresh' } : { ...stamp, state: 'last_known', reason }
+	if (!row.completePrefix || row.result === 'unknown')
+		return { result: 'unknown', startsAt: null, status: { state: 'unavailable', reason } }
+	if (!current || row.asOf > context.now)
+		return { result: 'unknown', startsAt: null, status: { ...stamp, state: 'last_known', reason } }
+	if (row.result === 'none') return { result: 'none', startsAt: null, status }
+	if (!row.startsAt || row.startsAt < context.now)
+		return { result: 'unknown', startsAt: null, status: { ...stamp, state: 'last_known', reason } }
+	return { result: 'known', startsAt: row.startsAt.toISOString(), status }
+}
+
+export async function readNextLessons(
+	executor: DbExecutor,
+	context: CalendarReadContext,
+	studentIds: readonly string[]
+): Promise<ReadonlyMap<string, NextLessonRead>> {
+	const results = new Map<string, NextLessonRead>()
+	if (!studentIds.length) return results
+	const connection = await readConnection(executor, context.accountId)
+	const row = await findConnection(executor, context.accountId)
+	const reason = readIssue(connection, context)
+	const receipt = validReceipt(context, row)
+	const proofs = row
+		? await executor
+				.selectDistinctOn([googleNextLessons.studentId])
+				.from(googleNextLessons)
+				.where(
+					and(
+						eq(googleNextLessons.accountId, context.accountId),
+						eq(googleNextLessons.connectionId, row.id),
+						inArray(googleNextLessons.studentId, [...studentIds])
+					)
+				)
+				.orderBy(googleNextLessons.studentId, desc(googleNextLessons.revision), desc(googleNextLessons.checkedAt))
+		: []
+	const latest = new Map(proofs.map((proof) => [proof.studentId, proof]))
+	for (const studentId of studentIds) {
+		if (connection.pendingCommandCount) {
+			results.set(studentId, {
+				result: 'unknown',
+				startsAt: null,
+				status: { state: 'unavailable', reason: 'command_pending' },
+			})
+			continue
+		}
+		if (receipt?.emptyStudentIds.includes(studentId)) {
+			results.set(studentId, {
+				result: 'none',
+				startsAt: null,
+				status: { state: 'fresh', fetchedAt: receipt.checkedAt.toISOString(), revision: receipt.revision.toString() },
+			})
+			continue
+		}
+		const proof = latest.get(studentId)
+		results.set(
+			studentId,
+			row && proof
+				? nextValue(proof, context, row, receipt, reason)
+				: { result: 'unknown', startsAt: null, status: { state: 'unavailable', reason } }
+		)
+	}
+	return results
 }

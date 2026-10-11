@@ -61,10 +61,25 @@ function localRef(event: ProviderEvent, mapping: MappingRow, snapshot: MappingSn
 	const rule = snapshot.series.get(mapping.localEntityId)
 	const original = event.originalStartTime
 	if (!rule || !original || !('dateTime' in original)) return null
+	if (mapping.entityKind === 'occurrence' && mapping.recurringEventId !== event.recurringEventId) return null
 	const originalOn = scheduleDate(new Date(original.dateTime), rule.timeZone)
 	if (mapping.originalOn && mapping.originalOn !== originalOn) return null
 	if (!occurrenceAt(rule, originalOn)) return null
 	return { kind: 'series', seriesId: mapping.localEntityId, originalOn }
+}
+
+export function pendingStudents(snapshot: MappingSnapshot): ReadonlySet<string> {
+	const students = new Set(snapshot.mappings.filter((row) => row.state === 'reserved').map((row) => row.studentId))
+	for (const command of snapshot.commands) {
+		if (command.plan.input.operation === 'create') students.add(command.plan.input.studentId)
+		for (const ref of command.plan.affectedRefs) {
+			const entityId = ref.kind === 'single' ? ref.lessonId : ref.seriesId
+			for (const mapping of snapshot.mappings) {
+				if (mapping.localEntityId === entityId) students.add(mapping.studentId)
+			}
+		}
+	}
+	return students
 }
 
 export function bindEvent(event: ProviderEvent, snapshot: MappingSnapshot): BoundEvent {

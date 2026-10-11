@@ -15,6 +15,8 @@ export type ReadReceipt = {
 	revision: bigint
 	windowId: string | null
 	series: CalendarSeriesContext[]
+	checkedAt: Date
+	emptyStudentIds: readonly string[]
 }
 const receipts = new WeakMap<CalendarReadContext, ReadReceipt | CalendarIssue>()
 

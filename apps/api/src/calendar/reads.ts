@@ -3,9 +3,9 @@ import { readSnapshot, type Database } from '@dv-lab/db'
 import type { Credentials } from './credentials.ts'
 import { loadMappings } from './event-mapping.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
-import { completeWindow, type ReadTransport } from './read-pages.ts'
+import { completeWindow, nextPrefix, type ReadTransport } from './read-pages.ts'
 import { recordRead, type CalendarReadContext, type CalendarReadSelection } from './read-state.ts'
-import { publishWindow } from './read-store.ts'
+import { publishWindow, publishNext } from './read-store.ts'
 import { readSeriesContexts } from './series-context.ts'
 
 export type { CalendarReadContext, CalendarReadSelection } from './read-state.ts'
@@ -26,7 +26,12 @@ export function createCalendarReads(deps: { db: Database; gateway: GoogleGateway
 					const mappings = await readSnapshot(access.db, (executor) =>
 						loadMappings(executor, context.accountId, access.connection.id)
 					)
-					if (selection.kind !== 'window') return
+					if (selection.kind === 'next') {
+						const result = await nextPrefix(transport, context.now, mappings, [...new Set(selection.studentIds)])
+						access.signal.throwIfAborted()
+						await publishNext({ db: access.db, context, connection: access.connection, mappings, ...result })
+						return
+					}
 					const result = await completeWindow(transport, selection.start, selection.end, mappings)
 					const series = await readSeriesContexts(transport, mappings, context.now).catch(() => [])
 					access.signal.throwIfAborted()

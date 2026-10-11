@@ -1,6 +1,6 @@
 import { startOfZonedDay } from '@dv-lab/core'
 
-import { bindEvent, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
+import { bindEvent, pendingStudents, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import type { EventQuery, ProviderEvent } from './provider-events.ts'
 
@@ -40,7 +40,7 @@ export async function traverseEvents(
 	const tokens = new Set<string>()
 	let pageToken: string | undefined
 	let timeZone: string | undefined
-	do {
+	for (;;) {
 		transport.signal.throwIfAborted()
 		const page = await transport.gateway.events(
 			transport.accessToken,
@@ -53,14 +53,17 @@ export async function traverseEvents(
 		)
 		if (timeZone && page.timeZone !== timeZone) throw new CalendarFault('invalid_provider_data')
 		timeZone = page.timeZone
+		for (const eventId of page.cancelledIds) {
+			if (order.ids.has(eventId)) throw new CalendarFault('invalid_provider_data')
+			order.ids.add(eventId)
+		}
 		validateOrder(page.events, order)
 		pageToken = page.nextPageToken
 		if (pageToken && tokens.has(pageToken)) throw new CalendarFault('invalid_provider_data')
 		if (pageToken) tokens.add(pageToken)
 		const enough = consume(page.events)
 		if (!pageToken || enough) return { endOfList: !pageToken, timeZone }
-	} while (pageToken)
-	throw new CalendarFault('invalid_provider_data')
+	}
 }
 
 export async function completeWindow(transport: ReadTransport, start: Date, end: Date, snapshot: MappingSnapshot) {
@@ -96,4 +99,64 @@ export async function seriesPrefix(
 		return found.size === wanted.size
 	})
 	return found
+}
+
+export type NextProof = {
+	studentId: string
+	result: 'known' | 'none' | 'unknown'
+	startsAt: Date | null
+	completePrefix: boolean
+	endOfList: boolean
+}
+
+export async function nextPrefix(
+	transport: ReadTransport,
+	now: Date,
+	snapshot: MappingSnapshot,
+	studentIds: readonly string[]
+) {
+	const bound = new Set(snapshot.mappings.filter((row) => row.state !== 'retired').map((row) => row.studentId))
+	const pending = pendingStudents(snapshot)
+	const emptyStudentIds = studentIds.filter((id) => !bound.has(id) && !pending.has(id))
+	const wanted = new Set(studentIds.filter((id) => bound.has(id) || pending.has(id)))
+	const searchable = new Set([...wanted].filter((id) => !pending.has(id)))
+	const found = new Map<string, Date>()
+	let endOfList = false
+	if (searchable.size) {
+		try {
+			const result = await traverseEvents(transport, { timeMin: now.toISOString() }, (page) => {
+				for (const raw of page) {
+					const event = bindEvent(raw, snapshot)
+					const start = eventStart(event)
+					if (event.bindingKind !== 'lesson' || event.status === 'cancelled' || !event.studentId) continue
+					if (start === null || start < now.getTime() || !searchable.has(event.studentId)) continue
+					if (!found.has(event.studentId)) found.set(event.studentId, new Date(start))
+				}
+				return found.size === searchable.size
+			})
+			endOfList = result.endOfList
+		} catch (error) {
+			if (error instanceof CalendarFault && error.code !== 'provider_unavailable') throw error
+			if (!transport.signal.aborted && !(error instanceof CalendarFault)) throw error
+		}
+	}
+	const proofs: NextProof[] = [...wanted].map((studentId) => {
+		if (pending.has(studentId))
+			return {
+				studentId,
+				startsAt: null,
+				result: 'unknown',
+				completePrefix: false,
+				endOfList: false,
+			}
+		const startsAt = found.get(studentId) ?? null
+		return {
+			studentId,
+			startsAt,
+			result: startsAt ? 'known' : endOfList ? 'none' : 'unknown',
+			completePrefix: Boolean(startsAt) || endOfList,
+			endOfList,
+		}
+	})
+	return { proofs, emptyStudentIds }
 }

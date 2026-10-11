@@ -1,10 +1,18 @@
 import { and, eq, sql } from 'drizzle-orm'
 
 import type { CalendarSeriesContext } from '@dv-lab/contracts'
-import { googleConnections, googleReadEvents, googleReadWindows, type Database } from '@dv-lab/db'
+import {
+	googleConnections,
+	googleReadEvents,
+	googleReadWindows,
+	googleNextLessons,
+	type Database,
+	type DbExecutor,
+} from '@dv-lab/db'
 
 import type { ConnectionRow } from './credentials.ts'
 import { loadMappings, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
+import type { NextProof } from './read-pages.ts'
 import { opaqueVersion, recordRead, type CalendarReadContext, type WindowSelection } from './read-state.ts'
 
 export function mappingFingerprint(snapshot: MappingSnapshot): string {
@@ -13,6 +21,29 @@ export function mappingFingerprint(snapshot: MappingSnapshot): string {
 		JSON.stringify(snapshot.commands.toSorted((a, b) => a.id.localeCompare(b.id))),
 		JSON.stringify([...snapshot.series].sort(([a], [b]) => a.localeCompare(b))),
 	])
+}
+
+async function publicationRevision(
+	tx: DbExecutor,
+	context: CalendarReadContext,
+	connection: ConnectionRow,
+	mappings: MappingSnapshot
+) {
+	const [current] = await tx
+		.select()
+		.from(googleConnections)
+		.where(and(eq(googleConnections.id, connection.id), eq(googleConnections.accountId, context.accountId)))
+		.for('update')
+	if (
+		!current ||
+		current.state !== 'connected' ||
+		current.generation !== connection.generation ||
+		current.snapshotRevision !== connection.snapshotRevision
+	)
+		return null
+	const latest = await loadMappings(tx, context.accountId, connection.id)
+	if (mappingFingerprint(latest) !== mappingFingerprint(mappings)) return null
+	return connection.snapshotRevision + 1n
 }
 
 export async function publishWindow(input: {
@@ -29,21 +60,8 @@ export async function publishWindow(input: {
 	if (!connection.calendarId) return
 	const calendarId = connection.calendarId
 	const result = await db.transaction(async (tx) => {
-		const [current] = await tx
-			.select()
-			.from(googleConnections)
-			.where(and(eq(googleConnections.id, connection.id), eq(googleConnections.accountId, context.accountId)))
-			.for('update')
-		if (
-			!current ||
-			current.state !== 'connected' ||
-			current.generation !== connection.generation ||
-			current.snapshotRevision !== connection.snapshotRevision
-		)
-			return null
-		const latest = await loadMappings(tx, context.accountId, connection.id)
-		if (mappingFingerprint(latest) !== mappingFingerprint(input.mappings)) return null
-		const revision = connection.snapshotRevision + 1n
+		const revision = await publicationRevision(tx, context, connection, input.mappings)
+		if (revision === null) return null
 		const [window] = await tx
 			.insert(googleReadWindows)
 			.values({
@@ -84,9 +102,58 @@ export async function publishWindow(input: {
 		...result,
 		connectionId: connection.id,
 		generation: connection.generation,
+		checkedAt: new Date(),
+		emptyStudentIds: [],
 		series: input.series.map((item) => ({
 			...item,
 			version: opaqueVersion([item.version, connection.id, connection.generation, result.revision]),
 		})),
+	})
+}
+
+export async function publishNext(input: {
+	db: Database
+	context: CalendarReadContext
+	connection: ConnectionRow
+	mappings: MappingSnapshot
+	proofs: readonly NextProof[]
+	emptyStudentIds: readonly string[]
+}) {
+	const { db, context, connection } = input
+	if (!connection.calendarId) return
+	const calendarId = connection.calendarId
+	const checkedAt = new Date()
+	const revision = await db.transaction(async (tx) => {
+		const revision = await publicationRevision(tx, context, connection, input.mappings)
+		if (revision === null) return null
+		for (let offset = 0; offset < input.proofs.length; offset += 500) {
+			await tx.insert(googleNextLessons).values(
+				input.proofs.slice(offset, offset + 500).map((proof) => ({
+					...proof,
+					accountId: context.accountId,
+					connectionId: connection.id,
+					calendarId,
+					generation: connection.generation,
+					revision,
+					asOf: context.now,
+					checkedAt,
+				}))
+			)
+		}
+		await tx
+			.update(googleConnections)
+			.set({ snapshotRevision: revision, updatedAt: sql`now()` })
+			.where(eq(googleConnections.id, connection.id))
+		return revision
+	})
+	if (revision === null) return recordRead(context, 'external_change')
+	recordRead(context, {
+		connectionId: connection.id,
+		generation: connection.generation,
+		revision,
+		windowId: null,
+		series: [],
+		checkedAt,
+		emptyStudentIds: input.emptyStudentIds,
 	})
 }
