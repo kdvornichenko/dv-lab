@@ -28,7 +28,7 @@ end $$; ${query}`)
 }
 
 async function fixtureCall(request: APIRequestContext, method: string, body: Body | undefined, status: number) {
-	const response = await request.fetch('/settings', { method, data: body })
+	const response = await request.fetch<unknown>('/settings', { method, data: body })
 	try {
 		expect(response.status()).toBe(status)
 		const value: unknown = await response.json()
@@ -90,7 +90,7 @@ on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_le
 			}
 		}
 	} finally {
-		const exit = await server.stop()
+		const exit: unknown = await server.stop()
 		expect(exit).toEqual({ code: 0, signal: null })
 	}
 }
@@ -113,7 +113,7 @@ async function fixtureAccess(
 			await fixtureCall(student, method, body, 403)
 			await fixtureCall(anonymous, method, body, 401)
 		}
-		const response = await teacher.patch('/settings', {
+		const response = await teacher.patch<unknown>('/settings', {
 			headers: { origin: 'https://invalid.example' },
 			data: { defaultTimeZone: MSK, expectedDefaultTimeZone: NY },
 		})
@@ -125,7 +125,7 @@ async function fixtureAccess(
 			extraHTTPHeaders: { origin: server.base, cookie: `${COOKIE_NAME}=${text(token)}` },
 		})
 		try {
-			const logout = await expired.post('/auth/sign-out')
+			const logout = await expired.post<unknown>('/auth/sign-out')
 			expect(logout.status()).toBe(204)
 			await logout.dispose()
 			await fixtureCall(expired, 'PATCH', { defaultTimeZone: MSK, expectedDefaultTimeZone: NY }, 401)
@@ -153,7 +153,7 @@ export async function concurrentSettings(page: Page, factory: APIRequest): Promi
 		expect(await readSettings(second)).toEqual(expected)
 		const stale = await api(second, 'PATCH', '/settings', { defaultTimeZone: MSK, expectedDefaultTimeZone: VN }, 409)
 		expect(text(record(record(stale).error).code)).toBe('default_time_zone_changed')
-		for (const body of [
+		const invalidSettings: Body[] = [
 			{},
 			{ unexpected: true },
 			{ defaultTimeZone: 'Mars/Olympus', expectedDefaultTimeZone: NY },
@@ -161,7 +161,8 @@ export async function concurrentSettings(page: Page, factory: APIRequest): Promi
 			{ expectedDefaultTimeZone: NY },
 			{ defaultTimeZone: MSK, expectedDefaultTimeZone: NY, accountId: 'foreign' },
 			{ paysSoonLessons: 3, unexpected: true },
-		]) {
+		]
+		for (const body of invalidSettings) {
 			await api(first, 'PATCH', '/settings', body, 400)
 			expect(await readSettings(second)).toEqual(expected)
 		}

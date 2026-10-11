@@ -178,7 +178,7 @@ export async function latePaysSoon(page: Page): Promise<void> {
 		if (route.request().method() !== 'PATCH') return route.continue()
 		const body: unknown = route.request().postDataJSON()
 		if (!('paysSoonLessons' in record(body))) return route.continue()
-		const response = await route.fetch()
+		const response = await route.fetch<unknown>()
 		try {
 			expect(response.status()).toBe(200)
 			const value: unknown = await response.json()

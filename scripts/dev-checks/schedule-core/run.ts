@@ -188,6 +188,12 @@ const partTwo = () =>
 		movedTailVectors(expect)
 	})
 
+function parseResult(text: string | undefined): unknown {
+	if (text === undefined) return undefined
+	const value: unknown = JSON.parse(text)
+	return value
+}
+
 function run(cliUrl: string): void {
 	if (process.argv.includes('--child')) {
 		console.log(JSON.stringify({ zone: Intl.DateTimeFormat().resolvedOptions().timeZone, results: partTwo().results }))
@@ -202,8 +208,8 @@ function run(cliUrl: string): void {
 	for (const name of Object.keys(results)) {
 		const got = JSON.stringify(results[name])
 		const wanted = JSON.stringify(expected[name])
-		const actualValue: unknown = got === undefined ? undefined : JSON.parse(got)
-		const expectedValue: unknown = wanted === undefined ? undefined : JSON.parse(wanted)
+		const actualValue = parseResult(got)
+		const expectedValue = parseResult(wanted)
 		check(name, isDeepStrictEqual(actualValue, expectedValue), `got ${got} wanted ${wanted}`)
 	}
 	const newYork = processZone(cliUrl, 'America/New_York')

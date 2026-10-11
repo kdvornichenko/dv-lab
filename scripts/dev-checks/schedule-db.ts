@@ -87,7 +87,7 @@ function zoneMigration(): string {
 function checkZoneMigration(names: string[]): void {
 	for (const name of names) {
 		readFileSync(`${MIGRATIONS}/${name}/migration.sql`, 'utf8')
-		JSON.parse(readFileSync(`${MIGRATIONS}/${name}/snapshot.json`, 'utf8'))
+		JSON.parse(readFileSync(`${MIGRATIONS}/${name}/snapshot.json`, 'utf8')) as unknown
 	}
 	const statements = zoneMigration()
 		.replaceAll('--> statement-breakpoint', '')
@@ -339,7 +339,7 @@ function migrate() {
 	const count = folders().length
 	for (const target of TARGETS) {
 		if (migrationState(target) === 7) verifyBackfill(target)
-		const env = { ...process.env }
+		const env: Record<string, string | undefined> = { ...process.env }
 		delete env.DATABASE_URL
 		delete env.MIGRATOR_DATABASE_URL
 		delete env.NODE_ENV

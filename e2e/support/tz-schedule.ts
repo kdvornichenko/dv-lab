@@ -316,7 +316,7 @@ export async function crossZoneTail(page: Page, fx: Fx, action: 'cut' | 'end'): 
 		expect(fx.occurrenceState(card.id, id, date)).toEqual(lineage[index])
 	await balanceEverywhere(page, fx, card, '8 lessons left', 480)
 	const counts = fx.scheduleCounts(card.id)
-	const repeated = await page.request.post(`/api/schedule/series/${id}/${action === 'cut' ? 'move' : 'end'}`, {
+	const repeated = await page.request.post<unknown>(`/api/schedule/series/${id}/${action === 'cut' ? 'move' : 'end'}`, {
 		data:
 			action === 'cut'
 				? { from, weekday: 3, startTime: '09:00', expectedDefaultTimeZone: KIR }

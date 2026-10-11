@@ -46,7 +46,7 @@ async function profileHeader(page: Page, card: Card, unset: boolean): Promise<vo
 }
 
 async function initialTodayHeading(page: Page): Promise<void> {
-	const response = await page.request.get(`${BASE}/`)
+	const response = await page.request.get<unknown>(`${BASE}/`)
 	try {
 		expect(response.status()).toBe(200)
 		const serverNow = new Date(response.headers()['date'] ?? '')
@@ -122,19 +122,21 @@ async function observeExit(row: Locator): Promise<JSHandle<{ state: ExitState; s
 			const style = getComputedStyle(element)
 			const opacity = Number(style.opacity)
 			if (opacity < 1 && state.firstExitAt === null) state.firstExitAt = now
-			if (state.firstExitAt !== null) {
-				state.maxFrameGap = Math.max(state.maxFrameGap, now - previous)
-				state.intermediateOpacity ||= opacity > 0 && opacity < 1
-				state.panelRetained &&= panel?.isConnected === true
-				state.transformChanged ||= style.transform !== initialTransform
-				for (const animation of element.getAnimations()) {
-					const effect = animation.effect
-					if (!(effect instanceof KeyframeEffect) || effect.target !== element) continue
-					if (Number(effect.getKeyframes().at(-1)?.opacity) !== 0) continue
-					const timing = effect.getTiming()
-					if (typeof timing?.duration === 'number') state.durations.push(timing.duration)
-					if (typeof timing?.delay === 'number') state.delays.push(timing.delay)
-				}
+			if (state.firstExitAt === null) {
+				previous = now
+				return
+			}
+			state.maxFrameGap = Math.max(state.maxFrameGap, now - previous)
+			state.intermediateOpacity ||= opacity > 0 && opacity < 1
+			state.panelRetained &&= panel?.isConnected === true
+			state.transformChanged ||= style.transform !== initialTransform
+			for (const animation of element.getAnimations()) {
+				const effect = animation.effect
+				if (!(effect instanceof KeyframeEffect) || effect.target !== element) continue
+				if (Number(effect.getKeyframes().at(-1)?.opacity) !== 0) continue
+				const timing = effect.getTiming()
+				if (typeof timing?.duration === 'number') state.durations.push(timing.duration)
+				if (typeof timing?.delay === 'number') state.delays.push(timing.delay)
 			}
 			previous = now
 		}
