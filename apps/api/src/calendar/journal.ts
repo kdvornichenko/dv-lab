@@ -31,9 +31,20 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.stage, 0)))
 	const plan = googleCommandPlan.parse(command.plan)
 	const request = googleStageRequest.parse(stage?.request)
-	if (!stage || command.operation !== 'create' || plan.input.operation !== 'create' || request.method !== 'insert')
+	if (
+		!stage ||
+		!['create', 'move', 'cancel', 'restore'].includes(command.operation) ||
+		(request.method !== 'insert' && request.method !== 'patch')
+	)
 		throw new CommandFault('precondition_failed')
-	const prepared: PreparedCalendarCommand = { ...command, operation: 'create', plan, request }
+	if (
+		command.operation !== 'create' &&
+		command.operation !== 'move' &&
+		command.operation !== 'cancel' &&
+		command.operation !== 'restore'
+	)
+		throw new CommandFault('precondition_failed')
+	const prepared: PreparedCalendarCommand = { ...command, plan, request, operation: command.operation }
 	return { prepared, stage }
 }
 
@@ -146,7 +157,7 @@ export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarC
 		kind: 'write',
 		request,
 	})
-	if (command.plan.input.operation !== 'create') throw new CommandFault('invalid_request', 400)
+	if (command.plan.input.operation !== 'create') return
 	for (const reservation of command.plan.reservations) {
 		await tx.insert(googleEventMappings).values({
 			accountId: command.accountId,

@@ -14,6 +14,7 @@ import {
 	occurrenceAt,
 	occurrenceOutcome,
 	localTimeCandidates,
+	canChange,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonExceptions, lessons } from '@dv-lab/db'
 
@@ -207,7 +208,7 @@ export function restoreOccurrence(
 	})
 }
 
-async function saveLesson(
+export async function applyLessonChange(
 	executor: DbExecutor,
 	id: string,
 	set: { startsAt: Date } | { status: 'scheduled' | 'cancelled' }
@@ -239,7 +240,7 @@ export function moveLesson(
 		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
 		if (target === undefined) return { kind: 'nonexistent_local_time' }
 		if (target.getTime() === lesson.startsAt.getTime()) return INVALID
-		return saveLesson(tx, id, { startsAt: target })
+		return applyLessonChange(tx, id, { startsAt: target })
 	})
 }
 
@@ -250,7 +251,7 @@ export function cancelLesson(db: Database, id: string, input: ActionInput, now: 
 		const outcome = await singleOutcome(tx, lesson)
 		const refused = refusal('cancel', outcome, lesson.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
-		return saveLesson(tx, id, { status: 'cancelled' })
+		return applyLessonChange(tx, id, { status: 'cancelled' })
 	})
 }
 
@@ -261,6 +262,31 @@ export function restoreLesson(db: Database, id: string, input: ActionInput, now:
 		const outcome = await singleOutcome(tx, lesson)
 		const refused = refusal('restore', outcome, lesson.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
-		return saveLesson(tx, id, { status: 'scheduled' })
+		return applyLessonChange(tx, id, { status: 'scheduled' })
 	})
+}
+
+export async function prepareLessonChange(
+	executor: DbExecutor,
+	accountId: string,
+	id: string,
+	change: LessonChange,
+	input: MoveInput | ActionInput,
+	now: Date
+) {
+	const lesson = await lockLesson(executor, id)
+	if (!lesson) return NOT_FOUND
+	const outcome = await singleOutcome(executor, lesson)
+	const refused = refusal(change, outcome, lesson.startsAt, input.expectedStartsAt, now)
+	if (refused) return refused
+	let startsAt = lesson.startsAt
+	if (change === 'move' && 'date' in input) {
+		const time = await lockTeacherTimeContext(executor, accountId, input.expectedDefaultTimeZone, now)
+		if (!time.ok) return { kind: time.error }
+		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
+		if (!target) return { kind: 'nonexistent_local_time' as const }
+		if (!canChange(target, now) || target.getTime() === startsAt.getTime()) return INVALID
+		startsAt = target
+	}
+	return { kind: 'ok' as const, lesson, startsAt }
 }

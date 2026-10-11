@@ -18,6 +18,7 @@ import {
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
+import { prepareSingleCommand, type SingleObservation } from './single-command.ts'
 
 export type PreparedCalendarCommand = {
 	id: string
@@ -29,9 +30,9 @@ export type PreparedCalendarCommand = {
 	expectedVersion: string
 	baseRevision: bigint
 	generation: number
-	operation: 'create'
+	operation: 'create' | 'move' | 'cancel' | 'restore'
 	plan: GoogleCommandPlan
-	request: Extract<GoogleStageRequest, { method: 'insert' }>
+	request: Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
 	dispatchDeadline: Date
 	createdAt: Date
 }
@@ -53,6 +54,17 @@ export async function commandWindow(executor: DbExecutor, accountId: string, exp
 }
 
 export async function prepareScheduleCommand(
+	executor: DbExecutor,
+	input: ValidatedCalendarCommand,
+	context: CalendarReadContext,
+	observed?: SingleObservation
+): Promise<PreparedCalendarCommand> {
+	if ((input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') && observed)
+		return prepareSingleCommand(executor, input, context, observed)
+	return prepareCreateCommand(executor, input, context)
+}
+
+async function prepareCreateCommand(
 	executor: DbExecutor,
 	input: ValidatedCalendarCommand,
 	context: CalendarReadContext
@@ -159,6 +171,6 @@ export async function prepareScheduleCommand(
 		plan,
 		request,
 		createdAt: context.now,
-		dispatchDeadline: new Date(context.now.getTime() + 60000),
+		dispatchDeadline: new Date(context.now.getTime() + 30000),
 	}
 }

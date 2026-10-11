@@ -5,7 +5,7 @@ import type { CalendarIssue } from '@dv-lab/contracts'
 import type { GoogleStageRequest } from '@dv-lab/db'
 
 import type { CalendarConfig } from '../config.ts'
-import { insertEventBody, verifyGoogleResult } from './command-result.ts'
+import { insertEventBody, observeGoogleEvent, verifyGoogleResult, type WriteRequest } from './command-result.ts'
 import { parseEventPage, parseMaster, type EventQuery } from './provider-events.ts'
 
 export const CALENDAR_SCOPES = [
@@ -181,7 +181,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 		async confirmedEvent(
 			accessToken: string,
 			calendarId: string,
-			request: Extract<GoogleStageRequest, { method: 'insert' }>,
+			request: WriteRequest,
 			timeZone: string,
 			generation: number,
 			signal: AbortSignal
@@ -192,6 +192,50 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 				google
 					.calendar({ version: 'v3', auth: oauth })
 					.events.get({ calendarId, eventId: request.eventId }, { retry: false })
+			)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+		},
+		async observeEvent(
+			accessToken: string,
+			calendarId: string,
+			eventId: string,
+			timeZone: string,
+			signal: AbortSignal
+		) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const response = await writeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.get({ calendarId, eventId }, { retry: false })
+			)
+			return observeGoogleEvent(response.data, timeZone)
+		},
+		async patch(
+			accessToken: string,
+			calendarId: string,
+			request: Extract<GoogleStageRequest, { method: 'patch' }>,
+			timeZone: string,
+			generation: number,
+			privateProperties: Record<string, string>,
+			signal: AbortSignal
+		) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const body = insertEventBody(request)
+			const response = await writeCall(() =>
+				google
+					.calendar({ version: 'v3', auth: oauth })
+					.events.patch(
+						{
+							calendarId,
+							eventId: request.eventId,
+							sendUpdates: 'none',
+							requestBody: {
+								...body,
+								extendedProperties: { private: { ...privateProperties, ...body.extendedProperties.private } },
+							},
+						},
+						{ retry: false, headers: { 'If-Match': request.ifMatch } }
+					)
 			)
 			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
 		},

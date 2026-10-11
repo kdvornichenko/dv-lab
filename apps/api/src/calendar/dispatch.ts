@@ -32,7 +32,8 @@ async function prepareDispatch(access: CommandAccess, command: PreparedCalendarC
 	access.signal.throwIfAborted()
 	const now = new Date()
 	const start = command.request.payload.start
-	if (command.dispatchDeadline <= now || !('dateTime' in start) || !canChange(new Date(start.dateTime), now))
+	const startsAt = start && 'dateTime' in start ? start.dateTime : command.plan.lineage[0]?.startsAt
+	if (command.dispatchDeadline <= now || !startsAt || !canChange(new Date(startsAt), now))
 		throw new CommandFault('not_applied')
 	await access.db.transaction(async (tx) => {
 		const [connection] = await tx
@@ -55,7 +56,7 @@ async function prepareDispatch(access: CommandAccess, command: PreparedCalendarC
 			startedAt: now.toISOString(),
 			finishedAt: null,
 			outcome: 'dispatching',
-			ifMatch: null,
+			ifMatch: command.request.method === 'patch' ? command.request.ifMatch : null,
 			requestDigest: command.request.digest,
 			httpStatus: null,
 			errorCode: null,
@@ -77,6 +78,23 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 		throw new CommandFault('not_applied')
 	const primary = await gateway.primary(access.accessToken, access.signal)
 	if (primary.id !== command.calendarId) throw new CommandFault('external_change')
+	if (command.request.method === 'patch') {
+		const observed = await gateway.observeEvent(
+			access.accessToken,
+			command.calendarId,
+			command.request.eventId,
+			command.plan.capturedTimeZone,
+			access.signal
+		)
+		const before = command.plan.preconditions.find((item) => item.eventId === command.request.eventId)
+		if (
+			!before ||
+			observed.event.etag !== command.request.ifMatch ||
+			observed.unownedWritableFingerprint !== before.unownedWritableFingerprint
+		)
+			throw new CommandFault('external_change')
+		return observed.privateProperties
+	}
 	const window = await commandWindow(access.db, command.accountId, command.expectedVersion)
 	const before = new Map(command.plan.preconditions.map((event) => [event.eventId, event.etag]))
 	const observed = new Map<string, string>()
@@ -93,6 +111,7 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 	)
 	if (observed.size !== before.size || [...observed].some(([id, etag]) => before.get(id) !== etag))
 		throw new CommandFault('external_change')
+	return {}
 }
 
 function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttempt['outcome'], status: number | null) {
@@ -203,8 +222,9 @@ export async function projectCommand(access: Pick<CommandAccess, 'db' | 'signal'
 
 export async function dispatchCommand(access: CommandAccess, command: CommandRow, gateway: GoogleGateway) {
 	const { prepared, stage } = await preparedCommand(access.db, command)
+	let privateProperties: Record<string, string>
 	try {
-		await checkDispatchWindow(access, prepared, gateway)
+		privateProperties = await checkDispatchWindow(access, prepared, gateway)
 		await prepareDispatch(access, prepared, stage)
 	} catch (error) {
 		if (!(error instanceof CommandFault && error.code === 'command_pending'))
@@ -212,14 +232,25 @@ export async function dispatchCommand(access: CommandAccess, command: CommandRow
 		throw error
 	}
 	try {
-		const result = await gateway.insert(
-			access.accessToken,
-			command.calendarId,
-			prepared.request,
-			prepared.plan.capturedTimeZone,
-			access.connection.generation,
-			access.signal
-		)
+		const result =
+			prepared.request.method === 'patch'
+				? await gateway.patch(
+						access.accessToken,
+						command.calendarId,
+						prepared.request,
+						prepared.plan.capturedTimeZone,
+						access.connection.generation,
+						privateProperties,
+						access.signal
+					)
+				: await gateway.insert(
+						access.accessToken,
+						command.calendarId,
+						prepared.request,
+						prepared.plan.capturedTimeZone,
+						access.connection.generation,
+						access.signal
+					)
 		await acknowledgeCommand(access, prepared, result)
 	} catch (error) {
 		await refusedDispatch(access.db, prepared, error)

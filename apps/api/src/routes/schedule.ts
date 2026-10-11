@@ -5,6 +5,8 @@ import { z } from 'zod'
 import {
 	type ScheduleMarkResponse,
 	createCalendarLessonRequest,
+	moveCalendarLessonRequest,
+	calendarLessonActionRequest,
 	isIsoDate,
 	markLessonRequest,
 	scheduleWeekStart,
@@ -130,10 +132,29 @@ export function scheduleRoutes({ db, calendarReads, calendarCommands }: Schedule
 		}
 	})
 
+	for (const operation of ['move', 'cancel', 'restore'] as const) {
+		routes.post(`/lessons/:id/${operation}`, async (c) => {
+			const id = idParam(c)
+			if (!id) return notFound(c)
+			if (!calendarCommands) return commandRefusal(c, new CalendarFault('connection_required'))
+			try {
+				const context = { accountId: c.get('session').account.id, now: new Date() }
+				const ref = { kind: 'single' as const, lessonId: id }
+				if (operation === 'move') {
+					const input = await readJson(c, moveCalendarLessonRequest)
+					if (!input) return invalidRequest(c)
+					return c.json(await calendarCommands.submitCalendarCommand(context, { operation, ref, input }), 202)
+				}
+				const input = await readJson(c, calendarLessonActionRequest)
+				if (!input) return invalidRequest(c)
+				return c.json(await calendarCommands.submitCalendarCommand(context, { operation, ref, input }), 202)
+			} catch (error) {
+				return commandRefusal(c, error)
+			}
+		})
+	}
+
 	for (const path of [
-		'/lessons/:id/move',
-		'/lessons/:id/cancel',
-		'/lessons/:id/restore',
 		'/series/:id/occurrences/:originalOn/move',
 		'/series/:id/occurrences/:originalOn/cancel',
 		'/series/:id/occurrences/:originalOn/restore',

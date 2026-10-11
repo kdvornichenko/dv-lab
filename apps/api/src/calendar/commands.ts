@@ -4,6 +4,7 @@ import type { CalendarCommandReceipt, CalendarCommandSnapshot, ValidatedCalendar
 import { googleReadEvents, type Database } from '@dv-lab/db'
 
 import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
+import { singleTarget, type SingleCommand } from '../schedule/single-command.ts'
 import type { Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import {
@@ -37,8 +38,10 @@ export function createCalendarCommands(deps: {
 			try {
 				const repeated = await findRequest(access.db, context.accountId, input.input.requestId)
 				if (repeated) return matchingReceipt(repeated, input)
-				if (input.operation !== 'create' || input.input.repeats !== 'once') throw new CommandFault('history_only')
 				if ((await unresolvedCommands(access.db, context.accountId)).length) throw new CommandFault('command_pending')
+				if (input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore')
+					return admitSingle(access, context, input)
+				if (input.operation !== 'create' || input.input.repeats !== 'once') throw new CommandFault('history_only')
 				const window = await commandWindow(access.db, context.accountId, input.input.expectedVersion)
 				if (
 					window.snapshotRevision !== access.connection.snapshotRevision ||
@@ -80,6 +83,34 @@ export function createCalendarCommands(deps: {
 		if (outcome instanceof CommandFault) throw outcome
 		await deps.wake(outcome.commandId).catch(() => undefined)
 		return outcome
+	}
+	async function admitSingle(
+		access: Parameters<Parameters<Credentials['withAccessToken']>[1]>[0],
+		context: CalendarReadContext,
+		input: SingleCommand
+	) {
+		const target = await singleTarget(access.db, context.accountId, input)
+		if (
+			target.event.snapshotRevision !== access.connection.snapshotRevision ||
+			target.event.generation !== access.connection.generation
+		)
+			throw new CommandFault('precondition_failed')
+		const primary = await deps.gateway.primary(access.accessToken, access.signal)
+		if (primary.id !== target.mapping.calendarId) throw new CommandFault('external_change')
+		const observed = await deps.gateway.observeEvent(
+			access.accessToken,
+			primary.id,
+			target.mapping.eventId,
+			target.window.displayTimeZone,
+			access.signal
+		)
+		return access.db.transaction(async (tx) => {
+			access.signal.throwIfAborted()
+			const prepared = await prepareScheduleCommand(tx, input, context, observed)
+			if (prepared.generation !== access.connection.generation) throw new CommandFault('precondition_failed')
+			await persistCommand(tx, prepared)
+			return receipt(prepared)
+		})
 	}
 	return {
 		submitCalendarCommand,

@@ -11,6 +11,7 @@ import {
 } from '@dv-lab/contracts'
 import { googleReadEvents, googleReadWindows, googleNextLessons, type DbExecutor } from '@dv-lab/db'
 
+import { withCancelledSingles } from './cancelled-singles.ts'
 import { readConnection } from './connection.ts'
 import { findConnection } from './credentials.ts'
 import type { ConnectionRow } from './credentials.ts'
@@ -133,6 +134,7 @@ export async function readCalendarWindow(
 		.select()
 		.from(googleReadEvents)
 		.where(and(eq(googleReadEvents.accountId, context.accountId), eq(googleReadEvents.windowId, window.id)))
+	await withCancelledSingles(executor, window, events)
 	return googleScheduleWindow.parse({
 		requestedRange,
 		snapshotRange: {
