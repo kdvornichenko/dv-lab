@@ -213,8 +213,14 @@ async function studentCardLinkUi(
 		const link = dialog.getByRole('heading').getByRole('link')
 		await expect(link).toBeVisible()
 		await expect(link).toHaveAttribute('href', `/students/${fixture.studentId}`)
-		await dialog.getByRole('button', { name: 'Close', exact: true }).click()
-		await expect(dialog).toHaveCount(0)
+		if (method === 'pointer') await link.click()
+		else {
+			await link.focus()
+			await page.keyboard.press('Enter')
+		}
+		await expect(page).toHaveURL((url) => url.pathname === `/students/${fixture.studentId}`)
+		await expect(page.getByRole('heading', { name: fixture.studentName, exact: true })).toBeVisible()
+		await openView(page, mondayOf(fixture.date))
 	}
 }
 
