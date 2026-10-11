@@ -34,6 +34,7 @@ const MARK_LABEL: Record<LessonMarkKind, string> = {
 }
 
 export const PILL_ORDER = ['none', 'done', 'no_show'] as const satisfies readonly LessonMarkKind[]
+export const CLEAR_MARK_LABEL = 'Clear mark'
 
 export function occurrenceSlot(outcome: ScheduleLessonOutcome): OccurrenceSlot {
 	return SLOT[outcome]

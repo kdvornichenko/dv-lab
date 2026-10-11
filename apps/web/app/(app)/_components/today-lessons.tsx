@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
@@ -7,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, scheduleToday } from '@dv-lab/core'
+
+import { TodayMarkControls } from './today-mark-controls'
 
 export const ROW_LIMIT = 8
 
@@ -42,56 +46,79 @@ interface LessonRowsProps {
 	nextKey: string | null
 	secondZone: string | null
 	moreHref?: string
+	onSaved: () => Promise<void>
+	onStale: () => Promise<void>
 }
 
-export function LessonRows({ blocks, now, showDate, nextKey, secondZone, moreHref }: LessonRowsProps) {
-	const year = Number(scheduleToday(now).slice(0, 4))
+export function LessonRows({ blocks, moreHref, ...rowProps }: LessonRowsProps) {
 	const shown = moreHref === undefined ? blocks : blocks.slice(0, ROW_LIMIT)
 	return (
 		<ul data-slot="today-rows" className="flex flex-col px-1 pb-2">
-			{shown.map((block) => {
-				const start = new Date(block.startsAt)
-				const key = statusKey(block, now)
-				const style = ROW_STYLE[key]
-				const next = block.key === nextKey && occurrenceSlot(block.outcome) === 'to'
-				return (
-					<li
-						key={`${block.key}:${occurrenceSlot(block.outcome)}`}
-						data-slot="today-row"
-						data-key={block.key}
-						data-student-id={block.studentId}
-						data-status={key}
-						data-next={next ? 'true' : 'false'}
-						className={cn(
-							'flex h-10 items-center gap-3 rounded-lg px-3 tabular-nums',
-							style.muted && 'text-muted-foreground',
-							next && 'bg-active font-semibold'
-						)}
-					>
-						{showDate ? (
-							<span data-slot="today-row-date" className="min-w-18 shrink-0 whitespace-nowrap text-muted-foreground">
-								{formatDay(start, SCHEDULE_TIME_ZONE, year)}
-							</span>
-						) : null}
-						<TimePair
-							className="min-w-22 shrink-0 whitespace-nowrap"
-							main={formatTime(start, SCHEDULE_TIME_ZONE)}
-							second={secondWhen(start, secondZone)}
-						/>
-						<span data-slot="today-row-name" className={cn('min-w-0 flex-1 truncate', style.struck && 'line-through')}>
-							{block.studentName}
-						</span>
-						{style.note ? (
-							<span data-slot="today-row-note" className="shrink-0 text-caption font-normal text-muted-foreground">
-								{statusWord(block, now)}
-							</span>
-						) : null}
-					</li>
-				)
-			})}
+			{shown.map((block) => (
+				<LessonRow key={`${block.key}:${occurrenceSlot(block.outcome)}`} block={block} {...rowProps} />
+			))}
 			{moreHref !== undefined && blocks.length > ROW_LIMIT ? (
 				<MoreRow count={blocks.length - ROW_LIMIT} href={moreHref} />
 			) : null}
 		</ul>
+	)
+}
+
+function LessonRow({
+	block,
+	now,
+	showDate,
+	nextKey,
+	secondZone,
+	onSaved,
+	onStale,
+}: Omit<LessonRowsProps, 'blocks' | 'moreHref'> & { block: ScheduleBlock }) {
+	const [failed, setFailed] = useState(false)
+	const year = Number(scheduleToday(now).slice(0, 4))
+	const start = new Date(block.startsAt)
+	const key = statusKey(block, now)
+	const style = ROW_STYLE[key]
+	const next = block.key === nextKey && occurrenceSlot(block.outcome) === 'to'
+	return (
+		<li
+			data-slot="today-row"
+			data-key={block.key}
+			data-student-id={block.studentId}
+			data-status={key}
+			data-next={next ? 'true' : 'false'}
+			className={cn(
+				'flex h-10 items-center gap-3 rounded-lg px-3 tabular-nums',
+				style.muted && 'text-muted-foreground',
+				next && 'bg-active font-semibold'
+			)}
+		>
+			{showDate ? (
+				<span data-slot="today-row-date" className="min-w-18 shrink-0 whitespace-nowrap text-muted-foreground">
+					{formatDay(start, SCHEDULE_TIME_ZONE, year)}
+				</span>
+			) : null}
+			<TimePair
+				className="min-w-22 shrink-0 whitespace-nowrap"
+				main={formatTime(start, SCHEDULE_TIME_ZONE)}
+				second={secondWhen(start, secondZone)}
+			/>
+			<span data-slot="today-row-name" className={cn('flex min-w-0 flex-1 flex-col', style.struck && 'line-through')}>
+				<span className={cn('truncate', style.struck && 'line-through')}>{block.studentName}</span>
+				{failed ? (
+					<span className="truncate text-caption font-normal text-destructive">
+						Could not save the mark. Try again.
+					</span>
+				) : null}
+			</span>
+			{block.actions.mark ? (
+				<span data-slot="today-row-note" className="relative z-10 shrink-0 font-normal">
+					<TodayMarkControls block={block} onSaved={onSaved} onStale={onStale} onError={setFailed} />
+				</span>
+			) : style.note ? (
+				<span data-slot="today-row-note" className="shrink-0 text-caption font-normal text-muted-foreground">
+					{statusWord(block, now)}
+				</span>
+			) : null}
+		</li>
 	)
 }

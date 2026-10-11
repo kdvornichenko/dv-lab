@@ -19,6 +19,7 @@ import type { ScheduleBlock, TodayResponse } from '@dv-lab/contracts'
 import {
 	SCHEDULE_TIME_ZONE,
 	countsAsLesson,
+	lessonActions,
 	lessonsPhrase,
 	scheduleToday,
 	todayCounts,
@@ -156,11 +157,13 @@ function Panels({
 	counts,
 	now,
 	zone,
+	onReload,
 }: {
 	data: TodayResponse
 	counts: TodayCounts
 	now: Date
 	zone: string | null
+	onReload: () => Promise<void>
 }) {
 	const lessons = [...data.lessons].sort(byStart)
 	const earlier = [...data.earlier].sort(byStart)
@@ -179,7 +182,15 @@ function Panels({
 						}
 					/>
 				) : (
-					<LessonRows blocks={lessons} now={now} showDate={false} nextKey={counts.nextKey} secondZone={zone} />
+					<LessonRows
+						blocks={lessons}
+						now={now}
+						showDate={false}
+						nextKey={counts.nextKey}
+						secondZone={zone}
+						onSaved={onReload}
+						onStale={onReload}
+					/>
 				)}
 			</Panel>
 			{earlier.length > 0 ? (
@@ -188,7 +199,16 @@ function Panels({
 					title="Earlier, not marked"
 					description="Lessons that took place and still need a mark."
 				>
-					<LessonRows blocks={earlier} now={now} showDate nextKey={null} secondZone={zone} moreHref={SCHEDULE_HREF} />
+					<LessonRows
+						blocks={earlier}
+						now={now}
+						showDate
+						nextKey={null}
+						secondZone={zone}
+						moreHref={SCHEDULE_HREF}
+						onSaved={onReload}
+						onStale={onReload}
+					/>
 				</Panel>
 			) : null}
 			<Panel
@@ -258,11 +278,16 @@ function LoadedToday({ now }: { now: Date }) {
 
 	const today = scheduleToday(now)
 	const answered = state.kind === 'ready' ? state.data.date : null
+	const staleActions =
+		state.kind === 'ready' &&
+		state.data.lessons.some(
+			(block) => block.actions.mark !== lessonActions(block.outcome, new Date(block.startsAt), now).mark
+		)
 
 	useEffect(() => {
-		if (answered === null || answered === today) return
+		if (answered === null || (answered === today && !staleActions)) return
 		void load()
-	}, [now, answered, today, load])
+	}, [now, answered, today, staleActions, load])
 
 	if (state.kind === 'error') {
 		return (
@@ -286,7 +311,7 @@ function LoadedToday({ now }: { now: Date }) {
 	return (
 		<Shell title={dayTitle(data.date)} description={summaryLine(counts, next, zone)}>
 			<Counters counts={counts} threshold={data.paysSoonLessons} />
-			<Panels data={data} counts={counts} now={now} zone={zone} />
+			<Panels data={data} counts={counts} now={now} zone={zone} onReload={load} />
 		</Shell>
 	)
 }
