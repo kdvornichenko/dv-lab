@@ -336,10 +336,18 @@ test('[calendar] public policies describe calendar storage and recovery', async 
 	for (const disclosure of [
 		'This feature does not automatically delete the cache or history after a fixed period.',
 		'Access and refresh tokens are not sent to the browser.',
+		'To preserve event settings, these records can include validated event descriptions, locations',
+		'Attendee details, conference data and attachments are not kept in these supported snapshots',
 		'Unsaved form inputs stay only in the memory of the open tab.',
 		'Your local history, existing Google events, last checked view, links and request records are kept.',
 	])
 		await expect(page.getByText(disclosure, { exact: false })).toBeVisible()
+	await expect(
+		page.getByText(
+			'Event descriptions, attendee details, locations, meeting links and attachments are not stored or shown by this feature.',
+			{ exact: false }
+		)
+	).toHaveCount(0)
 	await page.goto('/terms')
 	await expect(page.getByText('A pending or unknown result is not a saved change.', { exact: false })).toBeVisible()
 	await expect(page.getByText('New offline calendar changes are not accepted.', { exact: false })).toBeVisible()

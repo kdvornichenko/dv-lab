@@ -9,11 +9,11 @@ const sections = [
 	},
 	{
 		title: 'Information sent to Google',
-		body: "dv-lab sends the student's display name as the event title, lesson start and end times, the lesson time zone, recurrence details for weekly lessons and cancellation status to Google Calendar. It also sends internal identifiers to keep updates linked to the right lesson. Student notes, payment amounts, balances, passwords and lesson marks are not included in these events. Changing a student's name in dv-lab does not automatically update Google Calendar.",
+		body: "dv-lab sends the student's display name as the event title, lesson start and end times, the lesson time zone, recurrence details for weekly lessons and cancellation status to Google Calendar. It also sends internal identifiers to keep updates linked to the right lesson. Student notes, payment amounts, balances, passwords and lesson marks from local teaching records are not added to Google events. Changing a student's name in dv-lab does not automatically update Google Calendar.",
 	},
 	{
 		title: 'Calendar information read and stored',
-		body: 'To display the last checked calendar and find upcoming lessons, the server stores event identifiers and update markers, permitted titles, recurrence identifiers and original occurrence times, start and end dates or times, time zones, event status, availability and event type. It also stores links to existing lessons, students and calendar requests. Event descriptions, attendee details, locations, meeting links and attachments are not stored or shown by this feature.',
+		body: 'To display the last checked calendar and find upcoming lessons, the server stores event identifiers and update markers, permitted titles, recurrence identifiers and original occurrence times, start and end dates or times, time zones, event status, availability and event type. It also stores links to existing lessons, students and calendar requests. Calendar views do not show event descriptions, attendee details, locations, meeting links or attachments. Request records may retain supported event settings as described below.',
 	},
 	{
 		title: 'Calendar view metadata',
@@ -25,7 +25,7 @@ const sections = [
 	},
 	{
 		title: 'Connection and request records',
-		body: 'The server stores connected calendar details, encrypted refresh credentials and temporary encrypted authorization-flow data. It keeps calendar request records, including the requested operation and input, reserved identifiers, expected event versions, event data sent to Google, confirmation and recovery steps, timestamps and safe error categories. These records support confirmation and recovery after an interrupted request. Access tokens stay in server memory. Access and refresh tokens are not sent to the browser.',
+		body: "The server stores connected calendar details, encrypted refresh credentials and temporary encrypted authorization-flow data. It keeps calendar request records, including the requested operation and input, reserved identifiers, expected event versions, event data sent to Google, confirmation and recovery steps, timestamps and safe error categories. To preserve event settings, these records can include validated event descriptions, locations, colours, reminder and guest-permission settings, visibility, availability, source references and other applications' extended properties. Attendee details, conference data and attachments are not kept in these supported snapshots; restoration is unavailable when those fields cannot be preserved safely. These records support confirmation and recovery after an interrupted request. Access tokens stay in server memory. Access and refresh tokens are not sent to the browser.",
 	},
 	{
 		title: 'Local teaching records',
