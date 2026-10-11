@@ -2,6 +2,7 @@ import type { APIRequestContext } from '@playwright/test'
 
 import type { ScheduleBlock } from '../../packages/contracts/src/schedule.ts'
 import type { TeacherSettings } from '../../packages/contracts/src/settings.ts'
+import ensureCalendarTarget from './calendar.ts'
 import { BASE } from './data.ts'
 import { flag, integer, list, record, text, uuid } from './input.ts'
 
@@ -22,8 +23,9 @@ export async function api(
 	body?: Body,
 	expectedStatus?: number
 ): Promise<unknown> {
+	await ensureCalendarTarget()
 	const response = await request
-		.fetch(`${BASE}/api${path}`, {
+		.fetch<unknown>(`${BASE}/api${path}`, {
 			method,
 			headers: { origin: BASE },
 			data: body,

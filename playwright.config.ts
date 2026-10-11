@@ -8,6 +8,7 @@ prepareState()
 if (existsSync(RESULTS_DIR)) throw new Error('E2E output directory must be new for this run')
 
 export default defineConfig({
+	globalSetup: './e2e/support/calendar.ts',
 	testDir: './e2e',
 	fullyParallel: false,
 	workers: 1,

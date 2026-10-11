@@ -3,6 +3,7 @@ import { test as cleanup, type APIRequestContext } from '@playwright/test'
 import { existsSync } from 'node:fs'
 
 import { api, teacherId } from './support/api.ts'
+import ensureCalendarTarget from './support/calendar.ts'
 import {
 	AUTH_FILE,
 	BASE,
@@ -21,6 +22,7 @@ async function attempt(failures: Error[], operation: string, run: () => void | P
 }
 
 cleanup('owned fixtures and teacher settings are restored', async ({ playwright }) => {
+	await ensureCalendarTarget()
 	const failures: Error[] = []
 	let fixtures = 0
 	let request: APIRequestContext | null = null

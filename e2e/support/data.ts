@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { parseEnv } from 'node:util'
@@ -7,12 +7,44 @@ import { parseEnv } from 'node:util'
 import { ROOT, STATE_DIR } from '../../scripts/dev-checks/paths.mjs'
 import { integer, list, record, text, uuid } from './input.ts'
 
-export const BASE = 'http://localhost:3000'
-export const PRIVATE_DIR = resolve(realpathSync(STATE_DIR), 'phase21-e2e')
+const LOCAL_ORIGIN = 'http://localhost:3000'
+export const BASE = targetOrigin()
+export const HTTPS_TARGET = BASE !== LOCAL_ORIGIN
+export const PRIVATE_DIR = resolve(
+	realpathSync(STATE_DIR),
+	HTTPS_TARGET ? `calendar-e2e-${createHash('sha256').update(BASE).digest('hex').slice(0, 16)}` : 'phase21-e2e'
+)
 export const RESULTS_DIR = resolve(PRIVATE_DIR, 'results', randomUUID())
 export const AUTH_FILE = resolve(PRIVATE_DIR, 'auth.json')
 const SETTINGS_FILE = resolve(PRIVATE_DIR, 'settings.json')
 const OWNED_FILE = resolve(PRIVATE_DIR, 'owned.json')
+let targetDatabaseReady = false
+
+function targetOrigin(): string {
+	const value = process.env.E2E_TARGET_ORIGIN ?? LOCAL_ORIGIN
+	let url: URL
+	try {
+		url = new URL(value)
+	} catch {
+		throw new Error('E2E target must be an HTTPS origin or the default local origin')
+	}
+	if (url.origin !== value || (value !== LOCAL_ORIGIN && url.protocol !== 'https:'))
+		throw new Error('E2E target must be an HTTPS origin without credentials, path, query or fragment')
+	return value
+}
+
+function requireTargetDatabase(): void {
+	if (HTTPS_TARGET && !targetDatabaseReady) throw new Error('E2E HTTPS target has not passed fixture readiness')
+}
+
+export function confirmTargetDatabase(expected: string): void {
+	const rows = runSql(`begin read only; select current_database() as database,
+inet_server_addr()::text as address, inet_server_port() as port,
+(select oid::text from pg_database where datname = current_database()) as oid;`)
+	if (rows.length !== 1 || createHash('sha256').update(JSON.stringify(rows[0])).digest('hex') !== expected)
+		throw new Error('E2E target persistence identity mismatch')
+	targetDatabaseReady = true
+}
 export const NAMES = [
 	'Alex Example 2182',
 	'Alex Example 2183',
@@ -59,6 +91,7 @@ function readPrivate(path: string): unknown {
 }
 
 export function teacherCredentials(): { login: string; password: string } {
+	requireTargetDatabase()
 	const env = parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
 	const login = env.DEV_TEACHER_LOGIN
 	const password = env.DEV_TEACHER_PASSWORD
@@ -72,6 +105,11 @@ export function quote(value: string): string {
 }
 
 export function sql(query: string): Record<string, unknown>[] {
+	requireTargetDatabase()
+	return runSql(query)
+}
+
+function runSql(query: string): Record<string, unknown>[] {
 	const guard = `do $$ begin
 if current_user <> 'dvlab_migrator' or current_database() !~ '_dev$' then
 raise exception 'E2E database guard refused'; end if; end $$;`

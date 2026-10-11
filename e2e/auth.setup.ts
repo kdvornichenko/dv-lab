@@ -1,7 +1,9 @@
 import { test as setup, expect } from '@playwright/test'
 
 import { teacherId } from './support/api.ts'
+import ensureCalendarTarget from './support/calendar.ts'
 import {
+	BASE,
 	cleanupFixtures,
 	prepareState,
 	restoreTeacherSettings,
@@ -12,6 +14,7 @@ import {
 import { assertDayWindow } from './support/dates.ts'
 
 setup('teacher signs in once', async ({ page }) => {
+	await ensureCalendarTarget()
 	assertDayWindow()
 	prepareState()
 	cleanupFixtures()
@@ -21,7 +24,7 @@ setup('teacher signs in once', async ({ page }) => {
 		await page.getByLabel('Login or email', { exact: true }).fill(login)
 		await page.locator('#password').fill(password)
 		await page.getByRole('button', { name: 'Sign in to dv-lab', exact: true }).click()
-		await expect(page).toHaveURL('http://localhost:3000/')
+		await expect(page).toHaveURL(`${BASE}/`)
 	} catch {
 		throw new Error('Teacher sign-in failed; credential values suppressed')
 	}
