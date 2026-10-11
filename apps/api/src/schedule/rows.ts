@@ -13,16 +13,15 @@ import {
 	type LessonOutcome,
 	type MarkKind,
 	type OccurrenceRef,
-	SCHEDULE_TIME_ZONE,
 	type SeriesException,
 	type SeriesRule,
 	type SingleLesson,
 	type Weekday,
+	addDays,
 	occurrenceAt,
 	occurrenceKey,
 	occurrenceOutcome,
 	scheduleDate,
-	windowDates,
 } from '@dv-lab/core'
 import { type DbExecutor, lessonExceptions, lessonMarks, lessonSeries, lessons, type students } from '@dv-lab/db'
 
@@ -35,6 +34,7 @@ export const seriesColumns = {
 	studentId: lessonSeries.studentId,
 	weekday: lessonSeries.weekday,
 	startTime: lessonSeries.startTime,
+	timeZone: lessonSeries.timeZone,
 	durationMinutes: lessonSeries.durationMinutes,
 	startsOn: lessonSeries.startsOn,
 	endsOn: lessonSeries.endsOn,
@@ -52,6 +52,7 @@ export const lessonColumns = {
 	id: lessons.id,
 	studentId: lessons.studentId,
 	startsAt: lessons.startsAt,
+	timeZone: lessons.timeZone,
 	durationMinutes: lessons.durationMinutes,
 	status: lessons.status,
 }
@@ -123,6 +124,7 @@ export function toSeriesRule(row: SeriesRecord): SeriesRule {
 		studentId: row.studentId,
 		weekday: toWeekday(row.weekday),
 		startTime: row.startTime.slice(0, 5),
+		timeZone: row.timeZone,
 		durationMinutes: row.durationMinutes,
 		startsOn: row.startsOn,
 		endsOn: row.endsOn,
@@ -157,17 +159,18 @@ export function toSingleLesson(row: LessonRecord): SingleLesson {
 		id: row.id,
 		studentId: row.studentId,
 		startsAt: row.startsAt,
+		timeZone: row.timeZone,
 		durationMinutes: row.durationMinutes,
 		status: toLessonStatus(row.status),
 	}
 }
 
 function dateBounds(from: Date, to: Date | null): { fromDate: string; toDate: string | null } | null {
-	if (to === null) return { fromDate: scheduleDate(from), toDate: null }
-	const dates = windowDates(from, to, SCHEDULE_TIME_ZONE)
-	const first = dates[0]
-	const last = dates[dates.length - 1]
-	return first === undefined || last === undefined ? null : { fromDate: first, toDate: last }
+	if (to !== null && to.getTime() <= from.getTime()) return null
+	return {
+		fromDate: addDays(scheduleDate(from, 'UTC'), -1),
+		toDate: to === null ? null : addDays(scheduleDate(new Date(to.getTime() - 1), 'UTC'), 1),
+	}
 }
 
 export async function lockSeries(executor: DbExecutor, id: string): Promise<SeriesRule | null> {
@@ -201,6 +204,18 @@ export async function seriesExceptionsFrom(
 		.select(exceptionColumns)
 		.from(lessonExceptions)
 		.where(and(eq(lessonExceptions.seriesId, seriesId), gte(lessonExceptions.originalOn, from)))
+	return rows.map(toSeriesException)
+}
+
+export async function seriesReferenceExceptions(
+	executor: DbExecutor,
+	seriesIds: readonly string[]
+): Promise<SeriesException[]> {
+	if (seriesIds.length === 0) return []
+	const rows = await executor
+		.select(exceptionColumns)
+		.from(lessonExceptions)
+		.where(inArray(lessonExceptions.seriesId, [...seriesIds]))
 	return rows.map(toSeriesException)
 }
 
