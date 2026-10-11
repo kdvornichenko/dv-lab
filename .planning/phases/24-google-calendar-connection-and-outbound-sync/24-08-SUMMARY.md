@@ -243,3 +243,64 @@ Source commit `1311bc9` меняет только `e2e/support/calendar-commands
 Parent сообщил ownership E2E local_dev: 1passed3.9s и остановленный dev. Это upstream fixture ownership evidence, не runtime proof08. Собственные runtime/DB/Google journeys не запускались. Frozen DTO не изменён; captured command generation остаётся immutable, actual confirmation generation проверяется в ACK/apply. UI completion fence после Resume согласует parent/Arendt.
 
 Integration self-check: upstream `retainedStudent(id: string): string` доступен из merge; source commit существует; diff не содержит deletions. Основные source-task metrics/actuals выше относятся к исходным трём атомарным задачам до integration follow-up.
+
+## Integration Review Corrections
+
+Все три замечания независимого review приняты. Source closure не означает connected runtime acceptance.
+
+| Finding                             | Commit    | Source result                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| CR-01 / P1 minimal cancellation ACK | `1d7bbbe` | Direct successful conditional PATCH допускает id/etag/status без private markers. ID/status/тип/recurrence и фактический 2xx проверяются; gateway передаёт actual If-Match. `conditionalCancellation: true` отделяет происхождение direct ACK от GET. Captured baseline fingerprint остаётся явным baseline. Sparse GET проходит прежний строгий verifier и не доказывает наш PATCH. |
+| CR-02 / P1 R2 writable preservation | `607aefa` | Immutable validated snapshot capture при отмене; replacement body восстанавливает supported values и проверяет fingerprint в ACK. Missing/unsupported snapshot даёт recovery_required/external_change без reservation/insert. Explicit unsent resume не отправляет такой replacement.                                                                                                |
+| CR-03 / P2 admission budget         | `e431f2f` | Один absolute deadline context.now+30000 ограничивает refresh и все reads/capture. Signal объединён с lease до token refresh. Expiry до/после persist внутри transaction откатывает admission; public refusal not_applied. Deadline не пересоздаётся после provider reads. HTTP timeout10s сохранён.                                                                                 |
+
+### Registry and provider boundaries
+
+`packages/db/src/calendar-values.ts` остаётся sole owner private JSON validators. Добавлены `googleUnownedWritable`, optional precondition/ACK snapshot, insert payload `preserved`, typed cancellationBaseline и conditionalCancellation provenance. Existing JSON columns используются без migration/new columns. Public packages/contracts DTO не изменён.
+
+Supported snapshot: description, location, colorId, guest permissions, transparency, visibility, reminders, source, non-dv private/shared extendedProperties. Strict schemas отвергают unsupported values. Attendees/attachments/conferenceData блокируют replacement вместо потери полей. [Google Events insert](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert) описывает attendee response reset и специальные параметры conference/attachment writes; безопасное копирование этих полей в текущем scope не заявлено. [Events resource](https://developers.google.com/workspace/calendar/api/v3/reference/events) допускает sparse cancelled resources. Для direct ACK дополнительно требуются actual status/etag/ID; missing etag не синтезируется. Auth generation и credential generation fences сохранены.
+
+### E2E source and unavailable execution
+
+Before основным соответствующим behavior добавлены source assertions в existing durable journeys: minimal native cancellation, restored description/location и сохранённый fingerprint; paginated admission budget через actual response delay/pageSize1. Unsupported snapshot branch также имеет public recovery/no-write assertions. Sparse ACK scenario требует реальной retained native observation; fake response payload не создаётся. Новый narrow helper `calendar-admission.ts` работает через public API и real persistence, без unit/contract/integration suite.
+
+Private fixture inputs: calendar-minimal-cancel.json, calendar-single.json, calendar-single-unsupported.json, calendar-admission.json. Они обязаны совпадать с target build/persistence/student; retained lifecycle проверяет общий calendarCommandFixture. Admission fixture требует реальное natural disappearance и минимум6 страниц identity search при pageSize1; expected result409/not_applied за общий budget, request lookup404 и unchanged lesson. Missing provider capability не заменяется synthetic evidence. Unsupported restore намеренно оставляет unresolved barrier; runtime fixture lifecycle/reset принадлежит13, такой journey нужен в отдельном authorized fixture run.
+
+Фактический RED/GREEN и все эти connected journeys **NOT RUN / UNVERIFIED**: runtime/DB/provider lease отсутствует. Discovery не является execution. No09 start.
+
+### Exact static checks
+
+- `yarn workspace @dv-lab/api typecheck`: exit0.
+- `yarn workspace @dv-lab/api build`: exit0, Build complete in95ms; integrated source13 bundled entries включены. Runtime services не запускались.
+- `yarn node --max-old-space-size=8192 scripts/dev-checks/calendar-quality.ts --base 390b293 --owned apps/api/src/calendar/command-result.ts --owned apps/api/src/calendar/commands.ts --owned apps/api/src/calendar/credentials.ts --owned apps/api/src/calendar/dispatch.ts --owned apps/api/src/calendar/event-mapping.ts --owned apps/api/src/calendar/gateway.ts --owned apps/api/src/calendar/journal.ts --owned apps/api/src/calendar/single-observation.ts --owned apps/api/src/schedule/command-plan.ts --owned apps/api/src/schedule/single-command.ts --owned e2e/move.spec.ts --owned e2e/support/calendar-admission.ts --owned e2e/support/calendar-single.ts --owned packages/db/src/calendar-values.ts --new e2e/support/calendar-admission.ts --json` плюс source-hash-bound `--boundary-review` argv из private `STATE_DIR/phase24-08-review-fixes-command.json`: exit0/PASS.
+- `yarn prettier --check apps/api/src/calendar/command-result.ts apps/api/src/calendar/commands.ts apps/api/src/calendar/credentials.ts apps/api/src/calendar/dispatch.ts apps/api/src/calendar/event-mapping.ts apps/api/src/calendar/gateway.ts apps/api/src/calendar/journal.ts apps/api/src/calendar/single-observation.ts apps/api/src/schedule/command-plan.ts apps/api/src/schedule/single-command.ts e2e/move.spec.ts e2e/support/calendar-admission.ts e2e/support/calendar-single.ts packages/db/src/calendar-values.ts`: exit0, all matched files use Prettier style.
+- `git diff --check`: exit0.
+- `env E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/move.spec.ts --grep '\[calendar\] (single changes|tombstone|command races|command recovery keeps an absent)' --project=light --list`: exit0,15 tests in3files; discovery only.
+
+Initial quality tool default heap закончился OOM/exit129. Повтор с Node heap8192 прошёл. Interim UNVERIFIED выявил CC23; shared validated precondition helper исправил его. Unvalidated provider/public JSON/error boundaries review привязан к точным SHA-256; any не вводился. Финальный evidence `STATE_DIR/phase24-08-review-fixes-quality.json`, fingerprint `cc556f1838d6f38d8372fbd926f2e7294748bc80c0614f39877efc25a29fdb3b`, missing/stale/violations пусты; unknown только reviewed input/error boundaries. Denominator:14 owned source files и3 measurement tools,17 measured files. Node24.17.0/TS6.0.3/ESLint10.12.0; method/token convention выше. MaxCC20, cognitive19, HalsteadD40.68, file495. prepareSingleCommand CC21→20; callback admission CC18/cognitive18; no confirmed dead/redundant export left in owned diff. Repository-wide dead-code audit не заявлен. Final simplify сохранил validation/fences и не добавил compatibility layers.
+
+### Changed files and reasons
+
+| File                                        | Reason                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------ |
+| apps/api/src/calendar/command-result.ts     | Direct conditional cancel proof, validated snapshot capture и replacement body |
+| apps/api/src/calendar/gateway.ts            | Direct PATCH provenance; GET verifier не ослаблен                              |
+| apps/api/src/calendar/dispatch.ts           | Replacement ACK unowned fingerprint equality                                   |
+| apps/api/src/calendar/event-mapping.ts      | Immutable snapshot в insert; unsupported replacement block                     |
+| apps/api/src/calendar/journal.ts            | Honest recovery issue без утечки internal metadata в DB row                    |
+| apps/api/src/calendar/single-observation.ts | Unsupported replacement остаётся unresolved при Resume                         |
+| apps/api/src/calendar/commands.ts           | Absolute admission budget, transactional expiry checks                         |
+| apps/api/src/calendar/credentials.ts        | Общий signal до refresh/token callback                                         |
+| apps/api/src/schedule/command-plan.ts       | Internal typed recoveryIssue                                                   |
+| apps/api/src/schedule/single-command.ts     | Capture cancellation baseline/precondition snapshot                            |
+| packages/db/src/calendar-values.ts          | Sole typed Registry schema для snapshots/provenance                            |
+| e2e/move.spec.ts                            | Existing durable journeys вызывают новые assertions                            |
+| e2e/support/calendar-single.ts              | Minimal ACK/R2 preservation и unsupported no-write assertions                  |
+| e2e/support/calendar-admission.ts           | Public paginated admission timeout journey                                     |
+| 24-08-SUMMARY.md                            | Review closure и actual verification limits                                    |
+
+### Review fix actuals and self-check
+
+Measured source range: base `390b29365c99d6126305a5db1397286fe352da4b`, after `e431f2f7cfbb4b72c6835e08a77f7f9fe131b3e2`. `git rev-list --count 390b293..e431f2f`=3 source commits;14 source files;8569 estimateTokens=ceil(realized diff chars/4). Diff SHA-256 `bef894e177a42a7558663495a5e3bc22a89fa6ccdc335106550a3b18d45b2129`. Private actuals `STATE_DIR/phase24-08-review-fixes-actuals.json`. Original plan-task actuals выше сохранены с их собственным pinned interval; это отдельный review correction interval.
+
+Self-check PASSED: три correction commits являются ancestors HEAD; новый helper существует и используется; final quality fingerprints current; deletions отсутствуют; untracked apps/web/AGENTS.md сохранён. Shared metadata/чужие source файлы вручную не менялись. API build lease после проверки свободна. Source closure готова к повторному parent review; runtime proof отсутствует.
