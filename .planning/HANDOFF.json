@@ -1,10 +1,10 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T12:56:00Z",
+	"timestamp": "2026-10-11T13:05:09Z",
 	"phase": "21.1-default-time-zone",
 	"phase_name": "Default Time Zone",
 	"phase_dir": ".planning/phases/21.1-default-time-zone",
-	"plan": "21.1-09 + independent 21.1-13 static tooling",
+	"plan": "21.1-10 + prepared 21.1-13 static tooling",
 	"task": 0,
 	"total_tasks": 3,
 	"status": "executing",
@@ -23,10 +23,11 @@
 		"21.1-06 complete: account-first series mutations and preserved tail history",
 		"21.1-07 complete: cards, payments and Today share authoritative context; API typecheck passed",
 		"21.1-08 complete: settings UI, canonical browser second-zone store and explicit formatters; scoped static checks passed",
+		"21.1-09 complete: authoritative week/cache, explicit display context and creation details; scoped static checks passed",
 		"21.1-12 complete: existing regression fixtures adapted to explicit zone contract; runtime pending"
 	],
 	"remaining_tasks": [
-		"Execute Phase21.1 plans09–11 and final13; verify TZ-01…05",
+		"Execute Phase21.1 plans10–11 and final13; verify TZ-01…05",
 		"Integrate Phase 21.1 prerequisite and execute prepared Phase 24 plans"
 	],
 	"blockers": [],
@@ -43,6 +44,6 @@
 		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Only web executor runs09 with no-Git adapter; parent commits finished tasks. Parent prepares only static metrics/quality tooling from13 while UI proceeds. No runtime before09–11 complete. E12 Saved-to-account locator needs scoping to Default time zone during final verification.",
+	"next_action": "Only web executor runs10 with no-Git adapter; parent commits finished tasks. Form hosts must preserve input and shown main across authoritative refetch. Metrics/quality tooling is prepared; final checks and runtime wait for10–11. E12 Saved-to-account locator fixed in35acf2f; scoped discovery passed.",
 	"context_notes": "Read 21.1-CONTEXT, RESEARCH, ARCH-REVIEW, UI-SPEC and PATTERNS. TZ-01 through TZ-05. Phase 21 source is unchanged by this metadata merge; accepted manual deferrals remain explicit."
 }

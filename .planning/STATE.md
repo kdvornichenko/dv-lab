@@ -5,16 +5,16 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: '21.1'
 current_phase_name: Default Time Zone
 status: executing
-stopped_at: Plans 21.1-01 through 08 and 12 complete; executing 09 and preparing static quality tooling
-last_updated: '2026-10-11T12:56:00Z'
+stopped_at: Plans 21.1-01 through 09 and 12 complete; executing forms 10, final quality and runtime pending
+last_updated: '2026-10-11T13:05:09Z'
 last_activity: 2026-10-11
-last_activity_desc: Completed settings UI and backend; schedule UI in progress, runtime verification pending
-state_head: ec50698
+last_activity_desc: Completed schedule display; forms in progress, quality tooling prepared
+state_head: 080b66c
 progress:
   total_phases: 11
   completed_phases: 1
   total_plans: 90
-  completed_plans: 82
+  completed_plans: 83
   percent: 9
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 21.1 (Default Time Zone) — EXECUTING
-Plan: 09 of 13 — schedule UI; 01–08 and 12 completed. Static quality tooling from 13 is prepared independently; final checks wait for 09–11.
+Plan: 10 of 13 — schedule forms; 01–09 and 12 completed. Static quality tooling from 13 is prepared independently; final checks wait for 10–11.
 Status: Execution authorized by owner. Phase 21.1 runs before Phase 24. Phase 21 merged in PR #7 (893689f) after green CI.
-Last activity: 2026-10-11 — Backend API typecheck and scoped settings UI checks passed. 52 [tz] scenarios listed; runtime E2E remains pending plan 13.
+Last activity: 2026-10-11 — Backend API typecheck and scoped settings/schedule display checks passed. E12 locator scoped to its card; 26 Today [tz] tests listed. Full runtime E2E remains pending plan 13.
 
 Progress: [█░░░░░░░░░] 9%
 
@@ -112,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T12:56:00Z
-Stopped at: Phase 21.1 executing 09; plans 01–08 and 12 complete. Phase 24 prepared and waits for 21.1.
+Last session: 2026-10-11T13:05:09Z
+Stopped at: Phase 21.1 executing 10; plans 01–09 and 12 complete. Phase 24 prepared and waits for 21.1.
 Resume file: .planning/phases/21.1-default-time-zone/21.1-CONTEXT.md
