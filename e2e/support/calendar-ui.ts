@@ -171,6 +171,7 @@ export async function pendingUi(page: Page) {
 		const applied = await assertApplied(page, captured.bodies[0].requestId, fixture.date)
 		expect(applied.commandId).toBe(receipt.commandId)
 		expect(applied.expectedVersion === captured.bodies[0].expectedVersion).toBe(true)
+		await studentCardLinkUi(page, applied, fixture)
 		await appliedAcrossScreens(page, applied, fixture)
 		await page.reload()
 		await expect(page.getByRole('link', { name: fixture.studentName, exact: true })).toBeVisible()
@@ -179,6 +180,41 @@ export async function pendingUi(page: Page) {
 		release()
 		await page.unroute(pattern)
 		captured.stop()
+	}
+}
+
+async function studentCardLinkUi(
+	page: Page,
+	applied: z.infer<typeof calendarCommandSnapshot>,
+	fixture: Awaited<ReturnType<typeof uiFixture>>
+) {
+	const window = await openView(page, mondayOf(fixture.date))
+	expect(window.read.state).toBe('fresh')
+	const event = window.events.find(
+		(item) =>
+			item.binding.kind === 'lesson' &&
+			applied.affectedRefs.some(
+				(ref) => item.binding.kind === 'lesson' && JSON.stringify(ref) === JSON.stringify(item.binding.ref)
+			)
+	)
+	if (event?.binding.kind !== 'lesson' || event.binding.ref.kind !== 'single')
+		throw new Error('The applied single event is required for the student card journey')
+	expect(event.binding.studentId).toBe(fixture.studentId)
+	const button = page.locator(`[data-event-key="${event.eventKey}"]:visible`).first()
+	for (const method of ['pointer', 'keyboard']) {
+		await expect(button).toBeVisible()
+		if (method === 'pointer') await button.click()
+		else {
+			await button.focus()
+			await page.keyboard.press('Enter')
+		}
+		const dialog = page.getByRole('dialog')
+		await expect(dialog).toBeVisible()
+		const link = dialog.getByRole('heading').getByRole('link')
+		await expect(link).toBeVisible()
+		await expect(link).toHaveAttribute('href', `/students/${fixture.studentId}`)
+		await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+		await expect(dialog).toHaveCount(0)
 	}
 }
 

@@ -113,7 +113,6 @@ function LessonContent({
 		restore: editable && event.status === 'cancelled',
 	}
 	const title = student?.name ?? eventTitle(event)
-	const studentId = student?.id ?? series?.series.studentId
 	async function change(action: 'cancel' | 'restore') {
 		if (pending || !editable) return
 		setFailure(false)
@@ -138,7 +137,7 @@ function LessonContent({
 		>
 			<DialogContent size="lg" showCloseButton={!pending}>
 				<DialogHeader>
-					<LessonTitle studentId={studentId} title={title} pending={pending} />
+					<LessonTitle studentId={event.binding.studentId} title={title} pending={pending} />
 					<DialogDescription>
 						<EventTime
 							event={event}
@@ -220,31 +219,19 @@ function LessonContent({
 	)
 }
 
-function LessonTitle({
-	studentId,
-	title,
-	pending,
-}: {
-	studentId: string | undefined
-	title: string
-	pending: boolean
-}) {
+function LessonTitle({ studentId, title, pending }: { studentId: string; title: string; pending: boolean }) {
 	return (
 		<DialogTitle>
-			{studentId ? (
-				<Link
-					href={`/students/${studentId}`}
-					className="block truncate"
-					onClick={(event) => {
-						if (pending) event.preventDefault()
-					}}
-					aria-disabled={pending}
-				>
-					{title}
-				</Link>
-			) : (
-				title
-			)}
+			<Link
+				href={`/students/${studentId}`}
+				className="block truncate"
+				onClick={(event) => {
+					if (pending) event.preventDefault()
+				}}
+				aria-disabled={pending}
+			>
+				{title}
+			</Link>
 		</DialogTitle>
 	)
 }
