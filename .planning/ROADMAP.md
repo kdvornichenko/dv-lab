@@ -76,7 +76,7 @@ Plans:
 **Wave 8** *(blocked on Wave 7 completion)*
 - [x] 17-13-PLAN.md — DNS cutover, first deploy, backups and restore, outside checks (owner) (W8)
 
-**Notes**: Server steps are run by the owner through the separate "Server guy" session; agents have no server access. Traps and the bio-exam reference setup are in `~/.claude/servers/dv-lab.md`.
+**Notes**: The operator is Server guy (VPS access by key; DNS through the owner's personal Vercel CLI) or the owner. Steps that print a password or require a token (RUNBOOK 10.3, 10.5, 4.2) are performed by the owner. Traps and the bio-exam reference setup are in `~/.claude/servers/dv-lab.md`.
 
 ### Phase 18: Accounts and Variant A Shell
 
@@ -220,7 +220,7 @@ Plans:
   4. The "pays soon" list shows students with at most N lessons left or none, N is a setting with default 2, and Today shows counters, today's lessons and this list from real data.
   5. The students list, the profile, Today and "pays soon" show the same balance because they call the same `packages/core` functions, and those rules are covered by unit tests.
 
-**Plans**: 15/18 plans executed
+**Plans**: 16/18 plans executed
 
 Plans:
 
@@ -258,7 +258,7 @@ Plans:
 - [x] 21-11-PLAN.md — UI-C Today actions: quick Done and No-show, shared lesson dialog host, isolated Add payment with a Student field (W9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 21-12-PLAN.md — Docs: RUNBOOK operator line, AGENTS.md owners, release notes for Server guy (W10)
+- [x] 21-12-PLAN.md — Docs: RUNBOOK operator line, AGENTS.md owners, release notes for Server guy (W10)
 
 **Wave 11** *(blocked on Wave 10 completion)*
 - [ ] 21-13-PLAN.md — Final verification: full checks, privacy, AGENTS.md against code, all acceptance scripts, five criteria by hand (W11)
@@ -362,7 +362,7 @@ Phases execute in numeric order: 17 → 18 → 19 → 20 → 21 → 22 → 23 �
 | 18. Accounts and Variant A Shell | v2.0 | 16/16 | In Progress|  |
 | 19. Student Cards and Vault Import | v2.0 | 20/20 | In Progress|  |
 | 20. Schedule | v2.0 | 10/10 | In Progress|  |
-| 21. Lesson Accounting and Today | v2.0 | 15/18 | In Progress|  |
+| 21. Lesson Accounting and Today | v2.0 | 16/18 | In Progress|  |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
 | 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Not started | - |

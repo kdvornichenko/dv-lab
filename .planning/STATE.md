@@ -5,17 +5,17 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 21
 current_phase_name: Lesson Accounting and Today
 status: executing
-stopped_at: Phase 21 wave 9 complete; 15/18 plans executed; next 21-12, 21-13, 21-18; backend review fixes in progress
-last_updated: "2026-10-11T04:15:31Z"
+stopped_at: Phase 21 wave 10 complete; 16/18 plans executed; frontend and helper fixes before 21-13 and 21-18
+last_updated: "2026-10-11T04:33:22Z"
 last_activity: 2026-10-11
-last_activity_desc: Phase 21 plan 21-11 complete; mark preservation fix committed
-state_head: 84ac8cf8545d588c668b750a2948e0b8f51fc3f9
+last_activity_desc: Phase 21 plan 21-12 complete; backend fixes committed; frontend review in progress
+state_head: 4da9703553d643491c810f6b16b488bb0d79d143
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 77
-  completed_plans: 74
-  percent: 96
+  completed_plans: 75
+  percent: 97
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 21 (Lesson Accounting and Today) — EXECUTING
-Plan: 15 of 18 completed; next 21-12 (wave 10)
-Status: Waves 1-9 executed; backend review fixes in progress
-Last activity: 2026-10-11 — Plan 21-11 complete; mark preservation fix committed
+Plan: 16 of 18 completed; next 21-13 (wave 11)
+Status: Waves 1-10 executed; frontend and helper review fixes in progress
+Last activity: 2026-10-11 — Plan 21-12 complete; backend review fixes committed
 
-Progress: [████████░░] 83% of Phase 21 plans executed (15/18)
+Progress: [█████████░] 89% of Phase 21 plans executed (16/18)
 
 ## Deferred Verification
 
@@ -92,7 +92,7 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 19] Opening balance is set by the teacher per card (LEDG-09): vault payment files say "lessons covered: to calculate" and lesson history is not imported.
-- [Phase 17] Server steps are run by the owner through the "Server guy" session. Traps in `~/.claude/servers/dv-lab.md`: PostgreSQL 18 volume path, Docker ports bypassing ufw, HTTP/3 off, CI trigger on `master` instead of `main`, `next/font/google` downloads at build time, API hang on `SIGTERM`.
+- [Phase 17] The operator is Server guy (VPS access by key; DNS through the owner's personal Vercel CLI) or the owner. Steps that print a password or require a token (RUNBOOK 10.3, 10.5, 4.2) are performed by the owner. Traps in `~/.claude/servers/dv-lab.md`: PostgreSQL 18 volume path, Docker ports bypassing ufw, HTTP/3 off, CI trigger on `master` instead of `main`, `next/font/google` downloads at build time, API hang on `SIGTERM`.
 - [Phase 24] The Google OAuth app must be in production status; in Testing the refresh token expires after 7 days.
 - [Phase 26] No rollout while an ielts room has active students. ielts keeps running on Vercel and Neon until Phase 26; its phase 6.2 UAT is open in the ielts repository.
 - [Launch] Access from Russian networks to OVH is checked when the app is ready, before the 12-month commitment.
@@ -108,5 +108,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-11T03:18:24Z
-Stopped at: Phase 21 wave 9 complete; 15/18 plans executed; next 21-12, 21-13, 21-18; backend review fixes in progress
+Stopped at: Phase 21 wave 10 complete; 16/18 plans executed; frontend and helper fixes before 21-13 and 21-18
 Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md
