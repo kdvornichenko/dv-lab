@@ -119,12 +119,24 @@ export async function duplicateZone(page: Page, fx: Fx): Promise<void> {
 	expect(await seriesAt(page, card, day, next)).toEqual(before)
 }
 
+async function futureDst(page: Page) {
+	const now = new Date(text(record(await api(page.request, 'GET', '/today')).asOf))
+	const year = Number(zonedDate(now, NY).slice(0, 4)) + 1
+	const sunday = (month: string, week: number) => {
+		const first = `${year}-${month}-01`
+		return addDays(first, ((7 - new Date(`${first}T12:00:00Z`).getUTCDay()) % 7) + (week - 1) * 7)
+	}
+	const spring = sunday('03', 2)
+	return { spring, fall: sunday('11', 1), before: addDays(spring, -7), after: addDays(spring, 7) }
+}
+
 export async function dstRules(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
+	const { spring, fall, before, after } = await futureDst(page)
 	for (const [first, second, firstHour, secondHour] of [
-		['2027-03-07', '2027-03-14', '14', '13'],
-		['2027-10-31', '2027-11-07', '13', '14'],
+		[before, spring, '14', '13'],
+		[addDays(fall, -7), fall, '13', '14'],
 	]) {
 		const id = await fx.weekly(card.id, first, '09:00', NY)
 		for (const [date, hour] of [
@@ -137,14 +149,10 @@ export async function dstRules(page: Page, fx: Fx): Promise<void> {
 			expect(row.timeZone).toBe(NY)
 		}
 	}
-	const gapSeries = await fx.weekly(card.id, '2027-03-07', '02:30', NY)
-	expect((await schedule(page, card, '2027-03-14')).blocks.some((row) => row.key === `s:${gapSeries}:2027-03-14`)).toBe(
-		false
-	)
-	const next = record(
-		(await schedule(page, card, '2027-03-21')).blocks.find((row) => row.key === `s:${gapSeries}:2027-03-21`)
-	)
-	expect(instant(next.startsAt)).toBe('2027-03-21T06:30:00.000Z')
+	const gapSeries = await fx.weekly(card.id, before, '02:30', NY)
+	expect((await schedule(page, card, spring)).blocks.some((row) => row.key === `s:${gapSeries}:${spring}`)).toBe(false)
+	const next = record((await schedule(page, card, after)).blocks.find((row) => row.key === `s:${gapSeries}:${after}`))
+	expect(instant(next.startsAt)).toBe(`${after}T06:30:00.000Z`)
 }
 
 export async function foldInstants(page: Page, fx: Fx): Promise<void> {
@@ -196,36 +204,40 @@ export async function civilWindows(page: Page, fx: Fx): Promise<void> {
 export async function referenceSelection(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
-	const id = await fx.weekly(card.id, '2027-03-07', '09:00', NY)
-	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/2027-03-07/cancel`, {})
-	await fx.moveOccurrence(id, '2027-03-14', '2027-03-15', '12:00', NY)
-	let rule = await seriesAt(page, card, '2027-03-07', id)
+	const { spring, before, after } = await futureDst(page)
+	const moved = addDays(spring, 1)
+	const id = await fx.weekly(card.id, before, '09:00', NY)
+	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/${before}/cancel`, {})
+	await fx.moveOccurrence(id, spring, moved, '12:00', NY)
+	let rule = await seriesAt(page, card, before, id)
 	expect(rule.referenceOccurrence).toEqual({
-		originalOn: '2027-03-14',
-		actualStartsAt: '2027-03-15T16:00:00.000Z',
-		ruleStartsAt: '2027-03-14T13:00:00.000Z',
+		originalOn: spring,
+		actualStartsAt: `${moved}T16:00:00.000Z`,
+		ruleStartsAt: `${spring}T13:00:00.000Z`,
 	})
-	await fx.end(id, '2027-03-07', NY)
-	rule = await seriesAt(page, card, '2027-03-07', id)
+	await fx.end(id, before, NY)
+	rule = await seriesAt(page, card, before, id)
 	expect(rule.referenceOccurrence).toBeNull()
-	const gap = await fx.weekly(card.id, '2027-03-07', '02:30', NY)
-	await api(page.request, 'POST', `/schedule/series/${gap}/occurrences/2027-03-07/cancel`, {})
-	await fx.moveOccurrence(gap, '2027-03-21', '2027-03-15', '12:00', NY)
-	expect(record((await seriesAt(page, card, '2027-03-07', gap)).referenceOccurrence).originalOn).toBe('2027-03-21')
+	const gap = await fx.weekly(card.id, before, '02:30', NY)
+	await api(page.request, 'POST', `/schedule/series/${gap}/occurrences/${before}/cancel`, {})
+	await fx.moveOccurrence(gap, after, moved, '12:00', NY)
+	expect(record((await seriesAt(page, card, before, gap)).referenceOccurrence).originalOn).toBe(after)
 }
 
 export async function missingRuleReference(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
-	const id = await fx.weekly(card.id, '2027-03-07', '02:30', NY)
-	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/2027-03-07/cancel`, {})
+	const { spring, before } = await futureDst(page)
+	const moved = `${addDays(spring, 1)}T16:00:00.000Z`
+	const id = await fx.weekly(card.id, before, '02:30', NY)
+	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/${before}/cancel`, {})
 	sql(`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes)
-select id, '2027-03-14', 'moved', '2027-03-15T16:00:00Z', 60 from lesson_series
+select id, ${quote(spring)}, 'moved', ${quote(moved)}, 60 from lesson_series
 where id = ${quote(id)}::uuid and student_id = ${quote(ownedStudent(card.id))}::uuid`)
-	const reference = record((await seriesAt(page, card, '2027-03-07', id)).referenceOccurrence)
+	const reference = record((await seriesAt(page, card, before, id)).referenceOccurrence)
 	expect(reference).toEqual({
-		originalOn: '2027-03-14',
-		actualStartsAt: '2027-03-15T16:00:00.000Z',
+		originalOn: spring,
+		actualStartsAt: moved,
 		ruleStartsAt: null,
 	})
 }
