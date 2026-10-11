@@ -13,7 +13,7 @@ export async function openWeekOf(page: Page, date: string): Promise<void> {
 	if (!current) throw new Error('Week grid has no date')
 	const target = mondayOf(date)
 	const steps = Math.round((Date.parse(`${target}T00:00:00Z`) - Date.parse(`${current}T00:00:00Z`)) / 604800000)
-	if (Math.abs(steps) > 8) throw new Error('Requested week is outside the fixture window')
+	if (Math.abs(steps) > 53) throw new Error('Requested week is outside the fixture year')
 	for (let step = 1; step <= Math.abs(steps); step += 1) {
 		await page.keyboard.press(steps > 0 ? 'j' : 'k')
 		await expect(day).toHaveAttribute('data-date', addDays(current, step * (steps > 0 ? 7 : -7)))

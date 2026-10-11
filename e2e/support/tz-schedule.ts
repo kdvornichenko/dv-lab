@@ -6,7 +6,7 @@ import { addDays, mondayOf, VN, vnToday, zonedDate, zonedTime } from './dates.ts
 import { integer, list, record, text, uuid } from './input.ts'
 import type { Card, Fx } from './test.ts'
 import { MSK, NY, setMain } from './tz-settings.ts'
-import { balanceEverywhere, openLesson } from './ui.ts'
+import { balanceEverywhere, openLesson, openWeekOf } from './ui.ts'
 
 export const KIR = 'Pacific/Kiritimati'
 
@@ -119,9 +119,9 @@ export async function duplicateZone(page: Page, fx: Fx): Promise<void> {
 	expect(await seriesAt(page, card, day, next)).toEqual(before)
 }
 
-async function futureDst(page: Page) {
+async function dstDates(page: Page, yearsAhead: number) {
 	const now = new Date(text(record(await api(page.request, 'GET', '/today')).asOf))
-	const year = Number(zonedDate(now, NY).slice(0, 4)) + 1
+	const year = Number(zonedDate(now, NY).slice(0, 4)) + yearsAhead
 	const sunday = (month: string, week: number) => {
 		const first = `${year}-${month}-01`
 		return addDays(first, ((7 - new Date(`${first}T12:00:00Z`).getUTCDay()) % 7) + (week - 1) * 7)
@@ -133,7 +133,7 @@ async function futureDst(page: Page) {
 export async function dstRules(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
-	const { spring, fall, before, after } = await futureDst(page)
+	const { spring, fall, before, after } = await dstDates(page, 1)
 	for (const [first, second, firstHour, secondHour] of [
 		[before, spring, '14', '13'],
 		[addDays(fall, -7), fall, '13', '14'],
@@ -158,20 +158,41 @@ export async function dstRules(page: Page, fx: Fx): Promise<void> {
 export async function foldInstants(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
-	const first = await fx.once(card.id, '2027-11-07', '01:30', 60, NY)
-	const second = fx.historicalLesson(card.id, '2027-11-07T06:30:00Z', NY)
-	const rows = (await schedule(page, card, '2027-11-07')).blocks
+	const { fall } = await dstDates(page, 0)
+	const first = await fx.once(card.id, fall, '01:30', 60, NY)
+	const second = fx.historicalLesson(card.id, `${fall}T06:30:00Z`, NY)
+	const rows = (await schedule(page, card, fall)).blocks
 	for (const [id, hour] of [
 		[first, '05'],
 		[second, '06'],
 	]) {
 		const row = record(rows.find((entry) => entry.key === `l:${id}`))
-		expect(instant(row.startsAt)).toBe(`2027-11-07T${hour}:30:00.000Z`)
+		expect(instant(row.startsAt)).toBe(`${fall}T${hour}:30:00.000Z`)
 		expect(zonedTime(new Date(text(row.startsAt)), NY)).toBe('01:30')
 		expect(row.durationMinutes).toBe(60)
 	}
+	await openWeekOf(page, fall)
+	await page.getByRole('combobox', { name: 'Second time zone', exact: true }).click()
+	await page.getByRole('combobox', { name: 'Search time zones', exact: true }).fill('America/Los_Angeles')
+	await page.locator('[role="option"][data-value="America/Los_Angeles"]').click()
+	for (const [id, main, secondary] of [
+		[first, '01:30 EDT–01:30 EST', ['Sat', '22:30–23:30', 'PDT']],
+		[second, '01:30–02:30 EST', ['Sat', '23:30', 'Sun', '00:30', 'PDT']],
+	] as const) {
+		const block = page.locator(`button[data-key="l:${id}"]`)
+		await expect(block).toHaveCount(1)
+		await block.click()
+		const dialog = page.getByRole('dialog')
+		await expect(dialog.getByRole('heading', { name: card.name, exact: true })).toBeVisible()
+		await expect(dialog.locator('[data-slot="time-main"]')).toContainText(main)
+		for (const part of secondary) await expect(dialog.locator('[data-slot="time-second"]')).toContainText(part)
+		await expect(dialog.getByText('60 min', { exact: true })).toBeVisible()
+		await page.keyboard.press('Escape')
+		await expect(block).toBeFocused()
+	}
+	expect((await schedule(page, card, fall)).blocks.map(stable)).toEqual(rows.map(stable))
 	await setMain(page.request, 'UTC')
-	expect((await schedule(page, card, '2027-11-07')).blocks.map(stable)).toEqual(rows.map(stable))
+	expect((await schedule(page, card, fall)).blocks.map(stable)).toEqual(rows.map(stable))
 }
 
 export async function civilWindows(page: Page, fx: Fx): Promise<void> {
@@ -204,7 +225,7 @@ export async function civilWindows(page: Page, fx: Fx): Promise<void> {
 export async function referenceSelection(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
-	const { spring, before, after } = await futureDst(page)
+	const { spring, before, after } = await dstDates(page, 1)
 	const moved = addDays(spring, 1)
 	const id = await fx.weekly(card.id, before, '09:00', NY)
 	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/${before}/cancel`, {})
@@ -227,7 +248,7 @@ export async function referenceSelection(page: Page, fx: Fx): Promise<void> {
 export async function missingRuleReference(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
-	const { spring, before } = await futureDst(page)
+	const { spring, before } = await dstDates(page, 1)
 	const moved = `${addDays(spring, 1)}T16:00:00.000Z`
 	const id = await fx.weekly(card.id, before, '02:30', NY)
 	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/${before}/cancel`, {})

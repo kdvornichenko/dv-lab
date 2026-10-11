@@ -14,6 +14,7 @@ import { addDays, mondayOf, VN, zonedDate, zonedTime } from './dates.ts'
 import { integer, list, record, text, uuid } from './input.ts'
 import type { Card, Fx } from './test.ts'
 import { changeZone, MSK, NY, pickZone, setMain, settingsPage, zoneDialog } from './tz-settings.ts'
+import { staleForms } from './tz-stale-forms.ts'
 import { balanceEverywhere, dueRow, lessonRow, openToday, openWeekOf, pickDate } from './ui.ts'
 
 function fixtureRows(query: string): Record<string, unknown>[] {
@@ -211,6 +212,7 @@ export async function staleDates(page: Page, fx: Fx, other: APIRequestContext): 
 	const after = record(await api(other, 'GET', `/students/${card.id}`))
 	expect(after.student).toEqual(detail.student)
 	expect(await api(other, 'GET', `/payments?student=${card.id}`)).toEqual(payments)
+	await staleForms(page, other, { card, date, lesson, series })
 }
 
 async function accountingView(
