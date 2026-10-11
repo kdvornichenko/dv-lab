@@ -10,6 +10,7 @@ import {
 	calendarWriteStatus,
 	nextLessonRead,
 	createCalendarLessonRequest,
+	googleConnectionSnapshot,
 	googleScheduleWindow,
 } from '../../packages/contracts/src/calendar.ts'
 import { mondayOf, zonedParts } from '../../packages/core/src/index.ts'
@@ -207,6 +208,10 @@ export async function recoveryUi(page: Page, mode: 'projection_pending' | 'resum
 	else {
 		expect(['partial_recovery', 'recovery_required'].includes(before.state)).toBe(true)
 		expect(before.nextAction).toBe('resume_recovery')
+		const connection = googleConnectionSnapshot.parse(await api(page.request, 'GET', '/google/connection'))
+		expect(connection.state).toBe('connected')
+		expect(connection.generation).toBeGreaterThan(before.generation)
+		expect(connection.pendingCommandCount).toBe(1)
 	}
 	let resumes = 0
 	page.on('request', (request) => {
@@ -233,11 +238,28 @@ export async function recoveryUi(page: Page, mode: 'projection_pending' | 'resum
 		await row.getByRole('button', { name: 'Resume recovery', exact: true }).click()
 		expect((await response).ok()).toBe(true)
 		expect(resumes).toBe(1)
-		const after = await command(page.request, `/google/commands/by-request/${fixture.requestId}`)
-		expect(after.commandId).toBe(before.commandId)
-		expect(after.requestId).toBe(before.requestId)
+		await expect(row).toHaveCount(0, { timeout: 60000 })
+		await assertResumed(page, before, fixture.date)
+		await page.reload()
+		await expect(page.getByRole('button', { name: 'New lesson', exact: true })).toBeEnabled()
+		await expect(row).toHaveCount(0)
 	}
 	await expect(page.getByText('Lesson added', { exact: true })).toHaveCount(0)
+}
+
+async function assertResumed(page: Page, before: z.infer<typeof calendarCommandSnapshot>, date: string) {
+	const after = await command(page.request, `/google/commands/by-request/${before.requestId}`)
+	expect(after.commandId).toBe(before.commandId)
+	expect(after.requestId).toBe(before.requestId)
+	expect(after.generation).toBe(before.generation)
+	expect(after.expectedVersion).toBe(before.expectedVersion)
+	expect(after.operation).toBe(before.operation)
+	expect(after.state).toBe('applied')
+	if (after.confirmedRevision === null) throw new Error('Resumed command needs a confirmed revision')
+	const window = googleScheduleWindow.parse(await api(page.request, 'GET', `/schedule/week?start=${mondayOf(date)}`))
+	if (window.read.state !== 'fresh') throw new Error('Resumed command needs a fresh window')
+	expect(window.connection.generation).toBeGreaterThan(before.generation)
+	expect(BigInt(window.read.revision) >= BigInt(after.confirmedRevision)).toBe(true)
 }
 
 export async function failedNoneUi(page: Page) {

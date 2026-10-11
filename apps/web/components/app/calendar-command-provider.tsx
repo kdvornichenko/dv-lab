@@ -13,18 +13,21 @@ type Reader = { refresh: () => Promise<void>; kind: RefreshKind }
 function createController(accountId: string) {
 	const readers = new Set<Reader>()
 	const windows = new Set<(window: GoogleScheduleWindow) => void>()
-	async function readWindow(date?: string) {
-		if (!(await sameCalendarAccount(accountId))) return null
+	async function readWindow(date?: string, current: () => boolean = () => true) {
+		if (!current() || !(await sameCalendarAccount(accountId)) || !current()) return null
 		const result = await readCalendarWeek(date)
-		if (!(await sameCalendarAccount(accountId))) return null
+		if (!(await sameCalendarAccount(accountId)) || !current()) return null
 		if (result !== null) for (const accept of windows) accept(result)
 		return result
 	}
-	const store = new CalendarCommandStore(accountId, async (date) => {
+	const store = new CalendarCommandStore(accountId, async (date, current) => {
 		try {
 			for (const kind of ['projection', 'window'] as const)
-				for (const reader of [...readers].filter((reader) => reader.kind === kind)) await reader.refresh()
-			return await readWindow(date)
+				for (const reader of [...readers].filter((reader) => reader.kind === kind)) {
+					if (!current()) return null
+					await reader.refresh()
+				}
+			return await readWindow(date, current)
 		} catch {
 			return null
 		}

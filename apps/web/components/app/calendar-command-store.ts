@@ -42,6 +42,7 @@ type LiveCommand = {
 	resolve: (result: CommandResult) => void
 }
 type RecoveryId = { requestId: string; commandId: string | null }
+type ConfirmedWindow = (date: string | undefined, current: () => boolean) => Promise<GoogleScheduleWindow | null>
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function storedIds(key: string): RecoveryId[] {
@@ -67,11 +68,12 @@ function terminal(command: CalendarCommandSnapshot | null) {
 function correlated(entry: CommandEntry, command: CalendarCommandSnapshot, live?: LiveCommand) {
 	if (entry.requestId !== command.requestId || (entry.commandId !== null && entry.commandId !== command.commandId))
 		return false
+	const original = live?.intent ?? entry.command
 	return (
-		live === undefined ||
-		(live.intent.generation === command.generation &&
-			live.intent.expectedVersion === command.expectedVersion &&
-			live.intent.operation === command.operation)
+		original === null ||
+		(original.generation === command.generation &&
+			original.expectedVersion === command.expectedVersion &&
+			original.operation === command.operation)
 	)
 }
 
@@ -91,8 +93,8 @@ export class CalendarCommandStore {
 	getSnapshot: () => CommandView
 
 	private accountId: string
-	private confirmedWindow: (date?: string) => Promise<GoogleScheduleWindow | null>
-	constructor(accountId: string, confirmedWindow: (date?: string) => Promise<GoogleScheduleWindow | null>) {
+	private confirmedWindow: ConfirmedWindow
+	constructor(accountId: string, confirmedWindow: ConfirmedWindow) {
 		this.view = { entries: [], status: 'loading', connection: null }
 		this.listeners = new Set()
 		this.live = new Map<string, LiveCommand>()
@@ -142,7 +144,11 @@ export class CalendarCommandStore {
 	start() {
 		this.epoch++
 		this.active = true
-		this.publish({ entries: storedIds(this.key()).map((id) => ({ ...id, command: null, status: 'checking' })) })
+		this.publish({
+			entries: storedIds(this.key()).map((id) => ({ ...id, command: null, status: 'checking' })),
+			status: 'loading',
+			connection: null,
+		})
 		void this.refresh()
 	}
 	stop() {
@@ -152,28 +158,37 @@ export class CalendarCommandStore {
 		clearTimeout(this.timer)
 		for (const live of this.live.values()) live.resolve({ kind: 'detached' })
 		this.live.clear()
+		this.checking.clear()
+		this.posting.clear()
+		this.resuming.clear()
 	}
-	private async authorized() {
+	private isCurrent(epoch: number) {
+		return this.active && epoch === this.epoch
+	}
+	private async authorized(epoch: number) {
+		if (!this.isCurrent(epoch)) return false
 		const same = await sameCalendarAccount(this.accountId)
+		if (!this.isCurrent(epoch)) return false
 		if (!same)
 			this.publish({
 				status: 'unavailable',
 				connection: null,
 				entries: this.view.entries.map((entry) => ({ ...entry, status: 'unavailable' })),
 			})
-		return same && this.active
+		return same
 	}
 
 	async refresh() {
+		const epoch = this.epoch
 		const sequence = ++this.listSequence
-		if (!(await this.authorized())) return
+		if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 		const result = await readUnresolved()
-		if (!this.active || sequence !== this.listSequence) return
-		if (result === null || !(await this.authorized())) {
+		if (!this.isCurrent(epoch) || sequence !== this.listSequence) return
+		if (result === null) {
 			this.publish({ status: 'unavailable' })
 			return
 		}
-		if (sequence !== this.listSequence) return
+		if (!(await this.authorized(epoch)) || !this.isCurrent(epoch) || sequence !== this.listSequence) return
 		const retained = [...this.view.entries]
 		for (const command of result.commands) {
 			if (this.completed.has(command.commandId)) continue
@@ -217,14 +232,14 @@ export class CalendarCommandStore {
 	}
 
 	private async post(requestId: string, retryMissing: boolean) {
-		if (this.posting.has(requestId)) return
+		if (!this.active || this.posting.has(requestId)) return
 		this.posting.add(requestId)
 		const epoch = this.epoch
 		try {
 			const live = this.live.get(requestId)
-			if (!live || !(await this.authorized()) || epoch !== this.epoch) return
+			if (!live || !(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 			const result = await postCalendarCommand(live.intent.path, live.body)
-			if (epoch !== this.epoch || !(await this.authorized())) return
+			if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 			const entry = this.find(requestId)
 			if (!entry) return
 			if (result.kind === 'rejected' && entry.commandId === null) {
@@ -237,25 +252,25 @@ export class CalendarCommandStore {
 				this.set({ ...entry, commandId: result.commandId, status: 'checking' })
 			await this.check(requestId)
 		} finally {
-			this.posting.delete(requestId)
+			if (this.isCurrent(epoch)) this.posting.delete(requestId)
 		}
-		if (retryMissing && epoch === this.epoch && this.find(requestId)?.status === 'missing')
+		if (retryMissing && this.isCurrent(epoch) && this.find(requestId)?.status === 'missing')
 			await this.post(requestId, false)
 	}
 
 	async check(requestId: string) {
 		const entry = this.find(requestId)
-		if (!entry || this.checking.has(requestId)) return
+		if (!this.active || !entry || this.checking.has(requestId)) return
 		this.checking.add(requestId)
 		const epoch = this.epoch
 		try {
-			if (!(await this.authorized())) return
+			if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 			const path =
 				entry.commandId === null
 					? `/google/commands/by-request/${encodeURIComponent(requestId)}`
 					: `/google/commands/${encodeURIComponent(entry.commandId)}`
 			const result = await readCommand(path)
-			if (epoch !== this.epoch || !(await this.authorized())) return
+			if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 			if (result.kind !== 'ready') {
 				this.set({ ...entry, status: result.kind })
 				return
@@ -267,13 +282,14 @@ export class CalendarCommandStore {
 			}
 			const next = { ...entry, commandId: result.command.commandId, command: result.command, status: 'ready' as const }
 			this.set(next)
-			await this.finish(next, live)
+			await this.finish(next, epoch, live)
 		} finally {
-			this.checking.delete(requestId)
+			if (this.isCurrent(epoch)) this.checking.delete(requestId)
 		}
 	}
 
-	private async finish(entry: CommandEntry, live?: LiveCommand) {
+	private async finish(entry: CommandEntry, epoch: number, live?: LiveCommand) {
+		if (!this.isCurrent(epoch)) return
 		const command = entry.command
 		if (!command) return
 		if (command.state === 'failed' && command.effect === 'none') {
@@ -285,13 +301,13 @@ export class CalendarCommandStore {
 			return
 		}
 		if (command.state !== 'applied' || command.confirmedRevision === null) return
-		const epoch = this.epoch
-		const window = await this.confirmedWindow(live?.intent.date)
-		if (epoch !== this.epoch || !this.active || !(await this.authorized())) return
+		const window = await this.confirmedWindow(live?.intent.date, () => this.isCurrent(epoch))
+		if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 		if (
 			window === null ||
 			window.read.state !== 'fresh' ||
 			window.connection.generation !== command.generation ||
+			window.connection.generation !== this.view.connection?.generation ||
 			BigInt(window.read.revision) < BigInt(command.confirmedRevision)
 		) {
 			this.set({ ...entry, status: 'unavailable' })
@@ -305,10 +321,12 @@ export class CalendarCommandStore {
 	}
 
 	async resume(requestId: string) {
-		if (this.resuming.has(requestId) || this.checking.has(requestId)) return
+		if (!this.active || this.resuming.has(requestId) || this.checking.has(requestId)) return
+		const epoch = this.epoch
 		this.resuming.add(requestId)
 		try {
 			await this.check(requestId)
+			if (!this.isCurrent(epoch)) return
 			const entry = this.find(requestId)
 			const command = entry?.command
 			if (
@@ -317,25 +335,32 @@ export class CalendarCommandStore {
 				!command ||
 				command.nextAction !== 'resume_recovery' ||
 				!['partial_recovery', 'recovery_required'].includes(command.state) ||
-				!(await this.authorized())
+				!(await this.authorized(epoch)) ||
+				!this.isCurrent(epoch) ||
+				this.find(requestId) !== entry
 			)
 				return
 			this.set({ ...entry, status: 'checking' })
 			await resumeCalendarCommand(command.commandId)
+			if (!this.isCurrent(epoch)) return
 			await this.check(requestId)
+			if (!this.isCurrent(epoch)) return
 			await this.refresh()
 		} finally {
-			this.resuming.delete(requestId)
+			if (this.isCurrent(epoch)) this.resuming.delete(requestId)
 		}
 	}
 
 	async retryStatus(requestId: string) {
+		const epoch = this.epoch
 		await this.check(requestId)
+		if (!this.isCurrent(epoch)) return
 		if (this.find(requestId)?.status === 'missing' && this.live.has(requestId)) await this.post(requestId, false)
 	}
 
 	private schedule() {
 		clearTimeout(this.timer)
+		const epoch = this.epoch
 		const waiting = this.view.entries.filter(
 			(entry) =>
 				!terminal(entry.command) &&
@@ -345,7 +370,7 @@ export class CalendarCommandStore {
 		)
 		if (waiting.length === 0) return
 		this.timer = setTimeout(() => {
-			if (this.active && document.visibilityState === 'visible')
+			if (this.isCurrent(epoch) && document.visibilityState === 'visible')
 				void Promise.all(waiting.map((entry) => this.check(entry.requestId)))
 		}, 2000)
 	}
