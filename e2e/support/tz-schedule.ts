@@ -182,7 +182,7 @@ export async function referenceSelection(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
 	const id = await fx.weekly(card.id, '2027-03-07', '09:00', NY)
-	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/2027-03-07/cancel`)
+	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/2027-03-07/cancel`, {})
 	await fx.moveOccurrence(id, '2027-03-14', '2027-03-15', '12:00', NY)
 	let rule = await seriesAt(page, card, '2027-03-07', id)
 	expect(rule.referenceOccurrence).toEqual({
@@ -194,7 +194,7 @@ export async function referenceSelection(page: Page, fx: Fx): Promise<void> {
 	rule = await seriesAt(page, card, '2027-03-07', id)
 	expect(rule.referenceOccurrence).toBeNull()
 	const gap = await fx.weekly(card.id, '2027-03-07', '02:30', NY)
-	await api(page.request, 'POST', `/schedule/series/${gap}/occurrences/2027-03-07/cancel`)
+	await api(page.request, 'POST', `/schedule/series/${gap}/occurrences/2027-03-07/cancel`, {})
 	await fx.moveOccurrence(gap, '2027-03-21', '2027-03-15', '12:00', NY)
 	expect(record((await seriesAt(page, card, '2027-03-07', gap)).referenceOccurrence).originalOn).toBe('2027-03-21')
 }
@@ -203,7 +203,7 @@ export async function missingRuleReference(page: Page, fx: Fx): Promise<void> {
 	const card = await fx.card('Alex Example 2185')
 	await setMain(page.request, NY)
 	const id = await fx.weekly(card.id, '2027-03-07', '02:30', NY)
-	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/2027-03-07/cancel`)
+	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/2027-03-07/cancel`, {})
 	sql(`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes)
 select id, '2027-03-14', 'moved', '2027-03-15T16:00:00Z', 60 from lesson_series
 where id = ${quote(id)}::uuid and student_id = ${quote(ownedStudent(card.id))}::uuid`)
@@ -263,7 +263,7 @@ export async function crossZoneTail(page: Page, fx: Fx, action: 'cut' | 'end'): 
 	const past = addDays(vnToday(), -2)
 	await markedTail(fx, id, tail, past, false)
 	await markedTail(fx, id, addDays(tail, 7), past, true)
-	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/${addDays(tail, 14)}/cancel`)
+	await api(page.request, 'POST', `/schedule/series/${id}/occurrences/${addDays(tail, 14)}/cancel`, {})
 	await fx.moveOccurrence(id, addDays(tail, 21), addDays(tail, 22), '12:00', NY)
 	const originalDates = [tail, addDays(tail, 7)]
 	const lineage = originalDates.map((date) => fx.occurrenceState(card.id, id, date))
@@ -286,7 +286,7 @@ export async function crossZoneTail(page: Page, fx: Fx, action: 'cut' | 'end'): 
 	if (action === 'cut') {
 		const result = record(record(await fx.cut(id, from, 3, '09:00', KIR)).series)
 		expect(result).toMatchObject({ weekday: 3, startTime: '09:00', timeZone: KIR })
-		const oldEnd = new Date(text((await seriesAt(page, card, first, id)).endsOn) + 'T00:00Z')
+		const oldEnd = new Date(text((await seriesAt(page, card, addDays(first, 1), id)).endsOn) + 'T00:00Z')
 		expect(oldEnd.toISOString().slice(0, 10)).toBe(addDays(tail, -1))
 		expect(result.endsOn).not.toBeNull()
 		const final = (await schedule(page, card, text(result.endsOn))).blocks.filter(

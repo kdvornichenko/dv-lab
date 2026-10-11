@@ -153,6 +153,7 @@ function FavoriteStar({
 			aria-pressed={favorite}
 			aria-label={favorite ? `Remove ${zone} from favorites` : `Add ${zone} to favorites`}
 			data-slot="time-zone-star"
+			onFocus={(event) => event.stopPropagation()}
 			onPointerDown={stopRow}
 			onMouseDown={stopRow}
 			onMouseUp={stopRow}

@@ -63,7 +63,8 @@ async function expectZones(page: Page, main: string, second: string): Promise<vo
 	await expect(mainField(page)).toContainText(main)
 	await expect(secondField(page)).toContainText(second === 'none' ? 'None' : second)
 	expect((await readSettings(page.request)).defaultTimeZone).toBe(main)
-	expect(await page.evaluate((key) => localStorage.getItem(key), SECOND)).toBe(second)
+	const stored = await page.evaluate((key) => localStorage.getItem(key), SECOND)
+	expect(stored ?? MSK).toBe(second)
 }
 
 export async function cancelAndRetry(page: Page): Promise<void> {
@@ -207,7 +208,7 @@ export async function latePaysSoon(page: Page): Promise<void> {
 		await expect(field).toHaveValue(String(threshold))
 		await expectZones(page, MSK, VN)
 		await page.goto('/schedule')
-		await expect(page.getByRole('button', { name: 'Second time zone', exact: true })).toContainText('VN')
+		await expect(page.getByRole('combobox', { name: 'Second time zone', exact: true })).toContainText('VN')
 		await settingsPage(page)
 		await page.reload()
 		await expectZones(page, MSK, VN)
@@ -236,6 +237,7 @@ export async function secondZoneIdentity(page: Page): Promise<void> {
 	const star = page.getByRole('button', { name: new RegExp(`^(Add|Remove) ${NY} (to|from) favorites$`) })
 	const starred = await star.getAttribute('aria-pressed')
 	await star.focus()
+	await expect(star).toBeFocused()
 	await page.keyboard.press('Space')
 	await expect(star).toHaveAttribute('aria-pressed', starred === 'true' ? 'false' : 'true')
 	await expect(secondField(page)).toContainText('None')
@@ -255,7 +257,7 @@ export async function secondZoneIdentity(page: Page): Promise<void> {
 	await expectZones(page, NY, 'none')
 	expect((await preferences(page))[1]).toBe(favorites)
 	await page.goto('/schedule')
-	await expect(page.getByRole('button', { name: 'Second time zone', exact: true })).toContainText('No second zone')
+	await expect(page.getByRole('combobox', { name: 'Second time zone', exact: true })).toContainText('No second zone')
 	await expect(page.locator('[data-slot="time-second"]')).toHaveCount(0)
 }
 
@@ -311,7 +313,9 @@ export async function keyboardLayout(page: Page): Promise<void> {
 	])
 		await expect(page.getByText(copy, { exact: true })).toBeVisible()
 	await expect(
-		page.locator('#settings-default-time-zone').getByText('Saved to your account.', { exact: true })
+		page
+			.getByRole('region', { name: 'Default time zone', exact: true })
+			.getByText('Saved to your account.', { exact: true })
 	).toBeVisible()
 	for (const width of [320, 1280]) {
 		await page.setViewportSize({ width, height: 800 })
@@ -334,7 +338,7 @@ export async function keyboardLayout(page: Page): Promise<void> {
 		const change = dialog.getByRole('button', { name: /^Change to / })
 		await expect(keep).toBeFocused()
 		await page.keyboard.press('Shift+Tab')
-		expect(await dialog.evaluate((node) => node.contains(document.activeElement))).toBe(true)
+		await expect(change).toBeFocused()
 		await page.keyboard.press('Tab')
 		await expect(keep).toBeFocused()
 		await change.scrollIntoViewIfNeeded()

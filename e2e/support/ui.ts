@@ -22,7 +22,7 @@ export async function openWeekOf(page: Page, date: string): Promise<void> {
 
 export function block(page: Page, name: string, date: string, time: string): Locator {
 	return page.locator(
-		`[data-slot="week-grid-column"][data-date="${date}"] button[data-key][aria-label^="${name}, "][aria-label*="${time}"]`
+		`[data-slot="week-grid-column"][data-date="${date}"] button[data-key][aria-label^="${name}, "][aria-label*=", ${time}–"]`
 	)
 }
 

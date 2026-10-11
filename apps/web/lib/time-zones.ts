@@ -142,7 +142,7 @@ function labelVariants(zone: string): readonly string[] {
 
 export function listTimeZones(extra: readonly string[] = []): string[] {
 	const listed = Intl.supportedValuesOf('timeZone')
-	const added = [...MODERN_TIME_ZONES, ...extra].filter((zone) => !listed.includes(zone) && isTimeZone(zone))
+	const added = ['UTC', ...MODERN_TIME_ZONES, ...extra].filter((zone) => !listed.includes(zone) && isTimeZone(zone))
 	return Array.from(new Set([...listed, ...added])).sort()
 }
 

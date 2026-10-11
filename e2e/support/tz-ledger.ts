@@ -243,11 +243,11 @@ async function accountingView(
 	await openToday(page)
 	const heading = new Intl.DateTimeFormat('en-GB', {
 		timeZone: zone,
-		weekday: 'long',
 		day: 'numeric',
 		month: 'long',
 	}).format(now)
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading)
+	const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'long' }).format(now)
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${weekday}, ${heading}`)
 	const present = list(response.lessons)
 		.map(record)
 		.some((row) => row.key === `l:${lessonId}`)
