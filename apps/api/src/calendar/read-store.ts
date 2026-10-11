@@ -15,6 +15,31 @@ import { loadMappings, type BoundEvent, type MappingSnapshot } from './event-map
 import type { NextProof } from './read-pages.ts'
 import { opaqueVersion, recordRead, type CalendarReadContext, type WindowSelection } from './read-state.ts'
 
+export async function advanceCommandRevision(
+	tx: DbExecutor,
+	accountId: string,
+	connectionId: string,
+	generation: number
+) {
+	const [row] = await tx
+		.update(googleConnections)
+		.set({
+			snapshotRevision: sql`${googleConnections.snapshotRevision} + 1`,
+			updatedAt: sql`now()`,
+		})
+		.where(
+			and(
+				eq(googleConnections.id, connectionId),
+				eq(googleConnections.accountId, accountId),
+				eq(googleConnections.generation, generation),
+				eq(googleConnections.state, 'connected')
+			)
+		)
+		.returning({ revision: googleConnections.snapshotRevision })
+	if (!row) throw new Error('Calendar projection generation changed')
+	return row.revision
+}
+
 export function mappingFingerprint(snapshot: MappingSnapshot): string {
 	return opaqueVersion([
 		JSON.stringify(snapshot.mappings.toSorted((a, b) => a.id.localeCompare(b.id))),

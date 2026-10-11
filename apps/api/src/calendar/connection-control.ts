@@ -7,6 +7,7 @@ import { googleCommands, googleCommandStages, googleConnections, type Database, 
 import { readConnection } from './connection.ts'
 import { credentialBinding, findConnection, type ConnectionRow, type Credentials } from './credentials.ts'
 import { CalendarFault, GOOGLE_REQUEST_TIMEOUT_MS, type GoogleGateway } from './gateway.ts'
+import { retireReservations } from './journal.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'
 import type { CalendarObservation } from './observation.ts'
@@ -33,7 +34,7 @@ function matches(row: ConnectionRow) {
 }
 
 async function failUnsent(tx: DbExecutor, connectionId: string) {
-	await tx
+	const failed = await tx
 		.update(googleCommands)
 		.set({
 			state: 'failed',
@@ -61,6 +62,14 @@ async function failUnsent(tx: DbExecutor, connectionId: string) {
 				)
 			)
 		)
+		.returning({ id: googleCommands.id })
+	for (const command of failed) {
+		await retireReservations(tx, command.id)
+		await tx
+			.update(googleCommandStages)
+			.set({ state: 'failed', effect: 'none', updatedAt: sql`now()` })
+			.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.state, 'pending')))
+	}
 	await tx
 		.update(googleCommands)
 		.set({

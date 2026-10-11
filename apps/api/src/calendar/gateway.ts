@@ -2,8 +2,10 @@ import { Auth, google } from 'googleapis'
 import { z } from 'zod'
 
 import type { CalendarIssue } from '@dv-lab/contracts'
+import type { GoogleStageRequest } from '@dv-lab/db'
 
 import type { CalendarConfig } from '../config.ts'
+import { insertEventBody, verifyGoogleResult } from './command-result.ts'
 import { parseEventPage, parseMaster, type EventQuery } from './provider-events.ts'
 
 export const CALENDAR_SCOPES = [
@@ -20,6 +22,23 @@ export class CalendarFault extends Error {
 		super(code)
 		this.code = code
 		this.name = 'CalendarFault'
+	}
+}
+
+export class GoogleWriteFault extends CalendarFault {
+	readonly httpStatus: number | null
+	readonly outcome: 'rejected' | 'conflict' | 'unknown' | 'missing'
+	constructor(status: number | null) {
+		super(status === 401 ? 'reconnect_required' : status === 403 ? 'permission_required' : 'provider_unavailable')
+		this.httpStatus = status
+		this.outcome =
+			status === 409
+				? 'conflict'
+				: status === 404
+					? 'missing'
+					: status !== null && [400, 401, 403, 412, 429].includes(status)
+						? 'rejected'
+						: 'unknown'
 	}
 }
 
@@ -62,6 +81,12 @@ const calendarEntry = z.object({
 })
 const calendarPage = z.object({
 	items: z.array(calendarEntry).optional(),
+	nextPageToken: z.string().min(1).optional(),
+})
+const identityPage = z.object({
+	items: z
+		.array(z.object({ id: z.string().min(1), status: z.enum(['confirmed', 'tentative', 'cancelled']).optional() }))
+		.optional(),
 	nextPageToken: z.string().min(1).optional(),
 })
 export type GoogleTokens = z.infer<typeof tokenData>
@@ -136,6 +161,69 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 			return validateTokens(response, false)
 		},
 		primary,
+		async insert(
+			accessToken: string,
+			calendarId: string,
+			request: Extract<GoogleStageRequest, { method: 'insert' }>,
+			timeZone: string,
+			generation: number,
+			signal: AbortSignal
+		) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const response = await writeCall(() =>
+				google
+					.calendar({ version: 'v3', auth: oauth })
+					.events.insert({ calendarId, sendUpdates: 'none', requestBody: insertEventBody(request) }, { retry: false })
+			)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+		},
+		async confirmedEvent(
+			accessToken: string,
+			calendarId: string,
+			request: Extract<GoogleStageRequest, { method: 'insert' }>,
+			timeZone: string,
+			generation: number,
+			signal: AbortSignal
+		) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const response = await writeCall(() =>
+				google
+					.calendar({ version: 'v3', auth: oauth })
+					.events.get({ calendarId, eventId: request.eventId }, { retry: false })
+			)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+		},
+		async identityAbsent(accessToken: string, calendarId: string, localEntityId: string, signal: AbortSignal) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const pages = new Set<string>()
+			let pageToken: string | undefined
+			do {
+				const response = await writeCall(() =>
+					google.calendar({ version: 'v3', auth: oauth }).events.list(
+						{
+							calendarId,
+							showDeleted: true,
+							singleEvents: false,
+							maxResults: 2500,
+							pageToken,
+							privateExtendedProperty: [`dvLocalId=${localEntityId}`],
+							fields: 'nextPageToken,items(id,status)',
+						},
+						{ retry: false }
+					)
+				)
+				const parsed = identityPage.safeParse(response.data)
+				if (!parsed.success) throw new CalendarFault('invalid_provider_data')
+				if (parsed.data.items?.some((event) => event.status !== 'cancelled')) return false
+				pageToken = parsed.data.nextPageToken
+				if (pageToken && (pages.has(pageToken) || pages.size >= 1000)) throw new CalendarFault('invalid_provider_data')
+				if (pageToken) pages.add(pageToken)
+			} while (pageToken)
+			return true
+		},
 		async events(accessToken: string, query: EventQuery, signal: AbortSignal) {
 			const oauth = client(signal)
 			oauth.setCredentials({ access_token: accessToken })
@@ -212,3 +300,12 @@ async function safeCall<T>(operation: () => Promise<T>): Promise<T> {
 }
 
 export type GoogleGateway = ReturnType<typeof createGoogleGateway>
+
+async function writeCall<T>(operation: () => Promise<T>): Promise<T> {
+	try {
+		return await operation()
+	} catch (error) {
+		const parsed = providerFailure.safeParse(error)
+		throw new GoogleWriteFault(parsed.success ? (parsed.data.response?.status ?? null) : null)
+	}
+}

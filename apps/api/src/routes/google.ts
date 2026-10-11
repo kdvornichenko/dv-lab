@@ -5,13 +5,19 @@ import {
 	googleConnectRequest,
 	googleConfirmRevokedRequest,
 	googleDisconnectRequest,
+	googleCommandByRequestParams,
+	googleCommandParams,
+	googleUnresolvedCommandsQuery,
+	googleResumeCommandRequest,
 } from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import type { CalendarCommands } from '../calendar/commands.ts'
 import type { ConnectionControl } from '../calendar/connection-control.ts'
 import type { CalendarConnection } from '../calendar/connection.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
+import { CommandFault, commandSnapshot, findRequest, readCommand, unresolvedCommands } from '../calendar/journal.ts'
 import type { ConsentActor } from '../calendar/oauth-session.ts'
 import { errorBody } from '../request-context.ts'
 
@@ -19,6 +25,7 @@ type GoogleRouteDeps = {
 	db: Database
 	connection?: CalendarConnection
 	control?: ConnectionControl
+	commands?: CalendarCommands
 	isStopping: () => boolean
 }
 
@@ -28,6 +35,7 @@ function actor(c: Context<AppEnv, string, {}>): ConsentActor {
 }
 
 function refusal(c: Context<AppEnv, string, {}>, error: unknown) {
+	if (error instanceof CommandFault) return c.json(errorBody(error.code, 'Calendar command refused'), error.status)
 	if (error instanceof CalendarFault) {
 		switch (error.code) {
 			case 'connection_required':
@@ -35,13 +43,14 @@ function refusal(c: Context<AppEnv, string, {}>, error: unknown) {
 			case 'permission_required':
 			case 'command_pending':
 			case 'disconnect_failed':
+			case 'external_change':
 				return c.json(errorBody(error.code, 'Calendar action is unavailable'), 409)
 		}
 	}
 	return c.json(errorBody('provider_unavailable', 'Calendar is unavailable'), 503)
 }
 
-export function googleRoutes({ db, connection, control, isStopping }: GoogleRouteDeps) {
+export function googleRoutes({ db, connection, control, commands, isStopping }: GoogleRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use(
 		'*',
@@ -95,6 +104,46 @@ export function googleRoutes({ db, connection, control, isStopping }: GoogleRout
 		if (!control || isStopping()) return refusal(c, null)
 		try {
 			return c.json(await control.confirmRevoked(actor(c)))
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.get('/commands/by-request/:requestId', async (c) => {
+		const parsed = googleCommandByRequestParams.safeParse(c.req.param())
+		if (!parsed.success) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		const command = await findRequest(db, actor(c).accountId, parsed.data.requestId)
+		if (!command) return c.json(errorBody('not_found', 'Not Found'), 404)
+		return c.json(commandSnapshot(command))
+	})
+	routes.get('/commands', async (c) => {
+		if (!googleUnresolvedCommandsQuery.safeParse(c.req.query()).success)
+			return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		return c.json({ commands: (await unresolvedCommands(db, actor(c).accountId)).map(commandSnapshot) })
+	})
+	routes.get('/commands/:commandId', async (c) => {
+		const parsed = googleCommandParams.safeParse(c.req.param())
+		if (!parsed.success) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		try {
+			const context = { accountId: actor(c).accountId, now: new Date() }
+			return c.json(
+				commands
+					? await commands.readCalendarCommand(context, parsed.data.commandId)
+					: commandSnapshot(await readCommand(db, context.accountId, parsed.data.commandId))
+			)
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.post('/commands/:commandId/resume', async (c) => {
+		const parsed = googleCommandParams.safeParse(c.req.param())
+		if (!parsed.success || !(await readJson(c, googleResumeCommandRequest)))
+			return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!commands || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			return c.json(
+				await commands.resumeCalendarCommand({ accountId: actor(c).accountId, now: new Date() }, parsed.data.commandId),
+				202
+			)
 		} catch (error) {
 			return refusal(c, error)
 		}

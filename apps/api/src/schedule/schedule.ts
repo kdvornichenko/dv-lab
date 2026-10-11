@@ -18,7 +18,6 @@ import {
 	type OutcomeBlock,
 	type SeriesRule,
 	type SingleLesson,
-	addDays,
 	lessonActions,
 	localTimeCandidates,
 	nextSeriesDate,
@@ -27,7 +26,6 @@ import {
 	scheduleWindow,
 	weekdayOf,
 	withOutcomes,
-	startOfZonedDay,
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonSeries, lessons, students } from '@dv-lab/db'
 
@@ -191,16 +189,6 @@ export async function wireBlocks(executor: DbExecutor, placed: readonly CoreBloc
 	const blocks = withOutcomes(placed, marks)
 	const people = await blockStudents(executor, blocks)
 	return blocks.map((block) => toWireBlock(block, people, marks, now))
-}
-
-export async function readWeek(
-	executor: DbExecutor,
-	monday: string,
-	context: TeacherTimeContext
-): Promise<ScheduleWeekResponse> {
-	const from = startOfZonedDay(monday, context.defaultTimeZone)
-	const to = startOfZonedDay(addDays(monday, 7), context.defaultTimeZone)
-	return { start: monday, ...(await readWindow(executor, from, to, context)) }
 }
 
 export function createLesson(

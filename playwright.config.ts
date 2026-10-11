@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 import { existsSync } from 'node:fs'
 
-import { AUTH_FILE, BASE, prepareState, RESULTS_DIR } from './e2e/support/data.ts'
+import { AUTH_FILE, BASE, HTTPS_TARGET, prepareState, RESULTS_DIR } from './e2e/support/data.ts'
 
 prepareState()
 if (existsSync(RESULTS_DIR)) throw new Error('E2E output directory must be new for this run')
@@ -21,7 +21,7 @@ export default defineConfig({
 		baseURL: BASE,
 		trace: 'off',
 		video: 'off',
-		screenshot: 'only-on-failure',
+		screenshot: HTTPS_TARGET ? 'off' : 'only-on-failure',
 		navigationTimeout: 60000,
 		viewport: { width: 1280, height: 800 },
 		timezoneId: 'Asia/Ho_Chi_Minh',
