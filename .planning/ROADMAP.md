@@ -418,7 +418,7 @@ Plans:
 5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
 6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
-**Plans**: 8/14 plans executed / 40 tasks / 13 waves; source implementation in progress, connected provider verification pending
+**Plans**: 10/14 plans executed / 40 tasks / 13 waves; source implementation in progress, connected provider verification pending
 
 Plans:
 **Wave 1**
@@ -452,7 +452,7 @@ Plans:
 
 **Wave 8** _(blocked on Wave 7 completion)_
 
-- [ ] 24-09-PLAN.md — Recurring masters и canonical instances
+- [x] 24-09-PLAN.md — Recurring masters и canonical instances
 
 **Wave 9** _(blocked on Wave 8 completion)_
 
@@ -460,7 +460,7 @@ Plans:
 
 **Wave 10** _(blocked on Wave 9 completion)_
 
-- [ ] 24-12-PLAN.md — UI: Google read-only, pending Save и recovery
+- [x] 24-12-PLAN.md — UI: Google read-only, pending Save и recovery
 
 **Wave 11** _(blocked on Wave 10 completion)_
 
@@ -531,6 +531,6 @@ Plans:
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete         | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 8/14           | Ready to execute | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 10/14          | Ready to execute | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started      | -          |
 | 26. IELTS Section                                | v2.0      | 0/TBD          | Not started      | -          |
