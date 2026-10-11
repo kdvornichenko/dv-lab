@@ -43,7 +43,7 @@ key-decisions:
   - 'Provider proof отложен в 24-14 до получения разрешённой PRIMARY identity, consent и matching HTTPS attestation.'
   - 'Дополнительные envelope/session/lease helpers объявлены внутри принятой области; новый public DTO не введён.'
 requirements-completed: [GCAL-01, GCAL-09, GCAL-03]
-requirements-status: source-implemented-provider-unverified
+requirements-status: source-implemented-e2e-authoring-and-provider-unverified
 coverage:
   - id: D1
     description: Encrypted teacher-bound consent и refresh
@@ -53,7 +53,10 @@ coverage:
         ref: yarn workspace @dv-lab/api typecheck
         status: pass
       - kind: e2e
-        ref: 'e2e/calendar.spec.ts#[calendar] oauth; real Google consent/refresh'
+        ref: 'e2e/calendar.spec.ts#[calendar] oauth consumes denial once and binds state to the initiating session'
+        status: unknown
+      - kind: other
+        ref: '24-14 authoring gap: real consent, granted scopes, primary identity and refresh'
         status: unknown
     human_judgment: false
   - id: D2
@@ -74,16 +77,16 @@ coverage:
       - kind: e2e
         ref: 'e2e/calendar.spec.ts#[calendar] credential recovery; local input/auth negative paths'
         status: pass
-      - kind: e2e
-        ref: 'Real provider revoke, lost response and old-attempt quiescence'
+      - kind: other
+        ref: '24-14 authoring gap: real revoke, lost response, restart and quiescence'
         status: unknown
     human_judgment: false
 actuals:
-  tokens: 13668
+  tokens: 21526
   tasks: 3
-  commits: 4
+  commits: 6
 plan_head_before: dfa4b0c37aacf6eea5b7582c9efff7f57267d971
-plan_head_after: e471024db08ae836f5fbf6ae101bc38a2a2e1f6d
+plan_head_after: fad2e0f3bfa54a40bbe7b25e52fac9b85fa232d6
 duration: 23min
 completed: 2026-10-11
 status: complete
@@ -97,7 +100,7 @@ status: complete
 
 Реализованы три source tasks 24-04. Текущая execution authority заменила исторический preparation-only раздел плана. Проверки реального Google перенесены в 24-14 по прямому указанию пользователя; `status: complete` означает завершение разрешённой source implementation, не приёмку GCAL и не разрешение deployment.
 
-Начало: 2026-10-11T16:25:58Z. Завершение source/evidence: 2026-10-11T16:49:07Z. Net diff: 15 source/config/E2E файлов и этот SUMMARY. Actual tokens: 54 672 символа полного `git diff --no-ext-diff <before> <after> --` / 4 = 13 668. Четыре коммита измерены по ledger до metadata commit, включая исправление временного изменения `.gitignore`.
+Начало: 2026-10-11T16:25:58Z. Первичная source/evidence работа: 23 минуты, до 2026-10-11T16:49:07Z. Bounded review correction внесена коммитом `fad2e0f`. Net diff: 15 source/config/E2E файлов и этот SUMMARY. Актуальные actuals измерены между ledger base и `fad2e0f`: 86 101 символ полного `git diff --no-ext-diff <before> <after> --`, ceil(chars/4) = 21 526; 6 коммитов, включая первую версию SUMMARY. Текущий metadata commit в этот срез не входит.
 
 STATE, ROADMAP, HANDOFF, state.json, WINDOWS и inventory планов принадлежат parent. Они не изменялись этим исполнителем. 24-05 не начат.
 
@@ -180,11 +183,11 @@ yarn prettier --check apps/api/src/app.ts apps/api/src/calendar/connection-contr
 
 Rerun: запустить существующий локальный API/web с provider disabled, убрать inherited DATABASE_URL/MIGRATOR_DATABASE_URL, выполнить соответствующую `--no-deps` команду из таблицы. Полный HTTPS journey требует уже предусмотренных 01 authority/attestation. Local success не доказывает provider behavior или Caddy.
 
-## Quality и simplify
+## Quality и simplify — первичный срез e471024
 
 Применены simplify и cyclomatic-complexity к owned diff. Новых code comments, зависимостей, SQL DDL и isolated suites нет. В scope review нет подтверждённых dead/redundant code findings. Полный knip/quality audit принадлежит 24-13 и здесь не заявлен.
 
-Финальный quality CLI: exit **2 / UNVERIFIED** только из-за `deploy/caddy/Caddyfile`: `UNSUPPORTED handwritten language: no implemented measurement`. TypeScript portion не имеет failures, unavailable syntax, type diagnostics или непросмотренных unknown boundaries. Любой any исправлен; unknown ограничен входными HTTP/provider/WebSocket значениями и error boundaries с source-hash-bound review.
+Quality CLI до review correction: exit **2 / UNVERIFIED** только из-за `deploy/caddy/Caddyfile`: `UNSUPPORTED handwritten language: no implemented measurement`. TypeScript portion не имеет failures, unavailable syntax, type diagnostics или непросмотренных unknown boundaries. Любой any исправлен; unknown ограничен входными HTTP/provider/WebSocket значениями и error boundaries с source-hash-bound review.
 
 Отчёт `STATE_DIR/phase24-04-quality-final.json`:
 
@@ -218,7 +221,7 @@ Rerun: запустить существующий локальный API/web с
 
 Исходный gateway draft имел cognitive 22; разделение выбора primary снизило максимум до 11 до task 1 commit. Финальные owned максимумы: CC 14, cognitive 11, D 27.33, file 289 lines.
 
-Точная финальная команда quality (stdout сохранялся в private JSON):
+Точная команда первичного quality среза (stdout сохранялся в private JSON; source-hash-bound reviews относятся к bytes до `fad2e0f`):
 
 ```sh
 node --max-old-space-size=8192 scripts/dev-checks/calendar-quality.ts --base dfa4b0c37aacf6eea5b7582c9efff7f57267d971 \
@@ -273,7 +276,7 @@ e4c94f2015230c4eb1359588a7adb45bfa4419a5dc31c7f880438c68572106c9  apps/api/src/c
 9eb0c082b19492f9675d1e3e05ba337af75e71a1906ec0f5ddc81082d652c8c6  apps/api/src/request-context.ts
 97dbbe787ce96466ec9e78f91c234633270a42013e36f669371f33e25da07bef  apps/api/src/routes/google.ts
 66bbb61ae44b0e7d52d2a86c9bc6839e70d4113ce83e9420df390694a1121871  apps/api/src/server.ts
-69765f8886c011e7a1a45b46b1a76feda966625b8e28cc6ae20060d599f9ed7b  e2e/calendar.spec.ts
+65d40d3323eca2d24766d75009403494eb036044791f12698272e77b2f9e3b80  e2e/calendar.spec.ts
 c846f0154c227281774ea64997559924b462d5ba94e617f4f5d4282ec2c7bd57  packages/db/src/calendar-values.ts
 2bb3e709933b907ddce8f6cb61d5a16231b72e56e72975d500907abc918ff8c2  packages/db/src/connection.ts
 0d50251ad78b45bb943949a0671f4b67cf736c374b162fe2afab003197837396  deploy/caddy/Caddyfile
@@ -295,18 +298,56 @@ Tool/method fingerprints, ESLint rule/config hashes, per-function before/after �
 
 Tasks 1 и 3 сначала расширили `e2e/calendar.spec.ts`, затем реализовали поведение. Discovery выполнен. Полный RED/GREEN на Google не выполнялся: authorization и matching HTTPS runtime отсутствуют. Пользователь явно разрешил source execution с этим ограничением и передачу provider proof в 24-14. Изолированные mock/unit/component/contract/integration tests не добавлялись; discovery не объявлен RED evidence или OAuth PASS.
 
-## Deferred Issues / handoff в 24-14
+## Verification inventory / handoff в 24-14
 
-Следующие проверки **UNVERIFIED**, не PASS:
+Фактически написаны пять cases. Готовый source не означает, что сценарий выполнялся.
 
-- `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep '\[calendar\] oauth' --project=light`: real consent, missing/student/other-session/replay/denial, incomplete scopes, wrong primary, initial missing refresh и previous-grant preservation. Отрицательные HTTP cases покрыты лишь указанной локальной частью.
-- `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep '\[calendar\] credential recovery' --project=light`: concurrent refresh, invalid_grant, revoke 200/timeout/lost reply→400, restart, old-request quiescence, explicit operator recovery и reconnect no-unsent-resurrection.
-- Runtime validation Caddy и callback redaction в настоящем Caddy: local `caddy` недоступен; новый install/server/deploy не разрешён. Source syntax сверена с официальной документацией Caddy log filter.
-- Static metrics Caddyfile unsupported. Это единственная причина финального quality UNVERIFIED.
+| Сценарий в e2e/calendar.spec.ts                                                         | Что проверяет                                                                                 | Evidence                                              |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| `[calendar] oauth refuses anonymous access and strips callback input`                   | Anonymous connection/callback: 401, no-store, отсутствие synthetic code в response            | Local PASS, exit 0; case неизменён                    |
+| `[calendar] oauth rejects foreign Origin and invalid state without replacing the grant` | Foreign Origin; отсутствующий/неверный state; clean redirect и неизменность snapshot          | SOURCE-READY, UNEXECUTED; discovery есть              |
+| `[calendar] oauth consumes denial once and binds state to the initiating session`       | Формат state, PKCE S256, другая teacher session, denial, replay и unchanged snapshot          | SOURCE-READY, UNEXECUTED; discovery есть              |
+| `[calendar] credential recovery refuses anonymous control requests`                     | Anonymous disconnect/confirm-revoked: 401, no-store                                           | Local PASS, exit 0; case неизменён                    |
+| `[calendar] credential recovery requires explicit confirmation and same Origin`         | Missing/false/extra confirmation: 400; foreign Origin: 403; unchanged connection availability | Local PASS, exit 0, provider disabled; case неизменён |
 
-Authority на synthetic PRIMARY identity, consent и matching fixed-callback HTTPS runtime должна существовать перед реальной provider проверкой. Прежний missing-authority preflight не повторялся. Auth gate в runtime не возникал.
+Два SOURCE-READY OAuth cases имеют executable assertions и public API путь. Им нужны matching HTTPS runtime, teacher session и включённая Calendar configuration. Они не завершают настоящий Google consent и не проверяют refresh/revoke. Сравнение snapshot не доказывает сохранение прежнего **валидного** grant: такой grant не установлен как fixture этих cases.
 
-Parent владеет WINDOWS: эти два unrun HTTPS verify и Caddy limitations переданы для ledger. Самостоятельных записей в общий ledger нет. Stub scan не обнаружил TODO/FIXME/placeholder или unwired required implementations. Intentional fake provider/worker stubs отсутствуют. Новых security surfaces вне T-24-40/41/42 не выявлено.
+После получения inputs команды ниже выбирают только три OAuth и два recovery cases из таблицы. Они не запускают отсутствующие сценарии следующего раздела.
+
+```sh
+E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep 'oauth' --project=light
+E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep 'credential recovery' --project=light
+```
+
+### NOT YET AUTHORED — authoring и execution gap, владелец 24-14
+
+| Отсутствующий сценарий                                                   | Что потребуется                                                                                                                                                                                    |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Student session rejection                                                | Owned student account/session и совместимый fixture lifecycle. Текущий fx выполняет общий legacy cleanup студентов; его нельзя слепо использовать рядом с append-only Calendar journal/FK RESTRICT |
+| Успешный real consent, сохранение refresh/actual primary                 | Разрешённый synthetic Google PRIMARY, реальный consent через fixed callback, наблюдаемый public connection outcome                                                                                 |
+| Incomplete granted scopes, wrong actual primary, initial missing refresh | Настоящие управляемые consent/grant states. Для wrong primary нужен второй разрешённый synthetic identity; проверка authorization URL не заменяет provider outcomes                                |
+| Сохранение прежнего валидного grant при отказе нового consent/exchange   | Подтверждённый старый grant и настоящий отказ нового grant с проверкой public snapshot                                                                                                             |
+| Concurrent refresh, refresh без нового token, invalid_grant              | Реальный grant с контролируемым expiration/revocation и вызывающий refresh public workflow                                                                                                         |
+| Disconnect in-flight, revoke 200, timeout, lost reply→400, retry         | Реальный provider request и управление потерей ответа/transport без подмены acceptance                                                                                                             |
+| Restart/resume, old-request quiescence, operator-confirmed recovery      | Управление существующим API process/transport, наблюдение завершения старого request и реальное подтверждение удаления grant                                                                       |
+| Reconnect без resurrection unsent и resolution dispatched barriers       | Durable journal через будущие public command workflows и reconciliation владельца 24-07                                                                                                            |
+
+Эти gaps не закрываются текущими grep-командами и не считаются готовым test coverage. Новых фиктивных PASS/skip cases нет. Простые missing-state, wrong-session, denial, replay и HTTP recovery-validation cases уже написаны. Остальная проверка требует fixture/control authoring, а не добавления неисполняемых заготовок. Student fixture и fault orchestration — инженерная работа 24-14, не новое согласование реализации.
+
+Невосстановимые из checkout operator inputs:
+
+- Разрешённые synthetic Google account identities и фактический consent/2FA; второй identity нужен для wrong primary. Секреты не записываются в SUMMARY.
+- Matching attestation существующего HTTPS callback runtime: API build и разрешённая persistence того же target. Новое окружение/deployment этим планом не разрешены.
+- Authority на изменение/отзыв и восстановление конкретных synthetic grants и на управление transport/process target для loss/restart. Сам способ fault orchestration ещё должен быть реализован в 24-14 без fake replies.
+- Для operator-confirmed recovery — фактическое подтверждение удаления выбранного grant оператором. Это не provider proof.
+
+Missing-authority preflight и live operator flows повторно не запускались.
+
+### Остальные ограничения
+
+Caddy runtime/config validation и redaction в настоящем Caddy — UNVERIFIED: local CLI недоступен; install/server/deploy не разрешены. Static metrics Caddyfile unsupported; первичный full-scope quality report имеет exit 2 / UNVERIFIED.
+
+Parent владеет WINDOWS: переданы отдельно два SOURCE-READY unrun OAuth cases, перечисленные authoring gaps и Caddy limitations. Самостоятельных изменений ledger нет. Stub scan не обнаружил фиктивной provider/worker реализации; отсутствие test stub не доказывает покрытие. Новых security surfaces вне T-24-40/41/42 не выявлено.
 
 ## Next Plan Readiness
 
@@ -316,6 +357,41 @@ Owners OAuth/credentials/control готовы для дальнейшей source
 
 - Все 15 net changed source/config/E2E файлов и SUMMARY существуют.
 - Коммиты `7ab907e`, `7974a05`, `283a6e8`, `e471024` подтверждены через `git merge-base --is-ancestor <hash> HEAD`, exit 0 для каждого.
-- Ledger before/after и `git rev-list --count <before>..<after>` подтверждают 4 source/correction commits.
-- Fingerprints всех 3547 type inputs совпадают; source bytes после quality check не менялись.
+- Ledger before/after и `git rev-list --count <before>..<after>` подтверждают 6 коммитов до текущей metadata correction, включая `fad2e0f` и первичный SUMMARY.
+- Первичный quality snapshot проверил 3547 type inputs. После него изменён только `e2e/calendar.spec.ts`; его новый fingerprint, scoped typecheck и metrics приведены ниже. Старый report не объявляется актуальным для этого файла.
 - Собственные API/web остановлены; `DEV_DOWN_OK`. Единственный внешний untracked файл — сохранённый `apps/web/AGENTS.md`.
+
+## Bounded review correction — fad2e0f
+
+Изменены только `e2e/calendar.spec.ts` и этот SUMMARY. Production source, shared harness и Playwright config не менялись. Parent подтвердил закрытие конкретных privacy findings.
+
+- Grant/state/Location assertions передают в expect boolean и безопасную подпись. Schema validation выводит фиксированную ошибку.
+- Callback transport rejection заменяется фиксированной ошибкой без URL/state и исходного cause. Shared api helper уже подавляет request details.
+- Для двух teacher OAuth cases отдельный `test.extend` фиксирует trace/video/screenshot off. Проверены текущие Playwright 1.63 config и fixture implementation; остальные cases сохраняют свои artifact options.
+- Simplify применён к исправлению; новых комментариев, suite, mocks, fake outcomes и dependencies нет.
+- Source commit: `fad2e0f3bfa54a40bbe7b25e52fac9b85fa232d6`, `fix(24-04): исключил секреты из OAuth evidence`. Первый metadata commit: `be8c4dc`.
+
+### Текущее статическое evidence
+
+SHA-256 `e2e/calendar.spec.ts`: `65d40d3323eca2d24766d75009403494eb036044791f12698272e77b2f9e3b80`.
+
+```sh
+yarn exec tsc --noEmit --strict --target ES2024 --module ESNext --moduleResolution Bundler --allowImportingTsExtensions --allowJs --checkJs --skipLibCheck --types node e2e/calendar.spec.ts
+E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep '\[calendar\] (oauth|credential recovery)' --project=light --list
+yarn prettier --check e2e/calendar.spec.ts
+git diff --check
+```
+
+Все четыре команды: exit 0. TSC без diagnostics. Discovery: `Total: 7 tests in 3 files` — пять cases и setup/cleanup; runtime/provider execution отсутствует. Prettier: `All matched files use Prettier code style!`. Diff check без ошибок.
+
+Промежуточные static failures исправлены: TSC без allowJs не видел declarations существующего paths.mjs; добавлены принятые tooling flags allowJs/checkJs. Playwright отклонил worker options внутри describe и смену option registration; применён поддерживаемый отдельный test.extend с обычными значениями. Финальные проверки завершились успешно.
+
+Существующий `calendar-metrics.compare` измерил только этот файл против `be8c4dc`, exit 0; Node 24.17.0 / TypeScript 6.0.3 / ESLint 10.12.0, прежняя token convention. 210 lines вместо 174, unavailable syntax: 0. File maxima: CC 6→6, cognitive 5→5, Halstead D 23.98→23.98. Новые helpers: readConnection CC=2/cognitive=1/D=10; callback CC=1/cognitive=0/D=5.91; catch callback CC=1/cognitive=0/D=3.5. Неоднозначные имена callbacks не получили выдуманных before-pairs.
+
+Точная команда измерения:
+
+```sh
+node --input-type=module -e 'import { readFileSync } from "node:fs"; import { execFileSync } from "node:child_process"; import { createHash } from "node:crypto"; import { compare, METHOD } from "./scripts/dev-checks/calendar-metrics.ts"; const path="e2e/calendar.spec.ts"; const before=execFileSync("git",["show","be8c4dc:"+path],{encoding:"utf8"}); const after=readFileSync(path,"utf8"); const result=compare(path,before,after); console.log(JSON.stringify({path,sha256:createHash("sha256").update(after).digest("hex"),method:METHOD,lines:result.lines,unavailable:result.unavailable,functions:result.functions.filter(f=>f.changed).map(f=>({name:f.name,line:f.line,cc:f.cyclomatic,cognitive:f.cognitive,d:f.difficulty,before:f.before?{cc:f.before.cyclomatic,cognitive:f.before.cognitive,d:f.before.difficulty}:null})),max:{cc:Math.max(...result.functions.map(f=>f.cyclomatic)),cognitive:Math.max(...result.functions.map(f=>f.cognitive)),d:Math.max(...result.functions.map(f=>f.difficulty))}}));'
+```
+
+Ранее прошедшие три local cases и production source неизменны; runtime evidence переиспользовано. Исправленные два внешних OAuth cases остаются UNEXECUTED. Static/discovery не объявлены functional privacy/OAuth PASS. Новые runtime, provider calls и operator flows не запускались. Остановка перед 24-05.
