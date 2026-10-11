@@ -8,7 +8,7 @@ export const METRIC_METHOD = {
 	halstead:
 		'TS AST leaf tokens: operator = SyntaxKind of keyword/punctuation; operand = identifier/private identifier/string/number/template/regexp text. Comments/trivia excluded. Nested functions excluded. D=(unique operators/2)*(total operands/unique operands). Type and JSX tokens included.',
 	types:
-		'TypeScript checker on changed lines and complete changed functions in value declarations/expressions; root any and any in unions/intersections/type arguments fail. Explicit any fails. External any captured immediately as explicit unknown or unknown[] is an input boundary requiring review. Unknown declarations/annotations require review. Type syntax, import specifiers and JSX tag names are not value expressions; library declarations excluded.',
+		'TypeScript checker on changed lines and complete changed functions in value declarations/expressions; root any and any in unions/intersections/type arguments fail. Explicit any fails. Public library type aliases are opaque; supplied type arguments remain checked, including owned aliases of library aliases. External any captured immediately as explicit unknown or unknown[] is an input boundary requiring review. Unknown declarations/annotations require review. Type syntax, import specifiers, binding property keys, JSX tag names and literal JSX attribute syntax are not value expressions; library declarations excluded.',
 }
 
 type FunctionNode =
@@ -231,10 +231,30 @@ export function changedLines(before: string, after: string): Set<number> {
 	return changed
 }
 
+function libraryAliasArguments(type: ts.Type, checker: ts.TypeChecker): readonly ts.Type[] | null {
+	const declaration = type.aliasSymbol?.declarations?.find(ts.isTypeAliasDeclaration)
+	if (!declaration) return null
+	if (declaration.getSourceFile().isDeclarationFile) return type.aliasTypeArguments ?? []
+	if (!ts.isTypeReferenceNode(declaration.type)) return null
+	const symbol = checker.getSymbolAtLocation(declaration.type.typeName)
+	if (!symbol) return null
+	const target = symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
+	const external = target.declarations?.some(
+		(item) => ts.isTypeAliasDeclaration(item) && item.getSourceFile().isDeclarationFile
+	)
+	if (!external) return null
+	return [
+		...(type.aliasTypeArguments ?? []),
+		...(declaration.type.typeArguments ?? []).map((node) => checker.getTypeFromTypeNode(node)),
+	]
+}
+
 function containsAny(type: ts.Type, checker: ts.TypeChecker, seen = new Set<ts.Type>()): boolean {
 	if (seen.has(type)) return false
 	seen.add(type)
 	if (type.flags & ts.TypeFlags.Any) return true
+	const supplied = libraryAliasArguments(type, checker)
+	if (supplied !== null) return supplied.some((part) => containsAny(part, checker, seen))
 	if (type.isUnionOrIntersection()) return type.types.some((part) => containsAny(part, checker, seen))
 	if (type.flags & ts.TypeFlags.Object) {
 		const object = type as ts.ObjectType
@@ -250,6 +270,7 @@ function valueNode(node: ts.Node): boolean {
 	if (ts.isPropertyDeclaration(node) || ts.isPropertySignature(node)) return true
 	if (!ts.isExpression(node)) return false
 	const parent = node.parent
+	if (ts.isBindingElement(parent) && parent.propertyName === node) return false
 	if (ts.isStringLiteral(node) && ts.isJsxAttribute(parent)) return false
 	if (
 		ts.isTypeNode(parent) ||

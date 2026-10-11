@@ -145,7 +145,8 @@ function programs(paths: string[]): Map<string, ts.Program> {
 			jsx: ts.JsxEmit.Preserve,
 			lib: key === 'tooling' ? ['lib.es2024.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts'] : config.options.lib,
 		}
-		const program = ts.createProgram([...new Set([...config.fileNames, ...roots])], options)
+		const inputs = key === 'tooling' ? roots : [...new Set([...config.fileNames, ...roots])]
+		const program = ts.createProgram(inputs, options)
 		for (const path of roots) result.set(path, program)
 	}
 	return result
