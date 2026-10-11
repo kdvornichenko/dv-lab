@@ -1,0 +1,643 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Choose Google Calendar API scopes</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Choose Google Calendar API scopes</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/auth">https://developers.google.com/workspace/calendar/api/auth</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>This document contains Google Calendar API-specific authorization and
+authentication information. Before reading this document, be sure to read the
+Google Workspace's general authentication and authorization information at
+<a href="related/workspace/guides/auth-overview.html">Learn about authentication and authorization</a>.</p>
+
+<h2 id="configure_oauth_20_for_authorization" data-text="Configure OAuth 2.0 for authorization" tabindex="-1">Configure OAuth 2.0 for authorization</h2>
+
+<p><a href="related/workspace/guides/configure-oauth-consent.html">Configure the OAuth consent screen and choose scopes</a>
+to define what information is displayed to users and app reviewers, and register
+your app so that you can publish it later.</p>
+
+<h2 id="scopes" data-text="Calendar API scopes" tabindex="-1">Calendar API scopes</h2>
+
+<p>To define the level of access granted to your app, you need to identify and
+declare <i>authorization scopes</i>. An authorization scope is an OAuth 2.0 URI string
+that contains the Google Workspace app name, what kind of data it accesses, and
+the level of access. Scopes are your app's requests to work with Google Workspace data, including
+  users' Google Account data.<p>
+
+<p>When your app is installed, a user is asked to validate the scopes used
+by the app. Generally, you should choose the most narrowly focused scope
+possible and avoid requesting scopes that your app doesn't require. Users more
+readily grant access to limited, clearly described scopes.</p>
+
+<aside class="warning">If your public application uses scopes that permit access to
+  certain user data, it must complete a verification process. If you see <strong>unverified
+  app</strong> on the screen when testing your application, you must submit a
+  verification request to remove it. Find out more about
+  <a href="https://support.google.com/cloud/answer/7454865" class="external" target="_blank">unverified apps</a>
+  and get answers to <a href="https://support.google.com/cloud/answer/9110914" class="external" target="_blank">
+  frequently asked questions about app verification</a> in the Help Center.
+</aside>
+
+<p>The Calendar API supports the following scopes:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Scope</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td>
+      <td>See, edit, share, and permanently delete all the calendars you can access using
+        Google Calendar.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.readonly</code></td>
+      <td>See and download any calendar you can access using your Calendar.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.freebusy</code></td>
+      <td>View your availability in your calendars.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events</code></td>
+      <td>View and edit events on all your calendars.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.readonly</code></td>
+      <td>View events on all your calendars.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.settings.readonly</code></td>
+      <td>View your Calendar settings.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.addons.execute</code></td>
+      <td>Run as a Calendar add-on.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.addons.current.event.read</code></td>
+      <td>See the events you open in Google Calendar.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.addons.current.event.write</code></td>
+      <td>Edit the events you open in Google Calendar.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned</code></td>
+      <td>See, create, change, and delete events on Google calendars you own.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned.readonly</code></td>
+      <td>See the events on Google calendars you own.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.freebusy</code></td>
+      <td>See the availability on Google calendars you have access to.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td>
+      <td>Make secondary Google calendars, and see, create, change, and delete events on them.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist</code></td>
+      <td>See, add, and remove Google calendars you're subscribed to.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist.readonly</code></td>
+      <td>See the list of Google calendars you're subscribed to.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendars</code></td>
+      <td>See and change the properties of Google calendars you have access to, and create secondary calendars.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendars.readonly</code></td>
+      <td>See the title, description, default time zone, and other properties of Google calendars you have access to.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.acls</code></td>
+      <td>See and change the sharing permissions of Google calendars you own.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.acls.readonly</code></td>
+      <td>See the sharing permissions of Google calendars you own.</td>
+    </tr>
+    <tr>
+      <td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.public.readonly</code></td>
+      <td>See the events on public calendars.</td>
+    </tr>
+  </tbody>
+</table>
+
+  
+
+  
+</main></body></html>

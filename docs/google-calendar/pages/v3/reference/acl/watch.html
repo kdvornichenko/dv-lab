@@ -1,0 +1,220 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acl: watch</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Acl: watch</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/acl/watch">https://developers.google.com/workspace/calendar/api/v3/reference/acl/watch</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="watch"/>
+<meta itemprop="path" content="Acl"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="watch.html#auth">authorization</a>.</aside>
+
+<p>Watch for changes to ACL resources.
+
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>POST https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span>/acl/watch</pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.acls</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.acls.readonly</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+  <p>In the request body, supply data with the following structure:</p>
+  <section>
+    <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Carbon" syntax-guessed>{
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><var class="apiparam" translate="no"><span class="devsite-syntax-kt">string</span></var><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"token"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><var class="apiparam" translate="no"><span class="devsite-syntax-kt">string</span></var><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><var class="apiparam" translate="no"><span class="devsite-syntax-kt">string</span></var><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"address"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><var class="apiparam" translate="no"><span class="devsite-syntax-kt">string</span></var><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"params"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"ttl"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><var class="apiparam" translate="no"><span class="devsite-syntax-kt">string</span></var>
+<span class="devsite-syntax-w">  </span>}
+}</pre></devsite-code>
+    <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>A UUID or similar unique string that identifies this channel.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="token">
+        <td><code translate="no" dir="ltr">token</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An arbitrary string delivered to the target address with each notification delivered over this channel. Optional.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="type">
+        <td><code translate="no" dir="ltr">type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The type of delivery mechanism used for this channel. Valid values are "<code translate="no" dir="ltr">web_hook</code>" (or "<code translate="no" dir="ltr">webhook</code>"). Both values refer to a channel where Http requests are used to deliver messages.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="address">
+        <td><code translate="no" dir="ltr">address</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The address where notifications are delivered for this channel.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="params">
+        <td><code translate="no" dir="ltr">params</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Additional parameters controlling delivery channel behavior. Optional.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="params.(key)">
+        <td><code translate="no" dir="ltr"><span class="quiet">params.</span>ttl</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time-to-live in seconds for the notification channel. Default is 604800 seconds.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a response body with the following structure:</p>
+  <section>
+    <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed>{
+  "kind": "api#channel",
+  "id": <var class="apiparam" translate="no">string</var>,
+  "resourceId": <var class="apiparam" translate="no">string</var>,
+  "resourceUri": <var class="apiparam" translate="no">string</var>,
+  "token": <var class="apiparam" translate="no">string</var>,
+  "expiration": <var class="apiparam" translate="no">long</var>
+}</pre></devsite-code>
+    <table class="matchpre" id="response_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Identifies this as a notification channel used to watch for changes to a resource, which is "<code translate="no" dir="ltr">api#channel</code>".</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>A UUID or similar unique string that identifies this channel.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="resourceId">
+        <td><code translate="no" dir="ltr">resourceId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An opaque ID that identifies the resource being watched on this channel. Stable across different API versions.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="resourceUri">
+        <td><code translate="no" dir="ltr">resourceUri</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>A version-specific identifier for the watched resource.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="token">
+        <td><code translate="no" dir="ltr">token</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An arbitrary string delivered to the target address with each notification delivered over this channel. Optional.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="expiration">
+        <td><code translate="no" dir="ltr">expiration</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">long</code></td>
+        <td>Date and time of notification channel expiration, expressed as a Unix timestamp, in milliseconds. Optional.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+
+
+
+
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

@@ -1,0 +1,796 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Get specific versions of resources</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Get specific versions of resources</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/version-resources">https://developers.google.com/workspace/calendar/api/guides/version-resources</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Every resource has a version field that changes every time the resource
+changes — the <code translate="no" dir="ltr">etag</code> field. Etags are a standard part of HTTP and are
+supported in the calendar API for two cases:</p>
+
+<ul>
+<li>on resource modifications to ensure that there has been no other write to this resource in the meantime (conditional modification)</li>
+<li>on resource retrieval to only retrieve resource data if the resource has changed (conditional retrieval)</li>
+</ul>
+
+<h2 id="conditional_modification" data-text="Conditional modification" tabindex="-1">Conditional modification</h2>
+
+<p>If you want to update or delete a resource only if it has not changed since
+you last retrieved it, you can specify an <code translate="no" dir="ltr">If-Match</code> header that contains the
+value of the etag from the previous retrieval. This is very useful to prevent
+lost modifications on resources. The clients have the option of re-retrieving
+the resource and re-applying the changes.</p>
+
+<p>If the entry (and its etag) has not changed since the last retrieval, the
+modification succeeds and the new version of the resource with the new etag is
+returned. Otherwise, you will get a 412 (Precondition failed) response code.</p>
+<aside class="special"><strong>Important:</strong><span> There is no support for conditional modifications for insert
+operations. Instead, it is guaranteed that if you are allowed to provide a
+resource ID, then the operation will only succeed if no existing entry has
+that ID.</span></aside>
+<p>The snippet of sample code below demonstrates how to perform conditional
+modifications with the
+<a href="https://developers.google.com/api-client-library/java/apis/calendar/v3">Java client library</a>.</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">void</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">run</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">throws</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">IOException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Create a test event.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Utils</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">createTestEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"Test Event"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">format</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event created: %s"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getHtmlLink</span><span class="devsite-syntax-p">()));</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Pause while the user modifies the event in the Calendar UI.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Modify the event's description and hit enter to continue."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">in</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">read</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Modify the local copy of the event.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSummary</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Updated Test Event"</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Update the event, making sure that we don't overwrite other changes.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kt">int</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">numAttempts</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kt">boolean</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">isUpdated</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">do</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Update</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">update</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getId</span><span class="devsite-syntax-p">(),</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setRequestHeaders</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">HttpHeaders</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setIfMatch</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getEtag</span><span class="devsite-syntax-p">()));</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">isUpdated</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">GoogleJsonResponseException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getStatusCode</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">412</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-c1">// A 412 status code, "Precondition failed", indicates that the etag values didn't</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-c1">// match, and the event was updated on the server since we last retrieved it. Use</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-c1">// {@link Calendar.Events.Get} to retrieve the latest version.</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">latestEvent</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getId</span><span class="devsite-syntax-p">()).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-c1">// You may want to have more complex logic here to resolve conflicts. In this sample we're</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-c1">// simply overwriting the summary.</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">latestEvent</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSummary</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getSummary</span><span class="devsite-syntax-p">());</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">latestEvent</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-k">throw</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">numAttempts</span><span class="devsite-syntax-o">++</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">while</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-o">!</span><span class="devsite-syntax-n">isUpdated</span><span class="devsite-syntax-w"> &amp;&amp; </span><span class="devsite-syntax-n">numAttempts</span><span class="devsite-syntax-w"> </span>&lt;<span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">MAX_UPDATE_ATTEMPTS</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">isUpdated</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event updated."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">format</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Failed to update event after %d attempts."</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">numAttempts</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><div class="devsite-github-link nocode no-select nocontent"><a target="_top" href="https://github.com/googleworkspace/java-samples/blob/19db17de8d3d018de067c5c8bbe50753b9f2055c/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/ConditionalModificationSample.java" class="gc-analytics-event" data-category="github_link" data-label="googleworkspace/java-samples/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/ConditionalModificationSample.java" data-code-snippet="true" data-github-path="googleworkspace/java-samples/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/ConditionalModificationSample.java" data-regexp="(  private static void run\(\).*?)\s*(?:/\*\*|\}\s*$)"><span class="devsite-syntax-n">ConditionalModificationSample</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">java</span></a></div></pre></devsite-code>
+
+<h2 id="conditional_retrieval" data-text="Conditional retrieval" tabindex="-1">Conditional retrieval</h2>
+
+<p>If you want to retrieve a resource only if it has changed since you last
+retrieved it, you can specify an <code translate="no" dir="ltr">If-None-Match</code> header which contains the
+value of the etag from the previous retrieval.  If the entry (and thus its etag)
+has changed since the last retrieval, the new version of the resource with the
+new etag will be returned. Otherwise you will get a 304 (Not Modified)
+response code.</p>
+<aside class="note"><strong>Note:</strong><span> There are special cases in which etags won’t change, such as when one of
+the read-only fields of a <code translate="no" dir="ltr">calendarList</code> entry changes (e.g., calendar
+properties or ACLs).</span></aside>
+<p>The snippet of sample code below demonstrates how to perform conditional
+retrieval with the
+<a href="https://developers.google.com/api-client-library/java/apis/calendar/v3">Java client library</a>.</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">void</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">run</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">throws</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">IOException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Create a test event.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Utils</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">createTestEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"Test Event"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">format</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event created: %s"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getHtmlLink</span><span class="devsite-syntax-p">()));</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Pause while the user modifies the event in the Calendar UI.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Modify the event's description and hit enter to continue."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">in</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">read</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Fetch the event again if it's been modified.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Get</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">getRequest</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getId</span><span class="devsite-syntax-p">());</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">getRequest</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setRequestHeaders</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">HttpHeaders</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setIfNoneMatch</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getEtag</span><span class="devsite-syntax-p">()));</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">getRequest</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"The event was modified, retrieved latest version."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">GoogleJsonResponseException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getStatusCode</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">304</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-c1">// A 304 status code, "Not modified", indicates that the etags match, and the event has</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-c1">// not been modified since we last retrieved it.</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"The event was not modified, using local version."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-k">throw</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><div class="devsite-github-link nocode no-select nocontent"><a target="_top" href="https://github.com/googleworkspace/java-samples/blob/19db17de8d3d018de067c5c8bbe50753b9f2055c/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/ConditionalRetrievalSample.java" class="gc-analytics-event" data-category="github_link" data-label="googleworkspace/java-samples/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/ConditionalRetrievalSample.java" data-code-snippet="true" data-github-path="googleworkspace/java-samples/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/ConditionalRetrievalSample.java" data-regexp="(  private static void run\(\).*?)\s*(?:/\*\*|\}\s*$)"><span class="devsite-syntax-n">ConditionalRetrievalSample</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">java</span></a></div></pre></devsite-code>
+
+  
+
+  
+</main></body></html>

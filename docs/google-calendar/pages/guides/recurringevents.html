@@ -1,0 +1,380 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recurring events</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Recurring events</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/recurringevents">https://developers.google.com/workspace/calendar/api/guides/recurringevents</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+<div class="video-wrapper">
+  
+</div>
+
+<p>This document describes how to work with <a href="../concepts/events-calendars.html#recurring_events">recurring events</a> and their instances.</p>
+
+<h2 id="creating_recurring_events" data-text="Create recurring events" tabindex="-1">Create recurring events</h2>
+<p>Creating recurring events is similar to <a href="../v3/reference/events/insert.html">creating</a> a regular (single) event with the <a href="../v3/reference/events.html"><code translate="no" dir="ltr">event</code></a> resource's <a href="../v3/reference/events.html#recurrence"><code translate="no" dir="ltr">recurrence</code></a> field set.</p>
+
+<section id="CreateRecEvent">
+<div id="code-sample" class="ds-selector-tabs" data-ds-scope="code-sample">
+<section>
+<h3 id="protocol" data-text="Protocol" tabindex="-1">Protocol</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="CSS+Lasso" syntax-guessed><span class="devsite-syntax-nt">POST</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-nt">calendar</span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-nt">v3</span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-nt">calendars</span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-nt">primary</span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-nt">events</span>
+<span class="devsite-syntax-o">...</span>
+
+<span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-err">"summary":</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-err">"Appointment",</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-err">"location":</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-err">"Somewhere",</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-err">"start":</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-err">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-err">"dateTime":</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-err">"2011-06-03</span><span class="devsite-syntax-n">T10</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-mi">00</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-mf">00.000</span><span class="devsite-syntax-mi">-07</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-mi">00</span><span class="devsite-syntax-s2">",</span>
+<span class="devsite-syntax-s2">    "</span><span class="devsite-syntax-n">timeZone</span><span class="devsite-syntax-s2">": "</span><span class="devsite-syntax-n">America</span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-n">Los_Angeles</span><span class="devsite-syntax-s2">"</span>
+<span class="devsite-syntax-s2">  },</span>
+<span class="devsite-syntax-s2">  "</span><span class="devsite-syntax-kc">end</span><span class="devsite-syntax-s2">": {</span>
+<span class="devsite-syntax-s2">    "</span><span class="devsite-syntax-n">dateTime</span><span class="devsite-syntax-s2">": "</span><span class="devsite-syntax-mi">2011-06-03</span><span class="devsite-syntax-n">T10</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-mi">25</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-mf">00.000</span><span class="devsite-syntax-mi">-07</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-mi">00</span><span class="devsite-syntax-s2">",</span>
+<span class="devsite-syntax-s2">    "</span><span class="devsite-syntax-n">timeZone</span><span class="devsite-syntax-s2">": "</span><span class="devsite-syntax-n">America</span><span class="devsite-syntax-o">/</span><span class="devsite-syntax-n">Los_Angeles</span><span class="devsite-syntax-s2">"</span>
+<span class="devsite-syntax-s2">  },</span>
+<span class="devsite-syntax-s2">  "</span><span class="devsite-syntax-n">recurrence</span><span class="devsite-syntax-s2">": </span><span class="devsite-syntax-cp">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s2">"RRULE:FREQ=WEEKLY;UNTIL=20110701T170000Z"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-cp">]</span><span class="devsite-syntax-s2">,</span>
+<span class="devsite-syntax-s2">  "</span><span class="devsite-syntax-n">attendees</span><span class="devsite-syntax-err">"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-cp">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s2">"email"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"attendeeEmail"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-err">#</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Other</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">attendee</span><span class="devsite-syntax-s1">'s data...</span>
+<span class="devsite-syntax-s1">    },</span>
+<span class="devsite-syntax-s1">    # ...</span>
+<span class="devsite-syntax-s1">  ],</span>
+<span class="devsite-syntax-s1">}</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="java" data-text="Java" tabindex="-1">Java</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSummary</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Appointment"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setLocation</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Somewhere"</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">ArrayList&lt;EventAttendee&gt;</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">attendees</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">ArrayList&lt;EventAttendee&gt;</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-n">attendees</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">add</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventAttendee</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setEmail</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"attendeeEmail"</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-c1">// ...</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setAttendees</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">attendees</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">parseRfc3339</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"2011-06-03T10:00:00.000-07:00"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">end</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">parseRfc3339</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"2011-06-03T10:25:00.000-07:00"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setStart</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setDateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">setTimeZone</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"America/Los_Angeles"</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setEnd</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setDateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">end</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">setTimeZone</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"America/Los_Angeles"</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setRecurrence</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Arrays</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">asList</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"RRULE:FREQ=WEEKLY;UNTIL=20110701T170000Z"</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">recurringEvent</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">createdEvent</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getId</span><span class="devsite-syntax-p">());</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id=".net" data-text=".NET" tabindex="-1">.NET</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="cplint" syntax-guessed><span class="devsite-syntax-nv">Event</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">Event</span><span class="devsite-syntax-p">()</span>
+    <span class="devsite-syntax-p">{</span>
+      <span class="devsite-syntax-nv">Summary</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s2">"Appointment"</span><span class="devsite-syntax-p">,</span>
+      <span class="devsite-syntax-nv">Location</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s2">"Somewhere"</span><span class="devsite-syntax-p">,</span>
+      <span class="devsite-syntax-nv">Start</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">EventDateTime</span><span class="devsite-syntax-p">()</span> <span class="devsite-syntax-p">{</span>
+          <span class="devsite-syntax-nv">DateTime</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"2011-06-03T10:00:00.000:-07:00"</span><span class="devsite-syntax-p">)</span>
+          <span class="devsite-syntax-nv">TimeZone</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s2">"America/Los_Angeles"</span>
+      <span class="devsite-syntax-p">},</span>
+      <span class="devsite-syntax-nv">End</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">EventDateTime</span><span class="devsite-syntax-p">()</span> <span class="devsite-syntax-p">{</span>
+          <span class="devsite-syntax-nv">DateTime</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"2011-06-03T10:25:00.000:-07:00"</span><span class="devsite-syntax-p">)</span>
+          <span class="devsite-syntax-nv">TimeZone</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s2">"America/Los_Angeles"</span>
+      <span class="devsite-syntax-p">},</span>
+      <span class="devsite-syntax-nv">Recurrence</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">String</span><span class="devsite-syntax-p">[]</span> <span class="devsite-syntax-p">{</span>
+          <span class="devsite-syntax-s2">"RRULE:FREQ=WEEKLY;UNTIL=20110701T170000Z"</span>
+      <span class="devsite-syntax-p">},</span>
+      <span class="devsite-syntax-nv">Attendees</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">List&lt;EventAttendee&gt;</span><span class="devsite-syntax-p">()</span>
+          <span class="devsite-syntax-p">{</span>
+            <span class="devsite-syntax-s devsite-syntax-s-Atom">new</span> <span class="devsite-syntax-nv">EventAttendee</span><span class="devsite-syntax-p">()</span> <span class="devsite-syntax-p">{</span> <span class="devsite-syntax-nv">Email</span><span class="devsite-syntax-o">:</span> <span class="devsite-syntax-s2">"attendeeEmail"</span> <span class="devsite-syntax-p">},</span>
+            <span class="devsite-syntax-o">//</span> <span class="devsite-syntax-p">...</span>
+          <span class="devsite-syntax-p">}</span>
+    <span class="devsite-syntax-p">};</span>
+
+<span class="devsite-syntax-nv">Event</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">recurringEvent</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s devsite-syntax-s-Atom">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nv">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nv">Insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s devsite-syntax-s-Atom">event</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-s2">"primary"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nv">Fetch</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-nv">Console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nv">WriteLine</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s devsite-syntax-s-Atom">recurringEvent</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nv">Id</span><span class="devsite-syntax-p">);</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="python" data-text="Python" tabindex="-1">Python</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-n">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-p">{</span>
+  <span class="devsite-syntax-s1">'summary'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'Appointment'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-s1">'location'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'Somewhere'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-s1">'start'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+    <span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'2011-06-03T10:00:00.000-07:00'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+  <span class="devsite-syntax-p">},</span>
+  <span class="devsite-syntax-s1">'end'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+    <span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'2011-06-03T10:25:00.000-07:00'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+  <span class="devsite-syntax-p">},</span>
+  <span class="devsite-syntax-s1">'recurrence'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">[</span>
+    <span class="devsite-syntax-s1">'RRULE:FREQ=WEEKLY;UNTIL=20110701T170000Z'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-p">],</span>
+  <span class="devsite-syntax-s1">'attendees'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">[</span>
+    <span class="devsite-syntax-p">{</span>
+      <span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'attendeeEmail'</span><span class="devsite-syntax-p">,</span>
+      <span class="devsite-syntax-c1"># Other attendee's data...</span>
+    <span class="devsite-syntax-p">},</span>
+    <span class="devsite-syntax-c1"># ...</span>
+  <span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-n">recurring_event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">body</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+<span class="devsite-syntax-nb">print</span> <span class="devsite-syntax-n">recurring_event</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'id'</span><span class="devsite-syntax-p">]</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="php" data-text="PHP" tabindex="-1">PHP</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="PHP"><span class="devsite-syntax-x">$event = new Google_Service_Calendar_Event();</span>
+<span class="devsite-syntax-x">$event-&gt;setSummary('Appointment');</span>
+<span class="devsite-syntax-x">$event-&gt;setLocation('Somewhere');</span>
+<span class="devsite-syntax-x">$start = new Google_Service_Calendar_EventDateTime();</span>
+<span class="devsite-syntax-x">$start-&gt;setDateTime('2011-06-03T10:00:00.000-07:00');</span>
+<span class="devsite-syntax-x">$start-&gt;setTimeZone('America/Los_Angeles');</span>
+<span class="devsite-syntax-x">$event-&gt;setStart($start);</span>
+<span class="devsite-syntax-x">$end = new Google_Service_Calendar_EventDateTime();</span>
+<span class="devsite-syntax-x">$end-&gt;setDateTime('2011-06-03T10:25:00.000-07:00');</span>
+<span class="devsite-syntax-x">$end-&gt;setTimeZone('America/Los_Angeles');</span>
+<span class="devsite-syntax-x">$event-&gt;setEnd($end);</span>
+<span class="devsite-syntax-x">$event-&gt;setRecurrence(array('RRULE:FREQ=WEEKLY;UNTIL=20110701T170000Z'));</span>
+<span class="devsite-syntax-x">$attendee1 = new Google_Service_Calendar_EventAttendee();</span>
+<span class="devsite-syntax-x">$attendee1-&gt;setEmail('attendeeEmail');</span>
+<span class="devsite-syntax-x">// ...</span>
+<span class="devsite-syntax-x">$attendees = array($attendee1,</span>
+<span class="devsite-syntax-x">                   // ...</span>
+<span class="devsite-syntax-x">                   );</span>
+<span class="devsite-syntax-x">$event-&gt;attendees = $attendees;</span>
+<span class="devsite-syntax-x">$recurringEvent = $service-&gt;events-&gt;insert('primary', $event);</span>
+
+<span class="devsite-syntax-x">echo $recurringEvent-&gt;getId();</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="ruby" data-text="Ruby" tabindex="-1">Ruby</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Ruby"><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Event</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">summary</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Appointment'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">location</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Somewhere'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">start</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">date_time</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2011-06-03T10:00:00.000-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">time_zone</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">end</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">date_time</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2011-06-03T10:25:00.000-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">time_zone</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">recurrence</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">[</span><span class="devsite-syntax-s1">'RRULE:FREQ=WEEKLY;UNTIL=20110701T170000Z'</span><span class="devsite-syntax-o">]</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">attendees</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-ss">email</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'attendeeEmail'</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">#...</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-o">]</span>
+<span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-n">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">insert_event</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-nb">print</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">response</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">id</span></pre></devsite-code>
+
+</section>
+
+</div>
+
+</section>
+
+
+<h2 id="accessing_instances" data-text="Access instances" tabindex="-1">Access instances</h2>
+
+<p>To see all the <a href="../concepts/events-calendars.html#instances_and_exceptions">instances</a> of a given
+recurring event you can use the <a href="../v3/reference/events/instances.html">events.instances()</a> request.</p>
+
+<p>The <a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">events.list()</code></a> request by default
+only returns single events, recurring events, and
+  <a href="../concepts/events-calendars.html#instances_and_exceptions">exceptions</a>;
+ instances that are not exceptions are not returned.
+
+If the <a href="../v3/reference/events/list.html#singleEvents"><code translate="no" dir="ltr">singleEvents</code></a> parameter
+is set <code translate="no" dir="ltr">true</code> then all individual instances appear in the result, but underlying recurring events don't. When a user who has free/busy permissions queries <code translate="no" dir="ltr">events.list()</code>,
+  it behaves as if <code translate="no" dir="ltr">singleEvent</code> is <code translate="no" dir="ltr">true</code>. For more information about access control list rules, see <a href="../v3/reference/acl.html">Acl</a>.</p>
+
+<aside class="warning"><b>Warning:</b> Do not modify instances individually when you want to modify
+the entire recurring event, or "this and following" instances.
+This creates lots of exceptions that clutter the calendar, slowing down access and sending a high number
+of change notifications to users.</aside>
+
+<p>Individual instances are similar to single events. Unlike their parent recurring events,
+instances do not have the <a href="../v3/reference/events.html#recurrence"><code translate="no" dir="ltr">recurrence</code></a> field set.</p>
+
+<p>The following event fields are specific to instances:</p>
+<ul>
+<li><a href="../v3/reference/events.html#recurringEventId"><code translate="no" dir="ltr">recurringEventId</code></a> — the ID of the parent recurring event this instance belongs to</li>
+<li><a href="../v3/reference/events.html#originalStartTime"><code translate="no" dir="ltr">originalStartTime</code></a> —
+the time this instance starts according to the recurrence data in the parent recurring event.
+This can be different from the actual <a href="../v3/reference/events.html#start"><code translate="no" dir="ltr">start</code></a> time if the instance was rescheduled.
+It uniquely identifies the instance within the recurring event series even if the instance was moved.</li>
+</ul>
+
+
+<h2 id="modifying_or_deleting_instances" data-text="Modify or delete instances" tabindex="-1">Modify or delete instances</h2>
+<p>To modify a single instance (creating an exception), client applications must first retrieve the instance and then update it by sending an authorized PUT request to the instance edit URL with updated data in the body.
+The URL is of the form:</p>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><code translate="no" dir="ltr">https://www.googleapis.com/calendar/v3/calendars/calendarId/events/instanceId
+</code></pre></devsite-code>
+
+<p>Use appropriate values in place of <var class="apiparam" translate="no">calendarId</var> and <var class="apiparam" translate="no">instanceId</var>.</p>
+
+<p class="alert-message info note"><strong>Note:</strong><span> The special <var class="apiparam" translate="no">calendarId</var> value <code translate="no" dir="ltr">primary</code> can be used to refer to the authenticated user's primary calendar.</span></p>
+<p>Upon success, the server responds with an HTTP 200 OK status code with the updated instance.
+The following example shows how to cancel an instance of a recurring event.</p>
+
+<section id="CreateRecEventExceptions">
+<div id="code-sample" class="ds-selector-tabs" data-ds-scope="code-sample">
+<section>
+<h3 id="protocol_1" data-text="Protocol" tabindex="-1">Protocol</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="scdoc" syntax-guessed>PUT /calendar/v3/calendars/primary/events/instanceId
+...
+
+{
+  "kind": "calendar#event",
+  "id": "instanceId",
+  "etag": "instanceEtag",
+  "status": "cancelled",
+  "htmlLink": "https://www.google.com/calendar/event?eid=instanceEid",
+  "created": "2011-05-23T22:27:01.000Z",
+  "updated": "2011-05-23T22:27:01.000Z",
+  "summary": "Recurring event",
+  "location": "Somewhere",
+  "creator": {
+    "email": "userEmail"
+  },
+  "recurringEventId": "recurringEventId",
+  "originalStartTime": "2011-06-03T10:00:00.000-07:00",
+  "organizer": {
+    "email": "userEmail",
+    "displayName": "userDisplayName"
+  },
+  "start": {
+    "dateTime": "2011-06-03T10:00:00.000-07:00",
+    "timeZone": "America/Los_Angeles"
+  },
+  "end": {
+    "dateTime": "2011-06-03T10:25:00.000-07:00",
+    "timeZone": "America/Los_Angeles"
+  },
+  "iCalUID": "eventUID",
+  "sequence": 0,
+  "attendees": [
+    {
+      "email": "attendeeEmail",
+      "displayName": "attendeeDisplayName",
+      "responseStatus": "needsAction"
+    },
+    # ...
+    {
+      "email": "userEmail",
+      "displayName": "userDisplayName",
+      "responseStatus": "accepted",
+      "organizer": true,
+      "self": true
+    }
+  ],
+  "guestsCanInviteOthers": false,
+  "guestsCanSeeOtherGuests": false,
+  "reminders": {
+    "useDefault": true
+  }
+}</pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="java_1" data-text="Java" tabindex="-1">Java</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><span class="devsite-syntax-c1">// First retrieve the instances from the API.</span>
+<span class="devsite-syntax-n">Events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instances</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">instances</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"recurringEventId"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-c1">// Select the instance to cancel.</span>
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instances</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getItems</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setStatus</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"cancelled"</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">updatedInstance</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">update</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getId</span><span class="devsite-syntax-p">(),</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-c1">// Print the updated date.</span>
+<span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">updatedInstance</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getUpdated</span><span class="devsite-syntax-p">());</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id=".net_1" data-text=".NET" tabindex="-1">.NET</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Scilab" syntax-guessed><span class="devsite-syntax-c1">// First retrieve the instances from the API.</span>
+<span class="devsite-syntax-n">Events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instances</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Instances</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"recurringEventId"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-n">Fetch</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-c1">// Select the instance to cancel.</span>
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instances</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Items</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-p">];</span>
+<span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Status</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"cancelled"</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">updatedInstance</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Update</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Id</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-n">Fetch</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-c1">// Print the updated date.</span>
+<span class="devsite-syntax-n">Console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">WriteLine</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">updatedInstance</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-n">Updated</span><span class="devsite-syntax-p">);</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="python_1" data-text="Python" tabindex="-1">Python</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><span class="devsite-syntax-c1"># First retrieve the instances from the API.</span>
+<span class="devsite-syntax-n">instances</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">instances</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'recurringEventId'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+<span class="devsite-syntax-c1"># Select the instance to cancel.</span>
+<span class="devsite-syntax-n">instance</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">instances</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'items'</span><span class="devsite-syntax-p">][</span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'status'</span><span class="devsite-syntax-p">]</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s1">'cancelled'</span>
+
+<span class="devsite-syntax-n">updated_instance</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">update</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'id'</span><span class="devsite-syntax-p">],</span> <span class="devsite-syntax-n">body</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+<span class="devsite-syntax-c1"># Print the updated date.</span>
+<span class="devsite-syntax-nb">print</span> <span class="devsite-syntax-n">updated_instance</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'updated'</span><span class="devsite-syntax-p">]</span></pre></devsite-code>
+
+</section>
+
+<section>
+<h3 id="php_1" data-text="PHP" tabindex="-1">PHP</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="PHP"><span class="devsite-syntax-x">$events = $service-&gt;events-&gt;instances("primary", "eventId");</span>
+
+<span class="devsite-syntax-x">// Select the instance to cancel.</span>
+<span class="devsite-syntax-x">$instance = $events-&gt;getItems()[0];</span>
+<span class="devsite-syntax-x">$instance-&gt;setStatus('cancelled');</span>
+
+<span class="devsite-syntax-x">$updatedInstance = $service-&gt;events-&gt;update('primary', $instance-&gt;getId(), $instance);</span>
+
+<span class="devsite-syntax-x">// Print the updated date.</span>
+<span class="devsite-syntax-x">echo $updatedInstance-&gt;getUpdated();</span></pre></devsite-code>
+
+</section>
+
+
+<section>
+<h3 id="ruby_1" data-text="Ruby" tabindex="-1">Ruby</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Ruby"><span class="devsite-syntax-c1"># First retrieve the instances from the API.</span>
+<span class="devsite-syntax-n">instances</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">list_event_instances</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'recurringEventId'</span><span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-c1"># Select the instance to cancel.</span>
+<span class="devsite-syntax-n">instance</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instances</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-o">[</span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-o">]</span>
+<span class="devsite-syntax-n">instance</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">status</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'cancelled'</span>
+
+<span class="devsite-syntax-n">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">update_event</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">id</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">instance</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-nb">print</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">response</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">updated</span></pre></devsite-code>
+
+</section>
+</div>
+
+</section>
+
+
+  
+
+  
+</main></body></html>

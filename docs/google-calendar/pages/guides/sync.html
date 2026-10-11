@@ -1,0 +1,841 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Synchronize resources efficiently</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Synchronize resources efficiently</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/sync">https://developers.google.com/workspace/calendar/api/guides/sync</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>This guide describes how to
+implement "incremental synchronization" of calendar data. Using this
+method, you can keep data for all calendar collections in sync while saving
+bandwidth.</p>
+
+<h2 id="contents" data-text="Contents" tabindex="-1">Contents</h2>
+
+<h2 id="overview" data-text="Overview" tabindex="-1">Overview</h2>
+
+<p>Incremental synchronization consists of two stages:</p>
+
+<ol>
+<li><p>Initial full sync is performed once at the very beginning in order to fully
+synchronize the client’s state with the server’s state. The client will obtain
+a sync token that it needs to persist.</p></li>
+<li><p>Incremental sync is performed repeatedly and updates the client with all
+the changes that happened ever since the previous sync. Each time, the client
+provides the previous sync token it obtained from the server and stores the new sync token from the response.</p></li>
+</ol>
+
+<aside class="special">A <strong>sync token</strong> is a piece of data
+    exchanged between the server and the client, and has a critical role in
+    the synchronization process. An example would look like the following:
+    <p><code translate="no" dir="ltr">"nextSyncToken": "CPDAlvWDx70CEPDAlvWDx70CGAU=",</code></p>
+    </aside>
+
+<h2 id="initial_full_sync" data-text="Initial full sync" tabindex="-1">Initial full sync</h2>
+
+<p>The initial full sync is the original request for all the resources of the
+collection you want to synchronize. You can optionally restrict the list
+request using request parameters if you only want to synchronize a specific
+subset of resources.</p>
+
+<p>In the response to the list operation, you will find a field called
+ <code translate="no" dir="ltr">nextSyncToken</code> representing a sync token. You'll need to store the value of
+ <code translate="no" dir="ltr">nextSyncToken</code>. If the result set is too large and the response gets
+<a href="pagination.html">paginated</a>, then the  <code translate="no" dir="ltr">nextSyncToken</code>
+field is present only on the very last page.</p>
+
+<aside class="note">You don’t need to worry about any new entries appearing
+    while you are paginating — they won’t be missed. The information
+    needed for the server to generate a correct sync token is encoded in the
+    page token.</aside>
+
+<h2 id="incremental_sync" data-text="Incremental sync" tabindex="-1">Incremental sync</h2>
+
+<p>Incremental sync allows you to retrieve all the resources that have been
+modified since the last sync request. To do this, you need to perform a list
+request with your most recent sync token specified in the  <code translate="no" dir="ltr">syncToken</code> field.
+Keep in mind that the result will always contain deleted entries, so that the
+clients get the chance to remove them from storage.</p>
+
+<p>In cases where a large number of resources have changed since the last
+incremental sync request, you may find a  <code translate="no" dir="ltr">pageToken</code> instead of a  <code translate="no" dir="ltr">syncToken</code> in the list result. In these cases you'll need to perform the exact same
+list query as was used for retrieval of the first page in the incremental sync
+(with the exact same  <code translate="no" dir="ltr">syncToken</code>), append the  <code translate="no" dir="ltr">pageToken</code> to it and
+paginate through all the following requests until you find another  <code translate="no" dir="ltr">syncToken</code> on the last page. Make sure to store this  <code translate="no" dir="ltr">syncToken</code> for the next sync
+request in the future.</p>
+
+<p>Here are example queries for a case requiring incremental paginated sync:</p>
+
+<p><strong>Original query</strong></p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">GET /calendars/primary/events?maxResults=10&amp;singleEvents=true&amp;syncToken=CPDAlvWDx70CEPDAlvWDx
+
+// Result contains the following
+
+"nextPageToken":"CiAKGjBpNDd2Nmp2Zml2cXRwYjBpOXA",
+</code></pre></devsite-code>
+<p><strong>Retrieving next page</strong></p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">GET /calendars/primary/events?maxResults=10&amp;singleEvents=true&amp;syncToken=CPDAlvWDx70CEPDAlvWDx&amp;pageToken=CiAKGjBpNDd2Nmp2Zml2cXRwYjBpOXA
+</code></pre></devsite-code>
+<aside class="note">The set of query parameters that can be used on incremental
+syncs is restricted. Each list request should use the same set of query
+parameters, including the initial request.  For the individual restrictions on
+each collection, see the corresponding documentation for list requests. The
+response code for list queries containing disallowed restrictions is
+<code translate="no" dir="ltr">400</code>. </aside>
+
+<h2 id="full_sync_required_by_server" data-text="Full sync required by server" tabindex="-1">Full sync required by server</h2>
+
+<p>Sometimes sync tokens are invalidated by the server, for various reasons
+including token expiration or changes in related ACLs.
+In such cases, the server will respond to an incremental request with a
+response code  <code translate="no" dir="ltr">410</code>. This should trigger a full wipe of the client’s store
+and a new full sync.</p>
+
+<h2 id="sample_code" data-text="Sample code" tabindex="-1">Sample code</h2>
+
+<p>The snippet of sample code below demonstrates how to use sync tokens with the
+<a href="https://developers.google.com/api-client-library/java/apis/calendar/v3">Java client library</a>. The first time
+the run method is called it will perform a full sync and store the sync token.
+On each subsequent execution it will load the saved sync token and perform an
+incremental sync.</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">void</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">run</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">throws</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">IOException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Construct the {@link Calendar.Events.List} request, but don't execute it yet.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">List</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">list</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Load the sync token stored from the last execution, if any.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">syncToken</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">syncSettingsDataStore</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">SYNC_TOKEN_KEY</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">syncToken</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Performing full sync."</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-c1">// Set the filters you want to use during the full sync. Sync tokens aren't compatible with</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-c1">// most filters, but you may want to limit your full sync to only a certain date range.</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-c1">// In this example we are only syncing events up to a year old.</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">Date</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">oneYearAgo</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Utils</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getRelativeDate</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">java</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">util</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">YEAR</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">-</span><span class="devsite-syntax-mi">1</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setTimeMin</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">oneYearAgo</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">TimeZone</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getTimeZone</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"UTC"</span><span class="devsite-syntax-p">)));</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Performing incremental sync."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSyncToken</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">syncToken</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Retrieve the events, one page at a time.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">pageToken</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">do</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setPageToken</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">pageToken</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">GoogleJsonResponseException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getStatusCode</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">410</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-c1">// A 410 status code, "Gone", indicates that the sync token is invalid.</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Invalid sync token, clearing event store and re-syncing."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">syncSettingsDataStore</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">delete</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">SYNC_TOKEN_KEY</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">eventDataStore</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">clear</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">run</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-k">throw</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">e</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">List&lt;Event&gt;</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getItems</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">size</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"No new events to sync."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-k">for</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">syncEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">pageToken</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getNextPageToken</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">while</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">pageToken</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Store the sync token from the last request to be used during the next execution.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">syncSettingsDataStore</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">set</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">SYNC_TOKEN_KEY</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getNextSyncToken</span><span class="devsite-syntax-p">());</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Sync complete."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><div class="devsite-github-link nocode no-select nocontent"><a target="_top" href="https://github.com/googleworkspace/java-samples/blob/19db17de8d3d018de067c5c8bbe50753b9f2055c/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/SyncTokenSample.java" class="gc-analytics-event" data-category="github_link" data-label="googleworkspace/java-samples/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/SyncTokenSample.java" data-code-snippet="true" data-github-path="googleworkspace/java-samples/calendar/sync/src/main/java/com/google/api/services/samples/calendar/sync/SyncTokenSample.java" data-regexp="(  private static void run\(\).*?)\s*/\*\*"><span class="devsite-syntax-n">SyncTokenSample</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">java</span></a></div></pre></devsite-code>
+
+<h2 id="legacy_synchronization" data-text="Legacy synchronization" tabindex="-1">Legacy synchronization</h2>
+
+<p>For event collections, it is still possible to do synchronization in the
+legacy manner by preserving the value of the updated field from an events list
+request and then using the  <code translate="no" dir="ltr">modifiedSince</code> field to retrieve updated events.
+This approach is no longer recommended as it is more error-prone with respect
+to missed updates (for example if does not enforce query restrictions).
+Furthermore, it is available only for events.</p>
+
+  
+
+  
+</main></body></html>

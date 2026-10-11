@@ -1,0 +1,146 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Colors</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Colors</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/colors">https://developers.google.com/workspace/calendar/api/v3/reference/colors</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+
+
+<meta itemprop="path" content="Colors"/>
+
+<section id="overview">
+  <p></p>
+  <p>For a list of <a href="colors.html#methods">methods</a> for this resource, see the end of this page.</p>
+</section>
+
+<section id="resource">
+  <h2 id="resource-representations" data-text="Resource representations" tabindex="-1">Resource representations</h2>
+    <p></p>
+
+  <section>
+    <div></div><devsite-code><pre id="alt-json" class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="verilog" syntax-guessed>{
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"kind"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"calendar#colors"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"updated"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"calendar"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="apiparam"><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">key</span><span class="devsite-syntax-p">)</span></span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"background"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-k">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"foreground"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-k">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"event"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="apiparam"><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">key</span><span class="devsite-syntax-p">)</span></span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"background"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-k">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"foreground"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-k">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span>}
+}</pre></devsite-code>
+    <table class="matchpre" id="properties">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="calendar">
+        <td><code translate="no" dir="ltr">calendar</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>A global palette of calendar colors, mapping from the color ID to its definition. A <code translate="no" dir="ltr">calendarListEntry</code> resource refers to one of these color IDs in its <code translate="no" dir="ltr">colorId</code> field. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="calendar.(key)">
+        <td><code translate="no" dir="ltr"><span class="quiet">calendar.</span>(key)</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>A calendar color definition.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="calendar.(key).background">
+        <td><code translate="no" dir="ltr"><span class="quiet">calendar.(key).</span>background</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The background color associated with this color definition.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="calendar.(key).foreground">
+        <td><code translate="no" dir="ltr"><span class="quiet">calendar.(key).</span>foreground</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The foreground color that can be used to write on top of a background with 'background' color.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="event">
+        <td><code translate="no" dir="ltr">event</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>A global palette of event colors, mapping from the color ID to its definition. An <code translate="no" dir="ltr">event</code> resource may refer to one of these color IDs in its <code translate="no" dir="ltr">colorId</code> field. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="event.(key)">
+        <td><code translate="no" dir="ltr"><span class="quiet">event.</span>(key)</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>An event color definition.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="event.(key).background">
+        <td><code translate="no" dir="ltr"><span class="quiet">event.(key).</span>background</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The background color associated with this color definition.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="event.(key).foreground">
+        <td><code translate="no" dir="ltr"><span class="quiet">event.(key).</span>foreground</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The foreground color that can be used to write on top of a background with 'background' color.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the resource ("<code translate="no" dir="ltr">calendar#colors</code>").</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="updated">
+        <td><code translate="no" dir="ltr">updated</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>Last modification time of the color palette (as a <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a> timestamp). Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<section id="methods">
+  <h2 id="methods" data-text="Methods" tabindex="-1">Methods</h2>
+
+
+
+  <dl>
+
+
+      <dt><a href="colors/get.html">get</a></dt>
+      <dd>Returns the color definitions for calendars and events.</dd>
+
+  </dl>
+</section>
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

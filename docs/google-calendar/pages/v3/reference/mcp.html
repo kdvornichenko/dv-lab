@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MCP Reference: calendarmcp.googleapis.com</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>MCP Reference: calendarmcp.googleapis.com</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/mcp">https://developers.google.com/workspace/calendar/api/v3/reference/mcp</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <meta itemprop="name" content="index">
+    <meta itemprop="path" content="/workspace/calendar/api/v3/reference/mcp/index">
+    <section id="/workspace/calendar/api/v3/reference/mcp/index">
+      <aside class="preview"><strong>Developer Preview:</strong> Available as part of the <a href="https://developers.google.com/workspace/preview" target="_blank" class="external">Google Workspace Developer Preview Program</a>, which grants early access to certain features.</aside>
+        <p>This is an MCP server provided by Google Calendar API. The server provides tools for developers to build LLM applications on top of Calendar.</p>
+      <p>A <a href="https://modelcontextprotocol.io/docs/learn/server-concepts">Model Context Protocol (MCP) server</a> acts as a proxy between an external service that provides context, data, or capabilities to a Large Language Model (LLM) or AI application. MCP servers connect AI applications to external systems such as databases and web services, translating their responses into a format that the AI application can understand.</p>
+      <h3 id="server-setup" data-text="Server Setup" tabindex="-1">Server Setup</h3>
+      <p>
+            You must <a href="../../guides/configure-mcp-server.html">configure the Calendar MCP server</a> before use. For more information about using Google and Google Cloud remote MCP servers, see <a href="https://docs.cloud.google.com/mcp/overview">Google Cloud MCP servers overview</a>.
+          </p>
+      <div id="rest_endpoints"></div>
+      <h3 id="server-endpoints" data-text="Server Endpoints" tabindex="-1">Server Endpoints</h3><p>An MCP service endpoint is the network address and communication interface (usually a URL) of the MCP server that an AI application (the Host for the MCP client) uses to establish a secure, standardized connection. It is the point of contact for the LLM to request context, call a tool, or access a resource. Google MCP endpoints can be global or regional.</p><p>The Calendar MCP API MCP server has the following global MCP endpoints:</p>
+      <ul>
+        <li>https://calendarmcp.googleapis.com/mcp/v1</li>
+      </ul><p>The Calendar MCP API MCP server offers the following MCP toolset endpoints:</p>
+      <ul>
+        <li>https://calendarmcp.googleapis.com/mcp/v1</li>
+      </ul>
+      <h2 id="mcp-tools" data-text="MCP Tools" tabindex="-1">MCP Tools</h2><p>An <a href="https://modelcontextprotocol.io/legacy/concepts/tools">MCP tool</a> is a function or executable capability that an MCP server exposes to a LLM or AI application to perform an action in the real world. Toolsets are a group of tools that are useful for a specific task. Using toolsets can help your agent perform better because it decreases the number of tools available to your agent.</p>
+      <h3 id="toolsets" data-text="Toolsets" tabindex="-1">Toolsets</h3><p>The calendarmcp.googleapis.com MCP server has the following toolsets:</p>
+      <section id="toolsetsSection">
+        <table class="properties fixed" id="toolsetsSection-table">
+          <colgroup>
+            <col width="30%">
+            <col width="40%">
+            <col width="30%">
+          </colgroup>  <thead>
+                         <tr>
+                           <th colspan="3">MCP Toolsets</th>
+                         </tr>
+                         <tr>
+                           <th>Endpoint</th>
+                           <th>Description</th>
+                           <th>Tools</th>
+                         </tr>
+                       </thead>
+          <tbody>
+            <tr id="toolsetsSection.mcp.v1">
+              <td>/mcp/v1</td>
+              <td>Public toolset for Google Calendar MCP.</td>
+              <td><code translate="no" dir="ltr">  <ul>  <li><a href="mcp/tools_list/list_events.html">list_events</a></li>  <li><a href="mcp/tools_list/get_event.html">get_event</a></li>  <li><a href="mcp/tools_list/list_calendars.html">list_calendars</a></li>  <li><a href="mcp/tools_list/suggest_time.html">suggest_time</a></li>  <li><a href="mcp/tools_list/create_event.html">create_event</a></li>  <li><a href="mcp/tools_list/update_event.html">update_event</a></li>  <li><a href="mcp/tools_list/delete_event.html">delete_event</a></li>  <li><a href="mcp/tools_list/respond_to_event.html">respond_to_event</a></li>  <li><a href="mcp/tools_list/search_events.html">search_events</a></li>            </ul>  </code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="tools_overview">
+
+        <section id="tools_overview.GENERIC">
+          <h3 id="get-mcp-tool-specifications" data-text="Get MCP tool specifications" tabindex="-1">Get MCP tool specifications</h3>
+          <p>
+            To get the MCP tool specifications for all tools in an MCP server, use the <code translate="no" dir="ltr">tools/list</code> method. The following example demonstrates how to use <code translate="no" dir="ltr">curl</code> to list all tools and their specifications currently available within the MCP server.
+          </p>
+          <section id="tools_overview.GENERIC.MCP_CURL_REQUEST">
+            <table class="properties responsive fixed">
+              <thead>
+                <tr>
+                  <th>Curl Request</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash">curl<span class="devsite-syntax-w"> </span>--location<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'https://calendarmcp.googleapis.com/mcp/v1'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'content-type: application/json'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'accept: application/json, text/event-stream'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--data<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'{</span>
+<span class="devsite-syntax-s1">    "method": "tools/list",</span>
+<span class="devsite-syntax-s1">    "jsonrpc": "2.0",</span>
+<span class="devsite-syntax-s1">    "id": 1</span>
+<span class="devsite-syntax-s1">}'</span>
+<span class="devsite-syntax-w">                    </span></pre></devsite-code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </section>
+      </section>
+    </section>
+  
+  
+
+  
+</main></body></html>

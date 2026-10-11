@@ -1,0 +1,1316 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Events</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Events</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/events">https://developers.google.com/workspace/calendar/api/v3/reference/events</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+
+
+<meta itemprop="path" content="Events"/>
+
+<section id="overview">
+  <p>The Calendar API provides different flavors of event resources, more information can be found in <a href="../../concepts.html#events_resource">About events</a>.</p>
+  <p>For a list of <a href="events.html#methods">methods</a> for this resource, see the end of this page.</p>
+</section>
+
+<section id="resource">
+  <h2 id="resource-representations" data-text="Resource representations" tabindex="-1">Resource representations</h2>
+    <p></p>
+
+  <section>
+    <div></div><devsite-code><pre id="alt-json" class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Carbon" syntax-guessed>{
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"kind"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"calendar#event"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"etag"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">etag</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"status"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"htmlLink"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"created"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"updated"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"summary"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"description"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"location"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"colorId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"eventLabelId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"creator"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"email"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"displayName"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"self"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"organizer"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"email"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"displayName"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"self"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"start"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"date"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">date</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"timeZone"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"end"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"date"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">date</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"timeZone"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"endTimeUnspecified"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"recurrence"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"recurringEventId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"originalStartTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"date"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">date</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"timeZone"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"transparency"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"visibility"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"iCalUID"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"sequence"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">integer</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"attendees"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"email"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"displayName"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"organizer"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"self"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"resource"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"optional"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"responseStatus"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"comment"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"additionalGuests"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">integer</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"asyncOperation"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"attendeesOmitted"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"extendedProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"private"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="apiparam"><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">key</span><span class="devsite-syntax-p">)</span>:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"shared"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="apiparam"><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">key</span><span class="devsite-syntax-p">)</span>:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"hangoutLink"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"conferenceData"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"createRequest"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"requestId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"conferenceSolutionKey"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">      </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"status"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"statusCode"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">      </span>}
+<span class="devsite-syntax-w">    </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"entryPoints"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span>{
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"entryPointType"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"uri"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"label"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"pin"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"accessCode"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"meetingCode"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"passcode"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"password"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">      </span>}
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"conferenceSolution"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"key"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">      </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"name"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"iconUri"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"conferenceId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"signature"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"notes"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"gadget"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"title"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"link"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"iconLink"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"width"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">integer</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"height"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">integer</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"display"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"preferences"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="apiparam"><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">key</span><span class="devsite-syntax-p">)</span>:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"anyoneCanAddSelf"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"guestsCanInviteOthers"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"guestsCanModify"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"guestsCanSeeOtherGuests"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"privateCopy"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"locked"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"reminders"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"useDefault"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"overrides"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span>{
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"method"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"minutes"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">integer</span></span>
+<span class="devsite-syntax-w">      </span>}
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"source"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"url"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"title"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"workingLocationProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"homeOffice"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">value</span><span class="devsite-syntax-p">)</span>,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"customLocation"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"label"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"officeLocation"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"buildingId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"floorId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"floorSectionId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"deskId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"label"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"outOfOfficeProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"autoDeclineMode"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"declineMessage"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"focusTimeProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"autoDeclineMode"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"declineMessage"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"chatStatus"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"attachments"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"fileUrl"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"title"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"mimeType"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"iconLink"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"fileId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"birthdayProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"contact"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"customTypeName"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"eventType"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+}</pre></devsite-code>
+    <table class="matchpre" id="properties">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="anyoneCanAddSelf">
+        <td><code translate="no" dir="ltr">anyoneCanAddSelf</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether anyone can invite themselves to the event (deprecated). Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attachments">
+        <td><code translate="no" dir="ltr">attachments[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>File attachments for the event.  <p>In order to modify attachments the <code translate="no" dir="ltr">supportsAttachments</code> request parameter should be set to <code translate="no" dir="ltr">true</code>.  <p>There can be at most 25 attachments per event,</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attachments.fileId">
+        <td><code translate="no" dir="ltr"><span class="quiet">attachments[].</span>fileId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>ID of the attached file. Read-only.  <p>For Google Drive files, this is the ID of the corresponding <a href="https://developers.google.com/drive/v3/reference/files"><code translate="no" dir="ltr">Files</code></a> resource entry in the Drive API.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attachments.fileUrl">
+        <td><code translate="no" dir="ltr"><span class="quiet">attachments[].</span>fileUrl</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>URL link to the attachment.  <p>For adding Google Drive file attachments use the same format as in <code translate="no" dir="ltr">alternateLink</code> property of the <code translate="no" dir="ltr">Files</code> resource in the Drive API. <p>Required when adding an attachment.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attachments.iconLink">
+        <td><code translate="no" dir="ltr"><span class="quiet">attachments[].</span>iconLink</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>URL link to the attachment's icon. This field can only be modified for custom third-party attachments.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attachments.mimeType">
+        <td><code translate="no" dir="ltr"><span class="quiet">attachments[].</span>mimeType</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Internet media type (MIME type) of the attachment.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attachments.title">
+        <td><code translate="no" dir="ltr"><span class="quiet">attachments[].</span>title</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Attachment title.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attendeesOmitted">
+        <td><code translate="no" dir="ltr">attendeesOmitted</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees may have been omitted from the event's representation. When retrieving an event, this may be due to a restriction specified by the <code translate="no" dir="ltr">maxAttendee</code> query parameter. When updating an event, this can be used to only update the participant's response. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees">
+        <td><code translate="no" dir="ltr">attendees[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The attendees of the event. See the <a href="../../concepts/sharing.html">Events with attendees</a> guide for more information on scheduling events with other calendar users. Service accounts need to use <a href="https://developers.google.com/calendar/auth#perform-g-suite-domain-wide-delegation-of-authority">domain-wide delegation of authority</a> to populate the attendee list.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.additionalGuests">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>additionalGuests</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of additional guests. Optional. The default is 0.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.asyncOperation">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>asyncOperation</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>If present, indicates the status of an asynchronous operation ongoing for this attendee (e.g. listing of members of large attendee groups). Read-only. The default is to not be present. <p>Possible values are: <ul> <li>"<code translate="no" dir="ltr">inProgress</code>" - The asynchronous operation is in progress.</li> <li>(not present) - Otherwise.</li> </ul></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attendees.comment">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>comment</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's response comment. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.displayName">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>displayName</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's name, if available. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.email">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>email</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's email address, if available. This field must be present when adding an attendee. It must be a valid email address as per <a href="https://tools.ietf.org/html/rfc5322#section-3.4">RFC5322</a>. <p> Required when adding an attendee.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.id">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's Profile ID, if available.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attendees.optional">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>optional</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this is an optional attendee. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.organizer">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>organizer</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the attendee is the organizer of the event. Read-only. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="attendees.resource">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>resource</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the attendee is a resource. Can only be set when the attendee is added to the event for the first time. Subsequent modifications are ignored. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.responseStatus">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>responseStatus</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's response status. Possible values are: <ul> <li>"<code translate="no" dir="ltr">needsAction</code>" - The attendee has not responded to the invitation (recommended for new events).</li> <li>"<code translate="no" dir="ltr">declined</code>" - The attendee has declined the invitation.</li> <li>"<code translate="no" dir="ltr">tentative</code>" - The attendee has tentatively accepted the invitation.</li> <li>"<code translate="no" dir="ltr">accepted</code>" - The attendee has accepted the invitation.</li> </ul> <aside><b>Warning:</b> If you add an event using the values <code translate="no" dir="ltr">declined</code>, <code translate="no" dir="ltr">tentative</code>, or <code translate="no" dir="ltr">accepted</code>, attendees with the "Add invitations to my calendar" setting set to "When I respond to invitation in email" or "Only if the sender is known" might have their response reset to <code translate="no" dir="ltr">needsAction</code> and won't see an event in their calendar unless they change their response in the event invitation email. Furthermore, if more than 200 guests are invited to the event, response status is not propagated to the guests.</aside></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.self">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>self</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this entry represents the calendar on which this copy of the event appears. Read-only. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="birthdayProperties">
+        <td><code translate="no" dir="ltr">birthdayProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Birthday or special event data. Used if <code translate="no" dir="ltr">eventType</code> is <code translate="no" dir="ltr">"birthday"</code>. Immutable.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="birthdayProperties.contact">
+        <td><code translate="no" dir="ltr"><span class="quiet">birthdayProperties.</span>contact</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Resource name of the contact this birthday event is linked to. This can be used to fetch contact details from <a href="https://developers.google.com/people">People API</a>. Format: <code translate="no" dir="ltr">"people/c12345"</code>. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="birthdayProperties.customTypeName">
+        <td><code translate="no" dir="ltr"><span class="quiet">birthdayProperties.</span>customTypeName</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Custom type label specified for this event. This is populated if <code translate="no" dir="ltr">birthdayProperties.type</code> is set to <code translate="no" dir="ltr">"custom"</code>. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="birthdayProperties.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">birthdayProperties.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of birthday or special event. Possible values are: <ul> <li><code translate="no" dir="ltr">"anniversary"</code> - An anniversary other than birthday. Always has a <code translate="no" dir="ltr">contact</code>.</li> <li><code translate="no" dir="ltr">"birthday"</code> - A birthday event. This is the default value.</li> <li><code translate="no" dir="ltr">"custom"</code> - A special date whose label is further specified in the <code translate="no" dir="ltr">customTypeName</code> field. Always has a <code translate="no" dir="ltr">contact</code>.</li> <li><code translate="no" dir="ltr">"other"</code> - A special date which does not fall into the other categories, and does not have a custom label. Always has a <code translate="no" dir="ltr">contact</code>.</li> <li><code translate="no" dir="ltr">"self"</code> - Calendar owner's own birthday. Cannot have a <code translate="no" dir="ltr">contact</code>.</li> </ul> The Calendar API only supports creating events with the type <code translate="no" dir="ltr">"birthday"</code>. The type cannot be changed after the event is created.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="colorId">
+        <td><code translate="no" dir="ltr">colorId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The color of the event. This is an ID referring to an entry in the <code translate="no" dir="ltr">event</code> section of the colors definition (see the <a href="colors.html"> colors endpoint</a>). Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="conferenceData">
+        <td><code translate="no" dir="ltr">conferenceData</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The conference-related information, such as details of a Google Meet conference. To create new conference details use the <code translate="no" dir="ltr">createRequest</code> field. To persist your changes, remember to set the <code translate="no" dir="ltr">conferenceDataVersion</code> request parameter to <code translate="no" dir="ltr">1</code> for all event modification requests. <aside><b>Warning:</b> Reusing Google Meet conference data across different events can cause access issues and expose meeting details to unintended users. To help ensure meeting privacy, always generate a unique conference for each event by using the <code translate="no" dir="ltr">createRequest</code> field.</aside></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="conferenceData.conferenceId">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.</span>conferenceId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The ID of the conference.  <p>Can be used by developers to keep track of conferences, should not be displayed to users.  <p>The ID value is formed differently for each conference solution type: <ul> <li><code translate="no" dir="ltr">eventHangout</code>: ID is not set. (This conference type is deprecated.) <li><code translate="no" dir="ltr">eventNamedHangout</code>: ID is the name of the Hangout. (This conference type is deprecated.) <li><code translate="no" dir="ltr">hangoutsMeet</code>: ID is the 10-letter meeting code, for example <code translate="no" dir="ltr">aaa-bbbb-ccc</code>. <li><code translate="no" dir="ltr">addOn</code>: ID is defined by the third-party provider. </li></li></li></li></ul>  Optional.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.conferenceSolution">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.</span>conferenceSolution</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The conference solution, such as Google Meet.  <p>Unset for a conference with a failed create request.  <p>Either <code translate="no" dir="ltr">conferenceSolution</code> and at least one <code translate="no" dir="ltr">entryPoint</code>, or <code translate="no" dir="ltr">createRequest</code> is required.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.conferenceSolution.iconUri">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.conferenceSolution.</span>iconUri</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The user-visible icon for this solution.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.conferenceSolution.key">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.conferenceSolution.</span>key</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The key which can uniquely identify the conference solution for this event.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.conferenceSolution.key.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.conferenceSolution.key.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The conference solution type.  <p>If a client encounters an unfamiliar or empty type, it should still be able to display the entry points. However, it should disallow modifications.  <p>The possible values are: <ul> <li><code translate="no" dir="ltr">"eventHangout"</code> for Hangouts for consumers (deprecated; existing events may show this conference solution type but new conferences cannot be created) <li><code translate="no" dir="ltr">"eventNamedHangout"</code> for classic Hangouts for Google Workspace users (deprecated; existing events may show this conference solution type but new conferences cannot be created) <li><code translate="no" dir="ltr">"hangoutsMeet"</code> for Google Meet (http://meet.google.com) <li><code translate="no" dir="ltr">"addOn"</code> for 3P conference providers </li></li></li></li></ul></p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.conferenceSolution.name">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.conferenceSolution.</span>name</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The user-visible name of this solution. Not localized.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.createRequest">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.</span>createRequest</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>A request to generate a new conference and attach it to the event. The data is generated asynchronously. To see whether the data is present check the <code translate="no" dir="ltr">status</code> field.  <p>Either <code translate="no" dir="ltr">conferenceSolution</code> and at least one <code translate="no" dir="ltr">entryPoint</code>, or <code translate="no" dir="ltr">createRequest</code> is required.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.createRequest.conferenceSolutionKey">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.createRequest.</span>conferenceSolutionKey</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The conference solution, such as Hangouts or Google Meet.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.createRequest.conferenceSolutionKey.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.createRequest.conferenceSolutionKey.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The conference solution type.  <p>If a client encounters an unfamiliar or empty type, it should still be able to display the entry points. However, it should disallow modifications.  <p>The possible values are: <ul> <li><code translate="no" dir="ltr">"eventHangout"</code> for Hangouts for consumers (deprecated; existing events may show this conference solution type but new conferences cannot be created) <li><code translate="no" dir="ltr">"eventNamedHangout"</code> for classic Hangouts for Google Workspace users (deprecated; existing events may show this conference solution type but new conferences cannot be created) <li><code translate="no" dir="ltr">"hangoutsMeet"</code> for Google Meet (http://meet.google.com) <li><code translate="no" dir="ltr">"addOn"</code> for 3P conference providers </li></li></li></li></ul></p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.createRequest.requestId">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.createRequest.</span>requestId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The client-generated unique ID for this request.  <p>Clients should regenerate this ID for every new request. If an ID provided is the same as for the previous request, the request is ignored.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.createRequest.status">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.createRequest.</span>status</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The status of the conference create request.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.createRequest.status.statusCode">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.createRequest.status.</span>statusCode</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The current status of the conference create request. Read-only.  <p>The possible values are: <ul> <li><code translate="no" dir="ltr">"pending"</code>: the conference create request is still being processed. <li><code translate="no" dir="ltr">"success"</code>: the conference create request succeeded, the entry points are populated. <li><code translate="no" dir="ltr">"failure"</code>: the conference create request failed, there are no entry points. </li></li></li></ul></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.</span>entryPoints[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>Information about individual conference entry points, such as URLs or phone numbers.  <p>All of them must belong to the same conference.  <p>Either <code translate="no" dir="ltr">conferenceSolution</code> and at least one <code translate="no" dir="ltr">entryPoint</code>, or <code translate="no" dir="ltr">createRequest</code> is required.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.accessCode">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>accessCode</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The access code to access the conference. The maximum length is 128 characters.  <p>When creating new conference data, populate only the subset of {<code translate="no" dir="ltr">meetingCode</code>, <code translate="no" dir="ltr">accessCode</code>, <code translate="no" dir="ltr">passcode</code>, <code translate="no" dir="ltr">password</code>, <code translate="no" dir="ltr">pin</code>} fields that match the terminology that the conference provider uses. Only the populated fields should be displayed.  <p>Optional.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.entryPointType">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>entryPointType</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The type of the conference entry point.  <p>Possible values are: <ul> <li><code translate="no" dir="ltr">"video"</code> - joining a conference over HTTP. A conference can have zero or one <code translate="no" dir="ltr">video</code> entry point. <li><code translate="no" dir="ltr">"phone"</code> - joining a conference by dialing a phone number. A conference can have zero or more <code translate="no" dir="ltr">phone</code> entry points. <li><code translate="no" dir="ltr">"sip"</code> - joining a conference over SIP. A conference can have zero or one <code translate="no" dir="ltr">sip</code> entry point. <li><code translate="no" dir="ltr">"more"</code> - further conference joining instructions, for example additional phone numbers. A conference can have zero or one <code translate="no" dir="ltr">more</code> entry point. A conference with only a <code translate="no" dir="ltr">more</code> entry point is not a valid conference. </li></li></li></li></ul></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.label">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>label</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The label for the URI. Visible to end users. Not localized. The maximum length is 512 characters.  <p>Examples: <ul> <li>for <code translate="no" dir="ltr">video</code>: meet.google.com/aaa-bbbb-ccc <li>for <code translate="no" dir="ltr">phone</code>: +1 123 268 2601 <li>for <code translate="no" dir="ltr">sip</code>: 12345678@altostrat.com <li>for <code translate="no" dir="ltr">more</code>: should not be filled </li></li></li></li></ul>  <p>Optional.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.meetingCode">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>meetingCode</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The meeting code to access the conference. The maximum length is 128 characters.  <p>When creating new conference data, populate only the subset of {<code translate="no" dir="ltr">meetingCode</code>, <code translate="no" dir="ltr">accessCode</code>, <code translate="no" dir="ltr">passcode</code>, <code translate="no" dir="ltr">password</code>, <code translate="no" dir="ltr">pin</code>} fields that match the terminology that the conference provider uses. Only the populated fields should be displayed.  <p>Optional.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.passcode">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>passcode</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The passcode to access the conference. The maximum length is 128 characters.  <p>When creating new conference data, populate only the subset of {<code translate="no" dir="ltr">meetingCode</code>, <code translate="no" dir="ltr">accessCode</code>, <code translate="no" dir="ltr">passcode</code>, <code translate="no" dir="ltr">password</code>, <code translate="no" dir="ltr">pin</code>} fields that match the terminology that the conference provider uses. Only the populated fields should be displayed.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.password">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>password</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The password to access the conference. The maximum length is 128 characters.  <p>When creating new conference data, populate only the subset of {<code translate="no" dir="ltr">meetingCode</code>, <code translate="no" dir="ltr">accessCode</code>, <code translate="no" dir="ltr">passcode</code>, <code translate="no" dir="ltr">password</code>, <code translate="no" dir="ltr">pin</code>} fields that match the terminology that the conference provider uses. Only the populated fields should be displayed.  <p>Optional.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.pin">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>pin</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The PIN to access the conference. The maximum length is 128 characters.  <p>When creating new conference data, populate only the subset of {<code translate="no" dir="ltr">meetingCode</code>, <code translate="no" dir="ltr">accessCode</code>, <code translate="no" dir="ltr">passcode</code>, <code translate="no" dir="ltr">password</code>, <code translate="no" dir="ltr">pin</code>} fields that match the terminology that the conference provider uses. Only the populated fields should be displayed.  <p>Optional.</p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.entryPoints.uri">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.entryPoints[].</span>uri</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The URI of the entry point. The maximum length is 1300  characters.  <p>Format: <ul> <li>for <code translate="no" dir="ltr">video</code>, <code translate="no" dir="ltr">http:</code> or <code translate="no" dir="ltr">https:</code> schema is required. <li>for <code translate="no" dir="ltr">phone</code>, <code translate="no" dir="ltr">tel:</code> schema is required. The URI should include the entire dial sequence (e.g., tel:+12345678900,,,123456789;1234). <li>for <code translate="no" dir="ltr">sip</code>, <code translate="no" dir="ltr">sip:</code> schema is required, e.g., sip:12345678@myprovider.com. <li>for <code translate="no" dir="ltr">more</code>, <code translate="no" dir="ltr">http:</code> or <code translate="no" dir="ltr">https:</code> schema is required. </li></li></li></li></ul></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.notes">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.</span>notes</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Additional notes (such as instructions from the domain administrator, legal notices) to display to the user. Can contain HTML. The maximum length is 2048 characters.  Optional.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceData.signature">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceData.</span>signature</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The signature of the conference data.  <p>Generated on server side.  <p>Unset for a conference with a failed create request.  <p>Optional for a conference with a pending create request.</p></p></p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="created">
+        <td><code translate="no" dir="ltr">created</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>Creation time of the event (as a <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a> timestamp). Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="creator">
+        <td><code translate="no" dir="ltr">creator</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>The creator of the event. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="creator.displayName">
+        <td><code translate="no" dir="ltr"><span class="quiet">creator.</span>displayName</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The creator's name, if available.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="creator.email">
+        <td><code translate="no" dir="ltr"><span class="quiet">creator.</span>email</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The creator's email address, if available.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="creator.id">
+        <td><code translate="no" dir="ltr"><span class="quiet">creator.</span>id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The creator's Profile ID, if available.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="creator.self">
+        <td><code translate="no" dir="ltr"><span class="quiet">creator.</span>self</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the creator corresponds to the calendar on which this copy of the event appears. Read-only. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="description">
+        <td><code translate="no" dir="ltr">description</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Description of the event. Can contain HTML. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="end">
+        <td><code translate="no" dir="ltr">end</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The (exclusive) end time of the event. For a recurring event, this is the end time of the first instance.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="end.date">
+        <td><code translate="no" dir="ltr"><span class="quiet">end.</span>date</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">date</code></td>
+        <td>The date, in the format "yyyy-mm-dd", if this is an all-day event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="end.dateTime">
+        <td><code translate="no" dir="ltr"><span class="quiet">end.</span>dateTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>The time, as a combined date-time value (formatted according to <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a>). A time zone offset is required unless a time zone is explicitly specified in <code translate="no" dir="ltr">timeZone</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="end.timeZone">
+        <td><code translate="no" dir="ltr"><span class="quiet">end.</span>timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone in which the time is specified. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) For recurring events this field is required and specifies the time zone in which the recurrence is expanded. For single events this field is optional and indicates a custom time zone for the event start/end.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="endTimeUnspecified">
+        <td><code translate="no" dir="ltr">endTimeUnspecified</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the end time is actually unspecified. An end time is still provided for compatibility reasons, even if this attribute is set to True. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="etag">
+        <td><code translate="no" dir="ltr">etag</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">etag</code></td>
+        <td>ETag of the resource.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="eventLabelId">
+        <td><code translate="no" dir="ltr">eventLabelId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The ID of the event label assigned to the event. Optional. This refers to the ID of an entry in the <a href="calendars.html#labelProperties.eventLabels"><code translate="no" dir="ltr">labelProperties.eventLabels</code></a> property of the calendar (see the <a href="calendars/get.html">Calendars.get</a> endpoint.)  <p>This property supersedes the index-based <a href="events.html#colorId"><code translate="no" dir="ltr">colorId</code></a> property. To set or change this property, you need to specify <code translate="no" dir="ltr">eventLabelVersion=1</code> in the parameters of the <a href="events/insert.html#eventLabelVersion">insert</a>, <a href="events/import.html#eventLabelVersion">import</a>, <a href="events/update.html#eventLabelVersion">update</a>, and <a href="events/patch.html#eventLabelVersion">patch</a> methods.  <p>Setting an empty string, or not setting this field at all, will remove the existing label from the event.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="eventType">
+        <td><code translate="no" dir="ltr">eventType</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Specific type of the event. This cannot be modified after the event is created. Possible values are: <ul> <li>"<code translate="no" dir="ltr">birthday</code>" - A special all-day event with an annual recurrence.</li> <li>"<code translate="no" dir="ltr">default</code>" - A regular event or not further specified.</li> <li>"<code translate="no" dir="ltr">focusTime</code>" - A focus-time event.</li> <li>"<code translate="no" dir="ltr">fromGmail</code>" - An event from Gmail. This type of event cannot be created.</li> <li>"<code translate="no" dir="ltr">outOfOffice</code>" - An out-of-office event.</li> <li>"<code translate="no" dir="ltr">workingLocation</code>" - A working location event.</li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="extendedProperties">
+        <td><code translate="no" dir="ltr">extendedProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Extended properties of the event.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="extendedProperties.private">
+        <td><code translate="no" dir="ltr"><span class="quiet">extendedProperties.</span>private</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Properties that are private to the copy of the event that appears on this calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="extendedProperties.private.(key)">
+        <td><code translate="no" dir="ltr"><span class="quiet">extendedProperties.private.</span>(key)</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The name of the private property and the corresponding value.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="extendedProperties.shared">
+        <td><code translate="no" dir="ltr"><span class="quiet">extendedProperties.</span>shared</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Properties that are shared between copies of the event on other attendees' calendars.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="extendedProperties.shared.(key)">
+        <td><code translate="no" dir="ltr"><span class="quiet">extendedProperties.shared.</span>(key)</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The name of the shared property and the corresponding value.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="focusTimeProperties">
+        <td><code translate="no" dir="ltr">focusTimeProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Focus Time event data. Used if <code translate="no" dir="ltr">eventType</code> is <code translate="no" dir="ltr">focusTime</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="focusTimeProperties.autoDeclineMode">
+        <td><code translate="no" dir="ltr"><span class="quiet">focusTimeProperties.</span>autoDeclineMode</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Whether to decline meeting invitations which overlap Focus Time events. Valid values are <code translate="no" dir="ltr">declineNone</code>, meaning that no meeting invitations are declined; <code translate="no" dir="ltr">declineAllConflictingInvitations</code>, meaning that all conflicting meeting invitations that conflict with the event are declined; and <code translate="no" dir="ltr">declineOnlyNewConflictingInvitations</code>, meaning that only new conflicting meeting invitations which arrive while the Focus Time event is present are to be declined.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="focusTimeProperties.chatStatus">
+        <td><code translate="no" dir="ltr"><span class="quiet">focusTimeProperties.</span>chatStatus</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The status to mark the user in Chat and related products. This can be <code translate="no" dir="ltr">available</code> or <code translate="no" dir="ltr">doNotDisturb</code>.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="focusTimeProperties.declineMessage">
+        <td><code translate="no" dir="ltr"><span class="quiet">focusTimeProperties.</span>declineMessage</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Response message to set if an existing event or new invitation is automatically declined by Calendar.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="gadget">
+        <td><code translate="no" dir="ltr">gadget</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>A gadget that extends this event. Gadgets are deprecated; this structure is instead only used for returning birthday calendar metadata.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="gadget.display">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>display</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's display mode. Deprecated. Possible values are: <ul> <li>"<code translate="no" dir="ltr">icon</code>" - The gadget displays next to the event's title in the calendar view.</li> <li>"<code translate="no" dir="ltr">chip</code>" - The gadget displays when the event is clicked.</li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.height">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>height</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>The gadget's height in pixels. The height must be an integer greater than 0. Optional. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.iconLink">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>iconLink</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's icon URL. The URL scheme must be HTTPS. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.link">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>link</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's URL. The URL scheme must be HTTPS. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.preferences">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>preferences</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Preferences.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.preferences.(key)">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.preferences.</span>(key)</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The preference name and corresponding value.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="gadget.title">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>title</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's title. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's type. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.width">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>width</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>The gadget's width in pixels. The width must be an integer greater than 0. Optional. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="guestsCanInviteOthers">
+        <td><code translate="no" dir="ltr">guestsCanInviteOthers</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees other than the organizer can invite others to the event. Optional. The default is True.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="guestsCanModify">
+        <td><code translate="no" dir="ltr">guestsCanModify</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees other than the organizer can modify the event. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="guestsCanSeeOtherGuests">
+        <td><code translate="no" dir="ltr">guestsCanSeeOtherGuests</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees other than the organizer can see who the event's attendees are. Optional. The default is True.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="hangoutLink">
+        <td><code translate="no" dir="ltr">hangoutLink</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An absolute link to the Google Hangout associated with this event. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="htmlLink">
+        <td><code translate="no" dir="ltr">htmlLink</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An absolute link to this event in the Google Calendar Web UI. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="iCalUID">
+        <td><code translate="no" dir="ltr">iCalUID</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Event unique identifier as defined in <a href="https://tools.ietf.org/html/rfc5545#section-3.8.4.7">RFC5545</a>. It is used to uniquely identify events accross calendaring systems and must be supplied when importing events via the <a href="events/import.html">import</a> method.  <p>Note that the <code translate="no" dir="ltr">iCalUID</code> and the <code translate="no" dir="ltr">id</code> are not identical and only one of them should be supplied at event creation time. One difference in their semantics is that in recurring events, all occurrences of one event have different <code translate="no" dir="ltr">id</code>s while they all share the same <code translate="no" dir="ltr">iCalUID</code>s. To retrieve an event using its <code translate="no" dir="ltr">iCalUID</code>, call the <a href="events/list.html#iCalUID">events.list method using the <code translate="no" dir="ltr">iCalUID</code> parameter</a>. To retrieve an event using its <code translate="no" dir="ltr">id</code>, call the <a href="events/get.html">events.get</a> method.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Opaque identifier of the event. When creating new single or recurring events, you can specify their IDs. Provided IDs must follow these rules: <ul> <li>characters allowed in the ID are those used in base32hex encoding, i.e. lowercase letters a-v and digits 0-9, see section 3.1.2 in <a href="http://tools.ietf.org/html/rfc2938#section-3.1.2">RFC2938</a></li> <li>the length of the ID must be between 5 and 1024 characters</li> <li>the ID must be unique per calendar</li> </ul> Due to the globally distributed nature of the system, we cannot guarantee that ID collisions will be detected at event creation time. To minimize the risk of collisions we recommend using an established UUID algorithm such as one described in <a href="https://tools.ietf.org/html/rfc4122">RFC4122</a>.  <p>If you do not specify an ID, it will be automatically generated by the server.  <p>Note that the <code translate="no" dir="ltr">icalUID</code> and the <code translate="no" dir="ltr">id</code> are not identical and only one of them should be supplied at event creation time. One difference in their semantics is that in recurring events, all occurrences of one event have different <code translate="no" dir="ltr">id</code>s while they all share the same <code translate="no" dir="ltr">icalUID</code>s.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the resource ("<code translate="no" dir="ltr">calendar#event</code>").</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="location">
+        <td><code translate="no" dir="ltr">location</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Geographic location of the event as free-form text. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="locked">
+        <td><code translate="no" dir="ltr">locked</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this is a locked event copy where no changes can be made to the main event fields "summary", "description", "location", "start", "end" or "recurrence". The default is False. Read-Only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="organizer">
+        <td><code translate="no" dir="ltr">organizer</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>The organizer of the event. If the organizer is also an attendee, this is indicated with a separate entry in <code translate="no" dir="ltr">attendees</code> with the <code translate="no" dir="ltr">organizer</code> field set to True. To change the organizer, use the <a href="events/move.html">move</a> operation. Read-only, except when importing an event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="organizer.displayName">
+        <td><code translate="no" dir="ltr"><span class="quiet">organizer.</span>displayName</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The organizer's name, if available.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="organizer.email">
+        <td><code translate="no" dir="ltr"><span class="quiet">organizer.</span>email</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The organizer's email address, if available. It must be a valid email address as per <a href="https://tools.ietf.org/html/rfc5322#section-3.4">RFC5322</a>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="organizer.id">
+        <td><code translate="no" dir="ltr"><span class="quiet">organizer.</span>id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The organizer's Profile ID, if available.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="organizer.self">
+        <td><code translate="no" dir="ltr"><span class="quiet">organizer.</span>self</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the organizer corresponds to the calendar on which this copy of the event appears. Read-only. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="originalStartTime">
+        <td><code translate="no" dir="ltr">originalStartTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>For an instance of a recurring event, this is the time at which this event would start according to the recurrence data in the recurring event identified by recurringEventId. It uniquely identifies the instance within the recurring event series even if the instance was moved to a different time. Immutable.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="originalStartTime.date">
+        <td><code translate="no" dir="ltr"><span class="quiet">originalStartTime.</span>date</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">date</code></td>
+        <td>The date, in the format "yyyy-mm-dd", if this is an all-day event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="originalStartTime.dateTime">
+        <td><code translate="no" dir="ltr"><span class="quiet">originalStartTime.</span>dateTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>The time, as a combined date-time value (formatted according to <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a>). A time zone offset is required unless a time zone is explicitly specified in <code translate="no" dir="ltr">timeZone</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="originalStartTime.timeZone">
+        <td><code translate="no" dir="ltr"><span class="quiet">originalStartTime.</span>timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone in which the time is specified. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) For recurring events this field is required and specifies the time zone in which the recurrence is expanded. For single events this field is optional and indicates a custom time zone for the event start/end.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="outOfOfficeProperties">
+        <td><code translate="no" dir="ltr">outOfOfficeProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Out of office event data. Used if <code translate="no" dir="ltr">eventType</code> is <code translate="no" dir="ltr">outOfOffice</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="outOfOfficeProperties.autoDeclineMode">
+        <td><code translate="no" dir="ltr"><span class="quiet">outOfOfficeProperties.</span>autoDeclineMode</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Whether to decline meeting invitations which overlap Out of office events. Valid values are <code translate="no" dir="ltr">declineNone</code>, meaning that no meeting invitations are declined; <code translate="no" dir="ltr">declineAllConflictingInvitations</code>, meaning that all conflicting meeting invitations that conflict with the event are declined; and <code translate="no" dir="ltr">declineOnlyNewConflictingInvitations</code>, meaning that only new conflicting meeting invitations which arrive while the Out of office event is present are to be declined.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="outOfOfficeProperties.declineMessage">
+        <td><code translate="no" dir="ltr"><span class="quiet">outOfOfficeProperties.</span>declineMessage</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Response message to set if an existing event or new invitation is automatically declined by Calendar.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="privateCopy">
+        <td><code translate="no" dir="ltr">privateCopy</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>If set to True, <a href="../../concepts/sharing.html#event_propagation">Event propagation</a> is disabled. Note that it is not the same thing as <a href="../../concepts/sharing.html#private_event_properties">Private event properties</a>. Optional. Immutable. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="recurrence">
+        <td><code translate="no" dir="ltr">recurrence[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>List of RRULE, EXRULE, RDATE and EXDATE lines for a recurring event, as specified in <a href="http://tools.ietf.org/html/rfc5545#section-3.8.5">RFC5545</a>. Note that DTSTART and DTEND lines are not allowed in this field; event start and end times are specified in the <code translate="no" dir="ltr">start</code> and <code translate="no" dir="ltr">end</code> fields. This field is omitted for single events or instances of recurring events.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="recurringEventId">
+        <td><code translate="no" dir="ltr">recurringEventId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>For an instance of a recurring event, this is the <code translate="no" dir="ltr">id</code> of the recurring event to which this instance belongs. Immutable.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="reminders">
+        <td><code translate="no" dir="ltr">reminders</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Information about the event's reminders for the authenticated user. Note that changing reminders does not also change the <code translate="no" dir="ltr">updated</code> property of the enclosing event.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="reminders.overrides">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.</span>overrides[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>If the event doesn't use the default reminders, this lists the reminders specific to the event, or, if not set, indicates that no reminders are set for this event. The maximum number of override reminders is 5.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.overrides.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.overrides[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used by this reminder. Possible values are: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Reminders are sent via email.</li> <li>"<code translate="no" dir="ltr">popup</code>" - Reminders are sent via a UI popup.</li> </ul> <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.overrides.minutes">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.overrides[].</span>minutes</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of minutes before the start of the event when the reminder should trigger. Valid values are between 0 and 40320 (4 weeks in minutes). <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.useDefault">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.</span>useDefault</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the default reminders of the calendar apply to the event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="sequence">
+        <td><code translate="no" dir="ltr">sequence</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Sequence number as per iCalendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="source">
+        <td><code translate="no" dir="ltr">source</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Source from which the event was created. For example, a web page, an email message or any document identifiable by an URL with HTTP or HTTPS scheme. Can only be seen or modified by the creator of the event.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="source.title">
+        <td><code translate="no" dir="ltr"><span class="quiet">source.</span>title</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the source; for example a title of a web page or an email subject.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="source.url">
+        <td><code translate="no" dir="ltr"><span class="quiet">source.</span>url</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>URL of the source pointing to a resource. The URL scheme must be HTTP or HTTPS.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="start">
+        <td><code translate="no" dir="ltr">start</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The (inclusive) start time of the event. For a recurring event, this is the start time of the first instance.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="start.date">
+        <td><code translate="no" dir="ltr"><span class="quiet">start.</span>date</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">date</code></td>
+        <td>The date, in the format "yyyy-mm-dd", if this is an all-day event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="start.dateTime">
+        <td><code translate="no" dir="ltr"><span class="quiet">start.</span>dateTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>The time, as a combined date-time value (formatted according to <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a>). A time zone offset is required unless a time zone is explicitly specified in <code translate="no" dir="ltr">timeZone</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="start.timeZone">
+        <td><code translate="no" dir="ltr"><span class="quiet">start.</span>timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone in which the time is specified. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) For recurring events this field is required and specifies the time zone in which the recurrence is expanded. For single events this field is optional and indicates a custom time zone for the event start/end.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="status">
+        <td><code translate="no" dir="ltr">status</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Status of the event. Optional. Possible values are: <ul> <li>"<code translate="no" dir="ltr">confirmed</code>" - The event is confirmed. This is the default status.</li> <li>"<code translate="no" dir="ltr">tentative</code>" - The event is tentatively confirmed.</li> <li>"<code translate="no" dir="ltr">cancelled</code>" - The event is cancelled (deleted). The <a href="events/list.html">list</a> method returns cancelled events only on incremental sync (when <code translate="no" dir="ltr">syncToken</code> or <code translate="no" dir="ltr">updatedMin</code> are specified) or if the <code translate="no" dir="ltr">showDeleted</code> flag is set to <code translate="no" dir="ltr">true</code>. The <a href="events/get.html">get</a> method always returns them. <p> A cancelled status represents two different states depending on the event type: <ol> <li>Cancelled exceptions of an uncancelled recurring event indicate that this instance should no longer be presented to the user. Clients should store these events for the lifetime of the parent recurring event. <p> Cancelled exceptions are only guaranteed to have values for the <code translate="no" dir="ltr">id</code>, <code translate="no" dir="ltr">recurringEventId</code> and <code translate="no" dir="ltr">originalStartTime</code> fields populated. The other fields might be empty. </p></li> <li>All other cancelled events represent deleted events. Clients should remove their locally synced copies. Such cancelled events will eventually disappear, so do not rely on them being available indefinitely. <p> Deleted events are only guaranteed to have the <code translate="no" dir="ltr">id</code> field populated. </p></li> </ol> On the organizer's calendar, cancelled events continue to expose event details (summary, location, etc.) so that they can be restored (undeleted). Similarly, the events to which the user was invited and that they manually removed continue to provide details. However, incremental sync requests with <code translate="no" dir="ltr">showDeleted</code> set to false will not return these details. <p> If an event changes its organizer (for example via the <a href="events/move.html">move</a> operation) and the original organizer is not on the attendee list, it will leave behind a cancelled event where only the <code translate="no" dir="ltr">id</code> field is guaranteed to be populated. </p></p></li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="transparency">
+        <td><code translate="no" dir="ltr">transparency</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Whether the event blocks time on the calendar. Optional. Possible values are: <ul> <li>"<code translate="no" dir="ltr">opaque</code>" - Default value. The event does block time on the calendar. This is equivalent to setting <strong>Show me as</strong> to <strong>Busy</strong> in the Calendar UI.</li> <li>"<code translate="no" dir="ltr">transparent</code>" - The event does not block time on the calendar. This is equivalent to setting <strong>Show me as</strong> to <strong>Available</strong> in the Calendar UI.</li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="updated">
+        <td><code translate="no" dir="ltr">updated</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>Last modification time of the main event data (as a <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a> timestamp). Updating event reminders will not cause this to change. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="visibility">
+        <td><code translate="no" dir="ltr">visibility</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Visibility of the event. Optional. Possible values are: <ul> <li>"<code translate="no" dir="ltr">default</code>" - Uses the default visibility for events on the calendar. This is the default value.</li> <li>"<code translate="no" dir="ltr">public</code>" - The event is public and event details are visible to all readers of the calendar.</li> <li>"<code translate="no" dir="ltr">private</code>" - The event is private and only event attendees may view event details.</li> <li>"<code translate="no" dir="ltr">confidential</code>" - The event is private. This value is provided for compatibility reasons.</li> </ul> <p><strong>Note on recurring events:</strong> Changing the visibility of a single instance of a recurring event can affect all instances of the series. If the new setting is more restrictive (e.g. from public to private), it is applied to all instances. If the new setting is less restrictive (e.g. from private to public), the change is ignored. To make a recurring event less restrictive, you must update the parent recurring event.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties">
+        <td><code translate="no" dir="ltr">workingLocationProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Working location event data.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.customLocation">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>customLocation</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>If present, specifies that the user is working from a custom location.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.customLocation.label">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.customLocation.</span>label</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional extra label for additional information.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.homeOffice">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>homeOffice</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">any value</code></td>
+        <td>If present, specifies that the user is working at home.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>officeLocation</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>If present, specifies that the user is working from an office.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.buildingId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>buildingId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional building identifier. This should reference a building ID in the organization's Resources database.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.deskId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>deskId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional desk identifier.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.floorId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>floorId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional floor identifier.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.floorSectionId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>floorSectionId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional floor section identifier.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.label">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>label</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The office name that's displayed in Calendar Web and Mobile clients. We recommend you reference a building name in the organization's Resources database.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the working location. Possible values are: <ul> <li>"<code translate="no" dir="ltr">homeOffice</code>" - The user is working at home.</li> <li>"<code translate="no" dir="ltr">officeLocation</code>" - The user is working from an office.</li> <li>"<code translate="no" dir="ltr">customLocation</code>" - The user is working from a custom location.</li> </ul> Any details are specified in a sub-field of the specified name, but this field may be missing if empty. Any other fields are ignored.  <p> Required when adding working location properties.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<section id="methods">
+  <h2 id="methods" data-text="Methods" tabindex="-1">Methods</h2>
+
+
+
+  <dl>
+
+
+      <dt><a href="events/delete.html">delete</a></dt>
+      <dd>Deletes an event.</dd>
+
+
+
+      <dt><a href="events/get.html">get</a></dt>
+      <dd>Returns an event based on its Google Calendar ID. To retrieve an event using its iCalendar ID, call the <a href="events/list.html#iCalUID">events.list method using the <code translate="no" dir="ltr">iCalUID</code> parameter</a>.</dd>
+
+
+
+      <dt><a href="events/import.html">import</a></dt>
+      <dd>Imports an event. This operation is used to add a private copy of an existing event to a calendar. Only events with an <code translate="no" dir="ltr">eventType</code> of <code translate="no" dir="ltr">default</code> may be imported.<p><b>Deprecated behavior:</b> If a non-<code translate="no" dir="ltr">default</code> event is imported, its type will be changed to <code translate="no" dir="ltr">default</code> and any event-type-specific properties it may have will be dropped.</p></dd>
+
+
+
+      <dt><a href="events/insert.html">insert</a></dt>
+      <dd>Creates an event.</dd>
+
+
+
+      <dt><a href="events/instances.html">instances</a></dt>
+      <dd>Returns instances of the specified recurring event.</dd>
+
+
+
+      <dt><a href="events/list.html">list</a></dt>
+      <dd>Returns events on the specified calendar.</dd>
+
+
+
+      <dt><a href="events/move.html">move</a></dt>
+      <dd>Moves an event to another calendar, i.e. changes an event's organizer. Note that only <code translate="no" dir="ltr">default</code> events can be moved; <code translate="no" dir="ltr">birthday</code>, <code translate="no" dir="ltr">focusTime</code>, <code translate="no" dir="ltr">fromGmail</code>, <code translate="no" dir="ltr">outOfOffice</code> and <code translate="no" dir="ltr">workingLocation</code> events cannot be moved.</dd>
+
+
+
+      <dt><a href="events/patch.html">patch</a></dt>
+      <dd>Updates an event. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.</dd>
+
+
+
+      <dt><a href="events/quickAdd.html">quickAdd</a></dt>
+      <dd>Creates an event based on a simple text string.</dd>
+
+
+
+      <dt><a href="events/update.html">update</a></dt>
+      <dd>Updates an event. This method does not support patch semantics and always updates the entire event resource. To do a partial update, perform a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code> using etags to ensure atomicity.</dd>
+
+
+
+      <dt><a href="events/watch.html">watch</a></dt>
+      <dd>Watch for changes to Events resources.</dd>
+
+  </dl>
+</section>
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

@@ -1,0 +1,884 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Usage limits</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Usage limits</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/quota">https://developers.google.com/workspace/calendar/api/guides/quota</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<aside class="note">
+<p>As of <b>May 1, 2026</b>, the usage limits for this API were updated. Google Cloud projects that made
+any use of this API between November 2025 and April 2026 will continue with their previously set usage
+quotas. Cloud projects created on or after May 1, 2026 are subject to the new API quotas.</p>
+<p>For more information, including timelines, see <a href="https://developers.google.com/workspace/tools-safety">Google Workspace standardized model for agent tools and APIs</a>.</p>
+<p>For the full announcement, see <a href="http://workspaceupdates.googleblog.com/2026/05/agent-tools-and-security-updates-for-workspace-developers.html">Agent tools and security updates for Google Workspace developers</a>.</p>
+</aside>
+
+<p>The Google Calendar API has quotas to make sure that it's used fairly by all users.
+There are three important limitations to consider when using the
+Calendar API:</p>
+
+<ul>
+<li><p><strong>API usage quotas</strong>: Enforced per project and per user. For more
+information, see <a href="quota.html#quotas">Calendar API usage quota types</a>.</p></li>
+<li><p><strong>General Google Calendar usage limits</strong>: The Google Calendar API is a shared
+service that has limitations to protect the overall performance of the
+Google Workspace system. For more information, see <a href="https://knowledge.workspace.google.com/admin/calendar/avoid-calendar-use-limits">Avoid
+Calendar use
+limits</a></p></li>
+<li><p><strong>Operational limits</strong>: These limits might be limited at any time. For
+example, if you attempt to write to a single calendar in quick succession.</p></li>
+</ul>
+
+<h2 id="quotas" data-text="Calendar API quotas" tabindex="-1">Calendar API quotas</h2>
+
+<p>Two types of quotas are enforced:</p>
+
+<ul>
+<li><p><strong>Per minute per project:</strong> This is the number of requests your
+Google Cloud project can make in one minute.</p></li>
+<li><p><strong>Per minute per user per project:</strong> This is the number of requests any one
+particular user can make in your Cloud project. This limit aims at
+helping you ensure a fair distribution of usage among your users.</p></li>
+</ul>
+
+<p>Quotas are calculated per minute using a sliding window. A rapid burst of
+traffic that exceeds your per-minute quota during one minute will result in rate
+limiting during the next window to ensure that, on average, your usage remains
+within the quotas.</p>
+
+<p>The following table details these limits:</p>
+
+<table>
+<thead>
+<tr>
+<th>Usage limit type</th>
+<th>Limit</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Per minute per project</td>
+<td>10,000 requests</td>
+</tr>
+<tr>
+<td>Per minute per user per project</td>
+<td>600 requests</td>
+</tr>
+</tbody>
+</table>
+
+<h2 id="daily_billing_threshold" data-text="Daily billing threshold" tabindex="-1">Daily billing threshold</h2>
+
+<p>This <strong>per day per project</strong> limit defines the maximum number of requests your
+Google Cloud project can use within a 24-hour period before charges apply.</p>
+
+<p>Usage under this threshold doesn't incur extra charges and your Google Cloud
+account isn't billed. Full billing details will be shared later in 2026 with at
+least 90 days' notice before any changes take effect.</p>
+
+<p>You cannot request an increase on this daily threshold limit.</p>
+
+<p>The following table details the limit:</p>
+
+<table>
+<thead>
+<tr>
+<th>Threshold limit type</th>
+<th>Limit</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>Per day per project</td>
+<td>1,000,000 requests</td>
+</tr>
+</tbody>
+</table>
+
+<p>For more information, see <a href="https://developers.google.com/workspace/tools-safety">Google Workspace standardized model for agent tools
+and APIs</a>.</p>
+
+<h2 id="exponential" data-text="Resolve time-based quota errors" tabindex="-1">Resolve time-based quota errors</h2>
+
+
+
+<p>
+  For all time-based errors (maximum of N requests per X minutes), we recommend
+  your code catches the exception and uses a <i>truncated exponential backoff</i> to make sure your
+  devices don't generate excessive load.</p>
+  
+<p>
+  Exponential backoff is a standard error handling strategy for network applications. An 
+  exponential backoff algorithm retries requests using exponentially increasing wait times 
+  between requests, up to a maximum backoff time. If requests are still unsuccessful, it's 
+  important that the delays between requests increase over time until the request is successful.</p>
+  
+<h3 id="example-algorithm" data-text="Example algorithm" tabindex="-1">Example algorithm</h3>
+
+<p>
+  An exponential backoff algorithm retries requests exponentially, increasing the wait time 
+  between retries up to a maximum backoff time. For example:</p>
+
+<ol>
+  <li>Make a request to Google Calendar API.</li>
+  <li>If the request fails, wait 1 + <code translate="no" dir="ltr">random_number_milliseconds</code> and retry
+    the request.</li>
+  <li>If the request fails, wait 2 + <code translate="no" dir="ltr">random_number_milliseconds</code> and retry
+    the request.</li>
+  <li>If the request fails, wait 4 + <code translate="no" dir="ltr">random_number_milliseconds</code> and retry
+    the request.</li>
+  <li>And so on, up to a <code translate="no" dir="ltr">maximum_backoff</code> time.</li>
+  <li>Continue waiting and retrying up to some maximum number of retries, but don't increase the wait
+    period between retries.</li>
+</ol>
+
+<p>
+  where:</p>
+
+<ul>
+  <li>The wait time is <code translate="no" dir="ltr">min(((2^n)+random_number_milliseconds), maximum_backoff)</code>,
+    with <code translate="no" dir="ltr">n</code> incremented by 1 for each iteration (request).</li>
+  <li><code translate="no" dir="ltr">random_number_milliseconds</code> is a random number of milliseconds less than or
+    equal to 1,000. This helps to avoid cases in which many clients are synchronized by
+    some situation and all retry at once, sending requests in synchronized
+    waves. The value of <code translate="no" dir="ltr">random_number_milliseconds</code> is recalculated after each
+    retry request.</li>
+  <li><code translate="no" dir="ltr">maximum_backoff</code> is typically 32 or 64 seconds. The appropriate value
+    depends on the use case.</li>
+</ul>
+  
+<p>
+  The client can continue retrying after it has reached the <code translate="no" dir="ltr">maximum_backoff</code> time.
+  Retries after this point don't need to continue increasing backoff time. For
+  example, if a client uses a <code translate="no" dir="ltr">maximum_backoff</code> time of 64 seconds, then after reaching 
+  this value, the client can retry every 64 seconds. At some point,
+  clients should be prevented from retrying indefinitely.</p>
+
+<p>
+  The wait time between retries and the number of retries depend on your use case
+  and network conditions.</p>
+
+<h2 id="pricing" data-text="Pricing" tabindex="-1">Pricing</h2>
+
+
+
+<p>
+  All standard use of the Google Calendar API is available at no additional cost. Exceeding the quota
+  request limits is planned to incur charges to your Google Cloud billing account later in 2026.
+  For more information, see <a href="https://developers.google.com/workspace/tools-safety">Google Workspace standardized model
+  for agent tools and APIs</a>.
+</p>
+
+<h2 id="increase" data-text="Request a quota increase" tabindex="-1">Request a quota increase</h2>
+
+
+
+<p>
+Depending on your project's resource usage, you might want to request a quota
+adjustment. API calls by a service account are considered to be using a
+single account. Applying for an adjusted quota doesn't guarantee approval. Quota adjustment
+requests that would significantly increase the quota value can take longer to be approved.
+</p>
+
+<p>
+Not all projects have the same quotas. As you increasingly use Google Cloud over
+time, your quota values might need to increase. If you expect a notable upcoming
+increase in usage, you can proactively
+<a href="https://docs.cloud.google.com/docs/quotas/view-manage#requesting_higher_quota">request quota adjustments</a>
+from the <a href="https://console.cloud.google.com/iam-admin/quotas">Quotas &amp; System Limits</a> page in the Google Cloud console.
+</p>
+
+<p>To learn more, see the following resources:</p>
+
+<ul>
+  <li>
+    <a href="https://docs.cloud.google.com/docs/quotas/overview#about_increase_requests">About quota adjustments</a>
+  </li>
+  <li>
+    <a href="https://docs.cloud.google.com/docs/quotas/view-manage#viewing_your_quota_console">View your quota usage and limits</a>
+  </li>
+  <li>
+    <a href="https://docs.cloud.google.com/docs/quotas/view-manage#requesting_higher_quota">Request a higher quota limit</a>
+  </li>
+</ul>
+
+<h2 id="troubleshoot" data-text="Troubleshoot" tabindex="-1">Troubleshoot</h2>
+
+<p>If either quota is exceeded, you're rate limited and receive a <a href="errors.html#403_rate_limit_exceeded"><code translate="no" dir="ltr">403
+usageLimits</code></a>
+status code or a <a href="errors.html#429_too_many_requests"><code translate="no" dir="ltr">429
+usageLimits</code></a>
+status code in response to your queries.</p>
+
+<p>If this happens, you can try the following:</p>
+
+<ol>
+<li><p>Make sure to follow all the best practices: use <a href="quota.html#exponential">exponential
+backoff</a>, <a href="quota.html#randomize-traffic">randomize traffic patterns</a>,
+and use <a href="quota.html#push-notifications">push notifications</a>.</p></li>
+<li><p>If your project is growing and you have more users, you can request a <a href="quota.html#increase">quota
+increase</a>.</p></li>
+<li><p>If you hit per-user quota limits, you can do the following:</p>
+
+<ul>
+<li><p>If you use a service account, <a href="quota.html#service-accounts">allocate the load to
+users</a> or split it between multiple service accounts.</p></li>
+<li><p>While you can request an increase in the per-user quota, in general,
+it's not recommended to increase it above the default value as your
+application may start to hit other types of limits, for example, general
+calendar usage limits or operational limits.</p></li>
+</ul></li>
+<li><p>Test your quota limits by registering a separate test-only project that has
+a similar configuration to your production project. For more information,
+see <a href="quota.html#test-quota-limit">Test quota limit handling</a>.</p></li>
+</ol>
+
+<h3 id="randomize-traffic" data-text="Randomize traffic patterns" tabindex="-1">Randomize traffic patterns</h3>
+
+<p>Calendar clients are prone to spiky traffic patterns caused by
+multiple clients performing operations at the same time. For example, a common
+bad practice for a Calendar client is to perform a full sync at
+midnight. This would almost certainly lead to exceeding your per-minute quota
+and result in rate limiting and backoffs.</p>
+
+<p>To avoid this, make sure that your traffic is spread throughout the day wherever
+possible. If your client needs to do a daily sync, have the client determine a
+random time (different for each client). If you need to perform an operation on
+a regular basis, vary the interval +/- 25%. This will distribute the traffic
+more evenly and provide a much better user experience.</p>
+
+<h3 id="push-notifications" data-text="Use push notifications" tabindex="-1">Use push notifications</h3>
+
+<p>A common use case is to perform an action whenever something changes in the
+user's calendar. An anti-pattern here is to repeatedly poll every calendar of
+interest. This will very quickly use up all your quota. For example, if your
+application has 5,000 users and polls each user's calendar once a minute, then
+this requires a per-minute quota of at least 5,000, even before any work is
+done.</p>
+
+<p>Server-side applications can register for push notifications, which allows us to
+notify you when something of interest happens. These require more work to set
+up, but allow for dramatically more efficient use of your quota, and provide a
+better user experience. Make sure you specify the <code translate="no" dir="ltr">eventType</code> for which you want
+to be notified. For more information, see <a href="push.html">Push
+notifications</a>.</p>
+
+<h3 id="service-accounts" data-text="Proper allocation with service accounts" tabindex="-1">Proper allocation with service accounts</h3>
+
+<p>If your application is performing requests using <a href="https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority">domain-wide
+delegation</a>, by
+default the <em>service account</em> is charged with regard to "per minute per user per
+project" quotas, and not the user you're impersonating. This means that the
+service account will likely run out of quota and be rate-limited, even though it
+might be operating on multiple users' calendars.</p>
+
+<p>You can avoid this by using the <code translate="no" dir="ltr">quotaUser</code> URL parameter (or
+<code translate="no" dir="ltr">x-goog-quota-user</code> HTTP header) to indicate which user is charged. This is used
+only for quota calculations. For more information, see <a href="https://docs.cloud.google.com/apis/docs/capping-api-usage#limiting_requests_per_user">Limiting requests per
+user</a>.</p>
+
+<h3 id="test-quota-limit" data-text="Test quota limit handling" tabindex="-1">Test quota limit handling</h3>
+
+<p>To make sure that your application can gracefully handle reaching quota limits
+in practice (for example, through <a href="quota.html#exponential">retries with exponential
+backoff</a>) and to minimize any potential disturbances to your
+users, we strongly recommend testing your scenario out in a real environment.</p>
+
+<p>To test without interference to your real application usage, we recommend
+registering a separate test-only project in the <a href="https://console.cloud.google.com/">Google Cloud console</a> and then <a href="../related/workspace/guides/configure-oauth-consent.html">configuring the OAuth consent
+screen</a> in a way similar to your production
+project. You can then set artificially low <a href="https://console.cloud.google.com/iam-admin/quotas">quota
+limits</a> for this project and observe the
+behavior of your application.</p>
+
+<h2 id="calendar-mcp-server-quotas" data-text="Calendar MCP server quotas" tabindex="-1">Calendar MCP server quotas</h2>
+
+<p>The Calendar MCP server uses a query cost allocation metric. The
+following tables detail the query cost for each Calendar MCP server
+method by section:</p>
+
+<h3 id="calendar-mcp-quotas" data-text="Calendar MCP quotas" tabindex="-1">Calendar MCP quotas</h3>
+
+<p>Two types of quotas are enforced:</p>
+
+<ul>
+<li><p><strong>Per minute per project:</strong> This is the query cost to your Google Cloud project
+for one minute.</p></li>
+<li><p><strong>Per minute per user per project:</strong> This is the query cost to your
+Google Cloud project for one minute that any one particular user can use.</p></li>
+</ul>
+
+<p>The following table details these quotas:</p>
+
+<table>
+  <tr>
+    <th>Usage limit type</th>
+    <th>Query cost</th>
+  </tr>
+  <tr>
+    <td>Per minute per project</td>
+    <td>10,000</td>
+  </tr>
+  <tr>
+    <td>Per minute per user per project</td>
+    <td>600</td>
+  </tr>
+</table>
+
+<h3 id="calendar-mcp-toolsets" data-text="Calendar MCP toolset quotas" tabindex="-1">Calendar MCP toolset quotas</h3>
+
+<p>The following table details the query cost for each <code translate="no" dir="ltr">calendarmcp.googleapis.com</code>
+toolset:</p>
+
+<table>
+  <tr>
+    <th>Endpoint</th>
+    <th>Tool</th>
+    <th>Query cost</th>
+  </tr>
+  <tr>
+    <td rowspan="9"><p><b>/mcp/v1</b></p></td>
+    <td><p><code translate="no" dir="ltr">create_event</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">delete_event</code></p></td>
+    <td><p>10</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">get_event</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">list_events</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">respond_to_event</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">search_events</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">update_event</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">suggest_time</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+  <tr>
+    <td><p><code translate="no" dir="ltr">list_calendars</code></p></td>
+    <td><p>1</p></td>
+  </tr>
+</table>
+
+<p>For more information, see the <a href="../v3/reference/mcp.html">Calendar MCP API
+Reference</a>.</p>
+
+<h2 id="related-topics" data-text="Related topics" tabindex="-1">Related topics</h2>
+
+<ul>
+<li><a href="batch.html">Send batch requests</a></li>
+<li><a href="performance.html">Performance tips</a></li>
+<li><a href="https://knowledge.workspace.google.com/admin/calendar/avoid-calendar-use-limits">Avoid Calendar use limits</a></li>
+</ul>
+
+  
+
+  
+</main></body></html>

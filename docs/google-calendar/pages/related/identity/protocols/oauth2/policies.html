@@ -1,0 +1,380 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OAuth 2.0 Policies</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>OAuth 2.0 Policies</h1><p>Источник: <a href="https://developers.google.com/identity/protocols/oauth2/policies">https://developers.google.com/identity/protocols/oauth2/policies</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Last modified: <time datetime="2026-08-05">August 5, 2026</time></p>
+
+<p>The applications and services you design and build with Google APIs must do more than provide
+  value to users and businesses. We also require that they be secure and provide the appropriate
+  level of privacy demanded by users. The following policies are part of the
+  <a href="https://developers.google.com/terms">Google APIs Terms of Service</a>. They apply to all developers who use
+  OAuth 2.0, which includes
+  <a href="https://developers.google.com/identity/protocols/oauth2/openid-connect">OpenID Connect</a> for authentication
+  only. The policies below are a minimum set of requirements; we recommend that you take any
+  additional steps necessary to ensure that your applications and systems are safe and secure.</p>
+
+<section aria-labelledby="comply">
+  <h2 id="comply" data-text="Comply with all terms of service and policies" tabindex="-1">Comply with all terms of service and policies</h2>
+
+  <p>The use of Google API Services, which includes our implementation of OAuth 2.0, is governed by
+    the <a href="https://developers.google.com/terms">Google APIs Terms of Service</a> and
+    <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>.
+    In addition, the use of OAuth 2.0 is governed by this policy. Please read these documents
+    carefully, as well as any other terms or policies that apply to any other Google products or
+    services you are using. Be sure to check for updates periodically as these documents are
+    occasionally updated.</p>
+</section>
+
+<section aria-labelledby="register">
+  <h2 id="register" data-text="Register an appropriate OAuth client" tabindex="-1">Register an appropriate OAuth client</h2>
+
+  <p>Every app that uses Google's OAuth 2.0 infrastructure for authentication or authorization must
+    have at least one registered OAuth client. You must create a separate OAuth client for each
+    platform on which your app will run, such as a web server, an Android app, an iOS app, or a
+    limited-input device. You must choose the client type that best matches the platform. For
+    instance, you should not use a "web" client type for your native Android or iOS app. You can
+    <a href="https://support.google.com/cloud/answer/6158849" title="Google Cloud Console Help: Setting up OAuth 2.0" rel="external" class="external">register OAuth clients</a>
+    in the <a href="https://console.developers.google.com/">
+      Google Cloud Console</a>. Note that additional
+    <a href="https://cloud.google.com/terms/" title="Google Cloud Platform Terms of Service" rel="external" class="external">terms</a>
+    apply to your use of the Google Cloud Platform.</p>
+
+  <p>If you use <a href="https://developers.google.com/apps-script">Apps Script</a>, OAuth clients are automatically created on
+    your behalf, and you are still subject to the policies on this page. If you need to modify or
+    manage your OAuth clients, you must
+    <a href="https://developers.google.com/apps-script/guides/cloud-platform-projects#switching_to_a_different_standard_gcp_project">
+      switch your script project to a standard Cloud project</a>.</p>
+
+  <p>Some Google development platforms, such as Firebase and Actions on Google, automatically create
+    Google Cloud projects and OAuth clients on your behalf. If you develop on these platforms, you
+    are still subject to the policies on this page.</p>
+
+  <p>Google reserves the right to
+     <a href="https://support.google.com/cloud/answer/15549257#unused-client-deletion">delete unused
+     OAuth clients</a> if the client is inactive for at least 6 months. Unused clients are clients
+     that have not been used in token exchanges or had their configuration edited for at least 6
+     months. Deleted clients can be restored in the Google Cloud Console for 30 days following
+     deletion.</p>
+</section>
+
+<section aria-labelledby="separate-projects">
+  <h2 id="separate-projects" data-text="Use separate projects for testing and production" tabindex="-1">Use separate projects for testing and production</h2>
+
+  <p>For the purposes of these requirements, a "production" app meets the following criteria:</p>
+
+  <ul>
+    <li>It isn't for personal use. An app is considered to be for personal use if it's not shared
+      with anyone else or will be used by fewer than 100 people
+      (all of whom are known personally to you).</li>
+    <li>It isn't used for development, testing, or staging.</li>
+    <li>It isn't for internal use; that is, restricted to people in your Google Workspace or
+      Cloud Identity organization.</li>
+  </ul>
+
+  <p>Some policies and requirements only apply to production apps. For this reason, you must create
+    separate projects in the <a href="https://console.developers.google.com/">
+      Google Cloud Console</a> for each deployment tier,
+    such as development, staging, and production.</p>
+</section>
+
+<section aria-labelledby="relevant-contacts">
+  <h2 id="relevant-contacts" data-text="Maintain a list of relevant contacts for the project" tabindex="-1">Maintain a list of relevant contacts for the project</h2>
+
+  <p>Project owners and editors must be kept up-to-date. We'll send emails to those accounts when
+    there are notifications about your project or updates to our services. Organization
+    administrators must ensure that a reachable contact is associated with every project in
+    their organization. If we don't have updated contact information for your project, you might
+    miss out on important messages that require your action. This could result in the loss of your
+    access to the Google APIs.</p>
+</section>
+
+<section aria-labelledby="g-suite-organization-association">
+  <h2 id="g-suite-organization-association" data-text="Google Workspace users:     Associate your project with an organization" tabindex="-1">Google Workspace users:
+    Associate your project with an organization</h2>
+
+  <p>At this time, your projects aren't required to exist within a Google Workspace or
+    Cloud Identity
+    <a href="https://cloud.google.com/resource-manager/docs/cloud-platform-resource-hierarchy#organizations" rel="external" class="external">Organization resource</a>.
+    However, you're strongly recommended to
+    <a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects" title="Google Cloud: Creating and Managing Projects" rel="external" class="external">create new projects in an organization</a>
+    and
+    <a href="https://cloud.google.com/resource-manager/docs/migrating-projects-billing" title="Google Cloud: Migrating Projects into an Organization" rel="external" class="external">migrate existing projects into an organization</a>.
+    This configuration allows your project to benefit from enterprise management including
+    intra-domain usage. It can also prevent your project from becoming orphaned if the current
+    project owner leaves your organization.</p>
+</section>
+
+<section aria-labelledby="secure-credentials">
+  <h2 id="secure-credentials" data-text="Handle client credentials securely" tabindex="-1">Handle client credentials securely</h2>
+
+  <p>Treat your OAuth client credentials with extreme care, as they allow anyone who has them to use
+    your app's identity to gain access to user information. Store your OAuth client information in a
+    secure place and protect it, especially your client secret, just as you would a password.
+    Where possible, use a secret manager, such as
+    <a href="https://cloud.google.com/secret-manager/docs/overview" title="Google Cloud: Secret Manager conceptual overview" rel="external" class="external">Google Cloud Secret Manager</a>,
+    to store client credentials. You must never commit client credentials into publicly available
+    code repositories. We highly recommend that you avoid committing them to any code
+    repository.</p>
+</section>
+
+<section aria-labelledby="secure-token-handling">
+  <h2 id="secure-token-handling" data-text="Handle user tokens securely" tabindex="-1">Handle user tokens securely</h2>
+
+  <p>OAuth 2.0 tokens are entrusted to you by users who give you permission to act and access data
+    on their behalf. Never transmit tokens in plaintext, and always store encrypted tokens at rest
+    to provide an extra layer of protection in the event of a data breach.
+    <a href="web-server.html#tokenrevoke">Revoke tokens</a> when you no
+    longer need access to a user's account or when your app no longer needs access to permissions
+    that a user previously granted. After the tokens are revoked, delete them permanently from your
+    application or system.</p>
+</section>
+
+<section aria-labelledby="app-identity">
+  <h2 id="app-identity" data-text="Accurately represent your identity" tabindex="-1">Accurately represent your identity</h2>
+
+  <p>Provide a valid name and (optionally) a logo to show to users.
+    This brand information must accurately represent the identity of the application.
+    App branding information is configured when you set up OAuth 2.0 in the
+    Google Cloud Console
+    <a href="https://console.developers.google.com/apis/credentials/consent">Consent Screen page</a>.</p>
+
+  <p>For production apps, brand information
+    <a href="https://support.google.com/cloud/answer/9110914" title="Google Cloud Platform Console Help: OAuth verification requirements" rel="external" class="external">must be verified</a>.
+    Google can revoke or suspend access to Google API Services and other Google products and
+    services for apps that misrepresent their identity or attempt to deceive users.</p>
+
+  <p>If you use Apps Script and want to verify your brand information, you must
+    <a href="https://developers.google.com/apps-script/guides/cloud-platform-projects#switching_to_a_different_standard_gcp_project" title="Apps Script: Switching to a different standard GCP project">
+      switch your script project to a standard Cloud project</a>.
+    If you use a Google development platform that manages OAuth clients on your behalf,
+    such as Firebase or Actions on Google, your app settings there are used to configure your brand
+    information. However, you must still use the <a href="https://console.developers.google.com/">
+    Google Cloud Console</a> to submit your brand information for review.
+  </p>
+</section>
+
+<section aria-labelledby="scope-requests">
+  <h2 id="scope-requests" data-text="Only request scopes that you need" tabindex="-1">Only request scopes that you need</h2>
+
+  <p>You must only request the smallest set of scopes that are necessary for providing functionality
+    knowingly chosen by the user. You must request scopes that require the least amount of access to
+    user data necessary to provide that functionality. For example, an app that only uses Gmail APIs
+    to occasionally send emails on a user's behalf shouldn't request the scope that provides full
+    access to the user's email data. Data that you receive from Google APIs must only be used in the
+    way that you represent to your users.</p>
+
+  <p>Your project configuration in the Google Cloud Console
+    <a href="https://console.developers.google.com/apis/credentials/consent">Consent Screen page</a> must match the list of scopes requested
+    by your app. When a change in app functionality or in Google APIs necessitates an update to the
+    scopes that are used, you must
+    <a href="web-server.html#tokenrevoke">revoke</a> the tokens with the
+    previously-used scopes that are no longer in use at the earliest opportunity and update your
+    project configuration in the Google Cloud Console. Proper configuration is
+    particularly important for
+    <a href="https://support.google.com/cloud/answer/9110914#sensitive-restricted-scopes" rel="external" class="external">scopes that require verification</a>;
+    if an app is no longer approved to use them, Google may revoke tokens that contain these scopes
+    at any time without notice.</p>
+
+  <p>If you use Apps Script, the OAuth client that's automatically created for you is configured to
+    use the scopes that Apps Script identifies from your script.
+    If your script requires different scopes, you must
+    <a href="https://developers.google.com/apps-script/concepts/scopes#setting_explicit_scopes" title="Apps Script: Setting explicit scopes">specify these scopes
+      explicitly in your script's manifest file</a>.</p>
+</section>
+
+<section aria-labelledby="submit-for-verification">
+  <h2 id="submit-for-verification" data-text="Submit production apps that use sensitive or restricted scopes     for verification" tabindex="-1">Submit production apps that use sensitive or restricted scopes
+    for verification</h2>
+
+  <p>Certain scopes are classified as "sensitive" or "restricted," and they can't be used in
+    production apps without review. If your production app uses sensitive or restricted scopes, you
+    must
+    <a href="https://support.google.com/cloud/answer/9110914" title="Google Cloud Platform Console Help: OAuth verification requirements" rel="external" class="external">submit your use of those scopes for verification</a>.
+    You can submit for verification in the Google Cloud Console from the
+    <a href="https://console.developers.google.com/apis/credentials/consent">Consent Screen page</a>.</p>
+
+  <p>If you use Apps Script and you're writing a production script that uses sensitive or
+    restricted scopes, you must
+    <a href="https://developers.google.com/apps-script/guides/cloud-platform-projects#switching_to_a_different_standard_gcp_project" title="Apps Script: Switching to a different standard GCP project">
+      switch your script project to a standard Google Cloud Platform project</a>
+    before you submit your use of those scopes for verification.</p>
+</section>
+
+<section aria-labelledby="domains">
+  <h2 id="domains" data-text="Only use domains you own" tabindex="-1">Only use domains you own</h2>
+
+  <p>Only use redirect URIs and JavaScript origins that refer to domains that you own, that you have
+    been authorized to use (for example, as part of your employment or
+    as a vendor or contractor of a business), or that you have been explicitly given license to use
+    (for example, as part of a service agreement for an identity management platform).</p>
+</section>
+
+<section aria-labelledby="homepage">
+  <h2 id="homepage" data-text="Host a homepage for production apps" tabindex="-1">Host a homepage for production apps</h2>
+
+  <p>Every production app that uses OAuth 2.0 must have a publicly accessible home page.
+    The homepage must include a description of the app's functionality, as well as links to terms of
+    service and a privacy policy. The homepage must exist on a verified domain under
+    your ownership.</p>
+</section>
+
+<section aria-labelledby="browsers">
+  <h2 id="browsers" data-text="Use secure browsers" tabindex="-1">Use secure browsers</h2>
+
+  <p>A developer must not direct a Google OAuth 2.0 authorization request to an embedded user-agent
+    under the developer's control. Embedded user-agents include, but are not limited to, software
+    libraries that allow a developer to insert arbitrary scripts, alter the default routing of a
+    request to the Google OAuth server, or access session cookies. All browsing environments must
+    allow the user to verify the current connection to the Google OAuth server including the
+    requested URI and connection security information.</p>
+</section>
+
+<section aria-labelledby="secure-response-handling">
+  <h2 id="secure-response-handling" data-text="Use secure JavaScript origins and redirect URIs" tabindex="-1">Use secure JavaScript origins and redirect URIs</h2>
+
+  <p><a href="https://support.google.com/googleapi/answer/6158849#web-applications" rel="external" class="external">OAuth 2.0 clients for web apps</a>
+    must use redirect URIs and JavaScript origins that are compliant with
+    <a href="web-server.html#uri-validation">Google’s validation rules</a>,
+    including using the HTTPS scheme. Google may reject OAuth requests that don't
+    originate from or resolve to a secure context.</p>
+</section>
+
+<section aria-labelledby="unbundled-consent">
+  <h2 id="unbundled-consent" data-text="Handle consent for multiple scopes" tabindex="-1">Handle consent for multiple scopes</h2>
+
+  <p>When you obtain consent for multiple scopes, a user might choose to grant one or more requested
+    scopes or deny the request. If a user doesn't grant a scope that you requested, you need to
+    disable any related functionality in your app and not make any related API calls that will fail.
+    If a user doesn't grant a requested scope, you may only request a new authorization after the
+    user clearly indicates an intent to use the feature or functionality provided by the scope.
+    Where possible, you must ask for scopes in context with
+    <a href="web-server.html#incrementalAuth">incremental authorization</a>
+    and provide a justification to the user before you request authorization.</p>
+</section>
+
+<section aria-labelledby="refresh-token-revocation">
+  <h2 id="refresh-token-revocation" data-text="Handle refresh token revocation and expiration" tabindex="-1">Handle refresh token revocation and expiration</h2>
+
+  <p>Refresh tokens can be invalidated at any time. For example, the user could choose to revoke
+    access to your app, a manual or automated process designed to protect users could purge the
+    token, or the token could expire. If your app requires notification of token revocation to
+    provide a good experience for users, you must integrate with our
+    <a href="https://developers.google.com/identity/protocols/risc">Cross-Account Protection</a> service.</p>
+</section>
+
+<section aria-labelledby="security-signals">
+  <h2 id="security-signals" data-text="Security signals" tabindex="-1">Security signals</h2>
+
+  <p>Session metadata and Account Metadata signals available in the OpenID Connect ID
+    token and Security Event Tokens must only be used for the limited purpose
+    of assisting you in internally investigating, remediating, and developing
+    systems to protect against security breaches and abusive behavior that may
+    impact your systems, customers, or users. These signals are strictly
+    prohibited from any other use.</p>
+</section>
+
+<section aria-labelledby="continuous-improvements">
+  <h2 id="continuous-improvements" data-text="Continuous improvements" tabindex="-1">Continuous improvements</h2>
+
+  <p>To continuously enhance your experience, we may add or remove features, modify service limits,
+    introduce or retire services, and conduct experiments to test new improvements. If we make
+    material changes that negatively impact your use of our services or if we stop offering a
+    service, we'll provide you with reasonable advance notice, except in urgent situations such as
+    preventing abuse, responding to legal requirements, or addressing security and operability
+    issues.</p>
+</section>
+
+<section aria-labelledby="changelog">
+  <h2 id="changelog" data-text="Changelog" tabindex="-1">Changelog</h2>
+
+<p><time datetime="2025-10-27">October 27, 2025 - </time> Added policy for unused client deletion.</p>
+<p><time datetime="2025-12-15">December 15, 2025 - </time> Added policy for continuous improvements.</p>
+<p><time datetime="2026-08-05">August 5, 2026 - </time>
+  Added policy for security signals handling.</p>
+</section>
+
+
+  
+  
+
+  
+</main></body></html>

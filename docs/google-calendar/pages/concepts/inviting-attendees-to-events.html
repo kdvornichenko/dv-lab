@@ -1,0 +1,723 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Invite users to an event</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Invite users to an event</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/concepts/inviting-attendees-to-events">https://developers.google.com/workspace/calendar/api/concepts/inviting-attendees-to-events</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h2 id="create-event" data-text="Create an event" tabindex="-1">Create an event</h2>
+
+<p>If you have write access to the organizer's Google Calendar, you can add an
+event using the <a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">Events: insert</code></a>
+method.</p>
+
+<p>This method adds the event directly to the organizer's calendar, independently
+of their setting to add invitations.</p>
+
+<h2 id="add-attendees" data-text="Add attendees" tabindex="-1">Add attendees</h2>
+
+<p>With this method, you can also add attendees to the same event by adding their
+email address to the <a href="../v3/reference/events.html#attendees"><code translate="no" dir="ltr">attendees</code></a>
+property of the event. Any future changes made by the organizer to the event are
+<a href="inviting-attendees-to-events.html#event-propagation">propagated</a> to the attendees.</p>
+
+<p>Attendees receive the invitation from the organizer's email address.
+Calendar users receive the invitation in their email or in their
+calendar, depending on their event settings in Calendar:</p>
+
+<ul>
+<li>If they have the setting <code translate="no" dir="ltr">From everyone</code>, the event is added directly to
+their calendar.</li>
+<li>If they have the setting <code translate="no" dir="ltr">Only if the sender is known</code>, the event is added
+directly to their calendar if they have previously interacted with the
+organizer, if the organizer is in the same organization, or if the organizer
+is in their <a href="https://contacts.google.com">Google Contacts</a>. If the organizer
+isn't known to them, they can click <strong>Add to calendar</strong> or RSVP by
+clicking <strong>Yes</strong> or <strong>Maybe</strong> in the invitation email. Then the event is
+added to their calendar.</li>
+<li>If users have the setting <code translate="no" dir="ltr">When I respond in email</code>, all invitations aren't
+added to their calendar until the user RSVPs by clicking <strong>Yes</strong>, <strong>Maybe</strong>,
+or <strong>No</strong> in the invitation email.</li>
+</ul>
+
+<p>For more information about how invitations are added to
+Calendar, see
+<a href="https://support.google.com/calendar/answer/13159188">Manage invitations in Calendar</a>.</p>
+<aside class="special"><strong>Important:</strong><span> Prepopulating the attendee's response using the
+<a href="../v3/reference/events.html#attendees.responseStatus"><code translate="no" dir="ltr">attendees[].responseStatus</code></a>
+property doesn't automatically add the event to the guests' calendars.
+Furthermore, if more than 200 guests are invited to the event, response status
+is not propagated to the guests.</span></aside>
+<h2 id="display-event" data-text="Display the event directly in attendees&#x27; calendars" tabindex="-1">Display the event directly in attendees' calendars</h2>
+
+<p>To display an event directly in Calendar attendees' calendars for any
+setting the attendee might have, you can
+<a href="inviting-attendees-to-events.html#set-attendees-rsvp">set the attendee's RSVP</a> or
+<a href="inviting-attendees-to-events.html#import-copy">import a copy of the event directly in the attendee's calendar</a>.
+For both methods, you need
+<a href="https://developers.google.com/identity/protocols/oauth2/scopes#calendar">write access</a> to the attendees'
+calendars; if you don't, consider
+<a href="inviting-attendees-to-events.html#add-organizer">adding the organizer to the attendee's contacts</a>, which might
+require write access to the attendee's contacts.</p>
+
+<h3 id="set-attendees-rsvp" data-text="Set the attendee&#x27;s RSVP" tabindex="-1">Set the attendee's RSVP</h3>
+
+<p>To set an attendee's RSVP to an event, take the following steps:</p>
+
+<ol>
+<li>Create the event in the Calendar organizer's calendar and add
+attendees (see <a href="inviting-attendees-to-events.html#add-attendees">Add attendees</a>).</li>
+<li>Use the <a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">Events: update</code></a> method
+to set the
+<a href="../v3/reference/events.html#attendees.responseStatus">attendee's RSVP</a>
+to <code translate="no" dir="ltr">accepted</code> or <code translate="no" dir="ltr">tentative</code>. You must have write access to the attendee's
+calendar. There might be a slight delay before the event appears on the
+attendee's calendar.
+<a href="../v3/reference/events/update.html">Learn more about how to use the <code translate="no" dir="ltr">Events: update</code> method</a>.</li>
+</ol>
+
+<p>This method adds the event to the attendee's calendar, but the attendee might
+still see the banner in their email that the invitation was sent from an address
+previously unknown to them.</p>
+
+<h3 id="import-copy" data-text="Import a copy of the event directly in the attendee&#x27;s calendar" tabindex="-1">Import a copy of the event directly in the attendee's calendar</h3>
+
+<p>To import a copy of an event into an attendee's calendar, take the following
+steps:</p>
+
+<ol>
+<li>If you have write access to the organizer's Calendar calendar, import a copy
+of the event using the
+<a href="../v3/reference/events/import.html"><code translate="no" dir="ltr">Events: import</code></a> method.</li>
+<li>Import another copy of the same event in the attendee's
+calendar using <a href="../v3/reference/events/import.html"><code translate="no" dir="ltr">Events: import</code></a>.
+You must have write access to the attendee's calendar. Use the same event ID
+(<a href="../v3/reference/events/import.html#iCalUID"><code translate="no" dir="ltr">iCalUID</code></a>) for the
+organizer's and the attendee's copies and make sure to specify the organizer
+in the attendee's copy.</li>
+</ol>
+
+<p>With this method, the attendee can see the event in their calendar, but doesn't
+receive an invitation email from Calendar.</p>
+<aside class="special"><strong>Important:</strong><span> If you don't use the same event ID, future changes to the event
+made by the organizer won't be automatically propagated to the attendee.</span></aside>
+<h3 id="add-organizer" data-text="Add the organizer to the attendee&#x27;s contacts" tabindex="-1">Add the organizer to the attendee's contacts</h3>
+
+<p>If you don't have the attendee's credentials, you can instruct the attendee or
+their organization to add the organizer's email address to their Google Contacts
+in advance to display an event directly in their calendar. There might be a
+slight delay for a newly created contact to take effect.</p>
+
+<ul>
+<li>Ask the Calendar user to <a href="https://support.google.com/contacts/answer/1069522">add the organizer to their Google Contacts</a>.</li>
+<li>If the attendees belong to an organization, you can ask the organization's
+administrator to programmatically add email addresses to their users'
+contacts. Ask the administrator to enable
+<a href="https://support.google.com/a/answer/162106">domain-wide delegation</a>,
+impersonate the users and use the
+<a href="https://developers.google.com/people/api/rest/v1/people/createContact"><code translate="no" dir="ltr">People: createContact</code></a>
+method to create contacts for each user, to ensure that future invitations
+from these email addresses automatically appear in their users' calendars.</li>
+<li>If you have access to the attendee's contacts, you can also add the
+organizer's email address to the attendee's contacts using the
+<a href="https://developers.google.com/people/api/rest/v1/people/createContact"><code translate="no" dir="ltr">People: createContact</code></a> method.</li>
+</ul>
+
+<h2 id="invite-by-email" data-text="Invite users by email" tabindex="-1">Invite users by email</h2>
+
+<p>If you don't have write access to the organizer's Calendar calendar, or
+if you don't want to expose the organizer's email address, use the iCalendar
+protocol
+(<a href="https://icalendar.org/RFC-Specifications/iCalendar-RFC-5545/">RFC-5545</a>)
+to invite users with email using an .ICS file.</p>
+
+<p>If the attendee is a Calendar user with the setting <code translate="no" dir="ltr">Only if the sender is known</code>
+and they haven't previously interacted with or recorded the address as
+known to them, the invitation isn't added to their calendar until they click
+<strong>Add to calendar</strong> or they RSVP to the event.</p>
+<aside class="tip"><strong>Tip:</strong><span> Don't use a generic email address (for example,
+<code translate="no" dir="ltr">invitation@example.com</code>) to send invitations. Any abuse might impact
+all users who send invitations from that address. If you can't use the organizer's
+email address, use a unique, static email address for each organizer.</span></aside>
+<h2 id="link-user" data-text="Provide a link for users to add the event" tabindex="-1">Provide a link for users to add the event</h2>
+
+<p>Alternatively, if you want to make it easier for Calendar users to add an
+event as a one-off without keeping it updated, you can provide a link with a
+pre-filled event for the user to add themselves. This method creates a distinct
+event on the user's calendar, which you can't update unless you have
+access to the user's calendar.</p>
+
+<p>Use the following link template:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded><code translate="no" dir="ltr">
+https://calendar.google.com/calendar/r/eventedit?action=TEMPLATE&amp;dates=<var translate="no">20230325T224500Z</var>%2F<var translate="no">20230326T001500Z</var>&amp;stz=<var translate="no">Europe/Brussels</var>&amp;etz=<var translate="no">Europe/Brussels</var>&amp;details=<var translate="no">EVENT_DESCRIPTION_HERE</var>&amp;location=<var translate="no">EVENT_LOCATION_HERE</var>&amp;text=<var translate="no">EVENT_TITLE_HERE</var>
+
+</code></pre></devsite-code>
+<p>by updating the following information:</p>
+
+<ul>
+<li><strong>Start and end dates and times</strong>: Use ISO 8601 format. In the above example,
+replace <code translate="no" dir="ltr">20230325T224500Z</code> and <code translate="no" dir="ltr">20230326T001500Z</code>.</li>
+<li><strong>Start and end time zones</strong>: Format as an IANA Time Zone Database name.
+Place the time zones in the <code translate="no" dir="ltr">stz</code> and <code translate="no" dir="ltr">etz</code> fields.</li>
+<li><strong>Event description</strong>: Must be URL encoded.</li>
+<li><strong>Event location</strong>: Must be URL encoded.</li>
+<li><strong>Event title</strong>: Must be URL encoded.</li>
+</ul>
+
+<h2 id="example" data-text="Example" tabindex="-1">Example</h2>
+
+<p>Consider the example of building an appointment booking service to help
+users book appointments with a business. When a user books an appointment, you
+want your service to add an event to the booker's and the business's
+Google Calendar calendars.</p>
+
+<p>For the best user experience, we recommend that the business gives write access
+to their calendar, so that you can add the event directly to the business's
+calendar (<a href="inviting-attendees-to-events.html#create-event">Create event</a>) and invite the booker to that event
+(<a href="inviting-attendees-to-events.html#add-attendees">Add attendees</a>). To make sure the booker sees the event in
+their calendar and gets reminded of it, inform them to check their emails and
+RSVP <strong>Yes</strong> to the event immediately after making a booking. Once they RSVP to
+the event, they're sent
+<a href="https://support.google.com/calendar/answer/37242">event notifications from Calendar</a>
+per their notification settings.</p>
+
+<p>If you want to add the event directly to the booker's calendar, inform bookers
+to <a href="https://support.google.com/contacts/answer/1069522">add to their contacts</a>
+the email address from which they will receive the invitation. Alternatively,
+ask bookers for write access to their calendar to programmatically RSVP on their
+behalf (<a href="inviting-attendees-to-events.html#set-attendees-rsvp">Set the attendee's RSVP</a>) and send them an email
+notification about the confirmed booking.</p>
+
+<p>If the business doesn't want to expose their email address, use a user-specific
+email address to send the event to the booker by using email
+(<a href="inviting-attendees-to-events.html#invite-by-email">Invite user from an email address</a>).</p>
+
+<h2 id="event-propagation" data-text="Event propagation" tabindex="-1">Event propagation</h2>
+
+<p>The following diagram explains the dynamics. First, Jack creates an event on
+his primary calendar (and thus owns the organizer copy). Then, he invites the
+Cello lesson group secondary calendar and Susan, who has the event setting
+<code translate="no" dir="ltr">Only if the sender is known</code>. Attendees' copies are created on the Cello lesson
+group secondary calendar, and on Susan's calendar if she knows Jack, otherwise
+when she RSVPs or indicates she knows Jack. When Susan responds, the RSVP change
+gets propagated back to the organizer, updating the organizer's copy with
+Susan's response. These changes made to the organizer's copy of the event then
+get propagated to the other attendees.</p>
+
+<p><img src="../../assets/4076382b249075ac704f.png" alt="Diagram showing event/attendee dynamics"></p>
+
+<h3 id="shared-event-properties" data-text="Shared event properties" tabindex="-1">Shared event properties</h3>
+
+<p>The calendar where the event is created is the <em>organizer calendar</em>. This
+calendar owns the shared event information, including ID, start and end time,
+summary, and description. When this information is updated on the organizer
+calendar, the changes are propagated to attendee copies.</p>
+
+<h3 id="private-event-properties" data-text="Private event properties" tabindex="-1">Private event properties</h3>
+
+<p>Not all information is shared between all the event copies. Some properties are
+private, such as reminders, <code translate="no" dir="ltr">colorId</code>, transparency, or the
+<code translate="no" dir="ltr">extendedProperties.private</code> property. These properties are controlled by the
+attendee's settings and not by the organizer calendar.</p>
+
+<p>Attendees can also change the shared properties of the event. However, these
+changes are only reflected on their own copy and might be lost if the organizer
+makes a change.</p>
+
+<p>The only event change that is propagated from attendees back to the organizer is
+the attendee's response status, stored in the
+<a href="../v3/reference/events.html#attendees.responseStatus"><code translate="no" dir="ltr">attendees[].responseStatus</code></a>
+property.</p>
+
+  
+
+  
+</main></body></html>

@@ -1,0 +1,1491 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Handle API errors</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Handle API errors</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/errors">https://developers.google.com/workspace/calendar/api/guides/errors</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+    
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>The Calendar API returns two levels of error information:</p>
+
+<ul>
+<li>HTTP error codes and messages in the header</li>
+<li>A JSON object in the response body with additional details that can help you
+determine how to handle the error.</li>
+</ul>
+
+<p>The rest of this page provides a reference of Calendar errors, with some
+guidance on how to handle them in your app.</p>
+
+<aside class="info">
+We strongly recommend
+<a href="quota.html#test_quota_limit_handling">testing</a>
+error handling of your application in a real environment.
+</aside>
+
+<h2 id="exponential-backoff" data-text="Implement exponential backoff" tabindex="-1">Implement exponential backoff</h2>
+
+<p>The
+<a href="https://cloud.google.com/storage/docs/retry-strategy" target="_blank" class="external">Cloud APIs documentation</a> 
+has a good explanation of exponential backoff and how to use it with the Google
+APIs.</p>
+
+<h2 id="errors_suggested_actions" data-text="Errors &amp; suggested actions" tabindex="-1">Errors &amp; suggested actions</h2>
+
+<p>This section provides the complete JSON representation of each listed
+error and suggested actions you might take to handle it.</p>
+
+<h3 id="400_bad_request" data-text="400: Bad Request" tabindex="-1">400: Bad Request</h3>
+
+<p>User error. This can mean that a required field or parameter has not been
+provided, the value supplied is invalid, or the combination of provided fields
+is invalid.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "calendar",
+    "reason": "timeRangeEmpty",
+    "message": "The specified time range is empty.",
+    "locationType": "parameter",
+    "location": "timeMax",
+   }
+  ],
+  "code": 400,
+  "message": "The specified time range is empty."
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong> Because this is a permanent error, do not retry.
+Read the error message instead and change your request accordingly.</p>
+
+<h3 id="401_invalid_credentials" data-text="401: Invalid Credentials" tabindex="-1">401: Invalid Credentials</h3>
+
+<p>Invalid authorization header.
+The access token you're using is either expired or invalid.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "authError",
+    "message": "Invalid Credentials",
+    "locationType": "header",
+    "location": "Authorization",
+   }
+  ],
+  "code": 401,
+  "message": "Invalid Credentials"
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested actions:</strong></p>
+
+<ul>
+<li>Get a new access token using the long-lived refresh token.</li>
+<li>If this fails, direct the user through the OAuth flow, as described in
+<a href="https://developers.google.com/workspace/calendar/auth">Authorizing requests with OAuth 2.0</a>.</li>
+<li>If you are seeing this for a service account, check that you have
+successfully completed all the steps in the
+<a href="https://developers.google.com/identity/protocols/OAuth2ServiceAccount">service account page</a>.</li>
+</ul>
+
+<h3 id="403_user_rate_limit_exceeded" data-text="403: User Rate Limit Exceeded" tabindex="-1">403: User Rate Limit Exceeded</h3>
+
+<p>One of the limits from the Developer Console has been reached.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "usageLimits",
+    "reason": "userRateLimitExceeded",
+    "message": "User Rate Limit Exceeded"
+   }
+  ],
+  "code": 403,
+  "message": "User Rate Limit Exceeded"
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested actions:</strong></p>
+
+<ul>
+<li>Make sure your app follows best practices from
+<a href="quota.html">manage quotas</a>.</li>
+<li>Raise the per-user quota in the Developer Console project.</li>
+<li>If one user is making a lot of requests on behalf of many users of a
+Google Workspace account, consider
+<a href="quota.html#proper_accounting_with_service_accounts">using a service account with domain-wide delegation</a>
+and setting the <code translate="no" dir="ltr">quotaUser</code> parameter.</li>
+<li>Use <a href="errors.html#exponential-backoff">exponential backoff</a>.</li>
+</ul>
+
+<h3 id="403_rate_limit_exceeded" data-text="403: Rate Limit Exceeded" tabindex="-1">403: Rate Limit Exceeded</h3>
+
+<p>The user has reached Google Calendar API's maximum request rate per calendar
+or per authenticated user.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "usageLimits",
+    "reason": "rateLimitExceeded",
+    "message": "Rate Limit Exceeded"
+   }
+  ],
+  "code": 403,
+  "message": "Rate Limit Exceeded"
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong> <code translate="no" dir="ltr">rateLimitExceeded</code> errors can return either 403 or 429
+error codes—currently they are functionally similar and should be responded to
+in the same way, by using <a href="errors.html#exponential-backoff">exponential backoff</a>.
+Additionally make sure your app follows best practices from
+<a href="quota.html">manage quotas</a>.</p>
+
+<h3 id="403_usage_limits_exceeded" data-text="403: Calendar usage limits exceeded" tabindex="-1">403: Calendar usage limits exceeded</h3>
+
+<p>The user reached one of the Google Calendar limits in place to protect Google
+users and infrastructure from abusive behavior.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "usageLimits",
+    "message": "Calendar usage limits exceeded.",
+    "reason": "quotaExceeded"
+   }
+  ],
+  "code": 403,
+  "message": "Calendar usage limits exceeded."
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested actions:</strong></p>
+
+<ul>
+<li>Read more on the Calendar usage limits in the
+<a href="https://support.google.com/a/answer/2905486" target="_blank" class="external">Google Workspace Administrator help</a>.</li>
+</ul>
+
+<h3 id="403_forbidden_for_non-organizer" data-text="403: Forbidden for non-organizer" tabindex="-1">403: Forbidden for non-organizer</h3>
+
+<p>The event update request is attempting to set one of the shared event properties
+in a copy that isn't the organizer's. Shared properties (for example,
+<code translate="no" dir="ltr">guestsCanInviteOthers</code>, <code translate="no" dir="ltr">guestsCanModify</code>, or <code translate="no" dir="ltr">guestsCanSeeOtherGuests</code>) can
+only be set by the organizer.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "calendar",
+    "reason": "forbiddenForNonOrganizer",
+    "message": "Shared properties can only be changed by the organizer of the event."
+   }
+  ],
+  "code": 403,
+  "message": "Shared properties can only be changed by the organizer of the event."
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested actions:</strong></p>
+
+<ul>
+<li>If you're using <a href="../v3/reference/events/insert.html">Events: insert</a>,
+<a href="../v3/reference/events/import.html">Events: import</a>, or
+<a href="../v3/reference/events/update.html">Events: update</a>, and your request doesn't include
+any shared properties, this is equivalent to trying to set them to their
+default values. Consider using <a href="../v3/reference/events/patch.html">Events: patch</a>
+instead.</li>
+<li>If your request has shared properties, make sure that you're only trying to
+change these properties if you're updating the organizer's copy.</li>
+</ul>
+
+<h3 id="404_not_found" data-text="404: Not Found" tabindex="-1">404: Not Found</h3>
+
+<p>The specified resource was not found. This can happen in several cases.
+Here are some examples:</p>
+
+<ul>
+<li>when the requested resource (with the provided ID) has never existed</li>
+<li><p>when accessing a calendar that the user can not access</p>
+
+<p>{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "notFound",
+    "message": "Not Found"
+   }
+  ],
+  "code": 404,
+  "message": "Not Found"
+ }
+}</p></li>
+</ul>
+
+<p><strong>Suggested action:</strong> Use <a href="errors.html#exponential-backoff">exponential backoff</a>.</p>
+
+<h3 id="409_the_requested_identifier_already_exists" data-text="409: The requested identifier already exists" tabindex="-1">409: The requested identifier already exists</h3>
+
+<p>An instance with the given ID already exists in the storage.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "duplicate",
+    "message": "The requested identifier already exists."
+   }
+  ],
+  "code": 409,
+  "message": "The requested identifier already exists."
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong>
+Generate a new ID if you want to create a new instance, otherwise use the
+<a href="../v3/reference/events/update.html">update</a> method call.</p>
+
+<h3 id="409_conflict" data-text="409: Conflict" tabindex="-1">409: Conflict</h3>
+
+<p>A batched item inside an
+<a href="batch.html"><code translate="no" dir="ltr">events.batch</code></a>
+operation can't be executed due to an operational conflict with other requested
+batched items.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "conflict",
+    "message": "Conflict"
+   }
+  ],
+  "code": 409,
+  "message": "Conflict"
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong> Exclude all successfully finished and all definitely
+failed batched items and retry the remaining ones in a different <code translate="no" dir="ltr">events.batch</code>
+or corresponding single event operations.</p>
+
+<h3 id="410_gone" data-text="410: Gone" tabindex="-1">410: Gone</h3>
+
+<p>The <code translate="no" dir="ltr">syncToken</code> or <code translate="no" dir="ltr">updatedMin</code> parameters are no longer valid. This error can also
+occur if a request attempts to delete an event that has already been deleted.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "calendar",
+    "reason": "fullSyncRequired",
+    "message": "Sync token is no longer valid, a full sync is required.",
+    "locationType": "parameter",
+    "location": "syncToken",
+    }
+  ],
+  "code": 410,
+  "message": "Sync token is no longer valid, a full sync is required."
+ }
+}
+</code></pre></devsite-code>
+<p>or</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "calendar",
+    "reason": "updatedMinTooLongAgo",
+    "message": "The requested minimum modification time lies too far in the past.",
+    "locationType": "parameter",
+    "location": "updatedMin",
+   }
+  ],
+  "code": 410,
+  "message": "The requested minimum modification time lies too far in the past."
+ }
+}
+</code></pre></devsite-code>
+<p>or</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "deleted",
+    "message": "Resource has been deleted"
+   }
+  ],
+  "code": 410,
+  "message": "Resource has been deleted"
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong> For the <code translate="no" dir="ltr">syncToken</code> or <code translate="no" dir="ltr">updatedMin</code> parameters, wipe the
+store and re-sync. For more details see
+<a href="sync.html">Synchronize Resources Efficiently</a>.
+For already deleted events, no further action is necessary.</p>
+
+<h3 id="412_precondition_failed" data-text="412: Precondition Failed" tabindex="-1">412: Precondition Failed</h3>
+
+<p>The etag supplied in the If-match header no longer corresponds to the current
+etag of the resource.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "conditionNotMet",
+    "message": "Precondition Failed",
+    "locationType": "header",
+    "location": "If-Match",
+    }
+  ],
+  "code": 412,
+  "message": "Precondition Failed"
+ }
+}
+</code></pre></devsite-code>
+<p>Suggested action: Re-fetch the entity and re-apply the changes. For more details
+see <a href="version-resources.html">Get specific versions of resources</a>.</p>
+
+<h3 id="429_too_many_requests" data-text="429: Too many requests" tabindex="-1">429: Too many requests</h3>
+
+<p>A <code translate="no" dir="ltr">rateLimitExceeded</code> error occurs when the user has sent too many requests in a
+given amount of time.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+  "error": {
+    "errors": [
+      {
+        "domain": "usageLimits",
+        "reason": "rateLimitExceeded",
+        "message": "Rate Limit Exceeded"
+      }
+    ],
+    "code": 429,
+    "message": "Rate Limit Exceeded"
+  }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong> <code translate="no" dir="ltr">rateLimitExceeded</code> errors can return either 403 or 429
+error codes—currently they are functionally similar and should be responded to
+in the same way, by using <a href="errors.html#exponential-backoff">exponential backoff</a>.
+Additionally make sure your app follows best practices from
+<a href="quota.html">manage quotas</a>.</p>
+
+<h3 id="500_backend_error" data-text="500: Backend Error" tabindex="-1">500: Backend Error</h3>
+
+<p>An unexpected error occurred while processing the request.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+ "error": {
+  "errors": [
+   {
+    "domain": "global",
+    "reason": "backendError",
+    "message": "Backend Error",
+   }
+  ],
+  "code": 500,
+  "message": "Backend Error"
+ }
+}
+</code></pre></devsite-code>
+<p><strong>Suggested action:</strong> Use <a href="errors.html#exponential-backoff">exponential backoff</a>.</p>
+
+  
+
+  
+</main></body></html>

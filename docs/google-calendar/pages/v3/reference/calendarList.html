@@ -1,0 +1,330 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CalendarList</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>CalendarList</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendarList">https://developers.google.com/workspace/calendar/api/v3/reference/calendarList</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+
+
+<meta itemprop="path" content="CalendarList"/>
+
+<section id="overview">
+  <p><span>The collection of calendars in the user's calendar list. See also </span><a href="../../concepts/events-calendars.html#calendar_and_calendar_list">Calendars vs CalendarList</a><span>.</span></p>
+  <p>For a list of <a href="calendarList.html#methods">methods</a> for this resource, see the end of this page.</p>
+</section>
+
+<section id="resource">
+  <h2 id="resource-representations" data-text="Resource representations" tabindex="-1">Resource representations</h2>
+    <p></p>
+
+  <section>
+    <div></div><devsite-code><pre id="alt-json" class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Carbon" syntax-guessed>{
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"kind"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"calendar#calendarListEntry"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"etag"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">etag</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"summary"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"description"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"location"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"timeZone"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"dataOwner"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"summaryOverride"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"colorId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"backgroundColor"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"foregroundColor"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"hidden"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"selected"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"accessRole"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"defaultReminders"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"method"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"minutes"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">integer</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"notificationSettings"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"notifications"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span>{
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"type"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-s">"method"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">      </span>}
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"deleted"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"conferenceProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>{
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s">"allowedConferenceSolutionTypes"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span><span class="apiparam"><span class="devsite-syntax-kt">string</span></span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-w">  </span>}<span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"autoAcceptInvitations"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-nx">boolean</span></span>
+}</pre></devsite-code>
+    <table class="matchpre" id="properties">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="accessRole">
+        <td><code translate="no" dir="ltr">accessRole</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The effective access role that the authenticated user has on the calendar. Read-only. Possible values are: <ul> <li>"<code translate="no" dir="ltr">freeBusyReader</code>" - Provides read access to free/busy information.</li> <li>"<code translate="no" dir="ltr">reader</code>" - Provides read access to the calendar. Private events will appear to users with reader access, but event details will be hidden.</li> <li>"<code translate="no" dir="ltr">writerWithoutPrivateAccess</code>" - Provides read and write access to the calendar. Private events will appear to users with writerWithoutPrivateAccess access, but event details will be hidden.</li> <li>"<code translate="no" dir="ltr">writer</code>" - Provides read and write access to the calendar. Private events will appear to users with writer access, and event details will be visible.</li> <li>"<code translate="no" dir="ltr">owner</code>" - Provides manager access to the calendar. This role has all of the permissions of the writer role with the additional ability to see and modify access levels of other users. <p><aside>Important: the <code translate="no" dir="ltr">owner</code> role is different from the calendar's data owner. A calendar has a single data owner, but can have multiple users with <code translate="no" dir="ltr">owner</code> role.</aside></p></li> </ul></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="autoAcceptInvitations">
+        <td><code translate="no" dir="ltr">autoAcceptInvitations</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this calendar automatically accepts invitations. Only valid for resource calendars. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="backgroundColor">
+        <td><code translate="no" dir="ltr">backgroundColor</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The main color of the calendar in the hexadecimal format "<code translate="no" dir="ltr">#0088aa</code>". This property supersedes the index-based <code translate="no" dir="ltr">colorId</code> property. To set or change this property, you need to specify <code translate="no" dir="ltr">colorRgbFormat=true</code> in the parameters of the <a href="calendarList/insert.html">insert</a>, <a href="calendarList/update.html">update</a> and <a href="calendarList/patch.html">patch</a> methods. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="colorId">
+        <td><code translate="no" dir="ltr">colorId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The color of the calendar. This is an ID referring to an entry in the <code translate="no" dir="ltr">calendar</code> section of the colors definition (see the <a href="colors.html">colors endpoint</a>). This property is superseded by the <code translate="no" dir="ltr">backgroundColor</code> and <code translate="no" dir="ltr">foregroundColor</code> properties and can be ignored when using these properties. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="conferenceProperties">
+        <td><code translate="no" dir="ltr">conferenceProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Conferencing properties for this calendar, for example what types of conferences are allowed.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceProperties.allowedConferenceSolutionTypes">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceProperties.</span>allowedConferenceSolutionTypes[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The types of conference solutions that are supported for this calendar.  <p>The possible values are: <ul> <li><code translate="no" dir="ltr">"eventHangout"</code> <li><code translate="no" dir="ltr">"eventNamedHangout"</code> <li><code translate="no" dir="ltr">"hangoutsMeet"</code> </li></li></li></ul>  Optional.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="dataOwner">
+        <td><code translate="no" dir="ltr">dataOwner</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The email of the owner of the calendar. Set only for secondary calendars. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="defaultReminders">
+        <td><code translate="no" dir="ltr">defaultReminders[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The default reminders that the authenticated user has for this calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="defaultReminders.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">defaultReminders[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used by this reminder. Possible values are: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Reminders are sent via email.</li> <li>"<code translate="no" dir="ltr">popup</code>" - Reminders are sent via a UI popup.</li> </ul> <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="defaultReminders.minutes">
+        <td><code translate="no" dir="ltr"><span class="quiet">defaultReminders[].</span>minutes</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of minutes before the start of the event when the reminder should trigger. Valid values are between 0 and 40320 (4 weeks in minutes). <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="deleted">
+        <td><code translate="no" dir="ltr">deleted</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this calendar list entry has been deleted from the calendar list. Read-only. Optional. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="description">
+        <td><code translate="no" dir="ltr">description</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Description of the calendar. Optional. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="etag">
+        <td><code translate="no" dir="ltr">etag</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">etag</code></td>
+        <td>ETag of the resource.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="foregroundColor">
+        <td><code translate="no" dir="ltr">foregroundColor</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The foreground color of the calendar in the hexadecimal format "<code translate="no" dir="ltr">#ffffff</code>". This property supersedes the index-based <code translate="no" dir="ltr">colorId</code> property. To set or change this property, you need to specify <code translate="no" dir="ltr">colorRgbFormat=true</code> in the parameters of the <a href="calendarList/insert.html">insert</a>, <a href="calendarList/update.html">update</a> and <a href="calendarList/patch.html">patch</a> methods. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="hidden">
+        <td><code translate="no" dir="ltr">hidden</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the calendar has been hidden from the list. Optional. The attribute is only returned when the calendar is hidden, in which case the value is <code translate="no" dir="ltr">true</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Identifier of the calendar.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the resource ("calendar#calendarListEntry").</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="location">
+        <td><code translate="no" dir="ltr">location</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Geographic location of the calendar as free-form text. Optional. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="notificationSettings">
+        <td><code translate="no" dir="ltr">notificationSettings</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>The notifications that the authenticated user is receiving for this calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="notificationSettings.notifications">
+        <td><code translate="no" dir="ltr"><span class="quiet">notificationSettings.</span>notifications[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The list of notifications set for this calendar.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="notificationSettings.notifications.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">notificationSettings.notifications[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used to deliver the notification. The possible value is: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Notifications are sent via email.</li> </ul> <p>Required when adding a notification.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="notificationSettings.notifications.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">notificationSettings.notifications[].</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The type of notification. Possible values are: <ul> <li>"<code translate="no" dir="ltr">eventCreation</code>" - Notification sent when a new event is put on the calendar.</li> <li>"<code translate="no" dir="ltr">eventChange</code>" - Notification sent when an event is changed.</li> <li>"<code translate="no" dir="ltr">eventCancellation</code>" - Notification sent when an event is cancelled.</li> <li>"<code translate="no" dir="ltr">eventResponse</code>" - Notification sent when an attendee responds to the event invitation.</li> <li>"<code translate="no" dir="ltr">agenda</code>" - An agenda with the events of the day (sent out in the morning).</li> </ul> <p> Required when adding a notification.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="primary">
+        <td><code translate="no" dir="ltr">primary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the calendar is the primary calendar of the authenticated user. Read-only. Optional. The default is False.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="selected">
+        <td><code translate="no" dir="ltr">selected</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the calendar content shows up in the calendar UI. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the calendar. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="summaryOverride">
+        <td><code translate="no" dir="ltr">summaryOverride</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The summary that the authenticated user has set for this calendar. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="timeZone">
+        <td><code translate="no" dir="ltr">timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone of the calendar. Optional. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<section id="methods">
+  <h2 id="methods" data-text="Methods" tabindex="-1">Methods</h2>
+
+
+
+  <dl>
+
+
+      <dt><a href="calendarList/delete.html">delete</a></dt>
+      <dd>Removes a calendar from the user's calendar list.</dd>
+
+
+
+      <dt><a href="calendarList/get.html">get</a></dt>
+      <dd>Returns a calendar from the user's calendar list.</dd>
+
+
+
+      <dt><a href="calendarList/insert.html">insert</a></dt>
+      <dd>Inserts an existing calendar into the user's calendar list.</dd>
+
+
+
+      <dt><a href="calendarList/list.html">list</a></dt>
+      <dd>Returns the calendars on the user's calendar list.</dd>
+
+
+
+      <dt><a href="calendarList/patch.html">patch</a></dt>
+      <dd>Updates an existing calendar on the user's calendar list. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.</dd>
+
+
+
+      <dt><a href="calendarList/update.html">update</a></dt>
+      <dd>Updates an existing calendar on the user's calendar list.</dd>
+
+
+
+      <dt><a href="calendarList/watch.html">watch</a></dt>
+      <dd>Watch for changes to CalendarList resources.</dd>
+
+  </dl>
+</section>
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

@@ -1,0 +1,193 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Calendars: update</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Calendars: update</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendars/update">https://developers.google.com/workspace/calendar/api/v3/reference/calendars/update</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="update"/>
+<meta itemprop="path" content="Calendars"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="update.html#auth">authorization</a>.</aside>
+
+<p>Updates metadata for a calendar.
+<a href="update.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>PUT https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span></pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendars</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply a <a href="../calendars.html#resource">Calendars resource</a> with the following properties:</p>
+  <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+    <tbody>
+
+    <tr id="optional-properties" class="alt">
+      <td colspan="4"><b>Optional Properties</b></td>
+    </tr>
+      <tr id="description">
+        <td><code translate="no" dir="ltr">description</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Description of the calendar. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties">
+        <td><code translate="no" dir="ltr">labelProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Label properties defined on this calendar. If specified, overwrites the existing label properties. If not specified, the label properties remain unchanged.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.</span>eventLabels[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>Event labels defined on this calendar. If this is present when updating the calendar, it will replace the existing event labels.  <p>Extend the list to add a new event label, and remove entities from the list to delete a label from calendar.  <p>Each calendar can have a maximum of 200 labels.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels.backgroundColor">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.eventLabels[].</span>backgroundColor</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Background color of the label in hexadecimal format, such as <code translate="no" dir="ltr">"#039be5"</code>. Events with this label are displayed in this color. Required.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels.id">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.eventLabels[].</span>id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The ID of the label. Optional when inserting a new label. If not provided, a unique ID will be generated. Required when updating a label.  <p>If provided, the ID must be unique within the calendar and follow UUID format.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels.name">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.eventLabels[].</span>name</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Name of the label. Optional.  <p>If provided this must have at most 50 characters.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="location">
+        <td><code translate="no" dir="ltr">location</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Geographic location of the calendar as free-form text. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="timeZone">
+        <td><code translate="no" dir="ltr">timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone of the calendar. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a <a href="../calendars.html#resource">Calendars resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.calendars.update" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

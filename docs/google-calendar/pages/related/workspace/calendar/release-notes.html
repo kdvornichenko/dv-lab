@@ -1,0 +1,341 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Google Calendar API release notes</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Google Calendar API release notes</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/release-notes">https://developers.google.com/workspace/calendar/release-notes</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    
+    
+
+    <section class="intro">
+    
+    
+    </section>
+
+    <section class="xml">
+    
+      <p>
+        To get the latest product updates delivered to you, add the URL of this page to your
+        <a href="https://wikipedia.org/wiki/Comparison_of_feed_aggregators" class="external">feed
+          reader</a>, or add the feed URL directly: <code translate="no" dir="ltr">https://developers.google.com/feeds/calendar-release-notes.xml</code>.
+      </p>
+    
+    </section>
+
+    <section class="releases">
+    
+
+<p>This page contains release notes for features and updates to the
+Calendar API. We recommend that
+Calendar API developers periodically check this list for any new
+announcements.</p>
+
+<h2 id="July_14_2026" data-text="July 14, 2026" tabindex="-1">July 14, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally Available:</strong> You can now filter calendar list entries to show only calendars belonging to your organization using the new <code translate="no" dir="ltr">showOwnOrganizationOnly</code> parameter in the <code translate="no" dir="ltr">calendarList.list</code> endpoint.</p>
+
+<p>To learn more, see the <a href="../../../v3/reference/calendarList/list.html"><code translate="no" dir="ltr">calendarList.list</code> documentation</a>.</p></div>
+    </div>
+<h2 id="July_07_2026" data-text="July 07, 2026" tabindex="-1">July 07, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally available:</strong> We are introducing a new calendar access level: <code translate="no" dir="ltr">writerWithoutPrivateAccess</code>. This new level permits read and write access to events that aren't private on a calendar, and shows private events as busy blocks. Users with this role cannot modify or see details for private events.</p>
+
+<p>For more details, see the <a href="../../../v3/reference/acl.html">ACL resource documentation</a>.</p></div>
+    </div>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>To ensure consistent visibility across recurring events, changing the visibility of a single instance in the Google Calendar API can affect all instances of the series:</p>
+
+<ul>
+<li><strong>More restrictive changes propagate:</strong> If you change the visibility of one instance of a recurring event to a more restrictive setting (for example, from <code translate="no" dir="ltr">public</code> to <code translate="no" dir="ltr">private</code>), the change is propagated to all instances of the recurring event.</li>
+<li><strong>Less restrictive changes are ignored:</strong> If you attempt to change the visibility of one instance of a recurring event to a less restrictive setting (for example, from <code translate="no" dir="ltr">private</code> to <code translate="no" dir="ltr">public</code>), the change is ignored and the visibility remains unchanged. To make a recurring event less restrictive, you must update the parent recurring event.</li>
+</ul>
+
+<p>For more information, see <a href="../../../concepts/sharing.html">Share calendars and events</a> and the <a href="../../../v3/reference/events.html"><code translate="no" dir="ltr">events</code> resource reference</a>.</p></div>
+    </div>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally Available:</strong> The Google Calendar API now provides full support for custom labels and colors, allowing users to categorize events with a flexible palette beyond the previously fixed set of colors.</p>
+
+<p>You can now list and modify labels on a calendar using the <a href="../../../v3/reference/calendars.html#labelProperties"><code translate="no" dir="ltr">labelProperties</code></a> on the <code translate="no" dir="ltr">Calendars</code> resource.</p>
+
+<p>Then, you can assign a label to an event by setting the ID of the label to <a href="../../../v3/reference/events.html#eventLabelId"><code translate="no" dir="ltr">eventLabelId</code></a> on the <code translate="no" dir="ltr">Events</code> resource.</p>
+
+<p>Note that, in order to enable the labels feature, you must set the <code translate="no" dir="ltr">eventLabelVersion</code> request parameter to <code translate="no" dir="ltr">1</code> on <a href="../../../v3/reference/events/import.html#eventLabelVersion"><code translate="no" dir="ltr">import</code></a>, <a href="../../../v3/reference/events/insert.html#eventLabelVersion"><code translate="no" dir="ltr">insert</code></a>, <a href="../../../v3/reference/events/patch.html#eventLabelVersion"><code translate="no" dir="ltr">patch</code></a> and <a href="../../../v3/reference/events/update.html#eventLabelVersion"><code translate="no" dir="ltr">update</code></a> operations on Events resources.</p>
+
+<p>To learn more, see the <a href="../../../guides/labels.html">Manage custom labels and colors guide</a>.</p></div>
+    </div>
+<h2 id="June_18_2026" data-text="June 18, 2026" tabindex="-1">June 18, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally Available:</strong> Workspace administrators can now use the Google Calendar API to programmatically transfer the ownership of secondary calendars between users within the same organization.</p>
+
+<p>To learn more, see the <a href="../../../v3/reference/calendars/transferOwnership.html"><code translate="no" dir="ltr">Calendars.transferOwnership</code></a> method documentation.</p></div>
+    </div>
+<h2 id="June_01_2026" data-text="June 01, 2026" tabindex="-1">June 01, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-announcement">Announcement</span>
+      <div><p><strong>Generally available starting June 29, 2026:</strong> We are introducing a new calendar access level: <code translate="no" dir="ltr">writerWithoutPrivateAccess</code>. This new level permits read and write access to events that aren't private on a calendar, and shows private events as busy blocks. Users with this role cannot modify or see details for private events.</p></div>
+    </div>
+<h2 id="May_01_2026" data-text="May 01, 2026" tabindex="-1">May 01, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-announcement">Announcement</span>
+      <div><p><strong>Generally Available</strong>: Updates to Calendar API usage quotas</p>
+
+<p>A new tiering model with updates to API usage quotas will start to roll out. For
+more information, see <a href="https://developers.google.com/workspace/tools-safety">Google Workspace standardized model for agent tools and
+APIs</a>.</p></div>
+    </div>
+<h2 id="April_22_2026" data-text="April 22, 2026" tabindex="-1">April 22, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong><a href="https://developers.google.com/workspace/preview">Developer Preview</a></strong>: The <a href="https://modelcontextprotocol.io/">Model Context Protocol (MCP)</a> server for Google Calendar is now available in developer preview. MCP is an open protocol that enables seamless integration between AI applications and your calendars. By configuring the Calendar MCP server, you enable AI agents to securely read your schedule and take actions, such as creating, updating, or deleting events.</p>
+
+<p>For example, you can ask your AI agent: <em>"When is my next meeting with Ariel?"</em></p>
+
+<p>To get started with the Calendar MCP server, see the following documentation:</p>
+
+<ul>
+<li><a href="../../../guides/configure-mcp-server.html">Set up the Calendar MCP server</a></li>
+<li><a href="../../../v3/reference/mcp.html">Calendar MCP tool reference</a></li>
+</ul>
+
+<p>To find more available MCP servers, see <a href="https://developers.google.com/workspace/guides/configure-mcp-servers">Model Context Protocol (MCP) servers in Google Workspace</a>.</p></div>
+    </div>
+<h2 id="February_17_2026" data-text="February 17, 2026" tabindex="-1">February 17, 2026</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-announcement">Announcement</span>
+      <div><p>We have updated the guidance for using Google Meet conferences on Google
+Calendar events.</p>
+
+<p>Reusing Google Meet codes across different events can cause access issues, and
+can expose meeting details to unintended users. We recommend that you generate a
+new conference using the <code translate="no" dir="ltr">createRequest</code> field for every new event.</p>
+
+<p>For more information about using events with the Calendar API, <a href="../../../v3/reference/events.html#conferenceData">see the documentation for the <code translate="no" dir="ltr">events</code> resource</a>.</p></div>
+    </div>
+<h2 id="October_27_2025" data-text="October 27, 2025" tabindex="-1">October 27, 2025</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally available starting November 10, 2025</strong>:</p>
+
+<p>Secondary calendars will now have a single data owner. This applies to both existing and newly created calendars. In the Calendar API, the data owner's email address will be in the read-only <code translate="no" dir="ltr">dataOwner</code> field in the <code translate="no" dir="ltr">Calendars</code> and <code translate="no" dir="ltr">CalendarList</code> resources.</p>
+
+<p>To prevent unintended actions and undesired states, the following new restrictions apply:</p>
+
+<ul>
+<li>Only the data owner can delete secondary calendars.</li>
+<li>The data owner's access level cannot be changed from the default <code translate="no" dir="ltr">owner</code> access.</li>
+<li>The data owner cannot remove an owned calendar from their calendar list. They can hide it from their UI.</li>
+</ul>
+
+<p>When a new secondary calendar is created, the authenticated user that makes the request is the data owner. We recommend that you use user authentication to create secondary calendars. Data ownership can be transferred in the Google Calendar UI.</p>
+
+<p>For more details, see the documentation for <a href="../../../v3/reference/calendars.html"><code translate="no" dir="ltr">Calendars</code></a> and <a href="../../../v3/reference/calendarList.html"><code translate="no" dir="ltr">CalendarList</code></a> closer to November 10.</p></div>
+    </div>
+<h2 id="November_19_2024" data-text="November 19, 2024" tabindex="-1">November 19, 2024</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>You can now access birthday and other special events that are automatically created from Google Contacts using the Calendar API.</p>
+
+<p>Birthday events now have <a href="../../../v3/reference/events.html#birthdayProperties"><code translate="no" dir="ltr">birthdayProperties</code></a> that show birthday-specific event data, such as the type of the special event, whether it's a birthday, an anniversary, or another significant date, and the contact that the event is linked to. You can use the <a href="../../../v3/reference/events.html#birthdayProperties.contact">contact</a> as a resource name in the <a href="https://developers.google.com/people">People API</a> to fetch contact details.</p>
+
+<p>To learn more, see the <a href="../../../guides/event-types.html#birthday">developer guide for the birthday event type</a>.</p></div>
+    </div>
+<h2 id="August_05_2024" data-text="August 05, 2024" tabindex="-1">August 05, 2024</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally available starting September 17, 2024:</strong> Create and manage birthdays directly within Google Calendar. Birthdays are exposed in the Calendar API as a new <a href="../../../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> called <code translate="no" dir="ltr">"birthday"</code> which distinguishes special all-day events with an annual recurrence. Birthday events support a limited set of event properties.</p>
+
+<p>You can filter by the birthday event type using the <a href="../../../v3/reference/events/list.html"><code translate="no" dir="ltr">events.list()</code></a> and <a href="../../../v3/reference/events/watch.html"><code translate="no" dir="ltr">events.watch()</code></a> methods. If no type filters are specified, all event types including birthdays are returned.</p>
+
+<p>To learn more, see our <a href="../../../guides/event-types.html#birthday">developer guide about working with the birthday event type</a>.</p></div>
+    </div>
+<h2 id="May_22_2024" data-text="May 22, 2024" tabindex="-1">May 22, 2024</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>The following changes to  <a href="https://support.google.com/calendar/answer/6084018">events from Gmail</a> take effect on <strong>May 30, 2024</strong>:</p>
+
+<ul>
+<li>Events from Gmail use <code translate="no" dir="ltr">fromGmail</code> instead <code translate="no" dir="ltr">default</code> as the value for the <a href="../../../v3/reference/events/watch.html#eventTypes"><code translate="no" dir="ltr">eventType</code></a> field. You can filter by this new event type using the <a href="../../../v3/reference/events/list.html"><code translate="no" dir="ltr">events.list()</code></a> and <a href="../../../v3/reference/events/watch.html"><code translate="no" dir="ltr">events.watch()</code></a> methods.</li>
+<li>Events from Gmail use the email address of the email recipient as the event organizer instead of <code translate="no" dir="ltr">unknownorganizer@calendar.google.com</code>.</li>
+<li>You can only update the event <a href="../../../v3/reference/events/update.html#request-body">properties</a>, such as reminders, color ID, visibility, status, and extended properties of <code translate="no" dir="ltr">Event</code> resources with the event type <code translate="no" dir="ltr">fromGmail</code>.</li>
+</ul>
+
+<p>For details, see the Calendar API <a href="../../../v3/reference/events.html"><code translate="no" dir="ltr">Events</code> reference documentation</a>.</p></div>
+    </div>
+<h2 id="May_17_2024" data-text="May 17, 2024" tabindex="-1">May 17, 2024</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>The following change takes effect on <strong>June 3, 2024</strong>:</p>
+
+<p>For <a href="../../../guides/batch.html">batch operations</a> on <a href="../../../v3/reference/events.html"><code translate="no" dir="ltr">Event</code></a> resources, a batched item returns an HTTP <code translate="no" dir="ltr">409 Conflict</code> status code if the batch operation can't successfully execute this item due to conflicts with other requested batched items.</p>
+
+<p><strong>Suggested action:</strong> Exclude all successfully finished and failed batched items and retry remaining items in a different batch operation or by using single event operations.</p>
+
+<p>For more information, see <a href="../../../guides/errors.html#409_conflict">Handle API errors</a>.</p></div>
+    </div>
+<h2 id="February_07_2024" data-text="February 07, 2024" tabindex="-1">February 07, 2024</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>The following changes will take effect on <strong>March 11, 2024</strong>:</p>
+
+<ul>
+<li>The use of <a href="../../../v3/reference/events/watch.html#eventTypes">event type</a> filters will be considered when reviewing quota increase requests. Before you request a quota increase, make sure you specify the event types you need as a parameter for your application.</li>
+<li>Both <a href="../../../v3/reference/events/list.html"><code translate="no" dir="ltr">events.list</code></a> and <a href="../../../v3/reference/events/watch.html"><code translate="no" dir="ltr">events.watch</code></a> will use the same default event type filter.</li>
+<li>To help with error handling, improved error messages will be returned when unsupported operations are attempted on special event types, such as working location, out-of-office, and focus time events.</li>
+</ul>
+
+<p>For more information, refer to the following:</p>
+
+<ul>
+<li><a href="../../../guides/calendar-status.html#watch-calendar-status">Manage focus time, out of office, and working location events</a></li>
+<li><a href="../../../guides/quota.html#use_push_notifications">Manage quotas</a></li>
+</ul></div>
+    </div>
+<h2 id="February_06_2024" data-text="February 06, 2024" tabindex="-1">February 06, 2024</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-announcement">Announcement</span>
+      <div><p><strong>Generally available</strong>: The <code translate="no" dir="ltr">events.watch()</code> method now supports the <code translate="no" dir="ltr">eventTypes</code> field as a query parameter so that you can subscribe to changes about specific Calendar events, such as working location, out-of-office, or focus time events.  For details, see the <a href="../../../v3/reference/events/watch.html">reference documentation</a>.</p></div>
+    </div>
+<h2 id="December_07_2023" data-text="December 07, 2023" tabindex="-1">December 07, 2023</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-fixed">Fixed</span>
+      <div><p>To fix a bug that prevented events of <code translate="no" dir="ltr">eventType != 'default'</code> from importing, we updated the code sample in <a href="https://developers.google.com/apps-script/samples/automations/vacation-calendar">Populate a team vacation calendar</a>, the popular Apps Script + Calendar API solution. Review the code change in <a href="https://github.com/googleworkspace/apps-script-samples/pull/434/files">GitHub</a>.</p></div>
+    </div>
+<h2 id="August_17_2023" data-text="August 17, 2023" tabindex="-1">August 17, 2023</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong>Generally available</strong>: Reading and updating working locations using the Google Calendar API is now generally available. For details, see <a href="../../../guides/calendar-status.html">Manage working locations for Google Calendar users</a>.</p></div>
+    </div>
+<h2 id="August_22_2022" data-text="August 22, 2022" tabindex="-1">August 22, 2022</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p><strong><a href="https://developers.google.com/workspace/preview">Developer Preview</a></strong>: The Google Calendar API now supports reading and updating working locations. For details, see <a href="../../../guides/calendar-status.html">Manage working locations for Google Calendar users</a>.</p></div>
+    </div>
+<h2 id="March_23_2022" data-text="March 23, 2022" tabindex="-1">March 23, 2022</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>The Calendar API now supports custom attachments. See <a href="https://developers.google.com/apps-script/add-ons/calendar">Calendar add-ons</a> for more information.</p></div>
+    </div>
+<h2 id="October_20_2021" data-text="October 20, 2021" tabindex="-1">October 20, 2021</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>The Calendar API now exposes a new <code translate="no" dir="ltr">eventType</code>. The new type is called <code translate="no" dir="ltr">focusTime</code> and allows users of the API to distinguish the special focus time events. For more information, see the <a href="../../../v3/reference/events.html">API reference</a>.</p></div>
+    </div>
+<h2 id="May_18_2021" data-text="May 18, 2021" tabindex="-1">May 18, 2021</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>Two new quotas now exist for the Calendar API in addition to the general <a href="https://support.google.com/a/answer/2905486">Calendar usage limits</a>:</p>
+
+<ul>
+<li>Per minute per project.</li>
+<li>Per minute per project per user.</li>
+</ul>
+
+<p>See <a href="../../../guides/quota.html">Manage quotas</a> for more information.</p></div>
+    </div>
+<h2 id="February_08_2021" data-text="February 08, 2021" tabindex="-1">February 08, 2021</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>Starting today, all existing and new out of office events will be updated to set the organizer to <code translate="no" dir="ltr">unknownorganizer@calendar.google.com</code> instead of the Calendar owner. It may take 2-3 weeks for this change to fully roll out.</p></div>
+    </div>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>You can use the calendarId from the API endpoint <code translate="no" dir="ltr">https://www.googleapis.com/calendar/v3/calendars/calendarId</code> to identify the owner of the out of office event.</p></div>
+    </div>
+<h2 id="February_01_2021" data-text="February 01, 2021" tabindex="-1">February 01, 2021</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>The Calendar API now exposes a new field for events. The new field is called <code translate="no" dir="ltr">eventType</code> and allows users of the API to distinguish special event types, such as <code translate="no" dir="ltr">outOfOffice</code>. For more information, see the <a href="../../../v3/reference/events.html">API reference</a>.</p></div>
+    </div>
+<h2 id="January_11_2021" data-text="January 11, 2021" tabindex="-1">January 11, 2021</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>From now, we require <code translate="no" dir="ltr">conferenceData</code> to be consistent with <code translate="no" dir="ltr">conferenceData.conferenceSolution.key.type</code>; meaning only Google Meet calls can have <code translate="no" dir="ltr">conferenceData.conferenceSolution.key.type</code> set to <code translate="no" dir="ltr">hangoutsMeet</code>. All 3P video conference providers are expected to set <code translate="no" dir="ltr">conferenceData.conferenceSolution.key.type</code> to <code translate="no" dir="ltr">addOn</code>.</p></div>
+    </div>
+<h2 id="September_07_2020" data-text="September 07, 2020" tabindex="-1">September 07, 2020</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>We stopped auto-populating Meet for API calls (such as  <code translate="no" dir="ltr">Events.insert</code>) to prevent Meet conferences being added unintentionally via 3rd parties.</p></div>
+    </div>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-fixed">Fixed</span>
+      <div><p>Meet video conferences should be added explicitly using the following existing parameters:</p>
+
+<ol>
+<li>Set <code translate="no" dir="ltr">conferenceDataVersion</code> query parameter to <code translate="no" dir="ltr">1</code>.</li>
+<li>Set <code translate="no" dir="ltr">conferenceData.createRequest</code> event property as follows:
+<ul>
+<li><code translate="no" dir="ltr">conferenceData.createRequest.conferenceSolutionKey.type</code> to <code translate="no" dir="ltr">hangoutsMeet</code>.</li>
+<li><code translate="no" dir="ltr">conferenceData.createRequest.requestId</code> to unique request id.</li>
+</ul></li>
+</ol></div>
+    </div>
+<h2 id="March_16_2020" data-text="March 16, 2020" tabindex="-1">March 16, 2020</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>Service accounts created on or after March 2, 2020 are only able to invite guests using <a href="https://developers.google.com/calendar/auth#perform-g-suite-domain-wide-delegation-of-authority">domain-wide delegation of authority</a>.</p></div>
+    </div>
+<h2 id="September_27_2019" data-text="September 27, 2019" tabindex="-1">September 27, 2019</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>The Calendar API allows attaching a conference data of type <code translate="no" dir="ltr">addOn</code> to a new or existing event using <code translate="no" dir="ltr">Events.insert</code> or <code translate="no" dir="ltr">Events.update</code> methods.</p></div>
+    </div>
+<h2 id="November_19_2018" data-text="November 19, 2018" tabindex="-1">November 19, 2018</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-changed">Change</span>
+      <div><p>Starting on January 7, 2019, notifications and reminders using the <code translate="no" dir="ltr">sms</code> method type will be ignored. The API calls setting such notifications and reminders will still succeed and modify all the other fields.</p>
+
+<p>Since Calendar offers in-app notifications, you can still get notified, regardless of your device or connection. For more information see <a href="https://gsuiteupdates.googleblog.com/2018/11/google-calendar-sms-notifications-to-be-removed.html">Google Calendar SMS notifications to be removed</a>.</p></div>
+    </div>
+<h2 id="October_31_2018" data-text="October 31, 2018" tabindex="-1">October 31, 2018</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>The Calendar API now supports four new OAuth scopes. The scopes allow your application to limit access to only the data you really need. See <a href="https://developers.google.com/calendar/auth">Authorizing Google Calendar API Requests</a> for more details.</p></div>
+    </div>
+<h2 id="October_02_2018" data-text="October 02, 2018" tabindex="-1">October 02, 2018</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>A more flexible approach to sending event change notifications is now available through the <a href="../../../v3/reference/events/insert.html#sendUpdates"><code translate="no" dir="ltr">sendUpdates</code> parameter</a>. The new parameter lets you set event change notifications to do one of the following:</p>
+
+<ul>
+<li>Notify all the event guests.</li>
+<li>Notify only the guests who are not using Google Calendar.</li>
+<li>Completely suppress the notifications, for example, during a migration.</li>
+</ul>
+
+<p>Now it is possible to always keep in sync guests who use other calendaring systems, without sending too many non-mandatory emails to Google Calendar users.</p></div>
+    </div>
+<h2 id="March_22_2018" data-text="March 22, 2018" tabindex="-1">March 22, 2018</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-deprecated">Deprecated</span>
+      <div><p>Support for the <a href="http://www.jsonrpc.org/specification">JSON-RPC protocol</a> and <a href="https://developers.google.com/api-client-library/javascript/features/batch">Global HTTP batch</a> endpoints has been deprecated, and will be fully discontinued on March 25, 2019. This change is being made to the Google API infrastructure and as such affects multiple Google APIs, including Calendar v3.</p>
+
+<p>For more information and migration instructions, see the <a href="https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html">Discontinuing support for JSON-RPC and Global HTTP Batch Endpoints blog post</a>.</p></div>
+    </div>
+<h2 id="July_12_2017" data-text="July 12, 2017" tabindex="-1">July 12, 2017</h2>
+    <div class="devsite-release-note">
+      <span class="devsite-label devsite-label-release-feature">Feature</span>
+      <div><p>Hangouts and Google Meet conferences are now supported in Calendar events via the <a href="../../../v3/reference/events.html#conferenceData"><code translate="no" dir="ltr">conferenceData</code> field</a>. You can:</p>
+
+<ul>
+<li>Read conference data associated with events.</li>
+<li>Copy conference data from one event to another.</li>
+<li>Request new conference generation for an event.</li>
+<li>Clear conference data associated with events.</li>
+</ul>
+
+<p>To learn more, see <a href="https://developers.google.com/calendar/create-events#conferencing">Create Events</a>.</p></div>
+    </div>
+
+
+
+    </section>
+
+  
+  
+
+  
+</main></body></html>

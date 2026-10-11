@@ -1,0 +1,165 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acl: insert</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Acl: insert</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/acl/insert">https://developers.google.com/workspace/calendar/api/v3/reference/acl/insert</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="insert"/>
+<meta itemprop="path" content="Acl"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="insert.html#auth">authorization</a>.</aside>
+
+<p>Creates an access control rule.
+<a href="insert.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>POST https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span>/acl</pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="sendNotifications">
+        <td><code translate="no" dir="ltr">sendNotifications</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to send notifications about the calendar sharing change. Optional. The default is True.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.acls</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply an <a href="../acl.html#resource">Acl resource</a> with the following properties:</p>
+  <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+    <tbody>
+    <tr id="required-properties" class="alt">
+      <td colspan="4"><b>Required Properties</b></td>
+    </tr>
+      <tr id="role">
+        <td><code translate="no" dir="ltr">role</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The role assigned to the scope. Possible values are: <ul> <li>"<code translate="no" dir="ltr">none</code>" - Provides no access.</li> <li>"<code translate="no" dir="ltr">freeBusyReader</code>" - Provides read access to free/busy information.</li> <li>"<code translate="no" dir="ltr">reader</code>" - Provides read access to the calendar. Private events will appear to users with reader access, but event details will be hidden.</li> <li>"<code translate="no" dir="ltr">writerWithoutPrivateAccess</code>" - Provides read and write access to the calendar. Private events will appear to users with <code translate="no" dir="ltr">writerWithoutPrivateAccess</code> access, but event details will be hidden.</li> <li>"<code translate="no" dir="ltr">writer</code>" - Provides read and write access to the calendar. Private events will appear to users with writer access, and event details will be visible. Provides read access to the calendar's ACLs.</li> <li>"<code translate="no" dir="ltr">owner</code>" - Provides manager access to the calendar. This role has all of the permissions of the writer role with the additional ability to modify access levels of other users. <p><aside>Important: the <code translate="no" dir="ltr">owner</code> role is different from the calendar's data owner. A calendar has a single data owner, but can have multiple users with <code translate="no" dir="ltr">owner</code> role.</aside></p></li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="scope">
+        <td><code translate="no" dir="ltr">scope</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>The extent to which <a href="../../../concepts/sharing.html#sharing_calendars">calendar access</a> is granted by this ACL rule.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="scope.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">scope.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The type of the scope. Possible values are: <ul> <li>"<code translate="no" dir="ltr">default</code>" - The public scope. This is the default value.</li> <li>"<code translate="no" dir="ltr">user</code>" - Limits the scope to a single user.</li> <li>"<code translate="no" dir="ltr">group</code>" - Limits the scope to a group.</li> <li>"<code translate="no" dir="ltr">domain</code>" - Limits the scope to a domain.</li> </ul> Note: The permissions granted to the "<code translate="no" dir="ltr">default</code>", or public, scope apply to any user, authenticated or not.</td>
+        <td>
+        </td>
+      </tr>
+
+    <tr id="optional-properties" class="alt">
+      <td colspan="4"><b>Optional Properties</b></td>
+    </tr>
+      <tr id="scope.value">
+        <td><code translate="no" dir="ltr"><span class="quiet">scope.</span>value</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The email address of a user or group, or the name of a domain, depending on the scope type. Omitted for type "<code translate="no" dir="ltr">default</code>".</td>
+        <td>
+          writable
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns an <a href="../acl.html#resource">Acl resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.acl.insert" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

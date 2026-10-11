@@ -1,0 +1,870 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Labels</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Labels</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/labels">https://developers.google.com/workspace/calendar/api/guides/labels</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>This page explains what labels are, how they're managed on calendars, and
+how you can assign them to events using the Google Calendar API.</p>
+
+<p>Google Calendar lets you customize the appearance of your events by assigning them custom colors and names. Previously, events were limited to a fixed set of index-based colors (<code translate="no" dir="ltr">colorId</code>). With labels, you can define a flexible, custom palette per calendar and apply these labels directly to events.</p>
+
+<aside class="note">
+This feature supersedes the legacy index-based <code translate="no" dir="ltr">colorId</code> field. To use labels, you must specify the <code translate="no" dir="ltr">eventLabelVersion=1</code> parameter in your API requests. When this parameter is set, the legacy <code translate="no" dir="ltr">colorId</code> field is ignored.
+</aside>
+
+<h2 id="manage_labels_on_a_calendar" data-text="Manage labels on a calendar" tabindex="-1">Manage labels on a calendar</h2>
+
+<p>You can define up to 200 custom labels per calendar using the <a href="../v3/reference/calendars.html#labelProperties"><code translate="no" dir="ltr">labelProperties</code></a> property on the <a href="../v3/reference/calendars.html">Calendars</a> resource.</p>
+
+<p>To manage labels, use the <a href="../v3/reference/calendars/insert.html"><code translate="no" dir="ltr">Calendars.insert</code></a> or <a href="../v3/reference/calendars/update.html"><code translate="no" dir="ltr">Calendars.update</code></a> methods. Each label requires an <code translate="no" dir="ltr">id</code>, a <code translate="no" dir="ltr">backgroundColor</code> in hexadecimal format, and an optional <code translate="no" dir="ltr">name</code>.</p>
+
+<aside class="note"><b>Note:</b> You must have <code translate="no" dir="ltr">owner</code> access to a calendar to define or modify its labels.</aside>
+
+<h3 id="calendar_resource_representation" data-text="Calendar resource representation" tabindex="-1">Calendar resource representation</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JSON"><code translate="no" dir="ltr"><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"kind"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"calendar#calendar"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"primary"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"summary"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"My Team Calendar"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"labelProperties"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nt">"eventLabels"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"42617328-8756-4291-8273-192837465647"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"backgroundColor"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"#039be5"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"name"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"Important Project"</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"19283746-9182-4736-8271-918273645261"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"backgroundColor"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"#33b679"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"name"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"Team Meeting"</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+</code></pre></devsite-code>
+<h3 id="example_add_and_remove_labels_on_a_calendar" data-text="Example: Add and remove labels on a calendar" tabindex="-1">Example: Add and remove labels on a calendar</h3>
+
+<p>To add or remove labels, you should first read the calendar to get the current list of labels, modify the list in your code, and then update the calendar with the updated list to avoid overwriting other labels.</p>
+
+<p>The following samples show how to retrieve a calendar, remove a label with ID <code translate="no" dir="ltr">11111111-2222-3333-4444-555555555555</code>, add two new labels (<code translate="no" dir="ltr">22222222-3333-4444-5555-666666666666</code> and <code translate="no" dir="ltr">33333333-4444-5555-6666-777777777777</code>), and update the calendar:</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="go" data-text="Go" tabindex="-1">Go</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Go"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Go quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/go</span>
+
+<span class="devsite-syntax-c1">// 1. Read the calendar to get existing labels</span>
+<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">srv</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Calendars</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Do</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to retrieve calendar: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">LabelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">LabelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">LabelProperties</span><span class="devsite-syntax-p">{}</span>
+<span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">LabelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventLabels</span>
+
+<span class="devsite-syntax-c1">// 2. Remove a label with a specific ID (UUID format)</span>
+<span class="devsite-syntax-nx">targetIdToRemove</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"11111111-2222-3333-4444-555555555555"</span>
+<span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">updatedLabels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[]</span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventLabel</span>
+<span class="devsite-syntax-k">for</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">_</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">range</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Id</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">targetIdToRemove</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nx">updatedLabels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">append</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">updatedLabels</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">updatedLabels</span>
+
+<span class="devsite-syntax-c1">// 3. Add 2 new labels with UUID IDs</span>
+<span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">append</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventLabel</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">Id</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w">              </span><span class="devsite-syntax-s">"22222222-3333-4444-5555-666666666666"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">BackgroundColor</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"#8e24aa"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">Name</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w">            </span><span class="devsite-syntax-s">"Design Work"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">})</span>
+<span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">append</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">labels</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventLabel</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">Id</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w">              </span><span class="devsite-syntax-s">"33333333-4444-5555-6666-777777777777"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">BackgroundColor</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"#f4511e"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">Name</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w">            </span><span class="devsite-syntax-s">"Urgent Review"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">})</span>
+
+<span class="devsite-syntax-c1">// 4. Update the calendar with the new list</span>
+<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">LabelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventLabels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">labels</span>
+<span class="devsite-syntax-nx">updatedCalendar</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">srv</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Calendars</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Update</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Do</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to update calendar: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Calendar updated: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">updatedCalendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Summary</span><span class="devsite-syntax-p">)</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="java" data-text="Java" tabindex="-1">Java</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Java quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/java</span>
+
+<span class="devsite-syntax-c1">// 1. Read the calendar to get existing labels</span>
+<span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendar</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">calendars</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-n">LabelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">labelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getLabelProperties</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">labelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">labelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">LabelProperties</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-n">List&lt;EventLabel&gt;</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getEventLabels</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">ArrayList</span>&lt;&gt;<span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// Create a mutable copy since the returned list might be immutable</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">labels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">ArrayList</span>&lt;&gt;<span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">labels</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-c1">// 2. Remove a label with a specific ID (UUID format)</span>
+<span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">targetIdToRemove</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"11111111-2222-3333-4444-555555555555"</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-n">labels</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">removeIf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">label</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">-</span>&gt;<span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">targetIdToRemove</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">equals</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">label</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getId</span><span class="devsite-syntax-p">()));</span>
+
+<span class="devsite-syntax-c1">// 3. Add 2 new labels with UUID IDs</span>
+<span class="devsite-syntax-n">labels</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">add</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventLabel</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setId</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"22222222-3333-4444-5555-666666666666"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setBackgroundColor</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"#8e24aa"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setName</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Design Work"</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-n">labels</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">add</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventLabel</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setId</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"33333333-4444-5555-6666-777777777777"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setBackgroundColor</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"#f4511e"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setName</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Urgent Review"</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-c1">// 4. Update the calendar with the new list</span>
+<span class="devsite-syntax-n">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setEventLabels</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">labels</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setLabelProperties</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">labelProperties</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">updatedCalendar</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">calendars</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">update</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendar</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Calendar updated: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">updatedCalendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getSummary</span><span class="devsite-syntax-p">());</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="javascript" data-text="JavaScript" tabindex="-1">JavaScript</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Node.js quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/nodejs</span>
+
+<span class="devsite-syntax-c1">// 1. Retrieve the calendar resource</span>
+<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">calendars</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">get</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span>
+<span class="devsite-syntax-p">},</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">res</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>&gt;<span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'The API returned an error: '</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// Extract existing labels from the calendar resource</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">res</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">data</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-o">!</span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{};</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-o">!</span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventLabels</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventLabels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[];</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// 2. Remove a label with a specific ID (UUID format)</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">targetIdToRemove</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'11111111-2222-3333-4444-555555555555'</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventLabels</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventLabels</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">filter</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>&gt;<span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">id</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">targetIdToRemove</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// 3. Add 2 new labels with UUID IDs</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventLabels</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">push</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">id</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'22222222-3333-4444-5555-666666666666'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">backgroundColor</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'#8e24aa'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">name</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Design Work'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">});</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">cal</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">labelProperties</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventLabels</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">push</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">id</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'33333333-4444-5555-6666-777777777777'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">backgroundColor</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'#f4511e'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">name</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Urgent Review'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">});</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// 4. Update the calendar with the new list</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">calendars</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">update</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">resource</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">cal</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">updateErr</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">updateRes</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>&gt;<span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">updateErr</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'Update failed: '</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">updateErr</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-sb">`Calendar updated: </span><span class="devsite-syntax-si">${</span><span class="devsite-syntax-nx">updateRes</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">data</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">summary</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-sb">`</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">});</span>
+<span class="devsite-syntax-p">});</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="python" data-text="Python" tabindex="-1">Python</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><code translate="no" dir="ltr"><span class="devsite-syntax-c1"># Refer to the Python quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1"># https://developers.google.com/workspace/calendar/quickstart/python</span>
+
+<span class="devsite-syntax-c1"># 1. Read the calendar to get existing labels</span>
+<span class="devsite-syntax-n">calendar</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">calendars</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+<span class="devsite-syntax-n">label_properties</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">calendar</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">setdefault</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'labelProperties'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-p">{})</span>
+<span class="devsite-syntax-n">labels</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">label_properties</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">setdefault</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'eventLabels'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-p">[])</span>
+
+<span class="devsite-syntax-c1"># 2. Remove a label with a specific ID (UUID format)</span>
+<span class="devsite-syntax-n">target_id_to_remove</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-s2">"11111111-2222-3333-4444-555555555555"</span>
+<span class="devsite-syntax-n">labels</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-p">[</span><span class="devsite-syntax-n">l</span> <span class="devsite-syntax-k">for</span> <span class="devsite-syntax-n">l</span> <span class="devsite-syntax-ow">in</span> <span class="devsite-syntax-n">labels</span> <span class="devsite-syntax-k">if</span> <span class="devsite-syntax-n">l</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'id'</span><span class="devsite-syntax-p">)</span> <span class="devsite-syntax-o">!=</span> <span class="devsite-syntax-n">target_id_to_remove</span><span class="devsite-syntax-p">]</span>
+
+<span class="devsite-syntax-c1"># 3. Add 2 new labels with UUID IDs</span>
+<span class="devsite-syntax-n">labels</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">append</span><span class="devsite-syntax-p">({</span>
+    <span class="devsite-syntax-s1">'id'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'22222222-3333-4444-5555-666666666666'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'backgroundColor'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'#8e24aa'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'name'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'Design Work'</span>
+<span class="devsite-syntax-p">})</span>
+<span class="devsite-syntax-n">labels</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">append</span><span class="devsite-syntax-p">({</span>
+    <span class="devsite-syntax-s1">'id'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'33333333-4444-5555-6666-777777777777'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'backgroundColor'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'#f4511e'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'name'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'Urgent Review'</span>
+<span class="devsite-syntax-p">})</span>
+
+<span class="devsite-syntax-c1"># 4. Update the calendar with the new list</span>
+<span class="devsite-syntax-n">label_properties</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'eventLabels'</span><span class="devsite-syntax-p">]</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">labels</span>
+<span class="devsite-syntax-n">calendar</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'labelProperties'</span><span class="devsite-syntax-p">]</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">label_properties</span>
+
+<span class="devsite-syntax-n">updated_calendar</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">calendars</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">update</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">body</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">calendar</span>
+<span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+<span class="devsite-syntax-nb">print</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-sa">f</span><span class="devsite-syntax-s2">"Calendar updated: </span><span class="devsite-syntax-si">{</span><span class="devsite-syntax-n">updated_calendar</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'summary'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-s2">"</span><span class="devsite-syntax-p">)</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="http" data-text="HTTP" tabindex="-1">HTTP</h3><p>The following raw HTTP example shows the final <code translate="no" dir="ltr">PUT</code> request to update the calendar with the new list of labels. Ensure you have merged these with any existing labels first.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash Session"><code translate="no" dir="ltr"><span class="devsite-syntax-go">PUT https://www.googleapis.com/calendar/v3/calendars/primary</span>
+<span class="devsite-syntax-go">Authorization: Bearer [YOUR_ACCESS_TOKEN]</span>
+<span class="devsite-syntax-go">Content-Type: application/json</span>
+
+<span class="devsite-syntax-go">{</span>
+<span class="devsite-syntax-go">  "summary": "Updated Team Calendar",</span>
+<span class="devsite-syntax-go">  "labelProperties": {</span>
+<span class="devsite-syntax-go">    "eventLabels": [</span>
+<span class="devsite-syntax-go">      {</span>
+<span class="devsite-syntax-go">        "id": "22222222-3333-4444-5555-666666666666",</span>
+<span class="devsite-syntax-go">        "backgroundColor": "#8e24aa",</span>
+<span class="devsite-syntax-go">        "name": "Design Work"</span>
+<span class="devsite-syntax-go">      },</span>
+<span class="devsite-syntax-go">      {</span>
+<span class="devsite-syntax-go">        "id": "33333333-4444-5555-6666-777777777777",</span>
+<span class="devsite-syntax-go">        "backgroundColor": "#f4511e",</span>
+<span class="devsite-syntax-go">        "name": "Urgent Review"</span>
+<span class="devsite-syntax-go">      }</span>
+<span class="devsite-syntax-go">    ]</span>
+<span class="devsite-syntax-go">  }</span>
+<span class="devsite-syntax-go">}</span>
+</code></pre></devsite-code></section>
+</devsite-selector></div>
+<h2 id="assign_labels_to_events" data-text="Assign labels to events" tabindex="-1">Assign labels to events</h2>
+
+<p>Once labels are defined on the calendar, you can assign them to individual events by setting the <a href="../v3/reference/events.html#eventLabelId"><code translate="no" dir="ltr">eventLabelId</code></a> property on the <a href="../v3/reference/events.html">Events</a> resource.</p>
+
+<p>You can set or change this property when calling the <a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">insert</code></a>, <a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">update</code></a>, or <a href="../v3/reference/events/patch.html"><code translate="no" dir="ltr">patch</code></a> methods.</p>
+
+<aside class="note"><b>Note:</b> You must have at least <code translate="no" dir="ltr">writerWithoutPrivateAccess</code> access (or higher: <code translate="no" dir="ltr">writer</code> or <code translate="no" dir="ltr">owner</code>) to a calendar to assign labels to its events.</aside>
+
+<aside class="important"><b>Remember:</b> You must append <code translate="no" dir="ltr">?eventLabelVersion=1</code> to your request URL to process this field.</aside>
+
+<h3 id="event_resource_representation" data-text="Event resource representation" tabindex="-1">Event resource representation</h3>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JSON"><code translate="no" dir="ltr"><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"kind"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"calendar#event"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"id"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"sample-event-id"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"summary"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"Review Design Specs"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"start"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nt">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2026-07-01T10:00:00Z"</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"end"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nt">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2026-07-01T11:00:00Z"</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"eventLabelId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"22222222-3333-4444-5555-666666666666"</span>
+<span class="devsite-syntax-p">}</span>
+</code></pre></devsite-code>
+<h3 id="example_create_an_event_with_a_label" data-text="Example: Create an event with a label" tabindex="-1">Example: Create an event with a label</h3>
+
+<p>The following samples show how to create an event with a custom label:</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="go_1" data-text="Go" tabindex="-1">Go</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Go"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Go quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/go</span>
+
+<span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Event</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">Summary</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"Design Sync"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">Start</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventDateTime</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nx">DateTime</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"2026-07-02T14:00:00Z"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">End</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventDateTime</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nx">DateTime</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"2026-07-02T15:00:00Z"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">EventLabelId</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"22222222-3333-4444-5555-666666666666"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-nx">createdEvent</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">srv</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">EventLabelVersion</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">1</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Do</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to create event: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event created: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createdEvent</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">HtmlLink</span><span class="devsite-syntax-p">)</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="java_1" data-text="Java" tabindex="-1">Java</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Java quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/java</span>
+
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSummary</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Design Sync"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setStart</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setDateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"2026-07-02T14:00:00Z"</span><span class="devsite-syntax-p">)))</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setEnd</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setDateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"2026-07-02T15:00:00Z"</span><span class="devsite-syntax-p">)))</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setEventLabelId</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"22222222-3333-4444-5555-666666666666"</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">createdEvent</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setEventLabelVersion</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">1L</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event created: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">createdEvent</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getHtmlLink</span><span class="devsite-syntax-p">());</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="javascript_1" data-text="JavaScript" tabindex="-1">JavaScript</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Node.js quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/nodejs</span>
+
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">summary</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Design Sync'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2026-07-02T14:00:00Z'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">end</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2026-07-02T15:00:00Z'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">eventLabelId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'22222222-3333-4444-5555-666666666666'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">};</span>
+
+<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">insert</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">resource</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">eventLabelVersion</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">1</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">},</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">res</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>&gt;<span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'The API returned an error: '</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-sb">`Event created: </span><span class="devsite-syntax-si">${</span><span class="devsite-syntax-nx">res</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">data</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">htmlLink</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-sb">`</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">});</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="python_1" data-text="Python" tabindex="-1">Python</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><code translate="no" dir="ltr"><span class="devsite-syntax-c1"># Refer to the Python quickstart on how to setup the service:</span>
+<span class="devsite-syntax-c1"># https://developers.google.com/workspace/calendar/quickstart/python</span>
+
+<span class="devsite-syntax-n">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-p">{</span>
+    <span class="devsite-syntax-s1">'summary'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'Design Sync'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'start'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+        <span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'2026-07-02T14:00:00Z'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-p">},</span>
+    <span class="devsite-syntax-s1">'end'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+        <span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'2026-07-02T15:00:00Z'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-p">},</span>
+    <span class="devsite-syntax-s1">'eventLabelId'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'22222222-3333-4444-5555-666666666666'</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-n">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">insert</span><span class="devsite-syntax-p">(</span>
+    <span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">body</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-n">eventLabelVersion</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-mi">1</span>
+<span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+<span class="devsite-syntax-nb">print</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-sa">f</span><span class="devsite-syntax-s2">"Event created: </span><span class="devsite-syntax-si">{</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'htmlLink'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-s2">"</span><span class="devsite-syntax-p">)</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="http_1" data-text="HTTP" tabindex="-1">HTTP</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash Session"><code translate="no" dir="ltr"><span class="devsite-syntax-go">POST https://www.googleapis.com/calendar/v3/calendars/primary/events?eventLabelVersion=1</span>
+<span class="devsite-syntax-go">Authorization: Bearer [YOUR_ACCESS_TOKEN]</span>
+<span class="devsite-syntax-go">Content-Type: application/json</span>
+
+<span class="devsite-syntax-go">{</span>
+<span class="devsite-syntax-go">  "summary": "Design Sync",</span>
+<span class="devsite-syntax-go">  "start": {</span>
+<span class="devsite-syntax-go">    "dateTime": "2026-07-02T14:00:00Z"</span>
+<span class="devsite-syntax-go">  },</span>
+<span class="devsite-syntax-go">  "end": {</span>
+<span class="devsite-syntax-go">    "dateTime": "2026-07-02T15:00:00Z"</span>
+<span class="devsite-syntax-go">  },</span>
+<span class="devsite-syntax-go">  "eventLabelId": "22222222-3333-4444-5555-666666666666"</span>
+<span class="devsite-syntax-go">}</span>
+</code></pre></devsite-code></section>
+</devsite-selector></div>
+<p>To remove an existing label from an event, set <code translate="no" dir="ltr">eventLabelId</code> to an empty string (<code translate="no" dir="ltr">""</code>) or omit the field entirely in an <code translate="no" dir="ltr">update</code> request.</p>
+
+  
+
+  
+</main></body></html>

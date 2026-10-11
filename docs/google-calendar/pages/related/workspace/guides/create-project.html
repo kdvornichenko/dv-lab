@@ -1,0 +1,1005 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create a Google Cloud project</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Create a Google Cloud project</h1><p>Источник: <a href="https://developers.google.com/workspace/guides/create-project">https://developers.google.com/workspace/guides/create-project</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+      <devsite-key-takeaways-panel role="region" aria-labelledby="key-takeaways-panel-title">
+  <div class="devsite-key-takeaways-panel-header" aria-labelledby="key-takeaways-panel-title" aria-expanded="false" role="button" tabindex="0">
+    
+    <img src="../../../../assets/5577ad69e1ca0549dbb0.svg" alt="Spark icon"/>
+    <div class="devsite-key-takeaways-panel-title">
+      
+      <h2 class="no-link hide-from-toc" id="key-takeaways-panel-title" data-tooltip="Generated with AI">Page Summary</h2>
+    </div>
+    <span class="material-icons devsite-key-takeaways-panel-toggle-button" aria-hidden="true"></span>
+  </div>
+  <div class="devsite-key-takeaways-panel-content">
+    <devsite-feedback product-id="5123748" bucket="8963846920012181156" disable-product-feedback>
+      <button class="button-flat button-primary devsite-key-takeaways-report-button" data-title="Report Key Takeaways!" aria-label="Report Key Takeaways!">
+        <span class="material-icons" aria-label="Report Key Takeaways!">outlined_flag</span>
+      </button>
+    </devsite-feedback>
+    <ul class="devsite-key-takeaways-panel-list">
+      
+        <li>
+          <p>A Google Cloud project is a prerequisite for utilizing Google Workspace APIs and developing Google Workspace add-ons or applications.</p>
+
+        </li>
+      
+        <li>
+          <p>You can create a new Cloud project through the Google Cloud console or the gcloud command-line interface, providing a foundation for your Google Workspace integrations.</p>
+
+        </li>
+      
+        <li>
+          <p>Depending on your usage of Google Workspace APIs, enabling billing for your Cloud project might be necessary to access certain features and services.</p>
+
+        </li>
+      
+        <li>
+          <p>After creating your Cloud project, the next crucial step is to enable the specific Google Workspace APIs that your application or add-on will interact with.</p>
+
+        </li>
+      
+    </ul>
+  </div>
+</devsite-key-takeaways-panel>
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>A Google Cloud project is required to use Google Workspace APIs and build
+Google Workspace add-ons or apps. A Cloud project forms the
+basis for creating, enabling, and using all Google Cloud services, including
+managing APIs, enabling billing, adding and removing collaborators, and managing
+permissions.</p>
+
+<h2 id="project" data-text="Create a Cloud project" tabindex="-1">Create a Cloud project</h2>
+
+
+
+
+<devsite-selector>
+  <section>
+    <h3 id="google-cloud-console" data-text="Google Cloud console" tabindex="-1">Google Cloud console</h3>
+    <ol>
+      <li>
+        In the Google Cloud console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+        <span aria-label="and then">&gt;</span> <b>IAM &amp; Admin</b>
+        <span aria-label="and then">&gt;</span> <b>Create a Project</b>.
+        <p><a href="https://console.cloud.google.com/projectcreate" class="button button-primary" target="console">Go to Create a Project</a></p>
+      </li>
+      <li>
+        In the <b>Project Name</b> field, enter a descriptive name for your project.
+        <p>
+          Optional: To edit the <b>Project ID</b>, click <b>Edit</b>. The project ID can't be changed
+          after the project is created, so choose an ID that meets your needs for the lifetime of the
+          project.
+        </p>
+      </li>
+      <li>
+        In the <b>Location</b> field, click <b>Browse</b> to display potential locations for your
+        project. Then, click <b>Select</b>.
+        
+        <aside class="caution">
+          <b>Caution: Can't find your Google Workspace organization?</b><br>
+          This means you aren't signed in to a Google Workspace account. Some of the features
+          described in Google Workspace developer documentation are only available to projects
+          associated with an organization.
+        </aside>
+        
+      </li>
+      <li>Click <b>Create</b>. The Google Cloud console navigates to the Dashboard page and your project is created
+        within a few minutes.</li>
+    </ol>
+  </section>
+  <section>
+    <h3 id="gcloud-cli" data-text="gcloud CLI" tabindex="-1">gcloud CLI</h3>
+    <p>In one of the following development environments, access the Google Cloud
+      CLI (<code translate="no" dir="ltr">gcloud</code>):</p>
+    <ul>
+      <li>
+        <b>Cloud Shell</b>: To use an online terminal with the gcloud CLI
+        already set up, activate Cloud Shell.
+        <br/>
+        <a href="https://console.cloud.google.com/?cloudshell=true" class="button button-blue" track-type="tasks" track-name="consoleLink" track-metadata-end-goal="activateCloudShell" target="console">Activate Cloud Shell</a>
+      </li>
+      <li>
+        <b>Local Shell</b>: To use a local development environment,
+        <a href="https://cloud.google.com/sdk/docs/install" class="external" target="_blank">install</a> and
+        <a href="https://cloud.google.com/sdk/docs/initializing" class="external" target="_blank">initialize</a>
+        the gcloud CLI.
+        <br/>
+        To create a Cloud project, use the <code translate="no" dir="ltr">gcloud projects create</code> command:
+        <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash Session"><code class="devsite-terminal" translate="no" dir="ltr"><span class="devsite-syntax-go">gcloud projects create <var translate="no">PROJECT_ID</var></span></code></pre></devsite-code>
+        Replace <var translate="no">PROJECT_ID</var> by setting the ID for the project you want to create.
+    </ol>
+  </section>
+</devsite-selector>
+
+
+<p>For further information on Cloud projects, refer to
+<a href="https://cloud.google.com/resource-manager/docs/creating-managing-projects">Creating and managing projects</a>
+in the Google Cloud documentation.</p>
+
+<h2 id="billing" data-text="Optional: Enable billing for your Cloud project" tabindex="-1">Optional: Enable billing for your Cloud project</h2>
+
+<p>Depending on the Google Workspace APIs and features that you want to
+use, you might also need to enable billing for your Cloud project:</p>
+
+<aside class="caution">
+If you're unable to link a billing account, you don't have the
+permissions needed to make this change. For more information, see
+<a href="https://cloud.google.com/billing/docs/how-to/modify-project#required-permissions-enable" target="_blank" class="external">Permissions required to enable billing</a>.
+</aside>
+<devsite-selector>
+  <section>
+    <h3 id="google-cloud-console_1" data-text="Google Cloud console" tabindex="-1">Google Cloud console</h3>
+    <ol>
+      <li>In the Google Cloud console, go to <b>Billing</b>. Click
+        <b>Menu</b> <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+        <span aria-label="and then">&gt;</span> <b>Billing</b>
+        <span aria-label="and then">&gt;</span> <b>My Projects</b>.
+        <p><a href="https://console.cloud.google.com/billing/projects" class="button button-primary" target="console">Go to Billing for My Projects</a></p>
+      </li>
+      <li>In <b>Select an organization</b>, choose the organization associated with
+        your Google Cloud project.</li>
+      <li>In the project row, open the <b>Actions</b> menu
+        (<span class="material-icons" aria-hidden="true" translate="no">more_vert</span>),
+        click <b>Change billing</b>, and choose the
+        Cloud Billing account.</li>
+      <li>Click <b>Set account</b>.</li>
+    </ol>
+  </section>
+  <section>
+    <h3 id="gcloud-cli_1" data-text="gcloud CLI" tabindex="-1">gcloud CLI</h3>
+    <ol>
+      <li>To list available billing accounts, run:
+        <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash Session"><code class="devsite-terminal" translate="no" dir="ltr"><span class="devsite-syntax-go">gcloud billing accounts list</span></var></code></pre></devsite-code>
+      </li>
+      <li>Link a billing account with a Google Cloud project:
+      <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash Session"><code class="devsite-terminal" translate="no" dir="ltr"><span class="devsite-syntax-go">gcloud billing projects link <var translate="no">PROJECT_ID</var> --billing-account=<var translate="no">BILLING_ACCOUNT_ID</var></span></code></pre></devsite-code>
+      <p>Replace the following:</p>
+      <ul>
+        <li><code translate="no" dir="ltr"><var translate="no">PROJECT_ID</var></code> is the <b>Project ID</b> for the
+          Cloud project for which you want to enable billing.</li>
+        <li><code translate="no" dir="ltr"><var translate="no">BILLING_ACCOUNT_ID</var></code> is the <b>billing account ID</b> to link with
+          the Google Cloud project.
+        </ol>
+      </li>
+    </ol>
+  </section>
+</devsite-selector>
+
+
+<p>For further information about billing, see
+<a href="https://cloud.google.com/billing/docs/how-to/modify-project">Enable, disable, or change billing for a project</a>
+in the Google Cloud Billing documentation.</p>
+
+<h2 id="next-step" data-text="Next step" tabindex="-1">Next step</h2>
+
+<p><a href="https://developers.google.com/workspace/guides/enable-apis">Enable Google Workspace APIs</a>
+in your Cloud project.</p>
+
+  
+
+  
+</main></body></html>

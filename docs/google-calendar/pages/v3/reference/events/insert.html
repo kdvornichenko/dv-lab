@@ -1,0 +1,735 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Events: insert</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Events: insert</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/events/insert">https://developers.google.com/workspace/calendar/api/v3/reference/events/insert</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="insert"/>
+<meta itemprop="path" content="Events"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="insert.html#auth">authorization</a>.</aside>
+
+<p>Creates an event.
+<a href="insert.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>POST https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span>/events</pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="conferenceDataVersion">
+        <td><code translate="no" dir="ltr">conferenceDataVersion</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          Version number of conference data supported by the API client. Version 0 assumes no conference data support and ignores conference data in the event's body. Version 1 enables support for copying of ConferenceData as well as for creating new conferences using the createRequest field of conferenceData. The default is 0.
+          Acceptable values are <code translate="no" dir="ltr">0</code> to <code translate="no" dir="ltr">1</code>, inclusive.
+
+
+        </td>
+      </tr>
+      <tr id="eventLabelVersion">
+        <td><code translate="no" dir="ltr">eventLabelVersion</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          Version number of the event label feature supported by the API client. Version <code translate="no" dir="ltr">0</code> assumes no event label support and processes the <a href="insert.html#colorId"><code translate="no" dir="ltr">colorId</code></a> field for color management. Version <code translate="no" dir="ltr">1</code> enables support for event labels, and processes the <a href="insert.html#eventLabelId"><code translate="no" dir="ltr">eventLabelId</code></a> in the event's body. In this case, the <a href="insert.html#colorId"><code translate="no" dir="ltr">colorId</code></a> field is ignored. The default is <code translate="no" dir="ltr">0</code>.
+          Acceptable values are <code translate="no" dir="ltr">0</code> to <code translate="no" dir="ltr">1</code>, inclusive.
+
+
+        </td>
+      </tr>
+      <tr id="maxAttendees">
+        <td><code translate="no" dir="ltr">maxAttendees</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="sendNotifications">
+        <td><code translate="no" dir="ltr">sendNotifications</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Deprecated. Please use <a href="insert.html#sendUpdates">sendUpdates</a> instead.<br><br>Whether to send notifications about the creation of the new event. Note that some emails might still be sent even if you set the value to <code translate="no" dir="ltr">false</code>. The default is <code translate="no" dir="ltr">false</code>.
+
+
+        </td>
+      </tr>
+      <tr id="sendUpdates">
+        <td><code translate="no" dir="ltr">sendUpdates</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Whether to send notifications about the creation of the new event. Note that some emails might still be sent. The default is <code translate="no" dir="ltr">false</code>.
+
+          <br/><br/>Acceptable values are:
+          <ul>
+            <li>"<code translate="no" dir="ltr">all</code>": Notifications are sent to all guests.
+            </li>
+            <li>"<code translate="no" dir="ltr">externalOnly</code>": Notifications are sent to non-Google Calendar guests only.
+            </li>
+            <li>"<code translate="no" dir="ltr">none</code>": No notifications are sent. <aside><b>Warning:</b> Using the value <code translate="no" dir="ltr">none</code> can have significant adverse effects, including events not syncing to external calendars or events being lost altogether for some users. For calendar migration tasks, consider using the <a href="import.html">events.import</a> method instead.</aside>
+            </li>
+          </ul>
+
+        </td>
+      </tr>
+      <tr id="supportsAttachments">
+        <td><code translate="no" dir="ltr">supportsAttachments</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether API client performing operation supports event attachments. Optional. The default is False.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply an <a href="../events.html#resource">Events resource</a> with the following properties:</p>
+  <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+    <tbody>
+    <tr id="required-properties" class="alt">
+      <td colspan="4"><b>Required Properties</b></td>
+    </tr>
+      <tr id="end">
+        <td><code translate="no" dir="ltr">end</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The (exclusive) end time of the event. For a recurring event, this is the end time of the first instance.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="start">
+        <td><code translate="no" dir="ltr">start</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The (inclusive) start time of the event. For a recurring event, this is the start time of the first instance.</td>
+        <td>
+        </td>
+      </tr>
+
+    <tr id="optional-properties" class="alt">
+      <td colspan="4"><b>Optional Properties</b></td>
+    </tr>
+      <tr id="anyoneCanAddSelf">
+        <td><code translate="no" dir="ltr">anyoneCanAddSelf</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether anyone can invite themselves to the event (deprecated). Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attachments.fileUrl">
+        <td><code translate="no" dir="ltr"><span class="quiet">attachments[].</span>fileUrl</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>URL link to the attachment.  <p>For adding Google Drive file attachments use the same format as in <code translate="no" dir="ltr">alternateLink</code> property of the <code translate="no" dir="ltr">Files</code> resource in the Drive API. <p>Required when adding an attachment.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees">
+        <td><code translate="no" dir="ltr">attendees[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The attendees of the event. See the <a href="../../../concepts/sharing.html">Events with attendees</a> guide for more information on scheduling events with other calendar users. Service accounts need to use <a href="https://developers.google.com/calendar/auth#perform-g-suite-domain-wide-delegation-of-authority">domain-wide delegation of authority</a> to populate the attendee list.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.additionalGuests">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>additionalGuests</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of additional guests. Optional. The default is 0.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.comment">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>comment</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's response comment. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.displayName">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>displayName</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's name, if available. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.email">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>email</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's email address, if available. This field must be present when adding an attendee. It must be a valid email address as per <a href="https://tools.ietf.org/html/rfc5322#section-3.4">RFC5322</a>. <p> Required when adding an attendee.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.optional">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>optional</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this is an optional attendee. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.resource">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>resource</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the attendee is a resource. Can only be set when the attendee is added to the event for the first time. Subsequent modifications are ignored. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="attendees.responseStatus">
+        <td><code translate="no" dir="ltr"><span class="quiet">attendees[].</span>responseStatus</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The attendee's response status. Possible values are: <ul> <li>"<code translate="no" dir="ltr">needsAction</code>" - The attendee has not responded to the invitation (recommended for new events).</li> <li>"<code translate="no" dir="ltr">declined</code>" - The attendee has declined the invitation.</li> <li>"<code translate="no" dir="ltr">tentative</code>" - The attendee has tentatively accepted the invitation.</li> <li>"<code translate="no" dir="ltr">accepted</code>" - The attendee has accepted the invitation.</li> </ul> <aside><b>Warning:</b> If you add an event using the values <code translate="no" dir="ltr">declined</code>, <code translate="no" dir="ltr">tentative</code>, or <code translate="no" dir="ltr">accepted</code>, attendees with the "Add invitations to my calendar" setting set to "When I respond to invitation in email" or "Only if the sender is known" might have their response reset to <code translate="no" dir="ltr">needsAction</code> and won't see an event in their calendar unless they change their response in the event invitation email. Furthermore, if more than 200 guests are invited to the event, response status is not propagated to the guests.</aside></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="birthdayProperties">
+        <td><code translate="no" dir="ltr">birthdayProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Birthday or special event data. Used if <code translate="no" dir="ltr">eventType</code> is <code translate="no" dir="ltr">"birthday"</code>. Immutable.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="birthdayProperties.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">birthdayProperties.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of birthday or special event. Possible values are: <ul> <li><code translate="no" dir="ltr">"anniversary"</code> - An anniversary other than birthday. Always has a <code translate="no" dir="ltr">contact</code>.</li> <li><code translate="no" dir="ltr">"birthday"</code> - A birthday event. This is the default value.</li> <li><code translate="no" dir="ltr">"custom"</code> - A special date whose label is further specified in the <code translate="no" dir="ltr">customTypeName</code> field. Always has a <code translate="no" dir="ltr">contact</code>.</li> <li><code translate="no" dir="ltr">"other"</code> - A special date which does not fall into the other categories, and does not have a custom label. Always has a <code translate="no" dir="ltr">contact</code>.</li> <li><code translate="no" dir="ltr">"self"</code> - Calendar owner's own birthday. Cannot have a <code translate="no" dir="ltr">contact</code>.</li> </ul> The Calendar API only supports creating events with the type <code translate="no" dir="ltr">"birthday"</code>. The type cannot be changed after the event is created.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="colorId">
+        <td><code translate="no" dir="ltr">colorId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The color of the event. This is an ID referring to an entry in the <code translate="no" dir="ltr">event</code> section of the colors definition (see the <a href="../colors.html"> colors endpoint</a>). Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="conferenceData">
+        <td><code translate="no" dir="ltr">conferenceData</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>The conference-related information, such as details of a Google Meet conference. To create new conference details use the <code translate="no" dir="ltr">createRequest</code> field. To persist your changes, remember to set the <code translate="no" dir="ltr">conferenceDataVersion</code> request parameter to <code translate="no" dir="ltr">1</code> for all event modification requests. <aside><b>Warning:</b> Reusing Google Meet conference data across different events can cause access issues and expose meeting details to unintended users. To help ensure meeting privacy, always generate a unique conference for each event by using the <code translate="no" dir="ltr">createRequest</code> field.</aside></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="description">
+        <td><code translate="no" dir="ltr">description</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Description of the event. Can contain HTML. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="end.date">
+        <td><code translate="no" dir="ltr"><span class="quiet">end.</span>date</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">date</code></td>
+        <td>The date, in the format "yyyy-mm-dd", if this is an all-day event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="end.dateTime">
+        <td><code translate="no" dir="ltr"><span class="quiet">end.</span>dateTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>The time, as a combined date-time value (formatted according to <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a>). A time zone offset is required unless a time zone is explicitly specified in <code translate="no" dir="ltr">timeZone</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="end.timeZone">
+        <td><code translate="no" dir="ltr"><span class="quiet">end.</span>timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone in which the time is specified. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) For recurring events this field is required and specifies the time zone in which the recurrence is expanded. For single events this field is optional and indicates a custom time zone for the event start/end.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="eventLabelId">
+        <td><code translate="no" dir="ltr">eventLabelId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The ID of the event label assigned to the event. Optional. This refers to the ID of an entry in the <a href="../calendars.html#labelProperties.eventLabels"><code translate="no" dir="ltr">labelProperties.eventLabels</code></a> property of the calendar (see the <a href="../calendars/get.html">Calendars.get</a> endpoint.)  <p>This property supersedes the index-based <a href="../events.html#colorId"><code translate="no" dir="ltr">colorId</code></a> property. To set or change this property, you need to specify <code translate="no" dir="ltr">eventLabelVersion=1</code> in the parameters of the <a href="insert.html#eventLabelVersion">insert</a>, <a href="import.html#eventLabelVersion">import</a>, <a href="update.html#eventLabelVersion">update</a>, and <a href="patch.html#eventLabelVersion">patch</a> methods.  <p>Setting an empty string, or not setting this field at all, will remove the existing label from the event.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="eventType">
+        <td><code translate="no" dir="ltr">eventType</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Specific type of the event. This cannot be modified after the event is created. Possible values are: <ul> <li>"<code translate="no" dir="ltr">birthday</code>" - A special all-day event with an annual recurrence.</li> <li>"<code translate="no" dir="ltr">default</code>" - A regular event or not further specified.</li> <li>"<code translate="no" dir="ltr">focusTime</code>" - A focus-time event.</li> <li>"<code translate="no" dir="ltr">fromGmail</code>" - An event from Gmail. This type of event cannot be created.</li> <li>"<code translate="no" dir="ltr">outOfOffice</code>" - An out-of-office event.</li> <li>"<code translate="no" dir="ltr">workingLocation</code>" - A working location event.</li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="extendedProperties.private">
+        <td><code translate="no" dir="ltr"><span class="quiet">extendedProperties.</span>private</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Properties that are private to the copy of the event that appears on this calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="extendedProperties.shared">
+        <td><code translate="no" dir="ltr"><span class="quiet">extendedProperties.</span>shared</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Properties that are shared between copies of the event on other attendees' calendars.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="focusTimeProperties">
+        <td><code translate="no" dir="ltr">focusTimeProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Focus Time event data. Used if <code translate="no" dir="ltr">eventType</code> is <code translate="no" dir="ltr">focusTime</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.display">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>display</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's display mode. Deprecated. Possible values are: <ul> <li>"<code translate="no" dir="ltr">icon</code>" - The gadget displays next to the event's title in the calendar view.</li> <li>"<code translate="no" dir="ltr">chip</code>" - The gadget displays when the event is clicked.</li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.height">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>height</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>The gadget's height in pixels. The height must be an integer greater than 0. Optional. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.iconLink">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>iconLink</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's icon URL. The URL scheme must be HTTPS. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.link">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>link</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's URL. The URL scheme must be HTTPS. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.preferences">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>preferences</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>Preferences.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.title">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>title</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's title. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The gadget's type. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="gadget.width">
+        <td><code translate="no" dir="ltr"><span class="quiet">gadget.</span>width</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>The gadget's width in pixels. The width must be an integer greater than 0. Optional. Deprecated.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="guestsCanInviteOthers">
+        <td><code translate="no" dir="ltr">guestsCanInviteOthers</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees other than the organizer can invite others to the event. Optional. The default is True.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="guestsCanModify">
+        <td><code translate="no" dir="ltr">guestsCanModify</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees other than the organizer can modify the event. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="guestsCanSeeOtherGuests">
+        <td><code translate="no" dir="ltr">guestsCanSeeOtherGuests</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether attendees other than the organizer can see who the event's attendees are. Optional. The default is True.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Opaque identifier of the event. When creating new single or recurring events, you can specify their IDs. Provided IDs must follow these rules: <ul> <li>characters allowed in the ID are those used in base32hex encoding, i.e. lowercase letters a-v and digits 0-9, see section 3.1.2 in <a href="http://tools.ietf.org/html/rfc2938#section-3.1.2">RFC2938</a></li> <li>the length of the ID must be between 5 and 1024 characters</li> <li>the ID must be unique per calendar</li> </ul> Due to the globally distributed nature of the system, we cannot guarantee that ID collisions will be detected at event creation time. To minimize the risk of collisions we recommend using an established UUID algorithm such as one described in <a href="https://tools.ietf.org/html/rfc4122">RFC4122</a>.  <p>If you do not specify an ID, it will be automatically generated by the server.  <p>Note that the <code translate="no" dir="ltr">icalUID</code> and the <code translate="no" dir="ltr">id</code> are not identical and only one of them should be supplied at event creation time. One difference in their semantics is that in recurring events, all occurrences of one event have different <code translate="no" dir="ltr">id</code>s while they all share the same <code translate="no" dir="ltr">icalUID</code>s.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="location">
+        <td><code translate="no" dir="ltr">location</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Geographic location of the event as free-form text. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="originalStartTime.date">
+        <td><code translate="no" dir="ltr"><span class="quiet">originalStartTime.</span>date</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">date</code></td>
+        <td>The date, in the format "yyyy-mm-dd", if this is an all-day event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="originalStartTime.dateTime">
+        <td><code translate="no" dir="ltr"><span class="quiet">originalStartTime.</span>dateTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>The time, as a combined date-time value (formatted according to <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a>). A time zone offset is required unless a time zone is explicitly specified in <code translate="no" dir="ltr">timeZone</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="originalStartTime.timeZone">
+        <td><code translate="no" dir="ltr"><span class="quiet">originalStartTime.</span>timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone in which the time is specified. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) For recurring events this field is required and specifies the time zone in which the recurrence is expanded. For single events this field is optional and indicates a custom time zone for the event start/end.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="outOfOfficeProperties">
+        <td><code translate="no" dir="ltr">outOfOfficeProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Out of office event data. Used if <code translate="no" dir="ltr">eventType</code> is <code translate="no" dir="ltr">outOfOffice</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="recurrence">
+        <td><code translate="no" dir="ltr">recurrence[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>List of RRULE, EXRULE, RDATE and EXDATE lines for a recurring event, as specified in <a href="http://tools.ietf.org/html/rfc5545#section-3.8.5">RFC5545</a>. Note that DTSTART and DTEND lines are not allowed in this field; event start and end times are specified in the <code translate="no" dir="ltr">start</code> and <code translate="no" dir="ltr">end</code> fields. This field is omitted for single events or instances of recurring events.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.overrides">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.</span>overrides[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>If the event doesn't use the default reminders, this lists the reminders specific to the event, or, if not set, indicates that no reminders are set for this event. The maximum number of override reminders is 5.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.overrides.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.overrides[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used by this reminder. Possible values are: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Reminders are sent via email.</li> <li>"<code translate="no" dir="ltr">popup</code>" - Reminders are sent via a UI popup.</li> </ul> <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.overrides.minutes">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.overrides[].</span>minutes</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of minutes before the start of the event when the reminder should trigger. Valid values are between 0 and 40320 (4 weeks in minutes). <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="reminders.useDefault">
+        <td><code translate="no" dir="ltr"><span class="quiet">reminders.</span>useDefault</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the default reminders of the calendar apply to the event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="sequence">
+        <td><code translate="no" dir="ltr">sequence</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Sequence number as per iCalendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="source.title">
+        <td><code translate="no" dir="ltr"><span class="quiet">source.</span>title</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the source; for example a title of a web page or an email subject.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="source.url">
+        <td><code translate="no" dir="ltr"><span class="quiet">source.</span>url</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>URL of the source pointing to a resource. The URL scheme must be HTTP or HTTPS.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="start.date">
+        <td><code translate="no" dir="ltr"><span class="quiet">start.</span>date</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">date</code></td>
+        <td>The date, in the format "yyyy-mm-dd", if this is an all-day event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="start.dateTime">
+        <td><code translate="no" dir="ltr"><span class="quiet">start.</span>dateTime</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>The time, as a combined date-time value (formatted according to <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a>). A time zone offset is required unless a time zone is explicitly specified in <code translate="no" dir="ltr">timeZone</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="start.timeZone">
+        <td><code translate="no" dir="ltr"><span class="quiet">start.</span>timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone in which the time is specified. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) For recurring events this field is required and specifies the time zone in which the recurrence is expanded. For single events this field is optional and indicates a custom time zone for the event start/end.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="status">
+        <td><code translate="no" dir="ltr">status</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Status of the event. Optional. Possible values are: <ul> <li>"<code translate="no" dir="ltr">confirmed</code>" - The event is confirmed. This is the default status.</li> <li>"<code translate="no" dir="ltr">tentative</code>" - The event is tentatively confirmed.</li> <li>"<code translate="no" dir="ltr">cancelled</code>" - The event is cancelled (deleted). The <a href="list.html">list</a> method returns cancelled events only on incremental sync (when <code translate="no" dir="ltr">syncToken</code> or <code translate="no" dir="ltr">updatedMin</code> are specified) or if the <code translate="no" dir="ltr">showDeleted</code> flag is set to <code translate="no" dir="ltr">true</code>. The <a href="get.html">get</a> method always returns them. <p> A cancelled status represents two different states depending on the event type: <ol> <li>Cancelled exceptions of an uncancelled recurring event indicate that this instance should no longer be presented to the user. Clients should store these events for the lifetime of the parent recurring event. <p> Cancelled exceptions are only guaranteed to have values for the <code translate="no" dir="ltr">id</code>, <code translate="no" dir="ltr">recurringEventId</code> and <code translate="no" dir="ltr">originalStartTime</code> fields populated. The other fields might be empty. </p></li> <li>All other cancelled events represent deleted events. Clients should remove their locally synced copies. Such cancelled events will eventually disappear, so do not rely on them being available indefinitely. <p> Deleted events are only guaranteed to have the <code translate="no" dir="ltr">id</code> field populated. </p></li> </ol> On the organizer's calendar, cancelled events continue to expose event details (summary, location, etc.) so that they can be restored (undeleted). Similarly, the events to which the user was invited and that they manually removed continue to provide details. However, incremental sync requests with <code translate="no" dir="ltr">showDeleted</code> set to false will not return these details. <p> If an event changes its organizer (for example via the <a href="move.html">move</a> operation) and the original organizer is not on the attendee list, it will leave behind a cancelled event where only the <code translate="no" dir="ltr">id</code> field is guaranteed to be populated. </p></p></li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the event.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="transparency">
+        <td><code translate="no" dir="ltr">transparency</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Whether the event blocks time on the calendar. Optional. Possible values are: <ul> <li>"<code translate="no" dir="ltr">opaque</code>" - Default value. The event does block time on the calendar. This is equivalent to setting <strong>Show me as</strong> to <strong>Busy</strong> in the Calendar UI.</li> <li>"<code translate="no" dir="ltr">transparent</code>" - The event does not block time on the calendar. This is equivalent to setting <strong>Show me as</strong> to <strong>Available</strong> in the Calendar UI.</li> </ul></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="visibility">
+        <td><code translate="no" dir="ltr">visibility</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Visibility of the event. Optional. Possible values are: <ul> <li>"<code translate="no" dir="ltr">default</code>" - Uses the default visibility for events on the calendar. This is the default value.</li> <li>"<code translate="no" dir="ltr">public</code>" - The event is public and event details are visible to all readers of the calendar.</li> <li>"<code translate="no" dir="ltr">private</code>" - The event is private and only event attendees may view event details.</li> <li>"<code translate="no" dir="ltr">confidential</code>" - The event is private. This value is provided for compatibility reasons.</li> </ul> <p><strong>Note on recurring events:</strong> Changing the visibility of a single instance of a recurring event can affect all instances of the series. If the new setting is more restrictive (e.g. from public to private), it is applied to all instances. If the new setting is less restrictive (e.g. from private to public), the change is ignored. To make a recurring event less restrictive, you must update the parent recurring event.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties">
+        <td><code translate="no" dir="ltr">workingLocationProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Working location event data.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.customLocation">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>customLocation</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>If present, specifies that the user is working from a custom location.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.customLocation.label">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.customLocation.</span>label</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional extra label for additional information.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.homeOffice">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>homeOffice</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">any value</code></td>
+        <td>If present, specifies that the user is working at home.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>officeLocation</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>If present, specifies that the user is working from an office.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.buildingId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>buildingId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional building identifier. This should reference a building ID in the organization's Resources database.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.deskId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>deskId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional desk identifier.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.floorId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>floorId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional floor identifier.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.floorSectionId">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>floorSectionId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An optional floor section identifier.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.officeLocation.label">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.officeLocation.</span>label</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The office name that's displayed in Calendar Web and Mobile clients. We recommend you reference a building name in the organization's Resources database.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="workingLocationProperties.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">workingLocationProperties.</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the working location. Possible values are: <ul> <li>"<code translate="no" dir="ltr">homeOffice</code>" - The user is working at home.</li> <li>"<code translate="no" dir="ltr">officeLocation</code>" - The user is working from an office.</li> <li>"<code translate="no" dir="ltr">customLocation</code>" - The user is working from a custom location.</li> </ul> Any details are specified in a sub-field of the specified name, but this field may be missing if empty. Any other fields are ignored.  <p> Required when adding working location properties.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns an <a href="../events.html#resource">Events resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.events.insert" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

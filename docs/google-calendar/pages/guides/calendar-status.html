@@ -1,0 +1,911 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manage focus time, out of office, and working location events</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Manage focus time, out of office, and working location events</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/calendar-status">https://developers.google.com/workspace/calendar/api/guides/calendar-status</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>This page explains how to use the Google Calendar API to create events that show
+the status of Google Calendar users. Status events describe where users are or
+what they're doing, including whether they're in focus time, out of office, or
+working from a certain location.</p>
+
+<p>In Google Calendar, users can create focus time, out of office and working
+location events to indicate their custom status and location. These features are
+only available on primary calendars, and to some Google Calendar users.</p>
+
+<p>For more details, go to <a href="https://support.google.com/calendar/answer/11190973" target="_blank" class="external">Use focus time in Google
+Calendar</a> 
+and <a href="https://support.google.com/a/answer/10918567" target="_blank" class="external">Turn working location on or off for
+users</a>.</p>
+
+<h2 id="read-calendar-status" data-text="Read and list Calendar status events" tabindex="-1">Read and list Calendar status events</h2>
+
+<p>You can read and list Calendar status events in the
+<a href="../v3/reference/events.html"><code translate="no" dir="ltr">Events</code></a> resource of the
+Calendar API.</p>
+
+<p>To read a status event, use the
+<a href="../v3/reference/events/get.html"><code translate="no" dir="ltr">events.get</code></a> method, specifying the
+<a href="../v3/reference/events/get.html#eventId"><code translate="no" dir="ltr">eventId</code></a> of the event.</p>
+
+<p>To list status events, use the
+<a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">events.list</code></a> method, specifying one
+or more of the following values in the
+<a href="../v3/reference/events/list.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a> field:</p>
+
+<ul>
+<li><code translate="no" dir="ltr">'focusTime'</code></li>
+<li><code translate="no" dir="ltr">'outOfOffice'</code></li>
+<li><code translate="no" dir="ltr">'workingLocation'</code></li>
+</ul>
+
+<p>Then, in the returned <code translate="no" dir="ltr">Event</code> objects, inspect that the
+<a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> field has the
+requested value, and refer to the corresponding field for details about the
+status created by the user in Google Calendar:</p>
+
+<ul>
+<li><a href="../v3/reference/events.html#focusTimeProperties"><code translate="no" dir="ltr">focusTimeProperties</code></a></li>
+<li><a href="../v3/reference/events.html#outOfOfficeProperties"><code translate="no" dir="ltr">outOfOfficeProperties</code></a></li>
+<li><a href="../v3/reference/events.html#workingLocationProperties"><code translate="no" dir="ltr">workingLocationProperties</code></a></li>
+</ul>
+
+<h2 id="watch-calendar-status" data-text="Subscribe to changes on status events" tabindex="-1">Subscribe to changes on status events</h2>
+
+<p>You can subscribe to changes on status events in the
+<a href="../v3/reference/events.html"><code translate="no" dir="ltr">Events</code></a> resource of the
+Calendar API.</p>
+
+<p>Use the
+<a href="../v3/reference/events/watch.html"><code translate="no" dir="ltr">events.watch</code></a> method, specifying the
+<a href="../v3/reference/events/watch.html#calendarId"><code translate="no" dir="ltr">calendarId</code></a> of the
+Calendar to subscribe to and one or more of the following values in the
+<a href="../v3/reference/events/watch.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a> field:</p>
+
+<ul>
+<li><code translate="no" dir="ltr">'focusTime'</code></li>
+<li><code translate="no" dir="ltr">'outOfOffice'</code></li>
+<li><code translate="no" dir="ltr">'workingLocation'</code></li>
+</ul>
+
+<h2 id="create-calendar-status" data-text="Create and update Calendar status events" tabindex="-1">Create and update Calendar status events</h2>
+
+<p>To create a status event, you create an instance of the
+<a href="../v3/reference/events.html"><code translate="no" dir="ltr">Events</code></a> resource using the
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">events.insert</code></a> method, setting the
+required fields for the event type.</p>
+
+<p>If you update the status event using
+<a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">events.update</code></a> method, the event
+must maintain the required fields.</p>
+
+<h3 id="create-focus-time" data-text="Create focus time" tabindex="-1">Create focus time</h3>
+
+<p>To create a focus time event:</p>
+
+<ul>
+<li>Set <a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> to
+<code translate="no" dir="ltr">'focusTime'</code>.</li>
+<li>Include the
+<a href="../v3/reference/events.html#focusTimeProperties"><code translate="no" dir="ltr">focusTimeProperties</code></a>
+field.</li>
+<li>Set the <a href="../v3/reference/events.html#transparency"><code translate="no" dir="ltr">transparency</code></a>
+field to <code translate="no" dir="ltr">'opaque'</code>.</li>
+<li>Set the event's <a href="../v3/reference/events.html#start"><code translate="no" dir="ltr">start</code></a> and
+<a href="../v3/reference/events.html#end"><code translate="no" dir="ltr">end</code></a> fields to be a timed event
+(with start and end times specified).<br>
+Focus times cannot be all-day events.</li>
+</ul>
+
+<p>For feature details, go to <a href="https://support.google.com/calendar/answer/11190973" target="_blank" class="external">Use focus time in Google
+Calendar</a> </p>
+
+<h3 id="create-out-of-office" data-text="Create out of office" tabindex="-1">Create out of office</h3>
+
+<p>To create an out of office event:</p>
+
+<ul>
+<li>Set <a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> to
+<code translate="no" dir="ltr">'outOfOffice'</code>.</li>
+<li>Include the
+<a href="../v3/reference/events.html#outOfOfficeProperties"><code translate="no" dir="ltr">outOfOfficeProperties</code></a>
+field.</li>
+<li>Set the <a href="../v3/reference/events.html#transparency"><code translate="no" dir="ltr">transparency</code></a>
+field to <code translate="no" dir="ltr">'opaque'</code>.</li>
+<li>Set the event's <a href="../v3/reference/events.html#start"><code translate="no" dir="ltr">start</code></a> and
+<a href="../v3/reference/events.html#end"><code translate="no" dir="ltr">end</code></a> fields to be a timed event
+(with start and end times specified).<br>
+Out of office events cannot be all-day events.</li>
+</ul>
+
+<p>For feature details, go to <a href="https://support.google.com/calendar/answer/7638168" target="_blank" class="external">Show when you're out of
+office</a> </p>
+
+<h3 id="create-working-location" data-text="Create working location" tabindex="-1">Create working location</h3>
+
+<div class="video-wrapper">
+  <devsite-video video-id="0WwsLAxZe_U" rel="0" widget_referrer="https://developers.google.com/workspace/calendar/api/guides/user-status"/>
+</div>
+
+<p>To create a working location event:</p>
+
+<ul>
+<li>Set <a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> to
+<code translate="no" dir="ltr">'workingLocation'</code>.</li>
+<li>Include the
+<a href="../v3/reference/events.html#workingLocationProperties"><code translate="no" dir="ltr">workingLocationProperties</code></a>
+field.</li>
+<li>Set the <a href="../v3/reference/events.html#visibility"><code translate="no" dir="ltr">visibility</code></a> field
+to <code translate="no" dir="ltr">'public'</code>.</li>
+<li>Set the <a href="../v3/reference/events.html#transparency"><code translate="no" dir="ltr">transparency</code></a>
+field to <code translate="no" dir="ltr">'transparent'</code>.</li>
+<li><p>Set the event's <a href="../v3/reference/events.html#start"><code translate="no" dir="ltr">start</code></a> and
+<a href="../v3/reference/events.html#end"><code translate="no" dir="ltr">end</code></a> fields to be either:</p>
+
+<ul>
+<li>A timed event (with start and end times specified);</li>
+<li>An all-day event (with start and end dates specified) which spans
+exactly one day.</li>
+</ul>
+
+<p>All-day working location events cannot span multiple days, but timed events
+can.</p></li>
+</ul>
+
+<p>The following fields are optional but recommended for the best user experience
+when inserting an
+<a href="../v3/reference/events.html#workingLocationProperties.officeLocation"><code translate="no" dir="ltr">officeLocation</code></a>:</p>
+
+<ul>
+<li><a href="../v3/reference/events.html#workingLocationProperties.officeLocation.buildingId"><code translate="no" dir="ltr">workingLocationProperties.officeLocation.buildingId</code></a>:
+This should match a <code translate="no" dir="ltr">buildingId</code> in the organization's
+<a href="https://developers.google.com/workspace/admin/directory/reference/rest/v1/resources.buildings#resource:-building">resources</a>
+database. This helps users benefit from all Calendar features, for example
+room suggestions.</li>
+<li><a href="../v3/reference/events.html#workingLocationProperties.officeLocation.label"><code translate="no" dir="ltr">workingLocationProperties.officeLocation.label</code></a>:
+This is the label that's shown on the Calendar Web and mobile clients. You
+can fetch building IDs and building labels using the
+<a href="https://developers.google.com/workspace/admin/directory/reference/rest/v1/resources.buildings/list"><code translate="no" dir="ltr">resources.buildings.list</code></a>
+method.</li>
+</ul>
+
+<p>Creating and updating working location events through the batch endpoints isn't
+supported.</p>
+
+<p>For feature details, go to <a href="https://support.google.com/calendar/answer/7638168" target="_blank" class="external">Set your working hours &amp;
+location</a> 
+and <a href="https://support.google.com/a/answer/10918567" target="_blank" class="external">Turn working location on or off for
+users</a> </p>
+
+<h4 id="how_to_show_overlapping_working_location_events" data-text="How to show overlapping working location events" tabindex="-1">How to show overlapping working location events</h4>
+
+<p>A user can have multiple working location events on their calendar at the same
+time which overlap, meaning that any given time could have multiple working
+locations set for it. In circumstances when only a single location can be shown
+to the user, they should be shown that location consistently across multiple
+applications. When doing this, use the following guidelines to choose which
+event to show:</p>
+
+<ul>
+<li><a href="../concepts/events-calendars.html#types_of_events">Timed events</a> take
+precedence over all-day events.</li>
+<li>Single events take precedence over recurring events and their
+<a href="../concepts/events-calendars.html#instances_exceptions">exceptions</a>.</li>
+<li>Events which start later take precedence over events which start earlier.</li>
+<li>Events with shorter durations take precedence over those with longer
+durations.</li>
+<li>More recently created events take precedence over events that were created
+earlier.</li>
+<li>Partially overlapping events should be shown as two different events each
+with their own working location.</li>
+</ul>
+
+<h2 id="appsscript-code" data-text="Create status events in Google Apps Script" tabindex="-1">Create status events in Google Apps Script</h2>
+
+<p><a href="https://developers.google.com/apps-script/overview">Google Apps Script</a> is a JavaScript-based cloud
+scripting language that lets you build business applications that integrate with
+Google Workspace. Scripts are developed in a browser-based code editor, and
+they are stored and run on Google's servers. See also <a href="../quickstart/apps-script.html">Google Apps Script
+quickstart</a> to start using
+Apps Script to send requests to the Google Calendar API.</p>
+
+<p>The following instructions describe how to manage status events using the
+<a href="https://developers.google.com/apps-script/advanced/calendar">Google Calendar API</a> as an advanced service in
+Google Apps Script. For a complete list of Google Calendar API resources and methods,
+see the <a href="overview.html">reference documentation</a>.</p>
+
+<h3 id="create-script" data-text="Create and set up the script" tabindex="-1">Create and set up the script</h3>
+
+<ol>
+<li>Create a script by going to
+<a href="https://script.google.com/create">script.google.com/create</a>.</li>
+<li>On the left pane next to <strong>Services</strong>, click Add a service
+<span class="material-icons" aria-hidden="true" translate="no">add</span> .</li>
+<li>Select <strong>Google Calendar API</strong> and click <strong>Add</strong>.</li>
+<li>After enabled, the API appears on the left pane. Available methods and
+classes in the API can be listed using the <em>Calendar</em> keyword in the editor.</li>
+</ol>
+
+<h3 id="update-project" data-text="(Optional) Update the Google Cloud project" tabindex="-1">(Optional) Update the Google Cloud project</h3>
+
+<p>Each Google Apps Script project has an associated Google Cloud project. Your
+script can use the default project that Google Apps Script automatically
+creates. If you want to use a custom Google Cloud project, take the following steps
+to update the project associated with your script.</p>
+
+<ol>
+<li>On the left side of the editor, click Project Settings
+<span class="material-icons" aria-hidden="true" translate="no">settings</span>.</li>
+<li>Under <strong>Google Cloud Platform (GCP) Project</strong>, click <strong>Change project</strong>.</li>
+<li>Enter the project number of the Google Cloud project that's in the Developer
+Preview Program, and click <strong>Set project</strong>.</li>
+<li>On the left side, select Editor <span class="material-icons" aria-hidden="true" translate="no">code</span> to
+navigate back to the code editor.</li>
+</ol>
+
+<h3 id="add-code" data-text="Add code to the script" tabindex="-1">Add code to the script</h3>
+
+<p>The following code sample shows how to create, read, and list status events
+on your primary calendar.</p>
+
+<ol>
+<li><p>Paste the following into the code editor.</p>
+
+<aside class="note">
+<i>primary</i> is a keyword to access the primary
+calendar of the signed-in user. To retrieve events on a different calendar,
+set the <code translate="no" dir="ltr">calendarId</code> parameter to an email address. This lets you
+read status events on the calendars of other users you have at minimum
+free/busy access to. Secondary calendars can't have status events.
+</aside>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-cm">/** Creates a focus time event. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createFocusTime</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2023-11-14T10:00:00+01:00'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">end</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2023-11-14T12:00:00+01:00'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'focusTime'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">focusTimeProperties</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">chatStatus</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'doNotDisturb'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">autoDeclineMode</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'declineOnlyNewConflictingInvitations'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">declineMessage</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Declined because I am in focus time.'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Creates an out of office event. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createOutOfOffice</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2023-11-15T10:00:00+01:00'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">end</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2023-11-15T18:00:00+01:00'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'outOfOffice'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">outOfOfficeProperties</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">autoDeclineMode</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'declineOnlyNewConflictingInvitations'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">declineMessage</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Declined because I am on vacation.'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Creates a working location event. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createWorkingLocation</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2023-06-01"</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">end</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2023-06-02"</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"workingLocation"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">visibility</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"public"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">transparency</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"transparent"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">workingLocationProperties</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">type</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'customLocation'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">customLocation</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"a custom location"</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Creates a Calendar event.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events/insert</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'workingLocation'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">?</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">parseWorkingLocation</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Reads the event with the given eventId.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events/get</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">readEvent</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// Replace with a valid eventId.</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">eventId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"sample-event-id"</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">eventId</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'workingLocation'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">?</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">parseWorkingLocation</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Lists focus time events. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listFocusTimes</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'focusTime'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Lists out of office events. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listOutOfOffices</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'outOfOffice'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Lists working location events. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listWorkingLocations</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'workingLocation'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Lists events with the given event type.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events/list</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'default'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// Query parameters for the list request.</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">optionalArgs</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventTypes</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">showDeleted</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">singleEvents</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">timeMax</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2023-04-01T00:00:00+01:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">timeMin</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2023-03-27T00:00:00+01:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">list</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">optionalArgs</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">items</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">forEach</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>&gt;
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'workingLocation'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">?</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">parseWorkingLocation</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Parses working location properties of an event into a string.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events#resource</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">parseWorkingLocation</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"workingLocation"</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">throw</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-ow">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-ne">Error</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"'"</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">summary</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"' is not a working location event."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">location</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'No Location'</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">workingLocationProperties</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">type</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'homeOffice'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">location</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Home'</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">type</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'officeLocation'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">location</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">officeLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">type</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'customLocation'</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">location</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">workingLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">customLocation</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">label</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-sb">`</span><span class="devsite-syntax-si">${</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-sb">: </span><span class="devsite-syntax-si">${</span><span class="devsite-syntax-nx">location</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-sb">`</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-p">}</span>
+</code></pre></devsite-code></li>
+</ol>
+
+<h3 id="run-code" data-text="Run the code sample" tabindex="-1">Run the code sample</h3>
+
+<ol>
+<li>Above the code editor, select the function to run from the drop-down menu,
+and click <strong>Run</strong>.</li>
+<li>In the first execution, it prompts you to authorize access. Review and allow
+Apps Script to access your calendar.</li>
+<li>You can inspect the results of the script execution in the
+<strong>Execution Log</strong> that appears at the bottom of the window.</li>
+</ol>
+
+  
+
+  
+</main></body></html>

@@ -1,0 +1,1171 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Google Apps Script quickstart</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Google Apps Script quickstart</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/quickstart/apps-script">https://developers.google.com/workspace/calendar/api/quickstart/apps-script</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Create a
+<a href="https://developers.google.com/apps-script/overview">Google Apps Script</a>
+that makes requests to the Google Calendar API.</p>
+
+<p>Quickstarts explain how to set up and run an app that calls a
+Google Workspace API. This quickstart uses a
+simplified authentication approach that is appropriate for a testing
+environment. For a production environment, we recommend learning about
+<a href="../related/workspace/guides/auth-overview.html">authentication and authorization</a>
+before
+<a href="../related/workspace/guides/create-credentials.html#choose_the_access_credential_that_is_right_for_you">choosing the access credentials</a>
+that are appropriate for your app.</p>
+
+<p>In Apps Script, Google Workspace
+quickstarts use
+<a href="https://developers.google.com/apps-script/guides/services/advanced">Advanced Google services</a> to call
+Google Workspace APIs and handle some details of the authentication
+and authorization flow.</p>
+
+<h2 id="objectives" data-text="Objectives" tabindex="-1">Objectives</h2>
+
+<ul>
+<li>Configure the environment.</li>
+<li>Create and configure the script.</li>
+<li>Run the script.</li>
+</ul>
+
+<h2 id="prerequisites" data-text="Prerequisites" tabindex="-1">Prerequisites</h2>
+
+
+
+
+<p><ul><li>A Google account with Google Calendar enabled.</li></ul></p>
+
+
+
+
+<ul>
+<li>Access to Google Drive</li>
+</ul>
+
+
+
+
+
+<h2 id="create_the_script" data-text="Create the script" tabindex="-1">Create the script</h2>
+
+<ol>
+<li>Create a new script in the Apps Script editor by going to <a href="https://script.google.com/create">script.google.com/create</a>.</li>
+<li>Replace the contents of the script editor with the following code:</li>
+</ol>
+
+
+
+<p>
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+<div class="github-docwidget-include">
+  
+  <div class="filepath">calendar/quickstart/quickstart.gs</div>
+  <div>
+    
+    <a class="view-on-github button" target="_blank" href="https://github.com/googleworkspace/apps-script-samples/blob/main/calendar/quickstart/quickstart.gs" track-type="github" track-name="gitHubViewButton" track-metadata-link-destination="https://github.com/googleworkspace/apps-script-samples/blob/main/calendar/quickstart/quickstart.gs">View on GitHub</a>
+  </div>
+  
+  <div></div>
+</div><div class="github-docwidget-gitinclude-code">
+  
+    
+  
+  
+  <div></div><devsite-code><pre class="devsite-click-to-copy" track-metadata-position="googleworkspace/apps-script-samples/calendar/quickstart/quickstart.gs/main/calendar_quickstart" data-code-snippet="true" data-github-path="googleworkspace/apps-script-samples/calendar/quickstart/quickstart.gs" data-git-revision="main" data-region-tag="calendar_quickstart" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm"> * Lists 10 upcoming events in the user's calendar.</span>
+<span class="devsite-syntax-cm"> * @see https://developers.google.com/calendar/api/v3/reference/events/list</span>
+<span class="devsite-syntax-cm"> */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listUpcomingEvents</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"primary"</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// Add query parameters in optionalArgs</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">optionalArgs</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">timeMin</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-ow">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">Date</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-nx">toISOString</span><span class="devsite-syntax-p">(),</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">showDeleted</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">singleEvents</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">maxResults</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">10</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">orderBy</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"startTime"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// use other optional query parameter here as needed.</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">};</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// call Events.list method to list the calendar events using calendarId optional query parameter</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">list</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">optionalArgs</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">items</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">length</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">===</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">0</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"No upcoming events found"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Print the calendar events</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">for</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">of</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-kd">let</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">when</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-o">!</span><span class="devsite-syntax-nx">when</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nx">when</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"%s (%s)"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">summary</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">when</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// TODO (developer) - Handle exception from Calendar API</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"Failed with error %s"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span></pre></devsite-code>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+</p>
+
+
+
+<p><ol start="3"><li>Click Save <img src="../../assets/53be9da3c3610fca8612.svg" class="inline-icon">.</li>
+   <li>Click <b>Untitled project</b>, type
+   <b>Quickstart</b>, and click <b>Rename</b>.</li></ol></p>
+
+<h2 id="configure_the_script" data-text="Configure the script" tabindex="-1">Configure the script</h2>
+
+
+
+<h3 id="enable-api" data-text="Enable the Google Calendar API" tabindex="-1">Enable the Google Calendar API</h3>
+
+<p>Open the Apps Script project.</p>
+
+
+
+<ol>
+<li>Click <strong>Editor</strong> <span class="material-icons" aria-hidden="true" translate="no">code</span>.</li>
+<li>Next to <strong>Services</strong>, click Add a service
+<span class="material-icons" aria-hidden="true" translate="no">add</span> .</li>
+<li>Select
+  Calendar API
+and click <strong>Add</strong>.</li>
+</ol>
+
+
+
+<h2 id="run_the_sample" data-text="Run the sample" tabindex="-1">Run the sample</h2>
+
+<p>In the Apps Script editor, click <strong>Run</strong>.</p>
+
+<p>The first time you run the sample, it prompts you to authorize access:</p>
+
+<ol>
+<li>Click <strong>Review permissions</strong>.</li>
+<li>Choose an account.</li>
+<li>Click <strong>Allow</strong>.</li>
+</ol>
+
+<p>The script's execution log appears at the bottom of the window.</p>
+
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+<div id="feedback-question">
+  <section class="expandable">
+    <button class="button button-blue button-with-icon expand-control gc-analytics-event" data-category="Quickstart" data-action="Feedback" data-label="Google Calendar API, Apps Script" data-value="1">
+      <span class="material-icons" aria-hidden="true" translate="no">done</span>
+      It worked!
+    </button>
+    <aside id="feedback-success" class="success">
+      <strong>Great!</strong>
+      Check out the further reading section below to learn more.
+    </aside>
+  </section>
+
+  <section class="expandable">
+    <button class="button button-with-icon expand-control gc-analytics-event" data-category="Quickstart" data-action="Feedback" data-label="Google Calendar API, Apps Script" data-value="0">
+      <span class="material-icons" aria-hidden="true" translate="no">warning</span>
+      There was a problem
+    </button>
+    <aside id="quickstart-feedback-failure" class="warning">
+      <strong>Bummer</strong>,
+      
+      <a href="apps-script.html" class="google-feedback" data-p="717201" data-b="Quickstart">
+      let us know what went wrong</a>.
+      
+      
+    Check out our <a href="apps-script.html#troubleshooting">
+    troubleshooting</a> section below for some common errors and solutions.
+  
+      
+      If you have found a bug in the code,
+      <a href="https://github.com/googleworkspace/apps-script-samples/issues">
+      report the issue on GitHub</a> or submit a pull request.
+      
+    </aside>
+  </section>
+</div>
+
+<h2 id="next_steps" data-text="Next steps" tabindex="-1">Next steps</h2>
+
+<ul>
+<li><a href="https://developers.google.com/apps-script/guides/services/advanced">Google Apps Script Advanced Services documentation</a></li>
+<li><a href="https://developers.google.com/workspace/explore">Try the Google Workspace APIs in the APIs explorer</a>
+
+  <li><a href="../guides/create-events.html">Create events</a></li>
+  <li><a href="../troubleshoot-authentication-authorization.html">Troubleshoot authentication and authorization issues</a></li>
+  <li><a href="../v3/reference.html">Calendar API reference documentation</a></li>
+</li>
+</ul>
+  
+
+  
+</main></body></html>

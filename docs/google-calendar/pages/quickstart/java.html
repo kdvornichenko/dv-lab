@@ -1,0 +1,1519 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Java quickstart</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Java quickstart</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/quickstart/java">https://developers.google.com/workspace/calendar/api/quickstart/java</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Create a Java command-line application that makes requests to the Google Calendar API.</p>
+
+<p>Quickstarts explain how to set up and run an app that calls a
+Google Workspace API. This quickstart uses a
+simplified authentication approach that is appropriate for a testing
+environment. For a production environment, we recommend learning about
+<a href="../related/workspace/guides/auth-overview.html">authentication and authorization</a>
+before
+<a href="../related/workspace/guides/create-credentials.html#choose_the_access_credential_that_is_right_for_you">choosing the access credentials</a>
+that are appropriate for your app.</p>
+
+<p>This quickstart uses Google Workspace's recommended API client libraries
+to handle some details of the authentication and authorization flow.</p>
+
+<h2 id="objectives" data-text="Objectives" tabindex="-1">Objectives</h2>
+
+<ul>
+<li>Set up your environment.</li>
+<li>Set up the sample.</li>
+<li>Run the sample.</li>
+</ul>
+
+<h2 id="prerequisites" data-text="Prerequisites" tabindex="-1">Prerequisites</h2>
+
+<ul>
+<li>Java 11 or greater.</li>
+<li><a href="https://gradle.org/install/">Gradle 7.0 or greater</a>.</li>
+<li><a href="../related/workspace/guides/create-project.html">A Google Cloud project</a>.</li>
+</ul>
+
+
+
+<p><ul><li>A Google account with Google Calendar enabled.</li></ul></p>
+
+
+
+<h2 id="set-up-environment" data-text="Set up your environment" tabindex="-1">Set up your environment</h2>
+
+<p>To complete this quickstart, set up your environment.</p>
+
+<h3 id="enable_the_api" data-text="Enable the API" tabindex="-1">Enable the API</h3>
+
+Before using Google APIs, you need to turn them on in a Google Cloud project.
+You can turn on one or more APIs in a single Google Cloud project.
+
+
+
+<ul>
+<li><p>In the Google Cloud console, enable the Google Calendar API.</p>
+<p><a href="https://console.cloud.google.com/flows/enableapi?apiid=calendar-json.googleapis.com" class="button button-primary" target="console">Enable the API</a></p></li>
+</ul>
+
+
+
+
+<h3 id="configure_the_oauth_consent_screen" data-text="Configure the OAuth consent screen" tabindex="-1">Configure the OAuth consent screen</h3>
+
+<p>If you're using a new Google Cloud project to complete this quickstart, configure
+the OAuth consent screen. If you've already
+completed this step for your Cloud project, skip to the next section.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<ol>
+  <li>
+    In the Google API Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+    <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+    <span aria-label="and then">&gt;</span> <b>Branding</b>.
+  <p><a href="https://console.developers.google.com/auth/branding" class="button button-primary" target="console">Go to Branding</a></p></li>
+  <li>
+    If you have already configured the Google Auth platform, you can configure the following OAuth Consent Screen settings in <a href="https://console.developers.google.com/auth/branding">Branding</a>, <a href="https://console.developers.google.com/auth/audience">Audience</a>, and <a href="https://console.developers.google.com/auth/scopes">Data Access</a>. If you see a message that says <b>Google Auth platform not configured yet</b>, click <b>Get Started</b>:
+  </li>
+  <ol>
+    <li>Under <b>App Information</b>, in <b>App name</b>, enter a name for the app.</li>
+    <li>
+      In <b>User support email</b>, choose a support email address where users can contact you if they have questions about their consent.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Audience</b>, select <b>Internal</b>.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Contact Information</b>, enter an <b>Email address</b> where you can be notified about any changes to your project.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Finish</b>, review the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> and if you agree, select <b>I agree to the Google API Services: User Data Policy</b>.
+    </li>
+    <li>
+      Click <b>Continue</b>.
+    </li>
+    <li>
+      Click <b>Create</b>.
+    </li>
+  </ol>
+  <li>
+    For now, you can skip adding scopes.
+    In the future, when you create an app for use outside of your
+    Google Workspace organization, you must change the <b>User type</b> to <b>External</b>. Then
+    add the authorization scopes that your app requires. To learn more, see the full
+    <a href="../related/workspace/guides/configure-oauth-consent.html">Configure OAuth consent</a> guide.
+  </li>
+</ol>
+
+<h3 id="authorize_credentials_for_a_desktop_application" data-text="Authorize credentials for a desktop application" tabindex="-1">Authorize credentials for a desktop application</h3>
+
+To authenticate end users and access user data in your app, you need to
+create one or more OAuth 2.0 Client IDs. A client ID is used to identify a
+single app to Google's OAuth servers. If your app runs on multiple platforms,
+you must create a separate client ID for each platform.
+
+<ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<li>
+  In the Google Cloud Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+  <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+  <span aria-label="and then">&gt;</span> <b>Clients</b>.
+  <p><a href="https://console.developers.google.com/auth/clients" class="button button-primary" target="console">Go to Clients</a></p>
+</li>
+<li>Click <b>Create Client</b>.</li>
+<li>Click <b>Application type</b> <span aria-label="and then">&gt;</span> <b>Desktop app</b>.</li>
+<li>In the <b>Name</b> field, type a name for the credential. This name is only shown in the Google Cloud Console.</li>
+<li>Click <b>Create</b>.
+  <p>
+    The newly created credential appears under "OAuth 2.0 Client IDs."
+  </p>
+</li>
+<li>Save the downloaded JSON file as <code translate="no" dir="ltr">credentials.json</code>, and move the
+  file to your working directory.</li>
+</ol>
+
+
+
+
+
+<h2 id="prepare_the_workspace" data-text="Prepare the workspace" tabindex="-1">Prepare the workspace</h2>
+
+<ol>
+<li><p>In your working directory, create a new project structure:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded><code translate="no" dir="ltr">gradle init --type basic
+mkdir -p src/main/java src/main/resources 
+</code></pre></devsite-code></li>
+<li><p>In the <code translate="no" dir="ltr">src/main/resources/</code> directory, copy the <code translate="no" dir="ltr">credentials.json</code> file
+that you previously downloaded.</p></li>
+<li><p>Open the default <code translate="no" dir="ltr">build.gradle</code> file and replace its contents with the
+following code:</p>
+
+
+
+<p>
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="github-docwidget-include">
+  
+  <div class="filepath">calendar/quickstart/build.gradle</div>
+  <div>
+    
+    <a class="view-on-github button" target="_blank" href="https://github.com/googleworkspace/java-samples/blob/main/calendar/quickstart/build.gradle" track-type="github" track-name="gitHubViewButton" track-metadata-link-destination="https://github.com/googleworkspace/java-samples/blob/main/calendar/quickstart/build.gradle">View on GitHub</a>
+  </div>
+  
+  <div></div>
+</div><div class="github-docwidget-gitinclude-code">
+  
+    
+  
+  
+  <div></div><devsite-code><pre class=" devsite-click-to-copy" track-metadata-position="googleworkspace/java-samples/calendar/quickstart/build.gradle/main/" data-code-snippet="true" data-github-path="googleworkspace/java-samples/calendar/quickstart/build.gradle" data-git-revision="main" translate="no" dir="ltr" is-upgraded syntax="Groovy"><span class="devsite-syntax-n">apply</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nl">plugin:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'java'</span>
+<span class="devsite-syntax-n">apply</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nl">plugin:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'application'</span>
+
+<span class="devsite-syntax-n">mainClassName</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'CalendarQuickstart'</span>
+<span class="devsite-syntax-n">sourceCompatibility</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">11</span>
+<span class="devsite-syntax-n">targetCompatibility</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">11</span>
+<span class="devsite-syntax-n">version</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'1.0'</span>
+
+<span class="devsite-syntax-n">repositories</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">mavenCentral</span><span class="devsite-syntax-o">()</span>
+<span class="devsite-syntax-o">}</span>
+
+<span class="devsite-syntax-n">dependencies</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">implementation</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'com.google.api-client:google-api-client:2.0.0'</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">implementation</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'com.google.oauth-client:google-oauth-client-jetty:1.34.1'</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">implementation</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'com.google.apis:google-api-services-calendar:v3-rev20220715-2.0.0'</span>
+<span class="devsite-syntax-o">}</span></pre></devsite-code>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+</p>
+
+
+
+<p></p></li>
+</ol>
+
+<h2 id="set_up_the_sample" data-text="Set up the sample" tabindex="-1">Set up the sample</h2>
+
+<ol>
+<li><p>In the <code translate="no" dir="ltr">src/main/java/</code> directory, create a new Java file with a name that
+matches the <code translate="no" dir="ltr">mainClassName</code> value in your <code translate="no" dir="ltr">build.gradle</code> file.</p></li>
+<li><p>Include the following code in your new Java file:</p>
+
+
+
+<p>
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="github-docwidget-include">
+  
+  <div class="filepath">calendar/quickstart/src/main/java/CalendarQuickstart.java</div>
+  <div>
+    
+    <a class="view-on-github button" target="_blank" href="https://github.com/googleworkspace/java-samples/blob/main/calendar/quickstart/src/main/java/CalendarQuickstart.java" track-type="github" track-name="gitHubViewButton" track-metadata-link-destination="https://github.com/googleworkspace/java-samples/blob/main/calendar/quickstart/src/main/java/CalendarQuickstart.java">View on GitHub</a>
+  </div>
+  
+  <div></div>
+</div><div class="github-docwidget-gitinclude-code">
+  
+    
+  
+  
+  <div></div><devsite-code><pre class="devsite-click-to-copy" track-metadata-position="googleworkspace/java-samples/calendar/quickstart/src/main/java/CalendarQuickstart.java/main/calendar_quickstart" data-code-snippet="true" data-github-path="googleworkspace/java-samples/calendar/quickstart/src/main/java/CalendarQuickstart.java" data-git-revision="main" data-region-tag="calendar_quickstart" translate="no" dir="ltr" is-upgraded syntax="Java"><span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.auth.oauth2.Credential</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.googleapis.javanet.GoogleNetHttpTransport</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.http.javanet.NetHttpTransport</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.json.JsonFactory</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.json.gson.GsonFactory</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.util.DateTime</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.client.util.store.FileDataStoreFactory</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.services.calendar.Calendar</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.services.calendar.CalendarScopes</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.services.calendar.model.Event</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">com.google.api.services.calendar.model.Events</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.io.FileNotFoundException</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.io.IOException</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.io.InputStream</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.io.InputStreamReader</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.security.GeneralSecurityException</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.util.Collections</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nn">java.util.List</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-cm">/* class to demonstrate use of Calendar events list API */</span>
+<span class="devsite-syntax-kd">public</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">class</span> <span class="devsite-syntax-nc">CalendarQuickstart</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">   * Application name.</span>
+<span class="devsite-syntax-cm">   */</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">APPLICATION_NAME</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"Google Calendar API Java Quickstart"</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">   * Global instance of the JSON factory.</span>
+<span class="devsite-syntax-cm">   */</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">JsonFactory</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">JSON_FACTORY</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">GsonFactory</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getDefaultInstance</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">   * Directory to store authorization tokens for this application.</span>
+<span class="devsite-syntax-cm">   */</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">TOKENS_DIRECTORY_PATH</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"tokens"</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">   * Global instance of the scopes required by this quickstart.</span>
+<span class="devsite-syntax-cm">   * If modifying these scopes, delete your previously saved tokens/ folder.</span>
+<span class="devsite-syntax-cm">   */</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">List&lt;String&gt;</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">SCOPES</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">Collections</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">singletonList</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">CalendarScopes</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">CALENDAR_READONLY</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">CREDENTIALS_FILE_PATH</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"/credentials.json"</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">   * Creates an authorized Credential object.</span>
+<span class="devsite-syntax-cm">   *</span>
+<span class="devsite-syntax-cm">   * @param HTTP_TRANSPORT The network HTTP Transport.</span>
+<span class="devsite-syntax-cm">   * @return An authorized Credential object.</span>
+<span class="devsite-syntax-cm">   * @throws IOException If the credentials.json file cannot be found.</span>
+<span class="devsite-syntax-cm">   */</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">private</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Credential</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">getCredentials</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">NetHttpTransport</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">HTTP_TRANSPORT</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-kd">throws</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">IOException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Load client secrets.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">InputStream</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">in</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">CalendarQuickstart</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">class</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getResourceAsStream</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">CREDENTIALS_FILE_PATH</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">in</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">throw</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">FileNotFoundException</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Resource not found: "</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">CREDENTIALS_FILE_PATH</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">GoogleClientSecrets</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">clientSecrets</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">GoogleClientSecrets</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">load</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">JSON_FACTORY</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">InputStreamReader</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">in</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Build flow and trigger user authorization request.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">GoogleAuthorizationCodeFlow</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">flow</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">GoogleAuthorizationCodeFlow</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Builder</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">HTTP_TRANSPORT</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">JSON_FACTORY</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">clientSecrets</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">SCOPES</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setDataStoreFactory</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">FileDataStoreFactory</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">java</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">io</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">File</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">TOKENS_DIRECTORY_PATH</span><span class="devsite-syntax-p">)))</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setAccessType</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"offline"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">build</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">LocalServerReceiver</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">receiver</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">LocalServerReceiver</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Builder</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setPort</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">8888</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">build</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Credential</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">credential</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">AuthorizationCodeInstalledApp</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">flow</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">receiver</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">authorize</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"user"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">//returns an authorized Credential object.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">credential</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">public</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">void</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">main</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-p">...</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">args</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">throws</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">IOException</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">GeneralSecurityException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// Build a new authorized API client service.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">final</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">NetHttpTransport</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">HTTP_TRANSPORT</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">GoogleNetHttpTransport</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">newTrustedTransport</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Builder</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">HTTP_TRANSPORT</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">JSON_FACTORY</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">getCredentials</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">HTTP_TRANSPORT</span><span class="devsite-syntax-p">))</span>
+<span class="devsite-syntax-w">            </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setApplicationName</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">APPLICATION_NAME</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">            </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">build</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-c1">// List the next 10 events from the primary calendar.</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">now</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">currentTimeMillis</span><span class="devsite-syntax-p">());</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">Events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">list</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setMaxResults</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">10</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setTimeMin</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">now</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setOrderBy</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"startTime"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSingleEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">List&lt;Event&gt;</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getItems</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">isEmpty</span><span class="devsite-syntax-p">())</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"No upcoming events found."</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Upcoming events"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-k">for</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">items</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getStart</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">getDateTime</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">          </span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getStart</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">getDate</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"%s (%s)\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getSummary</span><span class="devsite-syntax-p">(),</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span></pre></devsite-code>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+</p>
+
+</li>
+</ol>
+
+<h2 id="run_the_sample" data-text="Run the sample" tabindex="-1">Run the sample</h2>
+
+<ol>
+<li><p>Run the sample:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+gradle run
+</pre></devsite-code></li>
+</ol>
+
+<ol start="2">
+  <li>
+    The first time you run the sample, it prompts you to authorize access:
+    <ol>
+      <li>
+        If you're not already signed in to your Google Account, sign in when prompted. If
+        you're signed in to multiple accounts, select one account to use for authorization.
+      </li>
+      <li>Click <strong>Accept</strong>.</li>
+    </ol>
+    <p>
+      Your Java application runs and calls the Google Calendar API.
+    </p>
+    <p>
+      Authorization information is stored in the file system, so the next time you run the sample
+      code, you aren't prompted for authorization.
+    </p>
+  </li>
+</ol>
+
+<h2 id="next_steps" data-text="Next steps" tabindex="-1">Next steps</h2>
+
+<ul>
+<li><a href="https://developers.google.com/workspace/explore">Try the Google Workspace APIs in the APIs explorer</a>
+<ul></li>
+</ul>
+
+
+
+  <li><a href="../guides/create-events.html">Create events</a></li>
+  <li><a href="../troubleshoot-authentication-authorization.html">Troubleshoot authentication and authorization issues</a></li>
+  <li><a href="../v3/reference.html">Calendar API reference documentation</a></li>
+
+
+
+
+
+
+<li><a href="https://developers.google.com/api-client-library/java">Google APIs Client for Java documentation</a></li>
+<li><a href="https://googleapis.dev/java/google-api-services-calendar/latest/index.html">Google Calendar API Javadoc documentation</a></li>
+
+
+
+</ul></p>
+
+  
+
+  
+</main></body></html>

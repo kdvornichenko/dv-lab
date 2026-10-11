@@ -1,0 +1,813 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Calendars and events</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Calendars and events</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/concepts/events-calendars">https://developers.google.com/workspace/calendar/api/concepts/events-calendars</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>This guide describes calendars, events, and their relationship to each other.</p>
+
+<h2 id="calendars" data-text="Calendars" tabindex="-1">Calendars</h2>
+
+<p>A <a href="../v3/reference/calendars.html#resource-representations">calendar</a>
+is a collection of related events, along with additional metadata
+such as summary, default time zone, and location. Each calendar is identified
+by an ID, which is an email address. Calendars can be shared with others.
+Primary calendars are owned by their associated user account; other calendars
+are owned by a single data owner.</p>
+
+<h2 id="events" data-text="Events" tabindex="-1">Events</h2>
+
+<p>An <a href="../v3/reference/events.html#resource-representations">event</a>
+is an object associated with a specific date or time range. Events are
+identified by a unique ID. Besides a start and end date-time, events contain
+other data such as summary, description, location, status, reminders, and
+attachments.</p>
+
+<h3 id="types-of-events" data-text="Types of events" tabindex="-1">Types of events</h3>
+
+<p>Google Calendar supports <em>single</em> and <em>recurring</em> events:</p>
+
+<ul>
+<li>A <em>single</em> event represents a unique occurrence.</li>
+<li>A <em>recurring</em> event defines multiple occurrences.</li>
+</ul>
+
+<p>Events may also be <em>timed</em> or <em>all-day</em>:</p>
+
+<ul>
+<li>A <em>timed</em> event occurs between two specific points in time. Timed events
+use the <code translate="no" dir="ltr">start.dateTime</code> and <code translate="no" dir="ltr">end.dateTime</code> fields to specify when they
+occur.</li>
+<li>An <em>all-day</em> event spans an entire day or consecutive series of days. All-day
+events use the <code translate="no" dir="ltr">start.date</code> and <code translate="no" dir="ltr">end.date</code> fields to specify when they occur.
+Note that the timezone field has no significance for all-day events.</li>
+</ul>
+
+<aside class="warning">The start and end of the event must both be timed or both
+be all-day. For example, it is <b>not valid</b> to specify
+<code translate="no" dir="ltr">start.date</code> and <code translate="no" dir="ltr">end.dateTime</code>.</aside>
+
+<h3 id="organizers" data-text="Organizers" tabindex="-1">Organizers</h3>
+
+<p>Events have a single <em>organizer</em> which is the calendar containing the main copy
+of the event. Events can also have multiple
+<a href="sharing.html#inviting_attendees_to_events">attendees</a>.
+An attendee is usually the primary calendar of an invited user.</p>
+
+<p>The following diagram shows the conceptual relationship between calendars,
+events, and other related elements:</p>
+
+<p><img src="../../assets/6ba26a88ed83ad4384f6.png" alt="Calendars and events conceptual model"></p>
+
+<h2 id="primary-calendars-and-other-calendars" data-text="Primary calendars and other calendars" tabindex="-1">Primary calendars and other calendars</h2>
+
+<p>A <em>primary</em> calendar is a special type of calendar associated with a single
+user account. This calendar is created automatically for each new user account
+and its ID usually matches the user's primary email address. As long as the
+account exists, its primary calendar can never be deleted or "un-owned" by the
+user. However, it can still be shared with other users.</p>
+
+<p>In addition to the primary calendar, you can explicitly create any number of
+other calendars. These calendars can be modified, deleted, and shared with
+others. Such calendars have a single data owner with the highest privileges,
+including the exclusive right to delete the calendar. The data owner's access
+level cannot be downgraded. The data owner is initially determined as the user
+who created the calendar, however the data ownership can be transferred in the
+Google Calendar UI.</p>
+
+<aside class="important"><b>Important:</b> When creating a calendar, we
+recommend that your app authenticate as the intended data owner of the calendar. You can
+use <a href="https://developers.google.com/workspace/cloud-search/docs/guides/delegation">domain-wide
+delegation of authority</a> to allow applications to act on behalf of a specific
+user. Don't use a service account for authentication. If you use a service account
+for authentication, the service account is the data owner, which can lead to
+unexpected behavior. For example, if a service account is the data owner, data
+ownership cannot be transferred.</aside>
+
+<h2 id="calendar-and-calendar-list" data-text="Calendar and calendar list" tabindex="-1">Calendar and calendar list</h2>
+
+<p>The <a href="../v3/reference/calendars.html">Calendars</a> collection
+represents all existing calendars. It can be used to create and delete
+calendars. You can also retrieve or set global properties shared across all
+users with access to a calendar. For example, a calendar's title and default
+time zone are global properties.</p>
+
+<p>The <a href="../v3/reference/calendarList.html">CalendarList</a> is a
+collection of all calendar entries that a user has added to their list (shown
+in the left panel of the web UI). You can use it to add and remove existing
+calendars to or from the user's list. You also use it to retrieve and set the
+values of user-specific calendar properties, such as default reminders. Another
+example is foreground color, since different users can have different colors
+set for the same calendar.</p>
+<aside class="note"><strong>Note:</strong><span> The data owner of a calendar cannot remove this calendar from their
+calendar list.</span></aside>
+<p>The following table compares the meaning of operations for the two collections:</p>
+
+<table>
+  <tr>
+    <th>Operation</th>
+    <th>Calendars</th>
+    <th>CalendarList</th>
+  </tr>
+  <tr>
+    <td><code translate="no" dir="ltr">insert</code></td>
+    <td>Creates a new secondary calendar. This calendar is also added to the
+        creator's calendar list, and cannot be removed, unless the calendar is
+        deleted or transferred.</td>
+    <td>Inserts an existing calendar into the user's list.</td>
+  </tr>
+  <tr>
+    <td><code translate="no" dir="ltr">delete</code></td>
+    <td>Deletes a secondary calendar.</td>
+    <td>Removes a calendar from the user's list.</td>
+  </tr>
+  <tr>
+    <td><code translate="no" dir="ltr">get</code></td>
+    <td>Retrieves calendar metadata, for example, title and time zone.</td>
+    <td>Retrieves metadata <strong>plus</strong> user-specific customization
+        such as color or override reminders.</td>
+  </tr>
+  <tr>
+    <td><code translate="no" dir="ltr">patch</code>/<code translate="no" dir="ltr">update</code></td>
+    <td>Modifies calendar metadata.</td>
+    <td>Modifies user-specific calendar properties.</td>
+  </tr>
+</table>
+
+<h2 id="recurring-events" data-text="Recurring events" tabindex="-1">Recurring events</h2>
+
+<p>Some events occur multiple times on a regular schedule, such as weekly meetings,
+birthdays, and holidays. Other than having different start and end times,
+these repeated events are often identical.</p>
+
+<p>Events are called <em>recurring</em> if they repeat according to a defined schedule.
+<em>Single</em> events are non-recurring and happen only once.</p>
+
+<h3 id="recurrence-rule" data-text="Recurrence rule" tabindex="-1">Recurrence rule</h3>
+
+<p>The schedule for a recurring event is defined in two parts:</p>
+
+<ul>
+<li><p>Its start and end fields (which define the first occurrence, as if this were
+just a stand-alone single event), and</p></li>
+<li><p>Its recurrence field (which defines how the event should be repeated over time).</p></li>
+</ul>
+
+<p>The recurrence field contains an array of strings representing one or several
+<code translate="no" dir="ltr">RRULE</code>, <code translate="no" dir="ltr">RDATE</code> or <code translate="no" dir="ltr">EXDATE</code> properties as defined in <a href="http://tools.ietf.org/html/rfc5545">RFC
+5545</a>.</p>
+
+<p>The <code translate="no" dir="ltr">RRULE</code> property is the most important as it defines a regular rule for
+repeating the event. It is composed of several components. Some of them are:</p>
+
+<ul>
+<li><p><code translate="no" dir="ltr">FREQ</code> — The frequency with which the event should be repeated (such as
+<code translate="no" dir="ltr">DAILY</code> or <code translate="no" dir="ltr">WEEKLY</code>). Required.</p></li>
+<li><p><code translate="no" dir="ltr">INTERVAL</code> — Works together with <code translate="no" dir="ltr">FREQ</code> to specify how often the event
+should be repeated. For example, <code translate="no" dir="ltr">FREQ=DAILY;INTERVAL=2</code> means once every
+two days.</p></li>
+<li><p><code translate="no" dir="ltr">COUNT</code> — Number of times this event should be repeated.</p>
+
+<aside class="note">You can use either COUNT or UNTIL to specify the end
+of the event recurrence. Don't use both in the same rule.</aside></li>
+<li><p><code translate="no" dir="ltr">UNTIL</code> — The date or date-time until which the event should be repeated (inclusive).</p></li>
+<li><p><code translate="no" dir="ltr">BYDAY</code> — Days of the week on which the event should be repeated (<code translate="no" dir="ltr">SU</code>,
+<code translate="no" dir="ltr">MO</code>, <code translate="no" dir="ltr">TU</code>, etc.). Other similar components include <code translate="no" dir="ltr">BYMONTH</code>, <code translate="no" dir="ltr">BYYEARDAY</code>, and
+<code translate="no" dir="ltr">BYHOUR</code>.</p></li>
+</ul>
+
+<p>The <code translate="no" dir="ltr">RDATE</code> property specifies additional dates or date-times when the event
+occurrences should happen. For example, <code translate="no" dir="ltr">RDATE;VALUE=DATE:19970101,19970120</code>.
+Use this to add extra occurrences not covered by the <code translate="no" dir="ltr">RRULE</code>.</p>
+
+<p>The <code translate="no" dir="ltr">EXDATE</code> property is similar to RDATE, but specifies dates or date-times
+when the event should <em>not</em> happen. That is, those occurrences should be
+excluded. This must point to a valid instance generated by the recurrence rule.</p>
+
+<p><code translate="no" dir="ltr">EXDATE</code> and <code translate="no" dir="ltr">RDATE</code> can have a time zone, and must be dates (not date-times)
+for all-day events.</p>
+
+<p>Each of the properties may occur within the recurrence field multiple times.
+The recurrence is defined as the union of all <code translate="no" dir="ltr">RRULE</code> and <code translate="no" dir="ltr">RDATE</code> rules, minus the
+ones excluded by all <code translate="no" dir="ltr">EXDATE</code> rules.</p>
+
+<p>Here are some examples of recurring events:</p>
+
+<ol>
+<li><p>An event that happens from 6:00 AM to 7:00 AM every Tuesday and Friday starting
+from September 15, 2015 and stopping after the fifth occurrence on September 29, 2015:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JSON"><code translate="no" dir="ltr"><span class="devsite-syntax-err">...</span>
+<span class="devsite-syntax-nt">"start"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2015-09-15T06:00:00+02:00"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"timeZone"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"Europe/Zurich"</span>
+<span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-nt">"end"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"dateTime"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2015-09-15T07:00:00+02:00"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"timeZone"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"Europe/Zurich"</span>
+<span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-nt">"recurrence"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s2">"RRULE:FREQ=WEEKLY;COUNT=5;BYDAY=TU,FR"</span>
+<span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-err">...</span>
+</code></pre></devsite-code></li>
+<li><p>An all-day event starting on June 1, 2015 and repeating every 3 days
+throughout the month, excluding June 10 but including June 9 and June 11:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JSON"><code translate="no" dir="ltr"><span class="devsite-syntax-err">...</span>
+<span class="devsite-syntax-nt">"start"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"date"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2015-06-01"</span>
+<span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-nt">"end"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"date"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"2015-06-02"</span>
+<span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-nt">"recurrence"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s2">"EXDATE;VALUE=DATE:20150610"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s2">"RDATE;VALUE=DATE:20150609,20150611"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s2">"RRULE:FREQ=DAILY;UNTIL=20150628;INTERVAL=3"</span>
+<span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-err">...</span>
+</code></pre></devsite-code></li>
+</ol>
+
+<h3 id="instances-and-exceptions" data-text="Instances and exceptions" tabindex="-1">Instances and exceptions</h3>
+
+<p>A recurring event consists of several <em>instances</em>: its particular occurrences
+at different times. These instances act as events themselves.</p>
+
+<p>Recurring event modifications can either affect the whole
+recurring event (and all of its instances), or only individual instances.
+Instances that differ from their parent recurring event are called <em>exceptions</em>.</p>
+
+<p>For example, an exception may have a different summary, a different start time,
+or additional attendees invited only to that instance. You can also cancel an
+instance altogether without removing the recurring event
+(instance cancellations are reflected in the event
+<a href="../v3/reference/events.html#status"><code translate="no" dir="ltr">status</code></a>).</p>
+
+<p>For examples of how to work with recurring events and instances using the
+Google Calendar API, see <a href="https://developers.google.com/workspace/calendar/recurringevents">Recurring events</a>.</p>
+
+<h2 id="time-zones" data-text="Time zones" tabindex="-1">Time zones</h2>
+
+<p>A time zone specifies a region that observes a uniform standard time.
+In the Google Calendar API, you specify time zones using
+<a href="http://www.iana.org/time-zones">IANA time zone</a> identifiers.</p>
+
+<p>You can set the time zone for both calendars and events. The following sections
+describe the effects of these settings.</p>
+
+<h3 id="calendar-time-zone" data-text="Calendar time zone" tabindex="-1">Calendar time zone</h3>
+
+<p>The time zone of the calendar is also known as the <em>default time zone</em> because of
+its implications for query results. The calendar time zone affects the way
+time values are interpreted or presented by the
+<a href="../v3/reference/events/get.html"><code translate="no" dir="ltr">events.get()</code></a>,
+<a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">events.list()</code></a>, and
+<a href="../v3/reference/events/instances.html"><code translate="no" dir="ltr">events.instances()</code></a> methods.</p>
+
+<dl>
+<dt>Query result time-zone conversion</dt>
+<dd>Results of the
+<a href="../v3/reference/events/get.html"><code translate="no" dir="ltr">get()</code></a>,
+<a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">list()</code></a>, and
+<a href="../v3/reference/events/instances.html"><code translate="no" dir="ltr">instances()</code></a>
+methods are returned in the time zone that you specify in the <code translate="no" dir="ltr">timeZone</code>
+parameter. If you omit this parameter, then these methods all use the calendar
+time zone as the default.</dd>
+<dt>Matching all-day events to time-bracketed queries</dt>
+<dd>The
+<a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">list()</code></a>, and
+<a href="../v3/reference/events/instances.html"><code translate="no" dir="ltr">instances()</code></a>
+methods let you specify start- and end-time filters, with the method
+returning instances that fall in the specified range. The calendar time zone
+is used to calculate start and end times of all-day events to determine
+whether they fall within the filter specification.</dd>
+</dl>
+
+<h3 id="event-time-zone" data-text="Event time zone" tabindex="-1">Event time zone</h3>
+
+<p>Event instances have a start and end time; the specification for these times
+may include the time zone. You can specify the time zone in several ways; the
+following all specify the same time:</p>
+
+<ul>
+<li>Include a time zone offset in the <code translate="no" dir="ltr">dateTime</code> field, for example <code translate="no" dir="ltr">2017-01-25T09:00:00-0500</code>.</li>
+<li>Specify the time with no offset, for example <code translate="no" dir="ltr">2017-01-25T09:00:00</code>, leaving the <code translate="no" dir="ltr">timeZone</code> field empty (this implicitly uses the default time zone).</li>
+<li>Specify the time with no offset, for example <code translate="no" dir="ltr">2017-01-25T09:00:00</code>, but use the <code translate="no" dir="ltr">timeZone</code> field to specify the time zone.</li>
+</ul>
+
+<p>You can also specify event times in UTC if you prefer:</p>
+
+<ul>
+<li>Specify the time in UTC: <code translate="no" dir="ltr">2017-01-25T14:00:00Z</code> or use a zero offset <code translate="no" dir="ltr">2017-01-25T14:00:00+0000</code>.</li>
+</ul>
+
+<p>The internal representation of the event time is the same in all these cases,
+but setting the <code translate="no" dir="ltr">timeZone</code> field attaches a time zone to the event, just as
+when you <a href="https://support.google.com/calendar/answer/37064?ref_topic=6272668">set an event time zone using the Calendar
+UI</a>:</p>
+
+<p><img class="screenshot" alt="Screenshot fragment showing time zone on an event" src="../../assets/65f86d731f7ae6b97ef1.png"></p>
+
+<aside class="note">For single events, you can specify different time zones for
+an event's start and end times. (This can help with events—such as travel—that
+actually start and end in different time zones.) For recurring events,
+see [Recurring event time zone](#recurring-event-time-zone).</aside>
+
+<h3 id="recurring-event-time-zone" data-text="Recurring event time zone" tabindex="-1">Recurring event time zone</h3>
+
+<p>For recurring events, you must always specify a single time zone
+to expand the recurrences of the event.</p>
+
+  
+
+  
+</main></body></html>

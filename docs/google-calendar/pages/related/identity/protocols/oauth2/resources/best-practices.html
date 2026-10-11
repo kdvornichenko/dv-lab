@@ -1,0 +1,504 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Best Practices</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Best Practices</h1><p>Источник: <a href="https://developers.google.com/identity/protocols/oauth2/resources/best-practices">https://developers.google.com/identity/protocols/oauth2/resources/best-practices</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+      <devsite-key-takeaways-panel role="region" aria-labelledby="key-takeaways-panel-title">
+  <div class="devsite-key-takeaways-panel-header" aria-labelledby="key-takeaways-panel-title" aria-expanded="false" role="button" tabindex="0">
+    
+    <img src="../../../../../../assets/5577ad69e1ca0549dbb0.svg" alt="Spark icon"/>
+    <div class="devsite-key-takeaways-panel-title">
+      
+      <h2 class="no-link hide-from-toc" id="key-takeaways-panel-title" data-tooltip="Generated with AI">Page Summary</h2>
+    </div>
+    <span class="material-icons devsite-key-takeaways-panel-toggle-button" aria-hidden="true"></span>
+  </div>
+  <div class="devsite-key-takeaways-panel-content">
+    <devsite-feedback product-id="5123748" bucket="8963846920012181156" disable-product-feedback>
+      <button class="button-flat button-primary devsite-key-takeaways-report-button" data-title="Report Key Takeaways!" aria-label="Report Key Takeaways!">
+        <span class="material-icons" aria-label="Report Key Takeaways!">outlined_flag</span>
+      </button>
+    </devsite-feedback>
+    <ul class="devsite-key-takeaways-panel-list">
+      
+        <li>
+          <p>Client credentials should be stored securely, like in a secret manager, and never hardcoded or committed to code repositories.</p>
+
+        </li>
+      
+        <li>
+          <p>User tokens, including refresh and access tokens, must be stored securely and never transmitted in plain text; revoke and delete them when no longer needed.</p>
+
+        </li>
+      
+        <li>
+          <p>Handle refresh token invalidation or expiration by considering appropriate application responses and potentially integrating with services like Cross-Account Protection.</p>
+
+        </li>
+      
+        <li>
+          <p>Utilize incremental authorization to request OAuth scopes only when needed for specific functionality, not all at once during initial authentication.</p>
+
+        </li>
+      
+        <li>
+          <p>When requesting multiple scopes, be prepared for users to deny some and disable corresponding features, only prompting again in context and with justification.</p>
+
+        </li>
+      
+    </ul>
+  </div>
+</devsite-key-takeaways-panel>
+    
+    
+    
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    
+
+<p>
+  This page covers some general best practices for integrating with OAuth 2.0. Consider these best
+  practices in addition to any specific guidance for your type of application and development
+  platform. Also refer to the
+  <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance">advice for getting
+    your app ready for production</a> and <a href="../policies.html">Google's
+       OAuth 2.0 policies</a>.
+</p>
+
+<section>
+  <h2 id="handle-client-credentials-securely" data-text="Handle client credentials securely" tabindex="-1">Handle client credentials securely</h2>
+
+  <p>
+    The OAuth client credentials identify your app's identity and should be handled carefully. Only
+    store these credentials in secure storage, for example using a secret manager such as
+    <a href="https://cloud.google.com/secret-manager/docs/overview">Google Cloud Secret Manager</a>.
+     Do not hardcode the credentials, commit them to a code repository or publish them publicly.
+  </p>
+</section>
+
+<section>
+  <h2 id="handle-user-tokens-securely" data-text="Handle user tokens securely" tabindex="-1">Handle user tokens securely</h2>
+
+  <p>
+    User tokens include both refresh tokens and access tokens used by your application. Store
+    tokens securely <a href="https://wikipedia.org/wiki/Data_at_rest" class="external">at rest</a>
+    and never transmit them in plain text. Use a secure storage system appropriate for your
+    platform, such as
+    <a href="https://developer.android.com/training/articles/keystore">Keystore</a> on Android,
+    Keychain Services on iOS and macOS, or Credential Locker on Windows.
+  </p>
+
+  <p>
+    <a href="../web-server.html#tokenrevoke">Revoke tokens</a> as soon as they
+     are no longer needed and delete them permanently from your systems.
+  </p>
+
+  <p>
+    In addition, also consider these best practices for your platform:
+  </p>
+
+  <ul>
+    <li>For <a href="../web-server.html">server-side</a> applications that store
+      tokens for many users, encrypt them at rest and ensure that your datastore is not publicly
+      accessible to the Internet.
+    </li>
+    <li>For desktop apps, using the
+      <a href="https://developers.google.com/identity/protocols/oauth2/native-app#obtainingaccesstokens">Proof Key for Code
+      Exchange (PKCE) protocol</a> is strongly recommended to obtain authorization codes that can
+      be exchanged for access tokens.
+    </li>
+  </ul>
+</section>
+
+<section>
+  <h2 id="sender-constrain-tokens" data-text="Sender-constrain tokens with DPoP" tabindex="-1">Sender-constrain tokens with DPoP</h2>
+
+  <p>
+    To protect your application against token theft and replay attacks, consider sender-constraining your tokens using
+    <a href="https://datatracker.ietf.org/doc/html/rfc9449" class="external">DPoP (Demonstrating Proof-of-Possession)</a>.
+    While standard Bearer tokens can be used by any party that intercepts them, DPoP tokens are cryptographically bound to a unique key pair generated and held by the client.
+  </p>
+
+  <p>
+    When using DPoP, the client presents a proof (a signed JSON Web Token) to the token endpoint when requesting or refreshing tokens. This proof demonstrates that the client is in possession of the private key that corresponds to the public key bound to the token. If a DPoP-bound refresh token is leaked, it cannot be replayed by an attacker without that private key.
+  </p>
+
+  <aside class="note"><b>Note:</b> Google's OAuth 2.0 implementation supports DPoP binding for <b>refresh tokens</b>. Issued access tokens remain standard Bearer tokens when accessing Google APIs.</aside>
+
+  <p>
+    DPoP works alongside <a href="https://developers.google.com/identity/protocols/oauth2/native-app#obtainingaccesstokens">PKCE</a> to provide comprehensive protection:
+  </p>
+  <ul>
+    <li><strong>PKCE</strong> protects the authorization code during the initial redirection flow.</li>
+    <li><strong>DPoP</strong> protects the long-lived refresh token, preventing replay attacks if it is compromised.</li>
+  </ul>
+
+  <p>
+    Adopting DPoP is strongly recommended if your application:
+  </p>
+  <ul>
+    <li>Operates as a public client (such as a single-page application or installed app) where refresh tokens may be more susceptible to exfiltration.</li>
+
+    <li>Accesses highly sensitive data or high-value APIs, where the impact of token leakage is significant.</li>
+    <li>Needs to meet strict compliance or security standards that mandate sender-constrained tokens.</li>
+  </ul>
+
+  <p>
+    For detailed instructions on constructing DPoP proofs and requesting DPoP-bound tokens, refer to the
+    <a href="../web-server.html#dpop">DPoP documentation</a>.
+  </p>
+</section>
+
+<section>
+  <h2 id="use-state-parameter" data-text="Use the state parameter" tabindex="-1">Use the state parameter</h2>
+
+  <p>
+    Before handling an OAuth 2.0 response, confirm that the <code translate="no" dir="ltr">state</code> received from
+    Google matches the <code translate="no" dir="ltr">state</code> sent in your authorization request. The
+    <code translate="no" dir="ltr">state</code> parameter should be a unique, non-guessable value generated by your
+    application.
+  </p>
+
+  <p>
+    Using the <code translate="no" dir="ltr">state</code> parameter helps to ensure that the user, not a malicious
+    script, is making the request and reduces the risk of
+    <a href="https://datatracker.ietf.org/doc/html/rfc6749#section-10.12">Cross-Site Request Forgery
+    (CSRF) attacks</a>.
+  </p>
+</section>
+
+<section>
+  <h2 id="handle-refresh-token-revocation" data-text="Handle refresh token revocation and expiration" tabindex="-1">Handle refresh token revocation and expiration</h2>
+
+  <p>
+    If your app has requested a <a href="../web-server.html#offline">refresh
+    token for offline access</a>, you must also handle their invalidation or expiration. Tokens
+    could be <a href="../../oauth2.html#expiration">invalidated for different reasons</a>,
+    for example it could have expired or your apps' access could have been revoked by the user or
+    an automated process. In this case, consider carefully how your application should respond,
+    including prompting the user at their next sign-in or cleaning up their data. To be notified of
+    token revocation, integrate with the <a href="https://developers.google.com/identity/protocols/risc">Cross-Account
+    Protection</a> service.
+  </p>
+</section>
+
+<section>
+  <h2 id="use-incremental-authorization" data-text="Use incremental authorization" tabindex="-1">Use incremental authorization</h2>
+
+  <p>
+    Use <a href="../web-server.html#incrementalAuth">incremental
+    authorization</a> to request appropriate OAuth scopes when the functionality is needed by your
+    application.
+  </p>
+
+  <p>
+    You should not request access to data when the user first authenticates, unless it is essential
+    for the core functionality of your app. Instead, request only the specific scopes that are
+    needed for a task, following the principle to
+    <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance#only-request-needed-scopes">select the smallest, most limited scopes possible</a>.
+  </p>
+
+  <p>
+    Always request scopes in context to help your users understand why your app is requesting access
+    and how the data will be used.
+  </p>
+
+  <p>
+    For example, your application may follow this model:
+  </p>
+  <ol>
+    <li>The user authenticates with your app
+      <ol>
+        <li>No additional scopes are requested. The app provides basic functionality to let the user
+          explore and use features that do not require any additional data or access.
+        </li>
+      </ol>
+    </li>
+    <li>The user selects a feature that requires access to additional data
+      <ol>
+        <li>Your application makes an authorization request for this specific OAuth scope required
+          for this feature. If this feature requires multiple scopes, follow
+          <a href="best-practices.html#multiple-scopes">the best practices for multiple scopes</a>.
+        </li>
+        <li>If the user denies the request, the app disables the feature and gives the user
+          additional context to request access again.
+        </li>
+      </ol>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2 id="multiple-scopes" data-text="Handle consent for multiple scopes" tabindex="-1">Handle consent for multiple scopes</h2>
+
+  <p>
+    When requesting multiple scopes at once, users may not grant all OAuth scopes you have
+    requested. Your app should handle the denial of scopes by disabling relevant functionality.
+  </p>
+
+  <p>
+    If your app's basic functionality requires multiple scopes, explain this to the user before
+    prompting for consent.
+  </p>
+
+  <p>
+    You may only prompt the user again once they have clearly indicated an intent to use the
+    specific feature that requires the scope. Your app should provide the user with relevant context
+    and justification before requesting OAuth scopes.
+  </p>
+
+  <p>
+    You should minimize the number of scopes your app requests at once. Instead,
+    <a href="best-practices.html#use-incremental-authorization">utilize incremental authorization</a> to request scopes
+    in context of features and functionality.
+  </p>
+</section>
+
+<section>
+  <h2 id="use-secure-browsers" data-text="Use secure browsers" tabindex="-1">Use secure browsers</h2>
+
+  <p>
+    On the web, OAuth 2.0 authorization requests must only be made from full-featured web browsers.
+    On other platforms, make sure to select the
+    <a href="../../oauth2.html#basicsteps">correct OAuth client type</a> and integrate
+    OAuth as appropriate for your platform. Do not redirect the request through embedded browsing
+    environments, including webviews on mobile platforms, such as WebView on Android or WKWebView on
+    iOS. Instead, utilize recommended <a href="https://developers.google.com/identity/protocols/oauth2/native-app">OAuth libraries</a>
+    or <a href="https://developers.google.com/identity/authorization">Google Sign-in</a> for your platform.
+  </p>
+</section>
+
+<section>
+  <h2 id="manual-oauth-clients" data-text="Manual creation and configuration of OAuth clients" tabindex="-1">Manual creation and configuration of OAuth clients</h2>
+
+  <p>
+    In order to prevent abuse, OAuth clients cannot be created or modified programmatically. You
+    must use the Google Cloud console to explicitly acknowledge the terms of service, configure
+    your OAuth client and prepare for OAuth verification.
+  </p>
+
+  <p>
+    For automated workflows, consider using
+    <a href="https://developers.google.com/identity/protocols/oauth2/service-account">service accounts</a> instead.
+  </p>
+</section>
+
+<section>
+  <h2 id="remove-unused-oauth-clients" data-text="Remove unused OAuth clients" tabindex="-1">Remove unused OAuth clients</h2>
+
+  <p>
+    Regularly audit your OAuth 2.0 clients and proactively delete any that are no longer required by
+    your application or have become obsolete. Leaving unused clients configured represents a
+    potential security risk as the client can be misused if your client credentials are ever
+    compromised.
+  </p>
+
+  <p>
+    To further mitigate risks from unused clients, OAuth 2.0 clients that have been inactive for six
+    months are <a href="https://support.google.com/cloud/answer/15549257#unused-client-deletion">
+      automatically deleted</a>.
+  </p>
+
+  <p>
+    The recommended best practice is to not wait for automatic deletion but rather proactively
+    remove unused clients. This practice minimizes your application's attack surface and ensures
+    good security hygiene.
+  </p>
+</section>
+
+
+  
+  
+
+  
+</main></body></html>
