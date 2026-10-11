@@ -60,11 +60,11 @@ key-decisions:
   - New eligible marks outside reserved lineage refuse apply without new UUID or recut.
   - Final proof is fenced by actual auth and credential generation.
 actuals:
-  tokens: 34891
+  tokens: 36483
   tasks: 3
-  commits: 3
+  commits: 5
 plan_head_before: 913fc5ae9286aca9a48b5ce4272699c846849874
-plan_head_after: 838aba8a54f45e3036da0192c5b0fffe860b63fe
+plan_head_after: d5f8ff6413148baedb94f57a9eda54b044e351b8
 duration: '53min observed source-commit interval; executor start unavailable'
 completed: 2026-10-12
 coverage:
@@ -103,6 +103,7 @@ coverage:
 1. T1 — `27f71ce`: подготовлен bound cut, зарезервирована immutable lineage; public E2E source написан до поведения.
 2. T2 — `bc27868`: подключены provider stages, actual observations, partial recovery и worker/Resume.
 3. T3 — `838aba8`: проверены stored ACKs, применены current marks под locks; закрыты sparse readers и deadline fence нового saga.
+4. Bounded recovery correction — `d5f8ff6`: обновлён complete proof после actual credential rollover; auth failure после journal persistence передан existing credential owner. `ab502d5` — исходный SUMMARY commit.
 
 Docs commit содержит только этот SUMMARY. Shared STATE/ROADMAP/REQ/PLAN inventories/WINDOWS принадлежат parent. План 11 не начат. GCAL requirements и phase не объявлены завершёнными.
 
@@ -148,10 +149,10 @@ Existing durable `move.spec.ts` и `marks.spec.ts` расширены через
 | Exact command                                                                                                                                                                | Status                 | Decisive output                                                                          |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                       | PASS, exit 0           | no diagnostics                                                                           |
-| `yarn workspace @dv-lab/api build`                                                                                                                                           | PASS, exit 0           | `Build complete in 96ms`; app не запускался                                              |
+| `yarn workspace @dv-lab/api build`                                                                                                                                           | PASS, exit 0           | `Build complete in 105ms`; app не запускался                                             |
 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/move.spec.ts e2e/marks.spec.ts --grep '\[calendar\] cut (prepare\|recovery\|history)' --project=light --list` | PASS discovery, exit 0 | 5 tests in 4 files: 3 cut journeys + setup/cleanup                                       |
 | `yarn prettier --check <32 exact paths>`                                                                                                                                     | PASS, exit 0           | `All matched files use Prettier code style!`                                             |
-| `yarn node --max-old-space-size=8192 scripts/dev-checks/calendar-quality.ts --base 913fc5a <explicit owned/new/review argv> --json`                                          | PASS, exit 0           | fingerprint `a0b82214823abcd0c3e39b62730a38639079be3a3971f89e26b179d090c7cca5`; stale=[] |
+| `yarn node --max-old-space-size=8192 scripts/dev-checks/calendar-quality.ts --base 913fc5a <explicit owned/new/review argv> --json`                                          | PASS, exit 0           | fingerprint `0155e4b2d681cafa7386aa5da9929ddb93c2c8c3d5a506833ec3070e06b1d99b`; stale=[] |
 | `git diff --check`                                                                                                                                                           | PASS, exit 0           | empty output                                                                             |
 | `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab`                                                                                | PASS, exit 0           | `ROOT_PIN_OK`                                                                            |
 | `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected agent-24-contracts`                                                        | PASS, exit 0           | `false`                                                                                  |
@@ -161,8 +162,8 @@ Exact expanded format/quality argv сохранены в existing private STATE_
 
 ### Scoped quality
 
-- 32 changed source files + 3 unchanged measuring-tool files; 522 functions, 281 changed functions. Largest owned source: 498 lines; gateway 480, marks.spec 458.
-- Changed function/callback maxima: CC 19, cognitive 20, Halstead D 44.81818181818181. Limits: `<22`, `<22`, `<80`.
+- 32 changed source files + 3 unchanged measuring-tool files; 532 functions, 291 changed functions. Largest owned source: 498 lines; gateway 480, marks.spec 458.
+- Changed function/callback maxima: CC 19, cognitive 21, Halstead D 43.95238095238095. Limits: `<22`, `<22`, `<80`.
 - CC: ESLint classic AST. Cognitive: DVLab AST nesting/control/logical-sequence v1, не Sonar. Halstead: DVLab executable AST leaves v1; SyntaxKind operators, exact identifier/literal operands; imports/trivia/types/erased modifiers excluded; nested functions отдельно; `D=(n1/2)*(N2/n2)`.
 - Node 24.17.0, TypeScript 6.0.3, ESLint 10.12.0. Explicit/inferred any findings и diagnostics отсутствуют; hash-bound unknown/error boundaries проверены.
 - Before/after примеры от base: body builder CC 8→5; projectCommand 2→6; identitySearch 13→18; worker processCommand 14→14. Новым functions baseline не приписан.
@@ -215,7 +216,32 @@ Public DTO не изменён. Required parent `binding.lesson.studentId` со�
 3. **Rule 2 — current-mark eligibility and fences.** Unreserved eligible current mark отказывает в apply. Expired/unreconciled first write не получает поздний dispatch. Final credential generation — actual captured confirmation, не inferred command generation.
 4. **Simplify — confirmed dead exports.** Старые direct cut/end paths без callers удалены вместе с private helpers, без удаления файла. Targeted caller evidence и compiler подтвердили seam migration.
 
-Нет package installs, runtime/auth попыток, external writes или новых agent runs. Known blocking source stubs не оставлены. Unrun provider verification — ограничение capability, не PASS. Полное начало execution не сохранилось; 53min — измеренный интервал первого source commit→финальной source metadata. Actual tokens = ceil(139562 source-diff characters/4); measured ledger interval содержит три source commits, docs metadata отдельно.
+Нет package installs, runtime/auth попыток, external writes или новых agent runs. Known blocking source stubs не оставлены. Unrun provider verification — ограничение capability, не PASS. Полное начало execution не сохранилось; 53min — исходный интервал T1→T3. Actual tokens = ceil(145931 source-diff characters/4) по 32 source paths. Measured ledger interval base→d5f8ff6 содержит четыре source commits и исходный docs commit; этот final docs commit вне recorded interval.
+
+## Bounded recovery correction
+
+Оба static findings подтверждены. Смена credentialGeneration без смены connection.generation оставляла ACKed complete в skip loop, хотя apply правильно отказывал. Catch сохранял journal, но скрывал actual CalendarFault от credentials.recordFailure.
+
+- `cutCompletionIsCurrent(stage, connection)` проверяет actual complete ACK и обе generation. Его использует execute и узкий guard повторного READ. ACKed WRITE остаётся запрещённым к повтору. Stale complete выполняет настоящий `readCutComplete`, включая `verifyPrimary`, resources/identities/prefix, с новым attempt и actual ACK. Старому proof новая generation не присваивается.
+- `checkGrant` также требует active credentialMode. Apply credential fence не изменён. Request/IDs/plan, acknowledged writes и их provenance сохранены.
+- Catch сначала выполняет `pauseTransition`, затем пробрасывает actual auth CalendarFault. Existing `credentials.recordFailure` остаётся единственным writer connection state/issue. Command issue сохраняет reconnect_required/permission_required. Нового auth retry нет.
+- До backend edits расширен existing cut recovery source. Private `cuts.recoveryBoundaries` содержит два retained command references: actual after-complete restart/refresh boundary и один actual provider auth failure. Это ссылки для operator lifecycle, не доказательство restart и не fake response. Journey требует actual stored complete/write ACKs, смену credential epoch при той же auth generation, fresh read attempt, те же plan/UUIDs и отсутствие повторных ACKed writes. Для auth он требует connected admission и pending verify stage, затем public HTTP409, actual command/connection auth issue, partial recovery и неизменный domain/prefix. 401 и 403 проверяются отдельными runs с восстановленным реальным grant.
+- Реальные restart, OAuth refresh и Google 401/403 не исполнялись. Operator должен создать границы через реальный transport/process lifecycle; SQL подмена epoch/stages не является допустимой fixture. Все эти journeys NOT RUN.
+
+Изменены ровно четыре source files и этот SUMMARY:
+
+| File                                          | Причина                                                                          | Current SHA-256                                                    |
+| --------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `apps/api/src/calendar/transitions.ts`        | Fresh complete вместо stale skip; journal-before-auth propagation                | `c3c3094b6d3a99a912fd14f0aceac1b31ff2a34b39d7c02fe2705e3782a72491` |
+| `apps/api/src/calendar/transition-journal.ts` | Narrow stale complete READ guard, active grant, actual auth issue                | `2a2ac0a7fd89dccc3cdd7fce4914a0fba0de43802e9fb34d1780b0e04da0a949` |
+| `e2e/support/calendar-cut.ts`                 | Durable rollover/auth failure observables через public Resume и real persistence | `cc8b21c088782e1cba6bf630166b38a1daaccaf6f87692adf3c4c2d53338f913` |
+| `e2e/support/calendar-commands.ts`            | Validated private retained boundary references                                   | `8d4a4d5f31fc227ce93fb1787e98228509cfbae72207f4f03c3fa350e106cced` |
+
+Current 32/32 fingerprints совпали после commit. Остальные 28 source files неизменны относительно исходного quality. Full current 32 hashes и measurements: private STATE_DIR `phase24-10-correction-quality.json`; exact expanded argv `phase24-10-correction-command.json`; measured actuals/hashes `phase24-10-correction-metadata.json`; format log `phase24-10-correction-format.log`. Type input fingerprint: `74a212fdfc958e3318e7614841415e07861eab195adb37f27b99d1f4ca357a91`. Unknown boundary reviews актуальны по source hash; missing/stale=[]; any/diagnostics отсутствуют.
+
+Simplify выполнен через общие freshness/auth predicates и lastPendingStage, без нового subsystem/Registry/public DTO. До→после correction: execute CC17→15/cognitive20→16; begin-stage callback CC19→18/cognitive17→16; pause callback CC17→18/cognitive20→21. Первые scoped runs обнаружили CC22/cognitive22/24; после bounded extraction превышения устранены. Targeted caller search подтверждает использование всех новых helpers. Full KNIP не повторялся.
+
+Финальные typecheck/build/Prettier/discovery/diff check завершились exit0. Discovery: 5 tests in 4 files, не execution. Exact format argv остаётся `phase24-10-format-command.json`; актуальный quality argv приведён выше. Main/shared metadata/provider/runtime не менялись. Correction не начинает 11.
 
 ## Worktree and handoff
 
@@ -225,4 +251,4 @@ API build lease освобождена после завершения static ch
 
 ## Self-Check: PASSED
 
-SUMMARY существует на canonical path. Все 32 source files существуют; commits `27f71ce`, `bc27868`, `838aba8` — ancestors текущего HEAD. После T3 commit все 32 fingerprints совпали с final native quality. Tracked file deletions отсутствуют. Shared metadata и parent docs commit `81a1175` не изменялись и не merge-лись в этот worktree.
+SUMMARY существует на canonical path. Все 32 source files существуют; commits `27f71ce`, `bc27868`, `838aba8`, `ab502d5`, `d5f8ff6` — ancestors текущего HEAD. После correction commit все 32 fingerprints совпали с current native quality. Tracked file deletions отсутствуют. Shared metadata и parent docs commit `81a1175` не изменялись и не merge-лись в этот worktree.
