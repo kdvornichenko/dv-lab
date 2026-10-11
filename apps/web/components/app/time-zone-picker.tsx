@@ -8,8 +8,9 @@ import { ChevronDown, Globe, Search, Star } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Combobox, ComboboxContent, ComboboxItem, ComboboxList, type ComboboxItemData } from '@/components/ui/combobox'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { IconComponent } from '@/lib/icon-context'
-import { isVietnamZone, listTimeZones, zoneLabel, zoneMatches } from '@/lib/time-zones'
+import { listTimeZones, sameTimeZone, zoneLabel, zoneMatches } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import { isTimeZone } from '@dv-lab/contracts'
@@ -38,26 +39,43 @@ function readItem(key: string): string | null {
 	}
 }
 
-function writeItem(key: string, value: string) {
+function writeItem(key: string, value: string, deferred = false) {
 	try {
 		localStorage.setItem(key, value)
 	} catch {}
-	window.dispatchEvent(new Event(CHANGE_EVENT))
+	const publish = () => window.dispatchEvent(new Event(CHANGE_EVENT))
+	if (deferred) queueMicrotask(publish)
+	else publish()
 }
 
-function normalizeSecond(raw: string | null): string {
+function normalizeSecond(raw: string | null, mainTimeZone: string): string {
 	if (raw === NONE) return NONE
-	if (raw === null || isVietnamZone(raw) || !isTimeZone(raw)) return DEFAULT_SECOND_ZONE
-	return raw
+	const zone = raw ?? DEFAULT_SECOND_ZONE
+	return !isTimeZone(zone) || sameTimeZone(zone, mainTimeZone) ? NONE : zone
 }
 
-export function useSecondZone(): [string | null, (zone: string | null) => void] {
-	const stored = useSyncExternalStore(
+export function commitDefaultZoneChange(oldMain: string, newMain: string): void {
+	const second = normalizeSecond(readItem(SECOND_ZONE_KEY), oldMain)
+	if (second !== NONE && sameTimeZone(second, newMain)) writeItem(SECOND_ZONE_KEY, oldMain, true)
+}
+
+export function useSecondZone(mainTimeZone: string | null): [string | null, (zone: string | null) => void] {
+	const raw = useSyncExternalStore<string | null | undefined>(
 		subscribe,
-		() => normalizeSecond(readItem(SECOND_ZONE_KEY)),
-		() => DEFAULT_SECOND_ZONE
+		() => readItem(SECOND_ZONE_KEY),
+		() => undefined
 	)
-	const set = useCallback((zone: string | null) => writeItem(SECOND_ZONE_KEY, zone ?? NONE), [])
+	const stored = mainTimeZone === null || raw === undefined ? NONE : normalizeSecond(raw, mainTimeZone)
+	useEffect(() => {
+		if (mainTimeZone === null || raw === undefined || raw === stored || (raw === null && stored !== NONE)) return
+		if (readItem(SECOND_ZONE_KEY) === raw) writeItem(SECOND_ZONE_KEY, stored)
+	}, [mainTimeZone, raw, stored])
+	const set = useCallback(
+		(zone: string | null) => {
+			if (mainTimeZone !== null) writeItem(SECOND_ZONE_KEY, normalizeSecond(zone ?? NONE, mainTimeZone))
+		},
+		[mainTimeZone]
+	)
 	return [stored === NONE ? null : stored, set]
 }
 
@@ -107,7 +125,7 @@ interface TimeZonePickerProps {
 	onChange: (value: string | null) => void
 	allowNone?: boolean
 	firstOption?: FirstOption
-	excludeMain?: boolean
+	excludeMain?: string | null
 	labelAt?: Date
 	id?: string
 	disabled?: boolean
@@ -138,6 +156,12 @@ function FavoriteStar({
 			onPointerDown={stopRow}
 			onMouseDown={stopRow}
 			onMouseUp={stopRow}
+			onKeyDown={(event) => {
+				if (event.key === ' ' || event.key === 'Enter') event.stopPropagation()
+			}}
+			onKeyUp={(event) => {
+				if (event.key === ' ' || event.key === 'Enter') event.stopPropagation()
+			}}
 			onClick={(event) => {
 				event.stopPropagation()
 				onToggle(zone)
@@ -168,7 +192,7 @@ export function TimeZonePicker({
 	onChange,
 	allowNone = false,
 	firstOption,
-	excludeMain = false,
+	excludeMain = null,
 	labelAt,
 	id,
 	disabled = false,
@@ -184,7 +208,7 @@ export function TimeZonePicker({
 
 	const model = useMemo(() => {
 		const zones = listTimeZones(value && value !== firstOption?.value ? [value] : []).filter(
-			(zone) => !(excludeMain && isVietnamZone(zone))
+			(zone) => excludeMain === null || !sameTimeZone(zone, excludeMain)
 		)
 		const available = new Set(zones)
 		const starred = favorites.filter((zone) => available.has(zone))
@@ -271,7 +295,11 @@ export function TimeZonePicker({
 				>
 					<span className="min-w-0 flex-1 truncate text-left leading-5">
 						{value === null ? (
-							<span className="text-muted-foreground">None</span>
+							allowNone ? (
+								<span className="text-muted-foreground">None</span>
+							) : (
+								<Skeleton className="h-4 w-32" />
+							)
 						) : isFirstOption ? (
 							firstOption.label
 						) : (
@@ -288,7 +316,10 @@ export function TimeZonePicker({
 				ref={popupRef}
 				align={toolbar ? 'end' : 'start'}
 				sideOffset={4}
-				className={cn('p-0 [--scroll-fade-size:var(--scroll-fade-size-compact)]', toolbar && 'w-[280px]')}
+				className={cn(
+					'max-w-[calc(100vw-2rem)] p-0 [--scroll-fade-size:var(--scroll-fade-size-compact)]',
+					toolbar && 'w-[280px]'
+				)}
 			>
 				<div className={cn('flex shrink-0 items-center gap-2 border-b border-border px-3', toolbar ? 'h-7' : 'h-9')}>
 					<Search size={14} aria-hidden className="shrink-0 text-muted-foreground" />
@@ -328,7 +359,10 @@ export function TimeZonePicker({
 									) : null}
 									<ComboboxItem
 										value={data.value}
-										className="group/zone"
+										className={cn(
+											'group/zone h-auto [&>span.truncate]:overflow-visible [&>span.truncate]:whitespace-normal',
+											toolbar ? 'min-h-7' : 'min-h-9'
+										)}
 										detail={
 											zone ? (
 												<span className="flex items-center gap-2">
@@ -338,7 +372,7 @@ export function TimeZonePicker({
 											) : undefined
 										}
 									>
-										{data.label}
+										<span className="min-w-0 [overflow-wrap:anywhere] break-words whitespace-normal">{data.label}</span>
 										{data.value === NONE ? (
 											<span className="ml-1 text-caption text-muted-foreground">{NONE_HINT}</span>
 										) : null}
