@@ -10,6 +10,7 @@ WORKDIR /repo
 COPY --from=pruner /repo/out/json/ .
 RUN node .yarn/releases/yarn-4.18.1.cjs install --immutable
 COPY --from=pruner /repo/out/full/ .
+COPY --from=pruner /repo/e2e/support/calendar-faults.ts /repo/e2e/support/calendar-fault-protocol.ts /repo/e2e/support/calendar-fault-auth.ts ./e2e/support/
 COPY tsconfig.base.json ./
 RUN node .yarn/releases/yarn-4.18.1.cjs turbo run build --filter=@dv-lab/api
 RUN node .yarn/releases/yarn-4.18.1.cjs workspaces focus --production @dv-lab/api

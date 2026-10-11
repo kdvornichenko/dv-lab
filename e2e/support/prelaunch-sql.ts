@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { NAMES } from './data.ts'
-import { list, record, text, uuid } from './input.ts'
+import { fixtureOwnership } from './data.ts'
+import { record, text, uuid } from './input.ts'
 import { executePrelaunch, INSERTS } from './prelaunch-transport.ts'
 import type { InsertOperation, OwnedFixture } from './prelaunch-transport.ts'
 import { FIXTURE_DATABASE, PRIVATE_DIR, readPrivateJson, targetBinding, verifyTargetHealth } from './target.ts'
@@ -19,13 +19,10 @@ function request(): Request {
 	throw new Error('Invalid E2E database operation')
 }
 
-function ownedFixtures(): OwnedFixture[] {
-	return list(readPrivateJson(resolve(PRIVATE_DIR, 'owned.json'))).map((value) => {
-		const row = record(value)
-		const name = text(row.name)
-		if (!NAMES.some((item) => item === name)) throw new Error('Fixture is outside the owned set')
-		return { id: uuid(row.id), name }
-	})
+function ownedFixtures(scope: 'disposable' | 'all'): OwnedFixture[] {
+	return fixtureOwnership()
+		.filter((entry) => scope === 'all' || entry.lifecycle === 'disposable')
+		.map((entry) => ({ id: uuid(entry.id), name: entry.name }))
 }
 
 function requireBoundTarget(binding: TargetBinding, operation: Request): void {
@@ -94,13 +91,13 @@ async function run(): Promise<void> {
 	requireBoundTarget(binding, operation)
 	await verifyTargetHealth(binding)
 	if (operation.kind === 'identity') return executePrelaunch(binding, operation, [])
-	if (operation.kind === 'cleanup') return executePrelaunch(binding, operation, ownedFixtures())
+	if (operation.kind === 'cleanup') return executePrelaunch(binding, operation, ownedFixtures('disposable'))
 	const query = operation.query
 	if (/^select\b/i.test(query) && !/;|--|\/\*/.test(query))
 		return executePrelaunch(binding, { kind: 'read', statement: { text: query, values: [] } }, [])
 	const insert = lessonInsert(query) ?? seriesInsert(query) ?? exceptionInsert(query)
 	if (!insert) throw new Error('SQL write is outside the supported E2E fixture operations')
-	return executePrelaunch(binding, insert, ownedFixtures())
+	return executePrelaunch(binding, insert, ownedFixtures('all'))
 }
 
 await run().catch(() => {

@@ -1,67 +1,39 @@
-import { createHash } from 'node:crypto'
-import { readFileSync, realpathSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { IncomingMessage, type ClientRequest } from 'node:http'
 import https, { type RequestOptions } from 'node:https'
 import { syncBuiltinESMExports } from 'node:module'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { urlToHttpOptions } from 'node:url'
-import { z } from 'zod'
 
-import { createDb } from '@dv-lab/db'
-
-import { loadConfig } from '../../apps/api/src/config.ts'
-import { ROOT } from '../../scripts/dev-checks/paths.mjs'
+import { verifyCalendarFaultRuntime } from '../../apps/api/src/tools/calendar-fault-runtime.ts'
+import { calendarFaultAuth } from './calendar-fault-auth.ts'
 import {
 	calendarFaultIdentity,
-	readCalendarFaultControl,
+	readRuntimeControl,
 	recordCalendarFault,
 	type CalendarFaultManifest,
 	type CalendarFaultRule,
-} from './calendar-fault-control.ts'
-import { DATABASE_IDENTITY_SQL } from './target.ts'
+} from './calendar-fault-protocol.ts'
 
 type ResponseCallback = (response: IncomingMessage) => void
 type RequestInput = string | URL | RequestOptions
 const originalRequest = https.request
 const used = new Set<string>()
 
-async function verifyProcess() {
-	const manifest = readCalendarFaultControl()
-	const entry = realpathSync(resolve(process.argv[1] ?? ''))
-	if (
-		manifest.pid !== process.pid ||
-		entry !== realpathSync(resolve(ROOT, 'apps/api/dist/server.mjs')) ||
-		createHash('sha256').update(readFileSync(entry)).digest('hex') !== manifest.entrySha256
-	)
-		throw new Error('Calendar fault process attestation mismatch')
-	const config = loadConfig(process.env)
-	if (config.GIT_SHA !== manifest.apiBuildSha || config.APP_ORIGIN !== manifest.origin || !config.calendar.enabled)
-		throw new Error('Calendar fault runtime identity mismatch')
-	const { pool } = createDb(config.databaseUrl)
-	try {
-		const result = await pool.query<Record<string, unknown>>(DATABASE_IDENTITY_SQL)
-		const identity = z
-			.array(z.strictObject({ database: z.string(), address: z.string(), port: z.number(), oid: z.string() }))
-			.length(1)
-			.safeParse(result.rows)
-		if (
-			!identity.success ||
-			createHash('sha256').update(JSON.stringify(identity.data[0])).digest('hex') !== manifest.persistenceFingerprint
-		)
-			throw new Error('Calendar fault persistence identity mismatch')
-	} finally {
-		await pool.end()
-	}
-	return manifest
-}
-
 function options(input: RequestInput, extra?: RequestOptions | ResponseCallback): RequestOptions {
 	const base = typeof input === 'string' || input instanceof URL ? urlToHttpOptions(new URL(input)) : input
 	return { ...base, ...(typeof extra === 'object' ? extra : {}) }
 }
 
+function calendarPath(manifest: CalendarFaultManifest, input: RequestOptions): URL | null {
+	if (input.hostname !== 'www.googleapis.com' && input.hostname !== 'calendar.googleapis.com') return null
+	const path = new URL(input.path ?? '/', 'https://www.googleapis.com')
+	const calendar = /^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/[^/]+)?$/.exec(path.pathname)
+	if (calendar && decodeURIComponent(calendar[1]) === manifest.primaryCalendarId) return path
+	return path.pathname === '/calendar/v3/users/me/calendarList' ? path : null
+}
+
 function match(rule: CalendarFaultRule, input: RequestOptions) {
-	if (input.hostname !== 'www.googleapis.com' && input.hostname !== 'calendar.googleapis.com') return false
 	if ((input.method ?? 'GET').toUpperCase() !== rule.method) return false
 	const path = new URL(input.path ?? '/', 'https://www.googleapis.com')
 	const patterns = {
@@ -104,16 +76,33 @@ function interceptResponse(request: ClientRequest, manifest: CalendarFaultManife
 	}
 }
 
-function install(manifest: CalendarFaultManifest) {
+function install(manifest: CalendarFaultManifest, refreshSha256: string) {
 	const identity = calendarFaultIdentity(manifest)
+	const auth = calendarFaultAuth(refreshSha256)
 	function request(
 		input: RequestInput,
 		extra?: RequestOptions | ResponseCallback,
 		callback?: ResponseCallback
 	): ClientRequest {
 		const requestOptions = options(input, extra)
-		const current = readCalendarFaultControl()
+		const path = calendarPath(manifest, requestOptions)
+		if (!path || !auth.matches(requestOptions)) {
+			const result = originalRequest(requestOptions, typeof extra === 'function' ? extra : callback)
+			auth.observe(requestOptions, result)
+			return result
+		}
+		const current = readRuntimeControl(false)
 		if (calendarFaultIdentity(current) !== identity) throw new Error('Calendar fault process ownership changed')
+		if (Date.parse(current.expiresAt) <= Date.now())
+			return originalRequest(requestOptions, typeof extra === 'function' ? extra : callback)
+		if (
+			current.rule?.pageSize !== undefined &&
+			(requestOptions.method ?? 'GET').toUpperCase() === 'GET' &&
+			/\/events$/.test(path.pathname)
+		) {
+			path.searchParams.set('maxResults', String(current.rule.pageSize))
+			requestOptions.path = `${path.pathname}${path.search}`
+		}
 		const rule = current.rule
 		const matches = rule !== null && match(rule, requestOptions)
 		if (matches) recordCalendarFault(current, rule, 'request_matched')
@@ -128,4 +117,13 @@ function install(manifest: CalendarFaultManifest) {
 	syncBuiltinESMExports()
 }
 
-if (process.env.E2E_CALENDAR_FAULTS) install(await verifyProcess())
+if (process.env.E2E_CALENDAR_FAULTS) {
+	const manifest = readRuntimeControl()
+	const refreshSha256 = await verifyCalendarFaultRuntime(manifest)
+	install(manifest, refreshSha256)
+	writeFileSync(
+		resolve(dirname(process.env.E2E_CALENDAR_FAULTS), `calendar-fault-ready-${manifest.runId}.json`),
+		JSON.stringify({ runId: manifest.runId, identitySha256: calendarFaultIdentity(manifest) }),
+		{ mode: 0o600, flag: 'wx' }
+	)
+}
