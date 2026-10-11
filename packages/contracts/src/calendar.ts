@@ -130,7 +130,12 @@ export const calendarEventView = z.strictObject({
 	status: z.enum(['confirmed', 'tentative', 'cancelled']),
 	blocksTime: z.boolean(),
 	binding: z.discriminatedUnion('kind', [
-		z.strictObject({ kind: z.literal('lesson'), ref: calendarOccurrenceRef, version: calendarVersion }),
+		z.strictObject({
+			kind: z.literal('lesson'),
+			ref: calendarOccurrenceRef,
+			studentId: z.uuid(),
+			version: calendarVersion,
+		}),
 		z.strictObject({ kind: z.literal('transition'), commandId: z.uuid() }),
 		z.strictObject({ kind: z.literal('external') }),
 	]),
