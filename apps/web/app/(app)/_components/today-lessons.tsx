@@ -9,7 +9,7 @@ import { formatDay, formatTime, secondWhen } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
 import { cn } from '@/lib/utils'
 
-import type { ScheduleBlock } from '@dv-lab/contracts'
+import type { LessonMarkKind, ScheduleBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, scheduleToday } from '@dv-lab/core'
 
 import { TodayMarkControls } from './today-mark-controls'
@@ -56,7 +56,7 @@ interface LessonRowsProps {
 export function LessonRows({ blocks, moreHref, ...rowProps }: LessonRowsProps) {
 	const shown = moreHref === undefined ? blocks : blocks.slice(0, ROW_LIMIT)
 	return (
-		<ul data-slot="today-rows" className="flex flex-col px-1 pb-2">
+		<ul data-slot="today-rows" className="flex flex-col px-1 pb-2 text-body">
 			<AnimatePresence initial={false} propagate>
 				{shown.map((block) => (
 					<LessonRow key={`${block.key}:${occurrenceSlot(block.outcome)}`} block={block} {...rowProps} />
@@ -80,6 +80,8 @@ function LessonRow({
 	onOpen,
 }: Omit<LessonRowsProps, 'blocks' | 'moreHref'> & { block: ScheduleBlock }) {
 	const [failed, setFailed] = useState(false)
+	const [pending, setPending] = useState<LessonMarkKind | null>(null)
+	const busy = pending !== null
 	const present = useIsPresent()
 	const reduced = useReducedMotion()
 	const year = Number(scheduleToday(now).slice(0, 4))
@@ -118,10 +120,13 @@ function LessonRow({
 			<span data-slot="today-row-name" className={cn('flex min-w-0 flex-1 flex-col', style.struck && 'line-through')}>
 				<button
 					type="button"
+					disabled={busy}
 					data-slot="today-row-open"
 					className="min-w-0 cursor-pointer truncate text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-focus-ring"
 					aria-label={`${block.studentName}, ${formatDay(start, SCHEDULE_TIME_ZONE, year)}, ${formatTime(start, SCHEDULE_TIME_ZONE)}: ${statusLabel(block, now)}`}
-					onClick={(event: MouseEvent<HTMLButtonElement>) => onOpen(block, event.currentTarget)}
+					onClick={(event: MouseEvent<HTMLButtonElement>) => {
+						if (!busy) onOpen(block, event.currentTarget)
+					}}
 				>
 					{block.studentName}
 				</button>
@@ -133,7 +138,14 @@ function LessonRow({
 			</span>
 			{block.actions.mark ? (
 				<span data-slot="today-row-note" className="relative z-10 shrink-0 font-normal">
-					<TodayMarkControls block={block} onSaved={onSaved} onStale={onStale} onError={setFailed} />
+					<TodayMarkControls
+						block={block}
+						pending={pending}
+						onPendingChange={setPending}
+						onSaved={onSaved}
+						onStale={onStale}
+						onError={setFailed}
+					/>
 				</span>
 			) : style.note ? (
 				<span data-slot="today-row-note" className="shrink-0 text-caption font-normal text-muted-foreground">

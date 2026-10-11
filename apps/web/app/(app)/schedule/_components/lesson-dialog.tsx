@@ -79,6 +79,7 @@ export function LessonDialog({
 	const [notice, setNotice] = useState<Notice>(null)
 	const [choosing, setChoosing] = useState<LessonMarkKind | null>(null)
 	const [markFailed, setMarkFailed] = useState(false)
+	const busy = pending || choosing !== null
 	const start = new Date(block.startsAt)
 	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
 	const second = secondRange(start, block.durationMinutes, secondZone)
@@ -86,7 +87,7 @@ export function LessonDialog({
 	const { actions } = block
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
-		if (pending) return
+		if (busy) return
 		setPending(true)
 		setNotice(null)
 		const outcome = await action()
@@ -96,7 +97,7 @@ export function LessonDialog({
 	}
 
 	async function choose(kind: LessonMarkKind) {
-		if (choosing !== null || pending) return
+		if (busy) return
 		setChoosing(kind)
 		setNotice(null)
 		setMarkFailed(false)
@@ -110,16 +111,21 @@ export function LessonDialog({
 		<Dialog
 			open
 			onOpenChange={(open) => {
-				if (!open && !pending) onClose()
+				if (!open && !busy) onClose()
 			}}
 		>
-			<DialogContent size="lg" showCloseButton={!pending}>
+			<DialogContent size="lg" showCloseButton={!busy}>
 				<DialogHeader>
 					<div className="flex min-w-0 items-center gap-2 pr-8">
 						<Avatar name={block.studentName} />
 						<DialogTitle className="min-w-0">
 							<Link
 								href={`/students/${block.studentId}`}
+								aria-disabled={busy}
+								tabIndex={busy ? -1 : undefined}
+								onClick={(event) => {
+									if (busy) event.preventDefault()
+								}}
 								className="block truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
 							>
 								{block.studentName}
@@ -142,7 +148,7 @@ export function LessonDialog({
 								<BannerTitle>{FAILURE[notice]}</BannerTitle>
 							</Banner>
 						) : null}
-						<LessonStatus block={block} now={now} secondZone={secondZone} onOpenPair={onOpenPair} />
+						<LessonStatus block={block} now={now} secondZone={secondZone} pending={busy} onOpenPair={onOpenPair} />
 						{markFailed ? (
 							<Banner status="error" data-slot="lesson-mark-failed">
 								<BannerTitle>{MARK_FAILURE}</BannerTitle>
@@ -152,7 +158,7 @@ export function LessonDialog({
 							block={block}
 							now={now}
 							saving={choosing}
-							locked={pending}
+							locked={busy}
 							onChoose={(kind) => void choose(kind)}
 						/>
 						<LessonDetails
@@ -161,7 +167,7 @@ export function LessonDialog({
 							now={now}
 							secondZone={secondZone}
 							currentYear={currentYear}
-							pending={pending}
+							pending={busy}
 							onSeries={onSeries}
 						/>
 						{moving && actions.move ? (
@@ -170,6 +176,7 @@ export function LessonDialog({
 								secondZone={secondZone}
 								currentYear={currentYear}
 								blocksOn={blocksOn}
+								locked={busy}
 								onPendingChange={setPending}
 								onDiscard={() => {
 									setMoving(false)
@@ -192,7 +199,7 @@ export function LessonDialog({
 					block={block}
 					confirming={confirming}
 					moving={moving}
-					pending={pending}
+					pending={busy}
 					moveButton={moveButton}
 					onKeep={() => setConfirming(false)}
 					onCancel={() => void run(onCancel, 'cancel')}

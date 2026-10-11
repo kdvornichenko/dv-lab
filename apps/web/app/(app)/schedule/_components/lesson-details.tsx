@@ -28,11 +28,13 @@ export function LessonStatus({
 	block,
 	now,
 	secondZone,
+	pending,
 	onOpenPair,
 }: {
 	block: ScheduleBlock
 	now: Date
 	secondZone: string | null
+	pending: boolean
 	onOpenPair: (target: PairTarget) => void
 }) {
 	const movedTo = block.movedTo === null ? null : new Date(block.movedTo)
@@ -48,6 +50,7 @@ export function LessonStatus({
 				<button
 					type="button"
 					className={pairButtonClass}
+					disabled={pending}
 					onClick={() => onOpenPair({ key: block.key, slot: 'to', at: movedTo })}
 				>
 					moved to {vnDayTime(movedTo, secondZone)}
@@ -57,6 +60,7 @@ export function LessonStatus({
 				<button
 					type="button"
 					className={pairButtonClass}
+					disabled={pending}
 					onClick={() => onOpenPair({ key: block.key, slot: 'from', at: movedFrom })}
 				>
 					moved from {vnDayTime(movedFrom, secondZone)}

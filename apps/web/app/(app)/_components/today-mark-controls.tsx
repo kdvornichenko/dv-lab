@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 
 import { Check, ChevronDown, UserX } from 'lucide-react'
 
@@ -17,6 +17,8 @@ import { markLesson } from '../schedule/_components/schedule-mutations'
 
 interface TodayMarkControlsProps {
 	block: ScheduleBlock
+	pending: LessonMarkKind | null
+	onPendingChange: (kind: LessonMarkKind | null) => void
 	onSaved: () => Promise<void>
 	onStale: () => Promise<void>
 	onError: (failed: boolean) => void
@@ -27,14 +29,20 @@ const QUICK_MARKS = [
 	{ kind: 'no_show', icon: UserX, variant: 'tertiary' },
 ] as const
 
-export function TodayMarkControls({ block, onSaved, onStale, onError }: TodayMarkControlsProps) {
-	const [pending, setPending] = useState<LessonMarkKind | null>(null)
+export function TodayMarkControls({
+	block,
+	pending,
+	onPendingChange,
+	onSaved,
+	onStale,
+	onError,
+}: TodayMarkControlsProps) {
 	const saving = useRef(false)
 
 	async function save(kind: LessonMarkKind) {
 		if (saving.current) return
 		saving.current = true
-		setPending(kind)
+		onPendingChange(kind)
 		onError(false)
 		try {
 			const result = await markLesson(block, kind)
@@ -43,7 +51,7 @@ export function TodayMarkControls({ block, onSaved, onStale, onError }: TodayMar
 			else await onSaved()
 		} finally {
 			saving.current = false
-			setPending(null)
+			onPendingChange(null)
 		}
 	}
 

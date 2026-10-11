@@ -22,6 +22,7 @@ interface LessonMoveFormProps {
 	block: ScheduleBlock
 	secondZone: string | null
 	currentYear: number
+	locked: boolean
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	onPendingChange: (pending: boolean) => void
 	onDiscard: () => void
@@ -35,6 +36,7 @@ export function LessonMoveForm({
 	block,
 	secondZone,
 	currentYear,
+	locked,
 	blocksOn,
 	onPendingChange,
 	onDiscard,
@@ -50,6 +52,7 @@ export function LessonMoveForm({
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState<string | null>(null)
 	const [pending, setPending] = useState(false)
+	const disabled = pending || locked
 	const [day, setDay] = useState<{ date: string; items: OverlapBlock[] } | null>(null)
 
 	const loadBlocks = useEffectEvent((forDate: string) => blocksOn(forDate))
@@ -86,7 +89,7 @@ export function LessonMoveForm({
 	}
 
 	async function submit() {
-		if (pending) return
+		if (disabled) return
 		setSubmitted(true)
 		setFailed(null)
 		if (errors.date) return document.getElementById('move-lesson-date')?.focus()
@@ -126,7 +129,7 @@ export function LessonMoveForm({
 						setDate(value)
 						setTouched((state) => ({ ...state, date: true }))
 					}}
-					disabled={pending}
+					disabled={disabled}
 					error={shown('date')}
 				/>
 				<div className="flex min-w-0 flex-col gap-2">
@@ -144,7 +147,7 @@ export function LessonMoveForm({
 						}}
 						minuteStep={15}
 						hourCycle={24}
-						disabled={pending}
+						disabled={disabled}
 						invalid={Boolean(shown('time'))}
 						className="w-full"
 					/>
@@ -192,7 +195,7 @@ export function LessonMoveForm({
 				</p>
 			) : null}
 			<div className="flex flex-wrap justify-end gap-2">
-				<Button type="button" variant="ghost" size="compact" disabled={pending} onClick={onDiscard}>
+				<Button type="button" variant="ghost" size="compact" disabled={disabled} onClick={onDiscard}>
 					Discard changes
 				</Button>
 				<Button
@@ -200,6 +203,7 @@ export function LessonMoveForm({
 					size="compact"
 					leadingIcon={CalendarClock}
 					loading={pending}
+					disabled={disabled}
 					onClick={() => void submit()}
 				>
 					{pending ? 'Moving…' : 'Move lesson'}

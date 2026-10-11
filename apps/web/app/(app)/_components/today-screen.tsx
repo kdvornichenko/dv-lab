@@ -274,7 +274,7 @@ function Shell({
 	)
 }
 
-export function TodayScreen() {
+export function TodayScreen({ initialDate }: { initialDate: string }) {
 	const now = useMinuteNow()
 	const [payment, setPayment] = useState(false)
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
@@ -293,7 +293,7 @@ export function TodayScreen() {
 	return (
 		<>
 			{now === null ? (
-				<Shell title="Today" description={<SkeletonText className="w-64 py-0.5" />} actions={actions}>
+				<Shell title={dayTitle(initialDate)} description={<SkeletonText className="w-64 py-0.5" />} actions={actions}>
 					<LoadingCounters />
 					<LoadingPanels />
 				</Shell>

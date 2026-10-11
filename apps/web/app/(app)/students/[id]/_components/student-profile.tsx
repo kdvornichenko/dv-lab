@@ -123,13 +123,12 @@ function SummaryLine({
 					</>
 				)}
 			</span>
+			<StudentBalance dot minutes={balance} lessonMinutes={student.defaultLessonMinutes} threshold={threshold} />
 			{balance === null ? (
 				<Button variant="ghost" size="compact" onClick={onSetBalance}>
 					Set opening balance
 				</Button>
-			) : (
-				<StudentBalance dot minutes={balance} lessonMinutes={student.defaultLessonMinutes} threshold={threshold} />
-			)}
+			) : null}
 		</div>
 	)
 }
