@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 
 import { googleCommands, googleCommandStages, lessons, type DbExecutor, type googleReadWindows } from '@dv-lab/db'
 
+import { cancellationAcknowledgement } from './command-result.ts'
 import { loadMappings } from './event-mapping.ts'
 import type { ReadEventRow } from './read-state.ts'
 
@@ -21,7 +22,7 @@ export async function withCancelledSingles(
 export async function cancelledSingles(
 	executor: DbExecutor,
 	window: typeof googleReadWindows.$inferSelect
-): Promise<ReadEventRow[]> {
+): Promise<(ReadEventRow & { cancellationBaselineFingerprint: string })[]> {
 	const snapshot = await loadMappings(executor, window.accountId, window.connectionId)
 	const commands = await executor
 		.select()
@@ -67,21 +68,21 @@ export async function cancelledSingles(
 		const mapping = snapshot.mappings.find(
 			(item) => item.localEntityId === ref.lessonId && item.state === 'active' && item.calendarId === window.calendarId
 		)
-		const ack = stages.find((stage) => stage.commandId === command.id)?.acknowledgement
-		const lesson = rows.find((row) => row.id === ref.lessonId && row.status === 'cancelled')
-		if (
-			!mapping ||
-			!lesson ||
-			ack?.kind !== 'event' ||
-			ack.event.status !== 'cancelled' ||
-			ack.event.eventId !== mapping.eventId
+		const ack = cancellationAcknowledgement(
+			stages.find((stage) => stage.commandId === command.id)?.acknowledgement,
+			mapping?.eventId ?? ''
 		)
-			return []
+		const baseline = ack?.kind === 'event' ? ack.event : ack?.baselineEvent
+		const lesson = rows.find((row) => row.id === ref.lessonId && row.status === 'cancelled')
+		if (!mapping || !lesson || !ack || !baseline) return []
 		const end = new Date(lesson.startsAt.getTime() + lesson.durationMinutes * 60000)
 		if (lesson.startsAt >= window.windowEnd || end <= window.windowStart) return []
 		return [
 			{
-				...ack.event,
+				...baseline,
+				status: 'cancelled' as const,
+				etag: ack.kind === 'cancellation' ? (ack.response.etag ?? baseline.etag) : baseline.etag,
+				cancellationBaselineFingerprint: ack.unownedWritableFingerprint,
 				id: command.id,
 				accountId: window.accountId,
 				connectionId: window.connectionId,

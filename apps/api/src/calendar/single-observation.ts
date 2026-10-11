@@ -11,12 +11,13 @@ import {
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { singleTarget, type SingleCommand, type SingleObservation } from '../schedule/single-command.ts'
+import { cancellationAcknowledgement } from './command-result.ts'
 import type { CommandAccess } from './dispatch.ts'
 import { replacementCommand, reserveReplacement } from './event-mapping.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import { CommandFault, failUnsentCommand, preparedCommand, readCommand, type CommandRow } from './journal.ts'
 
-type EventAck = Extract<GoogleStageAcknowledgement, { kind: 'event' }>
+type EventAck = Extract<GoogleStageAcknowledgement, { kind: 'event' | 'cancellation' }>
 export type AbsenceProof = Extract<GoogleStageAcknowledgement, { kind: 'absence' }>
 export type SingleEvidence =
 	| { kind: 'present'; observation: SingleObservation }
@@ -40,9 +41,8 @@ async function confirmedCancellation(
 	if (!latest || latest.operation !== 'cancel') throw new CommandFault('external_change')
 	const stages = await executor.select().from(googleCommandStages).where(eq(googleCommandStages.commandId, latest.id))
 	const write = stages.find((stage) => stage.kind === 'write' && stage.state === 'acknowledged')
-	const ack = write?.acknowledgement
-	if (ack?.kind !== 'event' || ack.event.eventId !== eventId || ack.event.status !== 'cancelled')
-		throw new CommandFault('external_change')
+	const ack = cancellationAcknowledgement(write?.acknowledgement, eventId)
+	if (!ack) throw new CommandFault('external_change')
 	if (
 		stages.some((stage) =>
 			stage.attempts.some((attempt) => attempt.outcome === 'unknown' || attempt.outcome === 'dispatching')

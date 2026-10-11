@@ -13,8 +13,8 @@ import { digest } from './journal.ts'
 import { parseMaster, type ProviderEvent } from './provider-events.ts'
 
 export type WriteRequest = Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
-type EventAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' }>
-export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: EventAcknowledgement }
+export type WriteAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' | 'cancellation' }>
+export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: WriteAcknowledgement }
 export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number; recoveryIssue?: CalendarIssue | null }
 
 const marker = z.object({
@@ -85,7 +85,7 @@ export function verifyGoogleResult(
 	conditionalPatch = false
 ): VerifiedGoogleResponse {
 	if (conditionalPatch && request.method === 'patch' && request.payload.status === 'cancelled')
-		return verifyCancellation(input, request, timeZone, generation, httpStatus)
+		return verifyCancellation(input, request, generation, httpStatus)
 	const markers = identity.safeParse(input)
 	const raw = z.record(z.string(), json).safeParse(input)
 	if (!raw.success) throw new CalendarFault('invalid_provider_data')
@@ -110,25 +110,25 @@ export function verifyGoogleResult(
 function verifyCancellation(
 	input: unknown,
 	request: Extract<WriteRequest, { method: 'patch' }>,
-	timeZone: string,
 	generation: number,
 	httpStatus: number
 ): VerifiedGoogleResponse {
 	if (httpStatus < 200 || httpStatus >= 300 || !request.ifMatch || !request.cancellationBaseline)
 		throw new CalendarFault('invalid_provider_data')
-	const actual = parseMaster(input, timeZone)
-	verifyOwnedFields(actual.event, request)
-	if (actual.recurrence.length) throw new CalendarFault('external_change')
 	const acknowledgement = googleStageAcknowledgement.parse({
-		kind: 'event',
-		event: actual.event,
+		kind: 'cancellation',
+		provenance: 'conditional_patch',
+		response: input,
+		httpStatus,
+		ifMatch: request.ifMatch,
 		checkedAt: new Date().toISOString(),
 		ownedDigest: request.digest,
 		unownedWritableFingerprint: request.cancellationBaseline.unownedWritableFingerprint,
-		conditionalCancellation: true,
 		unownedWritable: request.cancellationBaseline.unownedWritable ?? null,
+		baselineEvent: request.cancellationBaseline.baselineEvent,
 	})
-	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
+	if (acknowledgement.kind !== 'cancellation') throw new CalendarFault('invalid_provider_data')
+	verifyStoredCancellation(acknowledgement, request)
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
 }
 
@@ -163,9 +163,30 @@ export function storedGoogleResult(
 	generation: number
 ): VerifiedGoogleResult {
 	const parsed = googleStageAcknowledgement.parse(acknowledgement)
-	if (parsed.kind !== 'event' || parsed.ownedDigest !== request.digest) throw new CalendarFault('invalid_provider_data')
-	verifyOwnedFields(parsed.event, request)
+	if (parsed.kind === 'cancellation') verifyStoredCancellation(parsed, request)
+	else {
+		if (parsed.kind !== 'event' || parsed.ownedDigest !== request.digest)
+			throw new CalendarFault('invalid_provider_data')
+		verifyOwnedFields(parsed.event, request)
+	}
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement: parsed }
+}
+
+function verifyStoredCancellation(ack: Extract<WriteAcknowledgement, { kind: 'cancellation' }>, request: WriteRequest) {
+	if (
+		request.method !== 'patch' ||
+		request.payload.status !== 'cancelled' ||
+		ack.response.id !== request.eventId ||
+		ack.ifMatch !== request.ifMatch ||
+		ack.ownedDigest !== request.digest
+	)
+		throw new CalendarFault('external_change')
+}
+
+export function cancellationAcknowledgement(ack: GoogleStageAcknowledgement | null | undefined, eventId: string) {
+	if (ack?.kind === 'cancellation' && ack.response.id === eventId) return ack
+	if (ack?.kind === 'event' && ack.event.eventId === eventId && ack.event.status === 'cancelled') return ack
+	return null
 }
 
 function unownedValues(input: unknown) {

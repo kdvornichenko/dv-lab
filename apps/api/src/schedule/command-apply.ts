@@ -2,7 +2,7 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import { googleCommands, googleConnections, lessons, type DbExecutor } from '@dv-lab/db'
 
-import type { VerifiedGoogleResult } from '../calendar/command-result.ts'
+import type { VerifiedGoogleResult, WriteAcknowledgement } from '../calendar/command-result.ts'
 import { confirmEventMapping } from '../calendar/event-mapping.ts'
 import { CommandFault } from '../calendar/journal.ts'
 import { advanceCommandRevision } from '../calendar/read-store.ts'
@@ -41,8 +41,10 @@ export async function applyConfirmedCommand(
 		throw new CommandFault('precondition_failed')
 	const reservation = command.plan.reservations[0]
 	const input = command.plan.input
-	const event = confirmation.acknowledgement.event
+	if (confirmation.acknowledgement.kind === 'cancellation' && input.operation !== 'cancel')
+		throw new CommandFault('precondition_failed')
 	if (input.operation === 'create') {
+		const event = confirmedEvent(confirmation.acknowledgement)
 		if (
 			!reservation ||
 			reservation.entityKind !== 'single' ||
@@ -62,7 +64,8 @@ export async function applyConfirmedCommand(
 		await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
 	} else {
 		await applySingle(tx, command)
-		if (command.request.method === 'insert') await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
+		if (command.request.method === 'insert')
+			await confirmEventMapping(tx, command.accountId, command.id, confirmedEvent(confirmation.acknowledgement).eventId)
 	}
 	const confirmedRevision = await advanceCommandRevision(
 		tx,
@@ -82,6 +85,11 @@ export async function applyConfirmedCommand(
 			updatedAt: sql`now()`,
 		})
 		.where(eq(googleCommands.id, command.id))
+}
+
+function confirmedEvent(ack: WriteAcknowledgement) {
+	if (ack.kind !== 'event') throw new CommandFault('precondition_failed')
+	return ack.event
 }
 
 async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {

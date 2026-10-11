@@ -50,7 +50,7 @@ export async function presentTombstone(request: APIRequestContext) {
 	).toEqual(before)
 }
 
-export async function minimalCancellation(request: APIRequestContext) {
+export async function minimalCancellation(request: APIRequestContext, shape: 'id_only' | 'id_status' = 'id_only') {
 	const fixture = await calendarCommandFixture(request)
 	const retained = z
 		.strictObject({
@@ -62,7 +62,7 @@ export async function minimalCancellation(request: APIRequestContext) {
 			date: z.iso.date(),
 			nativeSparseResponseObserved: z.literal(true),
 		})
-		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-minimal-cancel.json`))
+		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-minimal-cancel-${shape}.json`))
 	const binding = targetBinding()
 	expect(retained.origin).toBe(binding.origin)
 	expect(retained.apiBuildSha).toBe(binding.apiBuildSha)
@@ -77,11 +77,19 @@ export async function minimalCancellation(request: APIRequestContext) {
 	expect(snapshot.effect).toBe('confirmed')
 	expect(record(lessonState(retained.lessonId)[0]).status).toBe('cancelled')
 	const stages = sql(
-		`select acknowledgement, attempts from google_command_stages where command_id = ${quote(receipt.commandId)}::uuid and kind = 'write'`
+		`select acknowledgement, request, attempts from google_command_stages where command_id = ${quote(receipt.commandId)}::uuid and kind = 'write'`
 	)
 	expect(stages).toHaveLength(1)
-	expect(record(stages[0].acknowledgement).conditionalCancellation).toBe(true)
-	expect(record(record(stages[0].acknowledgement).event)).toMatchObject({ summary: null, start: null, end: null })
+	const ack = record(stages[0].acknowledgement)
+	expect(ack).toMatchObject({ kind: 'cancellation', provenance: 'conditional_patch' })
+	expect(Object.hasOwn(ack, 'event')).toBe(false)
+	const response = record(ack.response)
+	expect(Object.keys(response).sort()).toEqual(shape === 'id_only' ? ['id'] : ['id', 'status'])
+	expect(response.id).toBe(record(stages[0].request).eventId)
+	expect(ack.ifMatch).toBe(record(stages[0].request).ifMatch)
+	expect(record(ack.baselineEvent).etag).toBe(ack.ifMatch)
+	expect(record(ack.baselineEvent).eventId).toBe(response.id)
+	await target(request, retained.date, retained.lessonId)
 }
 
 export async function disappearedTombstone(
@@ -121,7 +129,7 @@ export async function disappearedTombstone(
 	)
 	expect(before).toHaveLength(1)
 	const cancellation = sql(
-		`select s.acknowledgement from google_command_stages s join google_commands c on c.id = s.command_id where c.state = 'applied' and c.operation = 'cancel' and s.kind = 'write' and s.acknowledgement->'event'->>'eventId' = ${quote(text(before[0].event_id))} order by c.applied_at desc limit 1`
+		`select s.acknowledgement from google_command_stages s join google_commands c on c.id = s.command_id where c.state = 'applied' and c.operation = 'cancel' and s.kind = 'write' and coalesce(s.acknowledgement->'event'->>'eventId', s.acknowledgement->'response'->>'id') = ${quote(text(before[0].event_id))} order by c.applied_at desc limit 1`
 	)
 	expect(cancellation).toHaveLength(1)
 	const saved = googleUnownedWritable.nullable().parse(record(cancellation[0].acknowledgement).unownedWritable)

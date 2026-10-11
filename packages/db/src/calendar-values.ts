@@ -190,27 +190,6 @@ const insertPayload = googleOwnedPayload.safeExtend({
 	status: z.literal('confirmed'),
 })
 
-export const googleStageRequest = z
-	.discriminatedUnion('method', [
-		z.strictObject({ method: z.literal('insert'), eventId, payload: insertPayload, digest }),
-		z.strictObject({
-			method: z.literal('patch'),
-			eventId,
-			ifMatch: z.string().min(1),
-			payload: googleOwnedPayload,
-			digest,
-			cancellationBaseline: z
-				.strictObject({
-					unownedWritableFingerprint: digest,
-					unownedWritable: googleUnownedWritable.nullable().optional(),
-				})
-				.optional(),
-		}),
-		z.strictObject({ method: z.literal('get'), eventId }),
-		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
-	])
-	.readonly()
-
 export const googleEventFact = z
 	.strictObject({
 		eventId,
@@ -227,7 +206,41 @@ export const googleEventFact = z
 	.refine((value) => (value.start === null) === (value.end === null))
 	.refine((value) => value.status === 'cancelled' || value.start !== null)
 
+export const googleStageRequest = z
+	.discriminatedUnion('method', [
+		z.strictObject({ method: z.literal('insert'), eventId, payload: insertPayload, digest }),
+		z.strictObject({
+			method: z.literal('patch'),
+			eventId,
+			ifMatch: z.string().min(1),
+			payload: googleOwnedPayload,
+			digest,
+			cancellationBaseline: z
+				.strictObject({
+					unownedWritableFingerprint: digest,
+					unownedWritable: googleUnownedWritable.nullable().optional(),
+					baselineEvent: googleEventFact.optional(),
+				})
+				.optional(),
+		}),
+		z.strictObject({ method: z.literal('get'), eventId }),
+		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
+	])
+	.readonly()
+
 export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
+	z.strictObject({
+		kind: z.literal('cancellation'),
+		provenance: z.literal('conditional_patch'),
+		response: z.object({ id: eventId, etag: z.string().min(1).optional(), status: z.literal('cancelled').optional() }),
+		httpStatus: z.number().int().min(200).max(299),
+		ifMatch: z.string().min(1),
+		checkedAt: instant,
+		ownedDigest: digest,
+		unownedWritableFingerprint: digest,
+		unownedWritable: googleUnownedWritable.nullable().optional(),
+		baselineEvent: googleEventFact.optional(),
+	}),
 	z.strictObject({
 		kind: z.literal('event'),
 		event: googleEventFact,

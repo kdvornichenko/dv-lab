@@ -52,6 +52,7 @@ export async function singleTarget(executor: DbExecutor, accountId: string, inpu
 		)
 		.orderBy(desc(googleReadEvents.snapshotRevision))
 	let event = rows.find((row) => eventVersion(row) === input.input.expectedVersion)
+	let cancellationBaselineFingerprint: string | undefined
 	if (!event && input.operation === 'restore') {
 		const windows = await executor
 			.select()
@@ -65,15 +66,18 @@ export async function singleTarget(executor: DbExecutor, accountId: string, inpu
 			)
 			.orderBy(desc(googleReadWindows.snapshotRevision))
 			.limit(1)
-		if (windows[0])
-			event = (await cancelledSingles(executor, windows[0])).find(
+		if (windows[0]) {
+			const historical = (await cancelledSingles(executor, windows[0])).find(
 				(row) => row.eventId === mapping.eventId && eventVersion(row) === input.input.expectedVersion
 			)
+			event = historical
+			cancellationBaselineFingerprint = historical?.cancellationBaselineFingerprint
+		}
 	}
 	if (!event || event.bindingKind !== 'lesson') throw new CommandFault('precondition_failed')
 	const [window] = await executor.select().from(googleReadWindows).where(eq(googleReadWindows.id, event.windowId))
 	if (!window || window.coverageState !== 'complete') throw new CommandFault('precondition_failed')
-	return { mapping, event, window }
+	return { mapping, event, window, cancellationBaselineFingerprint }
 }
 
 export async function prepareSingleCommand(
@@ -157,12 +161,13 @@ export async function prepareSingleCommand(
 	const request = googleStageRequest.parse({
 		method: 'patch',
 		eventId: target.mapping.eventId,
-		ifMatch: target.event.etag,
+		ifMatch: plan.preconditions[0].etag,
 		...(input.operation === 'cancel'
 			? {
 					cancellationBaseline: {
 						unownedWritableFingerprint: plan.preconditions[0].unownedWritableFingerprint,
 						unownedWritable: plan.preconditions[0].unownedWritable,
+						baselineEvent: evidence.kind === 'present' ? evidence.observation.event : undefined,
 					},
 				}
 			: {}),
@@ -205,7 +210,7 @@ function singlePrecondition(evidence: SingleEvidence, eventId: string, etag: str
 	const observed = evidence.kind === 'present' ? evidence.observation : evidence.cancellation
 	return {
 		eventId,
-		etag,
+		etag: evidence.kind === 'present' ? evidence.observation.event.etag : etag,
 		unownedWritableFingerprint: observed.unownedWritableFingerprint,
 		unownedWritable: observed.unownedWritable ?? null,
 	}
@@ -228,8 +233,7 @@ function validateEvidence(
 		return
 	}
 	const observed = evidence.observation
-	if (observed.event.etag !== target.event.etag || observed.event.eventId !== target.mapping.eventId)
-		throw new CommandFault('external_change')
+	validateObservedRevision(observed, target, input)
 	const markers = observed.privateProperties
 	if (input.operation === 'restore' && observed.event.status === 'cancelled' && !markers.dvLocalId) return
 	if (
@@ -238,4 +242,20 @@ function validateEvidence(
 		markers.dvGeneration !== String(target.mapping.representationGeneration)
 	)
 		throw new CommandFault('external_change')
+}
+
+function validateObservedRevision(
+	observed: SingleObservation,
+	target: Awaited<ReturnType<typeof singleTarget>>,
+	input: SingleCommand
+) {
+	if (observed.event.eventId !== target.mapping.eventId) throw new CommandFault('external_change')
+	if (observed.event.etag === target.event.etag) return
+	if (
+		input.operation === 'restore' &&
+		observed.event.status === 'cancelled' &&
+		target.cancellationBaselineFingerprint === observed.unownedWritableFingerprint
+	)
+		return
+	throw new CommandFault('external_change')
 }
