@@ -418,13 +418,13 @@ Plans:
 5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
 6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
-**Plans**: 14 plans / 40 tasks / 13 waves; preparation checked, implementation pending Phase 21.1
+**Plans**: 2/14 plans executed / 40 tasks / 13 waves; preparation checked, implementation pending Phase 21.1
 
 Plans:
 **Wave 1**
 
-- [ ] 24-01-PLAN.md — Публичный tracer, privacy и точный E2E target
-- [ ] 24-02-PLAN.md — Google source DTO и durable command/read schema
+- [x] 24-01-PLAN.md — Публичный tracer, privacy и точный E2E target
+- [x] 24-02-PLAN.md — Google source DTO и durable command/read schema
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
@@ -531,6 +531,6 @@ Plans:
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete         | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/14           | Ready to execute | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 2/14 | Ready to execute | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started      | -          |
 | 26. IELTS Section                                | v2.0      | 0/TBD          | Not started      | -          |

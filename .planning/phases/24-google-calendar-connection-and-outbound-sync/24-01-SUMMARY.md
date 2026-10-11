@@ -119,7 +119,7 @@ Final source: `fd50d4c`. Fingerprint 12 файлов: `5d5e3f9aca760bce2869229f4
 
 ## Quality / Simplify
 
-Owned diff прочитан с ближайшими callers. Нет новых комментариев, подтверждённого dead code или лишних provider helpers. 10 `unknown` относятся к входным JSON/SQL данным и их передаче к валидаторам. Explicit/inferred `any`: 0. Semantic diagnostics: 0.
+Owned diff прочитан с ближайшими callers. Нет новых комментариев, подтверждённого dead code или лишних provider helpers. 11 `unknown` относятся к входным JSON/SQL данным и их передаче к валидаторам. Explicit/inferred `any`: 0. Semantic diagnostics: 0.
 
 Метод: TypeScript 6.0.3 и существующий `scripts/dev-checks/time-zone-metrics.ts`. Baseline `8116e48`; fingerprints, before/after и все функции находятся в `STATE_DIR/24-01-final-quality.json`. Измеряются 12 handwritten source/tooling files, 89 функций; dependencies и generated files в этот denominator не входят. Halstead использует AST leaf tokens: keyword/punctuation как operator, identifier/literal как operand; comments/trivia и nested functions исключены, type/JSX tokens включены. Это промежуточный метод; final quality owner — 24-13.
 
