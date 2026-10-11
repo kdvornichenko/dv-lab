@@ -48,7 +48,7 @@ For definitions of terms found on this page, see the [Authentication and authori
 
 ## API key credentials
 
-An API key is a long string containing upper and lower case letters, numbers, underscores, and hyphens, such as `AIzaSyDaGmWKa4JsXZ-HjGw7ISLn_3namBGewQe`. This authentication method is used to anonymously access publicly available data, such as Google Workspace files shared using the "Anyone on the Internet with this link" sharing setting. For more details, see [Manage API keys](https://docs.cloud.google.com/docs/authentication/api-keys).
+An API key is a long string containing upper and lower case letters, numbers, underscores, and hyphens, such as `YOUR_API_KEY`. This authentication method is used to anonymously access publicly available data, such as Google Workspace files shared using the "Anyone on the Internet with this link" sharing setting. For more details, see [Manage API keys](https://docs.cloud.google.com/docs/authentication/api-keys).
 
 To create an API key:
 
