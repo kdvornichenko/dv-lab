@@ -8,7 +8,13 @@ import { createDb } from '@dv-lab/db'
 import { createApp } from './app.ts'
 import { createHousekeeping } from './auth/housekeeping.ts'
 import { createSignIn } from './auth/sign-in.ts'
-import { loadConfig } from './config.ts'
+import { createConnectionControl } from './calendar/connection-control.ts'
+import { createConnection } from './calendar/connection.ts'
+import { createCredentials } from './calendar/credentials.ts'
+import { createGoogleGateway } from './calendar/gateway.ts'
+import { createConnectionLease } from './calendar/lease.ts'
+import { createTokenEnvelope } from './calendar/token-envelope.ts'
+import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
 import { createLogger } from './request-context.ts'
 
@@ -26,6 +32,25 @@ const lifecycle = createLifecycle({
 const production = config.NODE_ENV === 'production'
 const signIn = createSignIn({ db, logger, requireClientIp: production })
 const housekeeping = createHousekeeping({ db, logger })
+const calendar = config.calendar.enabled ? createCalendar(config.calendar) : undefined
+
+function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
+	const lease = createConnectionLease(pool)
+	const envelope = createTokenEnvelope(calendarConfig)
+	const gateway = createGoogleGateway(calendarConfig)
+	const credentials = createCredentials({ lease, envelope, gateway })
+	const connection = createConnection({ db, lease, envelope, gateway, credentials })
+	const control = createConnectionControl({
+		db,
+		lease,
+		credentials,
+		envelope,
+		gateway,
+		logger,
+		isStopping: lifecycle.isStopping,
+	})
+	return { connection, control, resources: [control, lease, credentials] }
+}
 
 const app = createApp({
 	logger,
@@ -35,6 +60,8 @@ const app = createApp({
 	production,
 	isStopping: lifecycle.isStopping,
 	signIn,
+	calendar: calendar?.connection,
+	calendarControl: calendar?.control,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
@@ -44,5 +71,10 @@ const server = serve({ fetch: app.fetch, port: config.PORT, websocket: { server:
 ) as Server
 
 housekeeping.start()
+calendar?.control.start()
 
-lifecycle.manage({ server, wss, resources: [housekeeping, { name: 'pg-pool', close: () => pool.end() }] })
+lifecycle.manage({
+	server,
+	wss,
+	resources: [housekeeping, ...(calendar?.resources ?? []), { name: 'pg-pool', close: () => pool.end() }],
+})

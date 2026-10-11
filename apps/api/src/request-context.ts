@@ -5,12 +5,13 @@ import pino, { type DestinationStream, type Logger } from 'pino'
 import type { ErrorCode } from '@dv-lab/contracts'
 import { postgresErrorFields } from '@dv-lab/db'
 
-const storage = new AsyncLocalStorage<{ requestId: string }>()
+const storage = new AsyncLocalStorage<{ requestId: string; calendar: boolean }>()
 const VALID_ID = /^[\w-]{8,64}$/
 
 const currentRequestId = () => storage.getStore()?.requestId
 
 function serializeError(err: unknown) {
+	if (storage.getStore()?.calendar) return { type: 'Error', message: 'Calendar request failed' }
 	if (err instanceof Error && 'query' in err && 'params' in err) {
 		return { type: err.name, message: 'Failed query', ...postgresErrorFields(err) }
 	}
@@ -26,7 +27,23 @@ export function createLogger(level: string, destination?: DestinationStream): Lo
 			formatters: { level: (label) => ({ level: label }) },
 			mixin: () => ({ requestId: currentRequestId() }),
 			serializers: { err: serializeError },
-			redact: { paths: ['req.headers.authorization', 'req.headers.cookie'], censor: '[redacted]' },
+			redact: {
+				paths: [
+					'req.headers.authorization',
+					'req.headers.cookie',
+					'req.headers.referer',
+					'req.url',
+					'req.query',
+					'url',
+					'query',
+					'code',
+					'state',
+					'token',
+					'access_token',
+					'refresh_token',
+				],
+				censor: '[redacted]',
+			},
 		},
 		destination
 	)
@@ -40,7 +57,7 @@ export const requestContext =
 		c.set('requestId', requestId)
 		c.header('x-request-id', requestId)
 		const started = performance.now()
-		await storage.run({ requestId }, async () => {
+		await storage.run({ requestId, calendar: c.req.path.startsWith('/google/') }, async () => {
 			try {
 				await next()
 			} finally {
