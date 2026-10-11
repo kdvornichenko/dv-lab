@@ -326,7 +326,7 @@ Plans:
 3. Schedule, Today, next lesson, lesson dialogs and time labels use the default zone. A different creation zone appears in lesson/series details. Recurrences preserve wall time in their stored zone across daylight saving changes.
 4. Today and lesson dates used at the opening-balance boundary use the account zone. A near-midnight lesson can change accounting day after a zone change; forms and API agree. Payment date-only values remain dates.
 5. The second zone remains a browser preference and differs from the default. Choosing the second zone as default makes the old default second, only after a successful save. Settings and the schedule toolbar stay synchronized.
-   **Plans:** 10/13 plans executed, 9 waves; independently verified
+   **Plans:** 11/13 plans executed, 9 waves; independently verified
    **UI hint:** yes
    **Design:** Accepted default-zone design introduced in v37; current local copy v40, `SettingsGeneral`, `ZoneChangeDialog`, `TimePair`, `WeekGrid`, `LessonDialog`, `TimeZonePicker`. The old “after 23” note in the design is superseded by this execution order.
 
@@ -360,7 +360,7 @@ Plans:
 
 **Wave 7** _(blocked on Wave 6 completion)_
 
-- [ ] 21.1-10-PLAN.md — Создание и перенос уроков из main zone, DST helpers и stale forms
+- [x] 21.1-10-PLAN.md — Создание и перенос уроков из main zone, DST helpers и stale forms
 - [x] 21.1-12-PLAN.md — Адаптация существующих проверок к явной зоне
 
 **Wave 8** _(blocked on Wave 7 completion)_
@@ -473,7 +473,7 @@ Plans:
 | 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress      |            |
 | 20. Schedule                                     | v2.0      | 10/10          | In Progress      |            |
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete         | 2026-10-11 |
-| 21.1. Default Time Zone                          | v2.0      | 10/13          | Ready to execute | -          |
+| 21.1. Default Time Zone                          | v2.0      | 11/13          | In Progress      | -          |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Not started      | -          |
