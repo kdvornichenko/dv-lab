@@ -418,7 +418,62 @@ Plans:
 5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
 6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
-**Plans**: TBD
+**Plans**: 14 plans / 40 tasks / 13 waves; preparation checked, implementation pending Phase 21.1
+
+Plans:
+**Wave 1**
+
+- [ ] 24-01-PLAN.md — Публичный tracer, privacy и точный E2E target
+- [ ] 24-02-PLAN.md — Google source DTO и durable command/read schema
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 24-03-PLAN.md — Разрешённые зависимости и миграции очереди/journal
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 24-04-PLAN.md — OAuth, refresh и разрешимый Disconnect
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
+- [ ] 24-05-PLAN.md — Атомарные Google reads, next index и граница истории
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
+- [ ] 24-06-PLAN.md — C2: единые будущие факты Today и Students
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
+- [ ] 24-07-PLAN.md — Сквозная команда: prepare→Google ACK→projection
+
+**Wave 7** _(blocked on Wave 6 completion)_
+
+- [ ] 24-08-PLAN.md — Single edits, tombstone restore и precondition recovery
+
+**Wave 8** _(blocked on Wave 7 completion)_
+
+- [ ] 24-09-PLAN.md — Recurring masters и canonical instances
+
+**Wave 9** _(blocked on Wave 8 completion)_
+
+- [ ] 24-10-PLAN.md — Cut/end: partial Google state и однократный domain apply
+
+**Wave 10** _(blocked on Wave 9 completion)_
+
+- [ ] 24-12-PLAN.md — UI: Google read-only, pending Save и recovery
+
+**Wave 11** _(blocked on Wave 10 completion)_
+
+- [ ] 24-11-PLAN.md — Полный conflict check и сохранение открытой формы
+
+**Wave 12** _(blocked on Wave 11 completion)_
+
+- [ ] 24-13-PLAN.md — Readiness и воспроизводимая external evidence
+
+**Wave 13** _(blocked on Wave 12 completion)_
+
+- [ ] 24-14-PLAN.md — Публичный Production и реальный восьмой день
+
 **UI hint**: yes
 **Notes**: Owner decision 2026-10-11 supersedes the offline/local-first design. Initial connection reads Google; it does not publish the existing local schedule automatically. Ordinary window reads belong to Phase 24; watch/incremental sync and event matching remain Phase 25. Built on AUD-CAL-1..10 in `.planning/research/CODE-AUDIT.md`: event id derived from the lesson, series or exception id in Google's id alphabet, one writer per lesson through `pg-boss`, event time zone taken from the lesson, not from the server.
 **OAuth setup**: Calendar API is enabled. The web client uses `https://dv-lab.dev/api/google/callback`; the server must implement this exact callback. The declared Calendar scopes are `calendar.events` and `calendar.calendarlist.readonly`. Credentials are stored outside the repository. The app remains in Testing while Branding is incomplete; public privacy policy and terms pages belong to this phase. Publication and the connection test are still pending.
@@ -476,6 +531,6 @@ Plans:
 | 21.1. Default Time Zone                          | v2.0      | 0/13           | Ready to execute | -          |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Planning         | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/14           | Ready to execute | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started      | -          |
 | 26. IELTS Section                                | v2.0      | 0/TBD          | Not started      | -          |

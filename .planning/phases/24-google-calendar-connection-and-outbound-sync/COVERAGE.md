@@ -1,8 +1,8 @@
 # API Coverage — Google Calendar and OAuth
 
-Phase 24 preparation. Decisions derive from CONTEXT D-01…D-12 and RESEARCH. This matrix closes GCAL-01/02/03/09/10 scope coverage before executable plans. It records planned capabilities; no runtime integration is claimed.
+Подготовка Phase 24 по CONTEXT D-01…D-14 и актуальному [RESEARCH](24-RESEARCH.md). Матрица закрывает GCAL-01/02/03/09/10 и SC1–6. Google — источник событий; Schedule, Today upcoming и nextLessonAt используют общий confirmed read owner (C2). Runtime integration не проверена.
 
-Source: [Calendar v3 reference](https://developers.google.com/workspace/calendar/api/v3/reference), inspected 2026-10-11, and [OAuth web-server flow](https://developers.google.com/identity/protocols/oauth2/web-server). All 38 Calendar methods listed by the reference are decided below. OAuth adds four protocol capabilities. Opt-outs preserve the accepted phase boundary.
+Источники: [READING](../../../docs/google-calendar/READING.md), [Discovery revision 20261005](../../../docs/google-calendar/calendar-v3.discovery.json) и [OAuth web-server flow](../../../docs/google-calendar/articles/related/identity/protocols/oauth2/web-server.md). Все 38 Calendar methods сопоставлены с Discovery; OAuth добавляет четыре capability.
 
 | capability                  | decision  | reason                                                                            |
 | --------------------------- | --------- | --------------------------------------------------------------------------------- |
@@ -38,10 +38,10 @@ Source: [Calendar v3 reference](https://developers.google.com/workspace/calendar
 | events.import               | OPT-OUT   | No external event import or private-copy feature                                  |
 | events.insert               | INTEGRATE | GCAL-02/03; deterministic standalone and recurring-master IDs                     |
 | events.instances            | INTEGRATE | GCAL-02; canonical occurrence IDs and complete pagination                         |
-| events.list                 | INTEGRATE | GCAL-10; complete finite conflict windows and strict self-exclusion               |
+| events.list                 | INTEGRATE | GCAL-01/02/10; complete Google windows, shared next index, conflicts and identity recovery               |
 | events.move                 | OPT-OUT   | Primary-only target; no organizer or calendar transfer                            |
 | events.patch                | INTEGRATE | GCAL-02/03; queued conditional changes to masters, singles and instances          |
-| events.quickAdd             | OPT-OUT   | Structured application schedule is authoritative for outbound payloads            |
+| events.quickAdd             | OPT-OUT   | Commands use validated structured input; no natural-language quick-add            |
 | events.update               | OPT-OUT   | Conditional partial changes use events.patch; no full resource replacement        |
 | events.watch                | OPT-OUT   | Push and incremental inbound synchronization belong to Phase 25                   |
 | freebusy.query              | OPT-OUT   | Conflict UI needs event identity/details and paginated events.list                |
@@ -49,10 +49,22 @@ Source: [Calendar v3 reference](https://developers.google.com/workspace/calendar
 | settings.list               | OPT-OUT   | No Google account-preference import                                               |
 | settings.watch              | OPT-OUT   | No Google account-preference monitoring                                           |
 
-Only `calendar.events` and `calendar.calendarlist.readonly` are requested. No identity, Gmail, Drive, broad calendar or administration scope is added. Recurring exceptions map a stable local key to Google's canonical instance ID; they do not create a second independent event. All Calendar writes use the single queued writer. OAuth exchange, refresh and revoke belong to the connection protocol owner.
+Only `calendar.events` and `calendar.calendarlist.readonly` are requested. No identity, Gmail, Drive, broad calendar or administration scope is added. Recurring exceptions map a stable local key to Google's canonical instance ID; they do not create a second independent event. All Calendar writes use the single queued writer. Journal acceptance returns pending; confirmed projection changes after Google acknowledgement. OAuth exchange, refresh and revoke belong to the connection protocol owner.
 
-Additional product capabilities remain explicitly excluded: attendees/invitations, Meet creation, attachments, inbound title matching, assign/ignore, Google-wins merging, syncToken/410 recovery and nightly inbound reconciliation. The Phase 25 capabilities retain their existing roadmap owner. Public `/welcome`, `/privacy` and `/terms` close SC6 locally and do not call Google.
+Обычные events.list reads и известные Google факты входят в Phase 24. Full window публикуется только после всех страниц; неполный next search даёт unknown. Первый connect читает Google и не экспортирует legacy future. External unmapped events остаются read-only; title matching отсутствует. No connection/outage блокирует новые Calendar edits; last-known snapshot честно помечен.
 
-Execution proof remains separate: real provider recurrence behavior, production publishing, credentials, deployment and refresh after eight days are not verified by this preparation matrix.
+Исключены attendees/invitations, Meet creation, attachments, import/move calendar management. Phase 25 владеет постоянной доставкой внешних изменений, matching/Assign/Ignore, watch channels, syncToken/410 и nightly reconciliation. Это не исключает Google-authoritative чтение из Phase 24 и не разрешает перезаписывать Google старым local state.
 
-Verification: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/24-google-calendar-connection-and-outbound-sync`. Require `passed: true`, 42 decided rows, and a reason for every opt-out.
+Disconnect отзывает grant, сохраняет Google events/history/mappings/journal/cache и не является events.delete. Restore исчезнувшего cancelled single использует get/list access-and-absence proof, затем следующую journalled deterministic representation generation и insert. Instance restore остаётся canonical instance patch; arbitrary independent insert отсутствует.
+
+OAuth scopes ровно прежние два; публикация /welcome/privacy/terms не вызывает Google API. Production, deployment, actual recurring/tombstone behavior и day-8 refresh остаются UNVERIFIED.
+
+## Static verification
+
+```sh
+node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/24-google-calendar-connection-and-outbound-sync
+```
+
+Ожидается `passed: true`, 42 decided rows: 10 INTEGRATE (6 Calendar + 4 OAuth), 32 OPT-OUT, каждая с reason. Подробные fingerprints и статическая проверка ссылок/контракта — в RESEARCH. Этот check не доказывает runtime.
+
+Результат 2026-10-11: exit 0; `passed=true`, `surface=42`, `integrate=10`, `optout=32`.

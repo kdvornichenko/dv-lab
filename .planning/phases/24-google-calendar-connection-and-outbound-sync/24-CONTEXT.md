@@ -1,7 +1,7 @@
 # Phase 24: Google Calendar Connection and Outbound Sync — Context
 
 **Gathered:** 2026-10-11
-**Status:** Preparation revision: Google-authoritative calendar; implementation depends on Phase 21.1
+**Status:** Preparation complete: checked Google-authoritative plans; implementation depends on Phase 21.1
 
 <domain>
 ## Phase Boundary
@@ -33,8 +33,8 @@ Google Calendar — источник событий. dv-lab читает и по
 - **D-11:** Пользователь выбрал только основной Google Calendar: «Только основной календарь». Selector и автоматическая смена target не входят в Phase 24. После подключения UI показывает фактический основной календарь. Reconnect сохраняет прежнюю identity; другой аккаунт или календарь не подменяет её молча.
 - **D-12:** Disconnect останавливает dispatch, отзывает grant и очищает действующие credentials. Локальные данные, Google events, mappings и незавершённые intents сохраняются. Ошибка revoke остаётся видимым состоянием; reconnect к прежнему календарю восстанавливает чтение и разрешает исход ранее отправленных команд. Локальные неподтверждённые изменения не считаются сохранённым расписанием.
 
-- **D-13 (прямое решение владельца):** «без подключенного гугла календарь вообще не работает, он только отображает и помогает гуглу». Без подключённого primary Calendar запрещены новые изменения расписания. Подключение читает события Google; календарь dv-lab не является независимым источником событий. Существующая локальная история сохраняется; её наличие не запускает автоматическую публикацию старых уроков в Google.
-- **D-14 (ответ владельца):** При временной недоступности Google не подтверждать сохранение до ответа Google; оставить просмотр последнего состояния. Save success требует подтверждённого Google результата. Timeout с неизвестным исходом остаётся явным pending/unknown, пока reconciliation не установит результат; его нельзя превращать в local success. Новые offline edits не принимаются.
+- **D-13:** Прямое решение владельца: «без подключенного гугла календарь вообще не работает, он только отображает и помогает гуглу». Без подключённого primary Calendar запрещены новые изменения расписания. Подключение читает события Google; календарь dv-lab не является независимым источником событий. Существующая локальная история сохраняется; её наличие не запускает автоматическую публикацию старых уроков в Google.
+- **D-14:** Ответ владельца: При временной недоступности Google не подтверждать сохранение до ответа Google; оставить просмотр последнего состояния. Save success требует подтверждённого Google результата. Timeout с неизвестным исходом остаётся явным pending/unknown, пока reconciliation не установит результат; его нельзя превращать в local success. Новые offline edits не принимаются.
 
 ### Инженерные решения подготовки
 
@@ -86,7 +86,7 @@ Write set подготовки: `.planning/phases/24-google-calendar-connection-
 - `.planning/ROADMAP.md` — Phase 24 и текущий OAuth setup.
 - `.planning/REQUIREMENTS.md` — GCAL-01/02/03/09/10 и граница с Phase 25.
 - `.planning/research/CODE-AUDIT.md` — AUD-CAL-1…10; это причины переписывания старого календаря, а не описание текущего source.
-- `.planning/phases/21.1-default-time-zone/21.1-CONTEXT.md` — принятые правила зон; RESEARCH и PLAN из worktree 21.1 будут добавлены после завершения.
+- `.planning/phases/21.1-default-time-zone/21.1-CONTEXT.md` — принятые правила зон; RESEARCH и проверенные PLAN находятся в этом репозитории; план 21.1 подтверждён владельцем, source ещё не реализован.
 - `AGENTS.md`, `.planning/EXECUTOR-RULES.md` — module ownership, аддитивные миграции, публичный репозиторий и E2E.
 - `/Users/kdvornichenko/dv-lab-design/VERSION` и `/Users/kdvornichenko/dv-lab-design/project/components/SettingsCalendar/README.md` — дизайн v40; части Phase 25 исключены.
 - [Google OAuth 2.0](https://developers.google.com/identity/protocols/oauth2) — в Testing refresh token для Calendar scopes ограничен семью днями; проверено 2026-10-11.

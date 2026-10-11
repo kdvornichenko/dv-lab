@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google Calendar в dv-lab</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+.ui{font:14px/1.5 system-ui;color:#242424;background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:20px}.ui h3{font-size:16px;margin:0 0 12px}.ui p{margin:6px 0}.ui small{color:#666}.ui .field{border:1px solid #d4d4d4;border-radius:7px;padding:8px 10px;margin:12px 0}.ui .actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:20px}.ui .button{padding:7px 12px;border:1px solid #ccc;border-radius:7px}.ui .primary{background:#242424;color:#fff}.ui .error{color:#a12b22}.ui .note{background:#f5f5f5;padding:12px;border-radius:8px;margin-top:12px}.ui .good{color:#15803d}
+</style>
+<body>
+<header>
+<h1>Google Calendar в dv-lab</h1>
+<doc-changes new="30" changed="56"></doc-changes>
+<details class="thread"><summary>Контракт фазы 24</summary>
+<doc-quote via="prompt" from="Владелец">давай сделаем так - у нас без подключенного гугла календарь вообще не работает, он только отображает и помогает гуглу</doc-quote>
+<doc-quote via="doc" from="24-CONTEXT.md">Только основной календарь</doc-quote>
+</details>
+</header>
+<main><doc-plan>
+<doc-claim id="connection">
+<p>Учитель подключает основной Google Calendar.</p>
+<doc-machine name="connection" caption="Google OAuth не заменяет вход в dv-lab.">
+<script type="text/plain">
+machine connection initial empty
+state empty # Связь отсутствует.
+state consent # Учитель разрешает доступ Google.
+state connected # Сервер подтвердил связь.
+state reconnect # Google требует восстановить доступ.
+state failed # Прежнее состояние сохранено.
+| empty | consent | connected |
+| . | failed | reconnect |
+empty -connect-> consent : Connect
+consent -ok-> connected : Проверка
+consent -fail-> failed : Отказ
+failed -retry-> consent : Повтор
+connected -expire-> reconnect : Отзыв
+reconnect -retry-> consent : Reconnect
+</script>
+<div data-state="empty"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Google Calendar</h3><p>Connect your primary Google Calendar to view events and manage lessons. Calendar changes require a working Google connection.</p><div class="actions"><span class="button primary">Connect Google Calendar</span></div></div></template></doc-mock></div>
+<div data-state="consent"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Google Calendar</h3><p>Checking Google connection…</p></div></template></doc-mock></div>
+<div data-state="connected"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Google Calendar</h3><p class="good">Google Calendar connected</p><p>Primary calendar: {calendar.label}</p><p>Unconfirmed changes: None</p><div class="actions"><span class="button">Disconnect</span></div></div></template></doc-mock></div>
+<div data-state="reconnect"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Google Calendar</h3><p>Google access expired or was revoked. Reconnect to use the calendar. The last checked view is read-only.</p><div class="actions"><span class="button primary">Reconnect</span></div></div></template></doc-mock></div>
+<div data-state="failed"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Google Calendar</h3><p class="error">Could not connect Google Calendar. Try again from Settings.</p></div></template></doc-mock></div>
+</doc-machine>
+<doc-claim><p>Callback принимает одноразовый state, привязанный к сессии.</p>
+<doc-code title="apps/api/src/calendar/connection.ts · sketch" lang="text"><script type="text/plain">
+Teacher session → OAuth state + PKCE
+Google consent → fixed callback
+Validated primary Calendar → same bound identity
+Encrypted credentials → safe UI snapshot
+</script></doc-code>
+<doc-note>Планы 04 и 12. Другой календарь не подменяет существующую связь.</doc-note>
+<doc-claim at="apps/api/src/request-context.ts:47"><p><b>apps/api/src/request-context.ts:47</b> · request logger</p><doc-code src="apps/api/src/request-context.ts" lines="47-54" lang="ts"></doc-code><doc-note>Query callback также скрывается в Caddy.</doc-note></doc-claim>
+</doc-claim></doc-claim>
+
+<doc-claim id="delivery">
+<p>Изменение сохраняется после подтверждения Google.</p>
+<doc-machine name="command" caption="Форма сохраняет введённые данные до установленного результата.">
+<script type="text/plain">
+machine command initial editing
+state editing # Можно отправить команду при рабочем подключении.
+state pending # Google ещё не подтвердил результат.
+state unknown # Ответ потерян; приложение проверяет событие.
+state failed # Подтверждено отсутствие изменения.
+state projecting # Google подтвердил изменение; проекция обновляется.
+state partial # Google выполнил только часть переноса серии.
+state confirmed final # Подтверждённое состояние доступно в приложении.
+| editing | pending | projecting | confirmed |
+| failed | unknown | partial | . |
+editing -save-> pending : Сохранить
+pending -ok-> projecting : Ответ Google
+pending -lost-> unknown : Ответ потерян
+pending -reject-> failed : Отказ
+unknown -found-> projecting : Найден результат
+unknown -absent-> failed : Изменения нет
+pending -part-> partial : Часть выполнена
+partial -resume-> pending : Продолжить
+projecting -applied-> confirmed : Проекция готова
+failed -retry-> editing : Исправить
+</script>
+<div data-state="editing"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Move lesson</h3><div class="field">Date and time</div><div class="actions"><span class="button primary">Save</span></div></div></template></doc-mock></div>
+<div data-state="pending"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Move lesson</h3><p>Waiting for Google Calendar to confirm this change…</p></div></template></doc-mock></div>
+<div data-state="unknown"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Move lesson</h3><p>Google Calendar may have received this change. Its result is not confirmed. Check the status before making another change.</p><div class="actions"><span class="button">Check status</span><span class="button">View schedule</span></div></div></template></doc-mock></div>
+<div data-state="failed"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Move lesson</h3><p>This change was not applied. Refresh the calendar before trying again.</p><span class="button">Refresh</span></div></template></doc-mock></div>
+<div data-state="projecting"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Move lesson</h3><p>Google Calendar confirmed the change. Updating the displayed calendar…</p></div></template></doc-mock></div>
+<div data-state="partial"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Move series</h3><p>Only part of this calendar change is confirmed. Resume recovery to check the remaining steps.</p><div class="actions"><span class="button">View status</span><span class="button">Resume recovery</span></div></div></template></doc-mock></div>
+<div data-state="confirmed"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Schedule</h3><div class="field">{studentName} · {date}, {time} ({zone})</div></div></template></doc-mock></div>
+</doc-machine>
+<doc-claim><p>Команда сохраняется отдельно от подтверждённого состояния урока.</p>
+<doc-code title="Command boundary · sketch" lang="text"><script type="text/plain">
+Validate connection + event version
+→ command journal → one writer → Google
+→ confirmed result → local projection
+</script></doc-code>
+<doc-note>При неизвестном результате повтор сначала проверяет Google.</doc-note>
+<doc-claim><p><b>apps/api/src/calendar/commands.ts</b> · запланированный владелец</p><doc-code title="journal.ts + worker.ts · sketch" lang="text"><script type="text/plain">
+Unsent rejected command cannot silently execute later.
+Dispatched unknown command reconciles the same identity.
+Older response cannot confirm a different command.
+</script></doc-code></doc-claim>
+</doc-claim></doc-claim>
+
+<doc-claim id="calendar">
+<p>Календарь показывает события Google и последнее проверенное окно.</p>
+<doc-mock frame="none" w="440"><template><div class="ui"><h3>Schedule</h3><p>Google Calendar is unavailable. Showing the last checked view. Calendar changes are disabled.</p><div class="field">Read-only · Last checked: {date}, {time} ({zone})</div><div class="note">Google Calendar event</div><div class="actions"><span class="button">Refresh</span></div></div></template></doc-mock>
+<doc-claim><p>Все страницы окна входят в общую подтверждённую проекцию.</p>
+<doc-code title="Calendar read boundary · sketch" lang="text"><script type="text/plain">
+Bound primary Calendar → all window pages
+→ complete last-known projection
+→ Schedule + Today upcoming + nextLessonAt
+Unmapped events remain read-only busy time.
+</script></doc-code>
+<doc-note>При первом подключении читается Google. Локальная история сохраняется.</doc-note>
+<doc-claim><p><b>apps/api/src/calendar/read-model.ts</b> · запланированный владелец</p><doc-code title="reads.ts + read-model.ts · sketch" lang="text"><script type="text/plain">
+Google master + instances → displayed occurrences
+Stored zone → consistent time display
+Confirmed cut stages → preserved local history
+</script></doc-code></doc-claim>
+</doc-claim></doc-claim>
+
+<doc-claim id="conflicts">
+<p>Форма показывает пересечения во всём выбранном диапазоне.</p>
+<doc-mock frame="none" w="440"><template><div class="ui"><h3>New lesson</h3><div class="field">Repeats · Weekly</div><div class="field">Check through · Choose date</div><small>Choose the last date to check for overlaps before saving. This does not end the series.</small><div class="note"><b>This overlaps 2 Google Calendar events</b><p>Checked range: {from}–{to} ({zone}).</p><p>You can still save this change. Google Calendar must confirm it before it is saved.</p><span class="button">Show all 2 conflicts</span></div></div></template></doc-mock>
+<doc-claim><p>Сервер читает все страницы и проверяет интервалы каждого урока.</p>
+<doc-schema id="conflict-result" title="GoogleConflictResult · sketch" lang="ts"><script type="text/plain">
+type GoogleConflictResult =
+  | { state: 'not_checked'; inputKey: string }
+  | { state: 'complete'; complete: true; inputKey: string;
+      checkedRange: CalendarRange; checkedAt: string;
+      events: GoogleConflictEvent[] }
+  | { state: 'unavailable'; inputKey: string; reason: CalendarIssue }
+</script></doc-schema>
+<doc-note>Планы 11–12. Ошибка страницы не даёт clean result. Изменение формы отменяет старый результат.</doc-note>
+<doc-claim><p><b>apps/api/src/schedule/calendar-conflicts.ts</b> · новый владелец проверки</p><doc-code title="calendar-conflicts.ts + gateway.ts · sketch" lang="text"><script type="text/plain">
+Validate finite range → core candidate intervals
+→ every Google page → exact interval union
+→ exclude edited identity → complete result
+</script></doc-code></doc-claim>
+</doc-claim></doc-claim>
+
+<doc-claim id="public">
+<p>Посетитель читает описание продукта, Privacy policy и Terms без входа.</p>
+<doc-mock frame="none" w="440"><template><div class="ui"><h3>Google Calendar</h3><p>Connect your primary Google Calendar to use the calendar in dv-lab. Calendar changes are saved only after Google confirms them. If Google is unavailable, the last checked calendar view stays available for reading.</p><div class="actions"><span class="button primary">Sign in</span><span class="button">Privacy policy</span><span class="button">Terms</span></div></div></template></doc-mock>
+<doc-claim><p>Только три публичных pathname обходят проверку сессии.</p>
+<doc-code title="Публичная граница · sketch" lang="text"><script type="text/plain">
+/welcome /privacy /terms → public
+/ /settings /schedule   → authenticated
+</script></doc-code>
+<doc-note>Планы 01, 13–14. Production и refresh через восемь суток требуют настоящего внешнего доказательства.</doc-note>
+<doc-claim at="apps/web/proxy.ts:6"><p><b>apps/web/proxy.ts:6</b> · существующий guard</p><doc-code src="apps/web/proxy.ts" lines="6-14" lang="ts"></doc-code></doc-claim>
+</doc-claim></doc-claim>
+
+<doc-claim id="disconnect" aux="shared">
+<p>Disconnect останавливает отправку и сохраняет уроки с историей.</p>
+<doc-mock frame="none" w="440"><template><div class="ui"><h3>Disconnect Google Calendar?</h3><p>Calendar changes will stop. Google access will be revoked and live connection credentials cleared. Your local history, Google events and unfinished request records will stay. Reconnecting the same calendar checks earlier requests before you can make new changes.</p><div class="actions"><span class="button">Keep connected</span><span class="button primary">Disconnect</span></div></div></template></doc-mock>
+<doc-claim><p>Сервер завершает отзыв доступа даже после перезапуска.</p>
+<doc-code title="apps/api/src/calendar/connection-control.ts · sketch" lang="text"><script type="text/plain">
+Close dispatch → persist disconnecting
+→ revoke grant → clear live credentials
+Failure → visible error and retry
+Lost revoke reply → explicit Google Account recovery
+Same-calendar reconnect → earlier requests reconcile
+</script></doc-code>
+<doc-note>План 04. Ошибка revoke не считается завершённым Disconnect.</doc-note>
+<doc-claim at="apps/api/src/lifecycle.ts:3"><p><b>apps/api/src/lifecycle.ts:3</b> · общий lifecycle</p><doc-code src="apps/api/src/lifecycle.ts" lines="1-9" lang="ts"></doc-code></doc-claim>
+</doc-claim></doc-claim>
+
+<doc-claim aux="scope"><p>Граница подготовки и следующего исполнения</p>
+<ul><li>14 планов, 40 задач, 13 волн. Исходный код пока не меняется.</li><li>Реализация зависит от принятой фазы 21.1.</li><li>Агенты читают docs/google-calendar/READING.md и полные локальные articles.</li><li>Watch, incremental sync, matching и Events to review принадлежат фазе 25.</li><li>Browser preview не проверен: пользователь отключил управление браузером.</li></ul>
+</doc-claim>
+</doc-plan></main>
+</body></html>

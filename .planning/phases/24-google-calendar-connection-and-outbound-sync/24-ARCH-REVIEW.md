@@ -1,161 +1,87 @@
 # Phase 24 — Architectural Review
 
-**Date:** 2026-10-11
-**Scope:** OAuth, encrypted credentials, durable outbound sync, instance/cut identity, paginated conflicts and public-page boundary.
-**Status:** preparation complete; implementation and provider proof not performed.
-**Confidence:** MEDIUM — mandated confidence seam; source read plus official docs, no runtime. [VERIFIED: confidence seam, 2026-10-11]
+**Дата:** 2026-10-11. **Статус:** пересмотр под D-13/D-14; design decisions, runtime UNVERIFIED.
+**Scope:** только [RESEARCH](24-RESEARCH.md), этот ARCH-REVIEW и [COVERAGE](COVERAGE.md). Source/Git/env/DB/dependencies/provider не меняются.
+**Критерий:** Google source, shared confirmed reads, command ACK до success, recovery и local history. Ниже пять обязательных границ; это не findings в ещё не написанном коде.
 
-## Контракт проверки
+## AR-01 — Journal до Google, confirmed domain после Google
 
-Результат — пять конкретных архитектурных решений для SC1–6. Это проектирование новых границ, не список доказанных дефектов ещё не написанной интеграции. Write set текущей работы: только 24-RESEARCH.md и этот файл. Source, Git, dependencies, env, DB, browser, Google и сервер не меняются. [VERIFIED: current user scope]
+**SC2,3 / GCAL-02,03.** Старые schedule mutations непосредственно меняют DB и отвечают 200/201. Их нельзя обернуть outbox после commit: новый контракт запрещает ранний Save. Прочитанные seams: `apps/api/src/routes/schedule.ts`, `schedule/{schedule,changes,series}.ts`; `DbExecutor` сохраняется.
 
-Применён deletion test: оставить границу только если без неё теряется atomicity, identity, credential security, lifecycle ownership или complete conflict result. Технические решения не требуют повторного одобрения. Product policy primary-only принята пользователем; см. CONTEXT D-11 и RESEARCH A1. [CITED: 24-RESEARCH.md, Open Questions]
+**Решение:** prepare immutable command с preconditions и reserved IDs; journal transaction → single writer → verified Google result → idempotent projection/domain transaction. `202 CalendarCommandReceipt` — pending. Unknown/lost reply и projection_pending имеют отдельные статусы. `GET /google/commands/by-request/:requestId` восстанавливает correlation, даже если POST response потерян.
 
-## Карта ответственности
+**Retry:** definitive not-applied failure не превращается в deferred edit; нужен новый Save/requestId. Unknown dispatched attempt сначала reconciles GET/instances; тот же conditional attempt может продолжить ещё pending command. Новый incompatible edit блокируется. Lease/generation alone не являются Google fencing: deterministic IDs/If-Match и reconciliation barrier нужны вместе.
 
-Предписанная карта основана на существующих module owners и принятом CONTEXT. [CITED: AGENTS.md:42-95] [CITED: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md:23-36]
+**Owner/write set:** calendar commands/journal/worker; schedule command-plan/command-apply и существующие mutations; contracts/schedule routes; additive DB journal/mappings.
 
-| Owner                                  | Owns                                                          | Must not own                               |
-| -------------------------------------- | ------------------------------------------------------------- | ------------------------------------------ |
-| Existing core / schedule               | Zones, recurrence, local cut/end, marks                       | OAuth, provider DTO, queue transport       |
-| Schedule transaction + calendar outbox | Durable change intent and inserted-ID lineage                 | Remote HTTP request                        |
-| Calendar connection/credentials        | Consent/state, key envelope, refresh generation               | User login replacement or schedule math    |
-| Calendar worker/transition owner       | Latest-state reconciliation and one ordered remote transition | Browser requests or generic event platform |
-| Calendar gateway                       | Google wire calls, pagination, conditional writes             | UI rendering or domain date rules          |
-| Web public/private owners              | Safe connection DTO, explicit conflict interval, public pages | Tokens, Google SDK or direct DB imports    |
+**Удаление границы ломает:** окно между remote acceptance и DB commit, false success, повторный cut/new IDs. Generic event bus, Redis и client writers не нужны.
 
-## AR-01 — Domain commit и sync intent должны иметь одну транзакционную границу
+**Доказательство:** public create/move journey с разрывом до dispatch, после Google accept, после ack до DB projection; после restart одно representation и applied только после projection. Два edits на base version → один explicit conflict. Сейчас NOT RUN.
 
-**Priority / criteria:** required; SC2,3.
+## AR-02 — Один confirmed read owner для Schedule, Today upcoming и nextLessonAt
 
-**Evidence:** current moveSeries/endSeries run a DB transaction, update the old series and insert preserved lessons there. DbExecutor is defined verbatim as `export type DbExecutor = Database | Transaction`. [CITED: apps/api/src/schedule/series.ts:37-71] [CITED: packages/db/src/connection.ts:28-32] pg-boss singleton limits active jobs; localConcurrency only limits one process. [CITED: https://raw.githubusercontent.com/timgit/pg-boss/12.37.1/docs/api/queues.md] [CITED: https://raw.githubusercontent.com/timgit/pg-boss/12.37.1/docs/api/workers.md]
+**SC2,4,5 / C2.** Existing `today/today.ts` читает local readWindow; `cards/card-facts.ts::cardNextLessons` использует loadScheduleRows/nextLessons. Если заменить только week endpoint, три surfaces расходятся.
 
-**Risk if omitted:** queue send after commit can be lost; stale payload can overwrite the latest local state; independent master/instance workers can interleave a cut.
+**Решение:** calendar/read-model — общая normalized provider projection с generation/revision/coverage. calendar/reads публикует window только после всех страниц. Routes делают network refresh до SQL read snapshot. Today future и next index берут те же event identities/время/status, а не local legacy future. Cache last-known — persisted minimal fields, не fake availability. Next search возвращает unknown при incomplete traversal, none — только с proof.
 
-**Decision:** app-owned intent and revision are written through the same DbExecutor as the mutation. Pump only wakes work. Worker reads latest state, serializes by connection, conditionally writes the provider resource and CAS-acks the matching revision/generation. Unknown results stay pending until reconciliation. Preserve unfinished transition steps while coalescing ordinary updates.
+**Owner/write set:** новые read-model/reads; существующие routes/{schedule,today,students}, today/today, cards/{card-facts,card-rows,cards}; contracts/{calendar,schedule,today,students}; Today/Students/Schedule consumers. Все точные signatures и поля в RESEARCH, разделы 1–2 и inventory.
 
-**Before → after:** domain transaction followed by optional delivery → one durable domain/intent boundary with retriable provider projection.
+**History:** existing marks/balance остаются local-owned. historyCutoverAt отличает прежнюю реальную историю от legacy future, которое нельзя со временем превратить в Google-confirmed past. Existing marks не удаляются. cardBalances и paysSoonList сохраняют семантику; финансы не передаются Google.
 
-**Owner / planned write set:** existing schedule mutations; new calendar/outbox.ts, worker.ts and transition owner; DB schema and generated migration. Exact existing transaction inputs remain owned by schedule.
+**Удаление границы ломает:** Schedule показывает Google, Today/Students предлагают другой будущий урок, outage выглядит как пустой день, old legacy recurrence создаёт false past.
 
-**Interface-strength check:** proposed `recordCalendarChange(tx, accountId, refs, transition)` receives a transaction and domain references. It does not accept credentials or a prebuilt Google payload. Worker start/close is injected by server.
+**Доказательство:** один public journey читает Schedule → Today → Students при first connect, внешнем Google изменении, failed page, cache/restart и incomplete next search. Legacy future отсутствует во всех upcoming; historical marks/balance неизменны. Сейчас NOT RUN.
 
-**Deletion test:** removing the intent record leaves a commit-to-send failure window. A generic event bus, extra broker or independent per-route retry service adds no needed guarantee and is rejected.
+## AR-03 — Stable identity, disappearing tombstone и честный partial cut
 
-**Observable proof:** durable public create/move journey; interrupt after local commit and after provider acceptance; restart; final matching Google event is unique and has the newest time. Two rapid edits plus delayed response cannot clear the newer intent. Real provider result is UNVERIFIED now.
+**SC2,3 / GCAL-02.** Google позволяет задать ID standalone/master; instances имеют canonical ID/originalStartTime. Cancelled non-instance может исчезнуть. Методы не дают remote transaction. [insert/status](../../../docs/google-calendar/articles/v3/reference/events/insert.md#status), [instances](../../../docs/google-calendar/articles/v3/reference/events/instances.md), [recurring](../../../docs/google-calendar/articles/guides/recurringevents.md).
 
-## AR-02 — Natural occurrence identity и cut lineage должны пережить новый lesson ID
+**Решение:** stable local identity плюс отдельно journalled representationGeneration. Retry не увеличивает generation. Restore исчезнувшего cancelled single сначала доказывает доступ к calendar/отсутствие active representation и разрешает unknown attempts; затем резервирует новый deterministic ID. Одного 404 недостаточно.
 
-**Priority / criteria:** required; SC2,3; consumes 21.1.
+**Cut:** pure core21.1 prepare → reserved IDs/old natural key lineage → GET captures → cancel relevant tail/trim → prove tail inactive → ensure detached/new master → final provider proof → domain apply. Каждый confirmed Google stage отражается в read model как known partial, pending representations имеют transition binding. Полный Save/rollback до финального proof запрещён. Stage failure требует explicit resume того же journal; marks копируются актуальными под lock. Legacy unmapped series не считается существующим Google master.
 
-**Evidence:** source ref union is verbatim:
+**Owner/write set:** mapping/transitions/journal; schedule series/command-plan/command-apply; DB lineage. Core/timezones/nextSeriesReference/UUID-free cut result остаются владельцами 21.1. Его 13/37/9 — принятое планирование, не реализованный source.
 
-```ts
-{ kind: 'single'; lessonId: string } | { kind: 'series'; seriesId: string; originalOn: string }
-```
+**Удаление границы ломает:** дубли после retry, dead-end restore, потеря moved/marked tail или неверный UI при половине remote cut.
 
-[CITED: packages/contracts/src/schedule.ts:66-67]
+**Доказательство:** real provider cancellation/restore и cut/end с moved/marked/effective-past tail, crashes на material stages, old prefix и marks intact. Injected 404 не доказывает исчезновение Google tombstone. Сейчас UNVERIFIED.
 
-Current keepCutLessons returns inserted `{ id: lessons.id }`, then reads `marks.get(lesson.originalOn)`; it does not return that pairing. [CITED: apps/api/src/schedule/series.ts:20-34] Google instances have a provider ID and originalStartTime; moving an instance retains the natural identity. [CITED: https://developers.google.com/workspace/calendar/api/v3/reference/events] [CITED: https://developers.google.com/workspace/calendar/api/guides/recurringevents]
+## AR-04 — Один OAuth/credential/lifecycle owner и разрешимый Disconnect
 
-**Accepted dependency:** TeacherSettings.defaultTimeZone is current account zone; series/single timeZone is immutable creation/rule zone. originalOn remains the old rule's natural date. Default setting changes no instants/IDs/rules. Cut retains the old prefix; new rule gets new ID/current default; detached moved/marked tail keeps instant/mark/old zone and gets new lesson IDs. Manual gap rejects, fold first, recurrence gap skips. This is stable proposed 21.1 contract, not implemented code. [VERIFIED: current user instruction] [CITED: ../../phase-21-1-default-time-zone/dv-lab/.planning/phases/21.1-default-time-zone/21.1-RESEARCH.md:171-246,414-432] [CITED: ../../phase-21-1-default-time-zone/dv-lab/.planning/phases/21.1-default-time-zone/21.1-ARCH-REVIEW.md:68-88]
+**SC1,3,4.** Server OAuth, fixed callback, два принятых scopes и primary-only. State одноразовый, PKCE/session epoch/TTL/generation; authenticated envelope/key ID/AAD; refresh coordinated. Старый working grant заменяется только после проверки нового target/scopes.
 
-**Risk if omitted:** detached past/moved history is lost or duplicated; exception insert produces an independent event as well as the recurring instance; converting from display date changes identity across zones.
+**Disconnect:** stop admission/dispatch, revoke-only credentials, preserve cache/history/mapping/journal/Google events. Unsent commands не оживают при reconnect. Revoke 200 — documented success; lost reply + 400 остаётся failure. Explicit operator confirmation после удаления grant в Google и остановки old attempts даёт recovery с `operator_confirmed`, а не ложным provider proof. Новый consent не пересекается со старым revoke. [OAuth revoke](../../../docs/google-calendar/articles/related/identity/protocols/oauth2/web-server.md#tokenrevoke)
 
-**Decision:** deterministic ID for each master/standalone; canonical instance ID retrieved and stored for each affected natural key. Have keepCutLessons return old natural key → inserted lesson ID. Persist lineage and cut/end journal in that transaction. Worker resolves old identities, removes old tail representations, trims old master, then ensures detached singles/new master. Resume journal after failure; do not repeat local cut.
+**Runtime:** migration role ставит pg-boss schema; app runtime без DDL/reindex и без privileged fallback. Composition/lifecycle запускает и закрывает queue resources до DB pool. App factory без side effects. Caddy callback query redaction дополняет sanitized API errors.
 
-**Before → after:** IDs tied only to currently persisted local shape → explicit identity transition carrying old key, new key and provider state.
+**Owner/write set:** connection/credentials/gateway; config/server/migrate/lifecycle; google routes; DB connection/flow; env examples/compose/grants/Caddy. Package versions/age evidence сохранены в RESEARCH; установка не выполнялась.
 
-**Owner / planned write set:** schedule/series.ts insert result; calendar/event-mapping.ts and transitions.ts; mapping/journal tables. Core remains provider-free. No second timezone/cut module.
+**Удаление границы ломает:** replay/wrong-account grant, leaked token, late refresh overwrites reconnect, permanent disconnect trap, revoked new grant или app-role DDL.
 
-**Interface-strength check:** persisted IDs are created in API, not core. Calendar receives oldEndsOn/newRule/CutLesson lineage from the accepted cut result. Its lookup uses natural start, never moved effective date or server zone. Current account setting is absent from deterministic ID input.
+**Доказательство:** public auth negative paths, refresh concurrency, disconnect lost-response recovery, real-role startup/shutdown. Production/deployed pages/day-8 остаются отдельными external proofs.
 
-**Deletion test:** removing lineage makes a moved/marked tail indistinguishable from a new unrelated single. A generic cross-provider identity framework is unnecessary; one Calendar mapping owner is sufficient.
+## AR-05 — Safe DTO, complete conflicts и правдивая privacy
 
-**Observable proof:** extend durable move/marks journeys for occurrence move/cancel/restore and cut/end, including moved tail whose effective time is already past, marked/cancelled tail, cross-zone midnight and DST. Inspect provider counts, old prefix, new IDs and local marks. Real trim/exception behavior remains RESEARCH A3, not a claimed pass.
+**SC4,5,6 / UI B1–B6.** B1 connection actions отличаются от network availability. B2 requested/snapshot range + read status/revision и общий read owner. B3 stable request/command identity + expectedVersion/generation. B4 pending/unknown/projection_pending/partial и unresolved targets. B5 complete=true только после all pages; B6 title/time cache + journal/credentials/backups/draft storage. Exact definitions принадлежат RESEARCH, не повторяются здесь вторым schema owner.
 
-**Requirement clarification:** GCAL-02's wording about a deterministic event ID for every exception must mean stable mapped identity. The documented instance operation retrieves an instance before modifying it. Do not satisfy literal wording by violating recurring-event D-06. [CITED: .planning/REQUIREMENTS.md:78-78] [CITED: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md:28-28] [CITED: https://developers.google.com/workspace/calendar/api/guides/recurringevents]
+**Решение:** teacher API gates обязательны независимо от disabled UI. Calendar reads допускают явный last-known; все calendar edits проверяются заново сервером. Conflicts advisory при complete overlap, но incomplete/provider outage не открывает Save. Only exact own instances excluded; all-day exclusive end и полный finite/check-through range. Никакого Phase25 matching/watch UI.
 
-## AR-03 — Connection credentials, flow binding и refresh generation принадлежат одному owner
+**Privacy:** persist только выбранные provider title/time/status/availability/identity/version + window coverage, mapping и journal; details в RESEARCH разделе 8. Unsaved draft в памяти вкладки, browser correlation IDs без input. Cache/history не удаляется Disconnect; backup deletion/TTL не обещаются. Marks/payments/rates/notes не уходят Google. Public /welcome/privacy/terms — explicit allowlist, private root Today сохранён.
 
-**Priority / criteria:** required; SC1,4.
+**Owner/write set:** contracts и web shared state, schedule/Today/Students callers, public pages/proxy. api-client остаётся transport owner. UI-SPEC B1–B6/D7 должен связаться с этим stable handoff после проверки parent; это не новый product approval.
 
-**Evidence:** project separates app authentication from Calendar OAuth in D-02. Google describes offline refresh and secure token handling; OAuth BCP covers PKCE and redirect security. [CITED: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md:24-26] [CITED: https://developers.google.com/identity/protocols/oauth2/web-server] [CITED: https://developers.google.com/identity/protocols/oauth2/resources/best-practices] [CITED: https://www.rfc-editor.org/rfc/rfc9700.html]
+**Удаление границы ломает:** false empty/false saved, потеря page-2 conflict, stale response unlocks Save, privacy обещает отсутствие реально сохраняемого cache.
 
-**Risk if omitted:** state replay binds the wrong connection; refresh races lose valid credentials; old callback overwrites a new grant; callback code appears in proxy logs despite sanitized app logging.
+**Доказательство:** public routes, no false toast на 202, read-only transitions, pagination/range race, anonymous allowlist, reviewed exact privacy fields. Сейчас NOT RUN.
 
-**Decision:** one-use DB state bound to current teacher session/account epoch; encrypted PKCE verifier; fixed callback; required-scope validation. Envelope credentials with key ID/AAD and coordinated refresh. Generation CAS fences callbacks, refresh and queue ack. Validate replacement grant before replacing the old working connection. Disconnect pauses dispatch, retains mappings/intents/events, revokes the grant and clears live credentials; its visible pending/error state persists if revocation fails. Same-calendar reconnect resumes latest state and unfinished transitions. This safe disposition is an engineering decision; primary-only initial calendar selection is accepted by the user (CONTEXT D-11).
+## Порядок и evidence
 
-**Before → after:** independent route/SDK token state → one connection owner with explicit transition and credential persistence rules.
+1. DTO/schema и E2E failure modes → OAuth/gates/public pages.
+2. Общий projection/read owner и C2 consumers.
+3. Single command tracer/recovery → recurring/cut lineage.
+4. UI/conflicts/privacy binding → scoped static/E2E evidence.
+5. Отдельно authorized deployment/Production/day-8.
 
-**Owner / planned write set:** calendar/connection.ts, credentials.ts; config.ts; routes/google.ts; connection/flow tables; deploy/caddy/Caddyfile for query redaction. The gateway receives usable credentials through this owner; web receives no secret fields.
+Это design order, не разрешение на execution. [COVERAGE](COVERAGE.md) содержит все 38 Calendar methods и 4 OAuth capabilities. [RESEARCH](24-RESEARCH.md) содержит input hashes, воспроизводимые static commands, exact write inventory и 6SC map.
 
-**Interface-strength check:** caller supplies authenticated account/session context; it cannot select an arbitrary account ID. Error DTO is sanitized and discriminated. Missing refresh_token is not an instruction to clear a stored token.
-
-**Deletion test:** credential encryption primitives stay in Node crypto; app code only composes an explicit envelope policy. Removing the common refresh/generation owner introduces cross-process races. Adding another login system or identity scopes is not required.
-
-**Observable proof:** public consent/denial/replay/wrong-session/partial-scope E2E; simultaneous pending requests after access-token expiration; revoked refresh produces reconnect; same-calendar reconnect resumes pending writes. Inspect no-store/redirect and redacted proxy/app log evidence. Production/day-8 proof remains external.
-
-**Logging evidence:** current request logger emits `path: c.req.path`; current Caddy contains `log { format json }`. Both boundaries must be covered; app-only redaction is insufficient as a design. [CITED: apps/api/src/request-context.ts:47-54] [CITED: deploy/caddy/Caddyfile:16-19] [CITED: https://caddyserver.com/docs/caddyfile/directives/log]
-
-## AR-04 — Queue installation and runtime preserve existing DB and shutdown owners
-
-**Priority / criteria:** required; SC1,3.
-
-**Evidence:** current role mapping is `{ app: 'DATABASE_URL', migrator: 'MIGRATOR_DATABASE_URL' }`; current public-schema grants are scoped in provisioning. Lifecycle accepts `type Closable = { name: string; close: () => Promise<void> }`. [CITED: packages/db/src/connection.ts:5-7] [CITED: deploy/postgres/ensure-db.sql:31-34] [CITED: apps/api/src/lifecycle.ts:3-3] pg-boss start can install/migrate schema; constructor exposes disabling migration/schema creation and reindex operations. [CITED: https://raw.githubusercontent.com/timgit/pg-boss/12.37.1/docs/api/ops.md] [CITED: https://raw.githubusercontent.com/timgit/pg-boss/12.37.1/docs/api/constructor.md]
-
-**Risk if omitted:** app startup needs owner privileges or attempts DDL; work continues against a closing pool; maintenance is disabled merely to hide grants errors.
-
-**Decision:** migration role installs queue schema and queues; app gets explicit required runtime privileges in that schema, retaining domain deletion restrictions. Runtime disables DDL/reindex and keeps required supervisor behavior. Start through server; close pump/worker before DB pool through lifecycle.
-
-**Before → after:** package defaults control schema/startup → project composition/migration owners control lifecycle.
-
-**Owner / planned write set:** migrate.ts, server.ts, lifecycle resource registration, ensure-db.sql, schema migration and API manifest. New env names are declared only through loadConfig and examples; no alternate DB URL resolver.
-
-**Interface-strength check:** worker exports start/close; it never installs schema during request handling or app import. DB adapter must retain transaction/role semantics; it does not silently open a second privileged connection.
-
-**Deletion test:** no extra OS service or worker deployment topology is needed now. Removing this adapter would bypass an existing durable privilege/lifecycle boundary.
-
-**Observable proof:** authorized clean test DB → migration role setup → app-role startup → queued write/retry/maintenance → graceful shutdown/restart. No elevated runtime fallback. Package versions are proposals with SUS too-new; see RESEARCH package checkpoint. No packages or DB actions executed in research.
-
-## AR-05 — Public API gateway owns complete conflict reads; web owns only safe presentation
-
-**Priority / criteria:** required; SC4,5,6.
-
-**Evidence:** Calendar events.list may paginate even below maxResults and defines overlap bounds through event end/start. [CITED: https://developers.google.com/workspace/calendar/api/v3/reference/events/list] Current web proxy excludes API/login/assets from its matcher and redirects other unauthenticated requests to `'/login'`; it does not yet encode the proposed public-page allowlist. [CITED: apps/web/proxy.ts:6-14] CONTEXT requires public homepage/privacy/terms and excludes Phase 25 controls. [CITED: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md:31-32]
-
-**Risk if omitted:** first-page results falsely declare no conflicts; unbounded recurrence is advertised as fully checked; making privacy public accidentally opens private routes; UI shows sync guarantees not implemented until 25.
-
-**Decision:** one gateway consumes every page for a finite interval, returns explicit checked bounds/completeness, filters only the edited mapped identity, and handles cancelled/transparent/all-day semantics. Page failure is unavailable, never clean. Core generates proposed local occurrence intervals. Add public /welcome, /privacy and /terms outside the authenticated group; use /welcome as proposed Branding homepage and retain root Today. Privacy describes actual implemented data use.
-
-**Before → after:** SDK/page details leak into UI → small typed DTO with connection state, checked interval and complete/conflict/unavailable result.
-
-**Owner / planned write set:** calendar/gateway.ts, route/contracts; existing schedule/settings UI owners; proposed apps/web/app/{welcome,privacy,terms}/page.tsx and existing proxy.ts. No Google browser SDK or client-side recurrence. Root Today and its authenticated layout already exist; do not add a conflicting second root page. [CITED: apps/web/app/(app)/page.tsx:14-17] [CITED: apps/web/app/(app)/layout.tsx:11-27] [CITED: https://nextjs.org/docs/app/api-reference/file-conventions/route-groups]
-
-**Interface-strength check:** read-only conflict method accepts validated finite instants and optional local ref; no arbitrary user-supplied provider URL. It returns minimal event display data without tokens. Method never mutates Google. RESEARCH section 8 defines the safe connection/sync snapshot, conflict union, pending-count semantics and exact privacy flows; UI-SPEC's explicit Check through closes the former A2 uncertainty. Do not persist full conflict/event bodies or put student titles into queue/log payloads.
-
-**Deletion test:** removing gateway pagination means each UI caller must reproduce completeness/error semantics. A second query service, full Google API wrapper or new inbound engine does not close another accepted criterion.
-
-**Observable proof:** public planning journey finds conflict beyond page one, reports failed-page state, handles all-day and self-exclusion, and displays its interval. Anonymous homepage/privacy/terms work while Today/settings remain guarded. Production publication and Branding links require later deployed proof.
-
-## Порядок для planner
-
-1. Apply accepted A1 primary-only initial calendar selection (CONTEXT D-11). Use UI-SPEC's explicit Check through and /welcome route. D2 Disconnect and D3 data-flow/DTO behavior are specified in RESEARCH section 8; they require binding, not another product interview. This does not reopen the timezone owner.
-2. Consume exact 21.1 signatures, dependency fingerprints and cut/end contract.
-3. Plan schema/intent/lineage and E2E failure modes before behavior.
-4. Plan OAuth/security and queue/lifecycle boundaries.
-5. Plan standalone, recurring/cut recovery, conflict/public UI waves with corresponding SC.
-6. Retain external proof gates and SUS dependency checkpoint; do not mark them green from local simulations.
-
-Это порядок решений, не новое разрешение implementation/deployment. [VERIFIED: current user scope]
-
-## Evidence и ограничения
-
-- Full sources, exact proposed signatures, capability/scopes table and test map are in 24-RESEARCH.md.
-- Canonical 21.1 research SHA-256: `3db87f2370abb6cbfd6b94e563b8bc7d67eb42b23a4e09bf09647f7efeded657`; architecture SHA-256: `070199aad27d8bf7e00f0cead2a0a4a6fb77d5e54f7c10449551dcd19a3f0009`. [VERIFIED: SHA-256 read, 2026-10-11]
-- Actual source transaction, credential middleware, composition/lifecycle, DB role and proxy seams were read. Source fingerprints are preserved in RESEARCH.
-- Five findings retained; no general repository audit, new framework or Phase 25 implementation recommendation.
-- Runtime/provider behavior, key rotation, fresh-role startup, package installation, deployed pages, Production and day-8 connection are **UNVERIFIED**. No absence-of-metadata compatibility claim is made.
-- Current-file write set stays exactly RESEARCH/ARCH; source/Git/env/DB/dependencies/provider unchanged. [VERIFIED: current task execution boundary]
-
-**Result:** архитектурные решения готовы для planner. Product policy A1 разрешена; указанные execution/proof gates требуют последующей обработки; ожидание actual 21.1 implementation для планирования не требуется.
+**Результат:** пять архитектурных границ закрывают текущие D-01…D-14 и C2. Runtime/provider, cut/DST parity, disappearing tombstone, production и day-8 не проверены.
