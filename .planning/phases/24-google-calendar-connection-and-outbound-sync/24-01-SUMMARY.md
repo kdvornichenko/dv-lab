@@ -11,9 +11,9 @@ provides:
   - HTTPS origin, API build and operator-confirmed persistence preflight before fixtures
 affects: ['24-03', '24-04', '24-07', '24-11', '24-13', '24-14']
 actuals:
-  tokens: 6689
+  tokens: 6771
   tasks: 3
-  commits: 3
+  commits: 4
 tech-stack:
   added: []
   patterns: [shared target preflight before fixture writes]
@@ -78,6 +78,7 @@ status: complete
 1. Welcome и точный allowlist — `a44f3fe`.
 2. Privacy, Terms и публичный journey — `8512408`.
 3. HTTPS preflight и привязка фикстур — `8289591`.
+4. Журнал фикстур привязан к fingerprint базы — `fd50d4c`.
 
 ## Files Created/Modified
 
@@ -114,7 +115,7 @@ status: complete
 
 Исходные процессы закончились с указанным exit. Логи: `24-01-public-pages.log`, `24-01-final-public.log`, `24-01-https-missing-authority.log`, `24-01-web-types.log`, `24-01-public-lint.log` в `STATE_DIR`. Сценарии написаны до страниц: первоначально проверки Privacy/Terms падали на отсутствующих страницах. Затем оба сценария прошли в обеих темах.
 
-Final source: `8289591`. Fingerprint 12 файлов: `a5fad2f485a698c8ad21e1b9246c3261cf6451ab277ae1c78d1767726eadac6c`. Последующие изменения после локального E2E касались типов JSON и проверки пути attestation для HTTPS; локальное поведение не менялось. Успешный HTTPS run, mismatch реального API/БД и Google operations остаются **UNVERIFIED**.
+Final source: `fd50d4c`. Fingerprint 12 файлов: `5d5e3f9aca760bce2869229f49370e918e38f98cfedb399bee6dae2b535d4d24`. Последующие изменения после локального E2E касались типов JSON и проверки пути attestation и привязки приватного журнала к той же базе для HTTPS; локальное поведение не менялось. Успешный HTTPS run, mismatch реального API/БД и Google operations остаются **UNVERIFIED**.
 
 ## Quality / Simplify
 
@@ -129,12 +130,12 @@ Owned diff прочитан с ближайшими callers. Нет новых �
 | Новый `calendar.ts`, максимум функции       | — → 14            | — → 11                   |
 | Новый `calendar.spec.ts`, максимум callback | — → 6             | — → 5                    |
 
-Общие максимумы: CC 14, cognitive 11, Halstead Difficulty 25.56, file size 255 строк. Все обязательные границы соблюдены. Перед итоговым измерением исправлены `any` из default generic Playwright и настройки анализа JS imports; не скрыты suppressions или exclusions.
+Общие максимумы: CC 14, cognitive 11, Halstead Difficulty 25.56, file size 260 строк. Все обязательные границы соблюдены. Перед итоговым измерением исправлены `any` из default generic Playwright и настройки анализа JS imports; не скрыты suppressions или exclusions.
 
 ## Target binding and limitations
 
 `E2E_TARGET_ORIGIN` принимает точный HTTPS origin или прежний `http://localhost:3000`. Путь, credentials, query и fragment отвергаются. Для HTTPS `E2E_TARGET_ATTESTATION` указывает на предоставленный оператором JSON вне репозитория с правами `0600`: `origin`, `apiBuildSha` (40 hex), `persistenceFingerprint` (64 hex), `fixtureWritesAuthorized: true`. Этот файл не создан исполнителем и не подменяет отдельное разрешение на Google synthetic fixtures.
 
-Fingerprint базы — SHA-256 JSON строки `{database,address,port,oid}` из read-only запроса текущей базы. SQL продолжает использовать существующий `.env`, роль `dvlab_migrator` и только `_dev`; неподтверждённый `_test` target не расширяет этот прежний fixture boundary. Оператор подтверждает, что эта identity принадлежит тому же HTTPS runtime и SHA. Публичный `/api/healthz` должен вернуть `status=ok`, `db=ok`, точный `sha`. Иначе запуск отказывает до fixture writes. Для разрешённого запуска используются прямые Playwright commands без localhost wait script.
+Fingerprint базы — SHA-256 JSON строки `{database,address,port,oid}` из read-only запроса текущей базы. SQL продолжает использовать существующий `.env`, роль `dvlab_migrator` и только `_dev`; неподтверждённый `_test` target не расширяет этот прежний fixture boundary. Приватный `target.json` привязывает журнал фикстур к этой базе. Смена fingerprint при том же origin блокирует повторное использование журнала. Оператор подтверждает, что эта identity принадлежит тому же HTTPS runtime и SHA. Публичный `/api/healthz` должен вернуть `status=ok`, `db=ok`, точный `sha`. Иначе запуск отказывает до fixture writes. Для разрешённого запуска используются прямые Playwright commands без localhost wait script.
 
 Public policy соответствует утверждённой реализации всей фазы. Publication выполняется только после реализации зависимых owners и отдельной readiness-проверки 24-14. Этот план не подтверждает готовность Google feature или Production/day-8 verification.
