@@ -111,7 +111,9 @@ export function scheduleRoutes({ db, calendarReads }: ScheduleRouteDeps) {
 		}
 		await calendarReads?.refreshCalendarRead(context, selection)
 		const week = await readSnapshot(db, (executor) => readCalendarWindow(executor, context, selection))
-		return c.json(week, 200)
+		const response = c.json(week, 200)
+		calendarReads?.observePublicWeek(context, c.req.raw, response, week)
+		return response
 	})
 
 	routes.post('/lessons', async (c) => {

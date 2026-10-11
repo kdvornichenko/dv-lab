@@ -53,8 +53,8 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		observation,
 		isStopping: lifecycle.isStopping,
 	})
-	const reads = createCalendarReads({ db, gateway, credentials })
-	return { connection, control, reads, resources: [control, lease, credentials] }
+	const reads = createCalendarReads({ db, gateway, credentials, observation })
+	return { connection, control, reads, observation, resources: [control, lease, credentials] }
 }
 
 const app = createApp({
@@ -72,8 +72,17 @@ const app = createApp({
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
 
-const server = serve({ fetch: app.fetch, port: config.PORT, websocket: { server: wss } }, (info) =>
-	logger.info({ port: info.port }, 'listening')
+const server = serve(
+	{
+		async fetch(request, bindings) {
+			const response = await app.fetch(request, bindings)
+			calendar?.observation.publicResponse(request, response, bindings.outgoing)
+			return response
+		},
+		port: config.PORT,
+		websocket: { server: wss },
+	},
+	(info) => logger.info({ port: info.port }, 'listening')
 ) as Server
 
 housekeeping.start()
