@@ -23,7 +23,7 @@ import {
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
 import { isAfterScheduleToday } from '@dv-lab/core'
-import type { Database } from '@dv-lab/db'
+import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import {
@@ -44,7 +44,6 @@ import {
 import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
-import { readSnapshot } from '../schedule/rows.ts'
 
 type StudentRouteDeps = { db: Database }
 

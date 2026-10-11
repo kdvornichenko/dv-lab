@@ -19,7 +19,7 @@ import {
 	scheduleWeekStart,
 } from '@dv-lab/contracts'
 import { weekdayOf } from '@dv-lab/core'
-import type { Database } from '@dv-lab/db'
+import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import { errorBody } from '../request-context.ts'
@@ -33,7 +33,6 @@ import {
 	restoreOccurrence,
 } from '../schedule/changes.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
-import { readSnapshot } from '../schedule/rows.ts'
 import { createLesson, readWeek } from '../schedule/schedule.ts'
 import { endSeries, moveSeries } from '../schedule/series.ts'
 

@@ -1,10 +1,9 @@
 import { Hono } from 'hono'
 
 import type { TodayResponse } from '@dv-lab/contracts'
-import type { Database } from '@dv-lab/db'
+import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, requireRole, requireSession } from '../auth/middleware.ts'
-import { readSnapshot } from '../schedule/rows.ts'
 import { readToday } from '../today/today.ts'
 
 type TodayRouteDeps = { db: Database }
