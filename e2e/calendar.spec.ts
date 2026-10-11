@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { googleConnectionSnapshot, googleScheduleWindow } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
+import { blockedHistoryUi, failedNoneUi, lostPostUi, pendingUi, recoveryUi } from './support/calendar-ui.ts'
 import { AUTH_FILE, BASE, PRIVATE_DIR, teacherCredentials } from './support/data.ts'
 import { mondayOf, vnToday } from './support/dates.ts'
 import { record, text } from './support/input.ts'
@@ -86,6 +87,31 @@ const oauthTest = test.extend({
 	trace: 'off',
 	video: 'off',
 	screenshot: 'off',
+})
+
+oauthTest.describe('calendar confirmed UI', () => {
+	oauthTest.use({ storageState: AUTH_FILE })
+	oauthTest('[calendar] complete UI foundation 202 waits for correlated apply and refresh', async ({ page }) => {
+		await pendingUi(page)
+	})
+	oauthTest('[calendar] complete UI foundation lost POST and lookup 404 retry the same command', async ({ page }) => {
+		await lostPostUi(page)
+	})
+	oauthTest(
+		'[calendar] complete UI foundation projection pending survives reload without success',
+		async ({ page }) => {
+			await recoveryUi(page, 'projection_pending')
+		}
+	)
+	oauthTest('[calendar] complete UI foundation recovery resumes only by explicit current action', async ({ page }) => {
+		await recoveryUi(page, 'resume')
+	})
+	oauthTest('[calendar] complete UI foundation known failed retains draft and needs a new Save', async ({ page }) => {
+		await failedNoneUi(page)
+	})
+	oauthTest('[calendar] complete UI foundation blocked calendar preserves historical marks', async ({ page }) => {
+		await blockedHistoryUi(page)
+	})
 })
 
 oauthTest.describe('teacher calendar reads', () => {

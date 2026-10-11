@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 
 import { LoaderCircle } from 'lucide-react'
 
+import { CalendarRecovery } from '@/components/app/calendar-command-notice'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { useGoogleConnection } from '@/components/app/google-calendar-state'
 import { Panel } from '@/components/app/layout-parts'
@@ -94,7 +95,6 @@ function ConnectionDialog({
 }
 
 function SyncCard({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
-	if (snapshot.calendar === null && snapshot.pendingCommandCount === 0) return null
 	return (
 		<Panel id="settings-calendar-sync" title="Sync" description="Calendar requests and their confirmation status.">
 			<div className="flex flex-col gap-2 px-4 pt-1 pb-4 text-body" role="status">
@@ -104,6 +104,7 @@ function SyncCard({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 						Calendar requests are paused. Unconfirmed changes are not shown as saved.
 					</p>
 				) : null}
+				<CalendarRecovery />
 			</div>
 		</Panel>
 	)
