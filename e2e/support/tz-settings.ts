@@ -307,10 +307,12 @@ export async function keyboardLayout(page: Page): Promise<void> {
 	for (const copy of [
 		'The zone your schedule is built in. Lesson times, Today and balances use it.',
 		'New lessons and series are created in this zone. Lessons and series you already have keep the zone they were created in.',
-		'Saved to your account.',
 		'Saved in this browser.',
 	])
 		await expect(page.getByText(copy, { exact: true })).toBeVisible()
+	await expect(
+		page.locator('#settings-default-time-zone').getByText('Saved to your account.', { exact: true })
+	).toBeVisible()
 	for (const width of [320, 1280]) {
 		await page.setViewportSize({ width, height: 800 })
 		await mainField(page).focus()
