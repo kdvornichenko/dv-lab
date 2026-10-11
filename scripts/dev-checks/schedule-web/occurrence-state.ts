@@ -218,11 +218,14 @@ export async function occurrenceStateStale(
 		stale ?? 'no banner'
 	)
 	const request = posts.slice(sent).find((post) => post.url.includes(`/occurrences/${fx.staleWed}/cancel`))
+	const requestBody: unknown = JSON.parse(request?.body ?? '{}')
 	check(
 		'stale: the request carried the start the teacher saw',
 		request !== undefined &&
-			(JSON.parse(request.body ?? '{}') as { expectedStartsAt?: string }).expectedStartsAt ===
-				whenText(fx.staleWed, '18:00'),
+			typeof requestBody === 'object' &&
+			requestBody !== null &&
+			'expectedStartsAt' in requestBody &&
+			requestBody.expectedStartsAt === whenText(fx.staleWed, '18:00'),
 		request?.body ?? 'no request'
 	)
 	check(
