@@ -8,6 +8,7 @@ import { credentialBinding, findConnection, type ConnectionRow, type Credentials
 import { CalendarFault, type GoogleGateway, type GoogleTokens, type PrimaryCalendar } from './gateway.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'
+import type { CalendarObservation } from './observation.ts'
 import type { TokenEnvelope } from './token-envelope.ts'
 
 const actions: Record<GoogleConnectionSnapshot['state'], GoogleConnectionSnapshot['allowedActions']> = {
@@ -45,6 +46,7 @@ export function createConnection(deps: {
 	envelope: TokenEnvelope
 	gateway: GoogleGateway
 	credentials: Credentials
+	observation: CalendarObservation
 }) {
 	async function consume(
 		context: ConnectionLeaseContext,
@@ -85,7 +87,8 @@ export function createConnection(deps: {
 		actor: ConsentActor,
 		row: ConnectionRow,
 		tokens: GoogleTokens,
-		primary: PrimaryCalendar
+		primary: PrimaryCalendar,
+		issuedAt: number
 	) {
 		if (row.calendarId && row.calendarId !== primary.id) throw new CalendarFault('wrong_primary')
 		const refreshToken =
@@ -98,7 +101,7 @@ export function createConnection(deps: {
 			...credentialBinding(row),
 			generation: credentialGeneration,
 		})
-		await context.db.transaction(async (tx) => {
+		const installed = await context.db.transaction(async (tx) => {
 			await requireConsentSession(tx, actor)
 			const [updated] = await tx
 				.update(googleConnections)
@@ -126,9 +129,15 @@ export function createConnection(deps: {
 						eq(googleConnections.credentialGeneration, row.credentialGeneration)
 					)
 				)
-				.returning({ id: googleConnections.id })
+				.returning({
+					id: googleConnections.id,
+					generation: googleConnections.generation,
+					credentialGeneration: googleConnections.credentialGeneration,
+				})
 			if (!updated) throw new CalendarFault('invalid_state')
+			return updated
 		})
+		deps.observation.consentAccepted(installed, issuedAt, tokens.expiry_date)
 		deps.credentials.evict(actor.accountId)
 	}
 
@@ -158,6 +167,7 @@ export function createConnection(deps: {
 					encryptedVerifier,
 					expiresAt: sql`now() + interval '10 minutes'`,
 				})
+				deps.observation.consentStarted(row)
 				return { url: deps.gateway.authorizationUrl(state, createHash('sha256').update(verifier).digest('base64url')) }
 			})
 		},
@@ -175,8 +185,9 @@ export function createConnection(deps: {
 					purpose: 'verifier',
 				})
 				const tokens = await deps.gateway.exchange(input.code, verifier, context.signal)
+				const issuedAt = Date.now()
 				const primary = await deps.gateway.primary(tokens.access_token, context.signal)
-				await install(context, actor, row, tokens, primary)
+				await install(context, actor, row, tokens, primary, issuedAt)
 			})
 		},
 	}

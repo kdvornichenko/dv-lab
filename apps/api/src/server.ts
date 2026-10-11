@@ -13,6 +13,7 @@ import { createConnection } from './calendar/connection.ts'
 import { createCredentials } from './calendar/credentials.ts'
 import { createGoogleGateway } from './calendar/gateway.ts'
 import { createConnectionLease } from './calendar/lease.ts'
+import { createCalendarObservation } from './calendar/observation.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
@@ -38,8 +39,9 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 	const lease = createConnectionLease(pool)
 	const envelope = createTokenEnvelope(calendarConfig)
 	const gateway = createGoogleGateway(calendarConfig)
-	const credentials = createCredentials({ lease, envelope, gateway })
-	const connection = createConnection({ db, lease, envelope, gateway, credentials })
+	const observation = createCalendarObservation({ logger, gitSha: config.GIT_SHA })
+	const credentials = createCredentials({ lease, envelope, gateway, observation })
+	const connection = createConnection({ db, lease, envelope, gateway, credentials, observation })
 	const control = createConnectionControl({
 		db,
 		lease,
@@ -47,6 +49,7 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		envelope,
 		gateway,
 		logger,
+		observation,
 		isStopping: lifecycle.isStopping,
 	})
 	return { connection, control, resources: [control, lease, credentials] }

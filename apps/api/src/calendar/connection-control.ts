@@ -9,6 +9,7 @@ import { credentialBinding, findConnection, type ConnectionRow, type Credentials
 import { CalendarFault, GOOGLE_REQUEST_TIMEOUT_MS, type GoogleGateway } from './gateway.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'
+import type { CalendarObservation } from './observation.ts'
 import type { TokenEnvelope } from './token-envelope.ts'
 
 type ControlDeps = {
@@ -18,6 +19,7 @@ type ControlDeps = {
 	envelope: TokenEnvelope
 	gateway: GoogleGateway
 	logger: Logger
+	observation: CalendarObservation
 	isStopping: () => boolean
 }
 
@@ -113,19 +115,6 @@ export function createConnectionControl(deps: ControlDeps) {
 	const stopped = new AbortController()
 	const accepting = () => !stopped.signal.aborted && !deps.isStopping()
 
-	function audit(row: ConnectionRow, action: string) {
-		deps.logger.info(
-			{
-				calendarAction: action,
-				accountId: row.accountId,
-				connectionId: row.id,
-				generation: row.generation,
-				disconnectResolution: row.disconnectResolution,
-			},
-			'calendar connection control'
-		)
-	}
-
 	async function finish(db: DbExecutor, row: ConnectionRow, resolution: 'provider_confirmed' | 'operator_confirmed') {
 		const [updated] = await db
 			.update(googleConnections)
@@ -157,7 +146,7 @@ export function createConnectionControl(deps: ControlDeps) {
 			})
 			.where(matches(row))
 			.returning()
-		if (updated) audit(updated, 'disconnect_failed')
+		if (updated) deps.observation.control(row, updated, 'google_disconnect_failed')
 	}
 
 	async function revoke(context: ConnectionLeaseContext, row: ConnectionRow) {
@@ -188,7 +177,7 @@ export function createConnectionControl(deps: ControlDeps) {
 			return
 		}
 		const resolved = await finish(context.db, attempt, 'provider_confirmed')
-		audit(resolved, 'disconnect_resolved')
+		deps.observation.control(attempt, resolved, 'google_disconnect_resolved')
 	}
 
 	async function pump() {
@@ -234,7 +223,7 @@ export function createConnectionControl(deps: ControlDeps) {
 		},
 		async disconnect(actor: ConsentActor) {
 			if (!accepting()) throw new CalendarFault('provider_unavailable')
-			await deps.db.transaction(async (tx) => {
+			const transition = await deps.db.transaction(async (tx) => {
 				await requireConsentSession(tx, actor)
 				const [row] = await tx
 					.select()
@@ -259,7 +248,9 @@ export function createConnectionControl(deps: ControlDeps) {
 					.returning()
 				if (!updated) throw new CalendarFault('command_pending')
 				await failUnsent(tx, row.id)
+				return { before: row, after: updated }
 			})
+			if (transition) deps.observation.control(transition.before, transition.after, 'google_disconnect_started')
 			deps.credentials.evict(actor.accountId)
 			wake()
 			return readConnection(deps.db, actor.accountId)
@@ -271,9 +262,9 @@ export function createConnectionControl(deps: ControlDeps) {
 					await requireConsentSession(tx, actor)
 					const row = await findConnection(tx, actor.accountId)
 					if (row?.state !== 'disconnect_failed' || !row.revokeFinishedAt) throw new CalendarFault('command_pending')
-					return finish(tx, row, 'operator_confirmed')
+					return { before: row, after: await finish(tx, row, 'operator_confirmed') }
 				})
-				audit(resolved, 'disconnect_resolved')
+				deps.observation.control(resolved.before, resolved.after, 'google_disconnect_resolved')
 			})
 			return readConnection(deps.db, actor.accountId)
 		},

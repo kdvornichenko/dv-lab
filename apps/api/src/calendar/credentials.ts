@@ -4,6 +4,7 @@ import { googleConnections, type Database, type DbExecutor } from '@dv-lab/db'
 
 import { CalendarFault, type GoogleGateway, type GoogleTokens } from './gateway.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
+import type { CalendarObservation } from './observation.ts'
 import type { TokenEnvelope } from './token-envelope.ts'
 
 export type ConnectionRow = typeof googleConnections.$inferSelect
@@ -23,7 +24,12 @@ export function credentialBinding(row: ConnectionRow) {
 	}
 }
 
-export function createCredentials(deps: { lease: ConnectionLease; envelope: TokenEnvelope; gateway: GoogleGateway }) {
+export function createCredentials(deps: {
+	lease: ConnectionLease
+	envelope: TokenEnvelope
+	gateway: GoogleGateway
+	observation: CalendarObservation
+}) {
 	const access = new Map<string, Access>()
 
 	async function persistRefresh(
@@ -71,8 +77,11 @@ export function createCredentials(deps: { lease: ConnectionLease; envelope: Toke
 		access.delete(row.accountId)
 		if (!row.encryptedRefreshToken) throw new CalendarFault('reconnect_required')
 		const refreshToken = deps.envelope.open(row.encryptedRefreshToken, credentialBinding(row))
+		const startedAt = Date.now()
 		const tokens = await deps.gateway.refresh(refreshToken, context.signal)
+		const providerSucceededAt = Date.now()
 		const updated = await persistRefresh(context, row, refreshToken, tokens)
+		deps.observation.accessRefreshed(row, updated, { startedAt, providerSucceededAt, expiresAt: tokens.expiry_date })
 		access.set(row.accountId, {
 			token: tokens.access_token,
 			expiresAt: tokens.expiry_date,
