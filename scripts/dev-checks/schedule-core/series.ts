@@ -1,5 +1,5 @@
 import * as core from '../../../packages/core/src/index.ts'
-import { iso, NOW, STUDENT, at, rule, windowOf, weekly, cut, movedOn } from './occurrences.ts'
+import { VN, iso, NOW, STUDENT, at, rule, windowOf, weekly, cut, movedOn } from './occurrences.ts'
 import type { Expect } from './run.ts'
 
 function seriesCutVectors(expect: Expect): void {
@@ -58,6 +58,7 @@ function seriesCutVectors(expect: Expect): void {
 				kind: 'ok',
 				oldEndsOn: '2026-10-20',
 				newRule: {
+					timeZone: VN,
 					studentId: STUDENT,
 					weekday: 4,
 					startTime: '17:00',
@@ -66,7 +67,21 @@ function seriesCutVectors(expect: Expect): void {
 					endsOn: null,
 				},
 				lessons: [
-					{ studentId: STUDENT, startsAt: '2026-10-30T05:00:00.000Z', durationMinutes: 50, originalOn: '2026-10-28' },
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-10-30T05:00:00.000Z',
+						durationMinutes: 50,
+						originalOn: '2026-10-28',
+					},
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-11-04T11:00:00.000Z',
+						durationMinutes: 60,
+						originalOn: '2026-11-04',
+						status: 'cancelled',
+					},
 				],
 			},
 			endsBefore: { kind: 'ends_before_new_day', endsOn: '2026-10-14' },
@@ -74,6 +89,7 @@ function seriesCutVectors(expect: Expect): void {
 				kind: 'ok',
 				oldEndsOn: '2026-10-27',
 				newRule: {
+					timeZone: VN,
 					studentId: STUDENT,
 					weekday: 5,
 					startTime: '18:00',
@@ -85,8 +101,9 @@ function seriesCutVectors(expect: Expect): void {
 			},
 			earlierToday: {
 				kind: 'ok',
-				oldEndsOn: '2026-10-11',
+				oldEndsOn: '2026-10-13',
 				newRule: {
+					timeZone: VN,
 					studentId: STUDENT,
 					weekday: 1,
 					startTime: '09:00',
@@ -102,17 +119,26 @@ function seriesCutVectors(expect: Expect): void {
 
 function seriesEndVectors(expect: Expect): void {
 	const fresh = rule({ startsOn: '2026-10-14' })
-	const beforeFirst = core.endSeriesAt(fresh, [], '2026-10-13', NOW) as Extract<core.EndSeriesResult, { kind: 'ok' }>
+	const beforeFirst = core.endSeriesAt(fresh, [], '2026-10-13', { now: NOW, defaultTimeZone: VN }) as Extract<
+		core.EndSeriesResult,
+		{ kind: 'ok' }
+	>
 	expect(
 		's11 endSeriesAt checks and resulting ends_on',
 		{
-			yesterday: core.endSeriesAt(fresh, [], '2026-10-11', NOW),
-			pastEnd: core.endSeriesAt(rule({ startsOn: '2026-10-14', endsOn: '2026-10-21' }), [], '2026-10-28', NOW),
-			alreadyEnded: core.endSeriesAt(rule({ endsOn: '2026-10-07' }), [], '2026-10-12', NOW),
+			yesterday: core.endSeriesAt(fresh, [], '2026-10-11', { now: NOW, defaultTimeZone: VN }),
+			pastEnd: core.endSeriesAt(rule({ startsOn: '2026-10-14', endsOn: '2026-10-21' }), [], '2026-10-28', {
+				now: NOW,
+				defaultTimeZone: VN,
+			}),
+			alreadyEnded: core.endSeriesAt(rule({ endsOn: '2026-10-07' }), [], '2026-10-12', {
+				now: NOW,
+				defaultTimeZone: VN,
+			}),
 			beforeFirst,
 			beforeFirstHas: core.hasOccurrences({ ...fresh, endsOn: beforeFirst.endsOn }),
-			secondDate: core.endSeriesAt(fresh, [], '2026-10-21', NOW),
-			afterSecond: core.endSeriesAt(fresh, [], '2026-10-23', NOW),
+			secondDate: core.endSeriesAt(fresh, [], '2026-10-21', { now: NOW, defaultTimeZone: VN }),
+			afterSecond: core.endSeriesAt(fresh, [], '2026-10-23', { now: NOW, defaultTimeZone: VN }),
 		},
 		{
 			yesterday: { kind: 'invalid' },
@@ -157,7 +183,7 @@ function preservedLessonVectors(expect: Expect): void {
 			durationMinutes: 45,
 		},
 	]
-	const endResult = core.endSeriesAt(weekly, endExceptions, '2026-10-14', NOW) as Extract<
+	const endResult = core.endSeriesAt(weekly, endExceptions, '2026-10-14', { now: NOW, defaultTimeZone: VN }) as Extract<
 		core.EndSeriesResult,
 		{ kind: 'ok' }
 	>
@@ -175,7 +201,10 @@ function preservedLessonVectors(expect: Expect): void {
 		's14 End series keeps moved occurrences after the new end as lessons, past ones included',
 		{
 			result: endResult,
-			bounded: core.endSeriesAt(rule({ endsOn: '2026-10-28' }), endExceptions, '2026-10-14', NOW),
+			bounded: core.endSeriesAt(rule({ endsOn: '2026-10-28' }), endExceptions, '2026-10-14', {
+				now: NOW,
+				defaultTimeZone: VN,
+			}),
 			before: thursday(windowOf([weekly], endExceptions, [], '2026-10-05')),
 			after: thursday(windowOf([endedWeekly], endExceptions, keptLessons, '2026-10-05')),
 			afterWeek: windowOf([endedWeekly], endExceptions, keptLessons, '2026-10-05').map((block) => [
@@ -188,20 +217,55 @@ function preservedLessonVectors(expect: Expect): void {
 				kind: 'ok',
 				endsOn: '2026-10-14',
 				lessons: [
-					{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60, originalOn: '2026-10-21' },
-					{ studentId: STUDENT, startsAt: '2026-11-06T05:00:00.000Z', durationMinutes: 45, originalOn: '2026-11-04' },
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-10-08T11:00:00.000Z',
+						durationMinutes: 60,
+						originalOn: '2026-10-21',
+					},
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-10-06T03:00:00.000Z',
+						durationMinutes: 60,
+						originalOn: '2026-10-28',
+						status: 'cancelled',
+					},
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-11-06T05:00:00.000Z',
+						durationMinutes: 45,
+						originalOn: '2026-11-04',
+					},
 				],
 			},
 			bounded: {
 				kind: 'ok',
 				endsOn: '2026-10-14',
 				lessons: [
-					{ studentId: STUDENT, startsAt: '2026-10-08T11:00:00.000Z', durationMinutes: 60, originalOn: '2026-10-21' },
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-10-08T11:00:00.000Z',
+						durationMinutes: 60,
+						originalOn: '2026-10-21',
+					},
+					{
+						timeZone: VN,
+						studentId: STUDENT,
+						startsAt: '2026-10-06T03:00:00.000Z',
+						durationMinutes: 60,
+						originalOn: '2026-10-28',
+						status: 'cancelled',
+					},
 				],
 			},
 			before: [['s:series-a:2026-10-21', 'scheduled']],
 			after: [['l:kept-1', 'scheduled']],
 			afterWeek: [
+				['l:kept-2', 'cancelled'],
 				['s:series-a:2026-10-07', 'scheduled'],
 				['l:kept-1', 'scheduled'],
 				['s:series-a:2026-10-14', 'scheduled'],
@@ -213,13 +277,14 @@ function preservedLessonVectors(expect: Expect): void {
 function movedTailVectors(expect: Expect): void {
 	const tailIntoPast = [movedOn('2026-10-21', '2026-10-09', '10:00')]
 	const intoPast = {
+		timeZone: VN,
 		studentId: STUDENT,
 		startsAt: '2026-10-09T03:00:00.000Z',
 		durationMinutes: 60,
 		originalOn: '2026-10-21',
 	}
 	const tailCut = cut(weekly, tailIntoPast, { from: '2026-10-14', weekday: 4, startTime: '17:00' })
-	const tailEnd = core.endSeriesAt(weekly, tailIntoPast, '2026-10-14', NOW) as Extract<
+	const tailEnd = core.endSeriesAt(weekly, tailIntoPast, '2026-10-14', { now: NOW, defaultTimeZone: VN }) as Extract<
 		core.EndSeriesResult,
 		{ kind: 'ok' }
 	>
