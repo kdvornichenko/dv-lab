@@ -50,7 +50,7 @@ const notFound = (c: Context<AppEnv>) => c.json(errorBody('not_found', 'Not Foun
 const lessonChanged = (c: Context<AppEnv>) =>
 	c.json(errorBody('lesson_changed', 'This lesson was changed elsewhere'), 409)
 
-function refused(c: Context<AppEnv>, failure: ChangeFailure) {
+function refused(c: Context<AppEnv, string>, failure: ChangeFailure) {
 	switch (failure.kind) {
 		case 'not_found':
 			return notFound(c)

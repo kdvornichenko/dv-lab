@@ -137,7 +137,14 @@ function programs(paths: string[]): Map<string, ts.Program> {
 	const result = new Map<string, ts.Program>()
 	for (const [key, roots] of groups) {
 		const config = readConfig(join(ROOT, key === 'tooling' ? 'tsconfig.base.json' : `${key}/tsconfig.json`))
-		const options = { ...config.options, allowJs: true, checkJs: false, types: ['node'], jsx: ts.JsxEmit.Preserve }
+		const options = {
+			...config.options,
+			allowJs: true,
+			checkJs: false,
+			types: ['node'],
+			jsx: ts.JsxEmit.Preserve,
+			lib: key === 'tooling' ? ['lib.es2024.d.ts', 'lib.dom.d.ts', 'lib.dom.iterable.d.ts'] : config.options.lib,
+		}
 		const program = ts.createProgram([...new Set([...config.fileNames, ...roots])], options)
 		for (const path of roots) result.set(path, program)
 	}

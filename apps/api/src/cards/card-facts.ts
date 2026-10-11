@@ -29,7 +29,7 @@ async function cardBalances(
 	cards: readonly FactSource[],
 	timeZone: string
 ): Promise<Map<string, number | null>> {
-	if (cards.length === 0) return new Map()
+	if (cards.length === 0) return new Map<string, number | null>()
 	const ids = cards.map((card) => card.id)
 	const paymentRows = await executor
 		.select({ studentId: payments.studentId, paidOn: payments.paidOn, creditedMinutes: payments.creditedMinutes })

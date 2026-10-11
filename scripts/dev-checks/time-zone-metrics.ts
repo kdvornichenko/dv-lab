@@ -20,7 +20,7 @@ type FunctionNode =
 	| ts.GetAccessorDeclaration
 	| ts.SetAccessorDeclaration
 
-export interface FunctionMetric {
+interface FunctionMetric {
 	name: string
 	line: number
 	endLine: number
@@ -33,7 +33,7 @@ export interface FunctionMetric {
 	operands: { unique: number; total: number }
 }
 
-export function isFunction(node: ts.Node): node is FunctionNode {
+function isFunction(node: ts.Node): node is FunctionNode {
 	return (
 		ts.isFunctionDeclaration(node) ||
 		ts.isFunctionExpression(node) ||
@@ -250,6 +250,7 @@ function valueNode(node: ts.Node): boolean {
 	if (ts.isPropertyDeclaration(node) || ts.isPropertySignature(node)) return true
 	if (!ts.isExpression(node)) return false
 	const parent = node.parent
+	if (ts.isStringLiteral(node) && ts.isJsxAttribute(parent)) return false
 	if (
 		ts.isTypeNode(parent) ||
 		ts.isQualifiedName(parent) ||
@@ -264,7 +265,8 @@ function valueNode(node: ts.Node): boolean {
 }
 
 function unknownBoundary(node: ts.Node): boolean {
-	const parent = node.parent
+	let parent = node.parent
+	while (ts.isAwaitExpression(parent)) parent = parent.parent
 	if (!ts.isVariableDeclaration(parent) && !ts.isAsExpression(parent)) return false
 	const type = parent.type
 	return (

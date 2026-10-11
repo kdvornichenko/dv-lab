@@ -192,7 +192,7 @@ function useLessonExample(): ZoneChangeExample | null {
 			const next = result.data.students
 				.filter((student) => student.nextLessonAt !== null && new Date(student.nextLessonAt).getTime() > Date.now())
 				.sort((left, right) => (left.nextLessonAt ?? '').localeCompare(right.nextLessonAt ?? ''))[0]
-			setExample(next?.nextLessonAt ? { title: next.name, startsAt: next.nextLessonAt } : null)
+			setExample(next?.nextLessonAt ? { title: next.displayName, startsAt: next.nextLessonAt } : null)
 		})
 		return () => {
 			current = false
