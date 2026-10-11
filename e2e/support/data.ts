@@ -54,7 +54,8 @@ export const NAMES = [
 	'Alex Example 2189',
 ] as const
 export type FixtureName = (typeof NAMES)[number]
-type Owned = { name: FixtureName; id: string | null }
+type FixtureLifecycle = 'disposable' | 'retained'
+type Owned = { name: FixtureName; id: string | null; lifecycle: FixtureLifecycle }
 type SettingsSnapshot = {
 	accountId: string
 	paysSoonLessons: number | null
@@ -151,12 +152,16 @@ function fixtureName(value: unknown): FixtureName {
 	return name as FixtureName
 }
 
-function owned(): Owned[] {
+export function fixtureOwnership(): Owned[] {
 	const value = readPrivate(OWNED_FILE)
 	if (value === null) return []
 	return list(value).map((entry) => {
 		const row = record(entry)
-		return { name: fixtureName(row.name), id: row.id === null ? null : uuid(row.id) }
+		const lifecycle = row.lifecycle === undefined ? 'disposable' : text(row.lifecycle)
+		if (lifecycle !== 'disposable' && lifecycle !== 'retained') throw new Error('Invalid fixture lifecycle')
+		const id = row.id === null ? null : uuid(row.id)
+		if (lifecycle === 'retained' && id === null) throw new Error('Retained fixture identity is missing')
+		return { name: fixtureName(row.name), id, lifecycle }
 	})
 }
 
@@ -164,13 +169,21 @@ export function reserveFixture(name: FixtureName): void {
 	fixtureName(name)
 	const rows = sql(`select count(*)::int as n from students where display_name = ${quote(name)}`)
 	if (integer(rows[0]?.n) !== 0) throw new Error('Fixture name is occupied; unrelated cards are preserved')
-	writePrivate(OWNED_FILE, [...owned(), { name, id: null }])
+	writePrivate(OWNED_FILE, [...fixtureOwnership(), { name, id: null, lifecycle: 'disposable' }])
 }
 
-export function registerFixture(name: FixtureName, id: string): void {
+export function registerFixture(name: FixtureName, id: string, lifecycle: FixtureLifecycle = 'disposable'): void {
+	fixtureName(name)
+	if (lifecycle !== 'disposable' && lifecycle !== 'retained') throw new Error('Invalid fixture lifecycle')
+	const identity = uuid(id)
+	const entries = fixtureOwnership()
+	const previous = entries.find((entry) => entry.name === name)
+	if (!previous || (previous.id !== null && previous.id !== identity))
+		throw new Error('Fixture registration does not match the reserved identity')
+	const retained = previous.lifecycle === 'retained' ? 'retained' : lifecycle
 	writePrivate(
 		OWNED_FILE,
-		owned().map((entry) => (entry.name === name ? { name, id: uuid(id) } : entry))
+		entries.map((entry) => (entry.name === name ? { name, id: identity, lifecycle: retained } : entry))
 	)
 }
 
@@ -184,7 +197,8 @@ function ownedWhere(entries: Owned[]): string {
 }
 
 export function cleanupFixtures(): number {
-	const entries = owned()
+	const registry = fixtureOwnership()
+	const entries = registry.filter((entry) => entry.lifecycle === 'disposable')
 	if (entries.length === 0) return 0
 	if (FIXTURE_DATABASE === 'prelaunch' && entries.some((entry) => entry.id === null))
 		throw new Error('Prelaunch cleanup requires registered fixture IDs; recover pending ownership first')
@@ -203,7 +217,10 @@ delete from students where id in (${selection}); commit`,
 	)
 	if (integer(sql(`select count(*)::int as n from students where id in (${selection})`)[0]?.n) !== 0)
 		throw new Error('Owned fixture cleanup is incomplete')
-	writePrivate(OWNED_FILE, [])
+	writePrivate(
+		OWNED_FILE,
+		registry.filter((entry) => entry.lifecycle === 'retained')
+	)
 	return count
 }
 
@@ -278,7 +295,15 @@ export function scrubAuth(): void {
 }
 
 export function ownedStudent(id: string): string {
-	const found = owned().find((entry) => entry.id === uuid(id))
+	const identity = uuid(id)
+	const found = fixtureOwnership().find((entry) => entry.id === identity)
 	if (!found) throw new Error('SQL fixture write is outside the ownership ledger')
-	return uuid(id)
+	return identity
+}
+
+export function retainedStudent(id: string): string {
+	const identity = uuid(id)
+	const found = fixtureOwnership().find((entry) => entry.id === identity && entry.lifecycle === 'retained')
+	if (!found) throw new Error('Provider fixture must be retained before setup or command writes')
+	return identity
 }

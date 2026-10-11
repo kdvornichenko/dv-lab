@@ -5,16 +5,16 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 24
 current_phase_name: Google Calendar Connection and Outbound Sync
 status: executing
-stopped_at: Phase24 plans01-04 integrated; atomic Calendar reads plan05 next
-last_updated: '2026-10-11T18:05:27.329Z'
+stopped_at: Phase24 plans01–07 source integrated; plan08 and remaining12/13 active
+last_updated: '2026-10-11T19:00:44.493Z'
 last_activity: 2026-10-12
-last_activity_desc: Plans01–06 source integrated; command journal next; provider evidence pending
-state_head: b112ff5898057905f9cc6aac4543dfd08c0019f3
+last_activity_desc: Autonomous GSD for24→25→22→23→26; plan07 source complete; provider proof pending
+state_head: 6ada73b31758986538c9db9c8312570a6f737d8d
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 104
-  completed_plans: 96
+  completed_plans: 97
   percent: 18
 ---
 
@@ -30,9 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 24 (Google Calendar Connection and Outbound Sync) — EXECUTING
-Plan: 7 of 14
-Status: Ready to execute
-Last activity: 2026-10-12 — Plans01–06 source complete;07 next;12 Settings and13 observer/harness integrated; connected provider verification pending
+Plan: 8 of 14
+Status: Executing; connected provider verification pending
+Last activity: 2026-10-12 — Plans01–07 source complete;08 active;12 controller and13 remote faults in progress; connected provider verification pending
 
 Progress: [██░░░░░░░░] 18%
 
@@ -79,6 +79,8 @@ Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [Owner, 2026-10-12]: Autonomous GSD covers24→25→22→23→26: research, plans, UI analysis/spec, plan checks, implementation and verification. No questions while the owner is away. Coordinate Design dude and Server guy as needed; deploy and test the necessary work on the existing authorized site. New agents use gpt-6.1-sol. Preserve external access, privacy, data and deletion boundaries; inaccessible proof stays unverified.
 
 - [v2.0 roadmap, owner decision 2026-10-11]: After Phase 21, default time zone becomes a setting before Google Calendar (24-25), then chat (22-23), then IELTS (26). Calendar UAT waits for full Google sync.
 - [Phase 24, owner decision 2026-10-12]: Current dv-lab.dev and its database are the authorized prelaunch test target. Use synthetic fixtures and a separate Google PRIMARY account after exact build/persistence attestation. A separate test environment is deferred until Calendar and chat are fully tested. Server guy owns target preparation and coordinated release.

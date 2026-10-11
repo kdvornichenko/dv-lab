@@ -5,12 +5,22 @@ import { z } from 'zod'
 
 import { googleConnectionSnapshot, googleScheduleWindow } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
+import { calendarFixtureRetention } from './support/calendar-ownership.ts'
+import {
+	calendarCachedNext,
+	calendarNextPrefixRecovery,
+	calendarWindowRecovery,
+} from './support/calendar-read-recovery.ts'
 import { AUTH_FILE, BASE, PRIVATE_DIR, teacherCredentials } from './support/data.ts'
 import { mondayOf, vnToday } from './support/dates.ts'
 import { record, text } from './support/input.ts'
 import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test('[calendar] ownership cleanup preserves retained cards and their registry', async ({ page }) => {
+	await calendarFixtureRetention(page.request)
+})
 
 function observedCancellations(): unknown {
 	try {
@@ -90,6 +100,18 @@ const oauthTest = test.extend({
 
 oauthTest.describe('teacher calendar reads', () => {
 	oauthTest.use({ storageState: AUTH_FILE })
+	oauthTest('[calendar] read recovery keeps complete snapshot after a real next-page failure', async ({ page }) => {
+		await calendarWindowRecovery(page.request)
+	})
+	oauthTest(
+		'[calendar] C2 prefix keeps known unknown and none distinct after a real next-page failure',
+		async ({ page }) => {
+			await calendarNextPrefixRecovery(page.request)
+		}
+	)
+	oauthTest('[calendar] C2 cached mutation preserves the last-known next instant', async ({ page }) => {
+		await calendarCachedNext(page.request)
+	})
 	oauthTest('[calendar] window remains complete after real synthetic cancellations', async ({ page }) => {
 		const fixture = z
 			.strictObject({
