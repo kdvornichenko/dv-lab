@@ -376,6 +376,7 @@ export function cutSeries(
 	now: Date,
 	marks: ReadonlyMap<string, MarkKind> = new Map<string, MarkKind>()
 ): CutSeriesResult {
+	if (!hasOccurrences(rule)) return { kind: 'changed' }
 	const { from, weekday, startTime } = change
 	const today = scheduleToday(now)
 	if (from < today) return { kind: 'invalid' }
