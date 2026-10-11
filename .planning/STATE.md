@@ -5,17 +5,17 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 21
 current_phase_name: Lesson Accounting and Today
 status: executing
-stopped_at: Phase 21 execution resumed; 14/18 plans executed; running 21-11 (wave 9), then 21-12, 21-13, 21-18
-last_updated: "2026-10-11T03:30:17.589Z"
+stopped_at: Phase 21 wave 9 complete; 15/18 plans executed; next 21-12, 21-13, 21-18; backend review fixes in progress
+last_updated: "2026-10-11T04:15:31Z"
 last_activity: 2026-10-11
-last_activity_desc: Phase 21 execution started
-state_head: a5c0152eaf38b1dac85677d4d27720e5c3015a4b
+last_activity_desc: Phase 21 plan 21-11 complete; mark preservation fix committed
+state_head: 84ac8cf8545d588c668b750a2948e0b8f51fc3f9
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 77
-  completed_plans: 73
-  percent: 95
+  completed_plans: 74
+  percent: 96
 ---
 
 # Project State
@@ -30,11 +30,11 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 ## Current Position
 
 Phase: 21 (Lesson Accounting and Today) — EXECUTING
-Plan: 14 of 18 completed; executing 21-11 (wave 9)
-Status: Waves 1-8 executed; execution resumed at wave 9
-Last activity: 2026-10-11 — Phase 21 execution started
+Plan: 15 of 18 completed; next 21-12 (wave 10)
+Status: Waves 1-9 executed; backend review fixes in progress
+Last activity: 2026-10-11 — Plan 21-11 complete; mark preservation fix committed
 
-Progress: [████████░░] 78% of Phase 21 plans executed (14/18)
+Progress: [████████░░] 83% of Phase 21 plans executed (15/18)
 
 ## Deferred Verification
 
@@ -108,5 +108,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-11T03:18:24Z
-Stopped at: Phase 21 execution resumed; 14/18 plans executed; running 21-11 (wave 9), then 21-12, 21-13, 21-18
+Stopped at: Phase 21 wave 9 complete; 15/18 plans executed; next 21-12, 21-13, 21-18; backend review fixes in progress
 Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md
