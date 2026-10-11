@@ -38,13 +38,16 @@ export const PAYMENT_NOTE_MAX_LENGTH = 500
 export const AMOUNT_MINOR_MAX = 2000000000
 export const LESSONS_HUNDREDTHS_MAX = 9999999
 
-export function isTimeZone(value: string): boolean {
+export function timeZoneIdentity(value: string): string | null {
 	try {
-		new Intl.DateTimeFormat('en-US', { timeZone: value })
-		return true
+		return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone
 	} catch {
-		return false
+		return null
 	}
+}
+
+export function isTimeZone(value: string): boolean {
+	return timeZoneIdentity(value) !== null
 }
 
 export function isIsoDate(value: string): boolean {

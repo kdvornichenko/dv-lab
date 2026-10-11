@@ -157,6 +157,8 @@ describe('errorCodes', () => {
 			'series_ends_before_new_day',
 			'lesson_not_started',
 			'series_today_passed',
+			'default_time_zone_changed',
+			'nonexistent_local_time',
 			'locked',
 			'busy',
 			'unavailable',
