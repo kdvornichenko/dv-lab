@@ -2,6 +2,7 @@ import { scheduleDate } from '../packages/core/src/index.ts'
 import { withCalendarToday } from './support/calendar-today.ts'
 import {
 	expectCalendarReadOnly,
+	expectAllDayHints,
 	expectClosedGestures,
 	expectOverlap,
 	expectViewCases,
@@ -59,6 +60,16 @@ test('[calendar-view] fresh provider events expose safe keyboard and pointer det
 	await expect(page.getByRole('dialog')).toBeVisible()
 	await expectCalendarReadOnly(page)
 	expect(writes(), 'Read-only details never submit calendar commands').toBe(0)
+})
+
+test('[calendar-view] draft hints include busy all-day boundaries and exclude available events', async ({ page }) => {
+	const writes = watchCalendarWrites(page)
+	const fixture = observedView()
+	const window = await openView(page, fixture.weekStart)
+	expect(window.read.state).toBe('fresh')
+	expect(window.write.state).toBe('ready')
+	await expectAllDayHints(page, window, fixture)
+	expect(writes(), 'Overlap hints do not submit calendar commands').toBe(0)
 })
 
 test('[calendar-view] last-known dates stay truthful and an uncovered week is unavailable', async ({ page }) => {
