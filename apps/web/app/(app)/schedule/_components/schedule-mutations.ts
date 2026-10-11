@@ -20,8 +20,6 @@ export const STALE_DATE = 'The schedule has been refreshed. Check the date and t
 
 export type RuleTarget = { kind: 'rule'; seriesId: string }
 
-export type LessonAction = 'move' | 'cancel' | 'restore'
-
 export type LessonBody = { expectedStartsAt?: string }
 
 export type MoveLessonBody = LessonBody & { date: string; startTime: string; expectedDefaultTimeZone: string }

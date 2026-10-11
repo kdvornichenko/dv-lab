@@ -3,7 +3,7 @@
 	"ignoreExportsUsedInFile": true,
 	"workspaces": {
 		".": {
-			"entry": ["scripts/**/*.mjs", "e2e/**/*.ts"],
+			"entry": ["scripts/**/*.mjs", "scripts/dev-checks/time-zone-quality.ts", "e2e/**/*.ts"],
 			"project": ["scripts/**/*.mjs", "scripts/**/*.ts", "e2e/**/*.ts"],
 			"ignoreDependencies": ["pg"]
 		},
