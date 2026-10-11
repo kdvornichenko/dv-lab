@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs'
 import { z } from 'zod'
 
 import { api, readStudent, readToday, teacherId } from './api.ts'
-import { FIXTURE_DATABASE, HTTPS_TARGET, PRIVATE_DIR, quote, sql } from './data.ts'
+import ensureCalendarTarget from './calendar.ts'
+import { FIXTURE_DATABASE, HTTPS_TARGET, ownedStudent, PRIVATE_DIR, quote, sql } from './data.ts'
 import { integer, record, text } from './input.ts'
+import { readPrivateJson } from './target.ts'
 
 const historyCase = z.strictObject({
 	kind: z.enum(['old_marked', 'old_unmarked', 'legacy_elapsed', 'confirmed', 'pending']),
@@ -21,15 +23,19 @@ type HistoryCase = z.output<typeof historyCase>
 
 function readFixture(): unknown {
 	try {
-		return JSON.parse(readFileSync(`${PRIVATE_DIR}/calendar-history.json`, 'utf8')) as unknown
+		const path = `${PRIVATE_DIR}/calendar-history.json`
+		if (FIXTURE_DATABASE === 'prelaunch') return readPrivateJson(path)
+		return JSON.parse(readFileSync(path, 'utf8')) as unknown
 	} catch {
 		throw new Error('Observed synthetic history fixture is required')
 	}
 }
 
 async function historyFixture(request: APIRequestContext) {
-	if (FIXTURE_DATABASE !== 'test') throw new Error('Calendar history requires the authorized test database')
+	if (FIXTURE_DATABASE !== 'test' && FIXTURE_DATABASE !== 'prelaunch')
+		throw new Error('Calendar history requires authorized test or attested prelaunch persistence')
 	if (!HTTPS_TARGET) throw new Error('Calendar history requires the attested HTTPS runtime and test persistence')
+	await ensureCalendarTarget()
 	const parsed = z
 		.strictObject({
 			kind: z.literal('observed-google-history'),
@@ -51,6 +57,7 @@ async function historyFixture(request: APIRequestContext) {
 	const kinds = new Set(fixture.cases.map((item) => item.kind))
 	if (kinds.size !== 5) throw new Error('History fixture must include every required failure path')
 	for (const item of fixture.cases) {
+		if (FIXTURE_DATABASE === 'prelaunch') ownedStudent(item.studentId)
 		const rows = sql(
 			`select count(*)::int as n from students where id = ${quote(item.studentId)}::uuid and display_name like 'Alex Example %' and import_key is null`
 		)

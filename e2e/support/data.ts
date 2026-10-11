@@ -4,20 +4,19 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync
 import { isAbsolute, relative, resolve } from 'node:path'
 import { parseEnv } from 'node:util'
 
-import { ROOT, STATE_DIR } from '../../scripts/dev-checks/paths.mjs'
+import { ROOT } from '../../scripts/dev-checks/paths.mjs'
 import { integer, list, record, text, uuid } from './input.ts'
+import {
+	DATABASE_IDENTITY_SQL,
+	ENV_FILE,
+	FIXTURE_DATABASE,
+	HTTPS_TARGET,
+	PRIVATE_DIR,
+	prelaunchEnvironment,
+} from './target.ts'
+import type { TargetBinding } from './target.ts'
 
-const LOCAL_ORIGIN = 'http://localhost:3000'
-export const FIXTURE_DATABASE = process.env.E2E_FIXTURE_DATABASE ?? 'dev'
-if (FIXTURE_DATABASE !== 'dev' && FIXTURE_DATABASE !== 'test')
-	throw new Error('E2E fixture database must be dev or test')
-const ENV_FILE = FIXTURE_DATABASE === 'test' ? '.env.test' : '.env'
-export const BASE = targetOrigin()
-export const HTTPS_TARGET = BASE !== LOCAL_ORIGIN
-export const PRIVATE_DIR = resolve(
-	realpathSync(STATE_DIR),
-	`${HTTPS_TARGET ? `calendar-e2e-${createHash('sha256').update(BASE).digest('hex').slice(0, 16)}` : 'phase21-e2e'}${FIXTURE_DATABASE === 'test' ? '-test' : ''}`
-)
+export { BASE, FIXTURE_DATABASE, HTTPS_TARGET, PRIVATE_DIR } from './target.ts'
 export const RESULTS_DIR = resolve(PRIVATE_DIR, 'results', randomUUID())
 export const AUTH_FILE = resolve(PRIVATE_DIR, 'auth.json')
 const SETTINGS_FILE = resolve(PRIVATE_DIR, 'settings.json')
@@ -25,33 +24,23 @@ const OWNED_FILE = resolve(PRIVATE_DIR, 'owned.json')
 const TARGET_FILE = resolve(PRIVATE_DIR, 'target.json')
 let targetDatabaseReady = false
 
-function targetOrigin(): string {
-	const value = process.env.E2E_TARGET_ORIGIN ?? LOCAL_ORIGIN
-	let url: URL
-	try {
-		url = new URL(value)
-	} catch {
-		throw new Error('E2E target must be an HTTPS origin or the default local origin')
-	}
-	if (url.origin !== value || (value !== LOCAL_ORIGIN && url.protocol !== 'https:'))
-		throw new Error('E2E target must be an HTTPS origin without credentials, path, query or fragment')
-	return value
-}
-
 function requireTargetDatabase(): void {
 	if (HTTPS_TARGET && !targetDatabaseReady) throw new Error('E2E HTTPS target has not passed fixture readiness')
 }
 
-export function confirmTargetDatabase(expected: string): void {
-	const rows = runSql(`begin read only; select current_database() as database,
-inet_server_addr()::text as address, inet_server_port() as port,
-(select oid::text from pg_database where datname = current_database()) as oid;`)
-	if (rows.length !== 1 || createHash('sha256').update(JSON.stringify(rows[0])).digest('hex') !== expected)
-		throw new Error('E2E target persistence identity mismatch')
+export function confirmTargetDatabase(binding: TargetBinding): void {
+	const expected = binding.persistenceFingerprint
+	const rows = runSql(`begin read only; ${DATABASE_IDENTITY_SQL};`, 'identity')
+	if (rows.length !== 1) throw new Error('E2E target persistence identity mismatch')
+	const actual =
+		FIXTURE_DATABASE === 'prelaunch'
+			? text(rows[0]?.persistenceFingerprint)
+			: createHash('sha256').update(JSON.stringify(rows[0])).digest('hex')
+	if (actual !== expected) throw new Error('E2E target persistence identity mismatch')
 	const saved = readPrivate(TARGET_FILE)
 	if (saved !== null && text(record(saved).persistenceFingerprint) !== expected)
 		throw new Error('E2E fixture state belongs to a different persistence target')
-	writePrivate(TARGET_FILE, { persistenceFingerprint: expected })
+	writePrivate(TARGET_FILE, binding)
 	targetDatabaseReady = true
 }
 export const NAMES = [
@@ -101,7 +90,8 @@ function readPrivate(path: string): unknown {
 
 export function teacherCredentials(): { login: string; password: string } {
 	requireTargetDatabase()
-	const env = parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
+	const env =
+		FIXTURE_DATABASE === 'prelaunch' ? prelaunchEnvironment() : parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
 	const login = env.DEV_TEACHER_LOGIN
 	const password = env.DEV_TEACHER_PASSWORD
 	if (!login) throw new Error('Set DEV_TEACHER_LOGIN')
@@ -118,22 +108,34 @@ export function sql(query: string): Record<string, unknown>[] {
 	return runSql(query)
 }
 
-function runSql(query: string): Record<string, unknown>[] {
+function runSql(query: string, operation: 'identity' | 'cleanup' | 'query' = 'query'): Record<string, unknown>[] {
 	const guard = `do $$ begin
 if current_user <> 'dvlab_migrator' or current_database() !~ '_${FIXTURE_DATABASE}$' then
 raise exception 'E2E database guard refused'; end if; end $$;`
+	const prelaunch = FIXTURE_DATABASE === 'prelaunch'
 	const result = spawnSync(
 		process.execPath,
-		[`${ROOT}/scripts/dev-checks/sql.mjs`, `${ROOT}/${ENV_FILE}`, 'migrator', `${guard} ${query}`],
-		{ cwd: ROOT, encoding: 'utf8', timeout: 20000 }
+		prelaunch
+			? [`${ROOT}/e2e/support/prelaunch-sql.ts`]
+			: [`${ROOT}/scripts/dev-checks/sql.mjs`, `${ROOT}/${ENV_FILE}`, 'migrator', `${guard} ${query}`],
+		{
+			cwd: ROOT,
+			encoding: 'utf8',
+			timeout: prelaunch ? 35000 : 20000,
+			input: prelaunch ? JSON.stringify({ kind: operation, ...(operation === 'query' ? { query } : {}) }) : undefined,
+		}
 	)
 	if (result.status !== 0 || result.error) throw new Error('E2E SQL failed; database details suppressed')
 	const last = result.stdout.trim().split('\n').at(-1)
 	if (!last) throw new Error('E2E SQL returned no result')
-	const value: unknown = JSON.parse(last)
-	const output = record(value)
-	if (output.error) throw new Error('E2E SQL refused; database details suppressed')
-	return list(output.rows).map(record)
+	try {
+		const value: unknown = JSON.parse(last)
+		const output = record(value)
+		if (output.error) throw new Error('SQL error')
+		return list(output.rows).map(record)
+	} catch {
+		throw new Error('E2E SQL refused; database details suppressed')
+	}
 }
 
 function fixtureName(value: unknown): FixtureName {
@@ -177,16 +179,21 @@ function ownedWhere(entries: Owned[]): string {
 export function cleanupFixtures(): number {
 	const entries = owned()
 	if (entries.length === 0) return 0
+	if (FIXTURE_DATABASE === 'prelaunch' && entries.some((entry) => entry.id === null))
+		throw new Error('Prelaunch cleanup requires registered fixture IDs; recover pending ownership first')
 	const selection = `select id from students where ${ownedWhere(entries)}`
 	const rows = sql(`select count(*)::int as n from students where id in (${selection})`)
 	const count = integer(rows[0]?.n)
-	sql(`begin; delete from lesson_marks where lesson_id in (select id from lessons where student_id in (${selection}))
+	runSql(
+		`begin; delete from lesson_marks where lesson_id in (select id from lessons where student_id in (${selection}))
 or series_id in (select id from lesson_series where student_id in (${selection}));
 delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in (${selection}));
 delete from lessons where student_id in (${selection});
 delete from lesson_series where student_id in (${selection});
 delete from payments where student_id in (${selection});
-delete from students where id in (${selection}); commit`)
+delete from students where id in (${selection}); commit`,
+		'cleanup'
+	)
 	if (integer(sql(`select count(*)::int as n from students where id in (${selection})`)[0]?.n) !== 0)
 		throw new Error('Owned fixture cleanup is incomplete')
 	writePrivate(OWNED_FILE, [])
@@ -209,6 +216,12 @@ export function restoreTeacherSettings(accountId: string, keep = false): void {
 	const saved = savedSettings()
 	if (!saved) return
 	if (saved.accountId !== uuid(accountId)) throw new Error('Settings recovery belongs to another teacher')
+	if (FIXTURE_DATABASE === 'prelaunch') {
+		if (JSON.stringify(readTeacherSettings(accountId)) !== JSON.stringify(saved))
+			throw new Error('Teacher settings writes are outside prelaunch synthetic fixture authority')
+		if (!keep) writePrivate(SETTINGS_FILE, null)
+		return
+	}
 	const id = quote(saved.accountId)
 	if (saved.paysSoonLessons === null) sql(`delete from teacher_settings where account_id = ${id}::uuid`)
 	else
