@@ -10,26 +10,30 @@ import {
 	googleScheduleWindow,
 	googleUnresolvedCommandsResponse,
 } from '../../packages/contracts/src/calendar.ts'
-import { api, readSettings } from './api.ts'
-import { HTTPS_TARGET, PRIVATE_DIR } from './data.ts'
+import { api, readSettings, teacherId } from './api.ts'
+import { HTTPS_TARGET, NAMES, ownedStudent, PRIVATE_DIR, quote, sql } from './data.ts'
 import { addDays, mondayOf, vnToday } from './dates.ts'
-import { record } from './input.ts'
+import { integer, record } from './input.ts'
 import { readPrivateJson, targetBinding } from './target.ts'
 import { expect } from './test.ts'
 
-export function calendarCommandFixture() {
+export async function calendarCommandFixture(request: APIRequestContext) {
 	if (!HTTPS_TARGET) throw new Error('Connected command journeys require the attested HTTPS target')
 	const binding = targetBinding()
-	const fixture = z
+	const parsed = z
 		.strictObject({
 			origin: z.string(),
 			apiBuildSha: z.string(),
 			persistenceFingerprint: z.string(),
 			studentId: z.uuid(),
+			studentName: z.enum(NAMES),
+			accountId: z.uuid(),
 			commandWritesAuthorized: z.literal(true),
 			expiresAt: z.iso.datetime(),
 		})
-		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-command.json`))
+		.safeParse(readPrivateJson(`${PRIVATE_DIR}/calendar-command.json`))
+	if (!parsed.success) throw new Error('Calendar command fixture failed validation')
+	const fixture = parsed.data
 	if (
 		fixture.origin !== binding.origin ||
 		fixture.apiBuildSha !== binding.apiBuildSha ||
@@ -37,6 +41,13 @@ export function calendarCommandFixture() {
 		Date.parse(fixture.expiresAt) <= Date.now()
 	)
 		throw new Error('Calendar command fixture does not match the active runtime authority')
+	ownedStudent(fixture.studentId)
+	if ((await teacherId(request)) !== fixture.accountId)
+		throw new Error('Calendar command fixture belongs to another teacher')
+	const rows = sql(
+		`select count(*)::int as n from students where id = ${quote(fixture.studentId)}::uuid and display_name = ${quote(fixture.studentName)} and import_key is null`
+	)
+	if (integer(rows[0]?.n) !== 1) throw new Error('Calendar command fixture is outside the owned synthetic set')
 	return fixture
 }
 
@@ -74,6 +85,10 @@ export async function commandTracer(request: APIRequestContext, studentId: strin
 	expect(window.read.state, 'Real connected provider window').toBe('fresh')
 	if (window.read.state !== 'fresh') throw new Error('Real provider readiness is required')
 	input.expectedVersion = window.read.revision
+	const outside = { ...input, date: addDays(input.date, 14), requestId: randomUUID() }
+	const outsideResult = record(await api(request, 'POST', '/schedule/lessons', outside, 409))
+	expect(record(outsideResult.error).code).toBe('precondition_failed')
+	await api(request, 'GET', `/google/commands/by-request/${outside.requestId}`, undefined, 404)
 	const receipt = calendarCommandReceipt.parse(await api(request, 'POST', '/schedule/lessons', input, 202))
 	expect(calendarCommandReceipt.parse(await api(request, 'POST', '/schedule/lessons', input, 202))).toEqual(receipt)
 	const conflict = record(await api(request, 'POST', '/schedule/lessons', { ...input, startTime: '14:00' }, 409))

@@ -1,4 +1,4 @@
-import { and, eq, notInArray } from 'drizzle-orm'
+import { and, eq, notInArray, sql } from 'drizzle-orm'
 import { createHash } from 'node:crypto'
 
 import {
@@ -9,11 +9,62 @@ import {
 	type ErrorCode,
 	type ValidatedCalendarCommand,
 } from '@dv-lab/contracts'
-import { googleCommands, googleCommandStages, googleEventMappings, type DbExecutor } from '@dv-lab/db'
+import {
+	googleCommands,
+	googleCommandPlan,
+	googleCommandStages,
+	googleEventMappings,
+	googleStageRequest,
+	type Database,
+	type DbExecutor,
+} from '@dv-lab/db'
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 
 export type CommandRow = typeof googleCommands.$inferSelect
+export type StageRow = typeof googleCommandStages.$inferSelect
+
+export async function preparedCommand(executor: DbExecutor, command: CommandRow) {
+	const [stage] = await executor
+		.select()
+		.from(googleCommandStages)
+		.where(and(eq(googleCommandStages.commandId, command.id), eq(googleCommandStages.stage, 0)))
+	const plan = googleCommandPlan.parse(command.plan)
+	const request = googleStageRequest.parse(stage?.request)
+	if (!stage || command.operation !== 'create' || plan.input.operation !== 'create' || request.method !== 'insert')
+		throw new CommandFault('precondition_failed')
+	const prepared: PreparedCalendarCommand = { ...command, operation: 'create', plan, request }
+	return { prepared, stage }
+}
+
+export async function failUnsentCommand(db: Database, commandId: string) {
+	await db.transaction(async (tx) => {
+		const [command] = await tx.select().from(googleCommands).where(eq(googleCommands.id, commandId)).for('update')
+		if (!command || command.state !== 'pending' || command.dispatchedAt) return
+		await tx
+			.update(googleCommands)
+			.set({
+				state: 'failed',
+				effect: 'none',
+				issue: 'not_applied',
+				nextAction: 'retry_new_command',
+				updatedAt: sql`now()`,
+			})
+			.where(eq(googleCommands.id, commandId))
+		await tx
+			.update(googleCommandStages)
+			.set({ state: 'failed', effect: 'none', updatedAt: sql`now()` })
+			.where(and(eq(googleCommandStages.commandId, commandId), eq(googleCommandStages.state, 'pending')))
+		await retireReservations(tx, commandId)
+	})
+}
+
+export async function retireReservations(tx: DbExecutor, commandId: string) {
+	await tx
+		.update(googleEventMappings)
+		.set({ state: 'retired', retiredAt: sql`now()` })
+		.where(and(eq(googleEventMappings.commandId, commandId), eq(googleEventMappings.state, 'reserved')))
+}
 
 export class CommandFault extends Error {
 	readonly code: ErrorCode

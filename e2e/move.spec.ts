@@ -40,7 +40,7 @@ test('[calendar] command tracer rejects disconnected create and blocks unsupport
 })
 
 test('[calendar] command tracer confirms one real event and reuses the immutable request', async ({ page }) => {
-	await commandTracer(page.request, calendarCommandFixture().studentId)
+	await commandTracer(page.request, (await calendarCommandFixture(page.request)).studentId)
 })
 
 async function inspectMovedDestination(page: Page, card: Card, date: string, key: string): Promise<void> {

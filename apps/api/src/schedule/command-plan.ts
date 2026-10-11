@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
-import type { ValidatedCalendarCommand } from '@dv-lab/contracts'
+import { timeZoneIdentity, type ValidatedCalendarCommand } from '@dv-lab/contracts'
 import { canChange, localTimeCandidates } from '@dv-lab/core'
 import {
 	googleCommandPlan,
@@ -85,6 +85,13 @@ export async function prepareScheduleCommand(
 		.for('update')
 	if (!student || student.status !== 'active') throw new CommandFault('invalid_request', 400)
 	const window = await commandWindow(executor, context.accountId, input.input.expectedVersion)
+	const endsAt = new Date(startsAt.getTime() + input.input.durationMinutes * 60000)
+	if (
+		startsAt < window.windowStart ||
+		endsAt > window.windowEnd ||
+		timeZoneIdentity(window.displayTimeZone) !== timeZoneIdentity(timeZone)
+	)
+		throw new CommandFault('precondition_failed')
 	if (window.generation !== connection.generation || window.connectionId !== connection.id)
 		throw new CommandFault('precondition_failed')
 	const events = await executor.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
@@ -116,7 +123,7 @@ export async function prepareScheduleCommand(
 	const payload = {
 		summary: student.name,
 		start: { dateTime: startsAt.toISOString(), timeZone },
-		end: { dateTime: new Date(startsAt.getTime() + value.durationMinutes * 60000).toISOString(), timeZone },
+		end: { dateTime: endsAt.toISOString(), timeZone },
 		status: 'confirmed' as const,
 	}
 	const stageDigest = digest(JSON.stringify({ eventId: reservation.eventId, ...payload }))
