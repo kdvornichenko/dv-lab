@@ -12,6 +12,7 @@ import { type AppEnv, originMatches, sameOrigin } from './auth/middleware.ts'
 import type { SignIn } from './auth/sign-in.ts'
 import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
+import type { CalendarReads } from './calendar/reads.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
 import { googleRoutes } from './routes/google.ts'
@@ -31,6 +32,7 @@ export type AppDeps = {
 	signIn: SignIn
 	calendar?: CalendarConnection
 	calendarControl?: ConnectionControl
+	calendarReads?: CalendarReads
 }
 
 function clientErrorBody(status: number) {
@@ -83,7 +85,7 @@ export function createApp(deps: AppDeps) {
 	)
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
-	app.route('/schedule', scheduleRoutes({ db: deps.db }))
+	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
 	app.route('/settings', settingsRoutes({ db: deps.db }))
 	app.route('/today', todayRoutes({ db: deps.db }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {

@@ -1,6 +1,7 @@
 import type { JSHandle, Locator, Page, Route, TestInfo } from '@playwright/test'
 
 import { readSettings } from './support/api.ts'
+import { calendarNextCards } from './support/calendar-next.ts'
 import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, VN, vnToday } from './support/dates.ts'
 import { expect, test, type Card, type Fx } from './support/test.ts'
@@ -31,6 +32,10 @@ import {
 	setThreshold,
 	tile,
 } from './support/ui.ts'
+
+test('[calendar] next C2 cards preserve provider status through every response', async ({ page }) => {
+	await calendarNextCards(page.request)
+})
 
 async function profileHeader(page: Page, card: Card, unset: boolean): Promise<void> {
 	await page.goto(`/students/${card.id}`)

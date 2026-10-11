@@ -1,12 +1,38 @@
 import type { APIRequestContext } from '@playwright/test'
 
-import { googleConnectionSnapshot } from '../packages/contracts/src/calendar.ts'
+import { readFileSync } from 'node:fs'
+import { z } from 'zod'
+
+import { googleConnectionSnapshot, googleScheduleWindow } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
-import { AUTH_FILE, BASE, teacherCredentials } from './support/data.ts'
+import { AUTH_FILE, BASE, PRIVATE_DIR, teacherCredentials } from './support/data.ts'
+import { mondayOf, vnToday } from './support/dates.ts'
 import { record, text } from './support/input.ts'
 import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
+
+function observedCancellations(): unknown {
+	try {
+		return JSON.parse(readFileSync(`${PRIVATE_DIR}/calendar-cancellations.json`, 'utf8')) as unknown
+	} catch {
+		throw new Error('Observed synthetic cancellation fixture is required')
+	}
+}
+
+test('[calendar] window stays unavailable without a connection and never returns local fallback', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	for (const start of ['2030-01-07', '2030-01-14', '2030-01-07']) {
+		const parsed = googleScheduleWindow.safeParse(await api(page.request, 'GET', `/schedule/week?start=${start}`))
+		if (!parsed.success) throw new Error('Calendar window response failed schema validation')
+		const window = parsed.data
+		expect(window.connection.state === 'not_connected', 'The fixture has no active Calendar connection').toBe(true)
+		expect(window.read.state === 'unavailable', 'Disconnected window is unavailable').toBe(true)
+		expect(window.write.state === 'blocked', 'Disconnected window blocks writes').toBe(true)
+		expect(window.snapshotRange === null, 'No complete provider snapshot is claimed').toBe(true)
+		expect(window.events.length === 0 && window.series.length === 0, 'No legacy fallback is published').toBe(true)
+	}
+})
 
 test('[calendar] credential recovery refuses anonymous control requests', async ({ page }) => {
 	for (const path of ['/google/disconnect', '/google/disconnect/confirm-revoked']) {
@@ -60,6 +86,70 @@ const oauthTest = test.extend({
 	trace: 'off',
 	video: 'off',
 	screenshot: 'off',
+})
+
+oauthTest.describe('teacher calendar reads', () => {
+	oauthTest.use({ storageState: AUTH_FILE })
+	oauthTest('[calendar] window remains complete after real synthetic cancellations', async ({ page }) => {
+		const fixture = z
+			.strictObject({
+				kind: z.literal('observed-google-cancellations'),
+				ownership: z.literal('dv-lab-synthetic'),
+				weekStart: z.iso.date(),
+				cases: z
+					.array(
+						z.strictObject({
+							kind: z.enum(['single', 'occurrence']),
+							eventKey: z.string().regex(/^[0-9a-f]{64}$/),
+							cancelledAt: z.iso.datetime({ offset: true }),
+						})
+					)
+					.min(2),
+			})
+			.safeParse(observedCancellations())
+		if (!fixture.success) throw new Error('Observed synthetic cancellation fixture is required')
+		expect(
+			new Set(fixture.data.cases.map((item) => item.kind)).size === 2,
+			'Single and recurring cancellations are required'
+		).toBe(true)
+		const parsed = googleScheduleWindow.safeParse(
+			await api(page.request, 'GET', `/schedule/week?start=${fixture.data.weekStart}`)
+		)
+		if (!parsed.success) throw new Error('Calendar window response failed schema validation')
+		expect(parsed.data.read.state === 'fresh', 'Real cancellations do not poison full reads').toBe(true)
+		for (const fixtureEvent of fixture.data.cases) {
+			const event = parsed.data.events.find((item) => item.eventKey === fixtureEvent.eventKey)
+			expect(!event || event.status === 'cancelled', 'A cancelled synthetic event is never resurrected').toBe(true)
+			expect(!event || !event.blocksTime, 'Cancelled events never block time').toBe(true)
+		}
+	})
+	oauthTest('[calendar] window publishes complete provider facts on repeated reads', async ({ page }) => {
+		let revision = -1n
+		for (let attempt = 0; attempt < 2; attempt++) {
+			const parsed = googleScheduleWindow.safeParse(
+				await api(page.request, 'GET', `/schedule/week?start=${mondayOf(vnToday())}`)
+			)
+			if (!parsed.success) throw new Error('Calendar window response failed schema validation')
+			const window = parsed.data
+			expect(window.connection.state === 'connected', 'The attested synthetic grant is connected').toBe(true)
+			expect(window.read.state === 'fresh', 'A complete provider traversal was published').toBe(true)
+			if (window.read.state !== 'fresh') throw new Error('Fresh Calendar read required')
+			expect(BigInt(window.read.revision) > revision, 'Read revision advances').toBe(true)
+			revision = BigInt(window.read.revision)
+			expect(
+				JSON.stringify(window.snapshotRange) === JSON.stringify(window.requestedRange),
+				'The entire requested range is covered'
+			).toBe(true)
+			expect(
+				new Set(window.events.map((event) => event.eventKey)).size === window.events.length,
+				'Provider identities are unique'
+			).toBe(true)
+			expect(
+				window.events.every((event) => event.binding.kind !== 'external' || event.editBlock !== null),
+				'External events remain read-only'
+			).toBe(true)
+		}
+	})
 })
 
 oauthTest.describe('teacher calendar authorization', () => {

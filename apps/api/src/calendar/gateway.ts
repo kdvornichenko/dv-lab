@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { CalendarIssue } from '@dv-lab/contracts'
 
 import type { CalendarConfig } from '../config.ts'
+import { parseEventPage, parseMaster, type EventQuery } from './provider-events.ts'
 
 export const CALENDAR_SCOPES = [
 	'https://www.googleapis.com/auth/calendar.events',
@@ -135,6 +136,41 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 			return validateTokens(response, false)
 		},
 		primary,
+		async events(accessToken: string, query: EventQuery, signal: AbortSignal) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const response = await safeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.list(
+					{
+						...query,
+						singleEvents: true,
+						orderBy: 'startTime',
+						showDeleted: true,
+						maxResults: 2500,
+						fields:
+							'timeZone,nextPageToken,items(id,etag,summary,start,end,status,transparency,eventType,recurringEventId,originalStartTime)',
+					},
+					{ retry: false }
+				)
+			)
+			return parseEventPage(response.data)
+		},
+		async master(accessToken: string, calendarId: string, eventId: string, timeZone: string, signal: AbortSignal) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const response = await safeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.get(
+					{
+						calendarId,
+						eventId,
+						fields:
+							'id,etag,summary,start,end,status,transparency,eventType,recurringEventId,originalStartTime,recurrence',
+					},
+					{ retry: false }
+				)
+			)
+			return parseMaster(response.data, timeZone)
+		},
 		async revoke(token: string, signal: AbortSignal): Promise<void> {
 			const response = await safeCall(() => client(signal).revokeToken(token))
 			if (response.status !== 200) throw new CalendarFault('disconnect_failed')
