@@ -203,9 +203,9 @@ Scope — 21 changed source files и три существующих файла 
 - Все три planned functional commands без --list **NOT RUN**: single changes, tombstone, command races. Discovery не является execution. Runtime/node service processes, DB writer и Google target не арендованы. Main TEST PRIMARY/grant не найден. Source нельзя выдавать за runtime proof или выполненный GCAL acceptance.
 - Native disappearing tombstone требует реальной provider observation. Fake/synthesized 404 запрещён. Retained fixture `calendar-single.json` связан с target build/persistence/student и требует actual disappeared cancelled single; gateway proof остаётся обязательным независимо от manifest.
 - `calendar-command.json` задаёт существующую attested synthetic fixture. `calendar-races.json` содержит retained cases для настоящих 412, 403, 429, expiry, lost admission, late disconnect и changed-unowned observations. Assertions не создают эти provider/process failures. Их setup и execution принадлежат 13. One-shot 401 refresh runtime отдельно не проверен.
-- Main creation helper сейчас fail-closed через `ownedStudent`. Parent сообщил о будущем retained Student guard в owned data/prelaunch-sql source. На момент фиксации точная signature не опубликована в доступных refs; adapter в calendar-commands.ts требуется после concrete integration. Retained ownership нельзя угадывать или добавлять в cleanup ledger. Main journeys до этого не готовы к execution. data.ts/prelaunch-sql.ts не изменялись.
+- Main creation helper требует `retainedStudent(fixture.studentId)` до teacher/API/SQL действий внутри helper. Parent source 8fbd404 интегрирован merge 8c9eff4 без сброса коммитов08. Adapter использует точную upstream signature `retainedStudent(id: string): string`; retained lifecycle проверяется по существующему ownership registry. data.ts/prelaunch-sql.ts вручную не изменялись. Runtime authority и реальные provider fixtures остаются обязательными.
 - Полное доказательство runtime должно содержать code/build fingerprint, scenario/fixture refs, expected/observed result, original exit, target/persistence identity и rerun command. Private artifacts этой работы доказывают только static/build результаты.
-- Full regression, combined source 12/13 build, live provider permission/quota/late response branches и source adapter после parent guard остаются у parent/13. Новые unit/component/contract/integration suites не создавались.
+- Full regression, combined source 12/13 build и live provider permission/quota/late response branches остаются у parent/13. Новые unit/component/contract/integration suites не создавались.
 
 Точные planned reruns после выдачи runtime/fixture authority:
 
@@ -217,7 +217,7 @@ E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/move.spec.ts --gre
 
 ## Known Stubs
 
-`routes/schedule.ts:164` сохраняет intentional history_only capability block для occurrence/series mutations. Это scope 09/10. Single routes реализованы. Других owned goal-blocking placeholders/TODO/FIXME не найдено. Пустые accumulators/null single rule — реальные значения, не UI stubs. Retained guard adapter выше является explicit source integration dependency, а не скрытым passing fixture.
+`routes/schedule.ts:164` сохраняет intentional history_only capability block для occurrence/series mutations. Это scope 09/10. Single routes реализованы. Других owned goal-blocking placeholders/TODO/FIXME не найдено. Пустые accumulators/null single rule — реальные значения, не UI stubs. Retained guard adapter интегрирован; functional runtime proof остаётся UNVERIFIED.
 
 ## TDD Gate Compliance
 
@@ -230,3 +230,16 @@ Source tasks 08 завершены. 09 не начат. Parent владеет sh
 ## Self-Check: PASSED
 
 Все четыре созданных source/helper файла и SUMMARY существуют. Коммиты c5bd283, 8441f2a и 407d9c9 являются ancestors текущего HEAD. Каждый source SHA-256 совпадает с final quality artifact. Source deletion check пуст. Untracked apps/web/AGENTS.md сохранён по assignment. Shared metadata и чужие source files не изменялись.
+
+## Retained Guard Integration
+
+Source commit `1311bc9` меняет только `e2e/support/calendar-commands.ts`: import/call `ownedStudent` заменён на `retainedStudent`. Parent integration merge `8c9eff4` сохраняет source08 и принимает upstream13; shared metadata приходит только из parent commits. Simplify: дополнительный adapter или compatibility layer не требуется.
+
+- `yarn node scripts/dev-checks/calendar-quality.ts --base 8c9eff41034018c2720eb6f814dc0b126f1de840 --owned e2e/support/calendar-commands.ts --json`: exit0, PASS. Private evidence `STATE_DIR/phase24-08-retained-quality.json`; fingerprint `74af2042e25d6bcbd5dd8d96074bacbb056d58970c64322a032b9f459fbb831b`. Helper SHA-256 `c213f8e30d8dbccfcf65ffb45b229d3ce22b909b9b94cd92aa3bb49e35b82677`, 175 lines. Changed function CC10→10, cognitive6→6, Halstead D22.04→22.04; method/tool convention выше. Missing/stale/type/metric violations отсутствуют.
+- `yarn prettier --check e2e/support/calendar-commands.ts`: exit0, all matched files use Prettier style.
+- `git diff --check`: exit0.
+- `env E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/move.spec.ts --grep '\[calendar\] (single changes|tombstone|command races)' --project=light --list`: exit0, 14 tests in3files, discovery only.
+
+Parent сообщил ownership E2E local_dev: 1passed3.9s и остановленный dev. Это upstream fixture ownership evidence, не runtime proof08. Собственные runtime/DB/Google journeys не запускались. Frozen DTO не изменён; captured command generation остаётся immutable, actual confirmation generation проверяется в ACK/apply. UI completion fence после Resume согласует parent/Arendt.
+
+Integration self-check: upstream `retainedStudent(id: string): string` доступен из merge; source commit существует; diff не содержит deletions. Основные source-task metrics/actuals выше относятся к исходным трём атомарным задачам до integration follow-up.
