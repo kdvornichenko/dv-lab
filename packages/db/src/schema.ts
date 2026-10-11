@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+	boolean,
 	check,
 	date,
 	index,
@@ -99,6 +100,7 @@ export const students = pgTable(
 		rateMinor: integer('rate_minor'),
 		currency: text('currency'),
 		defaultLessonMinutes: integer('default_lesson_minutes').default(60).notNull(),
+		noShowDeducts: boolean('no_show_deducts').default(true).notNull(),
 		parent: text('parent'),
 		level: text('level'),
 		goals: text('goals'),
@@ -284,4 +286,38 @@ export const lessons = pgTable(
 		check('lessons_status_ck', sql`${table.status} in ('scheduled', 'cancelled')`),
 		check('lessons_minutes_ck', sql`${table.durationMinutes} between 15 and 240`),
 	]
+)
+
+export const lessonMarks = pgTable(
+	'lesson_marks',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		seriesId: uuid('series_id').references(() => lessonSeries.id, { onDelete: 'restrict' }),
+		originalOn: date('original_on'),
+		lessonId: uuid('lesson_id').references(() => lessons.id, { onDelete: 'restrict' }),
+		kind: text('kind').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex('lesson_marks_occurrence_uq').on(table.seriesId, table.originalOn),
+		uniqueIndex('lesson_marks_lesson_uq').on(table.lessonId),
+		check('lesson_marks_kind_ck', sql`${table.kind} in ('done', 'no_show', 'none')`),
+		check(
+			'lesson_marks_ref_ck',
+			sql`(${table.seriesId} is null) = (${table.originalOn} is null) and (${table.seriesId} is null) <> (${table.lessonId} is null)`
+		),
+	]
+)
+
+export const teacherSettings = pgTable(
+	'teacher_settings',
+	{
+		accountId: uuid('account_id')
+			.primaryKey()
+			.references(() => accounts.id, { onDelete: 'restrict' }),
+		paysSoonLessons: integer('pays_soon_lessons').notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`)]
 )

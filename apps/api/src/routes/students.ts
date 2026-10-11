@@ -22,6 +22,7 @@ import {
 	saveStudentRequest,
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
+import { isAfterScheduleToday } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
@@ -44,7 +45,6 @@ import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
 import { readSnapshot } from '../schedule/rows.ts'
-import { latestPaymentDate } from './payments.ts'
 
 type StudentRouteDeps = { db: Database }
 
@@ -117,7 +117,7 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, openingBalanceRequest)
 		if (!input) return invalidRequest(c)
-		if (input.on > latestPaymentDate(new Date())) return invalidRequest(c)
+		if (isAfterScheduleToday(input.on, new Date())) return invalidRequest(c)
 		const student = await setOpeningBalance(db, id, input)
 		if (!student) return notFound(c)
 		return c.json({ student } satisfies StudentResponse, 200)

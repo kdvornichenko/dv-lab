@@ -1,15 +1,38 @@
 import { and, eq, gte, inArray, isNull, lt, lte, or } from 'drizzle-orm'
 
 import {
+	type LessonMarkKind,
+	MARK_KINDS,
+	type ScheduleLessonActions,
+	type ScheduleLessonOutcome,
+} from '@dv-lab/contracts'
+import {
+	type BalanceCard,
+	type BalanceLesson,
+	type LessonActions,
+	type LessonOutcome,
+	type MarkKind,
+	type OccurrenceRef,
 	SCHEDULE_TIME_ZONE,
 	type SeriesException,
 	type SeriesRule,
 	type SingleLesson,
 	type Weekday,
+	occurrenceAt,
+	occurrenceKey,
+	occurrenceOutcome,
+	scheduleDate,
 	windowDates,
-	zonedParts,
 } from '@dv-lab/core'
-import { type Database, type DbExecutor, lessonExceptions, lessonSeries, lessons } from '@dv-lab/db'
+import {
+	type Database,
+	type DbExecutor,
+	lessonExceptions,
+	lessonMarks,
+	lessonSeries,
+	lessons,
+	type students,
+} from '@dv-lab/db'
 
 type ScheduleRange = { from: Date; to: Date | null; studentIds?: readonly string[] }
 
@@ -41,11 +64,58 @@ export const lessonColumns = {
 	status: lessons.status,
 }
 
+const markColumns = {
+	seriesId: lessonMarks.seriesId,
+	originalOn: lessonMarks.originalOn,
+	lessonId: lessonMarks.lessonId,
+	kind: lessonMarks.kind,
+}
+
 type SeriesRecord = Pick<typeof lessonSeries.$inferSelect, keyof typeof seriesColumns>
 
 type ExceptionRecord = Pick<typeof lessonExceptions.$inferSelect, keyof typeof exceptionColumns>
 
 type LessonRecord = Pick<typeof lessons.$inferSelect, keyof typeof lessonColumns>
+
+type MarkRecord = Pick<typeof lessonMarks.$inferSelect, keyof typeof markColumns>
+
+type BalanceRecord = Pick<typeof students.$inferSelect, 'openingBalanceMinutes' | 'openingBalanceOn' | 'noShowDeducts'>
+
+type Mirror<Core, Wire> = [Core] extends [Wire] ? ([Wire] extends [Core] ? Wire : never) : never
+
+export function toMarkKind(value: string): MarkKind {
+	const known = MARK_KINDS.find((kind) => kind === value)
+	if (known === undefined) throw new Error('unexpected lesson mark kind')
+	return known
+}
+
+export function toWireOutcome(outcome: LessonOutcome): Mirror<LessonOutcome, ScheduleLessonOutcome> {
+	return outcome
+}
+
+export function toWireMark(mark: MarkKind): Mirror<MarkKind, LessonMarkKind>
+export function toWireMark(mark: MarkKind | null): Mirror<MarkKind, LessonMarkKind> | null
+export function toWireMark(mark: MarkKind | null): Mirror<MarkKind, LessonMarkKind> | null {
+	return mark
+}
+
+export function toWireActions(actions: LessonActions): Mirror<LessonActions, ScheduleLessonActions> {
+	return {
+		move: actions.move,
+		cancel: actions.cancel,
+		restore: actions.restore,
+		mark: actions.mark,
+		series: actions.series,
+	}
+}
+
+export function toBalanceCard(row: BalanceRecord): BalanceCard {
+	return {
+		openingMinutes: row.openingBalanceMinutes,
+		openingOn: row.openingBalanceOn,
+		noShowDeducts: row.noShowDeducts,
+	}
+}
 
 const WEEKDAYS: readonly Weekday[] = [1, 2, 3, 4, 5, 6, 7]
 
@@ -101,7 +171,7 @@ export function toSingleLesson(row: LessonRecord): SingleLesson {
 }
 
 function dateBounds(from: Date, to: Date | null): { fromDate: string; toDate: string | null } | null {
-	if (to === null) return { fromDate: zonedParts(from, SCHEDULE_TIME_ZONE).date, toDate: null }
+	if (to === null) return { fromDate: scheduleDate(from), toDate: null }
 	const dates = windowDates(from, to, SCHEDULE_TIME_ZONE)
 	const first = dates[0]
 	const last = dates[dates.length - 1]
@@ -140,6 +210,122 @@ export async function seriesExceptionsFrom(
 		.from(lessonExceptions)
 		.where(and(eq(lessonExceptions.seriesId, seriesId), gte(lessonExceptions.originalOn, from)))
 	return rows.map(toSeriesException)
+}
+
+export async function seriesMarksFrom(
+	executor: DbExecutor,
+	seriesId: string,
+	from: string
+): Promise<Map<string, MarkKind>> {
+	const rows = await executor
+		.select({ originalOn: lessonMarks.originalOn, kind: lessonMarks.kind })
+		.from(lessonMarks)
+		.where(and(eq(lessonMarks.seriesId, seriesId), gte(lessonMarks.originalOn, from)))
+	const marks = new Map<string, MarkKind>()
+	for (const row of rows) {
+		if (row.originalOn !== null) marks.set(row.originalOn, toMarkKind(row.kind))
+	}
+	return marks
+}
+
+function markRef(row: MarkRecord): OccurrenceRef {
+	if (row.seriesId !== null && row.originalOn !== null) {
+		return { kind: 'series', seriesId: row.seriesId, originalOn: row.originalOn }
+	}
+	if (row.lessonId !== null) return { kind: 'single', lessonId: row.lessonId }
+	throw new Error('lesson mark has no occurrence')
+}
+
+export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceRef[]): Promise<Map<string, MarkKind>> {
+	const wanted = new Set(refs.map(occurrenceKey))
+	const seriesIds = [...new Set(refs.flatMap((ref) => (ref.kind === 'series' ? [ref.seriesId] : [])))]
+	const lessonIds = [...new Set(refs.flatMap((ref) => (ref.kind === 'single' ? [ref.lessonId] : [])))]
+	if (seriesIds.length === 0 && lessonIds.length === 0) return new Map()
+	const rows = await executor
+		.select(markColumns)
+		.from(lessonMarks)
+		.where(
+			or(
+				seriesIds.length === 0 ? undefined : inArray(lessonMarks.seriesId, seriesIds),
+				lessonIds.length === 0 ? undefined : inArray(lessonMarks.lessonId, lessonIds)
+			)
+		)
+	const marks = new Map<string, MarkKind>()
+	for (const row of rows) {
+		const key = occurrenceKey(markRef(row))
+		if (wanted.has(key)) marks.set(key, toMarkKind(row.kind))
+	}
+	return marks
+}
+
+export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<MarkKind | null> {
+	const [row] = await executor
+		.select({ kind: lessonMarks.kind })
+		.from(lessonMarks)
+		.where(
+			ref.kind === 'series'
+				? and(eq(lessonMarks.seriesId, ref.seriesId), eq(lessonMarks.originalOn, ref.originalOn))
+				: eq(lessonMarks.lessonId, ref.lessonId)
+		)
+	return row ? toMarkKind(row.kind) : null
+}
+
+export async function loadMarkRows(
+	executor: DbExecutor,
+	studentIds: readonly string[]
+): Promise<Array<BalanceLesson & { studentId: string }>> {
+	if (studentIds.length === 0) return []
+	const ids = [...studentIds]
+	const seriesRows = await executor
+		.select({ ...seriesColumns, markOn: lessonMarks.originalOn, markKind: lessonMarks.kind })
+		.from(lessonMarks)
+		.innerJoin(lessonSeries, eq(lessonMarks.seriesId, lessonSeries.id))
+		.where(inArray(lessonSeries.studentId, ids))
+	const seriesIds = [...new Set(seriesRows.map((row) => row.id))]
+	const exceptionRows =
+		seriesIds.length === 0
+			? []
+			: await executor
+					.select(exceptionColumns)
+					.from(lessonExceptions)
+					.where(inArray(lessonExceptions.seriesId, seriesIds))
+	const exceptions = new Map<string, SeriesException>()
+	for (const row of exceptionRows) {
+		const exception = toSeriesException(row)
+		exceptions.set(
+			occurrenceKey({ kind: 'series', seriesId: exception.seriesId, originalOn: exception.originalOn }),
+			exception
+		)
+	}
+	const lessonRows = await executor
+		.select({ ...lessonColumns, markKind: lessonMarks.kind })
+		.from(lessonMarks)
+		.innerJoin(lessons, eq(lessonMarks.lessonId, lessons.id))
+		.where(inArray(lessons.studentId, ids))
+
+	const result: Array<BalanceLesson & { studentId: string }> = []
+	for (const row of seriesRows) {
+		if (row.markOn === null) continue
+		const exception = exceptions.get(occurrenceKey({ kind: 'series', seriesId: row.id, originalOn: row.markOn }))
+		const occurrence = occurrenceAt(toSeriesRule(row), row.markOn, exception)
+		if (occurrence === null) continue
+		result.push({
+			studentId: occurrence.studentId,
+			startsAt: occurrence.startsAt,
+			durationMinutes: occurrence.durationMinutes,
+			outcome: occurrenceOutcome(occurrence, toMarkKind(row.markKind)),
+		})
+	}
+	for (const row of lessonRows) {
+		const lesson = toSingleLesson(row)
+		result.push({
+			studentId: lesson.studentId,
+			startsAt: lesson.startsAt,
+			durationMinutes: lesson.durationMinutes,
+			outcome: occurrenceOutcome(lesson, toMarkKind(row.markKind)),
+		})
+	}
+	return result
 }
 
 export function readSnapshot<T>(db: Database, read: (executor: DbExecutor) => Promise<T>): Promise<T> {

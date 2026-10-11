@@ -4,21 +4,13 @@ import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'rea
 
 import { DateField } from '@/components/app/date-field'
 import { TextField } from '@/components/app/text-field'
-import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
-import { Button } from '@/components/ui/button'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
 import { apiRequest } from '@/lib/api-client'
-import { secondWhen, vnRange, vnWhen, weekdayName } from '@/lib/schedule-format'
+import { secondWhen, seriesPhrase, vnWhen, weekdayName } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
 
 import {
 	LESSON_MINUTES_MAX,
@@ -30,6 +22,7 @@ import {
 import { SCHEDULE_TIME_ZONE, overlaps, weekdayOf, zonedInstant, type OverlapItem } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import { NewLessonFooter, NewLessonNotices, NewLessonStudent } from './new-lesson-content'
 
 export type OverlapBlock = OverlapItem & { studentName: string }
 
@@ -37,7 +30,7 @@ export type StudentsState = { kind: 'loading' } | { kind: 'error' } | { kind: 'r
 
 interface NewLessonDialogProps {
 	students: StudentsState
-	seed: { date: string; time: string }
+	seed: { date: string; time: string; durationMinutes?: number }
 	today: string
 	secondZone: string | null
 	currentYear: number
@@ -62,13 +55,6 @@ function secondZoneLine(date: string, time: string | null, zone: string | null):
 	return secondWhen(zonedInstant(date, time, SCHEDULE_TIME_ZONE), zone)
 }
 
-function clashText(items: readonly OverlapBlock[], zone: string | null): string {
-	const label = (item: OverlapBlock) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, zone)}`
-	if (items.length === 1) return `${label(items[0])}. You can still save.`
-	if (items.length === 2) return `${label(items[0])} and ${label(items[1])}. You can still save.`
-	return `${label(items[0])}, ${label(items[1])} and ${items.length - 2} more. You can still save.`
-}
-
 export function NewLessonDialog({
 	students,
 	seed,
@@ -83,8 +69,8 @@ export function NewLessonDialog({
 	const [studentId, setStudentId] = useState('')
 	const [date, setDate] = useState(seed.date)
 	const [time, setTime] = useState<string | null>(seed.time)
-	const [lengthText, setLengthText] = useState('60')
-	const [lengthEdited, setLengthEdited] = useState(false)
+	const [lengthText, setLengthText] = useState(String(seed.durationMinutes ?? 60))
+	const [lengthEdited, setLengthEdited] = useState(seed.durationMinutes !== undefined)
 	const [repeats, setRepeats] = useState<LessonRepeats>('once')
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
@@ -160,12 +146,14 @@ export function NewLessonDialog({
 		if ('lesson' in result.data) {
 			toast.show({
 				title: 'Lesson added',
-				description: `${name}, ${vnWhen(new Date(result.data.lesson.startsAt), secondZone, currentYear)}.`,
+				description: `${name}, ${vnWhen(new Date(result.data.lesson.startsAt), null, currentYear)}.`,
 			})
 		} else {
+			const added = result.data.series
+			const first = zonedInstant(added.startsOn, added.startTime, SCHEDULE_TIME_ZONE)
 			toast.show({
 				title: result.status === 200 ? 'This series already exists' : 'Series added',
-				description: `${name} every ${weekdayName(result.data.series.weekday)} at ${result.data.series.startTime}.`,
+				description: `${name} every ${weekdayName(added.weekday)} at ${added.startTime} ${zoneLabel(SCHEDULE_TIME_ZONE, first)}.`,
 			})
 		}
 		onCreated()
@@ -186,50 +174,19 @@ export function NewLessonDialog({
 					</DialogHeader>
 					<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 						<div className="flex flex-col gap-4 py-1">
-							{students.kind === 'error' ? (
-								<Banner status="error">
-									<BannerTitle>Could not load students. Close this window and try again.</BannerTitle>
-								</Banner>
-							) : null}
-							{failed ? (
-								<Banner status="error">
-									<BannerTitle>Could not add the lesson. Try again.</BannerTitle>
-								</Banner>
-							) : null}
-							{clashes.length > 0 ? (
-								<Banner status="warning" data-slot="new-lesson-overlap">
-									<BannerTitle>This overlaps another lesson</BannerTitle>
-									<BannerDescription>{clashText(clashes, secondZone)}</BannerDescription>
-								</Banner>
-							) : null}
-							<div className="flex min-w-0 flex-col gap-2">
-								<label htmlFor="new-lesson-student" className="text-body text-muted-foreground">
-									Student
-								</label>
-								<Select value={studentId} onValueChange={chooseStudent} disabled={pending || blocked}>
-									<SelectTrigger
-										ref={studentRef}
-										id="new-lesson-student"
-										className="w-full min-w-0"
-										placeholder={students.kind === 'loading' ? 'Loading students…' : 'Choose a student'}
-										autoFocus
-										error={shown('student')}
-										onBlur={() => touch('student')}
-									/>
-									<SelectContent>
-										{active.map((student, index) => (
-											<SelectItem key={student.id} index={index} value={student.id}>
-												{student.displayName}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{noStudents ? (
-									<p className="text-caption text-muted-foreground">
-										No active students. Add a card on the Students page.
-									</p>
-								) : null}
-							</div>
+							<NewLessonNotices students={students} failed={failed} clashes={clashes} />
+							<NewLessonStudent
+								studentId={studentId}
+								chooseStudent={chooseStudent}
+								pending={pending}
+								blocked={blocked}
+								studentRef={studentRef}
+								students={students}
+								active={active}
+								error={shown('student')}
+								onBlur={() => touch('student')}
+								noStudents={noStudents}
+							/>
 							<div className="grid items-start gap-4 sm:grid-cols-2">
 								<DateField
 									id="new-lesson-date"
@@ -316,21 +273,14 @@ export function NewLessonDialog({
 									</Select>
 									{repeats === 'weekly' && time !== null ? (
 										<p data-slot="new-lesson-repeat-note" className="text-caption text-muted-foreground">
-											Every {weekdayName(weekday)} at {time} until you end the series.
+											{seriesPhrase(weekday, time)} VN until you end the series.
 										</p>
 									) : null}
 								</div>
 							</div>
 						</div>
 					</ScrollArea>
-					<DialogFooter>
-						<Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-							Discard changes
-						</Button>
-						<Button type="submit" loading={pending} disabled={blocked}>
-							{pending ? 'Adding…' : repeats === 'weekly' ? 'Add series' : 'Add lesson'}
-						</Button>
-					</DialogFooter>
+					<NewLessonFooter onClose={onClose} pending={pending} blocked={blocked} repeats={repeats} />
 				</form>
 			</DialogContent>
 		</Dialog>

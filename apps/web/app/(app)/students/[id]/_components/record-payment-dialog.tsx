@@ -19,21 +19,23 @@ import { apiRequest } from '@/lib/api-client'
 
 import { PAYMENT_NOTE_MAX_LENGTH, type Currency, type PaymentResponse, type StudentDetail } from '@dv-lab/contracts'
 import {
+	balancePhrase,
 	currencyDigits,
 	formatHundredths,
 	formatMoney,
-	localIsoDate,
 	parseLessons,
 	parseMoney,
+	scheduleToday,
 	suggestLessons,
 } from '@dv-lab/core'
 
 import { useToast } from '../../../_components/toasts'
+import { PaymentStudentPicker } from './payment-student-picker'
 
 type Field = 'amount' | 'currency' | 'lessons' | 'note'
 
 interface RecordPaymentDialogProps {
-	student: StudentDetail
+	student?: StudentDetail
 	onClose: () => void
 	onRecorded: () => void
 }
@@ -52,12 +54,14 @@ function amountProblem(text: string, currency: string) {
 	return parseMoney(text, code) === null ? 'Enter an amount greater than 0.' : undefined
 }
 
-export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaymentDialogProps) {
+export function RecordPaymentDialog({ student: preset, onClose, onRecorded }: RecordPaymentDialogProps) {
+	const [chosen, setChosen] = useState<StudentDetail | null>(null)
+	const student = preset ?? chosen
 	const toast = useToast()
-	const today = localIsoDate(new Date())
-	const rate = rateOf(student)
+	const today = scheduleToday(new Date())
+	const rate = student === null ? null : rateOf(student)
 	const [amount, setAmount] = useState('')
-	const [currency, setCurrency] = useState(student.currency ?? '')
+	const [currency, setCurrency] = useState(preset?.currency ?? '')
 	const [paidOn, setPaidOn] = useState(today)
 	const [lessonsDraft, setLessonsDraft] = useState<string | null>(null)
 	const [note, setNote] = useState('')
@@ -69,28 +73,32 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 	const currencyRef = useRef<HTMLButtonElement>(null)
 	const lessonsRef = useRef<HTMLInputElement>(null)
 	const noteRef = useRef<HTMLInputElement>(null)
+	const saving = useRef(false)
 
 	const suggestion = suggestLessonsText(currency === '' ? null : parseMoney(amount, currency), currency, rate)
 	const lessons = lessonsDraft ?? suggestion
 	const prefilled = lessonsDraft === null && suggestion !== ''
 
-	const errors: Partial<Record<Field, string>> = {}
-	const amountError = amountProblem(amount, currency)
-	if (amountError) errors.amount = amountError
-	if (currency === '') errors.currency = 'Choose a currency.'
-	if (lessons.trim() !== '' && parseLessons(lessons) === null) {
-		errors.lessons = 'Enter 0 or more lessons, up to two decimals.'
-	}
-	if (Array.from(note.trim()).length > PAYMENT_NOTE_MAX_LENGTH) {
-		errors.note = `Use ${PAYMENT_NOTE_MAX_LENGTH} characters or fewer.`
-	}
+	const errors = paymentErrors(amount, currency, lessons, note)
 
 	const shown = (field: Field) => (submitted || touched[field] ? errors[field] : undefined)
 	const touch = (field: Field) => setTouched((current) => ({ ...current, [field]: true }))
+	const blocked = pending || student === null
+	const saveDisabled = pending || (preset === undefined && !canSavePayment(student, errors, lessons, paidOn))
+
+	function chooseStudent(value: StudentDetail | null) {
+		setChosen(value)
+		setCurrency(value?.currency ?? '')
+		setAmount('')
+		setLessonsDraft(null)
+		setTouched({})
+		setSubmitted(false)
+		setFailed(false)
+	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending) return
+		if (saving.current || student === null) return
 		setSubmitted(true)
 		setFailed(false)
 		if (errors.amount) return amountRef.current?.focus()
@@ -101,6 +109,7 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 		if (amountMinor === null) return amountRef.current?.focus()
 		const trimmedNote = note.trim()
 		setPending(true)
+		saving.current = true
 		const result = await apiRequest<PaymentResponse>('POST', '/payments', {
 			studentId: student.id,
 			paidOn,
@@ -110,6 +119,7 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 			note: trimmedNote === '' ? null : trimmedNote,
 		})
 		setPending(false)
+		saving.current = false
 		if (!result.ok) {
 			setFailed(true)
 			return
@@ -131,14 +141,11 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 			<DialogContent size="lg">
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
-						<DialogTitle>Record payment</DialogTitle>
-						<DialogDescription>
-							{rate === null
-								? `${student.displayName}. No rate is set.`
-								: `${student.displayName}. ${formatMoney(rate.rateMinor, rate.currency)} per lesson.`}
-						</DialogDescription>
+						<DialogTitle>{preset === undefined ? 'Add payment' : 'Record payment'}</DialogTitle>
+						<DialogDescription>{paymentDescription(student, rate)}</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-4">
+						{preset === undefined ? <PaymentStudentPicker disabled={pending} onChoose={chooseStudent} /> : null}
 						{failed ? (
 							<Banner status="error">
 								<BannerTitle>Could not record the payment. Try again.</BannerTitle>
@@ -153,11 +160,11 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 								placeholder="0"
 								inputMode="decimal"
 								autoComplete="off"
-								autoFocus
+								autoFocus={preset !== undefined}
 								value={amount}
 								onChange={(event) => setAmount(event.target.value)}
 								onBlur={() => touch('amount')}
-								disabled={pending}
+								disabled={blocked}
 								error={shown('amount')}
 							/>
 							<CurrencyField
@@ -166,7 +173,7 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 								onChange={setCurrency}
 								onBlur={() => touch('currency')}
 								error={shown('currency')}
-								disabled={pending}
+								disabled={blocked}
 								triggerRef={currencyRef}
 							/>
 						</div>
@@ -177,7 +184,7 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 								value={paidOn}
 								onChange={setPaidOn}
 								max={today}
-								disabled={pending}
+								disabled={blocked}
 							/>
 							<TextField
 								ref={lessonsRef}
@@ -190,7 +197,7 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 								value={lessons}
 								onChange={(event) => setLessonsDraft(event.target.value)}
 								onBlur={() => touch('lessons')}
-								disabled={pending}
+								disabled={blocked}
 								error={shown('lessons')}
 							/>
 						</div>
@@ -204,21 +211,60 @@ export function RecordPaymentDialog({ student, onClose, onRecorded }: RecordPaym
 							value={note}
 							onChange={(event) => setNote(event.target.value)}
 							onBlur={() => touch('note')}
-							disabled={pending}
+							disabled={blocked}
 							error={shown('note')}
 						/>
-						<BalanceCaption openingBalance={student.openingBalance} paidOn={paidOn} />
+						{student !== null ? <BalanceCaption openingBalance={student.openingBalance} paidOn={paidOn} /> : null}
 					</div>
 					<DialogFooter>
-						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+						<Button
+							type="button"
+							variant={preset === undefined ? 'ghost' : 'secondary'}
+							onClick={onClose}
+							disabled={pending}
+						>
+							{preset === undefined ? 'Cancel' : 'Discard changes'}
 						</Button>
-						<Button type="submit" loading={pending}>
-							{pending ? 'Saving…' : 'Record payment'}
+						<Button type="submit" loading={pending} disabled={saveDisabled}>
+							{pending ? 'Saving…' : preset === undefined ? 'Save payment' : 'Record payment'}
 						</Button>
 					</DialogFooter>
 				</form>
 			</DialogContent>
 		</Dialog>
 	)
+}
+
+function paymentErrors(
+	amount: string,
+	currency: string,
+	lessons: string,
+	note: string
+): Partial<Record<Field, string>> {
+	const errors: Partial<Record<Field, string>> = {}
+	const amountError = amountProblem(amount, currency)
+	if (amountError) errors.amount = amountError
+	if (currency === '') errors.currency = 'Choose a currency.'
+	if (lessons.trim() !== '' && parseLessons(lessons) === null)
+		errors.lessons = 'Enter 0 or more lessons, up to two decimals.'
+	if (Array.from(note.trim()).length > PAYMENT_NOTE_MAX_LENGTH)
+		errors.note = `Use ${PAYMENT_NOTE_MAX_LENGTH} characters or fewer.`
+	return errors
+}
+
+function canSavePayment(
+	student: StudentDetail | null,
+	errors: Partial<Record<Field, string>>,
+	lessons: string,
+	date: string
+): boolean {
+	return student !== null && Object.keys(errors).length === 0 && parseLessons(lessons) !== null && date !== ''
+}
+
+function paymentDescription(student: StudentDetail | null, rate: Rate | null): string {
+	if (student === null) return 'Choose a student; the amount and the number of lessons fill in on their own'
+	const balance =
+		student.balanceMinutes === null ? 'Not set' : balancePhrase(student.balanceMinutes, student.defaultLessonMinutes)
+	const price = rate === null ? 'No rate is set.' : `${formatMoney(rate.rateMinor, rate.currency)} per lesson.`
+	return `${balance}, ${price}`
 }

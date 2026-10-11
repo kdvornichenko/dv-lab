@@ -23,7 +23,7 @@ export function CenteredPanel({ children }: { children: ReactNode }) {
 
 export function PageScroll({ children }: { children: ReactNode }) {
 	return (
-		<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade">
+		<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade [&>div]:!min-w-0">
 			<div className="mx-auto flex w-full flex-col gap-4 px-4 pt-4 pb-16 min-[1920px]:max-w-384 md:gap-6 md:px-8 md:pt-6">
 				{children}
 			</div>
@@ -45,7 +45,7 @@ export function Panel({ title, description, action, children, className, id }: P
 		<Elevated offset={1} shadowLevel={2} className={cn('flex min-w-0 flex-col rounded-2xl', className)}>
 			<section aria-labelledby={id && title ? id : undefined} className="flex min-w-0 flex-col">
 				{title ? (
-					<div className="flex items-start justify-between gap-2 px-4 pt-4 pb-2">
+					<div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2">
 						<div className="flex min-w-0 flex-col gap-1">
 							<h2 id={id} className="text-title font-semibold text-foreground">
 								{title}

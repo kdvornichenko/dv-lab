@@ -37,7 +37,10 @@ async function toDetail(executor: DbExecutor, row: CardRecord): Promise<StudentD
 }
 
 export async function createCard(executor: DbExecutor, input: SaveStudentInput): Promise<StudentDetail> {
-	const [row] = await executor.insert(students).values(cardValues(input)).returning(cardColumns)
+	const [row] = await executor
+		.insert(students)
+		.values({ ...cardValues(input), noShowDeducts: input.noShowDeducts ?? true })
+		.returning(cardColumns)
 	if (!row) throw new Error('student card insert returned no row')
 	return toStudentDetail(row, NO_CARD_FACTS, null)
 }
@@ -70,7 +73,11 @@ export async function updateCard(
 ): Promise<StudentDetail | null> {
 	const [row] = await executor
 		.update(students)
-		.set({ ...cardValues(input), updatedAt: sql`now()` })
+		.set({
+			...cardValues(input),
+			...(input.noShowDeducts === undefined ? {} : { noShowDeducts: input.noShowDeducts }),
+			updatedAt: sql`now()`,
+		})
 		.where(eq(students.id, id))
 		.returning(cardColumns)
 	return row ? toDetail(executor, row) : null
@@ -127,7 +134,7 @@ export async function importCard(
 	const values = cardValues({ ...card, parent: null, level: null, goals: null, timeZone: null })
 	const [row] = await executor
 		.insert(students)
-		.values({ ...values, importKey })
+		.values({ ...values, noShowDeducts: true, importKey })
 		.onConflictDoNothing({ target: students.importKey })
 		.returning({ id: students.id })
 	if (row) return { id: row.id, inserted: true }

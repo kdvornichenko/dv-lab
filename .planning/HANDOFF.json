@@ -1,33 +1,48 @@
 {
-  "version": "1.0",
-  "timestamp": "2026-10-10T18:30:00Z",
-  "phase": "20",
-  "phase_name": "Schedule",
-  "phase_dir": ".planning/phases/20-schedule",
-  "plan": 10,
-  "task": 3,
-  "total_tasks": 3,
-  "status": "paused",
-  "completed_tasks": [
-    {"id": 1, "name": "Планы 20-01..20-10, 20-TP, 20-ES выполнены", "status": "done", "commit": "dfdde1b"}
-  ],
-  "remaining_tasks": [
-    {"id": 1, "name": "PR https://github.com/kdvornichenko/dv-lab/pull/6: дождаться CI и слить gh pr merge --merge", "status": "not_started"},
-    {"id": 2, "name": "Ручной просмотр сетки расписания владельцем (во встроенном браузере не смотрели)", "status": "not_started"},
-    {"id": 3, "name": "Выкат через Server guy: две миграции и GET /api/schedule/week (20-10-SUMMARY, Для выката)", "status": "not_started"}
-  ],
-  "blockers": [],
-  "async_jobs": [],
-  "human_actions_pending": [
-    {"action": "Ответ Design dude на список замечаний по фазе 20 (отправлен)", "context": "End series подсказка, None/none D-13, вторая зона у времени серии, размер шрифта подсказки", "blocking": false},
-    {"action": "Выкат фазы 20 через Server guy", "context": "миграции 20261010075813_schedule и 20261010103628_schedule_revoke_delete", "blocking": false}
-  ],
-  "decisions": [
-    {"decision": "Расписание не удаляет строки из БД", "rationale": "решение владельца: отмена, окончание и перенос меняют статус, kind или ends_on (D-16)", "phase": "20"},
-    {"decision": "Зона серии константой SCHEDULE_TIME_ZONE = Asia/Ho_Chi_Minh", "rationale": "D-15", "phase": "20"},
-    {"decision": "Restore возвращает отменённый перенесённый урок в слот переноса", "rationale": "выбор владельца по CR-01", "phase": "20"}
-  ],
-  "uncommitted_files": ["?? .gsd/ (не наш каталог, не коммитить)"],
-  "next_action": "Открыть новую сессию в worktree фазы 21: /gsd-resume-work; PR #6 слить после зелёного CI (auto-fix включён)",
-  "context_notes": "Фаза 20 исполнена, проверена скриптами, ревью исправлено, безопасность 36/36, верификация 11/11. Пропущено осознанно: WR-09, WR-10, INFO, expectedStartsAt остаётся необязательным."
+	"version": "1.0",
+	"timestamp": "2026-10-11T09:35:19Z",
+	"phase": "21-lesson-accounting-and-today",
+	"phase_name": "Lesson Accounting and Today",
+	"phase_dir": ".planning/phases/21-lesson-accounting-and-today",
+	"plan": null,
+	"task": 0,
+	"total_tasks": 18,
+	"status": "complete",
+	"completed_tasks": [
+		"21-01",
+		"21-02",
+		"21-03",
+		"21-04",
+		"21-05",
+		"21-06",
+		"21-07",
+		"21-08",
+		"21-09",
+		"21-10",
+		"21-11",
+		"21-12",
+		"21-13",
+		"21-14",
+		"21-15",
+		"21-16",
+		"21-17",
+		"21-18"
+	],
+	"remaining_tasks": [],
+	"blockers": [],
+	"human_actions_pending": [
+		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
+		"After Phase 25: real VN midnight and final Earlier panel removal; explicitly deferred by the owner, still unverified",
+		"Server guy: deploy phase 21 after merge (two migrations, breaking contract, paired api/web release)"
+	],
+	"decisions": [
+		"D-17: any lesson can be moved, mark follows the occurrence key",
+		"Phase order 21 -> 21.1 Default Time Zone -> 24 -> 25 -> 22 -> 23 -> 26",
+		"Constants that may change become settings",
+		"e2e tests allowed since 2026-10-10, no unit or integration tests",
+		"Phase 24 includes public homepage, privacy policy and terms pages before retrying Google OAuth Production publication"
+	],
+	"uncommitted_files": [],
+	"next_action": "Final reviews are closed and verifier passed 37/37 active truths. Open the Phase 21 PR and merge after green CI. Continue the already authorized preparation of Phase 21.1 and Phase 24 in their separate worktrees; do not start their implementation. Runtime source remains f5e7083; reuse passing checks while inputs remain unchanged.",
+	"context_notes": "Read .continue-here.md in the phase directory for full state, anti-patterns and infrastructure notes."
 }

@@ -2,7 +2,9 @@ import { apiRequest } from '@/lib/api-client'
 
 import type {
 	ErrorCode,
+	LessonMarkKind,
 	ScheduleLessonResponse,
+	ScheduleMarkResponse,
 	ScheduleOccurrenceRef,
 	ScheduleOccurrenceResponse,
 	ScheduleSeriesResponse,
@@ -60,8 +62,19 @@ export async function mutate(
 	action: string,
 	body?: LessonBody | MoveSeriesBody | EndSeriesBody
 ): Promise<MutationResult<LessonChange | ScheduleSeriesResponse>> {
-	const result = await apiRequest<LessonChange | ScheduleSeriesResponse>('POST', pathOf(target, action), body ?? {})
+	return post<LessonChange | ScheduleSeriesResponse>(pathOf(target, action), body ?? {})
+}
+
+async function post<T>(path: string, body: object): Promise<MutationResult<T>> {
+	const result = await apiRequest<T>('POST', path, body)
 	if (result.ok) return { kind: 'ok', data: result.data }
 	if (result.status === 409 || result.status === 404) return { kind: 'stale' }
 	return { kind: 'failed', code: result.error?.code ?? null }
+}
+
+export function markLesson(
+	block: { ref: ScheduleOccurrenceRef; startsAt: string },
+	kind: LessonMarkKind
+): Promise<MutationResult<ScheduleMarkResponse>> {
+	return post<ScheduleMarkResponse>(pathOf(block.ref, 'mark'), { kind, expectedStartsAt: block.startsAt })
 }

@@ -1,32 +1,46 @@
 'use client'
 
-import { useCallback, type MouseEvent } from 'react'
+import { useCallback, useRef } from 'react'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
+import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, addDays, zonedParts } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, addDays, scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { EventTooltip } from './event-tooltip'
-import { blockSlot, type BlockLayout } from './lesson-block'
+import type { BlockLayout } from './lesson-block'
+import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
 
 export const HOUR_HEIGHT = 48
 export const FRAME_HEIGHT = 'h-[max(28rem,calc(100svh-20rem))]'
 export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
-const SLOT_MINUTES = 15
-const SLOT_HEIGHT = (HOUR_HEIGHT * SLOT_MINUTES) / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
-const COLUMNS = 'grid grid-cols-[5rem_repeat(7,minmax(0,1fr))]'
+const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
 const MIN_DISPLAY_MINUTES = 30
 const DAY_MINUTES = 24 * 60
+const CHIP_BELOW_MINUTES = 30
 
 export interface SecondZone {
 	id: string
 	caption: string
+}
+
+export interface SlotChoice {
+	date: string
+	time: string
+	durationMinutes: number
+	dragged: boolean
+}
+
+export interface SlotFrame {
+	date: string
+	time: string
+	durationMinutes: number
 }
 
 interface WeekGridProps {
@@ -37,7 +51,8 @@ interface WeekGridProps {
 	blocks?: readonly ScheduleBlock[]
 	currentYear?: number
 	onOpen?: (block: ScheduleBlock) => void
-	onSlot?: (date: string, time: string) => void
+	onSlot?: (choice: SlotChoice) => void
+	frame?: SlotFrame | null
 	scrollTopRef?: { current: number }
 }
 
@@ -90,7 +105,7 @@ function placeDay(blocks: readonly ScheduleBlock[]): PlacedBlock[] {
 function groupByDate(blocks: readonly ScheduleBlock[]): Map<string, ScheduleBlock[]> {
 	const groups = new Map<string, ScheduleBlock[]>()
 	for (const block of blocks) {
-		const date = zonedParts(new Date(block.startsAt), SCHEDULE_TIME_ZONE).date
+		const date = scheduleDate(new Date(block.startsAt))
 		const list = groups.get(date)
 		if (list) list.push(block)
 		else groups.set(date, [block])
@@ -98,10 +113,47 @@ function groupByDate(blocks: readonly ScheduleBlock[]): Map<string, ScheduleBloc
 	return groups
 }
 
-function slotTime(offsetY: number): string {
-	const slots = Math.max(0, Math.min(95, Math.floor(offsetY / SLOT_HEIGHT)))
-	const minutes = slots * SLOT_MINUTES
-	return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+function timeMinutes(time: string): number {
+	return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+}
+
+function SlotFrameBlock({
+	start,
+	minutes,
+	state,
+	flip,
+}: {
+	start: number
+	minutes: number
+	state: 'drag' | 'draft'
+	flip: boolean
+}) {
+	const range = `${clock(start)}–${clock(start + minutes)}`
+	const visible = Math.min(minutes, DAY_MINUTES - start)
+	return (
+		<div
+			data-slot="week-grid-frame"
+			data-state={state}
+			data-minutes={minutes}
+			data-range={range}
+			className="pointer-events-none absolute z-20 rounded-md bg-selected/85 px-[6px] py-[2px] text-foreground ring-1 ring-foreground/40 ring-inset"
+			style={{ top: start * MINUTE_HEIGHT, height: visible * MINUTE_HEIGHT, left: 2, width: 'calc(100% - 6px)' }}
+		>
+			{minutes < CHIP_BELOW_MINUTES ? (
+				<span
+					data-slot="week-grid-frame-chip"
+					className={cn(
+						'absolute top-1/2 -translate-y-1/2 rounded-md bg-surface-4 px-2 py-0.5 text-micro whitespace-nowrap text-foreground shadow-surface-4',
+						flip ? 'right-full mr-1' : 'left-full ml-1'
+					)}
+				>
+					{range}
+				</span>
+			) : (
+				<span className="block text-caption whitespace-nowrap">{range}</span>
+			)}
+		</div>
+	)
 }
 
 function GutterPair({
@@ -119,12 +171,12 @@ function GutterPair({
 		<div
 			style={top === undefined ? undefined : { top }}
 			className={cn(
-				'flex justify-end gap-[12px] text-caption whitespace-nowrap text-muted-foreground tabular-nums',
+				'flex justify-end gap-2 pr-2 pl-[12px] text-caption whitespace-nowrap text-muted-foreground tabular-nums',
 				className
 			)}
 		>
-			{second !== null ? <span className="w-8 text-right">{second}</span> : null}
-			<span className="w-8 text-right">{local}</span>
+			{second !== null ? <span className="w-[36px] text-right">{second}</span> : null}
+			<span className="w-[36px] text-right">{local}</span>
 		</div>
 	)
 }
@@ -138,23 +190,25 @@ export function WeekGrid({
 	currentYear = 0,
 	onOpen,
 	onSlot,
+	frame = null,
 	scrollTopRef,
 }: WeekGridProps) {
 	const dates = Array.from({ length: 7 }, (_, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, SCHEDULE_TIME_ZONE)
+	const bodyRef = useRef<HTMLDivElement | null>(null)
+	const { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn } = useSlotDrag(
+		bodyRef,
+		HOUR_HEIGHT,
+		onSlot
+	)
 	const scroller = useCallback(
 		(node: HTMLDivElement | null) => {
+			bodyRef.current = node
 			if (node) node.scrollTop = scrollTopRef ? scrollTopRef.current : OPEN_SCROLL_TOP
 		},
 		[scrollTopRef]
 	)
 	const groups = groupByDate(blocks)
-
-	function handleSlot(event: MouseEvent<HTMLDivElement>, date: string) {
-		if (!onSlot || event.target !== event.currentTarget) return
-		const rect = event.currentTarget.getBoundingClientRect()
-		onSlot(date, slotTime(event.clientY - rect.top))
-	}
 
 	return (
 		<TooltipProvider>
@@ -162,10 +216,11 @@ export function WeekGrid({
 				offset={1}
 				shadowLevel={2}
 				data-slot="week-grid"
-				className={cn(FRAME_HEIGHT, 'flex flex-col overflow-hidden rounded-2xl')}
+				data-dragging={dragging ? '' : undefined}
+				className={cn(FRAME_HEIGHT, 'flex flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize!')}
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
-					<div data-slot="week-grid-corner" className="flex items-end justify-end pr-1 pb-2">
+					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
 						<GutterPair local="VN" second={secondZone ? secondZone.caption : null} />
 					</div>
 					{dates.map((date) => {
@@ -214,19 +269,28 @@ export function WeekGrid({
 									local={hourLabel(hour)}
 									second={secondZone ? gutterLabel(monday, hour, secondZone.id) : null}
 									top={hour * HOUR_HEIGHT}
-									className={cn('absolute inset-x-0 pr-1', hour > 0 && '-translate-y-1/2')}
+									className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
 								/>
 							))}
 						</div>
-						{dates.map((date) => {
+						{dates.map((date, dayIndex) => {
 							const isToday = date === today
+							const live = drag !== null && drag.date === date ? drag : null
+							const shownFrame = !dragging && frame !== null && frame.date === date ? frame : null
 							return (
 								<div
 									key={date}
 									data-slot="week-grid-column"
 									data-date={date}
-									onClick={(event) => handleSlot(event, date)}
-									className={cn('relative border-l border-gcal-line', isToday && 'bg-hover')}
+									onPointerDown={(event) => pressColumn(event, date)}
+									onPointerMove={moveColumn}
+									onPointerUp={releaseColumn}
+									onPointerCancel={cancelDrag}
+									className={cn(
+										'relative border-l border-gcal-line select-none',
+										isToday && 'bg-hover',
+										dragging && 'cursor-ns-resize'
+									)}
 								>
 									{isToday ? (
 										<div
@@ -243,14 +307,31 @@ export function WeekGrid({
 									) : null}
 									{placeDay(groups.get(date) ?? []).map(({ block, layout }) => (
 										<EventTooltip
-											key={`${block.key}:${blockSlot(block)}`}
+											key={`${block.key}:${occurrenceSlot(block.outcome)}`}
 											block={block}
 											layout={layout}
 											secondZone={secondZone ? secondZone.id : null}
 											currentYear={currentYear}
+											now={now}
 											onOpen={(chosen) => onOpen?.(chosen)}
 										/>
 									))}
+									{live !== null ? (
+										<SlotFrameBlock
+											start={Math.min(live.anchor, live.slot) * SLOT_MINUTES}
+											minutes={(Math.abs(live.slot - live.anchor) + 1) * SLOT_MINUTES}
+											state="drag"
+											flip={dayIndex === 6}
+										/>
+									) : null}
+									{shownFrame !== null ? (
+										<SlotFrameBlock
+											start={timeMinutes(shownFrame.time)}
+											minutes={shownFrame.durationMinutes}
+											state="draft"
+											flip={dayIndex === 6}
+										/>
+									) : null}
 								</div>
 							)
 						})}
@@ -259,7 +340,7 @@ export function WeekGrid({
 								key={hour}
 								data-slot="week-grid-line"
 								data-hour={hour}
-								className="pointer-events-none absolute right-0 left-20 h-px bg-gcal-line"
+								className="pointer-events-none absolute right-0 left-[100px] h-px bg-gcal-line"
 								style={{ top: hour * HOUR_HEIGHT }}
 							/>
 						))}

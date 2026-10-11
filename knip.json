@@ -3,8 +3,8 @@
 	"ignoreExportsUsedInFile": true,
 	"workspaces": {
 		".": {
-			"entry": ["scripts/**/*.mjs"],
-			"project": ["scripts/**/*.mjs"],
+			"entry": ["scripts/**/*.mjs", "e2e/**/*.ts"],
+			"project": ["scripts/**/*.mjs", "scripts/**/*.ts", "e2e/**/*.ts"],
 			"ignoreDependencies": ["pg"]
 		},
 		"apps/web": {

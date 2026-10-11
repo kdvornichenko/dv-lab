@@ -2,6 +2,7 @@
 	"name": "dv-lab",
 	"version": "0.1.0",
 	"private": true,
+	"type": "module",
 	"packageManager": "yarn@4.18.1",
 	"engines": {
 		"node": ">=24"
@@ -16,6 +17,7 @@
 		"typecheck": "turbo run typecheck",
 		"lint": "turbo run lint",
 		"test": "turbo run test",
+		"test:e2e": "node scripts/dev-checks/wait-dev.mjs up && playwright test",
 		"format": "prettier --write . --config .prettierrc.json --cache --cache-location .cache/prettier",
 		"format:check": "prettier --check . --config .prettierrc.json --cache --cache-location .cache/prettier",
 		"knip": "knip --no-progress",
@@ -23,6 +25,7 @@
 		"db:migrate": "yarn workspace @dv-lab/api db:migrate"
 	},
 	"devDependencies": {
+		"@playwright/test": "1.63.0",
 		"@trivago/prettier-plugin-sort-imports": "6.0.2",
 		"knip": "6.40.0",
 		"portless": "0.15.7",

@@ -3,7 +3,7 @@ import type { Ref, ReactNode } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 
 import { CURRENCIES, type PaymentRow, type StudentDetail } from '@dv-lab/contracts'
-import { currencySymbol, formatHundredths, formatLessons, formatMoney, lessonsPhrase } from '@dv-lab/core'
+import { countsAfterOpening, currencySymbol, formatHundredths, formatMoney } from '@dv-lab/core'
 
 interface MoneyTextProps {
 	amountMinor: number
@@ -20,20 +20,6 @@ export function MoneyText({ amountMinor, currency }: MoneyTextProps) {
 		)
 	}
 	return <span className="tabular-nums">{formatMoney(amountMinor, currency)}</span>
-}
-
-interface LessonsTextProps {
-	minutes: number
-	lessonMinutes: number
-	phrase?: boolean
-}
-
-export function LessonsText({ minutes, lessonMinutes, phrase = false }: LessonsTextProps) {
-	return (
-		<span className="tabular-nums">
-			{phrase ? lessonsPhrase(minutes, lessonMinutes) : formatLessons(minutes, lessonMinutes)}
-		</span>
-	)
 }
 
 const dayFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' })
@@ -81,7 +67,7 @@ function balanceCaption(openingBalance: StudentDetail['openingBalance'] | undefi
 	if (openingBalance === null) {
 		return 'The opening balance is not set, so this payment does not change the balance yet.'
 	}
-	if (paidOn <= openingBalance.on) {
+	if (!countsAfterOpening(paidOn, openingBalance.on)) {
 		return `This date is on or before ${formatDay(openingBalance.on)}, so these lessons are already counted and will not change the balance.`
 	}
 	return null

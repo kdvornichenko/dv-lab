@@ -89,6 +89,7 @@ export const saveStudentRequest = z
 		level: optionalText(STUDENT_TEXT_MAX_LENGTH),
 		goals: optionalText(STUDENT_TEXT_MAX_LENGTH),
 		timeZone: optionalText(TIME_ZONE_MAX_LENGTH).refine((value) => value === null || isTimeZone(value)),
+		noShowDeducts: z.boolean().optional(),
 	})
 	.refine((value) => (value.rateMinor === null) === (value.currency === null))
 
@@ -155,6 +156,7 @@ export type StudentDetail = StudentRow & {
 	goals: string | null
 	timeZone: string | null
 	openingBalance: { minutes: number; on: string } | null
+	noShowDeducts: boolean
 	archivedAt: string | null
 	account: StudentAccount | null
 }

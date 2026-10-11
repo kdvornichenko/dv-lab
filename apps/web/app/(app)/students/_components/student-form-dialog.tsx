@@ -1,20 +1,13 @@
 'use client'
 
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import { TextField } from '@/components/app/text-field'
+import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import {
-	Combobox,
-	ComboboxContent,
-	ComboboxInput,
-	ComboboxItem,
-	ComboboxList,
-	type ComboboxItemData,
-} from '@/components/ui/combobox'
 import {
 	Dialog,
 	DialogContent,
@@ -24,8 +17,8 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { apiRequest } from '@/lib/api-client'
-import { listTimeZones, matchesTimeZone, utcOffset } from '@/lib/time-zones'
 
 import {
 	CURRENCIES,
@@ -46,6 +39,7 @@ import { useToast } from '../../_components/toasts'
 
 const NO_CURRENCY = 'none'
 const SAME_TIME_ZONE = 'same-as-teacher'
+const SAME_AS_TEACHER = { value: SAME_TIME_ZONE, label: 'Same as teacher' }
 
 type Field = 'name' | 'rate' | 'currency' | 'lessonMinutes' | 'parent' | 'level' | 'goals'
 
@@ -139,14 +133,6 @@ function parse(values: Values): Parsed {
 	return { errors, rateMinor, currency, lessonMinutes }
 }
 
-function buildTimeZones(saved: string | null): ComboboxItemData[] {
-	const now = new Date()
-	return [
-		{ value: SAME_TIME_ZONE, label: 'Same as teacher' },
-		...listTimeZones(saved ? [saved] : []).map((zone) => ({ value: zone, label: zone, detail: utcOffset(zone, now) })),
-	]
-}
-
 function nullable(value: string) {
 	const trimmed = value.trim()
 	return trimmed === '' ? null : trimmed
@@ -182,6 +168,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const router = useRouter()
 	const toast = useToast()
 	const [values, setValues] = useState<Values>(() => initialValues(student))
+	const [noShowDeducts, setNoShowDeducts] = useState(student?.noShowDeducts ?? true)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
@@ -193,9 +180,6 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const parentRef = useRef<HTMLInputElement>(null)
 	const levelRef = useRef<HTMLInputElement>(null)
 	const goalsRef = useRef<HTMLInputElement>(null)
-
-	const savedTimeZone = student?.timeZone ?? null
-	const timeZones = useMemo(() => buildTimeZones(savedTimeZone), [savedTimeZone])
 
 	const parsed = parse(values)
 	const shown = (field: Field) => (submitted || touched[field] ? parsed.errors[field] : undefined)
@@ -210,13 +194,17 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 		setSubmitted(true)
 		setFailed(false)
 		const { errors } = parsed
-		if (errors.name) return nameRef.current?.focus()
-		if (errors.rate) return rateRef.current?.focus()
-		if (errors.currency) return currencyRef.current?.focus()
-		if (errors.lessonMinutes) return lessonRef.current?.focus()
-		if (errors.parent) return parentRef.current?.focus()
-		if (errors.level) return levelRef.current?.focus()
-		if (errors.goals) return goalsRef.current?.focus()
+		const fields = [
+			{ field: 'name', ref: nameRef },
+			{ field: 'rate', ref: rateRef },
+			{ field: 'currency', ref: currencyRef },
+			{ field: 'lessonMinutes', ref: lessonRef },
+			{ field: 'parent', ref: parentRef },
+			{ field: 'level', ref: levelRef },
+			{ field: 'goals', ref: goalsRef },
+		] as const
+		const invalid = fields.find(({ field }) => errors[field])
+		if (invalid) return invalid.ref.current?.focus()
 		const name = normalizeDisplayName(values.name)
 		setPending(true)
 		const result = await apiRequest<StudentResponse>(
@@ -231,6 +219,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 				level: nullable(values.level),
 				goals: nullable(values.goals),
 				timeZone: values.timeZone === SAME_TIME_ZONE ? null : values.timeZone,
+				noShowDeducts,
 			}
 		)
 		setPending(false)
@@ -339,41 +328,29 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 								error={shown('lessonMinutes')}
 							/>
 							<FieldFrame id="student-form-time-zone" label="Time zone" helper="Empty means the same as yours.">
-								<Combobox
-									items={timeZones}
+								<TimeZonePicker
+									trigger="field"
+									id="student-form-time-zone"
+									aria-describedby="student-form-time-zone-helper"
 									value={values.timeZone}
-									onValueChange={(value) => set('timeZone', value === '' ? SAME_TIME_ZONE : value)}
-									filter={matchesTimeZone}
+									onChange={(zone) => set('timeZone', zone ?? SAME_TIME_ZONE)}
+									firstOption={SAME_AS_TEACHER}
 									disabled={pending}
-								>
-									<ComboboxInput
-										id="student-form-time-zone"
-										placeholder="Same as teacher"
-										aria-describedby="student-form-time-zone-helper"
-									/>
-									<ComboboxContent>
-										<ComboboxList
-											emptyTitle="No time zones found"
-											emptyHint="Try a city, a country or an offset like UTC+7."
-										>
-											{(item) => {
-												if (typeof item === 'string') {
-													return (
-														<ComboboxItem key={item} value={item}>
-															{item}
-														</ComboboxItem>
-													)
-												}
-												return (
-													<ComboboxItem key={item.value} value={item.value} detail={item.detail}>
-														{item.label}
-													</ComboboxItem>
-												)
-											}}
-										</ComboboxList>
-									</ComboboxContent>
-								</Combobox>
+								/>
 							</FieldFrame>
+						</div>
+						<div className="flex min-w-0 flex-col gap-1">
+							<Switch
+								label="No-show deducts a lesson"
+								checked={noShowDeducts}
+								onToggle={() => setNoShowDeducts((current) => !current)}
+								disabled={pending}
+								className="w-full flex-row-reverse justify-between px-0 py-0"
+							/>
+							<p id="student-form-no-show-helper" className="pr-13 text-caption text-muted-foreground">
+								A no-show takes the lesson&apos;s length from the balance. Turn this off to deduct nothing for any
+								no-show of this student, past ones too; the balance is recalculated.
+							</p>
 						</div>
 						<div className="grid gap-4 sm:grid-cols-2">
 							<TextField

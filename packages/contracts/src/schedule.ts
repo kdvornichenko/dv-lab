@@ -42,6 +42,15 @@ export const lessonActionRequest = z.object({
 	expectedStartsAt,
 })
 
+export const MARK_KINDS = ['done', 'no_show', 'none'] as const
+
+export type LessonMarkKind = (typeof MARK_KINDS)[number]
+
+export const markLessonRequest = z.object({
+	kind: z.enum(MARK_KINDS),
+	expectedStartsAt,
+})
+
 export const moveSeriesRequest = z.object({
 	from: isoDate,
 	weekday,
@@ -54,10 +63,14 @@ export const endSeriesRequest = z.object({
 
 export const scheduleWeekStart = isoDate
 
-export type ScheduleBlockStatus = 'scheduled' | 'cancelled' | 'moved'
-
 export type ScheduleOccurrenceRef =
 	{ kind: 'single'; lessonId: string } | { kind: 'series'; seriesId: string; originalOn: string }
+
+export type ScheduleLessonOutcome = 'planned' | 'done' | 'no_show' | 'cancelled' | 'moved'
+
+export type ScheduleLessonActions = { move: boolean; cancel: boolean; restore: boolean; mark: boolean; series: boolean }
+
+export type ScheduleBlockLedger = { openingOn: string | null; noShowDeducts: boolean; lessonMinutes: number }
 
 export type ScheduleBlock = {
 	key: string
@@ -68,10 +81,12 @@ export type ScheduleBlock = {
 	studentGoal: string | null
 	startsAt: string
 	durationMinutes: number
-	status: ScheduleBlockStatus
 	movedTo: string | null
 	movedFrom: string | null
-	changeable: boolean
+	outcome: ScheduleLessonOutcome
+	actions: ScheduleLessonActions
+	ledger: ScheduleBlockLedger
+	mark: LessonMarkKind | null
 }
 
 export type ScheduleSeries = {
@@ -101,10 +116,14 @@ export type ScheduleSeriesResponse = { series: ScheduleSeries }
 export type ScheduleOccurrence = {
 	seriesId: string
 	originalOn: string
-	status: ScheduleBlockStatus
+	outcome: ScheduleLessonOutcome
 	startsAt: string
 }
 
 export type ScheduleOccurrenceResponse = { occurrence: ScheduleOccurrence }
+
+export type ScheduleMark = { ref: ScheduleOccurrenceRef; kind: LessonMarkKind; outcome: ScheduleLessonOutcome }
+
+export type ScheduleMarkResponse = { mark: ScheduleMark }
 
 export type ScheduleCreateResponse = ScheduleLessonResponse | ScheduleSeriesResponse

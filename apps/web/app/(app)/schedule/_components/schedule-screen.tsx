@@ -1,83 +1,52 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { CalendarPlus } from 'lucide-react'
 
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
+import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
+import { hasStaleActions } from '@/lib/lesson-actions'
+import { occurrenceSlot } from '@/lib/lesson-mark-text'
+import { lessonCount, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
+
+import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
 import {
-	lessonCount,
-	vnWhen,
-	weekEyebrow,
-	weekPhrase,
-	weekRange,
-	weekSummary,
-} from '@/lib/schedule-format'
-import { exitFallbackMs, spring } from '@/lib/springs'
-import { zoneCaption } from '@/lib/time-zones'
+	SCHEDULE_TIME_ZONE,
+	addDays,
+	countsAsLesson,
+	mondayOf,
+	scheduleDate,
+	scheduleToday,
+	zonedInstant,
+	zonedParts,
+} from '@dv-lab/core'
 
-import type { ScheduleBlock, ScheduleSeries, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, addDays, mondayOf, zonedInstant, zonedParts } from '@dv-lab/core'
-
-import { useToast } from '../../_components/toasts'
-import { EndSeriesDialog } from './end-series-dialog'
-import { blockSlot, type BlockSlot } from './lesson-block'
-import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
-import { MoveSeriesDialog } from './move-series-dialog'
+import { useMinuteNow } from '../../_components/use-minute-now'
+import type { PairTarget } from './lesson-dialog'
+import { LessonDialogs, readLessonWeek, readOverlapBlocks, type LessonSelection } from './lesson-dialogs'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
-import { mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
-import { SecondZoneSelect, useSecondZone } from './second-zone-select'
-import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone } from './week-grid'
+import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
-type OpenLesson = { key: string; slot: BlockSlot }
+type OpenLesson = LessonSelection
 
-type SeriesDialogState = {
-	kind: 'move' | 'end'
-	rule: ScheduleSeries
-	studentName: string
-	lessonDate: string
-	returnTo: OpenLesson
-}
-
-type NewLessonSeed = { date: string; time: string }
+type NewLessonSeed = { date: string; time: string; durationMinutes?: number; frame?: number }
 
 type WeekState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: ScheduleWeekResponse }
 
 async function readWeek(monday: string): Promise<WeekState> {
-	const result = await apiRequest<ScheduleWeekResponse>('GET', `/schedule/week?start=${monday}`)
+	const result = await readLessonWeek(monday)
 	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
 }
 
-function subscribeMinute(callback: () => void) {
-	let timer: ReturnType<typeof setTimeout>
-	const schedule = () => {
-		timer = setTimeout(
-			() => {
-				callback()
-				schedule()
-			},
-			60000 - (Date.now() % 60000) + 50
-		)
-	}
-	schedule()
-	return () => clearTimeout(timer)
-}
-
-const minuteNow = () => Math.floor(Date.now() / 60000)
-const serverNow = () => null
-
-function useScheduleNow(): Date | null {
-	const minute = useSyncExternalStore(subscribeMinute, minuteNow, serverNow)
-	return useMemo(() => (minute === null ? null : new Date(minute * 60000)), [minute])
-}
-
 export function ScheduleScreen() {
-	const now = useScheduleNow()
+	const now = useMinuteNow()
 	if (now === null) {
 		return (
 			<PageScroll>
@@ -92,38 +61,36 @@ export function ScheduleScreen() {
 }
 
 function LoadedSchedule({ now }: { now: Date }) {
-	const [monday, setMonday] = useState(() => mondayOf(zonedParts(now, SCHEDULE_TIME_ZONE).date))
+	const [monday, setMonday] = useState(() => mondayOf(scheduleToday(now)))
 	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
-	const [version, setVersion] = useState(0)
+	const requests = useRef(0)
 	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
-	const [seriesDialog, setSeriesDialog] = useState<SeriesDialogState | null>(null)
 	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
-	const focusAfterLoad = useRef<OpenLesson | null>(null)
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
-	const toast = useToast()
-	const today = zonedParts(now, SCHEDULE_TIME_ZONE).date
+	const today = scheduleToday(now)
 	const currentYear = Number(today.slice(0, 4))
 	const currentMonday = mondayOf(today)
 	const [zone, setZone] = useSecondZone()
 	const secondZone: SecondZone | null = zone
-		? { id: zone, caption: zoneCaption(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE), 'gutter') }
+		? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE)) }
 		: null
 
 	useEffect(() => {
 		let current = true
+		const id = ++requests.current
 		void readWeek(monday).then((state) => {
-			if (!current) return
+			if (!current || id !== requests.current) return
 			if (state.kind === 'ready') weeks.current.set(monday, state.data)
 			setLoaded({ monday, state })
 		})
 		return () => {
 			current = false
 		}
-	}, [monday, version])
+	}, [monday])
 
 	useEffect(() => {
 		let current = true
@@ -135,50 +102,47 @@ function LoadedSchedule({ now }: { now: Date }) {
 		}
 	}, [])
 
-	useEffect(() => {
-		const target = focusAfterLoad.current
-		if (target === null || loaded === null) return
-		focusAfterLoad.current = null
-		focusBlock(target)
-	}, [loaded])
-
-	function reload() {
+	const reload = useCallback(async () => {
 		weeks.current.clear()
-		setVersion((value) => value + 1)
-	}
+		const id = ++requests.current
+		const state = await readWeek(monday)
+		if (id !== requests.current) return
+		if (state.kind === 'ready') weeks.current.set(monday, state.data)
+		setLoaded({ monday, state })
+	}, [monday])
+
+	const week: WeekState = loaded !== null && loaded.monday === monday ? loaded.state : { kind: 'loading' }
+	const staleActions = week.kind === 'ready' && hasStaleActions(week.data.blocks, now)
+
+	useEffect(() => {
+		if (staleActions) void reload()
+	}, [now, staleActions, reload])
 
 	function refresh() {
 		setLoaded(null)
 		reload()
 	}
 
-	async function blocksOn(date: string): Promise<OverlapBlock[]> {
-		const target = mondayOf(date)
-		let data = weeks.current.get(target)
-		if (data === undefined) {
-			const state = await readWeek(target)
-			if (state.kind !== 'ready') return []
-			data = state.data
-			weeks.current.set(target, data)
-		}
-		return data.blocks.map((block) => ({
-			key: block.key,
-			startsAt: new Date(block.startsAt),
-			durationMinutes: block.durationMinutes,
-			status: block.status,
-			studentName: block.studentName,
-		}))
+	function blocksOn(date: string): Promise<OverlapBlock[]> {
+		return readOverlapBlocks(date, weeks.current)
 	}
 
-	function openNew(seed?: NewLessonSeed) {
-		if (seed) return setNewLesson(seed)
-		const parts = zonedParts(now, SCHEDULE_TIME_ZONE)
-		const hour = Math.floor(parts.minutes / 60) + 1
+	function openNew() {
+		const hour = Math.floor(zonedParts(now, SCHEDULE_TIME_ZONE).minutes / 60) + 1
 		setNewLesson(
 			hour >= 24
-				? { date: addDays(parts.date, 1), time: '00:00' }
-				: { date: parts.date, time: `${String(hour).padStart(2, '0')}:00` }
+				? { date: addDays(today, 1), time: '00:00' }
+				: { date: today, time: `${String(hour).padStart(2, '0')}:00` }
 		)
+	}
+
+	function openSlot(choice: SlotChoice) {
+		setNewLesson({
+			date: choice.date,
+			time: choice.time,
+			durationMinutes: choice.dragged ? choice.durationMinutes : undefined,
+			frame: choice.durationMinutes,
+		})
 	}
 
 	function closeNew() {
@@ -194,55 +158,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 		})
 	}
 
-	function closeLesson() {
-		const closed = lesson
+	function closeLesson(target: LessonSelection | null) {
 		setLesson(null)
-		if (closed !== null) focusBlock(closed)
-	}
-
-	function startSeriesDialog(block: ScheduleBlock, rule: ScheduleSeries, kind: 'move' | 'end') {
-		const next: SeriesDialogState = {
-			kind,
-			rule,
-			studentName: block.studentName,
-			lessonDate: block.ref.kind === 'series' ? block.ref.originalOn : today,
-			returnTo: { key: block.key, slot: blockSlot(block) },
-		}
-		setLesson(null)
-		setTimeout(() => setSeriesDialog(next), exitFallbackMs(spring.slow))
-	}
-
-	function closeSeries() {
-		const closed = seriesDialog
-		setSeriesDialog(null)
-		if (closed !== null) focusBlock(closed.returnTo)
-	}
-
-	function seriesChanged() {
-		const closed = seriesDialog
-		setSeriesDialog(null)
-		focusAfterLoad.current = closed === null ? null : closed.returnTo
-		reload()
-	}
-
-	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
-		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
-		if (result.kind === 'failed' && result.code === 'lesson_in_past') {
-			reload()
-			return 'past'
-		}
-		if (result.kind === 'failed') return 'failed'
-		reload()
-		if (result.kind === 'stale') return 'stale'
-		toast.show({
-			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
-			description: `${block.studentName}, ${vnWhen(new Date(block.startsAt), zone, currentYear)}.`,
-		})
-		return 'ok'
+		if (target !== null) focusBlock(target)
 	}
 
 	function openPair(target: PairTarget) {
-		const targetMonday = mondayOf(zonedParts(target.at, SCHEDULE_TIME_ZONE).date)
+		const targetMonday = mondayOf(scheduleDate(target.at))
 		setMonday(targetMonday)
 		setLesson({ key: target.key, slot: target.slot })
 	}
@@ -251,8 +173,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 		setLesson(null)
 		setMonday(change)
 	}
-
-	const week: WeekState = loaded !== null && loaded.monday === monday ? loaded.state : { kind: 'loading' }
 
 	if (week.kind === 'error') {
 		return (
@@ -266,18 +186,10 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const ready = week.kind === 'ready'
 	const openBlock =
 		ready && lesson !== null
-			? (week.data.blocks.find((block) => block.key === lesson.key && blockSlot(block) === lesson.slot) ?? null)
+			? (week.data.blocks.find((block) => block.key === lesson.key && occurrenceSlot(block.outcome) === lesson.slot) ??
+				null)
 			: null
-	const openSeriesId = openBlock !== null && openBlock.ref.kind === 'series' ? openBlock.ref.seriesId : null
-	const openSeries =
-		ready && openSeriesId !== null ? (week.data.series.find((rule) => rule.id === openSeriesId) ?? null) : null
-	const planned = ready ? week.data.blocks.filter((block) => block.status === 'scheduled').length : 0
-	const seriesRule =
-		seriesDialog === null
-			? null
-			: ready
-				? (week.data.series.find((rule) => rule.id === seriesDialog.rule.id) ?? seriesDialog.rule)
-				: seriesDialog.rule
+	const planned = ready ? week.data.blocks.filter((block) => countsAsLesson(block.outcome)).length : 0
 
 	return (
 		<PageScroll>
@@ -303,7 +215,8 @@ function LoadedSchedule({ now }: { now: Date }) {
 				onToday={() => go(() => currentMonday)}
 				onPrevious={() => go((value) => addDays(value, -7))}
 				onNext={() => go((value) => addDays(value, 7))}
-				zoneControl={<SecondZoneSelect zone={zone} monday={monday} onChange={setZone} />}
+				zone={zone}
+				onZoneChange={setZone}
 			/>
 			{ready ? (
 				<WeekGrid
@@ -313,8 +226,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 					secondZone={secondZone}
 					blocks={week.data.blocks}
 					currentYear={currentYear}
-					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: blockSlot(block) })}
-					onSlot={(date, time) => openNew({ date, time })}
+					onOpen={(block: ScheduleBlock) => setLesson({ key: block.key, slot: occurrenceSlot(block.outcome) })}
+					onSlot={openSlot}
+					frame={
+						newLesson?.frame === undefined
+							? null
+							: { date: newLesson.date, time: newLesson.time, durationMinutes: newLesson.frame }
+					}
 					scrollTopRef={scrollTopRef}
 				/>
 			) : (
@@ -327,55 +245,18 @@ function LoadedSchedule({ now }: { now: Date }) {
 					{weekPhrase(monday)}, {lessonCount(planned)}
 				</p>
 			) : null}
-			{openBlock !== null && ready ? (
-				<LessonDialog
-					key={`${openBlock.key}:${blockSlot(openBlock)}`}
-					block={openBlock}
-					series={openSeries}
-					now={now}
-					secondZone={zone}
-					currentYear={currentYear}
-					onClose={closeLesson}
-					onOpenPair={openPair}
-					onCancel={() => changeLesson(openBlock, 'cancel')}
-					onRestore={() => changeLesson(openBlock, 'restore')}
-					today={today}
-					blocksOn={blocksOn}
-					onStale={reload}
-					onMoved={(startsAt) => {
-						reload()
-						openPair({ key: openBlock.key, slot: 'to', at: startsAt })
-					}}
-					onSeries={(kind) => {
-						if (openSeries !== null) startSeriesDialog(openBlock, openSeries, kind)
-					}}
-				/>
-			) : null}
-			{seriesRule !== null && seriesDialog?.kind === 'move' ? (
-				<MoveSeriesDialog
-					rule={seriesRule}
-					studentName={seriesDialog.studentName}
-					now={now}
-					today={today}
-					currentYear={currentYear}
-					onClose={closeSeries}
-					onStale={reload}
-					onMoved={seriesChanged}
-				/>
-			) : null}
-			{seriesRule !== null && seriesDialog?.kind === 'end' ? (
-				<EndSeriesDialog
-					rule={seriesRule}
-					studentName={seriesDialog.studentName}
-					lessonDate={seriesDialog.lessonDate}
-					now={now}
-					today={today}
-					currentYear={currentYear}
-					onClose={closeSeries}
-					onStale={reload}
-					onEnded={seriesChanged}
-				/>
-			) : null}
+			<LessonDialogs
+				selected={openBlock}
+				series={ready ? week.data.series : []}
+				now={now}
+				secondZone={zone}
+				currentYear={currentYear}
+				today={today}
+				blocksOn={blocksOn}
+				reload={reload}
+				onClose={closeLesson}
+				onOpenPair={openPair}
+			/>
 			{newLesson !== null ? (
 				<NewLessonDialog
 					students={students}
