@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { api } from './support/api.ts'
+import { admissionBudget } from './support/calendar-admission.ts'
 import { delayedCommand, lostProviderResponse, unknownAbsence } from './support/calendar-command-recovery.ts'
 import { calendarCommandFixture, commandTracer, disconnectedCommand } from './support/calendar-commands.ts'
 import {
@@ -106,6 +107,7 @@ test('[calendar] command recovery reconciles a lost provider response without an
 test('[calendar] command recovery keeps an absent unknown insert unresolved and blocks a new Save', async ({
 	page,
 }) => {
+	await admissionBudget(page.request)
 	await unknownAbsence(page.request)
 })
 
