@@ -138,6 +138,7 @@ or series_id in (select id from lesson_series where student_id in (${selection})
 delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in (${selection}));
 delete from lessons where student_id in (${selection});
 delete from lesson_series where student_id in (${selection});
+delete from payments where student_id in (${selection});
 delete from students where id in (${selection}); commit`)
 	if (integer(sql(`select count(*)::int as n from students where id in (${selection})`)[0]?.n) !== 0)
 		throw new Error('Owned fixture cleanup is incomplete')

@@ -14,7 +14,7 @@ import { addDays, mondayOf, VN, zonedDate, zonedTime } from './dates.ts'
 import { integer, list, record, text, uuid } from './input.ts'
 import type { Card, Fx } from './test.ts'
 import { changeZone, MSK, NY, pickZone, setMain, settingsPage, zoneDialog } from './tz-settings.ts'
-import { balanceEverywhere, dueRow, lessonRow, openToday, openWeekOf } from './ui.ts'
+import { balanceEverywhere, dueRow, lessonRow, openToday, openWeekOf, pickDate } from './ui.ts'
 
 function fixtureRows(query: string): Record<string, unknown>[] {
 	try {
@@ -262,6 +262,47 @@ async function accountingView(
 	if (!paysSoon) await expect(dueRow(page, card)).toHaveCount(0)
 }
 
+async function paymentAfterMidnight(page: Page, card: Card): Promise<string> {
+	await setMain(page.request, VN)
+	const response = record(await api(page.request, 'GET', '/today'))
+	const today = text(response.date)
+	const tomorrow = addDays(today, 1)
+	const label = (day: string) =>
+		new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${day}T12:00Z`))
+	await page.clock.install({ time: new Date(`${today}T23:59:58+07:00`) })
+	await page.goto(`/students/${card.id}`)
+	const opening = await page.locator('#opening-balance-on').innerText()
+	await page.getByRole('button', { name: 'Record payment', exact: true }).click()
+	await expect(page.locator('#record-payment-date')).toHaveText(label(today))
+	await page.clock.setSystemTime(new Date(`${tomorrow}T00:01:00+07:00`))
+	await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+	await expect(page.locator('#record-payment-date')).toHaveText(label(today))
+	await pickDate(page, tomorrow, 'record-payment-date')
+	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes', exact: true }).click()
+	await expect(page.locator('#opening-balance-on')).toHaveText(opening)
+	await page.getByRole('button', { name: 'Record payment', exact: true }).click()
+	const dialog = page.getByRole('dialog')
+	await expect(page.locator('#record-payment-date')).toHaveText(label(tomorrow))
+	await pickDate(page, today, 'record-payment-date')
+	await dialog.getByLabel('Amount', { exact: true }).fill('1')
+	await dialog.locator('#record-payment-currency').click()
+	await page.getByRole('option', { name: 'USD $', exact: true }).click()
+	await dialog.getByLabel('Lessons', { exact: true }).fill('1')
+	const saved = page.waitForResponse(
+		(value) => new URL(value.url()).pathname === '/api/payments' && value.request().method() === 'POST'
+	)
+	await dialog.getByRole('button', { name: 'Record payment', exact: true }).click()
+	const result = await saved
+	expect(result.status()).toBe(201)
+	const body: unknown = await result.json()
+	const payment = record(record(body).payment)
+	expect(payment.paidOn).toBe(today)
+	const id = uuid(payment.id)
+	const persisted = list(record(await api(page.request, 'GET', `/payments?student=${card.id}`)).payments).map(record)
+	expect(persisted.find((row) => row.id === id)?.paidOn).toBe(today)
+	return id
+}
+
 export async function midnightAccounting(page: Page, fx: Fx): Promise<void> {
 	const now = new Date()
 	const day = zonedDate(now, VN)
@@ -296,6 +337,7 @@ export async function midnightAccounting(page: Page, fx: Fx): Promise<void> {
 		await openWeekOf(page, opening)
 		await expect(page.locator(`[data-date="${opening}"] button[data-key="l:${lesson}"]`)).toHaveCount(1)
 		expect((await readSettings(page.request)).paysSoonLessons).toBe(2)
+		paymentsCreated.push(await paymentAfterMidnight(page, card))
 	} finally {
 		for (const id of paymentsCreated) await api(page.request, 'DELETE', `/payments/${id}`, undefined, 204)
 	}

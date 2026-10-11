@@ -8,6 +8,8 @@ import { offsetLabel, sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones
 
 import { localTimeCandidates, scheduleToday } from '@dv-lab/core'
 
+import { useMinuteNow } from '../../_components/use-minute-now'
+
 export interface ScheduleFormContext {
 	mainTimeZone: string
 	asOf: string
@@ -16,7 +18,7 @@ export interface ScheduleFormContext {
 export function useScheduleFormContext(initial: ScheduleFormContext, currentMainTimeZone: string) {
 	const [context] = useState(initial)
 	const [changed, setChanged] = useState(false)
-	const at = new Date(context.asOf)
+	const at = useMinuteNow() ?? new Date(context.asOf)
 	return {
 		...context,
 		at,
