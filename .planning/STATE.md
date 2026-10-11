@@ -3,12 +3,12 @@ gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
 current_phase: "21.1"
-current_phase_name: Default Time Zone
+current_phase_name: Google Calendar Connection and Outbound Sync
 status: planning
-stopped_at: Phase 21.1 context captured; technical research and plans pending
+stopped_at: Phase 24 parallel preparation; Phase 21.1 contract pending
 last_updated: "2026-10-11T09:06:07.262Z"
 last_activity: 2026-10-11
-last_activity_desc: Phase 21.1 started in a separate worktree while Phase 21 reviews finish
+last_activity_desc: Phase 24 research started in parallel with Phase 21.1
 state_head: 8c3cb5d8c01ed22f8512b66a155756d01c153430
 progress:
   total_phases: 11
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 21.1 — Default Time Zone
+**Current focus:** Phase 24 — Google Calendar Connection and Outbound Sync
 
 ## Current Position
 
-Phase: 21.1 (Default Time Zone) — PLANNING
+Phase: 24 (Google Calendar Connection and Outbound Sync) — PLANNING
 Plan: Not yet planned
-Status: Context captured; research and plans pending. Phase 21 final reviews continue in its own worktree.
-Last activity: 2026-10-11 — Added TZ-01…TZ-05 and recovered accepted time-zone decisions
+Status: Independent research active; dependent tasks await the Phase 21.1 zone contract. Phase 21 verifier runs separately.
+Last activity: 2026-10-11 — Started OAuth, outbound sync and public-page preparation
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -112,5 +112,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-11T09:06:07.134Z
-Stopped at: Phase 21.1 context captured; technical research and plans pending
-Resume file: .planning/phases/21.1-default-time-zone/21.1-CONTEXT.md
+Stopped at: Phase 24 parallel preparation; Phase 21.1 contract pending
+Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md

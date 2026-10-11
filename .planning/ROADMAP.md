@@ -387,6 +387,6 @@ Plans:
 | 21.1. Default Time Zone | v2.0 | 0/TBD | Planning | - |
 | 22. Chat with Mentions and Quick Marks | v2.0 | 0/TBD | Not started | - |
 | 23. Confirmed Chat Changes and Entry Points | v2.0 | 0/TBD | Not started | - |
-| 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Not started | - |
+| 24. Google Calendar Connection and Outbound Sync | v2.0 | 0/TBD | Preparing in parallel | - |
 | 25. Google Calendar Two-Way Sync | v2.0 | 0/TBD | Not started | - |
 | 26. IELTS Section | v2.0 | 0/TBD | Not started | - |
