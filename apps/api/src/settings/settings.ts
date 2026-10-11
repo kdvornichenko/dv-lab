@@ -8,7 +8,7 @@ export type TeacherTimeContext = { now: Date; defaultTimeZone: string }
 
 type TimeContextFailure = { ok: false; error: 'default_time_zone_changed' }
 
-type TimeContextResult = { ok: true; context: TeacherTimeContext } | TimeContextFailure
+type TimeContextResult = { ok: true; context: TeacherTimeContext; settings: TeacherSettings } | TimeContextFailure
 
 type SaveSettingsResult = { ok: true; settings: TeacherSettings } | TimeContextFailure
 
@@ -38,7 +38,7 @@ export async function lockTeacherTimeContext(
 		timeZoneIdentity(expectedDefaultTimeZone) !== timeZoneIdentity(settings.defaultTimeZone)
 	)
 		return { ok: false, error: 'default_time_zone_changed' }
-	return { ok: true, context: { now, defaultTimeZone: settings.defaultTimeZone } }
+	return { ok: true, context: { now, defaultTimeZone: settings.defaultTimeZone }, settings }
 }
 
 export function saveTeacherSettings(

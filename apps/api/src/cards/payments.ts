@@ -10,8 +10,10 @@ import {
 	type assignPaymentRequest,
 	type recordPaymentRequest,
 } from '@dv-lab/contracts'
-import { creditedMinutes, decimalToHundredths, hundredthsToDecimal } from '@dv-lab/core'
+import { creditedMinutes, decimalToHundredths, hundredthsToDecimal, isAfterScheduleToday } from '@dv-lab/core'
 import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
+
+import { lockTeacherTimeContext } from '../settings/settings.ts'
 
 type RecordPaymentInput = z.output<typeof recordPaymentRequest>
 
@@ -19,7 +21,11 @@ type PaymentRecord = typeof payments.$inferSelect
 
 type AssignPaymentInput = z.output<typeof assignPaymentRequest>
 
-type RecordPaymentResult = { kind: 'recorded'; payment: PaymentRow } | { kind: 'not_found' }
+type RecordPaymentResult =
+	| { kind: 'recorded'; payment: PaymentRow }
+	| { kind: 'not_found' }
+	| { kind: 'invalid' }
+	| { kind: 'default_time_zone_changed' }
 
 type AssignPaymentResult =
 	| { kind: 'assigned'; payment: PaymentRow }
@@ -77,8 +83,15 @@ export async function listCardPayments(executor: DbExecutor, studentId: string):
 	return rows.map(toPaymentRow)
 }
 
-export function recordPayment(db: Database, input: RecordPaymentInput): Promise<RecordPaymentResult> {
+export function recordPayment(
+	db: Database,
+	accountId: string,
+	input: RecordPaymentInput
+): Promise<RecordPaymentResult> {
 	return db.transaction(async (tx): Promise<RecordPaymentResult> => {
+		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone)
+		if (!time.ok) return { kind: time.error }
+		if (isAfterScheduleToday(input.paidOn, time.context.now, time.context.defaultTimeZone)) return { kind: 'invalid' }
 		const [card] = await tx
 			.select({ id: students.id, defaultLessonMinutes: students.defaultLessonMinutes })
 			.from(students)

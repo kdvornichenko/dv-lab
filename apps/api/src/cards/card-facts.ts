@@ -4,6 +4,7 @@ import { type BalanceLesson, type BalancePayment, nextLessons, studentBalance } 
 import { type DbExecutor, payments } from '@dv-lab/db'
 
 import { loadMarkRows, loadScheduleRows, toBalanceCard } from '../schedule/rows.ts'
+import type { TeacherTimeContext } from '../settings/settings.ts'
 import type { CardRecord } from './card-rows.ts'
 
 export type CardFacts = { balanceMinutes: number | null; nextLessonAt: string | null }
@@ -23,7 +24,11 @@ function groupBy<T extends { studentId: string | null }>(rows: readonly T[]): Ma
 	return groups
 }
 
-async function cardBalances(executor: DbExecutor, cards: readonly FactSource[]): Promise<Map<string, number | null>> {
+async function cardBalances(
+	executor: DbExecutor,
+	cards: readonly FactSource[],
+	timeZone: string
+): Promise<Map<string, number | null>> {
 	if (cards.length === 0) return new Map()
 	const ids = cards.map((card) => card.id)
 	const paymentRows = await executor
@@ -35,7 +40,7 @@ async function cardBalances(executor: DbExecutor, cards: readonly FactSource[]):
 	return new Map(
 		cards.map((card) => [
 			card.id,
-			studentBalance(toBalanceCard(card), paid.get(card.id) ?? [], held.get(card.id) ?? []),
+			studentBalance(toBalanceCard(card), paid.get(card.id) ?? [], held.get(card.id) ?? [], timeZone),
 		])
 	)
 }
@@ -52,10 +57,10 @@ async function cardNextLessons(
 export async function cardFacts(
 	executor: DbExecutor,
 	cards: readonly FactSource[],
-	now: Date
+	context: TeacherTimeContext
 ): Promise<Map<string, CardFacts>> {
-	const balances = await cardBalances(executor, cards)
-	const next = await cardNextLessons(executor, cards, now)
+	const balances = await cardBalances(executor, cards, context.defaultTimeZone)
+	const next = await cardNextLessons(executor, cards, context.now)
 	return new Map(
 		cards.map((card) => [
 			card.id,
