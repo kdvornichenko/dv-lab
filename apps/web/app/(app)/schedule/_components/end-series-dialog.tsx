@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
@@ -16,16 +17,17 @@ import {
 } from '@/components/ui/dialog'
 import { formatDate, seriesWhen } from '@/lib/schedule-format'
 
-import type { ScheduleSeries } from '@dv-lab/contracts'
+import type { CalendarSeriesContext } from '@dv-lab/contracts'
 import { endSeriesAt, hasOccurrences, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { seriesDateInZone } from './move-series-preview'
 import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
-import { STALE_DATE, STALE_TITLE, mutate } from './schedule-mutations'
+import { STALE_DATE, STALE_TITLE, useScheduleMutation } from './schedule-mutations'
 
 interface EndSeriesDialogProps extends ScheduleFormContext {
-	rule: ScheduleSeries
+	series: CalendarSeriesContext
+	available: boolean
 	currentMainTimeZone: string
 	studentName: string
 	now: Date
@@ -39,7 +41,8 @@ const KEPT_HINT =
 	'Later lessons are removed from the schedule. Earlier lessons and any lessons you moved stay where they are.'
 
 export function EndSeriesDialog({
-	rule: initialRule,
+	series: initialSeries,
+	available,
 	mainTimeZone,
 	asOf,
 	currentMainTimeZone,
@@ -53,7 +56,8 @@ export function EndSeriesDialog({
 	const toast = useToast()
 	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
 	const { today, currentYear } = context
-	const [rule] = useState(initialRule)
+	const [series] = useState(initialSeries)
+	const rule = series.series
 	const [secondZone] = useSecondZone(context.mainTimeZone)
 	const [lastOn, setLastOn] = useState(() =>
 		rule.referenceOccurrence?.ruleStartsAt == null
@@ -61,7 +65,8 @@ export function EndSeriesDialog({
 			: scheduleDate(new Date(rule.referenceOccurrence.ruleStartsAt), context.mainTimeZone)
 	)
 	const [submitted, setSubmitted] = useState(false)
-	const [pending, setPending] = useState(false)
+	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: today, series })
+	const pending = command.pending
 	const [notice, setNotice] = useState<'stale' | 'failed' | null>(null)
 
 	const result = lastOn === '' ? null : endSeriesAt(rule, [], lastOn, { now, defaultTimeZone: context.mainTimeZone })
@@ -76,16 +81,15 @@ export function EndSeriesDialog({
 	const description = seriesWhen(rule.referenceOccurrence, context.mainTimeZone, secondZone)
 
 	async function submit() {
-		if (pending || context.stale || notice === 'stale') return
+		if (!available || pending || command.blocked || context.stale || notice === 'stale') return
 		setSubmitted(true)
 		setNotice(null)
 		if (error) return document.getElementById('end-series-last')?.focus()
-		setPending(true)
-		const response = await mutate({ kind: 'rule', seriesId: rule.id }, 'end', {
+		const response = await command.mutate({ kind: 'rule', seriesId: rule.id }, 'end', {
 			lastOn,
 			expectedDefaultTimeZone: context.mainTimeZone,
 		})
-		setPending(false)
+		if (response.kind === 'detached') return
 		if (response.kind === 'zone_changed') return context.markStale()
 		if (response.kind === 'stale') {
 			setNotice('stale')
@@ -96,18 +100,7 @@ export function EndSeriesDialog({
 			setNotice('failed')
 			return
 		}
-		const series = response.data.series
-		const confirmedDate =
-			hasOccurrences(series) && series.endsOn !== null
-				? seriesDateInZone(series, series.endsOn, context.mainTimeZone)
-				: null
-		toast.show({
-			title: 'Series ended',
-			description:
-				confirmedDate !== null
-					? `${studentName}'s last lesson is on ${formatDate(confirmedDate, currentYear)}.`
-					: `${studentName}'s series was removed from the schedule.`,
-		})
+		toast.show({ title: 'Series ended', description: `${studentName}'s series was ended.` })
 		onEnded()
 	}
 
@@ -128,6 +121,14 @@ export function EndSeriesDialog({
 				</DialogHeader>
 				<div className="flex flex-col gap-4">
 					<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
+					<CalendarFormStatus
+						entry={command.entry}
+						blocked={command.blocked}
+						onViewSchedule={() => {
+							command.detach()
+							onClose()
+						}}
+					/>
 					{notice === 'stale' ? (
 						<Banner status="warning" data-slot="series-stale">
 							<BannerTitle>{STALE_TITLE}</BannerTitle>
@@ -151,17 +152,7 @@ export function EndSeriesDialog({
 							disabled={pending}
 							error={submitted ? error : undefined}
 						/>
-						{result?.kind === 'ok' ? (
-							lastDate !== null ? (
-								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-muted-foreground">
-									The last lesson will be on {formatDate(lastDate, currentYear)}. {KEPT_HINT}
-								</p>
-							) : (
-								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-foreground">
-									No lessons of this series will remain. Any lessons you moved stay where they are.
-								</p>
-							)
-						) : null}
+						<EndSeriesHint ready={result?.kind === 'ok'} lastDate={lastDate} currentYear={currentYear} />
 					</div>
 				</div>
 				<DialogFooter>
@@ -173,7 +164,7 @@ export function EndSeriesDialog({
 						variant="tertiary"
 						className="text-destructive"
 						loading={pending}
-						disabled={context.stale || notice === 'stale'}
+						disabled={!available || command.blocked || context.stale || notice === 'stale'}
 						onClick={() => void submit()}
 					>
 						{pending ? 'Ending…' : 'End series'}
@@ -181,5 +172,24 @@ export function EndSeriesDialog({
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
+	)
+}
+
+function EndSeriesHint({
+	ready,
+	lastDate,
+	currentYear,
+}: {
+	ready: boolean
+	lastDate: string | null
+	currentYear: number
+}) {
+	if (!ready) return null
+	return (
+		<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-muted-foreground">
+			{lastDate !== null
+				? `The last lesson will be on ${formatDate(lastDate, currentYear)}. ${KEPT_HINT}`
+				: 'No lessons of this series will remain. Any lessons you moved stay where they are.'}
+		</p>
 	)
 }

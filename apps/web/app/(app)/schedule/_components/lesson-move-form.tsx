@@ -4,13 +4,14 @@ import { useEffect, useEffectEvent, useState } from 'react'
 
 import { ArrowRight, CalendarClock } from 'lucide-react'
 
+import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
+import type { CalendarLesson } from '@/lib/lesson-actions'
 import { formatDate, formatDay, mainRange, mainWhen } from '@/lib/schedule-format'
 
-import type { ScheduleBlock } from '@dv-lab/contracts'
 import { overlaps, scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
@@ -23,19 +24,20 @@ import {
 	useScheduleFormContext,
 	type ScheduleFormContext,
 } from './schedule-form-context'
-import { changedStart, mutate } from './schedule-mutations'
+import { useScheduleMutation } from './schedule-mutations'
 
 interface LessonMoveFormProps extends ScheduleFormContext {
-	block: ScheduleBlock
+	event: CalendarLesson
+	available: boolean
 	currentMainTimeZone: string
 	secondZone: string | null
 	locked: boolean
-	blocksOn: (date: string) => Promise<OverlapBlock[]>
+	blocksOn: (date: string) => Promise<OverlapBlock[] | null>
 	onPendingChange: (pending: boolean) => void
 	onDiscard: () => void
 	onStale: () => void
 	onRefresh: () => void
-	onMoved: (startsAt: Date) => void
+	onMoved: () => void
 }
 
 type Field = 'date' | 'time'
@@ -60,7 +62,8 @@ function moveErrors(
 }
 
 export function LessonMoveForm({
-	block: initialBlock,
+	event: initialEvent,
+	available,
 	mainTimeZone,
 	asOf,
 	currentMainTimeZone,
@@ -76,7 +79,13 @@ export function LessonMoveForm({
 	const toast = useToast()
 	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
 	const { currentYear } = context
-	const [block] = useState(initialBlock)
+	const [event] = useState(initialEvent)
+	const block = {
+		key: event.eventKey,
+		ref: event.binding.ref,
+		startsAt: event.when.startsAt,
+		durationMinutes: (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
+	}
 	const start = new Date(block.startsAt)
 	const current = zonedParts(start, context.mainTimeZone)
 	const [date, setDate] = useState(scheduleDate(start, context.mainTimeZone))
@@ -84,7 +93,12 @@ export function LessonMoveForm({
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState<string | null>(null)
-	const [pending, setPending] = useState(false)
+	const command = useScheduleMutation({
+		mainTimeZone: context.mainTimeZone,
+		date: scheduleDate(start, context.mainTimeZone),
+		event,
+	})
+	const pending = command.pending
 	const [serverGap, setServerGap] = useState(false)
 	const [sourceChanged, setSourceChanged] = useState(false)
 	const disabled = pending || locked
@@ -100,7 +114,7 @@ export function LessonMoveForm({
 	useEffect(() => {
 		let active = true
 		void loadBlocks(date).then((items) => {
-			if (active) setDay({ date, items })
+			if (active) setDay(items === null ? null : { date, items })
 		})
 		return () => {
 			active = false
@@ -118,25 +132,23 @@ export function LessonMoveForm({
 			? overlaps(day.items, { startsAt: target, durationMinutes: block.durationMinutes }, block.key)
 			: []
 
-	function setBusy(value: boolean) {
-		setPending(value)
-		onPendingChange(value)
-	}
+	useEffect(() => {
+		onPendingChange(pending)
+	}, [pending, onPendingChange])
 
 	async function submit() {
-		if (disabled || context.stale || sourceChanged) return
+		if (!available || disabled || command.blocked || context.stale || sourceChanged) return
 		setSubmitted(true)
 		setFailed(null)
 		if (errors.date) return document.getElementById('move-lesson-date')?.focus()
 		if (errors.time || time === null || target === null) return document.getElementById('move-lesson-time')?.focus()
-		setBusy(true)
-		const result = await mutate(block.ref, 'move', {
+		const result = await command.mutate(block.ref, 'move', {
 			date,
 			startTime: time,
 			expectedStartsAt: block.startsAt,
 			expectedDefaultTimeZone: context.mainTimeZone,
 		})
-		setBusy(false)
+		if (result.kind === 'detached') return
 		if (result.kind === 'zone_changed') return context.markStale()
 		if (result.kind === 'gap') return setServerGap(true)
 		if (result.kind === 'failed') {
@@ -148,17 +160,21 @@ export function LessonMoveForm({
 			onStale()
 			return
 		}
-		const moved = new Date(changedStart(result.data))
-		toast.show({
-			title: 'Lesson moved',
-			description: `${block.studentName}: ${mainWhen(start, context.mainTimeZone, null, currentYear)} to ${mainWhen(moved, context.mainTimeZone, null, currentYear)}.`,
-		})
-		onMoved(moved)
+		toast.show({ title: 'Lesson moved', description: 'Google Calendar confirmed the new time.' })
+		onMoved()
 	}
 
 	return (
 		<div role="group" aria-label="Move lesson" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
 			<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
+			<CalendarFormStatus
+				entry={command.entry}
+				blocked={command.blocked}
+				onViewSchedule={() => {
+					command.detach()
+					onDiscard()
+				}}
+			/>
 			{failed !== null ? (
 				<Banner status="error" data-slot="move-lesson-failed">
 					<BannerTitle>{failed}</BannerTitle>
@@ -251,7 +267,7 @@ export function LessonMoveForm({
 					size="compact"
 					leadingIcon={CalendarClock}
 					loading={pending}
-					disabled={disabled || context.stale || sourceChanged}
+					disabled={!available || disabled || command.blocked || context.stale || sourceChanged}
 					onClick={() => void submit()}
 				>
 					{pending ? 'Moving…' : 'Move lesson'}

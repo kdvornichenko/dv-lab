@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
+import { useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { EmptyLine } from '@/components/app/empty-line'
 import { NextLessonTime } from '@/components/app/google-calendar-state'
 import { PageHeader, PageScroll } from '@/components/app/layout-parts'
@@ -144,6 +145,8 @@ export function StudentsScreen() {
 		const next = await readStudents()
 		if (id === requests.current) setState(next)
 	}, [])
+
+	useCalendarRefresh(load)
 
 	useEffect(() => {
 		const counter = requests

@@ -26,7 +26,7 @@ export function LessonFooter({
 	onMove,
 	onConfirm,
 }: {
-	block: ScheduleBlock
+	block: Pick<ScheduleBlock, 'startsAt'> & { actions: Pick<ScheduleBlock['actions'], 'move' | 'cancel' | 'restore'> }
 	mainTimeZone: string
 	confirming: boolean
 	moving: boolean
