@@ -25,6 +25,7 @@ export function createCalendarCommands(deps: {
 	credentials: Credentials
 	gateway: GoogleGateway
 	wake: (commandId: string) => Promise<void>
+	resume: (accountId: string, commandId: string) => Promise<void>
 }) {
 	async function submitCalendarCommand(
 		context: CalendarReadContext,
@@ -84,6 +85,13 @@ export function createCalendarCommands(deps: {
 		submitCalendarCommand,
 		async readCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandSnapshot> {
 			return commandSnapshot(await readCommand(deps.db, context.accountId, commandId))
+		},
+		async resumeCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandReceipt> {
+			const command = await readCommand(deps.db, context.accountId, commandId)
+			if (!['partial_recovery', 'recovery_required'].includes(command.state))
+				throw new CommandFault('precondition_failed')
+			await deps.resume(context.accountId, commandId)
+			return receipt(command)
 		},
 	}
 }

@@ -66,7 +66,7 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		logger,
 		isStopping: lifecycle.isStopping,
 	})
-	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit })
+	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
 	return { connection, control, reads, commands, worker, observation, resources: [worker, control, lease, credentials] }
 }
 

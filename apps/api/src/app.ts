@@ -83,7 +83,13 @@ export function createApp(deps: AppDeps) {
 	app.route('/auth', authRoutes({ db: deps.db, signIn: deps.signIn, production: deps.production, logger: deps.logger }))
 	app.route(
 		'/google',
-		googleRoutes({ db: deps.db, connection: deps.calendar, control: deps.calendarControl, isStopping: deps.isStopping })
+		googleRoutes({
+			db: deps.db,
+			connection: deps.calendar,
+			control: deps.calendarControl,
+			commands: deps.calendarCommands,
+			isStopping: deps.isStopping,
+		})
 	)
 	app.route('/students', studentRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))

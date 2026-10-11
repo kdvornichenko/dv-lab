@@ -6,16 +6,21 @@ import { z } from 'zod'
 import {
 	calendarCommandReceipt,
 	calendarCommandSnapshot,
-	googleConnectionSnapshot,
 	googleScheduleWindow,
 	googleUnresolvedCommandsResponse,
 } from '../../packages/contracts/src/calendar.ts'
 import { api, readSettings, teacherId } from './api.ts'
-import { HTTPS_TARGET, NAMES, ownedStudent, PRIVATE_DIR, quote, sql } from './data.ts'
+import { HTTPS_TARGET, NAMES, ownedStudent, PRIVATE_DIR, quote, sql, teacherCredentials } from './data.ts'
 import { addDays, mondayOf, vnToday } from './dates.ts'
 import { integer, record } from './input.ts'
 import { readPrivateJson, targetBinding } from './target.ts'
 import { expect } from './test.ts'
+
+export function parseCalendarResponse<T>(schema: z.ZodType<T>, value: unknown): T {
+	const parsed = schema.safeParse(value)
+	if (!parsed.success) throw new Error('Calendar public response failed validation')
+	return parsed.data
+}
 
 export async function calendarCommandFixture(request: APIRequestContext) {
 	if (!HTTPS_TARGET) throw new Error('Connected command journeys require the attested HTTPS target')
@@ -29,6 +34,7 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 			studentName: z.enum(NAMES),
 			accountId: z.uuid(),
 			commandWritesAuthorized: z.literal(true),
+			unknownRequestId: z.uuid().optional(),
 			expiresAt: z.iso.datetime(),
 		})
 		.safeParse(readPrivateJson(`${PRIVATE_DIR}/calendar-command.json`))
@@ -51,7 +57,7 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 	return fixture
 }
 
-async function commandInput(request: APIRequestContext, studentId: string) {
+export async function commandInput(request: APIRequestContext, studentId: string) {
 	const settings = await readSettings(request)
 	return {
 		studentId,
@@ -66,10 +72,25 @@ async function commandInput(request: APIRequestContext, studentId: string) {
 }
 
 export async function disconnectedCommand(request: APIRequestContext) {
-	const connection = googleConnectionSnapshot.parse(await api(request, 'GET', '/google/connection'))
-	expect(connection.state, 'This journey requires a disconnected runtime').toBe('not_connected')
+	await api(request, 'POST', '/auth/sign-in', teacherCredentials())
+	try {
+		await disconnectedAdmission(request)
+	} finally {
+		await api(request, 'POST', '/auth/sign-out', {})
+	}
+}
+
+async function disconnectedAdmission(request: APIRequestContext) {
+	const window = parseCalendarResponse(
+		googleScheduleWindow,
+		await api(request, 'GET', `/schedule/week?start=${mondayOf(vnToday())}`)
+	)
+	expect(window.connection.state, 'This journey requires a disconnected runtime').toBe('not_connected')
 	const input = await commandInput(request, randomUUID())
-	const before = googleUnresolvedCommandsResponse.parse(await api(request, 'GET', '/google/commands?state=unresolved'))
+	const before = parseCalendarResponse(
+		googleUnresolvedCommandsResponse,
+		await api(request, 'GET', '/google/commands?state=unresolved')
+	)
 	const refused = record(await api(request, 'POST', '/schedule/lessons', input, 409))
 	expect(record(refused.error).code).toBe('connection_required')
 	await api(request, 'GET', `/google/commands/by-request/${input.requestId}`, undefined, 404)
@@ -81,7 +102,10 @@ export async function disconnectedCommand(request: APIRequestContext) {
 
 export async function commandTracer(request: APIRequestContext, studentId: string) {
 	const input = await commandInput(request, studentId)
-	const window = googleScheduleWindow.parse(await api(request, 'GET', `/schedule/week?start=${mondayOf(input.date)}`))
+	const window = parseCalendarResponse(
+		googleScheduleWindow,
+		await api(request, 'GET', `/schedule/week?start=${mondayOf(input.date)}`)
+	)
 	expect(window.read.state, 'Real connected provider window').toBe('fresh')
 	if (window.read.state !== 'fresh') throw new Error('Real provider readiness is required')
 	input.expectedVersion = window.read.revision
@@ -89,36 +113,53 @@ export async function commandTracer(request: APIRequestContext, studentId: strin
 	const outsideResult = record(await api(request, 'POST', '/schedule/lessons', outside, 409))
 	expect(record(outsideResult.error).code).toBe('precondition_failed')
 	await api(request, 'GET', `/google/commands/by-request/${outside.requestId}`, undefined, 404)
-	const receipt = calendarCommandReceipt.parse(await api(request, 'POST', '/schedule/lessons', input, 202))
-	expect(calendarCommandReceipt.parse(await api(request, 'POST', '/schedule/lessons', input, 202))).toEqual(receipt)
+	const receipt = parseCalendarResponse(
+		calendarCommandReceipt,
+		await api(request, 'POST', '/schedule/lessons', input, 202)
+	)
+	expect(
+		parseCalendarResponse(calendarCommandReceipt, await api(request, 'POST', '/schedule/lessons', input, 202))
+	).toEqual(receipt)
 	const conflict = record(await api(request, 'POST', '/schedule/lessons', { ...input, startTime: '14:00' }, 409))
 	expect(record(conflict.error).code).toBe('precondition_failed')
-	const lookup = calendarCommandSnapshot.parse(
+	const lookup = parseCalendarResponse(
+		calendarCommandSnapshot,
 		await api(request, 'GET', `/google/commands/by-request/${input.requestId}`)
 	)
 	expect(lookup.commandId).toBe(receipt.commandId)
 	await expect
 		.poll(
 			async () => {
-				const status = calendarCommandSnapshot.parse(await api(request, 'GET', `/google/commands/${receipt.commandId}`))
+				const status = parseCalendarResponse(
+					calendarCommandSnapshot,
+					await api(request, 'GET', `/google/commands/${receipt.commandId}`)
+				)
 				return status.state
 			},
 			{ timeout: 60000 }
 		)
 		.toBe('applied')
-	const status = calendarCommandSnapshot.parse(await api(request, 'GET', `/google/commands/${receipt.commandId}`))
+	const status = parseCalendarResponse(
+		calendarCommandSnapshot,
+		await api(request, 'GET', `/google/commands/${receipt.commandId}`)
+	)
 	expect(status.effect).toBe('confirmed')
 	expect(status.confirmedRevision).not.toBeNull()
 	expect(status.affectedRefs).toHaveLength(1)
-	expect(calendarCommandReceipt.parse(await api(request, 'POST', '/schedule/lessons', input, 202))).toEqual(receipt)
-	const after = googleScheduleWindow.parse(await api(request, 'GET', `/schedule/week?start=${mondayOf(input.date)}`))
+	expect(
+		parseCalendarResponse(calendarCommandReceipt, await api(request, 'POST', '/schedule/lessons', input, 202))
+	).toEqual(receipt)
+	const after = parseCalendarResponse(
+		googleScheduleWindow,
+		await api(request, 'GET', `/schedule/week?start=${mondayOf(input.date)}`)
+	)
 	expect(after.read.state).toBe('fresh')
 	const ref = status.affectedRefs[0]
 	expect(
 		after.events.filter(
 			(event) => event.binding.kind === 'lesson' && JSON.stringify(event.binding.ref) === JSON.stringify(ref)
-		)
-	).toHaveLength(1)
+		).length
+	).toBe(1)
 	const stale = record(await api(request, 'POST', '/schedule/lessons', { ...input, requestId: randomUUID() }, 409))
 	expect(record(stale.error).code).toBe('precondition_failed')
 }

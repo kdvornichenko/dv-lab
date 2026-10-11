@@ -12,7 +12,7 @@ import {
 
 import { applyConfirmedCommand } from '../schedule/command-apply.ts'
 import { commandWindow, type PreparedCalendarCommand } from '../schedule/command-plan.ts'
-import { storedGoogleResult, type VerifiedGoogleResult } from './command-result.ts'
+import { storedGoogleResult, type VerifiedGoogleResponse } from './command-result.ts'
 import type { ConnectionRow } from './credentials.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import {
@@ -72,11 +72,7 @@ async function prepareDispatch(access: CommandAccess, command: PreparedCalendarC
 	})
 }
 
-async function checkDispatchWindow(
-	access: CommandAccess,
-	command: PreparedCalendarCommand,
-	gateway: GoogleGateway
-) {
+async function checkDispatchWindow(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
 	if (access.connection.generation !== command.generation || access.connection.calendarId !== command.calendarId)
 		throw new CommandFault('not_applied')
 	const primary = await gateway.primary(access.accessToken, access.signal)
@@ -115,7 +111,8 @@ function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttem
 export async function acknowledgeCommand(
 	access: CommandAccess,
 	command: PreparedCalendarCommand,
-	result: VerifiedGoogleResult
+	result: VerifiedGoogleResponse,
+	source: 'insert' | 'get' = 'insert'
 ) {
 	access.signal.throwIfAborted()
 	await access.db.transaction(async (tx) => {
@@ -140,7 +137,8 @@ export async function acknowledgeCommand(
 				generation: result.generation,
 				acknowledgement: result.acknowledgement,
 				acknowledgedAt: sql`now()`,
-				attempts: finishAttempt(stage.attempts, 'acknowledged', 200),
+				attempts:
+					source === 'insert' ? finishAttempt(stage.attempts, 'acknowledged', result.httpStatus) : stage.attempts,
 				updatedAt: sql`now()`,
 			})
 			.where(eq(googleCommandStages.id, stage.id))

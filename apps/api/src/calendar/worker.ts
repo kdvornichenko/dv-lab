@@ -11,6 +11,7 @@ import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import { failUnsentCommand, readCommand, type CommandRow } from './journal.ts'
 import type { ConnectionLease } from './lease.ts'
 import { calendarCommandQueue, calendarQueueOptions } from './queue-schema.ts'
+import { reconcileCommand, recoveryExpired, requireRecovery } from './recovery.ts'
 
 const jobData = z.strictObject({ commandId: z.uuid() })
 
@@ -41,6 +42,10 @@ export function createCalendarWorker(deps: {
 			return
 		}
 		if (command.state === 'pending' && !admissions.has(command.id)) return
+		if (command.state !== 'pending' && recoveryExpired(command)) {
+			await requireRecovery(deps.db, command, 'provider_unavailable')
+			return
+		}
 		try {
 			if (command.state === 'projection_pending') {
 				await deps.lease.run(command.accountId, async (access) => {
@@ -58,6 +63,8 @@ export function createCalendarWorker(deps: {
 				}
 				if (current.state === 'pending') await dispatchCommand(context, current, deps.gateway)
 				if (current.state === 'projection_pending') await projectCommand(context, current)
+				if (current.state === 'dispatching' || current.state === 'outcome_unknown')
+					await reconcileCommand(context, current, deps.gateway)
 			})
 		} catch (error) {
 			if (!(error instanceof CalendarFault && error.code === 'command_pending')) {
@@ -145,6 +152,20 @@ export function createCalendarWorker(deps: {
 				{ commandId },
 				{ singletonKey: command.connectionId, retryLimit: 0, expireInSeconds: 60 }
 			)
+		},
+		async resume(accountId: string, commandId: string) {
+			if (!accepting()) throw new CalendarFault('provider_unavailable')
+			await deps.credentials.withAccessToken(accountId, async (access) => {
+				const command = await readCommand(access.db, accountId, commandId)
+				if (!['partial_recovery', 'recovery_required'].includes(command.state))
+					throw new CalendarFault('command_pending')
+				await reconcileCommand(
+					{ ...access, signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]) },
+					command,
+					deps.gateway,
+					true
+				)
+			})
 		},
 		async close() {
 			stopped.abort()

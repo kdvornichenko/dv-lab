@@ -83,6 +83,12 @@ const calendarPage = z.object({
 	items: z.array(calendarEntry).optional(),
 	nextPageToken: z.string().min(1).optional(),
 })
+const identityPage = z.object({
+	items: z
+		.array(z.object({ id: z.string().min(1), status: z.enum(['confirmed', 'tentative', 'cancelled']).optional() }))
+		.optional(),
+	nextPageToken: z.string().min(1).optional(),
+})
 export type GoogleTokens = z.infer<typeof tokenData>
 export type PrimaryCalendar = { id: string; label: string; timeZone: string }
 
@@ -170,7 +176,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 					.calendar({ version: 'v3', auth: oauth })
 					.events.insert({ calendarId, sendUpdates: 'none', requestBody: insertEventBody(request) }, { retry: false })
 			)
-			return verifyGoogleResult(response.data, request, timeZone, generation)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
 		},
 		async confirmedEvent(
 			accessToken: string,
@@ -187,7 +193,36 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 					.calendar({ version: 'v3', auth: oauth })
 					.events.get({ calendarId, eventId: request.eventId }, { retry: false })
 			)
-			return verifyGoogleResult(response.data, request, timeZone, generation)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+		},
+		async identityAbsent(accessToken: string, calendarId: string, localEntityId: string, signal: AbortSignal) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const pages = new Set<string>()
+			let pageToken: string | undefined
+			do {
+				const response = await writeCall(() =>
+					google.calendar({ version: 'v3', auth: oauth }).events.list(
+						{
+							calendarId,
+							showDeleted: true,
+							singleEvents: false,
+							maxResults: 2500,
+							pageToken,
+							privateExtendedProperty: [`dvLocalId=${localEntityId}`],
+							fields: 'nextPageToken,items(id,status)',
+						},
+						{ retry: false }
+					)
+				)
+				const parsed = identityPage.safeParse(response.data)
+				if (!parsed.success) throw new CalendarFault('invalid_provider_data')
+				if (parsed.data.items?.some((event) => event.status !== 'cancelled')) return false
+				pageToken = parsed.data.nextPageToken
+				if (pageToken && (pages.has(pageToken) || pages.size >= 1000)) throw new CalendarFault('invalid_provider_data')
+				if (pageToken) pages.add(pageToken)
+			} while (pageToken)
+			return true
 		},
 		async events(accessToken: string, query: EventQuery, signal: AbortSignal) {
 			const oauth = client(signal)

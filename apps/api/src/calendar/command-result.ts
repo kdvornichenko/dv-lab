@@ -10,6 +10,7 @@ import { parseMaster, type ProviderEvent } from './provider-events.ts'
 type InsertRequest = Extract<GoogleStageRequest, { method: 'insert' }>
 type EventAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' }>
 export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: EventAcknowledgement }
+export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number }
 
 const marker = z.object({
 	dvLocalId: z.uuid(),
@@ -71,8 +72,9 @@ export function verifyGoogleResult(
 	input: unknown,
 	request: InsertRequest,
 	timeZone: string,
-	generation: number
-): VerifiedGoogleResult {
+	generation: number,
+	httpStatus: number
+): VerifiedGoogleResponse {
 	const markers = identity.safeParse(input)
 	const raw = z.record(z.string(), json).safeParse(input)
 	if (!markers.success || !raw.success) throw new CalendarFault('invalid_provider_data')
@@ -90,7 +92,7 @@ export function verifyGoogleResult(
 		unownedWritableFingerprint: digest(canonical(unowned)),
 	})
 	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
-	return { generation, commandId: request.payload.markers.commandId, acknowledgement }
+	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
 }
 
 function verifyOwnedFields(event: ProviderEvent, request: InsertRequest) {
