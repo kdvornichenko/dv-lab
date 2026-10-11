@@ -206,7 +206,6 @@ async function narrowToday(page) {
 	check('320px: no panel or counter row overflows', fit.panels)
 	await shot(page, 'ledger-today', 'narrow-320')
 	await page.setViewportSize({ width: 1280, height: 800 })
-	console.log(failures() === 0 ? 'TODAY_WEB_PART2_OK' : 'TODAY_WEB_PART2_FAIL')
 }
 
 async function rowStates(page, fx, year, lessonsPanel) {

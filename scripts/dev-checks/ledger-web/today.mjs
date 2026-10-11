@@ -16,7 +16,7 @@ export async function todaySection() {
 			await setTheme(page)
 			await signIn(page)
 			const settings = await api(page, 'GET', '/settings')
-			if (settings.json.paysSoonLessons !== 2)
+			if (settings.json?.settings?.paysSoonLessons !== 2)
 				throw new Error('Today journey requires threshold 2; account settings are read-only')
 			const fx = await todayFixtures(page)
 			await todayPart1(page, context, fx)

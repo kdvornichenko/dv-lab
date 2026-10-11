@@ -10,18 +10,11 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
-import { occurrenceSlot, type OccurrenceSlot } from '@/lib/lesson-mark-text'
-import { lessonCount, vnWhen, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
-import { exitFallbackMs, spring } from '@/lib/springs'
+import { occurrenceSlot } from '@/lib/lesson-mark-text'
+import { lessonCount, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
-import type {
-	LessonMarkKind,
-	ScheduleBlock,
-	ScheduleSeries,
-	ScheduleWeekResponse,
-	StudentsResponse,
-} from '@dv-lab/contracts'
+import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
 import {
 	SCHEDULE_TIME_ZONE,
 	addDays,
@@ -33,32 +26,21 @@ import {
 	zonedParts,
 } from '@dv-lab/core'
 
-import { useToast } from '../../_components/toasts'
 import { useMinuteNow } from '../../_components/use-minute-now'
-import { EndSeriesDialog } from './end-series-dialog'
-import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
-import { MoveSeriesDialog } from './move-series-dialog'
+import type { PairTarget } from './lesson-dialog'
+import { LessonDialogs, readLessonWeek, readOverlapBlocks, type LessonSelection } from './lesson-dialogs'
 import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
-import { markLesson, mutate } from './schedule-mutations'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
-type OpenLesson = { key: string; slot: OccurrenceSlot }
-
-type SeriesDialogState = {
-	kind: 'move' | 'end'
-	rule: ScheduleSeries
-	studentName: string
-	lessonDate: string
-	returnTo: OpenLesson
-}
+type OpenLesson = LessonSelection
 
 type NewLessonSeed = { date: string; time: string; durationMinutes?: number; frame?: number }
 
 type WeekState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: ScheduleWeekResponse }
 
 async function readWeek(monday: string): Promise<WeekState> {
-	const result = await apiRequest<ScheduleWeekResponse>('GET', `/schedule/week?start=${monday}`)
+	const result = await readLessonWeek(monday)
 	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
 }
 
@@ -82,15 +64,12 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
-	const [version, setVersion] = useState(0)
+	const requests = useRef(0)
 	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
-	const [seriesDialog, setSeriesDialog] = useState<SeriesDialogState | null>(null)
 	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
-	const focusAfterLoad = useRef<OpenLesson | null>(null)
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
-	const toast = useToast()
 	const today = scheduleToday(now)
 	const currentYear = Number(today.slice(0, 4))
 	const currentMonday = mondayOf(today)
@@ -101,15 +80,16 @@ function LoadedSchedule({ now }: { now: Date }) {
 
 	useEffect(() => {
 		let current = true
+		const id = ++requests.current
 		void readWeek(monday).then((state) => {
-			if (!current) return
+			if (!current || id !== requests.current) return
 			if (state.kind === 'ready') weeks.current.set(monday, state.data)
 			setLoaded({ monday, state })
 		})
 		return () => {
 			current = false
 		}
-	}, [monday, version])
+	}, [monday])
 
 	useEffect(() => {
 		let current = true
@@ -121,16 +101,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 		}
 	}, [])
 
-	useEffect(() => {
-		const target = focusAfterLoad.current
-		if (target === null || loaded === null) return
-		focusAfterLoad.current = null
-		focusBlock(target)
-	}, [loaded])
-
-	function reload() {
+	async function reload() {
 		weeks.current.clear()
-		setVersion((value) => value + 1)
+		const id = ++requests.current
+		const state = await readWeek(monday)
+		if (id !== requests.current) return
+		if (state.kind === 'ready') weeks.current.set(monday, state.data)
+		setLoaded({ monday, state })
 	}
 
 	function refresh() {
@@ -138,22 +115,8 @@ function LoadedSchedule({ now }: { now: Date }) {
 		reload()
 	}
 
-	async function blocksOn(date: string): Promise<OverlapBlock[]> {
-		const target = mondayOf(date)
-		let data = weeks.current.get(target)
-		if (data === undefined) {
-			const state = await readWeek(target)
-			if (state.kind !== 'ready') return []
-			data = state.data
-			weeks.current.set(target, data)
-		}
-		return data.blocks.map((block) => ({
-			key: block.key,
-			startsAt: new Date(block.startsAt),
-			durationMinutes: block.durationMinutes,
-			outcome: block.outcome,
-			studentName: block.studentName,
-		}))
+	function blocksOn(date: string): Promise<OverlapBlock[]> {
+		return readOverlapBlocks(date, weeks.current)
 	}
 
 	function openNew() {
@@ -187,65 +150,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 		})
 	}
 
-	function closeLesson() {
-		const closed = lesson
+	function closeLesson(target: LessonSelection | null) {
 		setLesson(null)
-		if (closed !== null) focusBlock(closed)
-	}
-
-	function startSeriesDialog(block: ScheduleBlock, rule: ScheduleSeries, kind: 'move' | 'end') {
-		const next: SeriesDialogState = {
-			kind,
-			rule,
-			studentName: block.studentName,
-			lessonDate: block.ref.kind === 'series' ? block.ref.originalOn : today,
-			returnTo: { key: block.key, slot: occurrenceSlot(block.outcome) },
-		}
-		setLesson(null)
-		setTimeout(() => setSeriesDialog(next), exitFallbackMs(spring.slow))
-	}
-
-	function closeSeries() {
-		const closed = seriesDialog
-		setSeriesDialog(null)
-		if (closed !== null) focusBlock(closed.returnTo)
-	}
-
-	function seriesChanged() {
-		const closed = seriesDialog
-		setSeriesDialog(null)
-		focusAfterLoad.current = closed === null ? null : closed.returnTo
-		reload()
-	}
-
-	async function changeLesson(block: ScheduleBlock, action: 'cancel' | 'restore'): Promise<ActionOutcome> {
-		const result = await mutate(block.ref, action, { expectedStartsAt: block.startsAt })
-		if (result.kind === 'failed') return 'failed'
-		reload()
-		if (result.kind === 'stale') return 'stale'
-		toast.show({
-			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
-			description: `${block.studentName}, ${vnWhen(new Date(block.startsAt), null, currentYear)}.`,
-		})
-		return 'ok'
-	}
-
-	async function markBlock(block: ScheduleBlock, kind: LessonMarkKind): Promise<ActionOutcome> {
-		const result = await markLesson(block, kind)
-		if (result.kind === 'failed') return 'failed'
-		if (result.kind === 'stale') {
-			reload()
-			return 'stale'
-		}
-		weeks.current.clear()
-		const state = await readWeek(monday)
-		if (state.kind !== 'ready') {
-			reload()
-			return 'ok'
-		}
-		weeks.current.set(monday, state.data)
-		setLoaded({ monday, state })
-		return 'ok'
+		if (target !== null) focusBlock(target)
 	}
 
 	function openPair(target: PairTarget) {
@@ -276,16 +183,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			? (week.data.blocks.find((block) => block.key === lesson.key && occurrenceSlot(block.outcome) === lesson.slot) ??
 				null)
 			: null
-	const openSeriesId = openBlock !== null && openBlock.ref.kind === 'series' ? openBlock.ref.seriesId : null
-	const openSeries =
-		ready && openSeriesId !== null ? (week.data.series.find((rule) => rule.id === openSeriesId) ?? null) : null
 	const planned = ready ? week.data.blocks.filter((block) => countsAsLesson(block.outcome)).length : 0
-	const seriesRule =
-		seriesDialog === null
-			? null
-			: ready
-				? (week.data.series.find((rule) => rule.id === seriesDialog.rule.id) ?? seriesDialog.rule)
-				: seriesDialog.rule
 
 	return (
 		<PageScroll>
@@ -341,55 +239,18 @@ function LoadedSchedule({ now }: { now: Date }) {
 					{weekPhrase(monday)}, {lessonCount(planned)}
 				</p>
 			) : null}
-			{openBlock !== null && ready ? (
-				<LessonDialog
-					key={`${openBlock.key}:${occurrenceSlot(openBlock.outcome)}`}
-					block={openBlock}
-					series={openSeries}
-					now={now}
-					secondZone={zone}
-					currentYear={currentYear}
-					onClose={closeLesson}
-					onOpenPair={openPair}
-					onCancel={() => changeLesson(openBlock, 'cancel')}
-					onRestore={() => changeLesson(openBlock, 'restore')}
-					onMark={(kind) => markBlock(openBlock, kind)}
-					blocksOn={blocksOn}
-					onStale={reload}
-					onMoved={(startsAt) => {
-						reload()
-						openPair({ key: openBlock.key, slot: 'to', at: startsAt })
-					}}
-					onSeries={(kind) => {
-						if (openSeries !== null) startSeriesDialog(openBlock, openSeries, kind)
-					}}
-				/>
-			) : null}
-			{seriesRule !== null && seriesDialog?.kind === 'move' ? (
-				<MoveSeriesDialog
-					rule={seriesRule}
-					studentName={seriesDialog.studentName}
-					now={now}
-					today={today}
-					currentYear={currentYear}
-					onClose={closeSeries}
-					onStale={reload}
-					onMoved={seriesChanged}
-				/>
-			) : null}
-			{seriesRule !== null && seriesDialog?.kind === 'end' ? (
-				<EndSeriesDialog
-					rule={seriesRule}
-					studentName={seriesDialog.studentName}
-					lessonDate={seriesDialog.lessonDate}
-					now={now}
-					today={today}
-					currentYear={currentYear}
-					onClose={closeSeries}
-					onStale={reload}
-					onEnded={seriesChanged}
-				/>
-			) : null}
+			<LessonDialogs
+				selected={openBlock}
+				series={ready ? week.data.series : []}
+				now={now}
+				secondZone={zone}
+				currentYear={currentYear}
+				today={today}
+				blocksOn={blocksOn}
+				reload={reload}
+				onClose={closeLesson}
+				onOpenPair={openPair}
+			/>
 			{newLesson !== null ? (
 				<NewLessonDialog
 					students={students}

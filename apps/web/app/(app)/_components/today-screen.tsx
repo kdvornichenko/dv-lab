@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 
 import { CalendarDays, Users } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 import { EmptyState } from '@/components/app/empty-state'
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
@@ -13,13 +14,15 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
+import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
 
-import type { ScheduleBlock, TodayResponse } from '@dv-lab/contracts'
+import type { ScheduleBlock, ScheduleWeekResponse, TodayResponse } from '@dv-lab/contracts'
 import {
 	SCHEDULE_TIME_ZONE,
 	countsAsLesson,
 	lessonActions,
+	scheduleDate,
 	lessonsPhrase,
 	scheduleToday,
 	todayCounts,
@@ -27,6 +30,8 @@ import {
 	type TodayCounts,
 } from '@dv-lab/core'
 
+import type { PairTarget } from '../schedule/_components/lesson-dialog'
+import { LessonDialogs, readOverlapBlocks, type LessonSelection } from '../schedule/_components/lesson-dialogs'
 import { DueList } from './due-list'
 import { LessonRows } from './today-lessons'
 import { useMinuteNow } from './use-minute-now'
@@ -158,12 +163,14 @@ function Panels({
 	now,
 	zone,
 	onReload,
+	onOpen,
 }: {
 	data: TodayResponse
 	counts: TodayCounts
 	now: Date
 	zone: string | null
 	onReload: () => Promise<void>
+	onOpen: (block: ScheduleBlock, trigger: HTMLButtonElement) => void
 }) {
 	const lessons = [...data.lessons].sort(byStart)
 	const earlier = [...data.earlier].sort(byStart)
@@ -190,6 +197,7 @@ function Panels({
 						secondZone={zone}
 						onSaved={onReload}
 						onStale={onReload}
+						onOpen={onOpen}
 					/>
 				)}
 			</Panel>
@@ -208,6 +216,7 @@ function Panels({
 						moreHref={SCHEDULE_HREF}
 						onSaved={onReload}
 						onStale={onReload}
+						onOpen={onOpen}
 					/>
 				</Panel>
 			) : null}
@@ -230,10 +239,20 @@ function Panels({
 	)
 }
 
-function Shell({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
+function Shell({
+	title,
+	description,
+	children,
+	titleRef,
+}: {
+	title: string
+	description?: ReactNode
+	children: ReactNode
+	titleRef?: Ref<HTMLHeadingElement>
+}) {
 	return (
 		<PageScroll>
-			<PageHeader title={title} description={description} />
+			<PageHeader title={title} description={description} titleRef={titleRef} />
 			{children}
 		</PageScroll>
 	)
@@ -256,12 +275,22 @@ function LoadedToday({ now }: { now: Date }) {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [zone] = useSecondZone()
 	const requests = useRef(0)
+	const [selected, setSelected] = useState<LessonSelection | null>(null)
+	const trigger = useRef<HTMLButtonElement | null>(null)
+	const titleRef = useRef<HTMLHeadingElement>(null)
+	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
+	const latest = useRef<TodayResponse | null>(null)
+	const router = useRouter()
 
 	const load = useCallback(async () => {
 		requests.current += 1
 		const id = requests.current
 		const next = await readToday()
-		if (id === requests.current) setState(next)
+		if (id === requests.current) {
+			latest.current = next.kind === 'ready' ? next.data : null
+			weeks.current.clear()
+			setState(next)
+		}
 	}, [])
 
 	useEffect(() => {
@@ -269,7 +298,10 @@ function LoadedToday({ now }: { now: Date }) {
 		requests.current += 1
 		const id = requests.current
 		void readToday().then((next) => {
-			if (current && id === requests.current) setState(next)
+			if (current && id === requests.current) {
+				latest.current = next.kind === 'ready' ? next.data : null
+				setState(next)
+			}
 		})
 		return () => {
 			current = false
@@ -288,6 +320,33 @@ function LoadedToday({ now }: { now: Date }) {
 		if (answered === null || (answered === today && !staleActions)) return
 		void load()
 	}, [now, answered, today, staleActions, load])
+
+	function openLesson(block: ScheduleBlock, button: HTMLButtonElement) {
+		trigger.current = button
+		setSelected({ key: block.key, slot: occurrenceSlot(block.outcome) })
+	}
+
+	function closeLesson(target: LessonSelection | null) {
+		setSelected(null)
+		if (target === null) return
+		requestAnimationFrame(() => {
+			if (trigger.current?.isConnected) trigger.current.focus()
+			else titleRef.current?.focus()
+		})
+	}
+
+	function openPair(target: PairTarget) {
+		const data = latest.current
+		const blocks = data === null ? [] : [...data.lessons, ...data.earlier]
+		const exists = blocks.some(
+			(block) =>
+				block.key === target.key &&
+				occurrenceSlot(block.outcome) === target.slot &&
+				scheduleDate(target.at) === scheduleDate(new Date(block.startsAt))
+		)
+		if (exists) setSelected({ key: target.key, slot: target.slot })
+		else router.push(SCHEDULE_HREF)
+	}
 
 	if (state.kind === 'error') {
 		return (
@@ -308,10 +367,28 @@ function LoadedToday({ now }: { now: Date }) {
 	const { data } = state
 	const counts = countsOf(data, now)
 	const next = nextBlock(data.lessons, counts)
+	const openBlock =
+		selected === null
+			? null
+			: ([...data.lessons, ...data.earlier].find(
+					(block) => block.key === selected.key && occurrenceSlot(block.outcome) === selected.slot
+				) ?? null)
 	return (
-		<Shell title={dayTitle(data.date)} description={summaryLine(counts, next, zone)}>
+		<Shell title={dayTitle(data.date)} description={summaryLine(counts, next, zone)} titleRef={titleRef}>
 			<Counters counts={counts} threshold={data.paysSoonLessons} />
-			<Panels data={data} counts={counts} now={now} zone={zone} onReload={load} />
+			<Panels data={data} counts={counts} now={now} zone={zone} onReload={load} onOpen={openLesson} />
+			<LessonDialogs
+				selected={openBlock}
+				series={data.series}
+				now={now}
+				secondZone={zone}
+				currentYear={Number(today.slice(0, 4))}
+				today={today}
+				blocksOn={(date) => readOverlapBlocks(date, weeks.current)}
+				reload={load}
+				onClose={closeLesson}
+				onOpenPair={openPair}
+			/>
 		</Shell>
 	)
 }

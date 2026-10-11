@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
-import { occurrenceSlot, statusKey, statusWord, type StatusKey } from '@/lib/lesson-mark-text'
+import { occurrenceSlot, statusKey, statusLabel, statusWord, type StatusKey } from '@/lib/lesson-mark-text'
 import { formatDay, formatTime, secondWhen } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
@@ -48,6 +48,7 @@ interface LessonRowsProps {
 	moreHref?: string
 	onSaved: () => Promise<void>
 	onStale: () => Promise<void>
+	onOpen: (block: ScheduleBlock, trigger: HTMLButtonElement) => void
 }
 
 export function LessonRows({ blocks, moreHref, ...rowProps }: LessonRowsProps) {
@@ -72,6 +73,7 @@ function LessonRow({
 	secondZone,
 	onSaved,
 	onStale,
+	onOpen,
 }: Omit<LessonRowsProps, 'blocks' | 'moreHref'> & { block: ScheduleBlock }) {
 	const [failed, setFailed] = useState(false)
 	const year = Number(scheduleToday(now).slice(0, 4))
@@ -87,7 +89,7 @@ function LessonRow({
 			data-status={key}
 			data-next={next ? 'true' : 'false'}
 			className={cn(
-				'flex h-10 items-center gap-3 rounded-lg px-3 tabular-nums',
+				'relative flex h-10 items-center gap-3 rounded-lg px-3 tabular-nums hover:bg-hover',
 				style.muted && 'text-muted-foreground',
 				next && 'bg-active font-semibold'
 			)}
@@ -103,7 +105,15 @@ function LessonRow({
 				second={secondWhen(start, secondZone)}
 			/>
 			<span data-slot="today-row-name" className={cn('flex min-w-0 flex-1 flex-col', style.struck && 'line-through')}>
-				<span className={cn('truncate', style.struck && 'line-through')}>{block.studentName}</span>
+				<button
+					type="button"
+					data-slot="today-row-open"
+					className="min-w-0 cursor-pointer truncate text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-focus-ring"
+					aria-label={`${block.studentName}, ${formatDay(start, SCHEDULE_TIME_ZONE, year)}, ${formatTime(start, SCHEDULE_TIME_ZONE)}: ${statusLabel(block, now)}`}
+					onClick={(event: MouseEvent<HTMLButtonElement>) => onOpen(block, event.currentTarget)}
+				>
+					{block.studentName}
+				</button>
 				{failed ? (
 					<span className="truncate text-caption font-normal text-destructive">
 						Could not save the mark. Try again.

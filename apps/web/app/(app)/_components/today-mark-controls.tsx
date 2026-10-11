@@ -68,7 +68,7 @@ export function TodayMarkControls({ block, onSaved, onStale, onError }: TodayMar
 				>
 					{label}
 				</DropdownTrigger>
-				<DropdownContent align="end" className="w-42 min-w-42">
+				<DropdownContent align="end" className="w-42 min-w-42 bg-surface-4 shadow-surface-4">
 					{QUICK_MARKS.map(({ kind }, index) => (
 						<MenuItem
 							key={kind}
