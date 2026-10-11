@@ -256,7 +256,7 @@ Integration self-check: upstream `retainedStudent(id: string): string` дост�
 
 ### Registry and provider boundaries
 
-`packages/db/src/calendar-values.ts` остаётся sole owner private JSON validators. Добавлены `googleUnownedWritable`, optional precondition/ACK snapshot, insert payload `preserved`, typed cancellationBaseline и conditionalCancellation provenance. Existing JSON columns используются без migration/new columns. Public packages/contracts DTO не изменён.
+`packages/db/src/calendar-values.ts` остаётся sole owner private JSON validators. Добавлены `googleUnownedWritable`, optional precondition/ACK snapshot, insert payload `preserved`, typed cancellationBaseline и distinct cancellation ACK provenance. Obsolete conditionalCancellation flag удалён после bounded no-producer/consumer check. Existing JSON columns используются без migration/new columns. Public packages/contracts DTO не изменён.
 
 Supported snapshot: description, location, colorId, guest permissions, transparency, visibility, reminders, source, non-dv private/shared extendedProperties. Strict schemas отвергают unsupported values. Attendees/attachments/conferenceData блокируют replacement вместо потери полей. [Google Events insert](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert) описывает attendee response reset и специальные параметры conference/attachment writes; безопасное копирование этих полей в текущем scope не заявлено. [Events resource](https://developers.google.com/workspace/calendar/api/v3/reference/events) гарантирует только id для deleted events. Actual successful [Events patch](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch) возвращает Events resource. Direct cancellation ACK требует correct actual ID и actual2xx conditional PATCH; ETag/status необязательны и не синтезируются. Auth generation и credential generation fences сохранены.
 
@@ -264,7 +264,7 @@ Supported snapshot: description, location, colorId, guest permissions, transpare
 
 Before основным соответствующим behavior добавлены source assertions в existing durable journeys: minimal native cancellation, restored description/location и сохранённый fingerprint; paginated admission budget через actual response delay/pageSize1. Unsupported snapshot branch также имеет public recovery/no-write assertions. Sparse ACK scenario требует реальной retained native observation; fake response payload не создаётся. Новый narrow helper `calendar-admission.ts` работает через public API и real persistence, без unit/contract/integration suite.
 
-Private fixture inputs: calendar-minimal-cancel-id_only.json, calendar-minimal-cancel-id_status.json, calendar-single.json, calendar-single-unsupported.json, calendar-admission.json. Они обязаны совпадать с target build/persistence/student; retained lifecycle проверяет общий calendarCommandFixture. Admission fixture требует реальное natural disappearance и минимум6 страниц identity search при pageSize1; expected result409/not_applied за общий budget, request lookup404 и unchanged lesson. Missing provider capability не заменяется synthetic evidence. Unsupported restore намеренно оставляет unresolved barrier; runtime fixture lifecycle/reset принадлежит13, такой journey нужен в отдельном authorized fixture run.
+Private fixture inputs: calendar-command.json, calendar-single.json, calendar-single-unsupported.json, calendar-admission.json. Они обязаны совпадать с target build/persistence/student; retained lifecycle проверяет общий calendarCommandFixture. Minimal cancel/restore использует обычную retained command fixture и Google fields=id; rare native observation manifest не требуется. Admission fixture требует реальное natural disappearance и минимум6 страниц identity search при pageSize1; expected result409/not_applied за общий budget, request lookup404 и unchanged lesson. Missing provider capability не заменяется synthetic evidence. Unsupported restore намеренно оставляет unresolved barrier; runtime fixture lifecycle/reset принадлежит13, такой journey нужен в отдельном authorized fixture run.
 
 Фактический RED/GREEN и все эти connected journeys **NOT RUN / UNVERIFIED**: runtime/DB/provider lease отсутствует. Discovery не является execution. No09 start.
 
@@ -320,7 +320,7 @@ Primary evidence предоставил parent: [Events status](https://develope
 
 ### Existing durable journey
 
-До behavior edits `minimalCancellation` усилен двумя source cases: id-only и id+status без ETag. Assertions проверяют exact sparse response keys, отсутствие ACK event, target ID, actual If-Match, отдельно сохранённый baseline ETag и applied local cancellation. Затем public window должен показывать historical single. R2 existing helper находит cancellation по event ACK или sparse response ID; preservation assertions сохранены. Никакой fake sparse provider response не создаётся. Native retained fixtures обязательны, функциональный RED/GREEN не запускался.
+Existing cancel/restore journey проверяет id-only actual response, запрошенный через Google fields=id. Assertions проверяют exact response keys, actual2xx, отсутствие ACK event, target ID, actual If-Match, отдельно сохранённый baseline ETag и applied cancellation/restore с сохранением identity. R2 existing helper находит cancellation по event ACK или sparse response ID; preservation assertions сохранены. Никакой fake sparse provider response не создаётся. Retained command fixture и grant обязательны; функциональный RED/GREEN не запускался.
 
 ### Changed files
 
@@ -350,3 +350,32 @@ Final fingerprint `afb9c31656d67a4dbf3a9a89238542e2bd0f8d87a3b95bc7f7902221f3830
 ### Actuals and self-check
 
 Base `5b73c81ffe97645885494495475cb8cf169f8291`, source after `f0e8b0e7e37b7253c13265d25b4f95e037230d6c`; measured1 source commit/8 source files/5450 estimateTokens=ceil(diff chars/4). Diff SHA-256 `ccaa774f78cf0d8006045cf9d25d970413556df70e8a0265a31a2ca59f7e173d`. Private actuals: `STATE_DIR/phase24-08-cr01-sparse-actuals.json`. Final source hashes matched quality artifact после source commit; stale[]. No stub introduced, no public DTO/dependency/migration/deletion changes, no runtime/DB/provider calls. New exported helper/type имеют direct consumers в owned readers/apply. Self-check PASSED; untracked apps/web/AGENTS.md сохранён. 09 не начат.
+
+## Executable Partial-response Journey and Final Simplify
+
+Source commit `68efafa` запрашивает `fields: id` только при conditional cancel PATCH. Move/restore PATCH response и GET verifier не меняются. Request body, actual If-Match, immutable intent и generation fences сохранены. SDK `googleapis185.0.0`: `Params$Resource$Events$Patch extends StandardParameters`, где `fields?: string` объявлен в установленном calendar/v3.d.ts:19/5248. [Official fields guide](https://developers.google.com/workspace/calendar/api/guides/performance) разрешает partial response для requests с response data, включая PATCH; fields меняет response selection, не mutation body. [Events patch](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch) возвращает Events resource. Это documented real-provider path, не harness transformation или mock.
+
+До gateway edit existing presentTombstone journey адаптирован: один public create/cancel/restore cycle на обычной retained calendar-command fixture проверяет real2xx/id-only persisted ACK и сохранение identity. NativeSparseResponseObserved manifest и дополнительный rare-case provider cycle больше не требуются. Private minimalCancellation assertion вызывается внутри этого journey; unused export и duplicate calls убраны. Runtime response shape является expected outcome, не заранее attested fact. Сам journey всё ещё **UNVERIFIED до grant/runtime lease**; SDK/docs/static evidence не заменяют execution.
+
+`rg -n 'conditionalCancellation' apps packages e2e` до удаления: только packages/db/src/calendar-values.ts:250. Producer/consumer отсутствуют. Удалён ровно obsolete optional flag из kind:event; genuine full GET event cancellation ACK сохраняется. Shape не выкатывалась/не исполнялась по подтверждению parent. CR-02/CR-03 без нового review round; public DTO/dependencies/migrations/harness не менялись.
+
+Changed files:
+
+- apps/api/src/calendar/gateway.ts — cancel-only documented fields mask.
+- e2e/support/calendar-single.ts — actual id-only/2xx assertion в existing durable journey без rare observation manifest.
+- e2e/move.spec.ts — removed redundant rare-case calls/import, journey сохранён.
+- packages/db/src/calendar-values.ts — removed confirmed dead optional flag; event ACK сохранён.
+- 24-08-SUMMARY.md — текущие fixture requirements, SDK/docs evidence и final checks.
+
+Exact final checks:
+
+- `yarn workspace @dv-lab/api typecheck`: exit0.
+- `yarn workspace @dv-lab/api build`: exit0, Build complete in139ms после Registry simplify.
+- `yarn prettier --check apps/api/src/calendar/gateway.ts e2e/support/calendar-single.ts e2e/move.spec.ts packages/db/src/calendar-values.ts`: exit0, all matched files use Prettier style.
+- `git diff --check`: exit0.
+- `env E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/move.spec.ts --grep '\[calendar\] tombstone restores a present' --project=light --list`: exit0,3 tests in3files including setup/cleanup; discovery only.
+- `yarn node --max-old-space-size=8192 scripts/dev-checks/calendar-quality.ts --base e132f9d --owned apps/api/src/calendar/gateway.ts --owned e2e/support/calendar-single.ts --owned e2e/move.spec.ts --owned packages/db/src/calendar-values.ts --json`: exit0/PASS. Private evidence `STATE_DIR/phase24-08-fields-mask-quality.json`; fingerprint `b7fd538e51fcb6d1366b781e038bd177a53bc1e32026e5c79eb995a07e5080c9`.
+
+Scope denominator4 owned source files+3 measurement tools;7 files/187 functions/69 changed functions. Current Node24.17.0/TS6.0.3/ESLint10.12.0; method/token convention выше. MaxCC14/cognitive16/HalsteadD36.55/file493. Gateway patch callback CC1→2. No any/type/metric violations; no new dead/redundant source finding. Simplify завершён; source hashes current, stale[]. No full audit, no runtime/DB/provider execution, no file deletions. CR-01 source принят parent; source готова к merge. 09 требует отдельного assignment.
+
+Measured interval: base `e132f9de0952195fa44e8574972d087e6d7a5718`, after `68efafa7b07b04a47ba8ca609f86ac8ce722f8db`;1 source commit/4 source files/1247 estimateTokens=ceil(diff chars/4). Diff SHA-256 `d3dc10fee330ac9a3dddb8a6b7c0f2d4d6551b6892dd4a408346daea703935d5`; private `STATE_DIR/phase24-08-fields-mask-actuals.json`. Self-check PASSED: source commit exists; all final measured hashes match; preserved untracked apps/web/AGENTS.md; shared metadata and other owners untouched.
