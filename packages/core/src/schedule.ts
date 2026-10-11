@@ -321,20 +321,34 @@ export function hasOccurrences(rule: Pick<SeriesRule, 'startsOn' | 'endsOn'>): b
 
 export type NewSeriesRule = Omit<SeriesRule, 'id'>
 
-export type CutLesson = { studentId: string; startsAt: Date; durationMinutes: number; originalOn: string }
+export type CutLesson = {
+	studentId: string
+	startsAt: Date
+	durationMinutes: number
+	originalOn: string
+	status?: 'cancelled'
+}
 
 export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
 
-function movedLessons(tail: SeriesRule, exceptions: readonly SeriesException[]): CutLesson[] {
+function preservedLessons(
+	tail: SeriesRule,
+	exceptions: readonly SeriesException[],
+	marks: ReadonlyMap<string, MarkKind>
+): CutLesson[] {
+	const index = exceptionIndex(exceptions)
+	const dates = new Set([...exceptions.map((exception) => exception.originalOn), ...marks.keys()])
 	const lessons: CutLesson[] = []
-	for (const exception of exceptions) {
-		const occurrence = occurrenceAt(tail, exception.originalOn, exception)
-		if (occurrence?.status !== 'moved') continue
+	for (const date of dates) {
+		const occurrence = occurrenceAt(tail, date, index.get(seriesKey(tail.id, date)))
+		if (occurrence === null) continue
+		if (occurrence.status !== 'moved' && !isMarked(markedOutcome(marks.get(date) ?? null))) continue
 		lessons.push({
 			studentId: tail.studentId,
 			startsAt: occurrence.startsAt,
 			durationMinutes: occurrence.durationMinutes,
-			originalOn: exception.originalOn,
+			originalOn: date,
+			...(occurrence.status === 'cancelled' ? { status: 'cancelled' as const } : {}),
 		})
 	}
 	return lessons
@@ -351,7 +365,8 @@ export function cutSeries(
 	rule: SeriesRule,
 	exceptions: readonly SeriesException[],
 	change: SeriesChange,
-	now: Date
+	now: Date,
+	marks: ReadonlyMap<string, MarkKind> = new Map<string, MarkKind>()
 ): CutSeriesResult {
 	const { from, weekday, startTime } = change
 	const today = scheduleToday(now)
@@ -366,7 +381,7 @@ export function cutSeries(
 	const endsOn =
 		rule.endsOn === null ? null : lastSeriesDateOnOrBefore({ weekday, startTime, startsOn, endsOn: null }, rule.endsOn)
 	if (rule.endsOn !== null && endsOn === null) return { kind: 'ends_before_new_day', endsOn: rule.endsOn }
-	const lessons = movedLessons({ ...rule, startsOn: laterDate(rule.startsOn, from) }, exceptions)
+	const lessons = preservedLessons({ ...rule, startsOn: laterDate(rule.startsOn, from) }, exceptions, marks)
 	return {
 		kind: 'ok',
 		oldEndsOn: laterDate(addDays(from, -1), emptySeriesEnd(rule)),
@@ -391,7 +406,8 @@ export function endSeriesAt(
 	rule: SeriesRule,
 	exceptions: readonly SeriesException[],
 	lastOn: string,
-	now: Date
+	now: Date,
+	marks: ReadonlyMap<string, MarkKind> = new Map<string, MarkKind>()
 ): EndSeriesResult {
 	const today = scheduleToday(now)
 	if (rule.endsOn !== null && rule.endsOn < today) return { kind: 'changed' }
@@ -399,5 +415,5 @@ export function endSeriesAt(
 	if (rule.endsOn !== null && lastOn > rule.endsOn) return { kind: 'invalid' }
 	const endsOn = lastSeriesDateOnOrBefore(rule, lastOn) ?? emptySeriesEnd(rule)
 	const tail: SeriesRule = { ...rule, startsOn: laterDate(rule.startsOn, addDays(endsOn, 1)) }
-	return { kind: 'ok', endsOn, lessons: movedLessons(tail, exceptions) }
+	return { kind: 'ok', endsOn, lessons: preservedLessons(tail, exceptions, marks) }
 }

@@ -212,6 +212,22 @@ export async function seriesExceptionsFrom(
 	return rows.map(toSeriesException)
 }
 
+export async function seriesMarksFrom(
+	executor: DbExecutor,
+	seriesId: string,
+	from: string
+): Promise<Map<string, MarkKind>> {
+	const rows = await executor
+		.select({ originalOn: lessonMarks.originalOn, kind: lessonMarks.kind })
+		.from(lessonMarks)
+		.where(and(eq(lessonMarks.seriesId, seriesId), gte(lessonMarks.originalOn, from)))
+	const marks = new Map<string, MarkKind>()
+	for (const row of rows) {
+		if (row.originalOn !== null) marks.set(row.originalOn, toMarkKind(row.kind))
+	}
+	return marks
+}
+
 function markRef(row: MarkRecord): OccurrenceRef {
 	if (row.seriesId !== null && row.originalOn !== null) {
 		return { kind: 'series', seriesId: row.seriesId, originalOn: row.originalOn }
