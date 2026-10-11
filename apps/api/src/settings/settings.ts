@@ -20,10 +20,6 @@ export async function readTeacherSettings(executor: DbExecutor, accountId: strin
 	return row ?? { paysSoonLessons: PAYS_SOON_LESSONS_DEFAULT, defaultTimeZone: SCHEDULE_TIME_ZONE }
 }
 
-export async function readPaysSoonLessons(executor: DbExecutor, accountId: string): Promise<number> {
-	return (await readTeacherSettings(executor, accountId)).paysSoonLessons
-}
-
 export async function lockTeacherTimeContext(
 	tx: DbExecutor,
 	accountId: string,
