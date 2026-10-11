@@ -3,15 +3,22 @@ import { readSnapshot, type Database } from '@dv-lab/db'
 import type { Credentials } from './credentials.ts'
 import { loadMappings } from './event-mapping.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import type { CalendarObservation } from './observation.ts'
 import { completeWindow, nextPrefix, type ReadTransport } from './read-pages.ts'
-import { recordRead, type CalendarReadContext, type CalendarReadSelection } from './read-state.ts'
+import { currentRead, recordRead, type CalendarReadContext, type CalendarReadSelection } from './read-state.ts'
 import { publishWindow, publishNext } from './read-store.ts'
 import { readSeriesContexts } from './series-context.ts'
 
 export type { CalendarReadContext, CalendarReadSelection } from './read-state.ts'
 
-export function createCalendarReads(deps: { db: Database; gateway: GoogleGateway; credentials: Credentials }) {
+export function createCalendarReads(deps: {
+	db: Database
+	gateway: GoogleGateway
+	credentials: Credentials
+	observation: CalendarObservation
+}) {
 	return {
+		observePublicWeek: deps.observation.publicWeek,
 		async refreshCalendarRead(context: CalendarReadContext, selection: CalendarReadSelection): Promise<void> {
 			recordRead(context, 'provider_unavailable')
 			try {
@@ -33,6 +40,7 @@ export function createCalendarReads(deps: { db: Database; gateway: GoogleGateway
 						return
 					}
 					const result = await completeWindow(transport, selection.start, selection.end, mappings)
+					const providerReadAt = Date.now()
 					const series = await readSeriesContexts(transport, mappings, context.now).catch(() => [])
 					access.signal.throwIfAborted()
 					await publishWindow({
@@ -44,6 +52,7 @@ export function createCalendarReads(deps: { db: Database; gateway: GoogleGateway
 						...result,
 						series,
 					})
+					deps.observation.windowRead(context, access.connection, currentRead(context), providerReadAt)
 				})
 			} catch (error) {
 				const reason = error instanceof CalendarFault ? error.code : 'provider_unavailable'
