@@ -171,6 +171,16 @@ const markers = z.strictObject({
 	schemaVersion: z.literal(1),
 })
 
+export const googleProviderMarkers = z.object({
+	dvLocalId: z.uuid(),
+	dvKind: z.enum(['single', 'series', 'occurrence']),
+	dvGeneration: z.string().regex(/^(0|[1-9]\d*)$/),
+	dvCommandId: z.uuid(),
+	dvStage: z.string().regex(/^(0|[1-9]\d*)$/),
+	dvDigest: digest,
+	dvSchema: z.literal('1'),
+})
+
 export const googleOwnedPayload = z
 	.strictObject({
 		summary: z.string().nullable().optional(),
@@ -229,6 +239,15 @@ export const googleStageRequest = z
 	.readonly()
 
 export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
+	z.strictObject({
+		kind: z.literal('master'),
+		event: googleEventFact,
+		recurrence: z.array(z.string().min(1)),
+		checkedAt: instant,
+		ownedDigest: digest,
+		unownedWritableFingerprint: digest,
+		unownedWritable: googleUnownedWritable.nullable().optional(),
+	}),
 	z.strictObject({
 		kind: z.literal('cancellation'),
 		provenance: z.literal('conditional_patch'),

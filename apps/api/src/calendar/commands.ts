@@ -49,7 +49,7 @@ export function createCalendarCommands(deps: {
 							throw new CommandFault('command_pending')
 						if (input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore')
 							return await admitSingle(access, context, input)
-						if (input.operation !== 'create' || input.input.repeats !== 'once') throw new CommandFault('history_only')
+						if (input.operation !== 'create') throw new CommandFault('history_only')
 						const window = await commandWindow(access.db, context.accountId, input.input.expectedVersion)
 						if (
 							window.snapshotRevision !== access.connection.snapshotRevision ||

@@ -4,6 +4,7 @@ import { timeZoneIdentity, type CalendarIssue } from '@dv-lab/contracts'
 import {
 	googleStageAcknowledgement,
 	googleUnownedWritable,
+	googleProviderMarkers,
 	type GoogleStageAcknowledgement,
 	type GoogleStageRequest,
 } from '@dv-lab/db'
@@ -11,21 +12,14 @@ import {
 import { CalendarFault } from './gateway.ts'
 import { digest } from './journal.ts'
 import { parseMaster, type ProviderEvent } from './provider-events.ts'
+import { sameRecurrence } from './recurring.ts'
 
 export type WriteRequest = Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
-export type WriteAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' | 'cancellation' }>
+export type WriteAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' | 'cancellation' | 'master' }>
 export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: WriteAcknowledgement }
 export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number; recoveryIssue?: CalendarIssue | null }
 
-const marker = z.object({
-	dvLocalId: z.uuid(),
-	dvKind: z.literal('single'),
-	dvGeneration: z.string().regex(/^(0|[1-9]\d*)$/),
-	dvCommandId: z.uuid(),
-	dvStage: z.string().regex(/^(0|[1-9]\d*)$/),
-	dvDigest: z.string().regex(/^[0-9a-f]{64}$/),
-	dvSchema: z.literal('1'),
-})
+const marker = googleProviderMarkers
 const identity = z.object({ extendedProperties: z.object({ private: marker }) })
 const json = z.json()
 type JsonValue = z.infer<typeof json>
@@ -92,18 +86,21 @@ export function verifyGoogleResult(
 	if (!markers.success) throw new CalendarFault('external_change')
 	const actual = parseMaster(input, timeZone)
 	const expectedMarkers = insertEventBody(request).extendedProperties.private
-	if (canonical(markers.data.extendedProperties.private) !== canonical(expectedMarkers) || actual.recurrence.length)
+	if (canonical(markers.data.extendedProperties.private) !== canonical(expectedMarkers))
 		throw new CalendarFault('external_change')
+	verifyRecurrence(actual.recurrence, request)
 	verifyOwnedFields(actual.event, request)
 	const acknowledgement = googleStageAcknowledgement.parse({
-		kind: 'event',
+		kind: request.payload.markers.entityKind === 'series' ? 'master' : 'event',
+		...(request.payload.markers.entityKind === 'series' ? { recurrence: actual.recurrence } : {}),
 		event: actual.event,
 		checkedAt: new Date().toISOString(),
 		ownedDigest: request.digest,
 		unownedWritableFingerprint: unownedFingerprint(raw.data),
 		unownedWritable: captureUnownedWritable(raw.data),
 	})
-	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
+	if (acknowledgement.kind !== 'event' && acknowledgement.kind !== 'master')
+		throw new CalendarFault('invalid_provider_data')
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
 }
 
@@ -165,11 +162,18 @@ export function storedGoogleResult(
 	const parsed = googleStageAcknowledgement.parse(acknowledgement)
 	if (parsed.kind === 'cancellation') verifyStoredCancellation(parsed, request)
 	else {
-		if (parsed.kind !== 'event' || parsed.ownedDigest !== request.digest)
+		if ((parsed.kind !== 'event' && parsed.kind !== 'master') || parsed.ownedDigest !== request.digest)
 			throw new CalendarFault('invalid_provider_data')
 		verifyOwnedFields(parsed.event, request)
+		verifyRecurrence(parsed.kind === 'master' ? parsed.recurrence : [], request)
 	}
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement: parsed }
+}
+
+function verifyRecurrence(actual: readonly string[], request: WriteRequest) {
+	if (request.payload.markers.entityKind === 'series') {
+		if (!sameRecurrence(actual, request.payload.recurrence ?? [])) throw new CalendarFault('external_change')
+	} else if (actual.length) throw new CalendarFault('external_change')
 }
 
 function verifyStoredCancellation(ack: Extract<WriteAcknowledgement, { kind: 'cancellation' }>, request: WriteRequest) {
