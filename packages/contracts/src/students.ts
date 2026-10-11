@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { StudentAccount } from './auth.ts'
+import type { NextLessonRead } from './calendar.ts'
 import { isDisplayNameLength, normalizeDisplayName } from './identity.ts'
 
 export const SECTION_KINDS = [
@@ -151,6 +152,7 @@ export type StudentRow = {
 	defaultLessonMinutes: number
 	balanceMinutes: number | null
 	nextLessonAt: string | null
+	nextLesson: NextLessonRead
 }
 
 export type StudentsResponse = {
