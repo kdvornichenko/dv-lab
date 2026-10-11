@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { CalendarPlus } from 'lucide-react'
 
@@ -15,82 +15,47 @@ import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { lessonCount, weekEyebrow, weekPhrase, weekRange, weekSummary } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleWeekResponse, StudentsResponse } from '@dv-lab/contracts'
-import {
-	SCHEDULE_TIME_ZONE,
-	addDays,
-	countsAsLesson,
-	mondayOf,
-	scheduleDate,
-	scheduleToday,
-	zonedInstant,
-	zonedParts,
-} from '@dv-lab/core'
+import type { ScheduleBlock, StudentsResponse } from '@dv-lab/contracts'
+import { addDays, countsAsLesson, mondayOf, scheduleDate, scheduleToday, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import type { PairTarget } from './lesson-dialog'
-import { LessonDialogs, readLessonWeek, readOverlapBlocks, type LessonSelection } from './lesson-dialogs'
-import { NewLessonDialog, type OverlapBlock, type StudentsState } from './new-lesson-dialog'
+import { LessonDialogs, type LessonSelection } from './lesson-dialogs'
+import { NewLessonDialog, type StudentsState } from './new-lesson-dialog'
 import { ScheduleToolbar } from './schedule-toolbar'
+import { useScheduleWeek } from './use-schedule-week'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SecondZone, type SlotChoice } from './week-grid'
 
 type OpenLesson = LessonSelection
 
 type NewLessonSeed = { date: string; time: string; durationMinutes?: number; frame?: number }
 
-type WeekState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: ScheduleWeekResponse }
-
-async function readWeek(monday: string): Promise<WeekState> {
-	const result = await readLessonWeek(monday)
-	return result.ok ? { kind: 'ready', data: result.data } : { kind: 'error' }
+function ScheduleLoading() {
+	return (
+		<PageScroll>
+			<PageHeader title="Schedule" />
+			<div className={FRAME_HEIGHT}>
+				<SkeletonTable rows={10} className="h-full" />
+			</div>
+		</PageScroll>
+	)
 }
 
 export function ScheduleScreen() {
 	const now = useMinuteNow()
-	if (now === null) {
-		return (
-			<PageScroll>
-				<PageHeader title="Schedule" />
-				<div className={FRAME_HEIGHT}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			</PageScroll>
-		)
-	}
-	return <LoadedSchedule now={now} />
+	if (now === null) return <ScheduleLoading />
+	return <LoadedSchedule minuteNow={now} />
 }
 
-function LoadedSchedule({ now }: { now: Date }) {
-	const [monday, setMonday] = useState(() => mondayOf(scheduleToday(now)))
-	const [loaded, setLoaded] = useState<{ monday: string; state: WeekState } | null>(null)
+function LoadedSchedule({ minuteNow }: { minuteNow: Date }) {
+	const { state: week, now, reload, navigate, blocksOn } = useScheduleWeek(minuteNow)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [lesson, setLesson] = useState<OpenLesson | null>(null)
-	const requests = useRef(0)
 	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
 	const [newLesson, setNewLesson] = useState<NewLessonSeed | null>(null)
-	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
 	const newButton = useRef<HTMLButtonElement>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
-	const today = scheduleToday(now)
-	const currentYear = Number(today.slice(0, 4))
-	const currentMonday = mondayOf(today)
-	const [zone, setZone] = useSecondZone()
-	const secondZone: SecondZone | null = zone
-		? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', SCHEDULE_TIME_ZONE)) }
-		: null
-
-	useEffect(() => {
-		let current = true
-		const id = ++requests.current
-		void readWeek(monday).then((state) => {
-			if (!current || id !== requests.current) return
-			if (state.kind === 'ready') weeks.current.set(monday, state.data)
-			setLoaded({ monday, state })
-		})
-		return () => {
-			current = false
-		}
-	}, [monday])
+	const [zone, setZone] = useSecondZone(week.kind === 'error' ? null : (week.query?.mainTimeZone ?? null))
 
 	useEffect(() => {
 		let current = true
@@ -102,33 +67,33 @@ function LoadedSchedule({ now }: { now: Date }) {
 		}
 	}, [])
 
-	const reload = useCallback(async () => {
-		weeks.current.clear()
-		const id = ++requests.current
-		const state = await readWeek(monday)
-		if (id !== requests.current) return
-		if (state.kind === 'ready') weeks.current.set(monday, state.data)
-		setLoaded({ monday, state })
-	}, [monday])
-
-	const week: WeekState = loaded !== null && loaded.monday === monday ? loaded.state : { kind: 'loading' }
 	const staleActions = week.kind === 'ready' && hasStaleActions(week.data.blocks, now)
 
 	useEffect(() => {
 		if (staleActions) void reload()
 	}, [now, staleActions, reload])
 
-	function refresh() {
-		setLoaded(null)
-		reload()
+	if (week.kind === 'error') {
+		return (
+			<PageScroll>
+				<PageHeader title="Schedule" />
+				<ReadError screen="schedule" onRefresh={() => void reload()} />
+			</PageScroll>
+		)
 	}
+	if (week.query === null) return <ScheduleLoading />
 
-	function blocksOn(date: string): Promise<OverlapBlock[]> {
-		return readOverlapBlocks(date, weeks.current)
-	}
+	const { mainTimeZone } = week.query
+	const monday = week.query.monday
+	const today = scheduleToday(now, mainTimeZone)
+	const currentYear = Number(today.slice(0, 4))
+	const currentMonday = mondayOf(today)
+	const secondZone: SecondZone | null = zone
+		? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) }
+		: null
 
 	function openNew() {
-		const hour = Math.floor(zonedParts(now, SCHEDULE_TIME_ZONE).minutes / 60) + 1
+		const hour = Math.floor(zonedParts(now, mainTimeZone).minutes / 60) + 1
 		setNewLesson(
 			hour >= 24
 				? { date: addDays(today, 1), time: '00:00' }
@@ -164,23 +129,14 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 
 	function openPair(target: PairTarget) {
-		const targetMonday = mondayOf(scheduleDate(target.at))
-		setMonday(targetMonday)
+		const targetMonday = mondayOf(scheduleDate(target.at, mainTimeZone))
+		if (targetMonday !== monday) navigate(targetMonday, false)
 		setLesson({ key: target.key, slot: target.slot })
 	}
 
-	function go(change: (value: string) => string) {
+	function go(targetMonday: string, current: boolean) {
 		setLesson(null)
-		setMonday(change)
-	}
-
-	if (week.kind === 'error') {
-		return (
-			<PageScroll>
-				<PageHeader title="Schedule" />
-				<ReadError screen="schedule" onRefresh={refresh} />
-			</PageScroll>
-		)
+		navigate(targetMonday, current)
 	}
 
 	const ready = week.kind === 'ready'
@@ -212,14 +168,16 @@ function LoadedSchedule({ now }: { now: Date }) {
 			<ScheduleToolbar
 				monday={monday}
 				currentMonday={currentMonday}
-				onToday={() => go(() => currentMonday)}
-				onPrevious={() => go((value) => addDays(value, -7))}
-				onNext={() => go((value) => addDays(value, 7))}
+				mainTimeZone={mainTimeZone}
+				onToday={() => go(currentMonday, true)}
+				onPrevious={() => go(addDays(monday, -7), false)}
+				onNext={() => go(addDays(monday, 7), false)}
 				zone={zone}
 				onZoneChange={setZone}
 			/>
 			{ready ? (
 				<WeekGrid
+					mainTimeZone={mainTimeZone}
 					monday={monday}
 					today={today}
 					now={now}
@@ -245,20 +203,26 @@ function LoadedSchedule({ now }: { now: Date }) {
 					{weekPhrase(monday)}, {lessonCount(planned)}
 				</p>
 			) : null}
-			<LessonDialogs
-				selected={openBlock}
-				series={ready ? week.data.series : []}
-				now={now}
-				secondZone={zone}
-				currentYear={currentYear}
-				today={today}
-				blocksOn={blocksOn}
-				reload={reload}
-				onClose={closeLesson}
-				onOpenPair={openPair}
-			/>
-			{newLesson !== null ? (
+			{ready ? (
+				<LessonDialogs
+					mainTimeZone={mainTimeZone}
+					asOf={week.data.asOf}
+					selected={openBlock}
+					series={week.data.series}
+					now={now}
+					secondZone={zone}
+					currentYear={currentYear}
+					today={today}
+					blocksOn={blocksOn}
+					reload={reload}
+					onClose={closeLesson}
+					onOpenPair={openPair}
+				/>
+			) : null}
+			{ready && newLesson !== null ? (
 				<NewLessonDialog
+					mainTimeZone={mainTimeZone}
+					asOf={week.data.asOf}
 					students={students}
 					seed={newLesson}
 					today={today}
