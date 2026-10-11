@@ -110,6 +110,20 @@ export function createCredentials(deps: {
 	}
 
 	return {
+		async refreshRejectedAccess(context: ConnectionLeaseContext & { connection: ConnectionRow }) {
+			const current = await findConnection(context.db, context.connection.accountId)
+			if (
+				!current ||
+				current.generation !== context.connection.generation ||
+				current.credentialGeneration !== context.connection.credentialGeneration ||
+				current.state !== 'connected'
+			)
+				throw new CalendarFault('reconnect_required')
+			access.delete(current.accountId)
+			const refreshed = await token(context, current)
+			context.signal.throwIfAborted()
+			return { ...context, accessToken: refreshed.token, connection: refreshed.row }
+		},
 		evict(accountId: string) {
 			access.delete(accountId)
 		},
@@ -120,17 +134,20 @@ export function createCredentials(deps: {
 				connection: ConnectionRow
 				db: Database
 				signal: AbortSignal
-			}) => Promise<T>
+			}) => Promise<T>,
+			signal?: AbortSignal
 		): Promise<T> {
 			return deps.lease.run(accountId, async (context) => {
+				const bounded = signal ? { ...context, signal: AbortSignal.any([context.signal, signal]) } : context
+				bounded.signal.throwIfAborted()
 				const row = await findConnection(context.db, accountId)
 				if (!row || row.state === 'not_connected') throw new CalendarFault('connection_required')
 				if (row.state !== 'connected' || row.credentialMode !== 'active')
 					throw new CalendarFault(row.state === 'permission_required' ? 'permission_required' : 'reconnect_required')
 				try {
-					const value = await token(context, row)
-					context.signal.throwIfAborted()
-					return await operation({ accessToken: value.token, connection: value.row, ...context })
+					const value = await token(bounded, row)
+					bounded.signal.throwIfAborted()
+					return await operation({ accessToken: value.token, connection: value.row, ...bounded })
 				} catch (error) {
 					return recordFailure(context.db, row, error)
 				}

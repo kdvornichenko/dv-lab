@@ -2,10 +2,11 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import { googleCommands, googleConnections, lessons, type DbExecutor } from '@dv-lab/db'
 
-import type { VerifiedGoogleResult } from '../calendar/command-result.ts'
+import type { VerifiedGoogleResult, WriteAcknowledgement } from '../calendar/command-result.ts'
 import { confirmEventMapping } from '../calendar/event-mapping.ts'
 import { CommandFault } from '../calendar/journal.ts'
 import { advanceCommandRevision } from '../calendar/read-store.ts'
+import { applyLessonChange } from './changes.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
 
 export async function applyConfirmedCommand(
@@ -40,25 +41,32 @@ export async function applyConfirmedCommand(
 		throw new CommandFault('precondition_failed')
 	const reservation = command.plan.reservations[0]
 	const input = command.plan.input
-	const event = confirmation.acknowledgement.event
-	if (
-		!reservation ||
-		reservation.entityKind !== 'single' ||
-		input.operation !== 'create' ||
-		!event.start ||
-		!('dateTime' in event.start) ||
-		event.eventId !== reservation.eventId
-	)
+	if (confirmation.acknowledgement.kind === 'cancellation' && input.operation !== 'cancel')
 		throw new CommandFault('precondition_failed')
-	await tx.insert(lessons).values({
-		id: reservation.localEntityId,
-		studentId: input.studentId,
-		startsAt: new Date(event.start.dateTime),
-		timeZone: command.plan.capturedTimeZone,
-		durationMinutes: input.durationMinutes,
-		status: 'scheduled',
-	})
-	await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
+	if (input.operation === 'create') {
+		const event = confirmedEvent(confirmation.acknowledgement)
+		if (
+			!reservation ||
+			reservation.entityKind !== 'single' ||
+			!event.start ||
+			!('dateTime' in event.start) ||
+			event.eventId !== reservation.eventId
+		)
+			throw new CommandFault('precondition_failed')
+		await tx.insert(lessons).values({
+			id: reservation.localEntityId,
+			studentId: input.studentId,
+			startsAt: new Date(event.start.dateTime),
+			timeZone: command.plan.capturedTimeZone,
+			durationMinutes: input.durationMinutes,
+			status: 'scheduled',
+		})
+		await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
+	} else {
+		await applySingle(tx, command)
+		if (command.request.method === 'insert')
+			await confirmEventMapping(tx, command.accountId, command.id, confirmedEvent(confirmation.acknowledgement).eventId)
+	}
 	const confirmedRevision = await advanceCommandRevision(
 		tx,
 		command.accountId,
@@ -77,4 +85,26 @@ export async function applyConfirmedCommand(
 			updatedAt: sql`now()`,
 		})
 		.where(eq(googleCommands.id, command.id))
+}
+
+function confirmedEvent(ack: WriteAcknowledgement) {
+	if (ack.kind !== 'event') throw new CommandFault('precondition_failed')
+	return ack.event
+}
+
+async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {
+	const input = command.plan.input
+	if (input.operation !== 'move' && input.operation !== 'cancel' && input.operation !== 'restore')
+		throw new CommandFault('precondition_failed')
+	if (input.ref.kind !== 'single') throw new CommandFault('precondition_failed')
+	const lineage = command.plan.lineage[0]
+	if (!lineage || lineage.to.kind !== 'single' || lineage.to.lessonId !== input.ref.lessonId)
+		throw new CommandFault('precondition_failed')
+	await applyLessonChange(
+		tx,
+		input.ref.lessonId,
+		input.operation === 'move'
+			? { startsAt: new Date(lineage.startsAt) }
+			: { status: input.operation === 'cancel' ? 'cancelled' : 'scheduled' }
+	)
 }

@@ -1,8 +1,17 @@
 import type { Page } from '@playwright/test'
 
 import { api } from './support/api.ts'
+import { admissionBudget } from './support/calendar-admission.ts'
 import { delayedCommand, lostProviderResponse, unknownAbsence } from './support/calendar-command-recovery.ts'
 import { calendarCommandFixture, commandTracer, disconnectedCommand } from './support/calendar-commands.ts'
+import {
+	disappearedTombstone,
+	lostSingleResponse,
+	presentTombstone,
+	retainedFence,
+	singleChanges,
+	singleRace,
+} from './support/calendar-single.ts'
 import { cleanupFixtures } from './support/data.ts'
 import { addDays, mondayOf, startedSlotToday, VN, vnToday } from './support/dates.ts'
 import { record, text } from './support/input.ts'
@@ -40,9 +49,50 @@ test('[calendar] command tracer rejects disconnected create and blocks unsupport
 	await disconnectedCommand(page.request)
 })
 
+test('[calendar] single changes wait for conditional ACK and retain identity through two moves and cancel/restore', async ({
+	page,
+}) => {
+	await singleChanges(page.request)
+})
+
+test('[calendar] command races reject a second Save on one base version and retain immutable retry', async ({
+	page,
+}) => {
+	await singleRace(page.request)
+})
+
+test('[calendar] tombstone restores a present cancelled single with its original representation', async ({ page }) => {
+	await presentTombstone(page.request)
+})
+
+test('[calendar] tombstone replaces a naturally disappeared cancelled single only after authentic complete absence proof', async ({
+	page,
+}) => {
+	await disappearedTombstone(page.request)
+	await disappearedTombstone(page.request, 'unsupported')
+})
+
 test('[calendar] command tracer confirms one real event and reuses the immutable request', async ({ page }) => {
 	await commandTracer(page.request, (await calendarCommandFixture(page.request)).studentId)
 })
+
+test('[calendar] command races reconcile a lost conditional PATCH response without another write', async ({ page }) => {
+	await lostSingleResponse(page.request)
+})
+
+for (const scenario of [
+	'stale_etag',
+	'permission_403',
+	'quota_429',
+	'expired_unsent',
+	'lost_admission',
+	'late_disconnect',
+	'changed_unowned',
+] as const) {
+	test(`[calendar] command races fence authentic ${scenario} without a deferred domain edit`, async ({ page }) => {
+		await retainedFence(page.request, scenario)
+	})
+}
 
 test('[calendar] command recovery keeps the projection unchanged before a delayed ACK', async ({ page }) => {
 	await delayedCommand(page.request)
@@ -55,6 +105,7 @@ test('[calendar] command recovery reconciles a lost provider response without an
 test('[calendar] command recovery keeps an absent unknown insert unresolved and blocks a new Save', async ({
 	page,
 }) => {
+	await admissionBudget(page.request)
 	await unknownAbsence(page.request)
 })
 

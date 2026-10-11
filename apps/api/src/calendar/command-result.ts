@@ -1,23 +1,28 @@
 import { z } from 'zod'
 
-import { timeZoneIdentity } from '@dv-lab/contracts'
-import { googleStageAcknowledgement, type GoogleStageAcknowledgement, type GoogleStageRequest } from '@dv-lab/db'
+import { timeZoneIdentity, type CalendarIssue } from '@dv-lab/contracts'
+import {
+	googleStageAcknowledgement,
+	googleUnownedWritable,
+	type GoogleStageAcknowledgement,
+	type GoogleStageRequest,
+} from '@dv-lab/db'
 
 import { CalendarFault } from './gateway.ts'
 import { digest } from './journal.ts'
 import { parseMaster, type ProviderEvent } from './provider-events.ts'
 
-type InsertRequest = Extract<GoogleStageRequest, { method: 'insert' }>
-type EventAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' }>
-export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: EventAcknowledgement }
-export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number }
+export type WriteRequest = Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
+export type WriteAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' | 'cancellation' }>
+export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: WriteAcknowledgement }
+export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number; recoveryIssue?: CalendarIssue | null }
 
 const marker = z.object({
 	dvLocalId: z.uuid(),
 	dvKind: z.literal('single'),
 	dvGeneration: z.string().regex(/^(0|[1-9]\d*)$/),
 	dvCommandId: z.uuid(),
-	dvStage: z.literal('0'),
+	dvStage: z.string().regex(/^(0|[1-9]\d*)$/),
 	dvDigest: z.string().regex(/^[0-9a-f]{64}$/),
 	dvSchema: z.literal('1'),
 })
@@ -49,13 +54,16 @@ function canonical(value: JsonValue): string {
 		.join(',')}}`
 }
 
-export function insertEventBody(request: InsertRequest) {
-	const { markers, ...payload } = request.payload
+export function insertEventBody(request: WriteRequest) {
+	const { markers, preserved, ...payload } = request.payload
 	return {
-		id: request.eventId,
+		...(request.method === 'insert' ? preserved : {}),
+		...(request.method === 'insert' ? { id: request.eventId } : {}),
 		...payload,
 		extendedProperties: {
+			...(request.method === 'insert' ? preserved?.extendedProperties : {}),
 			private: {
+				...(request.method === 'insert' ? preserved?.extendedProperties?.private : {}),
 				dvLocalId: markers.localEntityId,
 				dvKind: markers.entityKind,
 				dvGeneration: String(markers.representationGeneration),
@@ -70,38 +78,67 @@ export function insertEventBody(request: InsertRequest) {
 
 export function verifyGoogleResult(
 	input: unknown,
-	request: InsertRequest,
+	request: WriteRequest,
 	timeZone: string,
 	generation: number,
-	httpStatus: number
+	httpStatus: number,
+	conditionalPatch = false
 ): VerifiedGoogleResponse {
+	if (conditionalPatch && request.method === 'patch' && request.payload.status === 'cancelled')
+		return verifyCancellation(input, request, generation, httpStatus)
 	const markers = identity.safeParse(input)
 	const raw = z.record(z.string(), json).safeParse(input)
-	if (!markers.success || !raw.success) throw new CalendarFault('invalid_provider_data')
+	if (!raw.success) throw new CalendarFault('invalid_provider_data')
+	if (!markers.success) throw new CalendarFault('external_change')
 	const actual = parseMaster(input, timeZone)
 	const expectedMarkers = insertEventBody(request).extendedProperties.private
 	if (canonical(markers.data.extendedProperties.private) !== canonical(expectedMarkers) || actual.recurrence.length)
 		throw new CalendarFault('external_change')
 	verifyOwnedFields(actual.event, request)
-	const unowned = Object.fromEntries(writable.filter((key) => key in raw.data).map((key) => [key, raw.data[key]]))
 	const acknowledgement = googleStageAcknowledgement.parse({
 		kind: 'event',
 		event: actual.event,
 		checkedAt: new Date().toISOString(),
 		ownedDigest: request.digest,
-		unownedWritableFingerprint: digest(canonical(unowned)),
+		unownedWritableFingerprint: unownedFingerprint(raw.data),
+		unownedWritable: captureUnownedWritable(raw.data),
 	})
 	if (acknowledgement.kind !== 'event') throw new CalendarFault('invalid_provider_data')
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
 }
 
-function verifyOwnedFields(event: ProviderEvent, request: InsertRequest) {
+function verifyCancellation(
+	input: unknown,
+	request: Extract<WriteRequest, { method: 'patch' }>,
+	generation: number,
+	httpStatus: number
+): VerifiedGoogleResponse {
+	if (httpStatus < 200 || httpStatus >= 300 || !request.ifMatch || !request.cancellationBaseline)
+		throw new CalendarFault('invalid_provider_data')
+	const acknowledgement = googleStageAcknowledgement.parse({
+		kind: 'cancellation',
+		provenance: 'conditional_patch',
+		response: input,
+		httpStatus,
+		ifMatch: request.ifMatch,
+		checkedAt: new Date().toISOString(),
+		ownedDigest: request.digest,
+		unownedWritableFingerprint: request.cancellationBaseline.unownedWritableFingerprint,
+		unownedWritable: request.cancellationBaseline.unownedWritable ?? null,
+		baselineEvent: request.cancellationBaseline.baselineEvent,
+	})
+	if (acknowledgement.kind !== 'cancellation') throw new CalendarFault('invalid_provider_data')
+	verifyStoredCancellation(acknowledgement, request)
+	return { generation, commandId: request.payload.markers.commandId, acknowledgement, httpStatus }
+}
+
+function verifyOwnedFields(event: ProviderEvent, request: WriteRequest) {
 	const expected = request.payload
 	if (
 		event.eventId !== request.eventId ||
-		event.status !== 'confirmed' ||
+		event.status !== expected.status ||
 		event.eventType !== 'default' ||
-		event.summary !== expected.summary ||
+		(expected.summary !== undefined && event.summary !== expected.summary) ||
 		event.recurringEventId ||
 		event.originalStartTime
 	)
@@ -109,6 +146,7 @@ function verifyOwnedFields(event: ProviderEvent, request: InsertRequest) {
 	for (const field of ['start', 'end'] as const) {
 		const actualTime = event[field]
 		const expectedTime = expected[field]
+		if (!expectedTime) continue
 		if (!actualTime || !('dateTime' in actualTime) || !('dateTime' in expectedTime))
 			throw new CalendarFault('invalid_provider_data')
 		if (
@@ -121,11 +159,75 @@ function verifyOwnedFields(event: ProviderEvent, request: InsertRequest) {
 
 export function storedGoogleResult(
 	acknowledgement: GoogleStageAcknowledgement,
-	request: InsertRequest,
+	request: WriteRequest,
 	generation: number
 ): VerifiedGoogleResult {
 	const parsed = googleStageAcknowledgement.parse(acknowledgement)
-	if (parsed.kind !== 'event' || parsed.ownedDigest !== request.digest) throw new CalendarFault('invalid_provider_data')
-	verifyOwnedFields(parsed.event, request)
+	if (parsed.kind === 'cancellation') verifyStoredCancellation(parsed, request)
+	else {
+		if (parsed.kind !== 'event' || parsed.ownedDigest !== request.digest)
+			throw new CalendarFault('invalid_provider_data')
+		verifyOwnedFields(parsed.event, request)
+	}
 	return { generation, commandId: request.payload.markers.commandId, acknowledgement: parsed }
+}
+
+function verifyStoredCancellation(ack: Extract<WriteAcknowledgement, { kind: 'cancellation' }>, request: WriteRequest) {
+	if (
+		request.method !== 'patch' ||
+		request.payload.status !== 'cancelled' ||
+		ack.response.id !== request.eventId ||
+		ack.ifMatch !== request.ifMatch ||
+		ack.ownedDigest !== request.digest
+	)
+		throw new CalendarFault('external_change')
+}
+
+export function cancellationAcknowledgement(ack: GoogleStageAcknowledgement | null | undefined, eventId: string) {
+	if (ack?.kind === 'cancellation' && ack.response.id === eventId) return ack
+	if (ack?.kind === 'event' && ack.event.eventId === eventId && ack.event.status === 'cancelled') return ack
+	return null
+}
+
+function unownedValues(input: unknown) {
+	const raw = z.record(z.string(), json).parse(input)
+	const unowned = Object.fromEntries(writable.filter((key) => key in raw).map((key) => [key, raw[key]]))
+	const properties = z
+		.object({
+			extendedProperties: z
+				.object({
+					private: z.record(z.string(), z.string()).optional(),
+					shared: z.record(z.string(), z.string()).optional(),
+				})
+				.optional(),
+		})
+		.parse(input).extendedProperties
+	if (properties) {
+		const privateFields = Object.fromEntries(
+			Object.entries(properties.private ?? {}).filter(([key]) => !Object.hasOwn(marker.shape, key))
+		)
+		unowned.extendedProperties = { private: privateFields, shared: properties.shared ?? {} }
+	}
+	return unowned
+}
+
+export function unownedFingerprint(input: unknown): string {
+	return digest(canonical(unownedValues(input)))
+}
+
+function captureUnownedWritable(input: unknown) {
+	const parsed = googleUnownedWritable.safeParse(unownedValues(input))
+	return parsed.success ? parsed.data : null
+}
+
+export function observeGoogleEvent(input: unknown, timeZone: string) {
+	const properties = z
+		.object({ extendedProperties: z.object({ private: z.record(z.string(), z.string()).optional() }).optional() })
+		.parse(input)
+	return {
+		...parseMaster(input, timeZone),
+		unownedWritableFingerprint: unownedFingerprint(input),
+		unownedWritable: captureUnownedWritable(input),
+		privateProperties: properties.extendedProperties?.private ?? {},
+	}
 }

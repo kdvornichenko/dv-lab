@@ -1,11 +1,11 @@
 import { Auth, google } from 'googleapis'
 import { z } from 'zod'
 
-import type { CalendarIssue } from '@dv-lab/contracts'
+import { calendarIssue, type CalendarIssue } from '@dv-lab/contracts'
 import type { GoogleStageRequest } from '@dv-lab/db'
 
 import type { CalendarConfig } from '../config.ts'
-import { insertEventBody, verifyGoogleResult } from './command-result.ts'
+import { insertEventBody, observeGoogleEvent, verifyGoogleResult, type WriteRequest } from './command-result.ts'
 import { parseEventPage, parseMaster, type EventQuery } from './provider-events.ts'
 
 export const CALENDAR_SCOPES = [
@@ -28,9 +28,11 @@ export class CalendarFault extends Error {
 export class GoogleWriteFault extends CalendarFault {
 	readonly httpStatus: number | null
 	readonly outcome: 'rejected' | 'conflict' | 'unknown' | 'missing'
-	constructor(status: number | null) {
+	readonly retryAfterMs: number | null
+	constructor(status: number | null, retryAfterMs: number | null = null) {
 		super(status === 401 ? 'reconnect_required' : status === 403 ? 'permission_required' : 'provider_unavailable')
 		this.httpStatus = status
+		this.retryAfterMs = retryAfterMs
 		this.outcome =
 			status === 409
 				? 'conflict'
@@ -85,7 +87,13 @@ const calendarPage = z.object({
 })
 const identityPage = z.object({
 	items: z
-		.array(z.object({ id: z.string().min(1), status: z.enum(['confirmed', 'tentative', 'cancelled']).optional() }))
+		.array(
+			z.object({
+				id: z.string().min(1),
+				status: z.enum(['confirmed', 'tentative', 'cancelled']).optional(),
+				extendedProperties: z.object({ private: z.record(z.string(), z.string()).optional() }).optional(),
+			})
+		)
 		.optional(),
 	nextPageToken: z.string().min(1).optional(),
 })
@@ -138,6 +146,59 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 		if (!target) throw new CalendarFault('wrong_primary')
 		return target
 	}
+	async function identitySearch(accessToken: string, calendarId: string, localEntityId: string, signal: AbortSignal) {
+		const oauth = client(signal)
+		oauth.setCredentials({ access_token: accessToken })
+		const pages = new Set<string>()
+		const ids = new Set<string>()
+		const events: NonNullable<z.infer<typeof identityPage>['items']> = []
+		let pageToken: string | undefined
+		do {
+			const response = await writeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.list(
+					{
+						calendarId,
+						showDeleted: true,
+						singleEvents: false,
+						maxResults: 2500,
+						pageToken,
+						privateExtendedProperty: [`dvLocalId=${localEntityId}`],
+						fields: 'nextPageToken,items(id,status,extendedProperties/private)',
+					},
+					{ retry: false }
+				)
+			)
+			const parsed = identityPage.safeParse(response.data)
+			if (!parsed.success) throw new CalendarFault('invalid_provider_data')
+			for (const event of parsed.data.items ?? []) {
+				if (ids.has(event.id) || event.extendedProperties?.private?.dvLocalId !== localEntityId)
+					throw new CalendarFault('invalid_provider_data')
+				ids.add(event.id)
+				events.push(event)
+			}
+			pageToken = parsed.data.nextPageToken
+			if (pageToken && (pages.has(pageToken) || pages.size >= 1000)) throw new CalendarFault('invalid_provider_data')
+			if (pageToken) pages.add(pageToken)
+		} while (pageToken)
+		return events
+	}
+	async function verifyReplacementIdentity(
+		accessToken: string,
+		calendarId: string,
+		request: WriteRequest,
+		signal: AbortSignal
+	): Promise<CalendarIssue | null> {
+		if (request.method !== 'insert' || request.payload.markers.representationGeneration === 0) return null
+		try {
+			const events = await identitySearch(accessToken, calendarId, request.payload.markers.localEntityId, signal)
+			const active = events.filter((event) => event.status !== 'cancelled')
+			if (active.length !== 1 || active[0].id !== request.eventId) throw new CalendarFault('external_change')
+			return null
+		} catch (error) {
+			const issue = calendarIssue.safeParse(error instanceof CalendarFault ? error.code : 'provider_unavailable')
+			return issue.success ? issue.data : 'provider_unavailable'
+		}
+	}
 	return {
 		authorizationUrl(state: string, challenge: string): string {
 			return client(new AbortController().signal).generateAuthUrl({
@@ -176,12 +237,13 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 					.calendar({ version: 'v3', auth: oauth })
 					.events.insert({ calendarId, sendUpdates: 'none', requestBody: insertEventBody(request) }, { retry: false })
 			)
-			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+			const result = verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+			return { ...result, recoveryIssue: await verifyReplacementIdentity(accessToken, calendarId, request, signal) }
 		},
 		async confirmedEvent(
 			accessToken: string,
 			calendarId: string,
-			request: Extract<GoogleStageRequest, { method: 'insert' }>,
+			request: WriteRequest,
 			timeZone: string,
 			generation: number,
 			signal: AbortSignal
@@ -193,36 +255,61 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 					.calendar({ version: 'v3', auth: oauth })
 					.events.get({ calendarId, eventId: request.eventId }, { retry: false })
 			)
-			return verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+			const result = verifyGoogleResult(response.data, request, timeZone, generation, response.status)
+			return { ...result, recoveryIssue: await verifyReplacementIdentity(accessToken, calendarId, request, signal) }
 		},
-		async identityAbsent(accessToken: string, calendarId: string, localEntityId: string, signal: AbortSignal) {
+		async observeEvent(
+			accessToken: string,
+			calendarId: string,
+			eventId: string,
+			timeZone: string,
+			signal: AbortSignal
+		) {
 			const oauth = client(signal)
 			oauth.setCredentials({ access_token: accessToken })
-			const pages = new Set<string>()
-			let pageToken: string | undefined
-			do {
-				const response = await writeCall(() =>
-					google.calendar({ version: 'v3', auth: oauth }).events.list(
-						{
-							calendarId,
-							showDeleted: true,
-							singleEvents: false,
-							maxResults: 2500,
-							pageToken,
-							privateExtendedProperty: [`dvLocalId=${localEntityId}`],
-							fields: 'nextPageToken,items(id,status)',
+			const response = await writeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.get({ calendarId, eventId }, { retry: false })
+			)
+			return observeGoogleEvent(response.data, timeZone)
+		},
+		async patch(
+			accessToken: string,
+			calendarId: string,
+			request: Extract<GoogleStageRequest, { method: 'patch' }>,
+			timeZone: string,
+			generation: number,
+			privateProperties: Record<string, string>,
+			signal: AbortSignal
+		) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const body = insertEventBody(request)
+			const response = await writeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.patch(
+					{
+						calendarId,
+						eventId: request.eventId,
+						sendUpdates: 'none',
+						fields: request.payload.status === 'cancelled' ? 'id' : undefined,
+						requestBody: {
+							...body,
+							extendedProperties: { private: { ...privateProperties, ...body.extendedProperties.private } },
 						},
-						{ retry: false }
-					)
+					},
+					{ retry: false, headers: { 'If-Match': request.ifMatch } }
 				)
-				const parsed = identityPage.safeParse(response.data)
-				if (!parsed.success) throw new CalendarFault('invalid_provider_data')
-				if (parsed.data.items?.some((event) => event.status !== 'cancelled')) return false
-				pageToken = parsed.data.nextPageToken
-				if (pageToken && (pages.has(pageToken) || pages.size >= 1000)) throw new CalendarFault('invalid_provider_data')
-				if (pageToken) pages.add(pageToken)
-			} while (pageToken)
-			return true
+			)
+			return verifyGoogleResult(response.data, request, timeZone, generation, response.status, true)
+		},
+		async identityAbsent(
+			accessToken: string,
+			calendarId: string,
+			localEntityId: string,
+			signal: AbortSignal,
+			missingEventId?: string
+		) {
+			const events = await identitySearch(accessToken, calendarId, localEntityId, signal)
+			return events.every((event) => event.status === 'cancelled' && event.id !== missingEventId)
 		},
 		async events(accessToken: string, query: EventQuery, signal: AbortSignal) {
 			const oauth = client(signal)
@@ -306,6 +393,24 @@ async function writeCall<T>(operation: () => Promise<T>): Promise<T> {
 		return await operation()
 	} catch (error) {
 		const parsed = providerFailure.safeParse(error)
-		throw new GoogleWriteFault(parsed.success ? (parsed.data.response?.status ?? null) : null)
+		throw new GoogleWriteFault(parsed.success ? (parsed.data.response?.status ?? null) : null, retryAfter(error))
 	}
+}
+
+function retryAfter(input: unknown): number | null {
+	const headers = z
+		.object({
+			response: z.object({
+				headers: z.union([z.instanceof(Headers), z.record(z.string(), z.union([z.string(), z.array(z.string())]))]),
+			}),
+		})
+		.safeParse(input)
+	if (!headers.success) return null
+	const value =
+		headers.data.response.headers instanceof Headers
+			? headers.data.response.headers.get('retry-after')
+			: headers.data.response.headers['retry-after']
+	if (typeof value !== 'string') return null
+	const delay = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now()
+	return Number.isSafeInteger(delay) && delay >= 0 ? delay : null
 }

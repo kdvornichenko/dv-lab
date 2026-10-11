@@ -115,10 +115,35 @@ const lineage = z.strictObject({
 	durationMinutes: z.number().int().min(15).max(240),
 })
 
+export const googleUnownedWritable = z.strictObject({
+	description: z.string().optional(),
+	location: z.string().optional(),
+	colorId: z.string().optional(),
+	guestsCanInviteOthers: z.boolean().optional(),
+	guestsCanModify: z.boolean().optional(),
+	guestsCanSeeOtherGuests: z.boolean().optional(),
+	transparency: z.enum(['opaque', 'transparent']).optional(),
+	visibility: z.enum(['default', 'public', 'private', 'confidential']).optional(),
+	reminders: z
+		.strictObject({
+			useDefault: z.boolean(),
+			overrides: z
+				.array(z.strictObject({ method: z.enum(['email', 'popup']), minutes: z.number().int().min(0).max(40320) }))
+				.max(5)
+				.optional(),
+		})
+		.optional(),
+	source: z.strictObject({ url: z.url(), title: z.string().optional() }).optional(),
+	extendedProperties: z
+		.strictObject({ private: z.record(z.string(), z.string()), shared: z.record(z.string(), z.string()) })
+		.optional(),
+})
+
 const precondition = z.strictObject({
 	eventId,
 	etag: z.string().min(1),
 	unownedWritableFingerprint: digest,
+	unownedWritable: googleUnownedWritable.nullable().optional(),
 })
 
 export const googleCommandPlan = z
@@ -154,6 +179,7 @@ export const googleOwnedPayload = z
 		recurrence: z.array(z.string().min(1).max(4096)).optional(),
 		status: z.enum(['confirmed', 'cancelled']).optional(),
 		markers,
+		preserved: googleUnownedWritable.nullable().optional(),
 	})
 	.refine((value) => (value.start === undefined) === (value.end === undefined))
 
@@ -163,21 +189,6 @@ const insertPayload = googleOwnedPayload.safeExtend({
 	end: googleEventTime,
 	status: z.literal('confirmed'),
 })
-
-export const googleStageRequest = z
-	.discriminatedUnion('method', [
-		z.strictObject({ method: z.literal('insert'), eventId, payload: insertPayload, digest }),
-		z.strictObject({
-			method: z.literal('patch'),
-			eventId,
-			ifMatch: z.string().min(1),
-			payload: googleOwnedPayload,
-			digest,
-		}),
-		z.strictObject({ method: z.literal('get'), eventId }),
-		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
-	])
-	.readonly()
 
 export const googleEventFact = z
 	.strictObject({
@@ -195,13 +206,48 @@ export const googleEventFact = z
 	.refine((value) => (value.start === null) === (value.end === null))
 	.refine((value) => value.status === 'cancelled' || value.start !== null)
 
+export const googleStageRequest = z
+	.discriminatedUnion('method', [
+		z.strictObject({ method: z.literal('insert'), eventId, payload: insertPayload, digest }),
+		z.strictObject({
+			method: z.literal('patch'),
+			eventId,
+			ifMatch: z.string().min(1),
+			payload: googleOwnedPayload,
+			digest,
+			cancellationBaseline: z
+				.strictObject({
+					unownedWritableFingerprint: digest,
+					unownedWritable: googleUnownedWritable.nullable().optional(),
+					baselineEvent: googleEventFact.optional(),
+				})
+				.optional(),
+		}),
+		z.strictObject({ method: z.literal('get'), eventId }),
+		z.strictObject({ method: z.literal('instances'), eventId, originalStartTime: googleEventTime.nullable() }),
+	])
+	.readonly()
+
 export const googleStageAcknowledgement = z.discriminatedUnion('kind', [
+	z.strictObject({
+		kind: z.literal('cancellation'),
+		provenance: z.literal('conditional_patch'),
+		response: z.object({ id: eventId, etag: z.string().min(1).optional(), status: z.literal('cancelled').optional() }),
+		httpStatus: z.number().int().min(200).max(299),
+		ifMatch: z.string().min(1),
+		checkedAt: instant,
+		ownedDigest: digest,
+		unownedWritableFingerprint: digest,
+		unownedWritable: googleUnownedWritable.nullable().optional(),
+		baselineEvent: googleEventFact.optional(),
+	}),
 	z.strictObject({
 		kind: z.literal('event'),
 		event: googleEventFact,
 		checkedAt: instant,
 		ownedDigest: digest,
 		unownedWritableFingerprint: digest,
+		unownedWritable: googleUnownedWritable.nullable().optional(),
 	}),
 	z.strictObject({
 		kind: z.literal('absence'),

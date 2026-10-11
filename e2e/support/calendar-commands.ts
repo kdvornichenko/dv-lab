@@ -10,7 +10,7 @@ import {
 	googleUnresolvedCommandsResponse,
 } from '../../packages/contracts/src/calendar.ts'
 import { api, readSettings, teacherId } from './api.ts'
-import { HTTPS_TARGET, NAMES, ownedStudent, PRIVATE_DIR, quote, sql, teacherCredentials } from './data.ts'
+import { HTTPS_TARGET, NAMES, PRIVATE_DIR, quote, retainedStudent, sql, teacherCredentials } from './data.ts'
 import { addDays, mondayOf, vnToday } from './dates.ts'
 import { integer, record } from './input.ts'
 import { readPrivateJson, targetBinding } from './target.ts'
@@ -47,7 +47,7 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 		Date.parse(fixture.expiresAt) <= Date.now()
 	)
 		throw new Error('Calendar command fixture does not match the active runtime authority')
-	ownedStudent(fixture.studentId)
+	retainedStudent(fixture.studentId)
 	if ((await teacherId(request)) !== fixture.accountId)
 		throw new Error('Calendar command fixture belongs to another teacher')
 	const rows = sql(
@@ -96,7 +96,17 @@ async function disconnectedAdmission(request: APIRequestContext) {
 	await api(request, 'GET', `/google/commands/by-request/${input.requestId}`, undefined, 404)
 	expect(await api(request, 'GET', '/google/commands?state=unresolved')).toEqual(before)
 	for (const action of ['move', 'cancel', 'restore']) {
-		await api(request, 'POST', `/schedule/lessons/${input.studentId}/${action}`, {}, 409)
+		const meta = { requestId: randomUUID(), expectedVersion: '0' }
+		const body =
+			action === 'move'
+				? {
+						...meta,
+						date: input.date,
+						startTime: input.startTime,
+						expectedDefaultTimeZone: input.expectedDefaultTimeZone,
+					}
+				: meta
+		await api(request, 'POST', `/schedule/lessons/${input.studentId}/${action}`, body, 409)
 	}
 }
 

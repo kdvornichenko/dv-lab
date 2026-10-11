@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, notExists, sql } from 'drizzle-orm'
+import { and, eq, inArray, notExists, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 
@@ -46,9 +46,8 @@ async function failUnsent(tx: DbExecutor, connectionId: string) {
 		.where(
 			and(
 				eq(googleCommands.connectionId, connectionId),
-				inArray(googleCommands.state, ['pending', 'dispatching']),
+				inArray(googleCommands.state, ['pending', 'dispatching', 'recovery_required']),
 				eq(googleCommands.effect, 'none'),
-				isNull(googleCommands.dispatchedAt),
 				notExists(
 					tx
 						.select({ id: googleCommandStages.id })
@@ -56,7 +55,8 @@ async function failUnsent(tx: DbExecutor, connectionId: string) {
 						.where(
 							and(
 								eq(googleCommandStages.commandId, googleCommands.id),
-								sql`jsonb_array_length(${googleCommandStages.attempts}) > 0`
+								eq(googleCommandStages.kind, 'write'),
+								sql`exists (select 1 from jsonb_array_elements(${googleCommandStages.attempts}) as attempt(value) where attempt.value->>'outcome' <> 'rejected')`
 							)
 						)
 				)

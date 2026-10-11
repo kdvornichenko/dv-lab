@@ -1,4 +1,4 @@
-import { eq, notInArray } from 'drizzle-orm'
+import { and, eq, isNull, notInArray, or } from 'drizzle-orm'
 import { PgBoss } from 'pg-boss'
 import type { Logger } from 'pino'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ import { failUnsentCommand, readCommand, type CommandRow } from './journal.ts'
 import type { ConnectionLease } from './lease.ts'
 import { calendarCommandQueue, calendarQueueOptions } from './queue-schema.ts'
 import { reconcileCommand, recoveryExpired, requireRecovery } from './recovery.ts'
+import { resumeUnsentRestore } from './single-observation.ts'
 
 const jobData = z.strictObject({ commandId: z.uuid() })
 
@@ -28,6 +29,7 @@ export function createCalendarWorker(deps: {
 	const admissions = new Set<string>()
 	const active = new Map<string, Promise<void>>()
 	const stopped = new AbortController()
+	const bootedAt = new Date()
 	let timer: ReturnType<typeof setInterval> | undefined
 	let sweep: Promise<void> | undefined
 	let started = false
@@ -36,12 +38,16 @@ export function createCalendarWorker(deps: {
 
 	async function processCommand(command: CommandRow) {
 		if (!accepting()) return
-		if (command.state === 'pending' && command.dispatchDeadline <= new Date()) {
+		if (command.effect === 'none' && command.dispatchDeadline <= new Date()) {
 			await failUnsentCommand(deps.db, command.id)
 			admissions.delete(command.id)
 			return
 		}
-		if (command.state === 'pending' && !admissions.has(command.id)) return
+		if (command.state === 'pending' && !admissions.has(command.id)) {
+			if (command.createdAt <= bootedAt) await failUnsentCommand(deps.db, command.id)
+			return
+		}
+		if (command.state === 'recovery_required') return
 		if (command.state !== 'pending' && recoveryExpired(command)) {
 			await requireRecovery(deps.db, command, 'provider_unavailable')
 			return
@@ -61,7 +67,8 @@ export function createCalendarWorker(deps: {
 					...access,
 					signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]),
 				}
-				if (current.state === 'pending') await dispatchCommand(context, current, deps.gateway)
+				if (current.state === 'pending')
+					await dispatchCommand(context, current, deps.gateway, deps.credentials.refreshRejectedAccess)
 				if (current.state === 'projection_pending') await projectCommand(context, current)
 				if (current.state === 'dispatching' || current.state === 'outcome_unknown')
 					await reconcileCommand(context, current, deps.gateway)
@@ -98,7 +105,16 @@ export function createCalendarWorker(deps: {
 		const commands = await deps.db
 			.select({ id: googleCommands.id })
 			.from(googleCommands)
-			.where(notInArray(googleCommands.state, ['applied', 'failed', 'recovery_required', 'partial_recovery']))
+			.where(
+				or(
+					notInArray(googleCommands.state, ['applied', 'failed', 'recovery_required', 'partial_recovery']),
+					and(
+						eq(googleCommands.state, 'recovery_required'),
+						eq(googleCommands.effect, 'none'),
+						isNull(googleCommands.dispatchedAt)
+					)
+				)
+			)
 			.orderBy(googleCommands.createdAt)
 		for (const command of commands) {
 			if (!accepting()) return
@@ -150,7 +166,7 @@ export function createCalendarWorker(deps: {
 			await boss.send(
 				calendarCommandQueue,
 				{ commandId },
-				{ singletonKey: command.connectionId, retryLimit: 0, expireInSeconds: 60 }
+				{ singletonKey: command.connectionId, retryLimit: 0, expireInSeconds: 30 }
 			)
 		},
 		async resume(accountId: string, commandId: string) {
@@ -159,6 +175,16 @@ export function createCalendarWorker(deps: {
 				const command = await readCommand(access.db, accountId, commandId)
 				if (!['partial_recovery', 'recovery_required'].includes(command.state))
 					throw new CalendarFault('command_pending')
+				if (command.operation === 'restore' && !command.dispatchedAt && command.effect === 'none') {
+					const context = {
+						...access,
+						signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]),
+					}
+					const resumed = await resumeUnsentRestore(context, command, deps.gateway)
+					if (resumed.state === 'pending')
+						await dispatchCommand(context, resumed, deps.gateway, deps.credentials.refreshRejectedAccess)
+					return
+				}
 				await reconcileCommand(
 					{ ...access, signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]) },
 					command,
