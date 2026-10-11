@@ -291,7 +291,7 @@ Plans:
 **Requirements**: CHAT-05, CHAT-06, CHAT-10, CHAT-12, SHELL-03, SHELL-04, CARD-05
 **Success Criteria** (what must be TRUE):
   1. A payment, a new student, a deletion or a rate change written in chat shows the proposed change and applies only after the teacher confirms; declining leaves the data unchanged.
-  2. "@annie move all lessons from Tuesday 12:00 to Wednesday 14:00 MSK" proposes the series move in MSK and applies it after confirmation; without a named zone the times are read as Vietnam time.
+  2. "@Alex Example move all lessons from Tuesday 12:00 to Wednesday 14:00 MSK" proposes the series move in MSK and applies it after confirmation; without a named zone the times are read as Vietnam time.
   3. A change made in chat can be opened and corrected in the regular forms and dialogs, and both paths give the same balance and schedule.
   4. A pasted essay gets feedback labeled as an approximate estimate.
   5. The palette finds students and offers "New chat" and "Add payment"; a student profile shows payments, lessons and "Ask in chat"; Today, Schedule and Chat are usable at phone width.
