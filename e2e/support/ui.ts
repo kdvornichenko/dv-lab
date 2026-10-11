@@ -146,7 +146,7 @@ export async function changeQuickMark(
 	expect((await response).status()).toBe(200)
 }
 
-async function pickDate(page: Page, date: string, id = 'move-lesson-date'): Promise<void> {
+export async function pickDate(page: Page, date: string, id = 'move-lesson-date'): Promise<void> {
 	await page.locator(`#${id}`).click()
 	const key = `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}/${date.slice(0, 4)}`
 	const cell = page.locator(`button[data-day="${key}"]`).first()
@@ -162,7 +162,7 @@ async function pickDate(page: Page, date: string, id = 'move-lesson-date'): Prom
 	await expect(page.getByRole('listbox', { name: 'Hours' })).toHaveCount(0)
 }
 
-async function pickTime(page: Page, time: string, id = 'move-lesson-time'): Promise<void> {
+export async function pickTime(page: Page, time: string, id = 'move-lesson-time'): Promise<void> {
 	await page.locator(`#${id}`).click()
 	await page
 		.getByRole('listbox', { name: 'Hours' })
@@ -254,7 +254,7 @@ export async function setThreshold(page: Page, value: number): Promise<void> {
 	await expect(field).toBeEnabled()
 	const before = await readSettings(page.request)
 	await field.fill(String(value))
-	if (before !== value) {
+	if (before.paysSoonLessons !== value) {
 		const response = page.waitForResponse(
 			(result) => new URL(result.url()).pathname === '/api/settings' && result.request().method() === 'PATCH'
 		)
@@ -263,7 +263,7 @@ export async function setThreshold(page: Page, value: number): Promise<void> {
 		await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 	}
 	await expect(field).toHaveValue(String(value))
-	expect(await readSettings(page.request)).toBe(value)
+	expect((await readSettings(page.request)).paysSoonLessons).toBe(value)
 }
 
 export async function expectDue(
