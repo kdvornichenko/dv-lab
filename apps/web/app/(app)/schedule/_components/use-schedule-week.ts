@@ -1,19 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { apiRequest } from '@/lib/api-client'
 
-import { timeZoneIdentity, type ScheduleWeekResponse, type SettingsResponse } from '@dv-lab/contracts'
-import { mondayOf, scheduleToday } from '@dv-lab/core'
-
-import { lessonWeekKey, readLessonWeek, readOverlapBlocks } from './lesson-dialogs'
+import {
+	googleScheduleWindow,
+	timeZoneIdentity,
+	type GoogleScheduleWindow,
+	type SettingsResponse,
+} from '@dv-lab/contracts'
+import { addDays, mondayOf, scheduleDate, scheduleToday, startOfZonedDay } from '@dv-lab/core'
 
 type WeekQuery = { mainTimeZone: string; monday: string; current: boolean }
-type WeekResult = { query: WeekQuery; data: ScheduleWeekResponse }
-type WeekState =
-	| { kind: 'loading' | 'error'; query: WeekQuery | null; data: ScheduleWeekResponse | null; receivedAt: number }
-	| ({ kind: 'ready'; receivedAt: number } & WeekResult)
+type WeekState = { kind: 'loading' | 'error' | 'ready'; query: WeekQuery | null; data: GoogleScheduleWindow | null }
+type WeekResult = { query: WeekQuery; data: GoogleScheduleWindow }
 
 async function bootstrap(): Promise<WeekQuery | null> {
 	const result = await apiRequest<SettingsResponse>('GET', '/settings')
@@ -23,59 +24,102 @@ async function bootstrap(): Promise<WeekQuery | null> {
 	return { mainTimeZone, monday: mondayOf(scheduleToday(new Date(), mainTimeZone)), current: true }
 }
 
-async function readAuthoritativeWeek(
-	requested: WeekQuery,
-	obsolete: () => boolean,
-	onContextChange: (query: WeekQuery) => void
-): Promise<WeekResult | null> {
+function matchesQuery(data: GoogleScheduleWindow, query: WeekQuery): boolean {
+	const range = data.requestedRange
+	return (
+		timeZoneIdentity(range.timeZone) === timeZoneIdentity(query.mainTimeZone) &&
+		Date.parse(range.start) === startOfZonedDay(query.monday, range.timeZone).getTime() &&
+		Date.parse(range.end) === startOfZonedDay(addDays(query.monday, 7), range.timeZone).getTime()
+	)
+}
+
+function covered(data: GoogleScheduleWindow): GoogleScheduleWindow {
+	if (data.read.state === 'unavailable') return data
+	const range = data.snapshotRange
+	if (
+		range !== null &&
+		timeZoneIdentity(range.timeZone) === timeZoneIdentity(data.requestedRange.timeZone) &&
+		Date.parse(range.start) === Date.parse(data.requestedRange.start) &&
+		Date.parse(range.end) === Date.parse(data.requestedRange.end)
+	)
+		return data
+	return {
+		...data,
+		snapshotRange: null,
+		events: [],
+		series: [],
+		read: { state: 'unavailable', reason: 'invalid_provider_data' },
+		write: { state: 'blocked', reason: 'invalid_provider_data' },
+	}
+}
+
+async function readWeek(requested: WeekQuery, obsolete: () => boolean): Promise<WeekResult | null> {
 	let query = requested
 	for (let attempt = 0; attempt < 2; attempt++) {
-		const result = await readLessonWeek(query.monday)
+		const result = await apiRequest<unknown>('GET', `/schedule/week?start=${query.monday}`)
 		if (obsolete() || !result.ok) return null
-		const data = result.data
-		const mainTimeZone = timeZoneIdentity(data.defaultTimeZone)
-		if (mainTimeZone === null || data.start !== query.monday) return null
-		const monday = query.current ? mondayOf(scheduleToday(new Date(data.asOf), mainTimeZone)) : query.monday
-		if (mainTimeZone === query.mainTimeZone && monday === query.monday) return { query, data }
+		const parsed = googleScheduleWindow.safeParse(result.data)
+		if (!parsed.success) return null
+		const data = parsed.data
+		const mainTimeZone = data.requestedRange.timeZone
+		if (scheduleDate(new Date(data.requestedRange.start), mainTimeZone) !== query.monday) return null
+		const monday = query.current ? mondayOf(scheduleToday(new Date(), mainTimeZone)) : query.monday
+		if (matchesQuery(data, query) && monday === query.monday) return { query, data: covered(data) }
 		query = { ...query, mainTimeZone, monday }
-		onContextChange(query)
 	}
 	return null
 }
 
-export function useScheduleWeek(minuteNow: Date) {
-	const [state, setState] = useState<WeekState>({ kind: 'loading', query: null, data: null, receivedAt: 0 })
+function older(next: GoogleScheduleWindow, previous: GoogleScheduleWindow | null): boolean {
+	if (previous === null) return false
+	if (next.connection.generation !== previous.connection.generation)
+		return next.connection.generation < previous.connection.generation
+	if (
+		next.requestedRange.start !== previous.requestedRange.start ||
+		next.requestedRange.end !== previous.requestedRange.end ||
+		timeZoneIdentity(next.requestedRange.timeZone) !== timeZoneIdentity(previous.requestedRange.timeZone)
+	)
+		return false
+	return (
+		next.read.state !== 'unavailable' &&
+		previous.read.state !== 'unavailable' &&
+		BigInt(next.read.revision) < BigInt(previous.read.revision)
+	)
+}
+
+function stale(data: GoogleScheduleWindow | null): GoogleScheduleWindow | null {
+	if (data === null) return null
+	return {
+		...data,
+		read:
+			data.read.state === 'unavailable'
+				? data.read
+				: { ...data.read, state: 'last_known', reason: 'provider_unavailable' },
+		write: { state: 'blocked', reason: 'provider_unavailable' },
+	}
+}
+
+export function useScheduleWeek() {
+	const [state, setState] = useState<WeekState>({ kind: 'loading', query: null, data: null })
 	const query = useRef<WeekQuery | null>(null)
 	const requests = useRef(0)
-	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
+	const latest = useRef<GoogleScheduleWindow | null>(null)
 
 	const load = useCallback(async (requested: WeekQuery | null) => {
 		const id = ++requests.current
 		query.current = requested
 		const target = requested ?? (await bootstrap())
 		if (id !== requests.current) return
-		const result =
-			target === null
-				? null
-				: await readAuthoritativeWeek(
-						target,
-						() => id !== requests.current,
-						(next) => {
-							weeks.current = new Map<string, ScheduleWeekResponse>()
-							query.current = next
-							setState((previous) => ({ ...previous, kind: 'loading', query: next }))
-						}
-					)
+		query.current = target
+		const result = target === null ? null : await readWeek(target, () => id !== requests.current)
 		if (id !== requests.current) return
-		if (result === null) {
-			setState((previous) => ({ ...previous, kind: 'error' }))
+		if (result === null || older(result.data, latest.current)) {
+			setState((previous) => ({ ...previous, kind: 'error', query: target }))
 			return
 		}
-		if (query.current?.mainTimeZone !== result.query.mainTimeZone)
-			weeks.current = new Map<string, ScheduleWeekResponse>()
 		query.current = result.query
-		weeks.current.set(lessonWeekKey(result.query.mainTimeZone, result.query.monday), result.data)
-		setState({ kind: 'ready', ...result, receivedAt: Date.now() })
+		latest.current = result.data
+		setState({ kind: 'ready', ...result })
 	}, [])
 
 	useEffect(() => {
@@ -86,29 +130,26 @@ export function useScheduleWeek(minuteNow: Date) {
 		}
 	}, [load])
 
-	const reload = useCallback(async () => {
-		weeks.current = new Map<string, ScheduleWeekResponse>()
-		await load(query.current)
-	}, [load])
+	const start = useCallback(
+		(requested: WeekQuery | null) => {
+			setState((previous) => ({
+				kind: 'loading',
+				query: requested,
+				data:
+					requested !== null && previous.data !== null && matchesQuery(previous.data, requested)
+						? stale(previous.data)
+						: null,
+			}))
+			return load(requested)
+		},
+		[load]
+	)
+
+	const reload = useCallback(() => start(query.current), [start])
 
 	function navigate(monday: string, current: boolean) {
-		if (query.current === null) return
-		const next = { ...query.current, monday, current }
-		setState((previous) => ({ ...previous, kind: 'loading', query: next }))
-		void load(next)
+		if (query.current !== null) void start({ ...query.current, monday, current })
 	}
 
-	function blocksOn(date: string) {
-		if (query.current === null) return Promise.resolve([])
-		return readOverlapBlocks(date, weeks.current, query.current.mainTimeZone)
-	}
-
-	const now = useMemo(
-		() =>
-			state.data !== null
-				? new Date(new Date(state.data.asOf).getTime() + Math.max(0, minuteNow.getTime() - state.receivedAt))
-				: minuteNow,
-		[state, minuteNow]
-	)
-	return { state, now, reload, navigate, blocksOn }
+	return { state, reload, navigate }
 }

@@ -2,15 +2,13 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
-import { StatusDot } from '@/components/app/status-dot'
-import { TimePair } from '@/components/app/time-pair'
 import { Tooltip } from '@/components/ui/tooltip'
-import { blockEffect, statusTone, statusWord, tooltipDeduction } from '@/lib/lesson-mark-text'
-import { formatFullDate, mainRange, secondRange } from '@/lib/schedule-format'
 
-import type { ScheduleBlock } from '@dv-lab/contracts'
+import type { CalendarEventView } from '@dv-lab/contracts'
 
-import { LessonBlock, type BlockLayout } from './lesson-block'
+import { CalendarEventDetails, eventTitle } from './calendar-event-details'
+import type { BlockLayout } from './calendar-layout'
+import { LessonBlock } from './lesson-block'
 
 const OPEN_DELAY = 200
 const SKIP_DELAY = 300
@@ -18,16 +16,15 @@ const SKIP_DELAY = 300
 const clock = { closedAt: 0 }
 
 interface EventTooltipProps {
-	block: ScheduleBlock
-	layout: BlockLayout
+	event: CalendarEventView
+	layout: BlockLayout | null
 	secondZone: string | null
 	currentYear: number
-	now: Date
 	mainTimeZone: string
-	onOpen: (block: ScheduleBlock) => void
+	onOpen: (event: CalendarEventView) => void
 }
 
-export function EventTooltip({ block, layout, secondZone, currentYear, now, mainTimeZone, onOpen }: EventTooltipProps) {
+export function EventTooltip({ event, layout, secondZone, currentYear, mainTimeZone, onOpen }: EventTooltipProps) {
 	const [open, setOpen] = useState(false)
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -71,11 +68,6 @@ export function EventTooltip({ block, layout, secondZone, currentYear, now, main
 		[]
 	)
 
-	const start = new Date(block.startsAt)
-	const second = secondRange(start, block.durationMinutes, mainTimeZone, secondZone)
-	const word = statusWord(block, now, mainTimeZone)
-	const deduction = tooltipDeduction(blockEffect(block, now, mainTimeZone), block.ledger.lessonMinutes)
-
 	return (
 		<Tooltip
 			side="right"
@@ -84,33 +76,20 @@ export function EventTooltip({ block, layout, secondZone, currentYear, now, main
 			className="max-w-[280px] rounded-xl bg-surface-4 p-3 text-foreground shadow-surface-3 [text-box:normal] supports-[text-box:trim-both]:py-3"
 			content={
 				<div data-slot="event-tooltip" className="flex flex-col gap-1">
-					<span className="text-body font-semibold">{block.studentName}</span>
-					<span className="text-body text-muted-foreground">{formatFullDate(start, mainTimeZone, currentYear)}</span>
-					<TimePair
-						as="span"
-						main={mainRange(start, block.durationMinutes, mainTimeZone, null)}
-						second={second}
-						mainClassName="text-body tabular-nums"
+					<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
+					<CalendarEventDetails
+						event={event}
+						timeZone={mainTimeZone}
+						secondZone={secondZone}
+						currentYear={currentYear}
 					/>
-					<span className="inline-flex items-center gap-2 text-body">
-						<StatusDot tone={statusTone(block, now)} label={word} passive />
-						<span>{word}</span>
-					</span>
-					{deduction === null ? null : (
-						<span data-slot="event-tooltip-deduction" className="text-caption text-muted-foreground">
-							{deduction}
-						</span>
-					)}
 				</div>
 			}
 		>
 			<LessonBlock
-				block={block}
+				event={event}
 				mainTimeZone={mainTimeZone}
 				layout={layout}
-				secondZone={secondZone}
-				currentYear={currentYear}
-				now={now}
 				onOpen={(chosen) => {
 					close()
 					onOpen(chosen)
