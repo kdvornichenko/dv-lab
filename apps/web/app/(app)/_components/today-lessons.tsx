@@ -9,7 +9,7 @@ import { formatDay, formatTime, secondWhen, yearInZone } from '@/lib/schedule-fo
 import { spring } from '@/lib/springs'
 import { cn } from '@/lib/utils'
 
-import type { LessonMarkKind, ScheduleBlock } from '@dv-lab/contracts'
+import type { GoogleScheduleWindow, LessonMarkKind, ScheduleBlock } from '@dv-lab/contracts'
 
 import { TodayMarkControls } from './today-mark-controls'
 
@@ -42,6 +42,7 @@ export function MoreRow({ count, href }: { count: number; href: string }) {
 
 interface LessonRowsProps {
 	blocks: readonly ScheduleBlock[]
+	calendarWrite: GoogleScheduleWindow['write']
 	now: Date
 	mainTimeZone: string
 	showDate: boolean
@@ -71,6 +72,7 @@ export function LessonRows({ blocks, moreHref, ...rowProps }: LessonRowsProps) {
 
 function LessonRow({
 	block,
+	calendarWrite,
 	now,
 	mainTimeZone,
 	showDate,
@@ -86,6 +88,7 @@ function LessonRow({
 	const present = useIsPresent()
 	const year = yearInZone(now, mainTimeZone)
 	const start = new Date(block.startsAt)
+	const readOnly = start > now && calendarWrite.state === 'blocked'
 	const key = statusKey(block, now)
 	const style = ROW_STYLE[key]
 	const next = block.key === nextKey && occurrenceSlot(block.outcome) === 'to'
@@ -147,6 +150,10 @@ function LessonRow({
 						onStale={onStale}
 						onError={setFailed}
 					/>
+				</span>
+			) : readOnly ? (
+				<span data-slot="today-row-note" className="shrink-0 text-caption font-normal text-muted-foreground">
+					Read-only
 				</span>
 			) : style.note ? (
 				<span data-slot="today-row-note" className="shrink-0 text-caption font-normal text-muted-foreground">

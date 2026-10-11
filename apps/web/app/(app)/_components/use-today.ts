@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { apiRequest } from '@/lib/api-client'
-import { hasStaleActions } from '@/lib/lesson-actions'
 
 import type { ScheduleWeekResponse, TodayResponse } from '@dv-lab/contracts'
 import { scheduleToday } from '@dv-lab/core'
@@ -57,10 +56,12 @@ export function useToday(minuteNow: Date) {
 				: new Date(new Date(state.data.asOf).getTime() + Math.max(0, minuteNow.getTime() - state.receivedAt)),
 		[state, minuteNow]
 	)
+	const data = state.data
 	const refreshDay =
 		state.kind === 'ready' &&
-		state.data !== null &&
-		(scheduleToday(now, state.data.defaultTimeZone) !== state.data.date || hasStaleActions(state.data.lessons, now))
+		data !== null &&
+		(scheduleToday(now, data.defaultTimeZone) !== data.date ||
+			data.lessons.some((block) => block.startsAt > data.asOf && new Date(block.startsAt) <= now))
 	useEffect(() => {
 		if (refreshDay) void reload()
 	}, [now, refreshDay, reload])

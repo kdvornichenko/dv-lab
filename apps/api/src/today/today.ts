@@ -47,7 +47,7 @@ export async function readToday(
 	const dayEnd = startOfZonedDay(addDays(date, 1), defaultTimeZone)
 	const calendar = await readCalendarWindow(executor, context, todayWindow(context))
 	const upcoming = await calendarLessons(executor, calendar.events, now, dayEnd)
-	const day = await readWindow(executor, dayStart, now, context)
+	const day = await readWindow(executor, dayStart, new Date(now.getTime() + 1), context)
 	const past = await readWindow(
 		executor,
 		startOfZonedDay(addDays(date, -MARK_LOOKBACK_DAYS), defaultTimeZone),
