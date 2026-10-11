@@ -8,11 +8,15 @@ import { ROOT, STATE_DIR } from '../../scripts/dev-checks/paths.mjs'
 import { integer, list, record, text, uuid } from './input.ts'
 
 const LOCAL_ORIGIN = 'http://localhost:3000'
+export const FIXTURE_DATABASE = process.env.E2E_FIXTURE_DATABASE ?? 'dev'
+if (FIXTURE_DATABASE !== 'dev' && FIXTURE_DATABASE !== 'test')
+	throw new Error('E2E fixture database must be dev or test')
+const ENV_FILE = FIXTURE_DATABASE === 'test' ? '.env.test' : '.env'
 export const BASE = targetOrigin()
 export const HTTPS_TARGET = BASE !== LOCAL_ORIGIN
 export const PRIVATE_DIR = resolve(
 	realpathSync(STATE_DIR),
-	HTTPS_TARGET ? `calendar-e2e-${createHash('sha256').update(BASE).digest('hex').slice(0, 16)}` : 'phase21-e2e'
+	`${HTTPS_TARGET ? `calendar-e2e-${createHash('sha256').update(BASE).digest('hex').slice(0, 16)}` : 'phase21-e2e'}${FIXTURE_DATABASE === 'test' ? '-test' : ''}`
 )
 export const RESULTS_DIR = resolve(PRIVATE_DIR, 'results', randomUUID())
 export const AUTH_FILE = resolve(PRIVATE_DIR, 'auth.json')
@@ -116,11 +120,11 @@ export function sql(query: string): Record<string, unknown>[] {
 
 function runSql(query: string): Record<string, unknown>[] {
 	const guard = `do $$ begin
-if current_user <> 'dvlab_migrator' or current_database() !~ '_dev$' then
+if current_user <> 'dvlab_migrator' or current_database() !~ '_${FIXTURE_DATABASE}$' then
 raise exception 'E2E database guard refused'; end if; end $$;`
 	const result = spawnSync(
 		process.execPath,
-		[`${ROOT}/scripts/dev-checks/sql.mjs`, `${ROOT}/.env`, 'migrator', `${guard} ${query}`],
+		[`${ROOT}/scripts/dev-checks/sql.mjs`, `${ROOT}/${ENV_FILE}`, 'migrator', `${guard} ${query}`],
 		{ cwd: ROOT, encoding: 'utf8', timeout: 20000 }
 	)
 	if (result.status !== 0 || result.error) throw new Error('E2E SQL failed; database details suppressed')
