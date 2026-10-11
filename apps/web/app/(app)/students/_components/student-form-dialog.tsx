@@ -194,13 +194,17 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 		setSubmitted(true)
 		setFailed(false)
 		const { errors } = parsed
-		if (errors.name) return nameRef.current?.focus()
-		if (errors.rate) return rateRef.current?.focus()
-		if (errors.currency) return currencyRef.current?.focus()
-		if (errors.lessonMinutes) return lessonRef.current?.focus()
-		if (errors.parent) return parentRef.current?.focus()
-		if (errors.level) return levelRef.current?.focus()
-		if (errors.goals) return goalsRef.current?.focus()
+		const fields = [
+			{ field: 'name', ref: nameRef },
+			{ field: 'rate', ref: rateRef },
+			{ field: 'currency', ref: currencyRef },
+			{ field: 'lessonMinutes', ref: lessonRef },
+			{ field: 'parent', ref: parentRef },
+			{ field: 'level', ref: levelRef },
+			{ field: 'goals', ref: goalsRef },
+		] as const
+		const invalid = fields.find(({ field }) => errors[field])
+		if (invalid) return invalid.ref.current?.focus()
 		const name = normalizeDisplayName(values.name)
 		setPending(true)
 		const result = await apiRequest<StudentResponse>(

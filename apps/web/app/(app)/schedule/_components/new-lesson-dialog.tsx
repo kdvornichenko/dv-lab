@@ -4,21 +4,12 @@ import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'rea
 
 import { DateField } from '@/components/app/date-field'
 import { TextField } from '@/components/app/text-field'
-import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
-import { Button } from '@/components/ui/button'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
 import { apiRequest } from '@/lib/api-client'
-import { secondWhen, seriesPhrase, vnRange, vnWhen, weekdayName } from '@/lib/schedule-format'
+import { secondWhen, seriesPhrase, vnWhen, weekdayName } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
 import {
@@ -31,6 +22,7 @@ import {
 import { SCHEDULE_TIME_ZONE, overlaps, weekdayOf, zonedInstant, type OverlapItem } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import { NewLessonFooter, NewLessonNotices, NewLessonStudent } from './new-lesson-content'
 
 export type OverlapBlock = OverlapItem & { studentName: string }
 
@@ -61,13 +53,6 @@ function parseLength(text: string): number | null {
 function secondZoneLine(date: string, time: string | null, zone: string | null): string | null {
 	if (time === null) return null
 	return secondWhen(zonedInstant(date, time, SCHEDULE_TIME_ZONE), zone)
-}
-
-function clashText(items: readonly OverlapBlock[]): string {
-	const label = (item: OverlapBlock) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, null)}`
-	if (items.length === 1) return `${label(items[0])}. You can still save.`
-	if (items.length === 2) return `${label(items[0])} and ${label(items[1])}. You can still save.`
-	return `${label(items[0])}, ${label(items[1])} and ${items.length - 2} more. You can still save.`
 }
 
 export function NewLessonDialog({
@@ -189,50 +174,19 @@ export function NewLessonDialog({
 					</DialogHeader>
 					<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 						<div className="flex flex-col gap-4 py-1">
-							{students.kind === 'error' ? (
-								<Banner status="error">
-									<BannerTitle>Could not load students. Close this window and try again.</BannerTitle>
-								</Banner>
-							) : null}
-							{failed ? (
-								<Banner status="error">
-									<BannerTitle>Could not add the lesson. Try again.</BannerTitle>
-								</Banner>
-							) : null}
-							{clashes.length > 0 ? (
-								<Banner status="warning" data-slot="new-lesson-overlap">
-									<BannerTitle>This overlaps another lesson</BannerTitle>
-									<BannerDescription>{clashText(clashes)}</BannerDescription>
-								</Banner>
-							) : null}
-							<div className="flex min-w-0 flex-col gap-2">
-								<label htmlFor="new-lesson-student" className="text-body text-muted-foreground">
-									Student
-								</label>
-								<Select value={studentId} onValueChange={chooseStudent} disabled={pending || blocked}>
-									<SelectTrigger
-										ref={studentRef}
-										id="new-lesson-student"
-										className="w-full min-w-0"
-										placeholder={students.kind === 'loading' ? 'Loading students…' : 'Choose a student'}
-										autoFocus
-										error={shown('student')}
-										onBlur={() => touch('student')}
-									/>
-									<SelectContent>
-										{active.map((student, index) => (
-											<SelectItem key={student.id} index={index} value={student.id}>
-												{student.displayName}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{noStudents ? (
-									<p className="text-caption text-muted-foreground">
-										No active students. Add a card on the Students page.
-									</p>
-								) : null}
-							</div>
+							<NewLessonNotices students={students} failed={failed} clashes={clashes} />
+							<NewLessonStudent
+								studentId={studentId}
+								chooseStudent={chooseStudent}
+								pending={pending}
+								blocked={blocked}
+								studentRef={studentRef}
+								students={students}
+								active={active}
+								error={shown('student')}
+								onBlur={() => touch('student')}
+								noStudents={noStudents}
+							/>
 							<div className="grid items-start gap-4 sm:grid-cols-2">
 								<DateField
 									id="new-lesson-date"
@@ -326,14 +280,7 @@ export function NewLessonDialog({
 							</div>
 						</div>
 					</ScrollArea>
-					<DialogFooter>
-						<Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-							Discard changes
-						</Button>
-						<Button type="submit" loading={pending} disabled={blocked}>
-							{pending ? 'Adding…' : repeats === 'weekly' ? 'Add series' : 'Add lesson'}
-						</Button>
-					</DialogFooter>
+					<NewLessonFooter onClose={onClose} pending={pending} blocked={blocked} repeats={repeats} />
 				</form>
 			</DialogContent>
 		</Dialog>

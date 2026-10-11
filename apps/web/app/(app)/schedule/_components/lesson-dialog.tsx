@@ -1,40 +1,22 @@
 'use client'
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState } from 'react'
 
-import { CalendarCheck2, CalendarClock, CalendarX2 } from 'lucide-react'
 import Link from 'next/link'
 
 import { Avatar } from '@/components/app/avatar'
-import { StatusDot } from '@/components/app/status-dot'
 import { TimePair } from '@/components/app/time-pair'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
-import { Button } from '@/components/ui/button'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { statusTone, statusWord, type OccurrenceSlot } from '@/lib/lesson-mark-text'
-import {
-	formatDate,
-	formatFullDate,
-	formatRange,
-	secondRange,
-	seriesPhrase,
-	seriesSecondLine,
-	vnDayAt,
-	vnDayTime,
-	weekdayName,
-} from '@/lib/schedule-format'
+import type { OccurrenceSlot } from '@/lib/lesson-mark-text'
+import { formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
 
 import type { LessonMarkKind, ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, nextSeriesDate } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
+import { LessonDetails, LessonStatus } from './lesson-details'
+import { LessonFooter } from './lesson-footer'
 import { LessonMarkRow } from './lesson-mark-row'
 import { LessonMoveForm } from './lesson-move-form'
 import type { OverlapBlock } from './new-lesson-dialog'
@@ -74,22 +56,6 @@ const FAILURE: Record<Exclude<Notice, 'stale' | null>, string> = {
 
 const MARK_FAILURE = 'Could not save the mark. Try again.'
 
-function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
-	return (
-		<div className={wide ? 'flex flex-col gap-1 sm:col-span-2' : 'flex flex-col gap-1'}>
-			<dt className="text-caption text-muted-foreground">{label}</dt>
-			<dd className="text-body text-foreground">{children}</dd>
-		</div>
-	)
-}
-
-function cancelQuestion(start: Date): string {
-	return `Cancel the lesson on ${vnDayAt(start, null)}?`
-}
-
-const pairButtonClass =
-	'cursor-pointer rounded-sm text-body text-foreground underline underline-offset-2 outline-none hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-focus-ring'
-
 export function LessonDialog({
 	block,
 	series,
@@ -116,14 +82,8 @@ export function LessonDialog({
 	const start = new Date(block.startsAt)
 	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
 	const second = secondRange(start, block.durationMinutes, secondZone)
-	const movedTo = block.movedTo === null ? null : new Date(block.movedTo)
-	const movedFrom = block.movedFrom === null ? null : new Date(block.movedFrom)
 	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
 	const { actions } = block
-	const word = statusWord(block, now, false)
-	const footerActions = actions.move || actions.cancel
-	const seriesActions = actions.series && series !== null && nextSeriesDate(series, now) !== null
-	const seriesSecond = series === null ? null : seriesSecondLine(series, secondZone, now)
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
 		if (pending) return
@@ -182,31 +142,7 @@ export function LessonDialog({
 								<BannerTitle>{FAILURE[notice]}</BannerTitle>
 							</Banner>
 						) : null}
-						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body">
-							<span className="inline-flex items-center gap-2">
-								<StatusDot tone={statusTone(block, now)} label={word} />
-								<span>{word}</span>
-							</span>
-							{movedTo !== null ? (
-								<button
-									type="button"
-									className={pairButtonClass}
-									onClick={() => onOpenPair({ key: block.key, slot: 'to', at: movedTo })}
-								>
-									moved to {vnDayTime(movedTo, secondZone)}
-								</button>
-							) : null}
-							{movedFrom !== null ? (
-								<button
-									type="button"
-									className={pairButtonClass}
-									onClick={() => onOpenPair({ key: block.key, slot: 'from', at: movedFrom })}
-								>
-									moved from {vnDayTime(movedFrom, secondZone)}
-								</button>
-							) : null}
-							{block.studentGoal ? <span className="text-muted-foreground">· {block.studentGoal}</span> : null}
-						</div>
+						<LessonStatus block={block} now={now} secondZone={secondZone} onOpenPair={onOpenPair} />
 						{markFailed ? (
 							<Banner status="error" data-slot="lesson-mark-failed">
 								<BannerTitle>{MARK_FAILURE}</BannerTitle>
@@ -219,55 +155,15 @@ export function LessonDialog({
 							locked={pending}
 							onChoose={(kind) => void choose(kind)}
 						/>
-						<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
-							<Detail label="Length">{block.durationMinutes} min</Detail>
-							<Detail label="Repeats">{series === null ? 'Once' : `Every ${weekdayName(series.weekday)}`}</Detail>
-							{series === null ? null : (
-								<Detail label="Series" wide>
-									{series.endsOn === null
-										? `From ${formatDate(series.startsOn, currentYear)}`
-										: `From ${formatDate(series.startsOn, currentYear)} until ${formatDate(series.endsOn, currentYear)}`}
-								</Detail>
-							)}
-						</dl>
-						{seriesActions && series !== null ? (
-							<div data-slot="lesson-series" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
-								<div className="flex min-w-0 flex-col gap-1">
-									<p className="text-body font-semibold text-foreground">Whole series</p>
-									<p data-slot="lesson-series-main" className="text-caption text-muted-foreground tabular-nums">
-										{seriesPhrase(series.weekday, series.startTime)} VN · from{' '}
-										{formatDate(series.startsOn, currentYear)}
-									</p>
-									{seriesSecond === null ? null : (
-										<p data-slot="lesson-series-second" className="text-micro text-muted-foreground tabular-nums">
-											{seriesSecond}
-										</p>
-									)}
-								</div>
-								<div data-slot="lesson-series-actions" className="flex flex-wrap gap-2">
-									<Button
-										type="button"
-										variant="secondary"
-										size="compact"
-										leadingIcon={CalendarClock}
-										disabled={pending}
-										onClick={() => onSeries('move')}
-									>
-										Move series
-									</Button>
-									<Button
-										type="button"
-										variant="secondary"
-										size="compact"
-										leadingIcon={CalendarX2}
-										disabled={pending}
-										onClick={() => onSeries('end')}
-									>
-										End series
-									</Button>
-								</div>
-							</div>
-						) : null}
+						<LessonDetails
+							block={block}
+							series={series}
+							now={now}
+							secondZone={secondZone}
+							currentYear={currentYear}
+							pending={pending}
+							onSeries={onSeries}
+						/>
 						{moving && actions.move ? (
 							<LessonMoveForm
 								block={block}
@@ -292,83 +188,24 @@ export function LessonDialog({
 						) : null}
 					</div>
 				</ScrollArea>
-				{footerActions && !moving ? (
-					<DialogFooter>
-						{confirming && actions.cancel ? (
-							<div
-								role="alert"
-								data-slot="lesson-cancel-question"
-								className="flex w-full flex-wrap items-center justify-end gap-2"
-							>
-								<span className="mr-auto text-body text-foreground">{cancelQuestion(start)}</span>
-								<Button
-									type="button"
-									variant="ghost"
-									size="compact"
-									disabled={pending}
-									onClick={() => setConfirming(false)}
-								>
-									Keep
-								</Button>
-								<Button
-									type="button"
-									size="compact"
-									leadingIcon={CalendarX2}
-									loading={pending}
-									onClick={() => void run(onCancel, 'cancel')}
-								>
-									{pending ? 'Cancelling…' : 'Yes, cancel'}
-								</Button>
-							</div>
-						) : (
-							<div className="flex w-full flex-wrap items-center justify-end gap-2">
-								{actions.move ? (
-									<Button
-										ref={moveButton}
-										type="button"
-										variant="secondary"
-										size="compact"
-										leadingIcon={CalendarClock}
-										onClick={() => {
-											setNotice(null)
-											setMoving(true)
-										}}
-									>
-										Move lesson
-									</Button>
-								) : null}
-								{actions.cancel ? (
-									<Button
-										type="button"
-										variant="ghost"
-										size="compact"
-										leadingIcon={CalendarX2}
-										onClick={() => {
-											setNotice(null)
-											setConfirming(true)
-										}}
-									>
-										Cancel lesson
-									</Button>
-								) : null}
-							</div>
-						)}
-					</DialogFooter>
-				) : null}
-				{actions.restore ? (
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="secondary"
-							size="compact"
-							leadingIcon={CalendarCheck2}
-							loading={pending}
-							onClick={() => void run(onRestore, 'restore')}
-						>
-							Return to schedule
-						</Button>
-					</DialogFooter>
-				) : null}
+				<LessonFooter
+					block={block}
+					confirming={confirming}
+					moving={moving}
+					pending={pending}
+					moveButton={moveButton}
+					onKeep={() => setConfirming(false)}
+					onCancel={() => void run(onCancel, 'cancel')}
+					onRestore={() => void run(onRestore, 'restore')}
+					onMove={() => {
+						setNotice(null)
+						setMoving(true)
+					}}
+					onConfirm={() => {
+						setNotice(null)
+						setConfirming(true)
+					}}
+				/>
 			</DialogContent>
 		</Dialog>
 	)
