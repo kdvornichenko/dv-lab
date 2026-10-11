@@ -1,6 +1,6 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T09:18:05.970040+00:00",
+	"timestamp": "2026-10-11T10:09:31.887029+00:00",
 	"phase": "24-google-calendar-connection-and-outbound-sync",
 	"phase_name": "Google Calendar Connection and Outbound Sync",
 	"phase_dir": ".planning/phases/24-google-calendar-connection-and-outbound-sync",
@@ -8,15 +8,19 @@
 	"task": 0,
 	"total_tasks": 0,
 	"status": "planning",
-	"completed_tasks": [],
-	"remaining_tasks": [
-		"independent OAuth, queue and Google event research",
-		"UI contract and public-page scope",
-		"consume final Phase 21.1 zone/cut contract",
-		"plans and verification"
+	"completed_tasks": [
+		"technical research and architecture",
+		"approved UI contract",
+		"pattern map and API coverage",
+		"local Google Calendar reference for agents"
 	],
+	"remaining_tasks": ["executable plans and independent plan verification"],
 	"blockers": [],
-	"human_actions_pending": [],
+	"human_actions_pending": [
+		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
+		"After Phase 25: real VN midnight and final Earlier panel removal; explicitly deferred by the owner, still unverified",
+		"Server guy: deploy phase 21 after merge (two migrations, breaking contract, paired api/web release)"
+	],
 	"decisions": [
 		"Phase order 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26",
 		"Default zone is an account setting; existing instants and creation zones stay unchanged",
@@ -25,6 +29,6 @@
 		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Finish the independent research now. Use the final Phase 21.1 zone contract when it is available; no source implementation, Google writes, OAuth publication or deployment during preparation.",
-	"context_notes": "Read 24-CONTEXT.md. OAuth client exists but remains in Testing. Callback is fixed in ROADMAP. Secrets are not required for preparation. Research runs in parallel by explicit owner request."
+	"next_action": "Prepare and independently verify Phase 24 plans. Read docs/google-calendar/READING.md and relevant articles. Phase 21 merged in PR #7 (893689f); Phase 21.1 contract is available but implementation remains a dependency. Do not start implementation.",
+	"context_notes": "Primary Google calendar only. Disconnect stops dispatch, revokes credentials and preserves events, mapping and pending work. Research/UI/patterns are complete. Production and day-8 acceptance remain external and unverified."
 }
