@@ -169,6 +169,7 @@ function functionChanges(before: string, after: string, path: string) {
 			return {
 				name: metric.name,
 				line: metric.line,
+				endLine: metric.endLine,
 				changed: prior === null || before.slice(prior.start, prior.end) !== after.slice(metric.start, metric.end),
 				before:
 					prior === null
@@ -208,7 +209,11 @@ function analyze(path: string, baseline: Baseline, program: ts.Program, reviews:
 	const before = original(path, baseline)
 	const sha256 = hash(source)
 	const metrics = functionChanges(before, source, path)
-	const types = inspectTypes(program, safePath(path), changedLines(before, source))
+	const lines = changedLines(before, source)
+	for (const metric of metrics.functions.filter((fn) => fn.changed)) {
+		for (let line = metric.line; line <= metric.endLine; line++) lines.add(line)
+	}
+	const types = inspectTypes(program, safePath(path), lines)
 	const failures: string[] = []
 	if (metrics.lines.after >= 500) failures.push('physical lines >=500')
 	for (const metric of metrics.functions) {

@@ -8,7 +8,7 @@ export const METRIC_METHOD = {
 	halstead:
 		'TS AST leaf tokens: operator = SyntaxKind of keyword/punctuation; operand = identifier/private identifier/string/number/template/regexp text. Comments/trivia excluded. Nested functions excluded. D=(unique operators/2)*(total operands/unique operands). Type and JSX tokens included.',
 	types:
-		'TypeScript checker on changed lines in value declarations/expressions; root any and any in unions/intersections/type arguments fail. Explicit any fails. External any captured immediately as explicit unknown or unknown[] is an input boundary requiring review. Unknown declarations/annotations require review. Type syntax, import specifiers and JSX tag names are not value expressions; library declarations excluded.',
+		'TypeScript checker on changed lines and complete changed functions in value declarations/expressions; root any and any in unions/intersections/type arguments fail. Explicit any fails. External any captured immediately as explicit unknown or unknown[] is an input boundary requiring review. Unknown declarations/annotations require review. Type syntax, import specifiers and JSX tag names are not value expressions; library declarations excluded.',
 }
 
 type FunctionNode =
@@ -23,6 +23,7 @@ type FunctionNode =
 export interface FunctionMetric {
 	name: string
 	line: number
+	endLine: number
 	start: number
 	end: number
 	cyclomatic: number
@@ -194,6 +195,7 @@ export function measureSource(path: string, text: string) {
 			functions.push({
 				name: functionName(node, source),
 				line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+				endLine: source.getLineAndCharacterOfPosition(node.getEnd()).line + 1,
 				start: node.getStart(source),
 				end: node.getEnd(),
 				cyclomatic: cyclomatic(node),
