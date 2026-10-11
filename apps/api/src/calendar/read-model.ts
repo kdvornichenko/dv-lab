@@ -48,8 +48,8 @@ function eventView(
 	let binding: CalendarEventView['binding'] = { kind: 'external' }
 	if (event.bindingKind === 'transition' && event.commandId)
 		binding = { kind: 'transition', commandId: event.commandId }
-	if (event.bindingKind === 'lesson' && event.localRef)
-		binding = { kind: 'lesson', ref: event.localRef, version: eventVersion(event) }
+	if (event.bindingKind === 'lesson' && event.localRef && event.studentId)
+		binding = { kind: 'lesson', ref: event.localRef, studentId: event.studentId, version: eventVersion(event) }
 	let editBlock = blocked
 	if (binding.kind === 'external') editBlock = 'external_change'
 	if (binding.kind === 'transition') editBlock = 'command_pending'
