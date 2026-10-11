@@ -16,15 +16,20 @@ export function deductedMinutes(outcome: LessonOutcome, durationMinutes: number,
 	return 0
 }
 
-export function lessonDeduction(lesson: BalanceLesson, card: Pick<BalanceCard, 'openingOn' | 'noShowDeducts'>): number {
-	if (card.openingOn === null || !countsAfterOpening(scheduleDate(lesson.startsAt), card.openingOn)) return 0
+export function lessonDeduction(
+	lesson: BalanceLesson,
+	card: Pick<BalanceCard, 'openingOn' | 'noShowDeducts'>,
+	timeZone: string
+): number {
+	if (card.openingOn === null || !countsAfterOpening(scheduleDate(lesson.startsAt, timeZone), card.openingOn)) return 0
 	return deductedMinutes(lesson.outcome, lesson.durationMinutes, card.noShowDeducts)
 }
 
 export function studentBalance(
 	card: BalanceCard,
 	payments: readonly BalancePayment[],
-	lessons: readonly BalanceLesson[]
+	lessons: readonly BalanceLesson[],
+	timeZone: string
 ): number | null {
 	const { openingMinutes, openingOn } = card
 	if (openingMinutes === null || openingOn === null) return null
@@ -32,7 +37,7 @@ export function studentBalance(
 	for (const payment of payments) {
 		if (countsAfterOpening(payment.paidOn, openingOn)) minutes += payment.creditedMinutes
 	}
-	for (const lesson of lessons) minutes -= lessonDeduction(lesson, card)
+	for (const lesson of lessons) minutes -= lessonDeduction(lesson, card, timeZone)
 	return minutes
 }
 
@@ -51,14 +56,15 @@ export function markEffect(input: {
 	startsAt: Date
 	durationMinutes: number
 	now: Date
+	timeZone: string
 	card: Pick<BalanceCard, 'openingOn' | 'noShowDeducts'>
 }): MarkEffect {
-	const { outcome, startsAt, durationMinutes, now, card } = input
+	const { outcome, startsAt, durationMinutes, now, card, timeZone } = input
 	if (outcome === 'cancelled') return { kind: 'cancelled' }
 	if (outcome === 'moved') return { kind: 'moved' }
 	if (outcome === 'planned') return canChange(startsAt, now) ? { kind: 'not_started' } : { kind: 'unmarked' }
 	if (card.openingOn === null) return { kind: 'no_opening' }
-	if (!countsAfterOpening(scheduleDate(startsAt), card.openingOn)) {
+	if (!countsAfterOpening(scheduleDate(startsAt, timeZone), card.openingOn)) {
 		return { kind: 'before_opening', openingOn: card.openingOn }
 	}
 	if (outcome === 'no_show' && !card.noShowDeducts) return { kind: 'no_show_off' }
@@ -68,10 +74,11 @@ export function markEffect(input: {
 export function needsMark(
 	lesson: { outcome: LessonOutcome; startsAt: Date },
 	card: { status: string; openingOn: string | null },
-	now: Date
+	now: Date,
+	timeZone: string
 ): boolean {
 	if (!awaitsMark(lesson.outcome, lesson.startsAt, now) || card.status !== 'active') return false
-	return card.openingOn === null || countsAfterOpening(scheduleDate(lesson.startsAt), card.openingOn)
+	return card.openingOn === null || countsAfterOpening(scheduleDate(lesson.startsAt, timeZone), card.openingOn)
 }
 
 export type TodayCounts = {
@@ -96,12 +103,13 @@ type TodayLesson = {
 
 export function todayCounts(
 	input: { lessons: readonly TodayLesson[]; earlier: number; paysSoon: number },
-	now: Date
+	now: Date,
+	timeZone: string
 ): TodayCounts {
 	const counted = input.lessons.filter((lesson) => countsAsLesson(lesson.outcome))
 	const toCome = counted.filter((lesson) => canChange(lesson.startsAt, now)).length
 	const toMarkToday = input.lessons.filter((lesson) =>
-		needsMark(lesson, { status: lesson.studentStatus, openingOn: lesson.openingOn }, now)
+		needsMark(lesson, { status: lesson.studentStatus, openingOn: lesson.openingOn }, now, timeZone)
 	).length
 	let next: TodayLesson | null = null
 	for (const lesson of input.lessons) {
