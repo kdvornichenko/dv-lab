@@ -51,13 +51,13 @@ function canonical(value: JsonValue): string {
 export function insertEventBody(request: WriteRequest) {
 	const { markers, preserved, ...payload } = request.payload
 	return {
-		...(request.method === 'insert' ? preserved : {}),
+		...preserved,
 		...(request.method === 'insert' ? { id: request.eventId } : {}),
 		...payload,
 		extendedProperties: {
-			...(request.method === 'insert' ? preserved?.extendedProperties : {}),
+			...preserved?.extendedProperties,
 			private: {
-				...(request.method === 'insert' ? preserved?.extendedProperties?.private : {}),
+				...preserved?.extendedProperties?.private,
 				dvLocalId: markers.localEntityId,
 				dvKind: markers.entityKind,
 				dvGeneration: String(markers.representationGeneration),

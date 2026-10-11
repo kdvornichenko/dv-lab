@@ -14,6 +14,7 @@ import type { ConnectionLease } from './lease.ts'
 import { calendarCommandQueue, calendarQueueOptions } from './queue-schema.ts'
 import { reconcileCommand, recoveryExpired, requireRecovery } from './recovery.ts'
 import { resumeUnsentRestore } from './single-observation.ts'
+import { executeTransition } from './transitions.ts'
 
 const jobData = z.strictObject({ commandId: z.uuid() })
 
@@ -67,6 +68,10 @@ export function createCalendarWorker(deps: {
 				const context = {
 					...access,
 					signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]),
+				}
+				if (current.plan.cut) {
+					await executeTransition(context, current, deps.gateway)
+					return
 				}
 				if (current.state === 'pending')
 					await dispatchCommand(context, current, deps.gateway, deps.credentials.refreshRejectedAccess)
@@ -176,6 +181,14 @@ export function createCalendarWorker(deps: {
 				const command = await readCommand(access.db, accountId, commandId)
 				if (!['partial_recovery', 'recovery_required'].includes(command.state))
 					throw new CalendarFault('command_pending')
+				if (command.plan.cut) {
+					await executeTransition(
+						{ ...access, signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]) },
+						command,
+						deps.gateway
+					)
+					return
+				}
 				if (
 					!command.dispatchedAt &&
 					command.effect === 'none' &&

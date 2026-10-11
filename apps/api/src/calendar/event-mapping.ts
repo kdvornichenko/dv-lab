@@ -224,11 +224,14 @@ export async function loadMappings(executor: DbExecutor, accountId: string, conn
 	const series = ids.length
 		? await executor.select(seriesColumns).from(lessonSeries).where(inArray(lessonSeries.id, ids))
 		: []
-	return {
-		mappings,
-		commands,
-		series: new Map<string, SeriesRule>(series.map((row) => [row.id, toSeriesRule(row)])),
+	const rules = new Map<string, SeriesRule>(series.map((row) => [row.id, toSeriesRule(row)]))
+	for (const command of commands) {
+		const plan = googleCommandPlan.parse(command.plan)
+		const reserved = plan.reservations.find((item) => item.entityKind === 'series')
+		if (reserved && plan.cut && plan.newRule && !rules.has(reserved.localEntityId))
+			rules.set(reserved.localEntityId, { id: reserved.localEntityId, studentId: plan.cut.studentId, ...plan.newRule })
 	}
+	return { mappings, commands, series: rules }
 }
 
 function sameRef(left: GoogleLocalRef, right: GoogleLocalRef) {

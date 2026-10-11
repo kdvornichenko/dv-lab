@@ -1,7 +1,13 @@
 import { and, eq } from 'drizzle-orm'
 
 import { scheduleDate, seriesStart } from '@dv-lab/core'
-import { googleEventMappings, googleObservedResource, type GoogleObservedResource, type DbExecutor } from '@dv-lab/db'
+import {
+	googleEventMappings,
+	googleObservedResource,
+	type GoogleObservedResource,
+	type GoogleCutPlan,
+	type DbExecutor,
+} from '@dv-lab/db'
 
 import { prepareSeriesChange, type SeriesCommand } from '../schedule/series.ts'
 import type { CommandAccess } from './dispatch.ts'
@@ -9,6 +15,7 @@ import type { GoogleGateway } from './gateway.ts'
 import { CommandFault } from './journal.ts'
 import { opaqueVersion } from './read-state.ts'
 import { matchesMaster } from './recurring.ts'
+import { cancelledTailHistory } from './transition-cancellations.ts'
 
 export async function observeSeries(access: CommandAccess, input: SeriesCommand, now: Date, gateway: GoogleGateway) {
 	const mapping = await seriesBinding(access.db, access.connection.accountId, input.seriesId)
@@ -55,36 +62,7 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 			)
 		)
 	}
-	const tail: GoogleObservedResource[] = []
-	for (const lesson of prepared.lessons) {
-		const natural = seriesStart(prepared.rule, lesson.originalOn)
-		if (!natural) throw new CommandFault('external_change')
-		const actual = await gateway.canonicalInstance(
-			access.accessToken,
-			mapping.calendarId,
-			mapping.eventId,
-			natural.toISOString(),
-			access.signal
-		)
-		if (actual.kind !== 'found') throw new CommandFault('external_change')
-		const observed = googleObservedResource.parse(
-			await gateway.observeEvent(
-				access.accessToken,
-				mapping.calendarId,
-				actual.eventId,
-				prepared.rule.timeZone,
-				access.signal
-			)
-		)
-		if (
-			!observed.event.start ||
-			!('dateTime' in observed.event.start) ||
-			Date.parse(observed.event.start.dateTime) !== lesson.startsAt.getTime() ||
-			!observed.unownedWritable
-		)
-			throw new CommandFault('external_change')
-		tail.push(observed)
-	}
+	const { tail, cancelledTail } = await observeTail(access, input, prepared, mapping, family, gateway)
 	access.signal.throwIfAborted()
 	return {
 		kind: 'series' as const,
@@ -93,6 +71,7 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 		master,
 		prefix,
 		tail,
+		cancelledTail,
 		familyIds: family.map((item) => item.id).sort(),
 	}
 }
@@ -124,4 +103,71 @@ export async function seriesBinding(executor: DbExecutor, accountId: string, ser
 		)
 	if (!mapping) throw new CommandFault('history_only')
 	return mapping
+}
+
+async function observeTail(
+	access: CommandAccess,
+	input: SeriesCommand,
+	prepared: Awaited<ReturnType<typeof prepareSeriesChange>>,
+	mapping: Awaited<ReturnType<typeof seriesBinding>>,
+	family: Awaited<ReturnType<GoogleGateway['familyEvents']>>,
+	gateway: GoogleGateway
+) {
+	const tail: GoogleObservedResource[] = []
+	const cancelledTail: GoogleCutPlan['cancelledTail'] = []
+	for (const lesson of prepared.lessons) {
+		const eventId = await tailEventId(access, prepared, mapping, family, lesson.originalOn, gateway)
+		if (lesson.status === 'cancelled') {
+			const history = await cancelledTailHistory(access, input.seriesId, lesson.originalOn, eventId, gateway)
+			const start = history.baselineEvent.start
+			if (
+				!start ||
+				!('dateTime' in start) ||
+				Date.parse(start.dateTime) !== lesson.startsAt.getTime() ||
+				!history.unownedWritable
+			)
+				throw new CommandFault('external_change')
+			cancelledTail.push(history)
+			continue
+		}
+		const observed = googleObservedResource.parse(
+			await gateway.observeEvent(access.accessToken, mapping.calendarId, eventId, prepared.rule.timeZone, access.signal)
+		)
+		if (
+			!observed.event.start ||
+			!('dateTime' in observed.event.start) ||
+			Date.parse(observed.event.start.dateTime) !== lesson.startsAt.getTime() ||
+			!observed.unownedWritable
+		)
+			throw new CommandFault('external_change')
+		tail.push(observed)
+	}
+	return { tail, cancelledTail }
+}
+
+async function tailEventId(
+	access: CommandAccess,
+	prepared: Awaited<ReturnType<typeof prepareSeriesChange>>,
+	mapping: Awaited<ReturnType<typeof seriesBinding>>,
+	family: Awaited<ReturnType<GoogleGateway['familyEvents']>>,
+	originalOn: string,
+	gateway: GoogleGateway
+) {
+	const natural = seriesStart(prepared.rule, originalOn)
+	if (!natural) {
+		const member = family.find(
+			(item) => scheduleDate(new Date(item.originalStartTime.dateTime), prepared.rule.timeZone) === originalOn
+		)
+		if (!member) throw new CommandFault('external_change')
+		return member.id
+	}
+	const actual = await gateway.canonicalInstance(
+		access.accessToken,
+		mapping.calendarId,
+		mapping.eventId,
+		natural.toISOString(),
+		access.signal
+	)
+	if (actual.kind !== 'found') throw new CommandFault('external_change')
+	return actual.eventId
 }

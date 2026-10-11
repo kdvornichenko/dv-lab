@@ -1,4 +1,4 @@
-import { googleFamilyPage } from '@dv-lab/db'
+import { googleFamilyPage, type GoogleFamilyResource } from '@dv-lab/db'
 
 import { CalendarFault } from './gateway.ts'
 
@@ -6,7 +6,9 @@ export function familyReader(
 	read: (token: string, calendarId: string, pageToken: string | undefined, signal: AbortSignal) => Promise<unknown>
 ) {
 	return async (token: string, calendarId: string, masterId: string, signal: AbortSignal) => {
-		const events: { id: string; originalStartTime: { dateTime: string; timeZone?: string } }[] = []
+		const events: (GoogleFamilyResource & {
+			originalStartTime: NonNullable<GoogleFamilyResource['originalStartTime']>
+		})[] = []
 		const ids = new Set<string>()
 		const pages = new Set<string>()
 		let pageToken: string | undefined
@@ -18,7 +20,7 @@ export function familyReader(
 				ids.add(event.id)
 				if (event.recurringEventId !== masterId) continue
 				if (!event.originalStartTime) throw new CalendarFault('invalid_provider_data')
-				events.push({ id: event.id, originalStartTime: event.originalStartTime })
+				events.push({ ...event, originalStartTime: event.originalStartTime })
 			}
 			pageToken = page.nextPageToken
 			if (pageToken && (pages.has(pageToken) || pages.size >= 1000)) throw new CalendarFault('invalid_provider_data')

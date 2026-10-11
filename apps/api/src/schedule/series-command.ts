@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
+import { scheduleDate } from '@dv-lab/core'
 import {
 	googleCommandPlan,
 	googleConnections,
@@ -40,13 +41,24 @@ export function cutWrite(
 	commandId: string,
 	stage: number,
 	source: GoogleObservedResource,
-	identity: { entityKind: 'series' | 'occurrence'; localEntityId: string; representationGeneration: number },
+	identity: { entityKind: 'single' | 'series' | 'occurrence'; localEntityId: string; representationGeneration: number },
 	recurrence?: string[]
 ) {
 	const payload = recurrence ? { recurrence, status: 'confirmed' as const } : { status: 'cancelled' as const }
 	const requestDigest = digest(JSON.stringify({ eventId: source.event.eventId, ...payload }))
+	const original = source.event.originalStartTime
+	const instance =
+		source.event.recurringEventId && original && 'dateTime' in original
+			? {
+					masterEventId: source.event.recurringEventId,
+					originalOn: scheduleDate(new Date(original.dateTime), original.timeZone),
+					originalStartTime: original,
+					lookupVerified: true,
+				}
+			: undefined
 	const request = googleStageRequest.parse({
 		method: 'patch',
+		instance,
 		eventId: source.event.eventId,
 		ifMatch: source.event.etag,
 		digest: requestDigest,
@@ -136,6 +148,7 @@ export async function prepareSeriesCommand(
 			master: evidence.master,
 			prefix: evidence.prefix,
 			tail: evidence.tail,
+			cancelledTail: evidence.cancelledTail,
 			preparedMarks: [...old.marks].map(([originalOn, kind]) => ({ originalOn, kind })),
 			familyIds: evidence.familyIds,
 		},

@@ -6,7 +6,7 @@ import { googleInstancePage, type GoogleStageRequest } from '@dv-lab/db'
 
 import type { CalendarConfig } from '../config.ts'
 import { insertEventBody, observeGoogleEvent, verifyGoogleResult, type WriteRequest } from './command-result.ts'
-import { familyReader } from './family-pages.ts'
+import { calendarReadMethods } from './gateway-reads.ts'
 import { parseEventPage, parseMaster, type EventQuery } from './provider-events.ts'
 
 export const CALENDAR_SCOPES = [
@@ -201,26 +201,8 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 		}
 	}
 	return {
-		familyEvents: familyReader(async (token, calendarId, pageToken, signal) => {
-			const oauth = client(signal)
-			oauth.setCredentials({ access_token: token })
-			const response = await writeCall(() =>
-				google
-					.calendar({ version: 'v3', auth: oauth })
-					.events.list(
-						{
-							calendarId,
-							pageToken,
-							singleEvents: false,
-							showDeleted: true,
-							maxResults: 2500,
-							fields: 'nextPageToken,items(id,recurringEventId,originalStartTime)',
-						},
-						{ retry: false }
-					)
-			)
-			return response.data
-		}),
+		...calendarReadMethods(client, writeCall),
+		identityEvents: identitySearch,
 		async canonicalInstance(
 			accessToken: string,
 			calendarId: string,
@@ -361,7 +343,10 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 						fields: request.payload.status === 'cancelled' ? 'id' : undefined,
 						requestBody: {
 							...body,
-							extendedProperties: { private: { ...privateProperties, ...body.extendedProperties.private } },
+							extendedProperties: {
+								...body.extendedProperties,
+								private: { ...privateProperties, ...body.extendedProperties.private },
+							},
 						},
 					},
 					{ retry: false, headers: { 'If-Match': request.ifMatch } }

@@ -85,7 +85,9 @@ async function prepareJourney(request: APIRequestContext) {
 		)
 	)
 	expect(record(refused.error).code).toBe('history_only')
-	for (const sample of fixture.cuts.cases.filter((item) => item.scenario !== 'history')) {
+	for (const sample of fixture.cuts.cases.filter(
+		(item) => item.scenario !== 'history' && item.scenario !== 'sparse_cancelled_history'
+	)) {
 		await setMain(request, sample.timeZone)
 		const input = await cutInput(request, sample)
 		const before = domain(sample.seriesId)
@@ -114,21 +116,24 @@ async function prepareJourney(request: APIRequestContext) {
 	}
 }
 
-async function recoveryJourney(request: APIRequestContext, history = false) {
+async function recoveryJourney(request: APIRequestContext, history = false, sparse = false) {
 	const fixture = await calendarCommandFixture(request)
 	const sample = fixture.cuts?.cases.find((item) =>
-		history ? item.scenario === 'history' : item.scenario !== 'history'
+		history
+			? item.scenario === (sparse ? 'sparse_cancelled_history' : 'history')
+			: item.scenario !== 'history' && item.scenario !== 'sparse_cancelled_history'
 	)
 	if (!sample) throw new Error('Retained cut recovery case is required')
 	await setMain(request, sample.timeZone)
 	const input = await cutInput(request, sample)
 	const before = domain(sample.seriesId)
+	if (sparse && !sample.cancelledOriginalOn) throw new Error('Retained native sparse cancelled tail is required')
 	const fault = armCalendarFault({
-		method: 'PATCH',
+		method: history ? 'PATCH' : 'POST',
 		resource: 'events',
 		page: 'any',
-		action: 'drop_response',
-		delayMs: 0,
+		action: history ? 'delay_response' : 'drop_response',
+		delayMs: history ? 5000 : 0,
 	})
 	try {
 		const receipt = await submit(request, sample, input)
@@ -160,19 +165,7 @@ async function recoveryJourney(request: APIRequestContext, history = false) {
 		expect(current.effect).toBe('confirmed')
 		const rows = sql(`select plan from google_commands where id = ${quote(receipt.commandId)}::uuid`)
 		const plan = googleCommandPlan.parse(rows[0].plan)
-		const lineage = plan.lineage
-		for (const item of lineage) {
-			const entry = item
-			const to = entry.to
-			if (to.kind !== 'single') continue
-			expect(
-				sql(`select starts_at, time_zone, duration_minutes from lessons where id = ${quote(String(to.lessonId))}::uuid`)
-			).toHaveLength(1)
-			if (history && record(entry.from).originalOn === sample.markOriginalOn)
-				expect(sql(`select kind from lesson_marks where lesson_id = ${quote(String(to.lessonId))}::uuid`)[0].kind).toBe(
-					'no_show'
-				)
-		}
+		verifyHistory(plan, sample, history, sparse)
 	} finally {
 		disarmCalendarFault(fault)
 	}
@@ -192,4 +185,35 @@ export async function calendarJourney(
 export async function cutHistory(request: APIRequestContext) {
 	test.setTimeout(300000)
 	await recoveryJourney(request, true)
+	await recoveryJourney(request, true, true)
+}
+
+function verifyHistory(
+	plan: ReturnType<typeof googleCommandPlan.parse>,
+	sample: CutCase,
+	history: boolean,
+	sparse: boolean
+) {
+	if (sparse) {
+		const preserved = plan.cut?.cancelledTail.find((item) => item.originalOn === sample.cancelledOriginalOn)
+		expect(preserved).toBeDefined()
+		expect(preserved?.current.start).toBeUndefined()
+		expect(preserved?.current.end).toBeUndefined()
+		expect(preserved?.current.etag).toBeUndefined()
+	}
+	const lineage = plan.lineage
+	for (const item of lineage) {
+		const entry = item
+		const to = entry.to
+		if (to.kind !== 'single') continue
+		expect(
+			sql(`select starts_at, time_zone, duration_minutes from lessons where id = ${quote(String(to.lessonId))}::uuid`)
+		).toHaveLength(1)
+		if (sparse && entry.from.kind === 'series' && entry.from.originalOn === sample.cancelledOriginalOn)
+			expect(sql(`select status from lessons where id = ${quote(to.lessonId)}::uuid`)[0].status).toBe('cancelled')
+		if (history && record(entry.from).originalOn === sample.markOriginalOn)
+			expect(sql(`select kind from lesson_marks where lesson_id = ${quote(String(to.lessonId))}::uuid`)[0].kind).toBe(
+				'no_show'
+			)
+	}
 }

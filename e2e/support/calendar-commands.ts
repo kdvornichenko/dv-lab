@@ -48,7 +48,8 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 								startTime: z.string(),
 								timeZone: z.string(),
 								markOriginalOn: z.iso.date().optional(),
-								scenario: z.enum(['finite', 'empty', 'cross_zone', 'history']),
+								cancelledOriginalOn: z.iso.date().optional(),
+								scenario: z.enum(['finite', 'empty', 'cross_zone', 'history', 'sparse_cancelled_history']),
 								operation: z.enum(['move_series', 'end_series']),
 							})
 						)
