@@ -21,3 +21,4 @@ docs/google-calendar/pages
 docs/google-calendar/assets
 docs/google-calendar/calendar-v3.discovery.json
 docs/google-calendar/manifest.json
+docs/google-calendar/articles/**

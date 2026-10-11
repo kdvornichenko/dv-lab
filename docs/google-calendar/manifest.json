@@ -32,7 +32,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/identity/protocols/oauth2.md",
+      "markdown_sha256": "742616758dc5ee80a2727e64a9d39dff2cf7c3f06c0f5c8b330856c0e829f61f",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 7,
+        "text_nodes": 415,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/identity/protocols/oauth2/policies",
@@ -53,7 +62,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/identity/protocols/oauth2/policies.md",
+      "markdown_sha256": "cc39d3add5b0ec4e660b5f94e435113a3534d855dba676fecf79bfd24a3bc328",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 214,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification",
@@ -74,7 +92,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/identity/protocols/oauth2/production-readiness/brand-verification.md",
+      "markdown_sha256": "7ac4ed8fc4c6383f6ba24ae31104b80744f6a4fc708d46ed6b082a92fc44ced0",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 0,
+        "images": 3,
+        "text_nodes": 354,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/identity/protocols/oauth2/resources/best-practices",
@@ -95,7 +122,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/identity/protocols/oauth2/resources/best-practices.md",
+      "markdown_sha256": "4885ac400edc53d3348014937e29e741568efda7176c6d8bdd1f9f668a9bf3d2",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 1,
+        "text_nodes": 234,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/identity/protocols/oauth2/web-server",
@@ -116,7 +152,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 81,
-      "tables": 8
+      "tables": 8,
+      "markdown_path": "articles/related/identity/protocols/oauth2/web-server.md",
+      "markdown_sha256": "e45ccbeadf3fce6b72cdb00f7daa138d079c7f9346cabb079a34c48e5a8e7ba8",
+      "markdown_verification": {
+        "code_blocks": 81,
+        "tables": 8,
+        "images": 1,
+        "text_nodes": 7486,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/auth",
@@ -169,7 +214,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/auth.md",
+      "markdown_sha256": "5eb48be0712c64e7773f96abfc970208cd7182cb3d2418e1e6b5717a496c0bfc",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 160,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/concepts",
@@ -221,7 +275,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/concepts.md",
+      "markdown_sha256": "4b46f17248d86a506c28fc6e43860f06c6fb809b4bb53f018768f4225ec21778",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 1,
+        "text_nodes": 32,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/concepts/domain",
@@ -273,7 +336,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/concepts/domain.md",
+      "markdown_sha256": "620de4c074347dbbd6cda00d42c5b6541aa5d2e33b292e46f5e582ec6dd9fa0d",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 30,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/concepts/events-calendars",
@@ -331,7 +403,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/concepts/events-calendars.md",
+      "markdown_sha256": "bb8e8d3fa5e64cd5dcdeaadcbfcea6400eb550327a1cb0e7fb7776b103b01ac9",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 1,
+        "images": 2,
+        "text_nodes": 469,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/concepts/inviting-attendees-to-events",
@@ -387,7 +468,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/concepts/inviting-attendees-to-events.md",
+      "markdown_sha256": "e63be3d4d2ba50f8d2d6956dfc66fed6aeb3a3724d869ec7c9ca9fe4a86d85a7",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 0,
+        "images": 1,
+        "text_nodes": 252,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/concepts/reminders",
@@ -442,7 +532,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/concepts/reminders.md",
+      "markdown_sha256": "835fe454dacf9704563d4d11d96ce61c436d9da52855f963bae31fb10e336a0f",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 242,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/concepts/sharing",
@@ -498,7 +597,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/concepts/sharing.md",
+      "markdown_sha256": "a66086176ace4905d118055536c83497e6ed0893945d6a57d65b17f065bfe9e1",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 178,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/downloads",
@@ -568,7 +676,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/downloads.md",
+      "markdown_sha256": "61b5aee6dbbccfe41dc0d3bbe03f5bcaa81d9dda33e02d4194485543f0eeed2b",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 86,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/batch",
@@ -620,7 +737,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/batch.md",
+      "markdown_sha256": "def61d6911531cab2d91efef82bc0a2434c7d6de49542a6bf8a0e819bfca7cfd",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 127,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/calendar-status",
@@ -678,7 +804,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/calendar-status.md",
+      "markdown_sha256": "91ac35ee72259257cb91623852b5c86a17e3e8bfc56f350cedda6ec26f03a678",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 1265,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server",
@@ -713,7 +848,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 5,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/configure-mcp-server.md",
+      "markdown_sha256": "be6d7aa2de545e62be95a5a0eacd69b21c73a99e25c9ee559f86db59cb4e58ac",
+      "markdown_verification": {
+        "code_blocks": 5,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 680,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/create-events",
@@ -776,7 +920,16 @@
         "iframe"
       ],
       "pre_blocks": 12,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/create-events.md",
+      "markdown_sha256": "4ad81c026a7a86bde27eda02a9a01398affbca2d764d9506de050ddaeda054c7",
+      "markdown_verification": {
+        "code_blocks": 12,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 2399,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/errors",
@@ -833,7 +986,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 14,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/errors.md",
+      "markdown_sha256": "0a1aeff40da4803beeb5b596aefd4addc02856284f73c610e14a010d95d372a6",
+      "markdown_verification": {
+        "code_blocks": 14,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 243,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/event-types",
@@ -896,7 +1058,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/event-types.md",
+      "markdown_sha256": "576f8fac8e79c19a1ba2215a5e1250f4ce634a769dcdd1523c5dd58f13d3b2cf",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 889,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/extended-properties",
@@ -953,7 +1124,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 7,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/extended-properties.md",
+      "markdown_sha256": "9bb505e3d785c3515d76dbdb7c3cb0ab72767ef2772f19abada4d6ce0332d417",
+      "markdown_verification": {
+        "code_blocks": 7,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 93,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/labels",
@@ -1012,7 +1192,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 12,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/labels.md",
+      "markdown_sha256": "3a9c4754b4df0a2b210b5be47ddeb8f4ca7ca78b916e265dcf70f955edcfdd67",
+      "markdown_verification": {
+        "code_blocks": 12,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 1898,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/overview",
@@ -1072,7 +1261,16 @@
         "style"
       ],
       "pre_blocks": 0,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/guides/overview.md",
+      "markdown_sha256": "cd09ae7503bef15d83ee24c88326735a1b9ab88f08abd865f493762dea1109f9",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 1,
+        "images": 1,
+        "text_nodes": 67,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/pagination",
@@ -1124,7 +1322,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/pagination.md",
+      "markdown_sha256": "a727b2120e1f15d3808d86be3d9eeef801abc5ccb2bfb185fd1b6a34946b0890",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 29,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/performance",
@@ -1176,7 +1383,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 21,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/guides/performance.md",
+      "markdown_sha256": "b79378bc05c9ba6e2bfd331a5e986f294be74ae26e5aac4007da150585607cd4",
+      "markdown_verification": {
+        "code_blocks": 21,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 575,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/push",
@@ -1232,7 +1448,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 7,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/guides/push.md",
+      "markdown_sha256": "c09e6ce0ceab852bf3958f5e646b90a3d4a48d5a355b50a01792c384e29853dc",
+      "markdown_verification": {
+        "code_blocks": 7,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 541,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/quota",
@@ -1308,7 +1533,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 4
+      "tables": 4,
+      "markdown_path": "articles/guides/quota.md",
+      "markdown_sha256": "6e29b833dac4102f563db162618bdd3c48fe757d41e129f11b43451ad0d1d98b",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 4,
+        "images": 0,
+        "text_nodes": 405,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/recurringevents",
@@ -1367,7 +1601,16 @@
         "iframe"
       ],
       "pre_blocks": 13,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/recurringevents.md",
+      "markdown_sha256": "42882969cfc66b2ca1207438be55839098064f0dd434d8fe4c58a9dfd28ff955",
+      "markdown_verification": {
+        "code_blocks": 13,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 1212,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/sync",
@@ -1419,7 +1662,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/sync.md",
+      "markdown_sha256": "a826393db89613cdff01c11c34dd7834354b163a9b4ecd8185db2ec5bedaeaa9",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 505,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/guides/version-resources",
@@ -1471,7 +1723,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/guides/version-resources.md",
+      "markdown_sha256": "813c9eb7af279ef18f06fa82101c4fa398af72bc0e4ac412ba12387d0d0c2a31",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 616,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/quickstart/apps-script",
@@ -1528,7 +1789,16 @@
         "style"
       ],
       "pre_blocks": 1,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/quickstart/apps-script.md",
+      "markdown_sha256": "d4fe4a2dd79c058162e602a602f58ea4b47414620b289a7ac660137f537e98ce",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 0,
+        "images": 1,
+        "text_nodes": 412,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/quickstart/go",
@@ -1585,7 +1855,16 @@
         "style"
       ],
       "pre_blocks": 6,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/quickstart/go.md",
+      "markdown_sha256": "003124abe1fed0a99b9876cdd453e755b0cd48853e0b91b8103f5b1c69bdc231",
+      "markdown_verification": {
+        "code_blocks": 6,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 1139,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/quickstart/java",
@@ -1643,7 +1922,16 @@
         "style"
       ],
       "pre_blocks": 4,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/quickstart/java.md",
+      "markdown_sha256": "ede439c59b0571c3d6a0686c5d2392e0985f7bc2726ee8f8cbe142dc22752f46",
+      "markdown_verification": {
+        "code_blocks": 4,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 1090,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/quickstart/js",
@@ -1700,7 +1988,16 @@
         "style"
       ],
       "pre_blocks": 3,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/quickstart/js.md",
+      "markdown_sha256": "40ecb9971e47091bc7bc4d0b239d0c2a787b51c3c20050ced400c167fa5f8b57",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 329,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/quickstart/nodejs",
@@ -1757,7 +2054,16 @@
         "style"
       ],
       "pre_blocks": 3,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/quickstart/nodejs.md",
+      "markdown_sha256": "a127a9bdc247237339a582f979c7ac18f21101ef076415acf463dcf547671066",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 588,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/quickstart/python",
@@ -1814,7 +2120,16 @@
         "style"
       ],
       "pre_blocks": 3,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/quickstart/python.md",
+      "markdown_sha256": "015ffbe02b551766b30973ca8d16a9bc1cc85d90f1db0bbdce46a37d369a84d1",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 703,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/resource_types",
@@ -1866,7 +2181,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/resource_types.md",
+      "markdown_sha256": "d8aeb860b7094a9086656c3946048d154adb294e873cf6754d870fb253a575cf",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 85,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/support",
@@ -1892,7 +2216,16 @@
         "form"
       ],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/support.md",
+      "markdown_sha256": "1d451dc5bd8bbf76aa1fb27b5337fc76ffae09b26b0d0a2f719539c16292d8ec",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 65,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/troubleshoot-authentication-authorization",
@@ -1946,7 +2279,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/troubleshoot-authentication-authorization.md",
+      "markdown_sha256": "d589074d08d9244c960602eaf9442a103965cae807e37ed246784c1f0d64c2ff",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 54,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference",
@@ -2016,7 +2358,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 8
+      "tables": 8,
+      "markdown_path": "articles/v3/reference.md",
+      "markdown_sha256": "cf3a93567efd0b033ed0e0c5ba9a00c88d7439de8fe14b3335c093663718977a",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 8,
+        "images": 0,
+        "text_nodes": 841,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl",
@@ -2087,7 +2438,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/acl.md",
+      "markdown_sha256": "7255e534e305edee6126f740bc4c98689e5005d2079d6c8e192e616e4dffb438",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 255,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/delete",
@@ -2158,7 +2518,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/acl/delete.md",
+      "markdown_sha256": "b993add430df15a542b91462b94e2ed8e6674825479252ba85c14b568ab4f6c3",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 100,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/get",
@@ -2229,7 +2598,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/acl/get.md",
+      "markdown_sha256": "2721fd8eb422ad44efea5b16fab05de9682339edecfae77111417bc912d36c9e",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 106,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/insert",
@@ -2301,7 +2679,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/acl/insert.md",
+      "markdown_sha256": "88f0581f8f2b60b258eda3fce84e5b23f7ad6d5adc3a6b03a660bc22fc89a05a",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 229,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/list",
@@ -2373,7 +2760,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/acl/list.md",
+      "markdown_sha256": "69f28c436e25f63de9cb265f66bb8e76c35990381f91dca18617c9f438887184",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 265,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/patch",
@@ -2444,7 +2840,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/acl/patch.md",
+      "markdown_sha256": "faa585c3ecdc6f2b61cdf23b54a2713af57be305515d4b0f21d7750eb17840a2",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 120,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/update",
@@ -2516,7 +2921,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/acl/update.md",
+      "markdown_sha256": "57e8635f6f72aa12a1a4ee17aa2acc3f61c16a68b1fca8fa2f763fe12b405463",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 238,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/watch",
@@ -2587,7 +3001,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 4
+      "tables": 4,
+      "markdown_path": "articles/v3/reference/acl/watch.md",
+      "markdown_sha256": "4a68b628dca3ed73ac9326990cfae0a36a2ecdf10b33f2f4b2f12abb3c27efa9",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 4,
+        "images": 0,
+        "text_nodes": 302,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList",
@@ -2658,7 +3081,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/calendarList.md",
+      "markdown_sha256": "f4db8cd18ec06b92d78e9e81feb3247b046047625e3d8d8ab544b54afbd7d49b",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 671,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/delete",
@@ -2729,7 +3161,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendarList/delete.md",
+      "markdown_sha256": "fe4216314ebc322e7d05ac45172d54c4ba074d5745744397c185fea609aafc44",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 92,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/get",
@@ -2800,7 +3241,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendarList/get.md",
+      "markdown_sha256": "cf5fc0c63d9ac463b0ce97351dacdbf12b3d023f5a8ac78b3ce2f26d38460784",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 98,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/insert",
@@ -2871,7 +3321,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/calendarList/insert.md",
+      "markdown_sha256": "10c83bd17315fc7f30ec0b188204f02ac955960a8390eb4d3065e07237902b6f",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 329,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/list",
@@ -2943,7 +3402,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/calendarList/list.md",
+      "markdown_sha256": "032c33da9ba14e08e085b03d89184e75f84520251f21557f104424f75a1a3e24",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 299,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/patch",
@@ -3014,7 +3482,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendarList/patch.md",
+      "markdown_sha256": "70b6f9218b6b3eb4c4326a2aa37c30756a3b59c8b3bfb7e20e03835094ba9822",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 118,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/update",
@@ -3085,7 +3562,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/calendarList/update.md",
+      "markdown_sha256": "d5bda2dfe16fed6906c3d65938b0cfb1455778c7c4be30c64b2c656dec616bae",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 334,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/watch",
@@ -3156,7 +3642,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 4
+      "tables": 4,
+      "markdown_path": "articles/v3/reference/calendarList/watch.md",
+      "markdown_sha256": "1cae94bdeac5b7a22f2682176dc91de3bf097e3426a43aaff242ca7fb87b9400",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 4,
+        "images": 0,
+        "text_nodes": 286,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars",
@@ -3227,7 +3722,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/calendars.md",
+      "markdown_sha256": "b93c876d8fda07ab51fac9a7e275e390ae2491f59f57625601c1658639415716",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 301,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/clear",
@@ -3298,7 +3802,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendars/clear.md",
+      "markdown_sha256": "26e2d389324ee8da0f2bca5032ba41501480c87f0af73452c60d0b573377a9c4",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 91,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/delete",
@@ -3369,7 +3882,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendars/delete.md",
+      "markdown_sha256": "f6c604a650e23ab11237a2c380a4ca81c7f2f51490a5c9fa551fcc6e08a13ccb",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 92,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/get",
@@ -3440,7 +3962,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendars/get.md",
+      "markdown_sha256": "a8e5583afafab4675c408ed3afc1a04f608dca67153afb948b325decaea3cade",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 98,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/insert",
@@ -3511,7 +4042,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendars/insert.md",
+      "markdown_sha256": "ae2b7e82f28cf9309b5eee9fdaaeef99d31671c6bef1413ec59f08393bd5e660",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 99,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/patch",
@@ -3582,7 +4122,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendars/patch.md",
+      "markdown_sha256": "5e92ddee5c9d3cbc96c1a84213b570a899857b68a7b9df62151d73ebf5d32c87",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 100,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/transferOwnership",
@@ -3653,7 +4202,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/calendars/transferOwnership.md",
+      "markdown_sha256": "6f82f71aae5aaaf2e493dcaa704b22179f872dbdca5586ea2b80e079c0053f17",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 120,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/update",
@@ -3724,7 +4282,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/calendars/update.md",
+      "markdown_sha256": "5071df04a6d8ba66e9d5a4d05f1246c1319a98be89566ec8dfe8052fc0ff2873",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 216,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/channels",
@@ -3794,7 +4361,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/v3/reference/channels.md",
+      "markdown_sha256": "74e409021d7990e6cdd5fabb00e5c8339c50a398971dccb11390499042217c36",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 27,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/channels/stop",
@@ -3864,7 +4440,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/channels/stop.md",
+      "markdown_sha256": "8e3e8cddeeb9896dbe014d43403422015d9af6db572fe855015f3bfb15d72c65",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 79,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/colors",
@@ -3934,7 +4519,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/colors.md",
+      "markdown_sha256": "f30f8c2bdc0cdd6d482620d66dc1df1876259bf2aecb71d3aed3a925c0100dd4",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 238,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/colors/get",
@@ -4005,7 +4599,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/colors/get.md",
+      "markdown_sha256": "de8688e2448b8a2c51cd43a1b7221e899e1876228ce10247c8ad532f0cca5cdb",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 73,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events",
@@ -4077,7 +4680,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/v3/reference/events.md",
+      "markdown_sha256": "337be8e1b181db24ccbc4d111713cd549d8ccd1e0cd5e02f6d0315b2f93085de",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 1,
+        "images": 0,
+        "text_nodes": 3181,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/delete",
@@ -4148,7 +4760,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/events/delete.md",
+      "markdown_sha256": "ca4d8e8aa8ea18c0799c63c8019b90e9ae086eb6f5c3bcbcc8d35db12e1f6aeb",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 148,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/get",
@@ -4219,7 +4840,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/events/get.md",
+      "markdown_sha256": "a151f8346d958507c066c981a02b34010acee544fbd62f0d24a462c4e31e5e96",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 150,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/import",
@@ -4291,7 +4921,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/events/import.md",
+      "markdown_sha256": "a1264a6ebe9cfb43b513f0646fba280b5376a72926193899d93538ede54d2518",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 1035,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/insert",
@@ -4363,7 +5002,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/events/insert.md",
+      "markdown_sha256": "a7fee13437da33cd537e141965422600ff647fd24eeaf9de4f027ea8596a1cdb",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 1250,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/instances",
@@ -4434,7 +5082,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/events/instances.md",
+      "markdown_sha256": "ae65371ce34090383ac6fd9ba708ab1ebba07b62cc65487c9ac70d386aacd2b0",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 506,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/list",
@@ -4506,7 +5163,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/events/list.md",
+      "markdown_sha256": "12f04274c628c8b50afa1eeae6ea97d6a4a9f30e1f86fc1046bc6afa230f5e23",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 691,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/move",
@@ -4577,7 +5243,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/events/move.md",
+      "markdown_sha256": "d946288c749bede11a511b0db6b023614e382da5caa17843885df190c54ca164",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 169,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/patch",
@@ -4648,7 +5323,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/events/patch.md",
+      "markdown_sha256": "343b1948faf7d5786440629adef676a372c7a3017c6a7687c1adfa59eea3423e",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 218,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/quickAdd",
@@ -4719,7 +5403,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/events/quickAdd.md",
+      "markdown_sha256": "3205a85be72d8274edbb0ae92ce0ecb67c8a81112d337164417d0047b429f9e8",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 153,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/update",
@@ -4791,7 +5484,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/events/update.md",
+      "markdown_sha256": "0d5cf07504392c04a435a11a4df730ca73726063c29554475300d415e56bbc47",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 1158,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/watch",
@@ -4862,7 +5564,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 4
+      "tables": 4,
+      "markdown_path": "articles/v3/reference/events/watch.md",
+      "markdown_sha256": "5ba8b950cfb7b64ad33df474f0729bb23388cfc823f474e801f59aa16878300b",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 4,
+        "images": 0,
+        "text_nodes": 353,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/freebusy",
@@ -4932,7 +5643,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/v3/reference/freebusy.md",
+      "markdown_sha256": "f6f13f6ff3beebd6315dda1a3d0c026b315f4fde5af11ae8e42e25a621f15ff1",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 27,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/freebusy/query",
@@ -5003,7 +5723,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/freebusy/query.md",
+      "markdown_sha256": "84612f1ccd20f5723f2943ea3ce98bf251bd34241991bfca606880ec23ccad0b",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 428,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp",
@@ -5036,7 +5765,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/mcp.md",
+      "markdown_sha256": "1a733e0740f0dbf49155daebddd38bdab71eabe7f41cb45558512e2c45bdde77",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 158,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/create_event",
@@ -5069,7 +5807,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 15,
-      "tables": 36
+      "tables": 36,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/create_event.md",
+      "markdown_sha256": "4473e1e5aaa760af4a7aaf1997a13f453fc6c2934236a9c70ec98ff97b401e01",
+      "markdown_verification": {
+        "code_blocks": 15,
+        "tables": 36,
+        "images": 0,
+        "text_nodes": 3125,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/delete_event",
@@ -5102,7 +5849,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 10,
-      "tables": 23
+      "tables": 23,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/delete_event.md",
+      "markdown_sha256": "805022cf9a06bb1fc07d5aad7303c3588fe82db1d3db585057b3ac17b9d8f34e",
+      "markdown_verification": {
+        "code_blocks": 10,
+        "tables": 23,
+        "images": 0,
+        "text_nodes": 1849,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/get_event",
@@ -5135,7 +5891,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 10,
-      "tables": 22
+      "tables": 22,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/get_event.md",
+      "markdown_sha256": "b717b9d3100b9de74ce2b1e791cb4c8e8a91727c1656d4ac64e8aa9830b195ff",
+      "markdown_verification": {
+        "code_blocks": 10,
+        "tables": 22,
+        "images": 0,
+        "text_nodes": 1773,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/list_calendars",
@@ -5168,7 +5933,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 4,
-      "tables": 7
+      "tables": 7,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/list_calendars.md",
+      "markdown_sha256": "0c3e8cbe97734282d26a257354c54e455f744654e4ad68e7fedb25ded8aef836",
+      "markdown_verification": {
+        "code_blocks": 4,
+        "tables": 7,
+        "images": 0,
+        "text_nodes": 388,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/list_events",
@@ -5201,7 +5975,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 11,
-      "tables": 25
+      "tables": 25,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/list_events.md",
+      "markdown_sha256": "b00f4b49c28bbdb5e9cb697b88fc7f82272410d3e552670db228dd3b0a932d82",
+      "markdown_verification": {
+        "code_blocks": 11,
+        "tables": 25,
+        "images": 0,
+        "text_nodes": 2269,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/respond_to_event",
@@ -5234,7 +6017,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 10,
-      "tables": 23
+      "tables": 23,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/respond_to_event.md",
+      "markdown_sha256": "79da374dbeaba2d42eecfad3515e18e2d7d8070683f18fc5f64aa1833c5001d0",
+      "markdown_verification": {
+        "code_blocks": 10,
+        "tables": 23,
+        "images": 0,
+        "text_nodes": 1896,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/search_events",
@@ -5267,7 +6059,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 11,
-      "tables": 24
+      "tables": 24,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/search_events.md",
+      "markdown_sha256": "69fd5d1bee34fa347de42783d6c4b83bb684df4fca4e3ed03820b42b4727728a",
+      "markdown_verification": {
+        "code_blocks": 11,
+        "tables": 24,
+        "images": 0,
+        "text_nodes": 1884,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/suggest_time",
@@ -5300,7 +6101,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 6,
-      "tables": 11
+      "tables": 11,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/suggest_time.md",
+      "markdown_sha256": "bf606f7b784f35e9d035095705f5e93f5b5798a053e323acaa10cd9f4317a06a",
+      "markdown_verification": {
+        "code_blocks": 6,
+        "tables": 11,
+        "images": 0,
+        "text_nodes": 711,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/update_event",
@@ -5333,7 +6143,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 14,
-      "tables": 32
+      "tables": 32,
+      "markdown_path": "articles/v3/reference/mcp/tools_list/update_event.md",
+      "markdown_sha256": "cfee8af6f4080d4c0943c22e00fe0fcabe843ae624670e8ecb15b8608d143baf",
+      "markdown_verification": {
+        "code_blocks": 14,
+        "tables": 32,
+        "images": 0,
+        "text_nodes": 2914,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings",
@@ -5403,7 +6222,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/settings.md",
+      "markdown_sha256": "b30019e16fc0f33bfffc8c9fe38f0457d3d2247a01d10c12734713dea54b8e69",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 239,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings/get",
@@ -5474,7 +6302,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/v3/reference/settings/get.md",
+      "markdown_sha256": "8289f7878d4cae3baa5796185782983379e19947185b6bca1e7568f446c06ee5",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 0,
+        "text_nodes": 90,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings/list",
@@ -5546,7 +6383,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 2,
-      "tables": 3
+      "tables": 3,
+      "markdown_path": "articles/v3/reference/settings/list.md",
+      "markdown_sha256": "6c37ba39102c59bdb706c434211d81ab4fb468e1b29d752cec8325897da634e0",
+      "markdown_verification": {
+        "code_blocks": 2,
+        "tables": 3,
+        "images": 0,
+        "text_nodes": 231,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings/watch",
@@ -5617,7 +6463,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 4
+      "tables": 4,
+      "markdown_path": "articles/v3/reference/settings/watch.md",
+      "markdown_sha256": "a872b96a9fd4576a16506ba4fa7c9ac4115824439b1db8b9690c3abb56a8cbcb",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 4,
+        "images": 0,
+        "text_nodes": 284,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/calendar/release-notes",
@@ -5661,7 +6516,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/workspace/calendar/release-notes.md",
+      "markdown_sha256": "ac9a5053f4e21642b68a2c3df64f8b4674d0e78e087444c96180164fb9c1a795",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 0,
+        "text_nodes": 669,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/guides/auth-overview",
@@ -5683,7 +6547,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/workspace/guides/auth-overview.md",
+      "markdown_sha256": "d5c9d9ed1438c7f78214b3db3f57db8571ee7f29baf626d93bf9974e27d8693f",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 0,
+        "images": 2,
+        "text_nodes": 249,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/guides/configure-oauth-consent",
@@ -5704,7 +6577,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 0,
-      "tables": 1
+      "tables": 1,
+      "markdown_path": "articles/related/workspace/guides/configure-oauth-consent.md",
+      "markdown_sha256": "ff0351a4cd12d3ebd5144b78577866052a11aeb77c89410b7c1dad47259c4b14",
+      "markdown_verification": {
+        "code_blocks": 0,
+        "tables": 1,
+        "images": 3,
+        "text_nodes": 257,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/guides/create-credentials",
@@ -5725,7 +6607,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 1,
-      "tables": 2
+      "tables": 2,
+      "markdown_path": "articles/related/workspace/guides/create-credentials.md",
+      "markdown_sha256": "26816be9614132f6e1c09956e112b3a2a6d32c23dfb4ec04062da8f139fdd570",
+      "markdown_verification": {
+        "code_blocks": 1,
+        "tables": 2,
+        "images": 1,
+        "text_nodes": 807,
+        "text_nodes_preserved": true
+      }
     },
     {
       "url": "https://developers.google.com/workspace/guides/create-project",
@@ -5746,7 +6637,16 @@
       ],
       "removed_active_elements": [],
       "pre_blocks": 3,
-      "tables": 0
+      "tables": 0,
+      "markdown_path": "articles/related/workspace/guides/create-project.md",
+      "markdown_sha256": "804497e5fa1ab9be5475f0a898685de482b253be0fd43f20599c29034fe0a941",
+      "markdown_verification": {
+        "code_blocks": 3,
+        "tables": 0,
+        "images": 1,
+        "text_nodes": 211,
+        "text_nodes_preserved": true
+      }
     }
   ],
   "assets": [
@@ -5893,266 +6793,304 @@
       "http_method": "PATCH",
       "api_path": "calendars/{calendarId}/events/{eventId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/patch",
-      "documentation_path": "pages/v3/reference/events/patch.html"
+      "documentation_path": "pages/v3/reference/events/patch.html",
+      "markdown_path": "articles/v3/reference/events/patch.md"
     },
     {
       "id": "calendar.events.watch",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/events/watch",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/watch",
-      "documentation_path": "pages/v3/reference/events/watch.html"
+      "documentation_path": "pages/v3/reference/events/watch.html",
+      "markdown_path": "articles/v3/reference/events/watch.md"
     },
     {
       "id": "calendar.events.quickAdd",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/events/quickAdd",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/quickAdd",
-      "documentation_path": "pages/v3/reference/events/quickAdd.html"
+      "documentation_path": "pages/v3/reference/events/quickAdd.html",
+      "markdown_path": "articles/v3/reference/events/quickAdd.md"
     },
     {
       "id": "calendar.events.list",
       "http_method": "GET",
       "api_path": "calendars/{calendarId}/events",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/list",
-      "documentation_path": "pages/v3/reference/events/list.html"
+      "documentation_path": "pages/v3/reference/events/list.html",
+      "markdown_path": "articles/v3/reference/events/list.md"
     },
     {
       "id": "calendar.events.move",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/events/{eventId}/move",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/move",
-      "documentation_path": "pages/v3/reference/events/move.html"
+      "documentation_path": "pages/v3/reference/events/move.html",
+      "markdown_path": "articles/v3/reference/events/move.md"
     },
     {
       "id": "calendar.events.delete",
       "http_method": "DELETE",
       "api_path": "calendars/{calendarId}/events/{eventId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/delete",
-      "documentation_path": "pages/v3/reference/events/delete.html"
+      "documentation_path": "pages/v3/reference/events/delete.html",
+      "markdown_path": "articles/v3/reference/events/delete.md"
     },
     {
       "id": "calendar.events.get",
       "http_method": "GET",
       "api_path": "calendars/{calendarId}/events/{eventId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/get",
-      "documentation_path": "pages/v3/reference/events/get.html"
+      "documentation_path": "pages/v3/reference/events/get.html",
+      "markdown_path": "articles/v3/reference/events/get.md"
     },
     {
       "id": "calendar.events.insert",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/events",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/insert",
-      "documentation_path": "pages/v3/reference/events/insert.html"
+      "documentation_path": "pages/v3/reference/events/insert.html",
+      "markdown_path": "articles/v3/reference/events/insert.md"
     },
     {
       "id": "calendar.events.update",
       "http_method": "PUT",
       "api_path": "calendars/{calendarId}/events/{eventId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/update",
-      "documentation_path": "pages/v3/reference/events/update.html"
+      "documentation_path": "pages/v3/reference/events/update.html",
+      "markdown_path": "articles/v3/reference/events/update.md"
     },
     {
       "id": "calendar.events.import",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/events/import",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/import",
-      "documentation_path": "pages/v3/reference/events/import.html"
+      "documentation_path": "pages/v3/reference/events/import.html",
+      "markdown_path": "articles/v3/reference/events/import.md"
     },
     {
       "id": "calendar.events.instances",
       "http_method": "GET",
       "api_path": "calendars/{calendarId}/events/{eventId}/instances",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/events/instances",
-      "documentation_path": "pages/v3/reference/events/instances.html"
+      "documentation_path": "pages/v3/reference/events/instances.html",
+      "markdown_path": "articles/v3/reference/events/instances.md"
     },
     {
       "id": "calendar.channels.stop",
       "http_method": "POST",
       "api_path": "channels/stop",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/channels/stop",
-      "documentation_path": "pages/v3/reference/channels/stop.html"
+      "documentation_path": "pages/v3/reference/channels/stop.html",
+      "markdown_path": "articles/v3/reference/channels/stop.md"
     },
     {
       "id": "calendar.acl.insert",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/acl",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/insert",
-      "documentation_path": "pages/v3/reference/acl/insert.html"
+      "documentation_path": "pages/v3/reference/acl/insert.html",
+      "markdown_path": "articles/v3/reference/acl/insert.md"
     },
     {
       "id": "calendar.acl.update",
       "http_method": "PUT",
       "api_path": "calendars/{calendarId}/acl/{ruleId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/update",
-      "documentation_path": "pages/v3/reference/acl/update.html"
+      "documentation_path": "pages/v3/reference/acl/update.html",
+      "markdown_path": "articles/v3/reference/acl/update.md"
     },
     {
       "id": "calendar.acl.watch",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/acl/watch",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/watch",
-      "documentation_path": "pages/v3/reference/acl/watch.html"
+      "documentation_path": "pages/v3/reference/acl/watch.html",
+      "markdown_path": "articles/v3/reference/acl/watch.md"
     },
     {
       "id": "calendar.acl.get",
       "http_method": "GET",
       "api_path": "calendars/{calendarId}/acl/{ruleId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/get",
-      "documentation_path": "pages/v3/reference/acl/get.html"
+      "documentation_path": "pages/v3/reference/acl/get.html",
+      "markdown_path": "articles/v3/reference/acl/get.md"
     },
     {
       "id": "calendar.acl.list",
       "http_method": "GET",
       "api_path": "calendars/{calendarId}/acl",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/list",
-      "documentation_path": "pages/v3/reference/acl/list.html"
+      "documentation_path": "pages/v3/reference/acl/list.html",
+      "markdown_path": "articles/v3/reference/acl/list.md"
     },
     {
       "id": "calendar.acl.delete",
       "http_method": "DELETE",
       "api_path": "calendars/{calendarId}/acl/{ruleId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/delete",
-      "documentation_path": "pages/v3/reference/acl/delete.html"
+      "documentation_path": "pages/v3/reference/acl/delete.html",
+      "markdown_path": "articles/v3/reference/acl/delete.md"
     },
     {
       "id": "calendar.acl.patch",
       "http_method": "PATCH",
       "api_path": "calendars/{calendarId}/acl/{ruleId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/acl/patch",
-      "documentation_path": "pages/v3/reference/acl/patch.html"
+      "documentation_path": "pages/v3/reference/acl/patch.html",
+      "markdown_path": "articles/v3/reference/acl/patch.md"
     },
     {
       "id": "calendar.colors.get",
       "http_method": "GET",
       "api_path": "colors",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/colors/get",
-      "documentation_path": "pages/v3/reference/colors/get.html"
+      "documentation_path": "pages/v3/reference/colors/get.html",
+      "markdown_path": "articles/v3/reference/colors/get.md"
     },
     {
       "id": "calendar.freebusy.query",
       "http_method": "POST",
       "api_path": "freeBusy",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/freebusy/query",
-      "documentation_path": "pages/v3/reference/freebusy/query.html"
+      "documentation_path": "pages/v3/reference/freebusy/query.html",
+      "markdown_path": "articles/v3/reference/freebusy/query.md"
     },
     {
       "id": "calendar.settings.get",
       "http_method": "GET",
       "api_path": "users/me/settings/{setting}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings/get",
-      "documentation_path": "pages/v3/reference/settings/get.html"
+      "documentation_path": "pages/v3/reference/settings/get.html",
+      "markdown_path": "articles/v3/reference/settings/get.md"
     },
     {
       "id": "calendar.settings.list",
       "http_method": "GET",
       "api_path": "users/me/settings",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings/list",
-      "documentation_path": "pages/v3/reference/settings/list.html"
+      "documentation_path": "pages/v3/reference/settings/list.html",
+      "markdown_path": "articles/v3/reference/settings/list.md"
     },
     {
       "id": "calendar.settings.watch",
       "http_method": "POST",
       "api_path": "users/me/settings/watch",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/settings/watch",
-      "documentation_path": "pages/v3/reference/settings/watch.html"
+      "documentation_path": "pages/v3/reference/settings/watch.html",
+      "markdown_path": "articles/v3/reference/settings/watch.md"
     },
     {
       "id": "calendar.calendars.insert",
       "http_method": "POST",
       "api_path": "calendars",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/insert",
-      "documentation_path": "pages/v3/reference/calendars/insert.html"
+      "documentation_path": "pages/v3/reference/calendars/insert.html",
+      "markdown_path": "articles/v3/reference/calendars/insert.md"
     },
     {
       "id": "calendar.calendars.update",
       "http_method": "PUT",
       "api_path": "calendars/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/update",
-      "documentation_path": "pages/v3/reference/calendars/update.html"
+      "documentation_path": "pages/v3/reference/calendars/update.html",
+      "markdown_path": "articles/v3/reference/calendars/update.md"
     },
     {
       "id": "calendar.calendars.get",
       "http_method": "GET",
       "api_path": "calendars/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/get",
-      "documentation_path": "pages/v3/reference/calendars/get.html"
+      "documentation_path": "pages/v3/reference/calendars/get.html",
+      "markdown_path": "articles/v3/reference/calendars/get.md"
     },
     {
       "id": "calendar.calendars.transferOwnership",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/transferOwnership",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/transferOwnership",
-      "documentation_path": "pages/v3/reference/calendars/transferOwnership.html"
+      "documentation_path": "pages/v3/reference/calendars/transferOwnership.html",
+      "markdown_path": "articles/v3/reference/calendars/transferOwnership.md"
     },
     {
       "id": "calendar.calendars.delete",
       "http_method": "DELETE",
       "api_path": "calendars/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/delete",
-      "documentation_path": "pages/v3/reference/calendars/delete.html"
+      "documentation_path": "pages/v3/reference/calendars/delete.html",
+      "markdown_path": "articles/v3/reference/calendars/delete.md"
     },
     {
       "id": "calendar.calendars.clear",
       "http_method": "POST",
       "api_path": "calendars/{calendarId}/clear",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/clear",
-      "documentation_path": "pages/v3/reference/calendars/clear.html"
+      "documentation_path": "pages/v3/reference/calendars/clear.html",
+      "markdown_path": "articles/v3/reference/calendars/clear.md"
     },
     {
       "id": "calendar.calendars.patch",
       "http_method": "PATCH",
       "api_path": "calendars/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendars/patch",
-      "documentation_path": "pages/v3/reference/calendars/patch.html"
+      "documentation_path": "pages/v3/reference/calendars/patch.html",
+      "markdown_path": "articles/v3/reference/calendars/patch.md"
     },
     {
       "id": "calendar.calendarList.list",
       "http_method": "GET",
       "api_path": "users/me/calendarList",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/list",
-      "documentation_path": "pages/v3/reference/calendarList/list.html"
+      "documentation_path": "pages/v3/reference/calendarList/list.html",
+      "markdown_path": "articles/v3/reference/calendarList/list.md"
     },
     {
       "id": "calendar.calendarList.watch",
       "http_method": "POST",
       "api_path": "users/me/calendarList/watch",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/watch",
-      "documentation_path": "pages/v3/reference/calendarList/watch.html"
+      "documentation_path": "pages/v3/reference/calendarList/watch.html",
+      "markdown_path": "articles/v3/reference/calendarList/watch.md"
     },
     {
       "id": "calendar.calendarList.get",
       "http_method": "GET",
       "api_path": "users/me/calendarList/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/get",
-      "documentation_path": "pages/v3/reference/calendarList/get.html"
+      "documentation_path": "pages/v3/reference/calendarList/get.html",
+      "markdown_path": "articles/v3/reference/calendarList/get.md"
     },
     {
       "id": "calendar.calendarList.insert",
       "http_method": "POST",
       "api_path": "users/me/calendarList",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/insert",
-      "documentation_path": "pages/v3/reference/calendarList/insert.html"
+      "documentation_path": "pages/v3/reference/calendarList/insert.html",
+      "markdown_path": "articles/v3/reference/calendarList/insert.md"
     },
     {
       "id": "calendar.calendarList.update",
       "http_method": "PUT",
       "api_path": "users/me/calendarList/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/update",
-      "documentation_path": "pages/v3/reference/calendarList/update.html"
+      "documentation_path": "pages/v3/reference/calendarList/update.html",
+      "markdown_path": "articles/v3/reference/calendarList/update.md"
     },
     {
       "id": "calendar.calendarList.delete",
       "http_method": "DELETE",
       "api_path": "users/me/calendarList/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/delete",
-      "documentation_path": "pages/v3/reference/calendarList/delete.html"
+      "documentation_path": "pages/v3/reference/calendarList/delete.html",
+      "markdown_path": "articles/v3/reference/calendarList/delete.md"
     },
     {
       "id": "calendar.calendarList.patch",
       "http_method": "PATCH",
       "api_path": "users/me/calendarList/{calendarId}",
       "documentation_url": "https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/patch",
-      "documentation_path": "pages/v3/reference/calendarList/patch.html"
+      "documentation_path": "pages/v3/reference/calendarList/patch.html",
+      "markdown_path": "articles/v3/reference/calendarList/patch.md"
     }
   ],
   "discovery_sha256": "664963309b45f751a05c851b774a795f007653200ab3e5684076619ca9c56c1d",
@@ -6186,5 +7124,14 @@
       "path": "calendar-v3.discovery.json",
       "reason": "Полная официальная машиночитаемая схема"
     }
-  ]
+  ],
+  "markdown_verification": {
+    "status": "PASS",
+    "method": "Every source text node consumed exactly once; pre/table/img counts preserved; code strings copied without whitespace normalization.",
+    "articles": 100,
+    "code_blocks": 364,
+    "tables": 344,
+    "images": 25,
+    "text_nodes": 61849
+  }
 }
