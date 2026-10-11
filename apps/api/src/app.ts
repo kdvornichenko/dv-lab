@@ -1,16 +1,19 @@
-import { upgradeWebSocket } from '@hono/node-server'
+import { upgradeWebSocket, type WebSocketLike } from '@hono/node-server'
 
 import { sql } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { Hono, type Context, type MiddlewareHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
+import type { WSEvents } from 'hono/ws'
 import type { Logger } from 'pino'
 
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, originMatches, sameOrigin } from './auth/middleware.ts'
 import type { SignIn } from './auth/sign-in.ts'
+import type { CalendarConnection } from './calendar/connection.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
+import { googleRoutes } from './routes/google.ts'
 import { paymentRoutes } from './routes/payments.ts'
 import { scheduleRoutes } from './routes/schedule.ts'
 import { settingsRoutes } from './routes/settings.ts'
@@ -25,6 +28,7 @@ export type AppDeps = {
 	production: boolean
 	isStopping: () => boolean
 	signIn: SignIn
+	calendar?: CalendarConnection
 }
 
 function clientErrorBody(status: number) {
@@ -39,6 +43,9 @@ function clientErrorBody(status: number) {
 			return errorBody('invalid_request', 'Invalid request')
 	}
 }
+
+const upgrade: (events: () => WSEvents<WebSocketLike>) => MiddlewareHandler<AppEnv, string, { outputFormat: 'ws' }> =
+	upgradeWebSocket
 
 export function createApp(deps: AppDeps) {
 	const app = new Hono<AppEnv>()
@@ -61,25 +68,26 @@ export function createApp(deps: AppDeps) {
 			if (!originMatches(c, deps.appOrigin)) return c.json(errorBody('forbidden_origin', 'Forbidden'), 403)
 			await next()
 		},
-		upgradeWebSocket(() => ({
-			onMessage(event, ws) {
+		upgrade(() => ({
+			onMessage(event: { data: unknown }, ws: { send: (data: string) => void }) {
 				if (typeof event.data === 'string') ws.send(event.data)
 			},
 		}))
 	)
 	app.route('/auth', authRoutes({ db: deps.db, signIn: deps.signIn, production: deps.production, logger: deps.logger }))
+	app.route('/google', googleRoutes({ db: deps.db, connection: deps.calendar, isStopping: deps.isStopping }))
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db }))
 	app.route('/settings', settingsRoutes({ db: deps.db }))
 	app.route('/today', todayRoutes({ db: deps.db }))
-	app.onError((err, c) => {
+	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {
 			return c.json(clientErrorBody(err.status), err.status)
 		}
 		deps.logger.error({ err }, 'request failed')
 		return c.json(errorBody('internal_error', 'Internal Server Error'), 500)
 	})
-	app.notFound((c) => c.json(errorBody('not_found', 'Not Found'), 404))
+	app.notFound((c: Context<AppEnv, string, {}>) => c.json(errorBody('not_found', 'Not Found'), 404))
 	return app
 }
