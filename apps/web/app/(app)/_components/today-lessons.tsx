@@ -108,12 +108,12 @@ function LessonRow({
 			)}
 		>
 			{showDate ? (
-				<span data-slot="today-row-date" className="min-w-18 shrink-0 whitespace-nowrap text-muted-foreground">
+				<span data-slot="today-row-date" className="min-w-0 truncate text-muted-foreground sm:min-w-18 sm:shrink-0">
 					{formatDay(start, SCHEDULE_TIME_ZONE, year)}
 				</span>
 			) : null}
 			<TimePair
-				className="min-w-22 shrink-0 whitespace-nowrap"
+				className="min-w-0 overflow-hidden whitespace-nowrap sm:min-w-22 sm:shrink-0"
 				main={formatTime(start, SCHEDULE_TIME_ZONE)}
 				second={secondWhen(start, secondZone)}
 			/>

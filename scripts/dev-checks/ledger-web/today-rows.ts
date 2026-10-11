@@ -205,12 +205,27 @@ async function narrowToday(page: Page) {
 
 	await page.setViewportSize({ width: 320, height: 700 })
 	await openToday(page)
-	const fit = await page.evaluate(() => ({
-		page: document.documentElement.scrollWidth <= window.innerWidth,
-		panels: Array.from(document.querySelectorAll<HTMLElement>('main section, [data-slot="today-counters"]')).every(
-			(element) => element.scrollWidth <= element.clientWidth + 1
-		),
-	}))
+	const measure = () =>
+		page.evaluate(() => {
+			const boxes = Array.from(
+				document.querySelectorAll<HTMLElement>('main section, [data-slot="today-counters"]')
+			).map((element) => {
+				const bounds = element.getBoundingClientRect()
+				return { left: bounds.left, right: bounds.right, client: element.clientWidth, scroll: element.scrollWidth }
+			})
+			return {
+				page: document.documentElement.scrollWidth <= window.innerWidth,
+				panels: boxes.every(
+					(box) => box.scroll <= box.client + 1 && box.left >= -1 && box.right <= window.innerWidth + 1
+				),
+				viewport: window.innerWidth,
+				boxes,
+			}
+		})
+	const immediate = await measure()
+	await page.waitForTimeout(600)
+	const fit = await measure()
+	console.log('NARROW_GEOMETRY ' + JSON.stringify({ immediate, settled: fit }))
 	check('320px: no sideways scroll of the page', fit.page)
 	check('320px: no panel or counter row overflows', fit.panels)
 	await shot(page, 'ledger-today', 'narrow-320')
