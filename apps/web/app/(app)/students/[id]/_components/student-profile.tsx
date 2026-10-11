@@ -18,7 +18,7 @@ import { Skeleton, SkeletonProfileHeader } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 
-import type { SectionKind, SettingsResponse, StudentDetail, StudentResponse } from '@dv-lab/contracts'
+import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
 import { NotesTab, type SectionDrafts } from './notes-tab'
@@ -28,20 +28,12 @@ import { RecordPaymentDialog } from './record-payment-dialog'
 import { VocabularyTab } from './vocabulary-tab'
 
 type ReadState =
-	| { kind: 'loading' }
-	| { kind: 'error' }
-	| { kind: 'not_found' }
-	| { kind: 'ready'; student: StudentDetail; threshold: number }
+	{ kind: 'loading' | 'error' | 'not_found'; data: StudentResponse | null } | { kind: 'ready'; data: StudentResponse }
 
 async function readStudent(id: string): Promise<ReadState> {
-	const [student, settings] = await Promise.all([
-		apiRequest<StudentResponse>('GET', `/students/${id}`),
-		apiRequest<SettingsResponse>('GET', '/settings'),
-	])
-	if (student.ok && settings.ok) {
-		return { kind: 'ready', student: student.data.student, threshold: settings.data.settings.paysSoonLessons }
-	}
-	return !student.ok && student.status === 404 ? { kind: 'not_found' } : { kind: 'error' }
+	const result = await apiRequest<StudentResponse>('GET', `/students/${id}`)
+	if (result.ok) return { kind: 'ready', data: result.data }
+	return { kind: result.status === 404 ? 'not_found' : 'error', data: null }
 }
 
 function BackButton() {
@@ -134,7 +126,7 @@ function SummaryLine({
 }
 
 export function StudentProfile({ id }: { id: string }) {
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>({ kind: 'loading', data: null })
 	const [tab, setTab] = useState('overview')
 	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
 	const [recordOpen, setRecordOpen] = useState(false)
@@ -143,21 +135,24 @@ export function StudentProfile({ id }: { id: string }) {
 	const lessonsInput = useRef<HTMLInputElement>(null)
 	const statusButton = useRef<HTMLButtonElement>(null)
 	const recordButton = useRef<HTMLButtonElement>(null)
+	const requests = useRef(0)
 	const toast = useToast()
 
 	const reload = useCallback(async () => {
-		setState(await readStudent(id))
+		const requestId = ++requests.current
+		const next = await readStudent(id)
+		if (requestId !== requests.current) return false
+		setState((previous) => (next.kind === 'ready' ? next : { ...next, data: previous.data }))
+		return next.kind === 'ready'
 	}, [id])
 
 	useEffect(() => {
-		let current = true
-		void readStudent(id).then((next) => {
-			if (current) setState(next)
-		})
+		const counter = requests
+		void reload()
 		return () => {
-			current = false
+			counter.current++
 		}
-	}, [id])
+	}, [reload])
 
 	function changeDraft(kind: SectionKind, value: string | undefined) {
 		setDrafts((current) => {
@@ -198,16 +193,21 @@ export function StudentProfile({ id }: { id: string }) {
 
 	if (state.kind === 'not_found') return <NotFoundPage inShell />
 
-	if (state.kind === 'error') {
+	if (state.kind === 'error' && state.data === null) {
 		return (
 			<PageScroll>
 				<BackButton />
-				<ReadError screen="student" onRefresh={reload} />
+				<ReadError
+					screen="student"
+					onRefresh={async () => {
+						await reload()
+					}}
+				/>
 			</PageScroll>
 		)
 	}
 
-	if (state.kind === 'loading') {
+	if (state.data === null) {
 		return (
 			<PageScroll>
 				<BackButton />
@@ -219,69 +219,92 @@ export function StudentProfile({ id }: { id: string }) {
 		)
 	}
 
-	const { student, threshold } = state
+	const { student, paysSoonLessons: threshold, defaultTimeZone: mainTimeZone, asOf } = state.data
 	return (
 		<PageScroll>
 			<BackButton />
-			<PageHeader
-				title={
-					<span className="flex items-center gap-2">
-						<Avatar name={student.displayName} />
-						<span className="min-w-0 wrap-anywhere">{student.displayName}</span>
-					</span>
-				}
-				description={<SummaryLine student={student} threshold={threshold} onSetBalance={focusOpeningBalance} />}
-				actions={
-					<>
-						{student.status === 'active' ? (
-							<Button
-								ref={statusButton}
-								variant="secondary"
-								leadingIcon={Archive}
-								onClick={() => setConfirm('archive')}
-							>
-								Archive
+			{state.kind === 'error' ? (
+				<ReadError
+					screen="student"
+					onRefresh={async () => {
+						await reload()
+					}}
+				/>
+			) : null}
+			<div className={state.kind === 'error' ? 'hidden' : 'contents'}>
+				<PageHeader
+					title={
+						<span className="flex items-center gap-2">
+							<Avatar name={student.displayName} />
+							<span className="min-w-0 wrap-anywhere">{student.displayName}</span>
+						</span>
+					}
+					description={<SummaryLine student={student} threshold={threshold} onSetBalance={focusOpeningBalance} />}
+					actions={
+						<>
+							{student.status === 'active' ? (
+								<Button
+									ref={statusButton}
+									variant="secondary"
+									leadingIcon={Archive}
+									onClick={() => setConfirm('archive')}
+								>
+									Archive
+								</Button>
+							) : (
+								<Button
+									ref={statusButton}
+									variant="secondary"
+									leadingIcon={ArchiveRestore}
+									onClick={() => setConfirm('restore')}
+								>
+									Restore
+								</Button>
+							)}
+							<Button ref={recordButton} leadingIcon={Wallet} onClick={() => setRecordOpen(true)}>
+								Record payment
 							</Button>
-						) : (
-							<Button
-								ref={statusButton}
-								variant="secondary"
-								leadingIcon={ArchiveRestore}
-								onClick={() => setConfirm('restore')}
-							>
-								Restore
-							</Button>
-						)}
-						<Button ref={recordButton} leadingIcon={Wallet} onClick={() => setRecordOpen(true)}>
-							Record payment
-						</Button>
-					</>
-				}
-			/>
-			<Tabs value={tab} onValueChange={setTab}>
-				<TabsList aria-label="Student sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
-					<TabItem value="overview" label="Overview" />
-					<TabItem value="notes" label="Notes" />
-					<TabItem value="vocabulary" label="Vocabulary" />
-					<TabItem value="payments" label="Payments" />
-				</TabsList>
-				<TabPanel value="overview" className="mt-4">
-					<OverviewTab student={student} lessonsInputRef={lessonsInput} onSaved={() => void reload()} />
-				</TabPanel>
-				<TabPanel value="notes" className="mt-4">
-					<NotesTab student={student} drafts={drafts} onDraftChange={changeDraft} />
-				</TabPanel>
-				<TabPanel value="vocabulary" className="mt-4">
-					<VocabularyTab student={student} />
-				</TabPanel>
-				<TabPanel value="payments" className="mt-4">
-					<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
-				</TabPanel>
-			</Tabs>
+						</>
+					}
+				/>
+				<Tabs value={tab} onValueChange={setTab}>
+					<TabsList aria-label="Student sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
+						<TabItem value="overview" label="Overview" />
+						<TabItem value="notes" label="Notes" />
+						<TabItem value="vocabulary" label="Vocabulary" />
+						<TabItem value="payments" label="Payments" />
+					</TabsList>
+					<TabPanel value="overview" className="mt-4">
+						<OverviewTab
+							student={student}
+							mainTimeZone={mainTimeZone}
+							asOf={asOf}
+							lessonsInputRef={lessonsInput}
+							onSaved={reload}
+						/>
+					</TabPanel>
+					<TabPanel value="notes" className="mt-4">
+						<NotesTab student={student} drafts={drafts} onDraftChange={changeDraft} />
+					</TabPanel>
+					<TabPanel value="vocabulary" className="mt-4">
+						<VocabularyTab student={student} />
+					</TabPanel>
+					<TabPanel value="payments" className="mt-4">
+						<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
+					</TabPanel>
+				</Tabs>
+			</div>
 			{recordOpen ? (
 				<RecordPaymentDialog
 					student={student}
+					mainTimeZone={mainTimeZone}
+					currentMainTimeZone={mainTimeZone}
+					asOf={asOf}
 					onClose={closeRecord}
+					onRefresh={() => {
+						closeRecord()
+						void reload()
+					}}
 					onRecorded={() => {
 						closeRecord()
 						setPaymentsVersion((version) => version + 1)

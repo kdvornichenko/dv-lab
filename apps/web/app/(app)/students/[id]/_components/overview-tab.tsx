@@ -16,8 +16,10 @@ import { OpeningBalancePanel } from './opening-balance-panel'
 
 interface OverviewTabProps {
 	student: StudentDetail
+	mainTimeZone: string
+	asOf: string
 	lessonsInputRef: RefObject<HTMLInputElement | null>
-	onSaved: () => void
+	onSaved: () => Promise<boolean>
 }
 
 function NotSet() {
@@ -37,9 +39,14 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 	)
 }
 
-export function OverviewTab({ student, lessonsInputRef, onSaved }: OverviewTabProps) {
+export function OverviewTab({ student, mainTimeZone, asOf, lessonsInputRef, onSaved }: OverviewTabProps) {
 	const [editOpen, setEditOpen] = useState(false)
+	const [openingVersion, setOpeningVersion] = useState(0)
 	const editButton = useRef<HTMLButtonElement>(null)
+
+	async function refreshOpening() {
+		if (await onSaved()) setOpeningVersion((version) => version + 1)
+	}
 
 	return (
 		<div className="grid gap-4 md:gap-6 lg:grid-cols-2">
@@ -85,7 +92,15 @@ export function OverviewTab({ student, lessonsInputRef, onSaved }: OverviewTabPr
 				</dl>
 			</Panel>
 			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
-				<OpeningBalancePanel student={student} lessonsInputRef={lessonsInputRef} onSaved={onSaved} />
+				<OpeningBalancePanel
+					key={openingVersion}
+					student={student}
+					mainTimeZone={mainTimeZone}
+					asOf={asOf}
+					lessonsInputRef={lessonsInputRef}
+					onSaved={() => void refreshOpening()}
+					onRefresh={() => void refreshOpening()}
+				/>
 				<AccountPanel student={student} onChanged={onSaved} />
 			</div>
 			{editOpen ? (
