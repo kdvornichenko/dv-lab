@@ -24,15 +24,7 @@ import {
 	scheduleDate,
 	windowDates,
 } from '@dv-lab/core'
-import {
-	type Database,
-	type DbExecutor,
-	lessonExceptions,
-	lessonMarks,
-	lessonSeries,
-	lessons,
-	type students,
-} from '@dv-lab/db'
+import { type DbExecutor, lessonExceptions, lessonMarks, lessonSeries, lessons, type students } from '@dv-lab/db'
 
 type ScheduleRange = { from: Date; to: Date | null; studentIds?: readonly string[] }
 
@@ -326,10 +318,6 @@ export async function loadMarkRows(
 		})
 	}
 	return result
-}
-
-export function readSnapshot<T>(db: Database, read: (executor: DbExecutor) => Promise<T>): Promise<T> {
-	return db.transaction((tx) => read(tx), { isolationLevel: 'repeatable read', accessMode: 'read only' })
 }
 
 const EMPTY_ROWS: ScheduleRows = { series: [], exceptions: [], lessons: [] }
