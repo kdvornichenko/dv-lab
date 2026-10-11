@@ -12,7 +12,7 @@ import {
 	FIXTURE_DATABASE,
 	HTTPS_TARGET,
 	PRIVATE_DIR,
-	prelaunchEnvironment,
+	prelaunchTeacherEnvironment,
 } from './target.ts'
 import type { TargetBinding } from './target.ts'
 
@@ -91,7 +91,9 @@ function readPrivate(path: string): unknown {
 export function teacherCredentials(): { login: string; password: string } {
 	requireTargetDatabase()
 	const env =
-		FIXTURE_DATABASE === 'prelaunch' ? prelaunchEnvironment() : parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
+		FIXTURE_DATABASE === 'prelaunch'
+			? prelaunchTeacherEnvironment()
+			: parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
 	const login = env.DEV_TEACHER_LOGIN
 	const password = env.DEV_TEACHER_PASSWORD
 	if (!login) throw new Error('Set DEV_TEACHER_LOGIN')
@@ -121,11 +123,16 @@ raise exception 'E2E database guard refused'; end if; end $$;`
 		{
 			cwd: ROOT,
 			encoding: 'utf8',
-			timeout: prelaunch ? 35000 : 20000,
+			timeout: prelaunch ? 45000 : 20000,
 			input: prelaunch ? JSON.stringify({ kind: operation, ...(operation === 'query' ? { query } : {}) }) : undefined,
 		}
 	)
-	if (result.status !== 0 || result.error) throw new Error('E2E SQL failed; database details suppressed')
+	if (result.status !== 0 || result.error)
+		throw new Error(
+			prelaunch
+				? 'Prelaunch SQL failed; inspect owned state before retrying an uncertain write'
+				: 'E2E SQL failed; database details suppressed'
+		)
 	const last = result.stdout.trim().split('\n').at(-1)
 	if (!last) throw new Error('E2E SQL returned no result')
 	try {

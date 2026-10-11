@@ -75,11 +75,14 @@ export function readPrivateJson(file: string): unknown {
 	}
 }
 
-export function prelaunchEnvironment(): Record<string, string | undefined> {
+export function prelaunchTeacherEnvironment(): Record<string, string | undefined> {
 	const file = process.env.E2E_PRELAUNCH_ENV_FILE
 	if (FIXTURE_DATABASE !== 'prelaunch' || !file || !isAbsolute(file) || resolve(file) !== file)
 		throw new Error('Prelaunch requires an absolute canonical E2E_PRELAUNCH_ENV_FILE')
-	return parseEnv(readPrivateText(file))
+	const env = parseEnv(readPrivateText(file))
+	if ('DATABASE_URL' in env || 'MIGRATOR_DATABASE_URL' in env)
+		throw new Error('Prelaunch teacher credentials must not contain database connection strings')
+	return { DEV_TEACHER_LOGIN: env.DEV_TEACHER_LOGIN, DEV_TEACHER_PASSWORD: env.DEV_TEACHER_PASSWORD }
 }
 
 export function targetBinding(): TargetBinding {
