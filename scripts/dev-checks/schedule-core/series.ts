@@ -190,7 +190,7 @@ function preservedLessonVectors(expect: Expect): void {
 	const keptLessons = (endResult.lessons ?? []).map((lesson, index) => ({
 		...lesson,
 		id: `kept-${index + 1}`,
-		status: 'scheduled' as const,
+		status: lesson.status ?? ('scheduled' as const),
 	}))
 	const endedWeekly = { ...weekly, endsOn: endResult.endsOn }
 	const thursday = (blocks: ReturnType<typeof windowOf>) =>

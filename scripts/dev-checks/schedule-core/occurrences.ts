@@ -328,7 +328,16 @@ function cancelledMoveVectors(expect: Expect): void {
 				},
 			],
 			next: [[STUDENT, '2026-10-21T11:00:00.000Z']],
-			cutLessons: [],
+			cutLessons: [
+				{
+					studentId: STUDENT,
+					startsAt: '2026-10-16T02:00:00.000Z',
+					timeZone: VN,
+					durationMinutes: 45,
+					originalOn: '2026-10-14',
+					status: 'cancelled',
+				},
+			],
 		}
 	)
 }
