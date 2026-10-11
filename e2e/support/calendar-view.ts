@@ -7,9 +7,11 @@ import {
 	type CalendarEventView,
 	type GoogleScheduleWindow,
 } from '../../packages/contracts/src/calendar.ts'
-import { addDays, mondayOf, scheduleDate } from '../../packages/core/src/index.ts'
+import { addDays, mondayOf, scheduleDate, startOfZonedDay, zonedParts } from '../../packages/core/src/index.ts'
+import { api } from './api.ts'
 import { PRIVATE_DIR } from './data.ts'
 import { readPrivateJson } from './target.ts'
+import { pickDate, pickTime } from './ui.ts'
 
 const viewFixture = z.strictObject({
 	kind: z.literal('observed-google-view'),
@@ -180,4 +182,73 @@ export async function expectViewCases(
 		await dialog.getByRole('button', { name: 'Close', exact: true }).click()
 		await expect(button).toBeFocused()
 	}
+}
+
+function fixtureEvent(
+	window: GoogleScheduleWindow,
+	fixture: ReturnType<typeof observedView>,
+	role: 'all_day' | 'available'
+) {
+	const key = fixture.cases.find((item) => item.role === role)?.eventKey
+	const event = window.events.find((item) => item.eventKey === key)
+	if (!event) throw new Error('Observed all-day hint fixture is missing from the public window')
+	return event
+}
+
+function eventInterval(event: CalendarEventView) {
+	return event.when.kind === 'all_day'
+		? {
+				start: startOfZonedDay(event.when.startsOn, event.when.timeZone),
+				end: startOfZonedDay(event.when.endsBefore, event.when.timeZone),
+			}
+		: { start: new Date(event.when.startsAt), end: new Date(event.when.endsAt) }
+}
+
+export async function expectAllDayHints(
+	page: Page,
+	window: GoogleScheduleWindow,
+	fixture: ReturnType<typeof observedView>
+) {
+	const busy = fixtureEvent(window, fixture, 'all_day')
+	const available = fixtureEvent(window, fixture, 'available')
+	if (busy.when.kind !== 'all_day' || !busy.blocksTime || busy.status === 'cancelled' || available.blocksTime)
+		throw new Error('Hint fixture requires a busy all-day event and an available event')
+	const { start, end } = eventInterval(busy)
+	const hour = 60 * 60000
+	const candidates = [
+		{ at: new Date(start.getTime() - hour), event: null },
+		{ at: start, event: busy },
+		{ at: new Date(end.getTime() - hour), event: busy },
+		{ at: end, event: null },
+		{ at: eventInterval(available).start, event: null },
+	]
+	await page.getByRole('button', { name: 'New lesson', exact: true }).click()
+	const dialog = page.getByRole('dialog', { name: 'New lesson', exact: true })
+	await dialog.locator('#new-lesson-length').fill('60')
+	for (const candidate of candidates)
+		await expectDraftHint(page, candidate.at, candidate.event, window.requestedRange.timeZone)
+	await dialog.getByRole('button', { name: 'Discard changes', exact: true }).click()
+}
+
+async function expectDraftHint(page: Page, at: Date, event: CalendarEventView | null, timeZone: string) {
+	if (at.getTime() <= Date.now()) throw new Error('Hint fixture requires future editable boundaries')
+	const { date, time } = zonedParts(at, timeZone)
+	const window = googleScheduleWindow.parse(await api(page.request, 'GET', `/schedule/week?start=${mondayOf(date)}`))
+	if (window.read.state !== 'fresh' || window.write.state !== 'ready')
+		throw new Error('Hint fixture requires a complete fresh writable window')
+	const busy = window.events.filter((item) => {
+		if (!item.blocksTime || item.status === 'cancelled') return false
+		const { start, end } = eventInterval(item)
+		return start.getTime() < at.getTime() + 60 * 60000 && at.getTime() < end.getTime()
+	})
+	expect(
+		busy.map((item) => item.eventKey),
+		'Fixture isolates the tested boundary from other busy events'
+	).toEqual(event === null ? [] : [event.eventKey])
+	await pickDate(page, date, 'new-lesson-date')
+	await pickTime(page, time, 'new-lesson-time')
+	await page.waitForLoadState('networkidle')
+	const hint = page.locator('[data-slot="new-lesson-overlap"]')
+	if (event === null) await expect(hint).toHaveCount(0)
+	else await expect(hint).toContainText(event.title?.trim() || 'Busy')
 }

@@ -115,20 +115,3 @@ export function markHelp(
 			return `This lesson was moved to ${movedDate({ movedTo }, mainTimeZone) ?? 'a new time'}, so nothing is deducted here. Mark it at its new time.`
 	}
 }
-
-export function tooltipDeduction(effect: MarkEffect, lessonMinutes: number): string | null {
-	switch (effect.kind) {
-		case 'unmarked':
-			return 'Click to mark it.'
-		case 'no_opening':
-		case 'before_opening':
-		case 'no_show_off':
-			return 'Deducts nothing'
-		case 'deducts':
-			return `Deducts ${lessonsPhrase(effect.minutes, lessonMinutes)}`
-		case 'not_started':
-		case 'cancelled':
-		case 'moved':
-			return null
-	}
-}

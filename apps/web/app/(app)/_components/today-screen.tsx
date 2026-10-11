@@ -16,7 +16,7 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
-import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond, yearInZone } from '@/lib/schedule-format'
+import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -302,7 +302,7 @@ export function TodayScreen() {
 }
 
 function LoadedToday({ minuteNow }: { minuteNow: Date }) {
-	const { state, now, reload, blocksOn, getData } = useToday(minuteNow)
+	const { state, now, reload, blocksOn, calendar, getData } = useToday(minuteNow)
 	const { data } = state
 	const [zone] = useSecondZone(data?.defaultTimeZone ?? null)
 	const [selected, setSelected] = useState<LessonSelection | null>(null)
@@ -316,9 +316,7 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 		const block = [...data.lessons, ...data.earlier].find(
 			(item) => item.key === selected.key && occurrenceSlot(item.outcome) === selected.slot
 		)
-		return block
-			? { ...block, actions: { ...block.actions, move: false, cancel: false, restore: false, series: false } }
-			: null
+		return block ?? null
 	}, [data, selected])
 
 	function closePayment() {
@@ -416,9 +414,9 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 				currentMainTimeZone={mainTimeZone}
 				asOf={data.asOf}
 				series={data.series}
+				calendar={calendar}
 				now={now}
 				secondZone={zone}
-				currentYear={yearInZone(now, mainTimeZone)}
 				blocksOn={blocksOn}
 				reload={reload}
 				onClose={closeLesson}

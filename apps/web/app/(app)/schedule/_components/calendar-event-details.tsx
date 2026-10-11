@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+
 import { TimePair } from '@/components/app/time-pair'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,7 +28,7 @@ export function eventRange(event: CalendarEventView, timeZone: string): string {
 	return formatRange(start, minutes, timeZone)
 }
 
-function EventTime({
+export function EventTime({
 	event,
 	timeZone,
 	secondZone,
@@ -91,7 +93,10 @@ export function CalendarEventDetails({
 			<span className="text-muted-foreground">Read-only</span>
 			{event.binding.kind === 'transition' ? (
 				<p className="text-muted-foreground">
-					This change has not been confirmed. Check its status before trying again.
+					This change has not been confirmed. Check its status before trying again.{' '}
+					<Link href="/settings?tab=calendar" className="underline underline-offset-2">
+						Check status
+					</Link>
 				</p>
 			) : null}
 		</div>

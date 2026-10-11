@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 import { redirect } from 'next/navigation'
 
+import { CalendarCommandProvider } from '@/components/app/calendar-command-provider'
 import { getMe } from '@/lib/session'
 
 import { AppShell } from './_components/app-shell'
@@ -21,8 +22,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 	}
 	return (
 		<AppShell account={me.account}>
-			<SessionRenewal renewDue={me.renewDue} />
-			{children}
+			<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
+				<SessionRenewal renewDue={me.renewDue} />
+				{children}
+			</CalendarCommandProvider>
 		</AppShell>
 	)
 }

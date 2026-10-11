@@ -2,6 +2,7 @@ import { scheduleDate } from '../packages/core/src/index.ts'
 import { withCalendarToday } from './support/calendar-today.ts'
 import {
 	expectCalendarReadOnly,
+	expectAllDayHints,
 	expectClosedGestures,
 	expectOverlap,
 	expectViewCases,
@@ -19,6 +20,7 @@ test('[calendar-view] unavailable does not display legacy future or accept gestu
 	await withCalendarToday(page.request, async ({ futureId }) => {
 		const window = await openView(page)
 		expect(window.read.state).toBe('unavailable')
+		expect(window.write.state).toBe('blocked')
 		await expect(
 			page.getByText('No checked calendar view is available for these dates.', { exact: true })
 		).toBeVisible()
@@ -41,6 +43,7 @@ test('[calendar-view] fresh provider events expose safe keyboard and pointer det
 	const fixture = observedView()
 	const window = await openView(page, fixture.weekStart)
 	expect(window.read.state).toBe('fresh')
+	expect(window.write).toEqual({ state: 'blocked', reason: 'command_pending' })
 	await expect(page.getByText(/^Last checked:/)).toBeVisible()
 	await expectViewCases(page, window, fixture)
 	await expectOverlap(page, window, fixture.overlap)
@@ -59,10 +62,21 @@ test('[calendar-view] fresh provider events expose safe keyboard and pointer det
 	expect(writes(), 'Read-only details never submit calendar commands').toBe(0)
 })
 
+test('[calendar-view] draft hints include busy all-day boundaries and exclude available events', async ({ page }) => {
+	const writes = watchCalendarWrites(page)
+	const fixture = observedView()
+	const window = await openView(page, fixture.weekStart)
+	expect(window.read.state).toBe('fresh')
+	expect(window.write.state).toBe('ready')
+	await expectAllDayHints(page, window, fixture)
+	expect(writes(), 'Overlap hints do not submit calendar commands').toBe(0)
+})
+
 test('[calendar-view] last-known dates stay truthful and an uncovered week is unavailable', async ({ page }) => {
 	const fixture = observedView()
 	const window = await openView(page, fixture.weekStart)
 	expect(window.read.state).toBe('last_known')
+	expect(window.write.state).toBe('blocked')
 	if (!window.snapshotRange) throw new Error('A complete observed snapshot is required')
 	const date = scheduleDate(new Date(window.snapshotRange.start), window.snapshotRange.timeZone)
 	await expect(page.locator('[data-slot="schedule-window"]')).toHaveAttribute('data-snapshot-start', date)
@@ -81,10 +95,21 @@ test('[calendar-view] only a complete fresh empty window shows an empty calendar
 	const fixture = observedView()
 	const window = await openView(page, fixture.emptyWeekStart)
 	expect(window.read.state).toBe('fresh')
+	expect(window.write.state).toBe('ready')
 	expect(window.events.length).toBe(0)
 	await expect(page.getByText('No Google Calendar events in this range.', { exact: true })).toBeVisible()
 	await expect(page.getByText('No checked calendar view is available for these dates.', { exact: true })).toHaveCount(0)
-	await expectCalendarReadOnly(page)
+	await expect(page.getByRole('button', { name: 'New lesson', exact: true })).toBeEnabled()
+	await page.getByRole('button', { name: 'New lesson', exact: true }).click()
+	await expect(page.getByRole('dialog', { name: 'New lesson', exact: true })).toBeVisible()
+	await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+	const column = page.locator('[data-slot="week-grid-column"]:visible').last()
+	const bounds = await column.boundingBox()
+	const body = await page.locator('[data-slot="week-grid-body"]').boundingBox()
+	if (!bounds || !body) throw new Error('Ready Calendar grid is required')
+	await page.mouse.click(bounds.x + bounds.width - 1, body.y + 100)
+	await expect(page.getByRole('dialog', { name: 'New lesson', exact: true })).toBeVisible()
+	await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
 })
 
 test('[calendar-view] transport failure retains only the checked dates and disables writes', async ({ page }) => {
