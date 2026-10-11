@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-10-11T08:13:21Z",
+  "timestamp": "2026-10-11T08:49:00Z",
   "phase": "21-lesson-accounting-and-today",
   "phase_name": "Lesson Accounting and Today",
   "phase_dir": ".planning/phases/21-lesson-accounting-and-today",
@@ -25,11 +25,10 @@
     "21-14",
     "21-15",
     "21-16",
-    "21-17"
-  ],
-  "remaining_tasks": [
+    "21-17",
     "21-18"
   ],
+  "remaining_tasks": [],
   "blockers": [],
   "human_actions_pending": [
     "Owner: effort level names, Recommended marker, model order, relative cost (design v39)",
@@ -43,6 +42,6 @@
     "Phase 24 includes public homepage, privacy policy and terms pages before retrying Google OAuth Production publication"
   ],
   "uncommitted_files": [],
-  "next_action": "Execute 21-18 from the prepared TypeScript E2E draft. Read 21-13-SUMMARY.md (f1d44b6). Playwright 1.63.0 is already installed; no repeat approval or install. Final security/UI/architecture/code review and verifier follow 21-18.",
+  "next_action": "Attach final evidence to security/UI/architecture/code reviews, then run the verifier. All 18 plans are complete (SUMMARY18 f5e7083). Root yarn test and yarn build passed at that code version. Reuse passing proof unless its inputs change. PR and merge follow a passed verifier and green CI.",
   "context_notes": "Read .continue-here.md in the phase directory for full state, anti-patterns and infrastructure notes."
 }
