@@ -1,10 +1,10 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T16:25:11.874Z",
+	"timestamp": "2026-10-11T17:04:59.913Z",
 	"phase": "24-google-calendar-connection-and-outbound-sync",
 	"phase_name": "Google Calendar Connection and Outbound Sync",
 	"phase_dir": ".planning/phases/24-google-calendar-connection-and-outbound-sync",
-	"plan": "24-04 / wave 3",
+	"plan": "24-05 / wave 4",
 	"task": 0,
 	"total_tasks": 0,
 	"status": "executing",
@@ -18,11 +18,13 @@
 		"24-01: public pages and target-bound E2E committed2543aa8; local6passed, HTTPS refusal verified, liveGoogleUNVERIFIED",
 		"24-02 contracts/eighttables merged; wave1 yarn typecheck5/5exit0; native schema/ui gatesblockfalse; codebasegate skipped(noSTRUCTURE). PublicE2E6passed reused; broadbuild/test reserved13 byprojectpolicy.",
 		"24-13 Task1: read-only quality CLI integrated from15fa28d;23 files/203 functions,CC14/cognitive13/Halstead27/368lines. Exact commands/fingerprints in private STATE_DIR24-task1-result.md. Plan13 remainingtasks pending.",
-		"24-03 integrated:31b3c40,a21ea47,f7ef02c. Exactapprovedpins installed; additive8tables+singletonqueue; devmigration twiceexit0; appmaintenanceerrors0 andCREATEfalse; typecheckexit0. TestDB/Google/deploy unverified."
+		"24-03 integrated:31b3c40,a21ea47,f7ef02c. Exactapprovedpins installed; additive8tables+singletonqueue; devmigration twiceexit0; appmaintenanceerrors0 andCREATEfalse; typecheckexit0. TestDB/Google/deploy unverified.",
+		"24-04 source integrated from5456b45: OAuth/crypto/refresh/Disconnect. Three local negative cases PASS; two OAuth cases source-ready/unexecuted; provider/fault cases still require authoring and execution in14. Caddy unverified. Parent review findings closed.",
+		"24-13 Task2 CLI portion integrated from36ebe42: pages/day0/day8 validates private evidence. Static checks PASS. Actual observer instrumentation, E2E and external provider proof remain pending."
 	],
 	"remaining_tasks": [
-		"Execute accepted14plans/40tasks/13waves for Phase24",
-		"Complete native reviews/verification and authorized PR cycle; external Production/day8 proof remains explicit"
+		"Execute24-05 through24-12 in accepted dependency order, then finish24-13 readiness/observer/E2E",
+		"Complete native verification and authorized PR cycle;24-14 requires actual operator/runtime authority and real Production/day8 evidence"
 	],
 	"blockers": [],
 	"human_actions_pending": [
@@ -40,6 +42,6 @@
 		"No saved confirmation before Google response; temporary outage shows read-only last-known state"
 	],
 	"uncommitted_files": [],
-	"next_action": "Execute24-04 OAuth and Disconnect inagent-24-contracts after fast-forward. SoleDB/runtimewriter04. RealGoogle/HTTPS journeys await authorizedsyntheticPRIMARY and targetattestation; no new environment/deploy. QualityTask13.1 complete, remaining13tasks pending.",
-	"context_notes": "Google is the event source. No saved confirmation before Google ACK and local projection. Outage permits last-known read-only view. Primary calendar only; history is preserved without automatic export. All planning blockers are closed; PC05 breadth advisory remains. Production and real day8 evidence are future external gates. Phase21.1 is now implemented and merged. Its full evidence is in21.1-13-SUMMARY and21.1-VERIFICATION. Native completion required preserving the owner-approved order; previous manual deferrals remain unverified. Phase24 implementation base8116e48. Plan01 inventory includes auth.setup.ts andcleanup.teardown.ts forP1; totalplanned handwritten/source inventory88paths before generator outputs. Plan02 requiredread-schema/storage-values owners; totalinventory90source/configpaths beforegeneratedmigration. Nativeui gate degraded(no-task-commit-rows), schema gate detectednoORM; source/UI/E2Eevidence remains decisive, these hooks do not prove schema SQL/runtime. pg-boss12.37.1 requires@opentelemetry/api^1.9.0 at runtime; exact1.9.1 approvedafterimportERR_MODULE_NOT_FOUND andprimarymetadatareview. Noexternaltelemetryservice/exporteradded. Currentplannedinventory92source/configpaths includescalendar-metrics.ts andcalendar-types.ts. Immutable86pathbaseline remains unchanged. Wave2 hooks exit0:blockfalse; schema detector foundnoORM, UIgate degraded, codebasegate skipped. Actualschema proof is03 catalog/migration, not nativehook. Parentimmutableinstall exit0. Source03verification excludes15 directisolatedconfigcalls fromE2E evidence; no suite added and no repeats."
+	"next_action": "Execute24-05 in agent-24-contracts after fast-forward. Sole runtime/DB writer05. Public next consumer proof belongs06; real provider journeys await authorized synthetic identities and matching HTTPS attestation.",
+	"context_notes": "Implementation base8116e48; immutable86path baseline unchanged. Plans01–04 source integrated. 03 existing_dev migrations and queue maintenance proved; _test not yet migrated. Exact approved dependencies pg-boss12.37.1,googleapis185.0.0,@opentelemetry/api1.9.1 installed. 04 TS source checks passed; Caddy validation/metrics unsupported locally. WINDOWS7 tracks OAuth authoring/execution gaps;8 tracks Caddy. Native wave3 gates exit0/blockfalse but schema detector foundnoORM, UI degraded(no-task-commit-rows), codebase skipped(noSTRUCTURE); these are not runtime proof. Quality Task13.1 complete. Task13.2 acceptance CLI complete only: input records are not authenticated provider evidence, observer instrumentation and E2E pending. No full build/test before13, no deployment/Google writes/new environments/CUA or file deletions. apps/web/AGENTS.md and milestone.lock preserved untracked."
 }

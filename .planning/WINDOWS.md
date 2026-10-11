@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 5
+open_count: 7
 waived_count: 0
 fixed_count: 1
-total_count: 6
-last_updated: 2026-10-11T15:33:53.149Z
+total_count: 8
+last_updated: 2026-10-11T17:04:39.417Z
 ---
 
 # Broken Windows Ledger
@@ -21,6 +21,8 @@ last_updated: 2026-10-11T15:33:53.149Z
 | 4 | 21 | unrun-verify | .planning/phases/21-lesson-accounting-and-today/21-UI-SPEC.md | 604 | Отрисовка имени длиной 300 символов не проверена: contracts и SQL CHECK допускают максимум 80; запрос с 300 символами отклонён HTTP 400 | open |  | 2026-10-11T07:27:54.898Z |  |
 | 5 | 21 | unrun-verify | .planning/phases/21-lesson-accounting-and-today/21-UI-SPEC.md | 606 | Реальный переход browser и API через полночь Вьетнама не проверен; существующая симуляция устаревшей даты и повторного чтения Today прошла в обеих темах | open |  | 2026-10-11T07:27:55.011Z |  |
 | 6 | 21.1 | unrun-verify | e2e/today.spec.ts |  | Поведенческие RED/GREEN сценариев [tz] не запускались в плане 02: по PLAN-INDEX общий runtime принадлежит плану 13; listing не подтверждает поведение. | fixed |  | 2026-10-11T12:25:00.008Z | 2026-10-11T15:33:53.149Z |
+| 7 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-SUMMARY.md |  | OAuth: два написанных сценария не запускались. Real consent, refresh, revoke, fault/restart и student cases требуют authoring и external execution в 24-14; локальные три negative cases не доказывают provider behavior. | open |  | 2026-10-11T17:04:39.276Z |  |
+| 8 | 24 | unrun-verify | deploy/caddy/Caddyfile |  | Caddy runtime/config и callback-query redaction не проверены: CLI отсутствует, install/deploy не разрешены. Метрики Caddy DSL unsupported, full-scope quality UNVERIFIED. Проверка владельца 24-13/CI и существующего runtime в 24-14. | open |  | 2026-10-11T17:04:39.417Z |  |
 
 ````json
 [
@@ -100,6 +102,32 @@ last_updated: 2026-10-11T15:33:53.149Z
     "reason": "",
     "recorded_at": "2026-10-11T12:25:00.008Z",
     "resolved_at": "2026-10-11T15:33:53.149Z",
+    "milestone": "v2.0"
+  },
+  {
+    "id": 7,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": ".planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-SUMMARY.md",
+    "line": null,
+    "description": "OAuth: два написанных сценария не запускались. Real consent, refresh, revoke, fault/restart и student cases требуют authoring и external execution в 24-14; локальные три negative cases не доказывают provider behavior.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T17:04:39.276Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 8,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": "deploy/caddy/Caddyfile",
+    "line": null,
+    "description": "Caddy runtime/config и callback-query redaction не проверены: CLI отсутствует, install/deploy не разрешены. Метрики Caddy DSL unsupported, full-scope quality UNVERIFIED. Проверка владельца 24-13/CI и существующего runtime в 24-14.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T17:04:39.417Z",
+    "resolved_at": null,
     "milestone": "v2.0"
   }
 ]
