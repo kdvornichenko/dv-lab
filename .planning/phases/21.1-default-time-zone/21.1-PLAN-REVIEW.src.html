@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Зоны времени dv-lab</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+.ui{font:14px/1.5 system-ui;color:#242424;background:#fff;border:1px solid #e5e5e5;border-radius:12px;padding:20px}.ui h3{font-size:16px;margin:0 0 12px}.ui p{margin:6px 0}.ui small{color:#666}.ui .field{border:1px solid #d4d4d4;border-radius:7px;padding:8px 10px;margin:12px 0}.ui .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0}.ui .actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:20px}.ui .button{padding:7px 12px;border:1px solid #ccc;border-radius:7px}.ui .primary{background:#242424;color:#fff}.ui .error{color:#a12b22}.ui .note{background:#f5f5f5;padding:12px;border-radius:8px;margin-top:12px}.ui .second{color:#666}.ui .divider{border-top:1px solid #e5e5e5;margin:12px 0}
+</style>
+<body>
+<header>
+<h1>Основная зона времени в dv-lab</h1>
+<doc-changes new="10" changed="84"></doc-changes>
+<details class="thread"><summary>Контракт фазы 21.1</summary>
+<doc-quote via="doc" from="21.1-PLAN-INDEX.md">Учитель подтверждает account default zone, существующие instants/rules/refs сохраняются, новые уроки используют main, Today/ledger используют account day, browser second остаётся distinct.</doc-quote>
+<doc-quote via="doc" from="21.1-PLAN-INDEX.md">Этот набор не разрешает implementation/runtime в preparation.</doc-quote>
+</details>
+</header>
+<main><doc-plan>
+
+<doc-claim id="settings">
+<p>Учитель выбирает основную зону времени в Settings.</p>
+<doc-machine name="zone" caption="Сохранённая зона меняется после успешного ответа сервера.">
+<script type="text/plain">
+machine zone initial saved
+state saved # Поле показывает сохранённую зону.
+state confirm # Диалог показывает последствия выбора.
+state saving # Кнопки ждут ответа сервера.
+state error # Ошибка сохраняет прежнюю зону.
+state changed final # Все экраны получают новую зону.
+| saved | confirm | saving | changed |
+| . | error | . | . |
+saved -choose-> confirm : Выбор
+confirm -keep-> saved : Отмена
+confirm -save-> saving : Подтвердить
+saving -ok-> changed : Ответ
+saving -fail-> error : Ошибка
+error -retry-> saving : Повтор
+error -keep-> saved : Отмена
+</script>
+<div data-state="saved"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Default time zone</h3><p>The zone your schedule is built in. Lesson times, Today and balances use it.</p><div class="field">Time zone · Vietnam</div><small>Saved to your account.</small></div></template></doc-mock></div>
+<div data-state="confirm"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Change the default time zone?</h3><p>From Vietnam time (UTC+7) to London time (UTC+0).</p><div class="note"><b>What stays</b><p>Lessons and series you already have keep the zone they were created in, so none of them moves in time.</p></div><div class="actions"><span class="button">Keep Vietnam</span><span class="button primary">Change to London</span></div></div></template></doc-mock></div>
+<div data-state="saving"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Change the default time zone?</h3><p>Saving…</p></div></template></doc-mock></div>
+<div data-state="error"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Change the default time zone?</h3><p class="error">Could not save the time zone. Try again.</p><div class="actions"><span class="button">Keep Vietnam</span><span class="button primary">Change to London</span></div></div></template></doc-mock></div>
+<div data-state="changed"><doc-mock frame="none" w="440"><template><div class="ui"><h3>Default time zone</h3><div class="field">Time zone · London</div><p>Default time zone changed to London (UTC+0).</p></div></template></doc-mock></div>
+</doc-machine>
+<doc-claim><p>Сервер отклоняет сохранение формы с устаревшей основной зоной.</p>
+<doc-schema id="zone-update" lang="ts" title="PATCH /settings · sketch"><script type="text/plain">
+type ZoneUpdate = {
+  defaultTimeZone: string
+  expectedDefaultTimeZone: string
+}
+</script></doc-schema>
+<doc-note>Планы 03 и 08. Код 409 требует обновить форму. Pays soon публикует только threshold. Поздний ответ сохраняет новую зону и second swap.</doc-note>
+<doc-claim at="packages/contracts/src/settings.ts:6"><p><b>packages/contracts/src/settings.ts:6</b> · updateSettingsRequest</p><doc-code src="packages/contracts/src/settings.ts" lines="1-12" lang="ts"></doc-code></doc-claim>
+</doc-claim>
+</doc-claim>
+
+<doc-claim id="history">
+<p>Старые уроки сохраняют время и правила повторения.</p>
+<doc-mock frame="none" w="440" caption="Пример: один instant зимой отображается в разных зонах."><template><div class="ui"><h3>Lesson</h3><div class="row"><span>Vietnam</span><b>15 Jan · 09:00 UTC+7</b></div><div class="row"><span>London</span><b>15 Jan · 02:00 UTC+0</b></div><div class="divider"></div><p>Created in · Vietnam time (UTC+7)</p></div></template></doc-mock>
+<doc-claim><p>Каждый урок и серия хранят собственную зону создания.</p>
+<doc-schema id="stored-zones" lang="ts" title="Хранение зон · sketch"><script type="text/plain">
+type StoredTime = {
+  startsAt: Date
+  timeZone: string
+}
+
+type SeriesIdentity = {
+  seriesId: string
+  originalOn: string
+}
+</script></doc-schema>
+<doc-note>Планы 01, 04, 05 и 06. Миграция добавляет зоны. Изменение Settings сохраняет instants, refs и marks. Разрез серии сохраняет историю и создаёт новое правило.</doc-note>
+<doc-claim at="packages/core/src/schedule.ts:17"><p><b>packages/core/src/schedule.ts:17</b> · SeriesRule</p><doc-code src="packages/core/src/schedule.ts" lines="17-30" lang="ts"></doc-code></doc-claim>
+</doc-claim>
+<doc-claim><p>Whole series получает reference от единственного владельца recurrence.</p>
+<doc-schema id="series-reference" lang="ts" title="ScheduleSeries.referenceOccurrence · sketch"><script type="text/plain">
+type SeriesReference = {
+  originalOn: string
+  actualStartsAt: string
+  ruleStartsAt: string | null
+} | null
+</script></doc-schema>
+<doc-note>Планы 04–06 и 08–10. Отменённое вхождение пропускается. Перенос меняет actualStartsAt. Форма использует естественное ruleStartsAt и не выдумывает отсутствующее вхождение.</doc-note>
+</doc-claim>
+</doc-claim>
+
+<doc-claim id="new-lessons">
+<p>Новые уроки используют выбранную зону и точное местное время.</p>
+<doc-mock frame="none" w="440" caption="Два примера ввода в America/New_York."><template><div class="ui"><h3>14 Mar 2027 · 02:30</h3><p class="error">This time does not exist in New York because the clocks move forward. Choose another start time.</p><div class="divider"></div><h3>7 Nov 2027 · 01:30</h3><p>This time occurs twice in New York. The first occurrence (UTC−4) will be used.</p></div></template></doc-mock>
+<doc-claim><p>Core отвергает пропуск времени и выбирает первый повтор.</p>
+<doc-code lang="ts" title="Точный resolver · sketch"><script type="text/plain">
+localTimeCandidates(date, time, zone)
+startOfZonedDay(date, zone)
+zonedInstant(date, time, zone)
+</script></doc-code>
+<doc-note>Планы 04, 05 и 10. Ввод в пропущенный час даёт 400. Повторный час использует первый instant. Серия пропускает несуществующее вхождение и продолжает повторение.</doc-note>
+<doc-claim at="packages/core/src/zoned.ts:92"><p><b>packages/core/src/zoned.ts:92</b> · zonedInstant</p><doc-code src="packages/core/src/zoned.ts" lines="92-107" lang="ts"></doc-code></doc-claim>
+</doc-claim>
+</doc-claim>
+
+<doc-claim id="second-zone">
+<p>Расписание показывает две разные зоны времени.</p>
+<doc-mock frame="none" w="440"><template><div class="ui"><h3>Lesson</h3><div class="row"><b>02:00 · London UTC+0</b><span class="second">09:00 · Vietnam UTC+7</span></div><div class="divider"></div><h3>Second time zone</h3><div class="field">Vietnam</div><small>Saved in this browser.</small></div></template></doc-mock>
+<doc-claim><p>При совпадении второй зоны сохранение меняет зоны местами.</p>
+<doc-code lang="ts" title="Один browser store · sketch"><script type="text/plain">
+useSecondZone(mainTimeZone)
+commitDefaultZoneChange(oldMain, newMain)
+</script></doc-code>
+<doc-note>Планы 08 и 09. Swap происходит только после успешного save. При холодном reload неизвестная прежняя зона даёт None. Сравнение использует IANA identity.</doc-note>
+<doc-claim at="apps/web/lib/time-zones.ts:112"><p><b>apps/web/lib/time-zones.ts:112</b> · zoneLabel</p><doc-code src="apps/web/lib/time-zones.ts" lines="112-124" lang="ts"></doc-code></doc-claim>
+</doc-claim>
+</doc-claim>
+
+<doc-claim id="today">
+<p>Today и баланс используют дату основной зоны.</p>
+<doc-mock frame="none" w="440" caption="Дата урока зависит от основной зоны. Instant остаётся прежним."><template><div class="ui"><h3>Today</h3><div class="row"><span>Vietnam</span><b>15 Jan · 01:30</b></div><div class="row"><span>London</span><b>14 Jan · 18:30</b></div><div class="note">Дата оплаты и дата открытия баланса остаются календарными датами.</div></div></template></doc-mock>
+<doc-claim><p>Сервер читает настройки и данные из одного snapshot.</p>
+<doc-schema id="time-context" lang="ts" title="Контекст чтения · sketch"><script type="text/plain">
+type TeacherTimeContext = {
+  now: Date
+  defaultTimeZone: string
+}
+
+type ResponseTime = {
+  defaultTimeZone: string
+  asOf: string
+}
+</script></doc-schema>
+<doc-note>Планы 03, 07 и 11. Сегодняшний день может иметь 23 или 25 часов. Вычет после openingOn сохраняет строгую границу. paidOn и openingOn не преобразуются в UTC.</doc-note>
+<doc-claim at="packages/core/src/schedule.ts:5"><p><b>packages/core/src/schedule.ts:5</b> · scheduleDate</p><doc-code src="packages/core/src/schedule.ts" lines="1-15" lang="ts"></doc-code></doc-claim>
+</doc-claim>
+</doc-claim>
+
+<doc-claim aux="shared"><p>Планы проверяют все пять требований через публичные E2E.</p>
+<doc-code lang="sh" title="Итоговый запуск из плана 13"><script type="text/plain">
+yarn test:e2e e2e/today.spec.ts e2e/move.spec.ts e2e/marks.spec.ts --grep '\[tz\]' --workers=1
+</script></doc-code>
+<doc-note>13 планов, 37 задач, 9 волн. План 02 задаёт сценарии до изменения поведения. План 12 адаптирует существующие проверки. План 13 выполняет общую проверку с одним владельцем БД и dev-стека. Результаты runtime пока не получены.</doc-note>
+</doc-claim>
+<doc-claim aux="scope"><p>Подготовка заканчивается проверенными планами и способом приёмки.</p>
+<ul><li>Реализация, установка пакетов и работа с БД сейчас не запускаются.</li><li>При будущей выкатке API и web переключаются согласованно. После записи non-Vietnam series старый runtime несовместим.</li><li>Google Calendar относится к фазе 24. Двухсторонняя синхронизация относится к фазе 25.</li><li>Реальная смена суток Vietnam и исчезновение последней Earlier-панели остаются в принятой ручной приёмке после фазы 25.</li><li><a href="21.1-PLAN-INDEX.md">Индекс содержит все планы, файлы и команды проверки.</a></li></ul>
+</doc-claim>
+</doc-plan></main>
+</body></html>

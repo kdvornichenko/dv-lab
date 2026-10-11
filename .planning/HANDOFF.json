@@ -1,6 +1,6 @@
 {
 	"version": "1.0",
-	"timestamp": "2026-10-11T10:09:31.887029+00:00",
+	"timestamp": "2026-10-11T10:35:21.015499+00:00",
 	"phase": "24-google-calendar-connection-and-outbound-sync",
 	"phase_name": "Google Calendar Connection and Outbound Sync",
 	"phase_dir": ".planning/phases/24-google-calendar-connection-and-outbound-sync",
@@ -12,9 +12,11 @@
 		"technical research and architecture",
 		"approved UI contract",
 		"pattern map and API coverage",
-		"local Google Calendar reference for agents"
+		"local Google Calendar reference for agents",
+		"14 draft executable plans",
+		"Phase 21.1 verified plans integrated"
 	],
-	"remaining_tasks": ["executable plans and independent plan verification"],
+	"remaining_tasks": ["independent plan check and squad review", "HTML plan review"],
 	"blockers": [],
 	"human_actions_pending": [
 		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
@@ -29,6 +31,6 @@
 		"Only public-interface E2E tests may be extended"
 	],
 	"uncommitted_files": [],
-	"next_action": "Prepare and independently verify Phase 24 plans. Read docs/google-calendar/READING.md and relevant articles. Phase 21 merged in PR #7 (893689f); Phase 21.1 contract is available but implementation remains a dependency. Do not start implementation.",
+	"next_action": "Independently verify Phase 24 plans and complete HTML review. Read docs/google-calendar/READING.md and relevant articles. Phase 21.1 plans are verified; implementation remains a dependency. Do not start implementation.",
 	"context_notes": "Primary Google calendar only. Disconnect stops dispatch, revokes credentials and preserves events, mapping and pending work. Research/UI/patterns are complete. Production and day-8 acceptance remain external and unverified."
 }

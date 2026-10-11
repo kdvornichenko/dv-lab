@@ -326,13 +326,50 @@ Plans:
 3. Schedule, Today, next lesson, lesson dialogs and time labels use the default zone. A different creation zone appears in lesson/series details. Recurrences preserve wall time in their stored zone across daylight saving changes.
 4. Today and lesson dates used at the opening-balance boundary use the account zone. A near-midnight lesson can change accounting day after a zone change; forms and API agree. Payment date-only values remain dates.
 5. The second zone remains a browser preference and differs from the default. Choosing the second zone as default makes the old default second, only after a successful save. Settings and the schedule toolbar stay synchronized.
-   **Plans:** TBD
+   **Plans:** 13 plans, 9 waves; independently verified
    **UI hint:** yes
    **Design:** Accepted default-zone design introduced in v37; current local copy v40, `SettingsGeneral`, `ZoneChangeDialog`, `TimePair`, `WeekGrid`, `LessonDialog`, `TimeZonePicker`. The old “after 23” note in the design is superseded by this execution order.
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run $gsd-plan-phase 21.1 to break down)
+- [ ] 21.1-01-PLAN.md — Аддитивное хранение зон и восстановление состояния проверок
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [ ] 21.1-02-PLAN.md — Поведенческий контракт зон в существующих durable E2E
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [ ] 21.1-03-PLAN.md — Account settings, optimistic guard и общий read snapshot
+- [ ] 21.1-04-PLAN.md — Единый pure owner зон, recurrence windows и cut/end
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
+- [ ] 21.1-05-PLAN.md — Schedule API: immutable creation zone, coherent read и date-sensitive writes
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
+- [ ] 21.1-06-PLAN.md — Series mutations: cross-zone граница и сохранение отмеченного хвоста
+- [ ] 21.1-08-PLAN.md — Settings UI и единый browser second-zone store
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
+- [ ] 21.1-07-PLAN.md — Today, карточки и ledger используют один account day
+- [ ] 21.1-09-PLAN.md — Schedule display и lesson details в authoritative main zone
+
+**Wave 7** _(blocked on Wave 6 completion)_
+
+- [ ] 21.1-10-PLAN.md — Создание и перенос уроков из main zone, DST helpers и stale forms
+- [ ] 21.1-12-PLAN.md — Адаптация существующих проверок к явной зоне
+
+**Wave 8** _(blocked on Wave 7 completion)_
+
+- [ ] 21.1-11-PLAN.md — Today, Students и формы ledger в account zone
+
+**Wave 9** _(blocked on Wave 8 completion)_
+
+- [ ] 21.1-13-PLAN.md — Единственный final gate: quality, regression и public E2E
 
 ### Phase 22: Chat with Mentions and Quick Marks
 
@@ -429,16 +466,16 @@ Plans:
 **Execution Order:**
 17 → 18 → 19 → 20 → 21 → 21.1 → 24 → 25 → 22 → 23 → 26
 
-| Phase                                            | Milestone | Plans Complete | Status      | Completed  |
-| ------------------------------------------------ | --------- | -------------- | ----------- | ---------- |
-| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress |            |
-| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress |            |
-| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress |            |
-| 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
-| 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
-| 21.1. Default Time Zone                          | v2.0      | 0/TBD          | Planning    | -          |
-| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started | -          |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Planning    | -          |
-| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started | -          |
-| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started | -          |
+| Phase                                            | Milestone | Plans Complete | Status           | Completed  |
+| ------------------------------------------------ | --------- | -------------- | ---------------- | ---------- |
+| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress      |            |
+| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress      |            |
+| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress      |            |
+| 20. Schedule                                     | v2.0      | 10/10          | In Progress      |            |
+| 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete         | 2026-10-11 |
+| 21.1. Default Time Zone                          | v2.0      | 0/13           | Ready to execute | -          |
+| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Planning         | -          |
+| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started      | -          |
+| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started      | -          |
