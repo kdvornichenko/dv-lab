@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 
 import { api } from './support/api.ts'
+import { calendarCommandFixture, commandTracer, disconnectedCommand } from './support/calendar-commands.ts'
 import { cleanupFixtures } from './support/data.ts'
 import { addDays, mondayOf, startedSlotToday, VN, vnToday } from './support/dates.ts'
 import { record, text } from './support/input.ts'
@@ -33,6 +34,14 @@ import {
 	screenshot,
 	shortDay,
 } from './support/ui.ts'
+
+test('[calendar] command tracer rejects disconnected create and blocks unsupported writes', async ({ page }) => {
+	await disconnectedCommand(page.request)
+})
+
+test('[calendar] command tracer confirms one real event and reuses the immutable request', async ({ page }) => {
+	await commandTracer(page.request, calendarCommandFixture().studentId)
+})
 
 async function inspectMovedDestination(page: Page, card: Card, date: string, key: string): Promise<void> {
 	const dialog = await openLesson(page, card, date, '11:00')
