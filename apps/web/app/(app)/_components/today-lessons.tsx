@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from 'react'
 
-import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
@@ -83,7 +83,6 @@ function LessonRow({
 	const [pending, setPending] = useState<LessonMarkKind | null>(null)
 	const busy = pending !== null
 	const present = useIsPresent()
-	const reduced = useReducedMotion()
 	const year = Number(scheduleToday(now).slice(0, 4))
 	const start = new Date(block.startsAt)
 	const key = statusKey(block, now)
@@ -94,7 +93,7 @@ function LessonRow({
 			initial={false}
 			animate={{ opacity: 1 }}
 			exit={showDate ? { opacity: 0 } : undefined}
-			transition={reduced ? { duration: spring.fast.duration, ease: 'easeOut' } : spring.fast}
+			transition={{ type: 'tween', duration: spring.fast.duration, ease: 'easeOut' }}
 			inert={!present}
 			data-slot="today-row"
 			data-key={block.key}

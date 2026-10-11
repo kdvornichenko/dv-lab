@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarDays, Users, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -177,7 +177,6 @@ function Panels({
 }) {
 	const lessons = [...data.lessons].sort(byStart)
 	const earlier = [...data.earlier].sort(byStart)
-	const reduced = useReducedMotion()
 	return (
 		<div className="flex flex-col gap-4">
 			<Panel id="today-lessons" title="Lessons today" action={<WeekLink />}>
@@ -212,7 +211,7 @@ function Panels({
 						initial={false}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						transition={reduced ? { duration: spring.fast.duration, ease: 'easeOut' } : spring.fast}
+						transition={{ type: 'tween', duration: spring.fast.duration, ease: 'easeOut' }}
 					>
 						<Panel
 							id="today-earlier"
