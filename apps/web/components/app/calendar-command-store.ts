@@ -7,6 +7,7 @@ import type {
 
 import {
 	postCalendarCommand,
+	readCalendarConnection,
 	readCommand,
 	readUnresolved,
 	resumeCalendarCommand,
@@ -63,6 +64,17 @@ function storedIds(key: string): RecoveryId[] {
 
 function terminal(command: CalendarCommandSnapshot | null) {
 	return command?.state === 'failed'
+}
+
+function sameConnection(observed: GoogleConnectionSnapshot, current: GoogleConnectionSnapshot | null) {
+	return (
+		observed.state === 'connected' &&
+		current?.state === 'connected' &&
+		observed.calendar !== null &&
+		current.calendar !== null &&
+		observed.calendar.id === current.calendar.id &&
+		observed.generation === current.generation
+	)
 }
 
 function correlated(entry: CommandEntry, command: CalendarCommandSnapshot, live?: LiveCommand) {
@@ -302,15 +314,19 @@ export class CalendarCommandStore {
 		}
 		if (command.state !== 'applied' || command.confirmedRevision === null) return
 		const window = await this.confirmedWindow(live?.intent.date, () => this.isCurrent(epoch))
+		if (!this.isCurrent(epoch)) return
+		const connection = await readCalendarConnection()
 		if (!(await this.authorized(epoch)) || !this.isCurrent(epoch)) return
 		if (
 			window === null ||
 			window.read.state !== 'fresh' ||
-			window.connection.generation !== command.generation ||
-			window.connection.generation !== this.view.connection?.generation ||
+			!sameConnection(window.connection, connection) ||
+			!sameConnection(window.connection, this.view.connection) ||
+			window.connection.generation < command.generation ||
 			BigInt(window.read.revision) < BigInt(command.confirmedRevision)
 		) {
 			this.set({ ...entry, status: 'unavailable' })
+			this.refreshChangedConnection(connection)
 			return
 		}
 		this.live.delete(entry.requestId)
@@ -318,6 +334,10 @@ export class CalendarCommandStore {
 		this.publish({ entries: this.view.entries.filter((item) => item.requestId !== entry.requestId) })
 		live?.resolve({ kind: 'applied', command, window })
 		void this.refresh()
+	}
+
+	private refreshChangedConnection(connection: GoogleConnectionSnapshot | null) {
+		if (connection !== null && connection.generation !== this.view.connection?.generation) void this.refresh()
 	}
 
 	async resume(requestId: string) {

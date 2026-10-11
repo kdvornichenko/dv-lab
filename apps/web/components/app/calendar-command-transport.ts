@@ -41,12 +41,18 @@ export async function readCommand(
 export async function readUnresolved() {
 	const [commands, connection] = await Promise.all([
 		apiRequest<unknown>('GET', '/google/commands?state=unresolved'),
-		apiRequest<unknown>('GET', '/google/connection'),
+		readCalendarConnection(),
 	])
-	if (!commands.ok || !connection.ok) return null
+	if (!commands.ok || connection === null) return null
 	const list = googleUnresolvedCommandsResponse.safeParse(commands.data)
-	const snapshot = googleConnectionSnapshot.safeParse(connection.data)
-	return list.success && snapshot.success ? { commands: list.data.commands, connection: snapshot.data } : null
+	return list.success ? { commands: list.data.commands, connection } : null
+}
+
+export async function readCalendarConnection() {
+	const result = await apiRequest<unknown>('GET', '/google/connection')
+	if (!result.ok) return null
+	const parsed = googleConnectionSnapshot.safeParse(result.data)
+	return parsed.success ? parsed.data : null
 }
 
 export async function postCalendarCommand(

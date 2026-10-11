@@ -16,7 +16,7 @@ import {
 import { mondayOf, zonedParts } from '../../packages/core/src/index.ts'
 import { api, teacherId } from './api.ts'
 import { expectClosedGestures, openView } from './calendar-view.ts'
-import { HTTPS_TARGET, NAMES, ownedStudent, PRIVATE_DIR, quote, sql } from './data.ts'
+import { HTTPS_TARGET, NAMES, retainedStudent, PRIVATE_DIR, quote, sql } from './data.ts'
 import { integer, list, record, text } from './input.ts'
 import { readPrivateJson, targetBinding } from './target.ts'
 import { expect } from './test.ts'
@@ -54,7 +54,7 @@ async function uiFixture(request: APIRequestContext, mode: z.infer<typeof fixtur
 		fixture.accountId !== (await teacherId(request))
 	)
 		throw new Error('Calendar UI fixture does not match the active authority')
-	ownedStudent(fixture.studentId)
+	retainedStudent(fixture.studentId)
 	const count = sql(
 		`select count(*)::int as n from students where id = ${quote(fixture.studentId)}::uuid and display_name = ${quote(fixture.studentName)} and import_key is null`
 	)
@@ -121,7 +121,8 @@ async function assertApplied(page: Page, requestId: string, date: string) {
 		await api(page.request, 'GET', `/schedule/week?start=${mondayOf(date)}`)
 	)
 	if (!parsed.success || parsed.data.read.state !== 'fresh') throw new Error('Fresh public projection is required')
-	expect(parsed.data.connection.generation).toBe(status.generation)
+	await assertCurrentConnection(page.request, parsed.data.connection)
+	expect(parsed.data.connection.generation).toBeGreaterThanOrEqual(status.generation)
 	expect(BigInt(parsed.data.read.revision) >= BigInt(status.confirmedRevision)).toBe(true)
 	expect(
 		parsed.data.events.filter(
@@ -133,6 +134,15 @@ async function assertApplied(page: Page, requestId: string, date: string) {
 		).length
 	).toBeGreaterThan(0)
 	return status
+}
+
+async function assertCurrentConnection(request: APIRequestContext, observed: z.infer<typeof googleConnectionSnapshot>) {
+	const current = googleConnectionSnapshot.parse(await api(request, 'GET', '/google/connection'))
+	expect(current.state).toBe('connected')
+	expect(observed.state).toBe('connected')
+	if (current.calendar === null || observed.calendar === null) throw new Error('A current Calendar target is required')
+	expect(observed.calendar.id).toBe(current.calendar.id)
+	expect(observed.generation).toBe(current.generation)
 }
 
 export async function pendingUi(page: Page) {
@@ -204,6 +214,7 @@ export async function recoveryUi(page: Page, mode: 'projection_pending' | 'resum
 	const fixture = await uiFixture(page.request, mode)
 	if (!fixture.requestId) throw new Error('Observed recovery request identity is required')
 	const before = await command(page.request, `/google/commands/by-request/${fixture.requestId}`)
+	let calendarId: string | null = null
 	if (mode === 'projection_pending') expect(before.state).toBe('projection_pending')
 	else {
 		expect(['partial_recovery', 'recovery_required'].includes(before.state)).toBe(true)
@@ -212,6 +223,8 @@ export async function recoveryUi(page: Page, mode: 'projection_pending' | 'resum
 		expect(connection.state).toBe('connected')
 		expect(connection.generation).toBeGreaterThan(before.generation)
 		expect(connection.pendingCommandCount).toBe(1)
+		if (connection.calendar === null) throw new Error('Recovery requires the current Calendar target')
+		calendarId = connection.calendar.id
 	}
 	let resumes = 0
 	page.on('request', (request) => {
@@ -239,7 +252,7 @@ export async function recoveryUi(page: Page, mode: 'projection_pending' | 'resum
 		expect((await response).ok()).toBe(true)
 		expect(resumes).toBe(1)
 		await expect(row).toHaveCount(0, { timeout: 60000 })
-		await assertResumed(page, before, fixture.date)
+		await assertResumed(page, before, fixture.date, calendarId)
 		await page.reload()
 		await expect(page.getByRole('button', { name: 'New lesson', exact: true })).toBeEnabled()
 		await expect(row).toHaveCount(0)
@@ -247,7 +260,12 @@ export async function recoveryUi(page: Page, mode: 'projection_pending' | 'resum
 	await expect(page.getByText('Lesson added', { exact: true })).toHaveCount(0)
 }
 
-async function assertResumed(page: Page, before: z.infer<typeof calendarCommandSnapshot>, date: string) {
+async function assertResumed(
+	page: Page,
+	before: z.infer<typeof calendarCommandSnapshot>,
+	date: string,
+	calendarId: string | null
+) {
 	const after = await command(page.request, `/google/commands/by-request/${before.requestId}`)
 	expect(after.commandId).toBe(before.commandId)
 	expect(after.requestId).toBe(before.requestId)
@@ -258,6 +276,8 @@ async function assertResumed(page: Page, before: z.infer<typeof calendarCommandS
 	if (after.confirmedRevision === null) throw new Error('Resumed command needs a confirmed revision')
 	const window = googleScheduleWindow.parse(await api(page.request, 'GET', `/schedule/week?start=${mondayOf(date)}`))
 	if (window.read.state !== 'fresh') throw new Error('Resumed command needs a fresh window')
+	await assertCurrentConnection(page.request, window.connection)
+	expect(window.connection.calendar?.id).toBe(calendarId)
 	expect(window.connection.generation).toBeGreaterThan(before.generation)
 	expect(BigInt(window.read.revision) >= BigInt(after.confirmedRevision)).toBe(true)
 }

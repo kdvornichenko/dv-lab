@@ -74,7 +74,6 @@ export function LessonDialogs(props: Props) {
 	const rule = series.find((rule) => rule.id === seriesId) ?? null
 	const history = { ...shown, actions: { ...shown.actions, move: false, cancel: false, restore: false, series: false } }
 	async function mark(kind: LessonMarkKind): Promise<ActionOutcome> {
-		if (shown === null) return 'failed'
 		const result = await markLesson(shown, kind)
 		if (result.kind !== 'ok' && result.kind !== 'stale') return 'failed'
 		await reload()
