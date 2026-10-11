@@ -1,18 +1,18 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: '1.0'
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
 current_phase: 21
 current_phase_name: Lesson Accounting and Today
-status: executing
-stopped_at: Phase 21 all 18 plans executed; final reviews and verifier remain
-last_updated: "2026-10-11T08:49:00Z"
+status: complete
+stopped_at: Phase 21 verified; PR and green CI merge remain
+last_updated: '2026-10-11T09:34:02.195Z'
 last_activity: 2026-10-11
-last_activity_desc: Phase 21 E2E complete; final root test and build passed
-state_head: f5e7083c7db741ec6a6d94b02dfd52ac85c21668
+last_activity_desc: Phase 21 passed 37 active truths; two manual scenarios deferred after Phase 25
+state_head: 3669b45cca1572857aea71f49fa11dba6175c35f
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 77
   completed_plans: 77
   percent: 100
@@ -29,20 +29,21 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 ## Current Position
 
-Phase: 21 (Lesson Accounting and Today) — EXECUTING
+Phase: 21 — Lesson Accounting and Today
 Plan: 18 of 18 completed
-Status: All waves executed; final reviews and phase verification remain
-Last activity: 2026-10-11 — 9 E2E journeys in both themes; final root test and build passed
+Status: Verified; PR and green CI merge remain
+Last activity: 2026-10-11 — Final reviews closed; verifier passed 37/37 active truths
 
 Progress: [██████████] 100% of Phase 21 plans executed (18/18)
 
 ## Deferred Verification
 
-| Phase | State | Resume |
-|-------|-------|--------|
-| 17 | verification_deferred_human | /gsd-verify-work 17 |
-| 18 | verification_deferred_human | /gsd-verify-work 18 |
-| 19 | verification_deferred_human | /gsd-verify-work 19 |
+| Phase | State                                                    | Resume                                                                   |
+| ----- | -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 17    | verification_deferred_human                              | /gsd-verify-work 17                                                      |
+| 18    | verification_deferred_human                              | /gsd-verify-work 18                                                      |
+| 19    | verification_deferred_human                              | /gsd-verify-work 19                                                      |
+| 21    | Two manual scenarios accepted as deferred after Phase 25 | Real VN midnight and final Earlier panel removal; see 21-VERIFICATION.md |
 
 Phase 19 human items left: the owner sets the opening balance on each card (the import does not fill it). Release and import are done.
 
@@ -60,16 +61,16 @@ Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 i
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| -     | -     | -     | -        |
+| 21    | 18    | -     | -        |
 
 Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 **Per-Plan Metrics:**
 
-| Plan | Duration | Tasks | Files |
-|------|----------|-------|-------|
-| Phase 17 P01 | 40min | 3 tasks | 16 files |
-| Phase 17 P02 | 15 min | 2 tasks | 9 files |
-| Phase 17 P03 | 5 min | 2 tasks | 15 files |
+| Plan         | Duration | Tasks   | Files    |
+| ------------ | -------- | ------- | -------- |
+| Phase 17 P01 | 40min    | 3 tasks | 16 files |
+| Phase 17 P02 | 15 min   | 2 tasks | 9 files  |
+| Phase 17 P03 | 5 min    | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -108,5 +109,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-11T03:18:24Z
-Stopped at: Phase 21 all 18 plans executed; final reviews and verifier remain
+Stopped at: Phase 21 verified; PR and green CI merge remain. Phase 21.1 and Phase 24 preparation runs in separate worktrees; implementation is not started.
 Resume file: .planning/phases/21-lesson-accounting-and-today/.continue-here.md
