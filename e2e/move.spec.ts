@@ -3,7 +3,14 @@ import type { Page } from '@playwright/test'
 import { api } from './support/api.ts'
 import { delayedCommand, lostProviderResponse, unknownAbsence } from './support/calendar-command-recovery.ts'
 import { calendarCommandFixture, commandTracer, disconnectedCommand } from './support/calendar-commands.ts'
-import { disappearedTombstone, presentTombstone, singleChanges, singleRace } from './support/calendar-single.ts'
+import {
+	disappearedTombstone,
+	lostSingleResponse,
+	presentTombstone,
+	retainedFence,
+	singleChanges,
+	singleRace,
+} from './support/calendar-single.ts'
 import { cleanupFixtures } from './support/data.ts'
 import { addDays, mondayOf, startedSlotToday, VN, vnToday } from './support/dates.ts'
 import { record, text } from './support/input.ts'
@@ -66,6 +73,24 @@ test('[calendar] tombstone replaces a naturally disappeared cancelled single onl
 test('[calendar] command tracer confirms one real event and reuses the immutable request', async ({ page }) => {
 	await commandTracer(page.request, (await calendarCommandFixture(page.request)).studentId)
 })
+
+test('[calendar] command races reconcile a lost conditional PATCH response without another write', async ({ page }) => {
+	await lostSingleResponse(page.request)
+})
+
+for (const scenario of [
+	'stale_etag',
+	'permission_403',
+	'quota_429',
+	'expired_unsent',
+	'lost_admission',
+	'late_disconnect',
+	'changed_unowned',
+] as const) {
+	test(`[calendar] command races fence authentic ${scenario} without a deferred domain edit`, async ({ page }) => {
+		await retainedFence(page.request, scenario)
+	})
+}
 
 test('[calendar] command recovery keeps the projection unchanged before a delayed ACK', async ({ page }) => {
 	await delayedCommand(page.request)

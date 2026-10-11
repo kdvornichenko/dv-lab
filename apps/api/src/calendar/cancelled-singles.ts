@@ -64,7 +64,9 @@ export async function cancelledSingles(
 		const lineage = command.plan.lineage[0]
 		const ref = lineage?.to
 		if (ref?.kind !== 'single') return []
-		const mapping = snapshot.mappings.find((item) => item.localEntityId === ref.lessonId && item.state === 'active')
+		const mapping = snapshot.mappings.find(
+			(item) => item.localEntityId === ref.lessonId && item.state === 'active' && item.calendarId === window.calendarId
+		)
 		const ack = stages.find((stage) => stage.commandId === command.id)?.acknowledgement
 		const lesson = rows.find((row) => row.id === ref.lessonId && row.status === 'cancelled')
 		if (

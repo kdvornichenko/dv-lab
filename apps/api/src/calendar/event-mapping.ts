@@ -87,16 +87,14 @@ export async function reserveReplacement(executor: DbExecutor, command: Prepared
 		)
 		.returning()
 	if (!old) throw new CommandFault('precondition_failed')
-	await executor
-		.insert(googleEventMappings)
-		.values({
-			...reservation,
-			accountId: command.accountId,
-			connectionId: command.connectionId,
-			calendarId: command.calendarId,
-			commandId: command.id,
-			studentId: old.studentId,
-		})
+	await executor.insert(googleEventMappings).values({
+		...reservation,
+		accountId: command.accountId,
+		connectionId: command.connectionId,
+		calendarId: command.calendarId,
+		commandId: command.id,
+		studentId: old.studentId,
+	})
 }
 
 export type MappingSnapshot = Awaited<ReturnType<typeof loadMappings>>

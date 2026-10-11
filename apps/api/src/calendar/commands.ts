@@ -4,7 +4,7 @@ import type { CalendarCommandReceipt, CalendarCommandSnapshot, ValidatedCalendar
 import { googleReadEvents, type Database } from '@dv-lab/db'
 
 import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
-import { singleTarget, type SingleCommand } from '../schedule/single-command.ts'
+import type { SingleCommand } from '../schedule/single-command.ts'
 import type { Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import {
@@ -90,12 +90,6 @@ export function createCalendarCommands(deps: {
 		context: CalendarReadContext,
 		input: SingleCommand
 	) {
-		const target = await singleTarget(access.db, context.accountId, input)
-		if (
-			target.event.snapshotRevision !== access.connection.snapshotRevision ||
-			target.event.generation !== access.connection.generation
-		)
-			throw new CommandFault('precondition_failed')
 		const observed = await observeSingle(access, input, deps.gateway)
 		return access.db.transaction(async (tx) => {
 			access.signal.throwIfAborted()

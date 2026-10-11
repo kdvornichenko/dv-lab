@@ -51,22 +51,25 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 	return { prepared, stage }
 }
 
-export async function failUnsentCommand(db: Database, commandId: string) {
+export async function failUnsentCommand(
+	db: Database,
+	commandId: string,
+	issue: 'not_applied' | 'external_change' = 'not_applied'
+) {
 	await db.transaction(async (tx) => {
 		const [command] = await tx.select().from(googleCommands).where(eq(googleCommands.id, commandId)).for('update')
-		if (
-			!command ||
-			!['pending', 'recovery_required'].includes(command.state) ||
-			command.dispatchedAt ||
-			command.effect !== 'none'
-		)
-			return
+		if (!command || !['pending', 'recovery_required'].includes(command.state) || command.effect !== 'none') return
+		const writes = await tx
+			.select()
+			.from(googleCommandStages)
+			.where(and(eq(googleCommandStages.commandId, commandId), eq(googleCommandStages.kind, 'write')))
+		if (writes.some((stage) => stage.attempts.some((attempt) => attempt.outcome !== 'rejected'))) return
 		await tx
 			.update(googleCommands)
 			.set({
 				state: 'failed',
 				effect: 'none',
-				issue: 'not_applied',
+				issue,
 				nextAction: 'retry_new_command',
 				updatedAt: sql`now()`,
 			})
@@ -173,14 +176,12 @@ export function matchingReceipt(command: CommandRow, input: ValidatedCalendarCom
 
 export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarCommand) {
 	const { request, absenceProof, recoveryRequired, ...command } = prepared
-	await tx
-		.insert(googleCommands)
-		.values({
-			...command,
-			...(recoveryRequired
-				? { state: 'recovery_required' as const, issue: 'provider_unavailable', nextAction: 'resume_recovery' as const }
-				: {}),
-		})
+	await tx.insert(googleCommands).values({
+		...command,
+		...(recoveryRequired
+			? { state: 'recovery_required' as const, issue: 'provider_unavailable', nextAction: 'resume_recovery' as const }
+			: {}),
+	})
 	await tx.insert(googleCommandStages).values({
 		accountId: command.accountId,
 		connectionId: command.connectionId,
@@ -192,22 +193,20 @@ export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarC
 	})
 	if (absenceProof) {
 		await reserveReplacement(tx, prepared)
-		await tx
-			.insert(googleCommandStages)
-			.values({
-				accountId: command.accountId,
-				connectionId: command.connectionId,
-				commandId: command.id,
-				stage: 2,
-				previousStage: 0,
-				generation: command.generation,
-				kind: 'verify',
-				request: { method: 'get', eventId: absenceProof.eventId },
-				state: 'acknowledged',
-				effect: 'confirmed',
-				acknowledgement: absenceProof,
-				acknowledgedAt: new Date(absenceProof.checkedAt),
-			})
+		await tx.insert(googleCommandStages).values({
+			accountId: command.accountId,
+			connectionId: command.connectionId,
+			commandId: command.id,
+			stage: 2,
+			previousStage: 0,
+			generation: command.generation,
+			kind: 'verify',
+			request: { method: 'get', eventId: absenceProof.eventId },
+			state: 'acknowledged',
+			effect: 'confirmed',
+			acknowledgement: absenceProof,
+			acknowledgedAt: new Date(absenceProof.checkedAt),
+		})
 	}
 	if (command.plan.input.operation !== 'create') return
 	for (const reservation of command.plan.reservations) {

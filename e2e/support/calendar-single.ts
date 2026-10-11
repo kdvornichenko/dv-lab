@@ -162,7 +162,7 @@ export async function singleChanges(request: APIRequestContext) {
 		const before = lessonState(lessonId)
 		const fault = armCalendarFault({
 			method: 'PATCH',
-			resource: 'events',
+			resource: 'event',
 			page: 'any',
 			action: 'delay_response',
 			delayMs: 5000,
@@ -215,6 +215,35 @@ export async function singleChanges(request: APIRequestContext) {
 	)
 	expect(record(rejected.error).code).toBe('precondition_failed')
 	expect(lessonState(lessonId)).toEqual(before)
+	await api(
+		request,
+		'POST',
+		`/schedule/lessons/${lessonId}/move`,
+		{
+			...meta,
+			requestId: randomUUID(),
+			date: '2000-01-01',
+			startTime: '09:00',
+			expectedDefaultTimeZone: input.expectedDefaultTimeZone,
+		},
+		409
+	)
+	expect(lessonState(lessonId)).toEqual(before)
+	const outage = armCalendarFault({
+		method: 'GET',
+		resource: 'event',
+		page: 'any',
+		action: 'drop_response',
+		delayMs: 0,
+	})
+	const requestId = randomUUID()
+	try {
+		await api(request, 'POST', `/schedule/lessons/${lessonId}/cancel`, { ...meta, requestId }, 503)
+		expect(lessonState(lessonId)).toEqual(before)
+		await api(request, 'GET', `/google/commands/by-request/${requestId}`, undefined, 404)
+	} finally {
+		disarmCalendarFault(outage)
+	}
 }
 
 export async function singleRace(request: APIRequestContext) {
@@ -236,4 +265,133 @@ export async function singleRace(request: APIRequestContext) {
 		).commandId
 	).toBe(receipt.commandId)
 	await api(request, 'POST', `/schedule/lessons/${lessonId}/restore`, { ...meta, requestId: randomUUID() }, 409)
+}
+
+export async function lostSingleResponse(request: APIRequestContext) {
+	const { input, lessonId } = await create(request)
+	const meta = await target(request, input.date, lessonId)
+	const fault = armCalendarFault({
+		method: 'PATCH',
+		resource: 'event',
+		page: 'any',
+		action: 'drop_response',
+		delayMs: 0,
+	})
+	try {
+		const receipt = parseCalendarResponse(
+			calendarCommandReceipt,
+			await api(
+				request,
+				'POST',
+				`/schedule/lessons/${lessonId}/move`,
+				{ ...meta, date: input.date, startTime: '16:00', expectedDefaultTimeZone: input.expectedDefaultTimeZone },
+				202
+			)
+		)
+		await expect
+			.poll(
+				() =>
+					calendarFaultEvidence(fault).some(
+						(entry) =>
+							entry.phase === 'response_dropped' && entry.status !== null && entry.status >= 200 && entry.status < 300
+					),
+				{ timeout: 20000 }
+			)
+			.toBe(true)
+		await applied(request, receipt.commandId)
+		expect(
+			sql(
+				`select event_id from google_event_mappings where local_entity_id = ${quote(lessonId)}::uuid and state = 'active'`
+			)
+		).toHaveLength(1)
+		await target(request, input.date, lessonId)
+	} finally {
+		disarmCalendarFault(fault)
+	}
+}
+
+export type FenceScenario =
+	| 'stale_etag'
+	| 'permission_403'
+	| 'quota_429'
+	| 'expired_unsent'
+	| 'lost_admission'
+	| 'late_disconnect'
+	| 'changed_unowned'
+
+export async function retainedFence(request: APIRequestContext, scenario: FenceScenario) {
+	const fixture = await calendarCommandFixture(request)
+	const binding = targetBinding()
+	const retained = z
+		.strictObject({
+			origin: z.string(),
+			apiBuildSha: z.string(),
+			persistenceFingerprint: z.string(),
+			studentId: z.uuid(),
+			cases: z.array(
+				z.strictObject({
+					scenario: z.enum([
+						'stale_etag',
+						'permission_403',
+						'quota_429',
+						'expired_unsent',
+						'lost_admission',
+						'late_disconnect',
+						'changed_unowned',
+					]),
+					requestId: z.uuid(),
+					lessonId: z.uuid(),
+					originalStartsAt: z.iso.datetime(),
+					originalStatus: z.enum(['scheduled', 'cancelled']),
+				})
+			),
+		})
+		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-races.json`))
+	if (
+		retained.origin !== binding.origin ||
+		retained.apiBuildSha !== binding.apiBuildSha ||
+		retained.persistenceFingerprint !== binding.persistenceFingerprint ||
+		retained.studentId !== fixture.studentId
+	)
+		throw new Error('Fence fixture does not match the runtime authority')
+	const entry = retained.cases.find((item) => item.scenario === scenario)
+	if (!entry) throw new Error('The real provider/process fence observation is unavailable')
+	const snapshot = parseCalendarResponse(
+		calendarCommandSnapshot,
+		await api(request, 'GET', `/google/commands/by-request/${entry.requestId}`)
+	)
+	expect(snapshot.affectedRefs).toContainEqual({ kind: 'single', lessonId: entry.lessonId })
+	const lesson = sql(
+		`select status, starts_at from lessons where id = ${quote(entry.lessonId)}::uuid and student_id = ${quote(fixture.studentId)}::uuid`
+	)
+	expect(lesson).toHaveLength(1)
+	expect(record(lesson[0]).status).toBe(entry.originalStatus)
+	expect(new Date(text(record(lesson[0]).starts_at)).toISOString()).toBe(entry.originalStartsAt)
+	if (scenario === 'late_disconnect' || scenario === 'changed_unowned') {
+		expect(snapshot.state).toBe('recovery_required')
+		expect(snapshot.confirmedRevision).toBeNull()
+		expect(snapshot.nextAction).toBe('resume_recovery')
+		if (scenario === 'changed_unowned') expect(snapshot.issue).toBe('external_change')
+		return
+	}
+	expect(snapshot.state).toBe('failed')
+	expect(snapshot.effect).toBe('none')
+	expect(snapshot.issue).toBe(scenario === 'stale_etag' ? 'external_change' : 'not_applied')
+	const statuses: Partial<Record<FenceScenario, number>> = { stale_etag: 412, permission_403: 403, quota_429: 429 }
+	if (statuses[scenario]) {
+		const attempts = sql(
+			`select id from google_command_stages where command_id = ${quote(snapshot.commandId)}::uuid and attempts @> ${quote(JSON.stringify([{ httpStatus: statuses[scenario], outcome: 'rejected' }]))}::jsonb`
+		)
+		expect(attempts.length).toBeGreaterThan(0)
+	} else {
+		expect(
+			sql(
+				`select id from google_command_stages where command_id = ${quote(snapshot.commandId)}::uuid and kind = 'write' and jsonb_array_length(attempts) > 0`
+			)
+		).toHaveLength(0)
+	}
+	await api(request, 'POST', `/google/commands/${snapshot.commandId}/resume`, {}, 409)
+	expect(
+		parseCalendarResponse(calendarCommandSnapshot, await api(request, 'GET', `/google/commands/${snapshot.commandId}`))
+	).toEqual(snapshot)
 }

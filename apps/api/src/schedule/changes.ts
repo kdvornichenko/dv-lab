@@ -276,6 +276,7 @@ export async function prepareLessonChange(
 ) {
 	const lesson = await lockLesson(executor, id)
 	if (!lesson) return NOT_FOUND
+	if (!canChange(lesson.startsAt, now)) return { kind: 'history_only' as const }
 	const outcome = await singleOutcome(executor, lesson)
 	const refused = refusal(change, outcome, lesson.startsAt, input.expectedStartsAt, now)
 	if (refused) return refused

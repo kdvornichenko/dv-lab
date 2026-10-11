@@ -96,7 +96,17 @@ async function disconnectedAdmission(request: APIRequestContext) {
 	await api(request, 'GET', `/google/commands/by-request/${input.requestId}`, undefined, 404)
 	expect(await api(request, 'GET', '/google/commands?state=unresolved')).toEqual(before)
 	for (const action of ['move', 'cancel', 'restore']) {
-		await api(request, 'POST', `/schedule/lessons/${input.studentId}/${action}`, {}, 409)
+		const meta = { requestId: randomUUID(), expectedVersion: '0' }
+		const body =
+			action === 'move'
+				? {
+						...meta,
+						date: input.date,
+						startTime: input.startTime,
+						expectedDefaultTimeZone: input.expectedDefaultTimeZone,
+					}
+				: meta
+		await api(request, 'POST', `/schedule/lessons/${input.studentId}/${action}`, body, 409)
 	}
 }
 

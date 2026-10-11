@@ -110,6 +110,20 @@ export function createCredentials(deps: {
 	}
 
 	return {
+		async refreshRejectedAccess(context: ConnectionLeaseContext & { connection: ConnectionRow }) {
+			const current = await findConnection(context.db, context.connection.accountId)
+			if (
+				!current ||
+				current.generation !== context.connection.generation ||
+				current.credentialGeneration !== context.connection.credentialGeneration ||
+				current.state !== 'connected'
+			)
+				throw new CalendarFault('reconnect_required')
+			access.delete(current.accountId)
+			const refreshed = await token(context, current)
+			context.signal.throwIfAborted()
+			return { ...context, accessToken: refreshed.token, connection: refreshed.row }
+		},
 		evict(accountId: string) {
 			access.delete(accountId)
 		},

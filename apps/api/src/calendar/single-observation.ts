@@ -23,7 +23,7 @@ export type SingleEvidence =
 	| { kind: 'absent'; proof: AbsenceProof; cancellation: EventAck }
 	| { kind: 'unresolved'; cancellation: EventAck }
 
-export async function confirmedCancellation(
+async function confirmedCancellation(
 	executor: DbExecutor,
 	accountId: string,
 	localEntityId: string,
@@ -58,6 +58,11 @@ export async function observeSingle(
 	gateway: GoogleGateway
 ): Promise<SingleEvidence> {
 	const target = await singleTarget(access.db, access.connection.accountId, input)
+	if (
+		target.event.snapshotRevision !== access.connection.snapshotRevision ||
+		target.event.generation !== access.connection.generation
+	)
+		throw new CommandFault('precondition_failed')
 	return readSingleEvidence(
 		access,
 		{

@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import type { ValidatedCalendarCommand } from '@dv-lab/contracts'
+import { canChange } from '@dv-lab/core'
 import {
 	googleCommandPlan,
 	googleConnections,
@@ -95,6 +96,12 @@ export async function prepareSingleCommand(
 	)
 		throw new CommandFault('precondition_failed')
 	validateEvidence(evidence, target, input)
+	if (
+		target.event.start &&
+		'dateTime' in target.event.start &&
+		!canChange(new Date(target.event.start.dateTime), context.now)
+	)
+		throw new CommandFault('history_only')
 	if (input.ref.kind !== 'single') throw new CommandFault('history_only')
 	const change = await prepareLessonChange(
 		executor,
@@ -104,8 +111,7 @@ export async function prepareSingleCommand(
 		input.input,
 		context.now
 	)
-	if (change.kind !== 'ok')
-		throw new CommandFault(change.kind === 'nonexistent_local_time' ? change.kind : 'precondition_failed')
+	if (change.kind !== 'ok') changeRefusal(change)
 	const [student] = await executor
 		.select({ name: students.displayName, status: students.status })
 		.from(students)
@@ -194,6 +200,13 @@ export async function prepareSingleCommand(
 	}
 	if (evidence.kind === 'absent') return replacementCommand(executor, prepared, evidence.proof)
 	return evidence.kind === 'unresolved' ? { ...prepared, recoveryRequired: true } : prepared
+}
+
+function changeRefusal(failure: Exclude<Awaited<ReturnType<typeof prepareLessonChange>>, { kind: 'ok' }>): never {
+	if (failure.kind === 'history_only' || failure.kind === 'default_time_zone_changed')
+		throw new CommandFault(failure.kind)
+	if (failure.kind === 'nonexistent_local_time') throw new CommandFault(failure.kind, 400)
+	throw new CommandFault('precondition_failed')
 }
 
 function validateEvidence(

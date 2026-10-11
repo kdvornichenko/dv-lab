@@ -1,5 +1,6 @@
 import { and, eq, sql } from 'drizzle-orm'
-import { randomUUID } from 'node:crypto'
+import { randomInt, randomUUID } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 
 import {
 	googleCommands,
@@ -12,11 +13,19 @@ import {
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import type { VerifiedGoogleResponse } from './command-result.ts'
-import { acknowledgeCommand, projectCommand, type CommandAccess } from './dispatch.ts'
+import { acknowledgeCommand, preservesUnowned, projectCommand, type CommandAccess } from './dispatch.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
-import { CommandFault, digest, preparedCommand, readCommand, type CommandRow, type StageRow } from './journal.ts'
+import {
+	CommandFault,
+	digest,
+	preparedCommand,
+	readCommand,
+	retireReservations,
+	type CommandRow,
+	type StageRow,
+} from './journal.ts'
 
-const RECONCILE_BUDGET_MS = 120000
+const RECONCILE_BUDGET_MS = 30000
 const MAX_READ_ATTEMPTS = 3
 
 export async function requireRecovery(
@@ -145,6 +154,7 @@ async function observeAbsence(
 	})
 	await finishRead(access, stage, acknowledgement, 404)
 	const current = await readCommand(access.db, command.accountId, command.id)
+	if (await rejectObservedPrecondition(access, current)) return
 	await requireRecovery(access.db, current, 'provider_unavailable')
 }
 
@@ -174,7 +184,8 @@ export async function reconcileCommand(
 	if (
 		!explicit &&
 		lastAttempt &&
-		Date.now() - Date.parse(lastAttempt.startedAt) < 5000 * 2 ** (previous.attempts.length - 1)
+		Date.now() - Date.parse(lastAttempt.startedAt) <
+			Math.min(10000, 5000 * 2 ** (previous.attempts.length - 1) + randomInt(0, 1001))
 	)
 		return
 	const stage = await beginRead(access, prepared)
@@ -192,6 +203,7 @@ export async function reconcileCommand(
 		return handleReadFailure(access, command, stage, gateway, error, explicit)
 	}
 	await finishRead(access, stage, result.acknowledgement, result.httpStatus)
+	if (!preservesUnowned(prepared, result)) return requireRecovery(access.db, command, 'external_change')
 	await acknowledgeCommand(access, prepared, result, 'get')
 	const confirmed = await readCommand(access.db, command.accountId, command.id)
 	if (confirmed.state === 'projection_pending') await projectCommand(access, confirmed)
@@ -218,9 +230,24 @@ async function handleReadFailure(
 	await finishRead(access, stage, null, error instanceof GoogleWriteFault ? error.httpStatus : null)
 	const current = await readCommand(access.db, command.accountId, command.id)
 	const external = error instanceof CalendarFault && error.code === 'external_change'
+	if (external && (await rejectObservedPrecondition(access, current))) return
+	if (error instanceof GoogleWriteFault && error.httpStatus === 429)
+		return rateLimitedRead(access, current, error, explicit)
 	if (explicit || stage.attempts.length >= MAX_READ_ATTEMPTS || external)
 		await requireRecovery(access.db, current, external ? 'external_change' : 'provider_unavailable')
 	if (error instanceof CalendarFault) throw error
+}
+
+async function rateLimitedRead(access: CommandAccess, command: CommandRow, error: GoogleWriteFault, explicit: boolean) {
+	await requireRecovery(access.db, command, 'provider_unavailable')
+	const remaining = RECONCILE_BUDGET_MS - (Date.now() - (command.dispatchedAt?.getTime() ?? 0))
+	if (error.retryAfterMs === null || error.retryAfterMs > remaining) return
+	await delay(error.retryAfterMs, undefined, { signal: access.signal })
+	if (explicit || recoveryExpired(command)) return
+	await access.db
+		.update(googleCommands)
+		.set({ state: command.state, issue: 'provider_unavailable', nextAction: 'wait', updatedAt: sql`now()` })
+		.where(and(eq(googleCommands.id, command.id), eq(googleCommands.state, 'recovery_required')))
 }
 
 async function abandonedDispatch(db: Database, command: CommandRow) {
@@ -250,4 +277,34 @@ async function abandonedDispatch(db: Database, command: CommandRow) {
 			.set({ state: 'outcome_unknown', effect: 'unknown', updatedAt: sql`now()` })
 			.where(and(eq(googleCommands.id, command.id), eq(googleCommands.state, 'dispatching')))
 	})
+}
+
+async function rejectObservedPrecondition(access: CommandAccess, command: CommandRow) {
+	const { stage } = await preparedCommand(access.db, command)
+	if (
+		!stage.attempts.length ||
+		stage.attempts.some((attempt) => attempt.outcome !== 'rejected') ||
+		!stage.attempts.some((attempt) => attempt.httpStatus === 409 || attempt.httpStatus === 412)
+	)
+		return false
+	await access.db.transaction(async (tx) => {
+		const current = await readCommand(tx, command.accountId, command.id)
+		if (current.state !== command.state || current.effect !== 'unknown') throw new CommandFault('precondition_failed')
+		await tx
+			.update(googleCommandStages)
+			.set({ state: 'failed', effect: 'none', updatedAt: sql`now()` })
+			.where(eq(googleCommandStages.id, stage.id))
+		await tx
+			.update(googleCommands)
+			.set({
+				state: 'failed',
+				effect: 'none',
+				issue: 'external_change',
+				nextAction: 'retry_new_command',
+				updatedAt: sql`now()`,
+			})
+			.where(eq(googleCommands.id, command.id))
+		await retireReservations(tx, command.id)
+	})
+	return true
 }

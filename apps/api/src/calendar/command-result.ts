@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { timeZoneIdentity } from '@dv-lab/contracts'
+import { timeZoneIdentity, type CalendarIssue } from '@dv-lab/contracts'
 import { googleStageAcknowledgement, type GoogleStageAcknowledgement, type GoogleStageRequest } from '@dv-lab/db'
 
 import { CalendarFault } from './gateway.ts'
@@ -10,7 +10,7 @@ import { parseMaster, type ProviderEvent } from './provider-events.ts'
 export type WriteRequest = Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
 type EventAcknowledgement = Extract<GoogleStageAcknowledgement, { kind: 'event' }>
 export type VerifiedGoogleResult = { generation: number; commandId: string; acknowledgement: EventAcknowledgement }
-export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number }
+export type VerifiedGoogleResponse = VerifiedGoogleResult & { httpStatus: number; recoveryIssue?: CalendarIssue | null }
 
 const marker = z.object({
 	dvLocalId: z.uuid(),
@@ -77,7 +77,8 @@ export function verifyGoogleResult(
 ): VerifiedGoogleResponse {
 	const markers = identity.safeParse(input)
 	const raw = z.record(z.string(), json).safeParse(input)
-	if (!markers.success || !raw.success) throw new CalendarFault('invalid_provider_data')
+	if (!raw.success) throw new CalendarFault('invalid_provider_data')
+	if (!markers.success) throw new CalendarFault('external_change')
 	const actual = parseMaster(input, timeZone)
 	const expectedMarkers = insertEventBody(request).extendedProperties.private
 	if (canonical(markers.data.extendedProperties.private) !== canonical(expectedMarkers) || actual.recurrence.length)
