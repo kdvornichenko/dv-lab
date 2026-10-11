@@ -53,6 +53,7 @@ export const googleCutPlan = z.strictObject({
 	cutoff: z.iso.date(),
 	master: googleObservedResource,
 	prefix: z.array(googleObservedResource),
+	cancelledPrefix: z.array(cancelledTail),
 	tail: z.array(googleObservedResource),
 	cancelledTail: z.array(cancelledTail),
 	familyIds: z.array(id),
@@ -64,6 +65,7 @@ export const googleCutAcknowledgements = [
 	z.strictObject({
 		kind: z.literal('cut_capture'),
 		cancelledTail: z.array(cancelledTail),
+		cancelledPrefix: z.array(cancelledTail),
 		checkedAt: instant,
 		master: googleObservedResource,
 		prefix: observations,
@@ -72,22 +74,27 @@ export const googleCutAcknowledgements = [
 	z.strictObject({ kind: z.literal('cut_observation'), checkedAt: instant, resource: googleObservedResource }),
 	z.strictObject({
 		kind: z.literal('cut_inactive'),
+		cancelledTail: z.array(googleCancelledInstance),
 		checkedAt: instant,
 		master: googleObservedResource.nullable(),
 		tail: observations,
 		cancellationStageId: z.uuid().nullable(),
+		cancelledMaster: googleCancelledEvent.nullable(),
 		family: z.array(familyResource),
 		absentIds: z.array(id),
 		complete: z.literal(true),
 	}),
 	z.strictObject({
 		kind: z.literal('cut_complete'),
+		credentialGeneration: z.number().int().nonnegative(),
 		checkedAt: instant,
 		planDigest: hash,
 		stageIds: z.array(z.uuid()).min(1),
 		master: googleObservedResource.nullable(),
 		cancellationStageId: z.uuid().nullable(),
+		cancelledMaster: googleCancelledEvent.nullable(),
 		oldTail: observations,
+		oldCancelledTail: z.array(googleCancelledInstance),
 		identityProofs: z.array(
 			z.strictObject({
 				localEntityId: z.uuid(),
@@ -101,9 +108,16 @@ export const googleCutAcknowledgements = [
 			z.strictObject({ eventId: id, stageId: z.uuid(), current: googleCancelledEvent })
 		),
 		prefix: observations,
+		cancelledPrefix: z.array(googleCancelledInstance),
 		family: z.array(familyResource),
 		absentIds: z.array(id),
 		complete: z.literal(true),
+	}),
+	z.strictObject({
+		kind: z.literal('cut_cancelled_prefix'),
+		checkedAt: instant,
+		historyStageId: z.uuid(),
+		current: googleCancelledInstance,
 	}),
 ] as const
 

@@ -147,7 +147,13 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 		if (!target) throw new CalendarFault('wrong_primary')
 		return target
 	}
-	async function identitySearch(accessToken: string, calendarId: string, localEntityId: string, signal: AbortSignal) {
+	async function identitySearch(
+		accessToken: string,
+		calendarId: string,
+		localEntityId: string,
+		signal: AbortSignal,
+		cancelledIds: readonly string[] = []
+	) {
 		const oauth = client(signal)
 		oauth.setCredentials({ access_token: accessToken })
 		const pages = new Set<string>()
@@ -172,7 +178,12 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 			const parsed = identityPage.safeParse(response.data)
 			if (!parsed.success) throw new CalendarFault('invalid_provider_data')
 			for (const event of parsed.data.items ?? []) {
-				if (ids.has(event.id) || event.extendedProperties?.private?.dvLocalId !== localEntityId)
+				const marker = event.extendedProperties?.private?.dvLocalId
+				const knownTombstone =
+					cancelledIds.includes(event.id) &&
+					marker === undefined &&
+					(event.status === undefined || event.status === 'cancelled')
+				if (ids.has(event.id) || (marker !== localEntityId && !knownTombstone))
 					throw new CalendarFault('invalid_provider_data')
 				ids.add(event.id)
 				events.push(event)

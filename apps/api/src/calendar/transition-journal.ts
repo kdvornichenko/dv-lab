@@ -71,6 +71,12 @@ export async function beginTransitionStage(
 		access.signal.throwIfAborted()
 		const previousStage = await validateAdmission(tx, access, current, command, stage, recoveryOf)
 		const write = request.method === 'insert' || request.method === 'patch'
+		if (
+			write &&
+			current.effect !== 'partial' &&
+			(current.dispatchDeadline.getTime() <= Date.now() || current.generation !== access.connection.generation)
+		)
+			throw new CommandFault('not_applied')
 		await tx
 			.insert(googleCommandStages)
 			.values({

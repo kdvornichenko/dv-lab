@@ -12,7 +12,7 @@ import { type GoogleGateway } from './gateway.ts'
 import { CommandFault, digest, type StageRow } from './journal.ts'
 import { matchesMaster } from './recurring.ts'
 import { transitionStage } from './transition-journal.ts'
-import { observedResource, readOldInactive, sameResource, verifyPrimary } from './transition-proof.ts'
+import { observedResource, readOldInactive, sameResource, sameTime, verifyPrimary } from './transition-proof.ts'
 import { transitionSteps, type TransitionStep } from './transition-stages.ts'
 
 export async function prefixSource(
@@ -113,8 +113,14 @@ export async function readCutComplete(
 	}
 	const inactive = await readOldInactive(access, command, gateway)
 	const representations = await verifyRepresentations(access, command, gateway, rows)
-	const identityProofs = await verifyIdentities(access, command, gateway)
+	const identityProofs = await verifyIdentities(
+		access,
+		command,
+		gateway,
+		representations.cancelled.map((item) => item.eventId)
+	)
 	const canonicalInstances = await verifyNewInstances(access, command, representations.actual, gateway)
+	const cancelledPrefix = await verifyCancelledPrefix(access, command, gateway)
 	const prefix: GoogleObservedResource[] = []
 	for (const expected of cut.prefix) {
 		const actual = await observedResource(access, command, expected.event.eventId, gateway)
@@ -123,12 +129,15 @@ export async function readCutComplete(
 	}
 	return googleStageAcknowledgement.parse({
 		kind: 'cut_complete',
+		credentialGeneration: access.connection.credentialGeneration,
 		checkedAt: new Date().toISOString(),
 		planDigest: digest(JSON.stringify(command.plan)),
 		stageIds: rows.map((row) => row.id),
 		master: inactive.master,
 		cancellationStageId: inactive.cancellationStageId,
+		cancelledMaster: inactive.cancelledMaster,
 		oldTail: inactive.tail,
+		oldCancelledTail: inactive.cancelledTail,
 		family: inactive.family,
 		absentIds: inactive.absentIds,
 		complete: true,
@@ -137,10 +146,11 @@ export async function readCutComplete(
 		representations: representations.actual,
 		cancelledRepresentations: representations.cancelled,
 		prefix,
+		cancelledPrefix,
 	})
 }
 
-function verifyPrefixDefault(
+export function verifyPrefixDefault(
 	command: PreparedCalendarCommand,
 	actual: GoogleObservedResource,
 	original: string,
@@ -220,16 +230,24 @@ function verifyRepresentationTime(
 	}
 }
 
-async function verifyIdentities(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
+async function verifyIdentities(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	gateway: GoogleGateway,
+	cancelledIds: readonly string[]
+) {
 	const proofs: GoogleCutCompletion['identityProofs'] = []
 	for (const reservation of command.plan.reservations) {
 		const events = await gateway.identityEvents(
 			access.accessToken,
 			command.calendarId,
 			reservation.localEntityId,
-			access.signal
+			access.signal,
+			cancelledIds
 		)
-		const active = events.filter((item) => item.status !== 'cancelled')
+		const active = events.filter(
+			(item) => item.status !== 'cancelled' && !(item.status === undefined && cancelledIds.includes(item.id))
+		)
 		const cancelled = command.plan.lineage.some(
 			(item) =>
 				item.to.kind === 'single' && item.to.lessonId === reservation.localEntityId && item.status === 'cancelled'
@@ -264,9 +282,42 @@ async function verifyNewInstances(
 		)
 		if (canonical.kind !== 'found') throw new CommandFault('external_change')
 		const instance = await observedResource(access, command, canonical.eventId, gateway, start.timeZone)
-		if (instance.event.recurringEventId !== resource.event.eventId || instance.event.status !== 'confirmed')
+		if (
+			instance.event.recurringEventId !== resource.event.eventId ||
+			instance.event.status !== 'confirmed' ||
+			!sameTime(instance.event.start, resource.event.start) ||
+			!sameTime(instance.event.end, resource.event.end) ||
+			!sameTime(instance.event.originalStartTime, resource.event.start)
+		)
 			throw new CommandFault('external_change')
 		instances.push(instance)
 	}
 	return instances
+}
+
+async function verifyCancelledPrefix(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
+	const current: GoogleCutCompletion['cancelledPrefix'] = []
+	for (const source of command.plan.cut!.cancelledPrefix) {
+		const canonical = await gateway.canonicalInstance(
+			access.accessToken,
+			command.calendarId,
+			source.current.recurringEventId,
+			source.current.originalStartTime.dateTime,
+			access.signal
+		)
+		if (canonical.kind !== 'found' || canonical.eventId !== source.current.id) throw new CommandFault('external_change')
+		const actual = await gateway.cancelledInstance(
+			access.accessToken,
+			command.calendarId,
+			canonical.eventId,
+			access.signal
+		)
+		if (
+			actual.recurringEventId !== source.current.recurringEventId ||
+			Date.parse(actual.originalStartTime.dateTime) !== Date.parse(source.current.originalStartTime.dateTime)
+		)
+			throw new CommandFault('external_change')
+		current.push(actual)
+	}
+	return current
 }

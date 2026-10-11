@@ -1,9 +1,10 @@
 import type { GoogleObservedResource, GoogleStageAcknowledgement } from '@dv-lab/db'
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
-import type { CommandAccess } from './dispatch.ts'
+import { projectCommand, type CommandAccess } from './dispatch.ts'
 import type { GoogleGateway } from './gateway.ts'
 import { CommandFault, preparedCommand, readCommand, type CommandRow, type StageRow } from './journal.ts'
+import { replayCancelledPrefix } from './transition-cancellations.ts'
 import { acknowledgeTransition, beginTransitionStage, pauseTransition, transitionStage } from './transition-journal.ts'
 import { readCutCapture, readOldInactive, sameResource } from './transition-proof.ts'
 import {
@@ -48,6 +49,8 @@ async function runStep(
 	existing: StageRow | undefined,
 	gateway: GoogleGateway
 ) {
+	if (step.purpose === 'cancelled_prefix')
+		return replayCancelledPrefix(access, command, prepared, step, existing, gateway)
 	if ('source' in step) {
 		if (existing && (existing.request.method === 'patch' || existing.request.method === 'insert')) {
 			await sendTransitionWrite(access, command, prepared, step.stage, existing.request, existing, gateway, step.source)
@@ -106,6 +109,8 @@ export async function executeTransition(access: CommandAccess, command: CommandR
 				continue
 			await runStep(access, current, prepared, step, currentStage, gateway)
 		}
+		const current = await readCommand(access.db, command.accountId, command.id)
+		if (current.state === 'projection_pending') await projectCommand(access, current)
 	} catch (error) {
 		const steps = transitionSteps(prepared)
 		const pending: StageRow[] = []

@@ -47,9 +47,14 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 	const family = await gateway.familyEvents(access.accessToken, mapping.calendarId, mapping.eventId, access.signal)
 	validateFamily(family, prepared)
 	const prefix: GoogleObservedResource[] = []
+	const cancelledPrefix: GoogleCutPlan['cancelledPrefix'] = []
 	for (const member of family) {
 		const originalOn = scheduleDate(new Date(member.originalStartTime.dateTime), prepared.rule.timeZone)
 		if (originalOn >= prepared.naturalCutoff) continue
+		if (member.status !== 'confirmed' && member.status !== 'tentative') {
+			cancelledPrefix.push(await cancelledTailHistory(access, input.seriesId, originalOn, member.id, gateway))
+			continue
+		}
 		prefix.push(
 			googleObservedResource.parse(
 				await gateway.observeEvent(
@@ -70,6 +75,7 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 		prepared,
 		master,
 		prefix,
+		cancelledPrefix,
 		tail,
 		cancelledTail,
 		familyIds: family.map((item) => item.id).sort(),

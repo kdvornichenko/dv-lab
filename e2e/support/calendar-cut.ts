@@ -8,7 +8,7 @@ import {
 	googleScheduleWindow,
 } from '../../packages/contracts/src/calendar.ts'
 import { googleCommandPlan } from '../../packages/db/src/calendar-values.ts'
-import { api, readSettings } from './api.ts'
+import { api, readSettings, studentFacts } from './api.ts'
 import { calendarCommandFixture, parseCalendarResponse } from './calendar-commands.ts'
 import { armCalendarFault, calendarFaultEvidence, disarmCalendarFault } from './calendar-fault-control.ts'
 import { recurringJourney } from './calendar-recurring.ts'
@@ -25,6 +25,9 @@ function domain(id: string) {
 		series: sql(`select id, ends_on from lesson_series where id = ${quote(id)}::uuid`),
 		lessons: sql(
 			`select id, starts_at, time_zone, duration_minutes, status from lessons where student_id = (select student_id from lesson_series where id = ${quote(id)}::uuid) order by id`
+		),
+		exceptions: sql(
+			`select original_on, kind, starts_at, duration_minutes from lesson_exceptions where series_id = ${quote(id)}::uuid order by original_on`
 		),
 		marks: sql(`select id, kind from lesson_marks where series_id = ${quote(id)}::uuid order by id`),
 	}
@@ -85,9 +88,7 @@ async function prepareJourney(request: APIRequestContext) {
 		)
 	)
 	expect(record(refused.error).code).toBe('history_only')
-	for (const sample of fixture.cuts.cases.filter(
-		(item) => item.scenario !== 'history' && item.scenario !== 'sparse_cancelled_history'
-	)) {
+	for (const sample of fixture.cuts.cases.filter((item) => ['finite', 'empty', 'cross_zone'].includes(item.scenario))) {
 		await setMain(request, sample.timeZone)
 		const input = await cutInput(request, sample)
 		const before = domain(sample.seriesId)
@@ -116,18 +117,21 @@ async function prepareJourney(request: APIRequestContext) {
 	}
 }
 
-async function recoveryJourney(request: APIRequestContext, history = false, sparse = false) {
+async function recoveryJourney(request: APIRequestContext, history = false, sparse = false, unreserved = false) {
 	const fixture = await calendarCommandFixture(request)
 	const sample = fixture.cuts?.cases.find((item) =>
 		history
-			? item.scenario === (sparse ? 'sparse_cancelled_history' : 'history')
-			: item.scenario !== 'history' && item.scenario !== 'sparse_cancelled_history'
+			? item.scenario === (sparse ? 'sparse_cancelled_history' : unreserved ? 'unreserved_mark_history' : 'history')
+			: item.scenario === 'recovery'
 	)
 	if (!sample) throw new Error('Retained cut recovery case is required')
 	await setMain(request, sample.timeZone)
 	const input = await cutInput(request, sample)
 	const before = domain(sample.seriesId)
-	if (sparse && !sample.cancelledOriginalOn) throw new Error('Retained native sparse cancelled tail is required')
+	if (sparse && (!sample.cancelledOriginalOn || !sample.cancelledPrefixOriginalOn))
+		throw new Error('Retained native sparse cancelled tail is required')
+	if (unreserved && !sample.unreservedMarkOriginalOn)
+		throw new Error('Retained initially-none unreserved mark target is required')
 	const fault = armCalendarFault({
 		method: history ? 'PATCH' : 'POST',
 		resource: 'events',
@@ -138,6 +142,11 @@ async function recoveryJourney(request: APIRequestContext, history = false, spar
 	try {
 		const receipt = await submit(request, sample, input)
 		if (history) {
+			await expect
+				.poll(() => calendarFaultEvidence(fault).some((item) => item.phase === 'response_held'), { timeout: 20000 })
+				.toBe(true)
+			expect(domain(sample.seriesId).series).toEqual(before.series)
+			expect(domain(sample.seriesId).lessons).toEqual(before.lessons)
 			if (!sample.markOriginalOn) throw new Error('Retained effective-past mark target is required')
 			await api(
 				request,
@@ -147,6 +156,22 @@ async function recoveryJourney(request: APIRequestContext, history = false, spar
 				200
 			)
 		}
+		if (sample.unreservedMarkOriginalOn) {
+			await api(
+				request,
+				'POST',
+				`/schedule/series/${sample.seriesId}/occurrences/${sample.unreservedMarkOriginalOn}/mark`,
+				{ kind: 'done' },
+				200
+			)
+			await expect
+				.poll(async () => (await status(request, receipt.commandId)).state, { timeout: 90000 })
+				.toMatch(/partial_recovery|recovery_required/)
+			expect((await status(request, receipt.commandId)).confirmedRevision).toBeNull()
+			expect(domain(sample.seriesId).series).toEqual(before.series)
+			return
+		}
+		const balance = studentFacts(await api(request, 'GET', `/students/${fixture.studentId}`)).balanceMinutes
 		await expect
 			.poll(async () => (await status(request, receipt.commandId)).state, { timeout: 90000 })
 			.toMatch(/applied|partial_recovery|recovery_required/)
@@ -163,6 +188,9 @@ async function recoveryJourney(request: APIRequestContext, history = false, spar
 			current = await status(request, receipt.commandId)
 		}
 		expect(current.effect).toBe('confirmed')
+		expect(domain(sample.seriesId).exceptions).toEqual(before.exceptions)
+		if (history)
+			expect(studentFacts(await api(request, 'GET', `/students/${fixture.studentId}`)).balanceMinutes).toBe(balance)
 		const rows = sql(`select plan from google_commands where id = ${quote(receipt.commandId)}::uuid`)
 		const plan = googleCommandPlan.parse(rows[0].plan)
 		verifyHistory(plan, sample, history, sparse)
@@ -186,6 +214,7 @@ export async function cutHistory(request: APIRequestContext) {
 	test.setTimeout(300000)
 	await recoveryJourney(request, true)
 	await recoveryJourney(request, true, true)
+	await recoveryJourney(request, true, false, true)
 }
 
 function verifyHistory(
@@ -200,6 +229,9 @@ function verifyHistory(
 		expect(preserved?.current.start).toBeUndefined()
 		expect(preserved?.current.end).toBeUndefined()
 		expect(preserved?.current.etag).toBeUndefined()
+		const prefix = plan.cut?.cancelledPrefix.find((item) => item.originalOn === sample.cancelledPrefixOriginalOn)
+		expect(prefix).toBeDefined()
+		expect(prefix?.current.start).toBeUndefined()
 	}
 	const lineage = plan.lineage
 	for (const item of lineage) {

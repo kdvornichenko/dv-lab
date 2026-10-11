@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import { canChange } from '@dv-lab/core'
@@ -10,7 +10,7 @@ import {
 	type GoogleStageAttempt,
 } from '@dv-lab/db'
 
-import { applyConfirmedCommand } from '../schedule/command-apply.ts'
+import { applyConfirmedCommand, applyConfirmedCut } from '../schedule/command-apply.ts'
 import { commandWindow, type PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { storedGoogleResult, unownedFingerprint, type VerifiedGoogleResponse } from './command-result.ts'
 import type { ConnectionRow } from './credentials.ts'
@@ -271,6 +271,28 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 }
 
 export async function projectCommand(access: Pick<CommandAccess, 'db' | 'signal'>, command: CommandRow) {
+	if (command.plan.cut) {
+		const { prepared } = await preparedCommand(access.db, command)
+		try {
+			await access.db.transaction(async (tx) => {
+				access.signal.throwIfAborted()
+				await applyConfirmedCut(tx, prepared)
+				access.signal.throwIfAborted()
+			})
+		} catch (error) {
+			if (!(error instanceof CommandFault)) throw error
+			await access.db
+				.update(googleCommands)
+				.set({
+					state: 'recovery_required',
+					issue: error.code === 'reconnect_required' ? 'reconnect_required' : 'external_change',
+					nextAction: 'resume_recovery',
+					updatedAt: sql`now()`,
+				})
+				.where(and(eq(googleCommands.id, command.id), eq(googleCommands.state, 'projection_pending')))
+		}
+		return
+	}
 	const { prepared, stage } = await preparedCommand(access.db, command)
 	if (!stage.acknowledgement) throw new CommandFault('precondition_failed')
 	const result = storedGoogleResult(stage.acknowledgement, prepared.request, stage.generation)

@@ -11,14 +11,17 @@ import {
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import type { CommandAccess } from './dispatch.ts'
-import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
+import { GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import { CommandFault, type StageRow } from './journal.ts'
 import { matchesMaster, sameRecurrence } from './recurring.ts'
 import { cancelledTailHistory } from './transition-cancellations.ts'
 import { transitionStage } from './transition-journal.ts'
 import { transitionSteps } from './transition-stages.ts'
 
-function sameTime(left: GoogleObservedResource['event']['start'], right: GoogleObservedResource['event']['start']) {
+export function sameTime(
+	left: GoogleObservedResource['event']['start'],
+	right: GoogleObservedResource['event']['start']
+) {
 	if (!left || !right) return left === right
 	if ('date' in left && 'date' in right)
 		return left.date === right.date && timeZoneIdentity(left.timeZone) === timeZoneIdentity(right.timeZone)
@@ -101,20 +104,17 @@ export async function readCutCapture(
 		throw new CommandFault('external_change')
 	const prefix = await captureResources(access, command, cut.prefix, gateway)
 	const tail = await captureResources(access, command, cut.tail, gateway)
-	const cancelledTail: GoogleCutPlan['cancelledTail'] = []
-	const input = command.plan.input
-	if (!('seriesId' in input)) throw new CommandFault('precondition_failed')
-	for (const source of cut.cancelledTail) {
-		const actual = await cancelledTailHistory(access, input.seriesId, source.originalOn, source.current.id, gateway)
-		if (
-			actual.stageId !== source.stageId ||
-			!isDeepStrictEqual(actual.baselineEvent, source.baselineEvent) ||
-			actual.unownedWritableFingerprint !== source.unownedWritableFingerprint
-		)
-			throw new CommandFault('external_change')
-		cancelledTail.push(actual)
+	const cancelledTail = await captureCancellations(access, command, cut.cancelledTail, gateway)
+	const cancelledPrefix = await captureCancellations(access, command, cut.cancelledPrefix, gateway)
+	return {
+		kind: 'cut_capture',
+		checkedAt: new Date().toISOString(),
+		master,
+		prefix,
+		tail,
+		cancelledTail,
+		cancelledPrefix,
 	}
-	return { kind: 'cut_capture', checkedAt: new Date().toISOString(), master, prefix, tail, cancelledTail }
 }
 
 async function cancellationStage(
@@ -131,30 +131,10 @@ async function inactiveMaster(access: CommandAccess, command: PreparedCalendarCo
 	const rule = command.plan.capturedRule
 	if (!cut || !rule || !command.plan.oldEndsOn) throw new CommandFault('precondition_failed')
 	const cancellation = await cancellationStage(access, command)
-	try {
-		const actual = await observedResource(access, command, cut.master.event.eventId, gateway)
-		if (cancellation) {
-			if (actual.event.status !== 'cancelled') throw new CommandFault('external_change')
-		} else if (!matchesMaster(actual, { ...rule, endsOn: command.plan.oldEndsOn }))
-			throw new CommandFault('external_change')
-		return { master: actual, cancellationStageId: cancellation?.id ?? null }
-	} catch (error) {
-		if (
-			!cancellation ||
-			!(
-				(error instanceof GoogleWriteFault && error.outcome === 'missing') ||
-				(error instanceof CalendarFault && error.code === 'invalid_provider_data')
-			)
-		)
-			throw error
-		const identity = command.plan.input
-		if (
-			!('seriesId' in identity) ||
-			!(await gateway.identityAbsent(access.accessToken, command.calendarId, identity.seriesId, access.signal))
-		)
-			throw new CommandFault('external_change')
-		return { master: null, cancellationStageId: cancellation.id }
-	}
+	if (cancellation) return readCancelledMaster(access, command, gateway, cancellation)
+	const actual = await observedResource(access, command, cut.master.event.eventId, gateway)
+	if (!matchesMaster(actual, { ...rule, endsOn: command.plan.oldEndsOn })) throw new CommandFault('external_change')
+	return { master: actual, cancellationStageId: null, cancelledMaster: null }
 }
 
 export async function readOldInactive(
@@ -173,8 +153,20 @@ export async function readOldInactive(
 		access.signal
 	)
 	const tail: GoogleObservedResource[] = []
+	const cancelledTail: Extract<GoogleStageAcknowledgement, { kind: 'cut_inactive' }>['cancelledTail'] = []
 	for (const member of family) {
 		if (scheduleDate(new Date(member.originalStartTime.dateTime), command.plan.capturedTimeZone) < cut.cutoff) continue
+		if (await hasCancellationProof(access, command, member.id)) {
+			const current = await gateway.cancelledInstance(access.accessToken, command.calendarId, member.id, access.signal)
+			if (
+				current.id !== member.id ||
+				current.recurringEventId !== cut.master.event.eventId ||
+				Date.parse(current.originalStartTime.dateTime) !== Date.parse(member.originalStartTime.dateTime)
+			)
+				throw new CommandFault('external_change')
+			cancelledTail.push(current)
+			continue
+		}
 		if (member.status === 'cancelled') continue
 		const resource = await observedResource(access, command, member.id, gateway)
 		if (resource.event.status !== 'cancelled') throw new CommandFault('external_change')
@@ -185,9 +177,73 @@ export async function readOldInactive(
 		kind: 'cut_inactive',
 		checkedAt: new Date().toISOString(),
 		...proof,
+		cancelledTail,
 		family,
 		tail,
 		absentIds: cut.tail.filter((item) => !present.has(item.event.eventId)).map((item) => item.event.eventId),
 		complete: true,
+	}
+}
+
+async function hasCancellationProof(access: CommandAccess, command: PreparedCalendarCommand, id: string) {
+	if (command.plan.cut?.cancelledTail.some((item) => item.current.id === id)) return true
+	for (const step of transitionSteps(command).filter((item) => item.purpose === 'tail')) {
+		const row = await transitionStage(access, command, step.stage)
+		if (
+			row?.state === 'acknowledged' &&
+			row.acknowledgement?.kind === 'cancellation' &&
+			row.acknowledgement.response.id === id
+		)
+			return true
+	}
+	return false
+}
+
+async function captureCancellations(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	sources: GoogleCutPlan['cancelledTail'],
+	gateway: GoogleGateway
+) {
+	const cancelledTail: GoogleCutPlan['cancelledTail'] = []
+	const input = command.plan.input
+	if (!('seriesId' in input)) throw new CommandFault('precondition_failed')
+	for (const source of sources) {
+		const actual = await cancelledTailHistory(access, input.seriesId, source.originalOn, source.current.id, gateway)
+		if (
+			actual.stageId !== source.stageId ||
+			!isDeepStrictEqual(actual.baselineEvent, source.baselineEvent) ||
+			actual.unownedWritableFingerprint !== source.unownedWritableFingerprint
+		)
+			throw new CommandFault('external_change')
+		cancelledTail.push(actual)
+	}
+	return cancelledTail
+}
+
+async function readCancelledMaster(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	gateway: GoogleGateway,
+	stage: StageRow
+) {
+	try {
+		const current = await gateway.cancelledEvent(
+			access.accessToken,
+			command.calendarId,
+			command.plan.cut!.master.event.eventId,
+			access.signal
+		)
+		if (current.id !== command.plan.cut!.master.event.eventId) throw new CommandFault('external_change')
+		return { master: null, cancellationStageId: stage.id, cancelledMaster: current }
+	} catch (error) {
+		if (!(error instanceof GoogleWriteFault && error.outcome === 'missing')) throw error
+		const identity = command.plan.input
+		if (
+			!('seriesId' in identity) ||
+			!(await gateway.identityAbsent(access.accessToken, command.calendarId, identity.seriesId, access.signal))
+		)
+			throw new CommandFault('external_change')
+		return { master: null, cancellationStageId: stage.id, cancelledMaster: null }
 	}
 }

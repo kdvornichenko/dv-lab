@@ -147,6 +147,7 @@ export async function prepareSeriesCommand(
 			cutoff: old.naturalCutoff,
 			master: evidence.master,
 			prefix: evidence.prefix,
+			cancelledPrefix: evidence.cancelledPrefix,
 			tail: evidence.tail,
 			cancelledTail: evidence.cancelledTail,
 			preparedMarks: [...old.marks].map(([originalOn, kind]) => ({ originalOn, kind })),

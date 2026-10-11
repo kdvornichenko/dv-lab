@@ -1,5 +1,5 @@
 import { scheduleDate } from '@dv-lab/core'
-import { googleStageRequest, type GoogleCommandPlan, type GoogleObservedResource } from '@dv-lab/db'
+import { googleStageRequest, type GoogleCommandPlan, type GoogleCutPlan, type GoogleObservedResource } from '@dv-lab/db'
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { cutWrite } from '../schedule/series-command.ts'
@@ -9,6 +9,7 @@ import { masterRepresentation } from './recurring.ts'
 type Reservation = GoogleCommandPlan['reservations'][number]
 type Lineage = GoogleCommandPlan['lineage'][number]
 export type TransitionStep =
+	| { purpose: 'cancelled_prefix'; stage: number; prefixCancellation: GoogleCutPlan['cancelledPrefix'][number] }
 	| { purpose: 'capture' | 'inactive' | 'complete'; stage: number }
 	| { purpose: 'tail' | 'trim' | 'prefix'; stage: number; source: GoogleObservedResource }
 	| { purpose: 'insert' | 'cancel_insert'; stage: number; reservation: Reservation; lineage: Lineage | null }
@@ -31,6 +32,8 @@ export function transitionSteps(command: PreparedCalendarCommand): TransitionSte
 			steps.push({ purpose: 'cancel_insert', stage: steps.length * 3 - 2, reservation, lineage })
 	}
 	for (const source of cut.prefix) steps.push({ purpose: 'prefix', stage: steps.length * 3 - 2, source })
+	for (const prefixCancellation of cut.cancelledPrefix)
+		steps.push({ purpose: 'cancelled_prefix', stage: steps.length * 3 - 2, prefixCancellation })
 	steps.push({ purpose: 'complete', stage: steps.length * 3 - 2 })
 	return steps
 }
