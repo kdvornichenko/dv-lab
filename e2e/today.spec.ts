@@ -53,14 +53,10 @@ async function initialTodayHeading(page: Page): Promise<void> {
 		if (!Number.isFinite(serverNow.getTime())) throw new Error('SSR Date header is unavailable')
 		expect(Math.abs(Date.now() - serverNow.getTime())).toBeLessThanOrEqual(5000)
 		expect(vnToday(serverNow)).toBe(vnToday())
-		const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: VN, weekday: 'long' }).format(serverNow)
-		const date = new Intl.DateTimeFormat('en-GB', { timeZone: VN, day: 'numeric', month: 'long' }).format(serverNow)
-		const expected = `${weekday}, ${date}`
 		const h1 = (await response.text()).match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]
 		if (h1 === undefined) throw new Error('SSR h1 is missing')
 		const title = h1.replace(/<!--[\s\S]*?-->|<[^>]*>/g, '').trim()
-		expect(title).not.toBe('Today')
-		expect(title).toBe(expected)
+		expect(title).toBe('Today')
 	} finally {
 		await response.dispose()
 	}
@@ -441,6 +437,7 @@ test.describe('account time zone [tz]', () => {
 		await midnightAccounting(page, fx)
 	})
 	test('E12 unknown main never flashes Vietnam; failed initial read can be retried', async ({ page }) => {
+		await initialTodayHeading(page)
 		await loadingFailure(page)
 	})
 	test('E12 320px and desktop keep keyboard focus, readable actions and bounded layout', async ({ page }) => {
