@@ -1,18 +1,18 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: '1.0'
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: "21.1"
+current_phase: '21.1'
 current_phase_name: Default Time Zone
 status: planning
-stopped_at: Phase 21.1 context captured; technical research and plans pending
-last_updated: "2026-10-11T09:06:07.262Z"
+stopped_at: Phase 21.1 research, UI and patterns complete; plans pending
+last_updated: '2026-10-11T09:06:07.262Z'
 last_activity: 2026-10-11
 last_activity_desc: Phase 21.1 started in a separate worktree while Phase 21 reviews finish
-state_head: 8c3cb5d8c01ed22f8512b66a155756d01c153430
+state_head: 893689f9bcf5fb5aefe9936665dce276a28130f2
 progress:
   total_phases: 11
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 77
   completed_plans: 77
   percent: 0
@@ -31,18 +31,19 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 21.1 (Default Time Zone) — PLANNING
 Plan: Not yet planned
-Status: Context captured; research and plans pending. Phase 21 final reviews continue in its own worktree.
-Last activity: 2026-10-11 — Added TZ-01…TZ-05 and recovered accepted time-zone decisions
+Status: Research, UI and patterns complete; executable plans pending. Phase 21 merged in PR #7 (893689f) after green CI.
+Last activity: 2026-10-11 — Completed preparation inputs and integrated Phase 21 closure
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Deferred Verification
 
-| Phase | State | Resume |
-|-------|-------|--------|
-| 17 | verification_deferred_human | /gsd-verify-work 17 |
-| 18 | verification_deferred_human | /gsd-verify-work 18 |
-| 19 | verification_deferred_human | /gsd-verify-work 19 |
+| Phase | State                                                    | Resume                                                                   |
+| ----- | -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 17    | verification_deferred_human                              | /gsd-verify-work 17                                                      |
+| 18    | verification_deferred_human                              | /gsd-verify-work 18                                                      |
+| 19    | verification_deferred_human                              | /gsd-verify-work 19                                                      |
+| 21    | Two manual scenarios accepted as deferred after Phase 25 | Real VN midnight and final Earlier panel removal; see 21-VERIFICATION.md |
 
 Phase 19 human items left: the owner sets the opening balance on each card (the import does not fill it). Release and import are done.
 
@@ -60,16 +61,16 @@ Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 i
 
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
-| -     | -     | -     | -        |
+| 21    | 18    | -     | -        |
 
 Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 **Per-Plan Metrics:**
 
-| Plan | Duration | Tasks | Files |
-|------|----------|-------|-------|
-| Phase 17 P01 | 40min | 3 tasks | 16 files |
-| Phase 17 P02 | 15 min | 2 tasks | 9 files |
-| Phase 17 P03 | 5 min | 2 tasks | 15 files |
+| Plan         | Duration | Tasks   | Files    |
+| ------------ | -------- | ------- | -------- |
+| Phase 17 P01 | 40min    | 3 tasks | 16 files |
+| Phase 17 P02 | 15 min   | 2 tasks | 9 files  |
+| Phase 17 P03 | 5 min    | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -112,5 +113,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-11T09:06:07.134Z
-Stopped at: Phase 21.1 context captured; technical research and plans pending
+Stopped at: Phase 21.1 research, UI and patterns complete; plans pending
 Resume file: .planning/phases/21.1-default-time-zone/21.1-CONTEXT.md

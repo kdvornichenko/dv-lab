@@ -1,29 +1,29 @@
 {
-  "version": "1.0",
-  "timestamp": "2026-10-11T09:07:22.814006+00:00",
-  "phase": "21.1-default-time-zone",
-  "phase_name": "Default Time Zone",
-  "phase_dir": ".planning/phases/21.1-default-time-zone",
-  "plan": null,
-  "task": 0,
-  "total_tasks": 0,
-  "status": "planning",
-  "completed_tasks": [],
-  "remaining_tasks": [
-    "technical research and architecture",
-    "UI contract",
-    "executable plans and plan verification"
-  ],
-  "blockers": [],
-  "human_actions_pending": [],
-  "decisions": [
-    "Phase order 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26",
-    "Default zone is an account setting; existing instants and creation zones stay unchanged",
-    "Second zone stays in this browser and swaps with the old default on collision after a successful save",
-    "Today and opening-balance lesson dates follow the current default zone",
-    "Only public-interface E2E tests may be extended"
-  ],
-  "uncommitted_files": [],
-  "next_action": "Complete the bounded timezone research, UI contract and executable plans. Phase 21 final reviews and verifier run in its separate worktree; do not change its source or reuse shared runtime resources until ownership is free.",
-  "context_notes": "Read 21.1-CONTEXT.md and TZ-01 through TZ-05. Source baseline 8c3cb5d includes all 18 completed Phase 21 plans. Planning began in parallel by owner request on 2026-10-11."
+	"version": "1.0",
+	"timestamp": "2026-10-11T09:45:55.813624+00:00",
+	"phase": "21.1-default-time-zone",
+	"phase_name": "Default Time Zone",
+	"phase_dir": ".planning/phases/21.1-default-time-zone",
+	"plan": null,
+	"task": 0,
+	"total_tasks": 0,
+	"status": "planning",
+	"completed_tasks": ["technical research and architecture", "approved UI contract", "pattern map"],
+	"remaining_tasks": ["executable plans and independent plan verification"],
+	"blockers": [],
+	"human_actions_pending": [
+		"Phase 22: effort level names, Recommended marker, model order, relative cost (design v39)",
+		"After Phase 25: real VN midnight and final Earlier panel removal; explicitly deferred by the owner, still unverified",
+		"Server guy: deploy phase 21 after merge (two migrations, breaking contract, paired api/web release)"
+	],
+	"decisions": [
+		"Phase order 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26",
+		"Default zone is an account setting; existing instants and creation zones stay unchanged",
+		"Second zone stays in this browser and swaps with the old default on collision after a successful save",
+		"Today and opening-balance lesson dates follow the current default zone",
+		"Only public-interface E2E tests may be extended"
+	],
+	"uncommitted_files": [],
+	"next_action": "Prepare and independently verify Phase 21.1 executable plans. Phase 21 merged in PR #7 after green CI (893689f). Phase 24 preparation continues in its own worktree. Do not start implementation.",
+	"context_notes": "Read 21.1-CONTEXT, RESEARCH, ARCH-REVIEW, UI-SPEC and PATTERNS. TZ-01 through TZ-05. Phase 21 source is unchanged by this metadata merge; accepted manual deferrals remain explicit."
 }
