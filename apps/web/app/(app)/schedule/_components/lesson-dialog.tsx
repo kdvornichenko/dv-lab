@@ -10,10 +10,9 @@ import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { OccurrenceSlot } from '@/lib/lesson-mark-text'
-import { formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
+import { formatFullDate, mainRange, secondRange } from '@/lib/schedule-format'
 
 import type { LessonMarkKind, ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { LessonDetails, LessonStatus } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
@@ -34,6 +33,8 @@ interface LessonDialogProps {
 	block: ScheduleBlock
 	series: ScheduleSeries | null
 	now: Date
+	mainTimeZone: string
+	asOf: string
 	secondZone: string | null
 	currentYear: number
 	onClose: () => void
@@ -60,6 +61,8 @@ export function LessonDialog({
 	block,
 	series,
 	now,
+	mainTimeZone,
+	asOf,
 	secondZone,
 	currentYear,
 	onClose,
@@ -81,9 +84,9 @@ export function LessonDialog({
 	const [markFailed, setMarkFailed] = useState(false)
 	const busy = pending || choosing !== null
 	const start = new Date(block.startsAt)
-	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
-	const second = secondRange(start, block.durationMinutes, secondZone)
-	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
+	const range = mainRange(start, block.durationMinutes, mainTimeZone, null)
+	const second = secondRange(start, block.durationMinutes, mainTimeZone, secondZone)
+	const description = `${formatFullDate(start, mainTimeZone, currentYear)} · ${range}`
 	const { actions } = block
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
@@ -148,7 +151,14 @@ export function LessonDialog({
 								<BannerTitle>{FAILURE[notice]}</BannerTitle>
 							</Banner>
 						) : null}
-						<LessonStatus block={block} now={now} secondZone={secondZone} pending={busy} onOpenPair={onOpenPair} />
+						<LessonStatus
+							block={block}
+							now={now}
+							mainTimeZone={mainTimeZone}
+							secondZone={secondZone}
+							pending={busy}
+							onOpenPair={onOpenPair}
+						/>
 						{markFailed ? (
 							<Banner status="error" data-slot="lesson-mark-failed">
 								<BannerTitle>{MARK_FAILURE}</BannerTitle>
@@ -156,6 +166,7 @@ export function LessonDialog({
 						) : null}
 						<LessonMarkRow
 							block={block}
+							mainTimeZone={mainTimeZone}
 							now={now}
 							saving={choosing}
 							locked={busy}
@@ -164,7 +175,7 @@ export function LessonDialog({
 						<LessonDetails
 							block={block}
 							series={series}
-							now={now}
+							mainTimeZone={mainTimeZone}
 							secondZone={secondZone}
 							currentYear={currentYear}
 							pending={busy}
@@ -172,6 +183,8 @@ export function LessonDialog({
 						/>
 						{moving && actions.move ? (
 							<LessonMoveForm
+								mainTimeZone={mainTimeZone}
+								asOf={asOf}
 								block={block}
 								secondZone={secondZone}
 								currentYear={currentYear}
@@ -197,6 +210,7 @@ export function LessonDialog({
 				</ScrollArea>
 				<LessonFooter
 					block={block}
+					mainTimeZone={mainTimeZone}
 					confirming={confirming}
 					moving={moving}
 					pending={pending}

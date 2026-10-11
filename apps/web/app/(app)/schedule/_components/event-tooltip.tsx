@@ -6,10 +6,9 @@ import { StatusDot } from '@/components/app/status-dot'
 import { TimePair } from '@/components/app/time-pair'
 import { Tooltip } from '@/components/ui/tooltip'
 import { blockEffect, statusTone, statusWord, tooltipDeduction } from '@/lib/lesson-mark-text'
-import { formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
+import { formatFullDate, mainRange, secondRange } from '@/lib/schedule-format'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { LessonBlock, type BlockLayout } from './lesson-block'
 
@@ -24,10 +23,11 @@ interface EventTooltipProps {
 	secondZone: string | null
 	currentYear: number
 	now: Date
+	mainTimeZone: string
 	onOpen: (block: ScheduleBlock) => void
 }
 
-export function EventTooltip({ block, layout, secondZone, currentYear, now, onOpen }: EventTooltipProps) {
+export function EventTooltip({ block, layout, secondZone, currentYear, now, mainTimeZone, onOpen }: EventTooltipProps) {
 	const [open, setOpen] = useState(false)
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -72,9 +72,9 @@ export function EventTooltip({ block, layout, secondZone, currentYear, now, onOp
 	)
 
 	const start = new Date(block.startsAt)
-	const second = secondRange(start, block.durationMinutes, secondZone)
-	const word = statusWord(block, now)
-	const deduction = tooltipDeduction(blockEffect(block, now), block.ledger.lessonMinutes)
+	const second = secondRange(start, block.durationMinutes, mainTimeZone, secondZone)
+	const word = statusWord(block, now, mainTimeZone)
+	const deduction = tooltipDeduction(blockEffect(block, now, mainTimeZone), block.ledger.lessonMinutes)
 
 	return (
 		<Tooltip
@@ -85,12 +85,10 @@ export function EventTooltip({ block, layout, secondZone, currentYear, now, onOp
 			content={
 				<div data-slot="event-tooltip" className="flex flex-col gap-1">
 					<span className="text-body font-semibold">{block.studentName}</span>
-					<span className="text-body text-muted-foreground">
-						{formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)}
-					</span>
+					<span className="text-body text-muted-foreground">{formatFullDate(start, mainTimeZone, currentYear)}</span>
 					<TimePair
 						as="span"
-						main={`${formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN`}
+						main={mainRange(start, block.durationMinutes, mainTimeZone, null)}
 						second={second}
 						mainClassName="text-body tabular-nums"
 					/>
@@ -108,6 +106,7 @@ export function EventTooltip({ block, layout, secondZone, currentYear, now, onOp
 		>
 			<LessonBlock
 				block={block}
+				mainTimeZone={mainTimeZone}
 				layout={layout}
 				secondZone={secondZone}
 				currentYear={currentYear}

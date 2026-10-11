@@ -4,10 +4,17 @@ import { useState } from 'react'
 
 import { apiRequest } from '@/lib/api-client'
 import { occurrenceSlot, type OccurrenceSlot } from '@/lib/lesson-mark-text'
-import { vnWhen } from '@/lib/schedule-format'
+import { mainWhen } from '@/lib/schedule-format'
 import { exitFallbackMs, spring } from '@/lib/springs'
+import { sameTimeZone } from '@/lib/time-zones'
 
-import type { LessonMarkKind, ScheduleBlock, ScheduleSeries, ScheduleWeekResponse } from '@dv-lab/contracts'
+import {
+	timeZoneIdentity,
+	type LessonMarkKind,
+	type ScheduleBlock,
+	type ScheduleSeries,
+	type ScheduleWeekResponse,
+} from '@dv-lab/contracts'
 import { mondayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
@@ -31,17 +38,24 @@ export function readLessonWeek(monday: string) {
 	return apiRequest<ScheduleWeekResponse>('GET', `/schedule/week?start=${monday}`)
 }
 
+export function lessonWeekKey(mainTimeZone: string, monday: string): string {
+	return `${timeZoneIdentity(mainTimeZone)}:${monday}`
+}
+
 export async function readOverlapBlocks(
 	date: string,
-	weeks: Map<string, ScheduleWeekResponse>
+	weeks: Map<string, ScheduleWeekResponse>,
+	mainTimeZone: string
 ): Promise<OverlapBlock[]> {
 	const monday = mondayOf(date)
-	let data = weeks.get(monday)
+	const key = lessonWeekKey(mainTimeZone, monday)
+	let data = weeks.get(key)
 	if (data === undefined) {
 		const result = await readLessonWeek(monday)
-		if (!result.ok) return []
+		if (!result.ok || result.data.start !== monday || !sameTimeZone(result.data.defaultTimeZone, mainTimeZone))
+			return []
 		data = result.data
-		weeks.set(monday, data)
+		weeks.set(key, data)
 	}
 	return data.blocks.map((block) => ({
 		key: block.key,
@@ -56,6 +70,8 @@ interface LessonDialogsProps {
 	selected: ScheduleBlock | null
 	series: readonly ScheduleSeries[]
 	now: Date
+	mainTimeZone: string
+	asOf: string
 	secondZone: string | null
 	currentYear: number
 	today: string
@@ -69,6 +85,8 @@ export function LessonDialogs({
 	selected,
 	series,
 	now,
+	mainTimeZone,
+	asOf,
 	secondZone,
 	currentYear,
 	today,
@@ -92,7 +110,7 @@ export function LessonDialogs({
 		if (result.kind === 'stale') return 'stale'
 		toast.show({
 			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
-			description: `${block.studentName}, ${vnWhen(new Date(block.startsAt), null, currentYear)}.`,
+			description: `${block.studentName}, ${mainWhen(new Date(block.startsAt), mainTimeZone, null, currentYear)}.`,
 		})
 		return 'ok'
 	}
@@ -136,6 +154,8 @@ export function LessonDialogs({
 					key={`${selected.key}:${occurrenceSlot(selected.outcome)}`}
 					block={selected}
 					series={selectedSeries}
+					mainTimeZone={mainTimeZone}
+					asOf={asOf}
 					now={now}
 					secondZone={secondZone}
 					currentYear={currentYear}
@@ -156,6 +176,8 @@ export function LessonDialogs({
 			) : null}
 			{seriesRule !== null && seriesDialog?.kind === 'move' ? (
 				<MoveSeriesDialog
+					mainTimeZone={mainTimeZone}
+					asOf={asOf}
 					rule={seriesRule}
 					studentName={seriesDialog.studentName}
 					now={now}
@@ -168,6 +190,8 @@ export function LessonDialogs({
 			) : null}
 			{seriesRule !== null && seriesDialog?.kind === 'end' ? (
 				<EndSeriesDialog
+					mainTimeZone={mainTimeZone}
+					asOf={asOf}
 					rule={seriesRule}
 					studentName={seriesDialog.studentName}
 					lessonDate={seriesDialog.lessonDate}
