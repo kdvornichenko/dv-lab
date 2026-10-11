@@ -1,6 +1,7 @@
 import type { JSHandle, Locator, Page, Route, TestInfo } from '@playwright/test'
 
 import { readSettings } from './support/api.ts'
+import { calendarHistoryRead } from './support/calendar-history.ts'
 import { calendarNextCards } from './support/calendar-next.ts'
 import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, VN, vnToday } from './support/dates.ts'
@@ -451,4 +452,8 @@ test.describe('account time zone [tz]', () => {
 	test('E12 unavailable example is omitted; one real next lesson uses one instant', async ({ page, fx }) => {
 		await settingsExamples(page, fx)
 	})
+})
+
+test('[calendar] history excludes elapsed legacy and pending lessons from Earlier', async ({ page }) => {
+	await calendarHistoryRead(page.request)
 })

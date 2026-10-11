@@ -18,7 +18,11 @@ export function todayRoutes({ db }: TodayRouteDeps) {
 		const today = await readSnapshot(db, async (executor) => {
 			const now = new Date()
 			const settings = await readTeacherSettings(executor, accountId)
-			return readToday(executor, { now, defaultTimeZone: settings.defaultTimeZone }, settings.paysSoonLessons)
+			return readToday(
+				executor,
+				{ accountId, now, defaultTimeZone: settings.defaultTimeZone },
+				settings.paysSoonLessons
+			)
 		})
 		return c.json(today satisfies TodayResponse, 200)
 	})

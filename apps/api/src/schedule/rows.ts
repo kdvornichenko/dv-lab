@@ -5,6 +5,7 @@ import {
 	MARK_KINDS,
 	type ScheduleLessonActions,
 	type ScheduleLessonOutcome,
+	type ScheduleBlock,
 } from '@dv-lab/contracts'
 import {
 	type BalanceCard,
@@ -24,6 +25,23 @@ import {
 	scheduleDate,
 } from '@dv-lab/core'
 import { type DbExecutor, lessonExceptions, lessonMarks, lessonSeries, lessons, type students } from '@dv-lab/db'
+
+import { historyEligibility } from '../calendar/history.ts'
+
+export async function filterHistoryBlocks(executor: DbExecutor, accountId: string, blocks: readonly ScheduleBlock[]) {
+	const eligible = await historyEligibility(
+		executor,
+		accountId,
+		blocks.map((block) => ({
+			ref: block.ref,
+			studentId: block.studentId,
+			startsAt: new Date(block.startsAt),
+			durationMinutes: block.durationMinutes,
+			mark: block.mark,
+		}))
+	)
+	return blocks.filter((block) => eligible.has(occurrenceKey(block.ref)))
+}
 
 type ScheduleRange = { from: Date; to: Date | null; studentIds?: readonly string[] }
 

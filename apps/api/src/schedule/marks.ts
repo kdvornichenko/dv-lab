@@ -9,9 +9,11 @@ import {
 	countsAsLesson,
 	lessonActions,
 	occurrenceOutcome,
+	occurrenceKey,
 } from '@dv-lab/core'
 import { type Database, lessonMarks } from '@dv-lab/db'
 
+import { historyEligibility, lockHistoryConnection } from '../calendar/history.ts'
 import { type ChangeFailure, lockOccurrence, stale } from './changes.ts'
 import { lockLesson, markOf, toMarkKind, toWireMark, toWireOutcome } from './rows.ts'
 
@@ -42,17 +44,22 @@ function savedMark(ref: OccurrenceRef, subject: Pick<Occurrence, 'status'>, row:
 
 export function markOccurrence(
 	db: Database,
+	accountId: string,
 	seriesId: string,
 	originalOn: string,
 	input: MarkInput,
 	now: Date
 ): Promise<MarkResult> {
 	return db.transaction(async (tx): Promise<MarkResult> => {
+		await lockHistoryConnection(tx, accountId)
 		const locked = await lockOccurrence(tx, seriesId, originalOn)
 		if (locked === null) return NOT_FOUND
 		const { occurrence } = locked
 		if (occurrence === null) return CHANGED
-		const current = occurrenceOutcome(occurrence, await markOf(tx, occurrence.ref))
+		const mark = await markOf(tx, occurrence.ref)
+		const eligible = await historyEligibility(tx, accountId, [{ ...occurrence, mark }])
+		if (!eligible.has(occurrenceKey(occurrence.ref))) return CHANGED
+		const current = occurrenceOutcome(occurrence, mark)
 		const refused = markRefusal(current, occurrence.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
 		const kind = toMarkKind(input.kind)
@@ -68,12 +75,22 @@ export function markOccurrence(
 	})
 }
 
-export function markLesson(db: Database, id: string, input: MarkInput, now: Date): Promise<MarkResult> {
+export function markLesson(
+	db: Database,
+	accountId: string,
+	id: string,
+	input: MarkInput,
+	now: Date
+): Promise<MarkResult> {
 	return db.transaction(async (tx): Promise<MarkResult> => {
+		await lockHistoryConnection(tx, accountId)
 		const lesson = await lockLesson(tx, id)
 		if (lesson === null) return NOT_FOUND
 		const ref: OccurrenceRef = { kind: 'single', lessonId: id }
-		const current = occurrenceOutcome(lesson, await markOf(tx, ref))
+		const mark = await markOf(tx, ref)
+		const eligible = await historyEligibility(tx, accountId, [{ ...lesson, ref, mark }])
+		if (!eligible.has(occurrenceKey(ref))) return CHANGED
+		const current = occurrenceOutcome(lesson, mark)
 		const refused = markRefusal(current, lesson.startsAt, input.expectedStartsAt, now)
 		if (refused !== null) return refused
 		const kind = toMarkKind(input.kind)

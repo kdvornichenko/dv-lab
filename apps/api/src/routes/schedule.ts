@@ -161,7 +161,14 @@ export function scheduleRoutes({ db, calendarReads }: ScheduleRouteDeps) {
 		if (ref === null) return notFound(c)
 		const input = await readJson(c, markLessonRequest)
 		if (!input) return invalidRequest(c)
-		const result = await markOccurrence(db, ref.seriesId, ref.originalOn, input, new Date())
+		const result = await markOccurrence(
+			db,
+			c.get('session').account.id,
+			ref.seriesId,
+			ref.originalOn,
+			input,
+			new Date()
+		)
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ mark: result.mark } satisfies ScheduleMarkResponse, 200)
 	})
@@ -181,7 +188,7 @@ export function scheduleRoutes({ db, calendarReads }: ScheduleRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, markLessonRequest)
 		if (!input) return invalidRequest(c)
-		const result = await markLesson(db, id, input, new Date())
+		const result = await markLesson(db, c.get('session').account.id, id, input, new Date())
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ mark: result.mark } satisfies ScheduleMarkResponse, 200)
 	})
