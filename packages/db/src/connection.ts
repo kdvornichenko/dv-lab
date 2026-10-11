@@ -25,7 +25,7 @@ export function createDb(url: string) {
 	return { pool, db }
 }
 
-export type Database = ReturnType<typeof createDb>['db']
+export type Database = Omit<ReturnType<typeof createDb>['db'], '$client'>
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 

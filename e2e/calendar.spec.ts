@@ -1,6 +1,63 @@
+import { googleConnectionSnapshot } from '../packages/contracts/src/calendar.ts'
+import { api } from './support/api.ts'
+import { AUTH_FILE, BASE, teacherCredentials } from './support/data.ts'
+import { record, text } from './support/input.ts'
 import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test('[calendar] oauth refuses anonymous access and strips callback input', async ({ page }) => {
+	for (const path of ['/google/connection', '/google/callback?code=synthetic-code&state=synthetic-state']) {
+		const response = await page.request.get<unknown>(`${BASE}/api${path}`, { maxRedirects: 0 })
+		expect(response.status()).toBe(401)
+		expect(response.headers()['cache-control']).toBe('no-store')
+		expect(await response.text()).not.toContain('synthetic-code')
+	}
+})
+
+test.describe('teacher calendar authorization', () => {
+	test.use({ storageState: AUTH_FILE })
+
+	test('[calendar] oauth rejects foreign Origin and invalid state without replacing the grant', async ({ page }) => {
+		const before = googleConnectionSnapshot.parse(await api(page.request, 'GET', '/google/connection'))
+		const foreign = await page.request.post<unknown>(`${BASE}/api/google/connect`, {
+			headers: { origin: 'https://invalid.example' },
+			data: {},
+		})
+		expect(foreign.status()).toBe(403)
+		for (const query of ['code=synthetic-code', 'state=' + 'x'.repeat(43) + '&code=synthetic-code']) {
+			const response = await page.request.get<unknown>(`${BASE}/api/google/callback?${query}`, { maxRedirects: 0 })
+			expect(response.status()).toBe(303)
+			expect(response.headers()['location']).toBe('/settings?google=invalid_state')
+			expect(response.headers()['referrer-policy']).toBe('no-referrer')
+			expect(response.headers()['cache-control']).toBe('no-store')
+		}
+		expect(await api(page.request, 'GET', '/google/connection')).toEqual(before)
+	})
+
+	test('[calendar] oauth consumes denial once and binds state to the initiating session', async ({ page, browser }) => {
+		const before = googleConnectionSnapshot.parse(await api(page.request, 'GET', '/google/connection'))
+		const result = record(await api(page.request, 'POST', '/google/connect', {}))
+		const authorization = new URL(text(result.url))
+		const state = authorization.searchParams.get('state')
+		expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/)
+		expect(authorization.searchParams.get('code_challenge_method')).toBe('S256')
+		const callback = `${BASE}/api/google/callback?state=${state}&error=access_denied`
+		const other = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+		try {
+			await api(other.request, 'POST', '/auth/sign-in', teacherCredentials())
+			const wrongSession = await other.request.get<unknown>(callback, { maxRedirects: 0 })
+			expect(wrongSession.headers()['location']).toBe('/settings?google=invalid_state')
+		} finally {
+			await other.close()
+		}
+		const denied = await page.request.get<unknown>(callback, { maxRedirects: 0 })
+		expect(denied.headers()['location']).toBe('/settings?google=denied')
+		const replay = await page.request.get<unknown>(callback, { maxRedirects: 0 })
+		expect(replay.headers()['location']).toBe('/settings?google=invalid_state')
+		expect(await api(page.request, 'GET', '/google/connection')).toEqual(before)
+	})
+})
 
 test('[calendar] public pages keep the workspace private', async ({ page }) => {
 	const response = await page.goto('/welcome')

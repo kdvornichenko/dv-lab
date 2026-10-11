@@ -24,6 +24,18 @@ export const googleCredentialEnvelope = z.strictObject({
 		.length(22)
 		.regex(/^[A-Za-z0-9_-]+$/),
 	ciphertext: encoded,
+	wrappedDek: z
+		.string()
+		.length(43)
+		.regex(/^[A-Za-z0-9_-]+$/),
+	wrapNonce: z
+		.string()
+		.length(16)
+		.regex(/^[A-Za-z0-9_-]+$/),
+	wrapTag: z
+		.string()
+		.length(22)
+		.regex(/^[A-Za-z0-9_-]+$/),
 })
 
 export const googleEventTime = z.union([
