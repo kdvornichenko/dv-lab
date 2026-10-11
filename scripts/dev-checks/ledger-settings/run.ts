@@ -1,3 +1,4 @@
+import type { TeacherSettings } from '../../../packages/contracts/src/settings.ts'
 import * as core from '../../../packages/core/src/index.ts'
 import {
 	call as apiCall,
@@ -14,7 +15,7 @@ type ApiExit = { code: number | null; signal: string | null }
 type Api = { base: string; port: number; stop: () => Promise<ApiExit | null> }
 type Body = { paysSoonLessons?: number | string | null; accountId?: string } | null
 type Options = { cookie?: string; body?: Body; headers?: Record<string, string> }
-type Json = { settings?: { paysSoonLessons?: number }; error?: { code?: string } }
+type Json = { settings?: TeacherSettings; error?: { code?: string } }
 type Response = { status: number; json: Json | null }
 function record(value: unknown): Record<string, unknown> {
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('invalid settings response')
@@ -26,9 +27,9 @@ function json(value: unknown): Json | null {
 	const result: Json = {}
 	if (raw.settings !== undefined) {
 		const settings = record(raw.settings)
-		if (settings.paysSoonLessons !== undefined && typeof settings.paysSoonLessons !== 'number')
+		if (typeof settings.paysSoonLessons !== 'number' || typeof settings.defaultTimeZone !== 'string')
 			throw new Error('invalid settings value')
-		result.settings = { paysSoonLessons: settings.paysSoonLessons }
+		result.settings = { paysSoonLessons: settings.paysSoonLessons, defaultTimeZone: settings.defaultTimeZone }
 	}
 	if (raw.error !== undefined) {
 		const error = record(raw.error)
@@ -43,7 +44,11 @@ async function request(api: Api, method: string, path: string, options?: Options
 }
 const readValue = async (api: Api, cookie: string) => {
 	const res = await request(api, 'GET', '/settings', { cookie })
-	return { status: res.status, value: res.json?.settings?.paysSoonLessons }
+	return {
+		status: res.status,
+		value: res.json?.settings?.paysSoonLessons,
+		defaultTimeZone: res.json?.settings?.defaultTimeZone,
+	}
 }
 const save = (api: Api, cookie: string | undefined, body: Body) => request(api, 'PATCH', '/settings', { cookie, body })
 
@@ -97,31 +102,44 @@ function count(text: string): number {
 
 type SettingsSnapshot = {
 	accountId: string
-	row: { paysSoonLessons: number; updatedAt: string } | null
+	row: { paysSoonLessons: number; defaultTimeZone: string; updatedAt: string } | null
 }
 
 function snapshotSettings(accountId: string): SettingsSnapshot {
 	const rows = readRows(
-		`select pays_soon_lessons, updated_at::text as updated_at from teacher_settings where account_id = ${quote(accountId)}`
+		`select pays_soon_lessons, default_time_zone, updated_at::text as updated_at from teacher_settings where account_id = ${quote(accountId)}`
 	)
 	if (rows.length === 0) return { accountId, row: null }
 	if (rows.length !== 1) throw new Error('invalid teacher settings snapshot count')
 	const row = rows[0]
-	if (typeof row.pays_soon_lessons !== 'number' || typeof row.updated_at !== 'string') {
+	if (
+		typeof row.pays_soon_lessons !== 'number' ||
+		typeof row.default_time_zone !== 'string' ||
+		typeof row.updated_at !== 'string'
+	) {
 		throw new Error('invalid teacher settings snapshot')
 	}
-	return { accountId, row: { paysSoonLessons: row.pays_soon_lessons, updatedAt: row.updated_at } }
+	return {
+		accountId,
+		row: {
+			paysSoonLessons: row.pays_soon_lessons,
+			defaultTimeZone: row.default_time_zone,
+			updatedAt: row.updated_at,
+		},
+	}
 }
 
 function restoreSettings(snapshot: SettingsSnapshot): void {
 	const { accountId, row } = snapshot
 	if (row === null) {
 		removeFixtureRow(accountId)
-		return
+	} else {
+		execute(
+			`insert into teacher_settings (account_id, pays_soon_lessons, default_time_zone, updated_at) values (${quote(accountId)}, ${row.paysSoonLessons}, ${quote(row.defaultTimeZone)}, ${quote(row.updatedAt)}::timestamptz) on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_lessons, default_time_zone = excluded.default_time_zone, updated_at = excluded.updated_at`
+		)
 	}
-	execute(
-		`insert into teacher_settings (account_id, pays_soon_lessons, updated_at) values (${quote(accountId)}, ${row.paysSoonLessons}, ${quote(row.updatedAt)}::timestamptz) on conflict (account_id) do update set pays_soon_lessons = excluded.pays_soon_lessons, updated_at = excluded.updated_at`
-	)
+	if (JSON.stringify(snapshotSettings(accountId)) !== JSON.stringify(snapshot))
+		throw new Error('Teacher settings restoration did not match the snapshot')
 }
 
 class ApiCloseError extends Error {
@@ -184,7 +202,9 @@ async function partOne(api: Api, cookie: string, accountId: string): Promise<voi
 	const initial = await readValue(api, cookie)
 	check(
 		'GET without a row gives the core default',
-		initial.status === 200 && initial.value === core.PAYS_SOON_LESSONS_DEFAULT,
+		initial.status === 200 &&
+			initial.value === core.PAYS_SOON_LESSONS_DEFAULT &&
+			initial.defaultTimeZone === core.SCHEDULE_TIME_ZONE,
 		`status ${initial.status} value ${initial.value}`
 	)
 	console.log(`threshold without row ${initial.value}`)
@@ -243,12 +263,13 @@ async function isolationVectors(api: Api, cookie: string, accountId: string): Pr
 	const student = studentId()
 	const withForeign = await save(api, cookie, { paysSoonLessons: 7, accountId: student })
 	check(
-		'extra accountId in the body is ignored',
-		withForeign.status === 200 && withForeign.json?.settings?.paysSoonLessons === 7,
+		'extra accountId in the body is refused',
+		withForeign.status === 400 && withForeign.json?.error?.code === 'invalid_request',
 		`status ${withForeign.status}`
 	)
 	check('no row for another account', foreignRows(accountId) === 0, `rows ${foreignRows(accountId)}`)
 	check('still one row for the teacher', rowCount(accountId) === 1, `rows ${rowCount(accountId)}`)
+	await save(api, cookie, { paysSoonLessons: 7 })
 }
 
 async function accessVectors(api: Api, cookie: string, accountId: string): Promise<void> {

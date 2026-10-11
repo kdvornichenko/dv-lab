@@ -9,6 +9,7 @@ const STUDENT = 'student-alex-0001'
 const at = (date: string, time: string) => core.zonedInstant(date, time, VN)
 const week = (monday: string) => ({ from: at(monday, '00:00'), to: at(core.addDays(monday, 7), '00:00') })
 const rule = (over: Partial<core.SeriesRule> = {}): core.SeriesRule => ({
+	timeZone: VN,
 	id: 'series-a',
 	studentId: STUDENT,
 	weekday: 3,
@@ -60,7 +61,8 @@ const cut = (
 	exceptions: core.SeriesException[],
 	change: core.SeriesChange,
 	now = NOW
-): core.CutSeriesResult & { lessons?: core.CutLesson[] } => core.cutSeries(series, exceptions, change, now)
+): core.CutSeriesResult & { lessons?: core.CutLesson[] } =>
+	core.cutSeries(series, exceptions, change, { now, defaultTimeZone: VN })
 const movedOn = (originalOn: string, date: string, time: string): core.SeriesException => ({
 	seriesId: 'series-a',
 	originalOn,
@@ -326,16 +328,26 @@ function cancelledMoveVectors(expect: Expect): void {
 				},
 			],
 			next: [[STUDENT, '2026-10-21T11:00:00.000Z']],
-			cutLessons: [],
+			cutLessons: [
+				{
+					studentId: STUDENT,
+					startsAt: '2026-10-16T02:00:00.000Z',
+					timeZone: VN,
+					durationMinutes: 45,
+					originalOn: '2026-10-14',
+					status: 'cancelled',
+				},
+			],
 		}
 	)
 }
 
 function nextLessonVectors(expect: Expect): void {
+	const mondayRule = rule({ weekday: 1, startTime: '09:00', startsOn: '2026-10-05' })
 	const nextSeries = [
 		rule({ id: 'series-a', studentId: 'student-a' }),
-		rule({ id: 'series-b', studentId: 'student-b', weekday: 1, startTime: '09:00', startsOn: '2026-10-05' }),
-		rule({ id: 'series-c', studentId: 'student-c', weekday: 1, startTime: '09:00', startsOn: '2026-10-05' }),
+		{ ...mondayRule, id: 'series-b', studentId: 'student-b' },
+		{ ...mondayRule, id: 'series-c', studentId: 'student-c' },
 		rule({ id: 'series-d', studentId: 'student-d', weekday: 4, startsOn: '2026-09-03', endsOn: '2026-10-08' }),
 	]
 	const nextExceptions: core.SeriesException[] = [
@@ -363,6 +375,7 @@ function nextLessonVectors(expect: Expect): void {
 	]
 	const nextSingles: core.SingleLesson[] = [
 		{
+			timeZone: VN,
 			id: 'lesson-a1',
 			studentId: 'student-a',
 			startsAt: at('2026-10-13', '12:00'),
@@ -370,6 +383,7 @@ function nextLessonVectors(expect: Expect): void {
 			status: 'scheduled',
 		},
 		{
+			timeZone: VN,
 			id: 'lesson-a2',
 			studentId: 'student-a',
 			startsAt: at('2026-10-12', '11:00'),
@@ -377,6 +391,7 @@ function nextLessonVectors(expect: Expect): void {
 			status: 'cancelled',
 		},
 		{
+			timeZone: VN,
 			id: 'lesson-e1',
 			studentId: 'student-e',
 			startsAt: at('2026-10-13', '11:00'),
@@ -384,6 +399,7 @@ function nextLessonVectors(expect: Expect): void {
 			status: 'cancelled',
 		},
 		{
+			timeZone: VN,
 			id: 'lesson-e2',
 			studentId: 'student-e',
 			startsAt: at('2026-10-12', '09:00'),

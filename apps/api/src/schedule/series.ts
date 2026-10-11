@@ -2,11 +2,27 @@ import { eq, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type { ScheduleSeries, endSeriesRequest, moveSeriesRequest } from '@dv-lab/contracts'
-import { type CutLesson, type MarkKind, cutSeries, endSeriesAt } from '@dv-lab/core'
+import {
+	type CutLesson,
+	type MarkKind,
+	type SeriesRule,
+	cutSeries,
+	endSeriesAt,
+	nextSeriesReference,
+	seriesCutBoundary,
+} from '@dv-lab/core'
 import { type Database, type DbExecutor, lessonMarks, lessonSeries, lessons } from '@dv-lab/db'
 
+import { lockTeacherTimeContext } from '../settings/settings.ts'
 import type { ChangeFailure } from './changes.ts'
-import { lockSeries, seriesColumns, seriesExceptionsFrom, seriesMarksFrom, toSeriesRule } from './rows.ts'
+import {
+	lockSeries,
+	seriesColumns,
+	seriesExceptionsFrom,
+	seriesMarksFrom,
+	seriesReferenceExceptions,
+	toSeriesRule,
+} from './rows.ts'
 import { toWireSeries } from './schedule.ts'
 
 type MoveSeriesInput = z.output<typeof moveSeriesRequest>
@@ -24,6 +40,7 @@ async function keepCutLessons(executor: DbExecutor, cut: readonly CutLesson[], m
 			.values({
 				studentId: lesson.studentId,
 				startsAt: lesson.startsAt,
+				timeZone: lesson.timeZone,
 				durationMinutes: lesson.durationMinutes,
 				status: lesson.status ?? 'scheduled',
 			})
@@ -34,13 +51,27 @@ async function keepCutLessons(executor: DbExecutor, cut: readonly CutLesson[], m
 	}
 }
 
-export function moveSeries(db: Database, id: string, input: MoveSeriesInput, now: Date): Promise<MoveSeriesResult> {
+async function wireSeries(executor: DbExecutor, rule: SeriesRule, now: Date): Promise<ScheduleSeries> {
+	const exceptions = await seriesReferenceExceptions(executor, [rule.id])
+	return toWireSeries(rule, nextSeriesReference({ rule, exceptions, now }))
+}
+
+export function moveSeries(
+	db: Database,
+	accountId: string,
+	id: string,
+	input: MoveSeriesInput,
+	now = new Date()
+): Promise<MoveSeriesResult> {
 	return db.transaction(async (tx): Promise<MoveSeriesResult> => {
+		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
+		if (!time.ok) return { kind: time.error }
 		const rule = await lockSeries(tx, id)
 		if (rule === null) return { kind: 'not_found' }
-		const exceptions = await seriesExceptionsFrom(tx, id, input.from)
-		const marks = await seriesMarksFrom(tx, id, input.from)
-		const result = cutSeries(rule, exceptions, input, now, marks)
+		const { naturalCutoff } = seriesCutBoundary(rule, input.from, time.context.defaultTimeZone, 'from')
+		const exceptions = await seriesExceptionsFrom(tx, id, naturalCutoff)
+		const marks = await seriesMarksFrom(tx, id, naturalCutoff)
+		const result = cutSeries(rule, exceptions, input, time.context, marks)
 		if (result.kind !== 'ok') return { kind: result.kind }
 		await tx
 			.update(lessonSeries)
@@ -49,17 +80,26 @@ export function moveSeries(db: Database, id: string, input: MoveSeriesInput, now
 		await keepCutLessons(tx, result.lessons, marks)
 		const [row] = await tx.insert(lessonSeries).values(result.newRule).returning(seriesColumns)
 		if (!row) throw new Error('lesson series insert returned no row')
-		return { kind: 'ok', series: toWireSeries(toSeriesRule(row)) }
+		return { kind: 'ok', series: await wireSeries(tx, toSeriesRule(row), time.context.now) }
 	})
 }
 
-export function endSeries(db: Database, id: string, input: EndSeriesInput, now: Date): Promise<SeriesResult> {
+export function endSeries(
+	db: Database,
+	accountId: string,
+	id: string,
+	input: EndSeriesInput,
+	now = new Date()
+): Promise<SeriesResult> {
 	return db.transaction(async (tx): Promise<SeriesResult> => {
+		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
+		if (!time.ok) return { kind: time.error }
 		const rule = await lockSeries(tx, id)
 		if (rule === null) return { kind: 'not_found' }
-		const exceptions = await seriesExceptionsFrom(tx, id, input.lastOn)
-		const marks = await seriesMarksFrom(tx, id, input.lastOn)
-		const result = endSeriesAt(rule, exceptions, input.lastOn, now, marks)
+		const { naturalCutoff } = seriesCutBoundary(rule, input.lastOn, time.context.defaultTimeZone, 'through')
+		const exceptions = await seriesExceptionsFrom(tx, id, naturalCutoff)
+		const marks = await seriesMarksFrom(tx, id, naturalCutoff)
+		const result = endSeriesAt(rule, exceptions, input.lastOn, time.context, marks)
 		if (result.kind !== 'ok') return { kind: result.kind }
 		const [row] = await tx
 			.update(lessonSeries)
@@ -68,6 +108,6 @@ export function endSeries(db: Database, id: string, input: EndSeriesInput, now: 
 			.returning(seriesColumns)
 		if (!row) throw new Error('lesson series update returned no row')
 		await keepCutLessons(tx, result.lessons, marks)
-		return { kind: 'ok', series: toWireSeries(toSeriesRule(row)) }
+		return { kind: 'ok', series: await wireSeries(tx, toSeriesRule(row), time.context.now) }
 	})
 }

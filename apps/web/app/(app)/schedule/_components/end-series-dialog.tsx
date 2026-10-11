@@ -17,76 +17,95 @@ import {
 import { formatDate, seriesWhen } from '@/lib/schedule-format'
 
 import type { ScheduleSeries } from '@dv-lab/contracts'
-import { endSeriesAt, hasOccurrences } from '@dv-lab/core'
+import { endSeriesAt, hasOccurrences, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import { seriesDateInZone } from './move-series-preview'
+import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
 import { STALE_DATE, STALE_TITLE, mutate } from './schedule-mutations'
 
-interface EndSeriesDialogProps {
+interface EndSeriesDialogProps extends ScheduleFormContext {
 	rule: ScheduleSeries
+	currentMainTimeZone: string
 	studentName: string
-	lessonDate: string
 	now: Date
-	today: string
-	currentYear: number
 	onClose: () => void
 	onStale: () => void
+	onRefresh: () => void
 	onEnded: () => void
 }
 
 const KEPT_HINT =
 	'Later lessons are removed from the schedule. Earlier lessons and any lessons you moved stay where they are.'
 
-function initialDate(lessonDate: string, today: string, endsOn: string | null): string {
-	const floor = lessonDate < today ? today : lessonDate
-	return endsOn !== null && floor > endsOn ? endsOn : floor
-}
-
 export function EndSeriesDialog({
-	rule,
+	rule: initialRule,
+	mainTimeZone,
+	asOf,
+	currentMainTimeZone,
 	studentName,
-	lessonDate,
 	now,
-	today,
-	currentYear,
 	onClose,
 	onStale,
+	onRefresh,
 	onEnded,
 }: EndSeriesDialogProps) {
 	const toast = useToast()
-	const [secondZone] = useSecondZone()
-	const [lastOn, setLastOn] = useState(() => initialDate(lessonDate, today, rule.endsOn))
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
+	const { today, currentYear } = context
+	const [rule] = useState(initialRule)
+	const [secondZone] = useSecondZone(context.mainTimeZone)
+	const [lastOn, setLastOn] = useState(() =>
+		rule.referenceOccurrence?.ruleStartsAt == null
+			? today
+			: scheduleDate(new Date(rule.referenceOccurrence.ruleStartsAt), context.mainTimeZone)
+	)
 	const [submitted, setSubmitted] = useState(false)
 	const [pending, setPending] = useState(false)
 	const [notice, setNotice] = useState<'stale' | 'failed' | null>(null)
 
-	const error = lastOn === '' ? 'Choose a date.' : undefined
-	const result = lastOn === '' ? null : endSeriesAt(rule, [], lastOn, now)
+	const result = lastOn === '' ? null : endSeriesAt(rule, [], lastOn, { now, defaultTimeZone: context.mainTimeZone })
+	const error =
+		lastOn === ''
+			? 'Choose a date.'
+			: result?.kind === 'invalid' || result?.kind === 'changed'
+				? 'Choose a date within this series.'
+				: undefined
 	const remains = result?.kind === 'ok' ? hasOccurrences({ startsOn: rule.startsOn, endsOn: result.endsOn }) : null
+	const lastDate = result?.kind === 'ok' && remains ? seriesDateInZone(rule, result.endsOn, context.mainTimeZone) : null
+	const description = seriesWhen(rule.referenceOccurrence, context.mainTimeZone, secondZone)
 
 	async function submit() {
-		if (pending) return
+		if (pending || context.stale || notice === 'stale') return
 		setSubmitted(true)
 		setNotice(null)
 		if (error) return document.getElementById('end-series-last')?.focus()
 		setPending(true)
-		const response = await mutate({ kind: 'rule', seriesId: rule.id }, 'end', { lastOn })
+		const response = await mutate({ kind: 'rule', seriesId: rule.id }, 'end', {
+			lastOn,
+			expectedDefaultTimeZone: context.mainTimeZone,
+		})
 		setPending(false)
+		if (response.kind === 'zone_changed') return context.markStale()
 		if (response.kind === 'stale') {
 			setNotice('stale')
 			onStale()
 			return
 		}
-		if (response.kind === 'failed') {
+		if (response.kind === 'failed' || response.kind === 'gap') {
 			setNotice('failed')
 			return
 		}
 		const series = response.data.series
+		const confirmedDate =
+			hasOccurrences(series) && series.endsOn !== null
+				? seriesDateInZone(series, series.endsOn, context.mainTimeZone)
+				: null
 		toast.show({
 			title: 'Series ended',
 			description:
-				hasOccurrences(series) && series.endsOn !== null
-					? `${studentName}'s last lesson is on ${formatDate(series.endsOn, currentYear)}.`
+				confirmedDate !== null
+					? `${studentName}'s last lesson is on ${formatDate(confirmedDate, currentYear)}.`
 					: `${studentName}'s series was removed from the schedule.`,
 		})
 		onEnded()
@@ -103,14 +122,19 @@ export function EndSeriesDialog({
 				<DialogHeader>
 					<DialogTitle>End this series?</DialogTitle>
 					<DialogDescription>
-						{studentName}, every {seriesWhen(rule, secondZone, now)}.
+						{studentName}
+						{description === null ? '. Weekly series.' : `, every ${description}.`}
 					</DialogDescription>
 				</DialogHeader>
 				<div className="flex flex-col gap-4">
+					<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 					{notice === 'stale' ? (
 						<Banner status="warning" data-slot="series-stale">
 							<BannerTitle>{STALE_TITLE}</BannerTitle>
 							<BannerDescription>{STALE_DATE}</BannerDescription>
+							<Button type="button" variant="ghost" size="compact" onClick={onRefresh}>
+								Refresh
+							</Button>
 						</Banner>
 					) : notice === 'failed' ? (
 						<Banner status="error" data-slot="series-failed">
@@ -123,15 +147,14 @@ export function EndSeriesDialog({
 							label="Last lesson on"
 							value={lastOn}
 							min={today}
-							max={rule.endsOn ?? undefined}
 							onChange={setLastOn}
 							disabled={pending}
 							error={submitted ? error : undefined}
 						/>
 						{result?.kind === 'ok' ? (
-							remains ? (
+							lastDate !== null ? (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-muted-foreground">
-									The last lesson will be on {formatDate(result.endsOn, currentYear)}. {KEPT_HINT}
+									The last lesson will be on {formatDate(lastDate, currentYear)}. {KEPT_HINT}
 								</p>
 							) : (
 								<p aria-live="polite" data-slot="end-series-hint" className="text-caption text-foreground">
@@ -150,6 +173,7 @@ export function EndSeriesDialog({
 						variant="tertiary"
 						className="text-destructive"
 						loading={pending}
+						disabled={context.stale || notice === 'stale'}
 						onClick={() => void submit()}
 					>
 						{pending ? 'Ending…' : 'End series'}

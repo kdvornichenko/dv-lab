@@ -8,7 +8,6 @@ import {
 	assignPaymentRequest,
 	recordPaymentRequest,
 } from '@dv-lab/contracts'
-import { isAfterScheduleToday } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
@@ -47,9 +46,11 @@ export function paymentRoutes({ db }: PaymentRouteDeps) {
 	routes.post('/', async (c) => {
 		const input = await readJson(c, recordPaymentRequest)
 		if (!input) return invalidRequest(c)
-		if (isAfterScheduleToday(input.paidOn, new Date())) return invalidRequest(c)
-		const result = await recordPayment(db, input)
+		const result = await recordPayment(db, c.get('session').account.id, input)
 		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'invalid') return invalidRequest(c)
+		if (result.kind === 'default_time_zone_changed')
+			return c.json(errorBody(result.kind, 'Default time zone changed elsewhere. Refresh the page and try again.'), 409)
 		return c.json({ payment: result.payment } satisfies PaymentResponse, 201)
 	})
 

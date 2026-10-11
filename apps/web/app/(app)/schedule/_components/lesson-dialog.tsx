@@ -7,19 +7,21 @@ import Link from 'next/link'
 import { Avatar } from '@/components/app/avatar'
 import { TimePair } from '@/components/app/time-pair'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { OccurrenceSlot } from '@/lib/lesson-mark-text'
-import { formatFullDate, formatRange, secondRange } from '@/lib/schedule-format'
+import { formatFullDate, mainRange, secondRange } from '@/lib/schedule-format'
+import { sameTimeZone } from '@/lib/time-zones'
 
 import type { LessonMarkKind, ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { LessonDetails, LessonStatus } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
 import { LessonMarkRow } from './lesson-mark-row'
 import { LessonMoveForm } from './lesson-move-form'
 import type { OverlapBlock } from './new-lesson-dialog'
+import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
 import { STALE_LESSON, STALE_TITLE } from './schedule-mutations'
 
 export interface PairTarget {
@@ -34,8 +36,10 @@ interface LessonDialogProps {
 	block: ScheduleBlock
 	series: ScheduleSeries | null
 	now: Date
+	mainTimeZone: string
+	currentMainTimeZone: string
+	asOf: string
 	secondZone: string | null
-	currentYear: number
 	onClose: () => void
 	onOpenPair: (target: PairTarget) => void
 	onCancel: () => Promise<ActionOutcome>
@@ -43,8 +47,9 @@ interface LessonDialogProps {
 	onMark: (kind: LessonMarkKind) => Promise<ActionOutcome>
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	onStale: () => void
+	onRefresh: () => void
 	onMoved: (startsAt: Date) => void
-	onSeries: (kind: 'move' | 'end') => void
+	onSeries: (kind: 'move' | 'end', context: ScheduleFormContext) => void
 }
 
 type Notice = 'stale' | 'cancel' | 'restore' | null
@@ -60,8 +65,10 @@ export function LessonDialog({
 	block,
 	series,
 	now,
+	mainTimeZone,
+	currentMainTimeZone,
+	asOf,
 	secondZone,
-	currentYear,
 	onClose,
 	onOpenPair,
 	onCancel,
@@ -69,9 +76,13 @@ export function LessonDialog({
 	onMark,
 	blocksOn,
 	onStale,
+	onRefresh,
 	onMoved,
 	onSeries,
 }: LessonDialogProps) {
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
+	const { currentYear } = context
+	const shownSecondZone = secondZone !== null && !sameTimeZone(secondZone, context.mainTimeZone) ? secondZone : null
 	const [confirming, setConfirming] = useState(false)
 	const [moving, setMoving] = useState(false)
 	const [pending, setPending] = useState(false)
@@ -81,10 +92,9 @@ export function LessonDialog({
 	const [markFailed, setMarkFailed] = useState(false)
 	const busy = pending || choosing !== null
 	const start = new Date(block.startsAt)
-	const range = formatRange(start, block.durationMinutes, SCHEDULE_TIME_ZONE)
-	const second = secondRange(start, block.durationMinutes, secondZone)
-	const description = `${formatFullDate(start, SCHEDULE_TIME_ZONE, currentYear)} · ${range} VN`
-	const { actions } = block
+	const range = mainRange(start, block.durationMinutes, context.mainTimeZone, null)
+	const second = secondRange(start, block.durationMinutes, context.mainTimeZone, shownSecondZone)
+	const description = `${formatFullDate(start, context.mainTimeZone, currentYear)} · ${range}`
 
 	async function run(action: () => Promise<ActionOutcome>, failure: 'cancel' | 'restore') {
 		if (busy) return
@@ -138,17 +148,28 @@ export function LessonDialog({
 				</DialogHeader>
 				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 					<div className="flex flex-col gap-4 py-1">
+						<TimeZoneStaleNotice stale={context.stale && !moving} pending={busy} onRefresh={onRefresh} />
 						{notice === 'stale' ? (
 							<Banner status="warning" data-slot="lesson-stale">
 								<BannerTitle>{STALE_TITLE}</BannerTitle>
 								<BannerDescription>{STALE_LESSON}</BannerDescription>
+								<Button type="button" variant="ghost" size="compact" disabled={busy} onClick={onRefresh}>
+									Refresh
+								</Button>
 							</Banner>
 						) : notice !== null ? (
 							<Banner status="error" data-slot="lesson-failed">
 								<BannerTitle>{FAILURE[notice]}</BannerTitle>
 							</Banner>
 						) : null}
-						<LessonStatus block={block} now={now} secondZone={secondZone} pending={busy} onOpenPair={onOpenPair} />
+						<LessonStatus
+							block={block}
+							now={now}
+							mainTimeZone={context.mainTimeZone}
+							secondZone={shownSecondZone}
+							pending={busy}
+							onOpenPair={onOpenPair}
+						/>
 						{markFailed ? (
 							<Banner status="error" data-slot="lesson-mark-failed">
 								<BannerTitle>{MARK_FAILURE}</BannerTitle>
@@ -156,6 +177,7 @@ export function LessonDialog({
 						) : null}
 						<LessonMarkRow
 							block={block}
+							mainTimeZone={context.mainTimeZone}
 							now={now}
 							saving={choosing}
 							locked={busy}
@@ -164,20 +186,23 @@ export function LessonDialog({
 						<LessonDetails
 							block={block}
 							series={series}
-							now={now}
-							secondZone={secondZone}
+							mainTimeZone={context.mainTimeZone}
+							secondZone={shownSecondZone}
 							currentYear={currentYear}
 							pending={busy}
-							onSeries={onSeries}
+							onSeries={(kind) => onSeries(kind, context)}
 						/>
-						{moving && actions.move ? (
+						{moving ? (
 							<LessonMoveForm
+								mainTimeZone={context.mainTimeZone}
+								asOf={context.asOf}
+								currentMainTimeZone={currentMainTimeZone}
 								block={block}
-								secondZone={secondZone}
-								currentYear={currentYear}
+								secondZone={shownSecondZone}
 								blocksOn={blocksOn}
 								locked={busy}
 								onPendingChange={setPending}
+								onRefresh={onRefresh}
 								onDiscard={() => {
 									setMoving(false)
 									setTimeout(() => moveButton.current?.focus(), 50)
@@ -197,6 +222,7 @@ export function LessonDialog({
 				</ScrollArea>
 				<LessonFooter
 					block={block}
+					mainTimeZone={context.mainTimeZone}
 					confirming={confirming}
 					moving={moving}
 					pending={pending}

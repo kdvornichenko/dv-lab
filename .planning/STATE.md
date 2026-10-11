@@ -5,17 +5,17 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 24
 current_phase_name: Google Calendar Connection and Outbound Sync
 status: ready_to_execute
-stopped_at: Phase 24 preparation checked; Phase 21.1 implementation prerequisite; no implementation started
-last_updated: '2026-10-11T11:47:10.316Z'
+stopped_at: Phase 21.1 merged; Phase24 wave1 ready
+last_updated: '2026-10-11T15:40:59Z'
 last_activity: 2026-10-11
-last_activity_desc: Phase 24 Google-authoritative preparation verified; 14 plans, 40 tasks, 13 waves
+last_activity_desc: Phase21.1 merged in PR8; Phase24 starts accepted14plans,40tasks,13waves
 state_head: 226772703aa18b298b42fb703ed5ad01e060ec21
 progress:
   total_phases: 11
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 104
-  completed_plans: 77
-  percent: 9
+  completed_plans: 90
+  percent: 18
 ---
 
 # Project State
@@ -31,10 +31,10 @@ See: .planning/PROJECT.md (updated 2026-10-09)
 
 Phase: 24 (Google Calendar Connection and Outbound Sync) — READY TO EXECUTE
 Plan: 14 plans / 40 tasks / 13 waves; checked, 0 executed
-Status: Preparation complete; independent checks passed. Implementation requires the approved Phase 21.1 first. Phase 21 merged in PR #7 (893689f) after green CI.
-Last activity: 2026-10-11 — Verified Google-authoritative plans, recovery, shared read model and UI; no implementation started
+Status: Implementation authorized. Phase21.1 merged in PR8 (c1ddae4) after green CI. Wave1 ready; dependency approval for03 pending.
+Last activity: 2026-10-11 — Integrated merged Phase21.1; preserved14checkedplans and existing runtime configuration
 
-Progress: [█░░░░░░░░░] 9%
+Progress: [██░░░░░░░░] 18%
 
 ## Deferred Verification
 
@@ -62,6 +62,7 @@ Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 i
 | Phase | Plans | Total | Avg/Plan |
 | ----- | ----- | ----- | -------- |
 | 21    | 18    | -     | -        |
+| 21.1  | 13    | -     | -        |
 
 Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 **Per-Plan Metrics:**
@@ -112,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T09:06:07.134Z
-Stopped at: Phase 24 research, UI, patterns and API reference complete; plans pending
+Last session: 2026-10-11T15:40:59Z
+Stopped at: Phase24 wave1 ready; Phase21.1 merged and verified
 Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md

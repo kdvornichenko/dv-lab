@@ -23,35 +23,22 @@ const RANGE_ERROR = `Use a whole number from ${PAYS_SOON_LESSONS_MIN} to ${PAYS_
 function parseThreshold(text: string) {
 	if (text.trim() === '') return null
 	const parsed = updateSettingsRequest.safeParse({ paysSoonLessons: Number(text) })
-	return parsed.success ? parsed.data.paysSoonLessons : null
+	return parsed.success ? (parsed.data.paysSoonLessons ?? null) : null
 }
 
-export function PaymentsCard() {
+export function PaymentsCard({ value, onSaved }: { value: number | null; onSaved: (value: number) => void }) {
 	const toast = useToast()
-	const [ready, setReady] = useState(false)
-	const [loadFailed, setLoadFailed] = useState(false)
-	const [text, setText] = useState('')
+	const [draft, setDraft] = useState<string | null>(null)
+	const text = draft ?? (value === null ? '' : String(value))
+	const ready = value !== null
 	const [error, setError] = useState<string | null>(null)
 	const [saveFailed, setSaveFailed] = useState(false)
 	const [saving, setSaving] = useState(false)
-	const saved = useRef<number | null>(null)
 	const inflight = useRef(false)
 	const revert = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	useEffect(() => {
-		let current = true
-		void apiRequest<SettingsResponse>('GET', '/settings').then((result) => {
-			if (!current) return
-			if (!result.ok) {
-				setLoadFailed(true)
-				return
-			}
-			saved.current = result.data.settings.paysSoonLessons
-			setText(String(result.data.settings.paysSoonLessons))
-			setReady(true)
-		})
 		return () => {
-			current = false
 			if (revert.current) clearTimeout(revert.current)
 		}
 	}, [])
@@ -62,14 +49,14 @@ export function PaymentsCard() {
 	}
 
 	function putBack() {
-		setText(String(saved.current))
+		setDraft(null)
 		setError(null)
 	}
 
 	async function commit(leaving: boolean) {
 		if (!ready || inflight.current) return
-		const value = parseThreshold(text)
-		if (value === null) {
+		const threshold = parseThreshold(text)
+		if (threshold === null) {
 			setError(RANGE_ERROR)
 			if (leaving) {
 				cancelRevert()
@@ -78,19 +65,19 @@ export function PaymentsCard() {
 			return
 		}
 		setError(null)
-		if (value === saved.current) return
+		if (threshold === value) return
 		inflight.current = true
 		setSaving(true)
 		setSaveFailed(false)
 		try {
-			const result = await apiRequest<SettingsResponse>('PATCH', '/settings', { paysSoonLessons: value })
+			const result = await apiRequest<SettingsResponse>('PATCH', '/settings', { paysSoonLessons: threshold })
 			if (!result.ok) {
 				setSaveFailed(true)
 				putBack()
 				return
 			}
-			saved.current = result.data.settings.paysSoonLessons
-			setText(String(result.data.settings.paysSoonLessons))
+			onSaved(result.data.settings.paysSoonLessons)
+			setDraft(null)
 			toast.show({
 				title: 'Saved',
 				description: `Pays soon threshold: ${lessonsPhrase(result.data.settings.paysSoonLessons, 1)}.`,
@@ -116,13 +103,6 @@ export function PaymentsCard() {
 					</Banner>
 				</div>
 			) : null}
-			{loadFailed ? (
-				<div className="px-4 pt-2">
-					<Banner status="error">
-						<BannerTitle>Could not load the setting. Refresh the page.</BannerTitle>
-					</Banner>
-				</div>
-			) : null}
 			<div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between md:gap-4">
 				<div className="flex min-w-0 flex-col gap-1">
 					<label htmlFor="settings-pays-soon" className="text-body text-foreground">
@@ -145,7 +125,7 @@ export function PaymentsCard() {
 					onChange={(event) => {
 						cancelRevert()
 						setError(null)
-						setText(event.target.value)
+						setDraft(event.target.value)
 					}}
 					onFocus={cancelRevert}
 					onBlur={() => void commit(true)}

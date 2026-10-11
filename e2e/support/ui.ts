@@ -13,7 +13,7 @@ export async function openWeekOf(page: Page, date: string): Promise<void> {
 	if (!current) throw new Error('Week grid has no date')
 	const target = mondayOf(date)
 	const steps = Math.round((Date.parse(`${target}T00:00:00Z`) - Date.parse(`${current}T00:00:00Z`)) / 604800000)
-	if (Math.abs(steps) > 8) throw new Error('Requested week is outside the fixture window')
+	if (Math.abs(steps) > 53) throw new Error('Requested week is outside the fixture year')
 	for (let step = 1; step <= Math.abs(steps); step += 1) {
 		await page.keyboard.press(steps > 0 ? 'j' : 'k')
 		await expect(day).toHaveAttribute('data-date', addDays(current, step * (steps > 0 ? 7 : -7)))
@@ -22,7 +22,7 @@ export async function openWeekOf(page: Page, date: string): Promise<void> {
 
 export function block(page: Page, name: string, date: string, time: string): Locator {
 	return page.locator(
-		`[data-slot="week-grid-column"][data-date="${date}"] button[data-key][aria-label^="${name}, "][aria-label*="${time}"]`
+		`[data-slot="week-grid-column"][data-date="${date}"] button[data-key][aria-label^="${name}, "][aria-label*=", ${time}–"]`
 	)
 }
 
@@ -146,7 +146,7 @@ export async function changeQuickMark(
 	expect((await response).status()).toBe(200)
 }
 
-async function pickDate(page: Page, date: string, id = 'move-lesson-date'): Promise<void> {
+export async function pickDate(page: Page, date: string, id = 'move-lesson-date'): Promise<void> {
 	await page.locator(`#${id}`).click()
 	const key = `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}/${date.slice(0, 4)}`
 	const cell = page.locator(`button[data-day="${key}"]`).first()
@@ -162,7 +162,7 @@ async function pickDate(page: Page, date: string, id = 'move-lesson-date'): Prom
 	await expect(page.getByRole('listbox', { name: 'Hours' })).toHaveCount(0)
 }
 
-async function pickTime(page: Page, time: string, id = 'move-lesson-time'): Promise<void> {
+export async function pickTime(page: Page, time: string, id = 'move-lesson-time'): Promise<void> {
 	await page.locator(`#${id}`).click()
 	await page
 		.getByRole('listbox', { name: 'Hours' })
@@ -254,7 +254,7 @@ export async function setThreshold(page: Page, value: number): Promise<void> {
 	await expect(field).toBeEnabled()
 	const before = await readSettings(page.request)
 	await field.fill(String(value))
-	if (before !== value) {
+	if (before.paysSoonLessons !== value) {
 		const response = page.waitForResponse(
 			(result) => new URL(result.url()).pathname === '/api/settings' && result.request().method() === 'PATCH'
 		)
@@ -263,7 +263,7 @@ export async function setThreshold(page: Page, value: number): Promise<void> {
 		await expect(page.getByText('Saved', { exact: true })).toBeVisible()
 	}
 	await expect(field).toHaveValue(String(value))
-	expect(await readSettings(page.request)).toBe(value)
+	expect((await readSettings(page.request)).paysSoonLessons).toBe(value)
 }
 
 export async function expectDue(

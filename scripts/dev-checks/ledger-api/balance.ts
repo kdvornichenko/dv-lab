@@ -33,7 +33,7 @@ export async function sectionBalance(ctx: Context) {
 		'the 00:30 Vietnam lesson is still the opening day in Moscow and UTC',
 		core.zonedParts(nightAt, 'Europe/Moscow').date === opening &&
 			nightAt.toISOString().slice(0, 10) === opening &&
-			core.scheduleDate(nightAt) === dayAfter
+			core.scheduleDate(nightAt, VN) === dayAfter
 	)
 	await expectBalance(ctx, studentId, 'opening 0 with unmarked lessons', 0)
 	await stepOk('done of the 60 minute lesson', () => markSingle(ctx, hour, 'done'))

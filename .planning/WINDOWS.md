@@ -2,9 +2,9 @@
 schema_version: 1
 open_count: 5
 waived_count: 0
-fixed_count: 0
-total_count: 5
-last_updated: 2026-10-11T07:27:55.011Z
+fixed_count: 1
+total_count: 6
+last_updated: 2026-10-11T15:33:53.149Z
 ---
 
 # Broken Windows Ledger
@@ -20,6 +20,7 @@ last_updated: 2026-10-11T07:27:55.011Z
 | 3 | 19 | deviation | .planning/phases/19-student-cards-and-vault-import/19-CONTEXT.md |  | Владелец правила «что входит в остаток»: отложено, см. 19-ARCH-REVIEW.md | open |  | 2026-10-09T18:00:04.771Z |  |
 | 4 | 21 | unrun-verify | .planning/phases/21-lesson-accounting-and-today/21-UI-SPEC.md | 604 | Отрисовка имени длиной 300 символов не проверена: contracts и SQL CHECK допускают максимум 80; запрос с 300 символами отклонён HTTP 400 | open |  | 2026-10-11T07:27:54.898Z |  |
 | 5 | 21 | unrun-verify | .planning/phases/21-lesson-accounting-and-today/21-UI-SPEC.md | 606 | Реальный переход browser и API через полночь Вьетнама не проверен; существующая симуляция устаревшей даты и повторного чтения Today прошла в обеих темах | open |  | 2026-10-11T07:27:55.011Z |  |
+| 6 | 21.1 | unrun-verify | e2e/today.spec.ts |  | Поведенческие RED/GREEN сценариев [tz] не запускались в плане 02: по PLAN-INDEX общий runtime принадлежит плану 13; listing не подтверждает поведение. | fixed |  | 2026-10-11T12:25:00.008Z | 2026-10-11T15:33:53.149Z |
 
 ````json
 [
@@ -86,6 +87,19 @@ last_updated: 2026-10-11T07:27:55.011Z
     "reason": "",
     "recorded_at": "2026-10-11T07:27:55.011Z",
     "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 6,
+    "kind": "unrun-verify",
+    "phase": "21.1",
+    "file": "e2e/today.spec.ts",
+    "line": null,
+    "description": "Поведенческие RED/GREEN сценариев [tz] не запускались в плане 02: по PLAN-INDEX общий runtime принадлежит плану 13; listing не подтверждает поведение.",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-10-11T12:25:00.008Z",
+    "resolved_at": "2026-10-11T15:33:53.149Z",
     "milestone": "v2.0"
   }
 ]

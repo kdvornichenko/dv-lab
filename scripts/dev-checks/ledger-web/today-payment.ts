@@ -5,10 +5,19 @@ import type { PaymentsResponse, ErrorResponse } from '../../../packages/contract
 import * as core from '../../../packages/core/src/index.ts'
 import { BASE, api, check, failures, shot, signIn } from '../browser-context.ts'
 import { withBrowser } from '../browser-journey.ts'
-import { cleanupFixtures, createCard, openProfile, openToday, readTodayApi, setOpening, setTheme } from './common.mjs'
+import {
+	VN,
+	cleanupFixtures,
+	createCard,
+	openProfile,
+	openToday,
+	readTodayApi,
+	setOpening,
+	setTheme,
+} from './common.mjs'
 
 async function fixtures(page: Page) {
-	const today = core.scheduleToday(new Date())
+	const today = core.scheduleToday(new Date(), VN)
 	const a = await createCard(page, 'Alex Example 2181 A', 60, { rateMinor: 10000, currency: 'RUB' })
 	const b = await createCard(page, 'Alex Example 2181 B', 60, { rateMinor: 20000, currency: 'KZT' })
 	await setOpening(page, a, core.addDays(today, -3), 100)

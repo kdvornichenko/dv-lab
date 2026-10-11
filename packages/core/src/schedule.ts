@@ -1,17 +1,25 @@
-import { addDays, firstOnOrAfter, weekdayOf, windowDates, zonedInstant, zonedParts, type Weekday } from './zoned.ts'
+import {
+	addDays,
+	firstOnOrAfter,
+	weekdayOf,
+	windowDates,
+	localTimeCandidates,
+	zonedParts,
+	type Weekday,
+} from './zoned.ts'
 
 export const SCHEDULE_TIME_ZONE = 'Asia/Ho_Chi_Minh'
 
-export function scheduleDate(instant: Date): string {
-	return zonedParts(instant, SCHEDULE_TIME_ZONE).date
+export function scheduleDate(instant: Date, timeZone: string): string {
+	return zonedParts(instant, timeZone).date
 }
 
-export function scheduleToday(now: Date): string {
-	return scheduleDate(now)
+export function scheduleToday(now: Date, timeZone: string): string {
+	return scheduleDate(now, timeZone)
 }
 
-export function isAfterScheduleToday(date: string, now: Date): boolean {
-	return date > scheduleToday(now)
+export function isAfterScheduleToday(date: string, now: Date, timeZone: string): boolean {
+	return date > scheduleToday(now, timeZone)
 }
 
 export type SeriesRule = {
@@ -19,12 +27,13 @@ export type SeriesRule = {
 	studentId: string
 	weekday: Weekday
 	startTime: string
+	timeZone: string
 	durationMinutes: number
 	startsOn: string
 	endsOn: string | null
 }
 
-export type SeriesTiming = Pick<SeriesRule, 'weekday' | 'startTime' | 'startsOn' | 'endsOn'>
+export type SeriesTiming = Pick<SeriesRule, 'weekday' | 'startTime' | 'timeZone' | 'startsOn' | 'endsOn'>
 
 export type SeriesException =
 	| { seriesId: string; originalOn: string; kind: 'cancelled'; startsAt?: Date; durationMinutes?: number }
@@ -35,6 +44,7 @@ export type SingleLesson = {
 	id: string
 	studentId: string
 	startsAt: Date
+	timeZone: string
 	durationMinutes: number
 	status: 'scheduled' | 'cancelled'
 }
@@ -92,6 +102,7 @@ export type ScheduleBlock = {
 	ref: OccurrenceRef
 	studentId: string
 	startsAt: Date
+	timeZone: string
 	durationMinutes: number
 	status: BlockStatus
 	movedTo: Date | null
@@ -102,8 +113,9 @@ export type Occurrence = {
 	key: string
 	ref: OccurrenceRef
 	studentId: string
-	naturalStart: Date
+	naturalStart: Date | null
 	startsAt: Date
+	timeZone: string
 	durationMinutes: number
 	status: BlockStatus
 }
@@ -140,20 +152,21 @@ export function isSeriesDate(rule: SeriesTiming, date: string): boolean {
 	return rule.endsOn === null || date <= rule.endsOn
 }
 
-export function seriesStart(rule: Pick<SeriesRule, 'startTime'>, date: string): Date {
-	return zonedInstant(date, rule.startTime, SCHEDULE_TIME_ZONE)
+export function seriesStart(rule: Pick<SeriesRule, 'startTime' | 'timeZone'>, date: string): Date | null {
+	return localTimeCandidates(date, rule.startTime, rule.timeZone)[0] ?? null
 }
 
 export function occurrenceAt(rule: SeriesRule, date: string, exception?: SeriesException): Occurrence | null {
 	if (!isSeriesDate(rule, date)) return null
 	const ref: OccurrenceRef = { kind: 'series', seriesId: rule.id, originalOn: date }
 	const naturalStart = seriesStart(rule, date)
-	const base = { key: occurrenceKey(ref), ref, studentId: rule.studentId, naturalStart }
+	const base = { key: occurrenceKey(ref), ref, studentId: rule.studentId, naturalStart, timeZone: rule.timeZone }
 	const own =
 		exception !== undefined && exception.seriesId === rule.id && exception.originalOn === date ? exception : null
 	if (own?.kind === 'moved') {
 		return { ...base, startsAt: own.startsAt, durationMinutes: own.durationMinutes, status: 'moved' }
 	}
+	if (naturalStart === null) return null
 	if (own?.kind === 'cancelled' && own.startsAt !== undefined && own.durationMinutes !== undefined) {
 		return { ...base, startsAt: own.startsAt, durationMinutes: own.durationMinutes, status: 'cancelled' }
 	}
@@ -166,7 +179,7 @@ export function occurrenceAt(rule: SeriesRule, date: string, exception?: SeriesE
 }
 
 export function movedAway(occurrence: Pick<Occurrence, 'naturalStart' | 'startsAt'>): boolean {
-	return occurrence.startsAt.getTime() !== occurrence.naturalStart.getTime()
+	return occurrence.naturalStart === null || occurrence.startsAt.getTime() !== occurrence.naturalStart.getTime()
 }
 
 function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
@@ -175,13 +188,14 @@ function byStart(left: ScheduleBlock, right: ScheduleBlock): number {
 	return left.key < right.key ? -1 : left.key > right.key ? 1 : 0
 }
 
-function naturalBlock(occurrence: Occurrence, naturalDurationMinutes: number): ScheduleBlock {
+function naturalBlock(occurrence: Occurrence, naturalStart: Date, naturalDurationMinutes: number): ScheduleBlock {
 	const away = movedAway(occurrence)
 	return {
 		key: occurrence.key,
 		ref: occurrence.ref,
 		studentId: occurrence.studentId,
-		startsAt: occurrence.naturalStart,
+		startsAt: naturalStart,
+		timeZone: occurrence.timeZone,
 		durationMinutes: away ? naturalDurationMinutes : occurrence.durationMinutes,
 		status: away ? 'moved' : occurrence.status,
 		movedTo: away ? occurrence.startsAt : null,
@@ -195,6 +209,7 @@ function destinationBlock(occurrence: Occurrence): ScheduleBlock {
 		ref: occurrence.ref,
 		studentId: occurrence.studentId,
 		startsAt: occurrence.startsAt,
+		timeZone: occurrence.timeZone,
 		durationMinutes: occurrence.durationMinutes,
 		status: occurrence.status === 'cancelled' ? 'cancelled' : 'scheduled',
 		movedTo: null,
@@ -207,11 +222,11 @@ export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }):
 	const index = exceptionIndex(exceptions)
 	const rules = new Map(series.map((rule) => [rule.id, rule]))
 	const blocks: ScheduleBlock[] = []
-	for (const date of windowDates(from, to, SCHEDULE_TIME_ZONE)) {
-		for (const rule of series) {
+	for (const rule of series) {
+		for (const date of windowDates(from, to, rule.timeZone)) {
 			const occurrence = occurrenceAt(rule, date, index.get(seriesKey(rule.id, date)))
-			if (occurrence === null || !inWindow(occurrence.naturalStart, from, to)) continue
-			blocks.push(naturalBlock(occurrence, rule.durationMinutes))
+			if (occurrence?.naturalStart == null || !inWindow(occurrence.naturalStart, from, to)) continue
+			blocks.push(naturalBlock(occurrence, occurrence.naturalStart, rule.durationMinutes))
 		}
 	}
 	for (const exception of exceptions) {
@@ -230,6 +245,7 @@ export function scheduleWindow(input: ScheduleInput & { from: Date; to: Date }):
 			ref,
 			studentId: lesson.studentId,
 			startsAt: lesson.startsAt,
+			timeZone: lesson.timeZone,
 			durationMinutes: lesson.durationMinutes,
 			status: lesson.status,
 			movedTo: null,
@@ -252,11 +268,12 @@ export const MARK_LOOKBACK_DAYS = 366
 const laterDate = (left: string, right: string) => (left > right ? left : right)
 
 export function nextSeriesDate(rule: SeriesTiming, now: Date): string | null {
-	const start = laterDate(scheduleToday(now), rule.startsOn)
+	const start = laterDate(scheduleToday(now, rule.timeZone), rule.startsOn)
 	const limit = addDays(start, SEARCH_DAYS)
 	for (let date = firstOnOrAfter(start, rule.weekday); date <= limit; date = addDays(date, 7)) {
 		if (!isSeriesDate(rule, date)) return null
-		if (canChange(seriesStart(rule, date), now)) return date
+		const startsAt = seriesStart(rule, date)
+		if (startsAt !== null && canChange(startsAt, now)) return date
 	}
 	return null
 }
@@ -267,35 +284,48 @@ export function lastSeriesDateOnOrBefore(rule: SeriesTiming, date: string): stri
 	return isSeriesDate(rule, candidate) ? candidate : null
 }
 
+export function nextSeriesReference(input: {
+	rule: SeriesRule
+	exceptions: readonly SeriesException[]
+	now: Date
+}): { originalOn: string; actualStartsAt: Date; ruleStartsAt: Date | null } | null {
+	const { rule, exceptions, now } = input
+	const index = exceptionIndex(exceptions)
+	let next: { originalOn: string; actualStartsAt: Date; ruleStartsAt: Date | null } | null = null
+	const offer = (originalOn: string, occurrence: Occurrence | null) => {
+		if (occurrence === null || occurrence.status === 'cancelled') return
+		if (occurrence.startsAt.getTime() < now.getTime()) return
+		if (next !== null && next.actualStartsAt.getTime() <= occurrence.startsAt.getTime()) return
+		next = { originalOn, actualStartsAt: occurrence.startsAt, ruleStartsAt: occurrence.naturalStart }
+	}
+	const start = laterDate(scheduleToday(now, rule.timeZone), rule.startsOn)
+	const limit = addDays(start, SEARCH_DAYS)
+	for (let date = firstOnOrAfter(start, rule.weekday); date <= limit; date = addDays(date, 7)) {
+		if (!isSeriesDate(rule, date)) break
+		const occurrence = occurrenceAt(rule, date, index.get(seriesKey(rule.id, date)))
+		if (occurrence?.status === 'scheduled' && occurrence.startsAt.getTime() >= now.getTime()) {
+			offer(date, occurrence)
+			break
+		}
+	}
+	for (const exception of exceptions) {
+		if (exception.seriesId !== rule.id || exception.kind !== 'moved') continue
+		offer(exception.originalOn, occurrenceAt(rule, exception.originalOn, exception))
+	}
+	return next
+}
+
 export function nextLessons(input: ScheduleInput & { now: Date }): Map<string, Date> {
 	const { series, exceptions, lessons, now } = input
-	const index = exceptionIndex(exceptions)
-	const rules = new Map(series.map((rule) => [rule.id, rule]))
 	const next = new Map<string, Date>()
 	const offer = (studentId: string, startsAt: Date) => {
 		if (startsAt.getTime() < now.getTime()) return
 		const current = next.get(studentId)
 		if (current === undefined || startsAt.getTime() < current.getTime()) next.set(studentId, startsAt)
 	}
-	const today = scheduleToday(now)
 	for (const rule of series) {
-		const start = laterDate(today, rule.startsOn)
-		const limit = addDays(start, SEARCH_DAYS)
-		for (let date = firstOnOrAfter(start, rule.weekday); date <= limit; date = addDays(date, 7)) {
-			const occurrence = occurrenceAt(rule, date, index.get(seriesKey(rule.id, date)))
-			if (occurrence === null) break
-			if (occurrence.status === 'scheduled' && occurrence.startsAt.getTime() >= now.getTime()) {
-				offer(rule.studentId, occurrence.startsAt)
-				break
-			}
-		}
-	}
-	for (const exception of exceptions) {
-		if (exception.kind !== 'moved') continue
-		const rule = rules.get(exception.seriesId)
-		if (rule === undefined) continue
-		const occurrence = occurrenceAt(rule, exception.originalOn, exception)
-		if (occurrence?.status === 'moved') offer(rule.studentId, occurrence.startsAt)
+		const reference = nextSeriesReference({ rule, exceptions, now })
+		if (reference !== null) offer(rule.studentId, reference.actualStartsAt)
 	}
 	for (const lesson of lessons) {
 		if (lesson.status === 'scheduled') offer(lesson.studentId, lesson.startsAt)
@@ -325,104 +355,4 @@ export function emptySeriesEnd(rule: Pick<SeriesRule, 'startsOn'>): string {
 
 export function hasOccurrences(rule: Pick<SeriesRule, 'startsOn' | 'endsOn'>): boolean {
 	return rule.endsOn === null || rule.endsOn >= rule.startsOn
-}
-
-export type NewSeriesRule = Omit<SeriesRule, 'id'>
-
-export type CutLesson = {
-	studentId: string
-	startsAt: Date
-	durationMinutes: number
-	originalOn: string
-	status?: 'cancelled'
-}
-
-export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
-
-function preservedLessons(
-	tail: SeriesRule,
-	exceptions: readonly SeriesException[],
-	marks: ReadonlyMap<string, MarkKind>
-): CutLesson[] {
-	const index = exceptionIndex(exceptions)
-	const dates = new Set([...exceptions.map((exception) => exception.originalOn), ...marks.keys()])
-	const lessons: CutLesson[] = []
-	for (const date of dates) {
-		const occurrence = occurrenceAt(tail, date, index.get(seriesKey(tail.id, date)))
-		if (occurrence === null) continue
-		if (occurrence.status !== 'moved' && !isMarked(markedOutcome(marks.get(date) ?? null))) continue
-		lessons.push({
-			studentId: tail.studentId,
-			startsAt: occurrence.startsAt,
-			durationMinutes: occurrence.durationMinutes,
-			originalOn: date,
-			...(occurrence.status === 'cancelled' ? { status: 'cancelled' as const } : {}),
-		})
-	}
-	return lessons
-}
-
-export type CutSeriesResult =
-	| { kind: 'invalid' }
-	| { kind: 'changed' }
-	| { kind: 'today_passed' }
-	| { kind: 'ends_before_new_day'; endsOn: string }
-	| { kind: 'ok'; oldEndsOn: string; newRule: NewSeriesRule; lessons: CutLesson[] }
-
-export function cutSeries(
-	rule: SeriesRule,
-	exceptions: readonly SeriesException[],
-	change: SeriesChange,
-	now: Date,
-	marks: ReadonlyMap<string, MarkKind> = new Map<string, MarkKind>()
-): CutSeriesResult {
-	if (!hasOccurrences(rule)) return { kind: 'changed' }
-	const { from, weekday, startTime } = change
-	const today = scheduleToday(now)
-	if (from < today) return { kind: 'invalid' }
-	if (rule.endsOn !== null && rule.endsOn < from) return { kind: 'changed' }
-	if (weekday === rule.weekday && startTime === rule.startTime) return { kind: 'invalid' }
-	if (from === today && isSeriesDate(rule, today) && !canChange(seriesStart(rule, today), now)) {
-		return { kind: 'today_passed' }
-	}
-	const startsOn = nextSeriesDate({ weekday, startTime, startsOn: from, endsOn: null }, now)
-	if (startsOn === null) return { kind: 'invalid' }
-	const endsOn =
-		rule.endsOn === null ? null : lastSeriesDateOnOrBefore({ weekday, startTime, startsOn, endsOn: null }, rule.endsOn)
-	if (rule.endsOn !== null && endsOn === null) return { kind: 'ends_before_new_day', endsOn: rule.endsOn }
-	const lessons = preservedLessons({ ...rule, startsOn: laterDate(rule.startsOn, from) }, exceptions, marks)
-	return {
-		kind: 'ok',
-		oldEndsOn: laterDate(addDays(from, -1), emptySeriesEnd(rule)),
-		newRule: {
-			studentId: rule.studentId,
-			weekday,
-			startTime,
-			durationMinutes: rule.durationMinutes,
-			startsOn,
-			endsOn,
-		},
-		lessons,
-	}
-}
-
-export type EndSeriesResult =
-	| { kind: 'invalid' }
-	| { kind: 'changed' }
-	| { kind: 'ok'; endsOn: string; lessons: CutLesson[] }
-
-export function endSeriesAt(
-	rule: SeriesRule,
-	exceptions: readonly SeriesException[],
-	lastOn: string,
-	now: Date,
-	marks: ReadonlyMap<string, MarkKind> = new Map<string, MarkKind>()
-): EndSeriesResult {
-	const today = scheduleToday(now)
-	if (rule.endsOn !== null && rule.endsOn < today) return { kind: 'changed' }
-	if (lastOn < today) return { kind: 'invalid' }
-	if (rule.endsOn !== null && lastOn > rule.endsOn) return { kind: 'invalid' }
-	const endsOn = lastSeriesDateOnOrBefore(rule, lastOn) ?? emptySeriesEnd(rule)
-	const tail: SeriesRule = { ...rule, startsOn: laterDate(rule.startsOn, addDays(endsOn, 1)) }
-	return { kind: 'ok', endsOn, lessons: preservedLessons(tail, exceptions, marks) }
 }

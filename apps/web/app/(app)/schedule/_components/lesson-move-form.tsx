@@ -8,50 +8,85 @@ import { DateField } from '@/components/app/date-field'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
-import { formatDate, formatDay, formatRange, formatTime, formatWhen, vnRange, vnWhen } from '@/lib/schedule-format'
-import { zoneLabel } from '@/lib/time-zones'
+import { formatDate, formatDay, mainRange, mainWhen } from '@/lib/schedule-format'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, overlaps, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
+import { overlaps, scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import type { OverlapBlock } from './new-lesson-dialog'
+import {
+	gapMessage,
+	localTimeInput,
+	LocalTimeHint,
+	TimeZoneStaleNotice,
+	useScheduleFormContext,
+	type ScheduleFormContext,
+} from './schedule-form-context'
 import { changedStart, mutate } from './schedule-mutations'
 
-interface LessonMoveFormProps {
+interface LessonMoveFormProps extends ScheduleFormContext {
 	block: ScheduleBlock
+	currentMainTimeZone: string
 	secondZone: string | null
-	currentYear: number
 	locked: boolean
 	blocksOn: (date: string) => Promise<OverlapBlock[]>
 	onPendingChange: (pending: boolean) => void
 	onDiscard: () => void
 	onStale: () => void
+	onRefresh: () => void
 	onMoved: (startsAt: Date) => void
 }
 
 type Field = 'date' | 'time'
 
+function moveErrors(
+	date: string,
+	time: string | null,
+	target: Date | null,
+	start: Date,
+	timeError: string | undefined
+) {
+	return {
+		date: date === '' ? 'Choose a date.' : undefined,
+		time:
+			timeError ??
+			(time === null
+				? 'Choose a start time.'
+				: target?.getTime() === start.getTime()
+					? 'Choose a different date or time.'
+					: undefined),
+	}
+}
+
 export function LessonMoveForm({
-	block,
+	block: initialBlock,
+	mainTimeZone,
+	asOf,
+	currentMainTimeZone,
 	secondZone,
-	currentYear,
 	locked,
 	blocksOn,
 	onPendingChange,
 	onDiscard,
 	onStale,
+	onRefresh,
 	onMoved,
 }: LessonMoveFormProps) {
 	const toast = useToast()
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
+	const { currentYear } = context
+	const [block] = useState(initialBlock)
 	const start = new Date(block.startsAt)
-	const current = zonedParts(start, SCHEDULE_TIME_ZONE)
-	const [date, setDate] = useState(scheduleDate(start))
+	const current = zonedParts(start, context.mainTimeZone)
+	const [date, setDate] = useState(scheduleDate(start, context.mainTimeZone))
 	const [time, setTime] = useState<string | null>(current.time)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState<string | null>(null)
 	const [pending, setPending] = useState(false)
+	const [serverGap, setServerGap] = useState(false)
+	const [sourceChanged, setSourceChanged] = useState(false)
 	const disabled = pending || locked
 	const [day, setDay] = useState<{ date: string; items: OverlapBlock[] } | null>(null)
 
@@ -72,12 +107,12 @@ export function LessonMoveForm({
 		}
 	}, [date])
 
-	const target = time === null ? null : zonedInstant(date, time, SCHEDULE_TIME_ZONE)
-	const errors: Partial<Record<Field, string>> = {}
-	if (date === '') errors.date = 'Choose a date.'
-	if (time === null) errors.time = 'Choose a start time.'
-	else if (target !== null && target.getTime() === start.getTime()) errors.time = 'Choose a different date or time.'
-	const shown = (field: Field) => (submitted || touched[field] ? errors[field] : undefined)
+	const input = localTimeInput(date, time, context)
+	const target = input.instant
+	const timeError = serverGap ? gapMessage(context.mainTimeZone) : input.error
+	const errors = moveErrors(date, time, target, start, timeError)
+	const shown = (field: Field) =>
+		submitted || touched[field] || (field === 'time' && timeError) ? errors[field] : undefined
 	const clashes =
 		target !== null && day !== null && day.date === date
 			? overlaps(day.items, { startsAt: target, durationMinutes: block.durationMinutes }, block.key)
@@ -89,32 +124,41 @@ export function LessonMoveForm({
 	}
 
 	async function submit() {
-		if (disabled) return
+		if (disabled || context.stale || sourceChanged) return
 		setSubmitted(true)
 		setFailed(null)
 		if (errors.date) return document.getElementById('move-lesson-date')?.focus()
 		if (errors.time || time === null || target === null) return document.getElementById('move-lesson-time')?.focus()
 		setBusy(true)
-		const result = await mutate(block.ref, 'move', { date, startTime: time, expectedStartsAt: block.startsAt })
+		const result = await mutate(block.ref, 'move', {
+			date,
+			startTime: time,
+			expectedStartsAt: block.startsAt,
+			expectedDefaultTimeZone: context.mainTimeZone,
+		})
 		setBusy(false)
+		if (result.kind === 'zone_changed') return context.markStale()
+		if (result.kind === 'gap') return setServerGap(true)
 		if (result.kind === 'failed') {
 			setFailed('Could not move the lesson. Try again.')
 			return
 		}
 		if (result.kind === 'stale') {
+			setSourceChanged(true)
 			onStale()
 			return
 		}
 		const moved = new Date(changedStart(result.data))
 		toast.show({
 			title: 'Lesson moved',
-			description: `${block.studentName}: ${vnWhen(start, null, currentYear)} to ${vnWhen(moved, null, currentYear)}.`,
+			description: `${block.studentName}: ${mainWhen(start, context.mainTimeZone, null, currentYear)} to ${mainWhen(moved, context.mainTimeZone, null, currentYear)}.`,
 		})
 		onMoved(moved)
 	}
 
 	return (
 		<div role="group" aria-label="Move lesson" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
+			<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 			{failed !== null ? (
 				<Banner status="error" data-slot="move-lesson-failed">
 					<BannerTitle>{failed}</BannerTitle>
@@ -127,6 +171,7 @@ export function LessonMoveForm({
 					value={date}
 					onChange={(value) => {
 						setDate(value)
+						setServerGap(false)
 						setTouched((state) => ({ ...state, date: true }))
 					}}
 					disabled={disabled}
@@ -134,15 +179,16 @@ export function LessonMoveForm({
 				/>
 				<div className="flex min-w-0 flex-col gap-2">
 					<span id="move-lesson-time-label" className="text-body text-muted-foreground">
-						Time, VN
+						Time, {input.label}
 					</span>
 					<TimePicker
 						id="move-lesson-time"
 						aria-labelledby="move-lesson-time-label"
-						aria-describedby={shown('time') ? 'move-lesson-time-error' : undefined}
+						aria-describedby="move-lesson-time-error move-lesson-time-dst"
 						value={time}
 						onValueChange={(value) => {
 							setTime(value)
+							setServerGap(false)
 							setTouched((state) => ({ ...state, time: true }))
 						}}
 						minuteStep={15}
@@ -156,17 +202,16 @@ export function LessonMoveForm({
 							{shown('time')}
 						</p>
 					) : null}
+					<LocalTimeHint id="move-lesson-time-dst" hint={input.hint} />
 				</div>
 			</div>
 			<div aria-live="polite" data-slot="move-lesson-change" className="flex flex-col gap-1 tabular-nums">
 				<p data-slot="move-lesson-vn" className="flex flex-wrap items-center gap-x-2 text-body text-foreground">
-					<span className="text-muted-foreground">
-						{formatDate(scheduleDate(start), currentYear)}, {formatTime(start, SCHEDULE_TIME_ZONE)}
-					</span>
+					<span className="text-muted-foreground">{mainWhen(start, context.mainTimeZone, null, currentYear)}</span>
 					<ArrowRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
 					{target === null ? null : (
 						<span>
-							{formatDate(date, currentYear)}, {formatRange(target, block.durationMinutes, SCHEDULE_TIME_ZONE)} VN
+							{formatDate(date, currentYear)}, {mainRange(target, block.durationMinutes, context.mainTimeZone, null)}
 						</span>
 					)}
 				</p>
@@ -175,12 +220,12 @@ export function LessonMoveForm({
 						data-slot="move-lesson-second"
 						className="flex flex-wrap items-center gap-x-1 text-micro text-muted-foreground"
 					>
-						<span>{formatWhen(start, secondZone, currentYear)}</span>
+						<span>{mainWhen(start, secondZone, null, currentYear)}</span>
 						<ArrowRight aria-hidden className="size-3 shrink-0" />
 						{target === null ? null : (
 							<span>
-								{formatDay(target, secondZone, currentYear)}, {formatRange(target, block.durationMinutes, secondZone)}{' '}
-								{zoneLabel(secondZone, target)}
+								{formatDay(target, secondZone, currentYear)},{' '}
+								{mainRange(target, block.durationMinutes, secondZone, null)}
 							</span>
 						)}
 					</p>
@@ -190,7 +235,10 @@ export function LessonMoveForm({
 				<p data-slot="move-lesson-clash" className="text-body text-destructive">
 					A lesson is already at this time:{' '}
 					{clashes
-						.map((item) => `${item.studentName} ${vnRange(item.startsAt, item.durationMinutes, null)}`)
+						.map(
+							(item) =>
+								`${item.studentName} ${mainRange(item.startsAt, item.durationMinutes, context.mainTimeZone, null)}`
+						)
 						.join(', ')}
 				</p>
 			) : null}
@@ -203,7 +251,7 @@ export function LessonMoveForm({
 					size="compact"
 					leadingIcon={CalendarClock}
 					loading={pending}
-					disabled={disabled}
+					disabled={disabled || context.stale || sourceChanged}
 					onClick={() => void submit()}
 				>
 					{pending ? 'Moving…' : 'Move lesson'}

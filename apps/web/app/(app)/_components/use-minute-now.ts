@@ -14,7 +14,13 @@ function subscribeMinute(callback: () => void) {
 		)
 	}
 	schedule()
-	return () => clearTimeout(timer)
+	window.addEventListener('focus', callback)
+	document.addEventListener('visibilitychange', callback)
+	return () => {
+		clearTimeout(timer)
+		window.removeEventListener('focus', callback)
+		document.removeEventListener('visibilitychange', callback)
+	}
 }
 
 const minuteNow = () => Math.floor(Date.now() / 60000)

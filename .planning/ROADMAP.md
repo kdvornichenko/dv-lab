@@ -13,7 +13,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 
 ### v2.0 Unified dv-lab (In Progress)
 
-**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI; preparation of 21.1 and 24 remains separate from implementation.
+**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and merged in PR #8 after green CI (c1ddae4).
 
 **Phase Numbering:**
 
@@ -25,7 +25,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [ ] **Phase 19: Student Cards and Vault Import** - Cards with sections, vocabulary and payments; all 25 vault students imported
 - [ ] **Phase 20: Schedule** - Week grid with single lessons, weekly series and occurrence exceptions
 - [x] **Phase 21: Lesson Accounting and Today** - Lesson marks deduct minutes by shared core rules; Today and "pays soon" from real data (completed 2026-10-11)
-- [ ] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates
+- [x] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates (completed 2026-10-11)
 - [ ] **Phase 22: Chat with Mentions and Quick Marks** - Conversations, `@student` mentions, instant marks with undo, answers from data, budget cap
 - [ ] **Phase 23: Confirmed Chat Changes and Entry Points** - Payments, new students, deletions and bulk moves after confirmation; palette, profile and phone layouts
 - [ ] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check
@@ -326,50 +326,50 @@ Plans:
 3. Schedule, Today, next lesson, lesson dialogs and time labels use the default zone. A different creation zone appears in lesson/series details. Recurrences preserve wall time in their stored zone across daylight saving changes.
 4. Today and lesson dates used at the opening-balance boundary use the account zone. A near-midnight lesson can change accounting day after a zone change; forms and API agree. Payment date-only values remain dates.
 5. The second zone remains a browser preference and differs from the default. Choosing the second zone as default makes the old default second, only after a successful save. Settings and the schedule toolbar stay synchronized.
-   **Plans:** 13 plans, 9 waves; independently verified
+   **Plans:** 13/13 plans complete, 9 waves; independently verified
    **UI hint:** yes
    **Design:** Accepted default-zone design introduced in v37; current local copy v40, `SettingsGeneral`, `ZoneChangeDialog`, `TimePair`, `WeekGrid`, `LessonDialog`, `TimeZonePicker`. The old “after 23” note in the design is superseded by this execution order.
 
 Plans:
 **Wave 1**
 
-- [ ] 21.1-01-PLAN.md — Аддитивное хранение зон и восстановление состояния проверок
+- [x] 21.1-01-PLAN.md — Аддитивное хранение зон и восстановление состояния проверок
 
 **Wave 2** _(blocked on Wave 1 completion)_
 
-- [ ] 21.1-02-PLAN.md — Поведенческий контракт зон в существующих durable E2E
+- [x] 21.1-02-PLAN.md — Поведенческий контракт зон в существующих durable E2E
 
 **Wave 3** _(blocked on Wave 2 completion)_
 
-- [ ] 21.1-03-PLAN.md — Account settings, optimistic guard и общий read snapshot
-- [ ] 21.1-04-PLAN.md — Единый pure owner зон, recurrence windows и cut/end
+- [x] 21.1-03-PLAN.md — Account settings, optimistic guard и общий read snapshot
+- [x] 21.1-04-PLAN.md — Единый pure owner зон, recurrence windows и cut/end
 
 **Wave 4** _(blocked on Wave 3 completion)_
 
-- [ ] 21.1-05-PLAN.md — Schedule API: immutable creation zone, coherent read и date-sensitive writes
+- [x] 21.1-05-PLAN.md — Schedule API: immutable creation zone, coherent read и date-sensitive writes
 
 **Wave 5** _(blocked on Wave 4 completion)_
 
-- [ ] 21.1-06-PLAN.md — Series mutations: cross-zone граница и сохранение отмеченного хвоста
-- [ ] 21.1-08-PLAN.md — Settings UI и единый browser second-zone store
+- [x] 21.1-06-PLAN.md — Series mutations: cross-zone граница и сохранение отмеченного хвоста
+- [x] 21.1-08-PLAN.md — Settings UI и единый browser second-zone store
 
 **Wave 6** _(blocked on Wave 5 completion)_
 
-- [ ] 21.1-07-PLAN.md — Today, карточки и ledger используют один account day
-- [ ] 21.1-09-PLAN.md — Schedule display и lesson details в authoritative main zone
+- [x] 21.1-07-PLAN.md — Today, карточки и ledger используют один account day
+- [x] 21.1-09-PLAN.md — Schedule display и lesson details в authoritative main zone
 
 **Wave 7** _(blocked on Wave 6 completion)_
 
-- [ ] 21.1-10-PLAN.md — Создание и перенос уроков из main zone, DST helpers и stale forms
-- [ ] 21.1-12-PLAN.md — Адаптация существующих проверок к явной зоне
+- [x] 21.1-10-PLAN.md — Создание и перенос уроков из main zone, DST helpers и stale forms
+- [x] 21.1-12-PLAN.md — Адаптация существующих проверок к явной зоне
 
 **Wave 8** _(blocked on Wave 7 completion)_
 
-- [ ] 21.1-11-PLAN.md — Today, Students и формы ledger в account zone
+- [x] 21.1-11-PLAN.md — Today, Students и формы ledger в account zone
 
 **Wave 9** _(blocked on Wave 8 completion)_
 
-- [ ] 21.1-13-PLAN.md — Единственный final gate: quality, regression и public E2E
+- [x] 21.1-13-PLAN.md — Единственный final gate: quality, regression и public E2E
 
 ### Phase 22: Chat with Mentions and Quick Marks
 
@@ -528,7 +528,7 @@ Plans:
 | 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress      |            |
 | 20. Schedule                                     | v2.0      | 10/10          | In Progress      |            |
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete         | 2026-10-11 |
-| 21.1. Default Time Zone                          | v2.0      | 0/13           | Ready to execute | -          |
+| 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete         | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/14           | Ready to execute | -          |

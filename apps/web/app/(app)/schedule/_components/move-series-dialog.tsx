@@ -16,24 +16,25 @@ import {
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatDate, seriesWhen, weekdayPlural } from '@/lib/schedule-format'
-import { zoneLabel } from '@/lib/time-zones'
+import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
 import type { ScheduleSeries, ScheduleWeekday } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, nextSeriesDate, zonedInstant } from '@dv-lab/core'
+import { scheduleDate, seriesStart, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { MoveSeriesFields, WEEKDAYS } from './move-series-fields'
 import { seriesPreview } from './move-series-preview'
+import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
 import { STALE_DATES, STALE_TITLE, mutate } from './schedule-mutations'
 
-interface MoveSeriesDialogProps {
+interface MoveSeriesDialogProps extends ScheduleFormContext {
 	rule: ScheduleSeries
+	currentMainTimeZone: string
 	studentName: string
 	now: Date
-	today: string
-	currentYear: number
 	onClose: () => void
 	onStale: () => void
+	onRefresh: () => void
 	onMoved: () => void
 }
 
@@ -43,29 +44,55 @@ function toWeekday(value: string): ScheduleWeekday | null {
 	return WEEKDAYS.find((day) => String(day) === value) ?? null
 }
 
+function seriesInput(rule: ScheduleSeries, mainTimeZone: string, secondZone: string | null, today: string) {
+	const reference =
+		rule.referenceOccurrence?.ruleStartsAt == null ? null : new Date(rule.referenceOccurrence.ruleStartsAt)
+	const parts = reference === null ? null : zonedParts(reference, mainTimeZone)
+	return {
+		from: reference === null ? today : scheduleDate(reference, mainTimeZone),
+		weekday: parts?.weekday ?? null,
+		time: parts?.time ?? null,
+		description:
+			reference === null
+				? 'Weekly series.'
+				: `Now every ${seriesWhen(rule.referenceOccurrence, mainTimeZone, secondZone)}.`,
+		createdIn:
+			reference !== null && !sameTimeZone(rule.timeZone, mainTimeZone)
+				? `${zoneName(rule.timeZone)} time (${zoneLabel(rule.timeZone, reference)})`
+				: null,
+	}
+}
+
 export function MoveSeriesDialog({
-	rule,
+	rule: initialRule,
+	mainTimeZone,
+	asOf,
+	currentMainTimeZone,
 	studentName,
 	now,
-	today,
-	currentYear,
 	onClose,
 	onStale,
+	onRefresh,
 	onMoved,
 }: MoveSeriesDialogProps) {
 	const toast = useToast()
-	const [secondZone] = useSecondZone()
-	const [from, setFrom] = useState(() => nextSeriesDate(rule, now) ?? today)
-	const [weekday, setWeekday] = useState<ScheduleWeekday | null>(rule.weekday)
-	const [time, setTime] = useState<string | null>(rule.startTime)
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
+	const { today, currentYear } = context
+	const [rule] = useState(initialRule)
+	const [secondZone] = useSecondZone(context.mainTimeZone)
+	const initial = seriesInput(rule, context.mainTimeZone, secondZone, today)
+	const [from, setFrom] = useState(initial.from)
+	const [weekday, setWeekday] = useState<ScheduleWeekday | null>(initial.weekday)
+	const [time, setTime] = useState<string | null>(initial.time)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [pending, setPending] = useState(false)
 	const [notice, setNotice] = useState<'stale' | 'failed' | null>(null)
 	const [serverEnds, setServerEnds] = useState(false)
 	const [serverStarted, setServerStarted] = useState(false)
+	const [serverGap, setServerGap] = useState(false)
 
-	const { errors, rowError, startedToday, preview, zoneLine } = seriesPreview({
+	const { errors, rowError, startedToday, preview, zoneLine, input } = seriesPreview({
 		rule,
 		from,
 		weekday,
@@ -75,23 +102,27 @@ export function MoveSeriesDialog({
 		serverEnds,
 		serverStarted,
 		secondZone,
+		mainTimeZone: context.mainTimeZone,
+		asOf: context.asOf,
+		serverGap,
 	})
 	const visible = submitted || touched.day || touched.time || serverEnds
 	const shownRow = visible ? rowError : undefined
 	const shownDay = submitted || touched.day ? errors.day : undefined
-	const shownTime = submitted || touched.time ? errors.time : undefined
+	const shownTime = submitted || touched.time || input.error || serverGap ? errors.time : undefined
 
 	function edit<T>(set: (value: T) => void, field?: Field) {
 		return (value: T) => {
 			set(value)
 			setServerEnds(false)
 			setServerStarted(false)
+			setServerGap(false)
 			if (field) setTouched((state) => ({ ...state, [field]: true }))
 		}
 	}
 
 	async function submit() {
-		if (pending) return
+		if (pending || context.stale || notice === 'stale') return
 		setSubmitted(true)
 		setNotice(null)
 		if (errors.from) return document.getElementById('move-series-from')?.focus()
@@ -99,8 +130,15 @@ export function MoveSeriesDialog({
 		if (errors.time || time === null) return document.getElementById('move-series-time')?.focus()
 		if (rowError) return document.getElementById('move-series-day')?.focus()
 		setPending(true)
-		const result = await mutate({ kind: 'rule', seriesId: rule.id }, 'move', { from, weekday, startTime: time })
+		const result = await mutate({ kind: 'rule', seriesId: rule.id }, 'move', {
+			from,
+			weekday,
+			startTime: time,
+			expectedDefaultTimeZone: context.mainTimeZone,
+		})
 		setPending(false)
+		if (result.kind === 'zone_changed') return context.markStale()
+		if (result.kind === 'gap') return setServerGap(true)
 		if (result.kind === 'stale') {
 			setNotice('stale')
 			onStale()
@@ -113,10 +151,13 @@ export function MoveSeriesDialog({
 			return
 		}
 		const series = result.data.series
-		const first = zonedInstant(series.startsOn, series.startTime, SCHEDULE_TIME_ZONE)
+		const first = seriesStart(series, series.startsOn)
 		toast.show({
 			title: 'Series moved',
-			description: `${studentName} now meets on ${weekdayPlural(series.weekday)} at ${series.startTime} ${zoneLabel(SCHEDULE_TIME_ZONE, first)} from ${formatDate(series.startsOn, currentYear)}.`,
+			description:
+				first === null
+					? `${studentName}'s series was moved.`
+					: `${studentName} now meets on ${weekdayPlural(series.weekday)} at ${series.startTime} ${zoneLabel(series.timeZone, first)} from ${formatDate(scheduleDate(first, context.mainTimeZone), currentYear)}.`,
 		})
 		onMoved()
 	}
@@ -132,15 +173,25 @@ export function MoveSeriesDialog({
 				<DialogHeader>
 					<DialogTitle>Move series</DialogTitle>
 					<DialogDescription>
-						{studentName}. Now every {seriesWhen(rule, secondZone, now)}.
+						{studentName}. {initial.description}
 					</DialogDescription>
 				</DialogHeader>
 				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 					<div className="flex flex-col gap-4 py-1">
+						<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
+						{initial.createdIn !== null ? (
+							<dl className="flex flex-col gap-1">
+								<dt className="text-caption text-muted-foreground">Created in</dt>
+								<dd className="text-body">{initial.createdIn}</dd>
+							</dl>
+						) : null}
 						{notice === 'stale' ? (
 							<Banner status="warning" data-slot="series-stale">
 								<BannerTitle>{STALE_TITLE}</BannerTitle>
 								<BannerDescription>{STALE_DATES}</BannerDescription>
+								<Button type="button" variant="ghost" size="compact" onClick={onRefresh}>
+									Refresh
+								</Button>
 							</Banner>
 						) : notice === 'failed' ? (
 							<Banner status="error" data-slot="series-failed">
@@ -164,6 +215,8 @@ export function MoveSeriesDialog({
 							shownDay={shownDay}
 							shownTime={shownTime}
 							zoneLine={zoneLine}
+							timeLabel={input.label}
+							foldHint={input.hint}
 							onDayChange={edit((value: string) => setWeekday(toWeekday(value)), 'day')}
 							onTimeChange={edit(setTime, 'time')}
 						/>
@@ -188,7 +241,12 @@ export function MoveSeriesDialog({
 					<Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
 						Discard changes
 					</Button>
-					<Button type="button" loading={pending} onClick={() => void submit()}>
+					<Button
+						type="button"
+						loading={pending}
+						disabled={context.stale || notice === 'stale'}
+						onClick={() => void submit()}
+					>
 						{pending ? 'Moving…' : 'Move series'}
 					</Button>
 				</DialogFooter>

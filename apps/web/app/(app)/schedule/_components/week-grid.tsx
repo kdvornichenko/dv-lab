@@ -6,10 +6,11 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import type { ScheduleBlock } from '@dv-lab/contracts'
-import { SCHEDULE_TIME_ZONE, addDays, scheduleDate, zonedParts } from '@dv-lab/core'
+import { addDays, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { EventTooltip } from './event-tooltip'
 import type { BlockLayout } from './lesson-block'
@@ -47,6 +48,7 @@ interface WeekGridProps {
 	monday: string
 	today: string
 	now: Date
+	mainTimeZone: string
 	secondZone: SecondZone | null
 	blocks?: readonly ScheduleBlock[]
 	currentYear?: number
@@ -61,10 +63,10 @@ interface PlacedBlock {
 	layout: BlockLayout
 }
 
-function placeDay(blocks: readonly ScheduleBlock[]): PlacedBlock[] {
+function placeDay(blocks: readonly ScheduleBlock[], mainTimeZone: string): PlacedBlock[] {
 	const items = blocks
 		.map((block) => {
-			const start = zonedParts(new Date(block.startsAt), SCHEDULE_TIME_ZONE).minutes
+			const start = zonedParts(new Date(block.startsAt), mainTimeZone).minutes
 			const shown = Math.min(Math.max(block.durationMinutes, MIN_DISPLAY_MINUTES), DAY_MINUTES - start)
 			return { block, start, end: start + shown, shown }
 		})
@@ -102,10 +104,10 @@ function placeDay(blocks: readonly ScheduleBlock[]): PlacedBlock[] {
 	return placed
 }
 
-function groupByDate(blocks: readonly ScheduleBlock[]): Map<string, ScheduleBlock[]> {
+function groupByDate(blocks: readonly ScheduleBlock[], mainTimeZone: string): Map<string, ScheduleBlock[]> {
 	const groups = new Map<string, ScheduleBlock[]>()
 	for (const block of blocks) {
-		const date = scheduleDate(new Date(block.startsAt))
+		const date = scheduleDate(new Date(block.startsAt), mainTimeZone)
 		const list = groups.get(date)
 		if (list) list.push(block)
 		else groups.set(date, [block])
@@ -185,6 +187,7 @@ export function WeekGrid({
 	monday,
 	today,
 	now,
+	mainTimeZone,
 	secondZone,
 	blocks = [],
 	currentYear = 0,
@@ -193,8 +196,9 @@ export function WeekGrid({
 	frame = null,
 	scrollTopRef,
 }: WeekGridProps) {
-	const dates = Array.from({ length: 7 }, (_, index) => addDays(monday, index))
-	const nowParts = zonedParts(now, SCHEDULE_TIME_ZONE)
+	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
+	const nowParts = zonedParts(now, mainTimeZone)
+	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn } = useSlotDrag(
 		bodyRef,
@@ -208,7 +212,7 @@ export function WeekGrid({
 		},
 		[scrollTopRef]
 	)
-	const groups = groupByDate(blocks)
+	const groups = groupByDate(blocks, mainTimeZone)
 
 	return (
 		<TooltipProvider>
@@ -221,7 +225,7 @@ export function WeekGrid({
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
-						<GutterPair local="VN" second={secondZone ? secondZone.caption : null} />
+						<GutterPair local={mainCaption} second={secondZone ? secondZone.caption : null} />
 					</div>
 					{dates.map((date) => {
 						const isToday = date === today
@@ -267,7 +271,7 @@ export function WeekGrid({
 								<GutterPair
 									key={hour}
 									local={hourLabel(hour)}
-									second={secondZone ? gutterLabel(monday, hour, secondZone.id) : null}
+									second={secondZone ? gutterLabel(monday, hour, mainTimeZone, secondZone.id) : null}
 									top={hour * HOUR_HEIGHT}
 									className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
 								/>
@@ -305,10 +309,11 @@ export function WeekGrid({
 											<span className="sr-only">Now {nowParts.time}</span>
 										</div>
 									) : null}
-									{placeDay(groups.get(date) ?? []).map(({ block, layout }) => (
+									{placeDay(groups.get(date) ?? [], mainTimeZone).map(({ block, layout }) => (
 										<EventTooltip
 											key={`${block.key}:${occurrenceSlot(block.outcome)}`}
 											block={block}
+											mainTimeZone={mainTimeZone}
 											layout={layout}
 											secondZone={secondZone ? secondZone.id : null}
 											currentYear={currentYear}

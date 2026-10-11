@@ -30,3 +30,7 @@ export type Database = ReturnType<typeof createDb>['db']
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 
 export type DbExecutor = Database | Transaction
+
+export function readSnapshot<T>(db: Database, read: (executor: DbExecutor) => Promise<T>): Promise<T> {
+	return db.transaction((tx) => read(tx), { isolationLevel: 'repeatable read', accessMode: 'read only' })
+}
