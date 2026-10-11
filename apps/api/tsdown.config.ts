@@ -6,6 +6,7 @@ export default defineConfig({
 		server: 'src/server.ts',
 		'bootstrap-teacher': 'src/bootstrap-teacher.ts',
 		'import-vault': 'src/import-vault.ts',
+		'calendar-fault-runtime': 'src/tools/calendar-fault-runtime.ts',
 	},
 	format: 'esm',
 	platform: 'node',
