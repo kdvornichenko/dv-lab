@@ -18,6 +18,10 @@ const OPERATIONS: Record<CalendarCommandSnapshot['operation'], string> = {
 	restore: 'Restore lesson',
 	move_series: 'Move series',
 	end_series: 'End series',
+	event_create: 'Create event',
+	event_update: 'Change event',
+	event_delete: 'Delete event',
+	assign: 'Assign lesson',
 }
 
 function commandCopy(entry: CommandEntry): string {

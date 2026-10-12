@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
 	calendarDate,
+	calendarEditScope,
 	calendarEventColor,
 	calendarInstant,
 	calendarRevision,
@@ -9,16 +10,23 @@ import {
 	calendarVersion,
 	hexColor,
 } from './calendar.ts'
-import { CLOCK_TIME_PATTERN, REPEATS } from './schedule.ts'
-import { LESSON_MINUTES_MIN } from './students.ts'
 
-export { calendarEventColor, hexColor, type CalendarEventColor } from './calendar.ts'
+export {
+	calendarEditScope,
+	calendarEventColor,
+	createCalendarEventRequest,
+	deleteCalendarEventRequest,
+	hexColor,
+	updateCalendarEventRequest,
+	type CalendarEditScope,
+	type CalendarEventColor,
+	type CreateCalendarEventRequest,
+	type DeleteCalendarEventRequest,
+	type UpdateCalendarEventRequest,
+} from './calendar.ts'
 
 const eventKey = z.string().min(1).max(1024)
 const colorId = z.string().min(1).max(64)
-const clockTime = z.string().regex(CLOCK_TIME_PATTERN)
-const eventMinutes = z.number().int().min(LESSON_MINUTES_MIN)
-const eventTitle = z.string().trim().min(1).max(1024)
 const eventDescription = z.string().max(8192)
 const eventLocation = z.string().max(1024)
 const generation = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
@@ -43,9 +51,6 @@ export const googleEventPalette = z.strictObject({
 	colors: z.array(googlePaletteColor),
 })
 export type GoogleEventPalette = z.infer<typeof googleEventPalette>
-
-export const calendarEditScope = z.enum(['one', 'following', 'all'])
-export type CalendarEditScope = z.infer<typeof calendarEditScope>
 
 export const calendarEventRepeat = z.discriminatedUnion('kind', [
 	z.strictObject({ kind: z.literal('once') }),
@@ -79,46 +84,6 @@ export const calendarEventDetails = z.strictObject({
 	}),
 })
 export type CalendarEventDetails = z.infer<typeof calendarEventDetails>
-
-export const createCalendarEventRequest = z.strictObject({
-	requestId: z.uuid(),
-	title: eventTitle,
-	date: calendarDate,
-	startTime: clockTime,
-	durationMinutes: eventMinutes,
-	repeats: z.enum(REPEATS),
-	colorId: colorId.nullable(),
-	description: eventDescription.nullable(),
-	location: eventLocation.nullable(),
-	expectedDefaultTimeZone: calendarTimeZone,
-})
-export type CreateCalendarEventRequest = z.infer<typeof createCalendarEventRequest>
-
-export const updateCalendarEventRequest = z.strictObject({
-	requestId: z.uuid(),
-	expectedVersion: calendarVersion,
-	scope: calendarEditScope,
-	changes: z
-		.strictObject({
-			title: eventTitle.optional(),
-			date: calendarDate.optional(),
-			startTime: clockTime.optional(),
-			durationMinutes: eventMinutes.optional(),
-			repeats: z.enum(REPEATS).optional(),
-			colorId: colorId.nullable().optional(),
-			description: eventDescription.nullable().optional(),
-			location: eventLocation.nullable().optional(),
-		})
-		.refine((changes) => Object.values(changes).some((value) => value !== undefined)),
-})
-export type UpdateCalendarEventRequest = z.infer<typeof updateCalendarEventRequest>
-
-export const deleteCalendarEventRequest = z.strictObject({
-	requestId: z.uuid(),
-	expectedVersion: calendarVersion,
-	scope: calendarEditScope,
-})
-export type DeleteCalendarEventRequest = z.infer<typeof deleteCalendarEventRequest>
 
 export const assignCalendarEventRequest = z.strictObject({
 	requestId: z.uuid(),
