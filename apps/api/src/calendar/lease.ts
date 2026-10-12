@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/node-postgres'
+import { setTimeout as delay } from 'node:timers/promises'
 import type { Pool } from 'pg'
 
 import type { Database } from '@dv-lab/db'
@@ -6,6 +7,9 @@ import type { Database } from '@dv-lab/db'
 import { CalendarFault } from './gateway.ts'
 
 export type ConnectionLeaseContext = { db: Database; signal: AbortSignal }
+
+const LOCK_WAIT_MS = 5000
+const LOCK_RETRY_MS = 100
 
 export function createConnectionLease(pool: Pool) {
 	let stopping = false
@@ -22,12 +26,17 @@ export function createConnectionLease(pool: Pool) {
 		let locked = false
 		let broken = false
 		try {
-			if (stopping) throw new CalendarFault('provider_unavailable')
-			const result = await client.query<{ locked: boolean }>(
-				'select pg_try_advisory_lock(hashtextextended($1, 24)) as locked',
-				[accountId]
-			)
-			locked = result.rows[0]?.locked === true
+			const deadline = Date.now() + LOCK_WAIT_MS
+			for (;;) {
+				if (stopping) throw new CalendarFault('provider_unavailable')
+				const result = await client.query<{ locked: boolean }>(
+					'select pg_try_advisory_lock(hashtextextended($1, 24)) as locked',
+					[accountId]
+				)
+				locked = result.rows[0]?.locked === true
+				if (locked || Date.now() >= deadline) break
+				await delay(LOCK_RETRY_MS, undefined, { signal: controller.signal })
+			}
 			if (!locked) throw new CalendarFault('command_pending')
 			return await operation({ db: drizzle({ client }), signal: controller.signal })
 		} finally {
