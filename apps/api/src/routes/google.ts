@@ -10,18 +10,27 @@ import {
 	googleUnresolvedCommandsQuery,
 	googleResumeCommandRequest,
 	googleConflictRequest,
+	googleEventPalette,
+	googleSyncSnapshot,
+	type GoogleEventPalette,
+	type GoogleSyncSnapshot,
 } from '@dv-lab/contracts'
-import type { Database } from '@dv-lab/db'
+import { scheduleDate } from '@dv-lab/core'
+import { readSnapshot, type Database, type DbExecutor } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { ConnectionControl } from '../calendar/connection-control.ts'
 import type { CalendarConnection } from '../calendar/connection.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
+import { findConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandSnapshot, findRequest, readCommand, unresolvedCommands } from '../calendar/journal.ts'
 import type { ConsentActor } from '../calendar/oauth-session.ts'
+import { syncFacts, type SyncFacts } from '../calendar/projection.ts'
+import { eventColors, lastChecked } from '../calendar/read-model.ts'
 import { opaqueVersion } from '../calendar/read-state.ts'
 import { errorBody } from '../request-context.ts'
+import { readTeacherSettings } from '../settings/settings.ts'
 
 type GoogleRouteDeps = {
 	db: Database
@@ -50,6 +59,31 @@ function refusal(c: Context<AppEnv, string, {}>, error: unknown) {
 		}
 	}
 	return c.json(errorBody('provider_unavailable', 'Calendar is unavailable'), 503)
+}
+
+async function currentSync(executor: DbExecutor, accountId: string): Promise<SyncFacts | null> {
+	const row = await findConnection(executor, accountId)
+	if (!row || row.state !== 'connected') return null
+	return syncFacts(executor, row.id)
+}
+
+async function syncSnapshot(executor: DbExecutor, accountId: string): Promise<GoogleSyncSnapshot> {
+	const facts = await currentSync(executor, accountId)
+	if (!facts) return { state: 'off', revision: '0', lastCheckedAt: null, windowStart: null, windowEnd: null }
+	const { defaultTimeZone } = await readTeacherSettings(executor, accountId)
+	const checked = lastChecked(facts)
+	return googleSyncSnapshot.parse({
+		state: facts.fullStartedAt ? 'running' : facts.issue ? 'failed' : 'idle',
+		revision: facts.revision.toString(),
+		lastCheckedAt: checked?.toISOString() ?? null,
+		windowStart: scheduleDate(facts.windowStart, defaultTimeZone),
+		windowEnd: scheduleDate(facts.windowEnd, defaultTimeZone),
+	})
+}
+
+async function eventPalette(executor: DbExecutor, accountId: string): Promise<GoogleEventPalette> {
+	const colors = eventColors(await currentSync(executor, accountId))
+	return googleEventPalette.parse({ calendarColor: colors.calendarColor, colors: colors.palette ?? [] })
 }
 
 export function googleRoutes({ db, connection, control, commands, isStopping }: GoogleRouteDeps) {
@@ -81,6 +115,12 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 		if (!connection || isStopping()) return refusal(c, null)
 		return c.json(await connection.readConnection(actor(c).accountId))
 	})
+	routes.get('/sync', async (c) =>
+		c.json(await readSnapshot(db, (executor) => syncSnapshot(executor, actor(c).accountId)))
+	)
+	routes.get('/colors', async (c) =>
+		c.json(await readSnapshot(db, (executor) => eventPalette(executor, actor(c).accountId)))
+	)
 	routes.post('/conflicts', async (c) => {
 		const input = await readJson(c, googleConflictRequest)
 		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)

@@ -44,10 +44,6 @@ function requiredFacts(facts: ReadonlyMap<string, CardFacts>, id: string): CardF
 	return value
 }
 
-export async function cardIds(executor: DbExecutor): Promise<string[]> {
-	return (await executor.select({ id: students.id }).from(students)).map((row) => row.id)
-}
-
 async function toDetail(executor: DbExecutor, row: CardRecord, context: CardReadContext): Promise<StudentDetail> {
 	const facts = await cardFacts(executor, [row], context)
 	const account = await findStudentAccount(executor, row.id)

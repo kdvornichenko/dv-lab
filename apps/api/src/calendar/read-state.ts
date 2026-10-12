@@ -24,10 +24,6 @@ export function recordRead(context: CalendarReadContext, result: ReadReceipt | C
 	receipts.set(context, result)
 }
 
-export function currentRead(context: CalendarReadContext) {
-	return receipts.get(context)
-}
-
 export function opaqueVersion(parts: readonly (string | number | bigint | null)[]): string {
 	return createHash('sha256').update(parts.map(String).join('\0')).digest('hex')
 }

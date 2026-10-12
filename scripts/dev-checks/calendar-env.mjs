@@ -123,8 +123,10 @@ function healthz(port) {
 
 const redact = (text) => text.replace(/postgres(ql)?:\/\/\S+/g, '<redacted>')
 
-export async function startCalendarApi({ port, envFile }) {
+export async function startCalendarApi({ port, envFile, appOrigin }) {
 	if (envFile !== '.env' && envFile !== '.env.test') throw new Error('envFile must be .env or .env.test')
+	if (appOrigin !== undefined && !/^http:\/\/localhost:\d+$/.test(appOrigin))
+		throw new Error('appOrigin must be a http://localhost origin')
 	if (!(await portFree(port))) throw new Error(`port ${port} is busy`)
 	const base = `http://localhost:${port}`
 	const env = {
@@ -132,7 +134,7 @@ export async function startCalendarApi({ port, envFile }) {
 		...calendarEnv(),
 		NODE_ENV: envFile === '.env.test' ? 'test' : 'development',
 		PORT: String(port),
-		APP_ORIGIN: base,
+		APP_ORIGIN: appOrigin ?? base,
 		LOG_LEVEL: 'info',
 	}
 	delete env.DATABASE_URL

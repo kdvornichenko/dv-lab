@@ -65,7 +65,7 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		isStopping: lifecycle.isStopping,
 	})
 	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
-	return { connection, control, commands, worker, observation, resources: [worker, control, lease, credentials] }
+	return { connection, control, commands, worker, resources: [worker, control, lease, credentials] }
 }
 
 const app = createApp({
@@ -85,11 +85,7 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
 
 const server = serve(
 	{
-		async fetch(request, bindings) {
-			const response = await app.fetch(request, bindings)
-			calendar?.observation.publicResponse(request, response, bindings.outgoing)
-			return response
-		},
+		fetch: app.fetch,
 		port: config.PORT,
 		websocket: { server: wss },
 	},
