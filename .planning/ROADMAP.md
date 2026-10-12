@@ -15,21 +15,23 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 
 **Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and merged in PR #8 after green CI (c1ddae4).
 
+**Status 2026-10-12:** 17-21.1 are released; 24 has plan 24-14 (live Google check) open; 25 is being reworked into 25.1; 22, 23 and 26 are planned and not started.
+
 **Phase Numbering:**
 
 - Integer phases (17, 18, 19): planned v2.0 work, continuing from v1.1 (last phase 16)
 - Decimal phases (17.1, 17.2): urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 17: Skeleton on the Server** - Clean monorepo on the latest stack, CI on PostgreSQL 18, images in GHCR, HTTPS and backups on the VPS
-- [ ] **Phase 18: Accounts and Variant A Shell** - Teacher and student sign-in ported from ielts, inside the variant A shell
-- [ ] **Phase 19: Student Cards and Vault Import** - Cards with sections, vocabulary and payments; all 25 vault students imported
-- [ ] **Phase 20: Schedule** - Week grid with single lessons, weekly series and occurrence exceptions
+- [x] **Phase 17: Skeleton on the Server** - Clean monorepo on the latest stack, CI on PostgreSQL 18, images in GHCR, HTTPS and backups on the VPS (released; human acceptance deferred)
+- [x] **Phase 18: Accounts and Variant A Shell** - Teacher and student sign-in ported from ielts, inside the variant A shell (released; human acceptance deferred)
+- [x] **Phase 19: Student Cards and Vault Import** - Cards with sections, vocabulary and payments; all 25 vault students imported (released; human acceptance deferred)
+- [x] **Phase 20: Schedule** - Week grid with single lessons, weekly series and occurrence exceptions (merged in PR 6)
 - [x] **Phase 21: Lesson Accounting and Today** - Lesson marks deduct minutes by shared core rules; Today and "pays soon" from real data (completed 2026-10-11)
 - [x] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates (completed 2026-10-11)
 - [ ] **Phase 22: Chat with Mentions and Quick Marks** - Conversations, `@student` mentions, instant marks with undo, answers from data, budget cap
 - [ ] **Phase 23: Confirmed Chat Changes and Entry Points** - Payments, new students, deletions and bulk moves after confirmation; palette, profile and phone layouts
-- [ ] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check
-- [ ] **Phase 25: Google Calendar Two-Way Sync** - Push notifications, `syncToken`, `410` resync, event matching, Google wins
+- [ ] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check (13 of 14 plans; live provider check pending)
+- [ ] **Phase 25: Google Calendar Two-Way Sync** - Push notifications, `syncToken`, `410` resync, event matching, Google wins (to be reworked as 25.1 core: see STATE.md decisions D5-D10)
 - [ ] **Phase 26: IELTS Section** - ielts ported under `/ielts` with its data moved from Neon and Blob
 
 ## Phase Details
