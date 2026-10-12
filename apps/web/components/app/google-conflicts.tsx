@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import type { z } from 'zod'
 
@@ -68,6 +68,10 @@ function samePublication(window: GoogleScheduleWindow | null | undefined, public
 	)
 }
 
+function publicationRevision(window: GoogleScheduleWindow | null) {
+	return window?.read.state === 'fresh' ? window.read.revision : JSON.stringify(window?.read)
+}
+
 function selectionRange(selection: Selection, through: string | null) {
 	const proposal = selection.proposal
 	const infinite =
@@ -128,6 +132,7 @@ export function useGoogleConflicts(selection: Selection) {
 	const request = useRef<AbortController | null>(null)
 	const mounted = useRef(false)
 	const latestPublication = useRef<GoogleScheduleWindow | null>(null)
+	const attempted = useRef<string | null>(null)
 	const proposal = selection.proposal
 	const { infinite, minimum, rangeValid } = selectionRange(selection, through)
 	const key = JSON.stringify([
@@ -135,17 +140,20 @@ export function useGoogleConflicts(selection: Selection) {
 		selection.editedRef,
 		selection.series,
 		selection.available,
+		selection.date,
 		through,
 		controller.view.connection,
 		controller.blocked,
 	])
 	const currentKey = useRef(key)
 	const allowed = selection.available && !controller.blocked && proposal !== null && rangeValid
+	const autoKey = JSON.stringify([key, publicationRevision(publication)])
 	if (stored !== null && stored.key !== key) setStored(null)
 	if (loading !== null && loading !== key) setLoading(null)
 
 	useEffect(() => {
 		currentKey.current = key
+		attempted.current = null
 		sequence.current += 1
 		request.current?.abort()
 	}, [key])
@@ -159,6 +167,7 @@ export function useGoogleConflicts(selection: Selection) {
 			if (document.visibilityState !== 'visible') return
 			const token = ++sequence.current
 			request.current?.abort()
+			attempted.current = null
 			setStored(null)
 			setLoading(null)
 			void store.refresh().then(() => {
@@ -187,34 +196,50 @@ export function useGoogleConflicts(selection: Selection) {
 		setLoading(key)
 		setStored(null)
 		const current = () => mounted.current && token === sequence.current && currentKey.current === key
-		const window = await readWindow(selection.date, current)
-		if (!current()) return
-		const version = window === null ? null : targetVersion(window, selection)
-		if (!version || !window) {
-			setStored({ key, result: { state: 'unavailable', inputKey: key, reason: 'external_change' }, window: null })
-			setLoading(null)
-			return
+		try {
+			const window = await readWindow(selection.date, current)
+			if (!current()) return
+			attempted.current = JSON.stringify([key, publicationRevision(window)])
+			const version = window === null ? null : targetVersion(window, selection)
+			if (!version || !window) {
+				setStored({ key, result: { state: 'unavailable', inputKey: key, reason: 'external_change' }, window: null })
+				return
+			}
+			const input = googleConflictRequest.parse({
+				proposal,
+				editedRef: selection.editedRef,
+				expectedVersion: version,
+				checkThrough: infinite ? (through ?? undefined) : undefined,
+			})
+			const expectedKey = await conflictInputKey(input, window)
+			if (!current()) return
+			const response = await apiRequest<unknown>('POST', '/google/conflicts', input, {
+				signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30000)]),
+			})
+			if (!current()) return
+			const result = response.ok ? googleConflictResult.safeParse(response.data) : null
+			const checked =
+				result?.success && (result.data.state !== 'complete' || result.data.inputKey === expectedKey)
+					? result.data
+					: { state: 'unavailable' as const, inputKey: key, reason: 'provider_unavailable' as const }
+			setStored({ key, result: checked, window })
+		} catch {
+			if (!current()) return
+			setStored({ key, result: { state: 'unavailable', inputKey: key, reason: 'provider_unavailable' }, window: null })
+		} finally {
+			if (current()) setLoading(null)
 		}
-		const input = googleConflictRequest.parse({
-			proposal,
-			editedRef: selection.editedRef,
-			expectedVersion: version,
-			checkThrough: infinite ? (through ?? undefined) : undefined,
-		})
-		const expectedKey = await conflictInputKey(input, window)
-		if (!current()) return
-		const response = await apiRequest<unknown>('POST', '/google/conflicts', input, {
-			signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30000)]),
-		})
-		if (!current()) return
-		const result = response.ok ? googleConflictResult.safeParse(response.data) : null
-		const checked =
-			result?.success && (result.data.state !== 'complete' || result.data.inputKey === expectedKey)
-				? result.data
-				: { state: 'unavailable' as const, inputKey: key, reason: 'provider_unavailable' as const }
-		setStored({ key, result: checked, window })
-		setLoading(null)
 	}
+	const automaticallyCheck = useEffectEvent(() => {
+		if (!allowed || loading === key || attempted.current === autoKey) return
+		attempted.current = autoKey
+		void check()
+	})
+	useEffect(() => {
+		if (!allowed) return
+		const timer = setTimeout(automaticallyCheck, 200)
+		return () => clearTimeout(timer)
+	}, [allowed, autoKey, loading, stored])
 
 	const view = resultState(stored, key, publication, controller.view.connection, allowed, loading)
 	function isCurrent() {

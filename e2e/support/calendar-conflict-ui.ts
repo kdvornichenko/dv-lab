@@ -28,11 +28,9 @@ async function openCreate(page: Page) {
 
 export async function conflictCreateUi(page: Page) {
 	test.setTimeout(300000)
+	const response = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/google/conflicts')
 	const { dialog, sample } = await openCreate(page)
 	const save = dialog.getByRole('button', { name: 'Add lesson', exact: true })
-	expect(await save.isDisabled()).toBe(true)
-	const response = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/google/conflicts')
-	await dialog.getByRole('button', { name: 'Check overlaps', exact: true }).click()
 	const raw: unknown = await (await response).json()
 	const result = parseCalendarResponse(googleConflictResult, raw)
 	expect(result.state).toBe('complete')
@@ -41,8 +39,6 @@ export async function conflictCreateUi(page: Page) {
 		await expect(
 			dialog.getByText('You can still save this change. Google Calendar must confirm it before it is saved.')
 		).toBeVisible()
-	await dialog.locator('#new-lesson-length').fill('61')
-	await expect(save).toBeDisabled()
 	const fault = armCalendarFault({
 		method: 'GET',
 		resource: 'events',
@@ -51,17 +47,23 @@ export async function conflictCreateUi(page: Page) {
 		delayMs: 5000,
 	})
 	try {
-		await dialog.getByRole('button', { name: 'Check overlaps', exact: true }).click()
+		await dialog.locator('#new-lesson-length').fill('61')
+		await expect(save).toBeDisabled()
 		await expect
 			.poll(() => calendarFaultEvidence(fault).some((item) => item.phase === 'response_held'), { timeout: 20000 })
 			.toBe(true)
 		await dialog.locator('#new-lesson-length').fill('62')
 		await expect(save).toBeDisabled()
 		await dialog.locator('#new-lesson-length').fill('61')
-		await expect(dialog.getByRole('button', { name: 'Check overlaps', exact: true })).toBeEnabled()
+		await expect(save).toBeDisabled()
 	} finally {
 		disarmCalendarFault(fault)
 	}
+	await expect(save).toBeEnabled()
+	await dialog.locator('#new-lesson-length').fill('')
+	await expect(save).toBeDisabled()
+	await dialog.locator('#new-lesson-length').fill('61')
+	await expect(save).toBeEnabled()
 	await dialog.locator('#new-lesson-repeats').click()
 	await page.getByRole('option', { name: 'Every week', exact: true }).click()
 	await expect(dialog.getByRole('button', { name: 'Check through: Choose date', exact: true })).toBeVisible()
@@ -74,9 +76,11 @@ export async function conflictCreateUi(page: Page) {
 	await expect(dialog).toBeVisible()
 	if (sample.request.proposal.operation !== 'create') throw new Error('Create proposal is required')
 	await pickDate(page, sample.request.proposal.input.date, 'google-check-through')
+	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeEnabled()
 	await dialog.getByRole('button', { name: /^Check through:/ }).click()
 	await page.locator('[data-day][data-selected-single="true"]').click()
 	await expect(dialog.getByRole('button', { name: 'Check through: Choose date', exact: true })).toBeVisible()
+	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeDisabled()
 }
 
 export async function conflictReconnectUi(page: Page) {
@@ -116,7 +120,6 @@ export async function conflictReconnectUi(page: Page) {
 		.toBe(true)
 	await page.bringToFront()
 	await expect(dialog.locator('#new-lesson-length')).toHaveValue(inputs)
-	await expect(dialog.getByRole('button', { name: 'Add lesson', exact: true })).toBeDisabled()
-	await expect(dialog.getByRole('button', { name: 'Check overlaps', exact: true })).toBeEnabled()
+	await expect(dialog.getByRole('button', { name: 'Add lesson', exact: true })).toBeEnabled()
 	await settings.close()
 }
