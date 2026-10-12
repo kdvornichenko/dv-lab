@@ -137,7 +137,7 @@ export function MoveSeriesDialog({
 				: { kind: 'series', seriesId: rule.id, originalOn: rule.referenceOccurrence.originalOn },
 		series,
 		date: today,
-		available: available && !pending && !command.blocked && !context.stale && notice !== 'stale',
+		available: available && !command.blocked && !context.stale && notice !== 'stale',
 	})
 
 	function edit<T>(set: (value: T) => void, field?: Field) {

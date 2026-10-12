@@ -130,7 +130,7 @@ export function LessonMoveForm({
 				: null,
 		editedRef: block.ref,
 		date: scheduleDate(start, context.mainTimeZone),
-		available: available && !disabled && !command.blocked && !context.stale && !sourceChanged,
+		available: available && !locked && !command.blocked && !context.stale && !sourceChanged,
 	})
 
 	useEffect(() => {
