@@ -1,8 +1,15 @@
-import { and, count, eq, isNull, notInArray, sql } from 'drizzle-orm'
-import { createHash, randomBytes } from 'node:crypto'
+import { and, count, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
 import { googleConnectionSnapshot, type GoogleConnectionSnapshot } from '@dv-lab/contracts'
-import { googleCommands, googleConnections, googleOAuthFlows, type Database, type DbExecutor } from '@dv-lab/db'
+import {
+	googleCommands,
+	googleConnections,
+	googleEventMappings,
+	googleOAuthFlows,
+	type Database,
+	type DbExecutor,
+} from '@dv-lab/db'
 
 import { credentialBinding, findConnection, type ConnectionRow, type Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway, type GoogleTokens, type PrimaryCalendar } from './gateway.ts'
@@ -82,6 +89,38 @@ export function createConnection(deps: {
 		})
 	}
 
+	async function retire(tx: DbExecutor, row: ConnectionRow) {
+		const [pending] = await tx
+			.select({ value: count() })
+			.from(googleCommands)
+			.where(and(eq(googleCommands.accountId, row.accountId), notInArray(googleCommands.state, ['applied', 'failed'])))
+		if (pending?.value) throw new CalendarFault('command_pending')
+		const [retired] = await tx
+			.update(googleConnections)
+			.set({ retiredAt: sql`now()`, updatedAt: sql`now()` })
+			.where(
+				and(
+					eq(googleConnections.id, row.id),
+					eq(googleConnections.generation, row.generation),
+					eq(googleConnections.credentialGeneration, row.credentialGeneration),
+					eq(googleConnections.state, 'not_connected'),
+					isNull(googleConnections.retiredAt)
+				)
+			)
+			.returning({ id: googleConnections.id })
+		if (!retired) throw new CalendarFault('invalid_state')
+		await tx
+			.update(googleEventMappings)
+			.set({ state: 'retired', retiredAt: sql`now()` })
+			.where(
+				and(
+					eq(googleEventMappings.accountId, row.accountId),
+					eq(googleEventMappings.connectionId, row.id),
+					inArray(googleEventMappings.state, ['reserved', 'active'])
+				)
+			)
+	}
+
 	async function install(
 		context: ConnectionLeaseContext,
 		actor: ConsentActor,
@@ -90,50 +129,71 @@ export function createConnection(deps: {
 		primary: PrimaryCalendar,
 		issuedAt: number
 	) {
-		if (row.calendarId && row.calendarId !== primary.id) throw new CalendarFault('wrong_primary')
+		const switching = row.calendarId !== null && row.calendarId !== primary.id
+		if (switching && row.state !== 'not_connected') throw new CalendarFault('wrong_primary')
 		const refreshToken =
 			tokens.refresh_token ??
-			(row.encryptedRefreshToken ? deps.envelope.open(row.encryptedRefreshToken, credentialBinding(row)) : null)
+			(!switching && row.encryptedRefreshToken
+				? deps.envelope.open(row.encryptedRefreshToken, credentialBinding(row))
+				: null)
 		if (!refreshToken) throw new CalendarFault('missing_refresh_token')
 		context.signal.throwIfAborted()
+		const id = switching ? randomUUID() : row.id
 		const credentialGeneration = row.credentialGeneration + 1
 		const encryptedRefreshToken = deps.envelope.seal(refreshToken, {
-			...credentialBinding(row),
+			...credentialBinding({ ...row, id }),
 			generation: credentialGeneration,
 		})
+		const target = {
+			state: 'connected' as const,
+			issue: null,
+			calendarId: primary.id,
+			calendarLabel: primary.label,
+			calendarTimeZone: primary.timeZone,
+			generation: row.generation + 1,
+			credentialGeneration,
+			encryptedRefreshToken,
+			credentialMode: 'active' as const,
+			disconnectResolution: 'none' as const,
+			revokeAttemptId: null,
+			revokeStartedAt: null,
+			revokeFinishedAt: null,
+			updatedAt: sql`now()`,
+		}
+		const returning = {
+			id: googleConnections.id,
+			generation: googleConnections.generation,
+			credentialGeneration: googleConnections.credentialGeneration,
+		}
 		const installed = await context.db.transaction(async (tx) => {
 			await requireConsentSession(tx, actor)
+			if (switching) {
+				await retire(tx, row)
+				const [created] = await tx
+					.insert(googleConnections)
+					.values({
+						...target,
+						id,
+						accountId: row.accountId,
+						historyCutoverAt: new Date(),
+						snapshotRevision: row.snapshotRevision,
+					})
+					.returning(returning)
+				if (!created) throw new CalendarFault('invalid_state')
+				return created
+			}
 			const [updated] = await tx
 				.update(googleConnections)
-				.set({
-					state: 'connected',
-					issue: null,
-					calendarId: primary.id,
-					calendarLabel: primary.label,
-					calendarTimeZone: primary.timeZone,
-					historyCutoverAt: row.historyCutoverAt ?? new Date(),
-					generation: row.generation + 1,
-					credentialGeneration,
-					encryptedRefreshToken,
-					credentialMode: 'active',
-					disconnectResolution: 'none',
-					revokeAttemptId: null,
-					revokeStartedAt: null,
-					revokeFinishedAt: null,
-					updatedAt: sql`now()`,
-				})
+				.set({ ...target, historyCutoverAt: row.historyCutoverAt ?? new Date() })
 				.where(
 					and(
 						eq(googleConnections.id, row.id),
 						eq(googleConnections.generation, row.generation),
-						eq(googleConnections.credentialGeneration, row.credentialGeneration)
+						eq(googleConnections.credentialGeneration, row.credentialGeneration),
+						isNull(googleConnections.retiredAt)
 					)
 				)
-				.returning({
-					id: googleConnections.id,
-					generation: googleConnections.generation,
-					credentialGeneration: googleConnections.credentialGeneration,
-				})
+				.returning(returning)
 			if (!updated) throw new CalendarFault('invalid_state')
 			return updated
 		})

@@ -156,7 +156,9 @@ function callbackMessage(reason: string | null): string | null {
 		case 'invalid_state':
 			return 'This connection request could not be verified. Start again from Settings.'
 		case 'wrong_primary':
-			return 'This Google account does not match the connected calendar. Reconnect with the original account.'
+			return 'This Google account cannot be used here. Reconnect with the account of the connected calendar, or disconnect first to switch accounts. The primary calendar must be yours or editable by you.'
+		case 'command_pending':
+			return 'Earlier calendar requests are not confirmed yet. Reconnect the previous Google account to resolve them before switching accounts.'
 		default:
 			return CONNECT_ERROR
 	}

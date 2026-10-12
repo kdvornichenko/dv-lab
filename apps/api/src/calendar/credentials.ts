@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 
 import { googleConnections, type Database, type DbExecutor } from '@dv-lab/db'
 
@@ -11,8 +11,12 @@ export type ConnectionRow = typeof googleConnections.$inferSelect
 type Access = { token: string; expiresAt: number; generation: number; credentialGeneration: number }
 
 export async function findConnection(db: DbExecutor, accountId: string): Promise<ConnectionRow | undefined> {
-	const [row] = await db.select().from(googleConnections).where(eq(googleConnections.accountId, accountId)).limit(1)
+	const [row] = await db.select().from(googleConnections).where(currentConnection(accountId)).limit(1)
 	return row
+}
+
+export function currentConnection(accountId: string) {
+	return and(eq(googleConnections.accountId, accountId), isNull(googleConnections.retiredAt))
 }
 
 export function credentialBinding(row: ConnectionRow) {

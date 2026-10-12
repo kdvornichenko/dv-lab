@@ -13,6 +13,8 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
+import { currentConnection } from './credentials.ts'
+
 type HistorySubject = {
 	ref: OccurrenceRef
 	studentId: string
@@ -42,7 +44,7 @@ export async function lockHistoryConnection(executor: DbExecutor, accountId: str
 	await executor
 		.select({ id: googleConnections.id })
 		.from(googleConnections)
-		.where(eq(googleConnections.accountId, accountId))
+		.where(currentConnection(accountId))
 		.for('share')
 }
 
@@ -192,7 +194,7 @@ function disprovesHistory(proof: NextHistory, event: HistoryEvent, subject: Hist
 export async function historyEligibility(executor: DbExecutor, accountId: string, subjects: readonly HistorySubject[]) {
 	const eligible = new Set<string>()
 	if (subjects.length === 0) return eligible
-	const [connection] = await executor.select().from(googleConnections).where(eq(googleConnections.accountId, accountId))
+	const [connection] = await executor.select().from(googleConnections).where(currentConnection(accountId))
 	if (!connection?.historyCutoverAt) return new Set(subjects.map(({ ref }) => occurrenceKey(ref)))
 	const cutoff = connection.historyCutoverAt
 	const existing = await existingBefore(executor, subjects, cutoff)

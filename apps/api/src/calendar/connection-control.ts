@@ -5,7 +5,13 @@ import type { Logger } from 'pino'
 import { googleCommands, googleCommandStages, googleConnections, type Database, type DbExecutor } from '@dv-lab/db'
 
 import { readConnection } from './connection.ts'
-import { credentialBinding, findConnection, type ConnectionRow, type Credentials } from './credentials.ts'
+import {
+	credentialBinding,
+	currentConnection,
+	findConnection,
+	type ConnectionRow,
+	type Credentials,
+} from './credentials.ts'
 import { CalendarFault, GOOGLE_REQUEST_TIMEOUT_MS, type GoogleGateway } from './gateway.ts'
 import { retireReservations } from './journal.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
@@ -237,7 +243,7 @@ export function createConnectionControl(deps: ControlDeps) {
 				const [row] = await tx
 					.select()
 					.from(googleConnections)
-					.where(eq(googleConnections.accountId, actor.accountId))
+					.where(currentConnection(actor.accountId))
 					.for('update')
 					.limit(1)
 				if (!row || row.state === 'not_connected' || row.state === 'disconnecting') return

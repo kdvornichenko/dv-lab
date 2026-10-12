@@ -36,6 +36,9 @@ const DISCONNECTED =
 	'Google Calendar disconnected. Your local history, Google events and unfinished request records were kept.'
 const DISCONNECT_ERROR = 'Could not confirm the disconnect request. Refresh the connection status before trying again.'
 
+const SWITCH_HINT =
+	'Connect the same Google account to continue with this calendar, or choose another account. If you switch, lessons stay in dv-lab as local history and are not copied to the new calendar. Records of the previous calendar are kept.'
+
 function ConnectionSummary({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 	const disconnected = snapshot.state === 'not_connected' && snapshot.disconnectResolution !== 'none'
 	return (
@@ -49,6 +52,9 @@ function ConnectionSummary({ snapshot }: { snapshot: GoogleConnectionSnapshot })
 					<p>{snapshot.calendar.label}</p>
 					<p>{snapshot.calendar.timeZone}</p>
 				</div>
+			) : null}
+			{snapshot.state === 'not_connected' && snapshot.calendar !== null ? (
+				<p className="text-muted-foreground">{SWITCH_HINT}</p>
 			) : null}
 			{snapshot.state === 'disconnecting' ? (
 				<p className="text-muted-foreground">
@@ -81,7 +87,7 @@ function ConnectionDialog({
 			body={
 				manual
 					? "Confirm only after you have removed dv-lab's access in your Google Account. This records your confirmation and clears stored connection credentials. Your calendar events and local history stay."
-					: 'Calendar changes will stop. Google access will be revoked and live connection credentials cleared. Your local history, Google events and unfinished request records will stay. Reconnecting the same calendar checks earlier requests before you can make new changes.'
+					: 'Calendar changes will stop. Google access will be revoked and live connection credentials cleared. Your local history, Google events and unfinished request records will stay. Reconnecting the same calendar checks earlier requests before you can make new changes. After disconnecting you can also connect another Google account.'
 			}
 			cancelLabel={manual ? 'Back' : 'Keep connected'}
 			confirmLabel={manual ? 'Confirm access removed' : 'Disconnect'}
@@ -167,7 +173,7 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 								disabled={state.pending !== null}
 								onClick={(event) => choose(action, event.currentTarget)}
 							>
-								{LABELS[action]}
+								{action === 'connect' && snapshot.calendar !== null ? 'Connect Google account' : LABELS[action]}
 							</Button>
 						))}
 						<Button
