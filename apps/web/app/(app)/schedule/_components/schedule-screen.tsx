@@ -187,6 +187,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 		onPrevious: () => go(addDays(requestedMonday, -7), false),
 		onNext: () => go(addDays(requestedMonday, 7), false),
 	}
+	const pickWeek = (target: string) => go(target, target === currentMonday)
 	const loadingFirst = week.kind === 'loading' && data === null
 	const refreshWeek = async () => {
 		await reload()
@@ -263,6 +264,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 				{inBar(
 					<ScheduleBar
 						{...navigation}
+						onWeek={pickWeek}
 						today={today}
 						titleRef={titleRef}
 						summary={loadingFirst ? null : weekSummary(events, monday, mainTimeZone)}
