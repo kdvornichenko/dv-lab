@@ -121,7 +121,7 @@ export const students = pgTable(
 			sql`(${table.rateMinor} is null) = (${table.currency} is null) and (${table.rateMinor} is null or ${table.rateMinor} > 0)`
 		),
 		check('students_currency_ck', sql`${table.currency} is null or ${table.currency} ~ '^[A-Z]{3}$'`),
-		check('students_lesson_minutes_ck', sql`${table.defaultLessonMinutes} between 15 and 240`),
+		check('students_lesson_minutes_ck', sql`${table.defaultLessonMinutes} > 0`),
 		check(
 			'students_text_ck',
 			sql`(${table.parent} is null or char_length(${table.parent}) between 1 and 200) and (${table.level} is null or char_length(${table.level}) between 1 and 200) and (${table.goals} is null or char_length(${table.goals}) between 1 and 200)`
@@ -234,7 +234,7 @@ export const lessonSeries = pgTable(
 		check('lesson_series_starts_on_ck', sql`extract(isodow from ${table.startsOn}) = ${table.weekday}`),
 		check('lesson_series_ends_on_ck', sql`${table.endsOn} is null or ${table.endsOn} >= ${table.startsOn} - 1`),
 		check('lesson_series_start_time_ck', sql`extract(second from ${table.startTime}) = 0`),
-		check('lesson_series_minutes_ck', sql`${table.durationMinutes} between 15 and 240`),
+		check('lesson_series_minutes_ck', sql`${table.durationMinutes} > 0`),
 	]
 )
 
@@ -263,7 +263,7 @@ export const lessonExceptions = pgTable(
 		),
 		check(
 			'lesson_exceptions_minutes_ck',
-			sql`${table.durationMinutes} is null or ${table.durationMinutes} between 15 and 240`
+			sql`${table.durationMinutes} is null or ${table.durationMinutes} > 0`
 		),
 	]
 )
@@ -286,7 +286,7 @@ export const lessons = pgTable(
 		index('lessons_starts_at_idx').on(table.startsAt),
 		index('lessons_student_starts_idx').on(table.studentId, table.startsAt),
 		check('lessons_status_ck', sql`${table.status} in ('scheduled', 'cancelled')`),
-		check('lessons_minutes_ck', sql`${table.durationMinutes} between 15 and 240`),
+		check('lessons_minutes_ck', sql`${table.durationMinutes} > 0`),
 	]
 )
 

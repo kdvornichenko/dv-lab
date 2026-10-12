@@ -5,12 +5,12 @@ import { useRef, useState, type FormEvent } from 'react'
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { ConflictStatus, GoogleConflicts, lessonOverlaps, useGoogleConflicts } from '@/components/app/google-conflicts'
-import { TextField } from '@/components/app/text-field'
+import { LengthField } from '@/components/app/length-field'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { TabItem, Tabs, TabsList } from '@/components/ui/tabs'
 import { TimePicker } from '@/components/ui/time-picker'
-import { formatLength, LENGTH_HELPER, lengthError, normalizeLength, parseLength } from '@/lib/lesson-length'
+import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 import { formatDate, secondWhen, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone, zoneName } from '@/lib/time-zones'
 
@@ -113,7 +113,8 @@ export function NewLessonDialog({
 	const [studentId, setStudentId] = useState('')
 	const [date, setDate] = useState(seed.date)
 	const [time, setTime] = useState<string | null>(seed.time)
-	const [lengthText, setLengthText] = useState(formatLength(initialMinutes))
+	const [length, setLength] = useState<number | null>(initialMinutes)
+	const [lengthKey, setLengthKey] = useState(0)
 	const [span, setSpan] = useState(initialMinutes)
 	const [lengthEdited, setLengthEdited] = useState(seed.dragged === true)
 	const [repeats, setRepeats] = useState<LessonRepeats>('once')
@@ -127,8 +128,8 @@ export function NewLessonDialog({
 	const lengthRef = useRef<HTMLInputElement>(null)
 
 	const active = activeStudents(students)
-	const lengthProblem = lengthError(lengthText)
-	const minutes = lengthProblem === undefined ? parseLength(lengthText) : null
+	const minutes = length
+	const lengthProblem = length === null ? LENGTH_ERROR : undefined
 	const weekday = weekdayOf(date)
 	const input = localTimeInput(date, time, context)
 	const timeError = serverGap ? gapMessage(context.mainTimeZone) : input.error
@@ -171,11 +172,10 @@ export function NewLessonDialog({
 		available: available && !context.stale && !command.blocked,
 	})
 
-	function commitLength() {
-		const next = normalizeLength(lengthText)
-		setLengthText(next)
-		const parsed = parseLength(next)
-		if (parsed !== null && parsed > 0) setSpan(parsed)
+	function commitLength(next: number | null) {
+		if (next !== span) setLengthEdited(true)
+		setLength(next)
+		if (next !== null) setSpan(next)
 		touch('length')
 	}
 
@@ -184,7 +184,8 @@ export function NewLessonDialog({
 		if (lengthEdited) return
 		const row = active.find((student) => student.id === value)
 		if (row) {
-			setLengthText(formatLength(row.defaultLessonMinutes))
+			setLength(row.defaultLessonMinutes)
+			setLengthKey((key) => key + 1)
 			setSpan(row.defaultLessonMinutes)
 		}
 	}
@@ -194,7 +195,8 @@ export function NewLessonDialog({
 		let next = clockMinutes(value) - clockMinutes(time)
 		if (next <= 0) next += DAY_MINUTES
 		setSpan(next)
-		setLengthText(formatLength(next))
+		setLength(next)
+		setLengthKey((key) => key + 1)
 		setLengthEdited(true)
 		touch('length')
 	}
@@ -343,28 +345,15 @@ export function NewLessonDialog({
 								</div>
 							</div>
 							<div className="grid items-start gap-3 sm:grid-cols-2">
-								<TextField
-									ref={lengthRef}
+								<LengthField
+									key={lengthKey}
+									hoursRef={lengthRef}
 									id="new-lesson-length"
-									name="length"
-									label="Length"
-									inputMode="numeric"
-									autoComplete="off"
-									value={lengthText}
-									onChange={(event) => {
-										setLengthText(event.target.value)
-										setLengthEdited(true)
-									}}
-									onBlur={commitLength}
-									onKeyDown={(event) => {
-										if (event.key !== 'Enter') return
-										event.preventDefault()
-										commitLength()
-									}}
+									initialMinutes={length ?? span}
+									onCommit={commitLength}
 									disabled={pending}
 									helper={lengthHelper}
 									error={shown('length')}
-									className="pointer-coarse:text-[16px]"
 								/>
 								<div className="flex min-w-0 flex-col gap-2">
 									<span id="new-lesson-repeats-label" className="text-body text-muted-foreground">

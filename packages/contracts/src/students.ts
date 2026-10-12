@@ -27,14 +27,13 @@ export const PAYMENT_SOURCES = ['manual', 'vault'] as const
 
 export type PaymentSource = (typeof PAYMENT_SOURCES)[number]
 
-export const LESSON_MINUTES_MIN = 15
-export const LESSON_MINUTES_MAX = 240
+export const LESSON_MINUTES_MIN = 1
 export const LESSON_MINUTES_DEFAULT = 60
 
 export const studentLessonOption = z.strictObject({
 	id: z.uuid(),
 	displayName: z.string(),
-	defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_MAX),
+	defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN),
 })
 
 export const studentLessonOptionsResponse = z.strictObject({ students: z.array(studentLessonOption) })
@@ -100,7 +99,7 @@ export const saveStudentRequest = z
 		displayName: z.string().transform(normalizeDisplayName).refine(isDisplayNameLength),
 		rateMinor: amountMinor.nullable(),
 		currency: currency.nullable(),
-		defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_MAX),
+		defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN),
 		parent: optionalText(STUDENT_TEXT_MAX_LENGTH),
 		level: optionalText(STUDENT_TEXT_MAX_LENGTH),
 		goals: optionalText(STUDENT_TEXT_MAX_LENGTH),

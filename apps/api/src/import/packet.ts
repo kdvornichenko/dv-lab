@@ -3,7 +3,6 @@ import { z } from 'zod'
 import {
 	AMOUNT_MINOR_MAX,
 	CURRENCIES,
-	LESSON_MINUTES_MAX,
 	LESSON_MINUTES_MIN,
 	PAYMENT_NOTE_MAX_LENGTH,
 	SECTION_BODY_MAX_LENGTH,
@@ -37,7 +36,7 @@ const student = z.object({
 		.object({
 			amountMinor,
 			currency: z.enum(CURRENCIES),
-			lessonMinutes: z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_MAX),
+			lessonMinutes: z.number().int().min(LESSON_MINUTES_MIN),
 		})
 		.nullable(),
 	sections: z.array(

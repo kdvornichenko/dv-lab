@@ -10,7 +10,7 @@ import {
 	type ScheduleOccurrenceRef,
 	type ScheduleSeries,
 } from './schedule.ts'
-import { isIsoDate, isTimeZone, LESSON_MINUTES_MAX, LESSON_MINUTES_MIN } from './students.ts'
+import { isIsoDate, isTimeZone, LESSON_MINUTES_MIN } from './students.ts'
 
 export const calendarIssue = z.enum([
 	'connection_required',
@@ -158,7 +158,7 @@ const scheduleSeries = z.strictObject({
 	weekday: z.literal([1, 2, 3, 4, 5, 6, 7]),
 	startTime: z.string().regex(CLOCK_TIME_PATTERN),
 	timeZone: calendarTimeZone,
-	durationMinutes: z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_MAX),
+	durationMinutes: z.number().int().min(LESSON_MINUTES_MIN),
 	startsOn: calendarDate,
 	endsOn: calendarDate.nullable(),
 	referenceOccurrence: z

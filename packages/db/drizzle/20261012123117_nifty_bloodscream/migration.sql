@@ -1,0 +1,4 @@
+ALTER TABLE "lesson_exceptions" DROP CONSTRAINT "lesson_exceptions_minutes_ck", ADD CONSTRAINT "lesson_exceptions_minutes_ck" CHECK ("duration_minutes" is null or "duration_minutes" > 0);--> statement-breakpoint
+ALTER TABLE "lesson_series" DROP CONSTRAINT "lesson_series_minutes_ck", ADD CONSTRAINT "lesson_series_minutes_ck" CHECK ("duration_minutes" > 0);--> statement-breakpoint
+ALTER TABLE "lessons" DROP CONSTRAINT "lessons_minutes_ck", ADD CONSTRAINT "lessons_minutes_ck" CHECK ("duration_minutes" > 0);--> statement-breakpoint
+ALTER TABLE "students" DROP CONSTRAINT "students_lesson_minutes_ck", ADD CONSTRAINT "students_lesson_minutes_ck" CHECK ("default_lesson_minutes" > 0);

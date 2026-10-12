@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useRouter } from 'next/navigation'
 
+import { LengthField } from '@/components/app/length-field'
 import { TextField } from '@/components/app/text-field'
 import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Banner, BannerTitle } from '@/components/ui/banner'
@@ -19,7 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { apiRequest } from '@/lib/api-client'
-import { formatLength, LENGTH_HELPER, lengthError, normalizeLength, parseLength } from '@/lib/lesson-length'
+import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 
 import {
 	CURRENCIES,
@@ -46,7 +47,7 @@ interface Values {
 	name: string
 	rate: string
 	currency: string
-	lessonMinutes: string
+	lessonMinutes: number | null
 	timeZone: string
 	parent: string
 	level: string
@@ -73,7 +74,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 			name: '',
 			rate: '',
 			currency: NO_CURRENCY,
-			lessonMinutes: formatLength(LESSON_MINUTES_DEFAULT),
+			lessonMinutes: LESSON_MINUTES_DEFAULT,
 			timeZone: SAME_TIME_ZONE,
 			parent: '',
 			level: '',
@@ -84,7 +85,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 		name: student.displayName,
 		rate: student.rateMinor === null ? '' : minorToInput(student.rateMinor, student.currency),
 		currency: student.currency ?? NO_CURRENCY,
-		lessonMinutes: formatLength(student.defaultLessonMinutes),
+		lessonMinutes: student.defaultLessonMinutes,
 		timeZone: student.timeZone ?? SAME_TIME_ZONE,
 		parent: student.parent ?? '',
 		level: student.level ?? '',
@@ -118,9 +119,8 @@ function parse(values: Values): Parsed {
 		errors.currency = 'Enter the rate or set the currency to None.'
 	}
 
-	const lessonProblem = lengthError(values.lessonMinutes)
-	const lessonMinutes = parseLength(values.lessonMinutes) ?? Number.NaN
-	if (lessonProblem !== undefined) errors.lessonMinutes = lessonProblem
+	const lessonMinutes = values.lessonMinutes ?? Number.NaN
+	if (values.lessonMinutes === null) errors.lessonMinutes = LENGTH_ERROR
 
 	for (const field of ['parent', 'level', 'goals'] as const) {
 		if (textLength(values[field]) > STUDENT_TEXT_MAX_LENGTH) {
@@ -310,18 +310,14 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 							</FieldFrame>
 						</div>
 						<div className="grid gap-4 sm:grid-cols-2">
-							<TextField
-								ref={lessonRef}
+							<LengthField
+								hoursRef={lessonRef}
 								id="student-form-lesson"
-								name="lessonMinutes"
 								label="Lesson length"
-								inputMode="numeric"
-								autoComplete="off"
+								initialMinutes={student?.defaultLessonMinutes ?? LESSON_MINUTES_DEFAULT}
 								helper={LENGTH_HELPER}
-								value={values.lessonMinutes}
-								onChange={(event) => set('lessonMinutes', event.target.value)}
-								onBlur={() => {
-									set('lessonMinutes', normalizeLength(values.lessonMinutes))
+								onCommit={(minutes) => {
+									setValues((current) => ({ ...current, lessonMinutes: minutes }))
 									touch('lessonMinutes')
 								}}
 								disabled={pending}
