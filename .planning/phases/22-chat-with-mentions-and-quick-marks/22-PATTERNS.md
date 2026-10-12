@@ -1,7 +1,7 @@
 # Phase 22: Chat with Mentions and Quick Marks — Pattern Map
 
 **Mapped:** 2026-10-12  
-**Source Root:** `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`  
+**Source Root:** `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`  
 **HEAD:** `913fc5ae9286aca9a48b5ce4272699c846849874`  
 **Inventory:** 73 строки: 71 предполагаемый file target и 2 отдельные строки Parent/RuntimeSource. New 29; Modified 32; Conditional 7; Generated 3; Parent 1; RuntimeSource 1. Все будущие изменения — PROPOSED, а не разрешение mapper на запись source.  
 **Analogs:** 54 / 73 строки (exact 45, role-match 9, none 19). Для 71 file target: 54 с аналогом, 17 без аналога. 5 основных образцов; остальные чтения — точные владельцы и необходимые callers, без расширенного поиска.
@@ -764,7 +764,7 @@ None не заменяется mock или SDK skeleton как “реальны
 
 ## Metadata
 
-Analog search scope: tracked apps/api/src, apps/web app/lib/components/app, packages/contracts/src, packages/db/src и existing e2e/support. .codegraph/.codex/skills/.agents/skills отсутствуют в Root; indexing не выполнялся. work-router и gsd-phase-recipe прочитаны; конфликтующие Git/delegation/cleanup/model defaults подавлены текущим контрактом. Новые агенты не создавались.
+Analog search scope: tracked apps/api/src, apps/web app/lib/components/app, packages/contracts/src, packages/db/src и existing e2e/support. .codegraph/.runtime/skills/.agents/skills отсутствуют в Root; indexing не выполнялся. work-router и gsd-phase-recipe прочитаны; конфликтующие Git/delegation/cleanup/model defaults подавлены текущим контрактом. Новые агенты не создавались.
 
 Files fingerprinted: 50 tracked source/config/harness files + 8 authority/phase inputs. Source lines below describe current read snapshot, not runtime/type/quality proof. Generated apps/web/AGENTS.md read only as instructions, never code analog. Search stopped after 5 primary matches; ancillary reads bound actual seams/callers. Bounded line reads used where Read connector unavailable; no repeated search/provider queries. Write/Read named tools are not exposed in this runtime; authorized sole document written through apply_patch, no shell/heredoc file creation.
 
@@ -836,7 +836,7 @@ Files fingerprinted: 50 tracked source/config/harness files + 8 authority/phase 
 | `e2e/support/calendar-fault-control.ts`                         |             77 | `67cb0a8bb73aabd5119613b11aaa2108617d77680acdc9ef054ee944fc23f3aa` |
 | `playwright.config.ts`                                          |             45 | `0154cbcb60ae2c6ff9c7d3127d1cc0fc75c10f5b821f807409113a95a638c420` |
 
-**Exact document checks:** root-pin command `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` exit0, ROOT_PIN_OK immediately before write. Tracked-source checks use `git ls-files -- <each analog path>`, matching full path, not mere disk existence. Static checks passed with original exit0: 73 classification/assignment rows, SC1–5/F01–10/ARCH-A1–A3, 58 unchanged fingerprints, 50 tracked sources, 32 verbatim excerpts and 61 UI predicates. Output document SHA-256 reported outside file to avoid recursive hash.
+**Exact document checks:** root-pin command `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` exit0, ROOT_PIN_OK immediately before write. Tracked-source checks use `git ls-files -- <each analog path>`, matching full path, not mere disk existence. Static checks passed with original exit0: 73 classification/assignment rows, SC1–5/F01–10/ARCH-A1–A3, 58 unchanged fingerprints, 50 tracked sources, 32 verbatim excerpts and 61 UI predicates. Output document SHA-256 reported outside file to avoid recursive hash.
 
 Exact reproducible command from Root (stdlib, read-only; no new checker file):
 

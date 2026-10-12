@@ -21,7 +21,7 @@ DATA_0c95a34e_START
 - **D-06:** Existing history, marks, payment facts and stable card identities remain intact under the applicable domain policy. Schedule rows are not physically removed. Research must distinguish supported deletion/archive operations and name the owner; it must not invent a destructive business operation from a model phrase.
 - **D-07:** Essay feedback is an approximate estimate, not an official IELTS result. It uses the Phase 22 configured provider/model/budget path. Phase 26 exam workflow is excluded.
 - **D-08:** UI reuses Base UI and variant A/v40. Product copy is English. No eyebrows, Radix or cmdk. Navigation, focus, confirmation and phone interactions require public browser evidence.
-- **D-09:** The owner authorized autonomous research/planning/UI/check/implementation and coordinated release/testing without questions while away. New agents use gpt-6.1-sol. Server guy owns runtime/release leases and secrets. Missing observations remain UNVERIFIED.
+- **D-09:** The owner authorized autonomous research/planning/UI/check/implementation and coordinated release/testing without questions while away. New agents use the session agent model. Server guy owns runtime/release leases and secrets. Missing observations remain UNVERIFIED.
 
 ## Unreviewed Defaults
 
@@ -514,12 +514,12 @@ Research-plan /dev/stdin selected context7 for tool docs and websearch for IELTS
 
 | Command                                                                                                               | Status  | Decisive output                                                        |
 | --------------------------------------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------- |
-| node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query init.phase-op 23                                    | 0       | phase_found=true; exact23 root                                         |
+| node ~/.claude/gsd-core/bin/gsd-tools.cjs query init.phase-op 23                                    | 0       | phase_found=true; exact23 root                                         |
 | git status --short; git branch --show-current; git log -5 --pretty=format:'%h %s' (separate calls)                    | 0 each  | Shared branch/source snapshot23ee562; no mutation                      |
 | query research-plan --input /dev/stdin via Python subprocess                                                          | 0       | context7/websearch cache misses                                        |
-| node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query classify-confidence --provider websearch --verified | 0       | MEDIUM                                                                 |
+| node ~/.claude/gsd-core/bin/gsd-tools.cjs query classify-confidence --provider websearch --verified | 0       | MEDIUM                                                                 |
 | git ls-files -- scoped source inventory via Python subprocess                                                         | 0       | 21 tracked source/instruction/config files from selected24-entry basis |
-| bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab        | 0       | ROOT_PIN_OK before owned write                                         |
+| bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab        | 0       | ROOT_PIN_OK before owned write                                         |
 | Source/design reads + hashlib                                                                                         | 0       | Hashes below, no raw student/provider content retained                 |
 | Runtime/browser/DB/provider/model spike/build/tests/deps/Git mutations/deletion                                       | NOT RUN | Task exclusions; no runtime pass                                       |
 

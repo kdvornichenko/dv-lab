@@ -471,12 +471,12 @@ Dependency22/25 inputs boundinROOT initialread snapshot; Parent maycommit metada
 ExactAPI detector command/status exit1 observednegative:
 
 ```python
-python3 -c 'from pathlib import Path; import subprocess,json,re; p=Path(".planning/phases/23-confirmed-chat-changes-and-entry-points"); r=Path(".planning/ROADMAP.md").read_text(); m=re.search(r"^### Phase 23:.*?(?=^### |\\Z)",r,re.M|re.S); assert m; scope="\n".join(x.read_text() for x in sorted(p.glob("*-PLAN.md")))+m.group(0); q=subprocess.run(["node","/Users/kdvornichenko/.codex/gsd-core/bin/lib/api-coverage.cjs","--json"],input=scope,text=True,capture_output=True); print(json.dumps({"exit":q.returncode,"result":json.loads(q.stdout)},ensure_ascii=False)); raise SystemExit(q.returncode)'
+python3 -c 'from pathlib import Path; import subprocess,json,re; p=Path(".planning/phases/23-confirmed-chat-changes-and-entry-points"); r=Path(".planning/ROADMAP.md").read_text(); m=re.search(r"^### Phase 23:.*?(?=^### |\\Z)",r,re.M|re.S); assert m; scope="\n".join(x.read_text() for x in sorted(p.glob("*-PLAN.md")))+m.group(0); q=subprocess.run(["node","~/.claude/gsd-core/bin/lib/api-coverage.cjs","--json"],input=scope,text=True,capture_output=True); print(json.dumps({"exit":q.returncode,"result":json.loads(q.stdout)},ensure_ascii=False)); raise SystemExit(q.returncode)'
 ```
 
-Exactnative gate: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/23-confirmed-chat-changes-and-entry-points --raw` exit0, passedtrue/blockfalse/detectedfalse/coverage_presentfalse.
-UIgate: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check ui-plan-gate 23 --raw` exit0 frontendtrue/hasUiSpectrue/blockfalse.
-`loop render-hooks plan:pre --raw` exit0 actualactive13entries; `query estimate-calibration` exit0 factor1/sample0/low. `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` exit0 ROOT_PIN_OK before firstwrite. Actualdoc/staticproofreceipts follow below; no sourcechecks claimedrun.
+Exactnative gate: `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/23-confirmed-chat-changes-and-entry-points --raw` exit0, passedtrue/blockfalse/detectedfalse/coverage_presentfalse.
+UIgate: `node ~/.claude/gsd-core/bin/gsd-tools.cjs check ui-plan-gate 23 --raw` exit0 frontendtrue/hasUiSpectrue/blockfalse.
+`loop render-hooks plan:pre --raw` exit0 actualactive13entries; `query estimate-calibration` exit0 factor1/sample0/low. `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` exit0 ROOT_PIN_OK before firstwrite. Actualdoc/staticproofreceipts follow below; no sourcechecks claimedrun.
 
 ## Preparation verification receipt
 
@@ -508,7 +508,7 @@ python3 - <<'PY'
 from pathlib import Path
 import subprocess,json
 p=Path(".planning/phases/23-confirmed-chat-changes-and-entry-points")
-tool="/Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs"
+tool="~/.claude/gsd-core/bin/gsd-tools.cjs"
 out=[]
 for f in sorted(p.glob("*-PLAN.md")):
  for op in [ ["frontmatter","validate",str(f),"--schema","plan"], ["verify","plan-structure",str(f)] ]:
@@ -606,7 +606,7 @@ PY
 Native gap command:
 
 ```bash
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw
+node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw
 ```
 
 Read-only native plan:post render exit0 exposes review-squad/html-plan-review steps and gap-analysis gate. Deterministic gap completed. Independent checker/review belongs Parent after metadata rebind; this planner does not dispatch agents or imply human approval/HTMLreview completion.
@@ -665,7 +665,7 @@ PC03 follow-up: 23-03/T2 now joins the two existing E07 commands with XML-escape
 
 Full independent checker plus bounded corrections: CLEAN,0blockers, current report SHA-256 `e6d0f013d120978f2121e17e491ca3f857f91f84e3ec43f73e253537e47ee224`. Separate risk and design critics: ZERO surviving findings. Current proof scopes, fingerprint conventions and exact separator-only rebind are recorded in `23-SQUAD-REVIEW.md`.
 
-Native gap recheck after corrections: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw` — exit0/enabled=true/passed=true/block=false;16/16 covered,0uncovered. HTML review explicitly SKIPPED for autonomous mode; no active BLOCKER/MAJOR requires a devils-advocate pass. No human approval, source implementation or runtime/model/provider/phone PASS is implied.
+Native gap recheck after corrections: `node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw` — exit0/enabled=true/passed=true/block=false;16/16 covered,0uncovered. HTML review explicitly SKIPPED for autonomous mode; no active BLOCKER/MAJOR requires a devils-advocate pass. No human approval, source implementation or runtime/model/provider/phone PASS is implied.
 
 Final owned-doc format check first exited1 for23-PATTERNS/23-SQUAD-REVIEW/ROADMAP. Configured Prettier3.9.9 normalized only those files. Each final byte SHA exactly matches formatting of its prior bytes; private23-document-format-proof.json preserves before/after hashes. Current PATTERNS row above is rebound; original embedded planner/checker hashes remain historical. All15 executable PLAN bytes, decisions, predicate resolutions, Source and current UI-SPEC bytes are unchanged by formatting.
 

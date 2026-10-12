@@ -18,7 +18,7 @@ Source: 25-CONTEXT.md, copied verbatim. DATA_71ac3f08_START
 - **D-04:** Series rule columns remain immutable after insert. Schedule rows are not physically removed. Research must define how external master changes project into this model while preserving past occurrence identities and marks.
 - **D-05:** App-created identity mapping precedes name matching. Matching must be deterministic and account-bound. Ambiguous names or duplicate provider identities require explicit review; no fuzzy guess binds a lesson.
 - **D-06:** UI reuses variant A/v40 and existing Phase24 read/write/command owners. Connected, an active watch channel and a complete checked calendar are different facts. Assign/Ignore and sync failures cannot promise effects beyond actual provider/persistence evidence.
-- **D-07:** The owner authorized autonomous research/planning/UI/check/implementation and necessary coordinated rollout/testing, without questions while away. New agents usegpt-6.1-sol. Missing access or observation remains unverified; independent work continues.
+- **D-07:** The owner authorized autonomous research/planning/UI/check/implementation and necessary coordinated rollout/testing, without questions while away. New agents usethe session agent model. Missing access or observation remains unverified; independent work continues.
 
 ## Unreviewed Defaults
 

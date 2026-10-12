@@ -162,7 +162,7 @@ Metadata commit создаётся отдельно и содержит толь
 | `yarn playwright test e2e/calendar.spec.ts --grep '\[calendar\] credential recovery' --project=light --no-deps`                                   | 0 / PASS      | 2 passed (1.7s); anonymous 401, invalid confirmation 400, foreign Origin 403 |
 | `git diff --check`                                                                                                                                | 0 / PASS      | Нет whitespace errors                                                        |
 | `node scripts/dev-checks/wait-dev.mjs down`                                                                                                       | 0 / PASS      | DEV_DOWN_OK после остановки собственных API/web                              |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab`                                                     | 0 / PASS      | ROOT_PIN_OK; branch agent-24-contracts, protected=false                      |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase24-contracts/dv-lab`                                                     | 0 / PASS      | ROOT_PIN_OK; branch agent-24-contracts, protected=false                      |
 
 Финальная команда форматирования, exit 0, `All matched files use Prettier code style!`:
 

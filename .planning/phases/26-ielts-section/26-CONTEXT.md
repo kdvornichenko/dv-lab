@@ -20,7 +20,7 @@ Requirements: IELTS-01…06. This phase is a port of the existing product, not a
 - **D-07:** Source IELTS is read-only at `/Volumes/T7/personal/ielts`, current commit `df57b7000c6adc60f35071065b4423d426d263a0`. Its `.env.local`/Neon main database is production, not a fixture target. Research does not read secrets, connect to that database or run destructive old tests.
 - **D-08:** The accepted dv-lab target supersedes old IELTS hosting-only Vercel/Blob constraints for this port. Other source behavior and data boundaries remain input. Server guy owns actual server/database/media operations, runtime leases and secrets; private profile addresses stay outside repositories.
 - **D-09:** Reuse dv-lab Base UI, variant A and shared auth/contracts/core boundaries. Product copy is English; no eyebrows, Radix or cmdk. Screen changes must preserve the existing IELTS interactions.
-- **D-10:** The owner authorized autonomous research/planning/UI/check/implementation and necessary coordinated rollout/testing without questions while away. New agents use gpt-6.1-sol. Missing observations remain UNVERIFIED; no new paid provider or environment is implied.
+- **D-10:** The owner authorized autonomous research/planning/UI/check/implementation and necessary coordinated rollout/testing without questions while away. New agents use the session agent model. Missing observations remain UNVERIFIED; no new paid provider or environment is implied.
 
 ## Unreviewed Defaults
 

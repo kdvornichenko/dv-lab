@@ -66,7 +66,7 @@ A2: connected provider proof отсутствует. Основание: зад�
 
 ### CR-01 — P1 / BLOCKER: минимальный cancelled ACK не подтверждает успешную отмену
 
-**File:** /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab/apps/api/src/calendar/command-result.ts:78-85
+**File:** ~/.claude/worktrees/phase24-contracts/dv-lab/apps/api/src/calendar/command-result.ts:78-85
 **Связанные строки:** gateway.ts:275-301 (conditional PATCH и verifyGoogleResult); dispatch.ts:314-315 (refusedDispatch); recovery.ts:197-205 (GET через тот же verifier).
 
 **Issue:** verifier безусловно требует полный private marker, затем parseMaster требует etag/status. Для cancelled resource Google не гарантирует эти дополнительные поля. Настоящий успешный conditional cancel с ответом, содержащим id/status и без extendedProperties, отклоняется как external_change на строке 81. ACK не сохраняется, domain остаётся scheduled, command становится recovery_required/unknown. Последующий sparse GET снова проходит тот же verifier и не может завершить команду. Barrier блокирует новые edits, а confirmedCancellation не допускает R2, поскольку cancel не applied.
@@ -77,7 +77,7 @@ A2: connected provider proof отсутствует. Основание: зад�
 
 ### CR-02 — P1 / BLOCKER: R2 replacement теряет чужие writable fields
 
-**File:** /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab/apps/api/src/calendar/event-mapping.ts:54-60
+**File:** ~/.claude/worktrees/phase24-contracts/dv-lab/apps/api/src/calendar/event-mapping.ts:54-60
 **Связанные строки:** schedule/single-command.ts:152-183; command-result.ts:87-92; dispatch.ts:322-327.
 
 **Issue:** replacement копирует только payload restore. В нём есть summary/start/end/status и маркеры. Description, location, reminders, attendees и чужие extendedProperties туда не попадают. Cancellation journal хранит нормализованный event и hash чужих полей, а не значения для восстановления. Новый insert создаёт representation без этих данных. preservesUnowned возвращает true для insert, поэтому утрата не препятствует applied.
@@ -88,7 +88,7 @@ A2: connected provider proof отсутствует. Основание: зад�
 
 ### CR-03 — P2 / BLOCKER: admission R2 не имеет общего лимита 30 секунд
 
-**File:** /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab/apps/api/src/calendar/commands.ts:89-99
+**File:** ~/.claude/worktrees/phase24-contracts/dv-lab/apps/api/src/calendar/commands.ts:89-99
 **Связанные строки:** credentials.ts:139-158; single-observation.ts:90-126; gateway.ts:149-182.
 
 **Issue:** admitSingle передаёт observeSingle только lease signal. У этого signal нет общего deadline. primary ограничивает собственный вызов 30 секундами, а identitySearch выполняет до 1000 страниц с отдельным 10-секундным timeout каждой страницы. Лимит 30 секунд worker появляется после admission и не ограничивает публичный POST. dispatchDeadline также только записывается после чтений и не прерывает их.
@@ -113,7 +113,7 @@ Pinned inventory: git diff --name-only 6ada73b31758986538c9db9c8312570a6f737d8d 
 Pin: git rev-parse 407d9c9 — exit 0, 407d9c99fa53afe681d168ff08b2c7efe2451918.
 Fingerprint: git diff --raw 6ada73b31758986538c9db9c8312570a6f737d8d 407d9c9 — exit 0, old/new Git blob IDs для тех же 21 paths. Commit фиксирует полные blobs; working tree не использован как semantic source.
 Чтение: git show 407d9c9:<path> и git diff 6ada73b 407d9c9 -- <paths>. Повторить эти команды для точных строк и всех changed segments.
-.gitignore: git check-ignore для reviewed calendar source и нового E2E helper не нашёл ignored paths. .codexignore и .codegraph отсутствуют. Локальные project skill directories отсутствуют; agent-skills query не указал дополнительных SKILL.md.
+.gitignore: git check-ignore для reviewed calendar source и нового E2E helper не нашёл ignored paths. .runtimeignore и .codegraph отсутствуют. Локальные project skill directories отсутствуют; agent-skills query не указал дополнительных SKILL.md.
 Контекст: AGENTS.md, EXECUTOR-RULES, 24-08 PLAN, CONTEXT, RESEARCH §3/§4, 24-07 SUMMARY и релевантные 24-08 SUMMARY claims. Указания на execution/commits не применялись к этому review.
 
 Runtime/Google/DB/E2E/typecheck/build/metrics: NOT RUN по authority. Connected Google TESTPRIMARY/grant missing — известное ограничение, не дополнительная ошибка. Owner quality measurements не перепроверены и не объявлены PASS. Приёмка SC2/SC3/R2 в runtime остаётся UNVERIFIED.

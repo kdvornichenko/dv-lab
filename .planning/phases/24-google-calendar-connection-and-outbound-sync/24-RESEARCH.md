@@ -121,7 +121,7 @@ Executed seam and npm metadata queries on 2026-10-11; no install. Official repos
 Verification commands:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query package-legitimacy check --ecosystem npm pg-boss googleapis
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query package-legitimacy check --ecosystem npm pg-boss googleapis
 npm view pg-boss version engines repository.url scripts.postinstall time --json
 npm view googleapis version engines repository.url scripts.postinstall time --json
 ```

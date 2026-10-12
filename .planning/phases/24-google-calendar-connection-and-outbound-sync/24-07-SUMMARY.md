@@ -276,7 +276,7 @@ Failure scenarios написаны в существующем E2E harness до 
 
 ## Next Boundary
 
-24-08 не начат. Общую metadata и runtime acceptance продолжает parent. Следующий backend run создаёт parent с явно выбранным gpt-6.1-sol; текущая работа не делегировалась заново.
+24-08 не начат. Общую metadata и runtime acceptance продолжает parent. Следующий backend run создаёт parent с явно выбранным the session agent model; текущая работа не делегировалась заново.
 
 ## Self-Check: PASSED
 

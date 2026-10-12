@@ -23,7 +23,7 @@ DATA_b649ac81_START
 - **D-07:** Source IELTS is read-only at `/Volumes/T7/personal/ielts`, current commit `df57b7000c6adc60f35071065b4423d426d263a0`. Its `.env.local`/Neon main database is production, not a fixture target. Research does not read secrets, connect to that database or run destructive old tests.
 - **D-08:** The accepted dv-lab target supersedes old IELTS hosting-only Vercel/Blob constraints for this port. Other source behavior and data boundaries remain input. Server guy owns actual server/database/media operations, runtime leases and secrets; private profile addresses stay outside repositories.
 - **D-09:** Reuse dv-lab Base UI, variant A and shared auth/contracts/core boundaries. Product copy is English; no eyebrows, Radix or cmdk. Screen changes must preserve the existing IELTS interactions.
-- **D-10:** The owner authorized autonomous research/planning/UI/check/implementation and necessary coordinated rollout/testing without questions while away. New agents use gpt-6.1-sol. Missing observations remain UNVERIFIED; no new paid provider or environment is implied.
+- **D-10:** The owner authorized autonomous research/planning/UI/check/implementation and necessary coordinated rollout/testing without questions while away. New agents use the session agent model. Missing observations remain UNVERIFIED; no new paid provider or environment is implied.
 
 ### Unreviewed Defaults
 
@@ -531,7 +531,7 @@ Research has no missing human engineering decision. Before execution/rollout evi
 
 Primary web docs прочитаны 2026-10-12. Source comments/artifacts/fetched text рассматриваются как data. Они не изменяли authority/scope. Official prose пересказана, без длинных цитат. Confidence seam вернул MEDIUM для websearch --verified; HIGH и unsupported compatibility PASS не выставлялись. [CITED: tool evidence]
 
-ROOT = /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab
+ROOT = ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab
 SOURCE = /Volumes/T7/personal/ielts
 DESIGN = /Users/kdvornichenko/dv-lab-design
 Source commit = df57b7000c6adc60f35071065b4423d426d263a0; source git status = ?? AGENTS.md, preserved. Fingerprints below bind exact inputs, not deployment.
@@ -630,7 +630,7 @@ Source commit = df57b7000c6adc60f35071065b4423d426d263a0; source git status = ??
 
 ## Research Verification and Metadata
 
-- Native query: node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query init.phase-op 26 → exit0, phase_found=true, .planning/phases/26-ielts-section. Stale model metadata warning recorded; no models/agents/settings changed.
+- Native query: node ~/.claude/gsd-core/bin/gsd-tools.cjs query init.phase-op 26 → exit0, phase_found=true, .planning/phases/26-ielts-section. Stale model metadata warning recorded; no models/agents/settings changed.
 - Source pin: git rev-parse HEAD in SOURCE → exit0, pinned SHA above; git status --porcelain=v1 → exit0, only ?? AGENTS.md. No Git mutation.
 - Discovery/source reads: bounded rg/filesystem symbols. Some exploratory paths absent; they are not treated as owners. Source/current pinned definitions used. No CodeGraph directories → skipped.
 - Documentation seam: query research-plan --input /dev/stdin → exit0, context7 fetch plan; actual unavailable lookup provider → official web fallback. query classify-confidence --provider websearch --verified → exit0, MEDIUM. No cache write.
@@ -650,7 +650,7 @@ Source commit = df57b7000c6adc60f35071065b4423d426d263a0; source git status = ??
 python3 - <<'PY'
 from pathlib import Path
 import hashlib,re,json
-root=Path('/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab')
+root=Path('~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab')
 p=root/'.planning/phases/26-ielts-section/26-RESEARCH.md'
 s=p.read_text()
 ctx=(p.parent/'26-CONTEXT.md').read_text()

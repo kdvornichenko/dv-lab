@@ -81,7 +81,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
 - [Owner, 2026-10-12]: Claude only, no Codex or other runtimes. Questions to the owner go through the chat, not a blind autonomous run. Design dude owns design, Server guy owns the server and releases; agents never reach prod.
-- [Owner, 2026-10-12, D1-D10]: order Google account switch -> design part 2 -> rework of Phase 25 sync; split integrate/calendar into PRs; rewrite the background sync (one task, no shared lock, version grows only on change, bounded window, cleanup, no extra tables); Phase 25.1 core = create any event, move and resize with the mouse, delete one/series/this and following, repeats, colors, description and place, calendar choice inside the account, store only needed Google fields; day/month views are not in the core (week only); history is not rewritten, `.codex` and GPT paths are removed from documents by a script; Phase 25 documents are shortened while planning 25.1.
+- [Owner, 2026-10-12, D1-D10]: order Google account switch -> design part 2 -> rework of Phase 25 sync; split integrate/calendar into PRs; rewrite the background sync (one task, no shared lock, version grows only on change, bounded window, cleanup, no extra tables); Phase 25.1 core = create any event, move and resize with the mouse, delete one/series/this and following, repeats, colors, description and place, calendar choice inside the account, store only needed Google fields; day/month views are not in the core (week only); history is not rewritten, legacy runtime paths are removed from documents by a script; Phase 25 documents are shortened while planning 25.1.
 - [Owner, 2026-10-12]: Live Google tests only locally on the owner test account (needs a local OAuth client with its own redirect, secrets not committed). Prod holds the teacher's working calendar and is never used for live writes; releases go to prod without live testing there. Supersedes the earlier decision to use dv-lab.dev as the prelaunch test target.
 - [Owner, 2026-10-12]: Lesson length has no upper limit (the 15-240 CHECK is removed by a migration); the schedule day runs 02:00-02:00; frequent actions are automated (overlap check runs by itself, no `c` shortcut, no New lesson button on the laptop toolbar).
 - [v2.0 roadmap, owner decision 2026-10-11]: After Phase 21, default time zone becomes a setting before Google Calendar (24-25), then chat (22-23), then IELTS (26). Calendar UAT waits for full Google sync.
@@ -109,7 +109,7 @@ Count lessons by range, one week at a time, dialog v42 and Copy icon (10, 11, 13
 
 ### Next steps
 
-1. Rewrite Phase 25 into 25.1 per D5-D10 (plan, shorten documents, remove `.codex`/GPT paths by script), then execute.
+1. Rewrite Phase 25 into 25.1 per D5-D10 (plan, shorten documents, remove legacy runtime paths by script), then execute.
 2. Plan 24-14 live check after the local OAuth client for the test account exists.
 3. Then 22 -> 23 -> 26.
 

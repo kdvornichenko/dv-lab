@@ -31,6 +31,6 @@ Raised3 BLOCKER; fixed3; current BLOCKER0/MAJOR0/MINOR0. Original findings and o
 - Review squad: completed with the three distinct lenses above. Code critic excluded by the user-owned GSD phase recipe.
 - Devils advocate: SKIPPED; no active BLOCKER/MAJOR claim remains to challenge.
 - HTML plan review: SKIPPED by the selected autonomous path of the installed html-plan-review skill. No human approval or completed HTML review is implied.
-- Gap gate: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw` — exit0, enabled=true, passed=true, block=false;16/16 covered,0 uncovered. Current raw output/argv are retained privately as `23-gap-analysis-plan-post-after-pc*.json`.
+- Gap gate: `node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw` — exit0, enabled=true, passed=true, block=false;16/16 covered,0 uncovered. Current raw output/argv are retained privately as `23-gap-analysis-plan-post-after-pc*.json`.
 
 Source23 waits for actual final24/25/22 signatures, schema, model/cap and target bindings. Runtime/provider/paid/phone proofs remain NOT RUN/UNVERIFIED.

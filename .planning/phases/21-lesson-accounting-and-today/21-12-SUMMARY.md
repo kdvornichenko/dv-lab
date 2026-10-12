@@ -112,7 +112,7 @@ Parent также обновляет progress и LEDG-08 и выполняет p
 Все команды выполнялись из ROOT фазы. Процессы завершились с указанными кодами. Ожидаемые отрицательные поиски сохранены как код `1`.
 
 - `bash scripts/gsd/root-pin.sh /Volumes/T7/personal/dv-lab/.claude/worktrees/gsd+phase-21-lesson-accounting-and-today` — код `0`, `ROOT_PIN_OK` перед первой правкой и коммитами.
-- `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected gsd/phase-21-lesson-accounting-and-today` — код `0`, `false`. ROOT, symbolic HEAD и sentinel совпали с веткой фазы.
+- `node ~/.claude/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected gsd/phase-21-lesson-accounting-and-today` — код `0`, `false`. ROOT, symbolic HEAD и sentinel совпали с веткой фазы.
 - `git apply --check --whitespace=error /private/tmp/dv-lab-phase21-parallel/21-12-task1.patch /private/tmp/dv-lab-phase21-parallel/21-12-task2.patch` — код `0`. Исходные SHA-256 совпали с подготовкой. Изменённые после подготовки владельцы пересверены с текущим кодом.
 - `grep -c "Оператор — Server guy" deploy/RUNBOOK.md` — код `0`, `1`.
 - `grep -c "(10.3, 10.5, 4.2)" deploy/RUNBOOK.md` — код `0`, `1`. Обе проверки повторены после tracer-коммита; задача 2 начата после их успеха.

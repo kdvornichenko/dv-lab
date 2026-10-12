@@ -1,6 +1,6 @@
 # Phase 23: Confirmed Chat Changes and Entry Points — Pattern Map
 
-**Дата:** 2026-10-12. **Root:** `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`.
+**Дата:** 2026-10-12. **Root:** `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`.
 
 **HEAD:** `81a11752853260327ba385475547a912b152842b`. **Source pin:** `913fc5ae9286aca9a48b5ce4272699c846849874`; HEAD добавил только docs25.
 
@@ -925,7 +925,7 @@ Final23 UI-CHECK: B01/B02 RESOLVED; неблокирующие Visuals/Color/Spa
 
 Из Root:
 
-- bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab — exit0/ROOT_PIN_OK перед первой записью.
+- bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab — exit0/ROOT_PIN_OK перед первой записью.
 - yarn prettier --check --embedded-language-formatting=off .planning/phases/23-confirmed-chat-changes-and-entry-points/23-PATTERNS.md — финальный original exit/status в handoff. Embedded code formatting отключён только для этого documentation check, чтобы сохранить дословные excerpts.
 - Inline Python stdlib command ниже проверяет67 inventory/assignments, SC/F/P/D/ARCH,69 UI, tracked/SHA/verbatim,13sourcepin и absent dependencies.
 
@@ -969,7 +969,7 @@ assert len(anchors)==13
 for f,h in anchors:
  assert hashlib.sha256(Path(f).read_bytes()).hexdigest()==h,f
  assert hashlib.sha256(subprocess.check_output(["git","show","913fc5ae9286aca9a48b5ce4272699c846849874:"+f])).hexdigest()==h,f
-assert Path.cwd().resolve()==Path("/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab")
+assert Path.cwd().resolve()==Path("~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab")
 assert subprocess.check_output(["git","rev-parse","HEAD"]).decode().strip()=="81a11752853260327ba385475547a912b152842b"
 print(json.dumps({"status":"PATTERNS_STATIC_OK","inventory":len(rows),"assignments":len(assigned),"tracked":len(tracked),"fingerprints":len(fingerprints),"excerpts":len(excerpts),"UI_predicates":len(predicates),"ARCH_anchors":len(anchors),"sha256":hashlib.sha256(p.read_bytes()).hexdigest()}))
 '

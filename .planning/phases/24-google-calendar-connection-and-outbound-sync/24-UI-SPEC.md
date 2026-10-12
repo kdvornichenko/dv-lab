@@ -39,7 +39,7 @@ design_version: 'v40'
 
 ### Authority and sources
 
-Пути репозитория относятся к `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`.
+Пути репозитория относятся к `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`.
 
 | Источник | Использование |
 | --- | --- |

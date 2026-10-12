@@ -37,13 +37,13 @@ Sole Registry production moved в12/T2 с existing primitives/required studentId
 
 | Command                                                                                                                                                               | Original exit / decisive output            |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/25-google-calendar-two-way-sync/25-03-PLAN.md`              | 0;valid:true,errors:[],warnings:[],tasks:2 |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/25-google-calendar-two-way-sync/25-03-PLAN.md --schema plan` | 0;valid:true                               |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/25-google-calendar-two-way-sync/25-04-PLAN.md`              | 0;valid:true,errors:[],warnings:[],tasks:3 |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/25-google-calendar-two-way-sync/25-04-PLAN.md --schema plan` | 0;valid:true                               |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/25-google-calendar-two-way-sync/25-12-PLAN.md`              | 0;valid:true,errors:[],warnings:[],tasks:2 |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/25-google-calendar-two-way-sync/25-12-PLAN.md --schema plan` | 0;valid:true                               |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                      | 0;ROOT_PIN_OK before report write          |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/25-google-calendar-two-way-sync/25-03-PLAN.md`              | 0;valid:true,errors:[],warnings:[],tasks:2 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/25-google-calendar-two-way-sync/25-03-PLAN.md --schema plan` | 0;valid:true                               |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/25-google-calendar-two-way-sync/25-04-PLAN.md`              | 0;valid:true,errors:[],warnings:[],tasks:3 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/25-google-calendar-two-way-sync/25-04-PLAN.md --schema plan` | 0;valid:true                               |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/25-google-calendar-two-way-sync/25-12-PLAN.md`              | 0;valid:true,errors:[],warnings:[],tasks:2 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/25-google-calendar-two-way-sync/25-12-PLAN.md --schema plan` | 0;valid:true                               |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                      | 0;ROOT_PIN_OK before report write          |
 
 Stdout-only audit ниже:exit0;12plans/30tasks/11waves;graph/ownership errors[];02∩12files=[];03files8/12files9/generated2/max14;36unique threat IDs;protected6/6 unchanged;31UI/24edge equality. Changed task automated/immediate fails_when7/7;23 literal read/test references resolve. Command text не выполнялся. Workspace typechecks и actual E2E из планов NOT RUN.
 
@@ -305,25 +305,25 @@ Exact lift:31/31 UI и24/24 edge resolutions в truths ровно один ра�
 
 ### Проверки
 
-Все проверки выполнялись из ROOT этого отчёта. Native binary `/Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs`, identity `@opengsd/gsd-core`, version1.16.0. Validators завершались; original numeric exit сохранён.
+Все проверки выполнялись из ROOT этого отчёта. Native binary `~/.claude/gsd-core/bin/gsd-tools.cjs`, identity `@opengsd/gsd-core`, version1.16.0. Validators завершались; original numeric exit сохранён.
 
-Для каждого literal plan path в таблице ниже выполнены `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure <path>` и `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate <path> --schema plan`. Каждый exit0/valid:true. Это обозначение выполненных команд, не shell variable.
+Для каждого literal plan path в таблице ниже выполнены `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure <path>` и `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate <path> --schema plan`. Каждый exit0/valid:true. Это обозначение выполненных команд, не shell variable.
 
 | Exact command                                                                                                                                                                                              | Status / decisive output                       |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs runtime-identity`                                                                                                                             | 0;@opengsd/gsd-core1.16.0                      |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query init.phase-op 25`                                                                                                                       | 0;phase context                                |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                                                                          | 0;typed role/no skill includes                 |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query roadmap.get-phase 25`                                                                                                                   | 0;found:true,5SC/5GCAL                         |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query phase.list-plans 25`                                                                                                                    | 0;11plans                                      |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check decision-coverage-plan .planning/phases/25-google-calendar-two-way-sync .planning/phases/25-google-calendar-two-way-sync/25-CONTEXT.md` | 0;passed:true,7/7                              |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/25-google-calendar-two-way-sync`                                                               | 0;passed:true,39/7/32                          |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query assumption-delta scan 25 --json`                                                                                                        | 0;detected:false,signals:[]                    |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check ui.plan-gate 25`                                                                                                                        | 0;frontend:true,hasUiSpec:true,block:false     |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.get .planning/phases/25-google-calendar-two-way-sync/25-01-PLAN.md --field must_haves`                                      | 0;actual consumer fallback verified separately |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                                           | 0;ROOT_PIN_OK before write                     |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs runtime-identity`                                                                                                                             | 0;@opengsd/gsd-core1.16.0                      |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query init.phase-op 25`                                                                                                                       | 0;phase context                                |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                                                                          | 0;typed role/no skill includes                 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query roadmap.get-phase 25`                                                                                                                   | 0;found:true,5SC/5GCAL                         |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query phase.list-plans 25`                                                                                                                    | 0;11plans                                      |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check decision-coverage-plan .planning/phases/25-google-calendar-two-way-sync .planning/phases/25-google-calendar-two-way-sync/25-CONTEXT.md` | 0;passed:true,7/7                              |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/25-google-calendar-two-way-sync`                                                               | 0;passed:true,39/7/32                          |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query assumption-delta scan 25 --json`                                                                                                        | 0;detected:false,signals:[]                    |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check ui.plan-gate 25`                                                                                                                        | 0;frontend:true,hasUiSpec:true,block:false     |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.get .planning/phases/25-google-calendar-two-way-sync/25-01-PLAN.md --field must_haves`                                      | 0;actual consumer fallback verified separately |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                                           | 0;ROOT_PIN_OK before write                     |
 
-Каждый plan estimate проверен `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens <tokens> --calibrated`:exit0,budget100000,over_budget:false,confidence:low,sample_count0. Точные tokens по планам ниже. Estimates ещё не project-calibrated; token pass не отменяет scope findings.
+Каждый plan estimate проверен `node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens <tokens> --calibrated`:exit0,budget100000,over_budget:false,confidence:low,sample_count0. Точные tokens по планам ниже. Estimates ещё не project-calibrated; token pass не отменяет scope findings.
 
 Stdout-only Python3/PyYAML/ElementTree audit:exit0;XML29tasks,31UI/24edge exact lift,requirements5,dependency/ownership errors[],waves11,29immediate fails_when,28durable E2E targets resolved+1typecheck. Новые labels прямо создаются перед behavior; никакой discovery/listing не зачтён behavioral PASS.
 
@@ -414,7 +414,7 @@ issues:
 ### Native consumer evidence
 
 ```sh
-node -e 'const fs=require('fs'),m=require('/Users/kdvornichenko/.codex/gsd-core/bin/lib/frontmatter.cjs'),p='.planning/phases/25-google-calendar-two-way-sync/';let a=0,k=0;for(const f of fs.readdirSync(p).filter(x=>x.endsWith('-PLAN.md'))){const s=fs.readFileSync(p+f,'utf8');for(const x of m.parseMustHavesBlock(s,'artifacts')){if(typeof x!=='object'||!x.path)process.exit(1);a++}for(const x of m.parseMustHavesBlock(s,'key_links')){if(typeof x!=='object'||!x.from||!x.to)process.exit(1);k++}}console.log(JSON.stringify({artifacts:a,key_links:k,typed:true}));'
+node -e 'const fs=require('fs'),m=require('~/.claude/gsd-core/bin/lib/frontmatter.cjs'),p='.planning/phases/25-google-calendar-two-way-sync/';let a=0,k=0;for(const f of fs.readdirSync(p).filter(x=>x.endsWith('-PLAN.md'))){const s=fs.readFileSync(p+f,'utf8');for(const x of m.parseMustHavesBlock(s,'artifacts')){if(typeof x!=='object'||!x.path)process.exit(1);a++}for(const x of m.parseMustHavesBlock(s,'key_links')){if(typeof x!=='object'||!x.from||!x.to)process.exit(1);k++}}console.log(JSON.stringify({artifacts:a,key_links:k,typed:true}));'
 ```
 
 Exit:0. Stdout: `{"artifacts":95,"key_links":11,"typed":true}`.

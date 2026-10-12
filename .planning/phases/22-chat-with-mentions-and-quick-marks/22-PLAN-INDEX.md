@@ -60,7 +60,7 @@ Discovery: Level2 research already available/accepted; read exact owner/pattern/
 
 Architecture each has early own producer plan, before feature consumers. First01/T1 is public useful records→existing owners→real persistence tracer;01/T2 visible approved Chat read. No whole-schema-global foundation. Schema tasks within each feature bind only needed vertical expansion; new notes/comment identity schema05 belongs one A2 concern. TDD is public E2E first only, no isolated suites. Config/migrations/docs/read-only gates use static proof; no new functional suite for tooling.
 
-Calibration command `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-calibration` exit0: factor1/sample_count0/confidence low. Raw read+diff+checks projections per bounded plan in frontmatter, calibrated=raw; confidence not self-rated.
+Calibration command `node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-calibration` exit0: factor1/sample_count0/confidence low. Raw read+diff+checks projections per bounded plan in frontmatter, calibrated=raw; confidence not self-rated.
 
 ## Source audit — no accepted gap
 
@@ -429,41 +429,41 @@ Planning checks завершены; это plan validity, не source/runtime re
 Exact native commands:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks
 yarn exec prettier --check '.planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/COVERAGE.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md'
 ```
 
@@ -496,13 +496,13 @@ Revision verification: exit0 native6 on changed09/17/new18, valid:true/errors[]/
 Original decisive results: native6 valid:true/errors[]/warnings[]; graph/protection/predicate audit exit0/errors[]; API detector exit0/detected:true/signals3; canonical matrix exit0/passed:true49/14/35. Other15PLAN hashes reuse existing full checker evidence. No source/paid call/DB/runtime/Git operation performed.
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks
 yarn exec prettier --check '.planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/COVERAGE.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md'
 ```
 
@@ -572,7 +572,7 @@ Native detector with actual current plan scope (stdout only):
 python3 -c 'from pathlib import Path
 import subprocess,json,sys
 p=Path(".planning/phases/22-chat-with-mentions-and-quick-marks");scope="\n".join(f.read_text() for f in p.glob("22-*-PLAN.md"))
-r=subprocess.run(["node","/Users/kdvornichenko/.codex/gsd-core/bin/lib/api-coverage.cjs","--json"],input=scope,capture_output=True,text=True)
+r=subprocess.run(["node","~/.claude/gsd-core/bin/lib/api-coverage.cjs","--json"],input=scope,capture_output=True,text=True)
 j=json.loads(r.stdout);print(json.dumps({"exit":r.returncode,"detected":j.get("detected"),"skipped":j.get("skipped"),"signals":len(j.get("signals",[]))}));sys.exit(0 if j.get("detected") is True else 1)
 '
 ```
@@ -683,7 +683,7 @@ print(json.dumps(stats,ensure_ascii=False));sys.exit(bool(errors))
 
 Current independent checker and separate risk/design lenses are complete. Static planning outcome CLEAN; raw PC01 and bounded correction remain in PLAN-CHECK. All18 PLAN hashes remain unchanged. Squad report SHA-256: `469b6c493ed85b93e267ad17464728d046662e560227bb8f094926e7033bee5a`.
 
-`node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/22-chat-with-mentions-and-quick-marks 'CHAT-01,CHAT-02,CHAT-03,CHAT-04,CHAT-07,CHAT-08,CHAT-09,CHAT-11' --raw` — exit0, enabled=true, passed=true, block=false; 17/17 covered (8 REQ +9 decisions), uncovered0. Private existing raw: `22-gap-analysis-plan-post.json`.
+`node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/22-chat-with-mentions-and-quick-marks 'CHAT-01,CHAT-02,CHAT-03,CHAT-04,CHAT-07,CHAT-08,CHAT-09,CHAT-11' --raw` — exit0, enabled=true, passed=true, block=false; 17/17 covered (8 REQ +9 decisions), uncovered0. Private existing raw: `22-gap-analysis-plan-post.json`.
 
 Configured html-plan-review: skipped by its explicit autonomous gate. No human response or approval inferred. Final24/25 dependency rebind, SDK legitimacy/freshness, key/cap/model/pricing and finite Managed comparison gates remain pending; source/runtime/provider/C01–C03 NOT RUN.
 
