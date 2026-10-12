@@ -44,7 +44,7 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 	const envelope = createTokenEnvelope(calendarConfig)
 	const gateway = createGoogleGateway(calendarConfig)
 	const observation = createCalendarObservation({ logger, gitSha: config.GIT_SHA })
-	const credentials = createCredentials({ lease, envelope, gateway, observation })
+	const credentials = createCredentials({ db, lease, envelope, gateway, observation })
 	const connection = createConnection({ db, lease, envelope, gateway, credentials, observation })
 	const control = createConnectionControl({
 		db,

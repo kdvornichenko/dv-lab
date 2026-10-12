@@ -317,23 +317,8 @@ export async function checkCalendarConflicts(
 	if (remaining <= 0) return { state: 'unavailable', inputKey, reason: 'provider_unavailable' }
 	const budget = AbortSignal.timeout(remaining)
 	try {
-		return await deps.credentials.withAccessToken(
-			context.accountId,
-			async (access) => {
-				try {
-					return await readConflicts(
-						{ ...access, signal: AbortSignal.any([access.signal, budget]) },
-						request,
-						deps.gateway,
-						context.now
-					)
-				} catch (error) {
-					if (error instanceof CommandFault) throw new CalendarFault('external_change')
-					throw error
-				}
-			},
-			budget
-		)
+		const access = await deps.credentials.accessToken(context.accountId, budget)
+		return await readConflicts(access, request, deps.gateway, context.now)
 	} catch (error) {
 		const code =
 			error instanceof CalendarFault
