@@ -4,18 +4,11 @@ import { useState } from 'react'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
-import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
+import { ConflictStatus, FormFooter, GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { seriesWhen } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
@@ -258,26 +251,30 @@ export function MoveSeriesDialog({
 								<span className="text-body text-foreground tabular-nums">{preview}</span>
 							</div>
 						) : null}
-						<GoogleConflicts
-							check={conflicts}
-							pending={pending}
-							durationMinutes={rule.durationMinutes}
-							failure={notice === 'failed' ? 'Could not move the series. Try again.' : null}
-						/>
+						<GoogleConflicts check={conflicts} pending={pending} />
 						<p data-slot="move-series-note" className="text-caption text-muted-foreground">
 							Lessons before this date stay as they are. Lessons you already moved keep their new time. Cancelled
 							lessons from this date on are reset.
 						</p>
 					</div>
 				</ScrollArea>
-				<DialogFooter>
+				<FormFooter
+					status={
+						<ConflictStatus
+							check={conflicts}
+							timeZone={context.mainTimeZone}
+							durationMinutes={rule.durationMinutes}
+							failure={notice === 'failed' ? 'Could not move the series. Try again.' : null}
+						/>
+					}
+				>
 					<Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
 						Discard changes
 					</Button>
 					<Button type="button" loading={pending} disabled={!canSubmit()} onClick={() => void submit()}>
 						{pending ? 'Moving…' : 'Move series'}
 					</Button>
-				</DialogFooter>
+				</FormFooter>
 			</DialogContent>
 		</Dialog>
 	)

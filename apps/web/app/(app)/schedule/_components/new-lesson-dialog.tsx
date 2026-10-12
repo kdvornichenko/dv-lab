@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent } from 'react'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
-import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
+import { ConflictStatus, GoogleConflicts, lessonOverlaps, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { TextField } from '@/components/app/text-field'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -14,7 +14,7 @@ import { formatLength, LENGTH_HELPER, lengthError, normalizeLength, parseLength 
 import { formatDate, secondWhen, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone, zoneName } from '@/lib/time-zones'
 
-import type { LessonRepeats } from '@dv-lab/contracts'
+import type { CalendarEventView, LessonRepeats } from '@dv-lab/contracts'
 import { scheduleDate, weekdayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
@@ -34,6 +34,7 @@ interface NewLessonDialogProps extends ScheduleFormContext {
 	students: StudentsState
 	available: boolean
 	seed: { date: string; time: string; durationMinutes?: number; dragged?: boolean }
+	events: readonly CalendarEventView[]
 	currentMainTimeZone: string
 	secondZone: string | null
 	onClose: () => void
@@ -45,6 +46,7 @@ type Field = 'date' | 'time' | 'length'
 
 const nameCollator = new Intl.Collator('en', { sensitivity: 'base' })
 const DAY_MINUTES = 1440
+const CHECK_STUDENT = '00000000-0000-0000-0000-000000000000'
 
 function clockMinutes(time: string): number {
 	return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
@@ -95,6 +97,7 @@ export function NewLessonDialog({
 	students,
 	available,
 	seed,
+	events,
 	mainTimeZone,
 	asOf,
 	currentMainTimeZone,
@@ -151,10 +154,11 @@ export function NewLessonDialog({
 	const studentName = active.find((student) => student.id === studentId)?.displayName ?? null
 	const noStudents = students.kind === 'ready' && active.length === 0
 	const blocked = !available || students.kind !== 'ready' || noStudents || studentId === ''
+	const localLessons = lessonOverlaps(events, input.instant, minutes)
 	const conflicts = useGoogleConflicts({
 		proposal: createProposal(
 			{
-				studentId,
+				studentId: CHECK_STUDENT,
 				date,
 				startTime: time,
 				durationMinutes: minutes,
@@ -164,7 +168,7 @@ export function NewLessonDialog({
 			Boolean(timeError || errors.date)
 		),
 		date,
-		available: available && students.kind === 'ready' && !context.stale && !command.blocked,
+		available: available && !context.stale && !command.blocked,
 	})
 
 	function commitLength() {
@@ -207,7 +211,7 @@ export function NewLessonDialog({
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending || blocked || command.blocked || context.stale || !conflicts.ready) return
+		if (pending || blocked || command.blocked || context.stale) return
 		setSubmitted(true)
 		setFailed(false)
 		if (studentId === '') return studentRef.current?.focus()
@@ -225,7 +229,7 @@ export function NewLessonDialog({
 				repeats,
 				expectedDefaultTimeZone: context.mainTimeZone,
 			},
-			conflicts.checked
+			conflicts.checked ?? undefined
 		)
 		if (result.kind === 'detached') return
 		if (result.kind === 'zone_changed') return context.markStale()
@@ -387,19 +391,23 @@ export function NewLessonDialog({
 									/>
 								</div>
 							</div>
-							<GoogleConflicts
-								check={conflicts}
-								pending={pending}
-								durationMinutes={minutes}
-								failure={failed ? 'Could not add the lesson. Try again.' : null}
-							/>
+							<GoogleConflicts check={conflicts} pending={pending} />
 						</div>
 					</ScrollArea>
 					<NewLessonFooter
 						onClose={onClose}
 						pending={pending}
-						blocked={blocked || command.blocked || context.stale || !conflicts.ready}
+						blocked={blocked || command.blocked || context.stale}
 						repeats={repeats}
+						status={
+							<ConflictStatus
+								check={conflicts}
+								timeZone={context.mainTimeZone}
+								durationMinutes={minutes}
+								failure={failed ? 'Could not add the lesson. Try again.' : null}
+								lessons={localLessons}
+							/>
+						}
 					/>
 				</form>
 			</DialogContent>

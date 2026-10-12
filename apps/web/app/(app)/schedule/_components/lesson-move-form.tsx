@@ -6,12 +6,13 @@ import { ArrowRight, CalendarClock } from 'lucide-react'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
-import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
+import { ConflictStatus, FormFooter, lessonOverlaps, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
 import type { CalendarLesson } from '@/lib/lesson-actions'
 import { formatDate, formatDay, mainRange, mainWhen } from '@/lib/schedule-format'
 
+import type { CalendarEventView } from '@dv-lab/contracts'
 import { scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
@@ -29,6 +30,7 @@ import type { MoveSeed } from './use-lesson-drag'
 interface LessonMoveFormProps extends ScheduleFormContext {
 	moveSeed?: MoveSeed
 	event: CalendarLesson
+	weekEvents: readonly CalendarEventView[]
 	available: boolean
 	currentMainTimeZone: string
 	secondZone: string | null
@@ -64,6 +66,7 @@ function moveErrors(
 export function LessonMoveForm({
 	moveSeed,
 	event: initialEvent,
+	weekEvents,
 	available,
 	mainTimeZone,
 	asOf,
@@ -249,8 +252,18 @@ export function LessonMoveForm({
 					</p>
 				)}
 			</div>
-			<GoogleConflicts check={conflicts} pending={pending} durationMinutes={block.durationMinutes} failure={failed} />
-			<div className="flex flex-wrap justify-end gap-2">
+			<FormFooter
+				className=""
+				status={
+					<ConflictStatus
+						check={conflicts}
+						timeZone={context.mainTimeZone}
+						durationMinutes={block.durationMinutes}
+						failure={failed}
+						lessons={lessonOverlaps(weekEvents, target, block.durationMinutes, event.eventKey)}
+					/>
+				}
+			>
 				<Button type="button" variant="ghost" size="compact" disabled={disabled} onClick={onDiscard}>
 					Discard changes
 				</Button>
@@ -264,7 +277,7 @@ export function LessonMoveForm({
 				>
 					{pending ? 'Moving…' : 'Move lesson'}
 				</Button>
-			</div>
+			</FormFooter>
 		</div>
 	)
 }

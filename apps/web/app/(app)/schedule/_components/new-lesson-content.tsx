@@ -1,7 +1,7 @@
-import type { RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
+import { FormFooter } from '@/components/app/google-conflicts'
 import { Button } from '@/components/ui/button'
-import { DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
@@ -74,20 +74,22 @@ export function NewLessonFooter({
 	pending,
 	blocked,
 	repeats,
+	status,
 }: {
 	onClose: () => void
 	pending: boolean
 	blocked: boolean
 	repeats: LessonRepeats
+	status: ReactNode
 }) {
 	return (
-		<DialogFooter>
+		<FormFooter status={status}>
 			<Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
 				Discard changes
 			</Button>
 			<Button type="submit" loading={pending} disabled={blocked}>
 				{pending ? 'Adding…' : repeats === 'weekly' ? 'Add series' : 'Add lesson'}
 			</Button>
-		</DialogFooter>
+		</FormFooter>
 	)
 }

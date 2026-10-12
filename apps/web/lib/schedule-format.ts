@@ -144,10 +144,6 @@ export function formatWhen(instant: Date, zone: string, currentYear: number): st
 	return `${formatDay(instant, zone, currentYear)}, ${formatTime(instant, zone)}`
 }
 
-export function seriesPhrase(weekday: number, time: string): string {
-	return `Every ${weekdayName(weekday)} at ${time}`
-}
-
 export function seriesWhen(
 	reference: ScheduleSeriesReference | null,
 	mainTimeZone: string,

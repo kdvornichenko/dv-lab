@@ -229,6 +229,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			{draft !== null ? (
 				<NewLessonDialog
 					{...draft}
+					events={events}
 					students={students}
 					available={editable}
 					currentMainTimeZone={mainTimeZone}
