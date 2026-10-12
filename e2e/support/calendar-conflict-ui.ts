@@ -1,6 +1,11 @@
 import type { Page } from '@playwright/test'
 
-import { googleConnectionSnapshot, googleConflictResult } from '../../packages/contracts/src/calendar.ts'
+import {
+	googleConnectionSnapshot,
+	googleConflictRequest,
+	googleConflictResult,
+} from '../../packages/contracts/src/calendar.ts'
+import { addDays, mondayOf } from '../../packages/core/src/index.ts'
 import { api } from './api.ts'
 import { parseCalendarResponse } from './calendar-commands.ts'
 import { conflictFixture } from './calendar-conflicts.ts'
@@ -9,11 +14,22 @@ import { openView } from './calendar-view.ts'
 import { expect, test } from './test.ts'
 import { pickDate, pickTime } from './ui.ts'
 
-async function openCreate(page: Page) {
+async function openCreate(page: Page, empty = false) {
 	const fixture = await conflictFixture(page.request)
-	const sample = fixture.cases.find((item) => item.name === 'single')
+	const sample = fixture.cases.find((item) =>
+		empty
+			? item.expectedState === 'complete' &&
+				item.expectedEventKeys.length === 0 &&
+				item.request.proposal.operation === 'create' &&
+				item.request.proposal.input.repeats === 'once'
+			: item.name === 'single'
+	)
 	if (!sample || sample.request.proposal.operation !== 'create')
-		throw new Error('Retained create conflict proposal is required')
+		throw new Error(
+			empty
+				? 'Retained zero-overlap create proposal is required for K5'
+				: 'Retained create conflict proposal is required'
+		)
 	const input = sample.request.proposal.input
 	await openView(page, sample.weekStart)
 	await page.getByRole('button', { name: 'New lesson', exact: true }).click()
@@ -24,6 +40,15 @@ async function openCreate(page: Page) {
 	await pickTime(page, input.startTime, 'new-lesson-time')
 	await dialog.locator('#new-lesson-length').fill(String(input.durationMinutes))
 	return { fixture, sample, dialog }
+}
+
+async function zeroOverlapUi(page: Page) {
+	const { dialog } = await openCreate(page, true)
+	await expect(dialog.getByRole('button', { name: 'Add lesson', exact: true })).toBeEnabled()
+	const success = dialog.locator('[data-slot="google-conflicts"] [data-slot="banner"]')
+	await expect(success).toHaveText('No Google Calendar overlaps in the checked range.')
+	await expect(success.getByText(/Checked range:|Checked at:|\d{4}-\d{2}-\d{2}T/)).toHaveCount(0)
+	await page.keyboard.press('Escape')
 }
 
 export async function conflictCreateUi(page: Page) {
@@ -39,6 +64,7 @@ export async function conflictCreateUi(page: Page) {
 		await expect(
 			dialog.getByText('You can still save this change. Google Calendar must confirm it before it is saved.')
 		).toBeVisible()
+	await expect(dialog.locator('[data-slot="google-conflicts"]')).not.toContainText(/\d{4}-\d{2}-\d{2}T\d{2}:/)
 	const fault = armCalendarFault({
 		method: 'GET',
 		resource: 'events',
@@ -65,22 +91,30 @@ export async function conflictCreateUi(page: Page) {
 	await dialog.locator('#new-lesson-length').fill('61')
 	await expect(save).toBeEnabled()
 	await dialog.locator('#new-lesson-repeats').click()
+	const weeklyCheck = page.waitForRequest((request) => new URL(request.url()).pathname === '/api/google/conflicts')
 	await page.getByRole('option', { name: 'Every week', exact: true }).click()
-	await expect(dialog.getByRole('button', { name: 'Check through: Choose date', exact: true })).toBeVisible()
-	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeDisabled()
-	await expect(dialog.getByRole('button', { name: 'Check overlaps', exact: true })).toBeDisabled()
-	await dialog.getByRole('button', { name: 'Check through: Choose date', exact: true }).focus()
+	const weeklyInput: unknown = JSON.parse((await weeklyCheck).postData() ?? 'null')
+	const checkedInput = parseCalendarResponse(googleConflictRequest, weeklyInput)
+	if (sample.request.proposal.operation !== 'create') throw new Error('Create proposal is required')
+	expect(checkedInput.checkThrough).toBe(addDays(mondayOf(sample.request.proposal.input.date), 6))
+	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeEnabled()
+	await expect(dialog.getByRole('button', { name: 'Check through: Choose date', exact: true })).toHaveCount(0)
+	await expect(
+		dialog.getByText('Only the checked period is covered. Later occurrences have not been checked.')
+	).toBeVisible()
+	await dialog.getByRole('button', { name: /^Check through:/ }).focus()
 	await page.keyboard.press('Enter')
 	await expect(page.getByRole('grid')).toBeVisible()
 	await page.keyboard.press('Escape')
 	await expect(dialog).toBeVisible()
-	if (sample.request.proposal.operation !== 'create') throw new Error('Create proposal is required')
 	await pickDate(page, sample.request.proposal.input.date, 'google-check-through')
 	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeEnabled()
 	await dialog.getByRole('button', { name: /^Check through:/ }).click()
 	await page.locator('[data-day][data-selected-single="true"]').click()
-	await expect(dialog.getByRole('button', { name: 'Check through: Choose date', exact: true })).toBeVisible()
-	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeDisabled()
+	await expect(dialog.getByRole('button', { name: 'Check through: Choose date', exact: true })).toHaveCount(0)
+	await expect(dialog.getByRole('button', { name: 'Add series', exact: true })).toBeEnabled()
+	await page.keyboard.press('Escape')
+	await zeroOverlapUi(page)
 }
 
 export async function conflictReconnectUi(page: Page) {
