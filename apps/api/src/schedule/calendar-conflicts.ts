@@ -16,32 +16,28 @@ import {
 	localTimeCandidates,
 	occurrenceAt,
 	startOfZonedDay,
-	seriesStart,
 	weekdayOf,
 	type SeriesRule,
 } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
-import type { CommandAccess } from '../calendar/dispatch.ts'
-import { bindEvent, loadMappings } from '../calendar/event-mapping.ts'
-import { CalendarFault, type GoogleGateway } from '../calendar/gateway.ts'
-import { findConnection, type Credentials } from '../calendar/google-access.ts'
-import { observeInstance } from '../calendar/instance-observation.ts'
+import { readConnection } from '../calendar/connection.ts'
+import { bindEvent, loadMappings, rowForLocal } from '../calendar/event-mapping.ts'
+import { CalendarFault } from '../calendar/gateway.ts'
+import { findConnection, type ConnectionRow } from '../calendar/google-access.ts'
 import { CommandFault, unresolvedCommands } from '../calendar/journal.ts'
-import { eventView } from '../calendar/read-model.ts'
-import { completeWindow } from '../calendar/read-pages.ts'
+import { syncFacts, syncRevision, weekRows, rowEvent, type SyncFacts } from '../calendar/projection.ts'
+import { eventColors, eventView, syncRead } from '../calendar/read-model.ts'
 import { eventVersion, opaqueVersion, type CalendarReadContext } from '../calendar/read-state.ts'
-import { matchesMaster } from '../calendar/recurring.ts'
 import { seriesBinding } from '../calendar/series-observation.ts'
-import { observeSingle } from '../calendar/single-observation.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
-import { commandWindow } from './command-plan.ts'
 import { prepareSeriesChange } from './series.ts'
 
 type ConflictRequest = z.infer<typeof googleConflictRequest>
 type Interval = { start: Date; end: Date }
-type Candidate = { intervals: Interval[]; timeZone: string; excludedId: string | null }
-type Dependencies = { db: Database; credentials: Credentials; gateway: GoogleGateway }
+type Candidate = { intervals: Interval[]; timeZone: string; excludedKey: string | null }
+type Dependencies = { db: Database }
+type ConflictAccess = { db: Database; connection: ConnectionRow & { calendarId: string }; facts: SyncFacts | null }
 
 function interval(start: Date, minutes: number): Interval {
 	return { start, end: new Date(start.getTime() + minutes * 60000) }
@@ -66,12 +62,7 @@ function seriesIntervals(rule: SeriesRule, deadline: number, checkThrough?: stri
 	return result
 }
 
-async function candidates(
-	access: CommandAccess,
-	request: ConflictRequest,
-	gateway: GoogleGateway,
-	now: Date
-): Promise<Candidate> {
+async function candidates(access: ConflictAccess, request: ConflictRequest, now: Date): Promise<Candidate> {
 	const { proposal } = request
 	const settings = await readTeacherSettings(access.db, access.connection.accountId)
 	if (timeZoneIdentity(settings.defaultTimeZone) !== timeZoneIdentity(proposal.input.expectedDefaultTimeZone))
@@ -79,24 +70,12 @@ async function candidates(
 	const timeZone = settings.defaultTimeZone
 	if (proposal.operation === 'create') {
 		if (request.editedRef) throw new CalendarFault('external_change')
-		const window = await commandWindow(
-			access.db,
-			access.connection.accountId,
-			access.connection.id,
-			request.expectedVersion
-		)
-		if (
-			window.connectionId !== access.connection.id ||
-			window.generation !== access.connection.generation ||
-			window.snapshotRevision !== access.connection.snapshotRevision
-		)
-			throw new CalendarFault('external_change')
 		const input = proposal.input
 		if (input.repeats === 'once')
 			return {
 				intervals: [manualInterval(input.date, input.startTime, timeZone, input.durationMinutes)],
 				timeZone,
-				excludedId: null,
+				excludedKey: null,
 			}
 		const rule: SeriesRule = {
 			id: input.studentId,
@@ -108,61 +87,48 @@ async function candidates(
 			startsOn: input.date,
 			endsOn: null,
 		}
-		return { intervals: seriesIntervals(rule, now.getTime() + 30000, request.checkThrough), timeZone, excludedId: null }
+		return {
+			intervals: seriesIntervals(rule, now.getTime() + 30000, request.checkThrough),
+			timeZone,
+			excludedKey: null,
+		}
 	}
 	const ref = request.editedRef
 	if (!ref) throw new CalendarFault('external_change')
-	if (proposal.operation === 'move_series') return seriesCandidate(access, request, gateway, now)
-	const command = {
-		operation: 'move' as const,
-		ref,
-		input: { ...proposal.input, requestId: randomUUID(), expectedVersion: request.expectedVersion },
-	}
-	const observed =
-		ref.kind === 'single'
-			? await observeSingle(access, command, gateway)
-			: await observeInstance(access, command, gateway)
-	const fact =
-		observed.kind === 'present'
-			? observed.observation.event
-			: observed.kind === 'instance'
-				? observed.observation?.event
-				: null
+	if (proposal.operation === 'move_series') return seriesCandidate(access, request, now)
+	const local = await rowForLocal(access.db, access.connection.id, ref)
+	const row = local?.row
 	if (
-		!fact?.start ||
-		!fact.end ||
-		!('dateTime' in fact.start) ||
-		!('dateTime' in fact.end) ||
-		fact.status === 'cancelled'
+		!row?.start ||
+		!row.end ||
+		!('dateTime' in row.start) ||
+		!('dateTime' in row.end) ||
+		row.status === 'cancelled' ||
+		eventVersion(row) !== request.expectedVersion
 	)
 		throw new CalendarFault('external_change')
-	const bound = bindEvent(fact, await loadMappings(access.db, access.connection.accountId, access.connection.id))
-	if (eventVersion(bound) !== request.expectedVersion) throw new CalendarFault('external_change')
 	return {
 		intervals: [
 			manualInterval(
 				proposal.input.date,
 				proposal.input.startTime,
 				timeZone,
-				(Date.parse(fact.end.dateTime) - Date.parse(fact.start.dateTime)) / 60000
+				(Date.parse(row.end.dateTime) - Date.parse(row.start.dateTime)) / 60000
 			),
 		],
 		timeZone,
-		excludedId: fact.eventId,
+		excludedKey: row.eventKey,
 	}
 }
 
-async function seriesCandidate(
-	access: CommandAccess,
-	request: ConflictRequest,
-	gateway: GoogleGateway,
-	now: Date
-): Promise<Candidate> {
+async function seriesCandidate(access: ConflictAccess, request: ConflictRequest, now: Date): Promise<Candidate> {
 	const proposal = request.proposal
 	const ref = request.editedRef
 	if (proposal.operation !== 'move_series' || ref?.kind !== 'series') throw new CalendarFault('external_change')
 	const mapping = await seriesBinding(access.db, access.connection.accountId, ref.seriesId)
 	if (mapping.connectionId !== access.connection.id || mapping.calendarId !== access.connection.calendarId)
+		throw new CalendarFault('external_change')
+	if (opaqueVersion([mapping.id, mapping.representationGeneration, ref.seriesId]) !== request.expectedVersion)
 		throw new CalendarFault('external_change')
 	const prepared = await access.db.transaction((tx) =>
 		prepareSeriesChange(
@@ -176,35 +142,12 @@ async function seriesCandidate(
 			now
 		)
 	)
-	const master = await gateway.master(
-		access.accessToken,
-		mapping.calendarId,
-		mapping.eventId,
-		prepared.rule.timeZone,
-		access.signal
-	)
-	const version = opaqueVersion([mapping.id, mapping.representationGeneration, master.event.etag])
-	if (
-		!matchesMaster(master, prepared.rule) ||
-		opaqueVersion([version, access.connection.id, access.connection.generation, access.connection.snapshotRevision]) !==
-			request.expectedVersion
-	)
-		throw new CalendarFault('external_change')
 	if (!prepared.newRule) throw new CalendarFault('external_change')
-	const natural = seriesStart(prepared.rule, ref.originalOn)
-	if (!natural) throw new CalendarFault('external_change')
-	const instance = await gateway.canonicalInstance(
-		access.accessToken,
-		mapping.calendarId,
-		mapping.eventId,
-		natural.toISOString(),
-		access.signal
-	)
-	if (instance.kind !== 'found') throw new CalendarFault('external_change')
+	const current = await rowForLocal(access.db, access.connection.id, ref)
 	return {
 		intervals: seriesIntervals({ ...prepared.rule, ...prepared.newRule }, now.getTime() + 30000, request.checkThrough),
 		timeZone: prepared.newRule.timeZone,
-		excludedId: instance.eventId,
+		excludedKey: current?.row.eventKey ?? null,
 	}
 }
 
@@ -227,36 +170,40 @@ function eventInterval(event: CalendarEventView): Interval {
 }
 
 async function readConflicts(
-	access: CommandAccess,
-	request: ConflictRequest,
-	gateway: GoogleGateway,
-	now: Date
+	db: Database,
+	context: CalendarReadContext,
+	request: ConflictRequest
 ): Promise<GoogleConflictResult> {
-	if (!access.connection.calendarId) throw new CalendarFault('connection_required')
-	if ((await unresolvedCommands(access.db, access.connection.accountId)).length)
-		throw new CalendarFault('command_pending')
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== access.connection.calendarId) throw new CalendarFault('external_change')
-	const candidate = await candidates(access, request, gateway, now)
+	const now = context.now
+	const connection = await findConnection(db, context.accountId)
+	if (!connection?.calendarId) throw new CalendarFault('connection_required')
+	if ((await unresolvedCommands(db, context.accountId)).length) throw new CalendarFault('command_pending')
+	const facts = await syncFacts(db, connection.id)
+	const access: ConflictAccess = { db, connection: { ...connection, calendarId: connection.calendarId }, facts }
+	const candidate = await candidates(access, request, now)
+	const revision = facts?.revision ?? 0n
 	const inputKey = opaqueVersion([
 		JSON.stringify(request),
 		candidate.timeZone,
-		access.connection.calendarId,
-		access.connection.generation,
-		access.connection.snapshotRevision,
+		connection.calendarId,
+		connection.generation,
+		revision,
 	])
 	if (!candidate.intervals.length) return { state: 'not_checked', inputKey }
 	const range = rangeFor(candidate)
-	const mappings = await loadMappings(access.db, access.connection.accountId, access.connection.id)
-	const result = await completeWindow({ ...access, gateway, calendarId: primary.id }, range.start, range.end, mappings)
+	const read = syncRead(await readConnection(db, context.accountId), facts, range, now)
+	if (read.state !== 'fresh') return { state: 'unavailable', inputKey, reason: read.reason }
+	const mappings = await loadMappings(db, context.accountId, connection.id)
+	const colors = eventColors(facts)
 	const events: GoogleConflictEvent[] = []
-	for (const raw of result.events) {
-		if (raw.eventId === candidate.excludedId || raw.status === 'cancelled' || raw.transparency === 'transparent')
+	for (const row of await weekRows(db, connection.id, range)) {
+		if (row.eventKey === candidate.excludedKey || row.status === 'cancelled' || row.transparency === 'transparent')
 			continue
 		const event = eventView(
-			{ ...raw, eventKey: opaqueVersion([access.connection.id, raw.eventId]), colorId: null, location: null },
+			{ ...bindEvent(rowEvent(row), mappings), eventKey: row.eventKey, colorId: row.colorId, location: row.location },
 			null,
-			new Set()
+			new Set(),
+			colors
 		)
 		if (!event) throw new CalendarFault('invalid_provider_data')
 		const when = eventInterval(event)
@@ -266,21 +213,18 @@ async function readConflicts(
 			.map((item) => item.start.toISOString())
 		if (matchedStartsAt.length) events.push({ ...event, matchedStartsAt })
 	}
-	access.signal.throwIfAborted()
-	const current = await findConnection(access.db, access.connection.accountId)
-	const settings = await readTeacherSettings(access.db, access.connection.accountId)
+	const current = await findConnection(db, context.accountId)
+	const settings = await readTeacherSettings(db, context.accountId)
 	if (
 		!current ||
+		current.id !== connection.id ||
 		current.state !== 'connected' ||
-		current.credentialMode !== 'active' ||
-		current.calendarId !== primary.id ||
-		current.generation !== access.connection.generation ||
-		current.credentialGeneration !== access.connection.credentialGeneration ||
-		current.snapshotRevision !== access.connection.snapshotRevision ||
+		current.calendarId !== connection.calendarId ||
+		current.generation !== connection.generation ||
+		(await syncRevision(db, connection.id)) !== revision ||
 		timeZoneIdentity(settings.defaultTimeZone) !== timeZoneIdentity(candidate.timeZone)
 	)
 		throw new CalendarFault('external_change')
-	access.signal.throwIfAborted()
 	if (Date.now() >= now.getTime() + 30000) throw new CalendarFault('provider_unavailable')
 	return googleConflictResult.parse({
 		state: 'complete',
@@ -298,12 +242,10 @@ export async function checkCalendarConflicts(
 	request: ConflictRequest
 ): Promise<GoogleConflictResult> {
 	const inputKey = opaqueVersion([JSON.stringify(request)])
-	const remaining = context.now.getTime() + 30000 - Date.now()
-	if (remaining <= 0) return { state: 'unavailable', inputKey, reason: 'provider_unavailable' }
-	const budget = AbortSignal.timeout(remaining)
+	if (Date.now() >= context.now.getTime() + 30000)
+		return { state: 'unavailable', inputKey, reason: 'provider_unavailable' }
 	try {
-		const access = await deps.credentials.accessToken(context.accountId, budget)
-		return await readConflicts(access, request, deps.gateway, context.now)
+		return await readConflicts(deps.db, context, request)
 	} catch (error) {
 		const code =
 			error instanceof CalendarFault

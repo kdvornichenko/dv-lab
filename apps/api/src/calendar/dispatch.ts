@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import { canChange } from '@dv-lab/core'
@@ -7,11 +7,13 @@ import {
 	googleCommandStages,
 	googleConnections,
 	type Database,
+	type DbExecutor,
+	type GoogleStageAcknowledgement,
 	type GoogleStageAttempt,
 } from '@dv-lab/db'
 
 import { applyConfirmedCommand, applyConfirmedCut } from '../schedule/command-apply.ts'
-import { commandWindow, type PreparedCalendarCommand } from '../schedule/command-plan.ts'
+import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { storedGoogleResult, unownedFingerprint, type VerifiedGoogleResponse } from './command-result.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import type { ConnectionRow } from './google-access.ts'
@@ -24,7 +26,7 @@ import {
 	type CommandRow,
 	type StageRow,
 } from './journal.ts'
-import { traverseEvents } from './read-pages.ts'
+import { upsertEventFacts, type EventFact } from './projection.ts'
 import { matchesMaster } from './recurring.ts'
 import { checkReplacement } from './single-observation.ts'
 
@@ -112,8 +114,6 @@ async function checkInstanceDispatch(access: CommandAccess, command: PreparedCal
 async function checkDispatchWindow(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
 	if (access.connection.generation !== command.generation || access.connection.calendarId !== command.calendarId)
 		throw new CommandFault('not_applied')
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== command.calendarId) throw new CommandFault('external_change')
 	if (command.operation === 'restore' && command.request.method === 'insert') {
 		await checkReplacement(access, command, gateway)
 		return {}
@@ -139,22 +139,6 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 			throw new CommandFault('external_change')
 		return observed.privateProperties
 	}
-	const window = await commandWindow(access.db, command.accountId, command.connectionId, command.expectedVersion)
-	const before = new Map(command.plan.preconditions.map((event) => [event.eventId, event.etag]))
-	const observed = new Map<string, string>()
-	await traverseEvents(
-		{ ...access, gateway, calendarId: command.calendarId },
-		{
-			timeMin: window.windowStart.toISOString(),
-			timeMax: window.windowEnd.toISOString(),
-		},
-		(events) => {
-			for (const event of events) observed.set(event.eventId, event.etag)
-			return false
-		}
-	)
-	if (observed.size !== before.size || [...observed].some(([id, etag]) => before.get(id) !== etag))
-		throw new CommandFault('external_change')
 	return {}
 }
 
@@ -270,12 +254,58 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 	})
 }
 
+function acknowledgedFacts(ack: GoogleStageAcknowledgement | null): EventFact[] {
+	if (ack?.kind === 'event') return [{ ...ack.event, factAt: new Date(ack.checkedAt) }]
+	if (ack?.kind === 'master') return [{ ...ack.event, master: true, factAt: new Date(ack.checkedAt) }]
+	if (ack?.kind !== 'cancellation') return []
+	const factAt = new Date(ack.checkedAt)
+	const baseline = ack.baselineEvent
+	if (baseline) return [{ ...baseline, status: 'cancelled', etag: ack.response.etag ?? baseline.etag, factAt }]
+	return [
+		{
+			eventId: ack.response.id,
+			status: 'cancelled',
+			...(ack.response.etag ? { etag: ack.response.etag } : {}),
+			factAt,
+		},
+	]
+}
+
+async function projectFacts(tx: DbExecutor, command: CommandRow, facts: readonly EventFact[]) {
+	await tx
+		.select({ id: googleConnections.id })
+		.from(googleConnections)
+		.where(eq(googleConnections.id, command.connectionId))
+		.for('update')
+	await upsertEventFacts(
+		tx,
+		{ accountId: command.accountId, connectionId: command.connectionId, calendarId: command.calendarId },
+		facts
+	)
+}
+
+async function cutFacts(tx: DbExecutor, command: CommandRow) {
+	const stages = await tx
+		.select({ acknowledgement: googleCommandStages.acknowledgement })
+		.from(googleCommandStages)
+		.where(
+			and(
+				eq(googleCommandStages.commandId, command.id),
+				eq(googleCommandStages.kind, 'write'),
+				eq(googleCommandStages.state, 'acknowledged')
+			)
+		)
+		.orderBy(asc(googleCommandStages.stage))
+	return stages.flatMap((stage) => acknowledgedFacts(stage.acknowledgement))
+}
+
 export async function projectCommand(access: Pick<CommandAccess, 'db' | 'signal'>, command: CommandRow) {
 	if (command.plan.cut) {
 		const { prepared } = await preparedCommand(access.db, command)
 		try {
 			await access.db.transaction(async (tx) => {
 				access.signal.throwIfAborted()
+				await projectFacts(tx, command, await cutFacts(tx, command))
 				await applyConfirmedCut(tx, prepared)
 				access.signal.throwIfAborted()
 			})
@@ -299,6 +329,7 @@ export async function projectCommand(access: Pick<CommandAccess, 'db' | 'signal'
 	access.signal.throwIfAborted()
 	await access.db.transaction(async (tx) => {
 		access.signal.throwIfAborted()
+		await projectFacts(tx, command, acknowledgedFacts(result.acknowledgement))
 		await applyConfirmedCommand(tx, prepared, result)
 		access.signal.throwIfAborted()
 	})

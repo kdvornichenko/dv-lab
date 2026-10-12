@@ -1,7 +1,8 @@
-import { and, eq, inArray, notInArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, notInArray, sql, type SQL } from 'drizzle-orm'
 
-import { occurrenceAt, scheduleDate, type SeriesRule } from '@dv-lab/core'
+import { occurrenceAt, scheduleDate, seriesStart, type SeriesRule } from '@dv-lab/core'
 import {
+	googleCalendarEvents,
 	googleCommands,
 	googleEventMappings,
 	googleCommandPlan,
@@ -14,6 +15,7 @@ import { lessonSeries } from '@dv-lab/db'
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
 import { CommandFault, digest } from './journal.ts'
+import type { ProjectionRow } from './projection.ts'
 import type { ProviderEvent } from './provider-events.ts'
 import type { MappingRow } from './read-state.ts'
 import type { AbsenceProof } from './single-observation.ts'
@@ -271,6 +273,81 @@ export function pendingStudents(snapshot: MappingSnapshot): ReadonlySet<string> 
 		}
 	}
 	return students
+}
+
+export type LocalRow =
+	| { kind: 'single'; mapping: MappingRow; row: ProjectionRow }
+	| { kind: 'series'; mapping: MappingRow; row: ProjectionRow; rule: SeriesRule; natural: Date }
+
+const LESSON_MARKERS = ['single', 'series', 'occurrence']
+
+export function boundRowCondition(connectionId: string): SQL {
+	const active = sql`${googleEventMappings.connectionId} = ${connectionId} and ${googleEventMappings.state} = 'active'`
+	return sql`(exists (select 1 from ${googleEventMappings} where ${active} and ${googleEventMappings.eventId} = ${googleCalendarEvents.eventId})
+or (${googleCalendarEvents.recurringEventId} is not null and exists (select 1 from ${googleEventMappings} where ${active} and ${googleEventMappings.entityKind} = 'series' and ${googleEventMappings.eventId} = ${googleCalendarEvents.recurringEventId}))
+or (${googleCalendarEvents.markerLocalId} is not null and ${inArray(googleCalendarEvents.markerKind, LESSON_MARKERS)}))`
+}
+
+async function activeMapping(
+	executor: DbExecutor,
+	connectionId: string,
+	entityKind: MappingRow['entityKind'],
+	localEntityId: string,
+	originalOn?: string
+) {
+	const [mapping] = await executor
+		.select()
+		.from(googleEventMappings)
+		.where(
+			and(
+				eq(googleEventMappings.connectionId, connectionId),
+				eq(googleEventMappings.entityKind, entityKind),
+				eq(googleEventMappings.localEntityId, localEntityId),
+				eq(googleEventMappings.state, 'active'),
+				originalOn === undefined ? undefined : eq(googleEventMappings.originalOn, originalOn)
+			)
+		)
+	return mapping
+}
+
+async function projectionRow(executor: DbExecutor, connectionId: string, condition: SQL | undefined) {
+	const [row] = await executor
+		.select()
+		.from(googleCalendarEvents)
+		.where(and(eq(googleCalendarEvents.connectionId, connectionId), condition))
+	return row
+}
+
+export async function rowForLocal(
+	executor: DbExecutor,
+	connectionId: string,
+	ref: GoogleLocalRef
+): Promise<LocalRow | null> {
+	if (ref.kind === 'single') {
+		const mapping = await activeMapping(executor, connectionId, 'single', ref.lessonId)
+		if (!mapping) return null
+		const row = await projectionRow(executor, connectionId, eq(googleCalendarEvents.eventId, mapping.eventId))
+		return row && row.rowKind === 'single' ? { kind: 'single', mapping, row } : null
+	}
+	const mapping = await activeMapping(executor, connectionId, 'series', ref.seriesId)
+	if (!mapping) return null
+	const [series] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, ref.seriesId))
+	if (!series) return null
+	const rule = toSeriesRule(series)
+	const natural = seriesStart(rule, ref.originalOn)
+	if (!natural) return null
+	const occurrence = await activeMapping(executor, connectionId, 'occurrence', ref.seriesId, ref.originalOn)
+	const row = await projectionRow(
+		executor,
+		connectionId,
+		and(
+			eq(googleCalendarEvents.recurringEventId, mapping.eventId),
+			occurrence
+				? eq(googleCalendarEvents.eventId, occurrence.eventId)
+				: sql`(${googleCalendarEvents.originalStart} ->> 'dateTime')::timestamptz = ${natural.toISOString()}::timestamptz`
+		)
+	)
+	return row ? { kind: 'series', mapping, row, rule, natural } : null
 }
 
 export function bindEvent(event: ProviderEvent, snapshot: MappingSnapshot): BoundEvent {
