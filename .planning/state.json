@@ -36,27 +36,27 @@
 		{
 			"number": "22",
 			"name": "Chat with Mentions and Quick Marks",
-			"status": "pending"
+			"status": "in_progress"
 		},
 		{
 			"number": "23",
 			"name": "Confirmed Chat Changes and Entry Points",
-			"status": "pending"
+			"status": "in_progress"
 		},
 		{
 			"number": "24",
 			"name": "Google Calendar Connection and Outbound Sync",
-			"status": "pending"
+			"status": "in_progress"
 		},
 		{
 			"number": "25",
 			"name": "Google Calendar Two-Way Sync",
-			"status": "pending"
+			"status": "in_progress"
 		},
 		{
 			"number": "26",
 			"name": "IELTS Section",
-			"status": "pending"
+			"status": "in_progress"
 		}
 	],
 	"next": {
@@ -64,5 +64,5 @@
 		"label": "Advance to the next step",
 		"reason": "Phase 24 of 11 · 18% · executing"
 	},
-	"updated_at": "2026-10-11T21:43:54.765Z"
+	"updated_at": "2026-10-12T02:46:47.708Z"
 }

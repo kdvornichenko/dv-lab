@@ -437,7 +437,7 @@ Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-mark
 5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
 6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
-**Plans**: 12/14 plans executed / 40 tasks / 13 waves; source implementation in progress, connected provider verification pending
+**Plans**: 13/14 plans executed / 40 tasks / 13 waves; source implementation in progress, connected provider verification pending
 
 Plans:
 **Wave 1**
@@ -487,7 +487,7 @@ Plans:
 
 **Wave 12** _(blocked on Wave 11 completion)_
 
-- [ ] 24-13-PLAN.md — Readiness и воспроизводимая external evidence
+- [x] 24-13-PLAN.md — Readiness и воспроизводимая external evidence
 
 **Wave 13** _(blocked on Wave 12 completion)_
 
@@ -550,6 +550,6 @@ Plans:
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/18           | Planned     | -          |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/15           | Planned     | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 12/14          | In Progress | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
