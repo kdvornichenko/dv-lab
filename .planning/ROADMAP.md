@@ -521,16 +521,16 @@ Plans:
 **Execution Order:**
 17 → 18 → 19 → 20 → 21 → 21.1 → 24 → 25 → 22 → 23 → 26
 
-| Phase                                            | Milestone | Plans Complete | Status           | Completed  |
-| ------------------------------------------------ | --------- | -------------- | ---------------- | ---------- |
-| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress      |            |
-| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress      |            |
-| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress      |            |
-| 20. Schedule                                     | v2.0      | 10/10          | In Progress      |            |
-| 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete         | 2026-10-11 |
-| 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete         | 2026-10-11 |
-| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started      | -          |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started      | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 11/14          | In Progress      | -          |
-| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started      | -          |
-| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started      | -          |
+| Phase                                            | Milestone | Plans Complete | Status      | Completed  |
+| ------------------------------------------------ | --------- | -------------- | ----------- | ---------- |
+| 17. Skeleton on the Server                       | v2.0      | 13/13          | In Progress |            |
+| 18. Accounts and Variant A Shell                 | v2.0      | 16/16          | In Progress |            |
+| 19. Student Cards and Vault Import               | v2.0      | 20/20          | In Progress |            |
+| 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
+| 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
+| 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
+| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started | -          |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 11/14          | In Progress | -          |
+| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started | -          |
+| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started | -          |
