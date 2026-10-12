@@ -15,7 +15,10 @@ import { createGoogleGateway } from './calendar/gateway.ts'
 import { createCredentials } from './calendar/google-access.ts'
 import { createConnectionLease } from './calendar/lease.ts'
 import { createCalendarObservation } from './calendar/observation.ts'
+import { googleSyncSource } from './calendar/sync-provider.ts'
+import { createCalendarSync } from './calendar/sync.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
+import { createCalendarWatch } from './calendar/watch.ts'
 import { createCalendarWorker } from './calendar/worker.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
@@ -37,6 +40,7 @@ const signIn = createSignIn({ db, logger, requireClientIp: production })
 const housekeeping = createHousekeeping({ db, logger })
 const calendar = config.calendar.enabled ? createCalendar(config.calendar) : undefined
 await calendar?.worker.start()
+calendar?.sync.start()
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)
@@ -55,6 +59,15 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		observation,
 		isStopping: lifecycle.isStopping,
 	})
+	const watch = createCalendarWatch({ db, source: gateway, appOrigin: config.APP_ORIGIN, logger })
+	const sync = createCalendarSync({
+		db,
+		source: googleSyncSource(gateway),
+		watch,
+		credentials,
+		logger,
+		isStopping: lifecycle.isStopping,
+	})
 	const worker = createCalendarWorker({
 		db,
 		lease,
@@ -63,9 +76,10 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		gateway,
 		logger,
 		isStopping: lifecycle.isStopping,
+		afterApply: (connectionId) => void sync.wake(connectionId),
 	})
 	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
-	return { connection, control, commands, worker, resources: [worker, control, lease, credentials] }
+	return { connection, control, commands, worker, sync, resources: [sync, worker, control, lease, credentials] }
 }
 
 const app = createApp({
@@ -79,6 +93,7 @@ const app = createApp({
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
 	calendarCommands: calendar?.commands,
+	calendarWake: calendar ? (connectionId) => void calendar.sync.wake(connectionId) : undefined,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })

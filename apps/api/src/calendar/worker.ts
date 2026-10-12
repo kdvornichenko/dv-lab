@@ -28,6 +28,7 @@ export function createCalendarWorker(deps: {
 	gateway: GoogleGateway
 	logger: Logger
 	isStopping: () => boolean
+	afterApply?: (connectionId: string) => void
 }) {
 	const boss = new PgBoss({ ...calendarQueueOptions, connectionString: deps.databaseUrl })
 	const admissions = new Set<string>()
@@ -105,6 +106,15 @@ export function createCalendarWorker(deps: {
 		})
 	}
 
+	async function notifyApplied(commandId: string) {
+		if (!deps.afterApply) return
+		const [command] = await deps.db
+			.select({ state: googleCommands.state, connectionId: googleCommands.connectionId })
+			.from(googleCommands)
+			.where(eq(googleCommands.id, commandId))
+		if (command?.state === 'applied') deps.afterApply(command.connectionId)
+	}
+
 	async function run(commandId: string) {
 		const running = active.get(commandId)
 		if (running) return running
@@ -115,6 +125,7 @@ export function createCalendarWorker(deps: {
 				return
 			}
 			await processCommand(command)
+			await notifyApplied(commandId)
 		})()
 		active.set(commandId, task)
 		try {
@@ -242,6 +253,7 @@ export function createCalendarWorker(deps: {
 					true
 				)
 			})
+			await notifyApplied(commandId)
 		},
 		async close() {
 			stopped.abort()

@@ -187,7 +187,7 @@ export async function startFull(db: Database, current: SyncClaim, options: { tok
 export async function releaseClaim(db: Database, current: SyncClaim) {
 	await db
 		.update(s)
-		.set({ claimedUntil: null, fullStartedAt: null, updatedAt: sql`now()` })
+		.set({ claimedUntil: null, updatedAt: sql`now()` })
 		.where(owned(current))
 }
 

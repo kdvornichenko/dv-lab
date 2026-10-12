@@ -221,7 +221,7 @@ function overlaps(item, timeMin, timeMax) {
 	return begin < timeMax && (end > timeMin || (!item.end && begin >= timeMin))
 }
 
-function syntheticSource(google) {
+function syntheticSource(google, hooks = {}) {
 	return {
 		async page(read, query, pageToken) {
 			google.calls.page += 1
@@ -230,7 +230,8 @@ function syntheticSource(google) {
 				google.goneOnPage = null
 				throw new SyncTokenGone()
 			}
-			if (google.onPage) await google.onPage()
+			const onPage = hooks.onPage ?? google.onPage
+			if (onPage) await onPage()
 			const list =
 				'syncToken' in query
 					? google.changes
@@ -574,7 +575,231 @@ commit;`)
 	console.log('CLAIM_OK')
 }
 
-const handlers = { pass: passSection, claim: claimSection }
+function bump(connectionId, extra = '') {
+	rows(
+		`update google_sync_state set requested_seq = requested_seq + 1, claimed_until = null${extra} where connection_id = ${quote(connectionId)}`
+	)
+}
+
+const near = (value, expected, toleranceMs) => Math.abs(new Date(value).getTime() - expected) <= toleranceMs
+
+async function loopSection(db, fx) {
+	const { createCalendarSync, nextNightly } = await import(`${ROOT}/apps/api/src/calendar/sync.ts`)
+	const { createCalendarWatch } = await import(`${ROOT}/apps/api/src/calendar/watch.ts`)
+	const { googleConnections } = await import(`${ROOT}/packages/db/src/index.ts`)
+	const { connection, zone } = fx
+	const id = connection.id
+	const google = createGoogle(zone)
+	const projected = rows(
+		`select event_id, etag, status, summary, start, "end", recurring_event_id, original_start, event_type, google_updated_at
+from google_calendar_events where connection_id = ${quote(id)} and row_kind <> 'master'
+and (event_id = ${quote(fx.single)} or recurring_event_id = ${quote(fx.master)})`
+	)
+	for (const row of projected)
+		google.items.set(row.event_id, {
+			id: row.event_id,
+			etag: row.etag,
+			status: row.status,
+			...(row.summary === null ? {} : { summary: row.summary }),
+			start: row.start,
+			end: row.end,
+			eventType: row.event_type,
+			...(row.recurring_event_id
+				? { recurringEventId: row.recurring_event_id, originalStartTime: row.original_start }
+				: {}),
+			updated: new Date(row.google_updated_at).toISOString(),
+		})
+	const monday = core.mondayOf(core.scheduleToday(new Date(), zone))
+	google.timed('dvloop01', core.addDays(monday, 2), '07:00', 60)
+
+	const notes = []
+	const logger = {
+		info: (_fields, message) => notes.push(message),
+		warn: (_fields, message) => notes.push(message),
+		debug() {},
+	}
+	const credentials = {
+		async accessToken(accountId, signal) {
+			const row = (await db.select().from(googleConnections)).find(
+				(item) => item.accountId === accountId && item.retiredAt === null
+			)
+			return { accessToken: 'synthetic', connection: row, db, signal }
+		},
+		evict() {},
+	}
+	const watch = createCalendarWatch({
+		db,
+		source: {
+			async watch() {
+				throw new Error('synthetic watch is offline')
+			},
+			async stopChannel() {},
+		},
+		appOrigin: 'http://localhost:4106',
+		logger,
+	})
+	const make = (source) => createCalendarSync({ db, source, watch, credentials, logger, isStopping: () => false })
+	const sync = make(syntheticSource(google))
+	const loops = [sync]
+	let release = () => {}
+	try {
+		bump(id)
+		const started = Date.now()
+		const woke = await Promise.race([sync.wake(id).then(() => true), sleep(2000).then(() => false)])
+		const elapsed = Date.now() - started
+		const afterWake = syncState(id)
+		const pollOk = near(afterWake.next_poll_at, Date.now() + 2 * 60000, 15000)
+		console.log(
+			`loop 1 wake: pass_in ${elapsed} ms processed_caught_up ${afterWake.processed === afterWake.requested} next_poll_plus_2min ${pollOk} next_full_kept ${new Date(afterWake.next_full_at).getUTCFullYear() === 2999}`
+		)
+		if (!woke || elapsed > 2000 || afterWake.processed !== afterWake.requested || !pollOk)
+			fail('loop 1', 'wake did not run a pass within 2 s or the poll schedule is wrong')
+
+		rows(`update google_sync_state set window_start = window_start - interval '70 days', window_end = window_end - interval '70 days',
+next_full_at = now() - interval '1 second', palette = null, calendar_color = null, claimed_until = null where connection_id = ${quote(id)}`)
+		const beforeFull = syncState(id)
+		await sync.wake(id)
+		const afterFull = syncState(id)
+		const at = new Date()
+		const window = store.syncWindow(at, zone)
+		const nightly = nextNightly(at, zone)
+		const nextFull = new Date(afterFull.next_full_at)
+		const nightlyOk =
+			nextFull.getTime() === nightly.getTime() &&
+			core.zonedParts(nextFull, zone).time === '03:00' &&
+			nextFull.getTime() > at.getTime() - 60000 &&
+			nextFull.getTime() <= at.getTime() + 86400000
+		const fullOk =
+			afterFull.epoch === beforeFull.epoch + 1 &&
+			afterFull.sync_token !== null &&
+			afterFull.sync_token !== beforeFull.sync_token &&
+			new Date(afterFull.window_start).getTime() === window.start.getTime() &&
+			new Date(afterFull.window_end).getTime() === window.end.getTime() &&
+			nightlyOk &&
+			Array.isArray(afterFull.palette) &&
+			afterFull.palette.length === PALETTE.length &&
+			afterFull.calendar_color === CALENDAR_COLOR
+		console.log(
+			`loop 2 forced full with a token: epoch +${afterFull.epoch - beforeFull.epoch} window_reanchored ${new Date(afterFull.window_start).getTime() === window.start.getTime()} next_full_03_00 ${nightlyOk} palette ${afterFull.palette?.length ?? 0} calendar_color ${afterFull.calendar_color === CALENDAR_COLOR}`
+		)
+		if (!fullOk) fail('loop 2', 'a past next_full_at did not force a full pass with the nightly schedule')
+
+		bump(
+			id,
+			`, channel_id = gen_random_uuid(), channel_resource_id = 'synthetic-resource', channel_token_hash = repeat('a', 64), channel_expires_at = now() + interval '3 days'`
+		)
+		await sync.wake(id)
+		const withChannel = syncState(id)
+		const channelPollOk = near(withChannel.next_poll_at, Date.now() + 30 * 60000, 15000)
+		console.log(`loop 3 active channel: next_poll_plus_30min ${channelPollOk}`)
+		if (!channelPollOk) fail('loop 3', 'an active channel did not stretch the poll to 30 minutes')
+		rows(`update google_sync_state set channel_id = null, channel_resource_id = null, channel_token_hash = null, channel_expires_at = null
+where connection_id = ${quote(id)}`)
+
+		const locks = []
+		google.onPage = async () => {
+			locks.push(rows(`select count(*)::int as n from pg_locks where locktype = 'advisory'`)[0].n)
+		}
+		bump(id)
+		await sync.wake(id)
+		google.onPage = null
+		console.log(`loop 4 advisory locks during the pass: ${locks.join(',')}`)
+		if (!locks.length || locks.some((count) => count !== 0)) fail('loop 4', 'an advisory lock was held during the pass')
+
+		let reached
+		const gate = new Promise((done) => (release = done))
+		const arrived = new Promise((done) => (reached = done))
+		const stuck = make(
+			syntheticSource(google, {
+				onPage: async () => {
+					reached()
+					await gate
+				},
+			})
+		)
+		loops.push(stuck)
+		bump(id)
+		const stuckTask = stuck.wake(id)
+		await arrived
+		const restarted = make(syntheticSource(google))
+		loops.push(restarted)
+		rows(`update google_sync_state set requested_seq = requested_seq + 1 where connection_id = ${quote(id)}`)
+		const held = syncState(id)
+		await restarted.wake(id)
+		const whileHeld = syncState(id)
+		rows(`update google_sync_state set claimed_until = now() - interval '1 second' where connection_id = ${quote(id)}`)
+		await restarted.wake(id)
+		const resumed = syncState(id)
+		release()
+		await stuckTask
+		const afterStale = syncState(id)
+		const restartOk =
+			whileHeld.processed === held.processed &&
+			whileHeld.claimed_until !== null &&
+			resumed.processed === resumed.requested &&
+			afterStale.revision === resumed.revision &&
+			afterStale.processed === resumed.processed &&
+			notes.includes('Calendar sync pass discarded')
+		console.log(
+			`loop 5 restart mid-pass: blocked_while_claimed ${whileHeld.processed === held.processed} resumed_after_expiry ${resumed.processed === resumed.requested} stale_pass_discarded ${notes.includes('Calendar sync pass discarded')} revision_unchanged_by_stale ${afterStale.revision === resumed.revision}`
+		)
+		if (!restartOk) fail('loop 5', 'a pass left behind by a stopped loop was not taken over safely')
+
+		const [beforeMissing] = rows(
+			`select starts_at, ends_at, status from google_calendar_events where connection_id = ${quote(id)} and event_id = ${quote(fx.single)}`
+		)
+		const rawSingle = google.items.get(fx.single)
+		google.items.delete(fx.single)
+		google.missing.add(fx.single)
+		rows(
+			`update google_sync_state set next_full_at = now() - interval '1 second', claimed_until = null where connection_id = ${quote(id)}`
+		)
+		await sync.wake(id)
+		const [afterMissing] = rows(
+			`select starts_at, ends_at, status from google_calendar_events where connection_id = ${quote(id)} and event_id = ${quote(fx.single)}`
+		)
+		const missingOk =
+			beforeMissing.status !== 'cancelled' &&
+			afterMissing.status === 'cancelled' &&
+			afterMissing.starts_at === beforeMissing.starts_at &&
+			afterMissing.ends_at === beforeMissing.ends_at
+		console.log(
+			`loop 6 unseen bound single with a 404 read: status ${afterMissing.status} times_kept ${afterMissing.starts_at === beforeMissing.starts_at && afterMissing.ends_at === beforeMissing.ends_at}`
+		)
+		if (!missingOk) fail('loop 6', 'an unseen bound row was not cancelled with its times')
+
+		rows(
+			`update google_calendar_events set status = 'confirmed' where connection_id = ${quote(id)} and event_id = ${quote(fx.single)}`
+		)
+		google.missing.delete(fx.single)
+		google.masters.set(fx.single, {
+			...rawSingle,
+			etag: '"synthetic-live-single"',
+			summary: 'Synthetic live single',
+			updated: new Date().toISOString(),
+		})
+		rows(
+			`update google_sync_state set next_full_at = now() - interval '1 second', claimed_until = null where connection_id = ${quote(id)}`
+		)
+		await sync.wake(id)
+		const [live] = rows(
+			`select status, etag, summary, starts_at from google_calendar_events where connection_id = ${quote(id)} and event_id = ${quote(fx.single)}`
+		)
+		const liveOk =
+			live.status === 'confirmed' &&
+			live.etag === '"synthetic-live-single"' &&
+			live.summary === 'Synthetic live single' &&
+			live.starts_at === beforeMissing.starts_at
+		console.log(`loop 6 unseen bound single with a live read: status ${live.status} as_returned ${liveOk}`)
+		if (!liveOk) fail('loop 6', 'a live read did not keep the row as Google returned it')
+	} finally {
+		release()
+		for (const loop of loops) await loop.close()
+	}
+	console.log('LOOP_OK')
+}
+
+const handlers = { pass: passSection, claim: claimSection, loop: loopSection }
 
 let db = null
 let exitCode = 0
