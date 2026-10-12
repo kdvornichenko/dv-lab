@@ -19,7 +19,7 @@ import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { CalendarEventView, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
@@ -95,7 +95,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
 	const commands = useCalendarCommands()
 	const [draft, setDraft] = useState<{
-		seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes'>
+		seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes' | 'dragged'>
 		mainTimeZone: string
 		asOf: string
 	} | null>(null)
@@ -143,7 +143,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const secondZone = zone ? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) } : null
 
 	const editable = read.state === 'fresh' && write.state === 'ready' && !commands.blocked && week.kind === 'ready'
-	function openNew(seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes'>) {
+	function openNew(seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes' | 'dragged'>) {
 		if (!editable || read.state !== 'fresh') return
 		setDraft({ seed, mainTimeZone, asOf: read.fetchedAt })
 	}
@@ -230,6 +230,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			{draft !== null ? (
 				<NewLessonDialog
 					{...draft}
+					events={events}
 					students={students}
 					available={editable}
 					currentMainTimeZone={mainTimeZone}
@@ -312,7 +313,11 @@ function LoadedSchedule({ now }: { now: Date }) {
 								leadingIcon={CalendarPlus}
 								disabled={!editable}
 								onClick={() =>
-									openNew({ date: monday === currentMonday ? today : monday, time: '09:00', durationMinutes: 60 })
+									openNew(
+										monday === currentMonday
+											? { ...nextWholeHour(now, mainTimeZone), durationMinutes: 60, dragged: false }
+											: { date: monday, time: '09:00', durationMinutes: 60, dragged: false }
+									)
 								}
 							>
 								New lesson
@@ -343,6 +348,14 @@ function LoadedSchedule({ now }: { now: Date }) {
 			{dialogs}
 		</>
 	)
+}
+
+function nextWholeHour(now: Date, mainTimeZone: string) {
+	const parts = zonedParts(now, mainTimeZone)
+	const hour = Math.floor(parts.minutes / 60) + 1
+	return hour >= 24
+		? { date: addDays(parts.date, 1), time: '00:00' }
+		: { date: parts.date, time: `${String(hour).padStart(2, '0')}:00` }
 }
 
 function inBar(node: ReactNode, slot: HTMLElement) {

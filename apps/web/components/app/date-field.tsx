@@ -10,6 +10,12 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 const dateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' })
+const shortFormat = new Intl.DateTimeFormat('en-GB', {
+	weekday: 'short',
+	day: 'numeric',
+	month: 'short',
+	year: 'numeric',
+})
 
 function toDate(value: string) {
 	const [y, m, d] = value.split('-').map(Number)
@@ -30,6 +36,8 @@ interface DateFieldBase {
 	error?: string
 	helper?: string
 	disabled?: boolean
+	short?: boolean
+	reserve?: boolean
 }
 
 type DateFieldProps = DateFieldBase &
@@ -39,9 +47,14 @@ type DateFieldProps = DateFieldBase &
 	)
 
 export function DateField(props: DateFieldProps) {
-	const { id, label, value, onChange, min, max, error, helper, disabled } = props
+	const { id, label, value, onChange, min, max, error, helper, disabled, short = false, reserve = false } = props
 	const [open, setOpen] = useState(false)
-	const text = value === null ? 'Choose date' : dateFormat.format(toDate(value))
+	const text =
+		value === null
+			? 'Choose date'
+			: short
+				? shortFormat.format(toDate(value)).replace(',', '')
+				: dateFormat.format(toDate(value))
 	const disabledDays: Matcher[] = []
 	if (min) disabledDays.push({ before: toDate(min) })
 	if (max) disabledDays.push({ after: toDate(max) })
@@ -59,7 +72,7 @@ export function DateField(props: DateFieldProps) {
 					aria-label={`${label}: ${text}`}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={describedBy}
-					className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-left text-body pointer-coarse:text-[16px] text-foreground ring-1 ring-input transition-colors duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive"
+					className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-left text-body text-foreground ring-1 ring-input transition-colors duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive pointer-coarse:text-[16px]"
 				>
 					<span data-slot="date-field-value" className="min-w-0 truncate leading-5">
 						{text}
@@ -91,6 +104,8 @@ export function DateField(props: DateFieldProps) {
 				<p id={helperId} className="text-caption text-muted-foreground">
 					{helper}
 				</p>
+			) : reserve ? (
+				<p aria-hidden className="min-h-4 max-sm:hidden" />
 			) : null}
 		</div>
 	)

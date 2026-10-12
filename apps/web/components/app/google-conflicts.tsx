@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
 
-import { ExternalLink, Loader2 } from 'lucide-react'
+import { CircleAlert, ExternalLink, Loader2, TriangleAlert } from 'lucide-react'
 import type { z } from 'zod'
 
 import { calendarVersionFor } from '@/app/(app)/schedule/_components/calendar-overlaps'
-import { Banner, BannerTitle, BannerDescription } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
 import { formatDate, formatDay, formatTime, mainRange, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
@@ -23,7 +24,6 @@ import {
 } from '@dv-lab/contracts'
 import { addDays, firstOnOrAfter, mondayOf, scheduleDate } from '@dv-lab/core'
 
-import { DISCONNECT_COPY } from './calendar-command-notice'
 import { useCalendarCommands } from './calendar-command-provider'
 import { DateField } from './date-field'
 
@@ -148,6 +148,7 @@ export function useGoogleConflicts(selection: Selection) {
 	const mounted = useRef(false)
 	const latestPublication = useRef<GoogleScheduleWindow | null>(null)
 	const attempted = useRef<string | null>(null)
+	const started = useRef(false)
 	const proposal = selection.proposal
 	const { infinite, minimum } = selectionRange(selection)
 	const through = infinite ? (customThrough ?? automaticThrough(minimum, publication)) : customThrough
@@ -249,11 +250,12 @@ export function useGoogleConflicts(selection: Selection) {
 	const automaticallyCheck = useEffectEvent(() => {
 		if (!allowed || loading === key || attempted.current === autoKey) return
 		attempted.current = autoKey
+		started.current = true
 		void check()
 	})
 	useEffect(() => {
 		if (!allowed) return
-		const timer = setTimeout(automaticallyCheck, 200)
+		const timer = setTimeout(automaticallyCheck, started.current ? 400 : 0)
 		return () => clearTimeout(timer)
 	}, [allowed, autoKey, loading, stored])
 
@@ -333,7 +335,7 @@ function ConflictRow({
 			<p className="text-body font-semibold wrap-anywhere">{event.title || 'Busy'}</p>
 			<div className="grid grid-cols-[88px_minmax(0,1fr)] gap-x-2 gap-y-0.5">
 				<span className="text-caption text-muted-foreground">Google event</span>
-				<span className="text-body tabular-nums">{eventTime(event, year)}</span>
+				<span className="text-caption tabular-nums">{eventTime(event, year)}</span>
 				<span className="text-caption text-muted-foreground">Your slots</span>
 				<div className="flex flex-col">
 					{slots.map((instant) => (
@@ -344,47 +346,6 @@ function ConflictRow({
 					{more > 0 ? <p className="text-caption text-muted-foreground">and {more} more</p> : null}
 				</div>
 			</div>
-		</div>
-	)
-}
-
-function CompleteConflicts({ result, durationMinutes }: { result: CompleteResult; durationMinutes: number | null }) {
-	const [expanded, setExpanded] = useState(false)
-	const events = result.events
-	if (events.length === 0)
-		return (
-			<Banner status="success">
-				<BannerTitle>No Google Calendar overlaps in the checked range.</BannerTitle>
-				<BannerDescription className="text-caption text-muted-foreground tabular-nums">
-					{checkedLine(result)}
-				</BannerDescription>
-			</Banner>
-		)
-	return (
-		<div className="flex flex-col gap-2">
-			<Banner status="warning">
-				<BannerTitle>
-					{events.length === 1
-						? 'This overlaps a Google Calendar event'
-						: `This overlaps ${events.length} Google Calendar events`}
-				</BannerTitle>
-				<BannerDescription className="text-body text-muted-foreground">
-					You can still save this change. Google Calendar must confirm it before it is saved.
-				</BannerDescription>
-				<div className="col-start-2 row-start-3 mt-1.5 flex min-w-0 flex-col gap-2">
-					{(expanded ? events : events.slice(0, 2)).map((event) => (
-						<ConflictRow key={event.eventKey} event={event} result={result} durationMinutes={durationMinutes} />
-					))}
-					<p className="text-caption text-muted-foreground tabular-nums">{checkedLine(result)}</p>
-				</div>
-			</Banner>
-			{events.length > 2 ? (
-				<div>
-					<Button type="button" variant="ghost" size="compact" onClick={() => setExpanded(!expanded)}>
-						{expanded ? 'Show fewer conflicts' : `Show all ${events.length} conflicts`}
-					</Button>
-				</div>
-			) : null}
 		</div>
 	)
 }
@@ -405,87 +366,267 @@ function SeriesCheckRange({ check, pending }: { check: ConflictCheck; pending: b
 	)
 }
 
-function ConnectionNotice({ state }: { state: GoogleScheduleWindow['connection']['state'] }) {
-	const never = state === 'not_connected'
-	const lost = state === 'reconnect_required' || state === 'permission_required'
-	return (
-		<>
-			<Banner status="warning">
-				<BannerTitle>
-					{never
-						? 'Connect Google Calendar to view events and make calendar changes.'
-						: state === 'disconnecting' || state === 'disconnect_failed'
-							? DISCONNECT_COPY[state]
-							: 'Reconnect Google Calendar before checking overlaps or saving calendar changes.'}
-				</BannerTitle>
-			</Banner>
-			{never || lost ? (
-				<>
-					<p className="text-body">
-						{never
-							? 'Keep this tab open to preserve your unsaved form. Connect in another tab, then return here.'
-							: 'Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.'}
-					</p>
-					<div>
-						<Button
-							variant="secondary"
-							leadingIcon={ExternalLink}
-							nativeButton={false}
-							render={<a href="/settings?tab=calendar" target="_blank" rel="noopener noreferrer" />}
-						>
-							Open calendar settings
-						</Button>
-					</div>
-				</>
-			) : null}
-		</>
+export function lessonOverlaps(
+	events: readonly CalendarEventView[],
+	start: Date | null,
+	minutes: number | null,
+	exclude: string | null = null
+): CalendarEventView[] {
+	if (start === null || minutes === null || minutes <= 0) return []
+	const from = start.getTime()
+	const to = from + minutes * 60000
+	return events.filter(
+		(event) =>
+			event.binding.kind === 'lesson' &&
+			event.eventKey !== exclude &&
+			event.status !== 'cancelled' &&
+			event.when.kind === 'timed' &&
+			Date.parse(event.when.startsAt) < to &&
+			Date.parse(event.when.endsAt) > from
 	)
 }
 
-export function GoogleConflicts({
+function overlapLabel(lessons: readonly CalendarEventView[], google: number) {
+	const lessonPart =
+		lessons.length === 0
+			? null
+			: lessons.length > 1
+				? `${lessons.length} lessons`
+				: google > 0
+					? 'a lesson'
+					: lessons[0].title || 'a lesson'
+	const googlePart = google === 0 ? null : google === 1 ? 'an event' : `${google} events`
+	return `Overlaps ${[lessonPart, googlePart].filter(Boolean).join(' and ')}`
+}
+
+function LessonRow({ event, zone, year }: { event: CalendarEventView; zone: string; year: number }) {
+	const when =
+		event.when.kind === 'timed'
+			? slotTime(
+					new Date(event.when.startsAt),
+					zone,
+					(Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
+					year
+				)
+			: eventTime(event, year)
+	return (
+		<div className="flex items-baseline justify-between gap-3 border-t border-foreground/10 pt-2">
+			<p className="min-w-0 text-body font-semibold wrap-anywhere">{event.title || 'Busy'}</p>
+			<p className="shrink-0 text-caption tabular-nums">{when}</p>
+		</div>
+	)
+}
+
+function OverlapDetails({
+	lessons,
+	result,
+	zone,
+	durationMinutes,
+}: {
+	lessons: readonly CalendarEventView[]
+	result: CompleteResult | null
+	zone: string
+	durationMinutes: number | null
+}) {
+	const [expanded, setExpanded] = useState(false)
+	const google = result === null ? [] : result.events.filter((event) => event.binding.kind !== 'lesson')
+	const shownGoogle = expanded ? google : google.slice(0, 2)
+	const year = yearInZone(new Date(), zone)
+	return (
+		<div
+			data-slot="google-conflicts-details"
+			className="scroll-fade flex max-h-[190px] flex-col gap-3 overflow-y-auto [--scroll-fade-size:var(--scroll-fade-size-compact)]"
+		>
+			<p className="text-caption text-muted-foreground">
+				You can still save. Google Calendar must confirm it before it is saved.
+			</p>
+			{lessons.length > 0 ? (
+				<div className="flex flex-col gap-2">
+					<p className="text-caption text-muted-foreground">Lessons</p>
+					{lessons.map((event) => (
+						<LessonRow key={event.eventKey} event={event} zone={zone} year={year} />
+					))}
+				</div>
+			) : null}
+			{result !== null && google.length > 0 ? (
+				<div className="flex flex-col gap-2">
+					<p className="text-caption text-muted-foreground">Google Calendar</p>
+					{shownGoogle.map((event) => (
+						<ConflictRow key={event.eventKey} event={event} result={result} durationMinutes={durationMinutes} />
+					))}
+					{google.length > 2 ? (
+						<div>
+							<Button type="button" variant="ghost" size="compact" onClick={() => setExpanded(!expanded)}>
+								{expanded ? 'Show fewer conflicts' : `Show all ${google.length} conflicts`}
+							</Button>
+						</div>
+					) : null}
+					<p className="text-caption text-muted-foreground tabular-nums">{checkedLine(result)}</p>
+				</div>
+			) : null}
+		</div>
+	)
+}
+
+export function GoogleConflicts({ check, pending }: { check: ConflictCheck; pending: boolean }) {
+	return check.infinite ? <SeriesCheckRange check={check} pending={pending} /> : null
+}
+
+const CONNECT_TIP =
+	'Overlaps are not checked until Google Calendar is connected. Keep this tab open: connect in another tab, then return here.'
+
+function Spinner() {
+	return <Loader2 aria-hidden className="size-4 shrink-0 animate-spin text-muted-foreground" />
+}
+
+function OverlapControl({
+	label,
+	lessons,
+	result,
+	zone,
+	durationMinutes,
+	busy,
+}: {
+	label: string
+	lessons: readonly CalendarEventView[]
+	result: CompleteResult | null
+	zone: string
+	durationMinutes: number | null
+	busy: boolean
+}) {
+	const [open, setOpen] = useState(false)
+	return (
+		<span className="flex min-w-0 items-center gap-2">
+			<Popover open={open} onOpenChange={setOpen}>
+				<PopoverTrigger
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							size="compact"
+							active={open}
+							leadingIcon={TriangleAlert}
+							className="min-w-0 [&_svg]:text-warning"
+						/>
+					}
+				>
+					{label}
+				</PopoverTrigger>
+				<PopoverContent
+					side="top"
+					align="start"
+					sideOffset={4}
+					role="group"
+					aria-label="Overlap details"
+					className="w-[440px] max-w-[calc(100vw-32px)] rounded-xl p-3"
+				>
+					<OverlapDetails lessons={lessons} result={result} zone={zone} durationMinutes={durationMinutes} />
+				</PopoverContent>
+			</Popover>
+			{busy ? <Spinner /> : null}
+		</span>
+	)
+}
+
+export function ConflictStatus({
 	check,
-	pending,
+	timeZone,
 	durationMinutes = null,
+	failure = null,
+	lessons = [],
 }: {
 	check: ConflictCheck
-	pending: boolean
+	timeZone: string
 	durationMinutes?: number | null
+	failure?: string | null
+	lessons?: readonly CalendarEventView[]
 }) {
 	const result = check.result
 	const state = check.connection?.state
-	const blocked = state !== undefined && state !== 'connected'
-	return (
-		<div className="flex flex-col gap-3" data-slot="google-conflicts" aria-live="polite" aria-busy={check.loading}>
-			{check.infinite ? <SeriesCheckRange check={check} pending={pending} /> : null}
-			<div data-slot="google-conflicts-result" className="h-58 overflow-hidden rounded-xl sm:h-50">
-				<div className="scroll-fade flex h-full flex-col gap-3 overflow-y-auto [--scroll-fade-size:var(--scroll-fade-size-compact)]">
-					{blocked ? <ConnectionNotice state={state} /> : null}
-					{check.loading ? (
-						<p className="flex items-center gap-2 text-body text-muted-foreground">
-							<Loader2 aria-hidden className="size-4 shrink-0 animate-spin" />
-							Checking Google Calendar for overlaps…
-						</p>
-					) : null}
-					{result?.state === 'unavailable' ? (
-						<Banner status="warning">
-							<BannerTitle>Could not check the full calendar range. Check again before saving.</BannerTitle>
-						</Banner>
-					) : null}
-					{check.ready && result?.state === 'complete' ? (
-						<CompleteConflicts result={result} durationMinutes={durationMinutes} />
-					) : null}
-				</div>
-			</div>
-			<div>
+	const busy = check.loading || (check.canCheck && result === null)
+	const complete = check.ready && result?.state === 'complete' ? result : null
+	const found = complete === null ? lessons : complete.events.filter((event) => event.binding.kind === 'lesson')
+	const google = complete === null ? 0 : complete.events.length - found.length
+	let content: ReactNode = null
+	if (failure !== null)
+		content = (
+			<span className="flex min-w-0 items-center gap-2 text-caption text-destructive">
+				<CircleAlert aria-hidden className="size-4 shrink-0" />
+				<span className="line-clamp-2 min-w-0">{failure}</span>
+			</span>
+		)
+	else if (state === 'not_connected' || state === 'reconnect_required' || state === 'permission_required')
+		content = (
+			<Tooltip content={CONNECT_TIP} className="max-w-[280px]">
 				<Button
-					type="button"
-					variant="secondary"
-					disabled={pending || check.loading || !check.canCheck}
-					onClick={() => void check.check()}
+					variant="ghost"
+					size="compact"
+					leadingIcon={ExternalLink}
+					nativeButton={false}
+					render={<a href="/settings?tab=calendar" target="_blank" rel="noopener noreferrer" />}
 				>
-					{result?.state === 'unavailable' ? 'Check again' : 'Check overlaps'}
+					{state === 'not_connected' ? 'Connect calendar' : 'Reconnect calendar'}
 				</Button>
-			</div>
+			</Tooltip>
+		)
+	else if (found.length > 0 || google > 0)
+		content = (
+			<OverlapControl
+				label={overlapLabel(found, google)}
+				lessons={found}
+				result={complete}
+				zone={complete?.checkedRange.timeZone ?? timeZone}
+				durationMinutes={durationMinutes}
+				busy={busy}
+			/>
+		)
+	else if (busy)
+		content = (
+			<span className="flex items-center gap-2 text-caption text-muted-foreground">
+				<Spinner />
+				Checking…
+			</span>
+		)
+	else if (result?.state === 'unavailable')
+		content = (
+			<Button
+				type="button"
+				variant="ghost"
+				size="compact"
+				leadingIcon={TriangleAlert}
+				className="[&_svg]:text-warning"
+				disabled={!check.canCheck}
+				onClick={() => void check.check()}
+			>
+				Check failed. Retry
+			</Button>
+		)
+	else if (complete !== null) content = <span className="sr-only">No overlaps.</span>
+	return (
+		<div
+			data-slot="google-conflicts-status"
+			aria-live="polite"
+			aria-busy={busy}
+			className="flex min-h-7 min-w-0 items-center"
+		>
+			{content}
+		</div>
+	)
+}
+
+export function FormFooter({
+	status,
+	children,
+	className = 'mt-6',
+}: {
+	status: ReactNode
+	children: ReactNode
+	className?: string
+}) {
+	return (
+		<div data-slot="form-footer" className={`${className} flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3`}>
+			<div className="min-w-0 sm:flex-1">{status}</div>
+			<div className="flex justify-end gap-2 max-sm:*:flex-1">{children}</div>
 		</div>
 	)
 }

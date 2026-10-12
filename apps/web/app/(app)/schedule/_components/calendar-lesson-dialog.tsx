@@ -184,6 +184,7 @@ function LessonContent({
 								moveSeed={moveSeed}
 								available={editable}
 								event={initial}
+								weekEvents={window.events}
 								mainTimeZone={mainTimeZone}
 								currentMainTimeZone={window.requestedRange.timeZone}
 								asOf={asOf}

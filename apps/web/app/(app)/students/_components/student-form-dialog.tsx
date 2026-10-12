@@ -19,13 +19,12 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { apiRequest } from '@/lib/api-client'
+import { formatLength, LENGTH_HELPER, lengthError, normalizeLength, parseLength } from '@/lib/lesson-length'
 
 import {
 	CURRENCIES,
 	DISPLAY_NAME_MAX_LENGTH,
 	LESSON_MINUTES_DEFAULT,
-	LESSON_MINUTES_MAX,
-	LESSON_MINUTES_MIN,
 	STUDENT_TEXT_MAX_LENGTH,
 	isDisplayNameLength,
 	normalizeDisplayName,
@@ -74,7 +73,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 			name: '',
 			rate: '',
 			currency: NO_CURRENCY,
-			lessonMinutes: String(LESSON_MINUTES_DEFAULT),
+			lessonMinutes: formatLength(LESSON_MINUTES_DEFAULT),
 			timeZone: SAME_TIME_ZONE,
 			parent: '',
 			level: '',
@@ -85,7 +84,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 		name: student.displayName,
 		rate: student.rateMinor === null ? '' : minorToInput(student.rateMinor, student.currency),
 		currency: student.currency ?? NO_CURRENCY,
-		lessonMinutes: String(student.defaultLessonMinutes),
+		lessonMinutes: formatLength(student.defaultLessonMinutes),
 		timeZone: student.timeZone ?? SAME_TIME_ZONE,
 		parent: student.parent ?? '',
 		level: student.level ?? '',
@@ -119,11 +118,9 @@ function parse(values: Values): Parsed {
 		errors.currency = 'Enter the rate or set the currency to None.'
 	}
 
-	const lessonText = values.lessonMinutes.trim()
-	const lessonMinutes = /^\d+$/.test(lessonText) ? Number(lessonText) : Number.NaN
-	if (!(lessonMinutes >= LESSON_MINUTES_MIN && lessonMinutes <= LESSON_MINUTES_MAX)) {
-		errors.lessonMinutes = `Use ${LESSON_MINUTES_MIN} to ${LESSON_MINUTES_MAX} minutes.`
-	}
+	const lessonProblem = lengthError(values.lessonMinutes)
+	const lessonMinutes = parseLength(values.lessonMinutes) ?? Number.NaN
+	if (lessonProblem !== undefined) errors.lessonMinutes = lessonProblem
 
 	for (const field of ['parent', 'level', 'goals'] as const) {
 		if (textLength(values[field]) > STUDENT_TEXT_MAX_LENGTH) {
@@ -317,13 +314,16 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 								ref={lessonRef}
 								id="student-form-lesson"
 								name="lessonMinutes"
-								label="Lesson length (min)"
+								label="Lesson length"
 								inputMode="numeric"
 								autoComplete="off"
-								helper={`Used to turn stored time into lessons. ${LESSON_MINUTES_MIN} to ${LESSON_MINUTES_MAX} minutes.${create ? '' : ' Changing this changes how the balance is shown in lessons.'}`}
+								helper={LENGTH_HELPER}
 								value={values.lessonMinutes}
 								onChange={(event) => set('lessonMinutes', event.target.value)}
-								onBlur={() => touch('lessonMinutes')}
+								onBlur={() => {
+									set('lessonMinutes', normalizeLength(values.lessonMinutes))
+									touch('lessonMinutes')
+								}}
 								disabled={pending}
 								error={shown('lessonMinutes')}
 							/>
