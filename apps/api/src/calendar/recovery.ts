@@ -136,8 +136,12 @@ async function observeAbsence(
 	stage: StageRow,
 	gateway: GoogleGateway
 ) {
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== command.calendarId) throw new CalendarFault('external_change')
+	if (
+		access.connection.calendarId !== command.calendarId ||
+		access.connection.generation !== command.generation ||
+		access.connection.state !== 'connected'
+	)
+		throw new CalendarFault('external_change')
 	const absent = await gateway.identityAbsent(
 		access.accessToken,
 		command.calendarId,
