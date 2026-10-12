@@ -519,7 +519,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 6. The account can pick a calendar inside the connected Google account.
 7. One sync task per connection survives restart and does not block week reads; the week version grows only when something changed.
 
-**Plans**: not planned yet. Context in `25.1-CONTEXT.md`.
+**Plans**: 12 plans, 42 tasks, 8 waves. Research, UI contract (design v53), plan check and squad review done; waiting for the owner's review of the plan page.
 **UI hint**: yes
 
 ### Phase 26: IELTS Section
