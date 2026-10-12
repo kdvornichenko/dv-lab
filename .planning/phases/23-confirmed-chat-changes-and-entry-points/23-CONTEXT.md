@@ -19,7 +19,7 @@ Requirements: CHAT-05, CHAT-06, CHAT-10, CHAT-12, SHELL-03, SHELL-04, CARD-05. P
 - **D-06:** Existing history, marks, payment facts and stable card identities remain intact under the applicable domain policy. Schedule rows are not physically removed. Research must distinguish supported deletion/archive operations and name the owner; it must not invent a destructive business operation from a model phrase.
 - **D-07:** Essay feedback is an approximate estimate, not an official IELTS result. It uses the Phase 22 configured provider/model/budget path. Phase 26 exam workflow is excluded.
 - **D-08:** UI reuses Base UI and variant A/v40. Product copy is English. No eyebrows, Radix or cmdk. Navigation, focus, confirmation and phone interactions require public browser evidence.
-- **D-09:** The owner authorized autonomous research/planning/UI/check/implementation and coordinated release/testing without questions while away. New agents use gpt-6.1-sol. Server guy owns runtime/release leases and secrets. Missing observations remain UNVERIFIED.
+- **D-09:** The owner authorized autonomous research/planning/UI/check/implementation and coordinated release/testing without questions while away. New agents use the session agent model. Server guy owns runtime/release leases and secrets. Missing observations remain UNVERIFIED.
 
 ## Unreviewed Defaults
 

@@ -8,7 +8,7 @@ Outcome:независимый verdict по C1–C4 — SC1–5/F01–10/CHAT01/
 
 Acceptance:полный scope имеет tasks и proof owners; producers до consumers; bounded real files/tasks; exact predicate lift; current native syntax и safety gates. A1:source913fc5a исторический;final24/25 requires execution rebind. A2:actual key/cap/model/grant/SDK legitimacy/paid comparison неизвестны;не заполняются assumptions. A3:17PLAN и7upstream22inputs не менялись во время review;проверка SHA-256 ниже. Work map:task reading→C1/C2;native/graph/owner checks→C2/C4;predicate equality→C3;report→verdict. Stop:один завершённый full independent review.
 
-ROOT:`/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`. Current docs HEAD:`81a11752853260327ba385475547a912b152842b`;source pin:`913fc5ae9286aca9a48b5ce4272699c846849874`. Source10 actor вне ROOT не читался и не изменялся. Source22 не исполнялся. Work-router использован для explicit typed GSD checker;side-effect adapter сохраняет Git/deploy/delegation границы. Native installed role query exit0,47292bytes,SHA-256`c8902f3a4a216d3aa252c1a5ad58a3a43aa023177730056d46947f5b61cf7065`,SKILL includes0. Baked model5.6 warning не меняет user6.1-sol и не создаёт config/install task.
+ROOT:`~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`. Current docs HEAD:`81a11752853260327ba385475547a912b152842b`;source pin:`913fc5ae9286aca9a48b5ce4272699c846849874`. Source10 actor вне ROOT не читался и не изменялся. Source22 не исполнялся. Work-router использован для explicit typed GSD checker;side-effect adapter сохраняет Git/deploy/delegation границы. Native installed role query exit0,47292bytes,SHA-256`c8902f3a4a216d3aa252c1a5ad58a3a43aa023177730056d46947f5b61cf7065`,SKILL includes0. Baked model5.6 warning не меняет user6.1-sol и не создаёт config/install task.
 
 ### Surviving finding
 
@@ -103,23 +103,23 @@ Exact equality51/51 и61/61:каждый resolution в must_haves.truths ров�
 
 ### Checks and exact commands
 
-Only static/doc checks run. Native binary:`/Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs`. Every subprocess completed;original numeric exit retained. No typecheck/build/E2E/provider/DB run by this checker.
+Only static/doc checks run. Native binary:`~/.claude/gsd-core/bin/gsd-tools.cjs`. Every subprocess completed;original numeric exit retained. No typecheck/build/E2E/provider/DB run by this checker.
 
 | Exact command                                                                                                                                                                                                          | Original exit / decisive output              |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                                                                                      | 0;installed typed role/no SKILL includes     |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query init.phase-op 22`                                                                                                                                   | 0;found,context_scope complete,17plans       |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query roadmap.get-phase 22`                                                                                                                               | 0;SC1–5/8REQ                                 |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check decision-coverage-plan .planning/phases/22-chat-with-mentions-and-quick-marks .planning/phases/22-chat-with-mentions-and-quick-marks/22-CONTEXT.md` | 0;passed:true,9/9references only             |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks`                                                                     | 0;passed:true,49surface/10integrate/39optout |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check ui.plan-gate 22`                                                                                                                                    | 0;frontend:true,hasUiSpec:true,block:false   |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                                                       | 0;ROOT_PIN_OK before only write              |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                                                                                      | 0;installed typed role/no SKILL includes     |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query init.phase-op 22`                                                                                                                                   | 0;found,context_scope complete,17plans       |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query roadmap.get-phase 22`                                                                                                                               | 0;SC1–5/8REQ                                 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check decision-coverage-plan .planning/phases/22-chat-with-mentions-and-quick-marks .planning/phases/22-chat-with-mentions-and-quick-marks/22-CONTEXT.md` | 0;passed:true,9/9references only             |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks`                                                                     | 0;passed:true,49surface/10integrate/39optout |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check ui.plan-gate 22`                                                                                                                                    | 0;frontend:true,hasUiSpec:true,block:false   |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                                                       | 0;ROOT_PIN_OK before only write              |
 
 Native frontmatter/structure commands executed once for each literal path below. Every frontmatter:`exit0,valid:true`;every structure:`exit0,valid:true,errors:[],warnings:[]`. Exact forms:
-`node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate <path> --schema plan`
+`node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate <path> --schema plan`
 and
-`node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure <path>`.
-For each tokens value:`node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens <tokens> --calibrated`,exit0,budget100000,over_budget:false,confidence:low,sample_count0. Эти estimates ещё не calibrated by actuals.
+`node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure <path>`.
+For each tokens value:`node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens <tokens> --calibrated`,exit0,budget100000,over_budget:false,confidence:low,sample_count0. Эти estimates ещё не calibrated by actuals.
 
 | Literal path                                                           | Tasks | Files | Wave | Tokens |
 | ---------------------------------------------------------------------- | ----: | ----: | ---: | -----: |
@@ -329,28 +329,28 @@ Managed envelope включает весь charge-bearing lifecycle: resource cr
 Следующие шесть команд исполнены по одному разу. Все exit0/valid:true; structure errors:[],warnings:[] и task counts2/2/3:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md
 ```
 
 | Exact command                                                                                                                                      | Exit / decisive output                                                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                  | 0; role SHA прежний c8902f3a4a216d3aa252c1a5ad58a3a43aa023177730056d46947f5b61cf7065; прежние role/template proof reused |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks` | 0;passed:true,block:false,49/14/35                                                                                       |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 26000 --calibrated`                                     | 0;budget100000,over_budget:false,confidence:low,sample_count0                                                            |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                  | 0; role SHA прежний c8902f3a4a216d3aa252c1a5ad58a3a43aa023177730056d46947f5b61cf7065; прежние role/template proof reused |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks` | 0;passed:true,block:false,49/14/35                                                                                       |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 26000 --calibrated`                                     | 0;budget100000,over_budget:false,confidence:low,sample_count0                                                            |
 | `git rev-parse HEAD`                                                                                                                               | 0;81a11752853260327ba385475547a912b152842b                                                                               |
 | `git diff --quiet 913fc5ae9286aca9a48b5ce4272699c846849874 -- apps packages e2e scripts yarn.lock package.json .yarnrc.yml`                        | 0;no tracked source diff in this scope; no runtime proof                                                                 |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`                                   | 0;ROOT_PIN_OK before sole report write                                                                                   |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`                                   | 0;ROOT_PIN_OK before sole report write                                                                                   |
 
 Native typed must_haves consumer, exit0:09(0artifacts/1link/2truths),17(0/1/3),18(11/3/6); все path/from/to typed:
 
 ```sh
 node - <<'JS'
-const fs=require('node:fs');const {parseMustHavesBlock}=require('/Users/kdvornichenko/.codex/gsd-core/bin/lib/frontmatter.cjs');
+const fs=require('node:fs');const {parseMustHavesBlock}=require('~/.claude/gsd-core/bin/lib/frontmatter.cjs');
 const base='.planning/phases/22-chat-with-mentions-and-quick-marks/';const rows=[];
 for(const n of ['09','17','18']){const s=fs.readFileSync(base+'22-'+n+'-PLAN.md','utf8');const a=parseMustHavesBlock(s,'artifacts'),l=parseMustHavesBlock(s,'key_links'),t=parseMustHavesBlock(s,'truths');const ok=a.every(x=>typeof x==='object'&&typeof x.path==='string')&&l.every(x=>typeof x==='object'&&typeof x.from==='string'&&typeof x.to==='string');rows.push({plan:n,artifacts:a.length,links:l.length,truths:t.length,typed:ok});if(!ok)process.exitCode=1;}console.log(JSON.stringify(rows));
 JS

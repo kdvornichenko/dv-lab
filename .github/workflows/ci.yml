@@ -89,6 +89,9 @@ jobs:
             exit 1
           fi
 
+      - name: Repository hygiene
+        run: node scripts/hygiene-check.mjs
+
       - name: Client address trust
         run: |
           test -f deploy/caddy/Caddyfile
@@ -154,6 +157,16 @@ jobs:
             bash -n "$f"
           done
           shellcheck -S warning deploy/*.sh deploy/*/*.sh
+
+  base:
+    name: Base is master
+    if: github.event_name == 'pull_request' && github.base_ref != 'master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: |
+          echo "A pull request must target master. A stacked pull request merged into another branch never reaches master: open each pull request of a chain against master."
+          exit 1
 
   images:
     name: Image ${{ matrix.app }}

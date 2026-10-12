@@ -769,7 +769,7 @@ links = re.findall(r"\]\(([^)]+)\)", body)
 local_links = [p.split("#", 1)[0] for p in links if not p.startswith(("http:", "https:", "#"))]
 missing_links = [p for p in local_links if not (phase / p).is_file()]
 checks = {
-    "root": str(root.resolve()) == "/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab",
+    "root": str(root.resolve()) == "~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab",
     "inventory": len(inventory) == 80 and len({r[0] for r in inventory}) == 80,
     "states": [sum(r[1] == state for r in inventory) for state in ["NEW", "MOD", "GENERATED"]] == [23, 54, 3],
     "existing_tracked": all(p in tracked and (root / p).is_file() for p in modified),

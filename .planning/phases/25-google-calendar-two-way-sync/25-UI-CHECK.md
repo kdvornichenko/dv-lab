@@ -82,7 +82,7 @@ python3 -c 'from pathlib import Path; import hashlib,json,re; p=Path(".planning/
 
 `sed -n '105,171p' .planning/phases/25-google-calendar-two-way-sync/25-UI-SPEC.md`: exit 0; восстановлена область изменённого copy/scope, обрезанная первым выводом. Остальные primary inputs неизменны, повторного широкого audit не было.
 
-`bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`: exit 0, ROOT_PIN_OK непосредственно перед записью.
+`bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`: exit 0, ROOT_PIN_OK непосредственно перед записью.
 
 ### Ready for Planning / limitations
 

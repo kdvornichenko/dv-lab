@@ -29,6 +29,6 @@ All112 behavior blocks,40 truth arrays,69criteria,44edges,82UI predicates,224map
 - Review squad: completed with the three distinct lenses above. Code critic excluded by the user-owned GSD phase recipe.
 - Devils advocate: SKIPPED; no active BLOCKER/MAJOR claim remains.
 - HTML plan review: SKIPPED by the selected autonomous path of the installed html-plan-review skill. No human approval or completed HTML review is implied.
-- Gap gate: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/26-ielts-section 'IELTS-01,IELTS-02,IELTS-03,IELTS-04,IELTS-05,IELTS-06' --raw` — exit0,enabled=true,passed=true,block=false;16/16covered,0uncovered. Exact argv and raw outputs are retained privately as26-gap-analysis-plan-post-current-*.
+- Gap gate: `node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/26-ielts-section 'IELTS-01,IELTS-02,IELTS-03,IELTS-04,IELTS-05,IELTS-06' --raw` — exit0,enabled=true,passed=true,block=false;16/16covered,0uncovered. Exact argv and raw outputs are retained privately as26-gap-analysis-plan-post-current-*.
 
 Source26 execution requires actual final24/25/22/23 signatures/schema/callers and fingerprints. Private export/crosswalk/counts/checksums/media bytes, actual migrations, restore, candidate/device proof, quiescence/delta and explicit teacher old-shutdown confirmation remain future observable gates.

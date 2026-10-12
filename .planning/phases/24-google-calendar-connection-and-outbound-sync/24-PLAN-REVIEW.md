@@ -28,7 +28,7 @@ Today, Students и ближайший урок используют ту же п
 | Встроенный proof RESEARCH                                                                                                                                    | PASS, exit 0: 41 input, 37 links, 24 signature/state assertions, 42 coverage rows                                 |
 | Встроенный proof PATTERNS                                                                                                                                    | PASS, exit 0: 16 checks, 80 classified paths, 52 source + 13 input fingerprints, 25 excerpts; changed=[]          |
 | Встроенный proof UI-SPEC                                                                                                                                     | PASS, exit 0: 16 checks, 15 endpoints, 13 DTO types, 56 wire values, 31 privacy fields; design geometry unchanged |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/24-google-calendar-connection-and-outbound-sync` | Сохранённый PASS, exit 0: surface=42, integrate=10, optout=32; COVERAGE не изменён после проверки                 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/24-google-calendar-connection-and-outbound-sync` | Сохранённый PASS, exit 0: surface=42, integrate=10, optout=32; COVERAGE не изменён после проверки                 |
 | HTML pack, команда ниже                                                                                                                                      | PASS сборки, exit 0, 10 предупреждений; browser preview UNVERIFIED                                                |
 
 Точная команда повторения трёх embedded document checks:
@@ -51,7 +51,7 @@ PYDOC
 Команда фактической упаковки:
 
 ```sh
-node /Users/kdvornichenko/.codex/plugins/cache/claude-community/html-plan/1.0.0/skills/html-plan/runtime/pack.mjs /private/tmp/dv-lab-phase21-parallel/24-PLAN-REVIEW.src.html -o /private/tmp/dv-lab-phase21-parallel/24-PLAN-REVIEW.html --root /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab
+node ~/.claude/plugins/cache/claude-community/html-plan/1.0.0/skills/html-plan/runtime/pack.mjs /private/tmp/dv-lab-phase21-parallel/24-PLAN-REVIEW.src.html -o /private/tmp/dv-lab-phase21-parallel/24-PLAN-REVIEW.html --root ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab
 ```
 
 Для повторной упаковки можно заменить оба временных пути путями файлов из этого каталога. После упаковки у generated HTML удалены только trailing spaces. SHA-256 итогового HTML: `648d7075cbf749f3437750f73c1d1b7b371e37e633433603a21e1d194581d8a7`. SHA-256 исходника: `452b94bd5e248c281198b386a9e89bd33db75eac5d3917e935d92f4cd6cd8a83`.

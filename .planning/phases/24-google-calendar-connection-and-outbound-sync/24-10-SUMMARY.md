@@ -155,8 +155,8 @@ Existing durable `move.spec.ts` и `marks.spec.ts` расширены через
 | `yarn prettier --check <32 exact paths>`                                                                                                                                     | PASS, exit 0           | `All matched files use Prettier code style!`                                             |
 | `yarn node --max-old-space-size=8192 scripts/dev-checks/calendar-quality.ts --base 913fc5a <explicit owned/new/review argv> --json`                                          | PASS, exit 0           | fingerprint `50b4391615e55010e395e9842f77e117d046cae1ea351dcfad8268807023f6b2`; stale=[] |
 | `git diff --check`                                                                                                                                                           | PASS, exit 0           | empty output                                                                             |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab`                                                                                | PASS, exit 0           | `ROOT_PIN_OK`                                                                            |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected agent-24-contracts`                                                        | PASS, exit 0           | `false`                                                                                  |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase24-contracts/dv-lab`                                                                                | PASS, exit 0           | `ROOT_PIN_OK`                                                                            |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected agent-24-contracts`                                                        | PASS, exit 0           | `false`                                                                                  |
 | Post-commit SHA-256 comparison against native quality                                                                                                                        | PASS, exit 0           | 32/32 source hashes matched                                                              |
 
 Exact expanded format/quality argv сохранены в existing private STATE_DIR: `phase24-10-format-command.json`, `phase24-10-residual-command.json`. Полный current result, 32 source fingerprints, method/tool fingerprints, before/after measurements и type input fingerprint — `phase24-10-residual-quality.json`. Measured actuals/root identity — `phase24-10-residual-metadata.json`. Исходные final/correction artifacts сохранены как prior evidence. Эти artifacts не содержат provider payloads и не коммитятся.
@@ -273,7 +273,7 @@ Existing private STATE_DIR: exact expanded argv `phase24-10-residual-command.jso
 
 ## Worktree and handoff
 
-ROOT `/Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab`, branch `agent-24-contracts`, expected base `913fc5ae9286aca9a48b5ce4272699c846849874`. Main не изменялся. Preserved untracked `apps/web/AGENTS.md` исключён из owned diff и quality scope. Tracked file deletions отсутствуют.
+ROOT `~/.claude/worktrees/phase24-contracts/dv-lab`, branch `agent-24-contracts`, expected base `913fc5ae9286aca9a48b5ce4272699c846849874`. Main не изменялся. Preserved untracked `apps/web/AGENTS.md` исключён из owned diff и quality scope. Tracked file deletions отсутствуют.
 
 API build lease освобождена после завершения static checks. Runtime/DB/provider lease не использовалась. Source 10 готов для parent integration/review; actual Google acceptance остаётся открытой. STOP before 11.
 

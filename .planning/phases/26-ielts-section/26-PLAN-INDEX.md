@@ -38,7 +38,7 @@ Proposed dependency documents read:22INDEX `ee481adca3a72526ad2a4db1ebc45d8d6dd8
 
 ### Native pre facts and contributions in actual order
 
-Native26-init-plan exit0: context_scope=complete,6REQ, source phase pending; standard/full user route overrides interactive default/baked gpt-5.6 planner config. Human selected gpt-6.1-sol; no install/update/model mutation. granularity standard, tracer on, MVP/TDD/Nyquist false. AgentFlow SUSPENDED, no receipts/agents.
+Native26-init-plan exit0: context_scope=complete,6REQ, source phase pending; standard/full user route overrides interactive default/baked the default planner model planner config. Human selected the session agent model; no install/update/model mutation. granularity standard, tracer on, MVP/TDD/Nyquist false. AgentFlow SUSPENDED, no receipts/agents.
 
 13 native hooks: ai-integration step not applicable (local Copy prompt/splitReply/checker); arch/research/UI/pattern steps already completed, not rerun. API coverage contribution → actual post-plan detector below. ARCH contribution → own early02/08/09/12 producers. Assumption-delta scan exit0 detected=false/signals=[]; no artifact for false detector. Accepted account primary/optional card is explicit02, not parallel fake card. Schema push guidance overridden by repo AGENTS: generated additive Drizzle SQL+snapshot and role-owned actual apply before consumers, never push/manual generated edits/deletion. Security ASVS level1/high block → unique three threats per PLAN. Drift codebase SKIP no STRUCTURE, context WARN older research mtime only Parentstatus/UIbinding; lockedD01–10 unchanged, no fake PASS/regenerate. UIplan gate26 exit0/frontend/hasUItrue/blockfalse.
 
@@ -1024,7 +1024,7 @@ python3 -c 'from pathlib import Path; import re; text=Path(".planning/phases/26-
 ```python
 import pathlib,re,json,yaml,xml.etree.ElementTree as ET,hashlib,collections,subprocess
 root=pathlib.Path.cwd()
-assert str(root.resolve())=="/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab"
+assert str(root.resolve())=="~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab"
 phase=root/".planning/phases/26-ielts-section"
 state=pathlib.Path("/var/folders/_t/fgvwdzzs1394z_82sp4p500h0000gn/T/dvlab-dev-checks")
 index=(phase/"26-PLAN-INDEX.md").read_text()
@@ -1134,12 +1134,12 @@ Post-plan native detector exit0/detected=true/skipped absent; one(surface)/api s
 
 ### Completed planner checks — historical original exits
 
-- `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, ROOT_PIN_OK before planned writes.
-- For each exact26-01…40-PLAN.md: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/26-ielts-section/26-NN-PLAN.md --schema plan` and `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/26-ielts-section/26-NN-PLAN.md` —80 final checks,80 exit0/valid=true,errors=[],warnings=[]. First40 checkpoint check exit1 missing verification tag; added exact manual verification and final checks all passed.
+- `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, ROOT_PIN_OK before planned writes.
+- For each exact26-01…40-PLAN.md: `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/26-ielts-section/26-NN-PLAN.md --schema plan` and `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/26-ielts-section/26-NN-PLAN.md` —80 final checks,80 exit0/valid=true,errors=[],warnings=[]. First40 checkpoint check exit1 missing verification tag; added exact manual verification and final checks all passed.
 - Embedded `python3 -c` audit exact command above — exit0,40plans/112tasks/31waves/max14files/243paths/224targets/44edges/82UI/69criteria/120uniquethreats/5generatedpairs/6protected, XML valid/DAG acyclic/sharedwritersordered/sourcepin matched. All10 locked decisions and3UD cited; registry artifacts/file-task inventory exact.
-- `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/26-ielts-section 'IELTS-01,IELTS-02,IELTS-03,IELTS-04,IELTS-05,IELTS-06' --raw` — exit0,enabled=true/passed=true/block=false,16/16 (6REQ+10D),uncovered0.
-- Actual post-plan detector: concatenated ROADMAP26 section+40 PLAN bodies piped in memory to `node /Users/kdvornichenko/.codex/gsd-core/bin/lib/api-coverage.cjs --json` — exit0,893395chars,detected=true/skipped absent, one internal(surface)/api signal26-19/T3. Scope read is real, no fakeSkippedPass.
-- `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/26-ielts-section --raw` — final exit0,passed=true/block=false/none_declared=true, one detected signal reasoned override. First receipt exit0 but passed=false/block=true because reason>200chars; declaration shortened to160chars, details retained, final gate passed. No provider matrix fabricated.
+- `node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/26-ielts-section 'IELTS-01,IELTS-02,IELTS-03,IELTS-04,IELTS-05,IELTS-06' --raw` — exit0,enabled=true/passed=true/block=false,16/16 (6REQ+10D),uncovered0.
+- Actual post-plan detector: concatenated ROADMAP26 section+40 PLAN bodies piped in memory to `node ~/.claude/gsd-core/bin/lib/api-coverage.cjs --json` — exit0,893395chars,detected=true/skipped absent, one internal(surface)/api signal26-19/T3. Scope read is real, no fakeSkippedPass.
+- `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/26-ielts-section --raw` — final exit0,passed=true/block=false/none_declared=true, one detected signal reasoned override. First receipt exit0 but passed=false/block=true because reason>200chars; declaration shortened to160chars, details retained, final gate passed. No provider matrix fabricated.
 - `yarn prettier --write .planning/phases/26-ielts-section/26-*-PLAN.md .planning/phases/26-ielts-section/26-PLAN-INDEX.md .planning/phases/26-ielts-section/COVERAGE.md` — exit0, only authorized outputs. Final exact `--check` receipt appended below.
 - Tracking metadata — exit0, all source/target PATTERNS analogs tracked; existing actual owned paths tracked, existing-untracked0. Source git pin exact. No source/private data/env/media/DB read; no Git mutation.
 
@@ -1375,9 +1375,9 @@ Native frontmatter/structure is rerun ONLY for18 changed PLAN; unchanged22 synta
 
 ### CURRENT completed revision receipt
 
-- Root pin: `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` — original exit0/ROOT_PIN_OK before first edit.
-- Native exact per changed file NN03,07,22–34,38–40: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/26-ielts-section/26-NN-PLAN.md --schema plan` and `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/26-ielts-section/26-NN-PLAN.md` —36/36 original exits0,valid=true,errors=[],warnings=[]. Final route-qualification edits only23/30/39 had6 scoped reruns, all0/valid. Unchanged22 native proofs reused; no full40 generic/independent review.
-- Native budgets: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 18700 --calibrated`, likewise11900/17300 —3×exit0,budget100000,over_budget=false,factor1/sample0/lowconfidence. These are nominal planning estimates, no actual usage measurement.
+- Root pin: `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` — original exit0/ROOT_PIN_OK before first edit.
+- Native exact per changed file NN03,07,22–34,38–40: `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/26-ielts-section/26-NN-PLAN.md --schema plan` and `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/26-ielts-section/26-NN-PLAN.md` —36/36 original exits0,valid=true,errors=[],warnings=[]. Final route-qualification edits only23/30/39 had6 scoped reruns, all0/valid. Unchanged22 native proofs reused; no full40 generic/independent review.
+- Native budgets: `node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 18700 --calibrated`, likewise11900/17300 —3×exit0,budget100000,over_budget=false,factor1/sample0/lowconfidence. These are nominal planning estimates, no actual usage measurement.
 - CURRENT embedded audit exact command above — exit0/PASS:40plans/112tasks/35waves/max14/243paths/224canonical/69criteria/44edges/82UI/120threats/5migrationpairs/8protected. All112 behavior/failure/expected-outcome blocks and40 must_haves truth arrays unchanged.10 original public command transfers preserved; web collisions0; full graph formula/writer ordering exact. A scratch JavaScript audit-string SyntaxError occurred before any tool/file action; corrected; final actual audit original exit0.
 - Configured formatter: `yarn prettier --write` only18 changed PLAN and INDEX — original exits0. `yarn prettier --check` with the19 exact owned paths — original exit0, “All matched files use Prettier code style!”. Final INDEX receipt formatting checked separately after this addition.
 - Original embedded planner command block SHA `7f4e0f6c5709d1b1dc8c7d2c53a32c5ccee607d9717196045c6a24cfde06d4f8` unchanged. Parent metadata receipt text unchanged. CHECK SHA `4afb69f85c6ddedb7b97247f741300989905178bc9256e2192eaccc424e0efba` unchanged.6 canonical inputs+COVERAGE+CHECK unchanged; Source/sharedmetadata/Git/env/privateuserdata/media/DB/runtime/provider/paid/install/test/build/CUA/SSH/agents/deletion not run.

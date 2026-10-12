@@ -811,7 +811,7 @@ import json, pathlib, subprocess, sys
 phase = ".planning/phases/21-lesson-accounting-and-today"
 report = pathlib.Path(phase, "21-VERIFICATION.md").read_text()
 files = json.loads(next(line.split(": ", 1)[1] for line in report.splitlines() if line.startswith("covered_files: ")))
-result = subprocess.run(["node", "/Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs",
+result = subprocess.run(["node", "~/.claude/gsd-core/bin/gsd-tools.cjs",
                          "query", "verification.fingerprint", phase, *files])
 sys.exit(result.returncode)
 ```
@@ -819,7 +819,7 @@ sys.exit(result.returncode)
 После записи:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verification.status .planning/phases/21-lesson-accounting-and-today --pick status
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verification.status .planning/phases/21-lesson-accounting-and-today --pick status
 ```
 
 Фактический final self-check: `verification.status` завершился exit 0, вывод `passed`. Повтор `verification.fingerprint` по 274 путям завершился exit 0; `covered_files` и `covered_digest` совпали с отчётом (`matches_report: true`). В frontmatter 37 активных must-haves и нет активного `human_verification`; два отложенных runtime checks сохранены в `deferred`. Все четыре исходных raw hashes сохранены. Git status подтверждает сохранность parent evidence и прежних untracked файлов. SQL, runtime и Git mutations верификатор не запускал.

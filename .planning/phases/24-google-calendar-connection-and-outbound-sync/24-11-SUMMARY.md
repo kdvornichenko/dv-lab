@@ -63,7 +63,7 @@ plan_head_after: db58066d5d0e69d0a0fef13840a7c96fd6dbc4ba
 duration: '52min observed T1-to-T3 source-commit interval; executor start unavailable'
 completed: 2026-10-12
 worktree_metadata:
-  root: /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab
+  root: ~/.claude/worktrees/phase24-contracts/dv-lab
   branch: agent-24-contracts
   expected_base: a670696df2abb5d317b65048b920c9419c04aaf8
   source_head: db58066d5d0e69d0a0fef13840a7c96fd6dbc4ba
@@ -169,7 +169,7 @@ Operator-controlled reconnect/external change — будущие реальны�
 | Native calendar-quality, exact expanded argv в private artifact                                                                                                                                          | PASS, exit 0           | no failures, no diagnostics, no unreviewed boundaries, stale=[] |
 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep '\[calendar\] (conflicts\|conflict UI\|conflict move\|complete UI series)' --project=light --project=dark --list` | PASS discovery, exit 0 | 12 tests in 3 files; **not execution**                          |
 | `git diff --check`                                                                                                                                                                                       | PASS, exit 0           | empty output                                                    |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase24-contracts/dv-lab`                                                                                                            | PASS, exit 0           | ROOT_PIN_OK                                                     |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase24-contracts/dv-lab`                                                                                                            | PASS, exit 0           | ROOT_PIN_OK                                                     |
 
 API/web type/build inputs не изменились после passing checks. Final delta затронул только E2E retained-student guard; его types/metrics проверены current native quality. apps/web/AGENTS.md hash before/after build совпал.
 

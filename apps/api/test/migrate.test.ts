@@ -52,8 +52,8 @@ describe('migrate.mjs', () => {
 	it('concurrent runs both succeed', async () => {
 		const [first, second] = await Promise.all([run({ ...process.env }), run({ ...process.env })])
 
-		expect(first.code).toBe(0)
-		expect(second.code).toBe(0)
+		expect(first.code, first.output).toBe(0)
+		expect(second.code, second.output).toBe(0)
 		expect(migrationsCount(first.stdout)).toBe(folders)
 		expect(migrationsCount(second.stdout)).toBe(folders)
 	})
