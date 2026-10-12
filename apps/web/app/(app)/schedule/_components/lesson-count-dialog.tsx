@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { apiRequest } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
@@ -220,7 +221,7 @@ function EventList({
 	)
 }
 
-export function LessonCountDialog() {
+export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) {
 	const [open, setOpen] = useState(false)
 	const [range, setRange] = useState<DateRange | undefined>()
 	const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle')
@@ -278,13 +279,25 @@ export function LessonCountDialog() {
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger
-				render={
-					<Button variant="tertiary" leadingIcon={ListChecks}>
-						Count lessons
-					</Button>
-				}
-			/>
+			{iconOnly ? (
+				<Tooltip side="bottom" content="Count lessons">
+					<DialogTrigger
+						render={
+							<Button variant="tertiary" size="icon-compact" aria-label="Count lessons">
+								<ListChecks />
+							</Button>
+						}
+					/>
+				</Tooltip>
+			) : (
+				<DialogTrigger
+					render={
+						<Button variant="tertiary" leadingIcon={ListChecks}>
+							Count lessons
+						</Button>
+					}
+				/>
+			)}
 			<DialogContent size="lg">
 				<DialogHeader>
 					<DialogTitle>Count lessons</DialogTitle>

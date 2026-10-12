@@ -1,15 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 
+import { CircleAlert, Info, RefreshCw, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { TimePair } from '@/components/app/time-pair'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
 import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import {
 	googleConnectionSnapshot,
@@ -94,6 +98,131 @@ export function CalendarReadNotice({
 				</Button>
 			</div>
 		</div>
+	)
+}
+
+type NoticeTone = 'warning' | 'info' | 'error'
+
+const ISSUE_TONES: Record<CalendarIssue, NoticeTone> = {
+	connection_required: 'info',
+	reconnect_required: 'warning',
+	permission_required: 'warning',
+	provider_unavailable: 'warning',
+	command_pending: 'info',
+	external_change: 'warning',
+	disconnect_failed: 'error',
+	invalid_provider_data: 'warning',
+	history_only: 'info',
+}
+
+const TONE_STYLE: Record<NoticeTone, { icon: typeof Info; button: string; dot: string | null }> = {
+	warning: { icon: TriangleAlert, button: 'bg-warning/12 text-warning hover:text-warning', dot: 'bg-warning' },
+	info: { icon: Info, button: 'bg-info/12 text-info hover:text-info', dot: null },
+	error: {
+		icon: CircleAlert,
+		button: 'bg-destructive/12 text-destructive hover:text-destructive',
+		dot: 'bg-destructive',
+	},
+}
+
+function readOnlyLabel(issue: CalendarIssue | null): string {
+	if (issue === 'connection_required') return 'Read-only. Connect Google Calendar'
+	if (issue === 'reconnect_required' || issue === 'permission_required') return 'Read-only. Reconnect Google Calendar'
+	return 'Read-only'
+}
+
+export function CalendarReadStatusButton({
+	read,
+	write,
+	timeZone,
+	onRefresh,
+	pendingRecovery,
+	recovery,
+}: {
+	read: CalendarReadStatus
+	write: GoogleScheduleWindow['write']
+	timeZone: string
+	onRefresh: () => Promise<void>
+	pendingRecovery: boolean
+	recovery: ReactNode
+}) {
+	const [refreshing, setRefreshing] = useState(false)
+	const blocked = write.state === 'blocked' || read.state !== 'fresh'
+	const issue =
+		write.state === 'blocked'
+			? write.reason
+			: read.state !== 'fresh'
+				? read.reason
+				: pendingRecovery
+					? 'command_pending'
+					: null
+	async function refresh() {
+		setRefreshing(true)
+		try {
+			await onRefresh()
+		} finally {
+			setRefreshing(false)
+		}
+	}
+	if (issue === null && read.state === 'fresh') {
+		const label = `${checkedAt(read, timeZone)}. Refresh`
+		return (
+			<span className="relative inline-flex" data-slot="calendar-read-status-button">
+				<span role="status" className="sr-only">
+					{checkedAt(read, timeZone)}
+				</span>
+				<Tooltip side="bottom" content={label}>
+					<Button
+						variant="tertiary"
+						size="icon-compact"
+						aria-label={label}
+						loading={refreshing}
+						className="text-muted-foreground"
+						onClick={() => void refresh()}
+					>
+						<RefreshCw />
+					</Button>
+				</Tooltip>
+			</span>
+		)
+	}
+	const tone = TONE_STYLE[issue === null ? 'warning' : ISSUE_TONES[issue]]
+	const Icon = tone.icon
+	const label = blocked ? readOnlyLabel(issue) : 'Calendar requests need recovery'
+	return (
+		<span
+			className="relative inline-flex"
+			data-slot="calendar-read-status-button"
+			data-tone={issue === null ? 'warning' : ISSUE_TONES[issue]}
+		>
+			<span role="status" className="sr-only">
+				{label}
+			</span>
+			<Popover>
+				<Tooltip side="bottom" content={label}>
+					<PopoverTrigger
+						render={
+							<Button variant="tertiary" size="icon-compact" aria-label={label} className={tone.button}>
+								<Icon />
+							</Button>
+						}
+					/>
+				</Tooltip>
+				<PopoverContent align="end" className="w-90 max-w-[calc(100vw-2rem)] gap-3 p-4">
+					<CalendarReadNotice read={read} write={write} timeZone={timeZone} onRefresh={onRefresh} />
+					{recovery}
+				</PopoverContent>
+			</Popover>
+			{tone.dot ? (
+				<span
+					aria-hidden
+					className={cn(
+						'pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full ring-1 ring-surface-2',
+						tone.dot
+					)}
+				/>
+			) : null}
+		</span>
 	)
 }
 

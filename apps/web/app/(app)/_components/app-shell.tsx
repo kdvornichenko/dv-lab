@@ -6,6 +6,7 @@ import { Search } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeToggle } from '@/components/app/theme-toggle'
+import { TopbarSlotProvider, TopbarSlotTarget } from '@/components/app/topbar-slot'
 import { SidebarInsetTopbar } from '@/components/sidebar-app/inset-topbar'
 import { Button } from '@/components/ui/button'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -24,10 +25,15 @@ function Topbar({ onOpenSearch, pathname, pending }: { onOpenSearch: () => void;
 	const section = sectionForPath(pathname)
 	return (
 		<SidebarInsetTopbar>
-			<span aria-busy={pending} className="min-w-0 flex-1 truncate text-body text-foreground">
+			<span
+				aria-busy={pending}
+				className="min-w-0 flex-1 truncate text-body text-foreground [header:has(#topbar-slot:not(:empty))_&]:hidden"
+			>
 				{section.label}
 			</span>
-			<div className="flex shrink-0 items-center gap-1 pr-2">
+			<TopbarSlotTarget side="left" id="topbar-slot" className="flex min-w-0 flex-1 items-center gap-2 empty:hidden" />
+			<div className="flex shrink-0 items-center gap-1 pr-2 md:gap-2">
+				<TopbarSlotTarget side="right" id="topbar-actions" className="flex items-center gap-2 empty:hidden" />
 				<span className="md:hidden">
 					<Tooltip content="Search" delayDuration={200}>
 						<Button variant="ghost" size="icon-compact" aria-label="Search" onClick={onOpenSearch}>
@@ -84,40 +90,42 @@ export function AppShell({ account, children }: { account: AccountSummary; child
 
 	return (
 		<ToastProvider>
-			<div className="bg-surface-1">
-				<a
-					href="#content"
-					className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface-3 focus:px-4 focus:py-2 focus:text-body focus:text-foreground focus:shadow-surface-3"
-				>
-					Skip to content
-				</a>
-				<SidebarProvider persist={false} peek="hover" width="15rem" className="h-dvh min-h-0 overflow-hidden">
-					<AppSidebar
-						account={account}
-						onOpenSearch={openSearch}
-						pendingPath={pendingPath}
-						onNavigate={(to) => setNavigation(to === pathname ? null : { from: pathname, to })}
+			<TopbarSlotProvider>
+				<div className="bg-surface-1">
+					<a
+						href="#content"
+						className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-surface-3 focus:px-4 focus:py-2 focus:text-body focus:text-foreground focus:shadow-surface-3"
+					>
+						Skip to content
+					</a>
+					<SidebarProvider persist={false} peek="hover" width="15rem" className="h-dvh min-h-0 overflow-hidden">
+						<AppSidebar
+							account={account}
+							onOpenSearch={openSearch}
+							pendingPath={pendingPath}
+							onNavigate={(to) => setNavigation(to === pathname ? null : { from: pathname, to })}
+						/>
+						<SidebarInset className="overflow-hidden">
+							<SurfaceProvider value={2}>
+								<Topbar
+									onOpenSearch={() => openSearch()}
+									pathname={pendingPath ?? pathname}
+									pending={pendingPath !== null}
+								/>
+								<main id="content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
+									{children}
+								</main>
+							</SurfaceProvider>
+						</SidebarInset>
+					</SidebarProvider>
+					<CommandPalette
+						key={palette.key}
+						open={palette.open}
+						initialQuery={palette.initialQuery}
+						onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}
 					/>
-					<SidebarInset className="overflow-hidden">
-						<SurfaceProvider value={2}>
-							<Topbar
-								onOpenSearch={() => openSearch()}
-								pathname={pendingPath ?? pathname}
-								pending={pendingPath !== null}
-							/>
-							<main id="content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
-								{children}
-							</main>
-						</SurfaceProvider>
-					</SidebarInset>
-				</SidebarProvider>
-				<CommandPalette
-					key={palette.key}
-					open={palette.open}
-					initialQuery={palette.initialQuery}
-					onOpenChange={(open) => setPalette((current) => ({ ...current, open }))}
-				/>
-			</div>
+				</div>
+			</TopbarSlotProvider>
 		</ToastProvider>
 	)
 }
