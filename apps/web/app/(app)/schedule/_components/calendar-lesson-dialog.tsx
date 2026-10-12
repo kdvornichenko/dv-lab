@@ -149,7 +149,7 @@ function LessonContent({
 						/>
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="-m-1 max-h-[calc(100dvh-14rem+8px)]" viewportClassName="scroll-fade max-h-[inherit] p-1">
 					<div className="flex flex-col gap-4 py-1">
 						<div className="flex flex-wrap items-baseline justify-between gap-x-4">
 							<p className="text-body">{event.status === 'cancelled' ? 'Cancelled' : 'Planned'}</p>

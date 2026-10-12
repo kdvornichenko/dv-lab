@@ -205,7 +205,7 @@ export function MoveSeriesDialog({
 						{studentName}. {initial.description}
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="-m-1 max-h-[calc(100dvh-14rem+8px)]" viewportClassName="scroll-fade max-h-[inherit] p-1">
 					<div className="flex flex-col gap-4 py-1">
 						<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 						<CalendarFormStatus
@@ -258,7 +258,12 @@ export function MoveSeriesDialog({
 								<span className="text-body text-foreground tabular-nums">{preview}</span>
 							</div>
 						) : null}
-						<GoogleConflicts check={conflicts} pending={pending} durationMinutes={rule.durationMinutes} />
+						<GoogleConflicts
+							check={conflicts}
+							pending={pending}
+							durationMinutes={rule.durationMinutes}
+							failure={notice === 'failed' ? 'Could not move the series. Try again.' : null}
+						/>
 						<p data-slot="move-series-note" className="text-caption text-muted-foreground">
 							Lessons before this date stay as they are. Lessons you already moved keep their new time. Cancelled
 							lessons from this date on are reset.
@@ -279,13 +284,7 @@ export function MoveSeriesDialog({
 }
 
 function SeriesFailure({ notice, onRefresh }: { notice: 'stale' | 'failed' | null; onRefresh: () => void }) {
-	if (notice === null) return null
-	if (notice === 'failed')
-		return (
-			<Banner status="error" data-slot="series-failed">
-				<BannerTitle>Could not move the series. Try again.</BannerTitle>
-			</Banner>
-		)
+	if (notice !== 'stale') return null
 	return (
 		<Banner status="warning" data-slot="series-stale">
 			<BannerTitle>{STALE_TITLE}</BannerTitle>

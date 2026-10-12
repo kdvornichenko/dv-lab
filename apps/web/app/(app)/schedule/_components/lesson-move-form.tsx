@@ -7,7 +7,6 @@ import { ArrowRight, CalendarClock } from 'lucide-react'
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
-import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
 import type { CalendarLesson } from '@/lib/lesson-actions'
@@ -250,14 +249,7 @@ export function LessonMoveForm({
 					</p>
 				)}
 			</div>
-			<GoogleConflicts check={conflicts} pending={pending} durationMinutes={block.durationMinutes} />
-			<div data-slot="move-lesson-failure-slot" className="min-h-13">
-				{failed !== null ? (
-					<Banner status="error" data-slot="move-lesson-failed">
-						<BannerTitle>{failed}</BannerTitle>
-					</Banner>
-				) : null}
-			</div>
+			<GoogleConflicts check={conflicts} pending={pending} durationMinutes={block.durationMinutes} failure={failed} />
 			<div className="flex flex-wrap justify-end gap-2">
 				<Button type="button" variant="ghost" size="compact" disabled={disabled} onClick={onDiscard}>
 					Discard changes

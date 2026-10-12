@@ -8,16 +8,17 @@ import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-con
 import { TextField } from '@/components/app/text-field'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { TabItem, Tabs, TabsList } from '@/components/ui/tabs'
 import { TimePicker } from '@/components/ui/time-picker'
-import { secondWhen, seriesPhrase } from '@/lib/schedule-format'
+import { formatLength, LENGTH_HELPER, lengthError, normalizeLength, parseLength } from '@/lib/lesson-length'
+import { formatDate, secondWhen, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone, zoneName } from '@/lib/time-zones'
 
-import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, type LessonRepeats } from '@dv-lab/contracts'
-import { weekdayOf } from '@dv-lab/core'
+import type { LessonRepeats } from '@dv-lab/contracts'
+import { scheduleDate, weekdayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
-import { NewLessonFooter, NewLessonNotices, NewLessonStudent } from './new-lesson-content'
+import { NewLessonFooter, NewLessonStudent } from './new-lesson-content'
 import {
 	gapMessage,
 	localTimeInput,
@@ -32,7 +33,7 @@ import type { StudentsState } from './use-lesson-students'
 interface NewLessonDialogProps extends ScheduleFormContext {
 	students: StudentsState
 	available: boolean
-	seed: { date: string; time: string; durationMinutes?: number }
+	seed: { date: string; time: string; durationMinutes?: number; dragged?: boolean }
 	currentMainTimeZone: string
 	secondZone: string | null
 	onClose: () => void
@@ -40,37 +41,24 @@ interface NewLessonDialogProps extends ScheduleFormContext {
 	onRefresh: () => void
 }
 
-type Field = 'student' | 'time' | 'length'
+type Field = 'date' | 'time' | 'length'
 
 const nameCollator = new Intl.Collator('en', { sensitivity: 'base' })
+const DAY_MINUTES = 1440
 
-function parseLength(text: string): number | null {
-	const trimmed = text.trim()
-	if (!/^\d+$/.test(trimmed)) return null
-	const value = Number(trimmed)
-	return value >= LESSON_MINUTES_MIN && value <= LESSON_MINUTES_MAX ? value : null
+function clockMinutes(time: string): number {
+	return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
 }
 
-function newLessonErrors(
-	studentId: string,
-	date: string,
-	time: string | null,
-	minutes: number | null,
-	repeats: LessonRepeats,
-	today: string,
-	timeError: string | undefined
-) {
-	return {
-		student: studentId === '' ? 'Choose a student.' : undefined,
-		date:
-			date === ''
-				? 'Choose a date.'
-				: repeats === 'weekly' && date < today
-					? 'Choose today or a later date for a repeating lesson.'
-					: undefined,
-		time: timeError ?? (time === null ? 'Choose a start time.' : undefined),
-		length: minutes === null ? 'Use 15 to 240 minutes.' : undefined,
-	}
+function clockOf(minutes: number): string {
+	const wall = ((minutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES
+	return `${String(Math.floor(wall / 60)).padStart(2, '0')}:${String(wall % 60).padStart(2, '0')}`
+}
+
+function dateError(date: string, repeats: LessonRepeats, today: string) {
+	if (date === '') return 'Choose a date.'
+	if (repeats === 'weekly' && date < today) return 'Choose today or later.'
+	return undefined
 }
 
 function createProposal(
@@ -92,6 +80,17 @@ function activeStudents(students: StudentsState) {
 	return students.rows.toSorted((left, right) => nameCollator.compare(left.displayName, right.displayName))
 }
 
+function HelperLine({ id, text, error }: { id: string; text: string | null; error?: string }) {
+	return (
+		<p
+			id={id}
+			className={error ? 'min-h-4 text-caption text-destructive' : 'min-h-4 text-caption text-muted-foreground'}
+		>
+			{error ?? text}
+		</p>
+	)
+}
+
 export function NewLessonDialog({
 	students,
 	available,
@@ -106,12 +105,14 @@ export function NewLessonDialog({
 }: NewLessonDialogProps) {
 	const toast = useToast()
 	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
-	const { today } = context
+	const { today, currentYear } = context
+	const initialMinutes = seed.durationMinutes ?? 60
 	const [studentId, setStudentId] = useState('')
 	const [date, setDate] = useState(seed.date)
 	const [time, setTime] = useState<string | null>(seed.time)
-	const [lengthText, setLengthText] = useState(String(seed.durationMinutes ?? 60))
-	const [lengthEdited, setLengthEdited] = useState(seed.durationMinutes !== undefined)
+	const [lengthText, setLengthText] = useState(formatLength(initialMinutes))
+	const [span, setSpan] = useState(initialMinutes)
+	const [lengthEdited, setLengthEdited] = useState(seed.dragged === true)
 	const [repeats, setRepeats] = useState<LessonRepeats>('once')
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
@@ -123,19 +124,33 @@ export function NewLessonDialog({
 	const lengthRef = useRef<HTMLInputElement>(null)
 
 	const active = activeStudents(students)
-	const minutes = parseLength(lengthText)
+	const lengthProblem = lengthError(lengthText)
+	const minutes = lengthProblem === undefined ? parseLength(lengthText) : null
 	const weekday = weekdayOf(date)
 	const input = localTimeInput(date, time, context)
 	const timeError = serverGap ? gapMessage(context.mainTimeZone) : input.error
-	const errors = newLessonErrors(studentId, date, time, minutes, repeats, today, timeError)
+	const errors = {
+		date: dateError(date, repeats, today),
+		time: timeError ?? (time === null ? 'Choose a start time.' : undefined),
+		length: lengthProblem,
+	}
 	const shown = (field: Field) =>
 		submitted || touched[field] || (field === 'time' && timeError) ? errors[field] : undefined
 	const touch = (field: Field) => setTouched((current) => ({ ...current, [field]: true }))
 
 	const second = secondZone !== null && !sameTimeZone(secondZone, context.mainTimeZone) ? secondZone : null
-	const zoneLine = input.instant === null ? null : secondWhen(input.instant, context.mainTimeZone, second)
+	const startLine = input.instant === null ? null : secondWhen(input.instant, context.mainTimeZone, second)
+	const end = time === null ? null : clockOf(clockMinutes(time) + span)
+	const endInstant = input.instant === null ? null : new Date(input.instant.getTime() + span * 60000)
+	const endDate = endInstant === null ? null : scheduleDate(endInstant, context.mainTimeZone)
+	const endSecond = endInstant === null ? null : secondWhen(endInstant, context.mainTimeZone, second)
+	const endLine =
+		endDate !== null && endDate !== date
+			? [formatDate(endDate, currentYear), endSecond].filter(Boolean).join(' · ')
+			: endSecond
+	const studentName = active.find((student) => student.id === studentId)?.displayName ?? null
 	const noStudents = students.kind === 'ready' && active.length === 0
-	const blocked = !available || students.kind !== 'ready' || noStudents
+	const blocked = !available || students.kind !== 'ready' || noStudents || studentId === ''
 	const conflicts = useGoogleConflicts({
 		proposal: createProposal(
 			{
@@ -149,22 +164,45 @@ export function NewLessonDialog({
 			Boolean(timeError || errors.date)
 		),
 		date,
-		available: !blocked && !context.stale && !command.blocked,
+		available: available && students.kind === 'ready' && !context.stale && !command.blocked,
 	})
+
+	function commitLength() {
+		const next = normalizeLength(lengthText)
+		setLengthText(next)
+		const parsed = parseLength(next)
+		if (parsed !== null && parsed > 0) setSpan(parsed)
+		touch('length')
+	}
 
 	function chooseStudent(value: string) {
 		setStudentId(value)
 		if (lengthEdited) return
 		const row = active.find((student) => student.id === value)
-		if (row) setLengthText(String(row.defaultLessonMinutes))
+		if (row) {
+			setLengthText(formatLength(row.defaultLessonMinutes))
+			setSpan(row.defaultLessonMinutes)
+		}
+	}
+
+	function chooseEnd(value: string | null) {
+		if (value === null || time === null) return
+		let next = clockMinutes(value) - clockMinutes(time)
+		if (next <= 0) next += DAY_MINUTES
+		setSpan(next)
+		setLengthText(formatLength(next))
+		setLengthEdited(true)
+		touch('length')
 	}
 
 	function announceCreated() {
-		const name = active.find((student) => student.id === studentId)?.displayName ?? ''
-		toast.show({
-			title: repeats === 'weekly' ? 'Series added' : 'Lesson added',
-			description: name,
-		})
+		const name = studentName ?? ''
+		const label = input.label
+		toast.show(
+			repeats === 'weekly'
+				? { title: 'Series added', description: `${name} every ${weekdayName(weekday)} at ${time} ${label}.` }
+				: { title: 'Lesson added', description: `${name}, ${formatDate(date, currentYear)}, ${time} ${label}.` }
+		)
 	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -172,7 +210,7 @@ export function NewLessonDialog({
 		if (pending || blocked || command.blocked || context.stale || !conflicts.ready) return
 		setSubmitted(true)
 		setFailed(false)
-		if (errors.student) return studentRef.current?.focus()
+		if (studentId === '') return studentRef.current?.focus()
 		if (errors.date) return document.getElementById('new-lesson-date')?.focus()
 		if (errors.time || time === null) return document.getElementById('new-lesson-time')?.focus()
 		if (errors.length || minutes === null) return lengthRef.current?.focus()
@@ -200,6 +238,9 @@ export function NewLessonDialog({
 		onCreated()
 	}
 
+	const lengthHelper =
+		!lengthEdited && studentName !== null && minutes !== null ? `${studentName}'s usual length.` : LENGTH_HELPER
+
 	return (
 		<Dialog
 			open
@@ -215,47 +256,50 @@ export function NewLessonDialog({
 							Add a lesson to the schedule. Times are in {zoneName(context.mainTimeZone)} time.
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+					<ScrollArea
+						className="-m-1 max-h-[calc(100dvh-14rem+8px)]"
+						viewportClassName="scroll-fade max-h-[inherit] p-1"
+					>
 						<CalendarFormStatus
 							entry={command.entry}
 							blocked={command.blocked}
 							connectionShown
-
 							onViewSchedule={() => {
 								command.detach()
 								onClose()
 							}}
 						/>
-						<div className="flex flex-col gap-4 py-1">
+						<div className="flex flex-col gap-3">
 							<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
-							<NewLessonNotices failed={failed} />
 							<NewLessonStudent
 								studentId={studentId}
 								chooseStudent={chooseStudent}
 								pending={pending}
-								blocked={blocked}
 								studentRef={studentRef}
 								students={students}
 								active={active}
-								error={shown('student')}
-								onBlur={() => touch('student')}
 								noStudents={noStudents}
 							/>
-							<div className="grid items-start gap-4 sm:grid-cols-2">
-								<DateField
-									id="new-lesson-date"
-									label="Date"
-									value={date}
-									onChange={(value) => {
-										setDate(value)
-										setServerGap(false)
-									}}
-									disabled={pending}
-									error={errors.date}
-								/>
+							<div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]">
+								<div className="col-span-2 min-w-0 sm:col-span-1">
+									<DateField
+										id="new-lesson-date"
+										label="Date"
+										short
+										reserve
+										value={date}
+										onChange={(value) => {
+											setDate(value)
+											setServerGap(false)
+											touch('date')
+										}}
+										disabled={pending}
+										error={shown('date')}
+									/>
+								</div>
 								<div className="flex min-w-0 flex-col gap-2">
 									<span id="new-lesson-time-label" className="text-body text-muted-foreground">
-										Start time, {input.label}
+										Start, {input.label}
 									</span>
 									<TimePicker
 										id="new-lesson-time"
@@ -273,28 +317,33 @@ export function NewLessonDialog({
 										invalid={Boolean(shown('time'))}
 										className="w-full"
 									/>
-									{shown('time') ? (
-										<p id="new-lesson-time-note" className="text-caption text-destructive">
-											{shown('time')}
-										</p>
-									) : zoneLine !== null ? (
-										<p
-											id="new-lesson-time-note"
-											data-slot="new-lesson-zone"
-											className="text-caption text-muted-foreground"
-										>
-											{zoneLine}
-										</p>
-									) : null}
+									<HelperLine id="new-lesson-time-note" text={startLine} error={shown('time')} />
 									<LocalTimeHint id="new-lesson-time-dst" hint={input.hint} />
 								</div>
+								<div className="flex min-w-0 flex-col gap-2">
+									<span id="new-lesson-end-label" className="text-body text-muted-foreground">
+										End, {input.label}
+									</span>
+									<TimePicker
+										id="new-lesson-end"
+										aria-labelledby="new-lesson-end-label"
+										aria-describedby="new-lesson-end-note"
+										value={end}
+										onValueChange={chooseEnd}
+										minuteStep={15}
+										hourCycle={24}
+										disabled={pending || time === null}
+										className="w-full"
+									/>
+									<HelperLine id="new-lesson-end-note" text={endLine} />
+								</div>
 							</div>
-							<div className="grid items-start gap-4 sm:grid-cols-2">
+							<div className="grid items-start gap-3 sm:grid-cols-2">
 								<TextField
 									ref={lengthRef}
 									id="new-lesson-length"
 									name="length"
-									label="Length, min"
+									label="Length"
 									inputMode="numeric"
 									autoComplete="off"
 									value={lengthText}
@@ -302,42 +351,48 @@ export function NewLessonDialog({
 										setLengthText(event.target.value)
 										setLengthEdited(true)
 									}}
-									onBlur={() => touch('length')}
+									onBlur={commitLength}
+									onKeyDown={(event) => {
+										if (event.key !== 'Enter') return
+										event.preventDefault()
+										commitLength()
+									}}
 									disabled={pending}
-									helper={
-										lengthEdited
-											? '15 to 240 minutes.'
-											: "Taken from the student's usual lesson length. 15 to 240 minutes."
-									}
+									helper={lengthHelper}
 									error={shown('length')}
+									className="pointer-coarse:text-[16px]"
 								/>
 								<div className="flex min-w-0 flex-col gap-2">
-									<label htmlFor="new-lesson-repeats" className="text-body text-muted-foreground">
+									<span id="new-lesson-repeats-label" className="text-body text-muted-foreground">
 										Repeats
-									</label>
-									<Select
-										value={repeats}
-										onValueChange={(value) => setRepeats(value === 'weekly' ? 'weekly' : 'once')}
-										disabled={pending}
-									>
-										<SelectTrigger id="new-lesson-repeats" className="w-full min-w-0" />
-										<SelectContent>
-											<SelectItem index={0} value="once">
-												Once
-											</SelectItem>
-											<SelectItem index={1} value="weekly">
-												Every week
-											</SelectItem>
-										</SelectContent>
-									</Select>
-									{repeats === 'weekly' && time !== null && input.instant !== null ? (
-										<p data-slot="new-lesson-repeat-note" className="text-caption text-muted-foreground">
-											{seriesPhrase(weekday, time)} {input.label} until you end the series.
-										</p>
-									) : null}
-									<GoogleConflicts check={conflicts} pending={pending} durationMinutes={minutes} />
+									</span>
+									<Tabs value={repeats} onValueChange={(value) => setRepeats(value === 'weekly' ? 'weekly' : 'once')}>
+										<div className="flex min-w-0 rounded-xl bg-muted">
+											<TabsList
+												aria-labelledby="new-lesson-repeats-label"
+												className="w-full bg-transparent *:flex-1 *:justify-center"
+											>
+												<TabItem value="once" label="Once" disabled={pending} />
+												<TabItem value="weekly" label="Every week" disabled={pending} />
+											</TabsList>
+										</div>
+									</Tabs>
+									<HelperLine
+										id="new-lesson-repeat-note"
+										text={
+											repeats === 'weekly' && time !== null && input.instant !== null
+												? `Every ${weekdayName(weekday)}, ${time} ${input.label}.`
+												: null
+										}
+									/>
 								</div>
 							</div>
+							<GoogleConflicts
+								check={conflicts}
+								pending={pending}
+								durationMinutes={minutes}
+								failure={failed ? 'Could not add the lesson. Try again.' : null}
+							/>
 						</div>
 					</ScrollArea>
 					<NewLessonFooter
