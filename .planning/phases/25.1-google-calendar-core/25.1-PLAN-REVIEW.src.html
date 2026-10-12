@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Ревью фазы 25.1</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+  .ui { font: 13px/1.4 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1d1d1d; background: #fff; border: 1px solid #ddd8cc; border-radius: 10px; overflow: hidden; }
+  .ui .hd { padding: 9px 14px; border-bottom: 1px solid #eee9dd; font-weight: 650; display: flex; gap: 8px; align-items: baseline; justify-content: space-between; } .ui .hd small { color: #8a8578; font-weight: 400; }
+  .ui .days { display: grid; grid-template-columns: 52px repeat(3, 1fr); border-bottom: 1px solid #eee9dd; font-size: 12px; color: #5f5a4f; } .ui .days div { padding: 6px 8px; }
+  .ui .band { display: grid; grid-template-columns: 52px repeat(3, 1fr); gap: 4px; padding: 4px 0; border-bottom: 1px solid #eee9dd; } .ui .band .cap { font-size: 11px; color: #8a8578; text-align: right; padding-right: 6px; }
+  .ui .chip { height: 22px; line-height: 22px; border-radius: 6px; padding: 0 6px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+  .ui .grid { display: grid; grid-template-columns: 52px repeat(3, 1fr); gap: 0 4px; min-height: 150px; position: relative; } .ui .grid .t { font-size: 11px; color: #8a8578; text-align: right; padding-right: 6px; }
+  .ui .blk { border-radius: 6px; padding: 4px 6px; font-size: 12px; margin: 3px 0; box-shadow: 0 0 0 1px #eee9dd; } .ui .blk b { display: block; font-weight: 600; } .ui .blk small { opacity: .85; }
+  .ui .lesson { background: #e8eefc; color: #1d1d1d; } .ui .tent { background: repeating-linear-gradient(45deg, rgba(51,182,121,.4) 0 5px, transparent 5px 10px); box-shadow: inset 0 0 0 1px #33b679; color: #1d1d1d; }
+  .ui .ft { display: flex; gap: 8px; align-items: center; padding: 9px 14px; border-top: 1px solid #eee9dd; background: #faf8f3; font-size: 12px; color: #5f5a4f; } .ui .ft .sp { flex: 1; }
+  .ui .btn { font-weight: 600; font-size: 12.5px; padding: 6px 11px; border-radius: 7px; border: 1px solid #ddd8cc; background: #fff; color: #1d1d1d; } .ui .btn.pri { background: #1d1d1d; color: #fff; border-color: #1d1d1d; } .ui .btn.ghost { border-color: transparent; background: transparent; }
+  .ui .tabs { display: flex; margin: 10px 14px 4px; border: 1px solid #ddd8cc; border-radius: 8px; overflow: hidden; width: 200px; } .ui .tabs span { flex: 1; text-align: center; padding: 6px 0; font-weight: 600; } .ui .tabs .on { background: #1d1d1d; color: #fff; }
+  .ui .f { padding: 5px 14px; } .ui .f label { display: block; font-size: 11.5px; color: #8a8578; } .ui .f .in { border: 1px solid #ddd8cc; border-radius: 7px; padding: 6px 9px; background: #fff; }
+  .ui .row3 { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 8px; } .ui .row2 { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+  .ui .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .ui .box { margin: 10px 14px; padding: 10px 12px; border: 1px solid #c9d7f5; background: #f2f6fe; border-radius: 8px; } .ui .box p { margin: 0 0 6px; } .ui .box small { color: #5f5a4f; }
+  .ui .ln { padding: 7px 14px; border-bottom: 1px solid #f3efe6; color: #5f5a4f; display: flex; justify-content: space-between; gap: 10px; } .ui .ln b { color: #1d1d1d; font-weight: 600; }
+  .ui .dim { color: #8a8578; } .ui .ok { color: #1f7a52; font-weight: 600; } .ui .warn { color: #a15c07; font-weight: 600; }
+  .ui .body { padding: 12px 14px; color: #3d3a33; }
+</style>
+<body>
+
+<header>
+  <h1>Ревью планов фазы 25.1 Google Calendar Core</h1>
+  <doc-changes new="45" changed="75" deleted="3"></doc-changes>
+  <details class="thread"><summary>Зачем · цель фазы и решения D-01–D-20</summary>
+    <doc-quote via="doc" from="25.1-CONTEXT.md · Phase Boundary">The schedule becomes a two-way Google Calendar for any event, not only lessons. The teacher creates, moves, resizes, edits and deletes events in the app and sees changes made in Google without an open page. Google wins when both sides changed. Lessons stay the app's own model; every other event is a plain calendar event.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-01 Order">the sync rewrite comes first, then the editing core, then the calendar choice; chat follows after this phase.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-02 Sync rewrite">one background task per connection with no shared account-wide lock, the week version grows only on real changes, a bounded sync window, cleanup of stale rows, no tables beyond what the model needs. Push notifications trigger incremental sync with `syncToken`; a real `410` triggers a full resync with no duplicate lessons; channels are renewed before expiry; a nightly reconcile recovers missed delivery.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-03 Editing core">create any event; move and resize with the mouse; delete one occurrence, a whole series, or this and following; repeats; colors; description and place. Views: week only.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-04 Calendar choice">the account can pick a calendar inside the connected Google account (PRIMARY stays the default).</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-05 Stored fields">keep only the Google fields the app needs; no raw event copies.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-06 Other events">events that are not lessons are shown as events with title, time and Google color; they can be created, moved, resized and deleted like any other event.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-07 Name match">an event whose title matches a student name is only suggested; the teacher binds it with Assign or discards it with Ignore. Nothing is bound automatically. App-created events map back to their lessons by stored id first.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-08 Google wins">when the same item changed in both places the Google version remains after sync. Marks and accounting history of past lessons are never rewritten by inbound edits.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-09 Event length">no upper limit (the 15-240 CHECK was removed in PR 32). The schedule day runs 02:00-02:00 (PR 25).</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-10 No hard delete">rows change status, `kind` or `ends_on`. Series rule columns stay immutable after insert; a cut gives a new series</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-11 Testing">live Google checks only locally on the owner test account with a local OAuth client; prod holds the teacher's working calendar and receives releases without live testing. No new unit or e2e tests; acceptance by scripts, logs and the browser.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-12 Runtime">Claude only, no Codex. Server work goes through Server guy, design through Design dude.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-13 Calendar binding">lessons and events are bound to the calendar they were created or matched in. When the account picks another calendar, items bound to the previous one stay untouched on the app side and are hidden from the grid.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-14 Scope of edits for lessons">two scopes, this occurrence and this and following (the existing cut and End series); no "all" for lessons, past history is never rewritten. Plain events get this, this and following, all.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-15 All-day events">shown as a narrow strip above the grid; the only action is delete; no move or resize.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-16 Repeats">only weekly repeats are supported; other Google repeat rules are shown read-only (a single occurrence may still be moved or deleted).</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-17 Assign and Ignore">apply to the whole recurring series. Ignore hides the suggestion and keeps the event as a plain event; it is not undoable in this phase, a manual Assign stays available in the event details at any time.</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-18 Assign mark">Assign writes a private extended property with the lesson id into the Google event, so the link survives reconnection and a full resync (`410`).</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-19 Sync window">8 weeks back and 53 weeks forward; weeks outside the window are read-only. Rows of bound lessons are never cleaned … Reads use only SQL over the projection, never Google and never the account lease; the lease stays for command sending and connect/disconnect. DELETE is granted only on the projection cache table</doc-quote>
+    <doc-quote via="doc" from="CONTEXT · D-20 Push verification">a temporary tunnel to the local stack with the owner test account and a local OAuth client (the production callback is hard-coded in `apps/api/src/config.ts` and must become configurable for local runs). Prod and the working calendar are not touched.</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ 1 ═════ -->
+<doc-claim>
+  <p>Неделя показывает события Google в их цвете и обновляется сама.</p>
+  <doc-mock frame="none" w="460"><template>
+<div class="ui">
+  <div class="hd">Week of 12 Oct <small data-ref="status">Last checked Mon 12 Oct, 14:32 (VN)</small></div>
+  <div class="days"><div></div><div>Mon 12</div><div>Tue 13</div><div>Wed 14</div></div>
+  <div class="band" data-ref="band"><div class="cap">All day</div><div class="chip" style="background:#f6bf26;color:#1d1d1d">Synthetic event 01</div><div></div><div class="chip" style="background:#039be5;color:#fff">Synthetic event 02</div></div>
+  <div class="grid">
+    <div class="t">10:00<br><br><br>12:00</div>
+    <div><div class="blk" style="background:#d50000;color:#fff" data-ref="google"><b>Synthetic event 03</b><small>10:00 – 11:00</small></div></div>
+    <div><div class="blk lesson" data-ref="lesson"><b>Alex Example 0002</b><small>10:30 – 11:30</small></div></div>
+    <div><div class="blk tent"><b>Synthetic event 04</b><small>Tentative</small></div></div>
+  </div>
+</div></template>
+    <doc-pin ref="google" title="Цвет Google">Текст выбран по контрасту.</doc-pin>
+    <doc-pin ref="band" anchor="r" title="Полоса на весь день">Без переноса и растяжения.</doc-pin>
+    <doc-pin ref="lesson" anchor="br" title="Урок">Урок сохраняет цвет selected.</doc-pin>
+    <doc-pin ref="status" anchor="bl" title="Факт с сервера">Время последней проверки.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Одна фоновая задача на подключение держит проекцию в актуальном виде.</p>
+    <doc-calls title="Фоновая синхронизация" caption="Блокировка аккаунта в цикле не участвует.">
+<script type="text/plain">
++ **createCalendarSync**().tick()             @ apps/api/src/calendar/sync.ts:1
++   **ensureSyncRows**(db, now)               @ apps/api/src/calendar/sync-store.ts:1
++   **claim**(db, connectionId, now)          @ apps/api/src/calendar/sync-store.ts:2   -- claimed_until, 2 minutes
++   **startFull**(db, claim, { tokenGone })   @ apps/api/src/calendar/sync-store.ts:3   -- epoch + 1; 410 drops the token
++   **googleSyncSource**().page()             @ apps/api/src/calendar/sync-provider.ts:1
++     **parseSyncPage**(input, zone)          @ apps/api/src/calendar/provider-events.ts:89   -- bad item is counted, not fatal
++   **applyPass**(db, claim, pass)            @ apps/api/src/calendar/sync-store.ts:4   -- one transaction, cleanup keeps bound rows
++   **maintain**(syncRow, token)              @ apps/api/src/calendar/watch.ts:1
+
+~ createCalendarWorker()                      @ apps/api/src/calendar/worker.ts:23
++   afterApply(connectionId) → sync.wake      @ apps/api/src/calendar/worker.ts:103
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/calendar/sync-store.ts:2">
+      <p><b>sync-store.ts</b> · claim()</p>
+      <doc-code title="sync-store.ts · sketch" lang="sql">
+<script type="text/plain">
+UPDATE google_sync_state s
+SET claimed_until = now() + interval '2 minutes'
+FROM google_connections c
+WHERE s.connection_id = c.id
+  AND c.state = 'connected' AND c.retired_at IS NULL
+  AND (s.claimed_until IS NULL OR s.claimed_until < now())
+  AND (s.requested_seq > s.processed_seq
+       OR s.next_poll_at <= now() OR s.next_full_at <= now())
+RETURNING s.*;
+</script>
+        <doc-pin line="6" title="Просроченную заявку берёт другой процесс"></doc-pin>
+        <doc-pin line="5" tone="info" title="Старую строку после смены календаря никто не берёт"></doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Ревизия недели растёт только тогда, когда строка проекции изменилась.</p>
+    <doc-code title="projection.ts · sketch" lang="ts">
+<script type="text/plain">
+export async function upsertEventFacts(executor, target, facts, options?) {
+  let inserted = 0, changed = 0
+  for (const fact of facts) {
+    const stored = await current(executor, target.connectionId, fact.eventId)
+    if (stored && olderThan(fact, stored.googleUpdatedAt)) continue
+    const result = await writeRow(executor, target, fact, options?.seenEpoch)
+    inserted += result.inserted
+    changed += result.changed
+  }
+  if (inserted + changed > 0) await raiseRevision(executor, target.connectionId)
+  return { inserted, changed }
+}
+</script>
+      <doc-pin line="5" title="Старый факт не перезаписывает новый">Pitfall 2 из RESEARCH.</doc-pin>
+      <doc-pin line="10" tone="ok" title="Одна точка роста ревизии"></doc-pin>
+    </doc-code>
+    <doc-claim at="apps/api/src/calendar/read-store.ts:18">
+      <p><b>read-store.ts:18</b> · advanceCommandRevision()</p>
+      <doc-code src="apps/api/src/calendar/read-store.ts" lines="18-41" hl="27">
+        <doc-pin line="27" tone="warn" title="Ревизия снимка уходит">Функция поднимает requested_seq в google_sync_state.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Webhook принимает только известный канал с верным токеном.</p>
+    <doc-code diff file="apps/api/src/app.ts" start="58" title="app.ts">
+<script type="text/plain">
+ 	app.use('*', requestContext(deps.logger))
++	if (deps.notifications) app.route('/google/notifications', deps.notifications)
+ 	app.use('*', sameOrigin(deps.appOrigin))
+</script>
+      <doc-pin line="59" title="До sameOrigin">Google не шлёт заголовок Origin.</doc-pin>
+    </doc-code>
+    <doc-claim at="deploy/caddy/Caddyfile:26">
+      <p><b>Caddyfile:26</b> · log filter</p>
+      <doc-code diff file="deploy/caddy/Caddyfile" start="26" title="Caddyfile">
+<script type="text/plain">
+ 	log {
+ 		format filter {
+ 			wrap json
+ 			fields {
+ 				request>uri regexp "[?].*$" ""
+ 				request>headers>Referer delete
++				request>headers>X-Goog-Channel-Token delete
++				request>headers>X-Goog-Resource-Uri delete
+ 			}
+ 		}
+ 	}
+</script>
+        <doc-pin line="32" title="Токен канала не попадает в лог">Тот же фильтр стоит в глобальном блоке.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Страницы читают неделю из SQL, без Google и без блокировки аккаунта.</p>
+    <doc-calls title="Чтение недели" caption="Браузер сам замечает новую ревизию.">
+<script type="text/plain">
+~ GET /schedule/week                         @ apps/api/src/routes/schedule.ts:103
+-   refreshCalendarRead(context, selection)  @ apps/api/src/routes/schedule.ts:114   -- reads.ts is deleted
+~   readCalendarWindow(executor, …)          @ apps/api/src/calendar/read-model.ts:89
++     **weekRows**(executor, connectionId)   @ apps/api/src/calendar/projection.ts:1
++     **syncFacts**(executor, connectionId)  @ apps/api/src/calendar/projection.ts:2   -- fresh, last_known or outside_sync_window
+    bindEvent(event, snapshot)               @ apps/api/src/calendar/event-mapping.ts:276
+~ checkCalendarConflicts() → accessToken    @ apps/api/src/schedule/calendar-conflicts.ts:320   -- no lease, one refresh per account
+
+~ useScheduleWeek()                          @ apps/web/app/(app)/schedule/_components/use-schedule-week.ts:89
++   **useGoogleSync**()                      @ apps/web/components/app/use-google-sync.ts:1   -- GET /google/sync every 20 s
+</script>
+    </doc-calls>
+    <doc-ask id="snapshot">
+      <p>Что делать со старыми таблицами снимков в этом релизе?</p>
+      <label><input type="radio" name="snapshot" value="keep" checked> Не трогать; удалить отдельным релизом позже <small>старый образ читает их после отката</small></label>
+      <label><input type="radio" name="snapshot" value="truncate"> Очистить в этом релизе <small>откат покажет пустую неделю</small></label>
+      <label><input type="radio" name="snapshot" value="drop"> Удалить в этом релизе <small>нарушает правило «миграции только добавляют»</small></label>
+    </doc-ask>
+    <div data-if="snapshot!=keep"><doc-note tone="risk">RUNBOOK 13.2 тогда меняется.</doc-note></div>
+    <doc-claim at="apps/api/src/routes/schedule.ts:114">
+      <p><b>schedule.ts:114</b> · GET /week</p>
+      <doc-code diff file="apps/api/src/routes/schedule.ts" start="113" title="schedule.ts">
+<script type="text/plain">
+ 		}
+-		await calendarReads?.refreshCalendarRead(context, selection)
+ 		const week = await readSnapshot(db, (executor) => readCalendarWindow(executor, context, selection))
+ 		const response = c.json(week, 200)
+-		calendarReads?.observePublicWeek(context, c.req.raw, response, week)
+ 		return response
+</script>
+      </doc-code>
+    </doc-claim>
+    <doc-claim at="apps/api/src/schedule/calendar-conflicts.ts:320">
+      <p><b>credentials.ts:134</b> · accessToken()</p>
+      <doc-code title="credentials.ts · sketch" lang="ts" start="134">
+<script type="text/plain">
+async accessToken(accountId: string, signal?: AbortSignal) {
+  const row = await findConnection(deps.db, accountId)
+  if (!row || row.state === 'not_connected') throw new CalendarFault('connection_required')
+  if (row.state !== 'connected' || row.credentialMode !== 'active')
+    throw new CalendarFault(row.state === 'permission_required' ? 'permission_required' : 'reconnect_required')
+  const pending = inflight.get(accountId) ?? refreshOnce(row, signal)
+  inflight.set(accountId, pending)
+  try {
+    const value = await pending
+    return { accessToken: value.token, connection: value.row, db: deps.db, signal }
+  } finally {
+    inflight.delete(accountId)
+  }
+},
+</script>
+        <doc-pin line="135" title="Без deps.lease.run">Сегодня withAccessToken держит блокировку весь запрос.</doc-pin>
+        <doc-pin line="139" tone="ok" title="Один refresh на аккаунт"></doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Цвет блока сервер берёт из кэша палитры, иначе из цвета календаря.</p>
+    <doc-code title="read-model.ts · sketch" lang="ts">
+<script type="text/plain">
+function eventColor(row, palette, calendarColor): CalendarEventColor {
+  if (row.colorId) {
+    const hit = palette?.find((color) => color.id === row.colorId)
+    if (hit) return { id: row.colorId, background: hit.background, foreground: hit.foreground, custom: false }
+    return { id: row.colorId, background: calendarColor, foreground: null, custom: true }
+  }
+  return { id: null, background: calendarColor, foreground: null, custom: false }
+}
+</script>
+      <doc-pin line="5" title="Custom: только для чтения">D-05 не хранит свой RGB.</doc-pin>
+    </doc-code>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 2 ═════ -->
+<doc-claim>
+  <p>Учитель создаёт, меняет, двигает и удаляет любое событие в приложении.</p>
+  <doc-mock frame="none" w="440"><template>
+<div class="ui">
+  <div class="hd">New event <small>Added to Synthetic calendar. Times are in VN time.</small></div>
+  <div class="tabs" data-ref="tabs"><span>Lesson</span><span class="on">Event</span></div>
+  <div class="f"><label>Title</label><div class="in">Synthetic event 05</div></div>
+  <div class="f row3"><div><label>Date</label><div class="in">Wed 14 Oct</div></div><div><label>Start</label><div class="in">10:00</div></div><div><label>End</label><div class="in">11:30</div></div></div>
+  <div class="f row2"><div><label>Repeats</label><div class="in">Every week</div></div><div><label>Color</label><div class="in" data-ref="color"><span class="dot" style="background:#33b679"></span>Sage</div></div></div>
+  <div class="f"><label>Place</label><div class="in">Room 2</div></div>
+  <div class="f"><label>Description</label><div class="in dim">Plain text</div></div>
+  <div class="ft"><span class="sp"></span><span class="btn ghost">Discard changes</span><span class="btn pri">Add series</span></div>
+</div></template>
+    <doc-pin ref="tabs" anchor="r" title="Один диалог, два режима">Режим Lesson не меняется.</doc-pin>
+    <doc-pin ref="color" anchor="tr" title="Палитра из GET /google/colors"></doc-pin>
+  </doc-mock>
+  <doc-note tone="warn"><strong>Объём</strong> Планы 25.1-04 и 25.1-07 меняют по 21 файлу. Индекс не делит их.</doc-note>
+
+  <doc-claim>
+    <p>Сервер принимает команду события из SQL по etag строки.</p>
+    <doc-calls title="Команда события" caption="При приёме Google не вызывается.">
+<script type="text/plain">
++ POST /google/events/:eventKey              @ apps/api/src/routes/google.ts:55
+~   submitCalendarCommand(context, input)    @ apps/api/src/calendar/commands.ts:36
+    unresolvedCommands(db, accountId)        @ apps/api/src/calendar/journal.ts:166   -- command_pending, Phase 24 rule kept
++   **admitEventCommand**(tx, input)         @ apps/api/src/calendar/event-commands.ts:1
++     **rowByKey**(executor, …)              @ apps/api/src/calendar/projection.ts:3   -- expectedVersion === eventVersion(row)
++     **boundRowCondition**(connectionId)    @ apps/api/src/calendar/event-mapping.ts:276   -- lesson row → invalid_request
++     persistCommand(tx, plan)               @ apps/api/src/calendar/journal.ts:179
+</script>
+    </doc-calls>
+    <doc-ask id="barrier">
+      <p>Что блокирует одна зависшая команда?</p>
+      <label><input type="radio" name="barrier" value="global" checked> Все новые правки аккаунта, как в фазе 24 <small>оператор снимает её по RUNBOOK 13.1</small></label>
+      <label><input type="radio" name="barrier" value="entity"> Только правки того же события, серии или урока <small>R-35; добавляет утверждение, меняет планы 02 и 07</small></label>
+    </doc-ask>
+    <div data-if="barrier=entity"><doc-note tone="warn">Тогда v53 EventEditor тоже меняется.</doc-note></div>
+    <doc-claim at="apps/api/src/calendar/commands.ts:36">
+      <p><b>commands.ts:47</b> · submitCalendarCommand()</p>
+      <doc-code src="apps/api/src/calendar/commands.ts" lines="47-70" hl="54-55,69-70">
+        <doc-pin line="54" title="Общий барьер остаётся">Его проверка уходит в транзакцию с FOR UPDATE.</doc-pin>
+        <doc-pin line="69" tone="warn" title="Сравнение с основным календарём уходит">Оно ломает выбор календаря (D-04).</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Событие меняется в трёх областях, урок только в двух.</p>
+    <doc-code title="event-commands.ts · sketch" lang="ts">
+<script type="text/plain">
+const eventScopes = {
+  one:       'patch the single or the instance, If-Match = row etag',
+  following: 'trim master UNTIL, insert a new master from this date',
+  all:       'patch the master, If-Match = master etag',
+}
+const lessonScopes = {
+  one:       'cancel this lesson',
+  following: 'End series from this lesson',
+}
+// non-weekly master: scope one, time only (D-16)
+// all-day row: delete one only (D-15)
+// update and Assign send no status
+</script>
+      <doc-pin line="6" title="Для урока нет all">История уроков не меняется (D-14).</doc-pin>
+    </doc-code>
+    <doc-ask id="deviations">
+      <p>Какие три отступления планировщика оставить?</p>
+      <label><input type="checkbox" name="deviations" value="nostatus" checked> Правка и Assign не шлют status <small>иначе Tentative станет Confirmed</small></label>
+      <label><input type="checkbox" name="deviations" value="replacement" checked> Restore оставляет одно чтение checkReplacement <small>иначе вернувшееся событие даст дубль</small></label>
+      <label><input type="checkbox" name="deviations" value="anyscope" checked> Команды события на строке урока отклоняются во всех областях <small>иначе правка one изменит событие урока</small></label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Перед patch dispatch ещё раз читает событие и сверяет его etag.</p>
+    <doc-code src="apps/api/src/calendar/dispatch.ts" lines="121-140" hl="123,136">
+      <doc-pin line="123" title="Одно чтение цели">Отсюда же берётся базовая линия неизменяемых полей.</doc-pin>
+      <doc-pin line="136" tone="ok" title="Другой etag: external_change">Команда не уходит, Google побеждает.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/api/src/calendar/dispatch.ts:112">
+      <p><b>dispatch.ts:112</b> · checkDispatchWindow()</p>
+      <doc-code diff file="apps/api/src/calendar/dispatch.ts" start="112" title="dispatch.ts">
+<script type="text/plain">
+ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
+ 	if (access.connection.generation !== command.generation || access.connection.calendarId !== command.calendarId)
+ 		throw new CommandFault('not_applied')
+-	const primary = await gateway.primary(access.accessToken, access.signal)
+-	if (primary.id !== command.calendarId) throw new CommandFault('external_change')
+ 	if (command.operation === 'restore' && command.request.method === 'insert') {
+ 		await checkReplacement(access, command, gateway)
+</script>
+      </doc-code>
+    </doc-claim>
+    <doc-claim at="apps/api/src/calendar/command-result.ts:26">
+      <p><b>command-result.ts:26</b> · writable</p>
+      <doc-code src="apps/api/src/calendar/command-result.ts" lines="26-37" hl="27-28,31">
+        <doc-pin line="27" tone="warn" title="Список уходит в GOOGLE_WRITABLE_FIELDS">Поле запроса не входит в отпечаток того же запроса.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Детали события сервер читает из проекции, а не из Google.</p>
+    <doc-code title="routes/google.ts · sketch" lang="ts">
+<script type="text/plain">
+routes.get('/events/:eventKey', async (c) => {
+  const row = await rowByKey(db, connectionId, eventKey)
+  if (!row || row.status === 'cancelled') return c.json(errorBody('not_found'), 404)
+  const master = row.recurringEventId ? await masterRow(db, connectionId, row.recurringEventId) : null
+  return c.json(eventDetails(row, master), 200)
+})
+</script>
+      <doc-pin line="5" title="description, location, repeat из столбцов строки"></doc-pin>
+    </doc-code>
+    <doc-ask id="details">
+      <p>Где сервер берёт описание, место и правило повтора?</p>
+      <label><input type="radio" name="details" value="projection" checked> Хранит в проекции; детали читают только SQL <small>строго по D-19</small></label>
+      <label><input type="radio" name="details" value="google"> Читает events.get при открытии деталей <small>как предлагал RESEARCH; утверждение 2.4 меняется</small></label>
+    </doc-ask>
+    <doc-note tone="info">Список календарей (25.1-11) сервер читает из Google.</doc-note>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Перенос и растяжение мышью открывают форму и ничего не сохраняют сами.</p>
+    <doc-calls title="Мышь" caption="Шаг 15 минут, конец не дальше 02:00.">
+<script type="text/plain">
+~ useLessonDrag()                            @ apps/web/app/(app)/schedule/_components/use-lesson-drag.ts:26   -- plain events at any time
++ **useEventResize**()                       @ apps/web/app/(app)/schedule/_components/use-event-resize.ts:1
+~ <LessonMoveForm/>                          @ apps/web/app/(app)/schedule/_components/lesson-move-form.tsx:66   -- sends durationMinutes
+~ prepareLessonChange()                      @ apps/api/src/schedule/changes.ts:90
+~ applyOccurrenceChange()                    @ apps/api/src/schedule/occurrence-change.ts:43   -- moved at the natural time
+~ cutSeries()                                @ packages/core/src/schedule-series.ts:127   -- duration-only cut gives a new series
+</script>
+    </doc-calls>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 3 ═════ -->
+<doc-claim>
+  <p>Событие с именем ученика приложение только предлагает; привязку делает учитель.</p>
+  <doc-mock frame="none" w="420"><template>
+<div class="ui">
+  <div class="hd"><span><span class="dot" style="background:#7986cb"></span>Alex Example 0001</span></div>
+  <div class="box" data-ref="box">
+    <p>Looks like <b>Alex Example 0001</b>'s lesson.</p>
+    <small>Applies to this series.</small>
+    <div style="display:flex;gap:8px;margin-top:8px"><span class="btn" data-ref="assign">Assign</span><span class="btn ghost">Ignore</span></div>
+  </div>
+  <div class="ln"><span>Wed 14 Oct, 16:00 – 17:00</span><span class="dim">Repeats every Wednesday</span></div>
+  <div class="ft"><span class="sp"></span><span class="btn ghost">Delete event</span><span class="btn">Edit event</span></div>
+</div></template>
+    <doc-pin ref="assign" anchor="r" title="Скрытая метка в Google">Видимый поток не меняется (D-18).</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p><code>bindEvent</code> ищет связь по id, затем по нашей метке.</p>
+    <doc-code diff file="apps/api/src/calendar/event-mapping.ts" start="285" title="event-mapping.ts">
+<script type="text/plain">
+ 	const mapping =
+ 		snapshot.mappings.find((row) => row.eventId === event.eventId) ??
+ 		snapshot.mappings.find((row) => row.entityKind === 'series' && row.eventId === event.recurringEventId)
++	if (!mapping && event.markerLocalId) return byMarker(event, snapshot)
+ 	if (!mapping || mapping.state === 'retired' || event.eventType !== 'default') return external
+</script>
+      <doc-pin line="288" title="Метка чужого аккаунта не действует">T-25.1-31.</doc-pin>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Подсказка появляется только при одном точном совпадении имени.</p>
+    <doc-code title="matching.ts · sketch" lang="ts">
+<script type="text/plain">
+export function suggestionFor(row, students, ignores) {
+  if (row.eventType !== 'default' || row.status === 'cancelled' || row.allDay) return null
+  if (row.recurrenceKind === 'other') return null
+  if (ignores.has(row.eventId) || ignores.has(row.recurringEventId)) return null
+  const title = canonicalName(row.summary ?? '')
+  const hits = students.filter((s) => canonicalName(s.displayName) === title)
+  return hits.length === 1 ? { studentId: hits[0].id, scope: row.recurringEventId ? 'series' : 'event' } : null
+}
+</script>
+      <doc-pin line="7" title="Ноль или два совпадения: подсказки нет">Без префиксов и нечёткого поиска.</doc-pin>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Assign пишет метку в Google, а затем создаёт урок.</p>
+    <doc-calls title="Assign" caption="Отметок и списаний нет.">
+<script type="text/plain">
++ POST /google/events/:eventKey/assign       @ apps/api/src/routes/google.ts:55
++   **admitAssign**(tx, input)               @ apps/api/src/calendar/assign.ts:1   -- patch extendedProperties.private only
++ dispatchCommand(command)                   @ apps/api/src/calendar/dispatch.ts:112   -- If-Match, master for a series
+~ applyConfirmedCommand(tx, command)         @ apps/api/src/schedule/command-apply.ts:20
++   assign → lessons or lesson_series + mapping   @ apps/api/src/schedule/command-apply.ts:20
+</script>
+    </doc-calls>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Ignore записывает событие в <code>google_event_ignores</code> навсегда.</p>
+    <doc-code title="routes/google.ts · sketch" lang="sql">
+<script type="text/plain">
+INSERT INTO google_event_ignores (account_id, connection_id, calendar_id, event_id, request_id)
+VALUES ($1, $2, $3, coalesce($recurring_event_id, $event_id), $request_id)
+ON CONFLICT DO NOTHING;   -- same request_id: same 204
+</script>
+      <doc-pin line="2" title="Для серии хранится мастер"></doc-pin>
+    </doc-code>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 4 ═════ -->
+<doc-claim>
+  <p>Урок, изменённый в Google, меняется в приложении; отметки остаются.</p>
+  <doc-mock frame="none" w="420"><template>
+<div class="ui">
+  <div class="hd">After a sync pass</div>
+  <div class="ln"><span><b>Alex Example 0002</b> · Wed 14 Oct</span><span class="ok" data-ref="moved">15:00 → 16:00</span></div>
+  <div class="ln"><span><b>Alex Example 0002</b> · Wed 7 Oct · Attended</span><span class="dim" data-ref="frozen">15:00, unchanged</span></div>
+  <div class="ln"><span><b>Alex Example 0002</b> · Wed 21 Oct</span><span class="warn">Cancelled</span></div>
+</div></template>
+    <doc-pin ref="moved" anchor="r" title="Одно вхождение">Серия не меняется.</doc-pin>
+    <doc-pin ref="frozen" anchor="r" title="Урок с отметкой заморожен">D-08.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>После каждого прохода сервер сверяет связанные строки с новым etag.</p>
+    <doc-code title="sync-store.ts · sketch" lang="sql">
+<script type="text/plain">
+SELECT e.*
+FROM google_calendar_events e
+WHERE e.connection_id = $1
+  AND <boundRowCondition>
+  AND e.etag IS DISTINCT FROM e.inbound_applied_etag
+ORDER BY entity_key(e)
+LIMIT 200;
+</script>
+      <doc-pin line="5" title="По состоянию, не по «изменилось в проходе»">Сбой между коммитами не теряет правку.</doc-pin>
+    </doc-code>
+    <doc-ask id="release">
+      <p>Когда выкатывать входящее применение на прод?</p>
+      <label><input type="radio" name="release" value="wait" checked> После живой сессии владельца: A2, A3, A6 подтверждены <small>RUNBOOK 13.2</small></label>
+      <label><input type="radio" name="release" value="report"> Сначала режим «только отчёт» <small>добавляет утверждение и план; сейчас его нет</small></label>
+      <label><input type="radio" name="release" value="now"> Сразу, без живой сессии <small>первый полный проход сверит все уроки</small></label>
+    </doc-ask>
+    <div data-if="release=now"><doc-note tone="risk"><strong>Риск</strong> Допущение A2 не проверено.</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Урок или вхождение с отметкой не меняет ни время, ни статус.</p>
+    <doc-code title="inbound-apply.ts · sketch" lang="ts">
+<script type="text/plain">
+export async function applyInbound(tx, item): Promise<InboundResult> {
+  if (await hasUnresolvedCommand(tx, item)) return 'skipped_pending'
+  if (!(await lockNowait(tx, item))) return 'skipped_locked'
+  if (await hasMark(tx, item)) return 'skipped_marked'
+  return applyDifference(tx, item)
+}
+</script>
+      <doc-pin line="4" title="Пропуск не ставит отметку inbound_applied_etag">Следующий проход повторит сверку.</doc-pin>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Только <code>event-mapping.ts</code> решает, связана ли строка с уроком.</p>
+    <doc-code title="event-mapping.ts · sketch" lang="ts">
+<script type="text/plain">
+export function boundRowCondition(connectionId: string): SQL {
+  return or(
+    exists(activeMapping(connectionId, googleCalendarEvents.eventId)),
+    exists(seriesMapping(connectionId, googleCalendarEvents.recurringEventId)),
+    and(isNotNull(googleCalendarEvents.markerLocalId),
+        inArray(googleCalendarEvents.markerKind, ['single', 'series', 'occurrence'])),
+  )
+}
+</script>
+      <doc-pin line="4" title="Вхождения связанной серии тоже связаны">Очистка их не удаляет.</doc-pin>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Правка урока из приложения требует etag строки, иначе <code>precondition_failed</code>.</p>
+    <doc-code src="apps/api/src/calendar/read-state.ts" lines="35-49" hl="45">
+      <doc-pin line="45" tone="warn" title="Глобальная ревизия уходит из версии">Версия станет opaqueVersion([eventId, etag]).</doc-pin>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Отметка доступна, когда строка проекции совпадает с уроком.</p>
+    <doc-code src="apps/api/src/calendar/history.ts" lines="194-213" hl="204,208">
+      <doc-pin line="204" tone="ok" title="Отмеченное вхождение остаётся доступным"></doc-pin>
+      <doc-pin line="208" tone="warn" title="confirmedHistory меняется">Проверка идёт через rowForLocal, а не через снимок.</doc-pin>
+    </doc-code>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 5 ═════ -->
+<doc-claim>
+  <p>Учитель выбирает другой календарь в Settings; старые уроки остаются.</p>
+  <doc-mock frame="none" w="420"><template>
+<div class="ui">
+  <div class="hd">Use another calendar?</div>
+  <div class="body">New and changed events go to Work. Events already in the schedule from the previous calendar stay as read-only history. Lessons are not copied to Work.</div>
+  <div class="ft"><span class="sp"></span><span class="btn" data-ref="keep">Keep Synthetic calendar</span><span class="btn pri">Use Work</span></div>
+</div></template>
+    <doc-pin ref="keep" anchor="tl" title="Фокус на безопасной кнопке">Select не сохраняет сам.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Список содержит только календари с правом записи.</p>
+    <doc-code title="gateway-sync.ts · sketch" lang="ts">
+<script type="text/plain">
+const writable = items.filter(
+  (item) => (item.accessRole === 'owner' || item.accessRole === 'writer') && !item.deleted
+)
+</script>
+    </doc-code>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Одна транзакция закрывает старую строку и создаёт новую.</p>
+    <doc-calls title="Смена календаря" caption="Сопоставления старой строки не меняются (D-13).">
+<script type="text/plain">
++ POST /google/calendar                      @ apps/api/src/routes/google.ts:55
++   **chooseCalendar**(actor, request)       @ apps/api/src/calendar/connection.ts:124   -- refused while a command is unresolved
++     **retireSyncRow**(tx, connectionId)    @ apps/api/src/calendar/sync-store.ts:5   -- returns channel pairs
++     **ensureSyncRow**(tx, connection)      @ apps/api/src/calendar/sync-store.ts:1   -- due at once
++   watch.**stop**(pairs, token)             @ apps/api/src/calendar/watch.ts:1   -- token taken before the retire
+~ install(context, actor, row, …)            @ apps/api/src/calendar/connection.ts:132   -- reconnect keeps the chosen calendar
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/calendar/connection.ts:132">
+      <p><b>connection.ts:132</b> · install()</p>
+      <doc-code src="apps/api/src/calendar/connection.ts" lines="124-139" hl="132-133">
+        <doc-pin line="133" tone="warn" title="wrong_primary для переподключения уходит">Новое подключение берёт основной календарь.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Старый канал останавливается, а старую строку синхронизации никто не берёт.</p>
+    <doc-code title="sync-store.ts · sketch" lang="ts">
+<script type="text/plain">
+export async function retireSyncRow(executor, connectionId) {
+  const [row] = await executor.select().from(googleSyncState).where(eq(googleSyncState.connectionId, connectionId))
+  await executor.update(googleSyncState).set({
+    channelId: null, channelResourceId: null, channelTokenHash: null, channelExpiresAt: null,
+    retiringChannelId: null, retiringResourceId: null, claimedUntil: null,
+  }).where(eq(googleSyncState.connectionId, connectionId))
+  return pairsOf(row)
+}
+</script>
+      <doc-pin line="4" title="Webhook старого канала отвечает 404"></doc-pin>
+    </doc-code>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ shared · not changing ═════ -->
+<doc-claim aux="shared">
+  <p>Общее: три новые таблицы и одна расширенная проверка операций.</p>
+  <doc-schema id="tables" lang="sql" title="packages/db/src/calendar-sync-schema.ts" caption="DELETE для dvlab_app есть только на проекции.">
+<script type="text/plain">
+CREATE TABLE google_calendar_events (
+  connection_id uuid, event_id text, event_key text UNIQUE,
+  row_kind text,                 -- single | instance | master
+  etag text, status text, event_type text,
+  starts_at timestamptz NULL,    -- null only for a cancelled tombstone
+  ends_at timestamptz NULL,
+  summary text, description text, location text, color_id text,
+  marker_local_id uuid, marker_kind text,
+  recurrence_kind text, recurrence_until date,
+  seen_epoch bigint, inbound_applied_etag text,
+  PRIMARY KEY (connection_id, event_id)
+);  -- … 14 more columns
+CREATE TABLE google_sync_state (
+  connection_id uuid PRIMARY KEY, sync_token text, epoch bigint,
+  window_start timestamptz, window_end timestamptz,
+  revision bigint, requested_seq bigint, processed_seq bigint,
+  claimed_until timestamptz, channel_id uuid, channel_token_hash text
+);  -- … 17 more columns
+CREATE TABLE google_event_ignores (
+  id uuid PRIMARY KEY, connection_id uuid, event_id text, request_id uuid,
+  UNIQUE (connection_id, event_id)
+);
+REVOKE DELETE, TRUNCATE ON google_sync_state, google_event_ignores FROM dvlab_app;
+-- google_commands_operation_ck + event_create, event_update, event_delete, assign
+</script>
+  </doc-schema>
+</doc-claim>
+
+<doc-claim aux="scope">
+  <p>Не меняется: виды дня и месяца, чат, IELTS, строка повестки на телефоне.</p>
+  <ul>
+    <li>Новых тестов нет (D-11).</li>
+    <li>Создание событий на весь день.</li>
+    <li>Метки <code>eventLabelId</code>.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>

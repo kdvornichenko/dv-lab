@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 24
 current_phase_name: Google Calendar Connection and Outbound Sync
 status: paused
-stopped_at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; next is the owner review of the plan page, then execution
+stopped_at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; plan accepted by the owner (2026-10-12); execution has not started
 last_updated: '2026-10-12T13:00:00.000Z'
 last_activity: 2026-10-12
 last_activity_desc: Status synced with master after PRs 10-29 made outside GSD plans
@@ -130,5 +130,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-12T13:00:00.000Z
-Stopped at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; next is the owner review of the plan page, then execution
+Stopped at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; plan accepted by the owner (2026-10-12); execution has not started
 Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md
