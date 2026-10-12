@@ -7,7 +7,7 @@ import { apiRequest } from '@/lib/api-client'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
 
 import type { GoogleScheduleWindow, TodayResponse } from '@dv-lab/contracts'
-import { scheduleToday } from '@dv-lab/core'
+import { lessonDay } from '@dv-lab/core'
 
 type TodayState = {
 	kind: 'loading' | 'error' | 'ready'
@@ -66,7 +66,7 @@ export function useToday(minuteNow: Date) {
 	const refreshDay =
 		state.kind === 'ready' &&
 		data !== null &&
-		(scheduleToday(now, data.defaultTimeZone) !== data.date ||
+		(lessonDay(now, data.defaultTimeZone) !== data.date ||
 			data.lessons.some((block) => block.startsAt > data.asOf && new Date(block.startsAt) <= now))
 	useEffect(() => {
 		if (refreshDay) void reload()

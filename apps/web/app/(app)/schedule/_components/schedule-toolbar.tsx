@@ -11,7 +11,7 @@ import { calendarLesson } from '@/lib/lesson-actions'
 import { dayNumber, periodTitle, weekTitle } from '@/lib/schedule-format'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { zonedInstant } from '@dv-lab/core'
+import { addDays, lessonDay, zonedInstant } from '@dv-lab/core'
 
 interface WeekNavigation {
 	monday: string
@@ -56,8 +56,12 @@ export function useScheduleKeys({
 	}, [])
 }
 
-export function weekSummary(events: readonly CalendarEventView[]): string {
-	const lessons = events.filter(calendarLesson)
+export function weekSummary(events: readonly CalendarEventView[], monday: string, mainTimeZone: string): string {
+	const sunday = addDays(monday, 6)
+	const lessons = events.filter(calendarLesson).filter((event) => {
+		const day = lessonDay(new Date(event.when.startsAt), mainTimeZone)
+		return monday <= day && day <= sunday
+	})
 	const held = lessons.filter((event) => event.status !== 'cancelled')
 	const cancelled = lessons.length - held.length
 	if (held.length === 0) return cancelled > 0 ? `No lessons this week · ${cancelled} cancelled` : 'No lessons this week'
@@ -65,15 +69,7 @@ export function weekSummary(events: readonly CalendarEventView[]): string {
 	return `${held.length} ${held.length === 1 ? 'lesson' : 'lessons'} with ${students} ${students === 1 ? 'student' : 'students'}`
 }
 
-function BarTip({
-	name,
-	shortcut,
-	children,
-}: {
-	name: string
-	shortcut?: string
-	children: React.ReactElement
-}) {
+function BarTip({ name, shortcut, children }: { name: string; shortcut?: string; children: React.ReactElement }) {
 	return (
 		<Tooltip
 			side="bottom"

@@ -13,7 +13,7 @@ import {
 	type ErrorCode,
 	type GoogleScheduleWindow,
 } from '@dv-lab/contracts'
-import { mondayOf, scheduleToday } from '@dv-lab/core'
+import { lessonDay, mondayOf } from '@dv-lab/core'
 
 export async function sameCalendarAccount(accountId: string): Promise<boolean> {
 	const result = await apiRequest<unknown>('GET', '/auth/me')
@@ -97,7 +97,7 @@ export async function readCalendarWeek(date?: string): Promise<GoogleScheduleWin
 			return null
 		const timeZone = timeZoneIdentity(settings.defaultTimeZone)
 		if (timeZone === null) return null
-		start = mondayOf(scheduleToday(new Date(), timeZone))
+		start = mondayOf(lessonDay(new Date(), timeZone))
 	}
 	const result = await apiRequest<unknown>('GET', `/schedule/week?start=${start}`)
 	if (!result.ok) return null

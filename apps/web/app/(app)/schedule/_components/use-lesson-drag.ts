@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type MouseEvent, type RefObject } from 'react'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { scheduleDate, zonedInstant } from '@dv-lab/core'
+import { lessonDay, lessonDaySlot, zonedInstant } from '@dv-lab/core'
 
-import { clock, SLOT_MINUTES } from './use-slot-drag'
+import { SLOT_MINUTES } from './use-slot-drag'
 import type { SlotFrame } from './week-grid'
 
 export type MoveSeed = Pick<SlotFrame, 'date' | 'time'>
@@ -98,7 +98,7 @@ export function useLessonDrag(
 		const source = events.find((item) => item.eventKey === button?.dataset.eventKey)
 		if (!button || !source || source.when.kind !== 'timed' || !canMove(source)) return
 		const column = button.closest<HTMLElement>('[data-slot="week-grid-column"]')
-		if (column?.dataset.date !== scheduleDate(new Date(source.when.startsAt), mainTimeZone)) return
+		if (column?.dataset.date !== lessonDay(new Date(source.when.startsAt), mainTimeZone)) return
 		press.current = {
 			pointerId: event.pointerId,
 			button,
@@ -140,13 +140,13 @@ export function useLessonDrag(
 		const latest = Math.floor((1440 - durationMinutes) / SLOT_MINUTES) * SLOT_MINUTES
 		if (latest < 0) return null
 		const minutes = Math.min(Math.max(snapped, 0), latest)
-		const time = clock(minutes)
+		const slot = lessonDaySlot(date, minutes)
 		try {
-			if (zonedInstant(date, time, mainTimeZone).getTime() <= Date.now()) return null
+			if (zonedInstant(slot.date, slot.time, mainTimeZone).getTime() <= Date.now()) return null
 		} catch {
 			return null
 		}
-		return { date, time, durationMinutes }
+		return { ...slot, durationMinutes }
 	}
 
 	function move(event: PointerEvent<HTMLDivElement>) {

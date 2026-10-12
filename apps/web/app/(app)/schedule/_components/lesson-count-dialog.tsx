@@ -26,7 +26,7 @@ import { apiRequest } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
 import type { CalendarIssue, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, mondayOf, scheduleDate } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
 
 const MONTHS = [
 	'January',
@@ -80,7 +80,7 @@ function collect(window: GoogleScheduleWindow, from: string, to: string, into: E
 		if (event.status === 'cancelled') continue
 		const day =
 			event.when.kind === 'timed'
-				? scheduleDate(new Date(event.when.startsAt), event.when.timeZone)
+				? lessonDay(new Date(event.when.startsAt), window.requestedRange.timeZone)
 				: event.when.startsOn
 		if (day < from || day > to) continue
 		const title = event.title?.trim() || 'Untitled'

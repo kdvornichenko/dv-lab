@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { TimePair } from '@/components/app/time-pair'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -10,21 +10,31 @@ import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { addDays, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
+import {
+	DAY_START_MINUTES,
+	addDays,
+	lessonDayMinutes,
+	lessonDayPlace,
+	scheduleDate,
+	zonedInstant,
+	zonedParts,
+} from '@dv-lab/core'
 
 import { eventRange, eventTitle } from './calendar-event-details'
-import { eventsOn, placeDay } from './calendar-layout'
+import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
 import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
 
 export const HOUR_HEIGHT = 48
-export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
+export const OPEN_SCROLL_TOP = 5 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
 const DAY_MINUTES = 24 * 60
 const CHIP_BELOW_MINUTES = 30
+const FIRST_HOUR = DAY_START_MINUTES / 60
+const FRAME_WIDTH = `calc(100% - ${COLUMN_STRIP + 2}px)`
 
 export interface SecondZone {
 	id: string
@@ -219,10 +229,6 @@ function CalendarAgenda({
 	)
 }
 
-function timeMinutes(time: string): number {
-	return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
-}
-
 function SlotFrameBlock({
 	start,
 	minutes,
@@ -243,7 +249,7 @@ function SlotFrameBlock({
 			data-minutes={minutes}
 			data-range={range}
 			className="pointer-events-none absolute z-20 rounded-md bg-selected/85 px-[6px] py-[2px] text-foreground ring-1 ring-foreground/40 ring-inset"
-			style={{ top: start * MINUTE_HEIGHT, height: visible * MINUTE_HEIGHT, left: 2, width: 'calc(100% - 6px)' }}
+			style={{ top: start * MINUTE_HEIGHT, height: visible * MINUTE_HEIGHT, left: 2, width: FRAME_WIDTH }}
 		>
 			{minutes < CHIP_BELOW_MINUTES ? (
 				<span
@@ -275,7 +281,7 @@ function overlapsOthers(
 		return false
 	}
 	const end = start + frame.durationMinutes * 60000
-	return eventsOn(events, frame.date, mainTimeZone).some(
+	return eventsOn(events, lessonDayPlace(frame.date, frame.time).day, mainTimeZone).some(
 		(event) =>
 			event.eventKey !== source.eventKey &&
 			event.when.kind === 'timed' &&
@@ -299,7 +305,7 @@ function MoveFrameBlock({
 	overlap: boolean
 	state: 'drag' | 'draft'
 }) {
-	const start = timeMinutes(frame.time)
+	const start = lessonDayPlace(frame.date, frame.time).minutes
 	const range = `${clock(start)}–${clock(start + frame.durationMinutes)}`
 	const sameDay =
 		event.when.kind === 'timed' && scheduleDate(new Date(event.when.startsAt), mainTimeZone) === frame.date
@@ -317,7 +323,7 @@ function MoveFrameBlock({
 					'pointer-events-none absolute z-30 overflow-hidden rounded-md bg-selected/85 px-[6px] py-[2px] text-foreground shadow-surface-4 ring-inset',
 					overlap ? 'ring-2 ring-warning' : 'ring-1 ring-foreground/40'
 				)}
-				style={{ top: start * MINUTE_HEIGHT, height, left: 2, width: 'calc(100% - 6px)' }}
+				style={{ top: start * MINUTE_HEIGHT, height, left: 2, width: FRAME_WIDTH }}
 			>
 				<span className="block truncate text-caption font-semibold">
 					{eventTitle(event)}
@@ -382,6 +388,18 @@ export function WeekGrid({
 }: WeekGridProps) {
 	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, mainTimeZone)
+	const nowMinutes = lessonDayMinutes(now, mainTimeZone)
+	const [columnWidth, setColumnWidth] = useState(0)
+	const columnRef = useRef<HTMLDivElement | null>(null)
+	useLayoutEffect(() => {
+		const column = columnRef.current
+		if (!column) return
+		const measure = () => setColumnWidth(column.clientWidth)
+		measure()
+		const observer = new ResizeObserver(measure)
+		observer.observe(column)
+		return () => observer.disconnect()
+	}, [])
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
@@ -494,8 +512,17 @@ export function WeekGrid({
 							{HOURS.map((hour) => (
 								<GutterPair
 									key={hour}
-									local={hourLabel(hour)}
-									second={secondZone ? gutterLabel(monday, hour, mainTimeZone, secondZone.id) : null}
+									local={hourLabel((hour + FIRST_HOUR) % 24)}
+									second={
+										secondZone
+											? gutterLabel(
+													hour + FIRST_HOUR >= 24 ? addDays(monday, 1) : monday,
+													(hour + FIRST_HOUR) % 24,
+													mainTimeZone,
+													secondZone.id
+												)
+											: null
+									}
 									top={hour * HOUR_HEIGHT}
 									className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
 								/>
@@ -504,11 +531,17 @@ export function WeekGrid({
 						{dates.map((date, dayIndex) => {
 							const isToday = date === today
 							const live = drag !== null && drag.date === date ? drag : null
-							const shownFrame = editable && !dragging && moveFrame === null && frame?.date === date ? frame : null
-							const shownMove = moveFrame?.frame.date === date ? moveFrame : null
+							const framePlace = frame === null ? null : lessonDayPlace(frame.date, frame.time)
+							const shownFrame =
+								editable && !dragging && moveFrame === null && framePlace?.day === date ? framePlace : null
+							const shownMove =
+								moveFrame !== null && lessonDayPlace(moveFrame.frame.date, moveFrame.frame.time).day === date
+									? moveFrame
+									: null
 							return (
 								<div
 									key={date}
+									ref={dayIndex === 0 ? columnRef : undefined}
 									data-slot="week-grid-column"
 									data-date={date}
 									onPointerDown={(event) => pressColumn(event, date)}
@@ -525,7 +558,7 @@ export function WeekGrid({
 										<div
 											data-slot="week-grid-now"
 											className="pointer-events-none absolute inset-x-0 z-20 h-0.5 -translate-y-1/2 bg-gcal-now"
-											style={{ top: nowParts.minutes * MINUTE_HEIGHT }}
+											style={{ top: nowMinutes * MINUTE_HEIGHT }}
 										>
 											<span
 												aria-hidden
@@ -534,7 +567,7 @@ export function WeekGrid({
 											<span className="sr-only">Now {nowParts.time}</span>
 										</div>
 									) : null}
-									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT).map(({ event, layout }) => (
+									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT, columnWidth).map(({ event, layout }) => (
 										<EventTooltip
 											editable={canEdit(event)}
 											movable={canMove(event)}
@@ -558,8 +591,8 @@ export function WeekGrid({
 									) : null}
 									{shownFrame !== null ? (
 										<SlotFrameBlock
-											start={timeMinutes(shownFrame.time)}
-											minutes={shownFrame.durationMinutes}
+											start={shownFrame.minutes}
+											minutes={frame?.durationMinutes ?? 60}
 											state="draft"
 											flip={dayIndex === 6}
 										/>

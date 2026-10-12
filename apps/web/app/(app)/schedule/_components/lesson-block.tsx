@@ -45,8 +45,9 @@ export function LessonBlock({
 			: {
 					top: layout.top,
 					height: layout.height,
-					left: `calc(${layout.lane} / ${layout.lanes} * 100% + 2px)`,
-					width: `calc(100% / ${layout.lanes} - 6px)`,
+					left: layout.left,
+					width: layout.width,
+					zIndex: layout.layer > 0 ? Math.min(10 + layout.layer, 19) : undefined,
 				}
 	return (
 		<button
@@ -67,6 +68,8 @@ export function LessonBlock({
 				'z-10 block overflow-hidden rounded-md px-[6px] py-[2px] text-left text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
 				movable ? 'cursor-grab' : 'cursor-default',
 				layout === null ? 'relative w-full' : 'absolute',
+				layout?.cutTop && 'rounded-t-none',
+				layout?.cutBottom && 'rounded-b-none',
 				ghost
 					? 'bg-transparent text-muted-foreground outline-1 -outline-offset-1 outline-foreground/40 outline-dashed'
 					: cancelled

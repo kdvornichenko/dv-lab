@@ -19,7 +19,7 @@ import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { CalendarEventView, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, mondayOf, scheduleDate, scheduleToday, zonedInstant } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
@@ -75,7 +75,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 	const range = data?.snapshotRange ?? data?.requestedRange
 	const mainTimeZone = range?.timeZone ?? query.mainTimeZone
 	const monday = range === undefined ? query.monday : scheduleDate(new Date(range.start), mainTimeZone)
-	const today = scheduleToday(now, mainTimeZone)
+	const today = lessonDay(now, mainTimeZone)
 	return {
 		mainTimeZone,
 		monday,
@@ -105,7 +105,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [zone, setZone] = useSecondZone(week.query?.mainTimeZone ?? null)
 	const laptop = useLaptop()
 	const requested = week.query?.monday ?? null
-	const todayMonday = week.query ? mondayOf(scheduleToday(now, week.query.mainTimeZone)) : null
+	const todayMonday = week.query ? mondayOf(lessonDay(now, week.query.mainTimeZone)) : null
 	useScheduleKeys({
 		onToday: () => {
 			if (todayMonday !== null) go(todayMonday, true)
@@ -264,7 +264,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 						{...navigation}
 						today={today}
 						titleRef={titleRef}
-						summary={loadingFirst ? null : weekSummary(events)}
+						summary={loadingFirst ? null : weekSummary(events, monday, mainTimeZone)}
 					/>,
 					laptop.left
 				)}
