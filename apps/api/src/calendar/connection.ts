@@ -19,10 +19,10 @@ import type { CalendarObservation } from './observation.ts'
 import type { TokenEnvelope } from './token-envelope.ts'
 
 const actions: Record<GoogleConnectionSnapshot['state'], GoogleConnectionSnapshot['allowedActions']> = {
-	not_connected: ['connect'],
-	connected: ['disconnect'],
-	reconnect_required: ['reconnect', 'disconnect'],
-	permission_required: ['reconnect', 'disconnect'],
+	not_connected: ['connect', 'switch'],
+	connected: ['disconnect', 'switch'],
+	reconnect_required: ['reconnect', 'disconnect', 'switch'],
+	permission_required: ['reconnect', 'disconnect', 'switch'],
 	disconnecting: [],
 	disconnect_failed: ['retry_disconnect', 'confirm_revoked'],
 }
@@ -43,7 +43,7 @@ export async function readConnection(db: DbExecutor, accountId: string): Promise
 		calendar: row?.calendarId ? { id: row.calendarId, label: row.calendarLabel, timeZone: row.calendarTimeZone } : null,
 		pendingCommandCount: pending?.value ?? 0,
 		disconnectResolution: row?.disconnectResolution ?? 'none',
-		allowedActions: actions[state],
+		allowedActions: actions[state].filter((action) => action !== 'switch' || row?.calendarId),
 	})
 }
 

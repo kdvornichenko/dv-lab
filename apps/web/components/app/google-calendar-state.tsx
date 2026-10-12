@@ -144,23 +144,35 @@ type ConnectionView =
 const CONNECT_ERROR = 'Could not connect Google Calendar. Try again from Settings.'
 const DISCONNECT_ERROR = 'Could not confirm the disconnect request. Refresh the connection status before trying again.'
 
-function callbackMessage(reason: string | null): string | null {
+type ConnectionNotice = { status: 'warning' | 'error'; text: string }
+type SwitchOutcome = 'navigating' | 'connect_failed' | 'failed'
+
+const failure = (text: string): ConnectionNotice => ({ status: 'error', text })
+
+function callbackMessage(reason: string | null): ConnectionNotice | null {
 	switch (reason) {
 		case null:
 		case 'connected':
 			return null
 		case 'denied':
-			return 'Google Calendar was not connected. You can try again when you are ready.'
+			return { status: 'warning', text: 'Google Calendar was not connected. You can try again when you are ready.' }
 		case 'permission_required':
-			return 'Calendar access was not granted. Allow the requested calendar permissions to connect.'
+			return {
+				status: 'warning',
+				text: 'Calendar access was not granted. Allow the requested calendar permissions to connect.',
+			}
 		case 'invalid_state':
-			return 'This connection request could not be verified. Start again from Settings.'
+			return failure('This connection request could not be verified. Start again from Settings.')
 		case 'wrong_primary':
-			return 'This Google account cannot be used here. Reconnect with the account of the connected calendar, or disconnect first to switch accounts. The primary calendar must be yours or editable by you.'
+			return failure(
+				'This Google account does not match the connected calendar. Reconnect with the original account, or use Connect another Google account.'
+			)
 		case 'command_pending':
-			return 'Earlier calendar requests are not confirmed yet. Reconnect the previous Google account to resolve them before switching accounts.'
+			return failure(
+				'Earlier calendar requests are not confirmed yet. Reconnect the original account to resolve them before connecting another Google account.'
+			)
 		default:
-			return CONNECT_ERROR
+			return failure(CONNECT_ERROR)
 	}
 }
 
@@ -222,7 +234,7 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 				return null
 			}
 			setView({ status: 'ready', snapshot: parsed.data })
-			setNotice((current) => (current === DISCONNECT_ERROR ? null : current))
+			setNotice((current) => (current?.text === DISCONNECT_ERROR ? null : current))
 			return parsed.data
 		})
 	}, [denied])
@@ -262,13 +274,13 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 		if (!mounted.current) return false
 		if (!result.ok) {
 			if (denied(result.status)) return false
-			setNotice(CONNECT_ERROR)
+			setNotice(failure(CONNECT_ERROR))
 			await refresh()
 			return false
 		}
 		const url = authorizationUrl(result.data)
 		if (!url) {
-			setNotice(CONNECT_ERROR)
+			setNotice(failure(CONNECT_ERROR))
 			return false
 		}
 		window.location.assign(url)
@@ -287,8 +299,40 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 		const current = await refresh()
 		if (!mounted.current) return false
 		if (current && disconnectObserved(action, current)) return true
-		setNotice(DISCONNECT_ERROR)
+		setNotice(failure(DISCONNECT_ERROR))
 		return false
+	}
+
+	async function disconnected(): Promise<boolean> {
+		for (let attempt = 0; attempt < 30; attempt += 1) {
+			const current = await read()
+			if (!mounted.current || current === null) return false
+			if (current.state === 'not_connected') return true
+			if (current.state !== 'disconnecting') return false
+			await new Promise((resolve) => window.setTimeout(resolve, 1000))
+		}
+		return false
+	}
+
+	async function switchAccount(generation: number): Promise<SwitchOutcome> {
+		if (inflight.current) return 'failed'
+		inflight.current = true
+		setPending('switch')
+		setNotice(null)
+		try {
+			const fresh = await refresh()
+			if (!fresh || fresh.generation !== generation || !fresh.allowedActions.includes('switch')) return 'failed'
+			if (fresh.state !== 'not_connected') {
+				const result = await apiRequest<unknown>('POST', '/google/disconnect', {})
+				if (!mounted.current) return 'failed'
+				if (!result.ok && denied(result.status)) return 'failed'
+				if (!(await disconnected())) return 'failed'
+			}
+			return (await connect()) ? 'navigating' : 'connect_failed'
+		} finally {
+			inflight.current = false
+			if (mounted.current) setPending(null)
+		}
 	}
 
 	async function act(action: ConnectionAction, generation: number): Promise<boolean> {
@@ -299,6 +343,7 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 		try {
 			const fresh = await refresh()
 			if (!fresh || fresh.generation !== generation || !fresh.allowedActions.includes(action)) return false
+			if (action === 'switch') return false
 			return action === 'connect' || action === 'reconnect' ? await connect() : await disconnect(action)
 		} finally {
 			inflight.current = false
@@ -306,5 +351,5 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 		}
 	}
 
-	return { view, pending, notice, refresh, act }
+	return { view, pending, notice, refresh, act, switchAccount }
 }

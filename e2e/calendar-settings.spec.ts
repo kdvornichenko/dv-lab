@@ -15,11 +15,8 @@ const labels = {
 	disconnect: 'Disconnect',
 	retry_disconnect: 'Retry disconnect',
 	confirm_revoked: 'Confirm access removed',
+	switch: 'Connect another Google account',
 } as const
-
-function label(action: keyof typeof labels, current: GoogleConnectionSnapshot) {
-	return action === 'connect' && current.calendar !== null ? 'Connect Google account' : labels[action]
-}
 
 async function snapshot(page: Page) {
 	const result = googleConnectionSnapshot.safeParse(await api(page.request, 'GET', '/google/connection'))
@@ -48,7 +45,7 @@ async function matchesSnapshot(page: Page, current: GoogleConnectionSnapshot) {
 	await expect(page.getByRole('button', { name: 'Refresh status', exact: true })).toBeEnabled()
 	const panel = page.getByRole('region', { name: 'Connection', exact: true })
 	for (const action of Object.keys(labels) as (keyof typeof labels)[]) {
-		const button = panel.getByRole('button', { name: label(action, current), exact: true })
+		const button = panel.getByRole('button', { name: labels[action], exact: true })
 		expect((await button.count()) > 0, `Server action ${action}`).toBe(current.allowedActions.includes(action))
 	}
 	if (current.calendar !== null) {
@@ -133,14 +130,14 @@ settingsTest('[calendar] settings denial does not replace a valid connection', a
 
 for (const action of ['connect', 'reconnect'] as const) {
 	settingsTest(`[calendar] settings ${action} requires a fresh snapshot before consent`, async ({ page }) => {
-		const current = await requireAction(page, action)
+		await requireAction(page, action)
 		await openSettings(page)
 		let sent = 0
 		page.on('request', (request) => {
 			if (new URL(request.url()).pathname === '/api/google/connect') sent += 1
 		})
 		await page.route('**/api/google/connection', (route) => route.abort('failed'))
-		await page.getByRole('button', { name: label(action, current), exact: true }).click()
+		await page.getByRole('button', { name: labels[action], exact: true }).click()
 		await expect(page.getByText('Could not load Google Calendar status.', { exact: true })).toBeVisible()
 		expect(sent, 'No consent request after failed preflight').toBe(0)
 	})
