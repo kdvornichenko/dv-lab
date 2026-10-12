@@ -23,6 +23,7 @@ import { addDays, mondayOf, scheduleDate, scheduleToday, zonedInstant } from '@d
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
+import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog, type StudentsState } from './new-lesson-dialog'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { useScheduleWeek } from './use-schedule-week'
@@ -137,13 +138,16 @@ function LoadedSchedule({ now }: { now: Date }) {
 					titleRef={titleRef}
 					title={weekRange(monday)}
 					actions={
-						<Button
-							leadingIcon={CalendarPlus}
-							disabled={!editable}
-							onClick={() => void openNew({ date: today, time: '09:00', durationMinutes: 60 })}
-						>
-							New lesson
-						</Button>
+						<div className="flex items-center gap-2">
+							<LessonCountDialog />
+							<Button
+								leadingIcon={CalendarPlus}
+								disabled={!editable}
+								onClick={() => void openNew({ date: today, time: '09:00', durationMinutes: 60 })}
+							>
+								New lesson
+							</Button>
+						</div>
 					}
 				/>
 				<ScheduleToolbar
