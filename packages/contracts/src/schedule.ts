@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, isIsoDate, isTimeZone, type StudentStatus } from './students.ts'
+import { LESSON_MINUTES_MIN, isIsoDate, isTimeZone, type StudentStatus } from './students.ts'
 
 export const CLOCK_TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -18,7 +18,7 @@ const isoDate = z.string().refine(isIsoDate)
 
 const clockTime = z.string().regex(CLOCK_TIME_PATTERN)
 
-const lessonMinutes = z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_MAX)
+const lessonMinutes = z.number().int().min(LESSON_MINUTES_MIN)
 
 const weekday = z.literal([1, 2, 3, 4, 5, 6, 7])
 

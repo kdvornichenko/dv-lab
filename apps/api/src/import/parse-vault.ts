@@ -3,7 +3,6 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
-	LESSON_MINUTES_MAX,
 	LESSON_MINUTES_MIN,
 	PAYMENT_NOTE_MAX_LENGTH,
 	SECTION_BODY_MAX_LENGTH,
@@ -253,7 +252,7 @@ function readRate(text: string, label: string, warnings: string[]): Rate | null 
 	}
 	const amountMinor = parseMoney(normalizeAmount(match[2]), currency)
 	const lessonMinutes = Number(match[4])
-	if (amountMinor === null || lessonMinutes < LESSON_MINUTES_MIN || lessonMinutes > LESSON_MINUTES_MAX) {
+	if (amountMinor === null || lessonMinutes < LESSON_MINUTES_MIN) {
 		warnings.push(`warning: unreadable rate line, rate left empty (${label})`)
 		return null
 	}

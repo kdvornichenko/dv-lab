@@ -1,29 +1,31 @@
-import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN } from '@dv-lab/contracts'
+export const LENGTH_HELPER = 'Hours and minutes.'
+export const LENGTH_ERROR = 'Enter the length.'
 
-export const LENGTH_HELPER = 'Minutes or h:mm.'
+const MAX_MINUTES = 99 * 60 + 59
 
-export function parseLength(text: string): number | null {
-	const trimmed = text.trim()
-	if (/^\d+$/.test(trimmed)) return Number(trimmed)
-	const match = /^(\d+):(\d{1,2})$/.exec(trimmed)
-	if (!match) return null
-	const minutes = Number(match[2])
-	return minutes < 60 ? Number(match[1]) * 60 + minutes : null
+export interface LengthDraft {
+	hours: string
+	minutes: string
 }
 
-export function formatLength(minutes: number): string {
-	return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`
+function pad(value: number): string {
+	return String(value).padStart(2, '0')
 }
 
-export function normalizeLength(text: string): string {
-	const minutes = parseLength(text)
-	return minutes === null ? text.trim() : formatLength(minutes)
+export function draftOf(total: number): LengthDraft {
+	const clamped = Math.min(Math.max(Math.trunc(total), 0), MAX_MINUTES)
+	return { hours: pad(Math.floor(clamped / 60)), minutes: pad(clamped % 60) }
 }
 
-export function lengthError(text: string): string | undefined {
-	const minutes = parseLength(text)
-	if (minutes === null || minutes === 0) return 'Enter the length.'
-	if (minutes < LESSON_MINUTES_MIN || minutes > LESSON_MINUTES_MAX)
-		return `Use ${formatLength(LESSON_MINUTES_MIN)} to ${formatLength(LESSON_MINUTES_MAX)}.`
-	return undefined
+export function totalOf(draft: LengthDraft): number {
+	return Math.min(Number(draft.hours || 0) * 60 + Number(draft.minutes || 0), MAX_MINUTES)
+}
+
+export function normalizeDraft(draft: LengthDraft): { draft: LengthDraft; minutes: number | null } {
+	const total = totalOf(draft)
+	return { draft: draftOf(total), minutes: total > 0 ? total : null }
+}
+
+export function stepDraft(draft: LengthDraft, field: 'hours' | 'minutes', direction: 1 | -1): LengthDraft {
+	return draftOf(totalOf(draft) + direction * (field === 'hours' ? 60 : 5))
 }
