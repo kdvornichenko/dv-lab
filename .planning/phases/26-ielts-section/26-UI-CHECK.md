@@ -21,7 +21,7 @@
 | Work map     | C45 next step + §243 media invariants → B01; raw preservation/seven verdicts/current scoped hashes/root-pin/doccheck → актуальный отчёт                                                           |
 | Stop         | Этот отчёт записан/проверен. Parent выполняет bounded corrections/recheck/probe/planning и execution source rebind                                                                                |
 
-ROOT — `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`. SOURCE — `/Volumes/T7/personal/ielts`, pin `df57b7000c6adc60f35071065b4423d426d263a0`, read-only. Target source baseline `913fc5ae9286aca9a48b5ce4272699c846849874`; `81a1175` — docs snapshot по ARCH:4. Утверждение о текущей неизменности всего параллельного target code не делается.
+ROOT — `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`. SOURCE — `/Volumes/T7/personal/ielts`, pin `df57b7000c6adc60f35071065b4423d426d263a0`, read-only. Target source baseline `913fc5ae9286aca9a48b5ce4272699c846849874`; `81a1175` — docs snapshot по ARCH:4. Утверждение о текущей неизменности всего параллельного target code не делается.
 
 A1 — final24/25/22/23 schemas/interfaces/installed props и target runtime требуют execution rebind, по UI-SPEC:5,32,358,434; missing future source не считается текущей implementation bug. A2 — crosswalk/counts/media checksums/quiescence/parity не наблюдались, по CONTEXT D-04…06 и UI-SPEC:34,247–264. Их отсутствие закрывает enable/rollout; не заменяется допущением. A3 — Source6.2 VERIFICATION:4 имеет `human_needed`, значит chart/theme/device UAT не переносится как target PASS.
 
@@ -141,8 +141,8 @@ Parent уже выполнил existing validator для current source: exit0 P
 
 ## Exact checks / structured return
 
-- `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, `ROOT_PIN_OK`, до first write.
-- Baseline full-check command `python3 /private/tmp/dv-lab-phase22-ui-20261012/verify_phase26_ui_spec.py /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab/.planning/phases/26-ielts-section/26-UI-SPEC.md` — exit0, PASS,434 lines/72 links/16 fingerprints/80 semantic checks; Source66/v40=224 preserved. Это исходный run до recheck; в текущем bounded recheck validator/Git не повторялся.
+- `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, `ROOT_PIN_OK`, до first write.
+- Baseline full-check command `python3 /private/tmp/dv-lab-phase22-ui-20261012/verify_phase26_ui_spec.py ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab/.planning/phases/26-ielts-section/26-UI-SPEC.md` — exit0, PASS,434 lines/72 links/16 fingerprints/80 semantic checks; Source66/v40=224 preserved. Это исходный run до recheck; в текущем bounded recheck validator/Git не повторялся.
 - Scoped report format/doccheck и current26 hashes — после записи, exact commands ниже; numeric exit/short output/final SHA возвращаются parent. Source/spec/research/ARCH/PATTERNS/other phase files checker не меняет.
 
 ```sh

@@ -23,7 +23,7 @@
 
 A1 — final22/24/25 source/types/model/budget/Google seams PROPOSED и требуют execution rebind; основание — CONTEXT D-01/A1, UI-SPEC:29,284,342 и текущее задание. Это не наблюдаемая ошибка current implementation. A2 — actual provider/model/cap/payment DELETE grants/phone keyboard не наблюдались; основание — UI-SPEC:33,342 и исключения задачи. Static evidence не заменяет runtime proof.
 
-Первичный workflow — typed gsd-ui-checker, выбранный через ранее прочитанный work-router с адаптером без побочных действий. Native role fingerprint неизменен. AGENTS, EXECUTOR-RULES и config имеют прежние fingerprints: их действующие правила переиспользованы без повторного чтения. Local `.codex/skills`/`.agents/skills` отсутствуют; config не содержит agent_skills и не отключает workflow.ui_safety_gate. Разрешение написать один отчёт — явное исключение текущего задания из read-only/no-file-creation native роли. UI-SPEC не изменяется.
+Первичный workflow — typed gsd-ui-checker, выбранный через ранее прочитанный work-router с адаптером без побочных действий. Native role fingerprint неизменен. AGENTS, EXECUTOR-RULES и config имеют прежние fingerprints: их действующие правила переиспользованы без повторного чтения. Local `.runtime/skills`/`.agents/skills` отсутствуют; config не содержит agent_skills и не отключает workflow.ui_safety_gate. Разрешение написать один отчёт — явное исключение текущего задания из read-only/no-file-creation native роли. UI-SPEC не изменяется.
 
 ## Dimension Results
 
@@ -112,7 +112,7 @@ Designer сообщил 51links/12fps/51semantic checks exit0. Это upstream d
 
 ## Baseline fingerprints — SHA-256
 
-ROOT: `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`. Эта таблица сохраняет baseline fingerprints первоначальной проверки; current recheck inputs записаны отдельно ниже. ROADMAP23 scope включает heading до следующего Phase heading; REQ7 — семь исходных requirement lines в file order, joined LF без final newline и table rows.
+ROOT: `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`. Эта таблица сохраняет baseline fingerprints первоначальной проверки; current recheck inputs записаны отдельно ниже. ROADMAP23 scope включает heading до следующего Phase heading; REQ7 — семь исходных requirement lines в file order, joined LF без final newline и table rows.
 
 | Вход                                | SHA-256                                                          |
 | ----------------------------------- | ---------------------------------------------------------------- |
@@ -142,7 +142,7 @@ Full raw B01/B02 block preservation SHA-256: `146058f09e84af90aca7c46dbfc48ea54e
 
 ## Exact checks / structured return
 
-- `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, `ROOT_PIN_OK`, выполнено до создания отчёта.
+- `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, `ROOT_PIN_OK`, выполнено до создания отчёта.
 - Input fingerprints — Python stdlib pathlib/hashlib, exit0; source/research/context/ROADMAP23/REQ7 совпали с current contract. Это document proof.
 - Report format/doc/hash checks выполняются только для owned report/current23 inputs; фактические exit и короткий decisive output возвращаются родителю. Application tests не запускались.
 

@@ -26,7 +26,7 @@ Design confirmed 18/18 PLAN hashes against INDEX. Aggregate SHA-256 of ordered `
 
 `loop render-hooks plan:post --raw` enabled review-squad, html-plan-review and gap-analysis. The explicit gsd-html-plan-review autonomous gate skips the interactive page/response flow. No human response or approval is inferred.
 
-`node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/22-chat-with-mentions-and-quick-marks 'CHAT-01,CHAT-02,CHAT-03,CHAT-04,CHAT-07,CHAT-08,CHAT-09,CHAT-11' --raw` — exit0, enabled=true, passed=true, block=false: **17/17 covered, 0 uncovered** (8 requirements +9 decisions). Raw result is retained in private existing STATE_DIR `22-gap-analysis-plan-post.json`.
+`node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/22-chat-with-mentions-and-quick-marks 'CHAT-01,CHAT-02,CHAT-03,CHAT-04,CHAT-07,CHAT-08,CHAT-09,CHAT-11' --raw` — exit0, enabled=true, passed=true, block=false: **17/17 covered, 0 uncovered** (8 requirements +9 decisions). Raw result is retained in private existing STATE_DIR `22-gap-analysis-plan-post.json`.
 
 ## Execution boundary
 

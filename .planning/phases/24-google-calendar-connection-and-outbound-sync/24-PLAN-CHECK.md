@@ -107,7 +107,7 @@ Evidence: 24-12-PLAN.md:108–110,119,128–132. Порядок записи и 
 
 ## Выполненные проверки
 
-Рабочий каталог всех команд: `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`. Runtime: Node v24.17.0; GSD 1.16.0; YAML 2.9.1. Процессы завершены с исходным exit; вывод не обрывался через head.
+Рабочий каталог всех команд: `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`. Runtime: Node v24.17.0; GSD 1.16.0; YAML 2.9.1. Процессы завершены с исходным exit; вывод не обрывался через head.
 
 ### Native schema / task structure
 
@@ -120,34 +120,34 @@ Bounded closure повторно выполнил только 10 команд: 
 Каждая строка ниже — точная выполненная команда; результат `exit 0, valid=true`:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-01-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-01-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-02-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-02-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-03-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-03-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-05-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-05-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-08-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-08-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-09-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-09-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-10-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-10-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-11-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-11-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-12-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-12-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-13-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-13-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-14-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-14-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-01-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-01-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-02-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-02-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-03-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-03-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-05-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-05-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-08-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-08-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-09-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-09-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-10-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-10-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-11-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-11-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-12-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-12-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-13-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-13-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/24-google-calendar-connection-and-outbound-sync/24-14-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/24-google-calendar-connection-and-outbound-sync/24-14-PLAN.md
 ```
 
 ### Estimates
@@ -155,20 +155,20 @@ node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-st
 Все команды завершены с exit 0:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 24000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 28000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 22000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 34000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 34000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 29000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 36000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 31000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 27000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 34000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 31000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 39000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 32000 --calibrated
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 12000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 24000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 28000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 22000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 34000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 34000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 29000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 36000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 31000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 27000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 34000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 31000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 39000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 32000 --calibrated
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens 12000 --calibrated
 ```
 
 ### DAG, inventory и fingerprints

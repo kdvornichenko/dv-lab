@@ -1,6 +1,6 @@
 # Phase 26: IELTS Section — Pattern Map
 
-**Дата:** 2026-10-12. **TARGET:** `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`; HEAD `81a11752853260327ba385475547a912b152842b`, source pin `913fc5ae9286aca9a48b5ce4272699c846849874`.
+**Дата:** 2026-10-12. **TARGET:** `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`; HEAD `81a11752853260327ba385475547a912b152842b`, source pin `913fc5ae9286aca9a48b5ce4272699c846849874`.
 **SOURCE:** `/Volumes/T7/personal/ielts`; HEAD `df57b7000c6adc60f35071065b4423d426d263a0`; read-only, untracked AGENTS сохранён.
 **Inventory:** 224 targets; New193, Modified23, Conditional5, Generated3. **Analog:** exact106, role-match104, none14 —210/224.
 **UI26:** APPROVED independent UI-CHECK; Parent bound 82 native considerations. Runtime и source22/23/25 implementation остаются UNVERIFIED.
@@ -1617,7 +1617,7 @@ Native Read/Write names unavailable; read-only exec + apply_patch sole artifact 
 
 From Target Root:
 
-- bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab — ROOT_PIN_OK/exit0 before first write.
+- bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab — ROOT_PIN_OK/exit0 before first write.
 - yarn prettier --write --embedded-language-formatting=off .planning/phases/26-ielts-section/26-PATTERNS.md — format only existing owned artifact.
 - yarn prettier --check --embedded-language-formatting=off .planning/phases/26-ielts-section/26-PATTERNS.md — final original status in handoff.
 - Python stdlib command below: inventory/M/P/SC/F/ARCH/J/E, Source/Target tracked/SHA/excerpts,12Source+3Target ARCH anchors and source pins. No runtime/build/type/E2E proof inferred.
@@ -1625,7 +1625,7 @@ From Target Root:
 ````sh
 python3 -c 'from pathlib import Path
 import hashlib,re,subprocess,json
-roots={"SOURCE":Path("/Volumes/T7/personal/ielts"),"TARGET":Path("/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab")}
+roots={"SOURCE":Path("/Volumes/T7/personal/ielts"),"TARGET":Path("~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab")}
 p=roots["TARGET"]/".planning/phases/26-ielts-section/26-PATTERNS.md"
 s=p.read_text()
 c=s.split("## File Classification",1)[1].split("## Pattern Assignments",1)[0]

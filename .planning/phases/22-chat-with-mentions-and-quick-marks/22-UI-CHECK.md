@@ -13,7 +13,7 @@
 
 Критерии приёмки recheck: исходные B01/B02 raw evidence сохранены; оба свойства получили evidence-based disposition; семь verdicts и current fingerprints записаны; scoped doc/format checks завершены. Карта работы: labels/focus закрывают B01; безопасные recovery actions и owner/E08 binding закрывают B02; hash/root-pin/doccheck закрывают воспроизводимость. Stop — отчёт записан и проверен. Прежние предположения сохраняются: A1 — final24/25 types требуют execution rebind по CONTEXT A2; A2 — provider/model/key/credits/finite cap UNVERIFIED по CONTEXT A3. Это execution gates, не новые UI blockers.
 
-Первичный workflow — typed gsd-ui-checker. Work-router применён с адаптером без побочных действий. Разрешение записать этот отчёт — явное исключение текущего задания из read-only/no-file-creation роли; UI-SPEC не изменена. Проектные `.codex/skills` и `.agents/skills` отсутствуют; config не содержит agent_skills. Native семь dimensions: Copywriting, Visuals, Color, Typography, Spacing, Registry Safety, Inventory Provenance. Composition и design safety проверены внутри соответствующих dimensions и SC/F, а не как замена native dimensions.
+Первичный workflow — typed gsd-ui-checker. Work-router применён с адаптером без побочных действий. Разрешение записать этот отчёт — явное исключение текущего задания из read-only/no-file-creation роли; UI-SPEC не изменена. Проектные `.runtime/skills` и `.agents/skills` отсутствуют; config не содержит agent_skills. Native семь dimensions: Copywriting, Visuals, Color, Typography, Spacing, Registry Safety, Inventory Provenance. Composition и design safety проверены внутри соответствующих dimensions и SC/F, а не как замена native dimensions.
 
 ## Dimension Results
 
@@ -92,7 +92,7 @@ Dimension1 — current recheck. Dimensions2–7 и их ссылки — baselin
 
 ## Baseline fingerprints — SHA-256
 
-Paths без абсолютного префикса относятся только к ROOT `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`. Эта таблица сохраняет исходный snapshot; current recheck inputs приведены отдельно ниже. Внешний design file здесь — baseline, не текущий execution input.
+Paths без абсолютного префикса относятся только к ROOT `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`. Эта таблица сохраняет исходный snapshot; current recheck inputs приведены отдельно ниже. Внешний design file здесь — baseline, не текущий execution input.
 
 | Вход                                                            | SHA-256                                                          |
 | --------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -108,7 +108,7 @@ Paths без абсолютного префикса относятся толь
 | /Users/kdvornichenko/dv-lab-design/VERSION                      | bf022ec33f714d073548153e496277fee35e01749059b7139c34f35294f208cf |
 | /Users/kdvornichenko/dv-lab-design/project/tokens.css           | 9de5ec97cdd57274454b44112d43d8059ee7cc22384fe4f672c70d6aa360cfcf |
 | /Users/kdvornichenko/dv-lab-design/project/principles.md        | ab9451cb8cdcdad1d3689c39eb5271338fb979bd3af63f14c28fa03aa145e61f |
-| /Users/kdvornichenko/.codex/agents/gsd-ui-checker.md            | 7f3c9ac062ee37dcb2049f989ff093aedcce675775400434ca145518f8a5126a |
+| ~/.claude/agents/gsd-ui-checker.md            | 7f3c9ac062ee37dcb2049f989ff093aedcce675775400434ca145518f8a5126a |
 
 UI-SPEC:280 имеет hash design tokens.json, не tokens.css; два разных файла не трактуются как drift. Input hashes доказали current source/research/ROADMAP/REQ binding, не неизменность provider docs или runtime.
 
@@ -125,8 +125,8 @@ Current fingerprints проверены без чтения runtime/source/env/p
 
 ## Проверки и structured return
 
-- `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, `ROOT_PIN_OK`, выполнено до записи.
-- `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-ui-checker` — baseline exit0; роль и правила переиспользованы, повторного query/full audit нет.
+- `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab` — exit0, `ROOT_PIN_OK`, выполнено до записи.
+- `node ~/.claude/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-ui-checker` — baseline exit0; роль и правила переиспользованы, повторного query/full audit нет.
 - Current fingerprints — Python stdlib pathlib/hashlib, exit0; authoritative ROOT UI-SPEC совпадает с новым supplied SHA, RESEARCH/CONTEXT unchanged. Исходный отчёт совпал с baseline output SHA до записи.
 - Raw B01/B02 сверены целиком с literal baseline blocks: exit0, `RAW_EVIDENCE_OK B01=unchanged B02=unchanged`.
 - Scoped Prettier check — exit0, `All matched files use Prettier code style!`; bounded doccheck — exit0, `DOC_CHECK_OK dimensions=7 resolved=2`; fingerprints — exit0. Final report SHA возвращается родителю после formatting. Это не browser proof.

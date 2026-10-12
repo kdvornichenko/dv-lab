@@ -21,7 +21,7 @@ DATA_95bca421_START
 - **D-06:** Spike сравнивает Messages API с собственным store и Managed Agents session по tool write, pause for confirmation, reload/resume, usage и месту хранения данных. Каждому tool call нужен result, включая ошибки. Stream replay не повторяет mutations. Dangerous built-in tools отключены.
 - **D-07:** Monthly cap приложения отделён от API credits. Spend берётся из actual response usage и проверенного pricing profile. Remaining amount — estimate. Missing budget/capability не означает unlimited spending или доступные credits.
 - **D-08:** UI использует variant A/v40 и подготовленную22-UI-SPEC. Technical defaults можно уточнить по evidence без повторного approval. UI не публикует недоказанную model availability, стоимость или provider outcome.
-- **D-09:** Владелец разрешил автономные research/planning/UI/check/implementation и согласованные необходимые rollout/tests на существующем сайте. Новые агенты используютgpt-6.1-sol. Missing access остаётся UNVERIFIED; независимо выполнимая работа продолжается.
+- **D-09:** Владелец разрешил автономные research/planning/UI/check/implementation и согласованные необходимые rollout/tests на существующем сайте. Новые агенты используютthe session agent model. Missing access остаётся UNVERIFIED; независимо выполнимая работа продолжается.
 
 ## Unreviewed Defaults
 
@@ -498,15 +498,15 @@ research-plan via /dev/stdin: context7/cache miss, key984b5645f87e8e785f264c954e
 
 | Exact command / operation                                                                                                    | Status  | Decisive output                                               |
 | ---------------------------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------- |
-| node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query init.phase-op 22                                           | 0       | phase_found=true, expected root; stale model metadata warning |
+| node ~/.claude/gsd-core/bin/gsd-tools.cjs query init.phase-op 22                                           | 0       | phase_found=true, expected root; stale model metadata warning |
 | query research-plan --input /dev/stdin through Python subprocess                                                             | 0       | context7/cache miss                                           |
-| node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query classify-confidence --provider websearch --verified        | 0       | MEDIUM                                                        |
+| node ~/.claude/gsd-core/bin/gsd-tools.cjs query classify-confidence --provider websearch --verified        | 0       | MEDIUM                                                        |
 | Same classify-confidence --provider webfetch --verified                                                                      | 0       | LOW                                                           |
-| node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query package-legitimacy check --ecosystem npm @anthropic-ai/sdk | 0       | SUS too-new                                                   |
+| node ~/.claude/gsd-core/bin/gsd-tools.cjs query package-legitimacy check --ecosystem npm @anthropic-ai/sdk | 0       | SUS too-new                                                   |
 | npm view @anthropic-ai/sdk version time.modified scripts.postinstall repository.url --json                                   | 0       | 0.133.0/official repo; seam postinstall=null                  |
 | npm view @anthropic-ai/sdk time.0.133.0 engines --json                                                                       | 0       | Empty output, no compatibility observation                    |
 | node --version                                                                                                               | 0       | v24.17.0                                                      |
-| bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab               | 0       | ROOT_PIN_OK before write                                      |
+| bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab               | 0       | ROOT_PIN_OK before write                                      |
 | Connector Read                                                                                                               | error   | Tunnel-client not connected; local claims CITED               |
 | Filesystem bounded reads/hashlib                                                                                             | 0       | Source evidence/SHA-256 below                                 |
 | Application/browser/DB/provider spike                                                                                        | NOT RUN | Research exclusions                                           |

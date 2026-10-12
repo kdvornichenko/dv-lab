@@ -42,7 +42,7 @@
 | `yarn db:generate` | `drizzle-kit generate`: новая миграция из `packages/db/src/schema.ts` |
 | `yarn db:migrate` | применение миграций под ролью миграций (`apps/api/src/migrate.ts`) |
 
-CI (`.github/workflows/ci.yml`) на каждый pull request и push в `master`: job `Verify` проверяет границу web, api, contracts и core (шаг `Web and api boundary`) и доверие к адресу клиента в `deploy/` (шаг `Client address trust`), поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, typecheck, lint, test, build, knip, `caddy validate` и shellcheck скриптов `deploy/`. Job `images` собирает образы после зелёного `Verify`; на push в `master` публикует их в GHCR с тегами `sha-<полный sha>` и `latest`.
+CI (`.github/workflows/ci.yml`) на каждый pull request и push в `master`: job `Verify` проверяет границу web, api, contracts и core (шаг `Web and api boundary`) и доверие к адресу клиента в `deploy/` (шаг `Client address trust`), проверяет чистоту репозитория: нет путей и моделей чужих рантаймов и личных почтовых адресов (шаг `Repository hygiene`, `scripts/hygiene-check.mjs`); job `Base is master` падает на pull request с базой не `master`, поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, typecheck, lint, test, build, knip, `caddy validate` и shellcheck скриптов `deploy/`. Job `images` собирает образы после зелёного `Verify`; на push в `master` публикует их в GHCR с тегами `sha-<полный sha>` и `latest`.
 
 ## Окружение
 

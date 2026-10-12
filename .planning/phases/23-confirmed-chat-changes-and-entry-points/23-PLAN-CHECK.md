@@ -24,7 +24,7 @@ Outcome: независимый full verdict по C1–C4, семи REQ, SC1–5
 
 A1: final24/25/22 ещё не implementation proof23; их signatures/fingerprints bind до Source23. A2: реальный SDK/key/profile/model/pricing/cap/Google/roles/target/handset proof неизвестен; paid/business acceptance не подменяется assumptions. A3: current23 protected inputs и declared source snapshot не менялись после разрешённой Parent correction INDEX — SHA proof ниже. Work map: all15 task reading→C1/C2; native+graph/actual inventory→C2/C4; literal predicate equality+semantic owner checks→C3; report→full verdict. Stop: один полный независимый review завершён; Parent исправляет technical findings и назначает bounded recheck.
 
-ROOT: `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`.
+ROOT: `~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`.
 Observed HEAD: `784286d02d7933eb4685dc64a63c0e7ae3c3766c`; historical research source pin:`913fc5ae9286aca9a48b5ce4272699c846849874`. Root содержит Source24-10; Source11 actor Root02 не читался. STATE current_phase24/plan11 — только read-only факт. Нет Source22/25 readiness claim. CodeGraph absent, индекс не создавался. Work-router выбран для explicit typed GSD plan-checker, без side effects; installed role SHA прежний, user6.1-sol сохранён, baked5.6 не обновлялся.
 
 ## Surviving findings
@@ -111,7 +111,7 @@ python3 - <<'PY'
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import subprocess,json
-base='/Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs'
+base='~/.claude/gsd-core/bin/gsd-tools.cjs'
 phase='.planning/phases/23-confirmed-chat-changes-and-entry-points'
 argv=[]
 for f in sorted(Path(phase).glob('*-PLAN.md')):
@@ -126,15 +126,15 @@ PY
 
 | Exact command                                                                                                                                                                                                                    | Exit / decisive result                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                                                                                                | 0;role SHA above, no new skills/includes                                                  |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check decision-coverage-plan .planning/phases/23-confirmed-chat-changes-and-entry-points .planning/phases/23-confirmed-chat-changes-and-entry-points/23-CONTEXT.md` | 0;passed:true,total9/covered9/uncovered[]                                                 |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check ui.plan-gate 23`                                                                                                                                              | 0;frontend:true,hasUiSpec:true,block:false                                                |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/23-confirmed-chat-changes-and-entry-points`                                                                          | 0;passed:true,coverage_present:false,detected:false; no new integration/COVERAGE required |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query agent-skills gsd-plan-checker`                                                                                                                                | 0;role SHA above, no new skills/includes                                                  |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check decision-coverage-plan .planning/phases/23-confirmed-chat-changes-and-entry-points .planning/phases/23-confirmed-chat-changes-and-entry-points/23-CONTEXT.md` | 0;passed:true,total9/covered9/uncovered[]                                                 |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check ui.plan-gate 23`                                                                                                                                              | 0;frontend:true,hasUiSpec:true,block:false                                                |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/23-confirmed-chat-changes-and-entry-points`                                                                          | 0;passed:true,coverage_present:false,detected:false; no new integration/COVERAGE required |
 | `git rev-parse HEAD`                                                                                                                                                                                                             | 0;784286d02d7933eb4685dc64a63c0e7ae3c3766c                                                |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                                                                 | 0;ROOT_PIN_OK before sole artifact write                                                  |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                                                                 | 0;ROOT_PIN_OK before sole artifact write                                                  |
 | `node node_modules/prettier/bin/prettier.cjs --check .planning/phases/23-confirmed-chat-changes-and-entry-points/23-*-PLAN.md .planning/phases/23-confirmed-chat-changes-and-entry-points/23-PLAN-INDEX.md`                      | 0;16matched docs use Prettier style; actual argv resolved15literal PLAN paths+INDEX       |
 
-For each tokens value in table below: actual `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens N --calibrated`,15commands exit0,over_budget:false,budget100000,confidence:low,sample_count0. No claimed actual calibration.
+For each tokens value in table below: actual `node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-check --tokens N --calibrated`,15commands exit0,over_budget:false,budget100000,confidence:low,sample_count0. No claimed actual calibration.
 
 | Plan  | Tasks | Files | Wave | Tokens |
 | ----- | ----: | ----: | ---: | -----: |
@@ -158,7 +158,7 @@ Native consumer parseMustHavesBlock all15: exit0,136artifacts/49links/146truths,
 
 ```sh
 node - <<'JS'
-const fs=require('node:fs');const path=require('node:path');const {parseMustHavesBlock}=require('/Users/kdvornichenko/.codex/gsd-core/bin/lib/frontmatter.cjs');
+const fs=require('node:fs');const path=require('node:path');const {parseMustHavesBlock}=require('~/.claude/gsd-core/bin/lib/frontmatter.cjs');
 const p='.planning/phases/23-confirmed-chat-changes-and-entry-points';let artifacts=0,links=0,truths=0;const errors=[];
 for(const n of fs.readdirSync(p).filter(n=>/^23-\d+-PLAN.md$/.test(n)).sort()){const s=fs.readFileSync(path.join(p,n),'utf8');const a=parseMustHavesBlock(s,'artifacts'),l=parseMustHavesBlock(s,'key_links'),t=parseMustHavesBlock(s,'truths');artifacts+=a.length;links+=l.length;truths+=t.length;if(!a.every(x=>typeof x==='object'&&typeof x.path==='string')||!l.every(x=>typeof x==='object'&&typeof x.from==='string'&&typeof x.to==='string'))errors.push(n);}console.log(JSON.stringify({artifacts,links,truths,errors}));process.exitCode=errors.length?1:0;
 JS
@@ -449,12 +449,12 @@ yarn test:e2e e2e/no-show.spec.ts --workers=1 --project=light --project=dark --g
 Шесть native invocations, каждый original exit0:
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-02-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-02-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-12-PLAN.md --schema plan
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-12-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-02-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-02-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-12-PLAN.md --schema plan
+node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-12-PLAN.md
 ```
 
 Минимальный parser command, не исполняет PLAN automated text и не читает Source implementation:
@@ -642,11 +642,11 @@ Parent сообщил Tesla risk ZERO9/FP503f… и Wegener design ZERO9/FP7e219
 
 | Check / exact command                                                                                                                                                            | Original exit / decisive result                                          |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md --schema plan` | 0;valid:true,missing[],invalidValue[]                                    |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md`              | 0;valid:true,errors[],warnings[],task_count2                             |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md --schema plan` | 0;valid:true,missing[],invalidValue[]                                    |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/23-confirmed-chat-changes-and-entry-points/23-03-PLAN.md`              | 0;valid:true,errors[],warnings[],task_count2                             |
 | Separator/probe fingerprint command below                                                                                                                                        | 0;decoded&&,exact undo equals prior full bytes,markers retained,errors[] |
 | Protected metadata equality command below                                                                                                                                        | 0;29unchanged,other PLAN14,errors[]                                      |
-| `bash scripts/gsd/root-pin.sh /Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                 | 0;ROOT_PIN_OK before sole report write                                   |
+| `bash scripts/gsd/root-pin.sh ~/.claude/worktrees/phase-24-google-calendar-preparation/dv-lab`                                                                 | 0;ROOT_PIN_OK before sole report write                                   |
 
 ```sh
 python3 - <<'PY'

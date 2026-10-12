@@ -62,7 +62,7 @@ OAuth scopes ровно прежние два; публикация /welcome/pri
 ## Static verification
 
 ```sh
-node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/24-google-calendar-connection-and-outbound-sync
+node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/24-google-calendar-connection-and-outbound-sync
 ```
 
 Ожидается `passed: true`, 42 decided rows: 10 INTEGRATE (6 Calendar + 4 OAuth), 32 OPT-OUT, каждая с reason. Подробные fingerprints и статическая проверка ссылок/контракта — в RESEARCH. Этот check не доказывает runtime.

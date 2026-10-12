@@ -119,7 +119,7 @@ coverage:
 | `grep -rn "\.delete(" apps/api/src/schedule apps/api/src/settings`                                                                          |             1 | Нет совпадений; ожидаемый absence gate                                                              |
 | `git diff --check`                                                                                                                          |             0 | Пусто                                                                                               |
 | `bash scripts/gsd/root-pin.sh /Volumes/T7/personal/dv-lab/.claude/worktrees/gsd+phase-21-lesson-accounting-and-today`                       |             0 | ROOT_PIN_OK перед write/commit                                                                      |
-| `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected gsd/phase-21-lesson-accounting-and-today` |             0 | false                                                                                               |
+| `node ~/.claude/gsd-core/bin/gsd-tools.cjs query git.base-branch --is-protected gsd/phase-21-lesson-accounting-and-today` |             0 | false                                                                                               |
 
 CI driver дословно извлёк и выполнил `Web and api boundary`, `Client address trust` и `Turbo version in Dockerfiles` из текущего ci.yml. Root knip после V1 не повторялся: изменения классов и локального predicate не меняют dependency/export graph.
 
@@ -370,7 +370,7 @@ Simplify применён к собственному diff: возвращён �
 4. **Harness observations.** Первые ROADMAP attempts: exit1 в 07:22 (неверное ожидание 201 для имени300; actual400), exit1 в 07:24 (browser clock не меняет API time). Проверка заменена реальным началом минуты; light 07:29 и dark завершились0. Product исправление по этим двум ошибкам не требовалось. [Playwright Clock](https://playwright.dev/docs/api/class-clock) документирует browser-context scope.
 5. **Sandbox/runtime.** DB default checks получили EPERM, те же важные команды повторены require_escalated. Dev startup default дал bind EPERM/EMFILE; escalated stack работал. Повторный default readiness timeout завершился1, exact escalated readiness — DEV_UP_OK. Ctrl-C собственных долгоживущих dev sessions дал exit1; это shutdown, не проверочный PASS. Финальный escalated down — exit0.
 6. **Initial test/build scheduling.** Первая попытка test была sandbox-blocked; следующий escalated run столкнулся с Next lock из-за преждевременно запущенного root build. После завершения процессов test/build выполнены последовательно до exit0. Последний build шёл при остановленном dev-стеке.
-7. **Workflow adaptation.** Использованы actual ~/.codex workflow/template/gsd-tools.cjs и trailer Codex. Старые Claude hooks/model/пути и agent-* branch projection не применялись к явно заданной gsd phase branch. STATE/ROADMAP/HANDOFF/continue принадлежат parent; phase advance/push не выполнялись.
+7. **Workflow adaptation.** Использованы actual ~/.runtime workflow/template/gsd-tools.cjs и trailer Codex. Старые Claude hooks/model/пути и agent-* branch projection не применялись к явно заданной gsd phase branch. STATE/ROADMAP/HANDOFF/continue принадлежат parent; phase advance/push не выполнялись.
 
 ## Cleanup, runtime и rerun
 
