@@ -141,3 +141,5 @@ async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {
 			: { status: input.operation === 'cancel' ? 'cancelled' : 'scheduled' }
 	)
 }
+
+export { applyConfirmedCut } from './cut-apply.ts'

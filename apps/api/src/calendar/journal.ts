@@ -36,7 +36,7 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 	const request = googleStageRequest.parse(stage?.request)
 	if (
 		!stage ||
-		!['create', 'move', 'cancel', 'restore'].includes(command.operation) ||
+		!['create', 'move', 'cancel', 'restore', 'move_series', 'end_series'].includes(command.operation) ||
 		(request.method !== 'insert' && request.method !== 'patch')
 	)
 		throw new CommandFault('precondition_failed')
@@ -44,7 +44,9 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		command.operation !== 'create' &&
 		command.operation !== 'move' &&
 		command.operation !== 'cancel' &&
-		command.operation !== 'restore'
+		command.operation !== 'restore' &&
+		command.operation !== 'move_series' &&
+		command.operation !== 'end_series'
 	)
 		throw new CommandFault('precondition_failed')
 	const prepared: PreparedCalendarCommand = { ...command, plan, request, operation: command.operation }
@@ -190,11 +192,22 @@ export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarC
 		accountId: command.accountId,
 		connectionId: command.connectionId,
 		commandId: command.id,
-		stage: 0,
+		stage: command.plan.cut ? 1 : 0,
+		...(command.plan.cut ? { previousStage: 0 } : {}),
 		generation: command.generation,
 		kind: 'write',
 		request,
 	})
+	if (command.plan.cut)
+		await tx.insert(googleCommandStages).values({
+			accountId: command.accountId,
+			connectionId: command.connectionId,
+			commandId: command.id,
+			stage: 0,
+			generation: command.generation,
+			kind: 'verify',
+			request: { method: 'family', eventId: command.plan.cut.master.event.eventId },
+		})
 	if (absenceProof) {
 		await reserveReplacement(tx, prepared)
 		await tx.insert(googleCommandStages).values({
@@ -212,14 +225,17 @@ export async function persistCommand(tx: DbExecutor, prepared: PreparedCalendarC
 			acknowledgedAt: new Date(absenceProof.checkedAt),
 		})
 	}
-	if (command.plan.input.operation !== 'create') return
+	if (command.plan.input.operation !== 'create' && !command.plan.cut) return
+	const studentId =
+		command.plan.input.operation === 'create' ? command.plan.input.studentId : command.plan.cut?.studentId
+	if (!studentId) throw new CommandFault('precondition_failed')
 	for (const reservation of command.plan.reservations) {
 		await tx.insert(googleEventMappings).values({
 			accountId: command.accountId,
 			connectionId: command.connectionId,
 			calendarId: command.calendarId,
 			commandId: command.id,
-			studentId: command.plan.input.studentId,
+			studentId,
 			...reservation,
 		})
 	}

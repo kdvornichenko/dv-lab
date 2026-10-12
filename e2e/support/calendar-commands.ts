@@ -35,6 +35,54 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 			accountId: z.uuid(),
 			commandWritesAuthorized: z.literal(true),
 			unknownRequestId: z.uuid().optional(),
+			cuts: z
+				.strictObject({
+					legacySeriesId: z.uuid(),
+					recoveryBoundaries: z
+						.array(
+							z.strictObject({
+								commandId: z.uuid(),
+								seriesId: z.uuid(),
+								initialState: z.enum(['projection_pending', 'recovery_required']),
+								failure: z.enum([
+									'credential_rollover',
+									'reconnect_required',
+									'permission_required',
+									'provider_unavailable',
+									'external_change',
+								]),
+							})
+						)
+						.length(2)
+						.optional(),
+					cases: z
+						.array(
+							z.strictObject({
+								seriesId: z.uuid(),
+								from: z.iso.date(),
+								lastOn: z.iso.date(),
+								weekday: z.literal([1, 2, 3, 4, 5, 6, 7]),
+								startTime: z.string(),
+								timeZone: z.string(),
+								markOriginalOn: z.iso.date().optional(),
+								cancelledOriginalOn: z.iso.date().optional(),
+								cancelledPrefixOriginalOn: z.iso.date().optional(),
+								unreservedMarkOriginalOn: z.iso.date().optional(),
+								scenario: z.enum([
+									'finite',
+									'recovery',
+									'empty',
+									'cross_zone',
+									'history',
+									'sparse_cancelled_history',
+									'unreserved_mark_history',
+								]),
+								operation: z.enum(['move_series', 'end_series']),
+							})
+						)
+						.min(1),
+				})
+				.optional(),
 			expiresAt: z.iso.datetime(),
 		})
 		.safeParse(readPrivateJson(`${PRIVATE_DIR}/calendar-command.json`))

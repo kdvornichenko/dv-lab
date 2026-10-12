@@ -3,17 +3,20 @@ import { PgBoss } from 'pg-boss'
 import type { Logger } from 'pino'
 import { z } from 'zod'
 
-import { googleCommands, type Database } from '@dv-lab/db'
+import { googleCommands, googleConnections, type Database } from '@dv-lab/db'
 
 import type { Credentials } from './credentials.ts'
 import { dispatchCommand, projectCommand } from './dispatch.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import { resumeUnsentInstance } from './instance-recovery.ts'
-import { failUnsentCommand, readCommand, type CommandRow } from './journal.ts'
+import { failUnsentCommand, preparedCommand, readCommand, type CommandRow } from './journal.ts'
 import type { ConnectionLease } from './lease.ts'
 import { calendarCommandQueue, calendarQueueOptions } from './queue-schema.ts'
 import { reconcileCommand, recoveryExpired, requireRecovery } from './recovery.ts'
 import { resumeUnsentRestore } from './single-observation.ts'
+import { cutCompletionIsCurrent, transitionStage } from './transition-journal.ts'
+import { transitionSteps } from './transition-stages.ts'
+import { executeTransition } from './transitions.ts'
 
 const jobData = z.strictObject({ commandId: z.uuid() })
 
@@ -54,19 +57,16 @@ export function createCalendarWorker(deps: {
 			return
 		}
 		try {
-			if (command.state === 'projection_pending') {
-				await deps.lease.run(command.accountId, async (access) => {
-					const current = await readCommand(access.db, command.accountId, command.id)
-					if (current.state !== 'projection_pending') return
-					await projectCommand({ ...access, signal: AbortSignal.any([access.signal, stopped.signal]) }, current)
-				})
-				return
-			}
+			if (command.state === 'projection_pending' && (await projectIfCurrent(command))) return
 			await deps.credentials.withAccessToken(command.accountId, async (access) => {
 				const current = await readCommand(access.db, command.accountId, command.id)
 				const context = {
 					...access,
 					signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]),
+				}
+				if (current.plan.cut) {
+					await executeTransition(context, current, deps.gateway)
+					return
 				}
 				if (current.state === 'pending')
 					await dispatchCommand(context, current, deps.gateway, deps.credentials.refreshRejectedAccess)
@@ -81,6 +81,28 @@ export function createCalendarWorker(deps: {
 			}
 			deps.logger.warn('Calendar command requires another journal check')
 		}
+	}
+
+	async function projectIfCurrent(command: CommandRow) {
+		return deps.lease.run(command.accountId, async (access) => {
+			const current = await readCommand(access.db, command.accountId, command.id)
+			if (current.state !== 'projection_pending') return true
+			if (current.plan.cut) {
+				const { prepared } = await preparedCommand(access.db, current)
+				const complete = transitionSteps(prepared).find((step) => step.purpose === 'complete')
+				const stage = complete ? await transitionStage(access, current, complete.stage) : undefined
+				const [connection] = await access.db
+					.select()
+					.from(googleConnections)
+					.where(eq(googleConnections.id, current.connectionId))
+				if (!stage || !connection || stage.state !== 'acknowledged' || !cutCompletionIsCurrent(stage, connection)) {
+					await requireRecovery(access.db, current, 'provider_unavailable')
+					return false
+				}
+			}
+			await projectCommand({ ...access, signal: AbortSignal.any([access.signal, stopped.signal]) }, current)
+			return true
+		})
 	}
 
 	async function run(commandId: string) {
@@ -176,6 +198,14 @@ export function createCalendarWorker(deps: {
 				const command = await readCommand(access.db, accountId, commandId)
 				if (!['partial_recovery', 'recovery_required'].includes(command.state))
 					throw new CalendarFault('command_pending')
+				if (command.plan.cut) {
+					await executeTransition(
+						{ ...access, signal: AbortSignal.any([access.signal, stopped.signal, AbortSignal.timeout(30000)]) },
+						command,
+						deps.gateway
+					)
+					return
+				}
 				if (
 					!command.dispatchedAt &&
 					command.effect === 'none' &&

@@ -18,10 +18,12 @@ import {
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'
+import type { SeriesEvidence } from '../calendar/series-observation.ts'
 import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
 import { prepareOccurrenceCommand } from './occurrence-command.ts'
 import { recurringCreation } from './recurring-command.ts'
+import { prepareSeriesCommand } from './series-command.ts'
 import { prepareSingleCommand } from './single-command.ts'
 
 export type PreparedCalendarCommand = {
@@ -34,7 +36,7 @@ export type PreparedCalendarCommand = {
 	expectedVersion: string
 	baseRevision: bigint
 	generation: number
-	operation: 'create' | 'move' | 'cancel' | 'restore'
+	operation: ValidatedCalendarCommand['operation']
 	plan: GoogleCommandPlan
 	request: Extract<GoogleStageRequest, { method: 'insert' | 'patch' }>
 	dispatchDeadline: Date
@@ -64,8 +66,10 @@ export async function prepareScheduleCommand(
 	executor: DbExecutor,
 	input: ValidatedCalendarCommand,
 	context: CalendarReadContext,
-	observed?: SingleEvidence | InstanceEvidence
+	observed?: SingleEvidence | InstanceEvidence | SeriesEvidence
 ): Promise<PreparedCalendarCommand> {
+	if ((input.operation === 'move_series' || input.operation === 'end_series') && observed?.kind === 'series')
+		return prepareSeriesCommand(executor, input, context, observed)
 	if (
 		(input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') &&
 		observed?.kind === 'instance'
@@ -74,7 +78,8 @@ export async function prepareScheduleCommand(
 	if (
 		(input.operation === 'move' || input.operation === 'cancel' || input.operation === 'restore') &&
 		observed &&
-		observed.kind !== 'instance'
+		observed.kind !== 'instance' &&
+		observed.kind !== 'series'
 	)
 		return prepareSingleCommand(executor, input, context, observed)
 	return prepareCreateCommand(executor, input, context)
