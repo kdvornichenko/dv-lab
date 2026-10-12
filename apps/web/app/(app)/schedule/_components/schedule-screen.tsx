@@ -23,7 +23,6 @@ import { addDays, mondayOf, scheduleDate, scheduleToday, zonedInstant } from '@d
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
-import { readCalendarOverlaps } from './calendar-overlaps'
 import { NewLessonDialog, type StudentsState } from './new-lesson-dialog'
 import { ScheduleToolbar } from './schedule-toolbar'
 import { useScheduleWeek } from './use-schedule-week'
@@ -99,7 +98,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const secondZone = zone ? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) } : null
 
 	const editable = read.state === 'fresh' && write.state === 'ready' && !commands.blocked && week.kind === 'ready'
-	const blocksOn = (date: string) => readCalendarOverlaps(date, commands.readWindow)
 	async function openNew(seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes'>) {
 		if (!editable || read.state !== 'fresh') return
 		setStudents({ kind: 'loading' })
@@ -210,7 +208,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 					available={editable}
 					currentMainTimeZone={mainTimeZone}
 					secondZone={zone}
-					blocksOn={blocksOn}
 					onClose={() => setDraft(null)}
 					onCreated={() => setDraft(null)}
 					onRefresh={refreshForms}
@@ -223,7 +220,6 @@ function LoadedSchedule({ now }: { now: Date }) {
 				timeZone={mainTimeZone}
 				secondZone={zone}
 				currentYear={currentYear}
-				blocksOn={blocksOn}
 				onClose={closeEvent}
 				onRefresh={refreshForms}
 			/>
@@ -238,7 +234,6 @@ function SelectedEventDialog({
 	timeZone,
 	secondZone,
 	currentYear,
-	blocksOn,
 	onClose,
 	onRefresh,
 }: {
@@ -248,7 +243,6 @@ function SelectedEventDialog({
 	timeZone: string
 	secondZone: string | null
 	currentYear: number
-	blocksOn: (date: string) => ReturnType<typeof readCalendarOverlaps>
 	onClose: () => void
 	onRefresh: () => void
 }) {
@@ -262,7 +256,6 @@ function SelectedEventDialog({
 				now={now}
 				mainTimeZone={timeZone}
 				secondZone={secondZone}
-				blocksOn={blocksOn}
 				onClose={onClose}
 				onRefresh={onRefresh}
 			/>

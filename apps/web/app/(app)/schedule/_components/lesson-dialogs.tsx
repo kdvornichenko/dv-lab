@@ -9,7 +9,6 @@ import type { GoogleScheduleWindow, LessonMarkKind, ScheduleBlock, ScheduleSerie
 
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
-import type { OverlapBlock } from './new-lesson-dialog'
 import { markLesson } from './schedule-mutations'
 
 export type LessonSelection = { key: string; slot: OccurrenceSlot }
@@ -24,7 +23,6 @@ type Props = {
 	currentMainTimeZone: string
 	asOf: string
 	secondZone: string | null
-	blocksOn: (date: string) => Promise<OverlapBlock[] | null>
 	reload: () => Promise<void>
 	onClose: (target: LessonSelection | null) => void
 	onOpenPair: (target: PairTarget) => void
@@ -64,7 +62,6 @@ export function LessonDialogs(props: Props) {
 				mainTimeZone={props.mainTimeZone}
 				secondZone={props.secondZone}
 				student={{ id: shown.studentId, name: shown.studentName }}
-				blocksOn={props.blocksOn}
 				onClose={() => onClose(target)}
 				onRefresh={() => void reload()}
 			/>

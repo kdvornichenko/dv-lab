@@ -9,8 +9,6 @@ import { staleCalendarWindow } from '@/lib/lesson-actions'
 import type { GoogleScheduleWindow, TodayResponse } from '@dv-lab/contracts'
 import { scheduleToday } from '@dv-lab/core'
 
-import { readCalendarOverlaps } from '../schedule/_components/calendar-overlaps'
-
 type TodayState = {
 	kind: 'loading' | 'error' | 'ready'
 	data: TodayResponse | null
@@ -74,10 +72,5 @@ export function useToday(minuteNow: Date) {
 		if (refreshDay) void reload()
 	}, [now, refreshDay, reload])
 
-	function blocksOn(date: string) {
-		const data = latest.current
-		return data === null ? Promise.resolve(null) : readCalendarOverlaps(date, controller.readWindow)
-	}
-
-	return { state, now, reload, blocksOn, calendar, getData: () => latest.current }
+	return { state, now, reload, calendar, getData: () => latest.current }
 }

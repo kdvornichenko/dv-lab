@@ -5,12 +5,15 @@ import { z } from 'zod'
 
 import { googleConnectionSnapshot, googleScheduleWindow } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
+import { conflictCreateUi, conflictReconnectUi } from './support/calendar-conflict-ui.ts'
+import { conflictsJourney } from './support/calendar-conflicts.ts'
 import { calendarFixtureRetention } from './support/calendar-ownership.ts'
 import {
 	calendarCachedNext,
 	calendarNextPrefixRecovery,
 	calendarWindowRecovery,
 } from './support/calendar-read-recovery.ts'
+import { conflictMoveUi, completeSeriesUi } from './support/calendar-series-ui.ts'
 import { blockedHistoryUi, failedNoneUi, lostPostUi, pendingUi, recoveryUi } from './support/calendar-ui.ts'
 import { AUTH_FILE, BASE, PRIVATE_DIR, teacherCredentials } from './support/data.ts'
 import { mondayOf, vnToday } from './support/dates.ts'
@@ -19,8 +22,37 @@ import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
+test('[calendar] conflicts cover every interval and page without partial success', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await conflictsJourney(page.request)
+})
+
+test('[calendar] conflict UI invalidates stale checks and keeps an empty explicit series range', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await conflictCreateUi(page)
+})
+
+test('[calendar] conflict UI keeps a mounted draft across actual same-calendar reconnect', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await conflictReconnectUi(page)
+})
+
 test('[calendar] ownership cleanup preserves retained cards and their registry', async ({ page }) => {
 	await calendarFixtureRetention(page.request)
+})
+
+test('[calendar] conflict move keeps exact targets, natural series rules and refuses stale context', async ({
+	page,
+}) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await conflictMoveUi(page)
+})
+
+test('[calendar] complete UI series waits for ACK, resumes partial cuts and reloads confirmed rules', async ({
+	page,
+}) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await completeSeriesUi(page)
 })
 
 function observedCancellations(): unknown {

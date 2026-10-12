@@ -15,6 +15,7 @@ import {
 } from '../../packages/contracts/src/calendar.ts'
 import { mondayOf, zonedParts } from '../../packages/core/src/index.ts'
 import { api, teacherId } from './api.ts'
+import { checkConflictUi } from './calendar-series-ui.ts'
 import { expectClosedGestures, openView } from './calendar-view.ts'
 import { HTTPS_TARGET, NAMES, retainedStudent, PRIVATE_DIR, quote, sql } from './data.ts'
 import { integer, list, record, text } from './input.ts'
@@ -95,6 +96,7 @@ function captureCreates(page: Page) {
 }
 
 async function submitNew(page: Page) {
+	await checkConflictUi(page, page.getByRole('dialog', { name: 'New lesson', exact: true }))
 	const response = page.waitForResponse(
 		(response) => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/schedule/lessons'
 	)
@@ -227,6 +229,7 @@ async function studentCardLinkUi(
 export async function lostPostUi(page: Page) {
 	const fixture = await uiFixture(page.request, 'ready')
 	await openNew(page, fixture)
+	await checkConflictUi(page, page.getByRole('dialog', { name: 'New lesson', exact: true }))
 	const captured = captureCreates(page)
 	let first = true
 	await page.route('**/api/schedule/lessons', async (route) => {
