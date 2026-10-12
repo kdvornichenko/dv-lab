@@ -1,12 +1,11 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
-import { seriesStart } from '@dv-lab/core'
-import { googleEventMappings, googleReadEvents, googleReadWindows, lessonSeries, type DbExecutor } from '@dv-lab/db'
+import { googleEventMappings, type DbExecutor } from '@dv-lab/db'
 
-import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
 import type { SingleCommand, SingleObservation } from '../schedule/single-command.ts'
-import { cancelledOccurrences } from './cancelled-occurrences.ts'
+import { cancelledOccurrenceBaseline } from './cancelled-occurrences.ts'
 import type { CommandAccess } from './dispatch.ts'
+import { rowForLocal } from './event-mapping.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import { CommandFault } from './journal.ts'
 import { eventVersion } from './read-state.ts'
@@ -26,59 +25,19 @@ async function occurrenceTarget(executor: DbExecutor, accountId: string, input: 
 			)
 		)
 	if (!mapping) throw new CommandFault('history_only')
-	const [row] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, input.ref.seriesId))
-	if (!row) throw new CommandFault('history_only')
-	const rule = toSeriesRule(row)
-	const natural = seriesStart(rule, input.ref.originalOn)
-	if (!natural) throw new CommandFault('history_only')
-	const ref = input.ref
-	const rows = await executor
-		.select()
-		.from(googleReadEvents)
-		.where(
-			and(
-				eq(googleReadEvents.accountId, accountId),
-				eq(googleReadEvents.connectionId, mapping.connectionId),
-				eq(googleReadEvents.recurringEventId, mapping.eventId)
-			)
-		)
-		.orderBy(desc(googleReadEvents.snapshotRevision))
-	let event = rows.find(
-		(item) =>
-			item.localRef?.kind === 'series' &&
-			item.localRef.originalOn === ref.originalOn &&
-			eventVersion(item) === input.input.expectedVersion
+	const local = await rowForLocal(executor, mapping.connectionId, input.ref)
+	if (
+		local?.kind !== 'series' ||
+		local.mapping.id !== mapping.id ||
+		local.row.eventType !== 'default' ||
+		eventVersion(local.row) !== input.input.expectedVersion
 	)
-	let cancellationBaselineFingerprint: string | undefined
-	if (!event && input.operation === 'restore') {
-		const [latest] = await executor
-			.select()
-			.from(googleReadWindows)
-			.where(
-				and(
-					eq(googleReadWindows.accountId, accountId),
-					eq(googleReadWindows.connectionId, mapping.connectionId),
-					eq(googleReadWindows.coverageState, 'complete')
-				)
-			)
-			.orderBy(desc(googleReadWindows.snapshotRevision))
-			.limit(1)
-		const historical = latest
-			? (await cancelledOccurrences(executor, latest)).find(
-					(item) =>
-						item.localRef?.kind === 'series' &&
-						item.localRef.seriesId === ref.seriesId &&
-						item.localRef.originalOn === ref.originalOn &&
-						eventVersion(item) === input.input.expectedVersion
-				)
+		throw new CommandFault('precondition_failed')
+	const cancellationBaselineFingerprint =
+		local.row.status === 'cancelled'
+			? await cancelledOccurrenceBaseline(executor, mapping, input.ref, local.row.eventId)
 			: undefined
-		event = historical
-		cancellationBaselineFingerprint = historical?.cancellationBaselineFingerprint
-	}
-	if (!event || event.bindingKind !== 'lesson') throw new CommandFault('precondition_failed')
-	const [window] = await executor.select().from(googleReadWindows).where(eq(googleReadWindows.id, event.windowId))
-	if (!window || window.coverageState !== 'complete') throw new CommandFault('precondition_failed')
-	return { mapping, rule, natural, event, window, cancellationBaselineFingerprint }
+	return { mapping, rule: local.rule, natural: local.natural, row: local.row, cancellationBaselineFingerprint }
 }
 
 export type InstanceEvidence = {
@@ -95,16 +54,13 @@ export async function observeInstance(
 ): Promise<InstanceEvidence> {
 	const target = await occurrenceTarget(access.db, access.connection.accountId, input)
 	if (
-		target.event.snapshotRevision !== access.connection.snapshotRevision ||
-		target.event.generation !== access.connection.generation ||
+		target.mapping.connectionId !== access.connection.id ||
 		target.mapping.calendarId !== access.connection.calendarId
 	)
 		throw new CommandFault('precondition_failed')
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== target.mapping.calendarId) throw new CommandFault('external_change')
 	const master = await gateway.master(
 		access.accessToken,
-		primary.id,
+		target.mapping.calendarId,
 		target.mapping.eventId,
 		target.rule.timeZone,
 		access.signal
@@ -112,13 +68,13 @@ export async function observeInstance(
 	if (!matchesMaster(master, target.rule)) throw new CommandFault('external_change')
 	const canonical = await gateway.canonicalInstance(
 		access.accessToken,
-		primary.id,
+		target.mapping.calendarId,
 		target.mapping.eventId,
 		target.natural.toISOString(),
 		access.signal
 	)
 	if (canonical.kind !== 'found') return { kind: 'instance', target, observation: null, lookupVerified: false }
-	if (canonical.eventId !== target.event.eventId) throw new CommandFault('external_change')
+	if (canonical.eventId !== target.row.eventId) throw new CommandFault('external_change')
 	return readInstance(access, input, gateway, target, canonical.eventId)
 }
 
@@ -152,7 +108,7 @@ async function readInstance(
 		!original ||
 		!('dateTime' in original) ||
 		Date.parse(original.dateTime) !== target.natural.getTime() ||
-		(observation.event.etag !== target.event.etag &&
+		(observation.event.etag !== target.row.etag &&
 			!(
 				input.operation === 'restore' &&
 				observation.event.status === 'cancelled' &&

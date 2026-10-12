@@ -59,17 +59,19 @@ export async function observeSingle(
 ): Promise<SingleEvidence> {
 	const target = await singleTarget(access.db, access.connection.accountId, input)
 	if (
-		target.event.snapshotRevision !== access.connection.snapshotRevision ||
-		target.event.generation !== access.connection.generation
+		target.mapping.connectionId !== access.connection.id ||
+		target.mapping.calendarId !== access.connection.calendarId
 	)
 		throw new CommandFault('precondition_failed')
+	const timeZone = target.row.start?.timeZone ?? access.connection.calendarTimeZone
+	if (!timeZone) throw new CommandFault('connection_required')
 	return readSingleEvidence(
 		access,
 		{
 			calendarId: target.mapping.calendarId,
 			eventId: target.mapping.eventId,
 			localEntityId: target.mapping.localEntityId,
-			timeZone: target.window.displayTimeZone,
+			timeZone,
 		},
 		input.operation === 'restore',
 		gateway
@@ -82,14 +84,13 @@ async function readSingleEvidence(
 	restore: boolean,
 	gateway: GoogleGateway
 ): Promise<SingleEvidence> {
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== identity.calendarId) throw new CommandFault('external_change')
+	if (identity.calendarId !== access.connection.calendarId) throw new CommandFault('external_change')
 	try {
 		return {
 			kind: 'present',
 			observation: await gateway.observeEvent(
 				access.accessToken,
-				primary.id,
+				identity.calendarId,
 				identity.eventId,
 				identity.timeZone,
 				access.signal
@@ -105,12 +106,10 @@ async function readSingleEvidence(
 		identity.eventId
 	)
 	try {
-		const accessible = await gateway.primary(access.accessToken, access.signal)
-		if (accessible.id !== identity.calendarId) throw new CommandFault('external_change')
 		if (
 			!(await gateway.identityAbsent(
 				access.accessToken,
-				accessible.id,
+				identity.calendarId,
 				identity.localEntityId,
 				access.signal,
 				identity.eventId

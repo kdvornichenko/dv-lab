@@ -13,6 +13,7 @@ import { prepareSeriesChange, type SeriesCommand } from '../schedule/series.ts'
 import type { CommandAccess } from './dispatch.ts'
 import type { GoogleGateway } from './gateway.ts'
 import { CommandFault } from './journal.ts'
+import { masterRow } from './projection.ts'
 import { opaqueVersion } from './read-state.ts'
 import { matchesMaster } from './recurring.ts'
 import { cancelledTailHistory } from './transition-cancellations.ts'
@@ -22,8 +23,9 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 	if (mapping.connectionId !== access.connection.id || mapping.calendarId !== access.connection.calendarId)
 		throw new CommandFault('precondition_failed')
 	const prepared = await access.db.transaction((tx) => prepareSeriesChange(tx, access.connection.accountId, input, now))
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== mapping.calendarId) throw new CommandFault('external_change')
+	if (opaqueVersion([mapping.id, mapping.representationGeneration, input.seriesId]) !== input.input.expectedVersion)
+		throw new CommandFault('precondition_failed')
+	const known = await masterRow(access.db, mapping.connectionId, mapping.eventId)
 	const master = googleObservedResource.parse(
 		await gateway.observeEvent(
 			access.accessToken,
@@ -33,15 +35,7 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 			access.signal
 		)
 	)
-	if (
-		!matchesMaster(master, prepared.rule) ||
-		opaqueVersion([
-			opaqueVersion([mapping.id, mapping.representationGeneration, master.event.etag]),
-			access.connection.id,
-			access.connection.generation,
-			access.connection.snapshotRevision,
-		]) !== input.input.expectedVersion
-	)
+	if (!matchesMaster(master, prepared.rule) || (known && known.etag !== master.event.etag))
 		throw new CommandFault('precondition_failed')
 	if (
 		master.privateProperties.dvLocalId !== input.seriesId ||
