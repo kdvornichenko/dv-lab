@@ -1,9 +1,9 @@
 import type { Page } from '@playwright/test'
 
+import { googleScheduleWindow } from '../../packages/contracts/src/calendar.ts'
 import { studentLessonOptionsResponse } from '../../packages/contracts/src/students.ts'
-import { addDays } from '../../packages/core/src/index.ts'
+import { scheduleDate } from '../../packages/core/src/index.ts'
 import { BASE, fixtureOwnership } from './data.ts'
-import { mondayOf, vnToday } from './dates.ts'
 import { expect } from './test.ts'
 
 export async function studentChoiceJourney(page: Page) {
@@ -28,7 +28,13 @@ export async function studentChoiceJourney(page: Page) {
 	}
 	await page.goto('/schedule')
 	await expect(page.getByRole('button', { name: 'New lesson', exact: true })).toBeEnabled()
+	const nextWeek = page.waitForResponse(
+		(response) => new URL(response.url()).pathname === '/api/schedule/week' && response.request().method() === 'GET'
+	)
 	await page.getByRole('button', { name: 'Next week', exact: true }).click()
+	const nextWindow: unknown = await (await nextWeek).json()
+	const { requestedRange } = googleScheduleWindow.parse(nextWindow)
+	const monday = scheduleDate(new Date(requestedRange.start), requestedRange.timeZone)
 	await expect(page.getByRole('button', { name: 'New lesson', exact: true })).toBeEnabled()
 	let interrupted = false
 	let studentRequests = 0
@@ -53,7 +59,6 @@ export async function studentChoiceJourney(page: Page) {
 		await expect(student).toContainText(name)
 		expect(studentRequests).toBe(2)
 		expect(requests.every((path) => path === '/api/students/options')).toBe(true)
-		const monday = addDays(mondayOf(vnToday()), 7)
 		const date = dialog.getByRole('button', { name: /^Date: / })
 		const selected = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' }).format(
 			new Date(`${monday}T12:00:00Z`)
