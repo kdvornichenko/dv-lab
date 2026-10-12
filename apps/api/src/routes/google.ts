@@ -9,6 +9,7 @@ import {
 	googleCommandParams,
 	googleUnresolvedCommandsQuery,
 	googleResumeCommandRequest,
+	googleConflictRequest,
 } from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
 
@@ -19,6 +20,7 @@ import type { CalendarConnection } from '../calendar/connection.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
 import { CommandFault, commandSnapshot, findRequest, readCommand, unresolvedCommands } from '../calendar/journal.ts'
 import type { ConsentActor } from '../calendar/oauth-session.ts'
+import { opaqueVersion } from '../calendar/read-state.ts'
 import { errorBody } from '../request-context.ts'
 
 type GoogleRouteDeps = {
@@ -78,6 +80,17 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 	routes.get('/connection', async (c) => {
 		if (!connection || isStopping()) return refusal(c, null)
 		return c.json(await connection.readConnection(actor(c).accountId))
+	})
+	routes.post('/conflicts', async (c) => {
+		const input = await readJson(c, googleConflictRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!commands || isStopping())
+			return c.json({
+				state: 'unavailable',
+				inputKey: opaqueVersion([JSON.stringify(input)]),
+				reason: 'provider_unavailable',
+			})
+		return c.json(await commands.checkCalendarConflicts({ accountId: actor(c).accountId, now: new Date() }, input))
 	})
 	routes.post('/connect', async (c) => {
 		if (!(await readJson(c, googleConnectRequest))) return c.json(errorBody('invalid_request', 'Invalid request'), 400)

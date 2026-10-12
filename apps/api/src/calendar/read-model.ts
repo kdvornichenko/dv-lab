@@ -34,8 +34,26 @@ export function readIssue(connection: GoogleConnectionSnapshot, context: Calenda
 	return typeof result === 'string' ? result : 'provider_unavailable'
 }
 
-function eventView(
-	event: ReadEventRow,
+export function eventView(
+	event: Pick<
+		ReadEventRow,
+		| 'accountId'
+		| 'connectionId'
+		| 'generation'
+		| 'snapshotRevision'
+		| 'eventId'
+		| 'etag'
+		| 'representationGeneration'
+		| 'start'
+		| 'end'
+		| 'summary'
+		| 'status'
+		| 'transparency'
+		| 'bindingKind'
+		| 'localRef'
+		| 'studentId'
+		| 'commandId'
+	>,
 	blocked: CalendarIssue | null,
 	editableSeries: ReadonlySet<string>
 ): CalendarEventView | null {

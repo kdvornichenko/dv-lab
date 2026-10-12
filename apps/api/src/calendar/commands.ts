@@ -1,8 +1,11 @@
 import { eq } from 'drizzle-orm'
+import type { z } from 'zod'
 
 import type { CalendarCommandReceipt, CalendarCommandSnapshot, ValidatedCalendarCommand } from '@dv-lab/contracts'
+import { googleConflictRequest } from '@dv-lab/contracts'
 import { googleReadEvents, type Database } from '@dv-lab/db'
 
+import { checkCalendarConflicts } from '../schedule/calendar-conflicts.ts'
 import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
 import type { Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
@@ -128,6 +131,8 @@ export function createCalendarCommands(deps: {
 		})
 	}
 	return {
+		checkCalendarConflicts: (context: CalendarReadContext, input: z.infer<typeof googleConflictRequest>) =>
+			checkCalendarConflicts(deps, context, input),
 		submitCalendarCommand,
 		async readCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandSnapshot> {
 			return commandSnapshot(await readCommand(deps.db, context.accountId, commandId))

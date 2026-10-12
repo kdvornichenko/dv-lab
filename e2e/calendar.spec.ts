@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { googleConnectionSnapshot, googleScheduleWindow } from '../packages/contracts/src/calendar.ts'
 import { api } from './support/api.ts'
+import { conflictsJourney } from './support/calendar-conflicts.ts'
 import { calendarFixtureRetention } from './support/calendar-ownership.ts'
 import {
 	calendarCachedNext,
@@ -18,6 +19,11 @@ import { record, text } from './support/input.ts'
 import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test('[calendar] conflicts cover every interval and page without partial success', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await conflictsJourney(page.request)
+})
 
 test('[calendar] ownership cleanup preserves retained cards and their registry', async ({ page }) => {
 	await calendarFixtureRetention(page.request)
