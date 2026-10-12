@@ -51,6 +51,7 @@ dv-lab.dev {
 	header @google_callback {
 		Referrer-Policy no-referrer
 		Cache-Control no-store
+		defer
 	}
 
 	handle /healthz {

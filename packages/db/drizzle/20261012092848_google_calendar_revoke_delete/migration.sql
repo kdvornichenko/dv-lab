@@ -1,0 +1,1 @@
+REVOKE DELETE, TRUNCATE ON "google_command_stages", "google_commands", "google_connections", "google_event_mappings", "google_next_lessons", "google_oauth_flows", "google_read_events", "google_read_windows" FROM "dvlab_app";
