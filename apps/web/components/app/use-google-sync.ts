@@ -65,6 +65,10 @@ function getServerSnapshot(): GoogleSyncSnapshot | null {
 	return null
 }
 
+export function refreshGoogleSync(): Promise<void> {
+	return poll()
+}
+
 export function useGoogleSync(): GoogleSyncSnapshot | null {
 	return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }

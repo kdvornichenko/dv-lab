@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { LoaderCircle } from 'lucide-react'
 
@@ -8,11 +8,16 @@ import { CalendarRecovery } from '@/components/app/calendar-command-notice'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { useGoogleConnection } from '@/components/app/google-calendar-state'
 import { Panel } from '@/components/app/layout-parts'
-import { Banner, BannerTitle } from '@/components/ui/banner'
+import { refreshGoogleSync, useGoogleSync } from '@/components/app/use-google-sync'
+import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { apiRequest } from '@/lib/api-client'
+import { formatWhen, yearInZone } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
 
-import type { GoogleConnectionSnapshot } from '@dv-lab/contracts'
+import { timeZoneIdentity, type GoogleConnectionSnapshot, type SettingsResponse } from '@dv-lab/contracts'
+import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 type ConnectionAction = GoogleConnectionSnapshot['allowedActions'][number]
 type Confirmation = { action: 'disconnect' | 'confirm_revoked' | 'switch'; generation: number; connected: boolean }
@@ -147,10 +152,66 @@ function ConnectionDialog({
 	)
 }
 
+function useMainTimeZone(fallback: string): string {
+	const [zone, setZone] = useState<string | null>(null)
+	useEffect(() => {
+		let live = true
+		void apiRequest<SettingsResponse>('GET', '/settings').then((result) => {
+			if (!live || !result.ok) return
+			const identity = timeZoneIdentity(result.data.settings.defaultTimeZone)
+			if (identity !== null) setZone(identity)
+		})
+		return () => {
+			live = false
+		}
+	}, [])
+	return zone ?? fallback
+}
+
+function lastChecked(at: string, zone: string): string {
+	const instant = new Date(at)
+	return `Last checked ${formatWhen(instant, zone, yearInZone(instant, zone))} (${zoneLabel(zone, instant)})`
+}
+
+function SyncState({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
+	const sync = useGoogleSync()
+	const zone = useMainTimeZone(snapshot.calendar?.timeZone ?? SCHEDULE_TIME_ZONE)
+	const checked = sync?.lastCheckedAt ? lastChecked(sync.lastCheckedAt, zone) : null
+	let content: ReactNode = null
+	if (snapshot.state !== 'connected' || sync?.state === 'off')
+		content = <p>Sync is off. Connect Google Calendar to resume.</p>
+	else if (sync === null) content = <Skeleton className="h-5 w-65 max-w-full" />
+	else if (sync.state === 'running')
+		content = (
+			<>
+				<p className="flex items-center gap-2">
+					<LoaderCircle size={16} className="shrink-0 animate-spin" aria-hidden />A full check is running.
+				</p>
+				{checked !== null ? <p className="text-muted-foreground">{checked}</p> : null}
+			</>
+		)
+	else if (sync.state === 'failed')
+		content = (
+			<Banner status="warning">
+				<BannerTitle>Could not finish the last calendar check. The schedule shows the last checked view.</BannerTitle>
+				<BannerActions>
+					<BannerAction onClick={() => void refreshGoogleSync()}>Refresh status</BannerAction>
+				</BannerActions>
+			</Banner>
+		)
+	else if (checked !== null) content = <p className="text-muted-foreground">{checked}</p>
+	return (
+		<div data-slot="calendar-sync-state" data-sync={sync?.state ?? 'loading'} className="flex min-h-28 flex-col gap-2">
+			{content}
+		</div>
+	)
+}
+
 function SyncCard({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 	return (
 		<Panel id="settings-calendar-sync" title="Sync" description="Calendar requests and their confirmation status.">
 			<div className="flex flex-col gap-2 px-4 pt-1 pb-4 text-body" role="status">
+				<SyncState snapshot={snapshot} />
 				<p>Unconfirmed changes: {snapshot.pendingCommandCount === 0 ? 'None' : snapshot.pendingCommandCount}</p>
 				{snapshot.pendingCommandCount > 0 && snapshot.state !== 'connected' ? (
 					<p className="text-muted-foreground">
