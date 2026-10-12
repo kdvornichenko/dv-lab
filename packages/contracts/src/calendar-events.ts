@@ -1,8 +1,18 @@
 import { z } from 'zod'
 
-import { calendarDate, calendarInstant, calendarRevision, calendarTimeZone, calendarVersion } from './calendar.ts'
+import {
+	calendarDate,
+	calendarEventColor,
+	calendarInstant,
+	calendarRevision,
+	calendarTimeZone,
+	calendarVersion,
+	hexColor,
+} from './calendar.ts'
 import { CLOCK_TIME_PATTERN, REPEATS } from './schedule.ts'
 import { LESSON_MINUTES_MIN } from './students.ts'
+
+export { calendarEventColor, hexColor, type CalendarEventColor } from './calendar.ts'
 
 const eventKey = z.string().min(1).max(1024)
 const colorId = z.string().min(1).max(64)
@@ -24,16 +34,6 @@ export const googleSyncSnapshot = z.strictObject({
 	windowEnd: calendarDate.nullable(),
 })
 export type GoogleSyncSnapshot = z.infer<typeof googleSyncSnapshot>
-
-export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
-
-export const calendarEventColor = z.strictObject({
-	id: z.string().nullable(),
-	background: hexColor.nullable(),
-	foreground: hexColor.nullable(),
-	custom: z.boolean(),
-})
-export type CalendarEventColor = z.infer<typeof calendarEventColor>
 
 export const googlePaletteColor = z.strictObject({ id: colorId, background: hexColor, foreground: hexColor })
 export type GooglePaletteColor = z.infer<typeof googlePaletteColor>

@@ -32,19 +32,6 @@ export function opaqueVersion(parts: readonly (string | number | bigint | null)[
 	return createHash('sha256').update(parts.map(String).join('\0')).digest('hex')
 }
 
-export function eventVersion(
-	event: Pick<
-		ReadEventRow,
-		'accountId' | 'connectionId' | 'generation' | 'snapshotRevision' | 'eventId' | 'etag' | 'representationGeneration'
-	>
-): string {
-	return opaqueVersion([
-		event.accountId,
-		event.connectionId,
-		event.generation,
-		event.snapshotRevision,
-		event.eventId,
-		event.etag,
-		event.representationGeneration,
-	])
+export function eventVersion(event: { eventId: string; etag: string }): string {
+	return opaqueVersion([event.eventId, event.etag])
 }

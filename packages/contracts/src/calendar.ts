@@ -128,12 +128,26 @@ const eventWhen = z.discriminatedUnion('kind', [
 		.refine((value) => value.startsOn < value.endsBefore),
 ])
 
+export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+
+export const calendarEventColor = z.strictObject({
+	id: z.string().nullable(),
+	background: hexColor.nullable(),
+	foreground: hexColor.nullable(),
+	custom: z.boolean(),
+})
+export type CalendarEventColor = z.infer<typeof calendarEventColor>
+
 export const calendarEventView = z.strictObject({
 	eventKey: z.string().min(1),
+	version: calendarVersion,
 	title: z.string().nullable(),
 	when: eventWhen,
 	status: z.enum(['confirmed', 'tentative', 'cancelled']),
 	blocksTime: z.boolean(),
+	color: calendarEventColor,
+	location: z.string().nullable(),
+	seriesMember: z.boolean(),
 	binding: z.discriminatedUnion('kind', [
 		z.strictObject({
 			kind: z.literal('lesson'),

@@ -137,16 +137,7 @@ async function candidates(
 	)
 		throw new CalendarFault('external_change')
 	const bound = bindEvent(fact, await loadMappings(access.db, access.connection.accountId, access.connection.id))
-	if (
-		eventVersion({
-			...bound,
-			accountId: access.connection.accountId,
-			connectionId: access.connection.id,
-			generation: access.connection.generation,
-			snapshotRevision: access.connection.snapshotRevision,
-		}) !== request.expectedVersion
-	)
-		throw new CalendarFault('external_change')
+	if (eventVersion(bound) !== request.expectedVersion) throw new CalendarFault('external_change')
 	return {
 		intervals: [
 			manualInterval(
@@ -263,13 +254,7 @@ async function readConflicts(
 		if (raw.eventId === candidate.excludedId || raw.status === 'cancelled' || raw.transparency === 'transparent')
 			continue
 		const event = eventView(
-			{
-				...raw,
-				accountId: access.connection.accountId,
-				connectionId: access.connection.id,
-				generation: access.connection.generation,
-				snapshotRevision: access.connection.snapshotRevision,
-			},
+			{ ...raw, eventKey: opaqueVersion([access.connection.id, raw.eventId]), colorId: null, location: null },
 			null,
 			new Set()
 		)
