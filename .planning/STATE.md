@@ -130,5 +130,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-12T13:00:00.000Z
-Stopped at: Phase 25.1 CONTEXT written; next is research and planning
+Stopped at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; next is the owner review of the plan page, then execution
 Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md
