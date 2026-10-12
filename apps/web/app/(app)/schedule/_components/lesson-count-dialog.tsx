@@ -35,7 +35,7 @@ const MONTHS = [
 	'December',
 ]
 const MAX_WEEKS = 53
-const BATCH = 4
+const BATCH = 1
 
 type EventDates = Map<string, Set<string>>
 
