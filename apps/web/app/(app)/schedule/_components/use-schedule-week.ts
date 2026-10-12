@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useCalendarController, useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { readCalendarWeek, sameCalendarAccount } from '@/components/app/calendar-command-transport'
+import { useGoogleSync } from '@/components/app/use-google-sync'
 import { API_CACHE_INVALIDATED, apiRequest } from '@/lib/api-client'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
 
@@ -96,6 +97,8 @@ export function useScheduleWeek() {
 	const epoch = useRef(0)
 	const prefetch = useRef<Prefetch | null>(null)
 	const loading = useRef(false)
+	const handledRevision = useRef<string | null>(null)
+	const sync = useGoogleSync()
 
 	const remember = useCallback((data: GoogleScheduleWindow, since: number) => {
 		if (since !== epoch.current || data.read.state !== 'fresh') return
@@ -245,6 +248,21 @@ export function useScheduleWeek() {
 		await reload()
 	}, [reload])
 	useCalendarRefresh(refresh, 'window')
+
+	useEffect(() => {
+		const shown = state.data
+		if (sync === null || state.kind !== 'ready' || shown === null || shown.read.state === 'unavailable') return
+		if (shown.read.revision === sync.revision || handledRevision.current === sync.revision || loading.current) return
+		if (document.querySelector('[role="dialog"]') !== null) {
+			forget()
+			return
+		}
+		handledRevision.current = sync.revision
+		forget()
+		void load(query.current).then((data) => {
+			if (data === null) handledRevision.current = null
+		})
+	}, [sync, state, forget, load])
 
 	useEffect(() => {
 		const returned = () => {
