@@ -1,35 +1,22 @@
 import { eq, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
-import type { ScheduleLesson, ScheduleOccurrence, lessonActionRequest, moveLessonRequest } from '@dv-lab/contracts'
+import type { ScheduleLesson, lessonActionRequest, moveLessonRequest } from '@dv-lab/contracts'
 import {
 	type LessonOutcome,
-	type MarkKind,
 	type Occurrence,
-	type SeriesException,
 	type SeriesRule,
 	type SingleLesson,
 	lessonActions,
-	movedAway,
 	occurrenceAt,
 	occurrenceOutcome,
 	localTimeCandidates,
 	canChange,
 } from '@dv-lab/core'
-import { type Database, type DbExecutor, lessonExceptions, lessons } from '@dv-lab/db'
+import { type DbExecutor, lessons } from '@dv-lab/db'
 
 import { lockTeacherTimeContext } from '../settings/settings.ts'
-import {
-	exceptionColumns,
-	lessonColumns,
-	lockLesson,
-	lockSeries,
-	markOf,
-	seriesException,
-	toSeriesException,
-	toSingleLesson,
-	toWireOutcome,
-} from './rows.ts'
+import { lessonColumns, lockLesson, lockSeries, markOf, seriesException, toSingleLesson } from './rows.ts'
 import { toWireLesson } from './schedule.ts'
 
 type MoveInput = z.output<typeof moveLessonRequest>
@@ -43,8 +30,6 @@ export type ChangeFailure =
 	| { kind: 'not_started' }
 	| { kind: 'default_time_zone_changed' }
 	| { kind: 'nonexistent_local_time' }
-
-export type OccurrenceResult = { kind: 'ok'; occurrence: ScheduleOccurrence } | ChangeFailure
 
 export type LessonResult = { kind: 'ok'; lesson: ScheduleLesson } | ChangeFailure
 
@@ -88,126 +73,6 @@ export async function lockOccurrence(
 	return { rule, occurrence: occurrenceAt(rule, originalOn, exception ?? undefined) }
 }
 
-async function markException(
-	executor: DbExecutor,
-	rule: SeriesRule,
-	exception: SeriesException,
-	mark: MarkKind | null
-) {
-	const time =
-		'startsAt' in exception
-			? { startsAt: exception.startsAt ?? null, durationMinutes: exception.durationMinutes ?? null }
-			: { startsAt: null, durationMinutes: null }
-	const [row] = await executor
-		.insert(lessonExceptions)
-		.values({ seriesId: exception.seriesId, originalOn: exception.originalOn, kind: exception.kind, ...time })
-		.onConflictDoUpdate({
-			target: [lessonExceptions.seriesId, lessonExceptions.originalOn],
-			set: { kind: exception.kind, ...time, updatedAt: sql`now()` },
-		})
-		.returning(exceptionColumns)
-	if (!row) throw new Error('lesson exception upsert returned no row')
-	const occurrence = occurrenceAt(rule, exception.originalOn, toSeriesException(row))
-	if (occurrence === null) throw new Error('changed occurrence is outside its series')
-	return {
-		kind: 'ok',
-		occurrence: {
-			seriesId: rule.id,
-			originalOn: exception.originalOn,
-			outcome: toWireOutcome(occurrenceOutcome(occurrence, mark)),
-			startsAt: occurrence.startsAt.toISOString(),
-		},
-	} satisfies OccurrenceResult
-}
-
-export function moveOccurrence(
-	db: Database,
-	accountId: string,
-	seriesId: string,
-	originalOn: string,
-	input: MoveInput,
-	now = new Date()
-): Promise<OccurrenceResult> {
-	return db.transaction(async (tx): Promise<OccurrenceResult> => {
-		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
-		if (!time.ok) return { kind: time.error }
-		const locked = await lockOccurrence(tx, seriesId, originalOn)
-		if (locked === null) return NOT_FOUND
-		const { rule, occurrence } = locked
-		if (occurrence === null) return CHANGED
-		const mark = await markOf(tx, occurrence.ref)
-		const outcome = occurrenceOutcome(occurrence, mark)
-		const refused = refusal('move', outcome, occurrence.startsAt, input.expectedStartsAt, now)
-		if (refused !== null) return refused
-		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
-		if (target === undefined) return { kind: 'nonexistent_local_time' }
-		if (target.getTime() === occurrence.startsAt.getTime()) return INVALID
-		const exception: SeriesException =
-			target.getTime() === occurrence.naturalStart?.getTime()
-				? { seriesId, originalOn, kind: 'restored' }
-				: { seriesId, originalOn, kind: 'moved', startsAt: target, durationMinutes: occurrence.durationMinutes }
-		return markException(tx, rule, exception, mark)
-	})
-}
-
-export function cancelOccurrence(
-	db: Database,
-	seriesId: string,
-	originalOn: string,
-	input: ActionInput,
-	now: Date
-): Promise<OccurrenceResult> {
-	return db.transaction(async (tx): Promise<OccurrenceResult> => {
-		const locked = await lockOccurrence(tx, seriesId, originalOn)
-		if (locked === null) return NOT_FOUND
-		const { rule, occurrence } = locked
-		if (occurrence === null) return CHANGED
-		const mark = await markOf(tx, occurrence.ref)
-		const outcome = occurrenceOutcome(occurrence, mark)
-		const refused = refusal('cancel', outcome, occurrence.startsAt, input.expectedStartsAt, now)
-		if (refused !== null) return refused
-		const exception: SeriesException = movedAway(occurrence)
-			? {
-					seriesId,
-					originalOn,
-					kind: 'cancelled',
-					startsAt: occurrence.startsAt,
-					durationMinutes: occurrence.durationMinutes,
-				}
-			: { seriesId, originalOn, kind: 'cancelled' }
-		return markException(tx, rule, exception, mark)
-	})
-}
-
-export function restoreOccurrence(
-	db: Database,
-	seriesId: string,
-	originalOn: string,
-	input: ActionInput,
-	now: Date
-): Promise<OccurrenceResult> {
-	return db.transaction(async (tx): Promise<OccurrenceResult> => {
-		const locked = await lockOccurrence(tx, seriesId, originalOn)
-		if (locked === null) return NOT_FOUND
-		const { rule, occurrence } = locked
-		if (occurrence === null) return CHANGED
-		const mark = await markOf(tx, occurrence.ref)
-		const outcome = occurrenceOutcome(occurrence, mark)
-		const refused = refusal('restore', outcome, occurrence.startsAt, input.expectedStartsAt, now)
-		if (refused !== null) return refused
-		const exception: SeriesException = movedAway(occurrence)
-			? {
-					seriesId,
-					originalOn,
-					kind: 'moved',
-					startsAt: occurrence.startsAt,
-					durationMinutes: occurrence.durationMinutes,
-				}
-			: { seriesId, originalOn, kind: 'restored' }
-		return markException(tx, rule, exception, mark)
-	})
-}
-
 export async function applyLessonChange(
 	executor: DbExecutor,
 	id: string,
@@ -220,50 +85,6 @@ export async function applyLessonChange(
 		.returning(lessonColumns)
 	if (!row) throw new Error('lesson update returned no row')
 	return { kind: 'ok', lesson: toWireLesson(toSingleLesson(row)) }
-}
-
-export function moveLesson(
-	db: Database,
-	accountId: string,
-	id: string,
-	input: MoveInput,
-	now = new Date()
-): Promise<LessonResult> {
-	return db.transaction(async (tx): Promise<LessonResult> => {
-		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
-		if (!time.ok) return { kind: time.error }
-		const lesson = await lockLesson(tx, id)
-		if (lesson === null) return NOT_FOUND
-		const outcome = await singleOutcome(tx, lesson)
-		const refused = refusal('move', outcome, lesson.startsAt, input.expectedStartsAt, now)
-		if (refused !== null) return refused
-		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
-		if (target === undefined) return { kind: 'nonexistent_local_time' }
-		if (target.getTime() === lesson.startsAt.getTime()) return INVALID
-		return applyLessonChange(tx, id, { startsAt: target })
-	})
-}
-
-export function cancelLesson(db: Database, id: string, input: ActionInput, now: Date): Promise<LessonResult> {
-	return db.transaction(async (tx): Promise<LessonResult> => {
-		const lesson = await lockLesson(tx, id)
-		if (lesson === null) return NOT_FOUND
-		const outcome = await singleOutcome(tx, lesson)
-		const refused = refusal('cancel', outcome, lesson.startsAt, input.expectedStartsAt, now)
-		if (refused !== null) return refused
-		return applyLessonChange(tx, id, { status: 'cancelled' })
-	})
-}
-
-export function restoreLesson(db: Database, id: string, input: ActionInput, now: Date): Promise<LessonResult> {
-	return db.transaction(async (tx): Promise<LessonResult> => {
-		const lesson = await lockLesson(tx, id)
-		if (lesson === null) return NOT_FOUND
-		const outcome = await singleOutcome(tx, lesson)
-		const refused = refusal('restore', outcome, lesson.startsAt, input.expectedStartsAt, now)
-		if (refused !== null) return refused
-		return applyLessonChange(tx, id, { status: 'scheduled' })
-	})
 }
 
 export async function prepareLessonChange(

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
 import type { CommandIntent, CommandResult } from '@/components/app/calendar-command-store'
 import { apiRequest } from '@/lib/api-client'
-import { calendarEventFor, canEditCalendarEvent, type CalendarLesson } from '@/lib/lesson-actions'
+import type { CalendarLesson } from '@/lib/lesson-actions'
 
 import {
 	timeZoneIdentity,
@@ -21,12 +21,13 @@ import {
 } from '@dv-lab/contracts'
 import { mondayOf, scheduleDate } from '@dv-lab/core'
 
+import { calendarVersionFor, type CalendarTarget } from './calendar-overlaps'
+
 export const STALE_TITLE = 'This lesson was changed elsewhere'
 export const STALE_LESSON = 'The schedule has been refreshed.'
 export const STALE_DATES = 'The schedule has been refreshed. Check the dates and try again.'
 export const STALE_DATE = 'The schedule has been refreshed. Check the date and try again.'
 
-export type RuleTarget = { kind: 'rule'; seriesId: string }
 export type LessonBody = { expectedStartsAt?: string }
 export type MoveLessonBody = LessonBody & { date: string; startTime: string; expectedDefaultTimeZone: string }
 export type MoveSeriesBody = {
@@ -44,7 +45,7 @@ export type CreateLessonBody = {
 	repeats: LessonRepeats
 	expectedDefaultTimeZone: string
 }
-type Target = ScheduleOccurrenceRef | RuleTarget | { kind: 'new' }
+type Target = CalendarTarget
 type Body = LessonBody | MoveLessonBody | MoveSeriesBody | EndSeriesBody | CreateLessonBody
 type Action = 'create' | 'move' | 'cancel' | 'restore' | 'end'
 export type CalendarSelection = {
@@ -82,27 +83,6 @@ function rejected(code: ErrorCode | null): Exclude<CalendarMutationResult, { kin
 	return { kind: 'failed', code }
 }
 
-function versionFor(window: GoogleScheduleWindow, target: Target, selection: CalendarSelection): string | null {
-	if (window.read.state !== 'fresh') return null
-	if (target.kind === 'new') return window.read.revision
-	if (target.kind === 'rule') {
-		const current = window.series.find((context) => context.series.id === target.seriesId)
-		return current && selection.series && JSON.stringify(current.series) === JSON.stringify(selection.series.series)
-			? current.version
-			: null
-	}
-	const current = calendarEventFor(window, target)
-	const previous = selection.event
-	if (!current || !previous || !canEditCalendarEvent(current, window)) return null
-	if (
-		current.when.startsAt !== previous.when.startsAt ||
-		current.when.endsAt !== previous.when.endsAt ||
-		current.status !== previous.status
-	)
-		return null
-	return current.binding.version
-}
-
 function checkedConnection(window: GoogleScheduleWindow, connection: GoogleScheduleWindow['connection'] | null) {
 	return (
 		connection !== null &&
@@ -129,7 +109,10 @@ function validateWindow(
 	if (scheduleDate(new Date(window.requestedRange.start), window.requestedRange.timeZone) !== mondayOf(date))
 		return { ok: false, code: 'precondition_failed' }
 	if (window.write.state !== 'ready') return { ok: false, code: window.write.reason }
-	const expectedVersion = versionFor(window, target, selection)
+	const expectedVersion = calendarVersionFor(window, target, {
+		series: selection.series,
+		previous: target.kind === 'new' || target.kind === 'rule' ? undefined : (selection.event ?? null),
+	})
 	return expectedVersion === null ? { ok: false, code: 'precondition_failed' } : { ok: true, window, expectedVersion }
 }
 

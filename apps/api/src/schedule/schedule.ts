@@ -1,5 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
-import type { z } from 'zod'
+import { inArray } from 'drizzle-orm'
 
 import {
 	STUDENT_STATUSES,
@@ -8,8 +7,6 @@ import {
 	type ScheduleSeries,
 	type ScheduleWeekResponse,
 	type StudentStatus,
-	type createLessonRequest,
-	timeZoneIdentity,
 } from '@dv-lab/contracts'
 import {
 	type BalanceCard,
@@ -19,39 +16,22 @@ import {
 	type SeriesRule,
 	type SingleLesson,
 	lessonActions,
-	localTimeCandidates,
-	nextSeriesDate,
 	nextSeriesReference,
-	scheduleToday,
 	scheduleWindow,
-	weekdayOf,
 	withOutcomes,
 } from '@dv-lab/core'
-import { type Database, type DbExecutor, lessonSeries, lessons, students } from '@dv-lab/db'
+import { type DbExecutor, students } from '@dv-lab/db'
 
-import { lockTeacherTimeContext, type TeacherTimeContext } from '../settings/settings.ts'
+import type { TeacherTimeContext } from '../settings/settings.ts'
 import {
-	lessonColumns,
 	loadMarks,
 	loadScheduleRows,
-	seriesColumns,
 	seriesReferenceExceptions,
 	toBalanceCard,
-	toSeriesRule,
-	toSingleLesson,
 	toWireActions,
 	toWireMark,
 	toWireOutcome,
 } from './rows.ts'
-
-type CreateLessonInput = z.output<typeof createLessonRequest>
-
-type CreateLessonResult =
-	| { kind: 'invalid' }
-	| { kind: 'nonexistent_local_time' }
-	| { kind: 'default_time_zone_changed' }
-	| { kind: 'lesson'; lesson: ScheduleLesson }
-	| { kind: 'series'; series: ScheduleSeries; existing: boolean }
 
 type BlockStudent = {
 	name: string
@@ -189,88 +169,4 @@ export async function wireBlocks(executor: DbExecutor, placed: readonly CoreBloc
 	const blocks = withOutcomes(placed, marks)
 	const people = await blockStudents(executor, blocks)
 	return blocks.map((block) => toWireBlock(block, people, marks, now))
-}
-
-export function createLesson(
-	db: Database,
-	accountId: string,
-	input: CreateLessonInput,
-	now = new Date()
-): Promise<CreateLessonResult> {
-	return db.transaction(async (tx): Promise<CreateLessonResult> => {
-		const locked = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone, now)
-		if (!locked.ok) return { kind: locked.error }
-		const { defaultTimeZone } = locked.context
-		const target = localTimeCandidates(input.date, input.startTime, defaultTimeZone)[0]
-		if (target === undefined) return { kind: 'nonexistent_local_time' }
-		const [card] = await tx
-			.select({ status: students.status })
-			.from(students)
-			.where(eq(students.id, input.studentId))
-			.for('update')
-		if (!card || card.status !== 'active') return { kind: 'invalid' }
-		if (input.repeats === 'once') {
-			const [row] = await tx
-				.insert(lessons)
-				.values({
-					studentId: input.studentId,
-					startsAt: target,
-					timeZone: defaultTimeZone,
-					durationMinutes: input.durationMinutes,
-					status: 'scheduled',
-				})
-				.returning(lessonColumns)
-			if (!row) throw new Error('lesson insert returned no row')
-			return { kind: 'lesson', lesson: toWireLesson(toSingleLesson(row)) }
-		}
-		if (input.date < scheduleToday(now, defaultTimeZone)) return { kind: 'invalid' }
-		const weekday = weekdayOf(input.date)
-		const startsOn = nextSeriesDate(
-			{ weekday, startTime: input.startTime, timeZone: defaultTimeZone, startsOn: input.date, endsOn: null },
-			now
-		)
-		if (startsOn === null) return { kind: 'invalid' }
-		const matches = await tx
-			.select(seriesColumns)
-			.from(lessonSeries)
-			.where(
-				and(
-					eq(lessonSeries.studentId, input.studentId),
-					eq(lessonSeries.weekday, weekday),
-					eq(lessonSeries.startTime, input.startTime),
-					eq(lessonSeries.durationMinutes, input.durationMinutes),
-					eq(lessonSeries.startsOn, startsOn),
-					isNull(lessonSeries.endsOn)
-				)
-			)
-		const existing = matches.find((row) => timeZoneIdentity(row.timeZone) === timeZoneIdentity(defaultTimeZone))
-		if (existing) {
-			const rule = toSeriesRule(existing)
-			const exceptions = await seriesReferenceExceptions(tx, [rule.id])
-			return {
-				kind: 'series',
-				series: toWireSeries(rule, nextSeriesReference({ rule, exceptions, now })),
-				existing: true,
-			}
-		}
-		const [row] = await tx
-			.insert(lessonSeries)
-			.values({
-				studentId: input.studentId,
-				weekday,
-				startTime: input.startTime,
-				timeZone: defaultTimeZone,
-				durationMinutes: input.durationMinutes,
-				startsOn,
-				endsOn: null,
-			})
-			.returning(seriesColumns)
-		if (!row) throw new Error('lesson series insert returned no row')
-		const rule = toSeriesRule(row)
-		return {
-			kind: 'series',
-			series: toWireSeries(rule, nextSeriesReference({ rule, exceptions: [], now })),
-			existing: false,
-		}
-	})
 }

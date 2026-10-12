@@ -206,31 +206,37 @@ export async function conflictMoveUi(page: Page) {
 			'reconnect',
 		])
 	)
-	for (const sample of samples) {
-		await setMain(page.request, sample.request.proposal.input.expectedDefaultTimeZone)
-		const opened = await openMove(page, sample, fixture.studentId)
-		if (!opened) continue
-		await expect(opened.save).toBeDisabled()
-		if (sample.name === 'gap') {
-			await expect(opened.dialog.getByText(/This time does not exist/)).toBeVisible()
-			await expect(opened.dialog.getByRole('button', { name: 'Check overlaps', exact: true })).toBeDisabled()
-		} else if (sample.name === 'stale_target' || sample.name === 'stale_context')
-			await changedTarget(page, sample, opened)
-		else if (sample.name === 'default_zone') {
-			if (!sample.newDefaultTimeZone) throw new Error('Changed actual account zone is required')
-			await checkConflictUi(page, opened.dialog)
-			await setMain(page.request, sample.newDefaultTimeZone)
-			await page.dispatchEvent('body', 'focus')
-			await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+	const settings = await readSettings(page.request)
+	try {
+		for (const sample of samples) {
+			await setMain(page.request, sample.request.proposal.input.expectedDefaultTimeZone)
+			const opened = await openMove(page, sample, fixture.studentId)
+			if (!opened) continue
 			await expect(opened.save).toBeDisabled()
-			await expect(opened.dialog).toBeVisible()
-		} else if (sample.name === 'reconnect') await reconnect(page, sample, opened.dialog)
-		else {
-			if (sample.name === 'fold') await expect(opened.dialog.getByText(/This time occurs twice/)).toBeVisible()
-			await checkConflictUi(page, opened.dialog)
-			await expect(opened.save).toBeEnabled()
+			if (sample.name === 'gap') {
+				await expect(opened.dialog.getByText(/This time does not exist/)).toBeVisible()
+				await expect(opened.dialog.getByRole('button', { name: 'Check overlaps', exact: true })).toBeDisabled()
+			} else if (sample.name === 'stale_target' || sample.name === 'stale_context')
+				await changedTarget(page, sample, opened)
+			else if (sample.name === 'default_zone') {
+				if (!sample.newDefaultTimeZone) throw new Error('Changed actual account zone is required')
+				await checkConflictUi(page, opened.dialog)
+				await setMain(page.request, sample.newDefaultTimeZone)
+				await page.dispatchEvent('body', 'focus')
+				await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+				await expect(opened.save).toBeDisabled()
+				await expect(opened.dialog).toBeVisible()
+			} else if (sample.name === 'reconnect') await reconnect(page, sample, opened.dialog)
+			else {
+				if (sample.name === 'fold') await expect(opened.dialog.getByText(/This time occurs twice/)).toBeVisible()
+				await checkConflictUi(page, opened.dialog)
+				await expect(opened.save).toBeEnabled()
+			}
 		}
+	} finally {
+		await setMain(page.request, settings.defaultTimeZone)
 	}
+	expect((await readSettings(page.request)).defaultTimeZone).toBe(settings.defaultTimeZone)
 }
 
 function domain(id: string) {

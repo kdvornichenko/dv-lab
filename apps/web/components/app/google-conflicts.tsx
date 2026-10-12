@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { z } from 'zod'
 
+import { calendarVersionFor } from '@/app/(app)/schedule/_components/calendar-overlaps'
 import { Banner, BannerTitle, BannerDescription } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api-client'
-import { calendarEventFor, canEditCalendarEvent } from '@/lib/lesson-actions'
 
 import {
 	googleConflictRequest,
@@ -34,24 +34,17 @@ type Check = { key: string; result: GoogleConflictResult; window: GoogleSchedule
 
 function targetVersion(window: GoogleScheduleWindow, selection: Selection): string | null {
 	if (window.read.state !== 'fresh' || window.write.state !== 'ready') return null
-	if (selection.proposal?.operation === 'create') return window.read.revision
+	if (selection.proposal?.operation === 'create') return calendarVersionFor(window, { kind: 'new' })
 	const ref = selection.editedRef
 	if (!ref) return null
-	if (selection.proposal?.operation === 'move_series' && ref.kind === 'series') {
-		const context = window.series.find((item) => item.series.id === ref.seriesId)
-		return context && selection.series && JSON.stringify(context.series) === JSON.stringify(selection.series.series)
-			? context.version
-			: null
-	}
-	const event = calendarEventFor(window, ref)
-	if (!event || !canEditCalendarEvent(event, window)) return null
-	if (
-		selection.proposal?.operation === 'move' &&
-		selection.proposal.input.expectedStartsAt &&
-		selection.proposal.input.expectedStartsAt !== event.when.startsAt
-	)
-		return null
-	return event.binding.version
+	const target =
+		selection.proposal?.operation === 'move_series' && ref.kind === 'series'
+			? { kind: 'rule' as const, seriesId: ref.seriesId }
+			: ref
+	return calendarVersionFor(window, target, {
+		series: selection.series,
+		expectedStartsAt: selection.proposal?.operation === 'move' ? selection.proposal.input.expectedStartsAt : undefined,
+	})
 }
 
 async function conflictInputKey(input: ConflictRequest, window: GoogleScheduleWindow) {
