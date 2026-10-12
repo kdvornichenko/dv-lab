@@ -119,10 +119,18 @@ export function useLessonDrag(
 		if (!body) return null
 		const viewport = body.getBoundingClientRect()
 		if (y < viewport.top || y >= viewport.bottom) return null
-		const column = Array.from(body.querySelectorAll<HTMLElement>('[data-slot="week-grid-column"]')).find((item) => {
-			const rect = item.getBoundingClientRect()
-			return x >= rect.left && x < rect.right
-		})
+		const columns = Array.from(body.querySelectorAll<HTMLElement>('[data-slot="week-grid-column"]'))
+		const first = columns.at(0)
+		const last = columns.at(-1)
+		const column =
+			first && x < first.getBoundingClientRect().left
+				? first
+				: last && x >= last.getBoundingClientRect().right
+					? last
+					: columns.find((item) => {
+							const rect = item.getBoundingClientRect()
+							return x >= rect.left && x < rect.right
+						})
 		const date = column?.dataset.date
 		if (!column || !date) return null
 		const durationMinutes = (Date.parse(current.event.when.endsAt) - Date.parse(current.event.when.startsAt)) / 60000

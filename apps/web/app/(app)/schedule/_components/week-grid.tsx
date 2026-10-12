@@ -163,6 +163,7 @@ function CalendarAgenda({
 	today,
 	mainTimeZone,
 	secondZone,
+	emptyNote,
 	onOpen,
 }: {
 	dates: string[]
@@ -170,10 +171,16 @@ function CalendarAgenda({
 	today: string
 	mainTimeZone: string
 	secondZone: string | null
+	emptyNote: string | null
 	onOpen: (event: CalendarEventView) => void
 }) {
 	return (
 		<div data-slot="calendar-agenda" className="space-y-4 lg:hidden">
+			{emptyNote !== null ? (
+				<div data-slot="calendar-agenda-empty" className="flex justify-center py-8">
+					<p className="rounded-lg bg-surface-2 px-3 py-1 text-center text-body text-muted-foreground">{emptyNote}</p>
+				</div>
+			) : null}
 			{dates.map((date) => {
 				const dayEvents = eventsOn(events, date, mainTimeZone)
 				if (dayEvents.length === 0) return null
@@ -417,6 +424,7 @@ export function WeekGrid({
 				today={today}
 				mainTimeZone={mainTimeZone}
 				secondZone={secondZone?.id ?? null}
+				emptyNote={emptyNote}
 				onOpen={onOpen}
 			/>
 			<Elevated
