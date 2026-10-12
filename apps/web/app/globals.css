@@ -287,6 +287,18 @@
 	--gcal-today: #1a73e8;
 	--gcal-today-ink: #ffffff;
 	--gcal-now: #ea4335;
+	--gcal-event-ink: #1d1d1d;
+	--gcal-event-1: #a4bdfc;
+	--gcal-event-2: #7ae7bf;
+	--gcal-event-3: #dbadff;
+	--gcal-event-4: #ff887c;
+	--gcal-event-5: #fbd75b;
+	--gcal-event-6: #ffb878;
+	--gcal-event-7: #46d6db;
+	--gcal-event-8: #e1e1e1;
+	--gcal-event-9: #5484ed;
+	--gcal-event-10: #51b749;
+	--gcal-event-11: #dc2127;
 	--scroll-fade-size: 48px;
 	--scroll-fade-size-compact: 24px;
 }
@@ -381,6 +393,18 @@
 	--gcal-today: #8ab4f8;
 	--gcal-today-ink: #202124;
 	--gcal-now: #f28b82;
+	--gcal-event-ink: #1d1d1d;
+	--gcal-event-1: #a4bdfc;
+	--gcal-event-2: #7ae7bf;
+	--gcal-event-3: #dbadff;
+	--gcal-event-4: #ff887c;
+	--gcal-event-5: #fbd75b;
+	--gcal-event-6: #ffb878;
+	--gcal-event-7: #46d6db;
+	--gcal-event-8: #e1e1e1;
+	--gcal-event-9: #5484ed;
+	--gcal-event-10: #51b749;
+	--gcal-event-11: #dc2127;
 }
 
 .app-scale {

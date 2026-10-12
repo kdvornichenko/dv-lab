@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 
+import { MapPin } from 'lucide-react'
+
 import { Tooltip } from '@/components/ui/tooltip'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
 
-import { CalendarEventDetails, eventTitle } from './calendar-event-details'
+import { CalendarEventDetails, EventTime, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
 import { LessonBlock } from './lesson-block'
 
@@ -14,6 +16,38 @@ const OPEN_DELAY = 200
 const SKIP_DELAY = 300
 
 const clock = { closedAt: 0 }
+const READ_ONLY_EVENT_LINE = 'Read-only. Change it in Google Calendar.'
+
+function PlainEventCard({
+	event,
+	timeZone,
+	secondZone,
+	currentYear,
+}: {
+	event: CalendarEventView
+	timeZone: string
+	secondZone: string | null
+	currentYear: number
+}) {
+	return (
+		<div data-slot="event-tooltip" data-variant="plain" className="flex flex-col gap-1">
+			<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
+			<div className="flex min-w-0 flex-col gap-1 text-body wrap-anywhere">
+				<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
+			</div>
+			{event.location !== null && event.location !== '' ? (
+				<span className="flex min-w-0 items-start gap-1 text-caption wrap-anywhere text-muted-foreground">
+					<MapPin size={16} className="shrink-0" aria-hidden />
+					<span className="min-w-0">{event.location}</span>
+				</span>
+			) : null}
+			{event.status === 'tentative' ? <span className="text-caption text-muted-foreground">Tentative</span> : null}
+			{event.editBlock === 'read_only_event' ? (
+				<span className="text-caption text-muted-foreground">{READ_ONLY_EVENT_LINE}</span>
+			) : null}
+		</div>
+	)
+}
 
 interface EventTooltipProps {
 	event: CalendarEventView
@@ -88,16 +122,20 @@ export function EventTooltip({
 			forceOpen={open && !ghost}
 			className="max-w-[280px] rounded-xl bg-surface-4 p-3 text-foreground shadow-surface-3 [text-box:normal] supports-[text-box:trim-both]:py-3"
 			content={
-				<div data-slot="event-tooltip" className="flex flex-col gap-1">
-					<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
-					<CalendarEventDetails
-						editable={editable}
-						event={event}
-						timeZone={mainTimeZone}
-						secondZone={secondZone}
-						currentYear={currentYear}
-					/>
-				</div>
+				event.binding.kind === 'external' ? (
+					<PlainEventCard event={event} timeZone={mainTimeZone} secondZone={secondZone} currentYear={currentYear} />
+				) : (
+					<div data-slot="event-tooltip" className="flex flex-col gap-1">
+						<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
+						<CalendarEventDetails
+							editable={editable}
+							event={event}
+							timeZone={mainTimeZone}
+							secondZone={secondZone}
+							currentYear={currentYear}
+						/>
+					</div>
+				)
 			}
 		>
 			<LessonBlock

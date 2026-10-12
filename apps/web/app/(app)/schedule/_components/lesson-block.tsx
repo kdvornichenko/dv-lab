@@ -2,12 +2,24 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
+import { eventPaint } from '@/lib/event-colors'
 import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
 
 import { eventRange, eventStatus, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
+
+const LESSON_SHORT_HEIGHT = 34
+const EVENT_SHORT_HEIGHT = 36
+const SELECTED_PAINT = { fill: 'var(--selected)', ink: 'var(--foreground)' }
+const EVENT_FOCUS = 'focus-visible:shadow-[0_0_0_1px_var(--surface-2),0_0_0_3px_var(--focus-ring)]'
+const LESSON_FOCUS = 'focus-visible:ring-2 focus-visible:ring-focus-ring'
+const HATCH =
+	'bg-[repeating-linear-gradient(45deg,color-mix(in_oklab,var(--event-fill)_40%,transparent)_0_5px,transparent_5px_10px)] ring-1 ring-(--event-fill) ring-inset'
+const LESSON_HATCH =
+	'bg-[repeating-linear-gradient(45deg,color-mix(in_oklab,var(--selected)_40%,transparent)_0_5px,transparent_5px_10px)] ring-1 ring-selected ring-inset'
+const GHOST = 'bg-transparent text-muted-foreground outline-1 -outline-offset-1 outline-foreground/40 outline-dashed'
 
 interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	event: CalendarEventView
@@ -18,6 +30,14 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	ghost?: boolean
 	onOpen: (event: CalendarEventView) => void
 	onClick?: ComponentProps<'button'>['onClick']
+}
+
+function surface(plain: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
+	if (ghost) return GHOST
+	if (cancelled) return 'text-muted-foreground ring-1 ring-selected ring-inset'
+	if (plain)
+		return tentative ? `${HATCH} text-foreground` : 'bg-(--event-fill) text-(--event-ink) ring-1 ring-surface-2'
+	return tentative ? `${LESSON_HATCH} text-foreground` : 'bg-selected text-foreground ring-1 ring-surface-2'
 }
 
 export function LessonBlock({
@@ -37,8 +57,12 @@ export function LessonBlock({
 	const range = eventRange(calendarEvent, mainTimeZone)
 	const cancelled = calendarEvent.status === 'cancelled'
 	const tentative = calendarEvent.status === 'tentative'
+	const plain = calendarEvent.binding.kind === 'external'
+	const unconfirmed = calendarEvent.binding.kind === 'transition'
+	const chip = layout === null
 	const availability = calendarEvent.blocksTime ? 'Busy' : 'Available'
-	const short = layout !== null && layout.height < 34
+	const short = layout !== null && layout.height < (plain ? EVENT_SHORT_HEIGHT : LESSON_SHORT_HEIGHT)
+	const paint = plain ? (eventPaint(calendarEvent.color) ?? SELECTED_PAINT) : null
 	const position: CSSProperties | undefined =
 		layout === null
 			? undefined
@@ -49,6 +73,8 @@ export function LessonBlock({
 					width: layout.width,
 					zIndex: layout.layer > 0 ? Math.min(10 + layout.layer, 19) : undefined,
 				}
+	const paintVars =
+		paint === null ? undefined : ({ '--event-fill': paint.fill, '--event-ink': paint.ink } as CSSProperties)
 	return (
 		<button
 			type="button"
@@ -59,24 +85,21 @@ export function LessonBlock({
 			data-status={calendarEvent.status}
 			data-ghost={ghost ? '' : undefined}
 			aria-label={`${title}, ${range}, ${eventStatus(calendarEvent)}, ${availability}, ${editable ? 'Editable' : 'Read-only'}`}
-			style={{ ...position, ...style }}
+			style={{ ...position, ...paintVars, ...style }}
 			onClick={(event) => {
 				onClick?.(event)
 				onOpen(calendarEvent)
 			}}
 			className={cn(
-				'z-10 block overflow-hidden rounded-md px-[6px] py-[2px] text-left text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
+				'z-10 block overflow-hidden rounded-md px-[6px] text-left focus-visible:outline-none',
+				chip ? 'py-[4px]' : 'py-[2px]',
+				plain ? EVENT_FOCUS : LESSON_FOCUS,
 				movable ? 'cursor-grab' : 'cursor-default',
-				layout === null ? 'relative w-full' : 'absolute',
+				chip ? 'relative w-full' : 'absolute',
 				layout?.cutTop && 'rounded-t-none',
 				layout?.cutBottom && 'rounded-b-none',
-				ghost
-					? 'bg-transparent text-muted-foreground outline-1 -outline-offset-1 outline-foreground/40 outline-dashed'
-					: cancelled
-						? 'text-muted-foreground ring-1 ring-selected ring-inset'
-						: tentative
-							? 'bg-[repeating-linear-gradient(45deg,color-mix(in_oklab,var(--selected)_40%,transparent)_0_5px,transparent_5px_10px)] ring-1 ring-selected ring-inset'
-							: 'bg-selected ring-1 ring-surface-2',
+				surface(plain, ghost, cancelled, tentative),
+				unconfirmed && !ghost && 'opacity-60',
 				className
 			)}
 		>
@@ -90,7 +113,7 @@ export function LessonBlock({
 				{title}
 				{short ? `, ${range}` : ''}
 			</span>
-			{!short ? <span className="block truncate text-caption tabular-nums">{range}</span> : null}
+			{!short && !chip ? <span className="block truncate text-caption tabular-nums">{range}</span> : null}
 		</button>
 	)
 }
