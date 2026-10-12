@@ -81,7 +81,7 @@ export async function resumeCalendarCommand(commandId: string) {
 	return apiRequest<unknown>('POST', `/google/commands/${encodeURIComponent(commandId)}/resume`, {})
 }
 
-export async function readCalendarWeek(date?: string): Promise<GoogleScheduleWindow | null> {
+export async function readCalendarWeek(date?: string, signal?: AbortSignal): Promise<GoogleScheduleWindow | null> {
 	let start = date === undefined ? null : mondayOf(date)
 	if (start === null) {
 		const result = await apiRequest<unknown>('GET', '/settings')
@@ -99,7 +99,7 @@ export async function readCalendarWeek(date?: string): Promise<GoogleScheduleWin
 		if (timeZone === null) return null
 		start = mondayOf(lessonDay(new Date(), timeZone))
 	}
-	const result = await apiRequest<unknown>('GET', `/schedule/week?start=${start}`)
+	const result = await apiRequest<unknown>('GET', `/schedule/week?start=${start}`, undefined, { signal })
 	if (!result.ok) return null
 	const parsed = googleScheduleWindow.safeParse(result.data)
 	return parsed.success ? coveredCalendarWindow(parsed.data) : null
