@@ -921,3 +921,32 @@ Upsert порога требует этих трёх прав на `teacher_sett
 Добавленные таблицы и колонка остаются в базе. Старый код вставляет карточки с `no_show_deducts = true` по умолчанию и считает остатки без отметок уроков. Поэтому остатки на старых экранах увеличатся на сумму действующих вычетов за отметки. Отметки не исчезают при откате кода. После повторной выкатки кода учёта уроков вычеты учитываются снова.
 
 Восстановление дампа, снятого до выкатки, теряет все изменения после создания дампа, включая отметки уроков и порог Pays soon. Решение о таком восстановлении принимает владелец.
+
+## 13. Google Calendar
+
+### 13.1. Stuck calendar requests
+
+Запрос календаря — строка `google_commands`. Незавершённый запрос — строка в любом состоянии, кроме `applied` и `failed`. Пока у аккаунта есть хотя бы один незавершённый запрос, новые изменения календаря отклоняются кодом `command_pending`.
+
+Серверные команды выполняет Server guy или владелец. Блок только читает и печатает число незавершённых запросов по состояниям, без содержимого строк:
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  dc exec -T db psql -X -U dvlab_migrator -d dvlab -v ON_ERROR_STOP=1 -c "select state, count(*) from google_commands where state not in ('applied', 'failed') group by state order by state"
+)
+```
+
+Ожидаемо таблица `state | count`; пустой результат означает, что незавершённых запросов нет. Ошибка аутентификации `dvlab_migrator` обрабатывается как в разделе 10.4.
+
+| Состояние                                                         | Что происходит                                                                                              |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `pending`, `dispatching`, `outcome_unknown`, `projection_pending` | запрос ведёт фоновый обработчик api: доводит до `applied` или `failed` либо переводит в `recovery_required` |
+| `recovery_required`, `partial_recovery`                           | учитель продолжает запрос в Settings > Google Calendar > Sync кнопкой `Resume recovery`                     |
+
+Строки `google_commands` и `google_command_stages` руками не удаляются и не правятся. Назад присылается только таблица счётчиков.
