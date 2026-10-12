@@ -20,7 +20,7 @@ import {
 	type NextLessonRead,
 } from '@dv-lab/contracts'
 
-const READ_ISSUES: Record<CalendarIssue, string> = {
+export const READ_ISSUES: Record<CalendarIssue, string> = {
 	connection_required:
 		'Connect Google Calendar to use the calendar. Previously saved history is available for viewing.',
 	reconnect_required:

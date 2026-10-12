@@ -70,7 +70,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
 					className={cn(
 						triggerVariants({ variant }),
 						sizeClasses.control,
-						sizeClasses.text,
+						sizeClasses.field,
 						sizeClasses.px,
 						sizeClasses.gap,
 						compact ? 'min-w-[128px]' : 'min-w-[160px]',
