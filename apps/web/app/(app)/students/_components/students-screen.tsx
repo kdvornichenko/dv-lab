@@ -196,11 +196,11 @@ export function StudentsScreen() {
 		)
 		body = (
 			<Tabs value={tab} onValueChange={setTab}>
-				<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-					<div className="flex min-w-0 rounded-xl bg-muted">
+				<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+					<div className="flex min-w-0 rounded-xl bg-muted lg:flex-none">
 						<TabsList
 							aria-label="Student lists"
-							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-lg:min-w-0 max-lg:flex-1 max-lg:overflow-x-auto"
 						>
 							<TabItem value="active" label="Active" />
 							<TabItem value="archived" label="Archived" />
@@ -220,7 +220,7 @@ export function StudentsScreen() {
 							aria-label="Search students"
 							placeholder="Search students"
 							autoComplete="off"
-							className="w-full sm:w-72"
+							className="w-full lg:ml-auto lg:max-w-80 lg:min-w-0 lg:flex-1"
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 						/>

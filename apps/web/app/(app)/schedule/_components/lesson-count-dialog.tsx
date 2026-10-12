@@ -303,7 +303,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 					<DialogTitle>Count lessons</DialogTitle>
 					<DialogDescription>Pick a date range, then an event, to get its dates by month.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
 					<div className="flex flex-col gap-4">
 						<div className="flex justify-center rounded-lg ring-1 ring-input ring-inset">
 							<Calendar
@@ -376,16 +376,20 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 							<section aria-label={title} className="flex flex-col gap-2 rounded-lg bg-hover p-3">
 								<div className="flex items-center justify-between gap-3">
 									<p className="min-w-0 truncate text-body font-semibold">{title}</p>
-									<Button
-										variant="secondary"
-										size="compact"
-										className="min-w-21 shrink-0"
-										leadingIcon={copied ? Check : Copy}
-										aria-live="polite"
-										onClick={() => void copy()}
-									>
-										{copied ? 'Copied' : 'Copy'}
-									</Button>
+									<Tooltip side="top" forceOpen={copied ? true : undefined} content={copied ? 'Copied' : 'Copy dates'}>
+										<Button
+											variant="secondary"
+											size="icon-compact"
+											className="shrink-0"
+											aria-label="Copy dates"
+											onClick={() => void copy()}
+										>
+											{copied ? <Check /> : <Copy />}
+										</Button>
+									</Tooltip>
+									<span className="sr-only" aria-live="polite">
+										{copied ? 'Copied' : ''}
+									</span>
 								</div>
 								<div className="text-body tabular-nums select-all">
 									{text.split('\n').map((line) => (

@@ -581,12 +581,10 @@ const SidebarMenuSubItem = forwardRef<HTMLLIElement, SidebarMenuSubItemProps>(
 SidebarMenuSubItem.displayName = 'SidebarMenuSubItem'
 function MenuRowLabel({
 	content,
-	lit,
 	emphasized,
 	textClass,
 }: {
 	content: ReactNode
-	lit: boolean
 	emphasized: boolean
 	textClass: string
 }) {
@@ -604,7 +602,7 @@ function MenuRowLabel({
 			<span
 				className={cn(
 					'flex min-w-0 flex-1 items-center gap-2 transition-colors duration-80',
-					lit ? 'text-foreground' : 'text-muted-foreground',
+					'text-foreground',
 					textClass
 				)}
 			>
@@ -626,7 +624,7 @@ function MenuRowLabel({
 				<span
 					className={cn(
 						'col-start-1 row-start-1 -mt-[0.25em] -mb-[0.25em] truncate pt-[0.25em] pb-[0.25em] transition-[color,font-variation-settings] duration-80 [text-box:trim-both_cap_alphabetic]',
-						lit ? 'text-foreground' : 'text-muted-foreground'
+						'text-foreground'
 					)}
 					style={{
 						fontVariationSettings: emphasized ? fontWeights.semibold : fontWeights.normal,
@@ -714,10 +712,7 @@ const SidebarMenuButton = forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
 					<Icon
 						size={sizeClasses.icon}
 						strokeWidth={lit ? 2 : 1.5}
-						className={cn(
-							'shrink-0 transition-[color,stroke-width] duration-80',
-							lit ? 'text-foreground' : 'text-muted-foreground'
-						)}
+						className={cn('shrink-0 transition-[color,stroke-width] duration-80', 'text-foreground')}
 					/>
 				)}
 				{!Icon && resolvedDot && (
@@ -739,7 +734,7 @@ const SidebarMenuButton = forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
 						/>
 					</span>
 				)}
-				<MenuRowLabel content={content} lit={lit} emphasized={effectiveActive} textClass={textClass} />
+				<MenuRowLabel content={content} emphasized={effectiveActive} textClass={textClass} />
 				{status === 'unread' && <span className="sr-only">, unread</span>}
 			</>
 		)
@@ -888,7 +883,7 @@ const SidebarMenuBadge = forwardRef<HTMLDivElement, SidebarMenuBadgeProps>(({ cl
 				sizeClasses.variant === 'compact' ? 'top-1' : 'top-1.5',
 				typeClass('micro', sizeClasses.variant),
 				'transition-[color,font-variation-settings] duration-80',
-				lit ? 'text-foreground' : 'text-muted-foreground',
+				'text-foreground',
 				className
 			)}
 			style={{
@@ -1051,16 +1046,12 @@ const SidebarMenuSubButton = forwardRef<HTMLAnchorElement, SidebarMenuSubButtonP
 						<Icon
 							size={sizeClasses.icon}
 							strokeWidth={lit ? 2 : 1.5}
-							className={cn(
-								'shrink-0 transition-[color,stroke-width] duration-80',
-								lit ? 'text-foreground' : 'text-muted-foreground'
-							)}
+							className={cn('shrink-0 transition-[color,stroke-width] duration-80', 'text-foreground')}
 						/>
 					)}
 
 					<MenuRowLabel
 						content={content}
-						lit={lit}
 						emphasized={isActive}
 						textClass={size === 'sm' ? typeClass('body', 'compact') : sizeClasses.text}
 					/>

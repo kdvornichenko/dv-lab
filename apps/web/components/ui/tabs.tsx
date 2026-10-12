@@ -352,10 +352,7 @@ const TabItem = forwardRef<HTMLButtonElement, TabItemProps>(
 					<Icon
 						size={sizeClasses.icon}
 						strokeWidth={isActive ? 2 : 1.5}
-						className={cn(
-							'transition-[color,stroke-width] duration-80',
-							isActive ? 'text-foreground' : 'text-muted-foreground'
-						)}
+						className={cn('transition-[color,stroke-width] duration-80', 'text-foreground')}
 					/>
 				)}
 
@@ -370,7 +367,7 @@ const TabItem = forwardRef<HTMLButtonElement, TabItemProps>(
 					<span
 						className={cn(
 							'col-start-1 row-start-1 transition-[color,font-variation-settings] duration-80 [text-box:trim-both_cap_alphabetic]',
-							isActive ? 'text-foreground' : 'text-muted-foreground'
+							'text-foreground'
 						)}
 						style={{
 							fontVariationSettings: isSelected ? fontWeights.semibold : fontWeights.normal,

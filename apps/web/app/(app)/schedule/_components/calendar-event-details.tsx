@@ -137,7 +137,7 @@ export function CalendarEventDialog({
 					<DialogTitle className="wrap-anywhere">{eventTitle(event)}</DialogTitle>
 					<DialogDescription className="sr-only">Read-only calendar details</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
 					<CalendarEventDetails event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
 				</ScrollArea>
 				<DialogFooter>
