@@ -38,6 +38,7 @@ export const createLessonRequest = z.object({
 export const moveLessonRequest = z.object({
 	date: isoDate,
 	startTime: clockTime,
+	durationMinutes: lessonMinutes.optional(),
 	expectedStartsAt,
 	expectedDefaultTimeZone,
 })
@@ -59,6 +60,7 @@ export const moveSeriesRequest = z.object({
 	from: isoDate,
 	weekday,
 	startTime: clockTime,
+	durationMinutes: lessonMinutes.optional(),
 	expectedDefaultTimeZone,
 })
 

@@ -26,7 +26,7 @@ export type CutLesson = {
 	status?: 'cancelled'
 }
 
-export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
+export type SeriesChange = { from: string; weekday: Weekday; startTime: string; durationMinutes?: number }
 
 type SeriesContext = { now: Date; defaultTimeZone: string }
 
@@ -120,7 +120,13 @@ function replacementRule(
 	if (end !== null && endsOn === null) return { kind: 'ends_before_new_day', endsOn: end.endsOn }
 	return {
 		kind: 'ok',
-		rule: { ...candidate, studentId: rule.studentId, durationMinutes: rule.durationMinutes, startsOn, endsOn },
+		rule: {
+			...candidate,
+			studentId: rule.studentId,
+			durationMinutes: change.durationMinutes ?? rule.durationMinutes,
+			startsOn,
+			endsOn,
+		},
 	}
 }
 
@@ -141,7 +147,8 @@ export function cutSeries(
 	if (
 		change.weekday === rule.weekday &&
 		change.startTime === rule.startTime &&
-		sameTimeZone(defaultTimeZone, rule.timeZone)
+		sameTimeZone(defaultTimeZone, rule.timeZone) &&
+		(change.durationMinutes ?? rule.durationMinutes) === rule.durationMinutes
 	) {
 		return { kind: 'invalid' }
 	}

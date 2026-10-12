@@ -137,7 +137,7 @@ async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {
 		tx,
 		input.ref.lessonId,
 		input.operation === 'move'
-			? { startsAt: new Date(lineage.startsAt) }
+			? { startsAt: new Date(lineage.startsAt), durationMinutes: lineage.durationMinutes }
 			: { status: input.operation === 'cancel' ? 'cancelled' : 'scheduled' }
 	)
 }
