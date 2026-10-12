@@ -2,11 +2,13 @@ import type { ScheduleSeries, TodayResponse } from '@dv-lab/contracts'
 import {
 	MARK_LOOKBACK_DAYS,
 	addDays,
+	lessonDay,
+	mondayOf,
 	needsMark,
 	paysSoonList,
-	scheduleToday,
+	scheduleWeekRange,
+	startOfLessonDay,
 	startOfZonedDay,
-	weekdayOf,
 } from '@dv-lab/core'
 import type { DbExecutor } from '@dv-lab/db'
 
@@ -20,12 +22,10 @@ import type { TeacherTimeContext } from '../settings/settings.ts'
 import { calendarLessons } from './calendar-lessons.ts'
 
 export function todayWindow(context: TeacherTimeContext): Extract<CalendarReadSelection, { kind: 'window' }> {
-	const date = scheduleToday(context.now, context.defaultTimeZone)
-	const monday = addDays(date, 1 - weekdayOf(date))
+	const date = lessonDay(context.now, context.defaultTimeZone)
 	return {
 		kind: 'window',
-		start: startOfZonedDay(monday, context.defaultTimeZone),
-		end: startOfZonedDay(addDays(monday, 7), context.defaultTimeZone),
+		...scheduleWeekRange(mondayOf(date), context.defaultTimeZone),
 		displayTimeZone: context.defaultTimeZone,
 	}
 }
@@ -42,9 +42,9 @@ export async function readToday(
 	paysSoonLessons: number
 ): Promise<TodayResponse> {
 	const { now, defaultTimeZone } = context
-	const date = scheduleToday(now, defaultTimeZone)
-	const dayStart = startOfZonedDay(date, defaultTimeZone)
-	const dayEnd = startOfZonedDay(addDays(date, 1), defaultTimeZone)
+	const date = lessonDay(now, defaultTimeZone)
+	const dayStart = startOfLessonDay(date, defaultTimeZone)
+	const dayEnd = startOfLessonDay(addDays(date, 1), defaultTimeZone)
 	const calendar = await readCalendarWindow(executor, context, todayWindow(context))
 	const upcoming = await calendarLessons(executor, calendar.events, now, dayEnd)
 	const day = await readWindow(executor, dayStart, new Date(now.getTime() + 1), context)

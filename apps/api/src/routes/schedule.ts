@@ -13,7 +13,7 @@ import {
 	markLessonRequest,
 	scheduleWeekStart,
 } from '@dv-lab/contracts'
-import { addDays, startOfZonedDay, weekdayOf } from '@dv-lab/core'
+import { scheduleWeekRange, weekdayOf } from '@dv-lab/core'
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
@@ -108,8 +108,7 @@ export function scheduleRoutes({ db, calendarReads, calendarCommands }: Schedule
 		const settings = await readTeacherSettings(db, accountId)
 		const selection: CalendarReadSelection = {
 			kind: 'window',
-			start: startOfZonedDay(start, settings.defaultTimeZone),
-			end: startOfZonedDay(addDays(start, 7), settings.defaultTimeZone),
+			...scheduleWeekRange(start, settings.defaultTimeZone),
 			displayTimeZone: settings.defaultTimeZone,
 		}
 		await calendarReads?.refreshCalendarRead(context, selection)

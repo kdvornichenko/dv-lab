@@ -8,7 +8,7 @@ import { API_CACHE_INVALIDATED, apiRequest } from '@/lib/api-client'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
 
 import { timeZoneIdentity, type GoogleScheduleWindow, type SettingsResponse } from '@dv-lab/contracts'
-import { addDays, mondayOf, scheduleDate, scheduleToday, startOfZonedDay } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf, scheduleDate, scheduleWeekRange } from '@dv-lab/core'
 
 type WeekQuery = { mainTimeZone: string; monday: string; current: boolean }
 type WeekState = { kind: 'loading' | 'error' | 'ready'; query: WeekQuery | null; data: GoogleScheduleWindow | null }
@@ -38,15 +38,16 @@ async function bootstrap(): Promise<WeekQuery | null> {
 	if (!result.ok) return null
 	const mainTimeZone = timeZoneIdentity(result.data.settings.defaultTimeZone)
 	if (mainTimeZone === null) return null
-	return { mainTimeZone, monday: mondayOf(scheduleToday(new Date(), mainTimeZone)), current: true }
+	return { mainTimeZone, monday: mondayOf(lessonDay(new Date(), mainTimeZone)), current: true }
 }
 
 function matchesQuery(data: GoogleScheduleWindow, query: WeekQuery): boolean {
 	const range = data.requestedRange
+	const week = scheduleWeekRange(query.monday, range.timeZone)
 	return (
 		timeZoneIdentity(range.timeZone) === timeZoneIdentity(query.mainTimeZone) &&
-		Date.parse(range.start) === startOfZonedDay(query.monday, range.timeZone).getTime() &&
-		Date.parse(range.end) === startOfZonedDay(addDays(query.monday, 7), range.timeZone).getTime()
+		Date.parse(range.start) === week.start.getTime() &&
+		Date.parse(range.end) === week.end.getTime()
 	)
 }
 
@@ -61,7 +62,7 @@ async function readWeek(
 		if (obsolete() || data === null) return null
 		const mainTimeZone = data.requestedRange.timeZone
 		if (scheduleDate(new Date(data.requestedRange.start), mainTimeZone) !== query.monday) return null
-		const monday = query.current ? mondayOf(scheduleToday(new Date(), mainTimeZone)) : query.monday
+		const monday = query.current ? mondayOf(lessonDay(new Date(), mainTimeZone)) : query.monday
 		if (matchesQuery(data, query) && monday === query.monday) return { query, data }
 		query = { ...query, mainTimeZone, monday }
 	}

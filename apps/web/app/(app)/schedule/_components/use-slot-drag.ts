@@ -1,29 +1,23 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 
+import { lessonDayClock, lessonDaySlot } from '@dv-lab/core'
+
 import type { SlotChoice } from './week-grid'
 
 export const SLOT_MINUTES = 15
 const DAY_MINUTES = 24 * 60
 const SLOTS_PER_DAY = DAY_MINUTES / SLOT_MINUTES
 const DRAG_THRESHOLD = 4
-const MAX_FRAME_SLOTS = 240 / SLOT_MINUTES
 const CLICK_FRAME_MINUTES = 60
 const EDGE_ZONE = 48
 const SCROLL_STEP = 16
 
 export function clock(minutes: number): string {
-	if (minutes >= DAY_MINUTES) return '24:00'
-	return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+	return lessonDayClock(minutes)
 }
 
 function slotAt(clientY: number, columnTop: number, slotHeight: number): number {
 	return Math.max(0, Math.min(SLOTS_PER_DAY - 1, Math.floor((clientY - columnTop) / slotHeight)))
-}
-
-function clampSlot(anchor: number, slot: number): number {
-	if (slot - anchor >= MAX_FRAME_SLOTS) return anchor + MAX_FRAME_SLOTS - 1
-	if (anchor - slot >= MAX_FRAME_SLOTS) return anchor - MAX_FRAME_SLOTS + 1
-	return slot
 }
 
 interface DragState {
@@ -102,10 +96,7 @@ export function useSlotDrag(
 					const before = body.scrollTop
 					body.scrollTop = before + delta
 					if (body.scrollTop !== before) {
-						const slot = clampSlot(
-							press.anchor,
-							slotAt(press.lastY, press.column.getBoundingClientRect().top, SLOT_HEIGHT)
-						)
+						const slot = slotAt(press.lastY, press.column.getBoundingClientRect().top, SLOT_HEIGHT)
 						press.slot = slot
 						setDrag((current) => (current && current.slot !== slot ? { ...current, slot } : current))
 					}
@@ -146,7 +137,7 @@ export function useSlotDrag(
 			if (Math.hypot(event.clientX - press.startX, event.clientY - press.startY) < DRAG_THRESHOLD) return
 			press.started = true
 		}
-		const slot = clampSlot(press.anchor, slotAt(event.clientY, press.column.getBoundingClientRect().top, SLOT_HEIGHT))
+		const slot = slotAt(event.clientY, press.column.getBoundingClientRect().top, SLOT_HEIGHT)
 		press.slot = slot
 		setDrag((current) =>
 			current && current.date === press.date && current.anchor === press.anchor && current.slot === slot
@@ -167,8 +158,7 @@ export function useSlotDrag(
 		setDrag(null)
 		if (!press.started) {
 			onSlot?.({
-				date: press.date,
-				time: clock(press.anchor * SLOT_MINUTES),
+				...lessonDaySlot(press.date, press.anchor * SLOT_MINUTES),
 				durationMinutes: CLICK_FRAME_MINUTES,
 				dragged: false,
 			})
@@ -176,8 +166,7 @@ export function useSlotDrag(
 		}
 		const low = Math.min(press.anchor, slot)
 		onSlot?.({
-			date: press.date,
-			time: clock(low * SLOT_MINUTES),
+			...lessonDaySlot(press.date, low * SLOT_MINUTES),
 			durationMinutes: (Math.abs(slot - press.anchor) + 1) * SLOT_MINUTES,
 			dragged: true,
 		})

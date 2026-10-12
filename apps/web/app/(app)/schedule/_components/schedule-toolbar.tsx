@@ -14,7 +14,7 @@ import { calendarLesson } from '@/lib/lesson-actions'
 import { dayNumber, periodTitle, weekTitle } from '@/lib/schedule-format'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { addDays, mondayOf, zonedInstant } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf, zonedInstant } from '@dv-lab/core'
 
 interface WeekNavigation {
 	monday: string
@@ -59,8 +59,15 @@ export function useScheduleKeys({
 	}, [])
 }
 
-export function weekSummary(events: readonly CalendarEventView[]): string | null {
-	const held = events.filter(calendarLesson).filter((event) => event.status !== 'cancelled')
+export function weekSummary(events: readonly CalendarEventView[], monday: string, mainTimeZone: string): string | null {
+	const sunday = addDays(monday, 6)
+	const held = events
+		.filter(calendarLesson)
+		.filter((event) => event.status !== 'cancelled')
+		.filter((event) => {
+			const day = lessonDay(new Date(event.when.startsAt), mainTimeZone)
+			return monday <= day && day <= sunday
+		})
 	if (held.length === 0) return null
 	const students = new Set(held.map((event) => event.binding.studentId)).size
 	return `${held.length} ${held.length === 1 ? 'lesson' : 'lessons'} with ${students} ${students === 1 ? 'student' : 'students'}`
