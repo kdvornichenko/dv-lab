@@ -34,7 +34,7 @@ import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
 const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
 const MOBILE_FRAME = 'h-112'
-const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pb-2'
+const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2'
 
 function useLaptop() {
 	const left = useTopbarSlot('left')

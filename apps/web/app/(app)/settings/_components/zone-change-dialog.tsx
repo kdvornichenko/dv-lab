@@ -101,7 +101,7 @@ export function ZoneChangeDialog({
 						From {oldName} time ({oldLabel}) to {newName} time ({newLabel}).
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
 					<div className="flex flex-col gap-4">
 						<section id={changesId} className="text-body">
 							<h3 className="mb-2 font-semibold">What changes</h3>

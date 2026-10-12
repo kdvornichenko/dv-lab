@@ -123,11 +123,11 @@ function WeekPicker({ monday, onWeek }: { monday: string; onWeek: (monday: strin
 				<PopoverTrigger
 					render={
 						<Button
-							variant="tertiary"
+							variant="ghost"
 							size="compact"
-							aria-label="Choose week"
+							aria-label={`Choose week, ${weekTitle(monday)}`}
 							data-slot="schedule-week-picker"
-							className="shrink-0 text-title font-semibold whitespace-nowrap text-foreground tabular-nums"
+							className="w-44 shrink-0 text-title font-semibold whitespace-nowrap text-foreground tabular-nums"
 						>
 							{weekTitle(monday)}
 						</Button>
