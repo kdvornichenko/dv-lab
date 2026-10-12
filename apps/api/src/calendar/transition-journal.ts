@@ -18,7 +18,6 @@ import {
 import type { CommandAccess } from './dispatch.ts'
 import { CalendarFault, GoogleWriteFault } from './gateway.ts'
 import { CommandFault, digest, readCommand, retireReservations, type CommandRow, type StageRow } from './journal.ts'
-import { publishTransition } from './transition-view.ts'
 
 export async function transitionStage(
 	access: Pick<CommandAccess, 'db'>,
@@ -232,7 +231,6 @@ export async function acknowledgeTransition(
 					updatedAt: sql`now()`,
 				})
 				.where(eq(googleCommands.id, command.id))
-		if (stage.kind === 'write') await publishTransition(tx, command)
 		if (stage.kind === 'write')
 			await tx
 				.update(googleCommands)

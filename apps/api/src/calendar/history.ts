@@ -1,18 +1,16 @@
-import { and, desc, eq, gt, inArray, lte, notInArray, or } from 'drizzle-orm'
+import { and, eq, inArray, lte, notInArray } from 'drizzle-orm'
 
 import { occurrenceKey, type MarkKind, type OccurrenceRef } from '@dv-lab/core'
 import {
 	googleCommands,
 	googleConnections,
 	googleEventMappings,
-	googleNextLessons,
-	googleReadEvents,
-	googleReadWindows,
 	lessons,
 	lessonSeries,
 	type DbExecutor,
 } from '@dv-lab/db'
 
+import { rowForLocal } from './event-mapping.ts'
 import { currentConnection } from './google-access.ts'
 
 type HistorySubject = {
@@ -24,10 +22,7 @@ type HistorySubject = {
 }
 
 type HistoryConnection = typeof googleConnections.$inferSelect
-type HistoryWindow = typeof googleReadWindows.$inferSelect
-type HistoryEvent = typeof googleReadEvents.$inferSelect
 type HistoryMapping = typeof googleEventMappings.$inferSelect
-type NextHistory = typeof googleNextLessons.$inferSelect
 
 function entityId(ref: OccurrenceRef) {
 	return ref.kind === 'single' ? ref.lessonId : ref.seriesId
@@ -66,12 +61,17 @@ async function existingBefore(executor: DbExecutor, subjects: readonly HistorySu
 	return new Set([...lessonRows, ...seriesRows].map(({ id }) => id))
 }
 
-async function historyFacts(executor: DbExecutor, connection: HistoryConnection, subjects: readonly HistorySubject[]) {
-	const owner = and(eq(googleCommands.accountId, connection.accountId), eq(googleCommands.connectionId, connection.id))
+async function pendingKeys(executor: DbExecutor, connection: HistoryConnection, subjects: readonly HistorySubject[]) {
 	const commands = await executor
 		.select({ plan: googleCommands.plan })
 		.from(googleCommands)
-		.where(and(owner, notInArray(googleCommands.state, ['applied', 'failed'])))
+		.where(
+			and(
+				eq(googleCommands.accountId, connection.accountId),
+				eq(googleCommands.connectionId, connection.id),
+				notInArray(googleCommands.state, ['applied', 'failed'])
+			)
+		)
 	const mappings = await executor
 		.select()
 		.from(googleEventMappings)
@@ -79,115 +79,25 @@ async function historyFacts(executor: DbExecutor, connection: HistoryConnection,
 			and(
 				eq(googleEventMappings.accountId, connection.accountId),
 				eq(googleEventMappings.connectionId, connection.id),
+				eq(googleEventMappings.state, 'reserved'),
 				inArray(googleEventMappings.localEntityId, [...new Set(subjects.map(({ ref }) => entityId(ref)))])
 			)
 		)
 	const pending = new Set(commands.flatMap(({ plan }) => plan.affectedRefs.map(occurrenceKey)))
-	for (const mapping of mappings) if (mapping.state === 'reserved') pending.add(mappingKey(mapping))
-	const times = subjects.map(({ startsAt }) => startsAt.getTime())
-	const windows = await executor
-		.select()
-		.from(googleReadWindows)
-		.where(
-			and(
-				eq(googleReadWindows.accountId, connection.accountId),
-				eq(googleReadWindows.connectionId, connection.id),
-				eq(googleReadWindows.coverageState, 'complete'),
-				lte(googleReadWindows.windowStart, new Date(Math.max(...times))),
-				gt(googleReadWindows.windowEnd, new Date(Math.min(...times)))
-			)
-		)
-		.orderBy(desc(googleReadWindows.snapshotRevision))
-	const ids = mappings.map(({ eventId }) => eventId)
-	const studentIds = [...new Set(subjects.map(({ studentId }) => studentId))]
-	const events = await executor
-		.select()
-		.from(googleReadEvents)
-		.where(
-			and(
-				eq(googleReadEvents.accountId, connection.accountId),
-				eq(googleReadEvents.connectionId, connection.id),
-				or(
-					inArray(googleReadEvents.studentId, studentIds),
-					ids.length ? inArray(googleReadEvents.eventId, ids) : undefined,
-					ids.length ? inArray(googleReadEvents.recurringEventId, ids) : undefined
-				)
-			)
-		)
-		.orderBy(desc(googleReadEvents.snapshotRevision))
-	const next = await executor
-		.select()
-		.from(googleNextLessons)
-		.where(
-			and(
-				eq(googleNextLessons.accountId, connection.accountId),
-				eq(googleNextLessons.connectionId, connection.id),
-				inArray(googleNextLessons.studentId, studentIds),
-				lte(googleNextLessons.asOf, new Date(Math.max(...times))),
-				eq(googleNextLessons.completePrefix, true)
-			)
-		)
-	return { pending, mappings, windows, events, next }
+	for (const mapping of mappings) pending.add(mappingKey(mapping))
+	return pending
 }
 
-function activeRepresentation(event: HistoryEvent, mappings: readonly HistoryMapping[]) {
-	return mappings.some(
-		(mapping) =>
-			mapping.state === 'active' &&
-			mapping.studentId === event.studentId &&
-			mapping.representationGeneration === event.representationGeneration &&
-			(mapping.eventId === event.eventId ||
-				(mapping.entityKind === 'series' && mapping.eventId === event.recurringEventId))
-	)
-}
-
-function confirms(event: HistoryEvent, subject: HistorySubject, mappings: readonly HistoryMapping[]) {
-	if (event.bindingKind !== 'lesson' || event.status === 'cancelled' || !event.localRef) return false
-	if (event.studentId !== subject.studentId || occurrenceKey(event.localRef) !== occurrenceKey(subject.ref))
-		return false
-	if (!event.start || !event.end || !('dateTime' in event.start) || !('dateTime' in event.end)) return false
-	const start = new Date(event.start.dateTime).getTime()
+async function confirmedByProjection(executor: DbExecutor, connection: HistoryConnection, subject: HistorySubject) {
+	const local = await rowForLocal(executor, connection.id, subject.ref)
+	const row = local?.row
+	if (!local || !row?.startsAt || !row.endsAt) return false
 	return (
-		start === subject.startsAt.getTime() &&
-		new Date(event.end.dateTime).getTime() - start === subject.durationMinutes * 60000 &&
-		activeRepresentation(event, mappings)
-	)
-}
-
-function confirmedHistory(
-	subject: HistorySubject,
-	facts: {
-		windows: HistoryWindow[]
-		events: HistoryEvent[]
-		mappings: HistoryMapping[]
-		next: NextHistory[]
-	}
-) {
-	const window = facts.windows.find((item) => item.windowStart <= subject.startsAt && item.windowEnd > subject.startsAt)
-	if (!window) return false
-	const known = facts.events.find(
-		(event) => event.localRef && occurrenceKey(event.localRef) === occurrenceKey(subject.ref)
-	)
-	if (!known) return false
-	const latest = facts.events.find((event) => event.eventId === known.eventId)
-	return Boolean(
-		latest &&
-		latest.snapshotRevision >= window.snapshotRevision &&
-		confirms(latest, subject, facts.mappings) &&
-		!facts.next.some((proof) => disprovesHistory(proof, latest, subject))
-	)
-}
-
-function disprovesHistory(proof: NextHistory, event: HistoryEvent, subject: HistorySubject) {
-	if (
-		proof.studentId !== subject.studentId ||
-		proof.revision <= event.snapshotRevision ||
-		proof.asOf > subject.startsAt
-	)
-		return false
-	return (
-		proof.result === 'none' ||
-		(proof.result === 'known' && proof.startsAt !== null && proof.startsAt > subject.startsAt)
+		local.mapping.studentId === subject.studentId &&
+		row.status !== 'cancelled' &&
+		row.eventType === 'default' &&
+		row.startsAt.getTime() === subject.startsAt.getTime() &&
+		row.endsAt.getTime() - row.startsAt.getTime() === subject.durationMinutes * 60000
 	)
 }
 
@@ -198,16 +108,13 @@ export async function historyEligibility(executor: DbExecutor, accountId: string
 	if (!connection?.historyCutoverAt) return new Set(subjects.map(({ ref }) => occurrenceKey(ref)))
 	const cutoff = connection.historyCutoverAt
 	const existing = await existingBefore(executor, subjects, cutoff)
-	const facts = await historyFacts(executor, connection, subjects)
+	const pending = await pendingKeys(executor, connection, subjects)
 	for (const subject of subjects) {
-		const id = entityId(subject.ref)
-		if (subject.mark !== null) eligible.add(occurrenceKey(subject.ref))
-		else if (
-			!facts.pending.has(occurrenceKey(subject.ref)) &&
-			!facts.pending.has(`series:${id}`) &&
-			((subject.startsAt < cutoff && existing.has(id)) || confirmedHistory(subject, facts))
-		)
-			eligible.add(occurrenceKey(subject.ref))
+		const key = occurrenceKey(subject.ref)
+		if (subject.mark !== null) eligible.add(key)
+		else if (pending.has(key) || pending.has(`series:${entityId(subject.ref)}`)) continue
+		else if (subject.startsAt < cutoff && existing.has(entityId(subject.ref))) eligible.add(key)
+		else if (await confirmedByProjection(executor, connection, subject)) eligible.add(key)
 	}
 	return eligible
 }
