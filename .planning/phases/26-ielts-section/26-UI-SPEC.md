@@ -425,7 +425,7 @@ SHA-256 full files except labelled scopes/groups. ROADMAP26 includes heading thr
 | Tokens                            | 9de5ec97cdd57274454b44112d43d8059ee7cc22384fe4f672c70d6aa360cfcf |
 | Target auth accounts              | 3fd36d96015ce9debea75dffe5e11a0b780628f7f3284b012409f919dfb16b04 |
 | Target schema                     | 3f190ad368cb89b5cabd7a08c57ab94c4c4c815a9aa09d92cc877cb3218551de |
-| ROOT ROADMAP26 section            | b33a64472ad2938e5fd3b53d4a869f6b8b992095984b5229a1ec468b945c5d85 |
+| ROOT ROADMAP26 section            | 5d6ce1747e062af9236df55dcf9eac643f268633121b398a01ed9efb060bd639 |
 | ROOT six IELTS requirement lines  | 6533242e606edd897773fe3cc982be1b12fc2e10bb05f6c9dad887e0e38e27c5 |
 | SOURCE research group (42 files)  | eda58433660d56bc3c12ab5abc682f79b3d6a0f88de93e5a70da2bb10d0ddf5a |
 | SOURCE UI/helper group (24 files) | ecd4ee3a7271ce755af2e3d47436d375948209ed493b6332ee37546b78f52093 |
