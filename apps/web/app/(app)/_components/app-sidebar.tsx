@@ -31,10 +31,13 @@ import { useSignOut } from './use-sign-out'
 interface AppSidebarProps {
 	account: AccountSummary
 	onOpenSearch: (initialQuery?: string) => void
+	onNavigate: (href: string) => void
+	pendingPath: string | null
 }
 
-export function AppSidebar({ account, onOpenSearch }: AppSidebarProps) {
-	const pathname = usePathname()
+export function AppSidebar({ account, onOpenSearch, onNavigate, pendingPath }: AppSidebarProps) {
+	const currentPath = usePathname()
+	const pathname = pendingPath ?? currentPath
 	const { isMobile, setOpenMobile } = useSidebar()
 	const { signOut } = useSignOut()
 	const [changePasswordOpen, setChangePasswordOpen] = useState(false)
@@ -79,7 +82,7 @@ export function AppSidebar({ account, onOpenSearch }: AppSidebarProps) {
 											icon={section.icon}
 											isActive={active}
 											aria-current={active ? 'page' : undefined}
-											render={<Link href={section.href} />}
+											render={<Link href={section.href} onNavigate={() => onNavigate(section.href)} />}
 											onClick={() => {
 												if (isMobile) setOpenMobile(false)
 											}}

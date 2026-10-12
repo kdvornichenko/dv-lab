@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 
 import { redirect } from 'next/navigation'
 
@@ -8,8 +8,17 @@ import { getMe } from '@/lib/session'
 import { AppShell } from './_components/app-shell'
 import { SessionRenewal } from './_components/session-renewal'
 import { StudentLanding } from './_components/student-landing'
+import Loading from './loading'
 
-export default async function AppLayout({ children }: { children: ReactNode }) {
+export default function AppLayout({ children }: { children: ReactNode }) {
+	return (
+		<Suspense fallback={<Loading />}>
+			<AuthenticatedLayout>{children}</AuthenticatedLayout>
+		</Suspense>
+	)
+}
+
+async function AuthenticatedLayout({ children }: { children: ReactNode }) {
 	const me = await getMe()
 	if (!me) redirect('/login?reason=expired')
 	if (me.account.role === 'student') {
@@ -21,7 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 		)
 	}
 	return (
-		<AppShell account={me.account}>
+		<AppShell key={me.account.id} account={me.account}>
 			<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
 				<SessionRenewal renewDue={me.renewDue} />
 				{children}
