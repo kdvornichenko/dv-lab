@@ -65,7 +65,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 		currentMonday: mondayOf(today),
 		read: data?.read ?? ({ state: 'unavailable', reason: 'provider_unavailable' } as const),
 		write: data?.write ?? ({ state: 'blocked', reason: 'provider_unavailable' } as const),
-		events: data?.events ?? [],
+		events: (data?.events ?? []).filter((event) => event.status !== 'cancelled'),
 	}
 }
 
