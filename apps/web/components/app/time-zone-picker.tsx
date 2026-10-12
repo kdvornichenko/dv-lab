@@ -9,7 +9,7 @@ import { ChevronDown, Globe, Search, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Combobox, ComboboxContent, ComboboxItem, ComboboxList, type ComboboxItemData } from '@/components/ui/combobox'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { IconComponent } from '@/lib/icon-context'
+import { Tooltip } from '@/components/ui/tooltip'
 import { listTimeZones, sameTimeZone, zoneLabel, zoneMatches } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
@@ -123,8 +123,6 @@ function useFavoriteZones(): [readonly string[], (zone: string) => void] {
 	}, [])
 	return [favorites, toggle]
 }
-
-const Chevron12: IconComponent = (props) => <ChevronDown {...props} size={12} />
 
 interface FirstOption {
 	value: string
@@ -273,20 +271,13 @@ export function TimeZonePicker({
 			onInputValueChange={setQuery}
 		>
 			{toolbar ? (
-				<ComboboxPrimitive.Trigger
-					render={
-						<Button
-							variant="tertiary"
-							size="compact"
-							className="rounded-full"
-							aria-label="Second time zone"
-							leadingIcon={Globe}
-							trailingIcon={Chevron12}
-						/>
-					}
-				>
-					{chosenLabel ?? 'No second zone'}
-				</ComboboxPrimitive.Trigger>
+				<Tooltip side="bottom" content={`Second time zone: ${chosenLabel ?? 'none'}`}>
+					<ComboboxPrimitive.Trigger
+						render={<Button variant="tertiary" size="icon-compact" aria-label="Second time zone" />}
+					>
+						<Globe />
+					</ComboboxPrimitive.Trigger>
+				</Tooltip>
 			) : (
 				<ComboboxPrimitive.Trigger
 					id={id}
@@ -386,7 +377,7 @@ export function TimeZonePicker({
 					</ComboboxList>
 				</div>
 				<div className="flex h-8 shrink-0 items-center border-t border-border px-3 text-caption text-muted-foreground">
-					{searching ? null : 'Search by city, country or abbreviation.'}
+					{searching ? null : 'Search by city or abbreviation.'}
 				</div>
 			</ComboboxContent>
 		</Combobox>
