@@ -5,14 +5,14 @@ import type { Logger } from 'pino'
 import { googleCommands, googleCommandStages, googleConnections, type Database, type DbExecutor } from '@dv-lab/db'
 
 import { readConnection } from './connection.ts'
+import { CalendarFault, GOOGLE_REQUEST_TIMEOUT_MS, type GoogleGateway } from './gateway.ts'
 import {
 	credentialBinding,
 	currentConnection,
 	findConnection,
 	type ConnectionRow,
 	type Credentials,
-} from './credentials.ts'
-import { CalendarFault, GOOGLE_REQUEST_TIMEOUT_MS, type GoogleGateway } from './gateway.ts'
+} from './google-access.ts'
 import { retireReservations } from './journal.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'

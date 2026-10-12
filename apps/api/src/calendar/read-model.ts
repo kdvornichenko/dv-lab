@@ -14,8 +14,8 @@ import { googleReadEvents, googleReadWindows, googleNextLessons, type DbExecutor
 import { withCancelledOccurrences } from './cancelled-occurrences.ts'
 import { withCancelledSingles } from './cancelled-singles.ts'
 import { readConnection } from './connection.ts'
-import { findConnection } from './credentials.ts'
-import type { ConnectionRow } from './credentials.ts'
+import { findConnection } from './google-access.ts'
+import type { ConnectionRow } from './google-access.ts'
 import {
 	currentRead,
 	eventVersion,

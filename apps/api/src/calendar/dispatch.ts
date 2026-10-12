@@ -13,8 +13,8 @@ import {
 import { applyConfirmedCommand, applyConfirmedCut } from '../schedule/command-apply.ts'
 import { commandWindow, type PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { storedGoogleResult, unownedFingerprint, type VerifiedGoogleResponse } from './command-result.ts'
-import type { ConnectionRow } from './credentials.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
+import type { ConnectionRow } from './google-access.ts'
 import {
 	CommandFault,
 	failUnsentCommand,

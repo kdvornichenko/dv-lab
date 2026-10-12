@@ -15,7 +15,7 @@ import {
 	type GoogleStageRequest,
 } from '@dv-lab/db'
 
-import { currentConnection } from '../calendar/credentials.ts'
+import { currentConnection } from '../calendar/google-access.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'

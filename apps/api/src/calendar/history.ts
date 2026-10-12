@@ -13,7 +13,7 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
-import { currentConnection } from './credentials.ts'
+import { currentConnection } from './google-access.ts'
 
 type HistorySubject = {
 	ref: OccurrenceRef

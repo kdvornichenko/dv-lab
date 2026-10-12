@@ -22,10 +22,10 @@ import {
 } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
-import { findConnection, type Credentials } from '../calendar/credentials.ts'
 import type { CommandAccess } from '../calendar/dispatch.ts'
 import { bindEvent, loadMappings } from '../calendar/event-mapping.ts'
 import { CalendarFault, type GoogleGateway } from '../calendar/gateway.ts'
+import { findConnection, type Credentials } from '../calendar/google-access.ts'
 import { observeInstance } from '../calendar/instance-observation.ts'
 import { CommandFault, unresolvedCommands } from '../calendar/journal.ts'
 import { eventView } from '../calendar/read-model.ts'

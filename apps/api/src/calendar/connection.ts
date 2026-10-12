@@ -11,8 +11,8 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
-import { credentialBinding, findConnection, type ConnectionRow, type Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway, type GoogleTokens, type PrimaryCalendar } from './gateway.ts'
+import { credentialBinding, findConnection, type ConnectionRow, type Credentials } from './google-access.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'
 import type { CalendarObservation } from './observation.ts'

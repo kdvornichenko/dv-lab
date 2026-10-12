@@ -7,8 +7,8 @@ import { googleReadEvents, type Database } from '@dv-lab/db'
 
 import { checkCalendarConflicts } from '../schedule/calendar-conflicts.ts'
 import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
-import type { Credentials } from './credentials.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import type { Credentials } from './google-access.ts'
 import { observeInstance } from './instance-observation.ts'
 import {
 	CommandFault,

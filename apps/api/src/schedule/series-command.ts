@@ -13,7 +13,7 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
-import { currentConnection } from '../calendar/credentials.ts'
+import { currentConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
 import { masterRepresentation } from '../calendar/recurring.ts'

@@ -10,8 +10,8 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
-import type { ConnectionRow } from './credentials.ts'
 import { loadMappings, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
+import type { ConnectionRow } from './google-access.ts'
 import type { NextProof } from './read-pages.ts'
 import { opaqueVersion, recordRead, type CalendarReadContext, type WindowSelection } from './read-state.ts'
 

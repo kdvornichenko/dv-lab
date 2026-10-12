@@ -1,8 +1,8 @@
 import { readSnapshot, type Database } from '@dv-lab/db'
 
-import type { Credentials } from './credentials.ts'
 import { loadMappings } from './event-mapping.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import type { Credentials } from './google-access.ts'
 import type { CalendarObservation } from './observation.ts'
 import { completeWindow, nextPrefix, type ReadTransport } from './read-pages.ts'
 import { currentRead, recordRead, type CalendarReadContext, type CalendarReadSelection } from './read-state.ts'

@@ -15,9 +15,9 @@ import {
 } from '@dv-lab/db'
 
 import { cancelledSingles } from '../calendar/cancelled-singles.ts'
-import { currentConnection } from '../calendar/credentials.ts'
 import { replacementCommand } from '../calendar/event-mapping.ts'
 import type { GoogleGateway } from '../calendar/gateway.ts'
+import { currentConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
 import type { SingleEvidence } from '../calendar/single-observation.ts'

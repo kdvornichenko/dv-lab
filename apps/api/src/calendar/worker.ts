@@ -5,9 +5,9 @@ import { z } from 'zod'
 
 import { googleCommands, googleConnections, type Database } from '@dv-lab/db'
 
-import type { Credentials } from './credentials.ts'
 import { dispatchCommand, projectCommand } from './dispatch.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
+import type { Credentials } from './google-access.ts'
 import { resumeUnsentInstance } from './instance-recovery.ts'
 import { failUnsentCommand, preparedCommand, readCommand, type CommandRow } from './journal.ts'
 import type { ConnectionLease } from './lease.ts'
