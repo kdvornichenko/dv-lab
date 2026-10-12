@@ -111,10 +111,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
 						<Icon
 							size={sizeClasses.icon}
 							strokeWidth={isActive || checked ? 2 : 1.5}
-							className={cn(
-								'col-start-1 row-start-1 transition-[color,stroke-width] duration-80',
-								isActive || checked ? 'text-foreground' : 'text-muted-foreground'
-							)}
+							className={cn('col-start-1 row-start-1 transition-[color,stroke-width] duration-80', 'text-foreground')}
 						/>
 					</span>
 				)}
@@ -130,7 +127,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
 					<span
 						className={cn(
 							'col-start-1 row-start-1 transition-[color,font-variation-settings] duration-80 [text-box:trim-both_cap_alphabetic]',
-							isActive || checked ? 'text-foreground' : 'text-muted-foreground'
+							'text-foreground'
 						)}
 						style={{
 							fontVariationSettings: checked ? fontWeights.semibold : fontWeights.normal,

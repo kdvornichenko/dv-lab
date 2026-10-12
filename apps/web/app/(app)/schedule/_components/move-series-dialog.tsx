@@ -205,7 +205,7 @@ export function MoveSeriesDialog({
 						{studentName}. {initial.description}
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
 					<div className="flex flex-col gap-4 py-1">
 						<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 						<CalendarFormStatus

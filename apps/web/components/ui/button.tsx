@@ -30,13 +30,13 @@ const buttonVariants = cva(
 				primary: 'text-background',
 				secondary: 'text-foreground',
 				tertiary: 'text-foreground',
-				ghost: 'text-muted-foreground hover:text-foreground',
+				ghost: 'text-foreground',
 			},
 			size: {
 				default: 'h-9 gap-1.5 px-4 text-[length:var(--fs-body,13px)] leading-[var(--lh-body,20px)]',
 				compact: 'h-7 gap-1 px-3 text-[length:var(--fs-body-compact,12px)] leading-[var(--lh-body-compact,18px)]',
 				icon: 'h-9 w-9 p-0 [&_svg]:h-4 [&_svg]:w-4',
-				'icon-compact': 'h-7 w-7 p-0 [&_svg]:h-3.5 [&_svg]:w-3.5',
+				'icon-compact': 'h-7 w-7 p-0 [&_svg]:h-4 [&_svg]:w-4',
 			},
 			iconLeft: { true: '' },
 			iconRight: { true: '' },
@@ -135,7 +135,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 				: 'default'
 		const isIconOnly = resolvedSize === 'icon' || resolvedSize === 'icon-compact'
 		const isCompact = resolvedSize === 'compact' || resolvedSize === 'icon-compact'
-		const iconSize = isCompact ? 14 : 16
+		const iconSize = 16
 		const spinnerSizeClass = isCompact ? 'h-7 w-7' : 'h-9 w-9'
 		const shape = useShape()
 		const bgClass = active ? activeBgVariants[variant ?? 'primary'] : bgVariants[variant ?? 'primary']
