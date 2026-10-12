@@ -261,20 +261,6 @@ function localRef(event: ProviderEvent, mapping: MappingRow, snapshot: MappingSn
 	return { kind: 'series', seriesId: mapping.localEntityId, originalOn }
 }
 
-export function pendingStudents(snapshot: MappingSnapshot): ReadonlySet<string> {
-	const students = new Set(snapshot.mappings.filter((row) => row.state === 'reserved').map((row) => row.studentId))
-	for (const command of snapshot.commands) {
-		if (command.plan.input.operation === 'create') students.add(command.plan.input.studentId)
-		for (const ref of command.plan.affectedRefs) {
-			const entityId = ref.kind === 'single' ? ref.lessonId : ref.seriesId
-			for (const mapping of snapshot.mappings) {
-				if (mapping.localEntityId === entityId) students.add(mapping.studentId)
-			}
-		}
-	}
-	return students
-}
-
 export type LocalRow =
 	| { kind: 'single'; mapping: MappingRow; row: ProjectionRow }
 	| { kind: 'series'; mapping: MappingRow; row: ProjectionRow; rule: SeriesRule; natural: Date }
