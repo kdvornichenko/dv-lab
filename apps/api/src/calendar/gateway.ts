@@ -264,7 +264,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 		authorizationUrl(state: string, challenge: string): string {
 			return client(new AbortController().signal).generateAuthUrl({
 				access_type: 'offline',
-				prompt: 'consent',
+				prompt: 'select_account consent',
 				scope: [...CALENDAR_SCOPES],
 				include_granted_scopes: false,
 				state,
