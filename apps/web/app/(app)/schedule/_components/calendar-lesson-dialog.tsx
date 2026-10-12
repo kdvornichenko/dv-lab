@@ -21,7 +21,6 @@ import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
 import { LessonMoveForm } from './lesson-move-form'
 import { MoveSeriesDialog } from './move-series-dialog'
-import type { OverlapBlock } from './new-lesson-dialog'
 import { useScheduleMutation } from './schedule-mutations'
 
 type Props = {
@@ -31,7 +30,6 @@ type Props = {
 	mainTimeZone: string
 	secondZone: string | null
 	student?: { id: string; name: string }
-	blocksOn: (date: string) => Promise<OverlapBlock[] | null>
 	onClose: () => void
 	onRefresh: () => void
 }
@@ -75,7 +73,6 @@ function LessonContent({
 	mainTimeZone,
 	secondZone,
 	student,
-	blocksOn,
 	onClose,
 	onRefresh,
 	asOf,
@@ -181,7 +178,6 @@ function LessonContent({
 								currentMainTimeZone={window.requestedRange.timeZone}
 								asOf={asOf}
 								secondZone={secondZone}
-								blocksOn={blocksOn}
 								locked={command.pending}
 								onPendingChange={setMovePending}
 								onDiscard={() => {

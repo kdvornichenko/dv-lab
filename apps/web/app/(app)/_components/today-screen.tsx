@@ -302,7 +302,7 @@ export function TodayScreen() {
 }
 
 function LoadedToday({ minuteNow }: { minuteNow: Date }) {
-	const { state, now, reload, blocksOn, calendar, getData } = useToday(minuteNow)
+	const { state, now, reload, calendar, getData } = useToday(minuteNow)
 	const { data } = state
 	const [zone] = useSecondZone(data?.defaultTimeZone ?? null)
 	const [selected, setSelected] = useState<LessonSelection | null>(null)
@@ -417,7 +417,6 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 				calendar={calendar}
 				now={now}
 				secondZone={zone}
-				blocksOn={blocksOn}
 				reload={reload}
 				onClose={closeLesson}
 				onOpenPair={openPair}

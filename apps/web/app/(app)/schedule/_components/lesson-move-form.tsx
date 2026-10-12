@@ -1,21 +1,21 @@
 'use client'
 
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { ArrowRight, CalendarClock } from 'lucide-react'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
+import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { TimePicker } from '@/components/ui/time-picker'
 import type { CalendarLesson } from '@/lib/lesson-actions'
 import { formatDate, formatDay, mainRange, mainWhen } from '@/lib/schedule-format'
 
-import { overlaps, scheduleDate, zonedParts } from '@dv-lab/core'
+import { scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
-import type { OverlapBlock } from './new-lesson-dialog'
 import {
 	gapMessage,
 	localTimeInput,
@@ -32,7 +32,6 @@ interface LessonMoveFormProps extends ScheduleFormContext {
 	currentMainTimeZone: string
 	secondZone: string | null
 	locked: boolean
-	blocksOn: (date: string) => Promise<OverlapBlock[] | null>
 	onPendingChange: (pending: boolean) => void
 	onDiscard: () => void
 	onStale: () => void
@@ -69,7 +68,6 @@ export function LessonMoveForm({
 	currentMainTimeZone,
 	secondZone,
 	locked,
-	blocksOn,
 	onPendingChange,
 	onDiscard,
 	onStale,
@@ -102,24 +100,11 @@ export function LessonMoveForm({
 	const [serverGap, setServerGap] = useState(false)
 	const [sourceChanged, setSourceChanged] = useState(false)
 	const disabled = pending || locked
-	const [day, setDay] = useState<{ date: string; items: OverlapBlock[] } | null>(null)
-
-	const loadBlocks = useEffectEvent((forDate: string) => blocksOn(forDate))
 
 	useEffect(() => {
 		const timer = setTimeout(() => document.getElementById('move-lesson-date')?.focus(), 50)
 		return () => clearTimeout(timer)
 	}, [])
-
-	useEffect(() => {
-		let active = true
-		void loadBlocks(date).then((items) => {
-			if (active) setDay(items === null ? null : { date, items })
-		})
-		return () => {
-			active = false
-		}
-	}, [date])
 
 	const input = localTimeInput(date, time, context)
 	const target = input.instant
@@ -127,27 +112,45 @@ export function LessonMoveForm({
 	const errors = moveErrors(date, time, target, start, timeError)
 	const shown = (field: Field) =>
 		submitted || touched[field] || (field === 'time' && timeError) ? errors[field] : undefined
-	const clashes =
-		target !== null && day !== null && day.date === date
-			? overlaps(day.items, { startsAt: target, durationMinutes: block.durationMinutes }, block.key)
-			: []
+	const conflicts = useGoogleConflicts({
+		proposal:
+			time !== null && !errors.date && !errors.time
+				? {
+						operation: 'move',
+						input: {
+							date,
+							startTime: time,
+							expectedStartsAt: block.startsAt,
+							expectedDefaultTimeZone: context.mainTimeZone,
+						},
+					}
+				: null,
+		editedRef: block.ref,
+		date: scheduleDate(start, context.mainTimeZone),
+		available: available && !disabled && !command.blocked && !context.stale && !sourceChanged,
+	})
 
 	useEffect(() => {
 		onPendingChange(pending)
 	}, [pending, onPendingChange])
 
 	async function submit() {
-		if (!available || disabled || command.blocked || context.stale || sourceChanged) return
+		if (!conflicts.ready) return
 		setSubmitted(true)
 		setFailed(null)
 		if (errors.date) return document.getElementById('move-lesson-date')?.focus()
 		if (errors.time || time === null || target === null) return document.getElementById('move-lesson-time')?.focus()
-		const result = await command.mutate(block.ref, 'move', {
-			date,
-			startTime: time,
-			expectedStartsAt: block.startsAt,
-			expectedDefaultTimeZone: context.mainTimeZone,
-		})
+		const result = await command.mutate(
+			block.ref,
+			'move',
+			{
+				date,
+				startTime: time,
+				expectedStartsAt: block.startsAt,
+				expectedDefaultTimeZone: context.mainTimeZone,
+			},
+			conflicts.checked
+		)
 		if (result.kind === 'detached') return
 		if (result.kind === 'zone_changed') return context.markStale()
 		if (result.kind === 'gap') return setServerGap(true)
@@ -247,17 +250,7 @@ export function LessonMoveForm({
 					</p>
 				)}
 			</div>
-			{clashes.length > 0 ? (
-				<p data-slot="move-lesson-clash" className="text-body text-destructive">
-					A lesson is already at this time:{' '}
-					{clashes
-						.map(
-							(item) =>
-								`${item.studentName} ${mainRange(item.startsAt, item.durationMinutes, context.mainTimeZone, null)}`
-						)
-						.join(', ')}
-				</p>
-			) : null}
+			<GoogleConflicts check={conflicts} pending={pending} />
 			<div className="flex flex-wrap justify-end gap-2">
 				<Button type="button" variant="ghost" size="compact" disabled={disabled} onClick={onDiscard}>
 					Discard changes
@@ -267,7 +260,7 @@ export function LessonMoveForm({
 					size="compact"
 					leadingIcon={CalendarClock}
 					loading={pending}
-					disabled={!available || disabled || command.blocked || context.stale || sourceChanged}
+					disabled={!conflicts.ready}
 					onClick={() => void submit()}
 				>
 					{pending ? 'Moving…' : 'Move lesson'}

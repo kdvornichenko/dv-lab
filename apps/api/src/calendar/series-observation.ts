@@ -35,7 +35,12 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 	)
 	if (
 		!matchesMaster(master, prepared.rule) ||
-		opaqueVersion([mapping.id, mapping.representationGeneration, master.event.etag]) !== input.input.expectedVersion
+		opaqueVersion([
+			opaqueVersion([mapping.id, mapping.representationGeneration, master.event.etag]),
+			access.connection.id,
+			access.connection.generation,
+			access.connection.snapshotRevision,
+		]) !== input.input.expectedVersion
 	)
 		throw new CommandFault('precondition_failed')
 	if (

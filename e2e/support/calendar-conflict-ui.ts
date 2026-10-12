@@ -57,6 +57,8 @@ export async function conflictCreateUi(page: Page) {
 			.toBe(true)
 		await dialog.locator('#new-lesson-length').fill('62')
 		await expect(save).toBeDisabled()
+		await dialog.locator('#new-lesson-length').fill('61')
+		await expect(dialog.getByRole('button', { name: 'Check overlaps', exact: true })).toBeEnabled()
 	} finally {
 		disarmCalendarFault(fault)
 	}

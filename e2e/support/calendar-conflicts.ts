@@ -54,6 +54,32 @@ export async function conflictFixture(request: APIRequestContext) {
 			expiresAt: z.iso.datetime(),
 			cases,
 			reconnectGeneration: z.number().int().positive().optional(),
+			uiCases: z
+				.array(
+					z.strictObject({
+						name: z.enum([
+							'single',
+							'whole',
+							'moved_reference',
+							'stale_target',
+							'stale_context',
+							'missing_context',
+							'default_zone',
+							'gap',
+							'fold',
+							'reconnect',
+							'cut_pending',
+							'cut_recovery',
+						]),
+						weekStart: z.iso.date(),
+						eventKey: z.string(),
+						request: googleConflictRequest,
+						checkThrough: z.iso.date().optional(),
+						newDefaultTimeZone: z.string().optional(),
+						reconnectGeneration: z.number().int().positive().optional(),
+					})
+				)
+				.optional(),
 		})
 		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-conflicts.json`))
 	if (

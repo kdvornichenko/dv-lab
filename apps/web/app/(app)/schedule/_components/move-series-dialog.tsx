@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
+import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -65,6 +66,19 @@ function seriesInput(rule: ScheduleSeries, mainTimeZone: string, secondZone: str
 	}
 }
 
+function seriesProposal(
+	draft: Pick<Parameters<typeof seriesPreview>[0], 'from' | 'weekday' | 'time' | 'mainTimeZone'>,
+	errors: ReturnType<typeof seriesPreview>['errors'],
+	rowError: string | undefined
+) {
+	const { from, weekday, time, mainTimeZone } = draft
+	if (errors.from || errors.day || errors.time || rowError || weekday === null || time === null) return null
+	return {
+		operation: 'move_series' as const,
+		input: { from, weekday, startTime: time, expectedDefaultTimeZone: mainTimeZone },
+	}
+}
+
 export function MoveSeriesDialog({
 	series: initialSeries,
 	available,
@@ -115,6 +129,16 @@ export function MoveSeriesDialog({
 	const shownRow = visible ? rowError : undefined
 	const shownDay = submitted || touched.day ? errors.day : undefined
 	const shownTime = submitted || touched.time || input.error || serverGap ? errors.time : undefined
+	const conflicts = useGoogleConflicts({
+		proposal: seriesProposal({ from, weekday, time, mainTimeZone: context.mainTimeZone }, errors, rowError),
+		editedRef:
+			rule.referenceOccurrence === null
+				? undefined
+				: { kind: 'series', seriesId: rule.id, originalOn: rule.referenceOccurrence.originalOn },
+		series,
+		date: today,
+		available: available && !pending && !command.blocked && !context.stale && notice !== 'stale',
+	})
 
 	function edit<T>(set: (value: T) => void, field?: Field) {
 		return (value: T) => {
@@ -127,7 +151,7 @@ export function MoveSeriesDialog({
 	}
 
 	function canSubmit() {
-		return available && !pending && !command.blocked && !context.stale && notice !== 'stale'
+		return conflicts.ready
 	}
 
 	async function submit() {
@@ -138,12 +162,17 @@ export function MoveSeriesDialog({
 		if (errors.day || weekday === null) return document.getElementById('move-series-day')?.focus()
 		if (errors.time || time === null) return document.getElementById('move-series-time')?.focus()
 		if (rowError) return document.getElementById('move-series-day')?.focus()
-		const result = await command.mutate({ kind: 'rule', seriesId: rule.id }, 'move', {
-			from,
-			weekday,
-			startTime: time,
-			expectedDefaultTimeZone: context.mainTimeZone,
-		})
+		const result = await command.mutate(
+			{ kind: 'rule', seriesId: rule.id },
+			'move',
+			{
+				from,
+				weekday,
+				startTime: time,
+				expectedDefaultTimeZone: context.mainTimeZone,
+			},
+			conflicts.checked
+		)
 		if (result.kind === 'detached') return
 		if (result.kind === 'zone_changed') return context.markStale()
 		if (result.kind === 'gap') return setServerGap(true)
@@ -227,6 +256,7 @@ export function MoveSeriesDialog({
 								<span className="text-body text-foreground tabular-nums">{preview}</span>
 							</div>
 						) : null}
+						<GoogleConflicts check={conflicts} pending={pending} />
 						<p data-slot="move-series-note" className="text-caption text-muted-foreground">
 							Lessons before this date stay as they are. Lessons you already moved keep their new time. Cancelled
 							lessons from this date on are reset.

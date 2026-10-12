@@ -14,7 +14,7 @@ import { secondWhen, seriesPhrase } from '@/lib/schedule-format'
 import { sameTimeZone, zoneName } from '@/lib/time-zones'
 
 import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, type LessonRepeats, type StudentRow } from '@dv-lab/contracts'
-import { weekdayOf, type OverlapItem } from '@dv-lab/core'
+import { weekdayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { NewLessonFooter, NewLessonNotices, NewLessonStudent } from './new-lesson-content'
@@ -28,8 +28,6 @@ import {
 } from './schedule-form-context'
 import { useScheduleMutation, type CreateLessonBody } from './schedule-mutations'
 
-export type OverlapBlock = OverlapItem & { studentName: string }
-
 export type StudentsState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; rows: StudentRow[] }
 
 interface NewLessonDialogProps extends ScheduleFormContext {
@@ -38,7 +36,6 @@ interface NewLessonDialogProps extends ScheduleFormContext {
 	seed: { date: string; time: string; durationMinutes?: number }
 	currentMainTimeZone: string
 	secondZone: string | null
-	blocksOn: (date: string) => Promise<OverlapBlock[] | null>
 	onClose: () => void
 	onCreated: () => void
 	onRefresh: () => void

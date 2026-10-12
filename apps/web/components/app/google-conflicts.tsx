@@ -17,6 +17,7 @@ import {
 	type CalendarSeriesContext,
 	type CalendarEventView,
 } from '@dv-lab/contracts'
+import { firstOnOrAfter } from '@dv-lab/core'
 
 import { useCalendarCommands } from './calendar-command-provider'
 import { DateField } from './date-field'
@@ -80,7 +81,12 @@ function selectionRange(selection: Selection, through: string | null) {
 		proposal?.operation === 'create'
 			? proposal.input.repeats === 'weekly'
 			: proposal?.operation === 'move_series' && selection.series?.series.endsOn === null
-	const minimum = proposal?.operation === 'create' ? proposal.input.date : selection.date
+	const minimum =
+		proposal?.operation === 'create'
+			? proposal.input.date
+			: proposal?.operation === 'move_series'
+				? firstOnOrAfter(proposal.input.from, proposal.input.weekday)
+				: selection.date
 	return { infinite, minimum, rangeValid: !infinite || (through !== null && through >= minimum) }
 }
 
@@ -112,7 +118,7 @@ function resultState(
 		loading !== key
 	return {
 		current,
-		result: published ? (current?.result ?? null) : null,
+		result: current?.result.state === 'unavailable' ? current.result : published ? (current?.result ?? null) : null,
 		ready,
 		window: ready ? (current?.window ?? null) : null,
 	}
@@ -143,6 +149,7 @@ export function useGoogleConflicts(selection: Selection) {
 	const currentKey = useRef(key)
 	const allowed = selection.available && !controller.blocked && proposal !== null && rangeValid
 	if (stored !== null && stored.key !== key) setStored(null)
+	if (loading !== null && loading !== key) setLoading(null)
 
 	useEffect(() => {
 		currentKey.current = key
@@ -160,6 +167,7 @@ export function useGoogleConflicts(selection: Selection) {
 			const token = ++sequence.current
 			request.current?.abort()
 			setStored(null)
+			setLoading(null)
 			void store.refresh().then(() => {
 				const current = () => mounted.current && token === sequence.current
 				return current() ? readWindow(selection.date, current) : null

@@ -13,6 +13,7 @@ import {
 	calendarNextPrefixRecovery,
 	calendarWindowRecovery,
 } from './support/calendar-read-recovery.ts'
+import { conflictMoveUi, completeSeriesUi } from './support/calendar-series-ui.ts'
 import { blockedHistoryUi, failedNoneUi, lostPostUi, pendingUi, recoveryUi } from './support/calendar-ui.ts'
 import { AUTH_FILE, BASE, PRIVATE_DIR, teacherCredentials } from './support/data.ts'
 import { mondayOf, vnToday } from './support/dates.ts'
@@ -38,6 +39,20 @@ test('[calendar] conflict UI keeps a mounted draft across actual same-calendar r
 
 test('[calendar] ownership cleanup preserves retained cards and their registry', async ({ page }) => {
 	await calendarFixtureRetention(page.request)
+})
+
+test('[calendar] conflict move keeps exact targets, natural series rules and refuses stale context', async ({
+	page,
+}) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await conflictMoveUi(page)
+})
+
+test('[calendar] complete UI series waits for ACK, resumes partial cuts and reloads confirmed rules', async ({
+	page,
+}) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await completeSeriesUi(page)
 })
 
 function observedCancellations(): unknown {
