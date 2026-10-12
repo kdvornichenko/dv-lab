@@ -1,6 +1,15 @@
 import { timeZoneIdentity } from '@dv-lab/contracts'
-import { addDays, lastSeriesDateOnOrBefore, nextSeriesDate, seriesStart, startOfZonedDay } from '@dv-lab/core'
+import {
+	addDays,
+	lastSeriesDateOnOrBefore,
+	nextSeriesDate,
+	seriesStart,
+	startOfZonedDay,
+	zonedParts,
+} from '@dv-lab/core'
 import type { GoogleCommandPlan } from '@dv-lab/db'
+
+import type { MasterRecurrence } from './projection.ts'
 
 type Rule = NonNullable<GoogleCommandPlan['capturedRule']>
 const weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
@@ -31,19 +40,71 @@ export function masterRepresentation(rule: Rule) {
 	}
 }
 
-function recurrenceFields(lines: readonly string[]) {
-	if (lines.length !== 1 || !lines[0].startsWith('RRULE:')) return null
-	const fields = lines[0]
+function ruleFields(line: string) {
+	if (!line.startsWith('RRULE:')) return null
+	const fields = line
 		.slice(6)
 		.split(';')
 		.map((field) => field.split('='))
 	if (fields.some((field) => field.length !== 2)) return null
 	const values = new Map(fields.map(([key, value]) => [key, value]))
-	if (values.size !== fields.length) return null
+	return values.size === fields.length ? values : null
+}
+
+function recurrenceFields(lines: readonly string[]) {
+	if (lines.length !== 1) return null
+	const values = ruleFields(lines[0])
+	if (!values) return null
 	if ((values.get('INTERVAL') ?? '1') !== '1' || (values.get('WKST') ?? 'MO') !== 'MO') return null
 	values.delete('INTERVAL')
 	values.delete('WKST')
 	return values
+}
+
+const FREQUENCIES = new Map<string, NonNullable<MasterRecurrence['recurrenceFrequency']>>([
+	['DAILY', 'daily'],
+	['WEEKLY', 'weekly'],
+	['MONTHLY', 'monthly'],
+	['YEARLY', 'yearly'],
+])
+const WEEKLY_KEYS = new Set(['FREQ', 'BYDAY', 'INTERVAL', 'UNTIL', 'WKST'])
+
+function untilDate(value: string | undefined, timeZone: string): string | null {
+	if (!value) return null
+	const match = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?$/.exec(value)
+	if (!match) return null
+	const [, year, month, day, hour, minute, second, utc] = match
+	const date = `${year}-${month}-${day}`
+	const midnight = new Date(`${date}T00:00:00Z`)
+	if (Number.isNaN(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== date) return null
+	if (!hour || !utc) return date
+	const instant = new Date(`${date}T${hour}:${minute}:${second}Z`)
+	return Number.isNaN(instant.getTime()) ? null : zonedParts(instant, timeZone).date
+}
+
+export function classifyRecurrence(lines: readonly string[], timeZone: string): MasterRecurrence {
+	const rules = lines.filter((line) => line.startsWith('RRULE:'))
+	const rest = lines.filter((line) => !line.startsWith('RRULE:'))
+	const fields = rules.length ? ruleFields(rules[0]) : null
+	const interval = Number(fields?.get('INTERVAL') ?? '1')
+	const frequency = fields ? (FREQUENCIES.get(fields.get('FREQ') ?? '') ?? 'custom') : 'custom'
+	const day = weekdays.indexOf(fields?.get('BYDAY') ?? '') + 1
+	const weekly =
+		fields !== null &&
+		rules.length === 1 &&
+		rest.every((line) => line.startsWith('EXDATE')) &&
+		frequency === 'weekly' &&
+		interval === 1 &&
+		day > 0 &&
+		!fields.has('COUNT') &&
+		[...fields.keys()].every((key) => WEEKLY_KEYS.has(key))
+	return {
+		recurrenceKind: weekly ? 'weekly' : 'other',
+		recurrenceWeekday: weekly ? day : null,
+		recurrenceFrequency: frequency,
+		recurrenceInterval: Number.isSafeInteger(interval) && interval > 0 ? interval : null,
+		recurrenceUntil: untilDate(fields?.get('UNTIL'), timeZone),
+	}
 }
 
 export function sameRecurrence(actual: readonly string[], expected: readonly string[]) {

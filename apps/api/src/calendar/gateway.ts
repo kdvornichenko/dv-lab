@@ -7,6 +7,7 @@ import { googleInstancePage, type GoogleStageRequest } from '@dv-lab/db'
 import type { CalendarConfig } from '../config.ts'
 import { insertEventBody, observeGoogleEvent, verifyGoogleResult, type WriteRequest } from './command-result.ts'
 import { calendarReadMethods } from './gateway-reads.ts'
+import { calendarSyncMethods } from './gateway-sync.ts'
 import { parseEventPage, parseMaster, type EventQuery } from './provider-events.ts'
 
 export const CALENDAR_SCOPES = [
@@ -246,6 +247,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 	}
 	return {
 		...calendarReadMethods(client, writeCall),
+		...calendarSyncMethods(client, writeCall),
 		identityEvents: identitySearch,
 		async canonicalInstance(
 			accessToken: string,
