@@ -1,17 +1,20 @@
 'use client'
 
-import { useEffect, useEffectEvent, useMemo, type ReactNode, type Ref } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState, type ReactNode, type Ref } from 'react'
+import { enUS } from 'react-day-picker/locale'
 
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
+import { Calendar as DayCalendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { calendarLesson } from '@/lib/lesson-actions'
 import { dayNumber, periodTitle, weekTitle } from '@/lib/schedule-format'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { zonedInstant } from '@dv-lab/core'
+import { addDays, mondayOf, zonedInstant } from '@dv-lab/core'
 
 interface WeekNavigation {
 	monday: string
@@ -56,24 +59,14 @@ export function useScheduleKeys({
 	}, [])
 }
 
-export function weekSummary(events: readonly CalendarEventView[]): string {
-	const lessons = events.filter(calendarLesson)
-	const held = lessons.filter((event) => event.status !== 'cancelled')
-	const cancelled = lessons.length - held.length
-	if (held.length === 0) return cancelled > 0 ? `No lessons this week · ${cancelled} cancelled` : 'No lessons this week'
+export function weekSummary(events: readonly CalendarEventView[]): string | null {
+	const held = events.filter(calendarLesson).filter((event) => event.status !== 'cancelled')
+	if (held.length === 0) return null
 	const students = new Set(held.map((event) => event.binding.studentId)).size
 	return `${held.length} ${held.length === 1 ? 'lesson' : 'lessons'} with ${students} ${students === 1 ? 'student' : 'students'}`
 }
 
-function BarTip({
-	name,
-	shortcut,
-	children,
-}: {
-	name: string
-	shortcut?: string
-	children: React.ReactElement
-}) {
+function BarTip({ name, shortcut, children }: { name: string; shortcut?: string; children: React.ReactElement }) {
 	return (
 		<Tooltip
 			side="bottom"
@@ -103,6 +96,55 @@ function TodayIcon({ today }: { today: number }) {
 	)
 }
 
+function localDate(value: string) {
+	const [y, m, d] = value.split('-').map(Number)
+	return new Date(y, m - 1, d)
+}
+
+function isoDate(value: Date) {
+	const m = String(value.getMonth() + 1).padStart(2, '0')
+	const d = String(value.getDate()).padStart(2, '0')
+	return `${value.getFullYear()}-${m}-${d}`
+}
+
+function WeekPicker({ monday, onWeek }: { monday: string; onWeek: (monday: string) => void }) {
+	const [open, setOpen] = useState(false)
+	const week = { from: localDate(monday), to: localDate(addDays(monday, 6)) }
+	return (
+		<Popover open={open} onOpenChange={setOpen}>
+			<BarTip name="Choose week">
+				<PopoverTrigger
+					render={
+						<Button
+							variant="tertiary"
+							size="compact"
+							aria-label="Choose week"
+							data-slot="schedule-week-picker"
+							className="shrink-0 text-title font-semibold whitespace-nowrap text-foreground tabular-nums"
+						>
+							{weekTitle(monday)}
+						</Button>
+					}
+				/>
+			</BarTip>
+			<PopoverContent align="start" className="w-auto p-0">
+				<DayCalendar
+					mode="range"
+					locale={enUS}
+					weekStartsOn={1}
+					selected={week}
+					defaultMonth={week.from}
+					onSelect={(_, day) => {
+						setOpen(false)
+						const target = mondayOf(isoDate(day))
+						if (target !== monday) onWeek(target)
+					}}
+				/>
+			</PopoverContent>
+		</Popover>
+	)
+}
+
 export function ScheduleBar({
 	monday,
 	currentMonday,
@@ -110,9 +152,15 @@ export function ScheduleBar({
 	onToday,
 	onPrevious,
 	onNext,
+	onWeek,
 	summary,
 	titleRef,
-}: WeekNavigation & { today: string; summary: ReactNode; titleRef: Ref<HTMLHeadingElement> }) {
+}: WeekNavigation & {
+	today: string
+	summary: ReactNode
+	titleRef: Ref<HTMLHeadingElement>
+	onWeek: (monday: string) => void
+}) {
 	return (
 		<TooltipProvider>
 			<div data-slot="schedule-toolbar" className="flex min-w-0 items-center gap-2">
@@ -132,25 +180,28 @@ export function ScheduleBar({
 						<ChevronLeft />
 					</Button>
 				</BarTip>
+				<h1
+					ref={titleRef}
+					tabIndex={-1}
+					aria-label={weekTitle(monday)}
+					data-slot="schedule-period"
+					className="shrink-0 outline-none"
+				>
+					<WeekPicker monday={monday} onWeek={onWeek} />
+				</h1>
 				<BarTip name="Next week" shortcut="J">
 					<Button variant="tertiary" size="icon-compact" aria-label="Next week" onClick={onNext}>
 						<ChevronRight />
 					</Button>
 				</BarTip>
-				<h1
-					ref={titleRef}
-					tabIndex={-1}
-					data-slot="schedule-period"
-					className="ml-1 shrink-0 text-title font-semibold whitespace-nowrap text-foreground tabular-nums outline-none"
-				>
-					{weekTitle(monday)}
-				</h1>
-				<span
-					data-slot="schedule-summary"
-					className="hidden min-w-0 truncate text-caption text-muted-foreground lg:inline"
-				>
-					{summary}
-				</span>
+				{summary ? (
+					<span
+						data-slot="schedule-summary"
+						className="ml-1 hidden min-w-0 truncate text-caption text-muted-foreground lg:inline"
+					>
+						{summary}
+					</span>
+				) : null}
 			</div>
 		</TooltipProvider>
 	)
