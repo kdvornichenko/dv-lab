@@ -1,7 +1,7 @@
 import { offsetLabel, zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleSeriesReference } from '@dv-lab/contracts'
-import { addDays, localTimeCandidates, zonedParts } from '@dv-lab/core'
+import { addDays, localTimeCandidates, SCHEDULE_TIME_ZONE, zonedParts } from '@dv-lab/core'
 
 const dash = ' – '
 
@@ -45,20 +45,22 @@ export function dayNumber(date: string): number {
 	return dayOf(date)
 }
 
+function twoDigits(date: string): string {
+	return String(dayOf(date)).padStart(2, '0')
+}
+
 export function weekRange(monday: string): string {
 	const sunday = addDays(monday, 6)
-	if (yearOf(monday) !== yearOf(sunday)) {
-		return `${dayOf(monday)} ${monthShort(monday)} ${yearOf(monday)}${dash}${dayOf(sunday)} ${monthShort(sunday)} ${yearOf(sunday)}`
-	}
+	const current = yearInZone(new Date(), SCHEDULE_TIME_ZONE)
+	const year = yearOf(sunday) === current ? '' : ` ${String(yearOf(sunday)).slice(-2)}`
 	if (monthShort(monday) !== monthShort(sunday)) {
-		return `${dayOf(monday)} ${monthShort(monday)}${dash}${dayOf(sunday)} ${monthShort(sunday)}`
+		return `${twoDigits(monday)} ${monthShort(monday)}${dash}${twoDigits(sunday)} ${monthShort(sunday)}${year}`
 	}
-	return `${dayOf(monday)}${dash}${dayOf(sunday)} ${monthShort(sunday)}`
+	return `${twoDigits(monday)}${dash}${twoDigits(sunday)} ${monthShort(sunday)}${year}`
 }
 
 export function weekTitle(monday: string): string {
-	const range = weekRange(monday)
-	return yearOf(monday) === yearOf(addDays(monday, 6)) ? `${range} ${yearOf(monday)}` : range
+	return weekRange(monday)
 }
 
 export function periodTitle(monday: string): string {
