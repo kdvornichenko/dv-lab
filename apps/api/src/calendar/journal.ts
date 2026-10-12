@@ -34,11 +34,7 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		.limit(1)
 	const plan = googleCommandPlan.parse(command.plan)
 	const request = googleStageRequest.parse(stage?.request)
-	if (
-		!stage ||
-		!['create', 'move', 'cancel', 'restore', 'move_series', 'end_series'].includes(command.operation) ||
-		(request.method !== 'insert' && request.method !== 'patch')
-	)
+	if (!stage || (request.method !== 'insert' && request.method !== 'patch'))
 		throw new CommandFault('precondition_failed')
 	if (
 		command.operation !== 'create' &&
@@ -46,7 +42,10 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		command.operation !== 'cancel' &&
 		command.operation !== 'restore' &&
 		command.operation !== 'move_series' &&
-		command.operation !== 'end_series'
+		command.operation !== 'end_series' &&
+		command.operation !== 'event_create' &&
+		command.operation !== 'event_update' &&
+		command.operation !== 'event_delete'
 	)
 		throw new CommandFault('precondition_failed')
 	const prepared: PreparedCalendarCommand = { ...command, plan, request, operation: command.operation }

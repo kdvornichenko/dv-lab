@@ -10,8 +10,12 @@ import {
 	googleUnresolvedCommandsQuery,
 	googleResumeCommandRequest,
 	googleConflictRequest,
+	createCalendarEventCommand,
+	deleteCalendarEventRequest,
+	googleEventKeyParams,
 	googleEventPalette,
 	googleSyncSnapshot,
+	updateCalendarEventRequest,
 	type GoogleEventPalette,
 	type GoogleSyncSnapshot,
 } from '@dv-lab/contracts'
@@ -22,6 +26,7 @@ import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { ConnectionControl } from '../calendar/connection-control.ts'
 import type { CalendarConnection } from '../calendar/connection.ts'
+import { readEventDetails } from '../calendar/event-commands.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
 import { findConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandSnapshot, findRequest, readCommand, unresolvedCommands } from '../calendar/journal.ts'
@@ -131,6 +136,54 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 				reason: 'provider_unavailable',
 			})
 		return c.json(await commands.checkCalendarConflicts({ accountId: actor(c).accountId, now: new Date() }, input))
+	})
+	routes.post('/events', async (c) => {
+		const input = await readJson(c, createCalendarEventCommand)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!commands || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			const context = { accountId: actor(c).accountId, now: new Date() }
+			return c.json(await commands.submitCalendarCommand(context, { operation: 'event_create', input }), 202)
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.get('/events/:eventKey', async (c) => {
+		const params = googleEventKeyParams.safeParse(c.req.param())
+		if (!params.success) return c.json(errorBody('not_found', 'Not Found'), 404)
+		const details = await readSnapshot(db, (executor) =>
+			readEventDetails(executor, actor(c).accountId, params.data.eventKey)
+		)
+		if (!details) return c.json(errorBody('not_found', 'Not Found'), 404)
+		return c.json(details)
+	})
+	routes.post('/events/:eventKey', async (c) => {
+		const params = googleEventKeyParams.safeParse(c.req.param())
+		if (!params.success) return c.json(errorBody('not_found', 'Not Found'), 404)
+		const input = await readJson(c, updateCalendarEventRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!commands || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			const context = { accountId: actor(c).accountId, now: new Date() }
+			const command = { operation: 'event_update' as const, eventKey: params.data.eventKey, input }
+			return c.json(await commands.submitCalendarCommand(context, command), 202)
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.post('/events/:eventKey/delete', async (c) => {
+		const params = googleEventKeyParams.safeParse(c.req.param())
+		if (!params.success) return c.json(errorBody('not_found', 'Not Found'), 404)
+		const input = await readJson(c, deleteCalendarEventRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!commands || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			const context = { accountId: actor(c).accountId, now: new Date() }
+			const command = { operation: 'event_delete' as const, eventKey: params.data.eventKey, input }
+			return c.json(await commands.submitCalendarCommand(context, command), 202)
+		} catch (error) {
+			return refusal(c, error)
+		}
 	})
 	routes.post('/connect', async (c) => {
 		if (!(await readJson(c, googleConnectRequest))) return c.json(errorBody('invalid_request', 'Invalid request'), 400)

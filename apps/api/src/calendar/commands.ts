@@ -6,6 +6,7 @@ import { googleConnections, type Database } from '@dv-lab/db'
 
 import { checkCalendarConflicts } from '../schedule/calendar-conflicts.ts'
 import { prepareScheduleCommand } from '../schedule/command-plan.ts'
+import { admitEventCommand, isEventCommand } from './event-commands.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import { currentConnection, type CalendarAccess, type Credentials } from './google-access.ts'
 import { observeInstance } from './instance-observation.ts'
@@ -36,6 +37,11 @@ export function createCalendarCommands(deps: {
 	): Promise<CalendarCommandReceipt> {
 		const existing = await findRequest(deps.db, context.accountId, input.input.requestId)
 		if (existing) return matchingReceipt(existing, input)
+		if (isEventCommand(input)) {
+			const admitted = await deps.db.transaction((tx) => admitEventCommand(tx, input, context))
+			await deps.wake(admitted.commandId).catch(() => undefined)
+			return admitted
+		}
 		if (input.operation === 'move_series' || input.operation === 'end_series')
 			await seriesBinding(deps.db, context.accountId, input.seriesId)
 		const deadline = context.now.getTime() + 30000
@@ -66,6 +72,7 @@ export function createCalendarCommands(deps: {
 		context: CalendarReadContext,
 		input: Exclude<ValidatedCalendarCommand, { operation: 'create' }>
 	) {
+		if (isEventCommand(input)) throw new CommandFault('invalid_request', 400)
 		const observed =
 			input.operation === 'move_series' || input.operation === 'end_series'
 				? await observeSeries(access, input, context.now, deps.gateway)

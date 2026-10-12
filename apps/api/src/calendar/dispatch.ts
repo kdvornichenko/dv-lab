@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import { canChange } from '@dv-lab/core'
@@ -6,15 +6,23 @@ import {
 	googleCommands,
 	googleCommandStages,
 	googleConnections,
+	googleStageRequest,
 	type Database,
 	type DbExecutor,
+	type GoogleEventTime,
 	type GoogleStageAcknowledgement,
 	type GoogleStageAttempt,
 } from '@dv-lab/db'
 
 import { applyConfirmedCommand, applyConfirmedCut } from '../schedule/command-apply.ts'
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
-import { storedGoogleResult, unownedFingerprint, type VerifiedGoogleResponse } from './command-result.ts'
+import {
+	observedBaseline,
+	storedGoogleResult,
+	unownedFingerprint,
+	type VerifiedGoogleResponse,
+} from './command-result.ts'
+import { applyConfirmedEvent, EVENT_OPERATIONS } from './event-commands.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import type { ConnectionRow } from './google-access.ts'
 import {
@@ -27,19 +35,70 @@ import {
 	type StageRow,
 } from './journal.ts'
 import { upsertEventFacts, type EventFact } from './projection.ts'
-import { matchesMaster } from './recurring.ts'
+import { classifyRecurrence, matchesMaster } from './recurring.ts'
 import { checkReplacement } from './single-observation.ts'
 
 export type CommandAccess = { db: Database; accessToken: string; connection: ConnectionRow; signal: AbortSignal }
+type PatchRequest = Extract<PreparedCalendarCommand['request'], { method: 'patch' }>
+type InsertRequest = Extract<PreparedCalendarCommand['request'], { method: 'insert' }>
+type Baseline = NonNullable<PatchRequest['cancellationBaseline']>
+type DispatchWindow = {
+	privateProperties: Record<string, string>
+	baseline?: Baseline
+	observation?: Awaited<ReturnType<GoogleGateway['observeEvent']>>
+}
+type ReadyDispatch = { request: PreparedCalendarCommand['request']; companion: StageRow | null }
 
-async function prepareDispatch(access: CommandAccess, command: PreparedCalendarCommand, stage: StageRow) {
-	access.signal.throwIfAborted()
-	const now = new Date()
+const LESSON_OPERATIONS: ReadonlySet<string> = new Set([
+	'create',
+	'move',
+	'cancel',
+	'restore',
+	'move_series',
+	'end_series',
+])
+const SQL_ADMITTED: ReadonlySet<string> = new Set(['event_update', 'event_delete', 'assign'])
+
+function lessonStartGate(command: PreparedCalendarCommand, now: Date) {
+	if (!LESSON_OPERATIONS.has(command.operation)) return
 	const start = command.request.payload.start
 	const startsAt = start && 'dateTime' in start ? start.dateTime : command.plan.lineage[0]?.startsAt
-	if (command.dispatchDeadline <= now || !startsAt || !canChange(new Date(startsAt), now))
-		throw new CommandFault('not_applied')
-	await access.db.transaction(async (tx) => {
+	if (!startsAt || !canChange(new Date(startsAt), now)) throw new CommandFault('not_applied')
+}
+
+async function companionStage(executor: DbExecutor, commandId: string, lock: boolean) {
+	const query = executor
+		.select()
+		.from(googleCommandStages)
+		.where(and(eq(googleCommandStages.commandId, commandId), eq(googleCommandStages.kind, 'create_master')))
+	const [row] = lock ? await query.for('update') : await query
+	return row ?? null
+}
+
+function withPreserved(stage: StageRow, observation: DispatchWindow['observation']): InsertRequest {
+	const request = googleStageRequest.parse(stage.request)
+	if (request.method !== 'insert') throw new CommandFault('precondition_failed')
+	if (!observation) return request
+	const preserved = observedBaseline(observation, request.payload).unownedWritable
+	const parsed = googleStageRequest.parse({
+		...request,
+		payload: { ...request.payload, ...(preserved ? { preserved } : {}) },
+	})
+	if (parsed.method !== 'insert') throw new CommandFault('precondition_failed')
+	return parsed
+}
+
+async function prepareDispatch(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	stage: StageRow,
+	window: DispatchWindow
+): Promise<ReadyDispatch> {
+	access.signal.throwIfAborted()
+	const now = new Date()
+	if (command.dispatchDeadline <= now) throw new CommandFault('not_applied')
+	lessonStartGate(command, now)
+	return access.db.transaction(async (tx) => {
 		const [connection] = await tx
 			.select()
 			.from(googleConnections)
@@ -62,26 +121,121 @@ async function prepareDispatch(access: CommandAccess, command: PreparedCalendarC
 			latest.prepared.request.digest !== command.request.digest
 		)
 			throw new CommandFault('precondition_failed')
-		const attempt: GoogleStageAttempt = {
+		const request =
+			window.baseline && command.request.method === 'patch'
+				? googleStageRequest.parse({ ...command.request, cancellationBaseline: window.baseline })
+				: command.request
+		if (request.method !== 'insert' && request.method !== 'patch') throw new CommandFault('precondition_failed')
+		const attempt = (digestValue: string, ifMatch: string | null): GoogleStageAttempt => ({
 			attemptId: randomUUID(),
 			generation: connection.generation,
 			startedAt: now.toISOString(),
 			finishedAt: null,
 			outcome: 'dispatching',
-			ifMatch: command.request.method === 'patch' ? command.request.ifMatch : null,
-			requestDigest: command.request.digest,
+			ifMatch,
+			requestDigest: digestValue,
 			httpStatus: null,
 			errorCode: null,
-		}
+		})
 		access.signal.throwIfAborted()
 		await tx
 			.update(googleCommandStages)
-			.set({ state: 'dispatching', effect: 'unknown', attempts: [...stage.attempts, attempt], updatedAt: sql`now()` })
+			.set({
+				state: 'dispatching',
+				effect: 'unknown',
+				request,
+				attempts: [...stage.attempts, attempt(request.digest, request.method === 'patch' ? request.ifMatch : null)],
+				updatedAt: sql`now()`,
+			})
 			.where(eq(googleCommandStages.id, stage.id))
+		const pending = await companionStage(tx, command.id, true)
+		let companion: StageRow | null = null
+		if (pending && pending.state !== 'acknowledged') {
+			if (pending.state !== 'pending') throw new CommandFault('precondition_failed')
+			const insert = withPreserved(pending, window.observation)
+			const [started] = await tx
+				.update(googleCommandStages)
+				.set({
+					state: 'dispatching',
+					effect: 'unknown',
+					request: insert,
+					generation: connection.generation,
+					attempts: [...pending.attempts, attempt(insert.digest, null)],
+					updatedAt: sql`now()`,
+				})
+				.where(eq(googleCommandStages.id, pending.id))
+				.returning()
+			companion = started ?? null
+		}
 		await tx
 			.update(googleCommands)
 			.set({ state: 'dispatching', effect: 'unknown', dispatchedAt: now, updatedAt: sql`now()` })
 			.where(eq(googleCommands.id, command.id))
+		return { request, companion }
+	})
+}
+
+async function sendCompanion(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	stage: StageRow,
+	gateway: GoogleGateway
+) {
+	const request = googleStageRequest.parse(stage.request)
+	if (request.method !== 'insert') throw new CommandFault('precondition_failed')
+	let result: VerifiedGoogleResponse
+	try {
+		result = await gateway.insert(
+			access.accessToken,
+			command.calendarId,
+			request,
+			command.plan.capturedTimeZone,
+			access.connection.generation,
+			access.signal
+		)
+		if (result.recoveryIssue) throw new CalendarFault(result.recoveryIssue)
+		const preserved = request.payload.preserved
+		if (
+			preserved &&
+			unownedFingerprint(preserved, request.payload) !== result.acknowledgement.unownedWritableFingerprint
+		)
+			throw new CalendarFault('external_change')
+	} catch (error) {
+		const retry = error instanceof GoogleWriteFault && error.httpStatus === 401
+		const rejected = error instanceof GoogleWriteFault && error.outcome === 'rejected' && !retry
+		await access.db
+			.update(googleCommandStages)
+			.set({
+				state: retry ? 'pending' : rejected ? 'failed' : 'outcome_unknown',
+				effect: retry || rejected ? 'none' : 'unknown',
+				attempts: finishAttempt(
+					stage.attempts,
+					retry || rejected ? 'rejected' : 'unknown',
+					error instanceof GoogleWriteFault ? error.httpStatus : null
+				),
+				updatedAt: sql`now()`,
+			})
+			.where(and(eq(googleCommandStages.id, stage.id), eq(googleCommandStages.state, 'dispatching')))
+		throw error
+	}
+	await access.db.transaction(async (tx) => {
+		const [current] = await tx
+			.select()
+			.from(googleCommandStages)
+			.where(eq(googleCommandStages.id, stage.id))
+			.for('update')
+		if (!current || current.state !== 'dispatching') throw new CommandFault('precondition_failed')
+		await tx
+			.update(googleCommandStages)
+			.set({
+				state: 'acknowledged',
+				effect: 'confirmed',
+				acknowledgement: result.acknowledgement,
+				acknowledgedAt: sql`now()`,
+				attempts: finishAttempt(current.attempts, 'acknowledged', result.httpStatus),
+				updatedAt: sql`now()`,
+			})
+			.where(eq(googleCommandStages.id, stage.id))
 	})
 }
 
@@ -111,13 +265,60 @@ async function checkInstanceDispatch(access: CommandAccess, command: PreparedCal
 	}
 }
 
-async function checkDispatchWindow(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
+function sameOriginal(observed: GoogleEventTime | null, expected: GoogleEventTime) {
+	if (!observed) return false
+	if ('date' in expected) return 'date' in observed && observed.date === expected.date
+	return 'dateTime' in observed && Date.parse(observed.dateTime) === Date.parse(expected.dateTime)
+}
+
+async function observeAdmittedPatch(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	request: PatchRequest,
+	gateway: GoogleGateway
+): Promise<DispatchWindow> {
+	const observation = await gateway.observeEvent(
+		access.accessToken,
+		command.calendarId,
+		request.eventId,
+		command.plan.capturedTimeZone,
+		access.signal
+	)
+	if (observation.event.eventId !== request.eventId || observation.event.etag !== request.ifMatch)
+		throw new CommandFault('external_change')
+	const instance = request.instance
+	if (
+		instance &&
+		(observation.event.recurringEventId !== instance.masterEventId ||
+			!sameOriginal(observation.event.originalStartTime, instance.originalStartTime))
+	)
+		throw new CommandFault('external_change')
+	if (!instance && observation.event.recurringEventId) throw new CommandFault('external_change')
+	const baseline = observedBaseline(observation, request.payload)
+	return {
+		privateProperties: observation.privateProperties,
+		observation,
+		baseline: {
+			unownedWritableFingerprint: baseline.unownedWritableFingerprint,
+			unownedWritable: baseline.unownedWritable,
+			baselineEvent: observation.event,
+		},
+	}
+}
+
+async function checkDispatchWindow(
+	access: CommandAccess,
+	command: PreparedCalendarCommand,
+	gateway: GoogleGateway
+): Promise<DispatchWindow> {
 	if (access.connection.generation !== command.generation || access.connection.calendarId !== command.calendarId)
 		throw new CommandFault('not_applied')
 	if (command.operation === 'restore' && command.request.method === 'insert') {
 		await checkReplacement(access, command, gateway)
-		return {}
+		return { privateProperties: {} }
 	}
+	if (command.request.method === 'patch' && SQL_ADMITTED.has(command.operation))
+		return observeAdmittedPatch(access, command, command.request, gateway)
 	if (command.request.method === 'patch') {
 		await checkInstanceDispatch(access, command, gateway)
 		const observed = await gateway.observeEvent(
@@ -137,9 +338,9 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 			observed.unownedWritableFingerprint !== before.unownedWritableFingerprint
 		)
 			throw new CommandFault('external_change')
-		return observed.privateProperties
+		return { privateProperties: observed.privateProperties }
 	}
-	return {}
+	return { privateProperties: {} }
 }
 
 function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttempt['outcome'], status: number | null) {
@@ -256,7 +457,15 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 
 function acknowledgedFacts(ack: GoogleStageAcknowledgement | null): EventFact[] {
 	if (ack?.kind === 'event') return [{ ...ack.event, factAt: new Date(ack.checkedAt) }]
-	if (ack?.kind === 'master') return [{ ...ack.event, master: true, factAt: new Date(ack.checkedAt) }]
+	if (ack?.kind === 'master')
+		return [
+			{
+				...ack.event,
+				master: true,
+				recurrence: classifyRecurrence(ack.recurrence, ack.event.start?.timeZone ?? 'UTC'),
+				factAt: new Date(ack.checkedAt),
+			},
+		]
 	if (ack?.kind !== 'cancellation') return []
 	const factAt = new Date(ack.checkedAt)
 	const baseline = ack.baselineEvent
@@ -284,14 +493,14 @@ async function projectFacts(tx: DbExecutor, command: CommandRow, facts: readonly
 	)
 }
 
-async function cutFacts(tx: DbExecutor, command: CommandRow) {
+async function writtenFacts(tx: DbExecutor, command: CommandRow, kinds: ('write' | 'create_master')[]) {
 	const stages = await tx
 		.select({ acknowledgement: googleCommandStages.acknowledgement })
 		.from(googleCommandStages)
 		.where(
 			and(
 				eq(googleCommandStages.commandId, command.id),
-				eq(googleCommandStages.kind, 'write'),
+				inArray(googleCommandStages.kind, kinds),
 				eq(googleCommandStages.state, 'acknowledged')
 			)
 		)
@@ -299,13 +508,27 @@ async function cutFacts(tx: DbExecutor, command: CommandRow) {
 	return stages.flatMap((stage) => acknowledgedFacts(stage.acknowledgement))
 }
 
+async function projectEvent(access: Pick<CommandAccess, 'db' | 'signal'>, command: CommandRow) {
+	const { prepared, stage } = await preparedCommand(access.db, command)
+	if (!stage.acknowledgement) throw new CommandFault('precondition_failed')
+	const result = storedGoogleResult(stage.acknowledgement, prepared.request, stage.generation)
+	access.signal.throwIfAborted()
+	await access.db.transaction(async (tx) => {
+		access.signal.throwIfAborted()
+		await projectFacts(tx, command, await writtenFacts(tx, command, ['write', 'create_master']))
+		await applyConfirmedEvent(tx, prepared, result)
+		access.signal.throwIfAborted()
+	})
+}
+
 export async function projectCommand(access: Pick<CommandAccess, 'db' | 'signal'>, command: CommandRow) {
+	if (EVENT_OPERATIONS.has(command.operation)) return projectEvent(access, command)
 	if (command.plan.cut) {
 		const { prepared } = await preparedCommand(access.db, command)
 		try {
 			await access.db.transaction(async (tx) => {
 				access.signal.throwIfAborted()
-				await projectFacts(tx, command, await cutFacts(tx, command))
+				await projectFacts(tx, command, await writtenFacts(tx, command, ['write']))
 				await applyConfirmedCut(tx, prepared)
 				access.signal.throwIfAborted()
 			})
@@ -341,11 +564,12 @@ export async function dispatchCommand(
 	gateway: GoogleGateway,
 	refresh401?: (access: CommandAccess) => Promise<CommandAccess>
 ) {
-	const { prepared, stage } = await preparedCommand(access.db, command)
-	let privateProperties: Record<string, string>
+	const { prepared: stored, stage } = await preparedCommand(access.db, command)
+	let window: DispatchWindow
+	let ready: ReadyDispatch
 	try {
-		privateProperties = await checkDispatchWindow(access, prepared, gateway)
-		await prepareDispatch(access, prepared, stage)
+		window = await checkDispatchWindow(access, stored, gateway)
+		ready = await prepareDispatch(access, stored, stage, window)
 	} catch (error) {
 		if (!(error instanceof CommandFault && error.code === 'command_pending'))
 			await failUnsentCommand(
@@ -355,7 +579,9 @@ export async function dispatchCommand(
 			)
 		throw error
 	}
+	const prepared: PreparedCalendarCommand = { ...stored, request: ready.request }
 	try {
+		if (ready.companion) await sendCompanion(access, prepared, ready.companion, gateway)
 		const result =
 			prepared.request.method === 'patch'
 				? await gateway.patch(
@@ -364,7 +590,7 @@ export async function dispatchCommand(
 						prepared.request,
 						prepared.plan.capturedTimeZone,
 						access.connection.generation,
-						privateProperties,
+						window.privateProperties,
 						access.signal
 					)
 				: await gateway.insert(
@@ -401,14 +627,16 @@ export async function dispatchCommand(
 }
 
 export function preservesUnowned(command: PreparedCalendarCommand, result: VerifiedGoogleResponse) {
+	const actual = result.acknowledgement.unownedWritableFingerprint
 	if (command.request.method === 'insert') {
-		if (!command.request.payload.preserved) return command.operation === 'create'
-		return unownedFingerprint(command.request.payload.preserved) === result.acknowledgement.unownedWritableFingerprint
+		const preserved = command.request.payload.preserved
+		if (!preserved) return command.operation === 'create' || command.operation === 'event_create'
+		return unownedFingerprint(preserved, command.request.payload) === actual
 	}
-	return (
-		command.plan.preconditions.find((item) => item.eventId === command.request.eventId)?.unownedWritableFingerprint ===
-		result.acknowledgement.unownedWritableFingerprint
-	)
+	const before = command.plan.preconditions.find(
+		(item) => item.eventId === command.request.eventId
+	)?.unownedWritableFingerprint
+	return (before ?? command.request.cancellationBaseline?.unownedWritableFingerprint) === actual
 }
 
 function confirmObservedAttempts(attempts: GoogleStageAttempt[]) {
