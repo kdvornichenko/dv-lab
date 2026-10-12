@@ -13,7 +13,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 
 ### v2.0 Unified dv-lab (In Progress)
 
-**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and awaits its PR merge.
+**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and merged in PR #8 after green CI (c1ddae4).
 
 **Phase Numbering:**
 
@@ -384,7 +384,9 @@ Plans:
 4. Questions about a student (what was covered, weak points, next lesson ideas) are answered from stored data, and any balance, count or "pays soon" list in an answer matches the numbers on the Today and Students screens.
 5. Token usage is recorded per conversation, and once the monthly cap is reached chat stops calling the model and says why.
 
-**Plans**: TBD
+**Plans**: 18 plans / 46 tasks / 18 waves; independently checked; final24/25 and provider execution gates pending
+
+Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md](.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md)
 **UI hint**: yes
 **Notes**: Model `claude-haiku-5-5`. Owner decision 2026-10-10: use the official Anthropic SDK (`@anthropic-ai/sdk`) with a server-side API key from the Console organization already linked to the Claude plan API credits (https://platform.claude.com/docs/en/about-claude/api-credits-for-subscribers); the key lives only on the server (env var, never in the browser or the repository). Vercel AI SDK is dropped unless the spike shows a need. Reference implementation reviewed: github.com/ThariqS/ai-newtab (Claude Managed Agents, beta `managed-agents-2026-04-01`). The spike compares two transports on the same three checks (write-tool call, pause for confirmation, resume after page reload), plus per-conversation token usage and where the student data is stored: (a) Messages API with tool use and our own conversation store; (b) Managed Agents session as in ai-newtab. Lessons from ai-newtab to apply either way: every tool call must always get a result (errors become `is_error` results); open the event stream before sending and dedupe replayed events; idle is not done (stop only on `end_turn`/terminated, not `requires_action`); cache agent and environment IDs and fingerprint the agent definition; keep dangerous built-in tools (bash) off; treat stored student text as untrusted input to the model; delete server-side sessions and files when done. Owner request 2026-10-10: the teacher can choose the chat model (Haiku may not cope with some questions) and the effort level, like the Claude app composer (model menu with a Default mark, effort slider from faster to smarter). The default is a teacher setting in `teacher_settings` and the choice can be overridden per conversation; the list of models comes from configuration, not a constant; token usage is recorded per conversation together with the model and effort. Effort is `output_config.effort` (`low`, `medium`, `high`, `xhigh`, `max`; GA, no beta header) on Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.1; per-message change keeps the prompt cache and needs the beta header `mid-conversation-output-config-2026-07-01`; on Haiku 5.5 `low` skips checks in long tool prompts. Support under Managed Agents is checked in the spike. The API does not expose the remaining credit balance (only Console, Settings > Billing; the Usage & Cost Admin API needs a separate admin key and shows spend with a few minutes lag), so the monthly cap is our own: spend from response `usage` per conversation, the remaining amount shown as an estimate, and the "credit balance too low" API error maps to the "Monthly budget reached" state. Design: artifact v39 (copy in `~/dv-lab-design`): `ChatModelControls` (composer chips, model menu, effort popover with five levels, unavailable model and budget states), Settings > Assistant "Chat model" card; open for the owner: level names and the "Recommended" mark, model order from configuration, optional relative cost like "x3". Credits do not roll over and exhausting them stops API requests; the in-app monthly cap (criterion 5) stays below the credit amount.
 
@@ -402,25 +404,97 @@ Plans:
 5. The palette finds students and offers "New chat" and "Add payment"; a student profile shows payments, lessons and "Ask in chat"; Today, Schedule and Chat are usable at phone width.
 
 **Plans**: TBD
+
+- [ ] 23-01-PLAN.md
+- [ ] 23-02-PLAN.md
+- [ ] 23-03-PLAN.md
+- [ ] 23-04-PLAN.md
+- [ ] 23-05-PLAN.md
+- [ ] 23-06-PLAN.md
+- [ ] 23-07-PLAN.md
+- [ ] 23-08-PLAN.md
+- [ ] 23-09-PLAN.md
+- [ ] 23-10-PLAN.md
+- [ ] 23-11-PLAN.md
+- [ ] 23-12-PLAN.md
+- [ ] 23-13-PLAN.md
+- [ ] 23-14-PLAN.md
+- [ ] 23-15-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 24: Google Calendar Connection and Outbound Sync
 
-**Goal**: Lessons, series and occurrence exceptions from the schedule appear in the teacher's Google Calendar exactly once, written by one queued writer over a server-side connection.
+**Goal**: Google Calendar is the source of calendar events. The teacher views its events and sends confirmed commands through dv-lab; schedule features require a working Google connection, and local state never claims a save before Google confirms it.
 **Depends on**: Phase 21.1 (stored creation zones and configurable account zone), Phase 21 (lesson, series and exception model, marks); runs before the chat phases
 **Requirements**: GCAL-01, GCAL-02, GCAL-03, GCAL-09, GCAL-10
 **Success Criteria** (what must be TRUE):
 
 1. The teacher connects Google Calendar through Google consent handled by the server; the refresh token is stored encrypted and never reaches the browser, and with the Google OAuth app in production status the connection still works 8 days later without reconnecting.
-2. Creating, moving or cancelling a single lesson, a series or one occurrence leaves exactly one matching event in Google (a series is one recurring event with its exceptions), and retries or an API restart in the middle of a write never create a second event.
-3. Every write to Google goes through the queue with one writer per lesson, so two quick edits of the same lesson end as the last edit in Google.
-4. When authorization expires or is revoked, the connection screen says so and offers reconnect, and queued writes continue after reconnecting.
+2. The calendar reads every Google page for the selected window and shows the provider events. Creating, moving, cancelling or restoring a single lesson, series or occurrence succeeds only after Google confirms the result; retries/restarts retain one active representation and preserve local marks/history.
+3. Every Google command goes through one serialized writer. Confirmed local projection follows the provider result. Concurrent edits use explicit preconditions; a delayed response never confirms a different command. Lost replies remain pending/unknown until reconciled.
+4. Without a connected Google Calendar, schedule operations are blocked and Settings offers connection/reconnect. During temporary Google failure, the last known state is read-only and new offline edits are rejected. Reconnect to the same target resolves previously dispatched work before new edits.
 5. The conflict check when planning a lesson or a series lists overlapping calendar events across the whole range, including those beyond the first page of results.
 6. The public homepage describes the app and links to public privacy policy and terms pages. The privacy policy describes the actual use, storage and sharing of Google Calendar data. Google OAuth Branding uses these pages, and publication to Production is verified after they are deployed.
 
-**Plans**: TBD
+**Plans**: 13/14 plans executed / 40 tasks / 13 waves; source implementation in progress, connected provider verification pending
+
+Plans:
+**Wave 1**
+
+- [x] 24-01-PLAN.md — Публичный tracer, privacy и точный E2E target
+- [x] 24-02-PLAN.md — Google source DTO и durable command/read schema
+
+**Wave 2** _(blocked on Wave 1 completion)_
+
+- [x] 24-03-PLAN.md — Разрешённые зависимости и миграции очереди/journal
+
+**Wave 3** _(blocked on Wave 2 completion)_
+
+- [x] 24-04-PLAN.md — OAuth, refresh и разрешимый Disconnect
+
+**Wave 4** _(blocked on Wave 3 completion)_
+
+- [x] 24-05-PLAN.md — Атомарные Google reads, next index и граница истории
+
+**Wave 5** _(blocked on Wave 4 completion)_
+
+- [x] 24-06-PLAN.md — C2: единые будущие факты Today и Students
+
+**Wave 6** _(blocked on Wave 5 completion)_
+
+- [x] 24-07-PLAN.md — Сквозная команда: prepare→Google ACK→projection
+
+**Wave 7** _(blocked on Wave 6 completion)_
+
+- [x] 24-08-PLAN.md — Single edits, tombstone restore и precondition recovery
+
+**Wave 8** _(blocked on Wave 7 completion)_
+
+- [x] 24-09-PLAN.md — Recurring masters и canonical instances
+
+**Wave 9** _(blocked on Wave 8 completion)_
+
+- [x] 24-10-PLAN.md — Cut/end: partial Google state и однократный domain apply
+
+**Wave 10** _(blocked on Wave 9 completion)_
+
+- [x] 24-12-PLAN.md — UI: Google read-only, pending Save и recovery
+
+**Wave 11** _(blocked on Wave 10 completion)_
+
+- [x] 24-11-PLAN.md — Полный conflict check и сохранение открытой формы
+
+**Wave 12** _(blocked on Wave 11 completion)_
+
+- [x] 24-13-PLAN.md — Readiness и воспроизводимая external evidence
+
+**Wave 13** _(blocked on Wave 12 completion)_
+
+- [ ] 24-14-PLAN.md — Публичный Production и реальный восьмой день
+
 **UI hint**: yes
-**Notes**: Built on AUD-CAL-1..10 in `.planning/research/CODE-AUDIT.md`: event id derived from the lesson, series or exception id in Google's id alphabet, one writer per lesson through `pg-boss`, event time zone taken from the lesson, not from the server.
+**Notes**: Owner decision 2026-10-11 supersedes the offline/local-first design. Initial connection reads Google; it does not publish the existing local schedule automatically. Ordinary window reads belong to Phase 24; watch/incremental sync and event matching remain Phase 25. Built on AUD-CAL-1..10 in `.planning/research/CODE-AUDIT.md`: event id derived from the lesson, series or exception id in Google's id alphabet, one writer per lesson through `pg-boss`, event time zone taken from the lesson, not from the server.
 **OAuth setup**: Calendar API is enabled. The web client uses `https://dv-lab.dev/api/google/callback`; the server must implement this exact callback. The declared Calendar scopes are `calendar.events` and `calendar.calendarlist.readonly`. Credentials are stored outside the repository. The app remains in Testing while Branding is incomplete; public privacy policy and terms pages belong to this phase. Publication and the connection test are still pending.
 
 ### Phase 25: Google Calendar Two-Way Sync
@@ -436,7 +510,7 @@ Plans:
 4. When the same lesson changed in the app and in Google, the Google version is what remains after sync.
 5. Watch channels are renewed before they expire, and a change made while notifications were not delivered (for example while the API was stopped) appears after the nightly reconcile.
 
-**Plans**: TBD
+**Plans**: 12 plans, 30 tasks, 11 waves. Research, UI and independent plan checks prepared; implementation remains pending final Phase 24 interfaces.
 **UI hint**: yes
 
 ### Phase 26: IELTS Section
@@ -452,7 +526,7 @@ Plans:
 4. Existing ielts accounts, rooms, attempts, grades and media are on the new server with matching counts, and the Vercel and Neon deployment is switched off only after the teacher confirms.
 5. IELTS screens use the variant A look in light and dark themes.
 
-**Plans**: TBD
+**Plans**: 40 plans,112 tasks,35 waves; independently checked full scope; execution pending final24/25/22/23 source joins and migration/operator gates. See [26-PLAN-INDEX.md](phases/26-ielts-section/26-PLAN-INDEX.md).
 **UI hint**: yes
 **Notes**: ielts code is ported as is. A rollout is not started while an ielts room has active students.
 
@@ -474,8 +548,8 @@ Plans:
 | 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
-| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/TBD          | Not started | -          |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started | -          |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 0/TBD          | Not started | -          |
-| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started | -          |
-| 26. IELTS Section                                | v2.0      | 0/TBD          | Not started | -          |
+| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/18           | Planned     | -          |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/15           | Planned     | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
+| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
+| 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |

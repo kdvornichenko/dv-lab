@@ -2,67 +2,24 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
-import { Check, UserX } from 'lucide-react'
-
-import { DotShape } from '@/components/app/status-dot'
-import { movedDate, occurrenceSlot, statusKey, statusLabel, type StatusKey } from '@/lib/lesson-mark-text'
-import { formatDay, formatRange, formatTime, mainRange } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
-import type { ScheduleBlock } from '@dv-lab/contracts'
+import type { CalendarEventView } from '@dv-lab/contracts'
 
-export interface BlockLayout {
-	top: number
-	height: number
-	lane: number
-	lanes: number
-}
-
-type Sign = 'dot' | 'check' | 'user-x' | null
-
-const PLANNED_LOOK = 'bg-selected text-foreground ring-1 ring-surface-2'
-const DIMMED_LOOK = `${PLANNED_LOOK} opacity-60`
-
-const BLOCK_LOOK: Record<StatusKey, { shell: string; struck: boolean; sign: Sign }> = {
-	planned: { shell: PLANNED_LOOK, struck: false, sign: null },
-	needs_mark: { shell: PLANNED_LOOK, struck: false, sign: 'dot' },
-	done: { shell: DIMMED_LOOK, struck: false, sign: 'check' },
-	no_show: { shell: DIMMED_LOOK, struck: false, sign: 'user-x' },
-	cancelled: { shell: 'text-muted-foreground ring-1 ring-selected ring-inset', struck: true, sign: null },
-	moved: {
-		shell: 'text-foreground outline-2 -outline-offset-2 outline-selected outline-dashed',
-		struck: false,
-		sign: null,
-	},
-}
-
-function BlockSign({ sign }: { sign: Exclude<Sign, null> }) {
-	if (sign === 'dot') {
-		return (
-			<DotShape tone="amber" className="absolute top-[6px] right-[6px] ring-1 ring-surface-2" data-slot="block-sign" />
-		)
-	}
-	const Icon = sign === 'check' ? Check : UserX
-	return <Icon aria-hidden data-slot="block-sign" data-sign={sign} className="absolute top-[4px] right-[4px] size-3" />
-}
+import { eventRange, eventTitle } from './calendar-event-details'
+import type { BlockLayout } from './calendar-layout'
 
 interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
-	block: ScheduleBlock
-	layout: BlockLayout
-	secondZone: string | null
-	currentYear: number
-	now: Date
+	event: CalendarEventView
+	layout: BlockLayout | null
 	mainTimeZone: string
-	onOpen: (block: ScheduleBlock) => void
+	onOpen: (event: CalendarEventView) => void
 	onClick?: ComponentProps<'button'>['onClick']
 }
 
 export function LessonBlock({
-	block,
+	event: calendarEvent,
 	layout,
-	secondZone,
-	currentYear,
-	now,
 	mainTimeZone,
 	onOpen,
 	onClick,
@@ -70,55 +27,45 @@ export function LessonBlock({
 	style,
 	...props
 }: LessonBlockProps) {
-	const start = new Date(block.startsAt)
-	const range = formatRange(start, block.durationMinutes, mainTimeZone)
-	const movedLabel = movedDate(block, mainTimeZone)
-	const look = BLOCK_LOOK[statusKey(block, now)]
-	const label = [
-		block.studentName,
-		formatDay(start, mainTimeZone, currentYear),
-		mainRange(start, block.durationMinutes, mainTimeZone, secondZone),
-		statusLabel(block, now, mainTimeZone),
-	].join(', ')
-	const short = block.durationMinutes < 45
-	const lines = short
-		? [
-				movedLabel !== null
-					? `${block.studentName} → ${movedLabel}`
-					: `${block.studentName}, ${formatTime(start, mainTimeZone)}`,
-			]
-		: [block.studentName, movedLabel !== null ? `→ ${movedLabel}` : range]
-	const position: CSSProperties = {
-		top: layout.top,
-		height: layout.height,
-		left: `calc(${layout.lane} / ${layout.lanes} * 100% + 2px)`,
-		width: `calc(100% / ${layout.lanes} - 6px)`,
-	}
+	const title = eventTitle(calendarEvent)
+	const range = eventRange(calendarEvent, mainTimeZone)
+	const cancelled = calendarEvent.status === 'cancelled'
+	const availability = cancelled ? 'Cancelled' : calendarEvent.blocksTime ? 'Busy' : 'Available'
+	const short = layout !== null && layout.height < 34
+	const position: CSSProperties | undefined =
+		layout === null
+			? undefined
+			: {
+					top: layout.top,
+					height: layout.height,
+					left: `calc(${layout.lane} / ${layout.lanes} * 100% + 2px)`,
+					width: `calc(100% / ${layout.lanes} - 6px)`,
+				}
 	return (
 		<button
 			type="button"
 			{...props}
-			data-key={block.key}
-			data-slot={occurrenceSlot(block.outcome)}
-			aria-label={label}
+			data-event-key={calendarEvent.eventKey}
+			data-slot="calendar-event"
+			data-binding={calendarEvent.binding.kind}
+			aria-label={`${title}, ${range}, ${availability}, Read-only`}
 			style={{ ...position, ...style }}
 			onClick={(event) => {
 				onClick?.(event)
-				onOpen(block)
+				onOpen(calendarEvent)
 			}}
 			className={cn(
-				'absolute z-10 block cursor-pointer overflow-hidden rounded-md px-[6px] py-[2px] text-left focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
-				look.shell,
+				'z-10 block cursor-pointer overflow-hidden rounded-md px-[6px] py-[2px] text-left text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
+				layout === null ? 'relative w-full' : 'absolute',
+				cancelled ? 'text-muted-foreground ring-1 ring-selected ring-inset' : 'bg-selected ring-1 ring-surface-2',
 				className
 			)}
 		>
-			<span
-				className={cn('block truncate text-caption font-semibold', look.struck && 'line-through', look.sign && 'pr-4')}
-			>
-				{lines[0]}
+			<span className={cn('block truncate text-caption font-semibold', cancelled && 'line-through')}>
+				{title}
+				{short ? `, ${range}` : ''}
 			</span>
-			{lines.length > 1 ? <span className="block truncate text-caption tabular-nums">{lines[1]}</span> : null}
-			{look.sign === null ? null : <BlockSign sign={look.sign} />}
+			{!short ? <span className="block truncate text-caption tabular-nums">{range}</span> : null}
 		</button>
 	)
 }

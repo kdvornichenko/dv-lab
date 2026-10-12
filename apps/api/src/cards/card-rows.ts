@@ -50,7 +50,8 @@ export function toCardRow(row: CardRecord, facts: CardFacts): StudentRow {
 		currency: toCurrency(row.currency),
 		defaultLessonMinutes: row.defaultLessonMinutes,
 		balanceMinutes: facts.balanceMinutes,
-		nextLessonAt: facts.nextLessonAt,
+		nextLessonAt: facts.nextLesson.startsAt,
+		nextLesson: facts.nextLesson,
 	}
 }
 

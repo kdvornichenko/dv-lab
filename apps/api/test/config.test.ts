@@ -32,6 +32,7 @@ describe('loadConfig', () => {
 			SHUTDOWN_DEADLINE_MS: 10000,
 			GIT_SHA: 'unknown',
 			databaseUrl,
+			calendar: { enabled: false },
 		})
 	})
 

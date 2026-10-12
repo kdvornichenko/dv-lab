@@ -1,0 +1,327 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Events: instances</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Events: instances</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/events/instances">https://developers.google.com/workspace/calendar/api/v3/reference/events/instances</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="instances"/>
+<meta itemprop="path" content="Events"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+<a href="instances.html#auth">Authorization</a> optional.</aside>
+
+<p>Returns instances of the specified recurring event.
+<a href="instances.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>GET https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span>/instances</pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+      <tr id="eventId">
+        <td><code translate="no" dir="ltr">eventId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Recurring event identifier.
+
+
+        </td>
+      </tr>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="alwaysIncludeEmail">
+        <td><code translate="no" dir="ltr">alwaysIncludeEmail</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Deprecated and ignored. A value will always be returned in the <code translate="no" dir="ltr">email</code> field for the organizer, creator and attendees, even if no real email address is available (i.e. a generated, non-working value will be provided).
+
+
+        </td>
+      </tr>
+      <tr id="maxAttendees">
+        <td><code translate="no" dir="ltr">maxAttendees</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="maxResults">
+        <td><code translate="no" dir="ltr">maxResults</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          Maximum number of events returned on one result page. By default the value is 250 events. The page size can never be larger than 2500 events. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="originalStart">
+        <td><code translate="no" dir="ltr">originalStart</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          The original start time of the instance in the result. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="pageToken">
+        <td><code translate="no" dir="ltr">pageToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Token specifying which result page to return. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="showDeleted">
+        <td><code translate="no" dir="ltr">showDeleted</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to include deleted events (with <code translate="no" dir="ltr">status</code> equals "<code translate="no" dir="ltr">cancelled</code>") in the result. Cancelled instances of recurring events will still be included if <code translate="no" dir="ltr">singleEvents</code> is False. Optional. The default is False.
+
+
+        </td>
+      </tr>
+      <tr id="timeMax">
+        <td><code translate="no" dir="ltr">timeMax</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>
+          Upper bound (exclusive) for an event's start time to filter by. Optional. The default is not to filter by start time. Must be an RFC3339 timestamp with mandatory time zone offset.
+
+
+        </td>
+      </tr>
+      <tr id="timeMin">
+        <td><code translate="no" dir="ltr">timeMin</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>
+          Lower bound (inclusive) for an event's end time to filter by. Optional. The default is not to filter by end time. Must be an RFC3339 timestamp with mandatory time zone offset.
+
+
+        </td>
+      </tr>
+      <tr id="timeZone">
+        <td><code translate="no" dir="ltr">timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Time zone used in the response. Optional. The default is the time zone of the calendar.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request allows authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.freebusy</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.public.readonly</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+  <p>Do not supply a request body with this method.</p>
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a response body with the following structure:</p>
+  <section>
+    <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Objective-C" syntax-guessed>{
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"kind"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"calendar#events"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"etag"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">etag</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"summary"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"description"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"updated"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">datetime</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"timeZone"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"accessRole"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"defaultReminders"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span>{
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"method"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-s">"minutes"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">integer</span></span>
+<span class="devsite-syntax-w">    </span>}
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"nextPageToken"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"nextSyncToken"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"items"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><a href="../events.html#resource"><span class="devsite-syntax-n">events</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Resource</span></a>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">]</span>
+}</pre></devsite-code>
+    <table class="matchpre" id="response_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the collection ("<code translate="no" dir="ltr">calendar#events</code>").</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="etag">
+        <td><code translate="no" dir="ltr">etag</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">etag</code></td>
+        <td>ETag of the collection.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the calendar. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="description">
+        <td><code translate="no" dir="ltr">description</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Description of the calendar. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="updated">
+        <td><code translate="no" dir="ltr">updated</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">datetime</code></td>
+        <td>Last modification time of the calendar (as a <a href="https://tools.ietf.org/html/rfc3339">RFC3339</a> timestamp). Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="timeZone">
+        <td><code translate="no" dir="ltr">timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone of the calendar. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="accessRole">
+        <td><code translate="no" dir="ltr">accessRole</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The user's access role for this calendar. Read-only. Possible values are: <ul> <li>"<code translate="no" dir="ltr">none</code>" - The user has no access.</li> <li>"<code translate="no" dir="ltr">freeBusyReader</code>" - The user has read access to free/busy information.</li> <li>"<code translate="no" dir="ltr">reader</code>" - The user has read access to the calendar. Private events will appear to users with reader access, but event details will be hidden.</li> <li>"<code translate="no" dir="ltr">writerWithoutPrivateAccess</code>" - The user has read and write access to the calendar. Private events will appear to users with writerWithoutPrivateAccess access, but event details will be hidden.</li> <li>"<code translate="no" dir="ltr">writer</code>" - The user has read and write access to the calendar. Private events will appear to users with writer access, and event details will be visible.</li> <li>"<code translate="no" dir="ltr">owner</code>" - The user has manager access to the calendar. This role has all of the permissions of the writer role with the additional ability to see and modify access levels of other users. <p><aside>Important: the <code translate="no" dir="ltr">owner</code> role is different from the calendar's data owner. A calendar has a single data owner, but can have multiple users with <code translate="no" dir="ltr">owner</code> role.</aside></p></li> </ul></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="defaultReminders">
+        <td><code translate="no" dir="ltr">defaultReminders[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The default reminders on the calendar for the authenticated user. These reminders apply to all events on this calendar that do not explicitly override them (i.e. do not have <code translate="no" dir="ltr">reminders.useDefault</code> set to True).</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="defaultReminders.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">defaultReminders[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used by this reminder. Possible values are: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Reminders are sent via email.</li> <li>"<code translate="no" dir="ltr">popup</code>" - Reminders are sent via a UI popup.</li> </ul> <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="defaultReminders.minutes">
+        <td><code translate="no" dir="ltr"><span class="quiet">defaultReminders[].</span>minutes</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of minutes before the start of the event when the reminder should trigger. Valid values are between 0 and 40320 (4 weeks in minutes). <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="nextPageToken">
+        <td><code translate="no" dir="ltr">nextPageToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Token used to access the next page of this result. Omitted if no further results are available, in which case <code translate="no" dir="ltr">nextSyncToken</code> is provided.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="items">
+        <td><code translate="no" dir="ltr">items[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>List of events on the calendar.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="nextSyncToken">
+        <td><code translate="no" dir="ltr">nextSyncToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Token used at a later point in time to retrieve only the entries that have changed since this result was returned. Omitted if further results are available, in which case <code translate="no" dir="ltr">nextPageToken</code> is provided.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.events.instances" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

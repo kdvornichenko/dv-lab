@@ -1,5 +1,7 @@
 import type { Locator, Page, Request, Route, TestInfo } from '@playwright/test'
 
+import { cutHistory } from './support/calendar-cut.ts'
+import { calendarHistoryMarks } from './support/calendar-history.ts'
 import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, mondayOf, startedSlotToday, VN, vnToday } from './support/dates.ts'
 import { expect, test, type Fx } from './support/test.ts'
@@ -446,4 +448,11 @@ test.describe('mark history across zones [tz]', () => {
 			await crossZoneTail(page, fx, action)
 		})
 	}
+})
+test('[calendar] history preserves marks and refuses unconfirmed elapsed lessons', async ({ page }) => {
+	await calendarHistoryMarks(page.request)
+})
+
+test('[calendar] cut history keeps current marks after verified provider progress', async ({ page }) => {
+	await cutHistory(page.request)
 })

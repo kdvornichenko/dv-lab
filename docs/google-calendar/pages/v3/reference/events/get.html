@@ -1,0 +1,146 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Events: get</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Events: get</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/events/get">https://developers.google.com/workspace/calendar/api/v3/reference/events/get</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="get"/>
+<meta itemprop="path" content="Events"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+<a href="get.html#auth">Authorization</a> optional.</aside>
+
+<p>Returns an event based on its Google Calendar ID. To retrieve an event using its iCalendar ID, call the <a href="list.html#iCalUID">events.list method using the <code translate="no" dir="ltr">iCalUID</code> parameter</a>.
+<a href="get.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>GET https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span></pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+      <tr id="eventId">
+        <td><code translate="no" dir="ltr">eventId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Event identifier.
+
+
+        </td>
+      </tr>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="alwaysIncludeEmail">
+        <td><code translate="no" dir="ltr">alwaysIncludeEmail</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Deprecated and ignored. A value will always be returned in the <code translate="no" dir="ltr">email</code> field for the organizer, creator and attendees, even if no real email address is available (i.e. a generated, non-working value will be provided).
+
+
+        </td>
+      </tr>
+      <tr id="maxAttendees">
+        <td><code translate="no" dir="ltr">maxAttendees</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="timeZone">
+        <td><code translate="no" dir="ltr">timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Time zone used in the response. Optional. The default is the time zone of the calendar.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request allows authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.freebusy</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.public.readonly</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+  <p>Do not supply a request body with this method.</p>
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns an <a href="../events.html#resource">Events resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.events.get" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

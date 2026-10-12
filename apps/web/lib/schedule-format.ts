@@ -1,7 +1,7 @@
 import { offsetLabel, zoneLabel } from '@/lib/time-zones'
 
 import type { ScheduleSeriesReference } from '@dv-lab/contracts'
-import { addDays, countsAsLesson, localTimeCandidates, zonedParts, type LessonOutcome } from '@dv-lab/core'
+import { addDays, localTimeCandidates, zonedParts } from '@dv-lab/core'
 
 const dash = ' – '
 
@@ -67,11 +67,6 @@ export function periodTitle(monday: string): string {
 	return `${monthLong(monday)} ${yearOf(monday)}`
 }
 
-export function weekEyebrow(monday: string, currentMonday: string): string {
-	if (monday === currentMonday) return 'This week'
-	return monday < currentMonday ? 'Past week' : 'Coming weeks'
-}
-
 export function formatTime(instant: Date, zone: string): string {
 	return zonedParts(instant, zone).time
 }
@@ -93,10 +88,6 @@ export function gutterLabel(monday: string, hour: number, mainTimeZone: string, 
 
 export function weekdayName(weekday: number): string {
 	return WEEKDAY_LONG[weekday - 1]
-}
-
-export function weekdayPlural(weekday: number): string {
-	return `${weekdayName(weekday)}s`
 }
 
 function dateOf(instant: Date, zone: string): string {
@@ -175,34 +166,9 @@ export function seriesSecondLine(
 	return secondWhen(new Date(reference.ruleStartsAt), mainTimeZone, secondTimeZone)
 }
 
-export function weekPhrase(monday: string): string {
-	const sunday = addDays(monday, 6)
-	const left = dayOf(monday)
-	const right = dayOf(sunday)
-	if (yearOf(monday) !== yearOf(sunday)) {
-		return `Week of ${left} ${monthLong(monday)} ${yearOf(monday)} to ${right} ${monthLong(sunday)} ${yearOf(sunday)}`
-	}
-	if (monthLong(monday) !== monthLong(sunday)) {
-		return `Week of ${left} ${monthLong(monday)} to ${right} ${monthLong(sunday)} ${yearOf(sunday)}`
-	}
-	return `Week of ${left} to ${right} ${monthLong(sunday)} ${yearOf(sunday)}`
-}
-
 export function lessonCount(count: number): string {
 	if (count === 0) return 'no lessons'
 	return count === 1 ? '1 lesson' : `${count} lessons`
-}
-
-export function weekSummary(blocks: readonly { outcome: LessonOutcome; studentId: string }[]): string {
-	const planned = blocks.filter((block) => countsAsLesson(block.outcome))
-	const cancelled = blocks.filter((block) => block.outcome === 'cancelled').length
-	if (planned.length === 0)
-		return cancelled > 0 ? `No lessons this week · ${cancelled} cancelled` : 'No lessons this week'
-	const students = new Set(planned.map((block) => block.studentId)).size
-	const lessons = `${planned.length} ${planned.length === 1 ? 'lesson' : 'lessons'}`
-	const people = `${students} ${students === 1 ? 'student' : 'students'}`
-	const base = `${lessons} with ${people}`
-	return cancelled > 0 ? `${base} · ${cancelled} cancelled` : base
 }
 
 export function secondRange(start: Date, minutes: number, mainTimeZone: string, zone: string | null): string | null {

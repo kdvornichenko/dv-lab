@@ -1,0 +1,227 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CalendarList: list</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>CalendarList: list</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/list">https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/list</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="list"/>
+<meta itemprop="path" content="CalendarList"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="list.html#auth">authorization</a>.</aside>
+
+<p>Returns the calendars on the user's calendar list.
+<a href="list.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>GET https://www.googleapis.com/calendar/v3/users/me/calendarList</pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="maxResults">
+        <td><code translate="no" dir="ltr">maxResults</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          Maximum number of entries returned on one result page. By default the value is 100 entries. The page size can never be larger than 250 entries. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="minAccessRole">
+        <td><code translate="no" dir="ltr">minAccessRole</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          The minimum access role for the user in the returned entries. Optional. The default is no restriction.
+
+          <br/><br/>Acceptable values are:
+          <ul>
+            <li>"<code translate="no" dir="ltr">freeBusyReader</code>": The user can read free/busy information.
+            </li>
+            <li>"<code translate="no" dir="ltr">owner</code>": The user can read and modify events and access control lists.
+            </li>
+            <li>"<code translate="no" dir="ltr">reader</code>": The user can read events that are not private.
+            </li>
+            <li>"<code translate="no" dir="ltr">writer</code>": The user can read and modify events.
+            </li>
+            <li>"<code translate="no" dir="ltr">writerWithoutPrivateAccess</code>": The user can read and modify events that aren't private. The user can read free/busy information about private events. The user can't modify private events.
+            </li>
+          </ul>
+
+        </td>
+      </tr>
+      <tr id="pageToken">
+        <td><code translate="no" dir="ltr">pageToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Token specifying which result page to return. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="showDeleted">
+        <td><code translate="no" dir="ltr">showDeleted</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to include deleted calendar list entries in the result. Optional. The default is False.
+
+
+        </td>
+      </tr>
+      <tr id="showHidden">
+        <td><code translate="no" dir="ltr">showHidden</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to show hidden entries. Optional. The default is False.
+
+
+        </td>
+      </tr>
+      <tr id="showOwnOrganizationOnly">
+        <td><code translate="no" dir="ltr">showOwnOrganizationOnly</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to show only entries for calendars from the organization. This parameter is only applicable to Google Workspace users. Optional. The default is False.
+
+
+        </td>
+      </tr>
+      <tr id="syncToken">
+        <td><code translate="no" dir="ltr">syncToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Token obtained from the <code translate="no" dir="ltr">nextSyncToken</code> field returned on the last page of results from the previous list request. It makes the result of this list request contain only entries that have changed since then. If only read-only fields such as calendar properties or ACLs have changed, the entry won't be returned. All entries deleted and hidden since the previous list request will always be in the result set and it is not allowed to set <code translate="no" dir="ltr">showDeleted</code> neither <code translate="no" dir="ltr">showHidden</code> to False. <br>To ensure client state consistency <code translate="no" dir="ltr">minAccessRole</code> and <code translate="no" dir="ltr">showOwnOrganizationOnly</code> query parameters cannot be specified together with <code translate="no" dir="ltr">nextSyncToken</code>. <br>If the <code translate="no" dir="ltr">syncToken</code> expires, the server will respond with a 410 GONE response code and the client should clear its storage and perform a full synchronization without any <code translate="no" dir="ltr">syncToken</code>. <br><a href="../../../guides/sync.html">Learn more</a> about incremental synchronization. <br>Optional. The default is to return all entries.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.readonly</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist.readonly</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+  <p>Do not supply a request body with this method.</p>
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a response body with the following structure:</p>
+  <section>
+    <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Objective-C" syntax-guessed>{
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"kind"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"calendar#calendarList"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"etag"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">etag</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"nextPageToken"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"nextSyncToken"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="apiparam"><span class="devsite-syntax-n">string</span></span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s">"items"</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><a href="../calendarList.html#resource"><span class="devsite-syntax-n">calendarList</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Resource</span></a>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">]</span>
+}</pre></devsite-code>
+    <table class="matchpre" id="response_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the collection ("<code translate="no" dir="ltr">calendar#calendarList</code>").</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="etag">
+        <td><code translate="no" dir="ltr">etag</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">etag</code></td>
+        <td>ETag of the collection.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="nextPageToken">
+        <td><code translate="no" dir="ltr">nextPageToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Token used to access the next page of this result. Omitted if no further results are available, in which case <code translate="no" dir="ltr">nextSyncToken</code> is provided.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="items">
+        <td><code translate="no" dir="ltr">items[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>Calendars that are present on the user's calendar list.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="nextSyncToken">
+        <td><code translate="no" dir="ltr">nextSyncToken</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Token used at a later point in time to retrieve only the entries that have changed since this result was returned. Omitted if further results are available, in which case <code translate="no" dir="ltr">nextPageToken</code> is provided.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.calendarList.list" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

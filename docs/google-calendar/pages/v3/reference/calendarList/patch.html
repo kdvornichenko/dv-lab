@@ -1,0 +1,117 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CalendarList: patch</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>CalendarList: patch</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/patch">https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/patch</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="patch"/>
+<meta itemprop="path" content="CalendarList"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="patch.html#auth">authorization</a>.</aside>
+
+<p>Updates an existing calendar on the user's calendar list. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.
+<a href="patch.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>PATCH https://www.googleapis.com/calendar/v3/users/me/calendarList/<span class="apiparam">calendarId</span></pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="colorRgbFormat">
+        <td><code translate="no" dir="ltr">colorRgbFormat</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to use the <code translate="no" dir="ltr">foregroundColor</code> and <code translate="no" dir="ltr">backgroundColor</code> fields to write the calendar colors (RGB). If this feature is used, the index-based <code translate="no" dir="ltr">colorId</code> field will be set to the best matching option automatically. Optional. The default is False.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply the relevant portions of a <a href="../calendarList.html#resource">CalendarList resource</a>, according to the rules of patch semantics.</p>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a <a href="../calendarList.html#resource">CalendarList resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.calendarList.patch" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

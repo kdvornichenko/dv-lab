@@ -12,8 +12,8 @@ import { isAfterScheduleToday, lessonsToMinutes } from '@dv-lab/core'
 import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
 
 import { findStudentAccount } from '../auth/accounts.ts'
-import { lockTeacherTimeContext, type TeacherTimeContext } from '../settings/settings.ts'
-import { NO_CARD_FACTS, cardFacts } from './card-facts.ts'
+import { lockTeacherTimeContext } from '../settings/settings.ts'
+import { cardFacts, type CardFacts, type CardReadContext } from './card-facts.ts'
 import { type CardRecord, cardColumns, toCardRow, toStudentDetail } from './card-rows.ts'
 
 type SaveStudentInput = z.output<typeof saveStudentRequest>
@@ -37,25 +37,39 @@ function cardValues(input: SaveStudentInput) {
 	}
 }
 
-async function toDetail(executor: DbExecutor, row: CardRecord, context: TeacherTimeContext): Promise<StudentDetail> {
-	const facts = await cardFacts(executor, [row], context)
-	const account = await findStudentAccount(executor, row.id)
-	return toStudentDetail(row, facts.get(row.id) ?? NO_CARD_FACTS, account)
+function requiredFacts(facts: ReadonlyMap<string, CardFacts>, id: string): CardFacts {
+	const value = facts.get(id)
+	if (!value) throw new Error('Card facts are missing')
+	return value
 }
 
-export async function createCard(executor: DbExecutor, input: SaveStudentInput): Promise<StudentDetail> {
+export async function cardIds(executor: DbExecutor): Promise<string[]> {
+	return (await executor.select({ id: students.id }).from(students)).map((row) => row.id)
+}
+
+async function toDetail(executor: DbExecutor, row: CardRecord, context: CardReadContext): Promise<StudentDetail> {
+	const facts = await cardFacts(executor, [row], context)
+	const account = await findStudentAccount(executor, row.id)
+	return toStudentDetail(row, requiredFacts(facts, row.id), account)
+}
+
+export async function createCard(
+	executor: DbExecutor,
+	input: SaveStudentInput,
+	context: CardReadContext
+): Promise<StudentDetail> {
 	const [row] = await executor
 		.insert(students)
 		.values({ ...cardValues(input), noShowDeducts: input.noShowDeducts ?? true })
 		.returning(cardColumns)
 	if (!row) throw new Error('student card insert returned no row')
-	return toStudentDetail(row, NO_CARD_FACTS, null)
+	return toDetail(executor, row, context)
 }
 
 export async function getCard(
 	executor: DbExecutor,
 	id: string,
-	context: TeacherTimeContext
+	context: CardReadContext
 ): Promise<StudentDetail | null> {
 	const [row] = await executor.select(cardColumns).from(students).where(eq(students.id, id))
 	return row ? toDetail(executor, row, context) : null
@@ -63,7 +77,7 @@ export async function getCard(
 
 export async function listCards(
 	executor: DbExecutor,
-	context: TeacherTimeContext
+	context: CardReadContext
 ): Promise<Pick<StudentsResponse, 'students' | 'unassignedPayments'>> {
 	const rows = await executor
 		.select(cardColumns)
@@ -75,7 +89,7 @@ export async function listCards(
 		.from(payments)
 		.where(isNull(payments.studentId))
 	return {
-		students: rows.map((row) => toCardRow(row, facts.get(row.id) ?? NO_CARD_FACTS)),
+		students: rows.map((row) => toCardRow(row, requiredFacts(facts, row.id))),
 		unassignedPayments: unassigned?.count ?? 0,
 	}
 }
@@ -84,7 +98,7 @@ export async function updateCard(
 	executor: DbExecutor,
 	id: string,
 	input: SaveStudentInput,
-	context: TeacherTimeContext
+	context: CardReadContext
 ): Promise<StudentDetail | null> {
 	const [row] = await executor
 		.update(students)
@@ -101,7 +115,7 @@ export async function updateCard(
 export async function archiveCard(
 	executor: DbExecutor,
 	id: string,
-	context: TeacherTimeContext
+	context: CardReadContext
 ): Promise<StudentDetail | null> {
 	const [row] = await executor
 		.update(students)
@@ -114,7 +128,7 @@ export async function archiveCard(
 export async function restoreCard(
 	executor: DbExecutor,
 	id: string,
-	context: TeacherTimeContext
+	context: CardReadContext
 ): Promise<StudentDetail | null> {
 	const [row] = await executor
 		.update(students)
@@ -160,7 +174,7 @@ export function setOpeningBalance(
 		return {
 			kind: 'ok',
 			response: {
-				student: await toDetail(tx, row, context),
+				student: await toDetail(tx, row, { ...context, accountId }),
 				defaultTimeZone: context.defaultTimeZone,
 				asOf: context.now.toISOString(),
 				paysSoonLessons: settings.paysSoonLessons,

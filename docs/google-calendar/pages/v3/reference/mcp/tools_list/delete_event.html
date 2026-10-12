@@ -1,0 +1,1084 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MCP Tools Reference: calendarmcp.googleapis.com</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>MCP Tools Reference: calendarmcp.googleapis.com</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/delete_event">https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/delete_event</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <meta itemprop="name" content="delete_event">
+    <meta itemprop="path" content="/workspace/calendar/api/v3/reference/mcp/tools_list/delete_event">
+    <section id="/workspace/calendar/api/v3/reference/mcp/tools_list/delete_event">
+
+      <section id="GENERIC">
+        <h2 id="tool:-delete_event" data-text="Tool: delete_event" tabindex="-1">Tool: <code translate="no" dir="ltr">delete_event</code></h2>
+      </section>
+      <section id="GENERIC_1">
+        <aside class="preview"><strong>Developer Preview:</strong> Available as part of the <a href="https://developers.google.com/workspace/preview" target="_blank" class="external">Google Workspace Developer Preview Program</a>, which grants early access to certain features.</aside>
+        <p>Deletes an event on the given calendar.</p>
+      </section>
+      <section id="GENERIC_2">
+        <p>
+          The following sample demonstrate how to use <code translate="no" dir="ltr">curl</code> to invoke the <code translate="no" dir="ltr">delete_event</code> MCP tool.
+        </p>
+      </section>
+      <section id="MCP_CURL_REQUEST">
+        <table class="properties responsive fixed">
+          <thead>
+            <tr>
+              <th>Curl Request</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash">curl<span class="devsite-syntax-w"> </span>--location<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'https://calendarmcp.googleapis.com/mcp/v1'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Authorization: Bearer YOUR_ACCESS_TOKEN'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'content-type: application/json'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'accept: application/json, text/event-stream'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--data<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'{</span>
+<span class="devsite-syntax-s1">  "method": "tools/call",</span>
+<span class="devsite-syntax-s1">  "params": {</span>
+<span class="devsite-syntax-s1">    "name": "delete_event",</span>
+<span class="devsite-syntax-s1">    "arguments": {</span>
+<span class="devsite-syntax-s1">      // provide these details according to the tool MCP specification</span>
+<span class="devsite-syntax-s1">    }</span>
+<span class="devsite-syntax-s1">  },</span>
+<span class="devsite-syntax-s1">  "jsonrpc": "2.0",</span>
+<span class="devsite-syntax-s1">  "id": 1</span>
+<span class="devsite-syntax-s1">}'</span>
+<span class="devsite-syntax-w">                </span></pre></devsite-code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="Input.Schema">
+        <h2 id="input-schema" data-text="Input Schema" tabindex="-1">Input Schema</h2>
+
+        <section id="Input.Schema.description">
+          <p>Request message for DeleteEvent.</p>
+        </section>
+        <section id="Input.Schema.DeleteEventRequest">
+          <h3 id="deleteeventrequest" data-text="DeleteEventRequest" tabindex="-1">DeleteEventRequest</h3>
+
+        </section>
+        <section id="Input.Schema.SCHEMA_REPRESENTATION">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+  <span class="str">"eventId"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+
+  <span class="str">"calendarId"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"notificationLevel"</span><span class="pun">: </span><span class="kwd">enum (<code translate="no" dir="ltr"><a href="create_event.html#Input.Schema.NotificationLevel">NotificationLevel</a></code>)</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Input.Schema.FIELDS">
+          <table class="properties responsive fixed" id="Input.Schema.FIELDS-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Input.Schema.FIELDS.field_section">
+                <td><code translate="no" dir="ltr">eventId</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Required. The ID of the event to delete.</p>
+                </td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_calendar_id</code>.</p><p><code translate="no" dir="ltr">_calendar_id</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.field_section_1">
+                <td><code translate="no" dir="ltr">calendarId</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. ID of the calendar containing the event. Email address - can be resolved using <code translate="no" dir="ltr">list_calendars</code>. Default: primary calendar.</p>
+                </td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_notification_level</code>.</p><p><code translate="no" dir="ltr">_notification_level</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.field_section_2">
+                <td><code translate="no" dir="ltr">notificationLevel</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">enum (<code translate="no" dir="ltr"><a href="create_event.html#Input.Schema.NotificationLevel">NotificationLevel</a></code>)</code></p>
+                  <p>Optional. Which email notification should be sent for this event update.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Input.Schema.NotificationLevel">
+          <h3 id="notificationlevel" data-text="NotificationLevel" tabindex="-1">NotificationLevel</h3>
+
+        </section>
+        <section id="Input.Schema.description_1">
+          <p>Email notification level for updates.</p>
+        </section>
+        <section id="Input.Schema.ENUM_VALUES">
+          <table class="constants responsive fixed" id="Input.Schema.ENUM_VALUES-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Enums</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Input.Schema.ENUM_VALUES.NOTIFICATION_LEVEL_UNSPECIFIED">
+                <td><code class="apitype" translate="no" dir="ltr">NOTIFICATION_LEVEL_UNSPECIFIED</code></td>
+                <td>Default. Treated as <code translate="no" dir="ltr">ALL</code>.</td>
+              </tr>
+              <tr id="Input.Schema.ENUM_VALUES.NONE">
+                <td><code class="apitype" translate="no" dir="ltr">NONE</code></td>
+                <td>No notifications.</td>
+              </tr>
+              <tr id="Input.Schema.ENUM_VALUES.EXTERNAL_ONLY">
+                <td><code class="apitype" translate="no" dir="ltr">EXTERNAL_ONLY</code></td>
+                <td>External attendees only.</td>
+              </tr>
+              <tr id="Input.Schema.ENUM_VALUES.ALL">
+                <td><code class="apitype" translate="no" dir="ltr">ALL</code></td>
+                <td>All attendees.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+      <section id="Output.Schema">
+        <h2 id="output-schema" data-text="Output Schema" tabindex="-1">Output Schema</h2>
+
+        <section id="Output.Schema.description">
+
+        </section>
+        <section id="Output.Schema.Event">
+          <h3 id="event" data-text="Event" tabindex="-1">Event</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+  <span class="str">"id"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"status"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"htmlLink"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"created"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"updated"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"summary"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"description"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"location"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"creator"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Principal">Principal</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"organizer"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Principal">Principal</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"start"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.DateOrDateTime">DateOrDateTime</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"end"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.DateOrDateTime">DateOrDateTime</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"recurrence"</span><span class="pun">: </span><span class="pun">[</span>
+    <span class="kwd">string</span>
+  <span class="pun">]</span><span class="pun">,</span>
+  <span class="str">"recurringEventId"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"originalStartTime"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.DateOrDateTime">DateOrDateTime</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"transparency"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"visibility"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"attendees"</span><span class="pun">: </span><span class="pun">[</span>
+    <span class="pun">{</span>
+      <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Attendee">Attendee</a></code>)</span>
+    <span class="pun">}</span>
+  <span class="pun">]</span><span class="pun">,</span>
+  <span class="str">"conferenceUrl"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"colorId"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"overrideReminders"</span><span class="pun">: </span><span class="pun">[</span>
+    <span class="pun">{</span>
+      <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Reminder">Reminder</a></code>)</span>
+    <span class="pun">}</span>
+  <span class="pun">]</span><span class="pun">,</span>
+  <span class="str">"attachments"</span><span class="pun">: </span><span class="pun">[</span>
+    <span class="pun">{</span>
+      <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Attachment">Attachment</a></code>)</span>
+    <span class="pun">}</span>
+  <span class="pun">]</span><span class="pun">,</span>
+  <span class="str">"guestPermissions"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.GuestPermissions">GuestPermissions</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"eventType"</span><span class="pun">: </span><span class="kwd">enum (<code translate="no" dir="ltr"><a href="list_events.html#Input.Schema.EventType">EventType</a></code>)</span><span class="pun">,</span>
+  <span class="str">"workingLocationProperties"</span><span class="pun">: </span><span class="pun">{</span>
+    <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.WorkingLocationProperties">WorkingLocationProperties</a></code>)</span>
+  <span class="pun">}</span><span class="pun">,</span>
+  <span class="str">"availability"</span><span class="pun">: </span><span class="kwd">enum (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Availability">Availability</a></code>)</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS.field_section">
+                <td><code translate="no" dir="ltr">id</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Unique identifier.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_1">
+                <td><code translate="no" dir="ltr">status</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Status. Possible values are: <ul>  <li><code translate="no" dir="ltr">confirmed</code> - Event is confirmed (default).</li>  <li><code translate="no" dir="ltr">tentative</code> - Event is tentatively confirmed.</li>  <li><code translate="no" dir="ltr">cancelled</code> - Event is cancelled or deleted.</li> </ul></p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_2">
+                <td><code translate="no" dir="ltr">htmlLink</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. An absolute link to this event in the Google Calendar Web UI.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_3">
+                <td><code translate="no" dir="ltr">created</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Creation time (ISO 8601).</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_4">
+                <td><code translate="no" dir="ltr">updated</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Last modification time (ISO 8601).</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_5">
+                <td><code translate="no" dir="ltr">summary</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Title.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_6">
+                <td><code translate="no" dir="ltr">description</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Description. Can contain HTML.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_7">
+                <td><code translate="no" dir="ltr">location</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Location.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_8">
+                <td><code translate="no" dir="ltr">creator</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Principal">Principal</a></code>)</code></p>
+                  <p>Output only. Creator.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_9">
+                <td><code translate="no" dir="ltr">organizer</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Principal">Principal</a></code>)</code></p>
+                  <p>Output only. Organizer. Also listed in attendees if attending.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_10">
+                <td><code translate="no" dir="ltr">start</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.DateOrDateTime">DateOrDateTime</a></code>)</code></p>
+                  <p>Start time (inclusive). For recurring events the first instance is used..</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_11">
+                <td><code translate="no" dir="ltr">end</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.DateOrDateTime">DateOrDateTime</a></code>)</code></p>
+                  <p>End time (exclusive). For recurring events the first instance is used.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_12">
+                <td><code translate="no" dir="ltr">recurrence[]</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Recurrence rules as <code translate="no" dir="ltr">RRULE</code>, <code translate="no" dir="ltr">EXRULE</code>, <code translate="no" dir="ltr">RDATE</code>, or <code translate="no" dir="ltr">EXDATE</code> strings (per RFC 5545). Omitted for single events. Start/end times must be set in the <code translate="no" dir="ltr">start</code>/<code translate="no" dir="ltr">end</code> fields.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_13">
+                <td><code translate="no" dir="ltr">recurringEventId</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Parent recurring event ID for instances of recurring events.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_14">
+                <td><code translate="no" dir="ltr">originalStartTime</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.DateOrDateTime">DateOrDateTime</a></code>)</code></p>
+                  <p>Original start time of recurring instances. This is the time at which this instance would start according to the recurrence data.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_15">
+                <td><code translate="no" dir="ltr">transparency<br><b>(deprecated)</b></code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <aside class="warning"><p>This item is deprecated!</p></aside>
+                  <p>Optional. Deprecated: use <code translate="no" dir="ltr">availability</code> instead.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_16">
+                <td><code translate="no" dir="ltr">visibility</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Visibility of the event. Possible values are: <ul>  <li> <code translate="no" dir="ltr">default</code> - Uses the default visibility for events on the calendar.  This is the default value.  <li> <code translate="no" dir="ltr">public</code> - Event details are visible to all readers of the calendar.  <li> <code translate="no" dir="ltr">private</code> - Only event attendees may view event details. </ul></p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_17">
+                <td><code translate="no" dir="ltr">attendees[]</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Attendee">Attendee</a></code>)</code></p>
+                  <p>Attendees.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_18">
+                <td><code translate="no" dir="ltr">conferenceUrl</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Video conference link.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_19">
+                <td><code translate="no" dir="ltr">colorId</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>The color of the event. Only affects your own calendar view. This is an ID referring to an entry in the calendar's color palette (string <code translate="no" dir="ltr">'1'</code>-<code translate="no" dir="ltr">'11'</code>): <ul>  <li> <code translate="no" dir="ltr">1</code>: Lavender  <li> <code translate="no" dir="ltr">2</code>: Sage  <li> <code translate="no" dir="ltr">3</code>: Grape  <li> <code translate="no" dir="ltr">4</code>: Flamingo  <li> <code translate="no" dir="ltr">5</code>: Banana  <li> <code translate="no" dir="ltr">6</code>: Tangerine  <li> <code translate="no" dir="ltr">7</code>: Peacock  <li> <code translate="no" dir="ltr">8</code>: Graphite  <li> <code translate="no" dir="ltr">9</code>: Blueberry  <li> <code translate="no" dir="ltr">10</code>: Basil  <li> <code translate="no" dir="ltr">11</code>: Tomato. </ul></p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_20">
+                <td><code translate="no" dir="ltr">overrideReminders[]</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Reminder">Reminder</a></code>)</code></p>
+                  <p>Reminders. Falls back to calendar defaults if unset.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_21">
+                <td><code translate="no" dir="ltr">attachments[]</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Attachment">Attachment</a></code>)</code></p>
+                  <p>File attachments.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_22">
+                <td><code translate="no" dir="ltr">guestPermissions</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.GuestPermissions">GuestPermissions</a></code>)</code></p>
+                  <p>Guest permissions.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_23">
+                <td><code translate="no" dir="ltr">eventType</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">enum (<code translate="no" dir="ltr"><a href="list_events.html#Input.Schema.EventType">EventType</a></code>)</code></p>
+                  <p>Event type.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_24">
+                <td><code translate="no" dir="ltr">workingLocationProperties</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.WorkingLocationProperties">WorkingLocationProperties</a></code>)</code></p>
+                  <p>Working location properties. Populated only when <code translate="no" dir="ltr">event_type</code> is <code translate="no" dir="ltr">WORKING_LOCATION</code>.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_25">
+                <td><code translate="no" dir="ltr">availability</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">enum (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.Availability">Availability</a></code>)</code></p>
+                  <p>Optional. Availability setting.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.Principal">
+          <h3 id="principal" data-text="Principal" tabindex="-1">Principal</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_1">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+  <span class="str">"email"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"displayName"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"self"</span><span class="pun">: </span><span class="kwd">boolean</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_1">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_1-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_1.field_section">
+                <td><code translate="no" dir="ltr">email</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Email.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_1.field_section_1">
+                <td><code translate="no" dir="ltr">displayName</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Name.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_1.field_section_2">
+                <td><code translate="no" dir="ltr">self</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Output only. Whether this principal corresponds to the calendar on which this copy of the event appears. Default: <code translate="no" dir="ltr">false</code>.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.DateOrDateTime">
+          <h3 id="dateordatetime" data-text="DateOrDateTime" tabindex="-1">DateOrDateTime</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_2">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+  <span class="str">"date"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"dateTime"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"timeZone"</span><span class="pun">: </span><span class="kwd">string</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_2">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_2-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_2.field_section">
+                <td><code translate="no" dir="ltr">date</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>ISO 8601 date at midnight UTC (for example, <code translate="no" dir="ltr">'2019-11-20T00:00:00Z'</code>).</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_2.field_section_1">
+                <td><code translate="no" dir="ltr">dateTime</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>ISO 8601 timestamp (for example, <code translate="no" dir="ltr">'2019-11-20T08:19:06-07:00'</code>).</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_2.field_section_2">
+                <td><code translate="no" dir="ltr">timeZone</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>TZDB timezone name.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.Attendee">
+          <h3 id="attendee" data-text="Attendee" tabindex="-1">Attendee</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_3">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+
+  <span class="str">"id"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"email"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"displayName"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"organizer"</span><span class="pun">: </span><span class="kwd">boolean</span>
+
+  <span class="str">"self"</span><span class="pun">: </span><span class="kwd">boolean</span>
+
+  <span class="str">"resource"</span><span class="pun">: </span><span class="kwd">boolean</span>
+
+  <span class="str">"optionalAttendee"</span><span class="pun">: </span><span class="kwd">boolean</span>
+
+  <span class="str">"responseStatus"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"comment"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"additionalGuests"</span><span class="pun">: </span><span class="kwd">integer</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_3">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_3-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_3.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_id</code>.</p><p><code translate="no" dir="ltr">_id</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section">
+                <td><code translate="no" dir="ltr">id</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Profile ID.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_email</code>.</p><p><code translate="no" dir="ltr">_email</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_1">
+                <td><code translate="no" dir="ltr">email</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Required. Attendee's email address.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_2" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_display_name</code>.</p><p><code translate="no" dir="ltr">_display_name</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_2">
+                <td><code translate="no" dir="ltr">displayName</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Name.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_3" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_organizer</code>.</p><p><code translate="no" dir="ltr">_organizer</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_3">
+                <td><code translate="no" dir="ltr">organizer</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Output only. Whether attendee is the organizer. Default: <code translate="no" dir="ltr">false</code>.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_4" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_self</code>.</p><p><code translate="no" dir="ltr">_self</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_4">
+                <td><code translate="no" dir="ltr">self</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Output only. Whether this entry represents the calendar on which this copy of the event appears. Default: <code translate="no" dir="ltr">false</code>.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_5" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_resource</code>.</p><p><code translate="no" dir="ltr">_resource</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_5">
+                <td><code translate="no" dir="ltr">resource</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Optional. Whether attendee is a resource (for example, room). Immutable, can only be set when the attendee is initially added. Default: <code translate="no" dir="ltr">false</code>.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_6" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_optional_attendee</code>.</p><p><code translate="no" dir="ltr">_optional_attendee</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_6">
+                <td><code translate="no" dir="ltr">optionalAttendee</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Optional. Whether attendee is optional. Default: <code translate="no" dir="ltr">false</code>.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_7" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_response_status</code>.</p><p><code translate="no" dir="ltr">_response_status</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_7">
+                <td><code translate="no" dir="ltr">responseStatus</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Response status. Possible values are: <ul>  <li> <code translate="no" dir="ltr">needsAction</code> - Attendee has not responded to the invitation  (recommended for new events). <li> <code translate="no" dir="ltr">declined</code> - Attendee has declined the  invitation. <li> <code translate="no" dir="ltr">tentative</code> - Attendee has tentatively accepted the  invitation. <li> <code translate="no" dir="ltr">accepted</code> - Attendee has accepted the invitation. </ul></p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_8" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_comment</code>.</p><p><code translate="no" dir="ltr">_comment</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_8">
+                <td><code translate="no" dir="ltr">comment</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Response comment.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.ONEOF_9" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_additional_guests</code>.</p><p><code translate="no" dir="ltr">_additional_guests</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_3.field_section_9">
+                <td><code translate="no" dir="ltr">additionalGuests</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">integer</code></p>
+                  <p>Optional. Number of additional guests. Default: <code translate="no" dir="ltr">0</code>.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.Reminder">
+          <h3 id="reminder" data-text="Reminder" tabindex="-1">Reminder</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_4">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+
+  <span class="str">"method"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"minutes"</span><span class="pun">: </span><span class="kwd">integer</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_4">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_4-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_4.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_method</code>.</p><p><code translate="no" dir="ltr">_method</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_4.field_section">
+                <td><code translate="no" dir="ltr">method</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Required. Delivery method. Possible values are: <ul>  <li> <code translate="no" dir="ltr">email</code> - Reminders are sent via email.  <li> <code translate="no" dir="ltr">popup</code> - Reminders are sent via a UI popup. </ul></p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_4.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_minutes</code>.</p><p><code translate="no" dir="ltr">_minutes</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_4.field_section_1">
+                <td><code translate="no" dir="ltr">minutes</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">integer</code></p>
+                  <p>Required. Minutes in advance that the reminder is triggered.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.Attachment">
+          <h3 id="attachment" data-text="Attachment" tabindex="-1">Attachment</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_5">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+
+  <span class="str">"fileUrl"</span><span class="pun">: </span><span class="kwd">string</span>
+
+  <span class="str">"title"</span><span class="pun">: </span><span class="kwd">string</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_5">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_5-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_5.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_file_url</code>.</p><p><code translate="no" dir="ltr">_file_url</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_5.field_section">
+                <td><code translate="no" dir="ltr">fileUrl</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Required. URL link to the attachment.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_5.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_title</code>.</p><p><code translate="no" dir="ltr">_title</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_5.field_section_1">
+                <td><code translate="no" dir="ltr">title</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Attachment title.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.GuestPermissions">
+          <h3 id="guestpermissions" data-text="GuestPermissions" tabindex="-1">GuestPermissions</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_6">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+
+  <span class="str">"guestsCanInviteOthers"</span><span class="pun">: </span><span class="kwd">boolean</span>
+
+  <span class="str">"guestsCanModify"</span><span class="pun">: </span><span class="kwd">boolean</span>
+
+  <span class="str">"guestsCanSeeGuests"</span><span class="pun">: </span><span class="kwd">boolean</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_6">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_6-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_6.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_guests_can_invite_others</code>.</p><p><code translate="no" dir="ltr">_guests_can_invite_others</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_6.field_section">
+                <td><code translate="no" dir="ltr">guestsCanInviteOthers</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Optional. Whether guests can invite others.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_6.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_guests_can_modify</code>.</p><p><code translate="no" dir="ltr">_guests_can_modify</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_6.field_section_1">
+                <td><code translate="no" dir="ltr">guestsCanModify</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Optional. Whether guests can modify the event.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_6.ONEOF_2" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_guests_can_see_guests</code>.</p><p><code translate="no" dir="ltr">_guests_can_see_guests</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_6.field_section_2">
+                <td><code translate="no" dir="ltr">guestsCanSeeGuests</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">boolean</code></p>
+                  <p>Optional. Whether guests can see other guests.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.WorkingLocationProperties">
+          <h3 id="workinglocationproperties" data-text="WorkingLocationProperties" tabindex="-1">WorkingLocationProperties</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_7">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+
+  <span class="str">"type"</span><span class="pun">: </span><span class="kwd">enum (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.WorkingLocationType">WorkingLocationType</a></code>)</span>
+
+  <span class="str">"customLocationLabel"</span><span class="pun">: </span><span class="kwd">string</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_7">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_7-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_7.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_type</code>.</p><p><code translate="no" dir="ltr">_type</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_7.field_section">
+                <td><code translate="no" dir="ltr">type</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">enum (<code translate="no" dir="ltr"><a href="list_events.html#Output.Schema.WorkingLocationType">WorkingLocationType</a></code>)</code></p>
+                  <p>Optional. Working location type.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_7.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_custom_location_label</code>.</p><p><code translate="no" dir="ltr">_custom_location_label</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_7.field_section_1">
+                <td><code translate="no" dir="ltr">customLocationLabel</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. The label for a custom location. Required if type is <code translate="no" dir="ltr">CUSTOM_LOCATION</code>.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.EventType">
+          <h3 id="eventtype" data-text="EventType" tabindex="-1">EventType</h3>
+
+        </section>
+        <section id="Output.Schema.description_1">
+          <p>Event type. Immutable after creation.</p>
+        </section>
+        <section id="Output.Schema.ENUM_VALUES">
+          <table class="constants responsive fixed" id="Output.Schema.ENUM_VALUES-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Enums</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.ENUM_VALUES.EVENT_TYPE_UNSPECIFIED">
+                <td><code class="apitype" translate="no" dir="ltr">EVENT_TYPE_UNSPECIFIED</code></td>
+                <td>Treated as <code translate="no" dir="ltr">DEFAULT</code>.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES.DEFAULT">
+                <td><code class="apitype" translate="no" dir="ltr">DEFAULT</code></td>
+                <td>Regular event. Default value.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES.OUT_OF_OFFICE">
+                <td><code class="apitype" translate="no" dir="ltr">OUT_OF_OFFICE</code></td>
+                <td>Out-of-office event.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES.FOCUS_TIME">
+                <td><code class="apitype" translate="no" dir="ltr">FOCUS_TIME</code></td>
+                <td>Focus-time event.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES.WORKING_LOCATION">
+                <td><code class="apitype" translate="no" dir="ltr">WORKING_LOCATION</code></td>
+                <td>Working location event.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES.BIRTHDAY">
+                <td><code class="apitype" translate="no" dir="ltr">BIRTHDAY</code></td>
+                <td>Special all-day event with an annual recurrence.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES.FROM_GMAIL">
+                <td><code class="apitype" translate="no" dir="ltr">FROM_GMAIL</code></td>
+                <td>Event from Gmail. This type of event cannot be created.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.WorkingLocationType">
+          <h3 id="workinglocationtype" data-text="WorkingLocationType" tabindex="-1">WorkingLocationType</h3>
+
+        </section>
+        <section id="Output.Schema.description_2">
+          <p>Type of working location.</p>
+        </section>
+        <section id="Output.Schema.ENUM_VALUES_1">
+          <table class="constants responsive fixed" id="Output.Schema.ENUM_VALUES_1-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Enums</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.ENUM_VALUES_1.WORKING_LOCATION_TYPE_UNSPECIFIED">
+                <td><code class="apitype" translate="no" dir="ltr">WORKING_LOCATION_TYPE_UNSPECIFIED</code></td>
+                <td>Unspecified working location type. Will be treated as <code translate="no" dir="ltr">HOME_OFFICE</code>.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES_1.HOME_OFFICE">
+                <td><code class="apitype" translate="no" dir="ltr">HOME_OFFICE</code></td>
+                <td>Home office.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES_1.CUSTOM_LOCATION">
+                <td><code class="apitype" translate="no" dir="ltr">CUSTOM_LOCATION</code></td>
+                <td>Custom location.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.Availability">
+          <h3 id="availability" data-text="Availability" tabindex="-1">Availability</h3>
+
+        </section>
+        <section id="Output.Schema.description_3">
+          <p>Availability setting for an event.</p>
+        </section>
+        <section id="Output.Schema.ENUM_VALUES_2">
+          <table class="constants responsive fixed" id="Output.Schema.ENUM_VALUES_2-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Enums</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.ENUM_VALUES_2.AVAILABILITY_UNSPECIFIED">
+                <td><code class="apitype" translate="no" dir="ltr">AVAILABILITY_UNSPECIFIED</code></td>
+                <td>Default. Treated as <code translate="no" dir="ltr">BUSY</code>.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES_2.AVAILABILITY_BUSY">
+                <td><code class="apitype" translate="no" dir="ltr">AVAILABILITY_BUSY</code></td>
+                <td>Blocks time on calendar.</td>
+              </tr>
+              <tr id="Output.Schema.ENUM_VALUES_2.AVAILABILITY_FREE">
+                <td><code class="apitype" translate="no" dir="ltr">AVAILABILITY_FREE</code></td>
+                <td>Does not block time.</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+      <section id="GENERIC_3">
+        <h3 id="tool-annotations" data-text="Tool Annotations" tabindex="-1">Tool Annotations</h3>
+        <p>Destructive Hint: ✅ | Idempotent Hint: ✅ | Read Only Hint: ❌ | Open World Hint: ❌</p>
+      </section>
+      <section id="Authorization.Scopes"><h2 id="authorization-scopes" data-text="Authorization Scopes" tabindex="-1">Authorization Scopes</h2><p>Requires one of the following OAuth scopes:</p><ul><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></li><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events</code></li></ul></section>
+    </section>
+  
+  
+
+  
+</main></body></html>

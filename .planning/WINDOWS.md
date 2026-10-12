@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 5
+open_count: 10
 waived_count: 0
 fixed_count: 1
-total_count: 6
-last_updated: 2026-10-11T15:33:53.149Z
+total_count: 11
+last_updated: 2026-10-11T19:11:40.648Z
 ---
 
 # Broken Windows Ledger
@@ -21,6 +21,11 @@ last_updated: 2026-10-11T15:33:53.149Z
 | 4 | 21 | unrun-verify | .planning/phases/21-lesson-accounting-and-today/21-UI-SPEC.md | 604 | Отрисовка имени длиной 300 символов не проверена: contracts и SQL CHECK допускают максимум 80; запрос с 300 символами отклонён HTTP 400 | open |  | 2026-10-11T07:27:54.898Z |  |
 | 5 | 21 | unrun-verify | .planning/phases/21-lesson-accounting-and-today/21-UI-SPEC.md | 606 | Реальный переход browser и API через полночь Вьетнама не проверен; существующая симуляция устаревшей даты и повторного чтения Today прошла в обеих темах | open |  | 2026-10-11T07:27:55.011Z |  |
 | 6 | 21.1 | unrun-verify | e2e/today.spec.ts |  | Поведенческие RED/GREEN сценариев [tz] не запускались в плане 02: по PLAN-INDEX общий runtime принадлежит плану 13; listing не подтверждает поведение. | fixed |  | 2026-10-11T12:25:00.008Z | 2026-10-11T15:33:53.149Z |
+| 7 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-SUMMARY.md |  | OAuth: два написанных сценария не запускались. Real consent, refresh, revoke, fault/restart и student cases требуют authoring и external execution в 24-14; локальные три negative cases не доказывают provider behavior. | open |  | 2026-10-11T17:04:39.276Z |  |
+| 8 | 24 | unrun-verify | deploy/caddy/Caddyfile |  | Caddy runtime/config и callback-query redaction не проверены: CLI отсутствует, install/deploy не разрешены. Метрики Caddy DSL unsupported, full-scope quality UNVERIFIED. Проверка владельца 24-13/CI и существующего runtime в 24-14. | open |  | 2026-10-11T17:04:39.417Z |  |
+| 9 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-05-SUMMARY.md |  | Чтение Calendar: connected all-pages/restart, empty non-final page, out-of-order publish, foreign-account, next prefix/deadline и полная history matrix пока не подтверждены реальным provider. Отдельные journeys ещё требуют authoring; disconnected E2E не заменяет эти доказательства. Закрыть на разрешённом prelaunch runtime в 24-13/24-14. | open |  | 2026-10-11T18:06:27.661Z |  |
+| 10 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-SUMMARY.md |  | C2: disconnected API/UI, marks и Pays soon проверены; connected edit Schedule→Today→Students, failed pagination, proven none, last-known UI и real pending command ещё требуют authoring/execution. Exact startsAt=asOf после исправления статически проверен, но real-clock equality не наблюдалась. Сохранить UNVERIFIED до воспроизводимого evidence. | open |  | 2026-10-11T18:06:27.778Z |  |
+| 11 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-SUMMARY.md |  | Journal07 source и disconnected E2E завершены; connected create/ACK/recovery и фактический fault transport не запускались. Bundled runtime13 интегрирован, SSH loader/control и PRIMARY binding готовятся. Закрыть на существующем разрешённом HTTPS target с exact build/persistence и synthetic fixtures; отсутствие proof не PASS. | open |  | 2026-10-11T19:11:40.648Z |  |
 
 ````json
 [
@@ -100,6 +105,71 @@ last_updated: 2026-10-11T15:33:53.149Z
     "reason": "",
     "recorded_at": "2026-10-11T12:25:00.008Z",
     "resolved_at": "2026-10-11T15:33:53.149Z",
+    "milestone": "v2.0"
+  },
+  {
+    "id": 7,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": ".planning/phases/24-google-calendar-connection-and-outbound-sync/24-04-SUMMARY.md",
+    "line": null,
+    "description": "OAuth: два написанных сценария не запускались. Real consent, refresh, revoke, fault/restart и student cases требуют authoring и external execution в 24-14; локальные три negative cases не доказывают provider behavior.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T17:04:39.276Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 8,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": "deploy/caddy/Caddyfile",
+    "line": null,
+    "description": "Caddy runtime/config и callback-query redaction не проверены: CLI отсутствует, install/deploy не разрешены. Метрики Caddy DSL unsupported, full-scope quality UNVERIFIED. Проверка владельца 24-13/CI и существующего runtime в 24-14.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T17:04:39.417Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 9,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": ".planning/phases/24-google-calendar-connection-and-outbound-sync/24-05-SUMMARY.md",
+    "line": null,
+    "description": "Чтение Calendar: connected all-pages/restart, empty non-final page, out-of-order publish, foreign-account, next prefix/deadline и полная history matrix пока не подтверждены реальным provider. Отдельные journeys ещё требуют authoring; disconnected E2E не заменяет эти доказательства. Закрыть на разрешённом prelaunch runtime в 24-13/24-14.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T18:06:27.661Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 10,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": ".planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-SUMMARY.md",
+    "line": null,
+    "description": "C2: disconnected API/UI, marks и Pays soon проверены; connected edit Schedule→Today→Students, failed pagination, proven none, last-known UI и real pending command ещё требуют authoring/execution. Exact startsAt=asOf после исправления статически проверен, но real-clock equality не наблюдалась. Сохранить UNVERIFIED до воспроизводимого evidence.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T18:06:27.778Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 11,
+    "kind": "unrun-verify",
+    "phase": "24",
+    "file": ".planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-SUMMARY.md",
+    "line": null,
+    "description": "Journal07 source и disconnected E2E завершены; connected create/ACK/recovery и фактический fault transport не запускались. Bundled runtime13 интегрирован, SSH loader/control и PRIMARY binding готовятся. Закрыть на существующем разрешённом HTTPS target с exact build/persistence и synthetic fixtures; отсутствие proof не PASS.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-11T19:11:40.648Z",
+    "resolved_at": null,
     "milestone": "v2.0"
   }
 ]

@@ -22,11 +22,9 @@ function fromDate(value: Date) {
 	return `${value.getFullYear()}-${m}-${d}`
 }
 
-interface DateFieldProps {
+interface DateFieldBase {
 	id: string
 	label: string
-	value: string
-	onChange: (value: string) => void
 	min?: string
 	max?: string
 	error?: string
@@ -34,9 +32,16 @@ interface DateFieldProps {
 	disabled?: boolean
 }
 
-export function DateField({ id, label, value, onChange, min, max, error, helper, disabled }: DateFieldProps) {
+type DateFieldProps = DateFieldBase &
+	(
+		| { nullable?: false; value: string; onChange: (value: string) => void }
+		| { nullable: true; value: string | null; onChange: (value: string | null) => void }
+	)
+
+export function DateField(props: DateFieldProps) {
+	const { id, label, value, onChange, min, max, error, helper, disabled } = props
 	const [open, setOpen] = useState(false)
-	const text = dateFormat.format(toDate(value))
+	const text = value === null ? 'Choose date' : dateFormat.format(toDate(value))
 	const disabledDays: Matcher[] = []
 	if (min) disabledDays.push({ before: toDate(min) })
 	if (max) disabledDays.push({ after: toDate(max) })
@@ -66,12 +71,13 @@ export function DateField({ id, label, value, onChange, min, max, error, helper,
 						mode="single"
 						locale={enUS}
 						weekStartsOn={1}
-						selected={toDate(value)}
-						defaultMonth={toDate(value)}
+						selected={value === null ? undefined : toDate(value)}
+						defaultMonth={value === null ? (min ? toDate(min) : undefined) : toDate(value)}
 						disabled={disabledDays.length ? disabledDays : undefined}
 						onSelect={(next) => {
-							if (!next) return
-							onChange(fromDate(next))
+							if (next) onChange(fromDate(next))
+							else if (props.nullable) props.onChange(null)
+							else return
 							setOpen(false)
 						}}
 					/>

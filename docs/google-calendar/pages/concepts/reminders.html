@@ -1,0 +1,644 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reminders and notifications</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Reminders and notifications</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/concepts/reminders">https://developers.google.com/workspace/calendar/api/concepts/reminders</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>The Google Calendar API provides support for reminders and notifications.</p>
+
+<ul>
+<li><em>Reminders</em> are alarms triggered at a specified time before an event starts.</li>
+<li><em>Notifications</em> allow users to find out about changes to events in their calendar.</li>
+</ul>
+
+<p>Don't confuse notifications with <a href="../guides/push.html">push notifications</a>, which notify another server of changes to a calendar rather than being delivered to a user.</p>
+
+<p>For more details about notifications in Google Calendar, see
+<a href="https://support.google.com/calendar/answer/37242">Modify Google Calendar notifications</a>.</p>
+
+<h2 id="reminders" data-text="Reminders" tabindex="-1">Reminders</h2>
+
+<p>A reminder consists of:</p>
+
+<ul>
+<li>When to show the reminder, expressed as minutes before the event start time.</li>
+<li>The delivery method to use (see <a href="reminders.html#delivery-mechanisms">Delivery mechanisms</a>).</li>
+</ul>
+
+<p>Reminders can be specified for whole calendars and for individual events. Users
+can set <em>default reminders</em> for each of their calendars; these defaults apply to
+all events within that calendar. However, users can also override these
+defaults for individual events, replacing them with a different set of
+reminders.</p>
+
+<h3 id="default-reminders" data-text="Default reminders" tabindex="-1">Default reminders</h3>
+
+<p>Reminders are private information, specific to an authenticated user; they're
+<em>not</em> shared across multiple users. As a result:</p>
+
+<ul>
+<li>Default reminders are manipulated through the <code translate="no" dir="ltr">CalendarList</code> collection, which
+contains user-specific calendar metadata.</li>
+<li>They're <em>not</em> accessible through the <code translate="no" dir="ltr">Calendars</code> collection, which contains global
+metadata shared across all users.</li>
+</ul>
+
+<p>Default reminders are also returned when doing an Events list query.</p>
+
+<h3 id="overriding-default-reminders" data-text="Overriding default reminders" tabindex="-1">Overriding default reminders</h3>
+
+<p>To override default reminders when you create or update an event, set
+<a href="../v3/reference/events.html#reminders.useDefault">reminders.useDefault</a>
+to <code translate="no" dir="ltr">false</code> and populate
+<a href="../v3/reference/events.html#reminders.overrides">reminders.overrides</a>
+with the new reminder set. Overrides can be set only when <code translate="no" dir="ltr">useDefault</code> is <code translate="no" dir="ltr">false</code>,
+as shown in the following example:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JSON"><code translate="no" dir="ltr"><span class="devsite-syntax-nt">"reminders"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"useDefault"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"overrides"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nt">"method"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"reminderMethod"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nt">"minutes"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"reminderMinutes"</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-p">}</span>
+</code></pre></devsite-code>
+<p>To revert to the default set of reminders, perform an update setting
+<a href="../v3/reference/events.html#reminders.useDefault"><code translate="no" dir="ltr">reminders.useDefault</code></a>
+back to <code translate="no" dir="ltr">true</code>.</p>
+
+<h2 id="notifications" data-text="Notifications" tabindex="-1">Notifications</h2>
+
+<p>Calendar supports the following notification types:</p>
+
+<ul>
+<li><em>Event creation</em>: A new event is added to one of the user's calendars.</li>
+<li><em>Event change</em>: The organizer modified an event that the user was invited to.</li>
+<li><em>Event cancellation</em>: An event that the user was invited to is canceled.</li>
+<li><em>Attendee response</em>: An attendee changed their response status for an event created by the user.</li>
+<li><em>Agenda</em>: A list of all the events on the user's calendar, sent at the start of the day.</li>
+</ul>
+
+<p>The user can decide which notifications to enable per calendar and the delivery
+method for each notification type. These settings are not shared with other
+users. Similar to default reminders, they're accessible through the
+<code translate="no" dir="ltr">CalendarList</code> collection.</p>
+
+<p>To send email notifications to attendees for events that were inserted or
+updated with the API, call the
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">insert</code></a> or
+<a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">update</code></a> method and set
+the <code translate="no" dir="ltr">sendUpdates</code> parameter to <code translate="no" dir="ltr">"all"</code> or <code translate="no" dir="ltr">"externalOnly"</code>.</p>
+<aside class="note"><strong>Note:</strong><span> For attendees with non-Google email addresses, these notification emails
+are the only way they can find out about the event; the event is not added to
+their calendars automatically.</span></aside>
+<h2 id="delivery-mechanisms" data-text="Delivery mechanisms" tabindex="-1">Delivery mechanisms</h2>
+
+<p>The delivery methods offered by Google Calendar are:</p>
+
+<ul>
+<li><em>Pop-up</em>. These are supported on mobile platforms and on web clients.</li>
+<li><em>Email</em> sent by the server.</li>
+</ul>
+
+<p>The following table shows the supported methods for each reminder or notification type:</p>
+
+<table>
+<tr>
+<th></th>
+<th></th>
+<th>Pop-up</th>
+<th>Email</th>
+</tr>
+<tr>
+<td rowspan="2"><b>Reminders</b></td>
+<td>Default reminders</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Override reminders</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td rowspan="5"><b>Notifications</b></td>
+<td>Event creation </td>
+<td>❌</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Event change</td>
+<td>❌</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Event cancellation</td>
+<td>❌</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Attendee response</td>
+<td>❌</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Agenda</td>
+<td>❌</td>
+<td>✓</td>
+</tr>
+</table>
+
+  
+
+  
+</main></body></html>

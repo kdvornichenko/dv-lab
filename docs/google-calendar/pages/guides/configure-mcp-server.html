@@ -1,0 +1,1405 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Configure the Calendar MCP server</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Configure the Calendar MCP server</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server">https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<aside class="preview"><strong>Developer Preview:</strong> Available as part of the
+<a href="https://developers.google.com/workspace/preview" target="_blank" class="external">Google Workspace Developer Preview Program</a>,
+which grants early access to certain features.</aside>
+
+<p>Google Calendar offers a remote
+<a href="https://modelcontextprotocol.io/introduction">Model Context Protocol (MCP)</a>
+server that allows AI agents to securely interact with Google Calendar data.
+By configuring the Google Calendar MCP server, you enable AI applications
+like Google Antigravity and Claude to perform actions
+in Google Calendar.</p>
+
+<p>The Google Calendar MCP server provides a standardized way for AI agents to:</p>
+
+<ul>
+<li><strong>Read data</strong>: List calendars, retrieve events, and check availability.</li>
+<li><strong>Take action</strong>: Create, update, and delete events.</li>
+<li><strong>Respect security</strong>: Inherit the same permissions and data governance
+controls as the user.</li>
+</ul>
+
+<h2 id="prerequisites" data-text="Prerequisites" tabindex="-1">Prerequisites</h2>
+
+<ul>
+<li><p>Membership in the
+<a href="https://developers.google.com/workspace/preview">Google Workspace Developer Preview Program</a>.</p></li>
+<li><p>A Google Cloud project. To create a project, see
+<a href="../related/workspace/guides/create-project.html">Create a project</a>.</p></li>
+<li><p>An MCP host, like <a href="https://antigravity.google/">Google Antigravity</a>.</p></li>
+<li><p>To run the commands on this page, set up the gcloud CLI in a local
+development environment by following these steps:</p>
+
+<ol>
+<li><a href="https://cloud.google.com/sdk/docs/install">Install the Google Cloud CLI</a>.
+  If you installed the gcloud CLI previously, make sure you have the
+  latest version by running <code translate="no" dir="ltr">gcloud components update</code>.</li>
+<li>If you're using an external identity provider (IdP), sign in to the
+  gcloud CLI with your federated identity. For more information, see
+  <a href="https://docs.cloud.google.com/iam/docs/workforce-log-in-gcloud">Sign in to the gcloud CLI with your federated identity</a>.</li>
+<li><a href="https://docs.cloud.google.com/sdk/docs/initializing">Initialize the gcloud CLI</a>.</li>
+</ol></li>
+</ul>
+
+<h2 id="configure" data-text="Configure the Google Calendar MCP server" tabindex="-1">Configure the Google Calendar MCP server</h2>
+
+<p>To use the Google Calendar MCP server, you must enable it in your
+Google Cloud project and then configure your MCP client to connect to it.</p>
+
+<h3 id="enable-apis" data-text="Enable the APIs" tabindex="-1">Enable the APIs</h3>
+
+<p>To use the Google Calendar MCP server, you must enable the following API
+in your Google Cloud project:</p>
+<ul>
+<li><p>Google Calendar API</p></li>
+</ul>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="cli" data-text="CLI" tabindex="-1">CLI</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash"><code translate="no" dir="ltr">gcloud<span class="devsite-syntax-w"> </span>services<span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">enable</span><span class="devsite-syntax-w"> </span>calendar-json.googleapis.com<span class="devsite-syntax-w"> </span>--project<span class="devsite-syntax-o">=</span><var label="Google Cloud Project ID" translate="no">PROJECT_ID</var>
+</code></pre></devsite-code>
+<p>Replace <code translate="no" dir="ltr"><var label="Google Cloud Project ID" translate="no">PROJECT_ID</var></code>
+with your Google Cloud project ID.</p></section>
+<section><h3 id="console" data-text="Console" tabindex="-1">Console</h3><p>Enable the APIs in the Google Cloud console:</p>
+
+<p><a href="https://console.cloud.google.com/flows/enableapi?apiid=calendar-json.googleapis.com" target="console" class="button button-primary">Enable the APIs</a> </p></section>
+</devsite-selector></div>
+<h3 id="enable-mcp-services" data-text="Enable the MCP services" tabindex="-1">Enable the MCP services</h3>
+
+<p>To enable the MCP components for Google Calendar, you must
+enable the following service in your Google Cloud project:</p>
+<ul>
+<li><p>Google Calendar MCP API</p></li>
+</ul>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="cli_1" data-text="CLI" tabindex="-1">CLI</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash"><code translate="no" dir="ltr">gcloud<span class="devsite-syntax-w"> </span>services<span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">enable</span><span class="devsite-syntax-w"> </span>calendarmcp.googleapis.com<span class="devsite-syntax-w"> </span>--project<span class="devsite-syntax-o">=</span><var label="Google Cloud Project ID" translate="no">PROJECT_ID</var>
+</code></pre></devsite-code>
+<p>Replace <code translate="no" dir="ltr"><var label="Google Cloud Project ID" translate="no">PROJECT_ID</var></code>
+with your Google Cloud project ID.</p></section>
+<section><h3 id="console_1" data-text="Console" tabindex="-1">Console</h3><p>Enable the MCP services in the Google Cloud console:</p>
+
+<p><a href="https://console.cloud.google.com/flows/enableapi?apiid=calendarmcp.googleapis.com" target="console" class="button button-primary">Enable the MCP services</a> </p></section>
+</devsite-selector></div>
+<h3 id="configure-consent-screen" data-text="Set up the OAuth consent screen" tabindex="-1">Set up the OAuth consent screen</h3>
+
+<p>The Google Calendar MCP server uses OAuth 2.0 for authentication and
+authorization. You must configure the OAuth consent screen before you can
+create an OAuth client ID.</p>
+
+<ol>
+<li><p>In the Google Cloud console, go to <strong>Google Auth Platform</strong> <strong>&gt;</strong> <strong>Branding</strong>.</p>
+
+<p><a href="https://console.cloud.google.com/auth/branding" target="_blank" class="button button-primary">Go to Branding</a> </p></li>
+<li><p>If you have already configured the <strong>Google Auth Platform</strong>, you can
+configure the following OAuth Consent Screen settings in
+<a href="https://console.cloud.google.com/auth/branding">Branding</a>,
+<a href="https://console.cloud.google.com/auth/audience">Audience</a>,
+and <a href="https://console.cloud.google.com/auth/scopes">Data Access</a>.
+If you see a message that says <strong>Google Auth Platform not configured
+yet</strong>, click <strong>Get Started</strong>:</p>
+
+<ol>
+<li>Under <strong>App Information</strong>, in <strong>App name</strong>, type <code translate="no" dir="ltr">Calendar MCP Server</code>.</li>
+<li>In <strong>User support email</strong>, select your email address or an appropriate
+Google group.</li>
+<li>Click <strong>Next</strong>.</li>
+<li>Under <strong>Audience</strong>, select <strong>Internal</strong>. If you can't select
+<strong>Internal</strong>, select <strong>External</strong>.</li>
+<li>Click <strong>Next</strong>.</li>
+<li>Under <strong>Contact Information</strong>, enter an <strong>Email address</strong> where you can
+be notified about any changes to your project.</li>
+<li>Click <strong>Next</strong>.</li>
+<li>Under <strong>Finish</strong>, review the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>
+and if you agree, select <strong>I agree to the Google API Services: User
+Data Policy</strong>.</li>
+<li>Click <strong>Continue</strong>.</li>
+<li>Click <strong>Create</strong>.</li>
+<li>If you selected <strong>External</strong> for user type, add test users:
+<ol>
+<li>Click <strong>Audience</strong>.</li>
+<li>Under <strong>Test users</strong>, click <strong>Add users</strong>.</li>
+<li>Enter your email address and any other authorized test users, then
+click <strong>Save</strong>.</li>
+</ol></li>
+</ol></li>
+<li><p>Click <strong>Data Access</strong> <strong>&gt;</strong> <strong>Add or Remove Scopes</strong>. A panel appears with
+a list of scopes for each API that you've enabled in your Google Cloud
+project.</p>
+
+<ol>
+<li><p>Under <strong>Manually add scopes</strong>, paste the scopes for the
+Google Calendar MCP server:</p>
+
+<ul>
+<li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist.readonly</code></li>
+<li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.freebusy</code></li>
+<li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.readonly</code></li>
+</ul></li>
+<li><p>Click <strong>Add to Table</strong>.</p></li>
+<li><p>Click <strong>Update</strong>.</p></li>
+<li><p>After selecting the scopes required by your app, on the <strong>Data Access</strong>
+page, click <strong>Save</strong>.</p></li>
+</ol></li>
+</ol>
+
+<h3 id="configure-mcp-client" data-text="Configure your MCP client" tabindex="-1">Configure your MCP client</h3>
+
+<p>To add the Google Calendar remote MCP server to your MCP client, follow the
+instructions for your client.</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="antigravity" data-text="Antigravity" tabindex="-1">Antigravity</h3><p>To add the Google Calendar remote MCP server to Antigravity,
+add the server configuration to your <code translate="no" dir="ltr">mcp_config.json</code> file. These
+instructions support Antigravity 2.0, Antigravity IDE, and Antigravity CLI.</p>
+
+<ol>
+<li><p>Create an OAuth 2.0 client ID and secret:</p>
+
+<ol>
+<li><p>In the Google Cloud console, go to <strong>Google Auth Platform</strong> <strong>&gt;</strong>
+<strong>Clients</strong> <strong>&gt;</strong>
+<strong>Create Client</strong></p>
+
+<p><a href="https://console.cloud.google.com/auth/clients/create" target="_blank" class="button button-primary">Go to Create Client</a> </p></li>
+<li><p>Select <strong>Web application</strong> as the application type.</p></li>
+<li><p>Enter a <strong>Name</strong>.</p></li>
+<li><p>In the <strong>Authorized redirect URIs</strong> section, click <strong>+ Add URI</strong>,
+and then add <code translate="no" dir="ltr">https://antigravity.google/oauth-callback</code> in the
+<strong>URIs</strong> field.</p></li>
+<li><p>Click <strong>Create</strong> and copy your <strong>Client ID</strong> and <strong>Client Secret</strong>.</p></li>
+</ol></li>
+<li><p>Open or create the configuration file <code translate="no" dir="ltr">~/.gemini/config/mcp_config.json</code>.</p></li>
+<li><p>Add the <code translate="no" dir="ltr">mcpServers</code> configuration to <code translate="no" dir="ltr">mcp_config.json</code>:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JSON"><code translate="no" dir="ltr"><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nt">"mcpServers"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nt">"calendar"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nt">"serverUrl"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"https://calendarmcp.googleapis.com/mcp/v1"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-nt">"oauth"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"clientId"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"<var label="OAuth Client ID" translate="no">OAUTH_CLIENT_ID</var>"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-nt">"clientSecret"</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"<var label="OAuth Client Secret" translate="no">OAUTH_CLIENT_SECRET</var>"</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+</code></pre></devsite-code>
+<p>Replace the following:</p>
+
+<ul>
+<li><code translate="no" dir="ltr"><var label="OAuth Client ID" translate="no">OAUTH_CLIENT_ID</var></code>: The
+client ID you created.</li>
+<li><code translate="no" dir="ltr"><var label="OAuth Client Secret" translate="no">OAUTH_CLIENT_SECRET</var></code>:
+The client secret you created.</li>
+</ul></li>
+<li><p>Save <code translate="no" dir="ltr">mcp_config.json</code>.</p></li>
+<li><p>Authenticate the MCP server. You can authenticate using either the GUI settings or the CLI:</p>
+
+<ul>
+<li><p><strong>For Antigravity IDE or GUI (Antigravity 2.0):</strong></p>
+
+<ol>
+<li>Open your settings screen (e.g., click <strong>Settings</strong> at the bottom-left or open <strong>Antigravity User Settings</strong>).</li>
+<li>Navigate to <strong>Customizations</strong>.</li>
+<li>Under <strong>Installed MCP Servers</strong>, click <strong>Refresh</strong>.</li>
+<li>Find <code translate="no" dir="ltr">calendar</code> in the list, click <strong>Authenticate</strong>, sign in to your Google Account, copy the authorization code, paste it into the input dialog, and click <strong>Submit</strong>.</li>
+</ol></li>
+<li><p><strong>For Antigravity CLI:</strong></p>
+
+<ol>
+<li><p>Start Antigravity CLI:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash"><code translate="no" dir="ltr">agy
+</code></pre></devsite-code></li>
+<li><p>Open the interactive MCP management panel by running:</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash"><code translate="no" dir="ltr">/mcp
+</code></pre></devsite-code></li>
+<li><p>Use the arrow keys to select <code translate="no" dir="ltr">calendar</code>, move to the <strong>Authenticate</strong> action, and press <strong>Enter</strong>. Complete the sign-in flow in your browser, copy the authorization code, paste it into the terminal prompt, and press <strong>Enter</strong>.</p></li>
+</ol></li>
+</ul></li>
+<li><p>Verify that the server is correctly configured and running:</p>
+
+<ul>
+<li><strong>For Antigravity IDE or GUI:</strong> A <strong>Sign out</strong> button is displayed next to the server under <strong>Customizations</strong> &gt; <strong>Installed MCP Servers</strong>.</li>
+<li><strong>For Antigravity CLI:</strong> Open the <code translate="no" dir="ltr">/mcp</code> panel to view your
+configured MCP servers. Verified and authenticated servers display
+<strong>Authed</strong> next to their names inside the interactive TUI panel.
+You can select the server under the dashboard view to inspect its
+status and list all of its available tools.</li>
+</ul></li>
+</ol>
+
+<p>The remote MCP server is ready to use in Antigravity.</p></section>
+<section><h3 id="claude" data-text="Claude" tabindex="-1">Claude</h3><p>To use the Google Calendar remote MCP server with Claude.ai or Claude
+Desktop, you must have the Claude Enterprise, Pro, Max, or Team plan.</p>
+
+<p>To add the Google Calendar remote MCP server to Claude, configure a
+custom connector with an OAuth client ID and secret.</p>
+
+<ol>
+<li><p>Create an OAuth 2.0 client ID and secret:</p>
+
+<ol>
+<li><p>In the Google Cloud console, go to <strong>Google Auth Platform</strong> <strong>&gt;</strong>
+<strong>Clients</strong> <strong>&gt;</strong>
+<strong>Create Client</strong></p>
+
+<p><a href="https://console.cloud.google.com/apis/credentials/oauthclient" target="_blank" class="button button-primary">Go to Create Client</a> </p></li>
+<li><p>Select <strong>Web application</strong> as the application type.</p></li>
+<li><p>Enter a <strong>Name</strong>.</p></li>
+<li><p>In the <strong>Authorized redirect URIs</strong> section, click <strong>+ Add URI</strong>,
+and then add <code translate="no" dir="ltr">https://claude.ai/api/mcp/auth_callback</code> in the
+<strong>URIs</strong> field.</p></li>
+<li><p>Click <strong>Create</strong> and copy your <strong>Client ID</strong> and <strong>Client Secret</strong>.</p></li>
+</ol></li>
+<li><p>Configure the MCP server in Claude:</p>
+
+<ol>
+<li>In Claude.ai or Claude Desktop, go to <strong>Settings</strong> (or
+<strong>Admin settings</strong>) &gt; <strong>Connectors</strong>.</li>
+<li>Click <strong>Add custom connector</strong>.</li>
+<li>Enter the connection details for the Google Calendar product:
+<ul>
+<li><strong>Server name</strong>: <code translate="no" dir="ltr">Google Calendar</code>.</li>
+<li><strong>Remote MCP server URL</strong>: <code translate="no" dir="ltr">https://calendarmcp.googleapis.com/mcp/v1</code></li>
+</ul></li>
+<li>In <strong>Advanced settings</strong>, enter your <strong>OAuth client ID</strong> and <strong>OAuth client secret</strong>.</li>
+<li>Click <strong>Add</strong>.</li>
+</ol></li>
+</ol></section>
+<section><h3 id="others" data-text="Others" tabindex="-1">Others</h3><p>Many AI applications have ways to connect to a remote MCP server. You typically
+need to enter details about the server, like its name, endpoints, transport
+protocol, and authentication method. For the Google Calendar remote MCP
+server, enter the following:</p>
+
+<ul>
+<li><p><strong>Server name</strong>: <code translate="no" dir="ltr">calendar</code></p></li>
+<li><p><strong>Server URL</strong>: <code translate="no" dir="ltr">https://calendarmcp.googleapis.com/mcp/v1</code></p></li>
+<li><p><strong>Transport</strong>: <a href="https://modelcontextprotocol.io/specification/latest/basic/transports/streamable-http">Streamable HTTP</a></p></li>
+<li><p><strong>Authentication</strong>: The Google Calendar remote MCP server
+uses OAuth 2.0. For details, see
+<a href="../related/workspace/guides/auth-overview.html">Learn about authentication and authorization</a>.</p></li>
+</ul></section>
+</devsite-selector></div>
+<p>For more details on connecting different types of clients, see
+<a href="https://docs.cloud.google.com/mcp/configure-mcp-ai-application">Configure MCP in an AI application</a>.</p>
+
+<h2 id="test-mcp-server" data-text="Test the Google Calendar MCP server" tabindex="-1">Test the Google Calendar MCP server</h2>
+
+<p>After you configure the MCP client, you can verify the connection by
+running some test prompts.</p>
+
+<p>Try asking your MCP client the following questions:</p>
+
+<ul>
+<li><p><strong>"When is my next meeting with Ariel?"</strong></p>
+
+<p>The client checks your schedule using <code translate="no" dir="ltr">calendar.list_events</code> and details
+your next meeting with Ariel.</p></li>
+</ul>
+
+<p>If the tools execute successfully and you receive relevant responses, your
+Google Calendar MCP server is correctly configured.</p>
+
+<h2 id="troubleshooting" data-text="Troubleshooting" tabindex="-1">Troubleshooting</h2>
+
+<p>If you encounter issues connecting to the MCP server, you can check for errors
+in the OAuth logs. Ask your administrator to check the <strong>OAuth log events</strong>
+in the <a href="https://support.google.com/a/answer/7575955">security investigation tool</a>.</p>
+
+<h2 id="tool-reference" data-text="Tool reference" tabindex="-1">Tool reference</h2>
+
+<p>The following tools are available for the Google Calendar MCP server:</p>
+
+<ul>
+<li><code translate="no" dir="ltr">create_event</code></li>
+<li><code translate="no" dir="ltr">delete_event</code></li>
+<li><code translate="no" dir="ltr">get_event</code></li>
+<li><code translate="no" dir="ltr">list_calendars</code></li>
+<li><code translate="no" dir="ltr">list_events</code></li>
+<li><code translate="no" dir="ltr">respond_to_event</code></li>
+<li><code translate="no" dir="ltr">suggest_time</code></li>
+<li><code translate="no" dir="ltr">update_event</code></li>
+</ul>
+
+<h2 id="prompt-injection" data-text="Important security consideration: Indirect prompt injection" tabindex="-1">Important security consideration: Indirect prompt injection</h2>
+
+<p>When you expose a language model to untrusted data, there is a risk of an
+<a href="https://en.wikipedia.org/wiki/Prompt_injection">indirect prompt injection attack</a>.
+Because MCP hosts like Google Antigravity have access to
+powerful tools and APIs through the Google Calendar MCP server, they can
+read, modify, and delete data in your Google Account.</p>
+
+<p>To mitigate these risks, you must screen prompts and responses for malicious
+content or prompt injection attacks. You can use the Google-provided
+Model Armor or you can use your own solution if you document it in
+order for users to accept that risk. For more information, see
+<a href="https://developers.google.com/workspace/guides/configure-mcp-security">Configure security for Google Workspace MCP servers</a>.</p>
+
+<p>Follow these best practices:</p>
+
+<ul>
+<li><strong>Only use trusted tools.</strong> Never connect Google Calendar MCP server to
+untrusted or unverified applications.</li>
+<li><strong>Be cautious with untrusted inputs.</strong> Avoid asking your MCP client to
+process events or other resources from unverified sources. These
+inputs may contain hidden instructions that can hijack your session,
+allowing an attacker to modify, steal, or delete your data.</li>
+<li><strong>Review all actions.</strong> Always carefully review the actions taken by your AI
+client on your behalf to ensure they are correct and align with your
+intentions.</li>
+</ul>
+
+<h2 id="related" data-text="Related topics" tabindex="-1">Related topics</h2>
+
+<ul>
+<li><a href="https://developers.google.com/workspace/guides/configure-mcp-security">Configure security for Google Workspace MCP servers</a></li>
+<li><a href="https://codelabs.developers.google.com/google-workspace-mcp-antigravity#0">Google Workspace MCP servers in Antigravity (codelab)</a></li>
+<li><a href="https://developers.google.com/workspace/guides/configure-mcp-servers#support-products">List of Google Workspace MCP servers</a></li>
+</ul>
+
+  
+
+  
+</main></body></html>

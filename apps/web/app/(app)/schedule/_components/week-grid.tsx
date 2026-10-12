@@ -2,18 +2,19 @@
 
 import { useCallback, useRef } from 'react'
 
+import { TimePair } from '@/components/app/time-pair'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
-import { occurrenceSlot } from '@/lib/lesson-mark-text'
-import { dayNumber, gutterLabel, hourLabel, weekdayCaps } from '@/lib/schedule-format'
+import { dayNumber, gutterLabel, hourLabel, secondRange, weekdayCaps } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
-import type { ScheduleBlock } from '@dv-lab/contracts'
-import { addDays, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
+import type { CalendarEventView } from '@dv-lab/contracts'
+import { addDays, zonedInstant, zonedParts } from '@dv-lab/core'
 
+import { eventRange, eventTitle } from './calendar-event-details'
+import { eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
-import type { BlockLayout } from './lesson-block'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
 
 export const HOUR_HEIGHT = 48
@@ -22,7 +23,6 @@ export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
-const MIN_DISPLAY_MINUTES = 30
 const DAY_MINUTES = 24 * 60
 const CHIP_BELOW_MINUTES = 30
 
@@ -50,69 +50,151 @@ interface WeekGridProps {
 	now: Date
 	mainTimeZone: string
 	secondZone: SecondZone | null
-	blocks?: readonly ScheduleBlock[]
+	events: readonly CalendarEventView[]
+	editable: boolean
 	currentYear?: number
-	onOpen?: (block: ScheduleBlock) => void
+	onOpen: (event: CalendarEventView) => void
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
 	scrollTopRef?: { current: number }
 }
 
-interface PlacedBlock {
-	block: ScheduleBlock
-	layout: BlockLayout
+function AllDayBand({
+	dates,
+	events,
+	mainTimeZone,
+	secondZone,
+	currentYear,
+	onOpen,
+}: {
+	dates: string[]
+	events: readonly CalendarEventView[]
+	mainTimeZone: string
+	secondZone: string | null
+	currentYear: number
+	onOpen: (event: CalendarEventView) => void
+}) {
+	const allDay = events.filter((event) => event.when.kind === 'all_day')
+	if (allDay.length === 0) return null
+	return (
+		<div
+			data-slot="calendar-all-day"
+			className={cn(COLUMNS, 'max-h-36 shrink-0 [scrollbar-gutter:stable] overflow-y-auto border-b border-gcal-line')}
+		>
+			<span className="px-2 py-1 text-right text-caption text-muted-foreground">All day</span>
+			{dates.map((date) => (
+				<div key={date} data-date={date} className="min-w-0 space-y-1 border-l border-gcal-line p-1">
+					{eventsOn(allDay, date, mainTimeZone).map((event) => (
+						<EventTooltip
+							key={event.eventKey}
+							event={event}
+							layout={null}
+							mainTimeZone={mainTimeZone}
+							secondZone={secondZone}
+							currentYear={currentYear}
+							onOpen={onOpen}
+						/>
+					))}
+				</div>
+			))}
+		</div>
+	)
 }
 
-function placeDay(blocks: readonly ScheduleBlock[], mainTimeZone: string): PlacedBlock[] {
-	const items = blocks
-		.map((block) => {
-			const start = zonedParts(new Date(block.startsAt), mainTimeZone).minutes
-			const shown = Math.min(Math.max(block.durationMinutes, MIN_DISPLAY_MINUTES), DAY_MINUTES - start)
-			return { block, start, end: start + shown, shown }
-		})
-		.sort((left, right) => left.start - right.start || (left.block.key < right.block.key ? -1 : 1))
-	const placed: PlacedBlock[] = []
-	let cluster: typeof items = []
-	let clusterEnd = -1
-	const flush = () => {
-		const laneEnds: number[] = []
-		const lanes = cluster.map((item) => {
-			let lane = laneEnds.findIndex((end) => end <= item.start)
-			if (lane === -1) lane = laneEnds.length
-			laneEnds[lane] = item.end
-			return lane
-		})
-		cluster.forEach((item, index) => {
-			placed.push({
-				block: item.block,
-				layout: {
-					top: item.start * MINUTE_HEIGHT,
-					height: item.shown * MINUTE_HEIGHT - 2,
-					lane: lanes[index],
-					lanes: laneEnds.length,
-				},
-			})
-		})
-		cluster = []
-	}
-	for (const item of items) {
-		if (cluster.length > 0 && item.start >= clusterEnd) flush()
-		cluster.push(item)
-		clusterEnd = cluster.length === 1 ? item.end : Math.max(clusterEnd, item.end)
-	}
-	flush()
-	return placed
+function AgendaRow({
+	event,
+	mainTimeZone,
+	secondZone,
+	onOpen,
+}: {
+	event: CalendarEventView
+	mainTimeZone: string
+	secondZone: string | null
+	onOpen: (event: CalendarEventView) => void
+}) {
+	const second =
+		event.when.kind === 'timed'
+			? secondRange(
+					new Date(event.when.startsAt),
+					(Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
+					mainTimeZone,
+					secondZone
+				)
+			: null
+	return (
+		<button
+			type="button"
+			data-event-key={event.eventKey}
+			data-binding={event.binding.kind}
+			onClick={() => onOpen(event)}
+			className={cn(
+				'flex w-full min-w-0 items-start gap-3 rounded-md p-2 text-left text-body focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
+				event.status === 'cancelled' && 'text-muted-foreground line-through'
+			)}
+		>
+			<span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-selected" />
+			<TimePair
+				as="span"
+				main={eventRange(event, mainTimeZone)}
+				second={second}
+				mainClassName="text-body tabular-nums"
+			/>
+			<span className="min-w-0 flex-1 wrap-anywhere">{eventTitle(event)}</span>
+		</button>
+	)
 }
 
-function groupByDate(blocks: readonly ScheduleBlock[], mainTimeZone: string): Map<string, ScheduleBlock[]> {
-	const groups = new Map<string, ScheduleBlock[]>()
-	for (const block of blocks) {
-		const date = scheduleDate(new Date(block.startsAt), mainTimeZone)
-		const list = groups.get(date)
-		if (list) list.push(block)
-		else groups.set(date, [block])
-	}
-	return groups
+function CalendarAgenda({
+	dates,
+	events,
+	today,
+	mainTimeZone,
+	secondZone,
+	onOpen,
+}: {
+	dates: string[]
+	events: readonly CalendarEventView[]
+	today: string
+	mainTimeZone: string
+	secondZone: string | null
+	onOpen: (event: CalendarEventView) => void
+}) {
+	return (
+		<div data-slot="calendar-agenda" className="space-y-4 lg:hidden">
+			{dates.map((date) => {
+				const dayEvents = eventsOn(events, date, mainTimeZone)
+				if (dayEvents.length === 0) return null
+				return (
+					<section key={date} data-date={date} className="flex min-w-0 gap-3">
+						<div className="flex w-11 shrink-0 flex-col items-center gap-1">
+							<span className={cn('text-caption text-muted-foreground', date === today && 'text-gcal-today')}>
+								{weekdayCaps(date)}
+							</span>
+							<span
+								className={cn(
+									'flex size-11 items-center justify-center rounded-full text-display tabular-nums',
+									date === today && 'bg-gcal-today text-gcal-today-ink'
+								)}
+							>
+								{dayNumber(date)}
+							</span>
+						</div>
+						<div className="min-w-0 flex-1">
+							{dayEvents.map((event) => (
+								<AgendaRow
+									key={event.eventKey}
+									event={event}
+									mainTimeZone={mainTimeZone}
+									secondZone={secondZone}
+									onOpen={onOpen}
+								/>
+							))}
+						</div>
+					</section>
+				)
+			})}
+		</div>
+	)
 }
 
 function timeMinutes(time: string): number {
@@ -189,7 +271,8 @@ export function WeekGrid({
 	now,
 	mainTimeZone,
 	secondZone,
-	blocks = [],
+	events,
+	editable,
 	currentYear = 0,
 	onOpen,
 	onSlot,
@@ -203,7 +286,8 @@ export function WeekGrid({
 	const { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn } = useSlotDrag(
 		bodyRef,
 		HOUR_HEIGHT,
-		onSlot
+		onSlot,
+		editable
 	)
 	const scroller = useCallback(
 		(node: HTMLDivElement | null) => {
@@ -212,16 +296,26 @@ export function WeekGrid({
 		},
 		[scrollTopRef]
 	)
-	const groups = groupByDate(blocks, mainTimeZone)
 
 	return (
 		<TooltipProvider>
+			<CalendarAgenda
+				dates={dates}
+				events={events}
+				today={today}
+				mainTimeZone={mainTimeZone}
+				secondZone={secondZone?.id ?? null}
+				onOpen={onOpen}
+			/>
 			<Elevated
 				offset={1}
 				shadowLevel={2}
 				data-slot="week-grid"
 				data-dragging={dragging ? '' : undefined}
-				className={cn(FRAME_HEIGHT, 'flex flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize!')}
+				className={cn(
+					FRAME_HEIGHT,
+					'hidden flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! lg:flex'
+				)}
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
@@ -257,6 +351,14 @@ export function WeekGrid({
 						)
 					})}
 				</div>
+				<AllDayBand
+					dates={dates}
+					events={events}
+					mainTimeZone={mainTimeZone}
+					secondZone={secondZone?.id ?? null}
+					currentYear={currentYear}
+					onOpen={onOpen}
+				/>
 				<div
 					ref={scroller}
 					data-slot="week-grid-body"
@@ -280,7 +382,7 @@ export function WeekGrid({
 						{dates.map((date, dayIndex) => {
 							const isToday = date === today
 							const live = drag !== null && drag.date === date ? drag : null
-							const shownFrame = !dragging && frame !== null && frame.date === date ? frame : null
+							const shownFrame = editable && !dragging && frame !== null && frame.date === date ? frame : null
 							return (
 								<div
 									key={date}
@@ -309,16 +411,15 @@ export function WeekGrid({
 											<span className="sr-only">Now {nowParts.time}</span>
 										</div>
 									) : null}
-									{placeDay(groups.get(date) ?? [], mainTimeZone).map(({ block, layout }) => (
+									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT).map(({ event, layout }) => (
 										<EventTooltip
-											key={`${block.key}:${occurrenceSlot(block.outcome)}`}
-											block={block}
+											key={event.eventKey}
+											event={event}
 											mainTimeZone={mainTimeZone}
 											layout={layout}
 											secondZone={secondZone ? secondZone.id : null}
 											currentYear={currentYear}
-											now={now}
-											onOpen={(chosen) => onOpen?.(chosen)}
+											onOpen={onOpen}
 										/>
 									))}
 									{live !== null ? (

@@ -1,0 +1,440 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Submit for brand verification</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Submit for brand verification</h1><p>Источник: <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification">https://developers.google.com/identity/protocols/oauth2/production-readiness/brand-verification</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+      <devsite-key-takeaways-panel role="region" aria-labelledby="key-takeaways-panel-title">
+  <div class="devsite-key-takeaways-panel-header" aria-labelledby="key-takeaways-panel-title" aria-expanded="false" role="button" tabindex="0">
+    
+    <img src="../../../../../../assets/5577ad69e1ca0549dbb0.svg" alt="Spark icon"/>
+    <div class="devsite-key-takeaways-panel-title">
+      
+      <h2 class="no-link hide-from-toc" id="key-takeaways-panel-title" data-tooltip="Generated with AI">Page Summary</h2>
+    </div>
+    <span class="material-icons devsite-key-takeaways-panel-toggle-button" aria-hidden="true"></span>
+  </div>
+  <div class="devsite-key-takeaways-panel-content">
+    <devsite-feedback product-id="5123748" bucket="8963846920012181156" disable-product-feedback>
+      <button class="button-flat button-primary devsite-key-takeaways-report-button" data-title="Report Key Takeaways!" aria-label="Report Key Takeaways!">
+        <span class="material-icons" aria-label="Report Key Takeaways!">outlined_flag</span>
+      </button>
+    </devsite-feedback>
+    <ul class="devsite-key-takeaways-panel-list">
+      
+        <li>
+          <p>Apps accessing Google APIs must verify their identity and intent according to Google's API Services User Data Policy.</p>
+
+        </li>
+      
+        <li>
+          <p>Your app requires verification if configured for external users and displays a logo or display name on the OAuth consent screen.</p>
+
+        </li>
+      
+        <li>
+          <p>Verified brand information increases user trust and recognition, potentially leading to fewer access revocations.</p>
+
+        </li>
+      
+        <li>
+          <p>The brand verification process typically takes 2-3 business days after submission.</p>
+
+        </li>
+      
+        <li>
+          <p>Certain app use cases, such as personal use or internal use only, are exempt from verification requirements.</p>
+
+        </li>
+      
+    </ul>
+  </div>
+</devsite-key-takeaways-panel>
+    
+    
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+  
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>All apps that access Google APIs must verify that they accurately represent
+their identity and intent as specified by <a href="https://developers.google.com/terms/api-services-user-data-policy">Google's API Services User Data
+Policy</a>. To protect you and the shared
+users of Google and your app, your consent screen and application might need
+verification by Google.</p>
+
+<p>Your app requires verification if it meets all the following criteria:</p>
+
+<ul>
+<li>In the Google API Console, your app's configuration is set for a user type
+of <strong>External</strong> and a published status of <strong>Published</strong>. This means your
+app is in production and is available to any user with a Google Account.</li>
+<li>You want your app to display a logo or display name on the <a href="brand-verification.html#oauth-consent-screen">OAuth
+consent screen</a>.</li>
+</ul>
+
+<p>If you verify brand information of your app, you can increase the likelihood that
+a user recognizes your brand and decides to grant access to your app. Verified
+brand information can also lead to fewer revocations later on when a user or
+Google Workspace administrator <a href="https://support.google.com/accounts/answer/3466521">reviews third-party apps and services with
+access to the account</a>. The
+automated brand verification process typically takes a few minutes after you
+click the <strong>Verify Branding</strong> button. In some cases, where a result cannot be
+automatically determined, your app may undergo a manual review process that
+usually takes <a href="https://support.google.com/cloud/answer/9110914#verification-types">2-3 business days</a>.</p>
+<aside class="note"><strong>Note:</strong><span> If you change any of the details that appear on your <a href="brand-verification.html#oauth-consent-screen">OAuth consent
+screen</a>, such as the app's logo, name, home page, privacy
+policy URI, or <a href="brand-verification.html#authorized-domains">authorized domains</a>, the changes are saved
+as <strong>Draft Branding</strong>. You need to verify the new branding configuration and
+click the <strong>Publish branding</strong> button before the updates take effect on your
+<strong>Published Branding</strong> and appear on your <a href="brand-verification.html#oauth-consent-screen">OAuth consent screen</a>.
+Branding modifications are not permitted while verification is in progress. To
+make branding changes, you must first cancel any ongoing verification by
+clicking the <strong>Cancel</strong> button.</span></aside>
+<p>If your app's branding information remains unverified, it might result in
+decreased user trust of your request for their data, which can lead to fewer
+user authorizations and more revocations later.</p>
+
+<hr>
+
+<h2 id="oauth-consent-screen" data-text="OAuth consent screen" tabindex="-1">OAuth consent screen</h2>
+
+<p>The consent screen tells users who is requesting access to their data and what
+kind of data your app needs to access on their behalf, as highlighted in Box 2
+of figure 1.</p>
+
+<p>When your app goes through the brand verification process and receives approval,
+your application's identity and user data policies are more likely to be clearly
+understood by the account that's granting permission. This clear understanding
+can increase the likelihood an account holder authorizes your requests and
+maintains access when they review possible revocations on their <a href="https://myaccount.google.com/permissions">Google
+Account</a> page. The content you
+configure on the OAuth <a href="https://console.developers.google.com/auth/branding">Branding page</a> in the Cloud Console populates the following components:</p>
+
+<ol>
+<li>Your app name and logo (as shown in Box 1 of figure 1)</li>
+<li>Your user support email, which appears after your app name is selected (Box
+2 of figure 1)</li>
+<li>Links to your privacy policy and terms of service (Box 3 of figure 1)</li>
+</ol>
+
+<p><img src="../../../../../../assets/ba1d2cf20c8e4944e78a.png" alt="Mock-up of the OAuth consent screen." width="60%"> <strong>Figure 1.</strong> Mock-up of the OAuth consent screen.</p>
+
+<hr>
+
+<h2 id="authorized-domains" data-text="Authorized domains" tabindex="-1">Authorized domains</h2>
+
+<p>As part of the brand verification process, Google requires verification of all
+domains that are associated with an application's OAuth consent screen and
+credentials. We ask you to verify the domain component available for
+registration on a public suffix: the "<a href="https://github.com/google/guava/wiki/InternetDomainNameExplained">top private domain</a>." For
+example, an OAuth consent screen that's configured with an application home page
+of <code translate="no" dir="ltr">https://sub.example.com/product</code> asks the account holder to verify ownership
+of the <code translate="no" dir="ltr">example.com</code> domain.</p>
+
+<p>The <strong>Authorized domains</strong> section of the OAuth consent screen editor needs to
+contain the top private domains that are used in the URIs of the <strong>App domain</strong>
+section. These domains include the app home page, privacy policy, and terms of
+service. The <strong>Authorized domains</strong> section also needs to include the redirect
+URIs or JavaScript origins authorized in your "Web application" OAuth client
+types.</p>
+
+<p>Verify the ownership of your authorized domains using the <a href="https://search.google.com/search-console/about">Google Search Console</a>. A Google Account with
+owner <a href="https://support.google.com/webmasters/answer/7687615">permissions for a domain</a> must be associated
+with the API Console project that uses that authorized domain. For
+more information about domain verifications in Google Search Console, see
+<a href="https://support.google.com/webmasters/answer/9008080">Verify your site ownership</a>.</p>
+
+<hr>
+
+<h2 id="prepare-for-verification" data-text="Steps to prepare for verification" tabindex="-1">Steps to prepare for verification</h2>
+
+<p>All apps that use Google APIs to request access to data must perform the
+following steps to complete brand verification:</p>
+
+<ol>
+<li>Confirm that your app doesn't fall under any of the use cases in the
+<a href="brand-verification.html#exceptions">Exceptions to verification requirements</a> section.</li>
+<li>Ensure that your app complies with the branding requirements of the
+associated APIs or product. For example, see the <a href="https://developers.google.com/identity/branding-guidelines">branding guidelines</a> for Google Sign-In scopes.</li>
+<li>Verify ownership of your project's <a href="brand-verification.html#authorized-domains">authorized domains</a>
+within the <a href="https://search.google.com/search-console/about">Google Search Console</a>. Use a Google
+Account that's associated with your API Console project as an
+Owner or an Editor.</li>
+<li>Make sure all branding information on the OAuth consent screen, such as the
+app name, support email, home page URI, privacy policy URI, etc., accurately
+represents the app's identity.</li>
+</ol>
+
+<h3 id="app-home-page-requirements" data-text="Application home page requirements" tabindex="-1">Application home page requirements</h3>
+
+<p>Make sure that your home page meets the following requirements:</p>
+
+<ul>
+<li>Your home page must be publicly accessible, and not just accessible to your
+site's logged-in users.</li>
+<li>The relevance of your home page to the app that's under review must be
+clear.</li>
+<li>Links to your app's listing on the Google Play Store or its Facebook page
+aren't considered valid application home pages.</li>
+</ul>
+
+<h3 id="app-privacy-policy-requirements" data-text="Application privacy policy link requirements" tabindex="-1">Application privacy policy link requirements</h3>
+
+<p>Make sure your app's privacy policy meets the following requirements:</p>
+
+<ul>
+<li>The privacy policy must be visible to users, hosted within the same domain
+as your application's home page, and linked to on the OAuth consent screen
+of the Google API Console. Note that the home page must include a
+description of the app's functionality, as well as links to the privacy
+policy and optional terms of service.</li>
+<li>The privacy policy must disclose the manner in which your application
+accesses, uses, stores, or shares Google user data.  You must limit your use of Google user
+data to the practices that your published privacy policy discloses.</li>
+<li></li>
+</ul>
+
+</p>
+
+<h2 id="submit-app-for-verification" data-text="How to submit your app for brand verification" tabindex="-1">How to submit your app for brand verification</h2>
+
+<p>A <a href="https://cloud.google.com/storage/docs/projects">Google Cloud Console project</a> organizes all of your Cloud Console resources. A project consists of a set of associated Google Accounts that have permission to perform project operations, a set of enabled APIs, and billing, authentication, and monitoring settings for those APIs. For example, a project can contain one or more OAuth clients, configure APIs for use by those clients, and configure an <a href="brand-verification.html#oauth-consent-screen">OAuth consent screen</a> that's shown to users before they authorize access to your app.</p>
+
+<p>If any of your OAuth clients aren't ready for production, we suggest that you delete them from the project that's requesting verification. You can do this in the <a href="https://console.developers.google.com/auth/clients">Clients page</a>.</p>
+
+<p>To submit for verification, follow these steps:</p>
+
+<ol>
+<li>Ensure your app complies with the <a href="https://developers.google.com/terms">Google APIs Terms of Service</a>, and the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>.</li>
+<li>Keep the owner and editor roles of your project's associated accounts current, as well as your OAuth consent screen's user support email and developer contact information, in your Cloud Console. This ensures that the correct members of your team are notified of any new requirements.</li>
+<li>Go to the Cloud Console OAuth <a href="https://console.developers.google.com/auth/branding">Branding page</a>.</li>
+<li>Click the <strong>Project selector</strong> button.</li>
+<li>On the <strong>Select from</strong> dialog that appears, select your project. If you can't find your project but you know your project ID, you can construct a URL in your browser in the following format:
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>https://console.developers.google.com/auth/branding?project=<var translate="no">[PROJECT_ID]</var></pre></devsite-code>
+Replace <var translate="no">[PROJECT_ID]</var> with the project ID you want to use.</li>
+<li>In the <strong>Branding</strong> page, provide your app's branding information, including app name, logo, developer contact information, and relevant links. Any changes you make are saved as <strong>Draft Branding</strong>.</li>
+<li>Click the <strong>Verify Branding</strong> button to start the evaluation process. The automated review usually completes in a few minutes.
+<aside class="note"><b>Note:</b> Branding modifications are not permitted while verification is in progress. To make branding changes, you must first cancel any ongoing verification by clicking the <b>Cancel</b> button.</aside></li>
+<li>Once the evaluation is complete, review the status. If successful, the status changes to <strong>Ready to publish</strong>. If the automated verification fails, you can see the issues detected and either fix them or request a manual review.</li>
+<li>Click the <strong>Publish branding</strong> button to make the new branding live.
+<aside class="note"><b>Note:</b> Compliant verification results are valid for 7 days. If you don't publish within that timeframe, the status will change to <strong>Need to re-verify</strong> and you will have to run the brand verification again.</aside></li>
+<li>If your app also requires verification for sensitive or restricted scopes, navigate to the OAuth <a href="https://console.developers.google.com/auth/verification">Verification Center</a> to track your <strong>Data access status</strong> and provide any additional information requested, such as a demonstration video. Note that you must have a published branding status before you can request verification for data access.</li>
+<li>Use the <strong>Add or remove scopes</strong> button to declare all scopes requested by your app. An initial set of scopes that are necessary for Google Sign-In are pre-filled in the <strong>Non-sensitive scopes</strong> section. Added scopes are classified as non-sensitive, 
+<a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification">sensitive</a>,
+or
+<a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification">restricted</a>.</li>
+<li>Provide up to three links to any relevant documentation for related features in your app.</li>
+<li>Provide any additional information that's requested about your app in the subsequent steps.
+</li>
+</ol>
+
+<p>After you publish your branding or submit a data access request, Google's Trust &amp; Safety team may follow up by email with any additional information they need or steps you must complete. Check your email addresses in the <strong>Developer contact information</strong> section and the support email of your OAuth consent screen for requests for additional information. You can also view your project's Branding or Verification Center pages to confirm your project's current review status, including whether the review process is paused while we wait for your response.</p>
+
+
+
+<h2 id="exceptions" data-text="Exceptions to verification requirements" tabindex="-1">Exceptions to verification requirements</h2>
+
+<p>If your app is going to be used in any of the scenarios described in the following sections, you don't need to submit it for review.</p>
+
+<h3 id="personal_use" data-text="Personal use" tabindex="-1">Personal use</h3>
+
+<p>One use case is if you are the only user of your app or if your app is used by only a few users, all of whom are known personally to you. You and your limited number of users might be comfortable with advancing through the <a href="https://support.google.com/cloud/answer/7454865#unverified-app-screen">unverified app screen</a> and granting your personal accounts access to your app.</p>
+<aside class="note"><strong>Note:</strong><span> A <a href="https://support.google.com/cloud/answer/7454865#unverified-app-user-cap">user cap</a> restricts the number of Google Accounts able to grant access to your unverified app.</span></aside>
+<h3 id="projects_used_in_development_testing_or_staging_tiers" data-text="Projects used in Development, Testing, or Staging tiers" tabindex="-1">Projects used in Development, Testing, or Staging tiers</h3>
+
+<p>In order to <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance#separate-projects-testing-production">comply</a> with Google OAuth 2.0 Policies, we recommend that you have different projects for testing and production environments. We recommend that you only submit your app for verification if you want to make your app available to any user with a Google Account. Therefore, if your app is in the development, testing, or staging phases, verification isn't required.</p>
+
+<p>If your app is in the development or testing phases, you can leave the <a href="https://support.google.com/cloud/answer/10311615#publishing-status">Publishing Status</a> in the default setting of <a href="https://support.google.com/cloud/answer/10311615#publishing-status-testing"><strong>Testing</strong></a>. This setting means that your app is still in development and is only available to users you add to the list of test users. You must manage the list of Google Accounts that are involved in the development or testing of your app.</p>
+<aside class="note"><strong>Note:</strong><span> Your app is still subject to a tester warning screen, as shown in figure 2, a user cap is in effect, and the refresh token lifetime is limited.</span></aside>
+<figure>
+  <img src="../../../../../../assets/e1e49704d794d4f88f8f.png" alt="Warning message that Google hasn&#x27;t verified an app that&#x27;s undergoing testing." class="screenshot">
+  <figcaption>
+    <b>Figure 2.</b> Tester warning screen
+  </figcaption>
+</figure>
+
+<h3 id="service-owned_data_only" data-text="Service-owned data only" tabindex="-1">Service-owned data only</h3>
+
+<p>If your app uses a service account to access only its own data, and it doesn't access any user data (linked to a Google Account), then you don't need to submit for verification.</p>
+
+<p>To understand what service accounts are, see <a href="https://cloud.google.com/compute/docs/access/service-accounts">Service accounts</a> in Google Cloud's documentation. For instructions on how to use a service account, see <a href="https://developers.google.com/identity/protocols/oauth2/service-account">Using OAuth 2.0 for server to server applications</a>.</p>
+
+<h3 id="internal_use_only" data-text="Internal use only" tabindex="-1">Internal use only</h3>
+
+<p>This means the app is used only by people in your Google Workspace or Cloud Identity <a href="https://cloud.google.com/resource-manager/docs/creating-managing-organization">organization</a>. The project must be owned by the organization, and its OAuth consent screen needs to be configured for an <a href="https://support.google.com/cloud/answer/10311615#user-type-internal"><strong>Internal</strong> user type</a>. In this case, your app might need approval from an organization administrator. For more information, see <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/google-workspace">Additional considerations for Google Workspace</a>.</p>
+
+<ul>
+<li>Learn more about <a href="https://support.google.com/cloud/answer/6158849#public-and-internal">public and internal applications</a>.</li>
+<li>Learn how to mark your app as internal in the FAQ <a href="https://support.google.com/cloud/answer/9110914#mark-internal">How can I mark my app as internal-only?</a></li>
+</ul>
+
+<h3 id="domain-wide_installation" data-text="Domain-wide installation" tabindex="-1">Domain-wide installation</h3>
+
+<p>If you plan for your app to only target users of a Google Workspace or Cloud Identity organization and always use <a href="https://support.google.com/a/answer/162106">domain-wide installation</a>, then your app won't require brand verification. However, if your app utilizes <a href="../policies.html#submit-for-verification">restricted or sensitive scopes</a>, <a href="https://support.google.com/cloud/answer/13461325">app verification</a> is required. This is because a domain-wide installation lets a domain administrator grant third-party and internal applications access to your users' data. Organization administrators are the only accounts that can add the app to an allowlist for use within their domains.</p>
+
+<p>Learn how to make your app a Domain-Wide Install in the FAQ <a href="https://support.google.com/cloud/answer/9110914#enterprise">My application has users with enterprise accounts from another Google Workspace Domain</a>.</p>
+  
+
+  
+</main></body></html>

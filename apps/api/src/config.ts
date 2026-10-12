@@ -20,10 +20,65 @@ const schema = z.object({
 	GIT_SHA: z.string().min(1).default('unknown'),
 })
 
-export type ApiConfig = z.infer<typeof schema> & { databaseUrl: string }
+const keyId = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)
+const keyring = z.record(
+	keyId,
+	z
+		.string()
+		.regex(/^[A-Za-z0-9+/]{43}=$/)
+		.refine((value) => Buffer.from(value, 'base64').toString('base64') === value)
+		.transform((value) => Buffer.from(value, 'base64'))
+)
+
+const calendarSchema = z.object({
+	GOOGLE_CLIENT_ID: z.string().trim().min(1),
+	GOOGLE_CLIENT_SECRET: z.string().trim().min(1),
+	GOOGLE_REDIRECT_URI: z.literal('https://dv-lab.dev/api/google/callback'),
+	GOOGLE_TOKEN_KEY_ID: keyId,
+	GOOGLE_TOKEN_KEYRING: z.string().min(1),
+})
+
+export type CalendarConfig =
+	| { enabled: false }
+	| {
+			enabled: true
+			clientId: string
+			clientSecret: string
+			redirectUri: string
+			activeKeyId: string
+			keyring: Readonly<Record<string, Buffer>>
+	  }
+
+export type ApiConfig = z.infer<typeof schema> & { databaseUrl: string; calendar: CalendarConfig }
 
 export function loadConfig(env: NodeJS.ProcessEnv): ApiConfig {
 	const parsed = schema.safeParse(env)
 	if (!parsed.success) throw new Error(`Invalid environment\n${z.prettifyError(parsed.error)}`)
-	return { ...parsed.data, databaseUrl: resolveDatabaseUrl('app', env) }
+	return { ...parsed.data, databaseUrl: resolveDatabaseUrl('app', env), calendar: loadCalendarConfig(env) }
+}
+
+function loadCalendarConfig(env: NodeJS.ProcessEnv): CalendarConfig {
+	const enabled = z.enum(['true', 'false']).default('false').safeParse(env.GOOGLE_CALENDAR_ENABLED)
+	if (!enabled.success) throw new Error('Invalid GOOGLE_CALENDAR_ENABLED')
+	if (enabled.data === 'false') return { enabled: false }
+	const parsed = calendarSchema.safeParse(env)
+	if (!parsed.success) throw new Error('Invalid Google Calendar configuration')
+	const config = parsed.data
+	try {
+		const keys: unknown = JSON.parse(config.GOOGLE_TOKEN_KEYRING)
+		const validated = keyring.safeParse(keys)
+		if (!validated.success || !Object.hasOwn(validated.data, config.GOOGLE_TOKEN_KEY_ID)) {
+			throw new Error('Invalid Google Calendar keyring')
+		}
+		return {
+			enabled: true,
+			clientId: config.GOOGLE_CLIENT_ID,
+			clientSecret: config.GOOGLE_CLIENT_SECRET,
+			redirectUri: config.GOOGLE_REDIRECT_URI,
+			activeKeyId: config.GOOGLE_TOKEN_KEY_ID,
+			keyring: validated.data,
+		}
+	} catch {
+		throw new Error('Invalid Google Calendar keyring')
+	}
 }

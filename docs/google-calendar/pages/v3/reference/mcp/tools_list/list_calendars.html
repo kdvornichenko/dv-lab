@@ -1,0 +1,259 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MCP Tools Reference: calendarmcp.googleapis.com</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>MCP Tools Reference: calendarmcp.googleapis.com</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/list_calendars">https://developers.google.com/workspace/calendar/api/v3/reference/mcp/tools_list/list_calendars</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <meta itemprop="name" content="list_calendars">
+    <meta itemprop="path" content="/workspace/calendar/api/v3/reference/mcp/tools_list/list_calendars">
+    <section id="/workspace/calendar/api/v3/reference/mcp/tools_list/list_calendars">
+
+      <section id="GENERIC">
+        <h2 id="tool:-list_calendars" data-text="Tool: list_calendars" tabindex="-1">Tool: <code translate="no" dir="ltr">list_calendars</code></h2>
+      </section>
+      <section id="GENERIC_1">
+        <aside class="preview"><strong>Developer Preview:</strong> Available as part of the <a href="https://developers.google.com/workspace/preview" target="_blank" class="external">Google Workspace Developer Preview Program</a>, which grants early access to certain features.</aside>
+        <p>Returns the calendars this user has access to (their calendar list). Use this tool to resolve calendar identifying data (for example, 'my family calendar') into its corresponding <code translate="no" dir="ltr">calendar_id</code> (email identifier)</p>
+      </section>
+      <section id="GENERIC_2">
+        <p>
+          The following sample demonstrate how to use <code translate="no" dir="ltr">curl</code> to invoke the <code translate="no" dir="ltr">list_calendars</code> MCP tool.
+        </p>
+      </section>
+      <section id="MCP_CURL_REQUEST">
+        <table class="properties responsive fixed">
+          <thead>
+            <tr>
+              <th>Curl Request</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Bash">curl<span class="devsite-syntax-w"> </span>--location<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'https://calendarmcp.googleapis.com/mcp/v1'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Authorization: Bearer YOUR_ACCESS_TOKEN'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'content-type: application/json'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--header<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'accept: application/json, text/event-stream'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-se">\</span>
+--data<span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'{</span>
+<span class="devsite-syntax-s1">  "method": "tools/call",</span>
+<span class="devsite-syntax-s1">  "params": {</span>
+<span class="devsite-syntax-s1">    "name": "list_calendars",</span>
+<span class="devsite-syntax-s1">    "arguments": {</span>
+<span class="devsite-syntax-s1">      // provide these details according to the tool MCP specification</span>
+<span class="devsite-syntax-s1">    }</span>
+<span class="devsite-syntax-s1">  },</span>
+<span class="devsite-syntax-s1">  "jsonrpc": "2.0",</span>
+<span class="devsite-syntax-s1">  "id": 1</span>
+<span class="devsite-syntax-s1">}'</span>
+<span class="devsite-syntax-w">                </span></pre></devsite-code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="Input.Schema">
+        <h2 id="input-schema" data-text="Input Schema" tabindex="-1">Input Schema</h2>
+
+        <section id="Input.Schema.description">
+
+        </section>
+        <section id="Input.Schema.ListCalendarsRequest">
+          <h3 id="listcalendarsrequest" data-text="ListCalendarsRequest" tabindex="-1">ListCalendarsRequest</h3>
+
+        </section>
+        <section id="Input.Schema.SCHEMA_REPRESENTATION">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+
+  <span class="str">"pageSize"</span><span class="pun">: </span><span class="kwd">integer</span>
+
+  <span class="str">"pageToken"</span><span class="pun">: </span><span class="kwd">string</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Input.Schema.FIELDS">
+          <table class="properties responsive fixed" id="Input.Schema.FIELDS-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Input.Schema.FIELDS.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_page_size</code>.</p><p><code translate="no" dir="ltr">_page_size</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.field_section">
+                <td><code translate="no" dir="ltr">pageSize</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">integer</code></p>
+                  <p>Optional. Max results per page. Default <code translate="no" dir="ltr">100</code>, max <code translate="no" dir="ltr">250</code>.</p>
+                </td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.ONEOF_1" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_page_token</code>.</p><p><code translate="no" dir="ltr">_page_token</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Input.Schema.FIELDS.field_section_1">
+                <td><code translate="no" dir="ltr">pageToken</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Optional. Token specifying which result page to return.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+      <section id="Output.Schema">
+        <h2 id="output-schema" data-text="Output Schema" tabindex="-1">Output Schema</h2>
+
+        <section id="Output.Schema.description">
+
+        </section>
+        <section id="Output.Schema.ListCalendarsResponse">
+          <h3 id="listcalendarsresponse" data-text="ListCalendarsResponse" tabindex="-1">ListCalendarsResponse</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+  <span class="str">"calendars"</span><span class="pun">: </span><span class="pun">[</span>
+    <span class="pun">{</span>
+      <span class="kwd">object (<code translate="no" dir="ltr"><a href="list_calendars.html#Output.Schema.CalendarListItem">CalendarListItem</a></code>)</span>
+    <span class="pun">}</span>
+  <span class="pun">]</span><span class="pun">,</span>
+
+  <span class="str">"nextPageToken"</span><span class="pun">: </span><span class="kwd">string</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS.field_section">
+                <td><code translate="no" dir="ltr">calendars[]</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">object (<code translate="no" dir="ltr"><a href="list_calendars.html#Output.Schema.CalendarListItem">CalendarListItem</a></code>)</code></p>
+                  <p>List of calendars.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.ONEOF" class="alt">
+                <td colspan="2"><p>Union field <code translate="no" dir="ltr">_next_page_token</code>.</p><p><code translate="no" dir="ltr">_next_page_token</code> can be only one of the following:</p></td>
+              </tr>
+              <tr id="Output.Schema.FIELDS.field_section_1">
+                <td><code translate="no" dir="ltr">nextPageToken</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Next page token. Omitted if no next page exists.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.CalendarListItem">
+          <h3 id="calendarlistitem" data-text="CalendarListItem" tabindex="-1">CalendarListItem</h3>
+
+        </section>
+        <section id="Output.Schema.SCHEMA_REPRESENTATION_1">
+          <table class="properties responsive fixed">
+            <thead>
+              <tr>
+                <th>JSON representation</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded><span class="pun">{</span>
+  <span class="str">"id"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"summary"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"description"</span><span class="pun">: </span><span class="kwd">string</span><span class="pun">,</span>
+  <span class="str">"timeZone"</span><span class="pun">: </span><span class="kwd">string</span>
+<span class="pun">}</span></pre></devsite-code></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section id="Output.Schema.FIELDS_1">
+          <table class="properties responsive fixed" id="Output.Schema.FIELDS_1-table">
+            <colgroup>
+              <col width="25%">
+              <col>
+            </colgroup>
+            <thead>
+              <tr>
+                <th colspan="2">Fields</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr id="Output.Schema.FIELDS_1.field_section">
+                <td><code translate="no" dir="ltr">id</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Identifier. Email address of the calendar.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_1.field_section_1">
+                <td><code translate="no" dir="ltr">summary</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Title.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_1.field_section_2">
+                <td><code translate="no" dir="ltr">description</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Description.</p>
+                </td>
+              </tr>
+              <tr id="Output.Schema.FIELDS_1.field_section_3">
+                <td><code translate="no" dir="ltr">timeZone</code></td>
+                <td>
+                  <p><code class="apitype" translate="no" dir="ltr">string</code></p>
+                  <p>Output only. Time zone.</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </section>
+      <section id="GENERIC_3">
+        <h3 id="tool-annotations" data-text="Tool Annotations" tabindex="-1">Tool Annotations</h3>
+        <p>Destructive Hint: ❌ | Idempotent Hint: ✅ | Read Only Hint: ✅ | Open World Hint: ❌</p>
+      </section>
+      <section id="Authorization.Scopes"><h2 id="authorization-scopes" data-text="Authorization Scopes" tabindex="-1">Authorization Scopes</h2><p>Requires one of the following OAuth scopes:</p><ul><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></li><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.readonly</code></li><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist</code></li><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist.readonly</code></li></ul></section>
+    </section>
+  
+  
+
+  
+</main></body></html>

@@ -2,6 +2,7 @@ import { test as base, expect, type Page } from '@playwright/test'
 
 import type { LessonMarkKind } from '../../packages/contracts/src/schedule.ts'
 import { api, readSettings, readStudent, readStudents, readToday, readWeek, teacherId } from './api.ts'
+import ensureCalendarTarget from './calendar.ts'
 import {
 	cleanupFixtures,
 	ownedStudent,
@@ -197,6 +198,7 @@ export type Card = Awaited<ReturnType<Fx['card']>>
 
 export const test = base.extend<{ fx: Fx }>({
 	page: async ({ page }, use, testInfo) => {
+		await ensureCalendarTarget()
 		const theme = testInfo.project.name
 		await page.addInitScript((value: string) => localStorage.setItem('theme', value), theme)
 		await use(page)

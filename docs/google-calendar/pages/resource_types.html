@@ -1,0 +1,52 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Calendar API Resource Types</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Calendar API Resource Types</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/resource_types">https://developers.google.com/workspace/calendar/api/resource_types</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+	<h2 id="background" data-text="Calendar API background" tabindex="-1">Calendar API background</h2>
+
+	<h3 id="background_concepts" data-text="Calendar concepts" tabindex="-1">Calendar concepts</h3>
+	<p>Google Calendar is built on several basic concepts:</p>
+	<dl>
+	  <dt>Event</dt>
+	  <dd>A single event on a calendar containing information such as the title of event, start and end times, and attendees.</dd>
+	  <dt>Calendar</dt>
+	  <dd>A single calendar entry containing metadata for the calendar such as a description.</dd>
+	  <dt>Calendar List</dt>
+	  <dd>A list of all calendars on a user's calendar list in the Calendar UI.</dd>
+	  <dt>Setting</dt>
+	  <dd>A user preference from the Calendar UI, such as the user's time zone.</dd>
+	  <dt>ACL</dt>
+	  <dd>A single access control rule containing information such as the type and scope of the rule.</dd>
+	</dl>
+
+	<h3 id="background_resources" data-text="Calendar API data model" tabindex="-1">Calendar API data model</h3>
+	<p>A resource is an individual data entity with a unique identifier. The Calendar API operates on five types of resources:</p>
+	<dl>
+	  <dt>Event Resource</dt>
+	  <dd>Represents a single event on a calendar.</dd>
+	  <dt>Calendars Resource</dt>
+	  <dd>Represents metadata for an individual calendar.</dd>
+	  <dt>CalendarList Resource</dt>
+	  <dd>Represents metadata for an individual calendar that appears on the user's calendar list in the UI.</dd>
+	  <dt>Settings Resource</dt>
+	  <dd>Represents a single user preference from the Calendar UI.</dd>
+	  <dt>ACL Resource</dt>
+	  <dd>Represents an ACL.</dd>
+	</dl>
+	<p>The Calendar API data model is based on groups of resources, called collections:</p>
+	<dl>
+	  <dt><span class="apicollection">Events Collection</span></dt>
+	  <dd>Consists of all the <span class="apiresource">Event Resources</span> within a specific <span class="apiresource">Calendar Resource</span>.</dd>
+	  <dt><span class="apicollection">CalendarList Collection</span></dt>
+	  <dd>Consists of all the <span class="apiresource">CalendarList Resources</span> for a specific user.</dd>
+	  <dt><span class="apicollection">Settings Collection</span></dt>
+	  <dd>Consists of all the <span class="apiresource">Settings Resources</span> for a specific user.</dd>
+	  <dt><span class="apicollection">ACL Collection</span></dt>
+	  <dd>Consists of all the <span class="apiresource">ACL Resources</span> applied to a specific calendar.</dd>
+	</dl>
+
+  
+
+  
+</main></body></html>

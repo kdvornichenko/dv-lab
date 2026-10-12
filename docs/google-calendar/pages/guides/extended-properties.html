@@ -1,0 +1,598 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Extended properties</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Extended properties</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/extended-properties">https://developers.google.com/workspace/calendar/api/guides/extended-properties</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>The fields of the <a href="../v3/reference/events.html">Events resources</a>
+cover the most common data associated with an
+event, such as location, start time, etc, but applications may want to store
+additional metadata specific to their use case. The Calendar API provides the
+ability to set hidden key-value pairs with an event, called
+<a href="../v3/reference/events.html#extendedProperties">extended properties</a>.
+Extended properties make it easy to store application-specific data for an event
+without having to utilize an external database.</p>
+
+<h2 id="visibility" data-text="Visibility" tabindex="-1">Visibility</h2>
+
+<p>There are two types of extended properties available: private and shared.
+Shared properties are visible and editable by all attendees of an event, while
+private properties are set on one attendee's local "copy" of the event. More
+concretely, private properties are specific to the <code translate="no" dir="ltr">calendarId</code> and <code translate="no" dir="ltr">eventId</code>
+used in the request, while shared properties will be shown regardless of the
+<code translate="no" dir="ltr">calendarId</code> used in the request.</p>
+
+<h2 id="add_update_properties" data-text="Add &amp; update properties" tabindex="-1">Add &amp; update properties</h2>
+
+<p>Extended properties are set on the Events resource, and like other fields can be
+set in <a href="../v3/reference/events/insert.html">insert</a>,
+<a href="../v3/reference/events/update.html">update</a>, and
+<a href="../v3/reference/events/patch.html">patch</a> requests.
+Using patch requests is the preferred
+method, as it allows you to manipulate some properties while leaving others
+untouched. Adding a new property with the same key will overwrite any existing
+properties with the same key. The following example shows setting a private
+property:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed>PATCH https://www.googleapis.com/calendar/v3/calendars/<var translate="no">calendarId</var>/events/<var translate="no">eventId</var></pre></devsite-code>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+  "extendedProperties": {
+    "private": {
+      "petsAllowed": "yes"
+    }
+  }
+}
+</code></pre></devsite-code>
+<h2 id="delete_properties" data-text="Delete properties" tabindex="-1">Delete properties</h2>
+
+<p>Any properties not included in an update request will be deleted, but a better
+approach is to make a patch request to set the value to null. The following
+example shows deleting a private property:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed>PATCH https://www.googleapis.com/calendar/v3/calendars/<var translate="no">calendarId</var>/events/<var translate="no">eventId</var></pre></devsite-code>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed><code translate="no" dir="ltr">{
+  "extendedProperties": {
+    "private": {
+      "petsAllowed": null
+    }
+  }
+}
+</code></pre></devsite-code>
+<h2 id="search_properties" data-text="Search properties" tabindex="-1">Search properties</h2>
+
+<p>You can search events based on the values on their extended properties using an
+<a href="../v3/reference/events/list.html">Events.list</a> request.
+Set the field
+<a href="../v3/reference/events/list.html#privateExtendedProperty">privateExtendedProperty</a>
+or
+<a href="../v3/reference/events/list.html#sharedExtendedProperty">sharedExtendedProperty</a>
+to a constraint in the format <code translate="no" dir="ltr">propertyName=value</code>,
+which searches against private and shared properties respectively. The following
+example returns events with the private property <code translate="no" dir="ltr">petsAllowed=yes</code>:</p>
+
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>GET https://www.googleapis.com/calendar/v3/calendars/<var translate="no">calendarId</var>/events
+    ?privateExtendedProperty=petsAllowed%3Dyes</pre></devsite-code>
+
+<p>You can repeat these fields multiple times and the constraints are OR'ed
+together, so events only need to match one of the constraints to be returned.
+The following example finds events with either the private property
+<code translate="no" dir="ltr">petsAllowed=yes</code> or <code translate="no" dir="ltr">isOutside=yes</code>:</p>
+
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>GET https://www.googleapis.com/calendar/v3/calendars/<var translate="no">calendarId</var>/events
+    ?privateExtendedProperty=petsAllowed%3Dyes
+    &amp;privateExtendedProperty=isOutside%3Dyes</pre></devsite-code>
+
+<p>Be aware that constraints on private and shared properties are AND'ed together
+however, so events must match both sets of constraints in order to be returned.
+The following example finds events with the private property <code translate="no" dir="ltr">petsAllowed=yes</code>
+and the public property <code translate="no" dir="ltr">createdBy=myApp</code>:</p>
+
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>GET https://www.googleapis.com/calendar/v3/calendars/<var translate="no">calendarId</var>/events
+    ?privateExtendedProperty=petsAllowed%3Dyes
+    &amp;sharedExtendedProperty=createdBy%3DmyApp</pre></devsite-code>
+
+<h2 id="limits" data-text="Limits" tabindex="-1">Limits</h2>
+
+<ol>
+<li>The maximum size of a property's key is 44 characters, and properties with
+longer keys will be silently dropped.</li>
+<li>The maximum size of a property's value is 1024 characters, and properties
+with longer values will be silently truncated.</li>
+<li>An event can have up to 300 properties totaling up to 32kB in size
+(keys size + value size). These 300 properties include shared and private
+properties, across all "copies" of the event.</li>
+</ol>
+
+  
+
+  
+</main></body></html>

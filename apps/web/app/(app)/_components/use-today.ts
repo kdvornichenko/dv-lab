@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { useCalendarController, useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { apiRequest } from '@/lib/api-client'
-import { hasStaleActions } from '@/lib/lesson-actions'
+import { staleCalendarWindow } from '@/lib/lesson-actions'
 
-import type { ScheduleWeekResponse, TodayResponse } from '@dv-lab/contracts'
+import type { GoogleScheduleWindow, TodayResponse } from '@dv-lab/contracts'
 import { scheduleToday } from '@dv-lab/core'
-
-import { readOverlapBlocks } from '../schedule/_components/lesson-dialogs'
 
 type TodayState = {
 	kind: 'loading' | 'error' | 'ready'
@@ -20,19 +19,25 @@ export function useToday(minuteNow: Date) {
 	const [state, setState] = useState<TodayState>({ kind: 'loading', data: null, receivedAt: 0 })
 	const requests = useRef(0)
 	const latest = useRef<TodayResponse | null>(null)
-	const weeks = useRef(new Map<string, ScheduleWeekResponse>())
+	const controller = useCalendarController()
+	const [calendar, setCalendar] = useState<GoogleScheduleWindow | null>(null)
 
 	const reload = useCallback(async () => {
 		const id = ++requests.current
-		weeks.current = new Map<string, ScheduleWeekResponse>()
 		const result = await apiRequest<TodayResponse>('GET', '/today')
 		if (id !== requests.current) return
 		const receivedAt = Date.now()
-		if (result.ok) latest.current = result.data
+		if (result.ok) {
+			latest.current = result.data
+			const window = await controller.readWindow(result.data.date)
+			if (id !== requests.current) return
+			setCalendar((previous) => window ?? staleCalendarWindow(previous))
+		}
 		setState((previous) =>
 			result.ok ? { kind: 'ready', data: result.data, receivedAt } : { ...previous, kind: 'error' }
 		)
-	}, [])
+	}, [controller])
+	useCalendarRefresh(reload)
 
 	useEffect(() => {
 		const counter = requests
@@ -57,18 +62,15 @@ export function useToday(minuteNow: Date) {
 				: new Date(new Date(state.data.asOf).getTime() + Math.max(0, minuteNow.getTime() - state.receivedAt)),
 		[state, minuteNow]
 	)
+	const data = state.data
 	const refreshDay =
 		state.kind === 'ready' &&
-		state.data !== null &&
-		(scheduleToday(now, state.data.defaultTimeZone) !== state.data.date || hasStaleActions(state.data.lessons, now))
+		data !== null &&
+		(scheduleToday(now, data.defaultTimeZone) !== data.date ||
+			data.lessons.some((block) => block.startsAt > data.asOf && new Date(block.startsAt) <= now))
 	useEffect(() => {
 		if (refreshDay) void reload()
 	}, [now, refreshDay, reload])
 
-	function blocksOn(date: string) {
-		const data = latest.current
-		return data === null ? Promise.resolve([]) : readOverlapBlocks(date, weeks.current, data.defaultTimeZone)
-	}
-
-	return { state, now, reload, blocksOn, getData: () => latest.current }
+	return { state, now, reload, calendar, getData: () => latest.current }
 }

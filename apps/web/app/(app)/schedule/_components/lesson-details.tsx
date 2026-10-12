@@ -83,13 +83,13 @@ export function LessonDetails({
 	pending,
 	onSeries,
 }: {
-	block: ScheduleBlock
+	block: Pick<ScheduleBlock, 'durationMinutes' | 'startsAt'> & { timeZone: string | null; actions: { series: boolean } }
 	series: ScheduleSeries | null
 	mainTimeZone: string
 	secondZone: string | null
 	currentYear: number
 	pending: boolean
-	onSeries: (kind: 'move' | 'end') => void
+	onSeries?: (kind: 'move' | 'end') => void
 }) {
 	const { actions } = block
 	const reference = series?.referenceOccurrence ?? null
@@ -104,7 +104,7 @@ export function LessonDetails({
 			<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
 				<Detail label="Length">{block.durationMinutes} min</Detail>
 				<Detail label="Repeats">{series === null ? 'Once' : repeats}</Detail>
-				{sameTimeZone(block.timeZone, mainTimeZone) ? null : (
+				{block.timeZone === null || sameTimeZone(block.timeZone, mainTimeZone) ? null : (
 					<Detail label="Created in">
 						{zoneName(block.timeZone)} time ({zoneLabel(block.timeZone, new Date(block.startsAt))})
 					</Detail>
@@ -117,7 +117,7 @@ export function LessonDetails({
 					</Detail>
 				)}
 			</dl>
-			{actions.series && series !== null ? (
+			{actions.series && series !== null && onSeries !== undefined ? (
 				<div data-slot="lesson-series" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
 					<div className="flex min-w-0 flex-col gap-1">
 						<p className="text-body font-semibold text-foreground">Whole series</p>

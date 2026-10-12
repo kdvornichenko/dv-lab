@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ReactNode, type Ref } from 'react'
+import { useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarDays, Users, Wallet } from 'lucide-react'
@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { EmptyState } from '@/components/app/empty-state'
+import { CalendarReadNotice } from '@/components/app/google-calendar-state'
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
 import { Stat } from '@/components/app/stat'
@@ -15,7 +16,7 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
-import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond, yearInZone } from '@/lib/schedule-format'
+import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -81,15 +82,31 @@ function lessonsOrFewer(threshold: number): string {
 	return `${lessonsPhrase(threshold, 1)} or fewer left`
 }
 
-function Counters({ counts, threshold }: { counts: TodayCounts; threshold: number }) {
+function Counters({
+	counts,
+	threshold,
+	calendarRead,
+}: {
+	counts: TodayCounts
+	threshold: number
+	calendarRead: TodayResponse['calendarRead']
+}) {
 	const quiet = counts.lessons === 0
 	return (
 		<div className="@container">
 			<div data-slot="today-counters" className="grid grid-cols-2 gap-3 @min-[40rem]:grid-cols-4">
 				<Stat
 					label="Today"
-					value={counts.lessons}
-					hint={quiet ? undefined : counts.toCome === 0 ? 'All started' : `${counts.toCome} still to come`}
+					value={calendarRead.state === 'unavailable' ? '—' : counts.lessons}
+					hint={
+						calendarRead.state !== 'fresh'
+							? 'Read-only'
+							: quiet
+								? undefined
+								: counts.toCome === 0
+									? 'All started'
+									: `${counts.toCome} still to come`
+					}
 				/>
 				<Stat label="Done" value={counts.done} hint={quiet ? undefined : `of ${counts.started} started`} />
 				<Stat
@@ -173,7 +190,7 @@ function Panels({
 	return (
 		<div className="flex flex-col gap-4">
 			<Panel id="today-lessons" title="Lessons today" action={<WeekLink />}>
-				{lessons.length === 0 ? (
+				{lessons.length === 0 && data.calendarRead.state === 'fresh' ? (
 					<EmptyState
 						icon={CalendarDays}
 						title="No lessons today"
@@ -187,6 +204,7 @@ function Panels({
 				) : (
 					<LessonRows
 						blocks={lessons}
+						calendarWrite={data.calendarWrite}
 						mainTimeZone={data.defaultTimeZone}
 						now={now}
 						showDate={false}
@@ -214,6 +232,7 @@ function Panels({
 						>
 							<LessonRows
 								blocks={earlier}
+								calendarWrite={data.calendarWrite}
 								mainTimeZone={data.defaultTimeZone}
 								now={now}
 								showDate
@@ -283,7 +302,7 @@ export function TodayScreen() {
 }
 
 function LoadedToday({ minuteNow }: { minuteNow: Date }) {
-	const { state, now, reload, blocksOn, getData } = useToday(minuteNow)
+	const { state, now, reload, calendar, getData } = useToday(minuteNow)
 	const { data } = state
 	const [zone] = useSecondZone(data?.defaultTimeZone ?? null)
 	const [selected, setSelected] = useState<LessonSelection | null>(null)
@@ -292,6 +311,13 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 	const trigger = useRef<HTMLButtonElement | null>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const router = useRouter()
+	const openBlock = useMemo(() => {
+		if (selected === null || data === null) return null
+		const block = [...data.lessons, ...data.earlier].find(
+			(item) => item.key === selected.key && occurrenceSlot(item.outcome) === selected.slot
+		)
+		return block ?? null
+	}, [data, selected])
 
 	function closePayment() {
 		setPayment(false)
@@ -340,12 +366,6 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 	const mainTimeZone = data.defaultTimeZone
 	const counts = countsOf(data, now)
 	const next = nextBlock(data.lessons, counts)
-	const openBlock =
-		selected === null
-			? null
-			: ([...data.lessons, ...data.earlier].find(
-					(block) => block.key === selected.key && occurrenceSlot(block.outcome) === selected.slot
-				) ?? null)
 	return (
 		<>
 			{state.kind === 'error' ? (
@@ -355,7 +375,7 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 			) : (
 				<Shell
 					title={dayTitle(data.date, mainTimeZone)}
-					description={summaryLine(counts, next, mainTimeZone, zone)}
+					description={data.calendarRead.state === 'fresh' ? summaryLine(counts, next, mainTimeZone, zone) : undefined}
 					titleRef={titleRef}
 					actions={
 						<Button
@@ -369,7 +389,13 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 						</Button>
 					}
 				>
-					<Counters counts={counts} threshold={data.paysSoonLessons} />
+					<CalendarReadNotice
+						read={data.calendarRead}
+						write={data.calendarWrite}
+						timeZone={mainTimeZone}
+						onRefresh={reload}
+					/>
+					<Counters counts={counts} threshold={data.paysSoonLessons} calendarRead={data.calendarRead} />
 					<Panels
 						key={`${mainTimeZone}:${data.date}`}
 						data={data}
@@ -388,10 +414,9 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 				currentMainTimeZone={mainTimeZone}
 				asOf={data.asOf}
 				series={data.series}
+				calendar={calendar}
 				now={now}
 				secondZone={zone}
-				currentYear={yearInZone(now, mainTimeZone)}
-				blocksOn={blocksOn}
 				reload={reload}
 				onClose={closeLesson}
 				onOpenPair={openPair}

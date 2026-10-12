@@ -1,0 +1,1513 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>JavaScript quickstart</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>JavaScript quickstart</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/quickstart/js">https://developers.google.com/workspace/calendar/api/quickstart/js</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Create a JavaScript web application that makes requests to the Google Calendar API.</p>
+
+<p>Quickstarts explain how to set up and run an app that calls a
+Google Workspace API. This quickstart uses a
+simplified authentication approach that is appropriate for a testing
+environment. For a production environment, we recommend learning about
+<a href="../related/workspace/guides/auth-overview.html">authentication and authorization</a>
+before
+<a href="../related/workspace/guides/create-credentials.html#choose_the_access_credential_that_is_right_for_you">choosing the access credentials</a>
+that are appropriate for your app.</p>
+
+<p>This quickstart uses Google Workspace's recommended API client libraries
+to handle some details of the authentication and authorization flow.</p>
+
+<h2 id="objectives" data-text="Objectives" tabindex="-1">Objectives</h2>
+
+<ul>
+<li>Set up your environment.</li>
+<li>Set up the sample.</li>
+<li>Run the sample.</li>
+</ul>
+
+<h2 id="prereqs" data-text="Prerequisites" tabindex="-1">Prerequisites</h2>
+
+<ul>
+<li><a href="https://docs.npmjs.com/downloading-and-installing-node-js-and-npm">Node.js &amp; npm</a>
+installed.</li>
+<li><a href="../related/workspace/guides/create-project.html">A Google Cloud project</a>.</li>
+</ul>
+
+
+
+<p><ul><li>A Google account with Google Calendar enabled.</li></ul></p>
+
+
+
+<h2 id="setup" data-text="Set up your environment" tabindex="-1">Set up your environment</h2>
+
+<p>To complete this quickstart, set up your environment.</p>
+
+<h3 id="enable-api" data-text="Enable the API" tabindex="-1">Enable the API</h3>
+
+Before using Google APIs, you need to turn them on in a Google Cloud project.
+You can turn on one or more APIs in a single Google Cloud project.
+
+
+<ul>
+<li><p>In the Google Cloud console, enable the Google Calendar API.</p>
+<p><a href="https://console.cloud.google.com/flows/enableapi?apiid=calendar-json.googleapis.com" class="button button-primary" target="console">Enable the API</a></p></li>
+</ul>
+
+
+
+<h3 id="config-oauth-screen" data-text="Configure the OAuth consent screen" tabindex="-1">Configure the OAuth consent screen</h3>
+
+<p>If you're using a new Google Cloud project to complete this quickstart, configure
+the OAuth consent screen. If you've already completed this step for your
+Cloud project, skip to the next section.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<ol>
+  <li>
+    In the Google API Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+    <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+    <span aria-label="and then">&gt;</span> <b>Branding</b>.
+  <p><a href="https://console.developers.google.com/auth/branding" class="button button-primary" target="console">Go to Branding</a></p></li>
+  <li>
+    If you have already configured the Google Auth platform, you can configure the following OAuth Consent Screen settings in <a href="https://console.developers.google.com/auth/branding">Branding</a>, <a href="https://console.developers.google.com/auth/audience">Audience</a>, and <a href="https://console.developers.google.com/auth/scopes">Data Access</a>. If you see a message that says <b>Google Auth platform not configured yet</b>, click <b>Get Started</b>:
+  </li>
+  <ol>
+    <li>Under <b>App Information</b>, in <b>App name</b>, enter a name for the app.</li>
+    <li>
+      In <b>User support email</b>, choose a support email address where users can contact you if they have questions about their consent.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Audience</b>, select <b>Internal</b>.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Contact Information</b>, enter an <b>Email address</b> where you can be notified about any changes to your project.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Finish</b>, review the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> and if you agree, select <b>I agree to the Google API Services: User Data Policy</b>.
+    </li>
+    <li>
+      Click <b>Continue</b>.
+    </li>
+    <li>
+      Click <b>Create</b>.
+    </li>
+  </ol>
+  <li>
+    For now, you can skip adding scopes.
+    In the future, when you create an app for use outside of your
+    Google Workspace organization, you must change the <b>User type</b> to <b>External</b>. Then
+    add the authorization scopes that your app requires. To learn more, see the full
+    <a href="../related/workspace/guides/configure-oauth-consent.html">Configure OAuth consent</a> guide.
+  </li>
+</ol>
+
+<h3 id="authorize-credentials" data-text="Authorize credentials for a web application" tabindex="-1">Authorize credentials for a web application</h3>
+
+To authenticate end users and access user data in your app, you need to
+create one or more OAuth 2.0 Client IDs. A client ID is used to identify a
+single app to Google's OAuth servers. If your app runs on multiple platforms,
+you must create a separate client ID for each platform.
+
+<ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<li>
+  In the Google Cloud Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+  <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+  <span aria-label="and then">&gt;</span> <b>Clients</b>.
+  <p><a href="https://console.developers.google.com/auth/clients" class="button button-primary" target="console">Go to Clients</a></p>
+</li>
+<li>Click <b>Create Client</b>.</li>
+<li>Click <b>Application type</b> <span aria-label="and then">&gt;</span> <b>Web application</b>.</li>
+<li>In the <b>Name</b> field, type a name for the credential. This name is only shown in the Google Cloud Console.</li>
+<li>Add authorized URIs related to your app:
+  <ul>
+    <li><b>Client-side apps (JavaScript)</b>–Under <b>Authorized JavaScript origins</b>, click <b>Add URI</b>. Then, enter a URI to use for browser requests. This identifies the domains from which your application can send API requests to the OAuth 2.0 server.</li>
+    <li><b>Server-side apps (Java, Python, and more)</b>–Under <b>Authorized redirect URIs</b>, click <b>Add URI</b>. Then, enter an endpoint URI to which the OAuth 2.0 server can send responses.</li>
+  </ul>
+</li>
+<li>Click <b>Create</b>.
+  <p>The newly created credential appears under <b>OAuth 2.0 Client IDs</b>.</p>
+  <p>Note that client secrets aren't used for Web applications.</p></li>
+
+<li>Save the client ID for use later in this quickstart.</li>
+</ol>
+
+
+
+<h3 id="create-api-key" data-text="Create an API key" tabindex="-1">Create an API key</h3>
+
+<ol>
+  <li>
+    In the Google Cloud console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+    <span aria-label="and then">&gt;</span> <b>APIs &amp; Services</b>
+    <span aria-label="and then">&gt;</span> <b>Credentials</b>.
+    <p><a href="https://console.cloud.google.com/apis/credentials" class="button button-primary" target="console">Go to Credentials</a></p>
+  </li>
+  <li>Click <b>Create credentials</b> <span aria-label="and then">&gt;</span>
+    <b>API key</b>.</li>
+  <li>Your new API key is displayed.
+    <ul>
+      <li>Click Copy <span class="material-icons" aria-hidden="true" translate="no">content_copy</span> to copy your API key for use
+        in your app's code. The API key can also be found in the "API Keys" section of your
+        project's credentials.</li>
+      <li>To prevent unauthorized use, we recommend restricting where and for which APIs the API key
+        can be used. For more details, see
+        <a href="https://cloud.google.com/docs/authentication/api-keys#adding-api-restrictions">Add API restrictions</a>.</li>
+    </ul>
+  </li>
+</ol>
+
+
+
+
+<h2 id="set-up-sample" data-text="Set up the sample" tabindex="-1">Set up the sample</h2>
+
+<ol>
+<li>In your working directory, create a file named <code translate="no" dir="ltr">index.html</code>.</li>
+<li><p>In the <code translate="no" dir="ltr">index.html</code> file, paste the following sample code:</p>
+
+
+
+<p>
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="github-docwidget-include">
+  
+  <div class="filepath">calendar/quickstart/index.html</div>
+  <div>
+    
+    <a class="view-on-github button" target="_blank" href="https://github.com/googleworkspace/browser-samples/blob/main/calendar/quickstart/index.html" track-type="github" track-name="gitHubViewButton" track-metadata-link-destination="https://github.com/googleworkspace/browser-samples/blob/main/calendar/quickstart/index.html">View on GitHub</a>
+  </div>
+  
+  <div></div>
+</div><div class="github-docwidget-gitinclude-code">
+  
+    
+  
+  
+  <div></div><devsite-code><pre class=" devsite-click-to-copy" track-metadata-position="googleworkspace/browser-samples/calendar/quickstart/index.html/main/calendar_quickstart" data-code-snippet="true" data-github-path="googleworkspace/browser-samples/calendar/quickstart/index.html" data-git-revision="main" data-region-tag="calendar_quickstart" translate="no" dir="ltr" is-upgraded syntax="HTML">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;Google Calendar API Quickstart&lt;/title&gt;
+    &lt;meta charset="utf-8" /&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;p&gt;Google Calendar API Quickstart&lt;/p&gt;
+
+    &lt;!--Add buttons to initiate auth sequence and sign out--&gt;
+    &lt;button id="authorize_button" onclick="handleAuthClick()"&gt;Authorize&lt;/button&gt;
+    &lt;button id="signout_button" onclick="handleSignoutClick()"&gt;Sign Out&lt;/button&gt;
+
+    &lt;pre id="content" style="white-space: pre-wrap;"&gt;&lt;/pre&gt;
+
+    &lt;script type="text/javascript"&gt;
+      /* exported gapiLoaded */
+      /* exported gisLoaded */
+      /* exported handleAuthClick */
+      /* exported handleSignoutClick */
+
+      // TODO(developer): Set to client ID and API key from the Developer Console
+      const CLIENT_ID = '&lt;YOUR_CLIENT_ID&gt;';
+      const API_KEY = '&lt;YOUR_API_KEY&gt;';
+
+      // Discovery doc URL for APIs used by the quickstart
+      const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+
+      // Authorization scopes required by the API; multiple scopes can be
+      // included, separated by spaces.
+      const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+
+      let tokenClient;
+      let gapiInited = false;
+      let gisInited = false;
+
+      document.getElementById('authorize_button').style.visibility = 'hidden';
+      document.getElementById('signout_button').style.visibility = 'hidden';
+
+      /**
+       * Callback after api.js is loaded.
+       */
+      function gapiLoaded() {
+        gapi.load('client', initializeGapiClient);
+      }
+
+      /**
+       * Callback after the API client is loaded. Loads the
+       * discovery doc to initialize the API.
+       */
+      async function initializeGapiClient() {
+        await gapi.client.init({
+          apiKey: API_KEY,
+          discoveryDocs: [DISCOVERY_DOC],
+        });
+        gapiInited = true;
+        maybeEnableButtons();
+      }
+
+      /**
+       * Callback after Google Identity Services are loaded.
+       */
+      function gisLoaded() {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: '', // defined later
+        });
+        gisInited = true;
+        maybeEnableButtons();
+      }
+
+      /**
+       * Enables user interaction after all libraries are loaded.
+       */
+      function maybeEnableButtons() {
+        if (gapiInited &amp;&amp; gisInited) {
+          document.getElementById('authorize_button').style.visibility = 'visible';
+        }
+      }
+
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick() {
+        tokenClient.callback = async (resp) =&gt; {
+          if (resp.error !== undefined) {
+            throw (resp);
+          }
+          document.getElementById('signout_button').style.visibility = 'visible';
+          document.getElementById('authorize_button').innerText = 'Refresh';
+          await listUpcomingEvents();
+        };
+
+        if (gapi.client.getToken() === null) {
+          // Prompt the user to select a Google Account and ask for consent to share their data
+          // when establishing a new session.
+          tokenClient.requestAccessToken({prompt: 'consent'});
+        } else {
+          // Skip display of account chooser and consent dialog for an existing session.
+          tokenClient.requestAccessToken({prompt: ''});
+        }
+      }
+
+      /**
+       *  Sign out the user upon button click.
+       */
+      function handleSignoutClick() {
+        const token = gapi.client.getToken();
+        if (token !== null) {
+          google.accounts.oauth2.revoke(token.access_token);
+          gapi.client.setToken('');
+          document.getElementById('content').innerText = '';
+          document.getElementById('authorize_button').innerText = 'Authorize';
+          document.getElementById('signout_button').style.visibility = 'hidden';
+        }
+      }
+
+      /**
+       * Print the summary and start datetime/date of the next ten events in
+       * the authorized user's calendar. If no events are found an
+       * appropriate message is printed.
+       */
+      async function listUpcomingEvents() {
+        let response;
+        try {
+          const request = {
+            'calendarId': 'primary',
+            'timeMin': (new Date()).toISOString(),
+            'showDeleted': false,
+            'singleEvents': true,
+            'maxResults': 10,
+            'orderBy': 'startTime',
+          };
+          response = await gapi.client.calendar.events.list(request);
+        } catch (err) {
+          document.getElementById('content').innerText = err.message;
+          return;
+        }
+
+        const events = response.result.items;
+        if (!events || events.length == 0) {
+          document.getElementById('content').innerText = 'No events found.';
+          return;
+        }
+        // Flatten to string to display
+        const output = events.reduce(
+            (str, event) =&gt; `${str}${event.summary} (${event.start.dateTime || event.start.date})\n`,
+            'Events:\n');
+        document.getElementById('content').innerText = output;
+      }
+    &lt;/script&gt;
+    &lt;script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"&gt;&lt;/script&gt;
+    &lt;script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"&gt;&lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</pre></devsite-code>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+</p>
+
+
+
+<p>Replace the following:</p>
+
+<ul>
+<li><code translate="no" dir="ltr"><var translate="no">YOUR_CLIENT_ID</var></code>: the client ID that you created
+when you
+<a href="js.html#authorize-credentials">authorized credentials for a web application</a>.
+</li>
+<li><code translate="no" dir="ltr"><var translate="no">YOUR_API_KEY</var></code>: the API key that you <a href="js.html#create-api-key">created</a>.
+</li>
+</ul></li>
+</ol>
+
+
+
+<h2 id="run-sample" data-text="Run the sample" tabindex="-1">Run the sample</h2>
+
+<ol>
+<li><p>In your working directory, install the <a href="https://www.npmjs.com/package/http-server">http-server</a> package:</p>
+
+<div>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+npm install http-server
+</pre></devsite-code>
+</div></li>
+<li><p>In your working directory, start a web server:</p>
+
+<div>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+npx http-server -p 8000
+</pre></devsite-code>
+</div></li>
+</ol>
+
+<ol start="3">
+  <li>In your browser, navigate to <code translate="no" dir="ltr">http://localhost:8000</code>.</li>
+  <li>
+    You see a prompt to authorize access:
+    <ol>
+      <li>
+        If you're not already signed in to your Google Account, sign in when prompted. If
+        you're signed in to multiple accounts, select one account to use for authorization.
+      </li>
+      <li>Click <strong>Accept</strong>.</li>
+    </ol>
+  </li>
+</ol>
+
+<p>
+  Your JavaScript application runs and calls the Google Calendar API.
+</p>
+
+<h2 id="next-steps" data-text="Next steps" tabindex="-1">Next steps</h2>
+
+<ul>
+<li><a href="https://developers.google.com/workspace/explore">Try the Google Workspace APIs in the APIs explorer</a>
+<ul>
+
+  <li><a href="../guides/create-events.html">Create events</a></li>
+  <li><a href="../troubleshoot-authentication-authorization.html">Troubleshoot authentication and authorization issues</a></li>
+  <li><a href="../v3/reference.html">Calendar API reference documentation</a></li>
+
+<li><a href="https://developers.google.com/api-client-library/javascript"><code translate="no" dir="ltr">google-api-javascript-client</code> section of GitHub</a></li>
+</ul></li>
+</ul>
+
+  
+
+  
+</main></body></html>

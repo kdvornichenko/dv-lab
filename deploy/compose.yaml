@@ -48,6 +48,10 @@ services:
     init: true
     stop_grace_period: 20s
     logging: *logging
+    env_file:
+      - path: /opt/dv-lab/env/api.env
+        required: false
+        format: raw
     environment:
       NODE_ENV: production
       PORT: '4000'

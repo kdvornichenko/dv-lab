@@ -1,0 +1,236 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Calendars</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Calendars</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendars">https://developers.google.com/workspace/calendar/api/v3/reference/calendars</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+
+
+<meta itemprop="path" content="Calendars"/>
+
+<section id="overview">
+  <p>A collection of all existing calendars. See also <a href="../../concepts/events-calendars.html#calendar_and_calendar_list">Calendars vs CalendarList</a>.</p>
+  <p>For a list of <a href="calendars.html#methods">methods</a> for this resource, see the end of this page.</p>
+</section>
+
+<section id="resource">
+  <h2 id="resource-representations" data-text="Resource representations" tabindex="-1">Resource representations</h2>
+    <p></p>
+
+  <section>
+    <div></div><devsite-code><pre id="alt-json" class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed>{
+  "kind": "calendar#calendar",
+  "etag": <span class="apiparam">etag</span>,
+  "id": <span class="apiparam">string</span>,
+  "summary": <span class="apiparam">string</span>,
+  "description": <span class="apiparam">string</span>,
+  "location": <span class="apiparam">string</span>,
+  "timeZone": <span class="apiparam">string</span>,
+  "dataOwner": <span class="apiparam">string</span>,
+  "conferenceProperties": {
+    "allowedConferenceSolutionTypes": [
+      <span class="apiparam">string</span>
+    ]
+  },
+  "labelProperties": {
+    "eventLabels": [
+      {
+        "id": <span class="apiparam">string</span>,
+        "backgroundColor": <span class="apiparam">string</span>,
+        "name": <span class="apiparam">string</span>
+      }
+    ]
+  },
+  "autoAcceptInvitations": <span class="apiparam">boolean</span>
+}</pre></devsite-code>
+    <table class="matchpre" id="properties">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="autoAcceptInvitations">
+        <td><code translate="no" dir="ltr">autoAcceptInvitations</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether this calendar automatically accepts invitations. Only valid for resource calendars.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceProperties">
+        <td><code translate="no" dir="ltr">conferenceProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Conferencing properties for this calendar, for example what types of conferences are allowed.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="conferenceProperties.allowedConferenceSolutionTypes">
+        <td><code translate="no" dir="ltr"><span class="quiet">conferenceProperties.</span>allowedConferenceSolutionTypes[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The types of conference solutions that are supported for this calendar.  <p>The possible values are: <ul> <li><code translate="no" dir="ltr">"eventHangout"</code> <li><code translate="no" dir="ltr">"eventNamedHangout"</code> <li><code translate="no" dir="ltr">"hangoutsMeet"</code> </li></li></li></ul>  Optional.</p></td>
+        <td>
+        </td>
+      </tr>
+      <tr id="dataOwner">
+        <td><code translate="no" dir="ltr">dataOwner</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The email of the owner of the calendar. Set only for secondary calendars. Read-only.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="description">
+        <td><code translate="no" dir="ltr">description</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Description of the calendar. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="etag">
+        <td><code translate="no" dir="ltr">etag</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">etag</code></td>
+        <td>ETag of the resource.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Identifier of the calendar. To retrieve IDs call the <a href="calendarList/list.html">calendarList.list()</a> method.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="kind">
+        <td><code translate="no" dir="ltr">kind</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Type of the resource ("<code translate="no" dir="ltr">calendar#calendar</code>").</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="labelProperties">
+        <td><code translate="no" dir="ltr">labelProperties</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">nested object</code></td>
+        <td>Label properties defined on this calendar. If specified, overwrites the existing label properties. If not specified, the label properties remain unchanged.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.</span>eventLabels[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>Event labels defined on this calendar. If this is present when updating the calendar, it will replace the existing event labels.  <p>Extend the list to add a new event label, and remove entities from the list to delete a label from calendar.  <p>Each calendar can have a maximum of 200 labels.</p></p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels.backgroundColor">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.eventLabels[].</span>backgroundColor</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Background color of the label in hexadecimal format, such as <code translate="no" dir="ltr">"#039be5"</code>. Events with this label are displayed in this color. Required.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels.id">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.eventLabels[].</span>id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The ID of the label. Optional when inserting a new label. If not provided, a unique ID will be generated. Required when updating a label.  <p>If provided, the ID must be unique within the calendar and follow UUID format.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="labelProperties.eventLabels.name">
+        <td><code translate="no" dir="ltr"><span class="quiet">labelProperties.eventLabels[].</span>name</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Name of the label. Optional.  <p>If provided this must have at most 50 characters.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="location">
+        <td><code translate="no" dir="ltr">location</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Geographic location of the calendar as free-form text. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="timeZone">
+        <td><code translate="no" dir="ltr">timeZone</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The time zone of the calendar. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<section id="methods">
+  <h2 id="methods" data-text="Methods" tabindex="-1">Methods</h2>
+
+
+
+  <dl>
+
+
+      <dt><a href="calendars/clear.html">clear</a></dt>
+      <dd>Clears a primary calendar. This operation deletes all events associated with the primary calendar of an account.</dd>
+
+
+
+      <dt><a href="calendars/delete.html">delete</a></dt>
+      <dd>Deletes a secondary calendar. Use calendars.clear for clearing all events on primary calendars.</dd>
+
+
+
+      <dt><a href="calendars/get.html">get</a></dt>
+      <dd>Returns metadata for a calendar.</dd>
+
+
+
+      <dt><a href="calendars/insert.html">insert</a></dt>
+      <dd>Creates a secondary calendar. <p>The authenticated user for the request is made the data owner of the new calendar.</p> <p><aside><b>Note:</b> We recommend to authenticate as the intended data owner of the calendar. You can use <a href="https://developers.google.com/workspace/cloud-search/docs/guides/delegation">domain-wide delegation of authority</a> to allow applications to act on behalf of a specific user. Don't use a service account for authentication. If you use a service account for authentication, the service account is the data owner, which can lead to unexpected behavior. For example, if a service account is the data owner, data ownership cannot be transferred.</aside></p></dd>
+
+
+
+      <dt><a href="calendars/patch.html">patch</a></dt>
+      <dd>Updates metadata for a calendar. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.</dd>
+
+
+
+      <dt><a href="calendars/transferOwnership.html">transferOwnership</a></dt>
+      <dd>Transfers a secondary calendar between users within a Google Workspace organization. Requires user authentication with <a href="https://knowledge.workspace.google.com/admin/users/administrator-privilege-definitions#calendar">Manage Calendars</a> administrator privilege, and one of the following authorization scopes: <ul><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></li>  <li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendars</code></li></ul> In the request, set <code translate="no" dir="ltr">useAdminAccess</code> to <code translate="no" dir="ltr">true</code>. The secondary calendar must be active to be transferred. Transferring disabled or deleted calendars isn't supported.</dd>
+
+
+
+      <dt><a href="calendars/update.html">update</a></dt>
+      <dd>Updates metadata for a calendar.</dd>
+
+  </dl>
+</section>
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

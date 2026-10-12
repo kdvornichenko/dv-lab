@@ -1,0 +1,1043 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create events</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Create events</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/create-events">https://developers.google.com/workspace/calendar/api/guides/create-events</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="video-wrapper">
+  
+</div>
+
+<p>Imagine an app that helps users find the best hiking routes. By adding the
+hiking plan as a calendar event, the users get a lot of help in staying
+organized automatically. Google Calendar helps them to share the plan and
+reminds them about it so they can get prepared with no stress. Also, thanks to
+seamless integration of Google products, Google Now pings them about the time to
+leave and Google Maps direct them to the meeting spot on time.</p>
+
+<p>This article explains how to create calendar events and add them to your users'
+calendars.</p>
+
+<h2 id="add_an_event" data-text="Add an event" tabindex="-1">Add an event</h2>
+
+<p>To create an event, call the
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">events.insert()</code></a> method providing at
+least these parameters:</p>
+
+<ul>
+<li><code translate="no" dir="ltr">calendarId</code> is the calendar identifier and can either be the email address
+of the calendar on which to create the event or a special keyword
+<code translate="no" dir="ltr">'primary'</code> which will use the primary calendar of the logged in user. If
+you don't know the email address of the calendar you would like to use, you
+can check it either in the calendar's settings of the Google Calendar web
+UI (in the section "Calendar Address") or you can look for it
+in the result of the
+<a href="../v3/reference/calendarList/list.html"><code translate="no" dir="ltr">calendarList.list()</code></a> call.</li>
+<li><code translate="no" dir="ltr">event</code> is the event to create with all the necessary details such as start
+and end. The only two required fields are the <code translate="no" dir="ltr">start</code> and <code translate="no" dir="ltr">end</code> times. See the
+<a href="../v3/reference/events.html"><code translate="no" dir="ltr">event</code> reference</a> for the full set of event
+fields.
+<aside class="note">Specify timed events using the <code translate="no" dir="ltr">start.dateTime</code>
+and <code translate="no" dir="ltr">end.dateTime</code> fields. For all-day events, use
+<code translate="no" dir="ltr">start.date</code> and <code translate="no" dir="ltr">end.date</code> instead.</aside></li>
+</ul>
+
+<p>In order to successfully create events, you need to:</p>
+
+<ul>
+<li>Set your OAuth scope to <code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code> so that
+you have edit access to the user's calendar.</li>
+<li>Ensure the authenticated user has write access to the calendar with the
+<code translate="no" dir="ltr">calendarId</code> you provided (for example by calling
+<a href="../v3/reference/calendarList/get.html"><code translate="no" dir="ltr">calendarList.get()</code></a> for the
+<code translate="no" dir="ltr">calendarId</code> and checking the <code translate="no" dir="ltr">accessRole</code>).</li>
+</ul>
+
+<h3 id="metadata" data-text="Add event metadata" tabindex="-1">Add event metadata</h3>
+
+<p>You can optionally add event metadata when you create a calendar event. If you
+choose not to add metadata during creation, you can update many fields using the
+<a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">events.update()</code></a>; however, some fields,
+such as the event ID, can only be set during an
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">events.insert()</code></a> operation.</p>
+
+<dl>
+<dt>Location</dt>
+<dd>Adding an address into the location field enables features such as
+"time to leave" or displaying a map with the directions.</dd>
+<dt>Event ID</dt>
+<dd>When creating an event, you can choose to generate your own event ID
+that conforms to our format requirements. This enables you to keep entities
+in your local database in sync with events in Google Calendar. It also
+prevents duplicate event creation if the operation fails at some point after
+it is successfully executed in the Calendar backend. If no
+event ID is provided, the server generates one for you. See the <a href="../v3/reference/events.html#id">event ID
+reference</a> for more information.</dd>
+<dt>Attendees</dt>
+<dd>The event you create appears on all the primary Google Calendars of
+the attendees you included with the same event ID. If you set
+<code translate="no" dir="ltr">sendUpdates</code> to <code translate="no" dir="ltr">"all"</code> or <code translate="no" dir="ltr">"externalOnly"</code> in your insert request,
+the corresponding attendees receive an email notification for your event. To
+learn more, see
+<a href="https://developers.google.com/workspace/calendar/concepts#events_with_attendees">events with multiple attendees</a>.</dd>
+</dl>
+
+<p>The following examples demonstrate creating an event and setting its metadata:</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="go" data-text="Go" tabindex="-1">Go</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Go"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Go quickstart on how to setup the environment:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/go</span>
+<span class="devsite-syntax-c1">// Change the scope to calendar.CalendarScope and delete any stored credentials.</span>
+
+<span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Event</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">Summary</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"Google I/O 2015"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">Location</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"800 Howard St., San Francisco, CA 94103"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">Description</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"A chance to hear more about Google's developer products."</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">Start</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventDateTime</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">DateTime</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"2015-05-28T09:00:00-07:00"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">TimeZone</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"America/Los_Angeles"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">End</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventDateTime</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">DateTime</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"2015-05-28T17:00:00-07:00"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">TimeZone</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"America/Los_Angeles"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">Recurrence</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[]</span><span class="devsite-syntax-kt">string</span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s">"RRULE:FREQ=DAILY;COUNT=2"</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">Attendees</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[]</span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventAttendee</span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventAttendee</span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-nx">Email</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-s">"lpage@example.com"</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span>&amp;<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">EventAttendee</span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-nx">Email</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-s">"sbrin@example.com"</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"primary"</span>
+<span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">srv</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Do</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to create event. %v\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event created: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">HtmlLink</span><span class="devsite-syntax-p">)</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="java" data-text="Java" tabindex="-1">Java</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Java quickstart on how to setup the environment:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/java</span>
+<span class="devsite-syntax-c1">// Change the scope to CalendarScopes.CALENDAR and delete any stored</span>
+<span class="devsite-syntax-c1">// credentials.</span>
+
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSummary</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Google I/O 2015"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setLocation</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"800 Howard St., San Francisco, CA 94103"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setDescription</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"A chance to hear more about Google's developer products."</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">startDateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"2015-05-28T09:00:00-07:00"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setDateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">startDateTime</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setTimeZone</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"America/Los_Angeles"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setStart</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">start</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">endDateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">DateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"2015-05-28T17:00:00-07:00"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">end</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventDateTime</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setDateTime</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">endDateTime</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setTimeZone</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"America/Los_Angeles"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setEnd</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">end</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">String</span><span class="devsite-syntax-o">[]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">recurrence</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-o">[]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s">"RRULE:FREQ=DAILY;COUNT=2"</span><span class="devsite-syntax-p">};</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setRecurrence</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Arrays</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">asList</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">recurrence</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-n">EventAttendee</span><span class="devsite-syntax-o">[]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">attendees</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventAttendee</span><span class="devsite-syntax-o">[]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventAttendee</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setEmail</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"lpage@example.com"</span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventAttendee</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setEmail</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"sbrin@example.com"</span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-p">};</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setAttendees</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Arrays</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">asList</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">attendees</span><span class="devsite-syntax-p">));</span>
+
+<span class="devsite-syntax-n">EventReminder</span><span class="devsite-syntax-o">[]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">reminderOverrides</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventReminder</span><span class="devsite-syntax-o">[]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventReminder</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setMethod</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"email"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">setMinutes</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">24</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">60</span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventReminder</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">setMethod</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"popup"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">setMinutes</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">10</span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-p">};</span>
+<span class="devsite-syntax-n">Event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Reminders</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">reminders</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">Reminders</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setUseDefault</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setOverrides</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Arrays</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">asList</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">reminderOverrides</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setReminders</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">reminders</span><span class="devsite-syntax-p">);</span>
+
+<span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">service</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-n">System</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">out</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Event created: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getHtmlLink</span><span class="devsite-syntax-p">());</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="javascript" data-text="JavaScript" tabindex="-1">JavaScript</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the JavaScript quickstart on how to setup the environment:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/js</span>
+<span class="devsite-syntax-c1">// Change the scope to 'https://www.googleapis.com/auth/calendar' and delete any</span>
+<span class="devsite-syntax-c1">// stored credentials.</span>
+
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'summary'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Google I/O 2015'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'location'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'800 Howard St., San Francisco, CA 94103'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'description'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'A chance to hear more about Google\'s developer products.'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'start'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2015-05-28T09:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'end'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2015-05-28T17:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'recurrence'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'RRULE:FREQ=DAILY;COUNT=2'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'attendees'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'lpage@example.com'</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'sbrin@example.com'</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'reminders'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'useDefault'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'overrides'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'method'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'minutes'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">24</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">60</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'method'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'popup'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'minutes'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">10</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">]</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">};</span>
+
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">request</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">gapi</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">client</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">insert</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'calendarId'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'resource'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span>
+<span class="devsite-syntax-p">});</span>
+
+<span class="devsite-syntax-nx">request</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">execute</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kd">function</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">appendPre</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'Event created: '</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">htmlLink</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">});</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="node.js" data-text="Node.js" tabindex="-1">Node.js</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-c1">// Refer to the Node.js quickstart on how to setup the environment:</span>
+<span class="devsite-syntax-c1">// https://developers.google.com/workspace/calendar/quickstart/node</span>
+<span class="devsite-syntax-c1">// Change the scope to 'https://www.googleapis.com/auth/calendar' and delete any</span>
+<span class="devsite-syntax-c1">// stored credentials.</span>
+
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'summary'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Google I/O 2015'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'location'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'800 Howard St., San Francisco, CA 94103'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'description'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'A chance to hear more about Google\'s developer products.'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'start'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2015-05-28T09:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'end'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2015-05-28T17:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'recurrence'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'RRULE:FREQ=DAILY;COUNT=2'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'attendees'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'lpage@example.com'</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'sbrin@example.com'</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-s1">'reminders'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'useDefault'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'overrides'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'method'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'minutes'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">24</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">60</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'method'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'popup'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'minutes'</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">10</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-p">};</span>
+
+<span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">insert</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">auth</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">auth</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">resource</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-p">},</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">function</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'There was an error contacting the Calendar service: '</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-p">;</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'Event created: %s'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">htmlLink</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">});</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="php" data-text="PHP" tabindex="-1">PHP</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="PHP"><code translate="no" dir="ltr"><span class="devsite-syntax-x">$event = new Google_Service_Calendar_Event(array(</span>
+<span class="devsite-syntax-x">  'summary' =&gt; 'Google I/O 2015',</span>
+<span class="devsite-syntax-x">  'location' =&gt; '800 Howard St., San Francisco, CA 94103',</span>
+<span class="devsite-syntax-x">  'description' =&gt; 'A chance to hear more about Google\'s developer products.',</span>
+<span class="devsite-syntax-x">  'start' =&gt; array(</span>
+<span class="devsite-syntax-x">    'dateTime' =&gt; '2015-05-28T09:00:00-07:00',</span>
+<span class="devsite-syntax-x">    'timeZone' =&gt; 'America/Los_Angeles',</span>
+<span class="devsite-syntax-x">  ),</span>
+<span class="devsite-syntax-x">  'end' =&gt; array(</span>
+<span class="devsite-syntax-x">    'dateTime' =&gt; '2015-05-28T17:00:00-07:00',</span>
+<span class="devsite-syntax-x">    'timeZone' =&gt; 'America/Los_Angeles',</span>
+<span class="devsite-syntax-x">  ),</span>
+<span class="devsite-syntax-x">  'recurrence' =&gt; array(</span>
+<span class="devsite-syntax-x">    'RRULE:FREQ=DAILY;COUNT=2'</span>
+<span class="devsite-syntax-x">  ),</span>
+<span class="devsite-syntax-x">  'attendees' =&gt; array(</span>
+<span class="devsite-syntax-x">    array('email' =&gt; 'lpage@example.com'),</span>
+<span class="devsite-syntax-x">    array('email' =&gt; 'sbrin@example.com'),</span>
+<span class="devsite-syntax-x">  ),</span>
+<span class="devsite-syntax-x">  'reminders' =&gt; array(</span>
+<span class="devsite-syntax-x">    'useDefault' =&gt; FALSE,</span>
+<span class="devsite-syntax-x">    'overrides' =&gt; array(</span>
+<span class="devsite-syntax-x">      array('method' =&gt; 'email', 'minutes' =&gt; 24 * 60),</span>
+<span class="devsite-syntax-x">      array('method' =&gt; 'popup', 'minutes' =&gt; 10),</span>
+<span class="devsite-syntax-x">    ),</span>
+<span class="devsite-syntax-x">  ),</span>
+<span class="devsite-syntax-x">));</span>
+
+<span class="devsite-syntax-x">$calendarId = 'primary';</span>
+<span class="devsite-syntax-x">$event = $service-&gt;events-&gt;insert($calendarId, $event);</span>
+<span class="devsite-syntax-x">printf('Event created: %s\n', $event-&gt;htmlLink);</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="python" data-text="Python" tabindex="-1">Python</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><code translate="no" dir="ltr"><span class="devsite-syntax-c1"># Refer to the Python quickstart on how to setup the environment:</span>
+<span class="devsite-syntax-c1"># https://developers.google.com/workspace/calendar/quickstart/python</span>
+<span class="devsite-syntax-c1"># Change the scope to 'https://www.googleapis.com/auth/calendar' and delete any</span>
+<span class="devsite-syntax-c1"># stored credentials.</span>
+
+<span class="devsite-syntax-n">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-p">{</span>
+  <span class="devsite-syntax-s1">'summary'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'Google I/O 2015'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-s1">'location'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'800 Howard St., San Francisco, CA 94103'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-s1">'description'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'A chance to hear more about Google</span><span class="devsite-syntax-se">\'</span><span class="devsite-syntax-s1">s developer products.'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-s1">'start'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+    <span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'2015-05-28T09:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'America/Los_Angeles'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-p">},</span>
+  <span class="devsite-syntax-s1">'end'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+    <span class="devsite-syntax-s1">'dateTime'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'2015-05-28T17:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'timeZone'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'America/Los_Angeles'</span><span class="devsite-syntax-p">,</span>
+  <span class="devsite-syntax-p">},</span>
+  <span class="devsite-syntax-s1">'recurrence'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">[</span>
+    <span class="devsite-syntax-s1">'RRULE:FREQ=DAILY;COUNT=2'</span>
+  <span class="devsite-syntax-p">],</span>
+  <span class="devsite-syntax-s1">'attendees'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">[</span>
+    <span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'lpage@example.com'</span><span class="devsite-syntax-p">},</span>
+    <span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'sbrin@example.com'</span><span class="devsite-syntax-p">},</span>
+  <span class="devsite-syntax-p">],</span>
+  <span class="devsite-syntax-s1">'reminders'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">{</span>
+    <span class="devsite-syntax-s1">'useDefault'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-kc">False</span><span class="devsite-syntax-p">,</span>
+    <span class="devsite-syntax-s1">'overrides'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-p">[</span>
+      <span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'method'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-s1">'minutes'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-mi">24</span> <span class="devsite-syntax-o">*</span> <span class="devsite-syntax-mi">60</span><span class="devsite-syntax-p">},</span>
+      <span class="devsite-syntax-p">{</span><span class="devsite-syntax-s1">'method'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-s1">'popup'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-s1">'minutes'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-mi">10</span><span class="devsite-syntax-p">},</span>
+    <span class="devsite-syntax-p">],</span>
+  <span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-n">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">service</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">body</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-nb">print</span> <span class="devsite-syntax-s1">'Event created: </span><span class="devsite-syntax-si">%s</span><span class="devsite-syntax-s1">'</span> <span class="devsite-syntax-o">%</span> <span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'htmlLink'</span><span class="devsite-syntax-p">))</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="ruby" data-text="Ruby" tabindex="-1">Ruby</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Ruby"><code translate="no" dir="ltr"><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Event</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">summary</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Google I/O 2015'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">location</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'800 Howard St., San Francisco, CA 94103'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">description</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'A chance to hear more about Google</span><span class="devsite-syntax-se">\'</span><span class="devsite-syntax-s1">s developer products.'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">start</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">EventDateTime</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">date_time</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2015-05-28T09:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">time_zone</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">end</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">EventDateTime</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">date_time</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2015-05-28T17:00:00-07:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">time_zone</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'America/Los_Angeles'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">recurrence</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-s1">'RRULE:FREQ=DAILY;COUNT=2'</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-o">]</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">attendees</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">[</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">EventAttendee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-ss">email</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'lpage@example.com'</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">EventAttendee</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-ss">email</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'sbrin@example.com'</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-o">]</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-ss">reminders</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Event</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Reminders</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">use_default</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kp">false</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-ss">overrides</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">[</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">EventReminder</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-ss">reminder_method</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'email'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-ss">minutes</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">24</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">60</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">),</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-no">Google</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">Apis</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">CalendarV3</span><span class="devsite-syntax-o">::</span><span class="devsite-syntax-no">EventReminder</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">new</span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-ss">reminder_method</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'popup'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">        </span><span class="devsite-syntax-ss">minutes</span><span class="devsite-syntax-p">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">10</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-o">]</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-n">result</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">client</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">insert_event</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-nb">puts</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"Event created: </span><span class="devsite-syntax-si">#{</span><span class="devsite-syntax-n">result</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">html_link</span><span class="devsite-syntax-si">}</span><span class="devsite-syntax-s2">"</span>
+
+</code></pre></devsite-code></section>
+</devsite-selector></div>
+<h3 id="attachments" data-text="Add Drive attachments to events" tabindex="-1">Add Drive attachments to events</h3>
+
+<p>You can attach <a href="https://drive.google.com" target="_blank" class="external">Google Drive</a> 
+files such as meeting notes in Docs, budgets in
+Sheets, presentations in Slides, or any other
+relevant Google Drive files to your calendar events. You can add the
+attachment when you create an event with
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">events.insert()</code></a> or later as part of an
+update such as with <a href="../v3/reference/events/patch.html"><code translate="no" dir="ltr">events.patch()</code></a></p>
+
+<p>The two parts of attaching a Google Drive file to an event are:</p>
+
+<ol>
+<li>Get the file <code translate="no" dir="ltr">alternateLink</code> URL, <code translate="no" dir="ltr">title</code>, and <code translate="no" dir="ltr">mimeType</code> from the <a href="https://developers.google.com/workspace/drive/v3/reference/files">
+Drive API Files resource</a>,
+typically with the <a href="https://developers.google.com/workspace/drive/v3/reference/files/get"><code translate="no" dir="ltr">files.get()</code></a>
+method.</li>
+<li>Create or update an event with the <code translate="no" dir="ltr">attachments</code> fields set in the request
+body and the <code translate="no" dir="ltr">supportsAttachments</code> parameter set to <code translate="no" dir="ltr">true</code>.</li>
+</ol>
+
+<p>The following code example demonstrates how to update an existing event to add
+an attachment:</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="java_1" data-text="Java" tabindex="-1">Java</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Java"><code translate="no" dir="ltr"><span class="devsite-syntax-kd">public</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">static</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">void</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">addAttachment</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">Calendar</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendarService</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Drive</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">driveService</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">String</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">fileId</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kd">throws</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">IOException</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">File</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">file</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">driveService</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">files</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">fileId</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">calendarService</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">List&lt;EventAttachment&gt;</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">attachments</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getAttachments</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">attachments</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">null</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-n">attachments</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">ArrayList&lt;EventAttachment&gt;</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">attachments</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">add</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">EventAttachment</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setFileUrl</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">file</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getAlternateLink</span><span class="devsite-syntax-p">())</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setMimeType</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">file</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getMimeType</span><span class="devsite-syntax-p">())</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setTitle</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">file</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">getTitle</span><span class="devsite-syntax-p">()));</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">changes</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">new</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">Event</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setAttachments</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">attachments</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-n">calendarService</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">events</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-na">patch</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-n">changes</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">setSupportsAttachments</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">      </span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-na">execute</span><span class="devsite-syntax-p">();</span>
+<span class="devsite-syntax-p">}</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="php_1" data-text="PHP" tabindex="-1">PHP</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="PHP"><code translate="no" dir="ltr"><span class="devsite-syntax-x">function addAttachment($calendarService, $driveService, $calendarId, $eventId, $fileId) {</span>
+<span class="devsite-syntax-x">  $file = $driveService-&gt;files-&gt;get($fileId);</span>
+<span class="devsite-syntax-x">  $event = $calendarService-&gt;events-&gt;get($calendarId, $eventId);</span>
+<span class="devsite-syntax-x">  $attachments = $event-&gt;attachments;</span>
+
+<span class="devsite-syntax-x">  $attachments[] = array(</span>
+<span class="devsite-syntax-x">    'fileUrl' =&gt; $file-&gt;alternateLink,</span>
+<span class="devsite-syntax-x">    'mimeType' =&gt; $file-&gt;mimeType,</span>
+<span class="devsite-syntax-x">    'title' =&gt; $file-&gt;title</span>
+<span class="devsite-syntax-x">  );</span>
+<span class="devsite-syntax-x">  $changes = new Google_Service_Calendar_Event(array(</span>
+<span class="devsite-syntax-x">    'attachments' =&gt; $attachments</span>
+<span class="devsite-syntax-x">  ));</span>
+
+<span class="devsite-syntax-x">  $calendarService-&gt;events-&gt;patch($calendarId, $eventId, $changes, array(</span>
+<span class="devsite-syntax-x">    'supportsAttachments' =&gt; TRUE</span>
+<span class="devsite-syntax-x">  ));</span>
+<span class="devsite-syntax-x">}</span>
+
+</code></pre></devsite-code></section>
+<section><h3 id="python_1" data-text="Python" tabindex="-1">Python</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Python"><code translate="no" dir="ltr"><span class="devsite-syntax-k">def</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nf">add_attachment</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarService</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">driveService</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">fileId</span><span class="devsite-syntax-p">):</span>
+    <span class="devsite-syntax-n">file</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">driveService</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">files</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">fileId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">fileId</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+    <span class="devsite-syntax-n">event</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">calendarService</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span>
+                                         <span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+    <span class="devsite-syntax-n">attachments</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-n">event</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'attachments'</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-p">[])</span>
+    <span class="devsite-syntax-n">attachments</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">append</span><span class="devsite-syntax-p">({</span>
+        <span class="devsite-syntax-s1">'fileUrl'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-n">file</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'alternateLink'</span><span class="devsite-syntax-p">],</span>
+        <span class="devsite-syntax-s1">'mimeType'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-n">file</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'mimeType'</span><span class="devsite-syntax-p">],</span>
+        <span class="devsite-syntax-s1">'title'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-n">file</span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s1">'title'</span><span class="devsite-syntax-p">]</span>
+    <span class="devsite-syntax-p">})</span>
+
+    <span class="devsite-syntax-n">changes</span> <span class="devsite-syntax-o">=</span> <span class="devsite-syntax-p">{</span>
+        <span class="devsite-syntax-s1">'attachments'</span><span class="devsite-syntax-p">:</span> <span class="devsite-syntax-n">attachments</span>
+    <span class="devsite-syntax-p">}</span>
+    <span class="devsite-syntax-n">calendarService</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">events</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">patch</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">calendarId</span><span class="devsite-syntax-p">,</span> <span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">eventId</span><span class="devsite-syntax-p">,</span>
+                                   <span class="devsite-syntax-n">body</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-n">changes</span><span class="devsite-syntax-p">,</span>
+                                   <span class="devsite-syntax-n">supportsAttachments</span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-kc">True</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-o">.</span><span class="devsite-syntax-n">execute</span><span class="devsite-syntax-p">()</span>
+
+</code></pre></devsite-code></section>
+</devsite-selector></div><aside class="special"><strong>Important:</strong><span> You must perform a <a href="sync.html#initial_full_sync">full sync</a>
+of all events before enabling the <code translate="no" dir="ltr">supportsAttachments</code> parameter for event
+modifications when adding attachments support into your existing app that stores
+events locally. If you do not perform a sync first, you may inadvertently remove
+existing attachments from user's events.</span></aside>
+<h3 id="conferencing" data-text="Add video and phone conferences to events" tabindex="-1">Add video and phone conferences to events</h3>
+
+<p>You can associate events with
+<a href="https://hangouts.google.com" target="_blank" class="external">Hangouts</a> and
+<a href="https://meet.google.com" target="_blank" class="external">Google Meet</a> conferences to
+allow your users to meet remotely via a phone call or a video call.</p>
+
+<p>The <a href="../v3/reference/events.html#conferenceData"><code translate="no" dir="ltr">conferenceData</code></a> field can
+be used to read, copy, and clear existing conference details; it can also be
+used to request generation of new conferences. To allow creation and
+modification of conference details, set the <code translate="no" dir="ltr">conferenceDataVersion</code> request
+parameter to <code translate="no" dir="ltr">1</code>.</p>
+
+<p>There are three types of <code translate="no" dir="ltr">conferenceData</code> currently supported, as denoted by the
+<code translate="no" dir="ltr">conferenceData.conferenceSolution.key.type</code>:</p>
+
+<ol>
+<li>Hangouts for consumers (<code translate="no" dir="ltr">eventHangout</code>)</li>
+<li>Classic Hangouts for Google Workspace users
+(deprecated; <code translate="no" dir="ltr">eventNamedHangout</code>)</li>
+<li>Google Meet (<code translate="no" dir="ltr">hangoutsMeet</code>)</li>
+</ol>
+
+<p>You can learn which conference type is supported for any given calendar of a
+user by looking at the <code translate="no" dir="ltr">conferenceProperties.allowedConferenceSolutionTypes</code> in
+the <a href="../v3/reference/calendars.html"><code translate="no" dir="ltr">calendars</code></a> and
+<a href="../v3/reference/calendarList.html"><code translate="no" dir="ltr">calendarList</code></a> collections. You can also
+learn whether the user prefers to have Hangouts created for all their newly
+created events by checking the <code translate="no" dir="ltr">autoAddHangouts</code> setting in the
+<a href="../v3/reference/settings.html"><code translate="no" dir="ltr">settings</code></a> collection.</p>
+
+<p>Besides the <code translate="no" dir="ltr">type</code>, the <code translate="no" dir="ltr">conferenceSolution</code> also provides the <code translate="no" dir="ltr">name</code> and the
+<code translate="no" dir="ltr">iconUri</code> fields that you can use to represent the conference solution as shown
+below:</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="javascript_1" data-text="JavaScript" tabindex="-1">JavaScript</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">solution</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">conferenceData</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">conferenceSolution</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">content</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">document</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">getElementById</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"content"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">text</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">document</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">createTextNode</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"Join "</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">+</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">solution</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">name</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">icon</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">document</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">createElement</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"img"</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-nx">icon</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">src</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">solution</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">iconUri</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-nx">content</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">appendChild</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">icon</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-nx">content</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">appendChild</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">text</span><span class="devsite-syntax-p">);</span>
+
+</code></pre></devsite-code></section>
+</devsite-selector></div>
+<p>You can create a new conference for an event by providing a <code translate="no" dir="ltr">createRequest</code> with
+a newly generated <code translate="no" dir="ltr">requestId</code> which can be a random <code translate="no" dir="ltr">string</code>. Conferences are
+created asynchronously, but you can always check the status of your request to
+let your users know what’s happening.</p>
+
+<p>For example, to request conference generation for an existing event:</p>
+<div><devsite-selector data-ds-scope="code-sample">
+<section><h3 id="javascript_2" data-text="JavaScript" tabindex="-1">JavaScript</h3><div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">eventPatch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">conferenceData</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">createRequest</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-nx">requestId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"7qxalsvy0e"</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">};</span>
+
+<span class="devsite-syntax-nx">gapi</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">client</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">patch</span><span class="devsite-syntax-p">({</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">calendarId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"primary"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">eventId</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"7cbh8rpc10lrc0ckih9tafss99"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">resource</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">eventPatch</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">sendUpdates</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"all"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">conferenceDataVersion</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mf">1</span>
+<span class="devsite-syntax-p">}).</span><span class="devsite-syntax-nx">execute</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kd">function</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s2">"Conference created for event: %s"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">htmlLink</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">});</span>
+
+</code></pre></devsite-code></section>
+</devsite-selector></div>
+<p>The immediate response to this call might not yet contain the fully-populated
+<code translate="no" dir="ltr">conferenceData</code>; this is indicated by a status code of <code translate="no" dir="ltr">pending</code> in the
+<a href="../v3/reference/events.html#conferenceData.createRequest.status">status</a>
+field. The status code changes to <code translate="no" dir="ltr">success</code> after the conference information is
+populated. The <code translate="no" dir="ltr">entryPoints</code> field contains information about which video and
+phone URIs are available for your users to dial in.</p>
+
+<p>If you wish to schedule multiple Calendar events with the same
+conference details, you can copy the entire <code translate="no" dir="ltr">conferenceData</code> from one event to
+another.</p>
+
+<p>Copying is useful in certain situations. For example, suppose you are developing
+a recruiting application that sets up separate events for the candidate and the
+interviewer—you want to protect the interviewer’s identity, but you also
+want to make sure all participants join the same conference call.</p>
+<aside class="special"><strong>Important:</strong><span> You must perform a <a href="sync.html#initial_full_sync">full sync</a>
+of all events before enabling the conference data support (by setting of the
+<code translate="no" dir="ltr">conferenceDataVersion</code> request parameter to <code translate="no" dir="ltr">1</code> for event modifications) when
+adding conference support into your existing app that stores events locally. If
+you do not perform a sync first, you may inadvertently remove existing
+conferences from users' events.</span></aside>
+
+  
+
+  
+</main></body></html>

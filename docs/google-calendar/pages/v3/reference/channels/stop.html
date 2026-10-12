@@ -1,0 +1,94 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Channels: stop</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Channels: stop</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/channels/stop">https://developers.google.com/workspace/calendar/api/v3/reference/channels/stop</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="stop"/>
+<meta itemprop="path" content="Channels"/>
+
+
+
+
+
+<p>Stop watching resources through this channel.
+
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>POST https://www.googleapis.com/calendar/v3/channels/stop</pre></devsite-code>
+
+
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+  <p>In the request body, supply data with the following structure:</p>
+  <section>
+    <div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="Text only" syntax-guessed>{
+  "id": <var class="apiparam" translate="no">string</var>,
+  "resourceId": <var class="apiparam" translate="no">string</var>
+}</pre></devsite-code>
+    <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>A UUID or similar unique string that identifies this channel.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="resourceId">
+        <td><code translate="no" dir="ltr">resourceId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An opaque ID that identifies the resource being watched on this channel. Stable across different API versions.</td>
+        <td>
+        </td>
+      </tr>
+      <tr id="token">
+        <td><code translate="no" dir="ltr">token</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>An arbitrary string delivered to the target address with each notification delivered over this channel. Optional.</td>
+        <td>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </section>
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns an empty response body.</p>
+
+</section>
+
+
+
+
+
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

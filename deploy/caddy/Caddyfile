@@ -1,4 +1,13 @@
 {
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "[?].*$" ""
+				request>headers>Referer delete
+			}
+		}
+	}
 	servers {
 		protocols h1 h2
 	}
@@ -15,7 +24,13 @@
 
 dv-lab.dev {
 	log {
-		format json
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp "[?].*$" ""
+				request>headers>Referer delete
+			}
+		}
 	}
 
 	encode zstd gzip
@@ -30,6 +45,12 @@ dv-lab.dev {
 
 	request_body {
 		max_size 1MB
+	}
+
+	@google_callback path /api/google/callback
+	header @google_callback {
+		Referrer-Policy no-referrer
+		Cache-Control no-store
 	}
 
 	handle /healthz {

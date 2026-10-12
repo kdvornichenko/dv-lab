@@ -1,20 +1,20 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: '1.0'
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: '21.1'
-current_phase_name: Default Time Zone
-status: complete
-stopped_at: Phase 21.1 verified; PR/CI pending, then prepared Phase 24
-last_updated: "2026-10-11T15:33:53.547Z"
-last_activity: 2026-10-11
-last_activity_desc: "Phase 21.1 verified: 20/20 must-haves and 5/5 requirements; next Phase 24"
-state_head: b610dd7eba051c3bd40ddaaeedd2f1e6f5cc76c4
+current_phase: 24
+current_phase_name: Google Calendar Connection and Outbound Sync
+status: executing
+stopped_at: Phase24 source01–13 verified; actual Google Production, provider journeys and day8 pending in14
+last_updated: '2026-10-12T02:47:14.156Z'
+last_activity: 2026-10-12
+last_activity_desc: Source01–13 verified; actual Google Production, provider journeys and day8 pending in14
+state_head: 09211e81b3037e6b78d10bda00ba2009a96b48af
 progress:
   total_phases: 11
   completed_phases: 2
-  total_plans: 90
-  completed_plans: 90
+  total_plans: 189
+  completed_plans: 103
   percent: 18
 ---
 
@@ -25,14 +25,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 21.1 — Default Time Zone
+**Current focus:** Phase 24 — Google Calendar Connection and Outbound Sync
 
 ## Current Position
 
-Phase: 21.1 — Default Time Zone
-Plan: 13 of 13 — complete
-Status: Verified; PR and green CI merge pending. Prepared Phase 24 is next by the owner-approved order.
-Last activity: 2026-10-11 — Phase 21.1 verified: 20/20 must-haves and 5/5 requirements; next Phase 24
+Phase: 24 (Google Calendar Connection and Outbound Sync) — EXECUTING
+Plan: 14 of 14
+Status: Executing; connected provider verification pending
+Last activity: 2026-10-12 — Source01–13 verified; actual Google Production, provider journeys and day8 pending in14
 
 Progress: [██░░░░░░░░] 18%
 
@@ -80,7 +80,10 @@ Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Owner, 2026-10-12]: Autonomous GSD covers24→25→22→23→26: research, plans, UI analysis/spec, plan checks, implementation and verification. No questions while the owner is away. Coordinate Design dude and Server guy as needed; deploy and test the necessary work on the existing authorized site. New agents use gpt-6.1-sol. Preserve external access, privacy, data and deletion boundaries; inaccessible proof stays unverified.
+
 - [v2.0 roadmap, owner decision 2026-10-11]: After Phase 21, default time zone becomes a setting before Google Calendar (24-25), then chat (22-23), then IELTS (26). Calendar UAT waits for full Google sync.
+- [Phase 24, owner decision 2026-10-12]: Current dv-lab.dev and its database are the authorized prelaunch test target. Use synthetic fixtures and a separate Google PRIMARY account after exact build/persistence attestation. A separate test environment is deferred until Calendar and chat are fully tested. Server guy owns target preparation and coordinated release.
 - [v2.0 roadmap]: The manual schedule (Phase 20) comes before chat because chat marks and moves lessons; Google Calendar (Phases 24-25) builds on the same lesson, series and exception model.
 - [v2.0 roadmap]: Requirements placed by their last dependency: ACCT-04 in Phase 19 (cards), CARD-04 in Phase 20 (schedule), SHELL-05 in Phase 21, SHELL-03, SHELL-04 and CARD-05 in Phase 23 (chat entry points).
 - [v2.0]: Calendar follows CODE-AUDIT.md: deterministic event ids, one writer per lesson, `events.watch` and `syncToken`, `410` triggers a full resync, series plus occurrence exceptions, Google wins.
@@ -113,6 +116,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T15:34:20Z
-Stopped at: Phase 21.1 verified; PR/CI pending, then prepared Phase 24
-Resume file: .planning/phases/21.1-default-time-zone/21.1-VERIFICATION.md
+Last session: 2026-10-12T02:47:13.991Z
+Stopped at: Phase24 source01–13 verified; actual Google Production, provider journeys and day8 pending in14
+Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md

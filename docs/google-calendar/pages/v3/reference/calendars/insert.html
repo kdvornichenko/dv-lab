@@ -1,0 +1,105 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Calendars: insert</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Calendars: insert</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendars/insert">https://developers.google.com/workspace/calendar/api/v3/reference/calendars/insert</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="insert"/>
+<meta itemprop="path" content="Calendars"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="insert.html#auth">authorization</a>.</aside>
+
+<p>Creates a secondary calendar. <p>The authenticated user for the request is made the data owner of the new calendar.</p> <p><aside><b>Note:</b> We recommend to authenticate as the intended data owner of the calendar. You can use <a href="https://developers.google.com/workspace/cloud-search/docs/guides/delegation">domain-wide delegation of authority</a> to allow applications to act on behalf of a specific user. Don't use a service account for authentication. If you use a service account for authentication, the service account is the data owner, which can lead to unexpected behavior. For example, if a service account is the data owner, data ownership cannot be transferred.</aside></p>
+<a href="insert.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>POST https://www.googleapis.com/calendar/v3/calendars</pre></devsite-code>
+
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendars</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply a <a href="../calendars.html#resource">Calendars resource</a> with the following properties:</p>
+  <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+    <tbody>
+    <tr id="required-properties" class="alt">
+      <td colspan="4"><b>Required Properties</b></td>
+    </tr>
+      <tr id="summary">
+        <td><code translate="no" dir="ltr">summary</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Title of the calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a <a href="../calendars.html#resource">Calendars resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.calendars.insert" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

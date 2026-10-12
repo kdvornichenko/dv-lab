@@ -1,0 +1,1445 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Go quickstart</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Go quickstart</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/quickstart/go">https://developers.google.com/workspace/calendar/api/quickstart/go</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Create a Go command-line application that makes requests to the
+Google Calendar API.</p>
+
+<p>Quickstarts explain how to set up and run an app that calls a
+Google Workspace API. This quickstart uses a
+simplified authentication approach that is appropriate for a testing
+environment. For a production environment, we recommend learning about
+<a href="../related/workspace/guides/auth-overview.html">authentication and authorization</a>
+before
+<a href="../related/workspace/guides/create-credentials.html#choose_the_access_credential_that_is_right_for_you">choosing the access credentials</a>
+that are appropriate for your app.</p>
+
+<p>This quickstart uses Google Workspace's recommended API client libraries
+to handle some details of the authentication and authorization flow.</p>
+
+<h2 id="objectives" data-text="Objectives" tabindex="-1">Objectives</h2>
+
+<ul>
+<li>Set up your environment.</li>
+<li>Set up the sample.</li>
+<li>Run the sample.</li>
+</ul>
+
+<h2 id="prerequisites" data-text="Prerequisites" tabindex="-1">Prerequisites</h2>
+
+<ul>
+<li>Latest version of <a href="https://golang.org/" target="_blank" class="external">Go</a>.</li>
+<li>Latest version of <a href="https://git-scm.com/" target="_blank" class="external">Git</a>.</li>
+<li><a href="../related/workspace/guides/create-project.html" target="_blank" class="external">A Google Cloud project</a>.</li>
+</ul>
+
+
+
+<p><ul><li>A Google account with Google Calendar enabled.</li></ul></p>
+
+
+
+<h2 id="set_up_your_environment" data-text="Set up your environment" tabindex="-1">Set up your environment</h2>
+
+<p>To complete this quickstart, set up your environment.</p>
+
+<h3 id="enable_the_api" data-text="Enable the API" tabindex="-1">Enable the API</h3>
+
+Before using Google APIs, you need to turn them on in a Google Cloud project.
+You can turn on one or more APIs in a single Google Cloud project.
+
+
+<ul>
+<li><p>In the Google Cloud console, enable the Google Calendar API.</p>
+<p><a href="https://console.cloud.google.com/flows/enableapi?apiid=calendar-json.googleapis.com" class="button button-primary" target="console">Enable the API</a></p></li>
+</ul>
+
+
+
+<h3 id="configure_the_oauth_consent_screen" data-text="Configure the OAuth consent screen" tabindex="-1">Configure the OAuth consent screen</h3>
+
+<p>If you're using a new Google Cloud project to complete this quickstart, configure
+the OAuth consent screen. If you've already
+completed this step for your Cloud project, skip to the next section.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<ol>
+  <li>
+    In the Google API Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+    <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+    <span aria-label="and then">&gt;</span> <b>Branding</b>.
+  <p><a href="https://console.developers.google.com/auth/branding" class="button button-primary" target="console">Go to Branding</a></p></li>
+  <li>
+    If you have already configured the Google Auth platform, you can configure the following OAuth Consent Screen settings in <a href="https://console.developers.google.com/auth/branding">Branding</a>, <a href="https://console.developers.google.com/auth/audience">Audience</a>, and <a href="https://console.developers.google.com/auth/scopes">Data Access</a>. If you see a message that says <b>Google Auth platform not configured yet</b>, click <b>Get Started</b>:
+  </li>
+  <ol>
+    <li>Under <b>App Information</b>, in <b>App name</b>, enter a name for the app.</li>
+    <li>
+      In <b>User support email</b>, choose a support email address where users can contact you if they have questions about their consent.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Audience</b>, select <b>Internal</b>.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Contact Information</b>, enter an <b>Email address</b> where you can be notified about any changes to your project.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Finish</b>, review the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> and if you agree, select <b>I agree to the Google API Services: User Data Policy</b>.
+    </li>
+    <li>
+      Click <b>Continue</b>.
+    </li>
+    <li>
+      Click <b>Create</b>.
+    </li>
+  </ol>
+  <li>
+    For now, you can skip adding scopes.
+    In the future, when you create an app for use outside of your
+    Google Workspace organization, you must change the <b>User type</b> to <b>External</b>. Then
+    add the authorization scopes that your app requires. To learn more, see the full
+    <a href="../related/workspace/guides/configure-oauth-consent.html">Configure OAuth consent</a> guide.
+  </li>
+</ol>
+
+<h3 id="authorize_credentials_for_a_desktop_application" data-text="Authorize credentials for a desktop application" tabindex="-1">Authorize credentials for a desktop application</h3>
+
+To authenticate end users and access user data in your app, you need to
+create one or more OAuth 2.0 Client IDs. A client ID is used to identify a
+single app to Google's OAuth servers. If your app runs on multiple platforms,
+you must create a separate client ID for each platform.
+
+<ol>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<li>
+  In the Google Cloud Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+  <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+  <span aria-label="and then">&gt;</span> <b>Clients</b>.
+  <p><a href="https://console.developers.google.com/auth/clients" class="button button-primary" target="console">Go to Clients</a></p>
+</li>
+<li>Click <b>Create Client</b>.</li>
+<li>Click <b>Application type</b> <span aria-label="and then">&gt;</span> <b>Desktop app</b>.</li>
+<li>In the <b>Name</b> field, type a name for the credential. This name is only shown in the Google Cloud Console.</li>
+<li>Click <b>Create</b>.
+  <p>
+    The newly created credential appears under "OAuth 2.0 Client IDs."
+  </p>
+</li>
+<li>Save the downloaded JSON file as <code translate="no" dir="ltr">credentials.json</code>, and move the
+  file to your working directory.</li>
+</ol>
+
+
+
+<h2 id="prepare_the_workspace" data-text="Prepare the workspace" tabindex="-1">Prepare the workspace</h2>
+
+<ol>
+<li><p>Create a working directory:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+mkdir quickstart
+</pre></devsite-code></li>
+<li><p>Change to the working directory:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+cd quickstart
+</pre></devsite-code></li>
+<li><p>Initialize the new module:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+go mod init quickstart
+</pre></devsite-code></li>
+<li><p>Get the Google Calendar API Go client library and OAuth2.0 package:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>go get google.golang.org/api/calendar/v3
+go get golang.org/x/oauth2/google
+</pre></devsite-code></li>
+</ol>
+
+
+
+<h2 id="set_up_the_sample" data-text="Set up the sample" tabindex="-1">Set up the sample</h2>
+
+<ol>
+<li><p>In your working directory, create a file named <code translate="no" dir="ltr">quickstart.go</code>.</p></li>
+<li><p>In the file, paste the following code:</p>
+
+<p>
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+<div class="github-docwidget-include">
+  
+  <div class="filepath">calendar/quickstart/quickstart.go</div>
+  <div>
+    
+    <a class="view-on-github button" target="_blank" href="https://github.com/googleworkspace/go-samples/blob/main/calendar/quickstart/quickstart.go" track-type="github" track-name="gitHubViewButton" track-metadata-link-destination="https://github.com/googleworkspace/go-samples/blob/main/calendar/quickstart/quickstart.go">View on GitHub</a>
+  </div>
+  
+  <div></div>
+</div><div class="github-docwidget-gitinclude-code">
+  
+    
+  
+  
+  <div></div><devsite-code><pre class="devsite-click-to-copy" track-metadata-position="googleworkspace/go-samples/calendar/quickstart/quickstart.go/main/calendar_quickstart" data-code-snippet="true" data-github-path="googleworkspace/go-samples/calendar/quickstart/quickstart.go" data-git-revision="main" data-region-tag="calendar_quickstart" translate="no" dir="ltr" is-upgraded syntax="Go"><span class="devsite-syntax-kn">package</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">main</span>
+
+<span class="devsite-syntax-kn">import</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"context"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"encoding/json"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"fmt"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"log"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"net/http"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"os"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"time"</span>
+
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"golang.org/x/oauth2"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"golang.org/x/oauth2/google"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"google.golang.org/api/calendar/v3"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-s">"google.golang.org/api/option"</span>
+<span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-c1">// Retrieve a token, saves the token, then returns the generated client.</span>
+<span class="devsite-syntax-kd">func</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">getClient</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Config</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">http</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Client</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-c1">// The file token.json stores the user's access and refresh tokens, and is</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-c1">// created automatically when the authorization flow completes for the first</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-c1">// time.</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">tokFile</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">"token.json"</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">tokenFromFile</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">tokFile</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">getTokenFromWeb</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">saveToken</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">tokFile</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Client</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">context</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Background</span><span class="devsite-syntax-p">(),</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-c1">// Request a token from the web, then returns the retrieved token.</span>
+<span class="devsite-syntax-kd">func</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">getTokenFromWeb</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Config</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Token</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">authURL</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">AuthCodeURL</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"state-token"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">AccessTypeOffline</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Go to the following link in your browser then type the "</span><span class="devsite-syntax-o">+</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-s">"authorization code: \n%v\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">authURL</span><span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">authCode</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">string</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">_</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Scan</span><span class="devsite-syntax-p">(</span>&amp;<span class="devsite-syntax-nx">authCode</span><span class="devsite-syntax-p">);</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to read authorization code: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Exchange</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">context</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">TODO</span><span class="devsite-syntax-p">(),</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">authCode</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to retrieve token from web: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">tok</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-c1">// Retrieves a token from a local file.</span>
+<span class="devsite-syntax-kd">func</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">tokenFromFile</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">file</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">string</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Token</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">error</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">f</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">os</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Open</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">file</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">defer</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">f</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Close</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span>&amp;<span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Token</span><span class="devsite-syntax-p">{}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">json</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">NewDecoder</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">f</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Decode</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">return</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">tok</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-c1">// Saves a token to a file path.</span>
+<span class="devsite-syntax-kd">func</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">saveToken</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">path</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kt">string</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">token</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">*</span><span class="devsite-syntax-nx">oauth2</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Token</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Saving credential file to: %s\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">path</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">f</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">os</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">OpenFile</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">path</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">os</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">O_RDWR</span><span class="devsite-syntax-o">|</span><span class="devsite-syntax-nx">os</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">O_CREATE</span><span class="devsite-syntax-o">|</span><span class="devsite-syntax-nx">os</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">O_TRUNC</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mo">0600</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to cache oauth token: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">defer</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">f</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Close</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">json</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">NewEncoder</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">f</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Encode</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">token</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-kd">func</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">main</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">ctx</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">context</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Background</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">b</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">os</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">ReadFile</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"credentials.json"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to read client secret file: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-c1">// If modifying these scopes, delete your previously saved token.json.</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">google</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">ConfigFromJSON</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">b</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">CalendarReadonlyScope</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to parse client secret file to config: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">client</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">getClient</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">config</span><span class="devsite-syntax-p">)</span>
+
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">srv</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">NewService</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">ctx</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">option</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">WithHTTPClient</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">client</span><span class="devsite-syntax-p">))</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to retrieve Calendar client: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">t</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">time</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Now</span><span class="devsite-syntax-p">().</span><span class="devsite-syntax-nx">Format</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">time</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">RFC3339</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">srv</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">List</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"primary"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">ShowDeleted</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kc">false</span><span class="devsite-syntax-p">).</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">SingleEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">TimeMin</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">t</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">MaxResults</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-mi">10</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">OrderBy</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"startTime"</span><span class="devsite-syntax-p">).</span><span class="devsite-syntax-nx">Do</span><span class="devsite-syntax-p">()</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">!=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">nil</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Fatalf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Unable to retrieve next ten of the user's events: %v"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">err</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"Upcoming events:"</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nb">len</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Items</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-mi">0</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Println</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"No upcoming events found."</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">else</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-k">for</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">_</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">item</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">range</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Items</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">			</span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">item</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Start</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">DateTime</span>
+<span class="devsite-syntax-w">			</span><span class="devsite-syntax-k">if</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">==</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s">""</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">				</span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">item</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Start</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Date</span>
+<span class="devsite-syntax-w">			</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">			</span><span class="devsite-syntax-nx">fmt</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Printf</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s">"%v (%v)\n"</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">item</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Summary</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-p">)</span>
+<span class="devsite-syntax-w">		</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">	</span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span></pre></devsite-code>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+</p></li>
+</ol>
+
+
+
+<h2 id="run_the_sample" data-text="Run the sample" tabindex="-1">Run the sample</h2>
+
+<ol>
+<li><p>In your working directory, build and run the sample:</p>
+
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded>
+go run quickstart.go
+</pre></devsite-code></li>
+</ol>
+
+<ol start="2">
+  <li>
+    The first time you run the sample, it prompts you to authorize access:
+    <ol>
+      <li>
+        If you're not already signed in to your Google Account, sign in when prompted. If
+        you're signed in to multiple accounts, select one account to use for authorization.
+      </li>
+      <li>Click <strong>Accept</strong>.</li>
+    </ol>
+    <p>
+      Your Go application runs and calls the Google Calendar API.
+    </p>
+    <p>
+      Authorization information is stored in the file system, so the next time you run the sample
+      code, you aren't prompted for authorization.
+    </p>
+  </li>
+</ol>
+
+<h2 id="next_steps" data-text="Next steps" tabindex="-1">Next steps</h2>
+
+<ul>
+<li><a href="https://developers.google.com/workspace/explore">Try the Google Workspace APIs in the APIs explorer</a>
+<ul>
+
+  <li><a href="../guides/create-events.html">Create events</a></li>
+  <li><a href="../troubleshoot-authentication-authorization.html">Troubleshoot authentication and authorization issues</a></li>
+  <li><a href="../v3/reference.html">Calendar API reference documentation</a></li>
+
+<li><a href="https://github.com/google/google-api-go-client" class="external" target="_blank"><code translate="no" dir="ltr">google-api-go-client</code> section of GitHub</a></li>
+</ul></li>
+</ul>
+
+  
+
+  
+</main></body></html>

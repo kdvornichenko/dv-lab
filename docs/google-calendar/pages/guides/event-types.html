@@ -1,0 +1,860 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Event types</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Event types</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/guides/event-types">https://developers.google.com/workspace/calendar/api/guides/event-types</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>This page explains the <code translate="no" dir="ltr">eventType</code> property, and specifications of event types
+available in the Google Calendar API.</p>
+
+<p>Google Calendar allows users to create generic events, as well as events that
+are designed for specific use cases and with custom properties.</p>
+
+<p>The event type can be discovered in the following places in the API:</p>
+
+<ul>
+<li>All events are returned with an <a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a>.</li>
+<li><a href="../v3/reference/events/insert.html#eventType"><code translate="no" dir="ltr">eventType</code></a>
+needs to be set when creating or updating an event resource. If unset,
+<code translate="no" dir="ltr">'default'</code> type will be used.</li>
+<li><a href="../v3/reference/events/list.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a>
+can be specified in an <a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">Events:list</code></a>
+call to list events of specific types. If no type is specified, all event types
+will be returned.</li>
+<li><a href="../v3/reference/events/watch.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a>
+can be specified in an <a href="../v3/reference/events/watch.html"><code translate="no" dir="ltr">Events:watch</code></a>
+call to subscribe to updates on events of specific types. If no type is
+specified, the request will result in subscribing to all event types.</li>
+</ul>
+
+<aside class="note">
+Event type cannot be changed after an event is created. Different event types
+have different restrictions, and API operations that work for some event types
+might not work for the others.
+</aside>
+
+<h2 id="default" data-text="Default event" tabindex="-1">Default event</h2>
+
+<p>Events with <code translate="no" dir="ltr">default</code> event type are created and used as one of the main
+resources of Google Calendar API. They support a wide range of
+<a href="../v3/reference/events.html#properties">properties</a>
+which can be used to further customize the event.</p>
+
+<p>See
+<a href="create-events.html">Create events</a> to start working with
+Google Calendar events.</p>
+
+<h2 id="birthday" data-text="Birthday" tabindex="-1">Birthday</h2>
+
+<p>Birthdays are special all-day events with an annual recurrence.</p>
+
+<p>Users can manually create birthday events on Google Calendar. In addition, the
+birthday information syncs with Google Calendar when users add a person and
+include their birthday and other significant dates in
+<a href="https://contacts.google.com">Google Contacts</a>. Users' own birthday is also
+synced to Google Calendar from their
+<a href="https://myaccount.google.com/profile">Google Account profile</a>.</p>
+
+<p>Google Calendar API supports <a href="../v3/reference/events/get.html"><code translate="no" dir="ltr">get</code></a>,
+<a href="../v3/reference/events/instances.html"><code translate="no" dir="ltr">instances</code></a>, and
+<a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">list</code></a> methods for reading birthday
+events. <a href="../v3/reference/events/list.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a> can be
+set to <code translate="no" dir="ltr">'birthday'</code> to list only birthday events. If no type is specified,
+birthdays will be listed alongside all other event types.</p>
+
+<p>In the returned <code translate="no" dir="ltr">Event</code> objects, inspect the
+<a href="../v3/reference/events.html#birthdayProperties"><code translate="no" dir="ltr">birthdayProperties</code></a>
+field for more details about this special event. <code translate="no" dir="ltr">birthdayProperties</code> has the
+following fields:</p>
+
+<ul>
+<li><a href="../v3/reference/events.html#birthdayProperties.type"><code translate="no" dir="ltr">type</code></a>: Type of
+this special event, whether it's a birthday, an anniversary, or another
+significant date.</li>
+<li><a href="../v3/reference/events.html#birthdayProperties.customTypeName"><code translate="no" dir="ltr">customTypeName</code></a>:
+User-specified label for this special event. This is populated if <code translate="no" dir="ltr">type</code> is
+set to <code translate="no" dir="ltr">'custom'</code>.</li>
+<li><a href="../v3/reference/events.html#birthdayProperties.contact"><code translate="no" dir="ltr">contact</code></a>:
+Resource name of the contact this special event is linked to, if any. This
+has the format <code translate="no" dir="ltr">'people/c12345'</code> and can be used to fetch contact details
+from the <a href="https://developers.google.com/people">People API</a>.</li>
+</ul>
+
+<p>The API allows creating birthday events using the
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">insert</code></a> method with the following
+specifications:</p>
+
+<ul>
+<li><a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> is set to
+<code translate="no" dir="ltr">'birthday'</code>.</li>
+<li><a href="../v3/reference/events.html#start"><code translate="no" dir="ltr">start</code></a> and
+<a href="../v3/reference/events.html#end"><code translate="no" dir="ltr">end</code></a> fields need to define an
+all-day event which spans exactly one day.</li>
+<li><a href="../v3/reference/events.html#visibility"><code translate="no" dir="ltr">visibility</code></a> field value
+must be <code translate="no" dir="ltr">'private'</code>.</li>
+<li><a href="../v3/reference/events.html#transparency"><code translate="no" dir="ltr">transparency</code></a> field value
+must be <code translate="no" dir="ltr">'transparent'</code>.</li>
+<li>Need to have an annual recurrence, which means that the
+<a href="../v3/reference/events.html#recurrence"><code translate="no" dir="ltr">recurrence</code></a> field must be
+<code translate="no" dir="ltr">'RRULE:FREQ=YEARLY'</code>. Birthday events falling on 29th of February must have
+the following recurrence rule:
+<code translate="no" dir="ltr">'RRULE:FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=-1'</code>.</li>
+<li>Can have a <a href="../v3/reference/events.html#colorId"><code translate="no" dir="ltr">colorId</code></a>,
+<a href="../v3/reference/events.html#summary"><code translate="no" dir="ltr">summary</code></a> and
+<a href="../v3/reference/events.html#reminders"><code translate="no" dir="ltr">reminders</code></a>.</li>
+<li>Can have
+<a href="../v3/reference/events.html#birthdayProperties"><code translate="no" dir="ltr">birthdayProperties</code></a>.
+If specified,
+<a href="../v3/reference/events.html#birthdayProperties.type"><code translate="no" dir="ltr">type</code></a> must be
+<code translate="no" dir="ltr">'birthday'</code>, and both
+<a href="../v3/reference/events.html#birthdayProperties.customTypeName"><code translate="no" dir="ltr">customTypeName</code></a>
+and
+<a href="../v3/reference/events.html#birthdayProperties.contact"><code translate="no" dir="ltr">contact</code></a>
+must be empty.</li>
+<li>Cannot have any other event properties.</li>
+</ul>
+
+<p>The API allows updating the
+<a href="../v3/reference/events/update.html#colorId"><code translate="no" dir="ltr">colorId</code></a>,
+<a href="../v3/reference/events/update.html#summary"><code translate="no" dir="ltr">summary</code></a> and
+<a href="../v3/reference/events/update.html#reminders"><code translate="no" dir="ltr">reminders</code></a> of birthday
+events using the <a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">update</code></a>
+and <a href="../v3/reference/events/patch.html"><code translate="no" dir="ltr">patch</code></a> methods.
+<a href="../v3/reference/events/update.html#start"><code translate="no" dir="ltr">start</code></a> and
+<a href="../v3/reference/events/update.html#end"><code translate="no" dir="ltr">end</code></a> fields can also be updated
+to change the event date. In this case, the new values need to define an all-day
+event which spans exactly one day. Timing details of a birthday event cannot be
+updated if the event is linked to a
+<a href="../v3/reference/events.html#birthdayProperties.contact"><code translate="no" dir="ltr">contact</code></a>, or
+its <a href="../v3/reference/events.html#birthdayProperties.type"><code translate="no" dir="ltr">type</code></a> is
+<code translate="no" dir="ltr">'self'</code>.</p>
+
+<p>Google Calendar API doesn't allow creating birthday events with custom
+<a href="../v3/reference/events.html#birthdayProperties"><code translate="no" dir="ltr">birthdayProperties</code></a>, or
+updating these properties. Significant dates can be edited with the
+<a href="https://developers.google.com/people">People API</a>, and the changes are synced with
+Google Calendar. Similarly, users can edit their own birthday on their
+<a href="https://myaccount.google.com/profile">Google Account profile</a>, and it syncs
+with Google Calendar.</p>
+
+<p>Requests that try to create or update a birthday in an unsupported way will
+fail. In this case, inspect the error message to identify the issue.</p>
+
+<p>The API supports <a href="../v3/reference/events/import.html"><code translate="no" dir="ltr">import</code></a> operation
+for birthday events; however, the event will be imported as a default event. In
+other words, the <a href="../v3/reference/events.html#eventType"><code translate="no" dir="ltr">eventType</code></a> will
+be <code translate="no" dir="ltr">'default'</code>.</p>
+
+<p>The API supports the <a href="../v3/reference/events/watch.html"><code translate="no" dir="ltr">watch</code></a> method
+to subscribe to changes on birthday events on Google Calendar.
+<a href="../v3/reference/events/watch.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a> can be set to
+<code translate="no" dir="ltr">'birthday'</code> to subscribe to updates on birthday events. If no type is
+specified, all event types, including birthdays, will be subscribed to.</p>
+
+<p>Birthday events can be deleted using the
+<a href="../v3/reference/events/delete.html"><code translate="no" dir="ltr">delete</code></a> method of the
+Google Calendar API. Deleting a birthday event from Google Calendar doesn't
+affect data on <a href="https://contacts.google.com">Google Contacts</a> or
+<a href="https://myaccount.google.com/profile">Google Account profile</a>.</p>
+
+<p>Changing the organizer of a birthday event using
+<a href="../v3/reference/events/move.html"><code translate="no" dir="ltr">move</code></a> or
+<a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">update</code></a> methods is not supported.</p>
+
+<h2 id="from-gmail" data-text="Events from Gmail" tabindex="-1">Events from Gmail</h2>
+
+<p>Events <a href="https://support.google.com/calendar/answer/6084018">automatically generated from Gmail</a>
+have the <code translate="no" dir="ltr">'fromGmail'</code> event type.</p>
+
+<p>Google Calendar API doesn't allow creating this event type using the
+<a href="../v3/reference/events/insert.html"><code translate="no" dir="ltr">insert</code></a> method.</p>
+
+<p>The API allows updating the
+<a href="../v3/reference/events/update.html#colorId"><code translate="no" dir="ltr">colorId</code></a>,
+<a href="../v3/reference/events/update.html#reminders"><code translate="no" dir="ltr">reminders</code></a>,
+<a href="../v3/reference/events/update.html#visibility"><code translate="no" dir="ltr">visibility</code></a>,
+<a href="../v3/reference/events/update.html#transparency"><code translate="no" dir="ltr">transparency</code></a>,
+<a href="../v3/reference/events/update.html#status"><code translate="no" dir="ltr">status</code></a>,
+<a href="../v3/reference/events/update.html#attendees"><code translate="no" dir="ltr">attendees</code></a>,
+<a href="../v3/reference/events/update.html#extendedProperties.private"><code translate="no" dir="ltr">private</code></a>
+and <a href="../v3/reference/events/update.html#extendedProperties.shared"><code translate="no" dir="ltr">shared</code></a>
+extended properties using the <a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">update</code></a>
+and <a href="../v3/reference/events/patch.html"><code translate="no" dir="ltr">patch</code></a> methods.</p>
+
+<p>The API supports <a href="../v3/reference/events/get.html"><code translate="no" dir="ltr">get</code></a> and
+<a href="../v3/reference/events/list.html"><code translate="no" dir="ltr">list</code></a> methods for reading events from
+Gmail. <a href="../v3/reference/events/list.html#eventTypes"><code translate="no" dir="ltr">eventTypes</code></a> can be
+set to <code translate="no" dir="ltr">'fromGmail'</code> to list only events generated from Gmail. If no type is
+specified, events from Gmail will be listed alongside all other event types.</p>
+
+<p>The API supports the <a href="../v3/reference/events/watch.html"><code translate="no" dir="ltr">watch</code></a> method
+to subscribe to changes on events from Gmail on Google Calendar. If no type is
+specified, all event types, including <code translate="no" dir="ltr">'fromGmail'</code>, will be subscribed to.</p>
+
+<p>Events from Gmail can be deleted using the
+<a href="../v3/reference/events/delete.html"><code translate="no" dir="ltr">delete</code></a> method of the
+Google Calendar API.</p>
+
+<p>Changing the organizer of an event from Gmail using
+<a href="../v3/reference/events/move.html"><code translate="no" dir="ltr">move</code></a> or
+<a href="../v3/reference/events/update.html"><code translate="no" dir="ltr">update</code></a> methods is not supported.</p>
+
+<h2 id="user-status" data-text="Focus time, out of office and working location" tabindex="-1">Focus time, out of office and working location</h2>
+
+<p>The Google Calendar API can be used to create and manage events that show the
+status of Google Calendar users.</p>
+
+<p>These features are only available on primary calendars, and to some
+Google Calendar users. See <a href="calendar-status.html">Manage focus time, out of office, and working
+location events</a> to learn more.</p>
+
+<h2 id="apps-script" data-text="Explore event types in Google Apps Script" tabindex="-1">Explore event types in Google Apps Script</h2>
+
+<p><a href="https://developers.google.com/apps-script/overview">Google Apps Script</a> is a JavaScript-based cloud
+scripting language that lets you build business applications that integrate with
+Google Workspace. Scripts are developed in a browser-based code editor, and
+they are stored and run on Google's servers. See also <a href="../quickstart/apps-script.html">Google Apps Script
+quickstart</a> to start using
+Apps Script to send requests to the Google Calendar API.</p>
+
+<p>The following instructions describe how to read and manage events using the
+<a href="https://developers.google.com/apps-script/advanced/calendar">Google Calendar API</a> as an advanced service in
+Google Apps Script. For a complete list of Google Calendar API resources and methods,
+see the <a href="overview.html">reference documentation</a>.</p>
+
+<h3 id="create-script" data-text="Create and set up the script" tabindex="-1">Create and set up the script</h3>
+
+<ol>
+<li>Create a script by going to
+<a href="https://script.google.com/create">script.google.com/create</a>.</li>
+<li>On the left pane next to <strong>Services</strong>, click Add a service
+<span class="material-icons" aria-hidden="true" translate="no">add</span> .</li>
+<li>Select <strong>Google Calendar API</strong> and click <strong>Add</strong>.</li>
+<li>After enabled, the API appears on the left pane. Available methods and
+classes in the API can be listed using the <em>Calendar</em> keyword in the editor.</li>
+</ol>
+
+<h3 id="update-project" data-text="(Optional) Update the Google Cloud project" tabindex="-1">(Optional) Update the Google Cloud project</h3>
+
+<p>Each Google Apps Script project has an associated Google Cloud project. Your
+script can use the default project that Google Apps Script automatically
+creates. If you want to use a custom Google Cloud project, see <a href="https://developers.google.com/apps-script/guides/cloud-platform-projects#switch_to_a_different_standard">Switch to a
+different standard Cloud project</a>.
+After setting the Google Cloud project, select <strong>Editor</strong> <span class="material-icons" aria-hidden="true" translate="no">code</span> on the left side to navigate back to the
+code editor.</p>
+
+<h3 id="add-code" data-text="Add code to the script" tabindex="-1">Add code to the script</h3>
+
+<p>The following code sample shows how to list, read, and create events with
+different <code translate="no" dir="ltr">eventType</code> values.</p>
+
+<ol>
+<li><p>Paste the following into the code editor.</p>
+<div></div><devsite-code><pre class="devsite-click-to-copy" translate="no" dir="ltr" is-upgraded syntax="JavaScript"><code translate="no" dir="ltr"><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">CALENDAR_ID</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'<var translate="no">CALENDAR_ID</var>'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">||</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'primary'</span><span class="devsite-syntax-p">;</span>
+
+<span class="devsite-syntax-cm">/** Lists default events. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listDefaultEvents</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'default'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Lists birthday events. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listBirthdays</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'birthday'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Lists events from Gmail. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listEventsFromGmail</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-s1">'fromGmail'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Lists events with the given event type. If no type is specified, lists all events.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events/list</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">listEvents</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">undefined</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-c1">// Query parameters for the list request.</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">optionalArgs</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventTypes</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">?</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-p">]</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">undefined</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">singleEvents</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-kc">true</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">timeMax</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2024-07-30T00:00:00+01:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">timeMin</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2024-07-29T00:00:00+01:00'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">list</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">CALENDAR_ID</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">optionalArgs</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">items</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">forEach</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span>&gt;<span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">));</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Reads the event with the given eventId.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events/get</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">readEvent</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">get</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">CALENDAR_ID</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'<var translate="no">EVENT_ID</var>'</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Creates a default event. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createDefaultEvent</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2024-07-30T10:30:00+01:00'</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">end</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">dateTime</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2024-07-30T12:30:00+01:00'</span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">description</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Created from Apps Script.'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'default'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">summary</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'Sample event'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/** Creates a birthday event. */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createBirthday</span><span class="devsite-syntax-p">()</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-kd">const</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">start</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2024-01-29'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">end</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">date</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'2024-01-30'</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">},</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">eventType</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s1">'birthday'</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">recurrence</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">[</span><span class="devsite-syntax-s2">"RRULE:FREQ=YEARLY"</span><span class="devsite-syntax-p">],</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">summary</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"My friend's birthday"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">transparency</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"transparent"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">visibility</span><span class="devsite-syntax-o">:</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-s2">"private"</span><span class="devsite-syntax-p">,</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-p">}</span>
+
+<span class="devsite-syntax-cm">/**</span>
+<span class="devsite-syntax-cm">  * Creates a Calendar event.</span>
+<span class="devsite-syntax-cm">  * See https://developers.google.com/workspace/calendar/api/v3/reference/events/insert</span>
+<span class="devsite-syntax-cm">  */</span>
+<span class="devsite-syntax-kd">function</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">createEvent</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-k">try</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-kd">var</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-o">=</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">Calendar</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">Events</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">insert</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">event</span><span class="devsite-syntax-p">,</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-nx">CALENDAR_ID</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">response</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-k">catch</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">)</span><span class="devsite-syntax-w"> </span><span class="devsite-syntax-p">{</span>
+<span class="devsite-syntax-w">    </span><span class="devsite-syntax-nx">console</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">log</span><span class="devsite-syntax-p">(</span><span class="devsite-syntax-nx">exception</span><span class="devsite-syntax-p">.</span><span class="devsite-syntax-nx">message</span><span class="devsite-syntax-p">);</span>
+<span class="devsite-syntax-w">  </span><span class="devsite-syntax-p">}</span>
+<span class="devsite-syntax-p">}</span>
+</code></pre></devsite-code>
+<p>Replace the following:</p>
+
+<ul>
+<li><code translate="no" dir="ltr"><var translate="no">CALENDAR_ID</var></code>: Email address of the calendar to
+retrieve and create events on. This constant is initially set to
+<code translate="no" dir="ltr">'primary'</code>, which is a keyword to access the primary calendar of the
+signed-in user. Changing this value lets you read events on the calendars of
+other users you have access to.</li>
+<li><code translate="no" dir="ltr"><var translate="no">EVENT_ID</var></code>: Id of the event. You can call the
+<a href="../v3/reference/events/list.html">Events:list</a> to retrieve event ids.</li>
+</ul></li>
+</ol>
+
+<h3 id="run-code" data-text="Run the code sample" tabindex="-1">Run the code sample</h3>
+
+<ol>
+<li>Above the code editor, select the function to run from the drop-down menu,
+and click <strong>Run</strong>.</li>
+<li>In the first execution, it prompts you to authorize access. Review and allow
+Apps Script to access your calendar.</li>
+<li>You can inspect the results of the script execution in the
+<strong>Execution Log</strong> that appears at the bottom of the window.</li>
+</ol>
+
+  
+
+  
+</main></body></html>

@@ -26,14 +26,17 @@ import {
 import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import type { CalendarReads, CalendarReadContext } from '../calendar/reads.ts'
 import {
 	cardAccountCandidates,
 	createCardAccount,
 	deactivateCardAccount,
 	linkCardAccount,
 } from '../cards/card-account.ts'
+import type { CardReadContext } from '../cards/card-facts.ts'
 import {
 	archiveCard,
+	cardIds,
 	createCard,
 	getCard,
 	listCards,
@@ -44,9 +47,9 @@ import {
 import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
-import { readTeacherSettings, type TeacherTimeContext } from '../settings/settings.ts'
+import { readTeacherSettings } from '../settings/settings.ts'
 
-type StudentRouteDeps = { db: Database }
+type StudentRouteDeps = { db: Database; calendarReads?: CalendarReads }
 
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
@@ -67,35 +70,35 @@ function termIdParam(c: Context<AppEnv>): string | null {
 
 async function studentResponse(
 	executor: DbExecutor,
-	accountId: string,
-	read: (executor: DbExecutor, context: TeacherTimeContext) => Promise<StudentDetail | null>
+	context: CalendarReadContext,
+	read: (executor: DbExecutor, context: CardReadContext) => Promise<StudentDetail | null>
 ): Promise<StudentResponse | null> {
-	const now = new Date()
-	const settings = await readTeacherSettings(executor, accountId)
-	const context = { now, defaultTimeZone: settings.defaultTimeZone }
-	const student = await read(executor, context)
-	return student === null ? null : { student, ...settings, asOf: now.toISOString() }
+	const settings = await readTeacherSettings(executor, context.accountId)
+	const student = await read(executor, Object.assign(context, { defaultTimeZone: settings.defaultTimeZone }))
+	return student === null ? null : { student, ...settings, asOf: context.now.toISOString() }
 }
 
 function mutateStudent(
 	db: Database,
 	accountId: string,
-	change: (executor: DbExecutor, context: TeacherTimeContext) => Promise<StudentDetail | null>
+	change: (executor: DbExecutor, context: CardReadContext) => Promise<StudentDetail | null>
 ): Promise<StudentResponse | null> {
-	return db.transaction((tx) => studentResponse(tx, accountId, change), { isolationLevel: 'repeatable read' })
+	const context = { accountId, now: new Date() }
+	return db.transaction((tx) => studentResponse(tx, context, change), { isolationLevel: 'repeatable read' })
 }
 
-export function studentRoutes({ db }: StudentRouteDeps) {
+export function studentRoutes({ db, calendarReads }: StudentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
 	routes.get('/', async (c) => {
 		const accountId = c.get('session').account.id
+		const context = { accountId, now: new Date() }
+		await calendarReads?.refreshCalendarRead(context, { kind: 'next', studentIds: await cardIds(db) })
 		const response = await readSnapshot(db, async (executor) => {
-			const now = new Date()
 			const settings = await readTeacherSettings(executor, accountId)
-			const cards = await listCards(executor, { now, defaultTimeZone: settings.defaultTimeZone })
-			return { ...cards, ...settings, asOf: now.toISOString() }
+			const cards = await listCards(executor, Object.assign(context, { defaultTimeZone: settings.defaultTimeZone }))
+			return { ...cards, ...settings, asOf: context.now.toISOString() }
 		})
 		return c.json(response satisfies StudentsResponse, 200)
 	})
@@ -108,7 +111,7 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 			async (tx) => {
 				const now = new Date()
 				const settings = await readTeacherSettings(tx, accountId)
-				const student = await createCard(tx, input)
+				const student = await createCard(tx, input, { accountId, now, defaultTimeZone: settings.defaultTimeZone })
 				return { student, ...settings, asOf: now.toISOString() }
 			},
 			{ isolationLevel: 'repeatable read' }
@@ -120,8 +123,10 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
 		const accountId = c.get('session').account.id
+		const context = { accountId, now: new Date() }
+		await calendarReads?.refreshCalendarRead(context, { kind: 'next', studentIds: [id] })
 		const response = await readSnapshot(db, (executor) =>
-			studentResponse(executor, accountId, (tx, context) => getCard(tx, id, context))
+			studentResponse(executor, context, (tx, context) => getCard(tx, id, context))
 		)
 		if (!response) return notFound(c)
 		return c.json(response satisfies StudentResponse, 200)

@@ -1,0 +1,1111 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Configure the OAuth consent screen and choose scopes</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Configure the OAuth consent screen and choose scopes</h1><p>Источник: <a href="https://developers.google.com/workspace/guides/configure-oauth-consent">https://developers.google.com/workspace/guides/configure-oauth-consent</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+      <devsite-key-takeaways-panel role="region" aria-labelledby="key-takeaways-panel-title">
+  <div class="devsite-key-takeaways-panel-header" aria-labelledby="key-takeaways-panel-title" aria-expanded="false" role="button" tabindex="0">
+    
+    <img src="../../../../assets/5577ad69e1ca0549dbb0.svg" alt="Spark icon"/>
+    <div class="devsite-key-takeaways-panel-title">
+      
+      <h2 class="no-link hide-from-toc" id="key-takeaways-panel-title" data-tooltip="Generated with AI">Page Summary</h2>
+    </div>
+    <span class="material-icons devsite-key-takeaways-panel-toggle-button" aria-hidden="true"></span>
+  </div>
+  <div class="devsite-key-takeaways-panel-content">
+    <devsite-feedback product-id="5123748" bucket="8963846920012181156" disable-product-feedback>
+      <button class="button-flat button-primary devsite-key-takeaways-report-button" data-title="Report Key Takeaways!" aria-label="Report Key Takeaways!">
+        <span class="material-icons" aria-label="Report Key Takeaways!">outlined_flag</span>
+      </button>
+    </devsite-feedback>
+    <ul class="devsite-key-takeaways-panel-list">
+      
+        <li>
+          <p>When using OAuth 2.0 for authorization with Google Workspace APIs, you need to configure an OAuth consent screen that defines the access your app requests and displays this information to users.</p>
+
+        </li>
+      
+        <li>
+          <p>You should carefully select authorization scopes to provide your app with the minimum necessary access to Google Workspace data, as users are more likely to grant consent to apps with limited and clearly defined scopes.</p>
+
+        </li>
+      
+        <li>
+          <p>All apps require an OAuth consent screen, but explicitly listing scopes is necessary only for apps used outside your organization, and certain scope categories necessitate additional reviews by Google.</p>
+
+        </li>
+      
+        <li>
+          <p>To configure your OAuth consent screen, you'll need to provide app details, select the user type (internal or external), define the necessary scopes, and potentially add test users if applicable.</p>
+
+        </li>
+      
+        <li>
+          <p>Sensitive and restricted scopes require additional verification and security assessments due to their access levels to user data, so consider using non-sensitive alternatives whenever possible.</p>
+
+        </li>
+      
+    </ul>
+  </div>
+</devsite-key-takeaways-panel>
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>When you use OAuth 2.0 for authorization, Google displays a consent screen to
+the user including a summary of your project, its policies, and the requested
+authorization scopes of access. Configuring your app's OAuth consent screen
+defines what is displayed to users and app reviewers, and registers your app
+so you can publish it later.</p>
+<aside class="note"><strong>Note:</strong><span> Some Google Workspace APIs, such as the Drive API, have
+documentation covering API-specific authentication and authorization
+information. Ensure you read that documentation before continuing with this
+page.</span></aside>
+<p>To define the level of access granted to your app, you need to identify and
+declare <i>authorization scopes</i>. An authorization scope is an OAuth 2.0 URI string
+that contains the Google Workspace app name, what kind of data it accesses, and
+the level of access. Scopes are your app's requests to work with Google Workspace data, including
+  users' Google Account data.<p>
+
+<p>When your app is installed, a user is asked to validate the scopes used
+by the app. Generally, you should choose the most narrowly focused scope
+possible and avoid requesting scopes that your app doesn't require. Users more
+readily grant access to limited, clearly described scopes.</p>
+
+
+<p>All apps using OAuth 2.0 require a consent screen configuration, but you only
+need to list scopes for apps used by people outside your Google Workspace
+organization.</p>
+
+<p><strong>Tip:</strong> If you don't know required consent screen information, you can use
+placeholder information prior to release.</p>
+
+<p>For security reasons, you can't remove the OAuth 2.0 consent screen
+after you've configured it.</p>
+
+<h2 id="configure_oauth_consent" data-text="Configure OAuth consent" tabindex="-1">Configure OAuth consent</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<ol>
+  <li>
+    In the Google API Console, go to Menu <span class="material-icons" aria-hidden="true" translate="no">menu</span>
+    <span aria-label="and then">&gt;</span> <b>Google Auth platform</b>
+    <span aria-label="and then">&gt;</span> <b>Branding</b>.
+  <p><a href="https://console.developers.google.com/auth/branding" class="button button-primary" target="console">Go to Branding</a></p></li>
+  <li>
+    If you have already configured the Google Auth platform, you can configure the following OAuth Consent Screen settings in <a href="https://console.developers.google.com/auth/branding">Branding</a>, <a href="https://console.developers.google.com/auth/audience">Audience</a>, and <a href="https://console.developers.google.com/auth/scopes">Data Access</a>.
+    If you see a message that says <b>Google Auth platform not configured yet</b>, click <b>Get Started</b>:
+  </li>
+  <ol>
+    
+    <li>Under <b>App Information</b>, in <b>App name</b>, enter an <b>App name</b>.</li>
+    
+    <li>
+      In <b>User support email</b>, choose a support email address where users can contact you if they have questions about their consent.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    
+      <li>Under <b>Audience</b>, select the user type for your app.</li>
+    
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Contact Information</b>, enter an <b>Email address</b> where you can be notified about any changes to your project.
+    </li>
+    <li>
+      Click <b>Next</b>.
+    </li>
+    <li>
+      Under <b>Finish</b>, review the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a> and if you agree, select <b>I agree to the Google API Services: User Data Policy</b>.
+    </li>
+    <li>
+      Click <b>Continue</b>.
+    </li>
+    <li>
+      Click <b>Create</b>.
+    </li>
+    <li>If you selected <b>External</b> for user type, add test users:
+      <ol>
+        <li>
+          Click <b>Audience</b>.
+        </li>
+        <li>
+          Under <b>Test users</b>, click <b>Add users</b>.
+        </li>
+        <li>
+          Enter your email address and any other authorized test users, then click <b>Save</b>.
+      </li>
+       </ol>
+  </ol>
+
+  
+  <li><p>If you're creating an app for use outside of your Google Workspace
+   organization, click <b>Data Access</b> <b>&gt;</b> <b>Add or Remove Scopes</b>. We recommend the following best practices when
+   selecting scopes:</p>
+  <ul>
+  <li>Select the scopes that provide the minimum level of access required by your app. For a list of
+    available scopes, see
+    <a href="https://developers.google.com/identity/protocols/oauth2/scopes" class="external" target="_blank">OAuth 2.0 Scopes for Google APIs</a>.</li>
+  <li>Review the scopes listed in each of the three sections: non-sensitive
+    scopes, sensitive scopes, and restricted scopes. For any scopes listed in the
+    "Your sensitive scopes" or "Your restricted scopes" sections, try to identify
+    alternative non-sensitive scopes to avoid unnecessary additional reviews.</li>
+  <li>Some scopes require additional reviews by Google. For apps used only
+    internally by your Google Workspace organization, scopes aren't listed on the
+    consent screen and use of restricted or sensitive scopes doesn't require
+    further review by Google. For more information, see
+    <a href="configure-oauth-consent.html#scope_categories">Scope categories</a>.</li>
+  </ul></li>
+
+   <li>After selecting the scopes required
+    by your app, click <b>Save</b>.</li>
+</ol>
+<p>
+  For more information about configuring OAuth consent, see
+  <a href="https://support.google.com/cloud/answer/15544987">Get started with the Google Auth platform</a>.
+</p>
+
+
+<h2 id="scope_categories" data-text="Scope categories" tabindex="-1">Scope categories</h2>
+
+<p>Some scopes require additional reviews and requirements
+because of the level or type of access they grant. Consider the following types
+of scopes:</p>
+
+<table>
+  <tr>
+    <th> </th>
+    <th> </th>
+    <th> </th>
+    <th><a href="https://support.google.com/cloud/answer/9110914#ver-prep&amp;zippy=%2Csteps-to-prepare-for-verification">Basic app verification</a> required</th>
+    <th><a href="https://support.google.com/cloud/answer/9110914#ver-prep&amp;zippy=%2Csteps-to-submit-your-app">Additional app verification</a> required</th>
+    <th><a href="https://support.google.com/cloud/answer/9110914#sec-assess&amp;zippy=%2Csecurity-assessment">Security assessment</a> required</th>
+  </tr>
+  <tr>
+    <td> </td>
+    <td><b>Non-sensitive scopes</b> <i>(recommended)</i></td>
+    <td>Grant access only to limited data that's immediately relevant to a specific action.</td>
+    <td><span class="material-icons" aria-hidden="true" translate="no">check</span></td>
+    <td>—</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><img src="../../../../assets/55b345c5e67341a4c355.svg"></td>
+    <td><b>Sensitive scopes</b></td>
+    <td>Grant access to personal user data, resources, or actions.</td>
+    <td><span class="material-icons" aria-hidden="true" translate="no">check</span></td>
+    <td><span class="material-icons" aria-hidden="true" translate="no">check</span></td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><img src="../../../../assets/3d4a811d2723f3b87264.svg"></td>
+    <td><b>Restricted scopes</b></td>
+    <td>Grant access to highly-sensitive or extensive user data or actions.</td>
+    <td><span class="material-icons" aria-hidden="true" translate="no">check</span></td>
+    <td><span class="material-icons" aria-hidden="true" translate="no">check</span></td>
+    <td><span class="material-icons" aria-hidden="true" translate="no">check</span></td>
+  </tr>
+</table>
+
+<h2 id="next_step" data-text="Next step" tabindex="-1">Next step</h2>
+
+<p><a href="create-credentials.html">Create access credentials</a> for your app.</p>
+
+  
+
+  
+</main></body></html>

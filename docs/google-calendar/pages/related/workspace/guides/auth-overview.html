@@ -1,0 +1,1086 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Learn about authentication and authorization</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Learn about authentication and authorization</h1><p>Источник: <a href="https://developers.google.com/workspace/guides/auth-overview">https://developers.google.com/workspace/guides/auth-overview</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+      <devsite-key-takeaways-panel role="region" aria-labelledby="key-takeaways-panel-title">
+  <div class="devsite-key-takeaways-panel-header" aria-labelledby="key-takeaways-panel-title" aria-expanded="false" role="button" tabindex="0">
+    
+    <img src="../../../../assets/5577ad69e1ca0549dbb0.svg" alt="Spark icon"/>
+    <div class="devsite-key-takeaways-panel-title">
+      
+      <h2 class="no-link hide-from-toc" id="key-takeaways-panel-title" data-tooltip="Generated with AI">Page Summary</h2>
+    </div>
+    <span class="material-icons devsite-key-takeaways-panel-toggle-button" aria-hidden="true"></span>
+  </div>
+  <div class="devsite-key-takeaways-panel-content">
+    <devsite-feedback product-id="5123748" bucket="8963846920012181156" disable-product-feedback>
+      <button class="button-flat button-primary devsite-key-takeaways-report-button" data-title="Report Key Takeaways!" aria-label="Report Key Takeaways!">
+        <span class="material-icons" aria-label="Report Key Takeaways!">outlined_flag</span>
+      </button>
+    </devsite-feedback>
+    <ul class="devsite-key-takeaways-panel-list">
+      
+        <li>
+          <p>Authentication verifies the identity of the requestor (who), while authorization determines their access to resources (what).</p>
+
+        </li>
+      
+        <li>
+          <p>Before accessing Google Workspace APIs, you need to configure your Google Cloud project, authenticate your app, and potentially obtain user consent.</p>
+
+        </li>
+      
+        <li>
+          <p>Access tokens, granted by Google's authorization server, enable your app to access specific resources and functionalities.</p>
+
+        </li>
+      
+        <li>
+          <p>Key terms to understand include authentication, authorization, credentials (API keys, OAuth 2.0 Client IDs, service accounts), scopes, and access tokens.</p>
+
+        </li>
+      
+        <li>
+          <p>For accessing user data, you'll typically utilize OAuth 2.0 Client IDs or service accounts with domain-wide delegation of authority.</p>
+
+        </li>
+      
+    </ul>
+  </div>
+</devsite-key-takeaways-panel>
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>Authentication and authorization are mechanisms used to verify identity and
+access to resources, respectively. This document identifies key terms that you
+should know before implementing authentication and authorization in your app.</p>
+
+<p><em>Authentication</em> identifies <em>who</em> is making the request.
+<em>Authorization</em> identifies <em>what</em> resources the requester can access
+and what level of access they have. Authentication is a prerequisite for
+authorization. You can't determine what resources to access without first
+establishing the identity of the requester. For a more detailed definition,
+see the <a href="auth-overview.html#important_terminology">Important terminology section</a>.</p>
+
+<p>Consider the following simplified example of a hotel reservation. When you
+arrive at the hotel, the front desk clerk requests your ID to verify your
+reservation. Your ID <em>authenticates</em> you to the hotel. The front desk clerk
+gives you a hotel key. This key gives you access to certain resources at the
+hotel such as your hotel room, the gym, and the business center. The hotel
+key <em>authorizes</em> you to access those resources.</p>
+<aside class="note"><strong>Note:</strong><span> This overview focuses on authentication and authorization for
+Google Workspace APIs. Some information in this document might not pertain to
+other Google APIs.</span></aside>
+<h2 id="process_overview" data-text="Process overview" tabindex="-1">Process overview</h2>
+
+<p>The following diagram shows the high-level steps of authentication and
+authorization for Google Workspace APIs:</p>
+
+<figure id="auth-overview" class="attempt-right">
+  <img src="../../../../assets/5ad28b09ed2d65c79842.png" alt="High-level steps of an authentication and
+    authorization implementation">
+  <figcaption><b>Figure 1.</b> High-level steps of an authentication and
+    authorization implementation</figcaption>
+</figure>
+
+<ol>
+<li><p><strong>Configure your Google Cloud project and app:</strong> During development, you
+register your app in the Google Cloud console, defining authorization scopes
+and access credentials to authenticate your app with an API key, end user
+credential, or service account credential.</p></li>
+<li><p><strong>Authenticate your app for access:</strong> When your app runs, the registered
+access credentials are evaluated. If your app is authenticating as an end
+user, a sign-in prompt might be displayed.</p></li>
+<li><p><strong>Request resources:</strong> When your app needs access to Google resources, it
+asks Google using the relevant scopes of access you previously registered.</p></li>
+<li><p><strong>Ask for user consent:</strong> If your app is authenticating as an end user,
+Google displays the OAuth consent screen so the user can decide whether to
+grant your app access to the requested data.</p></li>
+<li><p><strong>Send approved request for resources:</strong> If the user consents to the scopes
+of access, your app bundles the credentials and the user-approved scopes of
+access into a request. The request is sent to the Google authorization server
+to obtain an access token.</p></li>
+<li><p><strong>Google returns an access token:</strong> The access token contains a list of
+granted scopes of access. If the returned list of scopes is more limited than
+the requested scopes of access, your app disables any features limited by the
+token.</p></li>
+<li><p><strong>Access requested resources:</strong> Your app uses the access token from Google to
+invoke the relevant APIs and access the resources.</p></li>
+<li><p><strong>Get a refresh token (optional):</strong> If your app needs access to a Google API
+beyond the lifetime of a single access token, it can obtain a refresh token.</p></li>
+<li><p><strong>Request more resources:</strong> If additional access is needed, your app asks the
+user to grant new scopes of access, resulting in a new request to get an
+access token (steps 3–6).</p></li>
+</ol>
+
+<h2 id="important_terminology" data-text="Important terminology" tabindex="-1">Important terminology</h2>
+
+<p>The following list identifies terms related to authentication and authorization:</p>
+
+<dl>
+<dt><em>Authentication</em></dt>
+<dd><p>The act of ensuring that a <em>principal</em>, which can be a user or an app acting
+on behalf of a user, is who they say they are. When writing
+Google Workspace apps, you should be aware of these types of
+authentication:</p>
+
+<dl>
+<dt><em>User authentication</em></dt>
+<dd>The act of a user authenticating (signing in) to your app. User
+authentication is usually carried out through a sign-in process in which
+the user uses a username and password combination to verify their identity
+to the app. User authentication can be incorporated into an app using
+<a href="https://developers.google.com/identity/gsi/web">Sign In With Google</a>.</dd>
+<dt id="app"><em>App authentication</em></dt>
+<dd>The act of an app authenticating directly to Google services on behalf of
+the user running the app. App authentication is usually carried out using
+pre-created credentials in your app's code.</dd>
+</dl></dd>
+<dt><em>Authorization</em></dt>
+<dd><p>The permissions or "authority" the principal has to access data or perform
+operations. Your app requests authorization by informing the user that the app
+wishes to act on their behalf. If the user allows the request, the app uses its
+unique credentials to obtain an <em>access token</em> from Google.</p></dd>
+<dt><em>Credential</em></dt>
+<dd><p>A form of identification used in software security. In terms of
+authentication, a credential is often a username and password combination. In
+terms of authorization for Google Workspace APIs, a credential is
+usually some form of identification, such as a unique secret string, known only
+between the app developer and the authentication server. Google supports these
+authentication credentials: API key, OAuth 2.0 Client ID, and service accounts.</p>
+
+<dl>
+<dt><em>API key</em></dt>
+<dd>The credential used to request access to public data, such as data provided
+using the Maps API. Public Google Workspace files shared using the
+"Anyone on the Internet with this link" setting can also be accessed this way,
+though most Google Workspace data requires OAuth 2.0.</dd>
+<dt><em>OAuth 2 client ID</em></dt>
+<dd>The credential used to request access to user-owned data. This is the
+primary credential used when requesting access to data using
+Google Workspace APIs. This credential requires <em>user consent</em>.</dd>
+<dt><em>Client secret</em></dt>
+<dd>A string of characters that should only be known by your application and the
+authorization server. The client secret protects the user's data by only
+granting tokens to authorized requesters. You should never include your
+unencrypted client secret in your app. We recommend storing the client secret
+securely. For more information, see
+<a href="../../identity/protocols/oauth2/policies.html#secure-credentials">Handle client credentials securely</a>.</dd>
+<dt><em>Service account keys</em></dt>
+<dd>Used by service accounts to gain authorization to a Google service.</dd>
+<dt><em>Service account</em></dt>
+<dd>A credential used for server-to-server interactions, such as an application
+without a user interface that runs as a process to access data or perform
+operations. Service accounts are usually used to access cloud-based data and
+operations. However, when used with
+<a href="auth-overview.html#delegation">domain-wide delegation of authority</a>, they can be used to
+access user data.</dd>
+</dl></dd>
+<dt><em>Scope</em></dt>
+<dd><p>An OAuth 2.0 URI string that defines a level of access to resources or actions
+granted to an app. For Google Workspace, authorization scope URIs
+contain the Google Workspace app name, what kind of data it accesses,
+and the level of access. Users of your app can review requested scopes and
+choose what access to grant, then Google's <em>authentication server</em> returns
+permitted scopes to your app in an <em>access token</em>. For more details, refer to
+<a href="configure-oauth-consent.html#choose-scopes">How to choose scopes for your app</a>.</p></dd>
+<dt><em>Authorization server</em></dt>
+<dd><p>Google's server for granting access, using an <em>access token</em>, to an app's
+requested data and operations.</p></dd>
+<dt><em>Authorization code</em></dt>
+<dd><p>A code sent from the authorization server used to obtain an access token. A
+code is only needed when your application type is a web server app or an
+installed app.</p></dd>
+<dt><em>Access token</em></dt>
+<dd><p>A token granting access to a Google Workspace API. A single access
+token can grant varying degrees, known as <em>scopes</em>, of access to multiple APIs.
+Your app's authorization code requests access tokens and uses them to invoke
+Google Workspace APIs.</p></dd>
+<dt><em>Resource server</em></dt>
+<dd><p>The server hosting the API that your app wants to call.</p></dd>
+<dt><em>OAuth 2.0 framework</em></dt>
+<dd><p>A standard that your app can use to provide it with "secure delegated access"
+or access to data and operations on behalf of the app's user. The authentication
+and authorization mechanisms you use in your app represent your implementation
+of the <a href="https://tools.ietf.org/html/rfc6749">OAuth 2.0 framework</a>.</p></dd>
+<dt><em>Principal</em></dt>
+<dd><p>An entity, also known as an identity, that can be granted access to a
+resource. Google Workspace APIs support two types of principals: user
+accounts and service accounts. For more details, refer to
+<a href="https://cloud.google.com/docs/authentication#principals">Principals</a>.</p></dd>
+<dt><em>Data type</em></dt>
+<dd><p>In the context of authentication and authorization, data type refers to the
+entity that owns the data that your app is trying to access. There are three
+data types:</p>
+
+<dl>
+<dt><em>Public domain data</em></dt>
+<dd>Data accessible by anyone, such as some Google maps data. This data is
+usually accessed using an API key.</dd>
+<dt><em>End-user data</em></dt>
+<dd>Data belonging to a specific end user or group, such as a specific user's
+Google Drive files. This data type is usually accessed using an OAuth 2
+client ID or service account.</dd>
+<dt><em>Cloud data</em></dt>
+<dd>Data owned by a Google Cloud project. This data type is usually accessed by
+a service account.</dd>
+</dl></dd>
+<dt><em>User consent</em></dt>
+<dd><p>An authorization step requiring the user of your app to authorize the app
+to access data and perform operations on the user's behalf.</p></dd>
+<dt><em>Application type</em></dt>
+<dd><p>The type of app you are going to create. When creating credentials using
+the Google Cloud console, you are asked to select your application type.
+Application types are: Web application (JavaScript), Android, Chrome Extension,
+iOS, TVs and Limited Input devices, and Desktop app (also called an "installed
+app").</p></dd>
+<dt><em>Service account</em></dt>
+<dd><p>A special type of Google account intended to represent a non-human user that
+needs to authenticate and be authorized to access data. Your application assumes
+the identity of the service account to call Google APIs, so that the users
+aren't directly involved. By themselves, service accounts cannot be used
+to access user data customarily accessed using Google Workspace APIs.
+However, a service account can access user data by implementing domain-wide
+delegation of authority. For more details, refer to
+<a href="https://cloud.google.com/iam/docs/understanding-service-accounts">Understanding service accounts</a>.</p></dd>
+<dt id="delegation"><em>Domain-wide delegation of authority</em></dt>
+<dd><p>An administration feature that can authorize an application to access user
+data on behalf of users in the Google Workspace organization.
+Domain-wide delegation can be used to perform admin-related tasks on user data.
+To delegate authority this way, Google Workspace administrators use
+service accounts with OAuth 2.0. Because of the power of this feature, only
+super admins can enable domain-wide delegation of authority. For more details,
+refer to
+<a href="https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority">Delegating domain-wide authority to a service account</a>.</p></dd>
+</dl>
+
+<h2 id="next_step" data-text="Next step" tabindex="-1">Next step</h2>
+
+<p><a href="configure-oauth-consent.html">Configure your app's OAuth consent screen</a>
+to ensure users can understand and approve what access your app has to their
+data.</p>
+
+  
+
+  
+</main></body></html>

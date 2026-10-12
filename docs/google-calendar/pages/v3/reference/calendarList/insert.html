@@ -1,0 +1,226 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CalendarList: insert</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>CalendarList: insert</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/insert">https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/insert</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="insert"/>
+<meta itemprop="path" content="CalendarList"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="insert.html#auth">authorization</a>.</aside>
+
+<p>Inserts an existing calendar into the user's calendar list.
+<a href="insert.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>POST https://www.googleapis.com/calendar/v3/users/me/calendarList</pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="colorRgbFormat">
+        <td><code translate="no" dir="ltr">colorRgbFormat</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether to use the <code translate="no" dir="ltr">foregroundColor</code> and <code translate="no" dir="ltr">backgroundColor</code> fields to write the calendar colors (RGB). If this feature is used, the index-based <code translate="no" dir="ltr">colorId</code> field will be set to the best matching option automatically. Optional. The default is False.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendarlist</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply a <a href="../calendarList.html#resource">CalendarList resource</a> with the following properties:</p>
+  <table class="matchpre" id="request_properties_JSON">
+      <thead>
+        <tr>
+          <th>Property name</th>
+          <th>Value</th>
+          <th>Description</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+    <tbody>
+    <tr id="required-properties" class="alt">
+      <td colspan="4"><b>Required Properties</b></td>
+    </tr>
+      <tr id="id">
+        <td><code translate="no" dir="ltr">id</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>Identifier of the calendar.</td>
+        <td>
+        </td>
+      </tr>
+
+    <tr id="optional-properties" class="alt">
+      <td colspan="4"><b>Optional Properties</b></td>
+    </tr>
+      <tr id="backgroundColor">
+        <td><code translate="no" dir="ltr">backgroundColor</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The main color of the calendar in the hexadecimal format "<code translate="no" dir="ltr">#0088aa</code>". This property supersedes the index-based <code translate="no" dir="ltr">colorId</code> property. To set or change this property, you need to specify <code translate="no" dir="ltr">colorRgbFormat=true</code> in the parameters of the <a href="insert.html">insert</a>, <a href="update.html">update</a> and <a href="patch.html">patch</a> methods. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="colorId">
+        <td><code translate="no" dir="ltr">colorId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The color of the calendar. This is an ID referring to an entry in the <code translate="no" dir="ltr">calendar</code> section of the colors definition (see the <a href="../colors.html">colors endpoint</a>). This property is superseded by the <code translate="no" dir="ltr">backgroundColor</code> and <code translate="no" dir="ltr">foregroundColor</code> properties and can be ignored when using these properties. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="defaultReminders">
+        <td><code translate="no" dir="ltr">defaultReminders[]</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">list</code></td>
+        <td>The default reminders that the authenticated user has for this calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="defaultReminders.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">defaultReminders[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used by this reminder. Possible values are: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Reminders are sent via email.</li> <li>"<code translate="no" dir="ltr">popup</code>" - Reminders are sent via a UI popup.</li> </ul> <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="defaultReminders.minutes">
+        <td><code translate="no" dir="ltr"><span class="quiet">defaultReminders[].</span>minutes</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>Number of minutes before the start of the event when the reminder should trigger. Valid values are between 0 and 40320 (4 weeks in minutes). <p>Required when adding a reminder.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="foregroundColor">
+        <td><code translate="no" dir="ltr">foregroundColor</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The foreground color of the calendar in the hexadecimal format "<code translate="no" dir="ltr">#ffffff</code>". This property supersedes the index-based <code translate="no" dir="ltr">colorId</code> property. To set or change this property, you need to specify <code translate="no" dir="ltr">colorRgbFormat=true</code> in the parameters of the <a href="insert.html">insert</a>, <a href="update.html">update</a> and <a href="patch.html">patch</a> methods. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="hidden">
+        <td><code translate="no" dir="ltr">hidden</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the calendar has been hidden from the list. Optional. The attribute is only returned when the calendar is hidden, in which case the value is <code translate="no" dir="ltr">true</code>.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="notificationSettings">
+        <td><code translate="no" dir="ltr">notificationSettings</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">object</code></td>
+        <td>The notifications that the authenticated user is receiving for this calendar.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="notificationSettings.notifications.method">
+        <td><code translate="no" dir="ltr"><span class="quiet">notificationSettings.notifications[].</span>method</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The method used to deliver the notification. The possible value is: <ul> <li>"<code translate="no" dir="ltr">email</code>" - Notifications are sent via email.</li> </ul> <p>Required when adding a notification.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="notificationSettings.notifications.type">
+        <td><code translate="no" dir="ltr"><span class="quiet">notificationSettings.notifications[].</span>type</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The type of notification. Possible values are: <ul> <li>"<code translate="no" dir="ltr">eventCreation</code>" - Notification sent when a new event is put on the calendar.</li> <li>"<code translate="no" dir="ltr">eventChange</code>" - Notification sent when an event is changed.</li> <li>"<code translate="no" dir="ltr">eventCancellation</code>" - Notification sent when an event is cancelled.</li> <li>"<code translate="no" dir="ltr">eventResponse</code>" - Notification sent when an attendee responds to the event invitation.</li> <li>"<code translate="no" dir="ltr">agenda</code>" - An agenda with the events of the day (sent out in the morning).</li> </ul> <p> Required when adding a notification.</p></td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="selected">
+        <td><code translate="no" dir="ltr">selected</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>Whether the calendar content shows up in the calendar UI. Optional. The default is False.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+      <tr id="summaryOverride">
+        <td><code translate="no" dir="ltr">summaryOverride</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>The summary that the authenticated user has set for this calendar. Optional.</td>
+        <td>
+          writable
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns a <a href="../calendarList.html#resource">CalendarList resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.calendarList.insert" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

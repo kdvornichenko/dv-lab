@@ -1,14 +1,20 @@
-import type { ErrorResponse } from '@dv-lab/contracts'
+import { errorCodes, type ErrorResponse } from '@dv-lab/contracts'
 
 export type ApiResult<T> =
 	{ ok: true; status: number; data: T } | { ok: false; status: number; error: ErrorResponse['error'] | null }
 
 type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
-export async function apiRequest<T>(method: ApiMethod, path: string, body?: unknown): Promise<ApiResult<T>> {
+export async function apiRequest<T>(
+	method: ApiMethod,
+	path: string,
+	body?: unknown,
+	options?: { signal?: AbortSignal }
+): Promise<ApiResult<T>> {
 	let response: Response
 	try {
 		response = await fetch(`/api${path}`, {
+			signal: options?.signal,
 			method,
 			credentials: 'same-origin',
 			cache: 'no-store',
@@ -21,15 +27,31 @@ export async function apiRequest<T>(method: ApiMethod, path: string, body?: unkn
 	if (response.status === 204) return { ok: true, status: 204, data: undefined as T }
 	if (response.ok) {
 		try {
-			return { ok: true, status: response.status, data: (await response.json()) as T }
+			const data: unknown = await response.json()
+			return { ok: true, status: response.status, data: data as T }
 		} catch {
 			return { ok: false, status: response.status, error: null }
 		}
 	}
 	try {
-		const payload = (await response.json()) as Partial<ErrorResponse> | null
-		return { ok: false, status: response.status, error: payload?.error ?? null }
+		const payload: unknown = await response.json()
+		return { ok: false, status: response.status, error: errorFrom(payload) }
 	} catch {
 		return { ok: false, status: response.status, error: null }
+	}
+}
+
+function errorFrom(value: unknown): ErrorResponse['error'] | null {
+	if (typeof value !== 'object' || value === null || !('error' in value)) return null
+	const error = value.error
+	if (typeof error !== 'object' || error === null || !('code' in error) || !('message' in error)) return null
+	const code = errorCodes.find((code) => code === error.code)
+	if (!code || typeof error.message !== 'string') return null
+	return {
+		code,
+		message: error.message,
+		requestId: 'requestId' in error && typeof error.requestId === 'string' ? error.requestId : undefined,
+		retryAfterSeconds:
+			'retryAfterSeconds' in error && typeof error.retryAfterSeconds === 'number' ? error.retryAfterSeconds : undefined,
 	}
 }

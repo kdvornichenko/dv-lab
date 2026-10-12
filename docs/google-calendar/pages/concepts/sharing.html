@@ -1,0 +1,631 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Calendar sharing</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Calendar sharing</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/concepts/sharing">https://developers.google.com/workspace/calendar/api/concepts/sharing</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+     
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>There are two different ways to share calendar and event data with others.</p>
+
+<p>First, you can <em>share</em> an entire calendar with a specified level of access.
+For example, you can create a team calendar and perform actions such as:</p>
+
+<ul>
+<li>Grant all members of your team the right to add and modify events in the
+calendar.</li>
+<li>Grant your manager the right to see the events on your calendar.</li>
+<li>Grant customers the right to see only when you are free or busy, without
+revealing event details.</li>
+</ul>
+
+<p>You can also adjust the access to individual events on the shared calendar.</p>
+
+<p>Alternatively, you can invite others to individual events on your calendar.
+Inviting someone to an event puts a copy of that event on their calendar. The
+copy on the attendee's calendar is visible to others according to the
+attendee's sharing configuration.
+The invitee can then accept or reject the invitation, and to some extent also
+modify their copy of the event—for example, by adding a reminder on their
+calendar or assigning a label. For details, see
+<a href="inviting-attendees-to-events.html">Invite users to an event</a>.</p>
+
+<h2 id="share-calendars" data-text="Share calendars" tabindex="-1">Share calendars</h2>
+
+<p>The owners of a calendar can share the calendar by giving access to other
+users. The sharing settings of a given calendar are represented by the <a href="../v3/reference/acl.html">ACL
+collection</a>
+(access control list) of that calendar. Each resource in the ACL
+collection grants a specified <em>grantee</em> a certain access <em>role</em>, which is
+one of those listed in the following table:</p>
+
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Access privilege granted by the role</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code translate="no" dir="ltr">none</code></td>
+<td>Provides no access.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">freeBusyReader</code></td>
+<td>Lets the grantee see whether the calendar is free or busy at a given time, but does not allow access to event details. Free/busy information can be retrieved using the <a href="../v3/reference/freebusy/query.html">freeBusy.query</a> operation.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">reader</code></td>
+<td>Lets the grantee read events on the calendar.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">writerWithoutPrivateAccess</code></td>
+<td>Lets the grantee read and write events on the calendar that aren't private, and see private events as busy blocks. This role can also see labels.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">writer</code></td>
+<td>Lets the grantee read and write events on the calendar. This role can also see ACLs and labels.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">owner</code></td>
+<td>Provides manager access to the calendar. This role has all of the permissions of the writer role with the additional ability to modify access levels of other users and to modify labels. <aside class="important"><b>Important:</b> The <code translate="no" dir="ltr">owner</code> role is different from the calendar's data owner. A calendar has a single data owner, but can have multiple users with <code translate="no" dir="ltr">owner</code> role.</aside></td>
+</tr>
+</tbody>
+</table>
+
+<p>The possible grantees are:</p>
+
+<ul>
+<li>Another individual user.</li>
+<li>A user group.</li>
+<li>A domain.</li>
+<li>The public (grants access to everyone).</li>
+</ul>
+
+<p>By default, each user has owner access to their primary calendar, and this
+access cannot be relinquished. Up to 6,000 ACLs can be added per calendar.</p>
+
+<p>For Google Workspace users, there are also domain
+settings that might restrict the
+maximum allowed access. For example, suppose your domain has a setting that
+only allows free-busy calendar sharing. In this case, even if you grant writer
+access to the public, users outside the domain will only see the free-busy
+details.</p>
+<aside class="note"><strong>Note:</strong><span> Sharing a calendar with a user no longer automatically inserts the
+calendar into their <code translate="no" dir="ltr">CalendarList</code>. If you want the user to see and
+interact with the shared calendar, call the
+<a href="../v3/reference/calendarList/insert.html"><code translate="no" dir="ltr">CalendarList: insert()</code></a> method.</span></aside>
+<h2 id="event-visibility" data-text="Event visibility" tabindex="-1">Event visibility</h2>
+
+<p>Once the calendar is shared, you can adjust the access to individual
+events on a calendar by changing the <a href="../v3/reference/events.html#visibility">visibility
+property</a> of the event.
+This property has no meaning for non-shared calendars. The following table
+lists the possible values of the visibility property:</p>
+
+<table>
+<thead>
+<tr>
+<th>Visibility</th>
+<th>Meaning</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td><code translate="no" dir="ltr">default</code></td>
+<td>The visibility of the event is determined by the ACLs of the calendar. Different attendees of the same event can have different ACLs and sharing. If a user with a <code translate="no" dir="ltr">private</code> calendar sends an invite to an event using <code translate="no" dir="ltr">default</code> visibility to another user with a publicly visible calendar, the event is fully visible on that attendee's calendar.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">public</code></td>
+<td>The details of this event are visible to everyone with at least <code translate="no" dir="ltr">freeBusyReader</code> access to the calendar.</td>
+</tr>
+<tr>
+<td><code translate="no" dir="ltr">private</code></td>
+<td>The details of this event are only visible to users with at least <code translate="no" dir="ltr">writer</code> access to the calendar.</td>
+</tr>
+</tbody>
+</table>
+
+<h3 id="visibility-and-recurring-events" data-text="Visibility and recurring events" tabindex="-1">Visibility and recurring events</h3>
+
+<p>Changing the visibility of a single instance may affect all instances of the series:</p>
+
+<ul>
+<li><strong>More restrictive changes propagate:</strong> If you change the visibility of one instance of a recurring event to a more restrictive setting (for example, from <code translate="no" dir="ltr">public</code> to <code translate="no" dir="ltr">private</code>), the change is propagated to <strong>all instances</strong> of the recurring event.</li>
+<li><strong>Less restrictive changes are ignored:</strong> If you attempt to change the visibility of one instance of a recurring event to a less restrictive setting (for example, from <code translate="no" dir="ltr">private</code> to <code translate="no" dir="ltr">public</code>), the change is <strong>ignored</strong> and the visibility remains unchanged. To make a recurring event less restrictive, you must update the parent recurring event.</li>
+</ul>
+
+  
+
+  
+</main></body></html>

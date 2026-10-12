@@ -1,0 +1,308 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
+
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+
+import { TimePair } from '@/components/app/time-pair'
+import { Button } from '@/components/ui/button'
+import { apiRequest } from '@/lib/api-client'
+import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
+import { zoneLabel } from '@/lib/time-zones'
+
+import {
+	googleConnectionSnapshot,
+	type CalendarIssue,
+	type CalendarReadStatus,
+	type GoogleConnectionSnapshot,
+	type GoogleScheduleWindow,
+	type NextLessonRead,
+} from '@dv-lab/contracts'
+
+const READ_ISSUES: Record<CalendarIssue, string> = {
+	connection_required:
+		'Connect Google Calendar to use the calendar. Previously saved history is available for viewing.',
+	reconnect_required:
+		'Google access expired or was revoked. Reconnect to use the calendar. The last checked view is read-only.',
+	permission_required: 'Access to the connected calendar is unavailable. Reconnect to restore calendar access.',
+	provider_unavailable: 'Google Calendar is unavailable. Showing the last checked view. Calendar changes are disabled.',
+	command_pending: 'Earlier calendar requests need recovery before you can make new changes.',
+	external_change:
+		'This event changed in Google Calendar. Your change is not confirmed. Refresh the calendar before trying again.',
+	disconnect_failed: 'Calendar changes are stopped. Google access removal is not confirmed.',
+	invalid_provider_data: 'Could not read a complete calendar view from Google.',
+	history_only: 'This record is local history. Calendar changes are unavailable.',
+}
+
+function checkedAt(read: Exclude<CalendarReadStatus, { state: 'unavailable' }>, timeZone: string) {
+	const at = new Date(read.fetchedAt)
+	return `Last checked: ${formatWhen(at, timeZone, yearInZone(at, timeZone))} (${zoneLabel(timeZone, at)})`
+}
+
+export function CalendarReadNotice({
+	read,
+	write,
+	timeZone,
+	onRefresh,
+}: {
+	read: CalendarReadStatus
+	write: GoogleScheduleWindow['write']
+	timeZone: string
+	onRefresh: () => Promise<void>
+}) {
+	const [refreshing, setRefreshing] = useState(false)
+	const issue = write.state === 'blocked' ? write.reason : read.state === 'fresh' ? null : read.reason
+	const connection =
+		issue === 'connection_required' || issue === 'reconnect_required' || issue === 'permission_required'
+	async function refresh() {
+		setRefreshing(true)
+		try {
+			await onRefresh()
+		} finally {
+			setRefreshing(false)
+		}
+	}
+	return (
+		<div className="flex flex-wrap items-center gap-3 text-body" data-slot="calendar-read-status">
+			<div className="min-w-0 flex-1 space-y-1" role="status">
+				{read.state === 'unavailable' ? (
+					<p>No checked calendar view is available for these dates.</p>
+				) : (
+					<p className="text-muted-foreground">{checkedAt(read, timeZone)}</p>
+				)}
+				{issue !== null && !(read.state === 'unavailable' && issue === 'provider_unavailable') ? (
+					<p className="text-muted-foreground">{READ_ISSUES[issue]}</p>
+				) : null}
+				{write.state === 'blocked' || read.state !== 'fresh' ? (
+					<p className="text-muted-foreground">Read-only</p>
+				) : null}
+			</div>
+			<div className="flex shrink-0 flex-wrap gap-2">
+				{connection ? (
+					<Button
+						variant="secondary"
+						size="compact"
+						nativeButton={false}
+						render={<Link href="/settings?tab=calendar" />}
+					>
+						{issue === 'connection_required' ? 'Connect Google Calendar' : 'Reconnect'}
+					</Button>
+				) : null}
+				<Button variant="secondary" size="compact" loading={refreshing} onClick={() => void refresh()}>
+					Refresh
+				</Button>
+			</div>
+		</div>
+	)
+}
+
+export function NextLessonTime({
+	next,
+	timeZone,
+	secondZone,
+	currentYear,
+}: {
+	next: NextLessonRead
+	timeZone: string
+	secondZone: string | null
+	currentYear: number
+}) {
+	const stale = next.status.state === 'last_known'
+	let content: ReactElement
+	if (next.result === 'unknown' || next.status.state === 'unavailable') {
+		content = <span>Next lesson could not be determined.</span>
+	} else if (next.result === 'none') {
+		content = <span>{stale ? 'No next lesson at the last check' : 'No next lesson'}</span>
+	} else {
+		const at = new Date(next.startsAt)
+		content = (
+			<TimePair
+				main={
+					stale
+						? `Last known next lesson: ${formatWhen(at, timeZone, currentYear)} (${zoneLabel(timeZone, at)})`
+						: formatWhen(at, timeZone, currentYear)
+				}
+				second={secondWhen(at, timeZone, secondZone)}
+			/>
+		)
+	}
+	return (
+		<span className="flex flex-col gap-1">
+			{content}
+			{next.status.state === 'last_known' ? (
+				<span className="text-caption text-muted-foreground">{checkedAt(next.status, timeZone)}</span>
+			) : null}
+		</span>
+	)
+}
+
+type ConnectionAction = GoogleConnectionSnapshot['allowedActions'][number]
+type ConnectionView =
+	{ status: 'loading' | 'failed'; snapshot: null } | { status: 'ready'; snapshot: GoogleConnectionSnapshot }
+
+const CONNECT_ERROR = 'Could not connect Google Calendar. Try again from Settings.'
+const DISCONNECT_ERROR = 'Could not confirm the disconnect request. Refresh the connection status before trying again.'
+
+function callbackMessage(reason: string | null): string | null {
+	switch (reason) {
+		case null:
+		case 'connected':
+			return null
+		case 'denied':
+			return 'Google Calendar was not connected. You can try again when you are ready.'
+		case 'permission_required':
+			return 'Calendar access was not granted. Allow the requested calendar permissions to connect.'
+		case 'invalid_state':
+			return 'This connection request could not be verified. Start again from Settings.'
+		case 'wrong_primary':
+			return 'This Google account does not match the connected calendar. Reconnect with the original account.'
+		default:
+			return CONNECT_ERROR
+	}
+}
+
+function authorizationUrl(value: unknown): string | null {
+	if (typeof value !== 'object' || value === null || !('url' in value) || typeof value.url !== 'string') return null
+	try {
+		const url = new URL(value.url)
+		if (url.origin !== 'https://accounts.google.com' || url.pathname !== '/o/oauth2/v2/auth') return null
+		if (url.username || url.password || url.hash) return null
+		if (['access_token', 'refresh_token', 'id_token'].some((key) => url.searchParams.has(key))) return null
+		return url.href
+	} catch {
+		return null
+	}
+}
+
+function disconnectObserved(action: ConnectionAction, snapshot: GoogleConnectionSnapshot): boolean {
+	if (action === 'confirm_revoked')
+		return snapshot.state === 'not_connected' && snapshot.disconnectResolution === 'operator_confirmed'
+	return (
+		snapshot.state === 'disconnecting' ||
+		snapshot.state === 'disconnect_failed' ||
+		(snapshot.state === 'not_connected' && snapshot.disconnectResolution !== 'none')
+	)
+}
+
+export function useGoogleConnection(callbackOutcome: string | null = null) {
+	const router = useRouter()
+	const [view, setView] = useState<ConnectionView>({ status: 'loading', snapshot: null })
+	const [pending, setPending] = useState<ConnectionAction | null>(null)
+	const [notice, setNotice] = useState(() => callbackMessage(callbackOutcome))
+	const initialCallback = useRef(callbackOutcome)
+	const mounted = useRef(false)
+	const sequence = useRef(0)
+	const inflight = useRef(false)
+
+	const denied = useCallback(
+		(status: number) => {
+			if (status !== 401 && status !== 403) return false
+			setView({ status: 'failed', snapshot: null })
+			router.replace(status === 401 ? '/login?reason=expired' : '/')
+			return true
+		},
+		[router]
+	)
+
+	const read = useCallback((): Promise<GoogleConnectionSnapshot | null> => {
+		const request = ++sequence.current
+		return apiRequest<unknown>('GET', '/google/connection').then((result) => {
+			if (!mounted.current || request !== sequence.current) return null
+			if (!result.ok) {
+				denied(result.status)
+				setView({ status: 'failed', snapshot: null })
+				return null
+			}
+			const parsed = googleConnectionSnapshot.safeParse(result.data)
+			if (!parsed.success) {
+				setView({ status: 'failed', snapshot: null })
+				return null
+			}
+			setView({ status: 'ready', snapshot: parsed.data })
+			setNotice((current) => (current === DISCONNECT_ERROR ? null : current))
+			return parsed.data
+		})
+	}, [denied])
+
+	const refresh = useCallback(() => {
+		setView({ status: 'loading', snapshot: null })
+		return read()
+	}, [read])
+
+	useEffect(() => {
+		mounted.current = true
+		void read()
+		if (initialCallback.current !== null) router.replace('/settings?tab=calendar', { scroll: false })
+		function returned() {
+			if (!inflight.current && document.visibilityState === 'visible') void refresh()
+		}
+		window.addEventListener('focus', returned)
+		document.addEventListener('visibilitychange', returned)
+		return () => {
+			mounted.current = false
+			sequence.current += 1
+			window.removeEventListener('focus', returned)
+			document.removeEventListener('visibilitychange', returned)
+		}
+	}, [read, refresh, router])
+
+	useEffect(() => {
+		if (view.snapshot?.state !== 'disconnecting') return
+		const timer = window.setTimeout(() => {
+			if (!inflight.current && document.visibilityState === 'visible') void refresh()
+		}, 2000)
+		return () => window.clearTimeout(timer)
+	}, [view, refresh])
+
+	async function connect() {
+		const result = await apiRequest<unknown>('POST', '/google/connect', {})
+		if (!mounted.current) return false
+		if (!result.ok) {
+			if (denied(result.status)) return false
+			setNotice(CONNECT_ERROR)
+			await refresh()
+			return false
+		}
+		const url = authorizationUrl(result.data)
+		if (!url) {
+			setNotice(CONNECT_ERROR)
+			return false
+		}
+		window.location.assign(url)
+		return true
+	}
+
+	async function disconnect(action: ConnectionAction) {
+		const confirmation = action === 'confirm_revoked'
+		const result = await apiRequest<unknown>(
+			'POST',
+			confirmation ? '/google/disconnect/confirm-revoked' : '/google/disconnect',
+			confirmation ? { confirmed: true } : {}
+		)
+		if (!mounted.current) return false
+		if (!result.ok && denied(result.status)) return false
+		const current = await refresh()
+		if (!mounted.current) return false
+		if (current && disconnectObserved(action, current)) return true
+		setNotice(DISCONNECT_ERROR)
+		return false
+	}
+
+	async function act(action: ConnectionAction, generation: number): Promise<boolean> {
+		if (inflight.current) return false
+		inflight.current = true
+		setPending(action)
+		setNotice(null)
+		try {
+			const fresh = await refresh()
+			if (!fresh || fresh.generation !== generation || !fresh.allowedActions.includes(action)) return false
+			return action === 'connect' || action === 'reconnect' ? await connect() : await disconnect(action)
+		} finally {
+			inflight.current = false
+			if (mounted.current) setPending(null)
+		}
+	}
+
+	return { view, pending, notice, refresh, act }
+}

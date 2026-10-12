@@ -1,0 +1,724 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>API Reference</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>API Reference</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference">https://developers.google.com/workspace/calendar/api/v3/reference</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<section>
+<p>This API reference is organized by resource type. Each resource type has one or more data representations and one or more methods.</p>
+
+  <h2 id="resource-types" data-text="Resource types" tabindex="-1">Resource types</h2>
+  <ol class="toc">
+    <li><a href="reference.html#Acl">
+        Acl
+        </a>
+    </li>
+    <li><a href="reference.html#CalendarList">
+        CalendarList
+        </a>
+    </li>
+    <li><a href="reference.html#Calendars">
+        Calendars
+        </a>
+    </li>
+    <li><a href="reference.html#Channels">
+        Channels
+        </a>
+    </li>
+    <li><a href="reference.html#Colors">
+        Colors
+        </a>
+    </li>
+    <li><a href="reference.html#Events">
+        Events
+        </a>
+    </li>
+    <li><a href="reference.html#Freebusy">
+        Freebusy
+        </a>
+    </li>
+    <li><a href="reference.html#Settings">
+        Settings
+        </a>
+    </li>
+  </ol>
+
+  <section>
+  <h2 id="Acl" data-text="       Acl   " tabindex="-1">
+      Acl
+  </h2>
+  <p>For Acl Resource details, see the <a href="reference/acl.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/delete.html">delete</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">DELETE  /calendars/<span class="apiparam">calendarId</span>/acl/<span class="apiparam">ruleId</span></code>
+        </td>
+        <td>
+          Deletes an access control rule.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/get.html">get</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /calendars/<span class="apiparam">calendarId</span>/acl/<span class="apiparam">ruleId</span></code>
+        </td>
+        <td>
+          Returns an access control rule.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/insert.html">insert</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/acl</code>
+        </td>
+        <td>
+          Creates an access control rule.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/list.html">list</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /calendars/<span class="apiparam">calendarId</span>/acl</code>
+        </td>
+        <td>
+          Returns the rules in the access control list for the calendar.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/patch.html">patch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PATCH  /calendars/<span class="apiparam">calendarId</span>/acl/<span class="apiparam">ruleId</span></code>
+        </td>
+        <td>
+          Updates an access control rule. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/update.html">update</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PUT  /calendars/<span class="apiparam">calendarId</span>/acl/<span class="apiparam">ruleId</span></code>
+        </td>
+        <td>
+          Updates an access control rule.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/acl/watch.html">watch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/acl/watch</code>
+        </td>
+        <td>
+          Watch for changes to ACL resources.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="CalendarList" data-text="       CalendarList   " tabindex="-1">
+      CalendarList
+  </h2>
+  <p>For CalendarList Resource details, see the <a href="reference/calendarList.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/delete.html">delete</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">DELETE  /users/me/calendarList/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Removes a calendar from the user's calendar list.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/get.html">get</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /users/me/calendarList/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Returns a calendar from the user's calendar list.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/insert.html">insert</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /users/me/calendarList</code>
+        </td>
+        <td>
+          Inserts an existing calendar into the user's calendar list.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/list.html">list</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /users/me/calendarList</code>
+        </td>
+        <td>
+          Returns the calendars on the user's calendar list.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/patch.html">patch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PATCH  /users/me/calendarList/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Updates an existing calendar on the user's calendar list. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/update.html">update</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PUT  /users/me/calendarList/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Updates an existing calendar on the user's calendar list.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendarList/watch.html">watch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /users/me/calendarList/watch</code>
+        </td>
+        <td>
+          Watch for changes to CalendarList resources.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="Calendars" data-text="       Calendars   " tabindex="-1">
+      Calendars
+  </h2>
+  <p>For Calendars Resource details, see the <a href="reference/calendars.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/clear.html">clear</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/clear</code>
+        </td>
+        <td>
+          Clears a primary calendar. This operation deletes all events associated with the primary calendar of an account.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/delete.html">delete</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">DELETE  /calendars/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Deletes a secondary calendar. Use calendars.clear for clearing all events on primary calendars.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/get.html">get</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /calendars/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Returns metadata for a calendar.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/insert.html">insert</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars</code>
+        </td>
+        <td>
+          Creates a secondary calendar. <p>The authenticated user for the request is made the data owner of the new calendar.</p> <p><aside><b>Note:</b> We recommend to authenticate as the intended data owner of the calendar. You can use <a href="https://developers.google.com/workspace/cloud-search/docs/guides/delegation">domain-wide delegation of authority</a> to allow applications to act on behalf of a specific user. Don't use a service account for authentication. If you use a service account for authentication, the service account is the data owner, which can lead to unexpected behavior. For example, if a service account is the data owner, data ownership cannot be transferred.</aside></p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/patch.html">patch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PATCH  /calendars/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Updates metadata for a calendar. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/transferOwnership.html">transferOwnership</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/transferOwnership</code>
+        </td>
+        <td>
+          Transfers a secondary calendar between users within a Google Workspace organization. Requires user authentication with <a href="https://knowledge.workspace.google.com/admin/users/administrator-privilege-definitions#calendar">Manage Calendars</a> administrator privilege, and one of the following authorization scopes: <ul><li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></li>  <li><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.calendars</code></li></ul> In the request, set <code translate="no" dir="ltr">useAdminAccess</code> to <code translate="no" dir="ltr">true</code>. The secondary calendar must be active to be transferred. Transferring disabled or deleted calendars isn't supported.
+          <p/>
+          <b>Required query parameters:</b>
+<code translate="no" dir="ltr">newDataOwner</code>, <code translate="no" dir="ltr">useAdminAccess</code>        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/calendars/update.html">update</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PUT  /calendars/<span class="apiparam">calendarId</span></code>
+        </td>
+        <td>
+          Updates metadata for a calendar.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="Channels" data-text="       Channels   " tabindex="-1">
+      Channels
+  </h2>
+  <p>For Channels Resource details, see the <a href="reference/channels.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/channels/stop.html">stop</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /channels/stop</code>
+        </td>
+        <td>
+          Stop watching resources through this channel.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="Colors" data-text="       Colors   " tabindex="-1">
+      Colors
+  </h2>
+  <p>For Colors Resource details, see the <a href="reference/colors.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/colors/get.html">get</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /colors</code>
+        </td>
+        <td>
+          Returns the color definitions for calendars and events.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="Events" data-text="       Events   " tabindex="-1">
+      Events
+  </h2>
+  <p>For Events Resource details, see the <a href="reference/events.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/delete.html">delete</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">DELETE  /calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span></code>
+        </td>
+        <td>
+          Deletes an event.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/get.html">get</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span></code>
+        </td>
+        <td>
+          Returns an event based on its Google Calendar ID. To retrieve an event using its iCalendar ID, call the <a href="reference/events/list.html#iCalUID">events.list method using the <code translate="no" dir="ltr">iCalUID</code> parameter</a>.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/import.html">import</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/events/import</code>
+        </td>
+        <td>
+          Imports an event. This operation is used to add a private copy of an existing event to a calendar. Only events with an <code translate="no" dir="ltr">eventType</code> of <code translate="no" dir="ltr">default</code> may be imported.<p><b>Deprecated behavior:</b> If a non-<code translate="no" dir="ltr">default</code> event is imported, its type will be changed to <code translate="no" dir="ltr">default</code> and any event-type-specific properties it may have will be dropped.</p>
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/insert.html">insert</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/events</code>
+        </td>
+        <td>
+          Creates an event.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/instances.html">instances</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span>/instances</code>
+        </td>
+        <td>
+          Returns instances of the specified recurring event.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/list.html">list</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /calendars/<span class="apiparam">calendarId</span>/events</code>
+        </td>
+        <td>
+          Returns events on the specified calendar.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/move.html">move</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span>/move</code>
+        </td>
+        <td>
+          Moves an event to another calendar, i.e. changes an event's organizer. Note that only <code translate="no" dir="ltr">default</code> events can be moved; <code translate="no" dir="ltr">birthday</code>, <code translate="no" dir="ltr">focusTime</code>, <code translate="no" dir="ltr">fromGmail</code>, <code translate="no" dir="ltr">outOfOffice</code> and <code translate="no" dir="ltr">workingLocation</code> events cannot be moved.
+          <p/>
+          <b>Required query parameters:</b>
+<code translate="no" dir="ltr">destination</code>        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/patch.html">patch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PATCH  /calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span></code>
+        </td>
+        <td>
+          Updates an event. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/quickAdd.html">quickAdd</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/events/quickAdd</code>
+        </td>
+        <td>
+          Creates an event based on a simple text string.
+          <p/>
+          <b>Required query parameters:</b>
+<code translate="no" dir="ltr">text</code>        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/update.html">update</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">PUT  /calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span></code>
+        </td>
+        <td>
+          Updates an event. This method does not support patch semantics and always updates the entire event resource. To do a partial update, perform a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code> using etags to ensure atomicity.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/events/watch.html">watch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /calendars/<span class="apiparam">calendarId</span>/events/watch</code>
+        </td>
+        <td>
+          Watch for changes to Events resources.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="Freebusy" data-text="       Freebusy   " tabindex="-1">
+      Freebusy
+  </h2>
+  <p>For Freebusy Resource details, see the <a href="reference/freebusy.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/freebusy/query.html">query</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /freeBusy</code>
+        </td>
+        <td>
+          Returns free/busy information for a set of calendars.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+  <section>
+  <h2 id="Settings" data-text="       Settings   " tabindex="-1">
+      Settings
+  </h2>
+  <p>For Settings Resource details, see the <a href="reference/settings.html#resource">resource representation</a> page.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>HTTP request</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr class="alt">
+      <td colspan="3">URIs relative to https://www.googleapis.com/calendar/v3, unless otherwise noted</td>
+    </tr>
+      <tr>
+        <td>
+
+          <a href="reference/settings/get.html">get</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /users/me/settings/<span class="apiparam">setting</span></code>
+        </td>
+        <td>
+          Returns a single user setting.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/settings/list.html">list</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">GET  /users/me/settings</code>
+        </td>
+        <td>
+          Returns all user settings for the authenticated user.
+        </td>
+      </tr>
+      <tr>
+        <td>
+
+          <a href="reference/settings/watch.html">watch</a>
+
+        </td>
+        <td>
+          <code translate="no" dir="ltr">POST  /users/me/settings/watch</code>
+        </td>
+        <td>
+          Watch for changes to Settings resources.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+   </section>
+ </section>
+
+    </div>
+  
+  
+
+  
+</main></body></html>

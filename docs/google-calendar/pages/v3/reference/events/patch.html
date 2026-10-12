@@ -1,0 +1,192 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Events: patch</title><style>body{max-width:1000px;margin:32px auto;padding:0 20px;font:16px/1.6 system-ui;color:#18222d}pre{overflow:auto;padding:16px;background:#f2f4f6}code{font-family:ui-monospace,monospace}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccd3da;text-align:left}img{max-width:100%;height:auto}devsite-code,devsite-selector,section{display:block}a{color:#075db7}</style><body><h1>Events: patch</h1><p>Источник: <a href="https://developers.google.com/workspace/calendar/api/v3/reference/events/patch">https://developers.google.com/workspace/calendar/api/v3/reference/events/patch</a><br>Снимок: 2026-10-11T09:59:04.482060+00:00<br>Google; текст: CC BY 4.0; примеры кода: Apache 2.0. Локальная статическая копия; API Explorer не исполняется.</p><main>
+
+  
+    
+    
+    <div itemscope itemtype="http://developers.google.com/ReferenceObject">
+
+
+
+<meta itemprop="name" content="patch"/>
+<meta itemprop="path" content="Events"/>
+
+
+
+
+<aside class="note"><b>Note:</b>
+Requires <a href="patch.html#auth">authorization</a>.</aside>
+
+<p>Updates an event. This method supports patch semantics. Note that each patch request consumes three quota units; prefer using a <code translate="no" dir="ltr">get</code> followed by an <code translate="no" dir="ltr">update</code>. The field values you specify replace the existing values. Fields that you don't specify in the request remain unchanged. Array fields, if specified, overwrite the existing arrays; this discards any previous array elements.
+<a href="patch.html#try-it">Try it now</a>.
+</p>
+
+
+
+<section id="request">
+  <h2 id="request" data-text="Request" tabindex="-1">Request</h2>
+  <h3 id="http-request" data-text="HTTP request" tabindex="-1">HTTP request</h3>
+<div></div><devsite-code><pre translate="no" dir="ltr" is-upgraded>PATCH https://www.googleapis.com/calendar/v3/calendars/<span class="apiparam">calendarId</span>/events/<span class="apiparam">eventId</span></pre></devsite-code>
+
+  <h3 id="parameters" data-text="Parameters" tabindex="-1">Parameters</h3>
+  <table class="matchpre" id="request_parameters">
+    <thead>
+      <tr>
+        <th>Parameter name</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr id="required-parameters" class="alt">
+      <td colspan="3"><b>Path parameters</b></td>
+    </tr>
+      <tr id="calendarId">
+        <td><code translate="no" dir="ltr">calendarId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Calendar identifier. To retrieve calendar IDs call the <a href="../calendarList/list.html">calendarList.list</a> method. If you want to access the primary calendar of the currently logged in user, use the "<code translate="no" dir="ltr">primary</code>" keyword.
+
+
+        </td>
+      </tr>
+      <tr id="eventId">
+        <td><code translate="no" dir="ltr">eventId</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Event identifier.
+
+
+        </td>
+      </tr>
+    <tr id="optional-parameters" class="alt">
+      <td colspan="3"><b>Optional query parameters</b></td>
+    </tr>
+      <tr id="alwaysIncludeEmail">
+        <td><code translate="no" dir="ltr">alwaysIncludeEmail</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Deprecated and ignored. A value will always be returned in the <code translate="no" dir="ltr">email</code> field for the organizer, creator and attendees, even if no real email address is available (i.e. a generated, non-working value will be provided).
+
+
+        </td>
+      </tr>
+      <tr id="conferenceDataVersion">
+        <td><code translate="no" dir="ltr">conferenceDataVersion</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          Version number of conference data supported by the API client. Version 0 assumes no conference data support and ignores conference data in the event's body. Version 1 enables support for copying of ConferenceData as well as for creating new conferences using the createRequest field of conferenceData. The default is 0.
+          Acceptable values are <code translate="no" dir="ltr">0</code> to <code translate="no" dir="ltr">1</code>, inclusive.
+
+
+        </td>
+      </tr>
+      <tr id="eventLabelVersion">
+        <td><code translate="no" dir="ltr">eventLabelVersion</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          Version number of the event label feature supported by the API client. Version <code translate="no" dir="ltr">0</code> assumes no event label support and processes the <a href="update.html#colorId"><code translate="no" dir="ltr">colorId</code></a> field for color management. Version <code translate="no" dir="ltr">1</code> enables support for event labels, and processes the <a href="update.html#eventLabelId"><code translate="no" dir="ltr">eventLabelId</code></a> in the event's body. In this case, the <a href="update.html#colorId"><code translate="no" dir="ltr">colorId</code></a> field is ignored. The default is <code translate="no" dir="ltr">0</code>.
+          Acceptable values are <code translate="no" dir="ltr">0</code> to <code translate="no" dir="ltr">1</code>, inclusive.
+
+
+        </td>
+      </tr>
+      <tr id="maxAttendees">
+        <td><code translate="no" dir="ltr">maxAttendees</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">integer</code></td>
+        <td>
+          The maximum number of attendees to include in the response. If there are more than the specified number of attendees, only the participant is returned. Optional.
+
+
+        </td>
+      </tr>
+      <tr id="sendNotifications">
+        <td><code translate="no" dir="ltr">sendNotifications</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Deprecated. Please use <a href="update.html#sendUpdates">sendUpdates</a> instead.<br><br>Whether to send notifications about the event update (for example, description changes, etc.). Note that some emails might still be sent even if you set the value to <code translate="no" dir="ltr">false</code>. The default is <code translate="no" dir="ltr">false</code>.
+
+
+        </td>
+      </tr>
+      <tr id="sendUpdates">
+        <td><code translate="no" dir="ltr">sendUpdates</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">string</code></td>
+        <td>
+          Guests who should receive notifications about the event update (for example, title changes, etc.).
+
+          <br/><br/>Acceptable values are:
+          <ul>
+            <li>"<code translate="no" dir="ltr">all</code>": Notifications are sent to all guests.
+            </li>
+            <li>"<code translate="no" dir="ltr">externalOnly</code>": Notifications are sent to non-Google Calendar guests only.
+            </li>
+            <li>"<code translate="no" dir="ltr">none</code>": No notifications are sent. For calendar migration tasks, consider using the <a href="import.html">Events.import</a> method instead.
+            </li>
+          </ul>
+
+        </td>
+      </tr>
+      <tr id="supportsAttachments">
+        <td><code translate="no" dir="ltr">supportsAttachments</code></td>
+        <td><code class="apitype" translate="no" dir="ltr">boolean</code></td>
+        <td>
+          Whether API client performing operation supports event attachments. Optional. The default is False.
+
+
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 id="auth" data-text="Authorization" tabindex="-1">Authorization</h3>
+  <p>This request requires authorization with at least one of the following scopes:</p>
+  <table class="matchpre">
+    <thead><tr><th>Scope</th></tr></thead>
+    <tbody>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.app.created</code></td></tr>
+      <tr><td><code translate="no" dir="ltr">https://www.googleapis.com/auth/calendar.events.owned</code></td></tr>
+    </tbody>
+  </table>
+<p>For more information, see the <a href="../../../related/workspace/guides/configure-oauth-consent.html">authentication and authorization</a> page.</p>
+
+  <h3 id="request-body" data-text="Request body" tabindex="-1">Request body</h3>
+
+
+
+
+  <p>In the request body, supply the relevant portions of an <a href="../events.html#resource">Events resource</a>, according to the rules of patch semantics.</p>
+
+
+</section>
+
+<section id="response">
+  <h2 id="response" data-text="Response" tabindex="-1">Response</h2>
+
+  <p>If successful, this method returns an <a href="../events.html#resource">Events resource</a> in the response body.</p>
+</section>
+
+
+
+
+<section id="try-it">
+  <h2 id="try-it" data-text="Try it!" tabindex="-1">Try it!</h2>
+
+
+
+  <p>
+    Use the APIs Explorer below to call this method on live data and see the response.
+  </p>
+  <div id="embedded-explorer" data-service="calendar" data-version="v3" data-method="calendar.events.patch" data-params=""></div>
+</section>
+
+
+
+
+    </div>
+  
+  
+
+  
+</main></body></html>

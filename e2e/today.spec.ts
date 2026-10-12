@@ -1,6 +1,9 @@
 import type { JSHandle, Locator, Page, Route, TestInfo } from '@playwright/test'
 
 import { readSettings } from './support/api.ts'
+import { calendarHistoryRead } from './support/calendar-history.ts'
+import { calendarNextCards } from './support/calendar-next.ts'
+import { calendarTodayUi, calendarTodayUnavailable } from './support/calendar-today.ts'
 import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, VN, vnToday } from './support/dates.ts'
 import { expect, test, type Card, type Fx } from './support/test.ts'
@@ -31,6 +34,18 @@ import {
 	setThreshold,
 	tile,
 } from './support/ui.ts'
+
+test('[calendar] next C2 cards preserve provider status through every response', async ({ page }) => {
+	await calendarNextCards(page.request)
+})
+
+test('[calendar] C2 today unavailable preserves history and excludes legacy future', async ({ page }) => {
+	await calendarTodayUnavailable(page.request)
+})
+
+test('[calendar] C2 UI preserves accounting and shows unknown Calendar in both layouts', async ({ page }) => {
+	await calendarTodayUi(page)
+})
 
 async function profileHeader(page: Page, card: Card, unset: boolean): Promise<void> {
 	await page.goto(`/students/${card.id}`)
@@ -446,4 +461,8 @@ test.describe('account time zone [tz]', () => {
 	test('E12 unavailable example is omitted; one real next lesson uses one instant', async ({ page, fx }) => {
 		await settingsExamples(page, fx)
 	})
+})
+
+test('[calendar] history excludes elapsed legacy and pending lessons from Earlier', async ({ page }) => {
+	await calendarHistoryRead(page.request)
 })
