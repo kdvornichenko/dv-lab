@@ -53,6 +53,8 @@ export type CalendarSelection = {
 	event?: CalendarLesson
 	series?: CalendarSeriesContext
 }
+
+type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
 export type MutationResult<T> =
 	| { kind: 'ok'; data: T; status: number }
 	| { kind: 'stale' }
@@ -101,6 +103,36 @@ function versionFor(window: GoogleScheduleWindow, target: Target, selection: Cal
 	return current.binding.version
 }
 
+function checkedConnection(window: GoogleScheduleWindow, connection: GoogleScheduleWindow['connection'] | null) {
+	return (
+		connection !== null &&
+		connection.state === 'connected' &&
+		connection.pendingCommandCount === 0 &&
+		window.connection.generation === connection.generation &&
+		window.connection.calendar?.id === connection.calendar?.id
+	)
+}
+
+function validateWindow(
+	window: GoogleScheduleWindow | null,
+	selection: CalendarSelection,
+	target: Target,
+	date: string,
+	checked: CheckedWindow | null | undefined,
+	connection: GoogleScheduleWindow['connection'] | null
+): { ok: true; window: GoogleScheduleWindow; expectedVersion: string } | { ok: false; code: ErrorCode } {
+	if (!window) return { ok: false, code: 'provider_unavailable' }
+	if (checked && !checked.isCurrent()) return { ok: false, code: 'precondition_failed' }
+	if (checked !== undefined && !checkedConnection(window, connection)) return { ok: false, code: 'precondition_failed' }
+	if (timeZoneIdentity(window.requestedRange.timeZone) !== timeZoneIdentity(selection.mainTimeZone))
+		return { ok: false, code: 'default_time_zone_changed' }
+	if (scheduleDate(new Date(window.requestedRange.start), window.requestedRange.timeZone) !== mondayOf(date))
+		return { ok: false, code: 'precondition_failed' }
+	if (window.write.state !== 'ready') return { ok: false, code: window.write.reason }
+	const expectedVersion = versionFor(window, target, selection)
+	return expectedVersion === null ? { ok: false, code: 'precondition_failed' } : { ok: true, window, expectedVersion }
+}
+
 function operation(target: Target, action: Action): CalendarCommandSnapshot['operation'] {
 	if (target.kind === 'rule') return action === 'end' ? 'end_series' : 'move_series'
 	return action === 'end' ? 'end_series' : action
@@ -134,7 +166,12 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		}
 	}, [])
 
-	async function mutate(target: Target, action: Action, body: Body = {}): Promise<CalendarMutationResult> {
+	async function mutate(
+		target: Target,
+		action: Action,
+		body: Body = {},
+		checkedWindow?: CheckedWindow | null
+	): Promise<CalendarMutationResult> {
 		if (selection === null || sending.current) return { kind: 'failed', code: 'command_pending' }
 		if (entry?.command?.state === 'failed' && entry.command.nextAction !== 'retry_new_command')
 			return { kind: 'failed', code: 'not_applied' }
@@ -143,16 +180,12 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		try {
 			await controller.store.refresh()
 			const date = selectedDate(target, selection, body)
-			const window = await controller.readWindow(date)
+			const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
 			if (!alive.current) return { kind: 'detached' }
-			if (window === null) return rejected('provider_unavailable')
-			if (timeZoneIdentity(window.requestedRange.timeZone) !== timeZoneIdentity(selection.mainTimeZone))
-				return rejected('default_time_zone_changed')
-			if (scheduleDate(new Date(window.requestedRange.start), window.requestedRange.timeZone) !== mondayOf(date))
-				return rejected('precondition_failed')
-			if (window.write.state !== 'ready') return rejected(window.write.reason)
-			const expectedVersion = versionFor(window, target, selection)
-			if (expectedVersion === null) return rejected('precondition_failed')
+			const connection = controller.store.getSnapshot().connection
+			const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
+			if (!validated.ok) return rejected(validated.code)
+			const { window, expectedVersion } = validated
 			const id = crypto.randomUUID()
 			current.current = id
 			setRequestId(id)

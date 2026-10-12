@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
+import { GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { TextField } from '@/components/app/text-field'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -16,7 +17,6 @@ import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, type LessonRepeats, type Studen
 import { weekdayOf, type OverlapItem } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
-import { overlapsOn } from './calendar-overlaps'
 import { NewLessonFooter, NewLessonNotices, NewLessonStudent } from './new-lesson-content'
 import {
 	gapMessage,
@@ -26,7 +26,7 @@ import {
 	useScheduleFormContext,
 	type ScheduleFormContext,
 } from './schedule-form-context'
-import { useScheduleMutation } from './schedule-mutations'
+import { useScheduleMutation, type CreateLessonBody } from './schedule-mutations'
 
 export type OverlapBlock = OverlapItem & { studentName: string }
 
@@ -77,6 +77,27 @@ function newLessonErrors(
 	}
 }
 
+function createProposal(
+	input: Omit<CreateLessonBody, 'startTime' | 'durationMinutes'> & {
+		startTime: string | null
+		durationMinutes: number | null
+	},
+	invalid: boolean
+) {
+	if (!input.studentId || input.startTime === null || input.durationMinutes === null || invalid) return null
+	return {
+		operation: 'create' as const,
+		input: { ...input, startTime: input.startTime, durationMinutes: input.durationMinutes },
+	}
+}
+
+function activeStudents(students: StudentsState) {
+	if (students.kind !== 'ready') return []
+	return students.rows
+		.filter((row) => row.status === 'active')
+		.sort((left, right) => nameCollator.compare(left.displayName, right.displayName))
+}
+
 export function NewLessonDialog({
 	students,
 	available,
@@ -85,7 +106,6 @@ export function NewLessonDialog({
 	asOf,
 	currentMainTimeZone,
 	secondZone,
-	blocksOn,
 	onClose,
 	onCreated,
 	onRefresh,
@@ -105,24 +125,10 @@ export function NewLessonDialog({
 	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date })
 	const pending = command.pending
 	const [serverGap, setServerGap] = useState(false)
-	const [clash, setClash] = useState<{ date: string; items: OverlapBlock[] } | null>(null)
 	const studentRef = useRef<HTMLButtonElement>(null)
 	const lengthRef = useRef<HTMLInputElement>(null)
 
-	const loadBlocks = useEffectEvent((forDate: string) => blocksOn(forDate))
-
-	useEffect(() => {
-		let current = true
-		void loadBlocks(date).then((items) => {
-			if (current) setClash(items === null ? null : { date, items })
-		})
-		return () => {
-			current = false
-		}
-	}, [date])
-
-	const active = students.kind === 'ready' ? students.rows.filter((row) => row.status === 'active') : []
-	active.sort((left, right) => nameCollator.compare(left.displayName, right.displayName))
+	const active = activeStudents(students)
 	const minutes = parseLength(lengthText)
 	const weekday = weekdayOf(date)
 	const input = localTimeInput(date, time, context)
@@ -132,12 +138,25 @@ export function NewLessonDialog({
 		submitted || touched[field] || (field === 'time' && timeError) ? errors[field] : undefined
 	const touch = (field: Field) => setTouched((current) => ({ ...current, [field]: true }))
 
-	const candidate = input.instant === null ? null : { startsAt: input.instant, durationMinutes: minutes ?? 60 }
-	const clashes = overlapsOn(date, clash, candidate)
 	const second = secondZone !== null && !sameTimeZone(secondZone, context.mainTimeZone) ? secondZone : null
 	const zoneLine = input.instant === null ? null : secondWhen(input.instant, context.mainTimeZone, second)
 	const noStudents = students.kind === 'ready' && active.length === 0
 	const blocked = !available || students.kind !== 'ready' || noStudents
+	const conflicts = useGoogleConflicts({
+		proposal: createProposal(
+			{
+				studentId,
+				date,
+				startTime: time,
+				durationMinutes: minutes,
+				repeats,
+				expectedDefaultTimeZone: context.mainTimeZone,
+			},
+			Boolean(timeError || errors.date)
+		),
+		date,
+		available: !blocked && !context.stale && !command.blocked,
+	})
 
 	function chooseStudent(value: string) {
 		setStudentId(value)
@@ -156,21 +175,26 @@ export function NewLessonDialog({
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending || blocked || command.blocked || context.stale) return
+		if (pending || blocked || command.blocked || context.stale || !conflicts.ready) return
 		setSubmitted(true)
 		setFailed(false)
 		if (errors.student) return studentRef.current?.focus()
 		if (errors.date) return document.getElementById('new-lesson-date')?.focus()
 		if (errors.time || time === null) return document.getElementById('new-lesson-time')?.focus()
 		if (errors.length || minutes === null) return lengthRef.current?.focus()
-		const result = await command.mutate({ kind: 'new' }, 'create', {
-			studentId,
-			date,
-			startTime: time,
-			durationMinutes: minutes,
-			repeats,
-			expectedDefaultTimeZone: context.mainTimeZone,
-		})
+		const result = await command.mutate(
+			{ kind: 'new' },
+			'create',
+			{
+				studentId,
+				date,
+				startTime: time,
+				durationMinutes: minutes,
+				repeats,
+				expectedDefaultTimeZone: context.mainTimeZone,
+			},
+			conflicts.checked
+		)
 		if (result.kind === 'detached') return
 		if (result.kind === 'zone_changed') return context.markStale()
 		if (result.kind === 'gap') return setServerGap(true)
@@ -208,12 +232,7 @@ export function NewLessonDialog({
 						/>
 						<div className="flex flex-col gap-4 py-1">
 							<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
-							<NewLessonNotices
-								students={students}
-								failed={failed}
-								clashes={clashes}
-								mainTimeZone={context.mainTimeZone}
-							/>
+							<NewLessonNotices students={students} failed={failed} />
 							<NewLessonStudent
 								studentId={studentId}
 								chooseStudent={chooseStudent}
@@ -320,6 +339,7 @@ export function NewLessonDialog({
 											{seriesPhrase(weekday, time)} {input.label} until you end the series.
 										</p>
 									) : null}
+									<GoogleConflicts check={conflicts} pending={pending} />
 								</div>
 							</div>
 						</div>
@@ -327,7 +347,7 @@ export function NewLessonDialog({
 					<NewLessonFooter
 						onClose={onClose}
 						pending={pending}
-						blocked={blocked || command.blocked || context.stale}
+						blocked={blocked || command.blocked || context.stale || !conflicts.ready}
 						repeats={repeats}
 					/>
 				</form>

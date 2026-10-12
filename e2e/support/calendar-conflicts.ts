@@ -41,7 +41,7 @@ const cases = z
 	)
 	.min(8)
 
-async function conflictFixture(request: APIRequestContext) {
+export async function conflictFixture(request: APIRequestContext) {
 	const owner = await calendarCommandFixture(request)
 	const binding = targetBinding()
 	const fixture = z
@@ -53,6 +53,7 @@ async function conflictFixture(request: APIRequestContext) {
 			studentId: z.uuid(),
 			expiresAt: z.iso.datetime(),
 			cases,
+			reconnectGeneration: z.number().int().positive().optional(),
 		})
 		.parse(readPrivateJson(`${PRIVATE_DIR}/calendar-conflicts.json`))
 	if (
@@ -64,7 +65,7 @@ async function conflictFixture(request: APIRequestContext) {
 		Date.parse(fixture.expiresAt) <= Date.now()
 	)
 		throw new Error('Conflict fixture does not match the retained runtime authority')
-	return fixture
+	return { ...fixture, studentName: owner.studentName }
 }
 
 export async function conflictsJourney(request: APIRequestContext) {
