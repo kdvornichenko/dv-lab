@@ -278,7 +278,13 @@ export function LessonCountDialog() {
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger render={<Button variant="tertiary" leadingIcon={ListChecks} />}>Count lessons</DialogTrigger>
+			<DialogTrigger
+				render={
+					<Button variant="tertiary" leadingIcon={ListChecks}>
+						Count lessons
+					</Button>
+				}
+			/>
 			<DialogContent size="lg">
 				<DialogHeader>
 					<DialogTitle>Count lessons</DialogTitle>
