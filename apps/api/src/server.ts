@@ -15,7 +15,6 @@ import { createGoogleGateway } from './calendar/gateway.ts'
 import { createCredentials } from './calendar/google-access.ts'
 import { createConnectionLease } from './calendar/lease.ts'
 import { createCalendarObservation } from './calendar/observation.ts'
-import { createCalendarReads } from './calendar/reads.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
 import { createCalendarWorker } from './calendar/worker.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
@@ -56,7 +55,6 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		observation,
 		isStopping: lifecycle.isStopping,
 	})
-	const reads = createCalendarReads({ db, gateway, credentials, observation })
 	const worker = createCalendarWorker({
 		db,
 		lease,
@@ -67,7 +65,7 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		isStopping: lifecycle.isStopping,
 	})
 	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
-	return { connection, control, reads, commands, worker, observation, resources: [worker, control, lease, credentials] }
+	return { connection, control, commands, worker, observation, resources: [worker, control, lease, credentials] }
 }
 
 const app = createApp({
@@ -80,7 +78,6 @@ const app = createApp({
 	signIn,
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
-	calendarReads: calendar?.reads,
 	calendarCommands: calendar?.commands,
 })
 

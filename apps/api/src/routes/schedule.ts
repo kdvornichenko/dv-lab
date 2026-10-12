@@ -21,13 +21,13 @@ import type { CalendarCommands } from '../calendar/commands.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
 import { CommandFault } from '../calendar/journal.ts'
 import { readCalendarWindow } from '../calendar/read-model.ts'
-import type { CalendarReads, CalendarReadContext, CalendarReadSelection } from '../calendar/reads.ts'
+import type { CalendarReadContext, CalendarReadSelection } from '../calendar/read-state.ts'
 import { errorBody } from '../request-context.ts'
 import type { ChangeFailure } from '../schedule/changes.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type ScheduleRouteDeps = { db: Database; calendarReads?: CalendarReads; calendarCommands?: CalendarCommands }
+type ScheduleRouteDeps = { db: Database; calendarCommands?: CalendarCommands }
 
 const WEEK_START_MIN = '2000-01-03'
 
@@ -96,7 +96,7 @@ function commandRefusal(c: Context<AppEnv, string, {}>, error: unknown) {
 	return c.json(errorBody('provider_unavailable', 'Calendar is unavailable'), 503)
 }
 
-export function scheduleRoutes({ db, calendarReads, calendarCommands }: ScheduleRouteDeps) {
+export function scheduleRoutes({ db, calendarCommands }: ScheduleRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -111,11 +111,8 @@ export function scheduleRoutes({ db, calendarReads, calendarCommands }: Schedule
 			...scheduleWeekRange(start, settings.defaultTimeZone),
 			displayTimeZone: settings.defaultTimeZone,
 		}
-		await calendarReads?.refreshCalendarRead(context, selection)
 		const week = await readSnapshot(db, (executor) => readCalendarWindow(executor, context, selection))
-		const response = c.json(week, 200)
-		calendarReads?.observePublicWeek(context, c.req.raw, response, week)
-		return response
+		return c.json(week, 200)
 	})
 
 	routes.post('/lessons', async (c) => {

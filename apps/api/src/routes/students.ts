@@ -26,7 +26,7 @@ import {
 import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
-import type { CalendarReads, CalendarReadContext } from '../calendar/reads.ts'
+import type { CalendarReadContext } from '../calendar/read-state.ts'
 import {
 	cardAccountCandidates,
 	createCardAccount,
@@ -36,7 +36,6 @@ import {
 import type { CardReadContext } from '../cards/card-facts.ts'
 import {
 	archiveCard,
-	cardIds,
 	createCard,
 	getCard,
 	listCards,
@@ -50,7 +49,7 @@ import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.t
 import { errorBody } from '../request-context.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type StudentRouteDeps = { db: Database; calendarReads?: CalendarReads }
+type StudentRouteDeps = { db: Database }
 
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
@@ -88,7 +87,7 @@ function mutateStudent(
 	return db.transaction((tx) => studentResponse(tx, context, change), { isolationLevel: 'repeatable read' })
 }
 
-export function studentRoutes({ db, calendarReads }: StudentRouteDeps) {
+export function studentRoutes({ db }: StudentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -97,7 +96,6 @@ export function studentRoutes({ db, calendarReads }: StudentRouteDeps) {
 	routes.get('/', async (c) => {
 		const accountId = c.get('session').account.id
 		const context = { accountId, now: new Date() }
-		await calendarReads?.refreshCalendarRead(context, { kind: 'next', studentIds: await cardIds(db) })
 		const response = await readSnapshot(db, async (executor) => {
 			const settings = await readTeacherSettings(executor, accountId)
 			const cards = await listCards(executor, Object.assign(context, { defaultTimeZone: settings.defaultTimeZone }))
@@ -127,7 +125,6 @@ export function studentRoutes({ db, calendarReads }: StudentRouteDeps) {
 		if (id === null) return notFound(c)
 		const accountId = c.get('session').account.id
 		const context = { accountId, now: new Date() }
-		await calendarReads?.refreshCalendarRead(context, { kind: 'next', studentIds: [id] })
 		const response = await readSnapshot(db, (executor) =>
 			studentResponse(executor, context, (tx, context) => getCard(tx, id, context))
 		)
