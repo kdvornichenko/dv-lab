@@ -30,10 +30,18 @@ export class GoogleWriteFault extends CalendarFault {
 	readonly httpStatus: number | null
 	readonly outcome: 'rejected' | 'conflict' | 'unknown' | 'missing'
 	readonly retryAfterMs: number | null
-	constructor(status: number | null, retryAfterMs: number | null = null) {
-		super(status === 401 ? 'reconnect_required' : status === 403 ? 'permission_required' : 'provider_unavailable')
+	readonly rateLimited: boolean
+	constructor(status: number | null, retryAfterMs: number | null = null, rateLimited = status === 429) {
+		super(
+			status === 401
+				? 'reconnect_required'
+				: status === 403 && !rateLimited
+					? 'permission_required'
+					: 'provider_unavailable'
+		)
 		this.httpStatus = status
 		this.retryAfterMs = retryAfterMs
+		this.rateLimited = rateLimited
 		this.outcome =
 			status === 409
 				? 'conflict'
@@ -63,6 +71,31 @@ const providerFailure = z.object({
 		})
 		.optional(),
 })
+const TEMPORARY_FORBIDDEN = new Set([
+	'rateLimitExceeded',
+	'userRateLimitExceeded',
+	'quotaExceeded',
+	'dailyLimitExceeded',
+	'backendError',
+])
+const failureReasons = z.object({
+	response: z.object({
+		data: z.object({ error: z.object({ errors: z.array(z.object({ reason: z.string().optional() })) }) }),
+	}),
+})
+
+function rateLimited(status: number | undefined, error: unknown) {
+	if (status === 429) return true
+	if (status !== 403) return false
+	const parsed = failureReasons.safeParse(error)
+	return (
+		parsed.success &&
+		parsed.data.response.data.error.errors.some(
+			(item) => item.reason !== undefined && TEMPORARY_FORBIDDEN.has(item.reason)
+		)
+	)
+}
+
 const calendarEntry = z.object({
 	id: z.string().min(1),
 	summary: z.string().optional(),
@@ -445,7 +478,7 @@ async function safeCall<T>(operation: () => Promise<T>): Promise<T> {
 		const response = parsed.success ? parsed.data.response : undefined
 		if (response?.data?.error === 'invalid_grant' || response?.status === 401)
 			throw new CalendarFault('reconnect_required')
-		if (response?.status === 403) throw new CalendarFault('permission_required')
+		if (response?.status === 403 && !rateLimited(response.status, error)) throw new CalendarFault('permission_required')
 		throw new CalendarFault('provider_unavailable')
 	}
 }
@@ -457,7 +490,8 @@ async function writeCall<T>(operation: () => Promise<T>): Promise<T> {
 		return await operation()
 	} catch (error) {
 		const parsed = providerFailure.safeParse(error)
-		throw new GoogleWriteFault(parsed.success ? (parsed.data.response?.status ?? null) : null, retryAfter(error))
+		const status = parsed.success ? (parsed.data.response?.status ?? null) : null
+		throw new GoogleWriteFault(status, retryAfter(error), rateLimited(status ?? undefined, error))
 	}
 }
 

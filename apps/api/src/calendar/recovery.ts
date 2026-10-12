@@ -231,7 +231,7 @@ async function handleReadFailure(
 	const current = await readCommand(access.db, command.accountId, command.id)
 	const external = error instanceof CalendarFault && error.code === 'external_change'
 	if (external && (await rejectObservedPrecondition(access, current))) return
-	if (error instanceof GoogleWriteFault && error.httpStatus === 429)
+	if (error instanceof GoogleWriteFault && error.rateLimited)
 		return rateLimitedRead(access, current, error, explicit)
 	if (explicit || stage.attempts.length >= MAX_READ_ATTEMPTS || external)
 		await requireRecovery(access.db, current, external ? 'external_change' : 'provider_unavailable')
