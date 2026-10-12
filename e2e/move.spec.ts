@@ -5,6 +5,7 @@ import { admissionBudget } from './support/calendar-admission.ts'
 import { delayedCommand, lostProviderResponse, unknownAbsence } from './support/calendar-command-recovery.ts'
 import { calendarCommandFixture, commandTracer, disconnectedCommand } from './support/calendar-commands.ts'
 import { calendarJourney } from './support/calendar-cut.ts'
+import { calendarLessonDrag } from './support/calendar-lesson-drag.ts'
 import {
 	disappearedTombstone,
 	lostSingleResponse,
@@ -58,6 +59,7 @@ test('[calendar] single changes wait for conditional ACK and retain identity thr
 	page,
 }) => {
 	await singleChanges(page.request)
+	await calendarLessonDrag(page)
 })
 
 test('[calendar] command races reject a second Save on one base version and retain immutable retry', async ({
