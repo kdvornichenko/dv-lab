@@ -43,7 +43,14 @@ export async function calendarCommandFixture(request: APIRequestContext) {
 							z.strictObject({
 								commandId: z.uuid(),
 								seriesId: z.uuid(),
-								failure: z.enum(['credential_rollover', 'reconnect_required', 'permission_required']),
+								initialState: z.enum(['projection_pending', 'recovery_required']),
+								failure: z.enum([
+									'credential_rollover',
+									'reconnect_required',
+									'permission_required',
+									'provider_unavailable',
+									'external_change',
+								]),
 							})
 						)
 						.length(2)

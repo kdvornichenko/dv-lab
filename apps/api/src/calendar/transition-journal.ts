@@ -147,6 +147,17 @@ export async function beginTransitionStage(
 			})
 			.where(eq(googleCommandStages.id, row.id))
 			.returning()
+		if (!write && current.effect === 'confirmed')
+			await tx
+				.update(googleCommands)
+				.set({
+					state: 'partial_recovery',
+					effect: 'partial',
+					issue: 'provider_unavailable',
+					nextAction: 'resume_recovery',
+					updatedAt: sql`now()`,
+				})
+				.where(eq(googleCommands.id, current.id))
 		if (write)
 			await tx
 				.update(googleCommands)

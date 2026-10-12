@@ -20,6 +20,9 @@ import { expect, test } from './test.ts'
 import { setMain } from './tz-settings.ts'
 
 type CutCase = NonNullable<Awaited<ReturnType<typeof calendarCommandFixture>>['cuts']>['cases'][number]
+type RecoveryBoundary = NonNullable<
+	NonNullable<Awaited<ReturnType<typeof calendarCommandFixture>>['cuts']>['recoveryBoundaries']
+>[number]
 
 function domain(id: string) {
 	return {
@@ -217,7 +220,7 @@ async function recoveryBoundaries(request: APIRequestContext) {
 	const boundaries = fixture.cuts?.recoveryBoundaries
 	if (!boundaries) throw new Error('Actual restart/refresh and provider auth failure boundaries are required')
 	expect(boundaries[0].failure).toBe('credential_rollover')
-	expect(boundaries[1].failure).toMatch(/reconnect_required|permission_required/)
+	expect(boundaries[1].failure).toMatch(/reconnect_required|permission_required|provider_unavailable|external_change/)
 	for (const boundary of boundaries) {
 		const commandId = quote(boundary.commandId)
 		const command = sql(`select account_id, plan from google_commands where id = ${commandId}::uuid`)[0]
@@ -236,7 +239,7 @@ async function recoveryBoundaries(request: APIRequestContext) {
 		const before = domain(boundary.seriesId)
 		const snapshot = await status(request, boundary.commandId)
 		expect(snapshot.confirmedRevision).toBeNull()
-		expect(snapshot.state).toMatch(/partial_recovery|recovery_required/)
+		expect(snapshot.state).toBe(boundary.initialState)
 		expect(parseCalendarResponse(googleConnectionSnapshot, await api(request, 'GET', '/google/connection')).state).toBe(
 			'connected'
 		)
@@ -248,7 +251,8 @@ async function recoveryBoundaries(request: APIRequestContext) {
 			expect(connection.credential_mode).toBe('active')
 			expect(previous.generation).toBe(connection.generation)
 			expect(previous.ack.credentialGeneration).toBeLessThan(integer(connection.credential_generation))
-			await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 202)
+			if (boundary.initialState === 'recovery_required')
+				await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 202)
 			await expect
 				.poll(async () => (await status(request, boundary.commandId)).state, { timeout: 90000 })
 				.toBe('applied')
@@ -266,29 +270,87 @@ async function recoveryBoundaries(request: APIRequestContext) {
 			if (!sample) throw new Error('Retained cut case is required')
 			verifyHistory(plan, sample, false, false)
 		} else {
-			expect(
-				sql(
-					`select id from google_command_stages where command_id = ${commandId}::uuid and kind = 'verify' and state <> 'acknowledged'`
-				).length
-			).toBeGreaterThan(0)
-			const refusal = record(
-				await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 409)
-			)
-			expect(record(refusal.error).code).toBe(boundary.failure)
-			await expect
-				.poll(async () => (await status(request, boundary.commandId)).issue, { timeout: 90000 })
-				.toBe(boundary.failure)
-			const connection = parseCalendarResponse(
-				googleConnectionSnapshot,
-				await api(request, 'GET', '/google/connection')
-			)
-			expect(connection.state).toBe(boundary.failure)
-			expect(connection.issue).toBe(boundary.failure)
-			expect((await status(request, boundary.commandId)).confirmedRevision).toBeNull()
-			expect((await status(request, boundary.commandId)).state).toBe('partial_recovery')
-			expect(domain(boundary.seriesId)).toEqual(before)
+			await failedCompleteRead(request, boundary, fixture.accountId, before)
 		}
 		expect(writes()).toEqual(prefix)
+		expect(sql(`select plan from google_commands where id = ${commandId}::uuid`)[0].plan).toEqual(command.plan)
+	}
+}
+
+async function failedCompleteRead(
+	request: APIRequestContext,
+	boundary: RecoveryBoundary,
+	accountId: string,
+	before: ReturnType<typeof domain>
+) {
+	const previous = completeProof(boundary.commandId)
+	const connectionRow = sql(
+		`select generation, credential_generation from google_connections where account_id = ${quote(accountId)}::uuid`
+	)[0]
+	expect(previous.generation).toBe(connectionRow.generation)
+	expect(previous.ack.credentialGeneration).toBeLessThan(integer(connectionRow.credential_generation))
+	const auth = boundary.failure === 'reconnect_required' || boundary.failure === 'permission_required'
+	const fault =
+		boundary.failure === 'provider_unavailable'
+			? armCalendarFault({ method: 'GET', resource: 'events', page: 'any', action: 'drop_response', delayMs: 0 })
+			: null
+	const lastRead = () =>
+		sql(
+			`select state, acknowledgement, jsonb_array_length(attempts) as attempts from google_command_stages where command_id = ${quote(boundary.commandId)}::uuid and kind = 'verify' order by stage desc limit 1`
+		)[0]
+	let attempts = previous.attempts
+	try {
+		if (boundary.initialState === 'recovery_required') {
+			if (auth) {
+				const refusal = record(
+					await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 409)
+				)
+				expect(record(refusal.error).code).toBe(boundary.failure)
+			} else {
+				parseCalendarResponse(
+					calendarCommandReceipt,
+					await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 202)
+				)
+			}
+		}
+		await expect
+			.poll(
+				async () => {
+					const current = await status(request, boundary.commandId)
+					return (
+						current.issue === boundary.failure &&
+						current.state === 'partial_recovery' &&
+						lastRead().state === 'outcome_unknown'
+					)
+				},
+				{ timeout: 90000 }
+			)
+			.toBe(true)
+		const connection = parseCalendarResponse(googleConnectionSnapshot, await api(request, 'GET', '/google/connection'))
+		if (auth) {
+			expect(connection.state).toBe(boundary.failure)
+			expect(connection.issue).toBe(boundary.failure)
+		} else expect(connection.state).toBe('connected')
+		const current = await status(request, boundary.commandId)
+		expect(current.confirmedRevision).toBeNull()
+		expect(current.state).toBe('partial_recovery')
+		expect(current.nextAction).toBe('resume_recovery')
+		const failedRead = lastRead()
+		expect(failedRead.state).toBe('outcome_unknown')
+		expect(failedRead.acknowledgement).toBeNull()
+		attempts = integer(failedRead.attempts)
+		expect(attempts).toBeGreaterThan(previous.attempts)
+		expect(domain(boundary.seriesId)).toEqual(before)
+		if (fault) expect(calendarFaultEvidence(fault).some((item) => item.phase === 'response_dropped')).toBe(true)
+	} finally {
+		if (fault) disarmCalendarFault(fault)
+	}
+	if (boundary.failure === 'provider_unavailable') {
+		await api(request, 'POST', `/google/commands/${boundary.commandId}/resume`, undefined, 202)
+		await expect.poll(async () => (await status(request, boundary.commandId)).state, { timeout: 90000 }).toBe('applied')
+		expect(completeProof(boundary.commandId).attempts).toBeGreaterThan(attempts)
+		expect(domain(boundary.seriesId).marks).toEqual(before.marks)
+		expect(domain(boundary.seriesId).exceptions).toEqual(before.exceptions)
 	}
 }
 
