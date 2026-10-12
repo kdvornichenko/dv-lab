@@ -10,10 +10,12 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
+import { rowForLocal } from '../calendar/event-mapping.ts'
 import { currentConnection } from '../calendar/google-access.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
-import type { CalendarReadContext } from '../calendar/read-state.ts'
+import { syncRevision } from '../calendar/projection.ts'
+import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
 import { occurrenceChange } from './occurrence-change.ts'
 import type { SingleCommand } from './single-command.ts'
@@ -35,21 +37,23 @@ export async function prepareOccurrenceCommand(
 	const { target, observation } = evidence
 	const precondition = observation
 		? {
-				eventId: target.event.eventId,
+				eventId: target.row.eventId,
 				etag: observation.event.etag,
 				unownedWritableFingerprint: observation.unownedWritableFingerprint,
 				unownedWritable: observation.unownedWritable,
 			}
 		: {
-				eventId: target.event.eventId,
-				etag: target.event.etag,
+				eventId: target.row.eventId,
+				etag: target.row.etag,
 				unownedWritableFingerprint: null,
 				unownedWritable: null,
 			}
+	const current = await rowForLocal(executor, connection.id, input.ref)
 	if (
 		target.mapping.connectionId !== connection.id ||
-		target.event.snapshotRevision !== connection.snapshotRevision ||
-		target.event.generation !== connection.generation
+		current?.mapping.id !== target.mapping.id ||
+		current.row.eventId !== target.row.eventId ||
+		eventVersion(current.row) !== input.input.expectedVersion
 	)
 		throw new CommandFault('precondition_failed')
 	const change = await occurrenceChange(executor, context.accountId, input, context.now)
@@ -108,10 +112,10 @@ export async function prepareOccurrenceCommand(
 					},
 				}),
 	}
-	const stageDigest = digest(JSON.stringify({ eventId: target.event.eventId, ...payload }))
+	const stageDigest = digest(JSON.stringify({ eventId: target.row.eventId, ...payload }))
 	const request = googleStageRequest.parse({
 		method: 'patch',
-		eventId: target.event.eventId,
+		eventId: target.row.eventId,
 		ifMatch: plan.preconditions[0].etag,
 		instance: {
 			masterEventId: target.mapping.eventId,
@@ -151,7 +155,7 @@ export async function prepareOccurrenceCommand(
 		requestId,
 		inputHash: commandHash(input),
 		expectedVersion,
-		baseRevision: connection.snapshotRevision,
+		baseRevision: await syncRevision(executor, connection.id),
 		generation: connection.generation,
 		operation: input.operation,
 		plan,

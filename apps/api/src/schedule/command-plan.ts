@@ -1,13 +1,11 @@
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
-import { timeZoneIdentity, type CalendarIssue, type ValidatedCalendarCommand } from '@dv-lab/contracts'
+import type { CalendarIssue, ValidatedCalendarCommand } from '@dv-lab/contracts'
 import { canChange, localTimeCandidates } from '@dv-lab/core'
 import {
 	googleCommandPlan,
 	googleConnections,
-	googleReadEvents,
-	googleReadWindows,
 	googleStageRequest,
 	students,
 	type DbExecutor,
@@ -18,6 +16,7 @@ import {
 import { currentConnection } from '../calendar/google-access.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
+import { syncFacts } from '../calendar/projection.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
 import type { SeriesEvidence } from '../calendar/series-observation.ts'
 import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
@@ -45,28 +44,6 @@ export type PreparedCalendarCommand = {
 	absenceProof?: AbsenceProof
 	recoveryRequired?: boolean
 	recoveryIssue?: CalendarIssue
-}
-
-export async function commandWindow(
-	executor: DbExecutor,
-	accountId: string,
-	connectionId: string,
-	expectedVersion: string
-) {
-	if (!/^(0|[1-9]\d{0,18})$/.test(expectedVersion)) throw new CommandFault('precondition_failed')
-	const [window] = await executor
-		.select()
-		.from(googleReadWindows)
-		.where(
-			and(
-				eq(googleReadWindows.accountId, accountId),
-				eq(googleReadWindows.connectionId, connectionId),
-				eq(googleReadWindows.snapshotRevision, BigInt(expectedVersion)),
-				eq(googleReadWindows.coverageState, 'complete')
-			)
-		)
-	if (!window) throw new CommandFault('precondition_failed')
-	return window
 }
 
 export async function prepareScheduleCommand(
@@ -108,13 +85,22 @@ async function prepareCreateCommand(
 		.where(eq(students.id, input.input.studentId))
 		.for('update')
 	if (!student || student.status !== 'active') throw new CommandFault('invalid_request', 400)
-	const window = await commandWindow(executor, context.accountId, connection.id, input.input.expectedVersion)
 	const endsAt = new Date(startsAt.getTime() + input.input.durationMinutes * 60000)
-	validateCreationWindow(connection, window, startsAt, endsAt, timeZone)
-	const events = await executor.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
+	const sync = await syncFacts(executor, connection.id)
+	if (sync && (startsAt < sync.windowStart || endsAt > sync.windowEnd)) throw new CommandFault('outside_sync_window')
 	const recurring =
 		input.input.repeats === 'weekly' ? await recurringCreation(executor, input, timeZone, connection) : null
-	return buildCreation(input, context, connection, timeZone, startsAt, endsAt, student.name, events, recurring)
+	return buildCreation(
+		input,
+		context,
+		connection,
+		timeZone,
+		startsAt,
+		endsAt,
+		student.name,
+		sync?.revision ?? 0n,
+		recurring
+	)
 }
 
 async function lockCreationContext(
@@ -128,8 +114,6 @@ async function lockCreationContext(
 		.where(currentConnection(context.accountId))
 		.for('update')
 	if (!connection?.calendarId || connection.state !== 'connected') throw new CommandFault('connection_required')
-	if (connection.snapshotRevision.toString() !== input.input.expectedVersion)
-		throw new CommandFault('precondition_failed')
 	if ((await unresolvedCommands(executor, context.accountId)).length) throw new CommandFault('command_pending')
 	const settings = await lockTeacherTimeContext(
 		executor,
@@ -144,23 +128,6 @@ async function lockCreationContext(
 	}
 }
 
-function validateCreationWindow(
-	connection: typeof googleConnections.$inferSelect,
-	window: typeof googleReadWindows.$inferSelect,
-	startsAt: Date,
-	endsAt: Date,
-	timeZone: string
-) {
-	if (
-		startsAt < window.windowStart ||
-		endsAt > window.windowEnd ||
-		timeZoneIdentity(window.displayTimeZone) !== timeZoneIdentity(timeZone)
-	)
-		throw new CommandFault('precondition_failed')
-	if (window.generation !== connection.generation || window.connectionId !== connection.id)
-		throw new CommandFault('precondition_failed')
-}
-
 function buildCreation(
 	input: Extract<ValidatedCalendarCommand, { operation: 'create' }>,
 	context: CalendarReadContext,
@@ -169,7 +136,7 @@ function buildCreation(
 	startsAt: Date,
 	endsAt: Date,
 	studentName: string,
-	events: (typeof googleReadEvents.$inferSelect)[],
+	baseRevision: bigint,
 	recurring: Awaited<ReturnType<typeof recurringCreation>> | null
 ): PreparedCalendarCommand {
 	const id = randomUUID()
@@ -188,11 +155,7 @@ function buildCreation(
 		capturedRule: recurring?.rule ?? null,
 		reservations: [reservation],
 		lineage: [],
-		preconditions: events.map((event) => ({
-			eventId: event.eventId,
-			etag: event.etag,
-			unownedWritableFingerprint: digest(event.etag),
-		})),
+		preconditions: [],
 		affectedRefs: [
 			recurring
 				? { kind: 'series', seriesId: localEntityId, originalOn: recurring.rule.startsOn }
@@ -237,7 +200,7 @@ function buildCreation(
 		requestId,
 		expectedVersion,
 		inputHash: commandHash(input),
-		baseRevision: connection.snapshotRevision,
+		baseRevision,
 		generation: connection.generation,
 		operation: 'create',
 		plan,

@@ -1,12 +1,11 @@
-import { eq } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type { CalendarCommandReceipt, CalendarCommandSnapshot, ValidatedCalendarCommand } from '@dv-lab/contracts'
 import { googleConflictRequest } from '@dv-lab/contracts'
-import { googleConnections, googleReadEvents, type Database } from '@dv-lab/db'
+import { googleConnections, type Database } from '@dv-lab/db'
 
 import { checkCalendarConflicts } from '../schedule/calendar-conflicts.ts'
-import { commandWindow, prepareScheduleCommand } from '../schedule/command-plan.ts'
+import { prepareScheduleCommand } from '../schedule/command-plan.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import { currentConnection, type CalendarAccess, type Credentials } from './google-access.ts'
 import { observeInstance } from './instance-observation.ts'
@@ -20,8 +19,6 @@ import {
 	receipt,
 	unresolvedCommands,
 } from './journal.ts'
-import type { ProviderEvent } from './provider-events.ts'
-import { traverseEvents } from './read-pages.ts'
 import type { CalendarReadContext } from './read-state.ts'
 import { observeSeries, seriesBinding } from './series-observation.ts'
 import { observeSingle } from './single-observation.ts'
@@ -61,32 +58,7 @@ export function createCalendarCommands(deps: {
 		if (repeated) return matchingReceipt(repeated, input)
 		if ((await unresolvedCommands(access.db, context.accountId)).length) throw new CommandFault('command_pending')
 		if (input.operation !== 'create') return admitChange(access, context, input)
-		const window = await commandWindow(access.db, context.accountId, access.connection.id, input.input.expectedVersion)
-		if (
-			window.snapshotRevision !== access.connection.snapshotRevision ||
-			window.generation !== access.connection.generation
-		)
-			throw new CommandFault('precondition_failed')
 		if (!access.connection.calendarId) throw new CalendarFault('connection_required')
-		const primary = await deps.gateway.primary(access.accessToken, access.signal)
-		if (primary.id !== access.connection.calendarId) throw new CommandFault('external_change')
-		const previous = await access.db.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
-		const current: ProviderEvent[] = []
-		await traverseEvents(
-			{ ...access, gateway: deps.gateway, calendarId: primary.id },
-			{
-				timeMin: window.windowStart.toISOString(),
-				timeMax: window.windowEnd.toISOString(),
-			},
-			(events) => {
-				current.push(...events)
-				return false
-			}
-		)
-		const before = new Map(previous.map((event) => [event.eventId, event.etag]))
-		if (before.size !== current.length || current.some((event) => before.get(event.eventId) !== event.etag))
-			throw new CommandFault('external_change')
-		access.signal.throwIfAborted()
 		return persistAdmission(access, context, input)
 	}
 	async function admitChange(
