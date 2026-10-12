@@ -193,7 +193,7 @@ function Combobox<T extends ComboboxItemData = ComboboxItemData, Multiple extend
 					actionsRef={actionsRef}
 					autoHighlight="always"
 					onItemHighlighted={(item, details) =>
-						setHighlight(item === undefined ? null : { index: details.index, keyboard: details.reason !== 'pointer' })
+						setHighlight(item === undefined ? null : { index: details.index, reason: details.reason })
 					}
 					disabled={disabled}
 					name={name}

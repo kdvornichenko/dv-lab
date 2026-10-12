@@ -2,7 +2,7 @@
 
 import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
-import { forwardRef, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { motion } from 'framer-motion'
 
@@ -35,6 +35,9 @@ import {
 	type ComboboxItemData,
 } from './context'
 import { ComboboxEmpty, ComboboxItem } from './items'
+
+const POPUP_SELECTOR = '[data-slot="combobox-popup"]'
+const HIGHLIGHT_EXIT = { duration: 0.15 }
 
 type PositionerProps = React.ComponentProps<typeof ComboboxPrimitive.Positioner>
 
@@ -77,6 +80,7 @@ const ComboboxContent = forwardRef<HTMLDivElement, ComboboxContentProps>(
 					>
 						<ComboboxPrimitive.Popup
 							ref={ref}
+							data-slot="combobox-popup"
 							render={<Elevated offset={2} shadowLevel={4} />}
 							className={cn(
 								'flex max-h-72 w-[var(--anchor-width)] flex-col overflow-hidden rounded-xl p-1 outline-none select-none',
@@ -113,7 +117,7 @@ const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
 		const containerRef = useRef<HTMLDivElement>(null)
 		const compactFade = useCompactFade(containerRef, open)
 
-		const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
+		const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow, holdInGaps: true })
 		const { activeIndex, setActiveIndex, itemRects, isMeasured, handlers, registerItem, remeasure } = hover
 
 		const [checkedIndices, setCheckedIndices] = useState<number[]>([])
@@ -164,9 +168,47 @@ const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
 			}
 		}, [open, values, inputValue])
 
+		const pointerOwnedRef = useRef(false)
+		const { onMouseMove: hoverMouseMove } = handlers
+		const handleMouseMove = useCallback(
+			(event: React.MouseEvent) => {
+				pointerOwnedRef.current = true
+				hoverMouseMove(event)
+			},
+			[hoverMouseMove]
+		)
+
 		useEffect(() => {
+			pointerOwnedRef.current = false
+		}, [open, inputValue])
+
+		const { onMouseLeave: hoverMouseLeave } = handlers
+		const handleMouseLeave = useCallback(
+			(event: React.MouseEvent) => {
+				const popup = containerRef.current?.closest(POPUP_SELECTOR)
+				if (popup && event.relatedTarget instanceof Node && popup.contains(event.relatedTarget)) return
+				hoverMouseLeave()
+			},
+			[hoverMouseLeave]
+		)
+
+		useEffect(() => {
+			if (!open) return
+			const popup = containerRef.current?.closest(POPUP_SELECTOR)
+			if (!popup) return
+			popup.addEventListener('mouseleave', hoverMouseLeave)
+			return () => popup.removeEventListener('mouseleave', hoverMouseLeave)
+		}, [open, hoverMouseLeave])
+
+		useEffect(() => {
+			if (highlight?.reason === 'keyboard') {
+				pointerOwnedRef.current = false
+				setActiveIndex(highlight.index)
+				return
+			}
+			if (pointerOwnedRef.current) return
 			if (!highlight) setActiveIndex(null)
-			else if (highlight.keyboard) setActiveIndex(highlight.index)
+			else if (highlight.reason === 'none') setActiveIndex(highlight.index)
 		}, [highlight, setActiveIndex])
 
 		const [overlaysOpen, setOverlaysOpen] = useState(open)
@@ -196,8 +238,8 @@ const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
 							else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
 						}}
 						onMouseEnter={handlers.onMouseEnter}
-						onMouseMove={handlers.onMouseMove}
-						onMouseLeave={handlers.onMouseLeave}
+						onMouseMove={handleMouseMove}
+						onMouseLeave={handleMouseLeave}
 						onClick={handlers.onClick}
 						className={cn('relative flex flex-col outline-none', className)}
 					>
@@ -208,6 +250,7 @@ const ComboboxList = forwardRef<HTMLDivElement, ComboboxListProps>(
 						{open && (
 							<FluidHoverHighlight
 								hover={hover}
+								exit={HIGHLIGHT_EXIT}
 								className={cn(shape.bg, 'bg-active')}
 								transition={reflowSnap ? false : undefined}
 							/>

@@ -19,6 +19,7 @@ export interface ItemRect {
 export interface UseFluidHoverOptions {
 	axis?: 'x' | 'y' | 'xy'
 	isItemDisabled?: (element: HTMLElement) => boolean
+	holdInGaps?: boolean
 	gapClick?:
 		| boolean
 		| {
@@ -68,6 +69,7 @@ export interface PickNearestInput {
 		height: number
 	}
 	isDisabled?: (index: number) => boolean
+	hold?: number | null
 }
 export function pickNearest({
 	axis,
@@ -78,6 +80,7 @@ export function pickNearest({
 	border,
 	layoutSize,
 	isDisabled,
+	hold = null,
 }: PickNearestInput): number | null {
 	const scaleX = layoutSize.width > 0 ? containerRect.width / layoutSize.width : 1
 	const scaleY = layoutSize.height > 0 ? containerRect.height / layoutSize.height : 1
@@ -119,7 +122,9 @@ export function pickNearest({
 			closestIndex = index
 		}
 	}
-	return containingIndex ?? closestIndex
+	if (containingIndex !== null) return containingIndex
+	if (hold !== null && rects[hold] && !isDisabled?.(hold)) return hold
+	return closestIndex
 }
 export function isOwnEvent(e: { currentTarget?: EventTarget | null; target?: EventTarget | null }) {
 	const { currentTarget, target } = e
@@ -142,7 +147,7 @@ export function useFluidHover<T extends HTMLElement>(
 	containerRef: RefObject<T | null>,
 	options: UseFluidHoverOptions = {}
 ): UseFluidHoverReturn {
-	const { axis = 'y', isItemDisabled, gapClick = true } = options
+	const { axis = 'y', isItemDisabled, holdInGaps = false, gapClick = true } = options
 	const gapClickMaxDistance = typeof gapClick === 'object' ? (gapClick.maxDistance ?? Infinity) : Infinity
 	const itemsRef = useRef(new Map<number, HTMLElement>())
 	const [activeIndex, setActiveIndex] = useState<number | null>(null)
@@ -289,6 +294,7 @@ export function useFluidHover<T extends HTMLElement>(
 								return !!el && isItemDisabled(el)
 							}
 						: undefined,
+					hold: holdInGaps ? activeIndexRef.current : null,
 				})
 				if (sessionPendingRef.current && next !== activeIndexRef.current) {
 					sessionPendingRef.current = false
@@ -298,7 +304,7 @@ export function useFluidHover<T extends HTMLElement>(
 				setActiveIndex(next)
 			})
 		},
-		[axis, containerRef, isItemDisabled]
+		[axis, containerRef, isItemDisabled, holdInGaps]
 	)
 	const handleMouseEnter = useCallback(() => {
 		sessionPendingRef.current = true

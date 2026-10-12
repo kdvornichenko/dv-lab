@@ -20,6 +20,7 @@ interface HighlightFromRect {
 }
 export type FluidHoverHighlightProps = (HighlightFromHook | HighlightFromRect) & {
 	from?: ItemRect | null
+	exit?: Transition
 	className?: string
 	transition?: Transition | false
 }
@@ -47,7 +48,7 @@ export function resolveHighlightSource(props: FluidHoverHighlightProps): {
 	return { rect: props.rect, session: props.session }
 }
 export function FluidHoverHighlight(props: FluidHoverHighlightProps) {
-	const { from, className, transition } = props
+	const { from, exit, className, transition } = props
 	const { rect, session } = resolveHighlightSource(props)
 	const reduceMotion = useReducedMotion() ?? false
 	return (
@@ -59,7 +60,7 @@ export function FluidHoverHighlight(props: FluidHoverHighlightProps) {
 					className={cn('pointer-events-none absolute top-0 left-0 bg-hover', className)}
 					initial={{ opacity: 0, ...toTarget(from ?? rect) }}
 					animate={{ opacity: 1, ...toTarget(rect) }}
-					exit={{ opacity: 0, transition: spring.fast.exit }}
+					exit={{ opacity: 0, transition: exit ?? spring.fast.exit }}
 					transition={resolveHighlightTransition(transition, reduceMotion)}
 				/>
 			)}
