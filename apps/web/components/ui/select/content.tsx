@@ -35,7 +35,7 @@ const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(({ classNam
 	const containerRef = useRef<HTMLDivElement>(null)
 	const compactFade = useCompactFade(containerRef, open)
 
-	const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow })
+	const hover = useFluidHover(containerRef, { isItemDisabled: isDisabledRow, holdInGaps: true })
 	const { activeIndex, setActiveIndex, itemRects, isMeasured, handlers, registerItem, remeasure } = hover
 
 	const [focusedIndex, setFocusedIndex] = useState<number | null>(null)

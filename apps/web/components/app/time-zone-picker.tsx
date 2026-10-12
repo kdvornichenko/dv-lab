@@ -2,7 +2,7 @@
 
 import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type MouseEvent } from 'react'
 
 import { ChevronDown, Globe, Search, Star } from 'lucide-react'
 
@@ -153,10 +153,12 @@ function stopRow(event: MouseEvent) {
 function FavoriteStar({
 	zone,
 	favorite,
+	pinned,
 	onToggle,
 }: {
 	zone: string
 	favorite: boolean
+	pinned: boolean
 	onToggle: (zone: string) => void
 }) {
 	return (
@@ -183,20 +185,14 @@ function FavoriteStar({
 				'flex size-5 shrink-0 cursor-pointer items-center justify-center rounded-md outline-none focus-visible:opacity-100 focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',
 				favorite
 					? 'text-foreground'
-					: 'text-muted-foreground opacity-0 group-hover/zone:opacity-100 group-data-[highlighted]/zone:opacity-100 [@media(hover:none)]:opacity-100'
+					: pinned
+						? 'text-muted-foreground'
+						: 'text-muted-foreground opacity-0 group-hover/zone:opacity-100 group-data-[fluid-hover-active]/zone:opacity-100 [@media(hover:none)]:opacity-100'
 			)}
 		>
 			<Star size={14} strokeWidth={2} fill={favorite ? 'currentColor' : 'none'} aria-hidden />
 		</button>
 	)
-}
-
-function scrollToChosen(popup: HTMLElement | null, chosen: string) {
-	if (popup === null) return
-	const row = Array.from(popup.querySelectorAll<HTMLElement>('[data-value]')).find(
-		(element) => element.getAttribute('data-value') === chosen
-	)
-	row?.scrollIntoView({ block: 'center' })
 }
 
 export function TimeZonePicker({
@@ -216,32 +212,39 @@ export function TimeZonePicker({
 	const [now] = useState(() => new Date())
 	const at = labelAt ?? now
 	const [query, setQuery] = useState('')
-	const [open, setOpen] = useState(false)
-	const popupRef = useRef<HTMLDivElement>(null)
+
+	const searching = query.trim() !== ''
 
 	const model = useMemo(() => {
-		const zones = listTimeZones(value && value !== firstOption?.value ? [value] : []).filter(
-			(zone) => excludeMain === null || !sameTimeZone(zone, excludeMain)
-		)
+		const chosenZone = value && value !== firstOption?.value && isTimeZone(value) ? value : null
+		const allowed = (zone: string) => excludeMain === null || !sameTimeZone(zone, excludeMain)
+		const special: ComboboxItemData[] = []
+		if (allowNone) special.push({ value: NONE, label: 'None' })
+		if (firstOption) special.push({ value: firstOption.value, label: firstOption.label })
+		const row = (zone: string): ComboboxItemData => ({ value: zone, label: zone })
+		if (!searching) {
+			const starred = favorites.filter(allowed)
+			const starredSet = new Set(starred)
+			const current = chosenZone !== null && allowed(chosenZone) && !starredSet.has(chosenZone) ? [chosenZone] : []
+			return {
+				items: [...special, ...starred.map(row), ...current.map(row)],
+				starredSet,
+				firstStarred: starred[0] ?? null,
+				selected: current[0] ?? null,
+			}
+		}
+		const zones = listTimeZones(chosenZone !== null ? [chosenZone] : []).filter(allowed)
 		const available = new Set(zones)
 		const starred = favorites.filter((zone) => available.has(zone))
 		const starredSet = new Set(starred)
 		const others = zones.filter((zone) => !starredSet.has(zone))
-		const special: ComboboxItemData[] = []
-		if (allowNone) special.push({ value: NONE, label: 'None' })
-		if (firstOption) special.push({ value: firstOption.value, label: firstOption.label })
-		const items: ComboboxItemData[] = [
-			...special,
-			...starred.map((zone) => ({ value: zone, label: zone, detail: zoneLabel(zone, at) })),
-			...others.map((zone) => ({ value: zone, label: zone, detail: zoneLabel(zone, at) })),
-		]
 		return {
-			items,
+			items: [...special, ...starred.map(row), ...others.map(row)],
 			starredSet,
-			firstStarred: starred[0] ?? null,
-			firstOther: starred.length > 0 ? (others[0] ?? null) : null,
+			firstStarred: null,
+			selected: null,
 		}
-	}, [value, firstOption, excludeMain, favorites, allowNone, at])
+	}, [searching, value, firstOption, excludeMain, favorites, allowNone])
 
 	const filter = useCallback(
 		(item: ComboboxItemData, text: string) => {
@@ -254,19 +257,6 @@ export function TimeZonePicker({
 		[firstOption, at]
 	)
 
-	useEffect(() => {
-		if (!open || value === null) return
-		let inner = 0
-		const outer = requestAnimationFrame(() => {
-			inner = requestAnimationFrame(() => scrollToChosen(popupRef.current, value))
-		})
-		return () => {
-			cancelAnimationFrame(outer)
-			cancelAnimationFrame(inner)
-		}
-	}, [open, value])
-
-	const searching = query.trim() !== ''
 	const chosen = value ?? NONE
 	const isFirstOption = firstOption !== undefined && value === firstOption.value
 	const chosenLabel = value !== null && !isFirstOption ? zoneLabel(value, at) : null
@@ -279,10 +269,7 @@ export function TimeZonePicker({
 			filter={filter}
 			disabled={disabled}
 			size={toolbar ? 'compact' : undefined}
-			onOpenChange={(next) => {
-				setOpen(next)
-				setQuery('')
-			}}
+			onOpenChange={() => setQuery('')}
 			onInputValueChange={setQuery}
 		>
 			{toolbar ? (
@@ -304,7 +291,7 @@ export function TimeZonePicker({
 				<ComboboxPrimitive.Trigger
 					id={id}
 					aria-describedby={describedBy}
-					className="group inline-flex h-9 w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-body pointer-coarse:text-[16px] text-foreground ring-1 ring-input transition-all duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive data-[popup-open]:outline-1 data-[popup-open]:outline-offset-2 data-[popup-open]:outline-focus-ring"
+					className="group inline-flex h-9 w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-body text-foreground ring-1 ring-input transition-all duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive data-[popup-open]:outline-1 data-[popup-open]:outline-offset-2 data-[popup-open]:outline-focus-ring pointer-coarse:text-[16px]"
 				>
 					<span className="min-w-0 flex-1 truncate text-left leading-5">
 						{value === null ? (
@@ -326,11 +313,10 @@ export function TimeZonePicker({
 				</ComboboxPrimitive.Trigger>
 			)}
 			<ComboboxContent
-				ref={popupRef}
 				align={toolbar ? 'end' : 'start'}
 				sideOffset={4}
 				className={cn(
-					'max-w-[calc(100vw-2rem)] p-0 [--scroll-fade-size:var(--scroll-fade-size-compact)]',
+					'max-h-none max-w-[calc(100vw-2rem)] p-0 [--scroll-fade-size:var(--scroll-fade-size-compact)]',
 					toolbar && 'w-[280px]'
 				)}
 			>
@@ -339,30 +325,29 @@ export function TimeZonePicker({
 					<ComboboxPrimitive.Input
 						placeholder="Search time zones"
 						aria-label="Search time zones"
-						className="h-full min-w-0 flex-1 bg-transparent text-body pointer-coarse:text-[16px] text-foreground outline-none placeholder:text-muted-foreground"
+						className="h-full min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground pointer-coarse:text-[16px]"
 						onKeyDown={(event) => {
 							if (event.key === 'Escape') event.stopPropagation()
 						}}
 					/>
 				</div>
-				<div className="flex max-h-60 min-h-0 flex-1 flex-col">
+				<div className={cn('flex max-h-[260px] min-h-0 flex-1 flex-col', toolbar ? 'min-h-[176px]' : 'min-h-[224px]')}>
 					<ComboboxList
 						className="p-1"
-						emptyTitle="No time zones found"
-						emptyHint="Try a city, a country or an abbreviation like CET."
+						emptyTitle={searching ? 'No time zones found' : 'No favorite time zones'}
+						emptyHint={searching ? 'Try a city, a country or an abbreviation like CET.' : undefined}
 					>
 						{(item) => {
-							const data = typeof item === 'string' ? { value: item, label: item, detail: undefined } : item
+							const data = typeof item === 'string' ? { value: item, label: item } : item
 							const zone = data.value !== NONE && data.value !== firstOption?.value
 							const favorite = model.starredSet.has(data.value)
-							const heading =
-								searching || !zone
-									? null
-									: data.value === model.firstStarred
-										? 'Favorites'
-										: data.value === model.firstOther
-											? 'All time zones'
-											: null
+							const heading = !zone
+								? null
+								: data.value === model.firstStarred
+									? 'Favorites'
+									: data.value === model.selected
+										? 'Selected'
+										: null
 							return (
 								<>
 									{heading !== null ? (
@@ -379,8 +364,13 @@ export function TimeZonePicker({
 										detail={
 											zone ? (
 												<span className="flex items-center gap-2">
-													<span className="tabular-nums">{data.detail}</span>
-													<FavoriteStar zone={data.value} favorite={favorite} onToggle={toggleFavorite} />
+													<span className="tabular-nums">{zoneLabel(data.value, at)}</span>
+													<FavoriteStar
+														zone={data.value}
+														favorite={favorite}
+														pinned={data.value === model.selected}
+														onToggle={toggleFavorite}
+													/>
 												</span>
 											) : undefined
 										}
@@ -394,6 +384,9 @@ export function TimeZonePicker({
 							)
 						}}
 					</ComboboxList>
+				</div>
+				<div className="flex h-8 shrink-0 items-center border-t border-border px-3 text-caption text-muted-foreground">
+					{searching ? null : 'Search by city, country or abbreviation.'}
 				</div>
 			</ComboboxContent>
 		</Combobox>

@@ -48,7 +48,7 @@ const ComboboxContext = createContext<ComboboxContextValue | null>(null)
 
 interface Highlight {
 	index: number
-	keyboard: boolean
+	reason: 'keyboard' | 'pointer' | 'none'
 }
 const ComboboxHighlightContext = createContext<Highlight | null>(null)
 
