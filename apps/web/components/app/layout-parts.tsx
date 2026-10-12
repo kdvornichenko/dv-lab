@@ -1,5 +1,6 @@
 import type { ReactNode, Ref } from 'react'
 
+import { PageActions } from '@/components/app/topbar-slot'
 import { WorkspaceTile } from '@/components/sidebar-app/workspace-header'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Elevated } from '@/lib/elevated'
@@ -24,11 +25,15 @@ export function CenteredPanel({ children }: { children: ReactNode }) {
 export function PageScroll({ children }: { children: ReactNode }) {
 	return (
 		<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade [&>div]:!min-w-0">
-			<div className="mx-auto flex w-full flex-col gap-4 px-4 pt-4 pb-16 min-[1920px]:max-w-384 md:gap-6 md:px-8 md:pt-6">
+			<div className="mx-auto flex w-full flex-col gap-4 px-4 pt-4 pb-16 min-[1920px]:max-w-384 md:px-6 md:pb-8">
 				{children}
 			</div>
 		</ScrollArea>
 	)
+}
+
+export function WorkspacePage({ children }: { children: ReactNode }) {
+	return <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
 }
 
 interface PanelProps {
@@ -83,7 +88,7 @@ export function PageHeader({ title, eyebrow, description, actions, titleRef }: P
 				</h1>
 				{description ? <div className="text-body text-muted-foreground">{description}</div> : null}
 			</div>
-			{actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+			{actions ? <PageActions>{actions}</PageActions> : null}
 		</header>
 	)
 }

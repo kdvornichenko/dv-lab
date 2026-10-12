@@ -19,7 +19,6 @@ import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
 
 export const HOUR_HEIGHT = 48
-export const FRAME_HEIGHT = 'h-[max(28rem,calc(100svh-20rem))]'
 export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
@@ -175,7 +174,10 @@ function CalendarAgenda({
 	onOpen: (event: CalendarEventView) => void
 }) {
 	return (
-		<div data-slot="calendar-agenda" className="space-y-4 lg:hidden">
+		<div
+			data-slot="calendar-agenda"
+			className="scroll-fade space-y-4 md:min-h-0 md:flex-1 md:overflow-y-auto lg:hidden"
+		>
 			{emptyNote !== null ? (
 				<div data-slot="calendar-agenda-empty" className="flex justify-center py-8">
 					<p className="rounded-lg bg-surface-2 px-3 py-1 text-center text-body text-muted-foreground">{emptyNote}</p>
@@ -433,10 +435,7 @@ export function WeekGrid({
 				data-slot="week-grid"
 				data-dragging={dragging ? '' : undefined}
 				data-moving={moving !== null ? '' : undefined}
-				className={cn(
-					FRAME_HEIGHT,
-					'relative hidden flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! lg:flex'
-				)}
+				className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! lg:flex"
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">

@@ -56,6 +56,11 @@ export function weekRange(monday: string): string {
 	return `${dayOf(monday)}${dash}${dayOf(sunday)} ${monthShort(sunday)}`
 }
 
+export function weekTitle(monday: string): string {
+	const range = weekRange(monday)
+	return yearOf(monday) === yearOf(addDays(monday, 6)) ? `${range} ${yearOf(monday)}` : range
+}
+
 export function periodTitle(monday: string): string {
 	const sunday = addDays(monday, 6)
 	if (yearOf(monday) !== yearOf(sunday)) {
