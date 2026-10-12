@@ -55,9 +55,7 @@ test('[calendar] command tracer rejects disconnected create and blocks unsupport
 	await disconnectedCommand(page.request)
 })
 
-test('[calendar] single changes wait for conditional ACK and retain identity through two moves and cancel/restore', async ({
-	page,
-}) => {
+test('[calendar] single changes wait for conditional ACK and keep identity', async ({ page }) => {
 	await singleChanges(page.request)
 	await calendarLessonDrag(page)
 })
