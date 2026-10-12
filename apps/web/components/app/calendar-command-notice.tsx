@@ -128,10 +128,16 @@ export function CalendarRecovery({ showEmpty = true }: { showEmpty?: boolean }) 
 	)
 }
 
-export function CalendarReconnectLink() {
+export const DISCONNECT_COPY = {
+	disconnecting: 'Google Calendar is disconnecting. Calendar changes are paused until it finishes.',
+	disconnect_failed:
+		'Google Calendar was not fully disconnected. Finish it in calendar settings to make calendar changes.',
+} as const
+
+export function CalendarReconnectLink({ text }: { text?: string }) {
 	return (
 		<div className="space-y-2 text-body">
-			<p>Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.</p>
+			<p>{text ?? 'Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.'}</p>
 			<Button
 				variant="secondary"
 				nativeButton={false}
@@ -155,6 +161,9 @@ export function CalendarFormStatus({
 	const { view } = useCalendarCommands()
 	if (entry !== null) return <CalendarCommandNotice entry={entry} onViewSchedule={onViewSchedule} />
 	if (!blocked) return null
+	const state = view.connection?.state
+	if (state === 'disconnecting' || state === 'disconnect_failed')
+		return <CalendarReconnectLink text={DISCONNECT_COPY[state]} />
 	return view.connection?.allowedActions.some((action) => action === 'connect' || action === 'reconnect') ? (
 		<CalendarReconnectLink />
 	) : (

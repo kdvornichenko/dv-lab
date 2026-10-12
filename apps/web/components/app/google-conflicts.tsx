@@ -20,6 +20,7 @@ import {
 } from '@dv-lab/contracts'
 import { addDays, firstOnOrAfter, mondayOf, scheduleDate } from '@dv-lab/core'
 
+import { DISCONNECT_COPY } from './calendar-command-notice'
 import { useCalendarCommands } from './calendar-command-provider'
 import { DateField } from './date-field'
 
@@ -181,7 +182,6 @@ export function useGoogleConflicts(selection: Selection) {
 			const token = ++sequence.current
 			request.current?.abort()
 			attempted.current = null
-			setStored(null)
 			setLoading(null)
 			void store.refresh().then(() => {
 				const current = () => mounted.current && token === sequence.current
@@ -366,15 +366,20 @@ function SeriesCheckRange({ check, pending }: { check: ConflictCheck; pending: b
 export function GoogleConflicts({ check, pending }: { check: ConflictCheck; pending: boolean }) {
 	const result = check.result
 	const blocked = check.connection !== null && check.connection.state !== 'connected'
+	const state = check.connection?.state
+	const reconnectable =
+		check.connection?.allowedActions.some((action) => action === 'connect' || action === 'reconnect') ?? false
 	return (
 		<div className="flex flex-col gap-3" data-slot="google-conflicts" aria-live="polite" aria-busy={check.loading}>
 			{check.infinite ? <SeriesCheckRange check={check} pending={pending} /> : null}
 			{blocked ? (
 				<Banner status="warning">
 					<BannerTitle>
-						{check.connection?.state === 'not_connected'
+						{state === 'not_connected'
 							? 'Connect Google Calendar to view events and make calendar changes.'
-							: 'Reconnect Google Calendar before checking overlaps or saving calendar changes.'}
+							: state === 'disconnecting' || state === 'disconnect_failed'
+								? DISCONNECT_COPY[state]
+								: 'Reconnect Google Calendar before checking overlaps or saving calendar changes.'}
 					</BannerTitle>
 				</Banner>
 			) : null}
@@ -393,12 +398,18 @@ export function GoogleConflicts({ check, pending }: { check: ConflictCheck; pend
 			>
 				{result?.state === 'unavailable' ? 'Check again' : 'Check overlaps'}
 			</Button>
-			<p className="text-caption text-muted-foreground">
-				Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.
-			</p>
-			<a href="/settings?tab=calendar" target="_blank" rel="noopener noreferrer" className="text-body underline">
-				Open calendar settings
-			</a>
+			{blocked ? (
+				<>
+					{reconnectable ? (
+						<p className="text-caption text-muted-foreground">
+							Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.
+						</p>
+					) : null}
+					<a href="/settings?tab=calendar" target="_blank" rel="noopener noreferrer" className="text-body underline">
+						Open calendar settings
+					</a>
+				</>
+			) : null}
 		</div>
 	)
 }
