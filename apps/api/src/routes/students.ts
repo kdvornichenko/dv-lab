@@ -40,6 +40,7 @@ import {
 	createCard,
 	getCard,
 	listCards,
+	listLessonStudents,
 	restoreCard,
 	setOpeningBalance,
 	updateCard,
@@ -90,6 +91,8 @@ function mutateStudent(
 export function studentRoutes({ db, calendarReads }: StudentRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
+
+	routes.get('/options', async (c) => c.json({ students: await listLessonStudents(db) }, 200))
 
 	routes.get('/', async (c) => {
 		const accountId = c.get('session').account.id

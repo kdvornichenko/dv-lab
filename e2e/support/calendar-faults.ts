@@ -5,7 +5,7 @@ import { syncBuiltinESMExports } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { urlToHttpOptions } from 'node:url'
 
-import { verifyCalendarFaultRuntime } from '../../apps/api/src/tools/calendar-fault-runtime.ts'
+import { verifyCalendarFaultRuntime } from '../../apps/api/tools/calendar-fault-runtime.ts'
 import { calendarFaultAuth } from './calendar-fault-auth.ts'
 import {
 	calendarFaultIdentity,

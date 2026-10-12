@@ -1,12 +1,13 @@
 import '@fontsource-variable/inter/opsz.css'
 import '@fontsource-variable/jetbrains-mono'
 
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 
 import type { Metadata } from 'next'
 
 import { ThemeProvider } from '@/components/app/theme-provider'
 
+import Loading from './(app)/loading'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 		<html lang="en" suppressHydrationWarning>
 			<body className="app-scale font-sans antialiased">
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-					<div className="isolate">{children}</div>
+					<div className="isolate">
+						<Suspense fallback={<Loading />}>{children}</Suspense>
+					</div>
 				</ThemeProvider>
 			</body>
 		</html>

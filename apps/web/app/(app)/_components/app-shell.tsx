@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
 import { Search } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 import { ThemeToggle } from '@/components/app/theme-toggle'
 import { SidebarInsetTopbar } from '@/components/sidebar-app/inset-topbar'
 import { Button } from '@/components/ui/button'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip } from '@/components/ui/tooltip'
+import { API_CACHE_INVALIDATED, SESSION_CACHE_CHANNEL } from '@/lib/api-client'
 import { SurfaceProvider } from '@/lib/surface-context'
 
 import type { AccountSummary } from '@dv-lab/contracts'
@@ -19,11 +20,13 @@ import { CommandPalette } from './command-palette'
 import { sectionForPath } from './sections'
 import { ToastProvider } from './toasts'
 
-function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
-	const section = sectionForPath(usePathname())
+function Topbar({ onOpenSearch, pathname, pending }: { onOpenSearch: () => void; pathname: string; pending: boolean }) {
+	const section = sectionForPath(pathname)
 	return (
 		<SidebarInsetTopbar>
-			<span className="min-w-0 flex-1 truncate text-body text-foreground">{section.label}</span>
+			<span aria-busy={pending} className="min-w-0 flex-1 truncate text-body text-foreground">
+				{section.label}
+			</span>
 			<div className="flex shrink-0 items-center gap-1 pr-2">
 				<span className="md:hidden">
 					<Tooltip content="Search" delayDuration={200}>
@@ -39,7 +42,28 @@ function Topbar({ onOpenSearch }: { onOpenSearch: () => void }) {
 }
 
 export function AppShell({ account, children }: { account: AccountSummary; children: ReactNode }) {
+	const router = useRouter()
+	const pathname = usePathname()
+	const [navigation, setNavigation] = useState<{ from: string; to: string } | null>(null)
+	if (navigation !== null && navigation.from !== pathname) setNavigation(null)
+	const pendingPath = navigation?.from === pathname ? navigation.to : null
 	const [palette, setPalette] = useState({ open: false, key: 0, initialQuery: '' })
+
+	useEffect(() => {
+		const invalidateSession = () => window.location.reload()
+		SESSION_CACHE_CHANNEL?.addEventListener('message', invalidateSession)
+		const invalidate = () => router.refresh()
+		const restore = (event: PageTransitionEvent) => {
+			if (event.persisted) window.location.reload()
+		}
+		window.addEventListener(API_CACHE_INVALIDATED, invalidate)
+		window.addEventListener('pageshow', restore)
+		return () => {
+			SESSION_CACHE_CHANNEL?.removeEventListener('message', invalidateSession)
+			window.removeEventListener(API_CACHE_INVALIDATED, invalidate)
+			window.removeEventListener('pageshow', restore)
+		}
+	}, [router])
 
 	const openSearch = useCallback((initialQuery = '') => {
 		setPalette((current) => ({ open: true, key: current.key + 1, initialQuery }))
@@ -68,10 +92,19 @@ export function AppShell({ account, children }: { account: AccountSummary; child
 					Skip to content
 				</a>
 				<SidebarProvider persist={false} peek="hover" width="15rem" className="h-dvh min-h-0 overflow-hidden">
-					<AppSidebar account={account} onOpenSearch={openSearch} />
+					<AppSidebar
+						account={account}
+						onOpenSearch={openSearch}
+						pendingPath={pendingPath}
+						onNavigate={(to) => setNavigation(to === pathname ? null : { from: pathname, to })}
+					/>
 					<SidebarInset className="overflow-hidden">
 						<SurfaceProvider value={2}>
-							<Topbar onOpenSearch={() => openSearch()} />
+							<Topbar
+								onOpenSearch={() => openSearch()}
+								pathname={pendingPath ?? pathname}
+								pending={pendingPath !== null}
+							/>
 							<main id="content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
 								{children}
 							</main>

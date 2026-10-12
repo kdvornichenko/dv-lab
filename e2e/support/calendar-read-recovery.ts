@@ -48,9 +48,11 @@ function firstPageLesson(window: GoogleScheduleWindow, fixture: CalendarReadFixt
 
 async function requireDroppedResponse(ruleId: string) {
 	const evidence = await calendarFaultEvidence(ruleId)
+	const dropped = evidence.find((item) => item.phase === 'response_dropped' && item.status === 200)
+	expect(dropped !== undefined, 'A real successful provider response was lost at the owned transport').toBe(true)
 	expect(
-		evidence.some((item) => item.phase === 'response_dropped' && item.status === 200),
-		'A real successful provider response was lost at the owned transport'
+		evidence.some((item) => item.phase === 'request_matched' && dropped !== undefined && item.at <= dropped.at),
+		'The owned request matched before its real successful response was dropped'
 	).toBe(true)
 }
 

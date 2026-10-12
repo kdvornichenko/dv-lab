@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Activity, useEffect, useRef, useState } from 'react'
 
 import { LoaderCircle } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -351,10 +351,10 @@ function SecondZoneCard({
 	)
 }
 
-export function SettingsScreen({ tab }: { tab: string | undefined }) {
-	const router = useRouter()
-	const callbackOutcome = useSearchParams().get('google')
-	const activeTab = callbackOutcome !== null ? 'calendar' : resolveTab(tab)
+export function SettingsScreen() {
+	const searchParams = useSearchParams()
+	const callbackOutcome = searchParams.get('google')
+	const activeTab = callbackOutcome !== null ? 'calendar' : resolveTab(searchParams.get('tab') ?? undefined)
 	const state = useSettings()
 	const now = useMinuteNow()
 	const mainTimeZone = state.settings?.defaultTimeZone ?? null
@@ -362,12 +362,22 @@ export function SettingsScreen({ tab }: { tab: string | undefined }) {
 	return (
 		<PageScroll>
 			<PageHeader title="Settings" />
-			<Tabs value={activeTab} onValueChange={(next) => router.replace(`/settings?tab=${resolveTab(next)}`)}>
+			<Tabs
+				value={activeTab}
+				onValueChange={(next) => {
+					const params = new URLSearchParams(searchParams.toString())
+					params.set('tab', resolveTab(next))
+					params.delete('google')
+					const destination = `/settings?${params}`
+					if (destination !== window.location.pathname + window.location.search)
+						window.history.pushState(null, '', destination)
+				}}
+			>
 				<TabsList aria-label="Settings sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
 					<TabItem value="general" label="General" />
 					<TabItem value="calendar" label="Google Calendar" />
 				</TabsList>
-				<TabPanel value="general" className="mt-4">
+				<TabPanel value="general" keepMounted className="mt-4">
 					<div className="flex max-w-180 flex-col gap-4">
 						<DefaultZoneCard state={state} now={now} />
 						<SecondZoneCard
@@ -380,8 +390,10 @@ export function SettingsScreen({ tab }: { tab: string | undefined }) {
 						<PaymentsCard value={state.settings?.paysSoonLessons ?? null} onSaved={state.saveThreshold} />
 					</div>
 				</TabPanel>
-				<TabPanel value="calendar" className="mt-4">
-					{activeTab === 'calendar' ? <CalendarCard callbackOutcome={callbackOutcome} /> : null}
+				<TabPanel value="calendar" keepMounted className="mt-4">
+					<Activity mode={activeTab === 'calendar' ? 'visible' : 'hidden'}>
+						<CalendarCard callbackOutcome={callbackOutcome} />
+					</Activity>
 				</TabPanel>
 			</Tabs>
 			{state.candidate !== null && mainTimeZone !== null && now !== null ? (

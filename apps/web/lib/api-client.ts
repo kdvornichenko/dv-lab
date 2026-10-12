@@ -5,6 +5,10 @@ export type ApiResult<T> =
 
 type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
+export const API_CACHE_INVALIDATED = 'dvlab:cache-invalidated'
+export const SESSION_CACHE_CHANNEL =
+	typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:session-changed')
+
 export async function apiRequest<T>(
 	method: ApiMethod,
 	path: string,
@@ -24,6 +28,7 @@ export async function apiRequest<T>(
 	} catch {
 		return { ok: false, status: 0, error: null }
 	}
+	notifyCache(response, method, path)
 	if (response.status === 204) return { ok: true, status: 204, data: undefined as T }
 	if (response.ok) {
 		try {
@@ -39,6 +44,15 @@ export async function apiRequest<T>(
 	} catch {
 		return { ok: false, status: response.status, error: null }
 	}
+}
+
+function notifyCache(response: Response, method: ApiMethod, path: string): void {
+	if (typeof window === 'undefined') return
+	if (response.status === 401 && path !== '/auth/sign-in') window.location.replace('/login?reason=expired')
+	if (!response.ok || method === 'GET' || path === '/auth/renew' || path === '/google/conflicts') return
+	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
+		SESSION_CACHE_CHANNEL?.postMessage('changed')
+	} else window.dispatchEvent(new Event(API_CACHE_INVALIDATED))
 }
 
 function errorFrom(value: unknown): ErrorResponse['error'] | null {

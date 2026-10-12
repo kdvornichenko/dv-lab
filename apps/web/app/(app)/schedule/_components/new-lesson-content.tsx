@@ -5,16 +5,16 @@ import { Button } from '@/components/ui/button'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 
-import type { LessonRepeats, StudentRow } from '@dv-lab/contracts'
+import type { LessonRepeats, StudentLessonOption } from '@dv-lab/contracts'
 
-import type { StudentsState } from './new-lesson-dialog'
+import type { StudentsState } from './use-lesson-students'
 
 export function NewLessonNotices({ students, failed }: { students: StudentsState; failed: boolean }) {
 	return (
 		<>
 			{students.kind === 'error' ? (
 				<Banner status="error">
-					<BannerTitle>Could not load students. Close this window and try again.</BannerTitle>
+					<BannerTitle>Student list is unavailable. It will reload when the connection returns.</BannerTitle>
 				</Banner>
 			) : null}
 			{failed ? (
@@ -44,7 +44,7 @@ export function NewLessonStudent({
 	blocked: boolean
 	studentRef: RefObject<HTMLButtonElement | null>
 	students: StudentsState
-	active: StudentRow[]
+	active: StudentLessonOption[]
 	error: string | undefined
 	onBlur: () => void
 	noStudents: boolean

@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsdown",
+		"build:faults": "tsdown -c tsdown.faults.config.ts",
 		"start": "node --enable-source-maps dist/server.mjs",
 		"dev": "node --env-file-if-exists=../../.env --watch src/server.ts",
 		"typecheck": "tsc --noEmit",

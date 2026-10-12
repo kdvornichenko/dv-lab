@@ -3,6 +3,9 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const nextConfig: NextConfig = {
+	cacheComponents: true,
+	partialPrefetching: true,
+	experimental: { staleTimes: { dynamic: 300 } },
 	output: 'standalone',
 	outputFileTracingRoot: path.join(path.dirname(fileURLToPath(import.meta.url)), '../..'),
 	poweredByHeader: false,

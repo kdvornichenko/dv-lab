@@ -25,8 +25,10 @@ import {
 	type ScheduleFormContext,
 } from './schedule-form-context'
 import { useScheduleMutation } from './schedule-mutations'
+import type { MoveSeed } from './use-lesson-drag'
 
 interface LessonMoveFormProps extends ScheduleFormContext {
+	moveSeed?: MoveSeed
 	event: CalendarLesson
 	available: boolean
 	currentMainTimeZone: string
@@ -61,6 +63,7 @@ function moveErrors(
 }
 
 export function LessonMoveForm({
+	moveSeed,
 	event: initialEvent,
 	available,
 	mainTimeZone,
@@ -86,8 +89,8 @@ export function LessonMoveForm({
 	}
 	const start = new Date(block.startsAt)
 	const current = zonedParts(start, context.mainTimeZone)
-	const [date, setDate] = useState(scheduleDate(start, context.mainTimeZone))
-	const [time, setTime] = useState<string | null>(current.time)
+	const [date, setDate] = useState(moveSeed?.date ?? scheduleDate(start, context.mainTimeZone))
+	const [time, setTime] = useState<string | null>(moveSeed?.time ?? current.time)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState<string | null>(null)

@@ -13,7 +13,7 @@ import { TimePicker } from '@/components/ui/time-picker'
 import { secondWhen, seriesPhrase } from '@/lib/schedule-format'
 import { sameTimeZone, zoneName } from '@/lib/time-zones'
 
-import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, type LessonRepeats, type StudentRow } from '@dv-lab/contracts'
+import { LESSON_MINUTES_MAX, LESSON_MINUTES_MIN, type LessonRepeats } from '@dv-lab/contracts'
 import { weekdayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
@@ -27,8 +27,7 @@ import {
 	type ScheduleFormContext,
 } from './schedule-form-context'
 import { useScheduleMutation, type CreateLessonBody } from './schedule-mutations'
-
-export type StudentsState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; rows: StudentRow[] }
+import type { StudentsState } from './use-lesson-students'
 
 interface NewLessonDialogProps extends ScheduleFormContext {
 	students: StudentsState
@@ -90,9 +89,7 @@ function createProposal(
 
 function activeStudents(students: StudentsState) {
 	if (students.kind !== 'ready') return []
-	return students.rows
-		.filter((row) => row.status === 'active')
-		.sort((left, right) => nameCollator.compare(left.displayName, right.displayName))
+	return students.rows.toSorted((left, right) => nameCollator.compare(left.displayName, right.displayName))
 }
 
 export function NewLessonDialog({

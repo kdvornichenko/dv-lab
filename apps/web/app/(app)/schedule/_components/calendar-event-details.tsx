@@ -21,6 +21,12 @@ export function eventTitle(event: CalendarEventView): string {
 	return event.title?.trim() || 'Busy'
 }
 
+export function eventStatus(event: CalendarEventView): string {
+	if (event.status === 'cancelled') return 'Cancelled'
+	if (event.status === 'tentative') return 'Tentative'
+	return event.binding.kind === 'lesson' ? 'Planned' : 'Confirmed'
+}
+
 export function eventRange(event: CalendarEventView, timeZone: string): string {
 	if (event.when.kind === 'all_day') return 'All day'
 	const start = new Date(event.when.startsAt)
@@ -74,11 +80,13 @@ export function EventTime({
 }
 
 export function CalendarEventDetails({
+	editable = false,
 	event,
 	timeZone,
 	secondZone,
 	currentYear,
 }: {
+	editable?: boolean
 	event: CalendarEventView
 	timeZone: string
 	secondZone: string | null
@@ -87,10 +95,10 @@ export function CalendarEventDetails({
 	return (
 		<div className="flex min-w-0 flex-col gap-1 text-body wrap-anywhere" data-slot="calendar-event-details">
 			<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
-			<span>{event.status === 'cancelled' ? 'Cancelled' : event.blocksTime ? 'Busy' : 'Available'}</span>
-			{event.status === 'tentative' ? <span>Tentative</span> : null}
+			<span>{eventStatus(event)}</span>
+			<span>{event.blocksTime ? 'Busy' : 'Available'}</span>
 			<span className="text-muted-foreground">Google Calendar event</span>
-			<span className="text-muted-foreground">Read-only</span>
+			<span className="text-muted-foreground">{editable ? 'Editable' : 'Read-only'}</span>
 			{event.binding.kind === 'transition' ? (
 				<p className="text-muted-foreground">
 					This change has not been confirmed. Check its status before trying again.{' '}

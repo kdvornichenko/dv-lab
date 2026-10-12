@@ -15,6 +15,7 @@ import { addDays, zonedInstant, zonedParts } from '@dv-lab/core'
 import { eventRange, eventTitle } from './calendar-event-details'
 import { eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
+import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
 
 export const HOUR_HEIGHT = 48
@@ -54,12 +55,16 @@ interface WeekGridProps {
 	editable: boolean
 	currentYear?: number
 	onOpen: (event: CalendarEventView) => void
+	canMove: (event: CalendarEventView) => boolean
+	canEdit: (event: CalendarEventView) => boolean
+	onMove: (event: CalendarEventView, seed: MoveSeed) => void
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
 	scrollTopRef?: { current: number }
 }
 
 function AllDayBand({
+	canEdit,
 	dates,
 	events,
 	mainTimeZone,
@@ -67,6 +72,7 @@ function AllDayBand({
 	currentYear,
 	onOpen,
 }: {
+	canEdit: (event: CalendarEventView) => boolean
 	dates: string[]
 	events: readonly CalendarEventView[]
 	mainTimeZone: string
@@ -86,6 +92,7 @@ function AllDayBand({
 				<div key={date} data-date={date} className="min-w-0 space-y-1 border-l border-gcal-line p-1">
 					{eventsOn(allDay, date, mainTimeZone).map((event) => (
 						<EventTooltip
+							editable={canEdit(event)}
 							key={event.eventKey}
 							event={event}
 							layout={null}
@@ -276,6 +283,9 @@ export function WeekGrid({
 	currentYear = 0,
 	onOpen,
 	onSlot,
+	canMove,
+	canEdit,
+	onMove,
 	frame = null,
 	scrollTopRef,
 }: WeekGridProps) {
@@ -283,6 +293,7 @@ export function WeekGrid({
 	const nowParts = zonedParts(now, mainTimeZone)
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
+	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
 	const { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn } = useSlotDrag(
 		bodyRef,
 		HOUR_HEIGHT,
@@ -352,6 +363,7 @@ export function WeekGrid({
 					})}
 				</div>
 				<AllDayBand
+					canEdit={canEdit}
 					dates={dates}
 					events={events}
 					mainTimeZone={mainTimeZone}
@@ -360,6 +372,7 @@ export function WeekGrid({
 					onOpen={onOpen}
 				/>
 				<div
+					{...lessonDrag.handlers}
 					ref={scroller}
 					data-slot="week-grid-body"
 					onScroll={(event) => {
@@ -382,7 +395,8 @@ export function WeekGrid({
 						{dates.map((date, dayIndex) => {
 							const isToday = date === today
 							const live = drag !== null && drag.date === date ? drag : null
-							const shownFrame = editable && !dragging && frame !== null && frame.date === date ? frame : null
+							const proposed = lessonDrag.frame ?? frame
+							const shownFrame = editable && !dragging && proposed?.date === date ? proposed : null
 							return (
 								<div
 									key={date}
@@ -413,6 +427,7 @@ export function WeekGrid({
 									) : null}
 									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT).map(({ event, layout }) => (
 										<EventTooltip
+											editable={canEdit(event)}
 											key={event.eventKey}
 											event={event}
 											mainTimeZone={mainTimeZone}

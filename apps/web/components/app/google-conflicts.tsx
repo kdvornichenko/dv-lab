@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 
 import type { z } from 'zod'
 
@@ -8,6 +8,7 @@ import { calendarVersionFor } from '@/app/(app)/schedule/_components/calendar-ov
 import { Banner, BannerTitle, BannerDescription } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api-client'
+import { formatDate, mainWhen } from '@/lib/schedule-format'
 
 import {
 	googleConflictRequest,
@@ -17,8 +18,9 @@ import {
 	type CalendarSeriesContext,
 	type CalendarEventView,
 } from '@dv-lab/contracts'
-import { firstOnOrAfter } from '@dv-lab/core'
+import { addDays, firstOnOrAfter, mondayOf, scheduleDate } from '@dv-lab/core'
 
+import { DISCONNECT_COPY } from './calendar-command-notice'
 import { useCalendarCommands } from './calendar-command-provider'
 import { DateField } from './date-field'
 
@@ -68,7 +70,11 @@ function samePublication(window: GoogleScheduleWindow | null | undefined, public
 	)
 }
 
-function selectionRange(selection: Selection, through: string | null) {
+function publicationRevision(window: GoogleScheduleWindow | null) {
+	return window?.read.state === 'fresh' ? window.read.revision : JSON.stringify(window?.read)
+}
+
+function selectionRange(selection: Selection) {
 	const proposal = selection.proposal
 	const infinite =
 		proposal?.operation === 'create'
@@ -80,7 +86,17 @@ function selectionRange(selection: Selection, through: string | null) {
 			: proposal?.operation === 'move_series'
 				? firstOnOrAfter(proposal.input.from, proposal.input.weekday)
 				: selection.date
-	return { infinite, minimum, rangeValid: !infinite || (through !== null && through >= minimum) }
+	return { infinite, minimum }
+}
+
+function automaticThrough(minimum: string, window: GoogleScheduleWindow | null) {
+	if (window !== null) {
+		const range = window.requestedRange
+		const first = scheduleDate(new Date(range.start), range.timeZone)
+		const last = addDays(scheduleDate(new Date(range.end), range.timeZone), -1)
+		if (first <= minimum && minimum <= last) return last
+	}
+	return addDays(mondayOf(minimum), 6)
 }
 
 function sameGrant(
@@ -120,7 +136,7 @@ function resultState(
 export function useGoogleConflicts(selection: Selection) {
 	const controller = useCalendarCommands()
 	const { store, readWindow, subscribeWindow } = controller
-	const [through, setThrough] = useState<string | null>(null)
+	const [customThrough, setThrough] = useState<string | null>(null)
 	const [stored, setStored] = useState<Check>(null)
 	const [loading, setLoading] = useState<string | null>(null)
 	const [publication, setPublication] = useState<GoogleScheduleWindow | null>(null)
@@ -128,24 +144,30 @@ export function useGoogleConflicts(selection: Selection) {
 	const request = useRef<AbortController | null>(null)
 	const mounted = useRef(false)
 	const latestPublication = useRef<GoogleScheduleWindow | null>(null)
+	const attempted = useRef<string | null>(null)
 	const proposal = selection.proposal
-	const { infinite, minimum, rangeValid } = selectionRange(selection, through)
+	const { infinite, minimum } = selectionRange(selection)
+	const through = infinite ? (customThrough ?? automaticThrough(minimum, publication)) : customThrough
+	const rangeValid = !infinite || (through !== null && through >= minimum)
 	const key = JSON.stringify([
 		proposal,
 		selection.editedRef,
 		selection.series,
 		selection.available,
+		selection.date,
 		through,
 		controller.view.connection,
 		controller.blocked,
 	])
 	const currentKey = useRef(key)
 	const allowed = selection.available && !controller.blocked && proposal !== null && rangeValid
+	const autoKey = JSON.stringify([key, publicationRevision(publication)])
 	if (stored !== null && stored.key !== key) setStored(null)
 	if (loading !== null && loading !== key) setLoading(null)
 
 	useEffect(() => {
 		currentKey.current = key
+		attempted.current = null
 		sequence.current += 1
 		request.current?.abort()
 	}, [key])
@@ -159,7 +181,7 @@ export function useGoogleConflicts(selection: Selection) {
 			if (document.visibilityState !== 'visible') return
 			const token = ++sequence.current
 			request.current?.abort()
-			setStored(null)
+			attempted.current = null
 			setLoading(null)
 			void store.refresh().then(() => {
 				const current = () => mounted.current && token === sequence.current
@@ -187,34 +209,50 @@ export function useGoogleConflicts(selection: Selection) {
 		setLoading(key)
 		setStored(null)
 		const current = () => mounted.current && token === sequence.current && currentKey.current === key
-		const window = await readWindow(selection.date, current)
-		if (!current()) return
-		const version = window === null ? null : targetVersion(window, selection)
-		if (!version || !window) {
-			setStored({ key, result: { state: 'unavailable', inputKey: key, reason: 'external_change' }, window: null })
-			setLoading(null)
-			return
+		try {
+			const window = await readWindow(selection.date, current)
+			if (!current()) return
+			attempted.current = JSON.stringify([key, publicationRevision(window)])
+			const version = window === null ? null : targetVersion(window, selection)
+			if (!version || !window) {
+				setStored({ key, result: { state: 'unavailable', inputKey: key, reason: 'external_change' }, window: null })
+				return
+			}
+			const input = googleConflictRequest.parse({
+				proposal,
+				editedRef: selection.editedRef,
+				expectedVersion: version,
+				checkThrough: infinite ? (through ?? undefined) : undefined,
+			})
+			const expectedKey = await conflictInputKey(input, window)
+			if (!current()) return
+			const response = await apiRequest<unknown>('POST', '/google/conflicts', input, {
+				signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30000)]),
+			})
+			if (!current()) return
+			const result = response.ok ? googleConflictResult.safeParse(response.data) : null
+			const checked =
+				result?.success && (result.data.state !== 'complete' || result.data.inputKey === expectedKey)
+					? result.data
+					: { state: 'unavailable' as const, inputKey: key, reason: 'provider_unavailable' as const }
+			setStored({ key, result: checked, window })
+		} catch {
+			if (!current()) return
+			setStored({ key, result: { state: 'unavailable', inputKey: key, reason: 'provider_unavailable' }, window: null })
+		} finally {
+			if (current()) setLoading(null)
 		}
-		const input = googleConflictRequest.parse({
-			proposal,
-			editedRef: selection.editedRef,
-			expectedVersion: version,
-			checkThrough: infinite ? (through ?? undefined) : undefined,
-		})
-		const expectedKey = await conflictInputKey(input, window)
-		if (!current()) return
-		const response = await apiRequest<unknown>('POST', '/google/conflicts', input, {
-			signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30000)]),
-		})
-		if (!current()) return
-		const result = response.ok ? googleConflictResult.safeParse(response.data) : null
-		const checked =
-			result?.success && (result.data.state !== 'complete' || result.data.inputKey === expectedKey)
-				? result.data
-				: { state: 'unavailable' as const, inputKey: key, reason: 'provider_unavailable' as const }
-		setStored({ key, result: checked, window })
-		setLoading(null)
 	}
+	const automaticallyCheck = useEffectEvent(() => {
+		if (!allowed || loading === key || attempted.current === autoKey) return
+		attempted.current = autoKey
+		void check()
+	})
+	useEffect(() => {
+		if (!allowed) return
+		const timer = setTimeout(automaticallyCheck, 200)
+		return () => clearTimeout(timer)
+	}, [allowed, autoKey, loading, stored])
 
 	const view = resultState(stored, key, publication, controller.view.connection, allowed, loading)
 	function isCurrent() {
@@ -247,37 +285,46 @@ type ConflictCheck = ReturnType<typeof useGoogleConflicts>
 
 function eventTime(event: CalendarEventView) {
 	return event.when.kind === 'timed'
-		? `${event.when.startsAt}–${event.when.endsAt} (${event.when.timeZone})`
-		: `${event.when.startsOn}–before ${event.when.endsBefore} (${event.when.timeZone})`
+		? `${mainWhen(new Date(event.when.startsAt), event.when.timeZone, null, 0)} – ${mainWhen(new Date(event.when.endsAt), event.when.timeZone, null, 0)}`
+		: `All day: ${formatDate(event.when.startsOn, 0)} – ${formatDate(addDays(event.when.endsBefore, -1), 0)} (${event.when.timeZone})`
+}
+
+function checkedPeriod(result: Extract<GoogleConflictResult, { state: 'complete' }>) {
+	const range = result.checkedRange
+	return `${mainWhen(new Date(range.start), range.timeZone, null, 0)} – before ${mainWhen(new Date(range.end), range.timeZone, null, 0)}`
 }
 
 function CompleteConflicts({ result }: { result: Extract<GoogleConflictResult, { state: 'complete' }> }) {
 	const [expanded, setExpanded] = useState(false)
 	const events = result.events
+	if (events.length === 0)
+		return (
+			<Banner status="success">
+				<BannerTitle>No Google Calendar overlaps in the checked range.</BannerTitle>
+			</Banner>
+		)
 	return (
-		<Banner status={events.length ? 'warning' : 'success'}>
+		<Banner status="warning">
 			<BannerTitle>
-				{events.length === 0
-					? 'No Google Calendar overlaps in the checked range.'
-					: events.length === 1
-						? 'This overlaps a Google Calendar event'
-						: `This overlaps ${events.length} Google Calendar events`}
+				{events.length === 1
+					? 'This overlaps a Google Calendar event'
+					: `This overlaps ${events.length} Google Calendar events`}
 			</BannerTitle>
 			<BannerDescription>
-				Checked range: {result.checkedRange.start}–{result.checkedRange.end} ({result.checkedRange.timeZone}).
+				Checked range: {checkedPeriod(result)}. Checked at:{' '}
+				{mainWhen(new Date(result.checkedAt), result.checkedRange.timeZone, null, 0)}. You can still save this change.
+				Google Calendar must confirm it before it is saved.
 			</BannerDescription>
-			<BannerDescription>{result.checkedAt}</BannerDescription>
-			{events.length ? (
-				<BannerDescription>
-					You can still save this change. Google Calendar must confirm it before it is saved.
-				</BannerDescription>
-			) : null}
 			{(expanded ? events : events.slice(0, 2)).map((event) => (
 				<div key={event.eventKey} className="text-body">
 					<p>
 						{event.title || 'Busy'} · {eventTime(event)}
 					</p>
-					<p className="text-caption">{event.matchedStartsAt.join(', ')}</p>
+					<p className="text-caption">
+						{event.matchedStartsAt
+							.map((instant) => mainWhen(new Date(instant), result.checkedRange.timeZone, null, 0))
+							.join(', ')}
+					</p>
 				</div>
 			))}
 			{events.length > 2 ? (
@@ -289,32 +336,50 @@ function CompleteConflicts({ result }: { result: Extract<GoogleConflictResult, {
 	)
 }
 
+function SeriesCheckRange({ check, pending }: { check: ConflictCheck; pending: boolean }) {
+	const result = check.result
+	return (
+		<>
+			<DateField
+				nullable
+				id="google-check-through"
+				label="Check through"
+				value={check.through}
+				onChange={check.setThrough}
+				min={check.minimum}
+				disabled={pending}
+				helper="The last date is set automatically. You can change it. This does not end the series."
+				error={
+					check.through !== null && !check.rangeValid ? 'Choose the first lesson date or a later date.' : undefined
+				}
+			/>
+			<p className="text-caption text-muted-foreground">
+				Only the checked period is covered. Later occurrences have not been checked.
+			</p>
+			{check.ready && result?.state === 'complete' ? (
+				<p className="text-caption text-muted-foreground">Checked period: {checkedPeriod(result)}.</p>
+			) : null}
+		</>
+	)
+}
+
 export function GoogleConflicts({ check, pending }: { check: ConflictCheck; pending: boolean }) {
 	const result = check.result
 	const blocked = check.connection !== null && check.connection.state !== 'connected'
+	const state = check.connection?.state
+	const reconnectable =
+		check.connection?.allowedActions.some((action) => action === 'connect' || action === 'reconnect') ?? false
 	return (
 		<div className="flex flex-col gap-3" data-slot="google-conflicts" aria-live="polite" aria-busy={check.loading}>
-			{check.infinite ? (
-				<DateField
-					nullable
-					id="google-check-through"
-					label="Check through"
-					value={check.through}
-					onChange={check.setThrough}
-					min={check.minimum}
-					disabled={pending}
-					helper="Choose the last date to check for overlaps before saving. This does not end the series."
-					error={
-						check.through !== null && !check.rangeValid ? 'Choose the first lesson date or a later date.' : undefined
-					}
-				/>
-			) : null}
+			{check.infinite ? <SeriesCheckRange check={check} pending={pending} /> : null}
 			{blocked ? (
 				<Banner status="warning">
 					<BannerTitle>
-						{check.connection?.state === 'not_connected'
+						{state === 'not_connected'
 							? 'Connect Google Calendar to view events and make calendar changes.'
-							: 'Reconnect Google Calendar before checking overlaps or saving calendar changes.'}
+							: state === 'disconnecting' || state === 'disconnect_failed'
+								? DISCONNECT_COPY[state]
+								: 'Reconnect Google Calendar before checking overlaps or saving calendar changes.'}
 					</BannerTitle>
 				</Banner>
 			) : null}
@@ -333,12 +398,18 @@ export function GoogleConflicts({ check, pending }: { check: ConflictCheck; pend
 			>
 				{result?.state === 'unavailable' ? 'Check again' : 'Check overlaps'}
 			</Button>
-			<p className="text-caption text-muted-foreground">
-				Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.
-			</p>
-			<a href="/settings?tab=calendar" target="_blank" rel="noopener noreferrer" className="text-body underline">
-				Open calendar settings
-			</a>
+			{blocked ? (
+				<>
+					{reconnectable ? (
+						<p className="text-caption text-muted-foreground">
+							Keep this tab open to preserve your unsaved form. Reconnect in another tab, then return here.
+						</p>
+					) : null}
+					<a href="/settings?tab=calendar" target="_blank" rel="noopener noreferrer" className="text-body underline">
+						Open calendar settings
+					</a>
+				</>
+			) : null}
 		</div>
 	)
 }

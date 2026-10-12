@@ -2,12 +2,9 @@
 
 import { useState } from 'react'
 
-import { useRouter } from 'next/navigation'
-
 import { apiRequest } from '@/lib/api-client'
 
 export function useSignOut() {
-	const router = useRouter()
 	const [pending, setPending] = useState(false)
 
 	async function signOut() {
@@ -16,8 +13,7 @@ export function useSignOut() {
 		try {
 			await apiRequest('POST', '/auth/sign-out')
 		} finally {
-			router.replace('/login')
-			router.refresh()
+			window.location.replace('/login')
 		}
 	}
 

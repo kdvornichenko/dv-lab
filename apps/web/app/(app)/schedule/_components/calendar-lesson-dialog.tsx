@@ -22,8 +22,10 @@ import { LessonFooter } from './lesson-footer'
 import { LessonMoveForm } from './lesson-move-form'
 import { MoveSeriesDialog } from './move-series-dialog'
 import { useScheduleMutation } from './schedule-mutations'
+import type { MoveSeed } from './use-lesson-drag'
 
 type Props = {
+	moveSeed?: MoveSeed
 	event: CalendarLesson
 	window: GoogleScheduleWindow
 	now: Date
@@ -67,6 +69,7 @@ export function CalendarLessonDialog(props: Props) {
 }
 
 function LessonContent({
+	moveSeed,
 	event,
 	window,
 	now,
@@ -91,7 +94,7 @@ function LessonContent({
 		event: initial,
 	})
 	const { blocked } = useCalendarCommands()
-	const [moving, setMoving] = useState(false)
+	const [moving, setMoving] = useState(moveSeed !== undefined)
 	const [movePending, setMovePending] = useState(false)
 	const [confirming, setConfirming] = useState(false)
 	const [failure, setFailure] = useState(false)
@@ -172,6 +175,7 @@ function LessonContent({
 						/>
 						{moving ? (
 							<LessonMoveForm
+								moveSeed={moveSeed}
 								available={editable}
 								event={initial}
 								mainTimeZone={mainTimeZone}

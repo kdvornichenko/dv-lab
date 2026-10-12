@@ -3,6 +3,7 @@ import type { z } from 'zod'
 
 import type {
 	StudentDetail,
+	StudentLessonOption,
 	StudentResponse,
 	StudentsResponse,
 	openingBalanceRequest,
@@ -92,6 +93,14 @@ export async function listCards(
 		students: rows.map((row) => toCardRow(row, requiredFacts(facts, row.id))),
 		unassignedPayments: unassigned?.count ?? 0,
 	}
+}
+
+export async function listLessonStudents(executor: DbExecutor): Promise<StudentLessonOption[]> {
+	return executor
+		.select({ id: students.id, displayName: students.displayName, defaultLessonMinutes: students.defaultLessonMinutes })
+		.from(students)
+		.where(eq(students.status, 'active'))
+		.orderBy(sql`lower(${students.displayName})`, students.id)
 }
 
 export async function updateCard(

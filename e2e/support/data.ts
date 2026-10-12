@@ -94,7 +94,7 @@ export function teacherCredentials(): { login: string; password: string } {
 	const env =
 		FIXTURE_DATABASE === 'prelaunch'
 			? prelaunchTeacherEnvironment()
-			: parseEnv(readFileSync(resolve(ROOT, '.env'), 'utf8'))
+			: parseEnv(readFileSync(resolve(ROOT, FIXTURE_DATABASE === 'dev' ? ENV_FILE : '.env'), 'utf8'))
 	const login = env.DEV_TEACHER_LOGIN
 	const password = env.DEV_TEACHER_PASSWORD
 	if (!login) throw new Error('Set DEV_TEACHER_LOGIN')
@@ -120,7 +120,7 @@ raise exception 'E2E database guard refused'; end if; end $$;`
 		process.execPath,
 		prelaunch
 			? [`${ROOT}/e2e/support/prelaunch-sql.ts`]
-			: [`${ROOT}/scripts/dev-checks/sql.mjs`, `${ROOT}/${ENV_FILE}`, 'migrator', `${guard} ${query}`],
+			: [`${ROOT}/scripts/dev-checks/sql.mjs`, resolve(ROOT, ENV_FILE), 'migrator', `${guard} ${query}`],
 		{
 			cwd: ROOT,
 			encoding: 'utf8',
