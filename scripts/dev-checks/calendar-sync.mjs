@@ -572,6 +572,31 @@ commit;`)
 		retiredRow.requested !== 0
 	)
 		fail('claim 3', 'a retired connection was claimed or woken')
+
+	rows(`delete from google_sync_state where connection_id = ${quote(connection.id)}`)
+	const created = await store.ensureSyncRows(db, new Date())
+	const window = store.syncWindow(new Date(), fx.zone)
+	const [fresh] = rows(
+		`select sync_token, epoch::int as epoch, window_start, window_end, revision::text as revision, next_poll_at <= now() as poll_due,
+next_full_at <= now() as full_due, claimed_until from google_sync_state where connection_id = ${quote(connection.id)}`
+	)
+	const bootstrap = await store.claim(db, connection.id)
+	const bootstrapOk =
+		created === 1 &&
+		fresh?.sync_token === null &&
+		fresh.epoch === 0 &&
+		fresh.revision === '0' &&
+		new Date(fresh.window_start).getTime() === window.start.getTime() &&
+		new Date(fresh.window_end).getTime() === window.end.getTime() &&
+		fresh.poll_due &&
+		fresh.full_due &&
+		fresh.claimed_until === null &&
+		bootstrap.length === 1 &&
+		bootstrap[0].syncToken === null
+	console.log(
+		`claim 4 bootstrap row: created ${created} token_null ${fresh?.sync_token === null} epoch ${fresh?.epoch} window_matches ${new Date(fresh?.window_start).getTime() === window.start.getTime()} due ${Boolean(fresh?.poll_due && fresh?.full_due)} claimed_for_full_pass ${bootstrap.length === 1 && bootstrap[0].syncToken === null}`
+	)
+	if (!bootstrapOk) fail('claim 4', 'a connection without a sync row did not get a due row ready for a full pass')
 	console.log('CLAIM_OK')
 }
 
@@ -792,6 +817,47 @@ where connection_id = ${quote(id)}`)
 			live.starts_at === beforeMissing.starts_at
 		console.log(`loop 6 unseen bound single with a live read: status ${live.status} as_returned ${liveOk}`)
 		if (!liveOk) fail('loop 6', 'a live read did not keep the row as Google returned it')
+
+		const failure = () => {
+			const [row] = rows(
+				`select failure_count, issue, claimed_until, full_started_at, next_poll_at, processed_seq::int as processed, requested_seq::int as requested
+from google_sync_state where connection_id = ${quote(id)}`
+			)
+			return row
+		}
+		google.onPage = async () => {
+			throw new Error('synthetic provider failure')
+		}
+		bump(id)
+		await sync.wake(id)
+		const first = failure()
+		const firstOk =
+			first.failure_count === 1 &&
+			first.issue === 'provider_unavailable' &&
+			first.claimed_until === null &&
+			first.full_started_at === null &&
+			near(first.next_poll_at, Date.now() + 60000, 15000) &&
+			first.processed < first.requested
+		bump(id)
+		await sync.wake(id)
+		const backedOff = failure()
+		rows(`update google_sync_state set next_poll_at = now() - interval '1 second' where connection_id = ${quote(id)}`)
+		await sync.wake(id)
+		const second = failure()
+		const secondOk =
+			backedOff.failure_count === 1 &&
+			second.failure_count === 2 &&
+			near(second.next_poll_at, Date.now() + 120000, 15000)
+		google.onPage = null
+		rows(`update google_sync_state set next_poll_at = now() - interval '1 second' where connection_id = ${quote(id)}`)
+		await sync.wake(id)
+		const recovered = failure()
+		const recoveredOk =
+			recovered.failure_count === 0 && recovered.issue === null && recovered.processed === recovered.requested
+		console.log(
+			`loop 7 failed pass: failure_count ${first.failure_count} issue ${first.issue} claim_released ${first.claimed_until === null} backoff_1min ${near(first.next_poll_at, Date.now() + 60000, 15000)} request_waits_for_backoff ${backedOff.failure_count === 1} second_backoff_2min ${secondOk} recovered ${recoveredOk}`
+		)
+		if (!firstOk || !secondOk || !recoveredOk) fail('loop 7', 'a failed pass did not back off or recover')
 	} finally {
 		release()
 		for (const loop of loops) await loop.close()
