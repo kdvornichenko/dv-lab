@@ -6,13 +6,14 @@ import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
 
-import { eventRange, eventTitle } from './calendar-event-details'
+import { eventRange, eventStatus, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
 
 interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	event: CalendarEventView
 	layout: BlockLayout | null
 	mainTimeZone: string
+	editable: boolean
 	onOpen: (event: CalendarEventView) => void
 	onClick?: ComponentProps<'button'>['onClick']
 }
@@ -21,6 +22,7 @@ export function LessonBlock({
 	event: calendarEvent,
 	layout,
 	mainTimeZone,
+	editable,
 	onOpen,
 	onClick,
 	className,
@@ -30,7 +32,7 @@ export function LessonBlock({
 	const title = eventTitle(calendarEvent)
 	const range = eventRange(calendarEvent, mainTimeZone)
 	const cancelled = calendarEvent.status === 'cancelled'
-	const availability = cancelled ? 'Cancelled' : calendarEvent.blocksTime ? 'Busy' : 'Available'
+	const availability = calendarEvent.blocksTime ? 'Busy' : 'Available'
 	const short = layout !== null && layout.height < 34
 	const position: CSSProperties | undefined =
 		layout === null
@@ -48,7 +50,7 @@ export function LessonBlock({
 			data-event-key={calendarEvent.eventKey}
 			data-slot="calendar-event"
 			data-binding={calendarEvent.binding.kind}
-			aria-label={`${title}, ${range}, ${availability}, Read-only`}
+			aria-label={`${title}, ${range}, ${eventStatus(calendarEvent)}, ${availability}, ${editable ? 'Editable' : 'Read-only'}`}
 			style={{ ...position, ...style }}
 			onClick={(event) => {
 				onClick?.(event)

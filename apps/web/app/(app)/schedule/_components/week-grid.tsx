@@ -56,6 +56,7 @@ interface WeekGridProps {
 	currentYear?: number
 	onOpen: (event: CalendarEventView) => void
 	canMove: (event: CalendarEventView) => boolean
+	canEdit: (event: CalendarEventView) => boolean
 	onMove: (event: CalendarEventView, seed: MoveSeed) => void
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
@@ -63,6 +64,7 @@ interface WeekGridProps {
 }
 
 function AllDayBand({
+	canEdit,
 	dates,
 	events,
 	mainTimeZone,
@@ -70,6 +72,7 @@ function AllDayBand({
 	currentYear,
 	onOpen,
 }: {
+	canEdit: (event: CalendarEventView) => boolean
 	dates: string[]
 	events: readonly CalendarEventView[]
 	mainTimeZone: string
@@ -89,6 +92,7 @@ function AllDayBand({
 				<div key={date} data-date={date} className="min-w-0 space-y-1 border-l border-gcal-line p-1">
 					{eventsOn(allDay, date, mainTimeZone).map((event) => (
 						<EventTooltip
+							editable={canEdit(event)}
 							key={event.eventKey}
 							event={event}
 							layout={null}
@@ -280,6 +284,7 @@ export function WeekGrid({
 	onOpen,
 	onSlot,
 	canMove,
+	canEdit,
 	onMove,
 	frame = null,
 	scrollTopRef,
@@ -358,6 +363,7 @@ export function WeekGrid({
 					})}
 				</div>
 				<AllDayBand
+					canEdit={canEdit}
 					dates={dates}
 					events={events}
 					mainTimeZone={mainTimeZone}
@@ -421,6 +427,7 @@ export function WeekGrid({
 									) : null}
 									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT).map(({ event, layout }) => (
 										<EventTooltip
+											editable={canEdit(event)}
 											key={event.eventKey}
 											event={event}
 											mainTimeZone={mainTimeZone}

@@ -125,6 +125,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 			Date.parse(event.when.startsAt) > Math.max(now.getTime(), Date.now())
 		)
 	}
+	function canEdit(event: CalendarEventView) {
+		return editable && data !== null && canEditCalendarEvent(event, data)
+	}
 
 	function closeEvent() {
 		setSelection(null)
@@ -206,6 +209,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 								currentYear={currentYear}
 								onOpen={openEvent}
 								canMove={canMove}
+								canEdit={canEdit}
 								onMove={(event, seed) => {
 									if (!canMove(event)) return
 									openEvent(event)

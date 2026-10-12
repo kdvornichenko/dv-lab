@@ -21,10 +21,19 @@ interface EventTooltipProps {
 	secondZone: string | null
 	currentYear: number
 	mainTimeZone: string
+	editable: boolean
 	onOpen: (event: CalendarEventView) => void
 }
 
-export function EventTooltip({ event, layout, secondZone, currentYear, mainTimeZone, onOpen }: EventTooltipProps) {
+export function EventTooltip({
+	event,
+	layout,
+	secondZone,
+	currentYear,
+	mainTimeZone,
+	editable,
+	onOpen,
+}: EventTooltipProps) {
 	const [open, setOpen] = useState(false)
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -78,6 +87,7 @@ export function EventTooltip({ event, layout, secondZone, currentYear, mainTimeZ
 				<div data-slot="event-tooltip" className="flex flex-col gap-1">
 					<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
 					<CalendarEventDetails
+						editable={editable}
 						event={event}
 						timeZone={mainTimeZone}
 						secondZone={secondZone}
@@ -87,6 +97,7 @@ export function EventTooltip({ event, layout, secondZone, currentYear, mainTimeZ
 			}
 		>
 			<LessonBlock
+				editable={editable}
 				event={event}
 				mainTimeZone={mainTimeZone}
 				layout={layout}
