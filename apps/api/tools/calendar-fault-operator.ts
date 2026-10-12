@@ -12,7 +12,7 @@ import {
 	writeRuntimeControl,
 	type CalendarFaultManifest,
 	type CalendarFaultObservation,
-} from '../../../../e2e/support/calendar-fault-protocol.ts'
+} from '../../../e2e/support/calendar-fault-protocol.ts'
 import { verifyCalendarFaultRuntime } from './calendar-fault-runtime.ts'
 
 function ready(manifest: CalendarFaultManifest): void {

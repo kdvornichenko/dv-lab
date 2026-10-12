@@ -1,5 +1,7 @@
 # Calendar fault harness: C13 operator handoff
 
+Боевой образ api файлов `calendar-fault-*.mjs` не содержит: их собирает `yarn workspace @dv-lab/api build:faults` (`apps/api/tsdown.faults.config.ts`), пути `/app/apps/api/dist/...` ниже относятся только к отдельно собранному образу с этой сборкой.
+
 Source/static candidate. Реальные SSH, DB, OAuth, Google pagination и fault recovery: **UNVERIFIED** до приёмки на attested main runtime. Новый HTTP endpoint, порт или environment не требуется. Оператор — Server guy; parent владеет functional evidence и fixtures.
 
 ## Runtime и authority
