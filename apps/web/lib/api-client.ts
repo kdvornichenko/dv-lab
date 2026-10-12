@@ -49,7 +49,7 @@ export async function apiRequest<T>(
 function notifyCache(response: Response, method: ApiMethod, path: string): void {
 	if (typeof window === 'undefined') return
 	if (response.status === 401 && path !== '/auth/sign-in') window.location.replace('/login?reason=expired')
-	if (!response.ok || method === 'GET' || path === '/auth/renew') return
+	if (!response.ok || method === 'GET' || path === '/auth/renew' || path === '/google/conflicts') return
 	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
 		SESSION_CACHE_CHANNEL?.postMessage('changed')
 	} else window.dispatchEvent(new Event(API_CACHE_INVALIDATED))

@@ -31,9 +31,10 @@ export function useLessonStudents(enabled: boolean): StudentsState {
 			request.abort()
 			request = new AbortController()
 			const current = request
-			setState({ kind: 'loading' })
+			setState((previous) => (previous.kind === 'ready' ? previous : { kind: 'loading' }))
 			void readStudents(current.signal).then((result) => {
-				if (!current.signal.aborted) setState(result)
+				if (current.signal.aborted) return
+				setState((previous) => (result.kind === 'error' && previous.kind === 'ready' ? previous : result))
 			})
 		}
 		load()

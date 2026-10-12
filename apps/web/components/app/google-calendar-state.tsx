@@ -235,7 +235,7 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 		void read()
 		if (initialCallback.current !== null) router.replace('/settings?tab=calendar', { scroll: false })
 		function returned() {
-			if (!inflight.current && document.visibilityState === 'visible') void refresh()
+			if (!inflight.current && document.visibilityState === 'visible') void read()
 		}
 		window.addEventListener('focus', returned)
 		document.addEventListener('visibilitychange', returned)
@@ -245,15 +245,15 @@ export function useGoogleConnection(callbackOutcome: string | null = null) {
 			window.removeEventListener('focus', returned)
 			document.removeEventListener('visibilitychange', returned)
 		}
-	}, [read, refresh, router])
+	}, [read, router])
 
 	useEffect(() => {
 		if (view.snapshot?.state !== 'disconnecting') return
 		const timer = window.setTimeout(() => {
-			if (!inflight.current && document.visibilityState === 'visible') void refresh()
+			if (!inflight.current && document.visibilityState === 'visible') void read()
 		}, 2000)
 		return () => window.clearTimeout(timer)
-	}, [view, refresh])
+	}, [view, read])
 
 	async function connect() {
 		const result = await apiRequest<unknown>('POST', '/google/connect', {})
