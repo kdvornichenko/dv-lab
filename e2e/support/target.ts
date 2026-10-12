@@ -8,7 +8,7 @@ import { record, text } from './input.ts'
 
 export const PRELAUNCH_SCOPE = 'prelaunch-main-synthetic-fixtures-test-google-primary'
 export const FIXTURE_DATABASE = fixtureDatabase()
-export const ENV_FILE = FIXTURE_DATABASE === 'test' ? '.env.test' : '.env'
+export const ENV_FILE = localEnvironmentFile()
 export const BASE = targetOrigin()
 export const HTTPS_TARGET = BASE !== 'http://localhost:3000'
 export const PRIVATE_DIR = resolve(
@@ -31,6 +31,28 @@ function fixtureDatabase(): 'dev' | 'test' | 'prelaunch' {
 	if (value !== 'dev' && value !== 'test' && value !== 'prelaunch')
 		throw new Error('E2E fixture database must be dev, test or prelaunch')
 	return value
+}
+
+function localEnvironmentFile(): string {
+	const file = process.env.E2E_LOCAL_ENV_FILE
+	if (!file) return FIXTURE_DATABASE === 'test' ? '.env.test' : '.env'
+	if (
+		FIXTURE_DATABASE !== 'dev' ||
+		(process.env.E2E_TARGET_ORIGIN ?? 'http://localhost:3000') !== 'http://localhost:3000'
+	)
+		throw new Error('External local env requires the existing dev target')
+	if (!isAbsolute(file) || realpathSync(file) !== file)
+		throw new Error('External local env must be canonical and absolute')
+	const env = parseEnv(readFileSync(file, 'utf8'))
+	for (const key of ['DATABASE_URL', 'MIGRATOR_DATABASE_URL']) {
+		const value = env[key]
+		try {
+			if (!value || !new URL(value).pathname.endsWith('_dev')) throw new Error('Invalid dev database')
+		} catch {
+			throw new Error('External local env must target _dev; connection details suppressed')
+		}
+	}
+	return file
 }
 
 function targetOrigin(): string {

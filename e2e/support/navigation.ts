@@ -1,5 +1,9 @@
 import { expect, type Locator, type Page, type Request } from '@playwright/test'
 
+import { readSettings } from './api.ts'
+import { record, text, uuid } from './input.ts'
+import { navigationStudent } from './navigation-account.ts'
+
 async function clickTiming(link: Locator): Promise<number> {
 	await link.evaluate((element) => {
 		element.addEventListener(
@@ -184,4 +188,84 @@ export async function navigationJourney(page: Page): Promise<void> {
 	await page.getByRole('tab', { name: 'General', exact: true }).click()
 	await expect(page).toHaveURL(/\/settings\?tab=general$/)
 	await sessionIsolation(page, threshold)
+}
+
+async function studentBody(page: Page): Promise<void> {
+	await expect(page.getByRole('heading', { name: /^Signed in as / })).toBeVisible()
+	await teacherBodyAbsent(page)
+}
+
+async function teacherBodyAbsent(page: Page): Promise<void> {
+	expect(await page.getByRole('button', { name: 'Open account menu' }).count()).toBe(0)
+	expect(await page.getByLabel('Pays soon threshold (lessons)').count()).toBe(0)
+	expect(await page.getByRole('searchbox', { name: 'Search students', exact: true }).count()).toBe(0)
+	for (const name of ['Today', 'Settings', 'Students', 'Schedule'])
+		expect(await page.getByRole('heading', { name, exact: true }).count()).toBe(0)
+}
+
+export async function navigationIdentityJourney(page: Page): Promise<void> {
+	page.setDefaultTimeout(10000)
+	await signIn(page)
+	const teacher = record(record(await (await page.request.get<unknown>('/api/auth/me')).json()).account)
+	expect(text(teacher.role)).toBe('teacher')
+	const settingsBefore = await readSettings(page.request)
+	const credentials = await navigationStudent(page.request)
+	await page.locator('a[href="/settings"]').first().click()
+	await expect(page.getByLabel('Pays soon threshold (lessons)')).toBeEnabled()
+	await page.locator('a[href="/students"]').first().click()
+	await expect(page.getByRole('searchbox', { name: 'Search students', exact: true })).toBeVisible()
+	await page.getByRole('button', { name: 'Open account menu' }).click()
+	await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+	await expect(page).toHaveURL((url) => url.pathname === '/login')
+	await page.waitForLoadState('load')
+	expect((await page.request.get<unknown>('/api/auth/me')).status()).toBe(401)
+	let privilegedReads = 0
+	const count = (request: Request) => {
+		if (/^\/api\/(students|settings|today|schedule)(\/|$)/.test(new URL(request.url()).pathname)) privilegedReads += 1
+	}
+	page.on('request', count)
+	try {
+		await page.getByLabel('Login or email').fill(credentials.login)
+		await page.locator('#password').fill(credentials.password)
+		await page.getByRole('button', { name: 'Sign in to dv-lab' }).click()
+	} catch {
+		throw new Error('Owned student public login failed; credential details suppressed')
+	}
+	await expect(page).toHaveURL('http://localhost:3000/')
+	const student = record(record(await (await page.request.get<unknown>('/api/auth/me')).json()).account)
+	expect(text(student.role)).toBe('student')
+	expect(uuid(student.id) !== uuid(teacher.id)).toBe(true)
+	try {
+		await studentBody(page)
+		await page.goBack({ waitUntil: 'commit' })
+		await teacherBodyAbsent(page)
+		await studentBody(page)
+		for (const path of ['/settings', '/students', '/schedule']) {
+			await page.goto(path)
+			await studentBody(page)
+		}
+		expect(privilegedReads).toBe(0)
+		for (const path of ['/api/students', '/api/settings', '/api/today', '/api/schedule/week?start=2026-10-12'])
+			expect((await page.request.get<unknown>(path)).status()).toBe(403)
+	} finally {
+		page.off('request', count)
+		await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+		await expect(page).toHaveURL((url) => url.pathname === '/login')
+	}
+	await signIn(page)
+	expect(JSON.stringify(await readSettings(page.request)) === JSON.stringify(settingsBefore)).toBe(true)
+	await page.getByRole('button', { name: 'Open account menu' }).click()
+	await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+	await expect(page).toHaveURL((url) => url.pathname === '/login')
+	console.log(
+		JSON.stringify({
+			navigation: 'different-identity',
+			teacher: 'passed',
+			student: 'passed',
+			privilegedReads,
+			deniedReads: 4,
+			settings: 'unchanged',
+			cleanup: 'passed',
+		})
+	)
 }

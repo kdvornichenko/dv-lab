@@ -6,7 +6,7 @@ import { calendarNextCards } from './support/calendar-next.ts'
 import { calendarTodayUi, calendarTodayUnavailable } from './support/calendar-today.ts'
 import { BASE, cleanupFixtures } from './support/data.ts'
 import { addDays, VN, vnToday } from './support/dates.ts'
-import { navigationJourney } from './support/navigation.ts'
+import { navigationIdentityJourney, navigationJourney } from './support/navigation.ts'
 import { expect, test, type Card, type Fx } from './support/test.ts'
 import {
 	concurrentSettings,
@@ -39,7 +39,11 @@ import {
 test.describe('navigation cache', () => {
 	test.use({ storageState: { cookies: [], origins: [] } })
 	test('instant navigation preserves Settings state and browser history', async ({ page }) => {
-		await navigationJourney(page)
+		if (process.env.E2E_NAV_IDENTITY_ONLY === '1') await navigationIdentityJourney(page)
+		else {
+			await navigationJourney(page)
+			await navigationIdentityJourney(page)
+		}
 	})
 })
 
