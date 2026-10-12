@@ -30,12 +30,17 @@ import { useLessonStudents } from './use-lesson-students'
 import { useScheduleWeek } from './use-schedule-week'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
+const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
+
 function ScheduleLoading() {
 	return (
 		<PageScroll>
 			<PageHeader title="Schedule" />
-			<div className={FRAME_HEIGHT}>
-				<SkeletonTable rows={10} className="h-full" />
+			<div className="space-y-4">
+				<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
+				<div className={FRAME_HEIGHT}>
+					<SkeletonTable rows={10} className="h-full" />
+				</div>
 			</div>
 		</PageScroll>
 	)
@@ -131,6 +136,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 
 	function closeEvent() {
 		setSelection(null)
+		setMoveSeed(undefined)
 		requestAnimationFrame(() => {
 			if (returnFocus.current?.isConnected) returnFocus.current.focus()
 			else titleRef.current?.focus()
@@ -183,23 +189,29 @@ function LoadedSchedule({ now }: { now: Date }) {
 					aria-busy={week.kind === 'loading'}
 				>
 					{week.kind === 'loading' && data === null ? (
-						<div className={FRAME_HEIGHT}>
-							<SkeletonTable rows={10} className="h-full" />
-						</div>
+						<>
+							<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
+							<div className={FRAME_HEIGHT}>
+								<SkeletonTable rows={10} className="h-full" />
+							</div>
+						</>
 					) : (
 						<>
-							<CalendarReadNotice
-								read={read}
-								write={write}
-								timeZone={mainTimeZone}
-								onRefresh={async () => {
-									await reload()
-								}}
-							/>
-							{read.state === 'fresh' && events.length === 0 ? (
-								<p className="text-body text-muted-foreground">No Google Calendar events in this range.</p>
-							) : null}
+							<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
+								<CalendarReadNotice
+									read={read}
+									write={write}
+									timeZone={mainTimeZone}
+									onRefresh={async () => {
+										await reload()
+									}}
+								/>
+							</div>
 							<WeekGrid
+								emptyNote={
+									read.state === 'fresh' && events.length === 0 ? 'No Google Calendar events in this range.' : null
+								}
+								placed={selected !== null && moveSeed !== undefined ? { event: selected, seed: moveSeed } : null}
 								monday={monday}
 								mainTimeZone={mainTimeZone}
 								today={today}
@@ -246,6 +258,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 				secondZone={zone}
 				currentYear={currentYear}
 				onClose={closeEvent}
+				onMoveDiscard={() => setMoveSeed(undefined)}
 				onRefresh={refreshForms}
 			/>
 		</>
@@ -261,6 +274,7 @@ function SelectedEventDialog({
 	secondZone,
 	currentYear,
 	onClose,
+	onMoveDiscard,
 	onRefresh,
 }: {
 	moveSeed?: MoveSeed
@@ -271,6 +285,7 @@ function SelectedEventDialog({
 	secondZone: string | null
 	currentYear: number
 	onClose: () => void
+	onMoveDiscard: () => void
 	onRefresh: () => void
 }) {
 	if (event === null) return null
@@ -285,6 +300,7 @@ function SelectedEventDialog({
 				mainTimeZone={timeZone}
 				secondZone={secondZone}
 				onClose={onClose}
+				onMoveDiscard={onMoveDiscard}
 				onRefresh={onRefresh}
 			/>
 		)

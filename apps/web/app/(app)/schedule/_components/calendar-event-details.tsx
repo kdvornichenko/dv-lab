@@ -12,6 +12,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatFullDate, formatRange, mainRange, secondRange } from '@/lib/schedule-format'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
@@ -131,12 +132,14 @@ export function CalendarEventDialog({
 				if (!open) onClose()
 			}}
 		>
-			<DialogContent showCloseButton={false} className="max-h-[calc(100svh-2rem)] overflow-y-auto">
+			<DialogContent showCloseButton={false} className="overflow-hidden">
 				<DialogHeader>
 					<DialogTitle className="wrap-anywhere">{eventTitle(event)}</DialogTitle>
 					<DialogDescription className="sr-only">Read-only calendar details</DialogDescription>
 				</DialogHeader>
-				<CalendarEventDetails event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+					<CalendarEventDetails event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
+				</ScrollArea>
 				<DialogFooter>
 					<Button variant="secondary" onClick={onClose}>
 						Close

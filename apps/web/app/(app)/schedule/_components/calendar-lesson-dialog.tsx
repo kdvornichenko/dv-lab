@@ -33,6 +33,7 @@ type Props = {
 	secondZone: string | null
 	student?: { id: string; name: string }
 	onClose: () => void
+	onMoveDiscard?: () => void
 	onRefresh: () => void
 }
 
@@ -77,6 +78,7 @@ function LessonContent({
 	secondZone,
 	student,
 	onClose,
+	onMoveDiscard,
 	onRefresh,
 	asOf,
 	series,
@@ -147,12 +149,14 @@ function LessonContent({
 						/>
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="max-h-[inherit] px-1 -mx-1">
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
 					<div className="flex flex-col gap-4 py-1">
 						<p className="text-body">{event.status === 'cancelled' ? 'Cancelled' : 'Planned'}</p>
 						<CalendarFormStatus
 							entry={command.entry}
 							blocked={command.blocked}
+							connectionShown={moving}
+
 							onViewSchedule={() => {
 								command.detach()
 								onClose()
@@ -186,7 +190,10 @@ function LessonContent({
 								onPendingChange={setMovePending}
 								onDiscard={() => {
 									if (movePending) onClose()
-									else setMoving(false)
+									else {
+										setMoving(false)
+										onMoveDiscard?.()
+									}
 								}}
 								onStale={onRefresh}
 								onRefresh={onRefresh}

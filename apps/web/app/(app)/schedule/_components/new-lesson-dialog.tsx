@@ -219,6 +219,8 @@ export function NewLessonDialog({
 						<CalendarFormStatus
 							entry={command.entry}
 							blocked={command.blocked}
+							connectionShown
+
 							onViewSchedule={() => {
 								command.detach()
 								onClose()
@@ -226,7 +228,7 @@ export function NewLessonDialog({
 						/>
 						<div className="flex flex-col gap-4 py-1">
 							<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
-							<NewLessonNotices students={students} failed={failed} />
+							<NewLessonNotices failed={failed} />
 							<NewLessonStudent
 								studentId={studentId}
 								chooseStudent={chooseStudent}
@@ -333,7 +335,7 @@ export function NewLessonDialog({
 											{seriesPhrase(weekday, time)} {input.label} until you end the series.
 										</p>
 									) : null}
-									<GoogleConflicts check={conflicts} pending={pending} />
+									<GoogleConflicts check={conflicts} pending={pending} durationMinutes={minutes} />
 								</div>
 							</div>
 						</div>

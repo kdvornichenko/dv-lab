@@ -176,16 +176,13 @@ export function LessonMoveForm({
 			<CalendarFormStatus
 				entry={command.entry}
 				blocked={command.blocked}
+				connectionShown
+
 				onViewSchedule={() => {
 					command.detach()
 					onDiscard()
 				}}
 			/>
-			{failed !== null ? (
-				<Banner status="error" data-slot="move-lesson-failed">
-					<BannerTitle>{failed}</BannerTitle>
-				</Banner>
-			) : null}
 			<div className="grid items-start gap-4 sm:grid-cols-2">
 				<DateField
 					id="move-lesson-date"
@@ -253,7 +250,14 @@ export function LessonMoveForm({
 					</p>
 				)}
 			</div>
-			<GoogleConflicts check={conflicts} pending={pending} />
+			<GoogleConflicts check={conflicts} pending={pending} durationMinutes={block.durationMinutes} />
+			<div data-slot="move-lesson-failure-slot" className="min-h-13">
+				{failed !== null ? (
+					<Banner status="error" data-slot="move-lesson-failed">
+						<BannerTitle>{failed}</BannerTitle>
+					</Banner>
+				) : null}
+			</div>
 			<div className="flex flex-wrap justify-end gap-2">
 				<Button type="button" variant="ghost" size="compact" disabled={disabled} onClick={onDiscard}>
 					Discard changes

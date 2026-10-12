@@ -211,6 +211,8 @@ export function MoveSeriesDialog({
 						<CalendarFormStatus
 							entry={command.entry}
 							blocked={command.blocked}
+							connectionShown
+
 							onViewSchedule={() => {
 								command.detach()
 								onClose()
@@ -256,7 +258,7 @@ export function MoveSeriesDialog({
 								<span className="text-body text-foreground tabular-nums">{preview}</span>
 							</div>
 						) : null}
-						<GoogleConflicts check={conflicts} pending={pending} />
+						<GoogleConflicts check={conflicts} pending={pending} durationMinutes={rule.durationMinutes} />
 						<p data-slot="move-series-note" className="text-caption text-muted-foreground">
 							Lessons before this date stay as they are. Lessons you already moved keep their new time. Cancelled
 							lessons from this date on are reset.

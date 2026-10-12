@@ -22,6 +22,8 @@ interface EventTooltipProps {
 	currentYear: number
 	mainTimeZone: string
 	editable: boolean
+	movable?: boolean
+	ghost?: boolean
 	onOpen: (event: CalendarEventView) => void
 }
 
@@ -32,6 +34,8 @@ export function EventTooltip({
 	currentYear,
 	mainTimeZone,
 	editable,
+	movable,
+	ghost,
 	onOpen,
 }: EventTooltipProps) {
 	const [open, setOpen] = useState(false)
@@ -81,7 +85,7 @@ export function EventTooltip({
 		<Tooltip
 			side="right"
 			sideOffset={8}
-			forceOpen={open}
+			forceOpen={open && !ghost}
 			className="max-w-[280px] rounded-xl bg-surface-4 p-3 text-foreground shadow-surface-3 [text-box:normal] supports-[text-box:trim-both]:py-3"
 			content={
 				<div data-slot="event-tooltip" className="flex flex-col gap-1">
@@ -98,6 +102,8 @@ export function EventTooltip({
 		>
 			<LessonBlock
 				editable={editable}
+				movable={movable}
+				ghost={ghost}
 				event={event}
 				mainTimeZone={mainTimeZone}
 				layout={layout}

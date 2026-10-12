@@ -54,12 +54,17 @@ function BackButton() {
 function SectionTabs({ children, disabled }: { children: ReactNode; disabled: boolean }) {
 	return (
 		<Tabs defaultValue="overview">
-			<TabsList aria-label="Student sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
-				<TabItem value="overview" label="Overview" disabled={disabled} />
-				<TabItem value="notes" label="Notes" disabled={disabled} />
-				<TabItem value="vocabulary" label="Vocabulary" disabled={disabled} />
-				<TabItem value="payments" label="Payments" disabled={disabled} />
-			</TabsList>
+			<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
+				<TabsList
+					aria-label="Student sections"
+					className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+				>
+					<TabItem value="overview" label="Overview" disabled={disabled} />
+					<TabItem value="notes" label="Notes" disabled={disabled} />
+					<TabItem value="vocabulary" label="Vocabulary" disabled={disabled} />
+					<TabItem value="payments" label="Payments" disabled={disabled} />
+				</TabsList>
+			</div>
 			<TabPanel value="overview" className="mt-4">
 				{children}
 			</TabPanel>
@@ -268,12 +273,17 @@ export function StudentProfile({ id }: { id: string }) {
 					}
 				/>
 				<Tabs value={tab} onValueChange={setTab}>
-					<TabsList aria-label="Student sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
-						<TabItem value="overview" label="Overview" />
-						<TabItem value="notes" label="Notes" />
-						<TabItem value="vocabulary" label="Vocabulary" />
-						<TabItem value="payments" label="Payments" />
-					</TabsList>
+					<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
+						<TabsList
+							aria-label="Student sections"
+							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+						>
+							<TabItem value="overview" label="Overview" />
+							<TabItem value="notes" label="Notes" />
+							<TabItem value="vocabulary" label="Vocabulary" />
+							<TabItem value="payments" label="Payments" />
+						</TabsList>
+					</div>
 					<TabPanel value="overview" className="mt-4">
 						<OverviewTab
 							student={student}
