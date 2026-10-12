@@ -404,6 +404,23 @@ Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-mark
 5. The palette finds students and offers "New chat" and "Add payment"; a student profile shows payments, lessons and "Ask in chat"; Today, Schedule and Chat are usable at phone width.
 
 **Plans**: TBD
+
+- [ ] 23-01-PLAN.md
+- [ ] 23-02-PLAN.md
+- [ ] 23-03-PLAN.md
+- [ ] 23-04-PLAN.md
+- [ ] 23-05-PLAN.md
+- [ ] 23-06-PLAN.md
+- [ ] 23-07-PLAN.md
+- [ ] 23-08-PLAN.md
+- [ ] 23-09-PLAN.md
+- [ ] 23-10-PLAN.md
+- [ ] 23-11-PLAN.md
+- [ ] 23-12-PLAN.md
+- [ ] 23-13-PLAN.md
+- [ ] 23-14-PLAN.md
+- [ ] 23-15-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 24: Google Calendar Connection and Outbound Sync
@@ -532,7 +549,7 @@ Plans:
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 0/18           | Planned     | -          |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/TBD          | Not started | -          |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/15           | Planned     | -          |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 11/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/TBD          | Not started | -          |
 | 26. IELTS Section                                | v2.0      | 0/TBD          | Not started | -          |
