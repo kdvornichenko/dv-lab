@@ -5,12 +5,12 @@ import { useCallback, useRef } from 'react'
 import { TimePair } from '@/components/app/time-pair'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
-import { dayNumber, gutterLabel, hourLabel, secondRange, weekdayCaps } from '@/lib/schedule-format'
+import { dayNumber, formatDate, gutterLabel, hourLabel, secondRange, weekdayCaps } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { addDays, zonedInstant, zonedParts } from '@dv-lab/core'
+import { addDays, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { eventRange, eventTitle } from './calendar-event-details'
 import { eventsOn, placeDay } from './calendar-layout'
@@ -60,6 +60,8 @@ interface WeekGridProps {
 	onMove: (event: CalendarEventView, seed: MoveSeed) => void
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
+	placed?: { event: CalendarEventView; seed: MoveSeed } | null
+	emptyNote?: string | null
 	scrollTopRef?: { current: number }
 }
 
@@ -83,27 +85,31 @@ function AllDayBand({
 	const allDay = events.filter((event) => event.when.kind === 'all_day')
 	if (allDay.length === 0) return null
 	return (
-		<div
-			data-slot="calendar-all-day"
-			className={cn(COLUMNS, 'max-h-36 shrink-0 [scrollbar-gutter:stable] overflow-y-auto border-b border-gcal-line')}
-		>
-			<span className="px-2 py-1 text-right text-caption text-muted-foreground">All day</span>
-			{dates.map((date) => (
-				<div key={date} data-date={date} className="min-w-0 space-y-1 border-l border-gcal-line p-1">
-					{eventsOn(allDay, date, mainTimeZone).map((event) => (
-						<EventTooltip
-							editable={canEdit(event)}
-							key={event.eventKey}
-							event={event}
-							layout={null}
-							mainTimeZone={mainTimeZone}
-							secondZone={secondZone}
-							currentYear={currentYear}
-							onOpen={onOpen}
-						/>
-					))}
-				</div>
-			))}
+		<div data-slot="calendar-all-day" className="shrink-0 border-b border-gcal-line">
+			<div
+				className={cn(
+					COLUMNS,
+					'scroll-fade max-h-36 [scrollbar-gutter:stable] overflow-y-auto [--scroll-fade-size:var(--scroll-fade-size-compact)]'
+				)}
+			>
+				<span className="px-2 py-1 text-right text-caption text-muted-foreground">All day</span>
+				{dates.map((date) => (
+					<div key={date} data-date={date} className="min-w-0 space-y-1 border-l border-gcal-line p-1">
+						{eventsOn(allDay, date, mainTimeZone).map((event) => (
+							<EventTooltip
+								editable={canEdit(event)}
+								key={event.eventKey}
+								event={event}
+								layout={null}
+								mainTimeZone={mainTimeZone}
+								secondZone={secondZone}
+								currentYear={currentYear}
+								onOpen={onOpen}
+							/>
+						))}
+					</div>
+				))}
+			</div>
 		</div>
 	)
 }
@@ -157,6 +163,7 @@ function CalendarAgenda({
 	today,
 	mainTimeZone,
 	secondZone,
+	emptyNote,
 	onOpen,
 }: {
 	dates: string[]
@@ -164,10 +171,16 @@ function CalendarAgenda({
 	today: string
 	mainTimeZone: string
 	secondZone: string | null
+	emptyNote: string | null
 	onOpen: (event: CalendarEventView) => void
 }) {
 	return (
 		<div data-slot="calendar-agenda" className="space-y-4 lg:hidden">
+			{emptyNote !== null ? (
+				<div data-slot="calendar-agenda-empty" className="flex justify-center py-8">
+					<p className="rounded-lg bg-surface-2 px-3 py-1 text-center text-body text-muted-foreground">{emptyNote}</p>
+				</div>
+			) : null}
 			{dates.map((date) => {
 				const dayEvents = eventsOn(events, date, mainTimeZone)
 				if (dayEvents.length === 0) return null
@@ -247,6 +260,80 @@ function SlotFrameBlock({
 	)
 }
 
+function overlapsOthers(
+	events: readonly CalendarEventView[],
+	source: CalendarEventView,
+	frame: SlotFrame,
+	mainTimeZone: string
+): boolean {
+	let start: number
+	try {
+		start = zonedInstant(frame.date, frame.time, mainTimeZone).getTime()
+	} catch {
+		return false
+	}
+	const end = start + frame.durationMinutes * 60000
+	return eventsOn(events, frame.date, mainTimeZone).some(
+		(event) =>
+			event.eventKey !== source.eventKey &&
+			event.when.kind === 'timed' &&
+			Date.parse(event.when.startsAt) < end &&
+			Date.parse(event.when.endsAt) > start
+	)
+}
+
+function MoveFrameBlock({
+	event,
+	frame,
+	mainTimeZone,
+	currentYear,
+	overlap,
+	state,
+}: {
+	event: CalendarEventView
+	frame: SlotFrame
+	mainTimeZone: string
+	currentYear: number
+	overlap: boolean
+	state: 'drag' | 'draft'
+}) {
+	const start = timeMinutes(frame.time)
+	const range = `${clock(start)}–${clock(start + frame.durationMinutes)}`
+	const sameDay =
+		event.when.kind === 'timed' && scheduleDate(new Date(event.when.startsAt), mainTimeZone) === frame.date
+	const chip = sameDay ? range : `${formatDate(frame.date, currentYear)}, ${range}`
+	const height = Math.min(frame.durationMinutes, DAY_MINUTES - start) * MINUTE_HEIGHT
+	const short = height < 34
+	return (
+		<>
+			<div
+				data-slot="week-grid-move-frame"
+				data-state={state}
+				data-overlap={overlap ? '' : undefined}
+				data-range={range}
+				className={cn(
+					'pointer-events-none absolute z-30 overflow-hidden rounded-md bg-selected/85 px-[6px] py-[2px] text-foreground shadow-surface-4 ring-inset',
+					overlap ? 'ring-2 ring-warning' : 'ring-1 ring-foreground/40'
+				)}
+				style={{ top: start * MINUTE_HEIGHT, height, left: 2, width: 'calc(100% - 6px)' }}
+			>
+				<span className="block truncate text-caption font-semibold">
+					{eventTitle(event)}
+					{short ? `, ${range}` : ''}
+				</span>
+				{!short ? <span className="block truncate text-caption tabular-nums">{range}</span> : null}
+			</div>
+			<span
+				data-slot="week-grid-move-chip"
+				className="pointer-events-none absolute left-1 z-30 rounded-md bg-surface-4 px-2 py-0.5 text-micro whitespace-nowrap text-foreground tabular-nums shadow-surface-4"
+				style={start < 30 ? { top: start * MINUTE_HEIGHT + height + 4 } : { top: start * MINUTE_HEIGHT - 22 }}
+			>
+				{chip}
+			</span>
+		</>
+	)
+}
+
 function GutterPair({
 	local,
 	second,
@@ -287,6 +374,8 @@ export function WeekGrid({
 	canEdit,
 	onMove,
 	frame = null,
+	placed = null,
+	emptyNote = null,
 	scrollTopRef,
 }: WeekGridProps) {
 	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
@@ -294,6 +383,25 @@ export function WeekGrid({
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
+	const moving = lessonDrag.drag
+	const moveSource = moving === null ? null : (events.find((event) => event.eventKey === moving.eventKey) ?? null)
+	const moveFrame =
+		moving !== null && moving.frame !== null && moveSource !== null
+			? { event: moveSource, frame: moving.frame, state: 'drag' as const }
+			: placed !== null
+				? {
+						event: placed.event,
+						frame: {
+							...placed.seed,
+							durationMinutes:
+								placed.event.when.kind === 'timed'
+									? (Date.parse(placed.event.when.endsAt) - Date.parse(placed.event.when.startsAt)) / 60000
+									: 60,
+						},
+						state: 'draft' as const,
+					}
+				: null
+	const ghostKey = moving?.eventKey ?? (moveFrame?.state === 'draft' ? moveFrame.event.eventKey : null)
 	const { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn } = useSlotDrag(
 		bodyRef,
 		HOUR_HEIGHT,
@@ -316,6 +424,7 @@ export function WeekGrid({
 				today={today}
 				mainTimeZone={mainTimeZone}
 				secondZone={secondZone?.id ?? null}
+				emptyNote={emptyNote}
 				onOpen={onOpen}
 			/>
 			<Elevated
@@ -323,9 +432,10 @@ export function WeekGrid({
 				shadowLevel={2}
 				data-slot="week-grid"
 				data-dragging={dragging ? '' : undefined}
+				data-moving={moving !== null ? '' : undefined}
 				className={cn(
 					FRAME_HEIGHT,
-					'hidden flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! lg:flex'
+					'relative hidden flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! lg:flex'
 				)}
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
@@ -395,8 +505,8 @@ export function WeekGrid({
 						{dates.map((date, dayIndex) => {
 							const isToday = date === today
 							const live = drag !== null && drag.date === date ? drag : null
-							const proposed = lessonDrag.frame ?? frame
-							const shownFrame = editable && !dragging && proposed?.date === date ? proposed : null
+							const shownFrame = editable && !dragging && moveFrame === null && frame?.date === date ? frame : null
+							const shownMove = moveFrame?.frame.date === date ? moveFrame : null
 							return (
 								<div
 									key={date}
@@ -428,6 +538,8 @@ export function WeekGrid({
 									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT).map(({ event, layout }) => (
 										<EventTooltip
 											editable={canEdit(event)}
+											movable={canMove(event)}
+											ghost={event.eventKey === ghostKey}
 											key={event.eventKey}
 											event={event}
 											mainTimeZone={mainTimeZone}
@@ -453,6 +565,16 @@ export function WeekGrid({
 											flip={dayIndex === 6}
 										/>
 									) : null}
+									{shownMove !== null ? (
+										<MoveFrameBlock
+											event={shownMove.event}
+											frame={shownMove.frame}
+											mainTimeZone={mainTimeZone}
+											currentYear={currentYear}
+											state={shownMove.state}
+											overlap={overlapsOthers(events, shownMove.event, shownMove.frame, mainTimeZone)}
+										/>
+									) : null}
 								</div>
 							)
 						})}
@@ -467,6 +589,14 @@ export function WeekGrid({
 						))}
 					</div>
 				</div>
+				{emptyNote !== null ? (
+					<div
+						data-slot="week-grid-empty"
+						className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center p-4"
+					>
+						<p className="rounded-lg bg-surface-2 px-3 py-1 text-center text-body text-muted-foreground">{emptyNote}</p>
+					</div>
+				) : null}
 			</Elevated>
 		</TooltipProvider>
 	)

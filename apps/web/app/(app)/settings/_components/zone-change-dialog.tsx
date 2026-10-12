@@ -11,6 +11,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { formatDay, formatTime, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
@@ -92,7 +93,7 @@ export function ZoneChangeDialog({
 				aria-describedby={`${descriptionId} ${changesId} ${staysId}`}
 				aria-busy={pending}
 				showCloseButton={false}
-				className="max-h-[calc(100dvh-2rem)] max-w-110 overflow-y-auto rounded-xl bg-surface-5 p-5 [overflow-wrap:anywhere] shadow-surface-5"
+				className="max-w-110 overflow-hidden rounded-xl bg-surface-5 p-5 [overflow-wrap:anywhere] shadow-surface-5"
 			>
 				<DialogHeader className="gap-1">
 					<DialogTitle style={{ fontVariationSettings: '"wght" 600' }}>Change the default time zone?</DialogTitle>
@@ -100,47 +101,49 @@ export function ZoneChangeDialog({
 						From {oldName} time ({oldLabel}) to {newName} time ({newLabel}).
 					</DialogDescription>
 				</DialogHeader>
-				<div className="flex flex-col gap-4">
-					<section id={changesId} className="text-body">
-						<h3 className="mb-2 font-semibold">What changes</h3>
-						<ul className="flex list-disc flex-col gap-1.5 pl-4">
-							<li>New lessons and series are created in {newName} time.</li>
-							<li>
-								Every time on screen is shown in {newName} time, and {oldLabel} becomes {newLabel}.
-							</li>
-							<li>
-								Today and the day boundaries follow {newName} time, so a lesson near midnight can move to another day in
-								balances.
-							</li>
-						</ul>
-					</section>
-					<section id={staysId} className="text-body">
-						<h3 className="mb-2 font-semibold">What stays</h3>
-						<ul className="flex list-disc flex-col gap-1.5 pl-4">
-							<li>
-								Lessons and series you already have keep the zone they were created in, so none of them moves in time.
-							</li>
-						</ul>
-					</section>
-					{example !== null ? <LessonExample example={example} oldMain={oldMain} newMain={newMain} /> : null}
-					{secondZone !== null && sameTimeZone(secondZone, newMain) ? (
-						<p className="text-caption text-muted-foreground">
-							{newName} is also your second zone, so the second zone becomes {oldName} ({oldLabel}).
-						</p>
-					) : null}
-					{error !== null ? (
-						<div>
-							<p role="alert" className="text-caption text-destructive">
-								{error}
+				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] px-1 -mx-1">
+					<div className="flex flex-col gap-4">
+						<section id={changesId} className="text-body">
+							<h3 className="mb-2 font-semibold">What changes</h3>
+							<ul className="flex list-disc flex-col gap-1.5 pl-4">
+								<li>New lessons and series are created in {newName} time.</li>
+								<li>
+									Every time on screen is shown in {newName} time, and {oldLabel} becomes {newLabel}.
+								</li>
+								<li>
+									Today and the day boundaries follow {newName} time, so a lesson near midnight can move to another day
+									in balances.
+								</li>
+							</ul>
+						</section>
+						<section id={staysId} className="text-body">
+							<h3 className="mb-2 font-semibold">What stays</h3>
+							<ul className="flex list-disc flex-col gap-1.5 pl-4">
+								<li>
+									Lessons and series you already have keep the zone they were created in, so none of them moves in time.
+								</li>
+							</ul>
+						</section>
+						{example !== null ? <LessonExample example={example} oldMain={oldMain} newMain={newMain} /> : null}
+						{secondZone !== null && sameTimeZone(secondZone, newMain) ? (
+							<p className="text-caption text-muted-foreground">
+								{newName} is also your second zone, so the second zone becomes {oldName} ({oldLabel}).
 							</p>
-							{stale ? (
-								<Button type="button" variant="ghost" className="mt-2" disabled={pending} onClick={onRefresh}>
-									Refresh
-								</Button>
-							) : null}
-						</div>
-					) : null}
-				</div>
+						) : null}
+						{error !== null ? (
+							<div>
+								<p role="alert" className="text-caption text-destructive">
+									{error}
+								</p>
+								{stale ? (
+									<Button type="button" variant="ghost" className="mt-2" disabled={pending} onClick={onRefresh}>
+										Refresh
+									</Button>
+								) : null}
+							</div>
+						) : null}
+					</div>
+				</ScrollArea>
 				<DialogFooter className="mt-4 flex-col-reverse sm:flex-row">
 					<Button
 						ref={keepRef}

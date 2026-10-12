@@ -158,10 +158,12 @@ export function CalendarReconnectLink({ text }: { text?: string }) {
 export function CalendarFormStatus({
 	entry,
 	blocked,
+	connectionShown = false,
 	onViewSchedule,
 }: {
 	entry: CommandEntry | null
 	blocked: boolean
+	connectionShown?: boolean
 	onViewSchedule: () => void
 }) {
 	const { view } = useCalendarCommands()
@@ -170,9 +172,7 @@ export function CalendarFormStatus({
 	const state = view.connection?.state
 	if (state === 'disconnecting' || state === 'disconnect_failed')
 		return <CalendarReconnectLink text={DISCONNECT_COPY[state]} />
-	return view.connection?.allowedActions.some((action) => action === 'connect' || action === 'reconnect') ? (
-		<CalendarReconnectLink />
-	) : (
-		<CalendarRecovery />
-	)
+	if (view.connection?.allowedActions.some((action) => action === 'connect' || action === 'reconnect'))
+		return connectionShown ? null : <CalendarReconnectLink />
+	return <CalendarRecovery />
 }

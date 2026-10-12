@@ -373,10 +373,15 @@ export function SettingsScreen() {
 						window.history.pushState(null, '', destination)
 				}}
 			>
-				<TabsList aria-label="Settings sections" className="max-sm:w-0 max-sm:min-w-full max-sm:overflow-x-auto">
-					<TabItem value="general" label="General" />
-					<TabItem value="calendar" label="Google Calendar" />
-				</TabsList>
+				<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
+					<TabsList
+						aria-label="Settings sections"
+						className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+					>
+						<TabItem value="general" label="General" />
+						<TabItem value="calendar" label="Google Calendar" />
+					</TabsList>
+				</div>
 				<TabPanel value="general" keepMounted className="mt-4">
 					<div className="flex max-w-180 flex-col gap-4">
 						<DefaultZoneCard state={state} now={now} />

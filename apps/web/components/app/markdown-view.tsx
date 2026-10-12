@@ -69,17 +69,24 @@ const components: Components = {
 		<code className={cn('rounded-md bg-hover px-1 font-mono text-body', className)} {...props} />
 	),
 	pre: ({ node: _node, className, ...props }) => (
-		<pre
-			className={cn('overflow-x-auto rounded-lg bg-hover p-3 [&_code]:bg-transparent [&_code]:p-0', className)}
-			{...props}
-		/>
+		<div className="rounded-lg bg-hover">
+			<pre
+				className={cn(
+					'scroll-fade-x overflow-x-auto p-3 [--scroll-fade-size:var(--scroll-fade-size-compact)] [&_code]:bg-transparent [&_code]:p-0',
+					className
+				)}
+				{...props}
+			/>
+		</div>
 	),
 	blockquote: ({ node: _node, className, ...props }) => (
 		<blockquote className={cn('rounded-lg bg-hover px-3 py-2 text-muted-foreground', className)} {...props} />
 	),
 	table: ({ node: _node, className, ...props }) => (
-		<div className="overflow-x-auto rounded-lg ring-1 ring-border ring-inset">
-			<table className={cn('w-full min-w-max border-collapse', className)} {...props} />
+		<div className="rounded-lg ring-1 ring-border ring-inset">
+			<div className="scroll-fade-x overflow-x-auto [--scroll-fade-size:var(--scroll-fade-size-compact)]">
+				<table className={cn('w-full min-w-max border-collapse', className)} {...props} />
+			</div>
 		</div>
 	),
 	th: ({ node: _node, className, ...props }) => (
