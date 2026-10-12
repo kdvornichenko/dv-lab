@@ -22,6 +22,9 @@ export const calendarIssue = z.enum([
 	'disconnect_failed',
 	'invalid_provider_data',
 	'history_only',
+	'outside_sync_window',
+	'unsupported_recurrence',
+	'read_only_event',
 ])
 
 export type CalendarIssue = z.infer<typeof calendarIssue>

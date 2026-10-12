@@ -37,6 +37,9 @@ export const READ_ISSUES: Record<CalendarIssue, string> = {
 	disconnect_failed: 'Calendar changes are stopped. Google access removal is not confirmed.',
 	invalid_provider_data: 'Could not read a complete calendar view from Google.',
 	history_only: 'This record is local history. Calendar changes are unavailable.',
+	outside_sync_window: 'This week is outside the synced range. It is read-only.',
+	unsupported_recurrence: "This repeat rule can't be edited here. Change it in Google Calendar.",
+	read_only_event: "This kind of Google event can't be changed here.",
 }
 
 function checkedAt(read: Exclude<CalendarReadStatus, { state: 'unavailable' }>, timeZone: string) {
@@ -113,6 +116,9 @@ const ISSUE_TONES: Record<CalendarIssue, NoticeTone> = {
 	disconnect_failed: 'error',
 	invalid_provider_data: 'warning',
 	history_only: 'info',
+	outside_sync_window: 'info',
+	unsupported_recurrence: 'info',
+	read_only_event: 'info',
 }
 
 const TONE_STYLE: Record<NoticeTone, { icon: typeof Info; button: string; dot: string | null }> = {
