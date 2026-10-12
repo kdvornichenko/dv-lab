@@ -62,7 +62,7 @@ function preservedLessons(
 		const occurrence = occurrenceAt(tail, date, exception)
 		if (occurrence === null) continue
 		const mark = marks.get(date)
-		if (exception === undefined && (mark === undefined || mark === 'none')) continue
+		if ((exception === undefined || exception.kind === 'restored') && (mark === undefined || mark === 'none')) continue
 		lessons.push({
 			studentId: tail.studentId,
 			startsAt: occurrence.startsAt,
