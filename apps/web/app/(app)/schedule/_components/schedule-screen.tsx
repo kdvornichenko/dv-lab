@@ -12,21 +12,21 @@ import { ReadError } from '@/components/app/read-error'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable } from '@/components/ui/skeleton'
-import { apiRequest } from '@/lib/api-client'
 import { calendarLesson, canEditCalendarEvent } from '@/lib/lesson-actions'
 import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
-import type { CalendarEventView, GoogleScheduleWindow, StudentsResponse } from '@dv-lab/contracts'
+import type { CalendarEventView, GoogleScheduleWindow } from '@dv-lab/contracts'
 import { addDays, mondayOf, scheduleDate, scheduleToday, zonedInstant } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonCountDialog } from './lesson-count-dialog'
-import { NewLessonDialog, type StudentsState } from './new-lesson-dialog'
+import { NewLessonDialog } from './new-lesson-dialog'
 import { ScheduleToolbar } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
+import { useLessonStudents } from './use-lesson-students'
 import { useScheduleWeek } from './use-schedule-week'
 import { FRAME_HEIGHT, OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
@@ -70,12 +70,12 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
 	const commands = useCalendarCommands()
-	const [students, setStudents] = useState<StudentsState>({ kind: 'loading' })
 	const [draft, setDraft] = useState<{
 		seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes'>
 		mainTimeZone: string
 		asOf: string
 	} | null>(null)
+	const students = useLessonStudents(draft !== null)
 	const returnFocus = useRef<HTMLElement | null>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const [zone, setZone] = useSecondZone(week.query?.mainTimeZone ?? null)
@@ -101,13 +101,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const secondZone = zone ? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) } : null
 
 	const editable = read.state === 'fresh' && write.state === 'ready' && !commands.blocked && week.kind === 'ready'
-	async function openNew(seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes'>) {
+	function openNew(seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes'>) {
 		if (!editable || read.state !== 'fresh') return
-		setStudents({ kind: 'loading' })
 		setDraft({ seed, mainTimeZone, asOf: read.fetchedAt })
-		const result = await apiRequest<StudentsResponse>('GET', '/students')
-		setStudents(result.ok ? { kind: 'ready', rows: result.data.students } : { kind: 'error' })
-		await reload()
 	}
 	function refreshForms() {
 		setSelection(null)
@@ -155,7 +151,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 							<Button
 								leadingIcon={CalendarPlus}
 								disabled={!editable}
-								onClick={() => void openNew({ date: today, time: '09:00', durationMinutes: 60 })}
+								onClick={() =>
+									openNew({ date: monday === currentMonday ? today : monday, time: '09:00', durationMinutes: 60 })
+								}
 							>
 								New lesson
 							</Button>

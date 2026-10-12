@@ -30,6 +30,16 @@ export type PaymentSource = (typeof PAYMENT_SOURCES)[number]
 export const LESSON_MINUTES_MIN = 15
 export const LESSON_MINUTES_MAX = 240
 export const LESSON_MINUTES_DEFAULT = 60
+
+export const studentLessonOption = z.strictObject({
+	id: z.uuid(),
+	displayName: z.string(),
+	defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_MAX),
+})
+
+export const studentLessonOptionsResponse = z.strictObject({ students: z.array(studentLessonOption) })
+
+export type StudentLessonOption = z.infer<typeof studentLessonOption>
 export const STUDENT_TEXT_MAX_LENGTH = 200
 export const TIME_ZONE_MAX_LENGTH = 64
 export const SECTION_BODY_MAX_LENGTH = 20000

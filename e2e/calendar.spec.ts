@@ -14,6 +14,7 @@ import {
 	calendarWindowRecovery,
 } from './support/calendar-read-recovery.ts'
 import { conflictMoveUi, completeSeriesUi } from './support/calendar-series-ui.ts'
+import { studentChoiceJourney } from './support/calendar-students.ts'
 import { blockedHistoryUi, failedNoneUi, lostPostUi, pendingUi, recoveryUi } from './support/calendar-ui.ts'
 import { AUTH_FILE, BASE, PRIVATE_DIR, teacherCredentials } from './support/data.ts'
 import { mondayOf, vnToday } from './support/dates.ts'
@@ -21,6 +22,11 @@ import { record, text } from './support/input.ts'
 import { expect, test } from './support/test.ts'
 
 test.use({ storageState: { cookies: [], origins: [] } })
+
+test('[calendar] student choices recover automatically in the selected week', async ({ page }) => {
+	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
+	await studentChoiceJourney(page)
+})
 
 test('[calendar] conflicts cover every interval and page without partial success', async ({ page }) => {
 	await api(page.request, 'POST', '/auth/sign-in', teacherCredentials())
