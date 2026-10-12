@@ -18,7 +18,7 @@ import {
 import { currentConnection } from '../calendar/google-access.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
-import type { CalendarReadContext } from '../calendar/reads.ts'
+import type { CalendarReadContext } from '../calendar/read-state.ts'
 import type { SeriesEvidence } from '../calendar/series-observation.ts'
 import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'

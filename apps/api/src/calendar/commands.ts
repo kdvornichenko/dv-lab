@@ -22,7 +22,7 @@ import {
 } from './journal.ts'
 import type { ProviderEvent } from './provider-events.ts'
 import { traverseEvents } from './read-pages.ts'
-import type { CalendarReadContext } from './reads.ts'
+import type { CalendarReadContext } from './read-state.ts'
 import { observeSeries, seriesBinding } from './series-observation.ts'
 import { observeSingle } from './single-observation.ts'
 
