@@ -47,8 +47,10 @@ export function timeZoneIdentity(value: string): string | null {
 	}
 }
 
+const TIME_ZONE_NAME = /^(UTC|[A-Z][A-Za-z_]*(\/[A-Z][A-Za-z0-9_+-]*)+)$/
+
 export function isTimeZone(value: string): boolean {
-	return timeZoneIdentity(value) !== null
+	return TIME_ZONE_NAME.test(value) && timeZoneIdentity(value) !== null
 }
 
 export function isIsoDate(value: string): boolean {
