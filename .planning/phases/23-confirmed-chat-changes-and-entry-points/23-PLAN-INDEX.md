@@ -439,7 +439,7 @@ Protected23 inputs (all unchanged from pre-write):
 | Artifact          | SHA-256                                                          |
 | ----------------- | ---------------------------------------------------------------- |
 | 23-RESEARCH.md    | f73f6553f9998bc19b45c53e63d190f18f7f19bc6e19e17bdddde62a2184aae1 |
-| 23-PATTERNS.md    | 66ed2b2186f15d439550ab54ba80fd2f1d6c3574151329be2797ebd8a68926e4 |
+| 23-PATTERNS.md    | b76710931936160c43bac9af1a09ca4bc6bdfb66188d6557b693b76b750b5705 |
 | 23-UI-CHECK.md    | be253636d723340d3ff3b67909fd6f9c3c78ac87ef3454693a84ba355e0a9d6e |
 | 23-CONTEXT.md     | 09412364bc4839eb1e5039bf30e4cc9a146ea3ea604705eb53de511a74a6184b |
 | 23-UI-SPEC.md     | 35704f3b400a6f12ed744e3b83aaced9dcff6b8660304cb3a1c5264c1a055bd2 |
@@ -668,3 +668,5 @@ Full independent checker plus bounded corrections: CLEAN,0blockers, current repo
 Native gap recheck after corrections: `node /Users/kdvornichenko/.codex/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/23-confirmed-chat-changes-and-entry-points 'CHAT-05,CHAT-06,CHAT-10,CHAT-12,SHELL-03,SHELL-04,CARD-05' --raw` — exit0/enabled=true/passed=true/block=false;16/16 covered,0uncovered. HTML review explicitly SKIPPED for autonomous mode; no active BLOCKER/MAJOR requires a devils-advocate pass. No human approval, source implementation or runtime/model/provider/phone PASS is implied.
 
 Final owned-doc format check first exited1 for23-PATTERNS/23-SQUAD-REVIEW/ROADMAP. Configured Prettier3.9.9 normalized only those files. Each final byte SHA exactly matches formatting of its prior bytes; private23-document-format-proof.json preserves before/after hashes. Current PATTERNS row above is rebound; original embedded planner/checker hashes remain historical. All15 executable PLAN bytes, decisions, predicate resolutions, Source and current UI-SPEC bytes are unchanged by formatting.
+
+Staged whitespace check: `git diff --cached --check` first exited2 for four intentional two-space Markdown header breaks in23-PATTERNS. The initial document commit retained that failure. Those breaks now use separate paragraphs; their visible facts, mappings and code fingerprints are unchanged. Current PATTERNS hash row is rebound. The correction requires its own passing staged whitespace check before commit; no failed check is relabelled PASS.

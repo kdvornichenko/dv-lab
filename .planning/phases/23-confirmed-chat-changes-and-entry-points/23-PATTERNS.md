@@ -1,9 +1,13 @@
 # Phase 23: Confirmed Chat Changes and Entry Points — Pattern Map
 
-**Дата:** 2026-10-12. **Root:** `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`.  
-**HEAD:** `81a11752853260327ba385475547a912b152842b`. **Source pin:** `913fc5ae9286aca9a48b5ce4272699c846849874`; HEAD добавил только docs25.  
-**Inventory:** 67 targets: New18, Modified26, Conditional21, Generated2. **Analogs:** 45/67 (exact39, role-match6, none22).  
-**UI:** variant A/v40; final23 SHA-256 `28ca26a976ac47d3bf168d80e0472e458031f3fca1f316993c8ad2ba3b7bf03b`; 9 surfaces/69 native considerations.  
+**Дата:** 2026-10-12. **Root:** `/Users/kdvornichenko/.codex/worktrees/phase-24-google-calendar-preparation/dv-lab`.
+
+**HEAD:** `81a11752853260327ba385475547a912b152842b`. **Source pin:** `913fc5ae9286aca9a48b5ce4272699c846849874`; HEAD добавил только docs25.
+
+**Inventory:** 67 targets: New18, Modified26, Conditional21, Generated2. **Analogs:** 45/67 (exact39, role-match6, none22).
+
+**UI:** variant A/v40; final23 SHA-256 `28ca26a976ac47d3bf168d80e0472e458031f3fca1f316993c8ad2ba3b7bf03b`; 9 surfaces/69 native considerations.
+
 Все будущие изменения/signatures — **PROPOSED**. Read snapshot не доказывает runtime/Phase22/24/25 acceptance.
 
 ## Scope Card
