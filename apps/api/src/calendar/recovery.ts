@@ -155,7 +155,24 @@ async function observeAbsence(
 	await finishRead(access, stage, acknowledgement, 404)
 	const current = await readCommand(access.db, command.accountId, command.id)
 	if (await rejectObservedPrecondition(access, current)) return
+	if (recoveryExpired(current)) return failObserved(access, current, 'not_applied')
 	await requireRecovery(access.db, current, 'provider_unavailable')
+}
+
+async function unappliedPatch(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
+	if (command.request.method !== 'patch') return false
+	try {
+		const observed = await gateway.observeEvent(
+			access.accessToken,
+			command.calendarId,
+			command.request.eventId,
+			command.plan.capturedTimeZone,
+			access.signal
+		)
+		return observed.event.etag === command.request.ifMatch
+	} catch {
+		return false
+	}
 }
 
 export async function reconcileCommand(
@@ -231,8 +248,11 @@ async function handleReadFailure(
 	const current = await readCommand(access.db, command.accountId, command.id)
 	const external = error instanceof CalendarFault && error.code === 'external_change'
 	if (external && (await rejectObservedPrecondition(access, current))) return
-	if (error instanceof GoogleWriteFault && error.rateLimited)
-		return rateLimitedRead(access, current, error, explicit)
+	if (external && recoveryExpired(current)) {
+		const { prepared } = await preparedCommand(access.db, current)
+		if (await unappliedPatch(access, prepared, gateway)) return failObserved(access, current, 'not_applied')
+	}
+	if (error instanceof GoogleWriteFault && error.rateLimited) return rateLimitedRead(access, current, error, explicit)
 	if (explicit || stage.attempts.length >= MAX_READ_ATTEMPTS || external)
 		await requireRecovery(access.db, current, external ? 'external_change' : 'provider_unavailable')
 	if (error instanceof CalendarFault) throw error
@@ -287,9 +307,15 @@ async function rejectObservedPrecondition(access: CommandAccess, command: Comman
 		!stage.attempts.some((attempt) => attempt.httpStatus === 409 || attempt.httpStatus === 412)
 	)
 		return false
+	await failObserved(access, command, 'external_change')
+	return true
+}
+
+async function failObserved(access: CommandAccess, command: CommandRow, issue: 'external_change' | 'not_applied') {
 	await access.db.transaction(async (tx) => {
 		const current = await readCommand(tx, command.accountId, command.id)
 		if (current.state !== command.state || current.effect !== 'unknown') throw new CommandFault('precondition_failed')
+		const { stage } = await preparedCommand(tx, current)
 		await tx
 			.update(googleCommandStages)
 			.set({ state: 'failed', effect: 'none', updatedAt: sql`now()` })
@@ -299,12 +325,11 @@ async function rejectObservedPrecondition(access: CommandAccess, command: Comman
 			.set({
 				state: 'failed',
 				effect: 'none',
-				issue: 'external_change',
+				issue,
 				nextAction: 'retry_new_command',
 				updatedAt: sql`now()`,
 			})
 			.where(eq(googleCommands.id, command.id))
 		await retireReservations(tx, command.id)
 	})
-	return true
 }
