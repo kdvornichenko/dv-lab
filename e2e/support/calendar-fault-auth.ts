@@ -1,5 +1,6 @@
 import type { ClientRequest, IncomingMessage, OutgoingHttpHeaders } from 'node:http'
 import type { RequestOptions } from 'node:https'
+import { brotliDecompressSync, gunzipSync, inflateSync } from 'node:zlib'
 import { z } from 'zod'
 
 import { hash } from './calendar-fault-protocol.ts'
@@ -11,6 +12,23 @@ function headerRecord(value: NonNullable<RequestOptions['headers']>): value is O
 	return !Array.isArray(value)
 }
 
+function decode(body: Buffer, response: IncomingMessage): Buffer {
+	const options = { maxOutputLength: 65536 }
+	switch (response.headers['content-encoding']) {
+		case 'gzip':
+			return gunzipSync(body, options)
+		case 'deflate':
+			return inflateSync(body, options)
+		case 'br':
+			return brotliDecompressSync(body, options)
+		case undefined:
+		case 'identity':
+			return body
+		default:
+			throw new Error('Unsupported Calendar response encoding')
+	}
+}
+
 export function calendarFaultAuth(initialRefreshSha256: string) {
 	let refreshSha256 = initialRefreshSha256
 	const access = new Set<string>()
@@ -19,15 +37,19 @@ export function calendarFaultAuth(initialRefreshSha256: string) {
 		const form = new URLSearchParams(body)
 		if (form.get('grant_type') !== 'refresh_token' || hash(form.get('refresh_token') ?? '') !== refreshSha256) return
 		if (response.statusCode !== 200) return
-		let result = ''
+		const chunks: Buffer[] = []
+		let size = 0
 		response.on('data', (chunk: unknown) => {
 			if (!Buffer.isBuffer(chunk)) return
-			if (result.length <= 65536) result += chunk.toString('utf8')
+			size += chunk.length
+			if (size <= 65536) chunks.push(chunk)
 		})
 		response.on('end', () => {
-			if (result.length > 65536) return
+			if (size > 65536) return
 			try {
-				const input: unknown = JSON.parse(result)
+				const decoded = decode(Buffer.concat(chunks), response)
+				if (decoded.length > 65536) return
+				const input: unknown = JSON.parse(decoded.toString('utf8'))
 				const parsed = tokens.safeParse(input)
 				if (!parsed.success) return
 				access.clear()
