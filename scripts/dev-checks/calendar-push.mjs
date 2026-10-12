@@ -6,6 +6,7 @@ import { parseEnv } from 'node:util'
 import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, startCalendarApi, targetEnvFile } from './calendar-env.mjs'
 
 const PORT = 4106
+const CADDY = 'caddy'
 if (process.env.CALENDAR_PUSH_OFFLINE !== '1') {
 	const child = spawnSync(
 		process.execPath,
@@ -16,7 +17,6 @@ if (process.env.CALENDAR_PUSH_OFFLINE !== '1') {
 }
 
 const { createDb, resolveDatabaseUrl, googleSyncState } = await import(`${ROOT}/packages/db/src/index.ts`)
-const { eq } = await import('drizzle-orm')
 const { createCalendarWatch } = await import(`${ROOT}/apps/api/src/calendar/watch.ts`)
 
 const quote = (value) => `'${String(value).replaceAll("'", "''")}'`
@@ -156,8 +156,7 @@ commit;`)
 async function maintainChecks(db, connection) {
 	const logger = { info() {}, warn() {} }
 	const read = async () => {
-		const [row] = await db.select().from(googleSyncState).where(eq(googleSyncState.connectionId, connection.id))
-		return row
+		return (await db.select().from(googleSyncState)).find((row) => row.connectionId === connection.id)
 	}
 	rows(`update google_sync_state set channel_id = null, channel_resource_id = null, channel_token_hash = null, channel_expires_at = null,
 retiring_channel_id = null, retiring_resource_id = null, watch_issue = null where connection_id = ${quote(connection.id)}`)
@@ -236,12 +235,13 @@ retiring_channel_id = null, retiring_resource_id = null, watch_issue = null wher
 }
 
 function caddyCheck() {
-	const which = spawnSync('caddy', ['version'], { encoding: 'utf8' })
+	const binary = process.env.CADDY_BIN || CADDY
+	const which = spawnSync(binary, ['version'], { encoding: 'utf8' })
 	if (which.error || which.status !== 0) {
 		console.log('caddy: binary not available locally, CI runs caddy validate')
 		return
 	}
-	const result = spawnSync('caddy', ['validate', '--config', 'deploy/caddy/Caddyfile', '--adapter', 'caddyfile'], {
+	const result = spawnSync(binary, ['validate', '--config', 'deploy/caddy/Caddyfile', '--adapter', 'caddyfile'], {
 		cwd: ROOT,
 		encoding: 'utf8',
 	})
