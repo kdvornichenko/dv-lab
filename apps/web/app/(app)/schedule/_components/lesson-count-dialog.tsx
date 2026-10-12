@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { Check, Copy, ListChecks } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
@@ -99,17 +99,25 @@ export function LessonCountDialog() {
 	const [events, setEvents] = useState<EventDates>(new Map())
 	const [title, setTitle] = useState<string | null>(null)
 	const [copied, setCopied] = useState(false)
+	const requests = useRef(0)
 
 	function pick(next: DateRange | undefined) {
 		setRange(next)
 		setState('idle')
 		setTitle(null)
 		setCopied(false)
-		if (!next?.from || !next.to) return
-		const from = isoDay(next.from)
-		const to = isoDay(next.to)
+	}
+
+	function show() {
+		if (!range?.from) return
+		const from = isoDay(range.from)
+		const to = isoDay(range.to ?? range.from)
+		const id = ++requests.current
+		setTitle(null)
+		setCopied(false)
 		setState('loading')
 		void loadEvents(from, to).then((result) => {
+			if (id !== requests.current) return
 			if (result === null) {
 				const weeks = (Date.parse(to) - Date.parse(from)) / (7 * 86400000)
 				setState(weeks > MAX_WEEKS ? 'too_long' : 'error')
@@ -142,6 +150,9 @@ export function LessonCountDialog() {
 					<DialogDescription>Pick a date range, then an event, to get its dates by month.</DialogDescription>
 				</DialogHeader>
 				<Calendar mode="range" numberOfMonths={2} selected={range} onSelect={pick} className="mx-auto" />
+				<Button disabled={!range?.from || state === 'loading'} onClick={show}>
+					Show events
+				</Button>
 				{state === 'loading' ? <p className="text-body text-muted-foreground">Loading events…</p> : null}
 				{state === 'error' ? (
 					<p className="text-body text-muted-foreground">Google Calendar events could not be read. Try again.</p>
