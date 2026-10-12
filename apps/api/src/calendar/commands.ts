@@ -54,7 +54,12 @@ export function createCalendarCommands(deps: {
 						if ((await unresolvedCommands(access.db, context.accountId)).length)
 							throw new CommandFault('command_pending')
 						if (input.operation !== 'create') return await admitChange(access, context, input)
-						const window = await commandWindow(access.db, context.accountId, input.input.expectedVersion)
+						const window = await commandWindow(
+							access.db,
+							context.accountId,
+							access.connection.id,
+							input.input.expectedVersion
+						)
 						if (
 							window.snapshotRevision !== access.connection.snapshotRevision ||
 							window.generation !== access.connection.generation

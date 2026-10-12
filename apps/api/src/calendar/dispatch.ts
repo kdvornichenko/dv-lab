@@ -139,7 +139,7 @@ async function checkDispatchWindow(access: CommandAccess, command: PreparedCalen
 			throw new CommandFault('external_change')
 		return observed.privateProperties
 	}
-	const window = await commandWindow(access.db, command.accountId, command.expectedVersion)
+	const window = await commandWindow(access.db, command.accountId, command.connectionId, command.expectedVersion)
 	const before = new Map(command.plan.preconditions.map((event) => [event.eventId, event.etag]))
 	const observed = new Map<string, string>()
 	await traverseEvents(

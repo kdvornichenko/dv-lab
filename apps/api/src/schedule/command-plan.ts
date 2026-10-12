@@ -15,6 +15,7 @@ import {
 	type GoogleStageRequest,
 } from '@dv-lab/db'
 
+import { currentConnection } from '../calendar/credentials.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/reads.ts'
@@ -46,7 +47,12 @@ export type PreparedCalendarCommand = {
 	recoveryIssue?: CalendarIssue
 }
 
-export async function commandWindow(executor: DbExecutor, accountId: string, expectedVersion: string) {
+export async function commandWindow(
+	executor: DbExecutor,
+	accountId: string,
+	connectionId: string,
+	expectedVersion: string
+) {
 	if (!/^(0|[1-9]\d{0,18})$/.test(expectedVersion)) throw new CommandFault('precondition_failed')
 	const [window] = await executor
 		.select()
@@ -54,6 +60,7 @@ export async function commandWindow(executor: DbExecutor, accountId: string, exp
 		.where(
 			and(
 				eq(googleReadWindows.accountId, accountId),
+				eq(googleReadWindows.connectionId, connectionId),
 				eq(googleReadWindows.snapshotRevision, BigInt(expectedVersion)),
 				eq(googleReadWindows.coverageState, 'complete')
 			)
@@ -101,7 +108,7 @@ async function prepareCreateCommand(
 		.where(eq(students.id, input.input.studentId))
 		.for('update')
 	if (!student || student.status !== 'active') throw new CommandFault('invalid_request', 400)
-	const window = await commandWindow(executor, context.accountId, input.input.expectedVersion)
+	const window = await commandWindow(executor, context.accountId, connection.id, input.input.expectedVersion)
 	const endsAt = new Date(startsAt.getTime() + input.input.durationMinutes * 60000)
 	validateCreationWindow(connection, window, startsAt, endsAt, timeZone)
 	const events = await executor.select().from(googleReadEvents).where(eq(googleReadEvents.windowId, window.id))
@@ -118,7 +125,7 @@ async function lockCreationContext(
 	const [connection] = await executor
 		.select()
 		.from(googleConnections)
-		.where(eq(googleConnections.accountId, context.accountId))
+		.where(currentConnection(context.accountId))
 		.for('update')
 	if (!connection?.calendarId || connection.state !== 'connected') throw new CommandFault('connection_required')
 	if (connection.snapshotRevision.toString() !== input.input.expectedVersion)

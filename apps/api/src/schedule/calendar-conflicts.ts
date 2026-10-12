@@ -79,7 +79,12 @@ async function candidates(
 	const timeZone = settings.defaultTimeZone
 	if (proposal.operation === 'create') {
 		if (request.editedRef) throw new CalendarFault('external_change')
-		const window = await commandWindow(access.db, access.connection.accountId, request.expectedVersion)
+		const window = await commandWindow(
+			access.db,
+			access.connection.accountId,
+			access.connection.id,
+			request.expectedVersion
+		)
 		if (
 			window.connectionId !== access.connection.id ||
 			window.generation !== access.connection.generation ||

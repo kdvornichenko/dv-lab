@@ -13,6 +13,7 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
+import { currentConnection } from '../calendar/credentials.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
 import { masterRepresentation } from '../calendar/recurring.ts'
@@ -86,7 +87,7 @@ export async function prepareSeriesCommand(
 	const [connection] = await executor
 		.select()
 		.from(googleConnections)
-		.where(eq(googleConnections.accountId, context.accountId))
+		.where(currentConnection(context.accountId))
 		.for('update')
 	if (!connection?.calendarId || connection.state !== 'connected' || connection.id !== evidence.mapping.connectionId)
 		throw new CommandFault('connection_required')

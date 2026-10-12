@@ -15,6 +15,7 @@ const labels = {
 	disconnect: 'Disconnect',
 	retry_disconnect: 'Retry disconnect',
 	confirm_revoked: 'Confirm access removed',
+	switch: 'Connect another Google account',
 } as const
 
 async function snapshot(page: Page) {

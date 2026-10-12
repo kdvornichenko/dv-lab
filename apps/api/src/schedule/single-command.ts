@@ -15,6 +15,7 @@ import {
 } from '@dv-lab/db'
 
 import { cancelledSingles } from '../calendar/cancelled-singles.ts'
+import { currentConnection } from '../calendar/credentials.ts'
 import { replacementCommand } from '../calendar/event-mapping.ts'
 import type { GoogleGateway } from '../calendar/gateway.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
@@ -89,7 +90,7 @@ export async function prepareSingleCommand(
 	const [connection] = await executor
 		.select()
 		.from(googleConnections)
-		.where(eq(googleConnections.accountId, context.accountId))
+		.where(currentConnection(context.accountId))
 		.for('update')
 	if (!connection?.calendarId || connection.state !== 'connected') throw new CommandFault('connection_required')
 	if ((await unresolvedCommands(executor, context.accountId)).length) throw new CommandFault('command_pending')

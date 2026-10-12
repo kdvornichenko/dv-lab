@@ -63,9 +63,12 @@ export const googleConnections = pgTable(
 		snapshotRevision: bigint('snapshot_revision', { mode: 'bigint' }).notNull().default(0n),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+		retiredAt: timestamp('retired_at', { withTimezone: true }),
 	},
 	(t) => [
-		unique('google_connections_account_uq').on(t.accountId),
+		uniqueIndex('google_connections_current_uq')
+			.on(t.accountId)
+			.where(sql`${t.retiredAt} is null`),
 		unique('google_connections_owner_uq').on(t.accountId, t.id),
 		unique('google_connections_calendar_uq').on(t.accountId, t.id, t.calendarId),
 		check(
@@ -107,6 +110,10 @@ export const googleConnections = pgTable(
 		check(
 			'google_connections_resolution_ck',
 			sql`${t.disconnectResolution} in ('none', 'provider_confirmed', 'operator_confirmed') and (${t.disconnectResolution} = 'none' or (${t.state} = 'not_connected' and ${t.encryptedRefreshToken} is null and (${t.revokeAttemptId} is null or ${t.revokeFinishedAt} is not null)))`
+		),
+		check(
+			'google_connections_retired_ck',
+			sql`${t.retiredAt} is null or (${t.state} = 'not_connected' and ${t.encryptedRefreshToken} is null and ${t.retiredAt} >= ${t.createdAt})`
 		),
 		check(
 			'google_connections_revoke_ck',

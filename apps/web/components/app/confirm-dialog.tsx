@@ -21,6 +21,7 @@ interface ConfirmDialogProps {
 	pendingLabel: string
 	tone: 'primary' | 'destructive'
 	failureText: string
+	reserveFailure?: boolean
 	onConfirm: () => Promise<boolean>
 	onClose: () => void
 }
@@ -33,6 +34,7 @@ export function ConfirmDialog({
 	pendingLabel,
 	tone,
 	failureText,
+	reserveFailure = false,
 	onConfirm,
 	onClose,
 }: ConfirmDialogProps) {
@@ -61,12 +63,16 @@ export function ConfirmDialog({
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{body}</DialogDescription>
 				</DialogHeader>
-				{failed ? (
+				{reserveFailure ? (
+					<p role="alert" className="mt-4 min-h-11 text-body text-destructive">
+						{failed ? failureText : null}
+					</p>
+				) : failed ? (
 					<Banner status="error">
 						<BannerTitle>{failureText}</BannerTitle>
 					</Banner>
 				) : null}
-				<DialogFooter>
+				<DialogFooter className={reserveFailure ? 'mt-2' : undefined}>
 					<Button type="button" variant="secondary" autoFocus onClick={onClose} disabled={pending}>
 						{cancelLabel}
 					</Button>

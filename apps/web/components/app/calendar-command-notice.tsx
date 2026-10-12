@@ -96,7 +96,13 @@ export function CalendarCommandNotice({ entry, onViewSchedule }: { entry: Comman
 	)
 }
 
-export function CalendarRecovery({ showEmpty = true }: { showEmpty?: boolean }) {
+export function CalendarRecovery({
+	showEmpty = true,
+	emptyText = 'No unresolved calendar requests.',
+}: {
+	showEmpty?: boolean
+	emptyText?: string
+}) {
 	const { view, store } = useCalendarCommands()
 	const entries = view.entries.filter((entry) => entry.command?.state !== 'failed')
 	const empty = view.status === 'ready' && entries.length === 0 && view.connection?.pendingCommandCount === 0
@@ -117,7 +123,7 @@ export function CalendarRecovery({ showEmpty = true }: { showEmpty?: boolean }) 
 					</Button>
 				</div>
 			) : null}
-			{empty ? <p className="text-muted-foreground">No unresolved calendar requests.</p> : null}
+			{empty ? <p className="text-muted-foreground">{emptyText}</p> : null}
 			{entries.map((entry) => (
 				<div key={entry.requestId} className="space-y-2">
 					{entry.command ? <h3 className="text-body font-semibold">{OPERATIONS[entry.command.operation]}</h3> : null}

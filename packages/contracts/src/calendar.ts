@@ -56,16 +56,17 @@ export const googleConnectionAction = z.enum([
 	'disconnect',
 	'retry_disconnect',
 	'confirm_revoked',
+	'switch',
 ])
 
 const connectionActions: Record<
 	z.infer<typeof googleConnectionState>,
 	readonly z.infer<typeof googleConnectionAction>[]
 > = {
-	not_connected: ['connect'],
-	connected: ['disconnect'],
-	reconnect_required: ['reconnect', 'disconnect'],
-	permission_required: ['reconnect', 'disconnect'],
+	not_connected: ['connect', 'switch'],
+	connected: ['disconnect', 'switch'],
+	reconnect_required: ['reconnect', 'disconnect', 'switch'],
+	permission_required: ['reconnect', 'disconnect', 'switch'],
 	disconnecting: [],
 	disconnect_failed: ['retry_disconnect', 'confirm_revoked'],
 }
@@ -83,6 +84,7 @@ export const googleConnectionSnapshot = z
 	.refine((value) => value.state !== 'connected' || value.calendar !== null)
 	.refine((value) => value.allowedActions.every((action) => connectionActions[value.state].includes(action)))
 	.refine((value) => value.disconnectResolution === 'none' || value.state === 'not_connected')
+	.refine((value) => value.calendar !== null || !value.allowedActions.includes('switch'))
 
 export type GoogleConnectionSnapshot = z.infer<typeof googleConnectionSnapshot>
 
