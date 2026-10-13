@@ -28,7 +28,8 @@ import { masterSeriesRule, type MasterRule } from '../calendar/assign.ts'
 import { unresolvedCommands } from '../calendar/journal.ts'
 import type { ProjectionRow } from '../calendar/projection.ts'
 import type { MappingRow } from '../calendar/read-state.ts'
-import { applyLessonChange } from './changes.ts'
+import { applyLessonChange, clearsMark } from './changes.ts'
+import { settleMarkAfterMove } from './marks.ts'
 import {
 	lessonColumns,
 	markOf,
@@ -189,8 +190,9 @@ async function applySingle(tx: DbExecutor, row: ProjectionRow, lessonId: string,
 	const lesson = await lockedLesson(tx, lessonId)
 	if (lesson === 'locked') return 'skipped_locked'
 	if (!lesson) return UNCHANGED
-	if ((await markOf(tx, { kind: 'single', lessonId })) !== null) return 'skipped_marked'
-	if (!canChange(lesson.startsAt, now)) return 'skipped_past'
+	const ref = { kind: 'single', lessonId } as const
+	const mark = await markOf(tx, ref)
+	if (mark === 'done') return 'skipped_marked'
 	if (row.status === 'cancelled') {
 		if (lesson.status === 'cancelled') return UNCHANGED
 		await applyLessonChange(tx, lessonId, { status: 'cancelled' })
@@ -205,6 +207,7 @@ async function applySingle(tx: DbExecutor, row: ProjectionRow, lessonId: string,
 	}
 	if (google.startsAt.getTime() !== lesson.startsAt.getTime() || google.minutes !== lesson.durationMinutes) {
 		await applyLessonChange(tx, lessonId, { startsAt: google.startsAt, durationMinutes: google.minutes })
+		if (clearsMark('move', mark, google.startsAt, now)) await settleMarkAfterMove(tx, ref)
 		result = APPLIED
 	}
 	return result
@@ -248,8 +251,8 @@ async function applyOccurrence(
 		(!original || !('dateTime' in original) || Date.parse(original.dateTime) !== occurrence.naturalStart.getTime())
 	)
 		return UNCHANGED
-	if ((await markOf(tx, occurrence.ref)) !== null) return 'skipped_marked'
-	if (!canChange(occurrence.startsAt, now)) return 'skipped_past'
+	const mark = await markOf(tx, occurrence.ref)
+	if (mark === 'done') return 'skipped_marked'
 	if (row.status === 'cancelled') {
 		if (occurrence.status === 'cancelled') return UNCHANGED
 		const kept =
@@ -266,6 +269,7 @@ async function applyOccurrence(
 	if (natural) {
 		if (!exception || exception.kind === 'restored') return UNCHANGED
 		await writeException(tx, rule.id, originalOn, 'restored', null)
+		if (clearsMark('move', mark, google.startsAt, now)) await settleMarkAfterMove(tx, occurrence.ref)
 		return APPLIED
 	}
 	if (
@@ -278,6 +282,7 @@ async function applyOccurrence(
 		startsAt: google.startsAt,
 		durationMinutes: google.minutes,
 	})
+	if (clearsMark('move', mark, google.startsAt, now)) await settleMarkAfterMove(tx, occurrence.ref)
 	return APPLIED
 }
 

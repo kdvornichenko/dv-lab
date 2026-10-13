@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import type { CalendarIssue, ValidatedCalendarCommand } from '@dv-lab/contracts'
-import { canChange, localTimeCandidates } from '@dv-lab/core'
+import { localTimeCandidates } from '@dv-lab/core'
 import {
 	googleCommandPlan,
 	googleConnections,
@@ -16,7 +16,7 @@ import {
 import { currentConnection } from '../calendar/google-access.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
-import { syncFacts } from '../calendar/projection.ts'
+import { insideSyncWindow, syncFacts } from '../calendar/projection.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
 import type { SeriesEvidence } from '../calendar/series-observation.ts'
 import type { AbsenceProof, SingleEvidence } from '../calendar/single-observation.ts'
@@ -78,7 +78,6 @@ async function prepareCreateCommand(
 	const { connection, timeZone } = await lockCreationContext(executor, input, context)
 	const startsAt = localTimeCandidates(input.input.date, input.input.startTime, timeZone)[0]
 	if (!startsAt) throw new CommandFault('nonexistent_local_time', 400)
-	if (!canChange(startsAt, context.now)) throw new CommandFault('history_only')
 	const [student] = await executor
 		.select({ name: students.displayName, status: students.status })
 		.from(students)
@@ -87,7 +86,7 @@ async function prepareCreateCommand(
 	if (!student || student.status !== 'active') throw new CommandFault('invalid_request', 400)
 	const endsAt = new Date(startsAt.getTime() + input.input.durationMinutes * 60000)
 	const sync = await syncFacts(executor, connection.id)
-	if (sync && (startsAt < sync.windowStart || endsAt > sync.windowEnd)) throw new CommandFault('outside_sync_window')
+	if (!insideSyncWindow(sync, startsAt, endsAt)) throw new CommandFault('outside_sync_window')
 	const recurring =
 		input.input.repeats === 'weekly' ? await recurringCreation(executor, input, timeZone, connection) : null
 	return buildCreation(

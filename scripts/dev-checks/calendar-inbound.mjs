@@ -733,6 +733,8 @@ insert into lessons (id, student_id, starts_at, time_zone, duration_minutes, sta
 (${quote(markedSingle)}, ${quote(fx.fixtureCard)}, ${quote(markedAt.toISOString())}, ${quote(fx.zone)}, 60, 'scheduled');
 insert into lesson_marks (series_id, original_on, kind) values (${quote(past)}, ${quote(instances[2].date)}, 'done');
 insert into lesson_marks (lesson_id, kind) values (${quote(markedSingle)}, 'done');
+insert into lesson_marks (series_id, original_on, kind) values (${quote(past)}, ${quote(instances[3].date)}, 'none');
+insert into lesson_marks (lesson_id, kind) values (${quote(pastSingle)}, 'none');
 ${mapping('series', past, 'dvinbpast')}
 ${mapping('single', pastSingle, 'dvinbsingle')}
 ${mapping('single', markedSingle, 'dvinbmarked')}
@@ -1040,25 +1042,33 @@ async function inboundSection(db, fx) {
 			google.moved(marked.id, core.zonedInstant(marked.date, '13:00', fx.zone), 60),
 		])
 		const pastCancel = extra.instances[3]
+		const pastTarget = core.zonedInstant(core.addDays(marked.date, 1), '09:00', fx.zone)
 		const pastResult = await drive(sync, fx, google, notes, [
-			google.moved('dvinbsingle', core.zonedInstant(core.addDays(marked.date, 1), '09:00', fx.zone), 60),
+			google.moved('dvinbsingle', pastTarget, 60),
 			google.cancel(pastCancel.id),
 		])
 		const pastSingle = lessonOf(extra.pastSingle)
 		const pastExceptions = exceptionsOf(extra.past)
-		const singleKept = new Date(pastSingle.starts_at).getTime() === Date.parse(extra.resources.at(-2).start.dateTime)
-		const unstamped = !stamped(fx, marked.id) && !stamped(fx, 'dvinbsingle') && !stamped(fx, pastCancel.id)
-		const frozenOk =
+		const singleMoved = new Date(pastSingle.starts_at).getTime() === pastTarget.getTime()
+		const cancelledPast =
+			pastExceptions.length === 1 &&
+			pastExceptions[0].original_on === pastCancel.date &&
+			pastExceptions[0].kind === 'cancelled'
+		const markedUnstamped = !stamped(fx, marked.id)
+		const startedStamped = stamped(fx, 'dvinbsingle') && stamped(fx, pastCancel.id)
+		const startedOk =
 			markedMove.inbound?.skipped_marked >= 2 &&
-			pastResult.inbound?.skipped_past >= 2 &&
-			pastExceptions.length === 0 &&
-			singleKept &&
+			pastResult.inbound?.applied >= 2 &&
+			!pastResult.inbound?.skipped_past &&
+			cancelledPast &&
+			singleMoved &&
 			pastSingle.status === 'scheduled' &&
-			unstamped
+			markedUnstamped &&
+			startedStamped
 		console.log(
-			`inbound 5 marked and started: skipped_marked ${markedMove.inbound?.skipped_marked} skipped_past ${pastResult.inbound?.skipped_past} exceptions_on_past_series ${pastExceptions.length} past_single_kept ${singleKept} unstamped ${unstamped}`
+			`inbound 5 done frozen, started applied: skipped_marked ${markedMove.inbound?.skipped_marked} applied ${pastResult.inbound?.applied} skipped_past ${pastResult.inbound?.skipped_past} past_cancelled_with_none_mark ${cancelledPast} past_single_moved_with_none_mark ${singleMoved} done_unstamped ${markedUnstamped} started_stamped ${startedStamped}`
 		)
-		if (!frozenOk) fail('inbound 5', 'a marked or started lesson was changed by Google')
+		if (!startedOk) fail('inbound 5', 'a done lesson took a Google change or a started lesson without done did not')
 		steady('inbound 5')
 
 		const markedSingle = lessonOf(extra.markedSingle)
@@ -1118,7 +1128,8 @@ async function inboundSection(db, fx) {
 			old.ends_on !== null &&
 			old.ends_on < future.date &&
 			exceptionsOf(moved.local_entity_id).length === 0 &&
-			rows(`select count(*)::int as n from lesson_marks where series_id = ${quote(extra.past)}`)[0].n === 1
+			rows(`select count(*)::int as n from lesson_marks where series_id = ${quote(extra.past)} and kind = 'done'`)[0]
+				.n === 1
 		console.log(
 			`inbound 8 master time changed: series +${counts().series - seriesBefore} mapping_moved ${moved.local_entity_id !== extra.past} new_start ${replacement.start_time} from_first_changeable ${replacement.starts_on === future.date} old_ends ${old.ends_on !== null} mark_kept true`
 		)
