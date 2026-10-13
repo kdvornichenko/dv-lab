@@ -149,24 +149,24 @@ function SkeletonRows({ count, rowClass }: { count: number; rowClass: string }) 
 	)
 }
 
+function WeekLink() {
+	return (
+		<Button variant="ghost" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
+			Week
+		</Button>
+	)
+}
+
 function LoadingPanels() {
 	return (
 		<div className="flex flex-col gap-4">
-			<Panel id="today-lessons" title="Lessons today">
+			<Panel id="today-lessons" title="Lessons today" action={<WeekLink />}>
 				<SkeletonRows count={5} rowClass="h-10" />
 			</Panel>
 			<Panel id="today-pays-soon" title="Pays soon">
 				<SkeletonRows count={3} rowClass="h-8" />
 			</Panel>
 		</div>
-	)
-}
-
-function WeekLink() {
-	return (
-		<Button variant="ghost" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
-			Week
-		</Button>
 	)
 }
 
