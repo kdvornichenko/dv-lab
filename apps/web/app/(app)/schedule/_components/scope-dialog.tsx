@@ -102,11 +102,13 @@ export function ScopeDialog({
 	allowed,
 	onConfirm,
 	onClose,
+	onDone = onClose,
 }: {
 	kind: ScopeKind
 	allowed: readonly CalendarEditScope[]
 	onConfirm: (scope: CalendarEditScope) => Promise<boolean>
 	onClose: () => void
+	onDone?: () => void
 }) {
 	const copy = copyOf(kind)
 	const [scope, setScope] = useState<CalendarEditScope>('one')
@@ -122,7 +124,7 @@ export function ScopeDialog({
 		setPending(true)
 		const done = await onConfirm(scope)
 		setPending(false)
-		if (done) onClose()
+		if (done) onDone()
 		else setFailed(true)
 	}
 

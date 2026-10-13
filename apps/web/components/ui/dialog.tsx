@@ -77,9 +77,22 @@ interface DialogContentProps extends HTMLAttributes<HTMLDivElement> {
 	container?: HTMLElement | null
 	showCloseButton?: boolean
 	position?: 'center' | 'top'
+	backdropClassName?: string
 }
 const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
-	({ className, children, size = 'sm', container, showCloseButton = true, position = 'center', ...props }, ref) => {
+	(
+		{
+			className,
+			children,
+			size = 'sm',
+			container,
+			showCloseButton = true,
+			position = 'center',
+			backdropClassName,
+			...props
+		},
+		ref
+	) => {
 		const icons = useIcons()
 		const XIcon = icons.x
 		const shape = useShape()
@@ -104,7 +117,11 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 						return (
 							<motion.div
 								{...rest}
-								className={cn(container ? 'absolute' : 'fixed', 'inset-0 z-50 bg-black/40 dark:bg-black/80')}
+								className={cn(
+									container ? 'absolute' : 'fixed',
+									'inset-0 z-50 bg-black/40 dark:bg-black/80',
+									backdropClassName
+								)}
 								initial={{ opacity: 0 }}
 								animate={{ opacity: exiting ? 0 : 1 }}
 								transition={exiting ? spring.slow.exit : spring.slow}

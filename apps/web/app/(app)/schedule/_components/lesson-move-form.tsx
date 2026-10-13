@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ArrowRight, CalendarClock } from 'lucide-react'
 
-import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
+import { CalendarFormStatus, commandUnconfirmed } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { ConflictStatus, FormFooter, lessonOverlaps, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { LengthField } from '@/components/app/length-field'
@@ -18,6 +18,7 @@ import type { CalendarEditScope, CalendarEventView } from '@dv-lab/contracts'
 import { scheduleDate, zonedParts } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import type { DirectState } from './event-form'
 import {
 	gapMessage,
 	localTimeInput,
@@ -41,6 +42,9 @@ interface LessonMoveFormProps extends ScheduleFormContext {
 	currentMainTimeZone: string
 	secondZone: string | null
 	locked: boolean
+	direct?: boolean
+	onDirect?: (state: DirectState) => void
+	onClose: () => void
 	onPendingChange: (pending: boolean) => void
 	onDiscard: () => void
 	onStale: () => void
@@ -84,6 +88,9 @@ export function LessonMoveForm({
 	currentMainTimeZone,
 	secondZone,
 	locked,
+	direct = false,
+	onDirect,
+	onClose,
 	onPendingChange,
 	onDiscard,
 	onStale,
@@ -107,6 +114,9 @@ export function LessonMoveForm({
 	const [time, setTime] = useState<string | null>(moveSeed?.time ?? current.time)
 	const [length, setLength] = useState<number | null>(moveSeed?.durationMinutes ?? block.durationMinutes)
 	const [scoping, setScoping] = useState(false)
+	const [stage, setStage] = useState<'start' | 'asked' | 'sending' | 'shown'>(direct ? 'start' : 'shown')
+	const quick = stage !== 'shown'
+	const sent = useRef(false)
 	const lengthRef = useRef<HTMLInputElement>(null)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
@@ -122,9 +132,10 @@ export function LessonMoveForm({
 	const disabled = pending || locked
 
 	useEffect(() => {
+		if (quick) return
 		const timer = setTimeout(() => document.getElementById('move-lesson-date')?.focus(), 50)
 		return () => clearTimeout(timer)
-	}, [])
+	}, [quick])
 
 	const input = localTimeInput(date, time, context)
 	const target = input.instant
@@ -173,7 +184,7 @@ export function LessonMoveForm({
 				expectedStartsAt: block.startsAt,
 				expectedDefaultTimeZone: context.mainTimeZone,
 			},
-			conflicts.checked
+			quick ? undefined : conflicts.checked
 		)
 		if (result.kind === 'detached') return true
 		if (result.kind === 'zone_changed') {
@@ -209,6 +220,33 @@ export function LessonMoveForm({
 		await send('one')
 	}
 
+	if (stage === 'start') {
+		const ready =
+			available &&
+			!locked &&
+			!command.blocked &&
+			!context.stale &&
+			target !== null &&
+			!errors.date &&
+			!errors.time &&
+			!errors.length
+		const series = block.ref.kind === 'series'
+		setStage(!ready ? 'shown' : series ? 'asked' : 'sending')
+		if (ready && series) setScoping(true)
+	}
+
+	useEffect(() => {
+		if (stage !== 'sending' || sent.current) return
+		sent.current = true
+		void send('one').then(() => setStage('shown'))
+	})
+
+	const visible = !quick || (!scoping && commandUnconfirmed(command.entry))
+	const directState: DirectState = visible ? 'shown' : stage === 'asked' ? 'asking' : 'sending'
+	useEffect(() => {
+		if (direct) onDirect?.(directState)
+	}, [direct, directState, onDirect])
+
 	return (
 		<div role="group" aria-label="Move lesson" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
 			<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
@@ -216,7 +254,6 @@ export function LessonMoveForm({
 				entry={command.entry}
 				blocked={command.blocked}
 				connectionShown
-
 				onViewSchedule={() => {
 					command.detach()
 					onDiscard()
@@ -331,7 +368,11 @@ export function LessonMoveForm({
 					kind={{ subject: 'lesson', action: 'save' }}
 					allowed={scopes}
 					onConfirm={send}
-					onClose={() => setScoping(false)}
+					onClose={quick ? onClose : () => setScoping(false)}
+					onDone={() => {
+						setScoping(false)
+						setStage('shown')
+					}}
 				/>
 			) : null}
 		</div>

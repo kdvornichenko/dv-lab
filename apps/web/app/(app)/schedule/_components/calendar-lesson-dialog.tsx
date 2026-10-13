@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { calendarSeriesFor, canEditCalendarEvent, type CalendarLesson } from '@/lib/lesson-actions'
+import { cn } from '@/lib/utils'
 
 import type { CalendarEditScope, CalendarSeriesContext, GoogleScheduleWindow } from '@dv-lab/contracts'
 import { addDays, nextSeriesDate, scheduleDate, weekdayOf } from '@dv-lab/core'
@@ -17,6 +18,7 @@ import { addDays, nextSeriesDate, scheduleDate, weekdayOf } from '@dv-lab/core'
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
 import { EndSeriesDialog } from './end-series-dialog'
+import type { DirectState } from './event-form'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
 import { LessonMoveForm, type SeriesDraft } from './lesson-move-form'
@@ -138,6 +140,7 @@ function LessonContent({
 	})
 	const { blocked } = useCalendarCommands()
 	const [moving, setMoving] = useState(moveSeed !== undefined)
+	const [direct, setDirect] = useState<DirectState>(moveSeed !== undefined ? 'sending' : 'shown')
 	const [movePending, setMovePending] = useState(false)
 	const [confirming, setConfirming] = useState(false)
 	const [scoping, setScoping] = useState(false)
@@ -198,7 +201,12 @@ function LessonContent({
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="lg" showCloseButton={!pending}>
+			<DialogContent
+				size="lg"
+				showCloseButton={!pending}
+				className={cn('data-[nested-dialog-open]:invisible', direct !== 'shown' && 'invisible')}
+				backdropClassName={direct === 'sending' ? 'invisible' : undefined}
+			>
 				<DialogHeader>
 					<LessonTitle studentId={event.binding.studentId} title={title} pending={pending} />
 					<DialogDescription>
@@ -252,6 +260,9 @@ function LessonContent({
 								asOf={asOf}
 								secondZone={secondZone}
 								locked={command.pending}
+								direct={direct !== 'shown'}
+								onDirect={setDirect}
+								onClose={onClose}
 								onPendingChange={setMovePending}
 								onDiscard={() => {
 									if (movePending) onClose()

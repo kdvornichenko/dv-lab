@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefOb
 
 import { RefreshCw } from 'lucide-react'
 
-import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
+import { CalendarFormStatus, commandUnconfirmed } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
 import { ConflictStatus, FormFooter, useGoogleConflicts } from '@/components/app/google-conflicts'
@@ -499,6 +499,8 @@ export function EventFooter({
 	)
 }
 
+export type DirectState = 'asking' | 'sending' | 'shown'
+
 export function EventEditForm({
 	moveSeed,
 	event,
@@ -508,11 +510,13 @@ export function EventEditForm({
 	mainTimeZone,
 	secondZone,
 	available,
+	direct = false,
+	onDirect,
 	onDirtyChange,
 	onRefresh,
 	onReload,
 	onDiscard,
-	onSaved,
+	onClose,
 }: {
 	moveSeed?: MoveSeed
 	event: CalendarEventView
@@ -522,11 +526,13 @@ export function EventEditForm({
 	mainTimeZone: string
 	secondZone: string | null
 	available: boolean
+	direct?: boolean
+	onDirect?: (state: DirectState) => void
 	onDirtyChange: (dirty: boolean) => void
 	onRefresh: () => void
 	onReload: () => void
 	onDiscard: () => void
-	onSaved: () => void
+	onClose: () => void
 }) {
 	const toast = useToast()
 	const asOf = window.read.state === 'unavailable' ? new Date().toISOString() : window.read.fetchedAt
@@ -568,8 +574,11 @@ export function EventEditForm({
 	const [failed, setFailed] = useState(false)
 	const [serverStale, setServerStale] = useState(false)
 	const [scoping, setScoping] = useState(false)
+	const [stage, setStage] = useState<'start' | 'asked' | 'sending' | 'shown'>(direct ? 'start' : 'shown')
+	const quick = stage !== 'shown'
 	const lengthRef = useRef<HTMLInputElement>(null)
 	const titleRef = useRef<HTMLInputElement>(null)
+	const sent = useRef(false)
 
 	const { date, time, minutes, repeats, input, errors } = fields
 	const title = values.title.trim()
@@ -623,7 +632,7 @@ export function EventEditForm({
 			{ kind: 'event', eventKey: event.eventKey, version: details.version },
 			'event_update',
 			{ scope, changes },
-			timeChanged ? (conflicts.checked ?? undefined) : undefined
+			timeChanged && !quick ? (conflicts.checked ?? undefined) : undefined
 		)
 		if (result.kind === 'detached') return false
 		if (result.kind === 'zone_changed') {
@@ -643,9 +652,25 @@ export function EventEditForm({
 			title: 'Event updated',
 			description: `${title || 'Event'}, ${formatDate(date, context.currentYear)}, ${time} ${input.label}.`,
 		})
-		onSaved()
+		onClose()
 		return true
 	}
+
+	if (stage === 'start') {
+		const ready = dirty && !invalid && !stale && !command.blocked && !context.stale && available
+		setStage(!ready ? 'shown' : scopeAsked ? 'asked' : 'sending')
+		if (ready && scopeAsked) setScoping(true)
+	}
+
+	useEffect(() => {
+		if (stage !== 'sending' || sent.current) return
+		sent.current = true
+		void send('one').then((done) => {
+			if (done) return
+			setFailed(true)
+			setStage('shown')
+		})
+	})
 
 	async function onSubmit(submitted: FormEvent<HTMLFormElement>) {
 		submitted.preventDefault()
@@ -672,6 +697,11 @@ export function EventEditForm({
 			lessons={[]}
 		/>
 	)
+	const shown = !quick || (!scoping && commandUnconfirmed(command.entry))
+	const directState: DirectState = shown ? 'shown' : stage === 'asked' ? 'asking' : 'sending'
+	useEffect(() => {
+		if (direct) onDirect?.(directState)
+	}, [direct, directState, onDirect])
 
 	return (
 		<form noValidate onSubmit={onSubmit} className="flex min-h-0 flex-col">
@@ -717,7 +747,7 @@ export function EventEditForm({
 					kind={{ subject: 'event', action: 'save' }}
 					allowed={details.scopes.edit}
 					onConfirm={send}
-					onClose={() => setScoping(false)}
+					onClose={quick ? onClose : () => setScoping(false)}
 				/>
 			) : null}
 		</form>

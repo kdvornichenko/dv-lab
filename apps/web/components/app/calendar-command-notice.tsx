@@ -160,6 +160,15 @@ export function CalendarReconnectLink({ text }: { text?: string }) {
 	)
 }
 
+export function commandUnconfirmed(entry: CommandEntry | null): boolean {
+	const command = entry?.command ?? null
+	if (entry === null || command?.state === 'failed') return false
+	if (command?.state === 'applied' || command?.state === 'projection_pending') return false
+	if (entry.status === 'missing' || entry.status === 'unavailable') return true
+	if (command === null || entry.settling === true) return false
+	return command.state === 'outcome_unknown' || command.nextAction === 'resume_recovery'
+}
+
 export function CalendarFormStatus({
 	entry,
 	blocked,
