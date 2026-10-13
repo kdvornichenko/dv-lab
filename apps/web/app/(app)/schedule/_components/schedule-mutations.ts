@@ -31,11 +31,17 @@ export const STALE_DATES = 'The schedule has been refreshed. Check the dates and
 export const STALE_DATE = 'The schedule has been refreshed. Check the date and try again.'
 
 export type LessonBody = { expectedStartsAt?: string }
-export type MoveLessonBody = LessonBody & { date: string; startTime: string; expectedDefaultTimeZone: string }
+export type MoveLessonBody = LessonBody & {
+	date: string
+	startTime: string
+	durationMinutes?: number
+	expectedDefaultTimeZone: string
+}
 export type MoveSeriesBody = {
 	from: string
 	weekday: ScheduleWeekday
 	startTime: string
+	durationMinutes?: number
 	expectedDefaultTimeZone: string
 }
 export type EndSeriesBody = { lastOn: string; expectedDefaultTimeZone: string }
@@ -60,6 +66,7 @@ export type CreateEventBody = {
 }
 export type UpdateEventBody = { scope: CalendarEditScope; changes: UpdateCalendarEventRequest['changes'] }
 export type DeleteEventBody = { scope: CalendarEditScope }
+export type AssignEventBody = { studentId: string }
 export type EventTarget = { kind: 'event_new' } | { kind: 'event'; eventKey: string; version: string }
 type Target = CalendarTarget | EventTarget
 type Body =
@@ -71,7 +78,9 @@ type Body =
 	| CreateEventBody
 	| UpdateEventBody
 	| DeleteEventBody
-type Action = 'create' | 'move' | 'cancel' | 'restore' | 'end' | 'event_create' | 'event_update' | 'event_delete'
+	| AssignEventBody
+type Action =
+	'create' | 'move' | 'cancel' | 'restore' | 'end' | 'event_create' | 'event_update' | 'event_delete' | 'assign'
 export type CalendarSelection = {
 	mainTimeZone: string
 	date: string
@@ -93,8 +102,10 @@ export type CalendarMutationResult =
 
 function pathOf(target: Target, action: string): string {
 	if (target.kind === 'event_new') return '/google/events'
-	if (target.kind === 'event')
-		return `/google/events/${encodeURIComponent(target.eventKey)}${action === 'event_delete' ? '/delete' : ''}`
+	if (target.kind === 'event') {
+		const suffix = action === 'event_delete' ? '/delete' : action === 'assign' ? '/assign' : ''
+		return `/google/events/${encodeURIComponent(target.eventKey)}${suffix}`
+	}
 	if (target.kind === 'new') return '/schedule/lessons'
 	if (target.kind === 'single') return `/schedule/lessons/${encodeURIComponent(target.lessonId)}/${action}`
 	if (target.kind === 'series')
@@ -232,6 +243,15 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 	}
 
 	return { mutate, pending, entry, blocked: controller.blocked, detach }
+}
+
+export async function ignoreEvent(eventKey: string, version: string): Promise<MutationResult<null>> {
+	const result = await apiRequest<unknown>('POST', `/google/events/${encodeURIComponent(eventKey)}/ignore`, {
+		requestId: crypto.randomUUID(),
+		expectedVersion: version,
+	})
+	if (result.ok) return { kind: 'ok', data: null, status: result.status }
+	return rejected(result.error?.code ?? null)
 }
 
 async function postMark(path: string, body: object): Promise<MutationResult<ScheduleMarkResponse>> {

@@ -5,11 +5,13 @@ import { useState } from 'react'
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { ConflictStatus, FormFooter, GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
+import { LengthField } from '@/components/app/length-field'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 import { seriesWhen } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
@@ -22,7 +24,10 @@ import { seriesPreview } from './move-series-preview'
 import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
 import { STALE_DATES, STALE_TITLE, useScheduleMutation } from './schedule-mutations'
 
+export type SeriesSeed = { from: string; weekday: ScheduleWeekday; time: string; durationMinutes: number }
+
 interface MoveSeriesDialogProps extends ScheduleFormContext {
+	seed?: SeriesSeed
 	series: CalendarSeriesContext
 	available: boolean
 	currentMainTimeZone: string
@@ -60,19 +65,38 @@ function seriesInput(rule: ScheduleSeries, mainTimeZone: string, secondZone: str
 }
 
 function seriesProposal(
-	draft: Pick<Parameters<typeof seriesPreview>[0], 'from' | 'weekday' | 'time' | 'mainTimeZone'>,
+	draft: Pick<Parameters<typeof seriesPreview>[0], 'from' | 'weekday' | 'time' | 'mainTimeZone'> & {
+		durationMinutes: number | null
+		changedLength: boolean
+	},
 	errors: ReturnType<typeof seriesPreview>['errors'],
 	rowError: string | undefined
 ) {
-	const { from, weekday, time, mainTimeZone } = draft
-	if (errors.from || errors.day || errors.time || rowError || weekday === null || time === null) return null
+	const { from, weekday, time, mainTimeZone, durationMinutes, changedLength } = draft
+	if (
+		errors.from ||
+		errors.day ||
+		errors.time ||
+		rowError ||
+		weekday === null ||
+		time === null ||
+		durationMinutes === null
+	)
+		return null
 	return {
 		operation: 'move_series' as const,
-		input: { from, weekday, startTime: time, expectedDefaultTimeZone: mainTimeZone },
+		input: {
+			from,
+			weekday,
+			startTime: time,
+			...(changedLength ? { durationMinutes } : {}),
+			expectedDefaultTimeZone: mainTimeZone,
+		},
 	}
 }
 
 export function MoveSeriesDialog({
+	seed,
 	series: initialSeries,
 	available,
 	mainTimeZone,
@@ -92,9 +116,12 @@ export function MoveSeriesDialog({
 	const rule = series.series
 	const [secondZone] = useSecondZone(context.mainTimeZone)
 	const initial = seriesInput(rule, context.mainTimeZone, secondZone, today)
-	const [from, setFrom] = useState(initial.from)
-	const [weekday, setWeekday] = useState<ScheduleWeekday | null>(initial.weekday)
-	const [time, setTime] = useState<string | null>(initial.time)
+	const [from, setFrom] = useState(seed?.from ?? initial.from)
+	const [weekday, setWeekday] = useState<ScheduleWeekday | null>(seed?.weekday ?? initial.weekday)
+	const [time, setTime] = useState<string | null>(seed?.time ?? initial.time)
+	const [length, setLength] = useState<number | null>(seed?.durationMinutes ?? rule.durationMinutes)
+	const durationMinutes = length ?? rule.durationMinutes
+	const changedLength = length !== null && length !== rule.durationMinutes
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: today, series })
@@ -109,6 +136,7 @@ export function MoveSeriesDialog({
 		from,
 		weekday,
 		time,
+		durationMinutes,
 		now,
 		currentYear,
 		serverEnds,
@@ -118,12 +146,24 @@ export function MoveSeriesDialog({
 		asOf: context.asOf,
 		serverGap,
 	})
-	const visible = submitted || touched.day || touched.time || serverEnds
+	const seeded = seed !== undefined
+	const visible = submitted || touched.day || touched.time || serverEnds || seeded
 	const shownRow = visible ? rowError : undefined
 	const shownDay = submitted || touched.day ? errors.day : undefined
 	const shownTime = submitted || touched.time || input.error || serverGap ? errors.time : undefined
 	const conflicts = useGoogleConflicts({
-		proposal: seriesProposal({ from, weekday, time, mainTimeZone: context.mainTimeZone }, errors, rowError),
+		proposal: seriesProposal(
+			{
+				from,
+				weekday,
+				time,
+				mainTimeZone: context.mainTimeZone,
+				durationMinutes: length,
+				changedLength,
+			},
+			errors,
+			rowError
+		),
 		editedRef:
 			rule.referenceOccurrence === null
 				? undefined
@@ -162,6 +202,7 @@ export function MoveSeriesDialog({
 				from,
 				weekday,
 				startTime: time,
+				...(changedLength ? { durationMinutes: length } : {}),
 				expectedDefaultTimeZone: context.mainTimeZone,
 			},
 			conflicts.checked
@@ -240,6 +281,16 @@ export function MoveSeriesDialog({
 							onDayChange={edit((value: string) => setWeekday(toWeekday(value)), 'day')}
 							onTimeChange={edit(setTime, 'time')}
 						/>
+						{seeded ? (
+							<LengthField
+								id="move-series-length"
+								initialMinutes={length ?? rule.durationMinutes}
+								onCommit={edit(setLength)}
+								disabled={pending}
+								helper={LENGTH_HELPER}
+								error={submitted && length === null ? LENGTH_ERROR : undefined}
+							/>
+						) : null}
 						{preview !== null ? (
 							<div
 								data-slot="move-series-preview"
@@ -263,7 +314,7 @@ export function MoveSeriesDialog({
 						<ConflictStatus
 							check={conflicts}
 							timeZone={context.mainTimeZone}
-							durationMinutes={rule.durationMinutes}
+							durationMinutes={durationMinutes}
 							failure={notice === 'failed' ? 'Could not move the series. Try again.' : null}
 						/>
 					}

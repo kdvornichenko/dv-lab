@@ -73,6 +73,9 @@ export function LessonBlock({
 					width: layout.width,
 					zIndex: layout.layer > 0 ? Math.min(10 + layout.layer, 19) : undefined,
 				}
+	const suggested = plain && calendarEvent.suggestion !== null
+	const hideText = ghost && plain
+	const resizable = movable && layout !== null && !layout.cutTop && !layout.cutBottom
 	const paintVars =
 		paint === null ? undefined : ({ '--event-fill': paint.fill, '--event-ink': paint.ink } as CSSProperties)
 	return (
@@ -107,13 +110,35 @@ export function LessonBlock({
 				className={cn(
 					'block truncate text-caption',
 					tentative ? 'font-normal' : 'font-semibold',
-					cancelled && 'line-through'
+					cancelled && 'line-through',
+					suggested && 'pr-[14px]',
+					hideText && 'invisible'
 				)}
 			>
 				{title}
 				{short ? `, ${range}` : ''}
 			</span>
-			{!short && !chip ? <span className="block truncate text-caption tabular-nums">{range}</span> : null}
+			{!short && !chip ? (
+				<span className={cn('block truncate text-caption tabular-nums', hideText && 'invisible')}>{range}</span>
+			) : null}
+			{suggested ? (
+				<span
+					aria-hidden
+					data-slot="calendar-event-dot"
+					className={cn(
+						'absolute top-1 right-1 size-2 rounded-full bg-info ring-2 ring-surface-2',
+						hideText && 'invisible'
+					)}
+				/>
+			) : null}
+			{resizable ? (
+				<span
+					aria-hidden
+					data-slot="calendar-event-resize"
+					className="absolute inset-x-0 bottom-0 cursor-ns-resize"
+					style={{ height: Math.min(8, layout.height / 3) }}
+				/>
+			) : null}
 		</button>
 	)
 }

@@ -14,7 +14,7 @@ import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker
 import { useTopbarSlot } from '@/components/app/topbar-slot'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable } from '@/components/ui/skeleton'
-import { calendarLesson, canEditCalendarEvent } from '@/lib/lesson-actions'
+import { calendarLesson, canEditCalendarEvent, canEditPlainEvent } from '@/lib/lesson-actions'
 import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -28,7 +28,7 @@ import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog } from './new-lesson-dialog'
 import { ScheduleBar, ScheduleToolbar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
-import { useLessonStudents } from './use-lesson-students'
+import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { useScheduleWeek } from './use-schedule-week'
 import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
@@ -99,7 +99,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 		mainTimeZone: string
 		asOf: string
 	} | null>(null)
-	const students = useLessonStudents(draft !== null)
+	const students = useLessonStudents(
+		draft !== null || selection !== null || (week.data?.events.some((event) => event.suggestion !== null) ?? false)
+	)
 	const returnFocus = useRef<HTMLElement | null>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const [zone, setZone] = useSecondZone(week.query?.mainTimeZone ?? null)
@@ -159,13 +161,17 @@ function LoadedSchedule({ now }: { now: Date }) {
 		setMoveSeed(undefined)
 	}
 	function canMove(event: CalendarEventView) {
-		return (
-			editable &&
-			data !== null &&
-			canEditCalendarEvent(event, data) &&
-			event.status !== 'cancelled' &&
-			Date.parse(event.when.startsAt) > Math.max(now.getTime(), Date.now())
-		)
+		if (!editable || data === null) return false
+		if (calendarLesson(event))
+			return (
+				canEditCalendarEvent(event, data) &&
+				event.status !== 'cancelled' &&
+				Date.parse(event.when.startsAt) > Math.max(now.getTime(), Date.now())
+			)
+		return canEditPlainEvent(event, data)
+	}
+	function studentName(id: string) {
+		return students.kind === 'ready' ? (students.rows.find((row) => row.id === id)?.displayName ?? null) : null
 	}
 	function canEdit(event: CalendarEventView) {
 		return editable && data !== null && canEditCalendarEvent(event, data)
@@ -206,6 +212,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			onOpen={openEvent}
 			canMove={canMove}
 			canEdit={canEdit}
+			studentName={studentName}
 			onMove={(event, seed) => {
 				if (!canMove(event)) return
 				openEvent(event)
@@ -242,6 +249,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			) : null}
 			<SelectedEventDialog
 				moveSeed={moveSeed}
+				students={students}
 				event={selected}
 				window={data}
 				editable={editable}
@@ -389,6 +397,7 @@ function ScheduleZone({
 
 function SelectedEventDialog({
 	moveSeed,
+	students,
 	event,
 	window,
 	editable,
@@ -401,6 +410,7 @@ function SelectedEventDialog({
 	onRefresh,
 }: {
 	moveSeed?: MoveSeed
+	students: StudentsState
 	event: CalendarEventView | null
 	window: GoogleScheduleWindow | null
 	editable: boolean
@@ -431,6 +441,8 @@ function SelectedEventDialog({
 	return (
 		<CalendarEventDialog
 			key={event.eventKey}
+			moveSeed={moveSeed}
+			students={students}
 			event={event}
 			window={window}
 			editable={editable}
@@ -438,6 +450,7 @@ function SelectedEventDialog({
 			secondZone={secondZone}
 			currentYear={currentYear}
 			onClose={onClose}
+			onMoveDiscard={onMoveDiscard}
 			onReload={onRefresh}
 		/>
 	)

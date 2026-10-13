@@ -47,9 +47,12 @@ import {
 import { addDays, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
+import { ManualAssign, SuggestionBox, type AssignBusy, type AssignFailure } from './event-assign'
 import { EventEditForm } from './event-form'
-import { useScheduleMutation } from './schedule-mutations'
+import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
+import type { MoveSeed } from './use-lesson-drag'
+import type { StudentsState } from './use-lesson-students'
 
 export function eventTitle(event: CalendarEventView): string {
 	return event.title?.trim() || 'Busy'
@@ -218,6 +221,8 @@ function readOnlyReason(
 }
 
 export function CalendarEventDialog({
+	moveSeed,
+	students,
 	event,
 	window,
 	editable,
@@ -225,8 +230,11 @@ export function CalendarEventDialog({
 	secondZone,
 	currentYear,
 	onClose,
+	onMoveDiscard,
 	onReload,
 }: {
+	moveSeed?: MoveSeed
+	students: StudentsState
 	event: CalendarEventView
 	window: GoogleScheduleWindow | null
 	editable: boolean
@@ -234,6 +242,7 @@ export function CalendarEventDialog({
 	secondZone: string | null
 	currentYear: number
 	onClose: () => void
+	onMoveDiscard: () => void
 	onReload: () => void
 }) {
 	const toast = useToast()
@@ -245,6 +254,10 @@ export function CalendarEventDialog({
 	const [dirty, setDirty] = useState(false)
 	const [refreshing, setRefreshing] = useState(false)
 	const [removing, setRemoving] = useState<'confirm' | 'scope' | null>(null)
+	const [seeded, setSeeded] = useState(false)
+	const [busy, setBusy] = useState<AssignBusy>(null)
+	const [assignFailure, setAssignFailure] = useState<AssignFailure>(null)
+	const [assignChanged, setAssignChanged] = useState(false)
 	const allDay = event.when.kind === 'all_day'
 	const day = event.when.kind === 'timed' ? scheduleDate(new Date(event.when.startsAt), timeZone) : event.when.startsOn
 	const command = useScheduleMutation({ mainTimeZone: timeZone, date: day })
@@ -278,10 +291,14 @@ export function CalendarEventDialog({
 		!allDay &&
 		latest !== null &&
 		latest.scopes.edit.length > 0 &&
-		!unsupported &&
+		(!unsupported || moveSeed !== undefined) &&
 		event.binding.kind === 'external' &&
 		event.status !== 'cancelled' &&
 		event.editBlock === null
+	if (moveSeed !== undefined && !seeded && latest !== null) {
+		setSeeded(true)
+		if (editShape && canWrite) setFormBase(latest)
+	}
 	const canEdit = canWrite && editShape
 	const canDelete = canWrite && latest !== null && latest.scopes.delete.length > 0 && !unsupported
 	const reason = readOnlyReason(event, window, latest, editable)
@@ -291,13 +308,65 @@ export function CalendarEventDialog({
 	const pending = command.pending
 	const tentative = (latest === null ? event.status : event.status) === 'tentative'
 	const repeats = latest === null ? null : repeatLine(latest.repeat)
+	const assignable =
+		canWrite &&
+		latest !== null &&
+		!allDay &&
+		!unsupported &&
+		event.binding.kind === 'external' &&
+		event.status !== 'cancelled'
+	const suggestedName =
+		event.suggestion === null || students.kind !== 'ready'
+			? null
+			: (students.rows.find((row) => row.id === event.suggestion?.studentId)?.displayName ?? null)
+	const suggestionShown = assignable && event.suggestion !== null && suggestedName !== null
+	const waitingForSeed = moveSeed !== undefined && !seeded && state.kind === 'loading'
 
-	function whenText() {
+	function whenText(label = title) {
 		if (event.when.kind === 'timed') {
 			const start = new Date(event.when.startsAt)
-			return `${title}, ${formatWhen(start, timeZone, currentYear)} ${zoneLabel(timeZone, start)}.`
+			return `${label}, ${formatWhen(start, timeZone, currentYear)} ${zoneLabel(timeZone, start)}.`
 		}
-		return `${title}, ${formatDate(event.when.startsOn, currentYear)}.`
+		return `${label}, ${formatDate(event.when.startsOn, currentYear)}.`
+	}
+
+	async function assign(studentId: string, name: string) {
+		if (busy !== null || pending) return
+		setAssignFailure(null)
+		setBusy({ kind: 'assign', studentId })
+		const result = await command.mutate({ kind: 'event', eventKey: event.eventKey, version: event.version }, 'assign', {
+			studentId,
+		})
+		setBusy(null)
+		if (result.kind === 'detached') return
+		if (result.kind === 'stale') return setAssignChanged(true)
+		if (result.kind !== 'ok') return setAssignFailure('assign')
+		toast.show({ title: 'Event assigned', description: whenText(name) })
+		onClose()
+	}
+
+	async function ignore() {
+		if (busy !== null || pending) return
+		setAssignFailure(null)
+		setBusy({ kind: 'ignore' })
+		const result = await ignoreEvent(event.eventKey, event.version)
+		if (result.kind === 'stale') {
+			setBusy(null)
+			return setAssignChanged(true)
+		}
+		if (result.kind !== 'ok') {
+			setBusy(null)
+			return setAssignFailure('ignore')
+		}
+		toast.show({ title: 'Suggestion dismissed', description: 'The event stays in Google Calendar.' })
+		await controller.readWindow(day)
+		setBusy(null)
+	}
+
+	function refreshChanged() {
+		setAssignChanged(false)
+		setAssignFailure(null)
+		void controller.readWindow(day)
 	}
 
 	async function remove(scope: CalendarEditScope): Promise<boolean> {
@@ -341,6 +410,7 @@ export function CalendarEventDialog({
 					{editing && latest !== null && window !== null ? (
 						<EventEditForm
 							key={formBase.version}
+							moveSeed={moveSeed}
 							event={event}
 							details={formBase}
 							latestVersion={latest.version}
@@ -357,6 +427,7 @@ export function CalendarEventDialog({
 							onDiscard={() => {
 								setDirty(false)
 								setFormBase(null)
+								onMoveDiscard()
 							}}
 							onSaved={onClose}
 						/>
@@ -364,8 +435,22 @@ export function CalendarEventDialog({
 						<Banner status="warning">
 							<BannerTitle>This event no longer exists in Google Calendar.</BannerTitle>
 						</Banner>
+					) : waitingForSeed ? (
+						<div aria-busy className="h-40" data-slot="calendar-event-body" />
 					) : (
 						<div className="flex flex-col gap-3 py-1" data-slot="calendar-event-body">
+							{suggestionShown && event.suggestion !== null && suggestedName !== null ? (
+								<SuggestionBox
+									name={suggestedName}
+									scope={event.suggestion.scope}
+									busy={busy}
+									failure={assignFailure}
+									changed={assignChanged}
+									onAssign={() => void assign(event.suggestion?.studentId ?? '', suggestedName)}
+									onIgnore={() => void ignore()}
+									onRefresh={refreshChanged}
+								/>
+							) : null}
 							<DetailRow icon={Info}>
 								<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
 							</DetailRow>
@@ -385,6 +470,23 @@ export function CalendarEventDialog({
 								{repeats !== null ? <span>{repeats}</span> : null}
 								{tentative ? <span>Tentative</span> : null}
 							</div>
+							{assignable && !suggestionShown ? (
+								<ManualAssign
+									students={students}
+									seriesMember={event.seriesMember}
+									busy={busy}
+									failure={assignFailure}
+									disabled={pending}
+									onPick={(studentId) =>
+										void assign(
+											studentId,
+											students.kind === 'ready'
+												? (students.rows.find((row) => row.id === studentId)?.displayName ?? 'Student')
+												: 'Student'
+										)
+									}
+								/>
+							) : null}
 							{transition ? (
 								<p className="text-body text-muted-foreground">
 									This change has not been confirmed. Check its status before trying again.{' '}

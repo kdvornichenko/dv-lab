@@ -12,15 +12,16 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { calendarSeriesFor, canEditCalendarEvent, type CalendarLesson } from '@/lib/lesson-actions'
 
 import type { CalendarEditScope, CalendarSeriesContext, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, scheduleDate } from '@dv-lab/core'
+import { addDays, nextSeriesDate, scheduleDate, weekdayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
 import { EndSeriesDialog } from './end-series-dialog'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
-import { LessonMoveForm } from './lesson-move-form'
-import { MoveSeriesDialog } from './move-series-dialog'
+import { LessonMoveForm, type SeriesDraft } from './lesson-move-form'
+import { MoveSeriesDialog, type SeriesSeed } from './move-series-dialog'
+import { seriesDateInZone } from './move-series-preview'
 import { useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
@@ -39,7 +40,11 @@ type Props = {
 }
 
 export function CalendarLessonDialog(props: Props) {
-	const [series, setSeries] = useState<{ kind: 'move' | 'end'; context: CalendarSeriesContext } | null>(null)
+	const [series, setSeries] = useState<{
+		kind: 'move' | 'end'
+		context: CalendarSeriesContext
+		seed?: SeriesSeed
+	} | null>(null)
 	const mainTimeZone = props.mainTimeZone
 	const asOf = props.window.read.state === 'unavailable' ? props.now.toISOString() : props.window.read.fetchedAt
 	const currentSeries = calendarSeriesFor(props.window, props.event)
@@ -55,7 +60,15 @@ export function CalendarLessonDialog(props: Props) {
 		onRefresh: props.onRefresh,
 	}
 	if (series?.kind === 'move')
-		return <MoveSeriesDialog {...shared} series={series.context} available={usableSeries} onMoved={props.onClose} />
+		return (
+			<MoveSeriesDialog
+				{...shared}
+				seed={series.seed}
+				series={series.context}
+				available={usableSeries}
+				onMoved={props.onClose}
+			/>
+		)
 	if (series?.kind === 'end')
 		return <EndSeriesDialog {...shared} series={series.context} available={usableSeries} onEnded={props.onClose} />
 	return (
@@ -66,8 +79,32 @@ export function CalendarLessonDialog(props: Props) {
 			onSeries={(kind) => {
 				if (currentSeries !== null) setSeries({ kind, context: currentSeries })
 			}}
+			onSeriesScope={(scope, draft) => {
+				if (currentSeries === null) return
+				setSeries({
+					kind: 'move',
+					context: currentSeries,
+					seed: seriesSeed(scope, draft, props.event, currentSeries, props.now, mainTimeZone),
+				})
+			}}
 		/>
 	)
+}
+
+function seriesSeed(
+	scope: 'following' | 'all',
+	draft: SeriesDraft,
+	event: CalendarLesson,
+	context: CalendarSeriesContext,
+	now: Date,
+	mainTimeZone: string
+): SeriesSeed {
+	const ref = event.binding.ref
+	const rule = context.series
+	const natural = scope === 'following' && ref.kind === 'series' ? ref.originalOn : nextSeriesDate(rule, now)
+	const from =
+		natural === null ? scheduleDate(now, mainTimeZone) : (seriesDateInZone(rule, natural, mainTimeZone) ?? natural)
+	return { from, weekday: weekdayOf(draft.date), time: draft.time, durationMinutes: draft.durationMinutes }
 }
 
 function LessonContent({
@@ -84,10 +121,12 @@ function LessonContent({
 	asOf,
 	series,
 	onSeries,
+	onSeriesScope,
 }: Props & {
 	asOf: string
 	series: CalendarSeriesContext | null
 	onSeries: (kind: 'move' | 'end') => void
+	onSeriesScope: (scope: 'following' | 'all', draft: SeriesDraft) => void
 }) {
 	const toast = useToast()
 	const [initial] = useState(event)
@@ -205,6 +244,7 @@ function LessonContent({
 							<LessonMoveForm
 								moveSeed={moveSeed}
 								available={editable}
+								scopes={series !== null && editable ? ['one', 'following', 'all'] : ['one']}
 								event={initial}
 								weekEvents={window.events}
 								mainTimeZone={mainTimeZone}
@@ -223,6 +263,7 @@ function LessonContent({
 								onStale={onRefresh}
 								onRefresh={onRefresh}
 								onMoved={onClose}
+								onSeriesScope={onSeriesScope}
 							/>
 						) : null}
 					</div>

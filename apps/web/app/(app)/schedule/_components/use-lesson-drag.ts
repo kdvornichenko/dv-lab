@@ -6,7 +6,7 @@ import { lessonDay, lessonDaySlot, zonedInstant } from '@dv-lab/core'
 import { SLOT_MINUTES } from './use-slot-drag'
 import type { SlotFrame } from './week-grid'
 
-export type MoveSeed = Pick<SlotFrame, 'date' | 'time'>
+export type MoveSeed = SlotFrame & { gesture: 'move' | 'resize' }
 type Press = {
 	pointerId: number
 	button: HTMLElement
@@ -18,10 +18,50 @@ type Press = {
 	offset: number
 	started: boolean
 }
-type LessonDrag = { eventKey: string; frame: SlotFrame | null }
+export type LessonDrag = { eventKey: string; frame: SlotFrame | null }
 
+export const RESIZE_STRIP_SELECTOR = '[data-slot="calendar-event-resize"]'
+export const DRAG_THRESHOLD = 4
 const EDGE_ZONE = 48
 const SCROLL_STEP = 16
+
+export function useEdgeScroll(
+	bodyRef: RefObject<HTMLDivElement | null>,
+	active: boolean,
+	pointer: () => { x: number; y: number } | null,
+	onScrolled: (x: number, y: number) => void
+) {
+	const pointerRef = useRef(pointer)
+	const scrolledRef = useRef(onScrolled)
+	useEffect(() => {
+		pointerRef.current = pointer
+		scrolledRef.current = onScrolled
+	})
+	useEffect(() => {
+		if (!active) return
+		let frameId = 0
+		const tick = () => {
+			const body = bodyRef.current
+			const current = pointerRef.current()
+			if (body && current) {
+				const rect = body.getBoundingClientRect()
+				const fromTop = current.y - rect.top
+				const fromBottom = rect.bottom - current.y
+				let delta = 0
+				if (fromTop < EDGE_ZONE) delta = -Math.ceil((1 - Math.max(fromTop, 0) / EDGE_ZONE) * SCROLL_STEP)
+				else if (fromBottom < EDGE_ZONE) delta = Math.ceil((1 - Math.max(fromBottom, 0) / EDGE_ZONE) * SCROLL_STEP)
+				if (delta !== 0) {
+					const before = body.scrollTop
+					body.scrollTop = before + delta
+					if (body.scrollTop !== before) scrolledRef.current(current.x, current.y)
+				}
+			}
+			frameId = requestAnimationFrame(tick)
+		}
+		frameId = requestAnimationFrame(tick)
+		return () => cancelAnimationFrame(frameId)
+	}, [active, bodyRef])
+}
 
 export function useLessonDrag(
 	bodyRef: RefObject<HTMLDivElement | null>,
@@ -63,37 +103,22 @@ export function useLessonDrag(
 	useEffect(() => {
 		destinationRef.current = destination
 	})
-	useEffect(() => {
-		if (!moving) return
-		let frameId = 0
-		const tick = () => {
-			const body = bodyRef.current
+	useEdgeScroll(
+		bodyRef,
+		moving,
+		() => (press.current?.started ? { x: press.current.lastX, y: press.current.lastY } : null),
+		(x, y) => {
 			const current = press.current
-			if (body && current?.started) {
-				const rect = body.getBoundingClientRect()
-				const fromTop = current.lastY - rect.top
-				const fromBottom = rect.bottom - current.lastY
-				let delta = 0
-				if (fromTop < EDGE_ZONE) delta = -Math.ceil((1 - Math.max(fromTop, 0) / EDGE_ZONE) * SCROLL_STEP)
-				else if (fromBottom < EDGE_ZONE) delta = Math.ceil((1 - Math.max(fromBottom, 0) / EDGE_ZONE) * SCROLL_STEP)
-				if (delta !== 0) {
-					const before = body.scrollTop
-					body.scrollTop = before + delta
-					if (body.scrollTop !== before) {
-						const next = destinationRef.current(current.lastX, current.lastY, current)
-						setDrag((previous) => (previous === null ? previous : { ...previous, frame: next }))
-					}
-				}
-			}
-			frameId = requestAnimationFrame(tick)
+			if (!current) return
+			const next = destinationRef.current(x, y, current)
+			setDrag((previous) => (previous === null ? previous : { ...previous, frame: next }))
 		}
-		frameId = requestAnimationFrame(tick)
-		return () => cancelAnimationFrame(frameId)
-	}, [moving, bodyRef])
+	)
 
 	function down(event: PointerEvent<HTMLDivElement>) {
 		suppressClick.current = false
 		if (!enabled || event.button !== 0 || event.pointerType === 'touch' || !event.isPrimary) return
+		if (event.target instanceof Element && event.target.closest(RESIZE_STRIP_SELECTOR)) return
 		const button = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-event-key]') : null
 		const source = events.find((item) => item.eventKey === button?.dataset.eventKey)
 		if (!button || !source || source.when.kind !== 'timed' || !canMove(source)) return
@@ -141,10 +166,12 @@ export function useLessonDrag(
 		if (latest < 0) return null
 		const minutes = Math.min(Math.max(snapped, 0), latest)
 		const slot = lessonDaySlot(date, minutes)
-		try {
-			if (zonedInstant(slot.date, slot.time, mainTimeZone).getTime() <= Date.now()) return null
-		} catch {
-			return null
+		if (current.event.binding.kind === 'lesson') {
+			try {
+				if (zonedInstant(slot.date, slot.time, mainTimeZone).getTime() <= Date.now()) return null
+			} catch {
+				return null
+			}
 		}
 		return { ...slot, durationMinutes }
 	}
@@ -155,7 +182,7 @@ export function useLessonDrag(
 		if (!enabled || !canMove(current.event)) return cancel()
 		current.lastX = event.clientX
 		current.lastY = event.clientY
-		if (!current.started && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 4) return
+		if (!current.started && Math.hypot(event.clientX - current.x, event.clientY - current.y) < DRAG_THRESHOLD) return
 		current.started = true
 		event.preventDefault()
 		event.stopPropagation()
@@ -172,13 +199,13 @@ export function useLessonDrag(
 		if (!dragged) return
 		event.preventDefault()
 		event.stopPropagation()
-		if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < 4) return
+		if (Math.hypot(event.clientX - current.x, event.clientY - current.y) < DRAG_THRESHOLD) return
 		const source = events.find((item) => item.eventKey === current.event.eventKey)
 		if (!enabled || !source || !canMove(source) || JSON.stringify(source) !== JSON.stringify(current.event)) return
 		if (!seed || source.when.kind !== 'timed') return
 		if (zonedInstant(seed.date, seed.time, mainTimeZone).toISOString() === new Date(source.when.startsAt).toISOString())
 			return
-		onMove(source, seed)
+		onMove(source, { ...seed, gesture: 'move' })
 	}
 
 	function click(event: MouseEvent<HTMLDivElement>) {

@@ -1,10 +1,11 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 
 import { TimePair } from '@/components/app/time-pair'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
+import { eventPaint } from '@/lib/event-colors'
 import { dayNumber, formatDate, gutterLabel, hourLabel, secondRange, weekdayCaps } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,7 @@ import {
 import { eventRange, eventTitle } from './calendar-event-details'
 import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
+import { useEventResize } from './use-event-resize'
 import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
 
@@ -67,6 +69,7 @@ interface WeekGridProps {
 	canMove: (event: CalendarEventView) => boolean
 	canEdit: (event: CalendarEventView) => boolean
 	onMove: (event: CalendarEventView, seed: MoveSeed) => void
+	studentName?: (id: string) => string | null
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
 	placed?: { event: CalendarEventView; seed: MoveSeed } | null
@@ -293,6 +296,7 @@ function overlapsOthers(
 function MoveFrameBlock({
 	event,
 	frame,
+	gesture,
 	mainTimeZone,
 	currentYear,
 	overlap,
@@ -300,6 +304,7 @@ function MoveFrameBlock({
 }: {
 	event: CalendarEventView
 	frame: SlotFrame
+	gesture: 'move' | 'resize'
 	mainTimeZone: string
 	currentYear: number
 	overlap: boolean
@@ -309,21 +314,41 @@ function MoveFrameBlock({
 	const range = `${clock(start)}–${clock(start + frame.durationMinutes)}`
 	const sameDay =
 		event.when.kind === 'timed' && scheduleDate(new Date(event.when.startsAt), mainTimeZone) === frame.date
-	const chip = sameDay ? range : `${formatDate(frame.date, currentYear)}, ${range}`
+	const chip = sameDay || gesture === 'resize' ? range : `${formatDate(frame.date, currentYear)}, ${range}`
 	const height = Math.min(frame.durationMinutes, DAY_MINUTES - start) * MINUTE_HEIGHT
 	const short = height < 34
+	const paint = event.binding.kind === 'external' ? (eventPaint(event.color) ?? null) : null
+	const foot = start * MINUTE_HEIGHT + height
+	const chipTop =
+		gesture === 'resize'
+			? start + frame.durationMinutes >= DAY_MINUTES - 25
+				? foot - 26
+				: foot + 4
+			: start < 30
+				? foot + 4
+				: start * MINUTE_HEIGHT - 22
 	return (
 		<>
 			<div
 				data-slot="week-grid-move-frame"
 				data-state={state}
+				data-gesture={gesture}
 				data-overlap={overlap ? '' : undefined}
 				data-range={range}
 				className={cn(
-					'pointer-events-none absolute z-30 overflow-hidden rounded-md bg-selected/85 px-[6px] py-[2px] text-foreground shadow-surface-4 ring-inset',
+					'pointer-events-none absolute z-30 overflow-hidden rounded-md px-[6px] py-[2px] text-foreground shadow-surface-4 ring-inset',
+					paint === null && 'bg-selected/85',
 					overlap ? 'ring-2 ring-warning' : 'ring-1 ring-foreground/40'
 				)}
-				style={{ top: start * MINUTE_HEIGHT, height, left: 2, width: FRAME_WIDTH }}
+				style={{
+					top: start * MINUTE_HEIGHT,
+					height,
+					left: 2,
+					width: FRAME_WIDTH,
+					...(paint === null
+						? undefined
+						: { background: `color-mix(in oklab, ${paint.fill} 85%, transparent)`, color: paint.ink }),
+				}}
 			>
 				<span className="block truncate text-caption font-semibold">
 					{eventTitle(event)}
@@ -334,7 +359,7 @@ function MoveFrameBlock({
 			<span
 				data-slot="week-grid-move-chip"
 				className="pointer-events-none absolute left-1 z-30 rounded-md bg-surface-4 px-2 py-0.5 text-micro whitespace-nowrap text-foreground tabular-nums shadow-surface-4"
-				style={start < 30 ? { top: start * MINUTE_HEIGHT + height + 4 } : { top: start * MINUTE_HEIGHT - 22 }}
+				style={{ top: chipTop }}
 			>
 				{chip}
 			</span>
@@ -381,6 +406,7 @@ export function WeekGrid({
 	canMove,
 	canEdit,
 	onMove,
+	studentName,
 	frame = null,
 	placed = null,
 	emptyNote = null,
@@ -403,25 +429,54 @@ export function WeekGrid({
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
+	const eventResize = useEventResize(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
 	const moving = lessonDrag.drag
-	const moveSource = moving === null ? null : (events.find((event) => event.eventKey === moving.eventKey) ?? null)
+	const resizing = eventResize.resize
+	const live = moving ?? resizing
+	const liveSource = live === null ? null : (events.find((event) => event.eventKey === live.eventKey) ?? null)
 	const moveFrame =
-		moving !== null && moving.frame !== null && moveSource !== null
-			? { event: moveSource, frame: moving.frame, state: 'drag' as const }
+		live !== null && live.frame !== null && liveSource !== null
+			? {
+					event: liveSource,
+					frame: live.frame,
+					state: 'drag' as const,
+					gesture: moving !== null ? ('move' as const) : ('resize' as const),
+				}
 			: placed !== null
 				? {
 						event: placed.event,
-						frame: {
-							...placed.seed,
-							durationMinutes:
-								placed.event.when.kind === 'timed'
-									? (Date.parse(placed.event.when.endsAt) - Date.parse(placed.event.when.startsAt)) / 60000
-									: 60,
-						},
+						frame: placed.seed,
 						state: 'draft' as const,
+						gesture: placed.seed.gesture,
 					}
 				: null
-	const ghostKey = moving?.eventKey ?? (moveFrame?.state === 'draft' ? moveFrame.event.eventKey : null)
+	const ghostKey = live?.eventKey ?? (moveFrame?.state === 'draft' ? moveFrame.event.eventKey : null)
+	const handlers = {
+		onPointerDownCapture: (event: PointerEvent<HTMLDivElement>) => {
+			lessonDrag.handlers.onPointerDownCapture(event)
+			eventResize.handlers.onPointerDownCapture(event)
+		},
+		onPointerMoveCapture: (event: PointerEvent<HTMLDivElement>) => {
+			lessonDrag.handlers.onPointerMoveCapture(event)
+			eventResize.handlers.onPointerMoveCapture(event)
+		},
+		onPointerUpCapture: (event: PointerEvent<HTMLDivElement>) => {
+			lessonDrag.handlers.onPointerUpCapture(event)
+			eventResize.handlers.onPointerUpCapture(event)
+		},
+		onPointerCancelCapture: () => {
+			lessonDrag.handlers.onPointerCancelCapture()
+			eventResize.handlers.onPointerCancelCapture()
+		},
+		onLostPointerCapture: () => {
+			lessonDrag.handlers.onLostPointerCapture()
+			eventResize.handlers.onLostPointerCapture()
+		},
+		onClickCapture: (event: MouseEvent<HTMLDivElement>) => {
+			lessonDrag.handlers.onClickCapture(event)
+			eventResize.handlers.onClickCapture(event)
+		},
+	}
 	const { drag, dragging, cancelDrag, pressColumn, moveColumn, releaseColumn } = useSlotDrag(
 		bodyRef,
 		HOUR_HEIGHT,
@@ -453,7 +508,8 @@ export function WeekGrid({
 				data-slot="week-grid"
 				data-dragging={dragging ? '' : undefined}
 				data-moving={moving !== null ? '' : undefined}
-				className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! lg:flex"
+				data-resizing={resizing !== null ? '' : undefined}
+				className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! data-[resizing]:**:cursor-ns-resize! lg:flex"
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
@@ -499,7 +555,7 @@ export function WeekGrid({
 					onOpen={onOpen}
 				/>
 				<div
-					{...lessonDrag.handlers}
+					{...handlers}
 					ref={scroller}
 					data-slot="week-grid-body"
 					onScroll={(event) => {
@@ -571,6 +627,7 @@ export function WeekGrid({
 										<EventTooltip
 											editable={canEdit(event)}
 											movable={canMove(event)}
+											studentName={studentName}
 											ghost={event.eventKey === ghostKey}
 											key={event.eventKey}
 											event={event}
@@ -601,6 +658,7 @@ export function WeekGrid({
 										<MoveFrameBlock
 											event={shownMove.event}
 											frame={shownMove.frame}
+											gesture={shownMove.gesture}
 											mainTimeZone={mainTimeZone}
 											currentYear={currentYear}
 											state={shownMove.state}

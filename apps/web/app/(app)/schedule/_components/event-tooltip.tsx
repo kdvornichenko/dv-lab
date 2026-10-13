@@ -23,11 +23,13 @@ function PlainEventCard({
 	timeZone,
 	secondZone,
 	currentYear,
+	suggested,
 }: {
 	event: CalendarEventView
 	timeZone: string
 	secondZone: string | null
 	currentYear: number
+	suggested: string | null
 }) {
 	return (
 		<div data-slot="event-tooltip" data-variant="plain" className="flex flex-col gap-1">
@@ -40,6 +42,9 @@ function PlainEventCard({
 					<MapPin size={16} className="shrink-0" aria-hidden />
 					<span className="min-w-0">{event.location}</span>
 				</span>
+			) : null}
+			{suggested !== null ? (
+				<span className="text-caption text-muted-foreground">May be {suggested}&apos;s lesson. Click to assign.</span>
 			) : null}
 			{event.status === 'tentative' ? <span className="text-caption text-muted-foreground">Tentative</span> : null}
 			{event.editBlock === 'read_only_event' ? (
@@ -58,6 +63,7 @@ interface EventTooltipProps {
 	editable: boolean
 	movable?: boolean
 	ghost?: boolean
+	studentName?: (id: string) => string | null
 	onOpen: (event: CalendarEventView) => void
 }
 
@@ -70,6 +76,7 @@ export function EventTooltip({
 	editable,
 	movable,
 	ghost,
+	studentName,
 	onOpen,
 }: EventTooltipProps) {
 	const [open, setOpen] = useState(false)
@@ -123,7 +130,13 @@ export function EventTooltip({
 			className="max-w-[280px] rounded-xl bg-surface-4 p-3 text-foreground shadow-surface-3 [text-box:normal] supports-[text-box:trim-both]:py-3"
 			content={
 				event.binding.kind === 'external' ? (
-					<PlainEventCard event={event} timeZone={mainTimeZone} secondZone={secondZone} currentYear={currentYear} />
+					<PlainEventCard
+						event={event}
+						timeZone={mainTimeZone}
+						secondZone={secondZone}
+						currentYear={currentYear}
+						suggested={event.suggestion === null ? null : (studentName?.(event.suggestion.studentId) ?? null)}
+					/>
 				) : (
 					<div data-slot="event-tooltip" className="flex flex-col gap-1">
 						<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>

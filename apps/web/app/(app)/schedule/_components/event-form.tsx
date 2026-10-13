@@ -48,6 +48,7 @@ import {
 } from './schedule-form-context'
 import { useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
+import type { MoveSeed } from './use-lesson-drag'
 
 export const EVENT_TITLE_ERROR = 'Enter a title.'
 export const CHECK_STUDENT = '00000000-0000-0000-0000-000000000000'
@@ -499,6 +500,7 @@ export function EventFooter({
 }
 
 export function EventEditForm({
+	moveSeed,
 	event,
 	details,
 	latestVersion,
@@ -512,6 +514,7 @@ export function EventEditForm({
 	onDiscard,
 	onSaved,
 }: {
+	moveSeed?: MoveSeed
 	event: CalendarEventView
 	details: CalendarEventDetails
 	latestVersion: string
@@ -538,9 +541,10 @@ export function EventEditForm({
 			durationMinutes: Math.round((Date.parse(event.when.endsAt) - start.getTime()) / 60000),
 		}
 	})
-	const locked = details.repeat.kind === 'other' ? READ_ISSUES.unsupported_recurrence : null
+	const timeOnly = details.repeat.kind === 'other'
+	const locked = timeOnly ? READ_ISSUES.unsupported_recurrence : null
 	const seedRepeats: LessonRepeats = details.repeat.kind === 'weekly' ? 'weekly' : 'once'
-	const fields = useTimeFields(seed, context, secondZone, {
+	const fields = useTimeFields(moveSeed ?? seed, context, secondZone, {
 		idPrefix: 'event-edit',
 		repeats: seedRepeats,
 		allowPast: true,
@@ -687,7 +691,7 @@ export function EventEditForm({
 						id="event-edit-title"
 						values={values}
 						error={titleError}
-						disabled={pending}
+						disabled={pending || timeOnly}
 						inputRef={titleRef}
 					/>
 				</div>
@@ -697,7 +701,7 @@ export function EventEditForm({
 					values={values}
 					palette={palette}
 					custom={details.color.custom ? { background: details.color.background } : null}
-					disabled={pending}
+					disabled={pending || timeOnly}
 				/>
 			</div>
 			<EventFooter
