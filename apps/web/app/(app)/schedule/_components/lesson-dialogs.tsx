@@ -101,6 +101,7 @@ export function LessonDialogs(props: Props) {
 				student={{ id: shown.studentId, name: shown.studentName }}
 				onClose={() => onClose(target)}
 				onRefresh={() => void reload()}
+				onMarked={reload}
 				onWrite={writes.run}
 			/>
 		)

@@ -3,15 +3,15 @@
 import { Radio } from '@base-ui/react/radio'
 import { RadioGroup } from '@base-ui/react/radio-group'
 
-import { PILL_ORDER, blockEffect, markHelp, markLabel } from '@/lib/lesson-mark-text'
+import { PILL_ORDER, markLabel } from '@/lib/lesson-mark-text'
 import { cn } from '@/lib/utils'
 
-import type { LessonMarkKind, ScheduleBlock } from '@dv-lab/contracts'
+import type { LessonMarkKind } from '@dv-lab/contracts'
 
 interface LessonMarkRowProps {
-	block: ScheduleBlock
-	now: Date
-	mainTimeZone: string
+	mark: LessonMarkKind | null
+	available: boolean
+	help: string | null
 	saving: LessonMarkKind | null
 	locked: boolean
 	onChoose: (kind: LessonMarkKind) => void
@@ -20,13 +20,9 @@ interface LessonMarkRowProps {
 const PILL_CLASS =
 	'inline-flex h-8 cursor-pointer items-center rounded-md px-3 text-body whitespace-nowrap shadow-[inset_0_0_0_1px_var(--input)] outline-none focus-visible:ring-2 focus-visible:ring-focus-ring data-checked:bg-active data-checked:font-semibold data-checked:shadow-none data-disabled:cursor-default'
 
-export function LessonMarkRow({ block, now, mainTimeZone, saving, locked, onChoose }: LessonMarkRowProps) {
-	const available = block.actions.mark
-	const selected: LessonMarkKind = saving ?? block.mark ?? 'none'
-	const help =
-		saving !== null
-			? 'Saving…'
-			: markHelp(blockEffect(block, now, mainTimeZone), block.ledger.lessonMinutes, block.movedTo, mainTimeZone)
+export function LessonMarkRow({ mark, available, help, saving, locked, onChoose }: LessonMarkRowProps) {
+	const selected: LessonMarkKind = saving ?? mark ?? 'none'
+	const text = saving !== null ? 'Saving…' : help
 	return (
 		<div data-slot="lesson-mark-row" className="flex flex-col gap-2">
 			<span id="lesson-mark-label" className="text-body text-muted-foreground">
@@ -45,9 +41,11 @@ export function LessonMarkRow({ block, now, mainTimeZone, saving, locked, onChoo
 					</Radio.Root>
 				))}
 			</RadioGroup>
-			<p data-slot="lesson-mark-help" className="text-caption text-muted-foreground">
-				{help}
-			</p>
+			{text === null ? null : (
+				<p data-slot="lesson-mark-help" className="text-caption text-muted-foreground">
+					{text}
+				</p>
+			)}
 		</div>
 	)
 }

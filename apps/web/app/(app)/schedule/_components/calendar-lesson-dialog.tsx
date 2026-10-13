@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
+import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -20,6 +21,7 @@ import {
 	writeIssueFor,
 	type CalendarLesson,
 } from '@/lib/lesson-actions'
+import { markHelp } from '@/lib/lesson-mark-text'
 import { cn } from '@/lib/utils'
 
 import type {
@@ -27,6 +29,7 @@ import type {
 	CalendarEventView,
 	CalendarSeriesContext,
 	GoogleScheduleWindow,
+	LessonMarkKind,
 } from '@dv-lab/contracts'
 import { addDays, canChange, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
 
@@ -36,9 +39,17 @@ import { EndSeriesDialog } from './end-series-dialog'
 import type { DirectState } from './event-form'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
+import { LessonMarkRow } from './lesson-mark-row'
 import { LessonMoveForm, type MoveDraft } from './lesson-move-form'
 import { backAt, codeRefusal, placedEvent, type WriteRunner } from './optimistic-writes'
-import { useScheduleMutation, type MoveLessonBody, type MoveSeriesBody } from './schedule-mutations'
+import {
+	STALE_LESSON,
+	STALE_TITLE,
+	markLesson,
+	useScheduleMutation,
+	type MoveLessonBody,
+	type MoveSeriesBody,
+} from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 
@@ -53,6 +64,7 @@ type Props = {
 	onClose: () => void
 	onMoveDiscard?: () => void
 	onRefresh: () => void
+	onMarked: () => Promise<void>
 	onWrite: WriteRunner
 }
 
@@ -82,6 +94,7 @@ export function CalendarLessonDialog(props: Props) {
 }
 
 const FAILURE_LINE = 'Could not apply this change. Refresh the calendar before trying again.'
+const MARK_FAILURE = 'Could not save the mark. Try again.'
 
 function dayGap(later: string, earlier: string): number {
 	return Math.round((Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86400000)
@@ -162,6 +175,7 @@ function LessonContent({
 	onClose,
 	onMoveDiscard,
 	onRefresh,
+	onMarked,
 	onWrite,
 	asOf,
 	series,
@@ -185,9 +199,13 @@ function LessonContent({
 	const [confirming, setConfirming] = useState(false)
 	const [scoping, setScoping] = useState(false)
 	const [failure, setFailure] = useState<string | null>(null)
+	const [choosing, setChoosing] = useState<LessonMarkKind | null>(null)
+	const [markFailed, setMarkFailed] = useState(false)
+	const [markStale, setMarkStale] = useState(false)
 	const moveButton = useRef<HTMLButtonElement>(null)
 	const editable = canEditCalendarEvent(event, window) && !blocked
 	const pending = command.pending
+	const busy = pending || choosing !== null
 	const details = {
 		startsAt: event.when.startsAt,
 		durationMinutes: (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
@@ -202,12 +220,13 @@ function LessonContent({
 		restore: event.status === 'cancelled' && mark !== 'done',
 	}
 	const unavailable =
-		editable || pending
+		editable || busy
 			? null
 			: (() => {
 					const issue = writeIssueFor(event, window, blocked)
 					return issue === null ? null : READ_ISSUES[issue]
 				})()
+	const markable = startedLesson(event, now) && event.status !== 'cancelled'
 	const scopes = editable ? seriesScopesFor(initial, series) : (['one'] as const)
 	const title = student?.name ?? eventTitle(event)
 	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'detached' | { failed: string }> {
@@ -223,13 +242,13 @@ function LessonContent({
 		return 'ok'
 	}
 	async function change(action: 'cancel' | 'restore') {
-		if (pending || !editable) return
+		if (busy || !editable) return
 		setFailure(null)
 		const outcome = await apply(action)
 		if (typeof outcome === 'object') setFailure(outcome.failed)
 	}
 	async function cancelScope(scope: CalendarEditScope): Promise<boolean> {
-		if (pending || !editable) return false
+		if (busy || !editable) return false
 		if (scope === 'one') return (await apply('cancel')) === 'ok'
 		const ref = initial.binding.ref
 		if (series === null || ref.kind !== 'series') return false
@@ -243,7 +262,7 @@ function LessonContent({
 		return true
 	}
 	function save(scope: CalendarEditScope, draft: MoveDraft): Promise<boolean> {
-		if (pending || !editable) return Promise.resolve(false)
+		if (busy || !editable) return Promise.resolve(false)
 		const send =
 			scope === 'one' || series === null
 				? command.prepare(initial.binding.ref, 'move', lessonMoveBody(initial, draft, mainTimeZone), draft.checked)
@@ -264,6 +283,17 @@ function LessonContent({
 		onClose()
 		return Promise.resolve(true)
 	}
+	async function choose(kind: LessonMarkKind) {
+		if (busy) return
+		setChoosing(kind)
+		setMarkStale(false)
+		setMarkFailed(false)
+		const result = await markLesson({ ref: initial.binding.ref, startsAt: event.when.startsAt }, kind)
+		if (result.kind === 'ok' || result.kind === 'stale') await onMarked()
+		if (result.kind === 'stale') setMarkStale(true)
+		else if (result.kind !== 'ok') setMarkFailed(true)
+		setChoosing(null)
+	}
 	function askCancel() {
 		if (initial.binding.ref.kind === 'series' && !startedLesson(initial, now)) setScoping(true)
 		else setConfirming(true)
@@ -272,17 +302,17 @@ function LessonContent({
 		<Dialog
 			open
 			onOpenChange={(open) => {
-				if (!open && !pending) onClose()
+				if (!open && !busy) onClose()
 			}}
 		>
 			<DialogContent
 				size="lg"
-				showCloseButton={!pending}
+				showCloseButton={!busy}
 				className={cn('data-[nested-dialog-open]:invisible', direct !== 'shown' && 'invisible')}
 				backdropClassName={direct === 'sending' ? 'invisible' : undefined}
 			>
 				<DialogHeader>
-					<LessonTitle studentId={event.binding.studentId} title={title} pending={pending} />
+					<LessonTitle studentId={event.binding.studentId} title={title} pending={busy} />
 					<DialogDescription>
 						<EventTime
 							event={event}
@@ -296,7 +326,7 @@ function LessonContent({
 					<div className="flex flex-col gap-4 py-1">
 						<div className="flex flex-wrap items-baseline justify-between gap-x-4">
 							<p className="text-body">{event.status === 'cancelled' ? 'Cancelled' : 'Planned'}</p>
-							{!editable && !pending ? <p className="text-body text-muted-foreground">Read-only</p> : null}
+							{!editable && !busy ? <p className="text-body text-muted-foreground">Read-only</p> : null}
 						</div>
 						<CalendarFormStatus
 							entry={command.entry}
@@ -312,6 +342,30 @@ function LessonContent({
 							<p role="alert" className="text-body text-destructive">
 								{failure}
 							</p>
+						) : null}
+						{markStale ? (
+							<Banner status="warning" data-slot="lesson-stale">
+								<BannerTitle>{STALE_TITLE}</BannerTitle>
+								<BannerDescription>{STALE_LESSON}</BannerDescription>
+								<Button type="button" variant="ghost" size="compact" disabled={busy} onClick={onRefresh}>
+									Refresh
+								</Button>
+							</Banner>
+						) : null}
+						{markFailed ? (
+							<Banner status="error" data-slot="lesson-mark-failed">
+								<BannerTitle>{MARK_FAILURE}</BannerTitle>
+							</Banner>
+						) : null}
+						{markable ? (
+							<LessonMarkRow
+								mark={mark}
+								available
+								help={mark === null ? markHelp({ kind: 'unmarked' }, 0, null, mainTimeZone) : null}
+								saving={choosing}
+								locked={busy}
+								onChoose={(kind) => void choose(kind)}
+							/>
 						) : null}
 						<LessonDetails
 							block={details}
@@ -334,7 +388,7 @@ function LessonContent({
 								currentMainTimeZone={window.requestedRange.timeZone}
 								asOf={asOf}
 								secondZone={secondZone}
-								locked={command.pending}
+								locked={busy}
 								direct={direct !== 'shown'}
 								onDirect={setDirect}
 								onClose={onClose}
@@ -356,7 +410,7 @@ function LessonContent({
 					confirming={confirming}
 					moving={moving}
 					pending={pending}
-					locked={pending || !editable}
+					locked={busy || !editable}
 					moveButton={moveButton}
 					onKeep={() => setConfirming(false)}
 					onCancel={() => void change('cancel')}
@@ -365,7 +419,7 @@ function LessonContent({
 					onConfirm={askCancel}
 					onEndSeries={endable ? onEndSeries : undefined}
 				/>
-				{!pending && !moving ? (
+				{!busy && !moving ? (
 					<Button variant="secondary" onClick={onClose}>
 						Close
 					</Button>

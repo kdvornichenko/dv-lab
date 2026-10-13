@@ -20,7 +20,7 @@ import {
 	writeIssueFor,
 	type CalendarLesson,
 } from '@/lib/lesson-actions'
-import type { OccurrenceSlot } from '@/lib/lesson-mark-text'
+import { blockEffect, markHelp, type OccurrenceSlot } from '@/lib/lesson-mark-text'
 import { formatFullDate, mainRange, secondRange } from '@/lib/schedule-format'
 import { sameTimeZone } from '@/lib/time-zones'
 
@@ -236,9 +236,14 @@ export function LessonDialog({
 							</Banner>
 						) : null}
 						<LessonMarkRow
-							block={block}
-							mainTimeZone={context.mainTimeZone}
-							now={now}
+							mark={block.mark}
+							available={block.actions.mark}
+							help={markHelp(
+								blockEffect(block, now, context.mainTimeZone),
+								block.ledger.lessonMinutes,
+								block.movedTo,
+								context.mainTimeZone
+							)}
 							saving={choosing}
 							locked={busy}
 							onChoose={(kind) => void choose(kind)}

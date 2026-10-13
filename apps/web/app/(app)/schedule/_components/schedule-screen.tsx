@@ -243,6 +243,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 				onClose={closeEvent}
 				onMoveDiscard={() => setMoveSeed(undefined)}
 				onRefresh={refreshForms}
+				onMarked={async () => {
+					await reload()
+				}}
 				onWrite={writes.run}
 			/>
 		</>
@@ -384,6 +387,7 @@ function SelectedEventDialog({
 	onClose,
 	onMoveDiscard,
 	onRefresh,
+	onMarked,
 	onWrite,
 }: {
 	moveSeed?: MoveSeed
@@ -398,6 +402,7 @@ function SelectedEventDialog({
 	onClose: () => void
 	onMoveDiscard: () => void
 	onRefresh: () => void
+	onMarked: () => Promise<void>
 	onWrite: WriteRunner
 }) {
 	if (event === null) return null
@@ -414,6 +419,7 @@ function SelectedEventDialog({
 				onClose={onClose}
 				onMoveDiscard={onMoveDiscard}
 				onRefresh={onRefresh}
+				onMarked={onMarked}
 				onWrite={onWrite}
 			/>
 		)
