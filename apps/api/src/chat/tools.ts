@@ -1,24 +1,31 @@
 import type Anthropic from '@anthropic-ai/sdk'
 
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
+	CHAT_ACTION_LINK_DIALOGS,
+	CHAT_ACTION_LINK_KINDS,
+	CHAT_ACTION_LINK_STUDENT_KINDS,
 	CHAT_LESSON_DATES_DAYS_MAX,
 	CHAT_LESSON_DATE_SCOPES,
+	CHAT_SETTINGS_TABS,
 	CLOCK_TIME_PATTERN,
+	type ChatActionLinkBlock,
 	type ChatBlock,
 	type ChatExcerptBlock,
 	type ChatLessonIntent,
 	type ChatLessonsBlock,
+	type Gender,
 	appendLessonCommentRequest,
 	appendStudentNoteRequest,
 	calendarDate,
 	chatLessonIntent,
 } from '@dv-lab/contracts'
 import { addDays, lessonDay, startOfLessonDay, zonedParts } from '@dv-lab/core'
-import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
+import { type Database, type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
-import { listLessonStudents } from '../cards/cards.ts'
+import { listLessonStudents, studentGenders } from '../cards/cards.ts'
 import { listStudentNotes } from '../cards/notes.ts'
 import { listSections } from '../cards/sections.ts'
 import { listStudentComments } from '../schedule/comments.ts'
@@ -81,6 +88,13 @@ const inputs = {
 		scope: z.enum(['one', 'series']),
 		from: nullable(date),
 	}),
+	open_page: z.strictObject({
+		kind: z.string(),
+		student_id: nullable(id),
+		date: nullable(date),
+		tab: nullable(z.enum(CHAT_SETTINGS_TABS)),
+		dialog: nullable(z.enum(CHAT_ACTION_LINK_DIALOGS)),
+	}),
 }
 
 type ToolName = keyof typeof inputs
@@ -99,12 +113,14 @@ function tool(name: ToolName, description: string, properties: Record<string, ob
 }
 
 export const CHAT_TOOLS: Anthropic.Tool[] = [
-	tool('find_students', 'Find active students whose name contains the query. Returns up to six candidates.', {
-		query: string,
-	}),
+	tool(
+		'find_students',
+		'Find active students whose name contains the query. Returns up to six candidates with their gender (female, male or null when not set).',
+		{ query: string }
+	),
 	tool(
 		'student_facts',
-		'Read the computed facts of one student: balance, next lesson and whether the student pays soon. show true only if the teacher asked about the balance, lessons left, the next lesson or a payment; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
+		'Read the computed facts of one student: balance, next lesson and whether the student pays soon, and the gender of the student (female, male or null when not set). show true only if the teacher asked about the balance, lessons left, the next lesson or a payment; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
 		{ student_id: string, show: boolean }
 	),
 	tool(
@@ -158,6 +174,17 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 			from: nullableString,
 		}
 	),
+	tool(
+		'open_page',
+		'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and null otherwise. dialog is null unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
+		{
+			kind: { type: 'string', enum: [...CHAT_ACTION_LINK_KINDS] },
+			student_id: nullableString,
+			date: nullableString,
+			tab: { type: ['string', 'null'], enum: [...CHAT_SETTINGS_TABS, null] },
+			dialog: { type: ['string', 'null'], enum: [...CHAT_ACTION_LINK_DIALOGS, null] },
+		}
+	),
 ]
 
 export function weekdayName(instant: Date, zone: string): string {
@@ -197,7 +224,13 @@ async function findStudents(executor: DbExecutor, query: string): Promise<ToolOu
 	const rows = (await listLessonStudents(executor))
 		.filter((row) => searchKey(row.displayName).includes(key))
 		.slice(0, CANDIDATES_MAX)
-	return result({ students: rows.map((row) => ({ student_id: row.id, name: row.displayName })) })
+	const genders = await studentGenders(
+		executor,
+		rows.map((row) => row.id)
+	)
+	return result({
+		students: rows.map((row) => ({ student_id: row.id, name: row.displayName, gender: genders.get(row.id) ?? null })),
+	})
 }
 
 async function show(context: ToolContext, block: ChatBlock, outcome: ToolOutcome): Promise<ToolOutcome> {
@@ -210,18 +243,21 @@ async function studentFacts(
 	input: z.infer<(typeof inputs)['student_facts']>
 ): Promise<ToolOutcome> {
 	const studentId = input.student_id
-	let facts: Awaited<ReturnType<typeof readChatFacts>>
+	let read: { facts: Awaited<ReturnType<typeof readChatFacts>>; gender: Gender | null }
 	try {
-		facts = await readSnapshot(context.db, async (executor) => {
+		read = await readSnapshot(context.db, async (executor) => {
 			const settings = await readTeacherSettings(executor, context.chat.accountId)
-			return readChatFacts(executor, context.chat, studentId, settings.paysSoonLessons)
+			const facts = await readChatFacts(executor, context.chat, studentId, settings.paysSoonLessons)
+			const genders = await studentGenders(executor, [studentId])
+			return { facts, gender: genders.get(studentId) ?? null }
 		})
 	} catch {
 		if (!input.show) return failure('tool_failed')
 		return show(context, { type: 'read_failed', key: { kind: 'student', studentId } }, failure('tool_failed'))
 	}
+	const facts = read.facts
 	if (facts === null) return failure('student_not_found')
-	const outcome = result({ facts })
+	const outcome = result({ facts, gender: read.gender })
 	const key = `facts:${studentId}`
 	if (!input.show || context.shown.has(key)) return outcome
 	context.shown.add(key)
@@ -473,6 +509,44 @@ function receipt(block: ChatBlock): unknown {
 	}
 }
 
+const PAGE_NOTE =
+	'The teacher sees a link to this page under your answer. Write one short sentence that says what you cannot do from the chat. Do not tell the teacher to do it manually or how, and do not repeat any number, amount or count from the request.'
+
+const DIALOG_KIND = { payment: 'payments', details: 'overview' } as const
+
+const isStudentKind = (kind: string): kind is (typeof CHAT_ACTION_LINK_STUDENT_KINDS)[number] =>
+	CHAT_ACTION_LINK_STUDENT_KINDS.some((item) => item === kind)
+
+async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['open_page']>): Promise<ToolOutcome> {
+	const kind = CHAT_ACTION_LINK_KINDS.find((item) => item === input.kind)
+	if (kind === undefined) return failure('no_page')
+	if (input.dialog !== null && DIALOG_KIND[input.dialog] !== kind) return failure('invalid_arguments')
+	if (kind === 'settings' && input.tab === null) return failure('invalid_arguments')
+	if (kind === 'schedule_day' && input.date === null) return failure('invalid_arguments')
+	const block: ChatActionLinkBlock = {
+		type: 'action_link',
+		kind,
+		studentId: null,
+		studentName: null,
+		date: kind === 'schedule_day' ? input.date : null,
+		tab: kind === 'settings' ? input.tab : null,
+		dialog: input.dialog,
+	}
+	if (isStudentKind(kind)) {
+		if (input.student_id === null) return failure('invalid_arguments')
+		const [row] = await context.db
+			.select({ displayName: students.displayName })
+			.from(students)
+			.where(eq(students.id, input.student_id))
+		if (!row) return failure('student_not_found')
+		block.studentId = input.student_id
+		block.studentName = row.displayName
+	}
+	if (context.shown.has('action_link')) return result({ status: 'not_shown', note: 'Only one page link per answer.' })
+	context.shown.add('action_link')
+	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
+}
+
 const WRITES = new Set<ToolName>(['mark_lesson', 'add_note', 'add_comment', 'propose_lesson_change'])
 
 function isTool(name: string): name is ToolName {
@@ -502,5 +576,6 @@ async function read(context: ToolContext, name: ToolName, input: unknown): Promi
 export async function runTool(context: ToolContext, name: string, input: unknown): Promise<ToolOutcome> {
 	if (!isTool(name)) return failure('unknown_tool')
 	if (!inputs[name].safeParse(input).success) return failure('invalid_arguments')
+	if (name === 'open_page') return openPage(context, inputs.open_page.parse(input))
 	return WRITES.has(name) ? write(context, name, input) : read(context, name, input)
 }

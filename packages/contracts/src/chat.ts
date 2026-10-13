@@ -487,6 +487,31 @@ export const chatSuggestionsBlock = z.strictObject({
 
 export const chatReadFailedBlock = z.strictObject({ type: z.literal('read_failed'), key: chatRecordsKey })
 
+export const CHAT_ACTION_LINK_KINDS = [
+	'payments',
+	'notes',
+	'overview',
+	'vocabulary',
+	'schedule_day',
+	'settings',
+] as const
+
+export const CHAT_ACTION_LINK_STUDENT_KINDS = ['payments', 'notes', 'overview', 'vocabulary'] as const
+
+export const CHAT_ACTION_LINK_DIALOGS = ['payment', 'details'] as const
+
+export const CHAT_SETTINGS_TABS = ['general', 'calendar', 'assistant'] as const
+
+export const chatActionLinkBlock = z.strictObject({
+	type: z.literal('action_link'),
+	kind: z.enum(CHAT_ACTION_LINK_KINDS),
+	studentId: z.uuid().nullable(),
+	studentName: z.string().nullable(),
+	date: calendarDate.nullable(),
+	tab: z.enum(CHAT_SETTINGS_TABS).nullable(),
+	dialog: z.enum(CHAT_ACTION_LINK_DIALOGS).nullable(),
+})
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
@@ -502,6 +527,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatSuggestionsBlock,
 	chatReadFailedBlock,
 	chatLessonDatesBlock,
+	chatActionLinkBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -522,6 +548,10 @@ export type ChatExcerptBlock = z.infer<typeof chatExcerptBlock>
 export type ChatSuggestionsBlock = z.infer<typeof chatSuggestionsBlock>
 export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
 export type ChatLessonDatesBlock = z.infer<typeof chatLessonDatesBlock>
+export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
+export type ChatActionLinkKind = (typeof CHAT_ACTION_LINK_KINDS)[number]
+export type ChatActionLinkDialog = (typeof CHAT_ACTION_LINK_DIALOGS)[number]
+export type ChatSettingsTab = (typeof CHAT_SETTINGS_TABS)[number]
 export type ChatDayLesson = z.infer<typeof chatDayLesson>
 export type ChatActionResultBlock = z.infer<typeof chatActionResultBlock>
 export type ChatClarifyBlock = z.infer<typeof chatClarifyBlock>

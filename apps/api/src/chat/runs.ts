@@ -5,6 +5,7 @@ import type { Logger } from 'pino'
 import { z } from 'zod'
 
 import {
+	type ChatActionLinkBlock,
 	type ChatBlock,
 	type ChatExcerptBlock,
 	type ChatMessage,
@@ -14,6 +15,7 @@ import {
 	type ChatTurn,
 	type ChatTurnIssue,
 	type ChatTurnState,
+	type Gender,
 	CHAT_ACTIVE_TURN_STATES,
 	CHAT_STEP_TOOLS,
 	type MentionBinding,
@@ -31,6 +33,7 @@ import {
 } from '@dv-lab/db'
 
 import type { CalendarCommands } from '../calendar/commands.ts'
+import { studentGenders } from '../cards/cards.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt } from './budget.ts'
@@ -76,6 +79,7 @@ type Run = {
 	done: Promise<void>
 	steps: ChatStep[]
 	people: Map<string, string>
+	link: ChatActionLinkBlock | null
 }
 
 type Ending = {
@@ -106,6 +110,8 @@ const SYSTEM = [
 	'When the teacher asks for ideas, exercises or a task, write them in your answer as finished sentences: a short paragraph or a short markdown list the teacher can copy.',
 	'mark_lesson, add_note and add_comment change data: use them only when the teacher clearly asks for that change. propose_lesson_change only proposes; the teacher confirms it in the chat.',
 	'When a tool asks which lesson or refuses, tell the teacher in one short sentence and do not guess.',
+	'Students have a gender: female, male or null (not set), given in Mentioned students and by find_students and student_facts. Choose the grammatical gender of words about a student by it: in Russian ученица or ученик, она or он and the past tense of verbs (пришла or пришёл); in English she or he. When the gender is null, word the sentence neutrally (the name, "the student", no gendered pronoun or past-tense ending) and never guess it from the name.',
+	'When the teacher asks for something you have no tool for, such as recording a payment, editing the profile of a student or changing settings, call open_page with the page where the teacher does it and write one short sentence that says you cannot do it from the chat, for example "I can\'t record payments from the chat." (in Russian "Я не могу записать оплату из чата."). Do not tell the teacher to enter it manually, do not explain how, and do not repeat any amount, number or count from the request. If no page fits, write the sentence alone.',
 ].join('\n')
 
 const ending = (state: Ending['state'], issue: ChatTurnIssue | null = null, blocks: ChatBlock[] = []): Ending => ({
@@ -118,12 +124,13 @@ export function inputUpperBound(request: Pick<Anthropic.MessageCreateParams, 'sy
 	return Buffer.byteLength(JSON.stringify({ system: request.system, tools: request.tools, messages: request.messages }))
 }
 
-function mentionLines(mentions: readonly MentionBinding[]): string[] {
+function mentionLines(mentions: readonly MentionBinding[], genders?: ReadonlyMap<string, Gender | null>): string[] {
 	const seen = new Set<string>()
 	return mentions.flatMap((binding) => {
 		if (seen.has(binding.studentId)) return []
 		seen.add(binding.studentId)
-		return [`- ${binding.text} (student_id: ${binding.studentId})`]
+		const gender = genders === undefined ? '' : `, gender: ${genders.get(binding.studentId) ?? 'null'}`
+		return [`- ${binding.text} (student_id: ${binding.studentId}${gender})`]
 	})
 }
 
@@ -157,6 +164,8 @@ function blockNote(block: ChatBlock): string {
 			return '[Records could not be read]'
 		case 'lesson_dates':
 			return `[Showed the lesson dates of ${block.studentName}]`
+		case 'action_link':
+			return `[Showed a link to the ${block.kind} page${block.studentName === null ? '' : ` of ${block.studentName}`}]`
 	}
 }
 
@@ -180,9 +189,14 @@ function expandCommand(body: string): string {
 	return rest === '' ? task : `${task}\n\nThe teacher wrote: ${rest}`
 }
 
-function currentMessage(message: ChatMessage, zone: string, now: Date): Anthropic.MessageParam {
+function currentMessage(
+	message: ChatMessage,
+	zone: string,
+	now: Date,
+	genders: ReadonlyMap<string, Gender | null>
+): Anthropic.MessageParam {
 	const local = zonedParts(now, zone)
-	const lines = mentionLines(message.mentions)
+	const lines = mentionLines(message.mentions, genders)
 	const day = lessonDay(now, zone)
 	const context = [
 		'[Context]',
@@ -351,7 +365,8 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 							.set({ mentions: replyMentions(reply.body, run.people) })
 							.where(and(eq(chatMessages.id, messageId), isNull(chatMessages.redactedAt)))
 				}
-				for (const block of result.blocks) blocks.push({ seq: await appendBlock(tx, row, block), block })
+				const endBlocks = run?.link ? [run.link, ...result.blocks] : result.blocks
+				for (const block of endBlocks) blocks.push({ seq: await appendBlock(tx, row, block), block })
 				const rows = await tx.select().from(chatMessages).where(eq(chatMessages.id, messageId))
 				message = (await toMessages(tx, rows))[0] ?? null
 			}
@@ -571,7 +586,11 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 			run.people.set(binding.studentId, binding.text.replace(/^@/u, ''))
 		}
 		const past = loaded.past.map(pastMessage).filter((message) => message !== null)
-		const current = currentMessage(loaded.current, zone, start.now)
+		const genders = await studentGenders(
+			db,
+			loaded.current.mentions.map((binding) => binding.studentId)
+		)
+		const current = currentMessage(loaded.current, zone, start.now, genders)
 		const steps: Anthropic.MessageParam[] = []
 		const issued: Issued = new Map()
 		const shown = new Set<string>()
@@ -725,6 +744,10 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 				use.name,
 				use.input
 			)
+			if (outcome.block?.type === 'action_link' && run.link === null) {
+				run.link = outcome.block
+				run.wroteBlock = true
+			}
 			const shown = published as { seq: number; block: ChatBlock } | null
 			if (shown !== null && turn.assistantMessageId !== null) {
 				run.wroteBlock = true
@@ -771,6 +794,7 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 			done: Promise.resolve(),
 			steps: [],
 			people: new Map(),
+			link: null,
 		}
 		runs.set(turnId, run)
 		run.done = execute(run)
