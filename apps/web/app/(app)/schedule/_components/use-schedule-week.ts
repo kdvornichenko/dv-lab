@@ -34,12 +34,14 @@ function pause(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function bootstrap(): Promise<WeekQuery | null> {
+async function bootstrap(initialMonday: string | null): Promise<WeekQuery | null> {
 	const result = await apiRequest<SettingsResponse>('GET', '/settings')
 	if (!result.ok) return null
 	const mainTimeZone = timeZoneIdentity(result.data.settings.defaultTimeZone)
 	if (mainTimeZone === null) return null
-	return { mainTimeZone, monday: mondayOf(lessonDay(new Date(), mainTimeZone)), current: true }
+	const currentMonday = mondayOf(lessonDay(new Date(), mainTimeZone))
+	const monday = initialMonday ?? currentMonday
+	return { mainTimeZone, monday, current: monday === currentMonday }
 }
 
 function matchesQuery(data: GoogleScheduleWindow, query: WeekQuery): boolean {
@@ -87,7 +89,8 @@ function older(next: GoogleScheduleWindow, previous: GoogleScheduleWindow | null
 	)
 }
 
-export function useScheduleWeek() {
+export function useScheduleWeek(initialMonday: string | null = null) {
+	const initial = useRef(initialMonday)
 	const controller = useCalendarController()
 	const [state, setState] = useState<WeekState>({ kind: 'loading', query: null, data: null })
 	const query = useRef<WeekQuery | null>(null)
@@ -168,7 +171,7 @@ export function useScheduleWeek() {
 			query.current = requested
 			const target =
 				requested ??
-				(await bootstrap().then((known) => {
+				(await bootstrap(initial.current).then((known) => {
 					if (known !== null && id === requests.current)
 						setState((previous) => (previous.query === null ? { ...previous, query: known } : previous))
 					return known

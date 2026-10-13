@@ -25,6 +25,7 @@ import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
+import { ScheduleArrival } from './schedule-arrival'
 import {
 	NOTICE_SLOT,
 	STRIP,
@@ -37,13 +38,14 @@ import {
 import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
+import { arrivalMonday, type ArrivalParams } from './use-schedule-arrival'
 import { useScheduleWeek } from './use-schedule-week'
 import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
-export function ScheduleScreen() {
+export function ScheduleScreen({ arrival }: { arrival: ArrivalParams }) {
 	const now = useMinuteNow()
 	if (now === null) return <ScheduleLoading />
-	return <LoadedSchedule now={now} />
+	return <LoadedSchedule now={now} arrival={arrival} />
 }
 
 function displayWindow(data: GoogleScheduleWindow | null, query: { monday: string; mainTimeZone: string }, now: Date) {
@@ -63,8 +65,9 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 	}
 }
 
-function LoadedSchedule({ now }: { now: Date }) {
-	const { state: week, reload, navigate } = useScheduleWeek()
+function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams }) {
+	const [initialMonday] = useState(() => arrivalMonday(arrival))
+	const { state: week, reload, navigate } = useScheduleWeek(initialMonday)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
@@ -178,6 +181,17 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const refreshWeek = async () => {
 		await reload()
 	}
+	const arrived = (
+		<ScheduleArrival
+			{...arrival}
+			failed={week.kind === 'error'}
+			ready={week.kind === 'ready' && data !== null && !loadingFirst && requestedMonday === monday}
+			monday={monday}
+			events={events}
+			mainTimeZone={mainTimeZone}
+			currentYear={currentYear}
+		/>
+	)
 	const grid = (
 		<WeekGrid
 			emptyNote={read.state === 'fresh' && events.length === 0 ? 'No Google Calendar events in this range.' : null}
@@ -289,6 +303,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 				{inBar(<div className="flex items-center gap-2">{tools}</div>, laptop.right)}
 				<WorkspacePage>
 					<div {...windowAttributes} className={WORKSPACE_BODY}>
+						{arrived}
 						{grid}
 					</div>
 				</WorkspacePage>
@@ -329,6 +344,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 							<CalendarReadNotice read={read} write={write} timeZone={mainTimeZone} onRefresh={refreshWeek} />
 						)}
 					</div>
+					{arrived}
 					{grid}
 				</div>
 				<CalendarRecovery showEmpty={false} />

@@ -165,7 +165,7 @@ function AgendaRow({
 			data-binding={event.binding.kind}
 			onClick={() => onOpen(event)}
 			className={cn(
-				'flex w-full min-w-0 items-start gap-3 rounded-md p-2 text-left text-body focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
+				'flex w-full min-w-0 items-start gap-3 rounded-xl p-2 text-left text-body focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
 				event.status === 'cancelled' && 'text-muted-foreground line-through'
 			)}
 		>
@@ -222,6 +222,8 @@ function CalendarAgenda({
 								{weekdayCaps(date)}
 							</span>
 							<span
+								data-slot="agenda-date"
+								data-date={date}
 								className={cn(
 									'flex size-11 items-center justify-center rounded-full text-display tabular-nums',
 									date === today && 'bg-gcal-today text-gcal-today-ink'

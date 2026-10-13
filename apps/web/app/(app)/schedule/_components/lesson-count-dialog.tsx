@@ -24,6 +24,7 @@ import { Tooltip } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { apiRequest } from '@/lib/api-client'
 import { datesPlural, lessonCountText } from '@/lib/lesson-count-text'
+import { copyTooltip, useCopy } from '@/lib/use-copy'
 import { cn } from '@/lib/utils'
 
 import type { CalendarIssue, GoogleScheduleWindow } from '@dv-lab/contracts'
@@ -199,7 +200,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 	const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle')
 	const [events, setEvents] = useState<EventDates>(new Map())
 	const [title, setTitle] = useState<string | null>(null)
-	const [copied, setCopied] = useState(false)
+	const { state: copyState, copy, reset: resetCopy } = useCopy()
 	const [issue, setIssue] = useState<CalendarIssue | null>(null)
 	const requests = useRef(0)
 	const showRef = useRef<HTMLButtonElement>(null)
@@ -212,7 +213,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 		setRange(next)
 		setState('idle')
 		setTitle(null)
-		setCopied(false)
+		resetCopy()
 	}
 
 	function show() {
@@ -221,7 +222,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 		const to = isoDay(range.to ?? range.from)
 		const id = ++requests.current
 		setTitle(null)
-		setCopied(false)
+		resetCopy()
 		setState('loading')
 		void loadEvents(from, to).then((result) => {
 			if (id !== requests.current) return
@@ -238,16 +239,6 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 
 	const text = title === null ? '' : lessonCountText(events.get(title) ?? [])
 	const titles = useMemo(() => [...events.keys()].sort((a, b) => a.localeCompare(b)), [events])
-
-	async function copy() {
-		try {
-			await navigator.clipboard.writeText(text)
-			setCopied(true)
-			setTimeout(() => setCopied(false), 1500)
-		} catch {
-			setCopied(false)
-		}
-	}
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -336,7 +327,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 									selected={title}
 									onSelect={(name) => {
 										setTitle(name)
-										setCopied(false)
+										resetCopy()
 									}}
 								/>
 								{title === null ? (
@@ -348,19 +339,23 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 							<section aria-label={title} className="flex flex-col gap-2 rounded-lg bg-hover p-3">
 								<div className="flex items-center justify-between gap-3">
 									<p className="min-w-0 truncate text-body font-semibold">{title}</p>
-									<Tooltip side="top" forceOpen={copied ? true : undefined} content={copied ? 'Copied' : 'Copy dates'}>
+									<Tooltip
+										side="top"
+										forceOpen={copyState === 'idle' ? undefined : true}
+										content={copyTooltip(copyState, 'Copy dates')}
+									>
 										<Button
 											variant="secondary"
 											size="icon-compact"
 											className="shrink-0"
 											aria-label="Copy dates"
-											onClick={() => void copy()}
+											onClick={() => void copy(text)}
 										>
-											{copied ? <Check /> : <Copy />}
+											{copyState === 'copied' ? <Check /> : <Copy />}
 										</Button>
 									</Tooltip>
 									<span className="sr-only" aria-live="polite">
-										{copied ? 'Copied' : ''}
+										{copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Could not copy' : ''}
 									</span>
 								</div>
 								<div className="text-body tabular-nums select-all">
