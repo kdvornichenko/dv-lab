@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { commandUnconfirmed } from '@/components/app/calendar-command-notice'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
 import { formatWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
@@ -66,7 +65,9 @@ export function useOptimisticWrites(onRefused: () => void) {
 	const warned = useRef<{ requestId: string; toast: number } | null>(null)
 	const requestId = active?.requestId ?? null
 	const entry = requestId === null ? null : (commands.view.entries.find((item) => item.requestId === requestId) ?? null)
-	const unconfirmed = commandUnconfirmed(entry)
+	const command = entry?.command ?? null
+	const unconfirmed =
+		command?.state === 'outcome_unknown' || (command?.nextAction === 'resume_recovery' && entry?.settling !== true)
 	const commandId = entry?.commandId ?? null
 
 	useEffect(() => {
@@ -77,6 +78,11 @@ export function useOptimisticWrites(onRefused: () => void) {
 	}, [])
 
 	useEffect(() => {
+		if (!unconfirmed && warned.current !== null && warned.current.requestId === requestId) {
+			toast.dismiss(warned.current.toast)
+			warned.current = null
+			return
+		}
 		if (!unconfirmed || requestId === null || warned.current?.requestId === requestId) return
 		const id = toast.show({
 			status: 'warning',
