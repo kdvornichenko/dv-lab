@@ -13,6 +13,29 @@ const VIEWPORTS = [
 const BODY = '[data-slot="week-grid-body"] [data-slot="calendar-event"]'
 const BAND = '[data-slot="calendar-all-day"] [data-slot="calendar-event"]'
 const POLL_WINDOW_MS = 30000
+const MODES = {
+	applied: (revision) => ({
+		state: 'applied',
+		effect: 'confirmed',
+		issue: null,
+		confirmedRevision: revision,
+		nextAction: 'none',
+	}),
+	syncing: () => ({
+		state: 'dispatching',
+		effect: 'unknown',
+		issue: null,
+		confirmedRevision: null,
+		nextAction: 'wait',
+	}),
+	refused: () => ({
+		state: 'failed',
+		effect: 'none',
+		issue: 'not_applied',
+		confirmedRevision: null,
+		nextAction: 'retry_new_command',
+	}),
+}
 
 const real = (problems) =>
 	problems.filter((problem) => !problem.includes('server caches disabled') && !problem.includes('status of 404'))
@@ -76,7 +99,9 @@ function operationOf(method, path) {
 	if (path.endsWith('/end')) return 'end_series'
 	if (path.endsWith('/cancel')) return 'cancel'
 	if (path.endsWith('/restore')) return 'restore'
-	if (path.includes('/series/') && path.endsWith('/move')) return 'move'
+	if (path.includes('/occurrences/') && path.endsWith('/move')) return 'move'
+	if (path.includes('/series/') && path.endsWith('/move')) return 'move_series'
+	if (path.endsWith('/move')) return 'move'
 	return 'create'
 }
 
@@ -84,7 +109,17 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 	const { browser, context, page, problems } = await launch(viewport)
 	const calls = []
 	const commands = new Map()
-	const state = { revision: '1', generation: 1, lesson: injectLesson, lessonInfo: null }
+	const state = {
+		revision: '1',
+		generation: 1,
+		lesson: injectLesson,
+		lessonInfo: null,
+		lessonStart: null,
+		next: 'applied',
+		release: () => {
+			for (const item of commands.values()) item.mode = 'applied'
+		},
+	}
 	await context.route(/\/api\/schedule\/week/, async (route) => {
 		const response = await route.fetch()
 		let json
@@ -101,6 +136,7 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 				const { seriesId, studentId, version } = state.lessonInfo
 				const start = new Date(target.when.startsAt)
 				const originalOn = target.when.startsAt.slice(0, 10)
+				state.lessonStart = target.when.startsAt
 				target.binding = {
 					kind: 'lesson',
 					ref: { kind: 'series', seriesId, originalOn },
@@ -146,18 +182,17 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 		const operation = operationOf(request.method(), url.pathname)
 		calls.push({ path: url.pathname.replace('/api', ''), body, operation })
 		commands.set(commandId, {
-			commandId,
-			requestId: body?.requestId,
-			generation: state.generation,
-			expectedVersion: body?.expectedVersion,
-			operation,
-			effect: 'confirmed',
-			state: 'applied',
-			issue: null,
-			confirmedRevision: state.revision,
-			affectedRefs: [],
-			nextAction: 'none',
+			mode: state.next,
+			base: {
+				commandId,
+				requestId: body?.requestId,
+				generation: state.generation,
+				expectedVersion: body?.expectedVersion,
+				operation,
+				affectedRefs: [],
+			},
 		})
+		state.next = 'applied'
 		return route.fulfill({
 			status: 202,
 			json: { commandId, statusUrl: `/api/google/commands/${commandId}` },
@@ -167,10 +202,10 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 		const url = new URL(route.request().url())
 		const key = decodeURIComponent(url.pathname.split('/').pop())
 		const found = url.pathname.includes('/by-request/')
-			? [...commands.values()].find((item) => item.requestId === key)
+			? [...commands.values()].find((item) => item.base.requestId === key)
 			: commands.get(key)
 		if (!found) return route.continue()
-		return route.fulfill({ json: found })
+		return route.fulfill({ json: { ...found.base, ...MODES[found.mode](state.revision) } })
 	})
 	return { browser, context, page, problems, calls, state }
 }
@@ -193,14 +228,61 @@ async function openEvent(page, title, band = false) {
 	return dialog
 }
 
-async function closed(page, calls, operation, count) {
+async function sent(calls, operation, count) {
 	const started = Date.now()
 	while (calls.filter((call) => call.operation === operation).length < count) {
 		if (Date.now() - started > 20000) throw new Error(`no ${operation} call number ${count}`)
 		await wait(100)
 	}
-	await page.getByRole('dialog').first().waitFor({ state: 'detached', timeout: 20000 })
-	await page.waitForTimeout(600)
+}
+
+async function idle(page, timeout = 40000) {
+	const started = Date.now()
+	while (Date.now() - started < timeout) {
+		const open = await page.evaluate(
+			() =>
+				document.querySelectorAll('[role="dialog"]').length +
+				document.querySelectorAll('[data-slot="calendar-event"][data-mark]').length
+		)
+		if (open === 0) {
+			await page.waitForTimeout(600)
+			return
+		}
+		await wait(200)
+	}
+	throw new Error('the schedule did not settle: a dialog or a pending block is still there')
+}
+
+async function closed(page, calls, operation, count) {
+	await sent(calls, operation, count)
+	await idle(page)
+}
+
+async function confirmAll(page, state) {
+	state.release()
+	await idle(page)
+}
+
+function banner(page, title) {
+	return page.locator('[data-slot="banner"]').filter({ hasText: title })
+}
+
+async function enabled(locator, timeout = 30000) {
+	const started = Date.now()
+	while (Date.now() - started < timeout) {
+		if (await locator.isEnabled().catch(() => false)) return true
+		await wait(250)
+	}
+	return false
+}
+
+async function openCreate(page, title) {
+	const box = await page.locator('[data-slot="week-grid-body"]').boundingBox()
+	await page.mouse.click(box.x + box.width * 0.82, Math.max(box.y, 0) + 220)
+	await page.getByRole('dialog').last().waitFor({ timeout: 15000 })
+	await page.getByRole('tab', { name: 'Event' }).click()
+	await page.locator('#new-event-title').fill(title)
+	return page.getByRole('dialog').last()
 }
 
 async function suite(viewport) {
@@ -220,10 +302,7 @@ async function suite(viewport) {
 		check(`${tag} new event dialog title and tabs`, (await created.getByText('New event').count()) > 0)
 		await page.locator('#new-event-title').focus()
 		await page.locator('#new-event-title').blur()
-		check(
-			`${tag} no title error on a bare blur`,
-			(await created.getByText('Enter a title for the event.').count()) === 0
-		)
+		check(`${tag} no title error on a bare blur`, (await created.getByText('Enter a title.').count()) === 0)
 		await page.locator('#new-event-color').click()
 		await page.getByRole('option').first().waitFor({ timeout: 10000 })
 		await page.waitForTimeout(500)
@@ -251,9 +330,23 @@ async function suite(viewport) {
 		await page.locator('#new-event-place').fill('Synthetic room 9')
 		await page.locator('#new-event-description').fill('Synthetic note for the check.')
 		await shot(page, `calendar-editor-${tag}`, 'create')
+		state.next = 'syncing'
 		await created.getByRole('button', { name: 'Add event' }).click()
-		await closed(page, calls, 'event_create', 1)
-		check(`${tag} created event toast`, (await page.getByText('Event added').count()) > 0)
+		await sent(calls, 'event_create', 1)
+		const added = page
+			.locator('[data-slot="calendar-event"][data-event-key^="optimistic:"]')
+			.filter({ hasText: 'Editor check event' })
+		await added.first().waitFor({ timeout: 15000 })
+		check(
+			`${tag} Add event closes the dialog at once and the new block stands dimmed with a spinner`,
+			(await page.locator('[role="dialog"]').count()) === 0 &&
+				(await added.first().getAttribute('data-mark')) === 'syncing' &&
+				(await added.first().locator('[data-slot="calendar-event-pending"]').count()) === 1 &&
+				(await page.getByText(/Adding…|Saving…/).count()) === 0
+		)
+		await shot(page, `calendar-editor-${tag}`, 'create-syncing')
+		await confirmAll(page, state)
+		check(`${tag} a confirmed event leaves no success toast`, (await page.getByText('Event added').count()) === 0)
 		const create = calls.find((call) => call.operation === 'event_create')
 		check(
 			`${tag} create sends title, colour, place and description`,
@@ -265,6 +358,42 @@ async function suite(viewport) {
 			JSON.stringify(create?.body)
 		)
 		await page.waitForTimeout(800)
+
+		const refusedCreate = await openCreate(page, 'Refused check event')
+		await refusedCreate.locator('#new-event-place').fill('Synthetic room 8')
+		state.next = 'refused'
+		await refusedCreate.getByRole('button', { name: 'Add event' }).click()
+		await sent(calls, 'event_create', 2)
+		const refusal = banner(page, 'Could not add the event')
+		await refusal.first().waitFor({ timeout: 30000 })
+		const refusalText = (await refusal.first().innerText()).replace(/\n/g, ' | ')
+		check(
+			`${tag} a refused create leaves a notice with the reason, Nothing was added and Edit again`,
+			refusalText.includes('Google Calendar did not accept the change.') &&
+				refusalText.includes('Nothing was added.') &&
+				(await refusal.first().getByRole('button', { name: 'Edit again' }).count()) === 1,
+			refusalText
+		)
+		check(
+			`${tag} the refused block is gone and the dialog shows no error`,
+			(await page.locator('[data-slot="calendar-event"][data-event-key^="optimistic:"]').count()) === 0 &&
+				(await page.locator('[role="dialog"]').count()) === 0
+		)
+		await shot(page, `calendar-editor-${tag}`, 'create-refused')
+		await page.waitForTimeout(4500)
+		check(`${tag} the refusal notice stays after the usual toast time`, (await refusal.count()) === 1)
+		await refusal.first().getByRole('button', { name: 'Edit again' }).click()
+		const redo = page.getByRole('dialog').last()
+		await redo.getByText('New event').waitFor({ timeout: 15000 })
+		check(
+			`${tag} Edit again reopens the event form with the typed values`,
+			(await page.locator('#new-event-title').inputValue()) === 'Refused check event' &&
+				(await page.locator('#new-event-place').inputValue()) === 'Synthetic room 8' &&
+				(await refusal.count()) === 0
+		)
+		await shot(page, `calendar-editor-${tag}`, 'create-redo')
+		await redo.getByRole('button', { name: /^Discard/ }).click()
+		await idle(page)
 
 		let dialog = await openEvent(page, 'Synthetic event 15')
 		const text = await dialog.innerText()
@@ -292,8 +421,21 @@ async function suite(viewport) {
 		await page.waitForTimeout(400)
 		check(`${tag} Save enables after a change`, await save.isEnabled())
 		await shot(page, `calendar-editor-${tag}`, 'edit')
+		state.next = 'syncing'
 		await save.click()
-		await closed(page, calls, 'event_update', 1)
+		await sent(calls, 'event_update', 1)
+		const renamed = page
+			.locator('[data-slot="calendar-event"][data-mark="syncing"]')
+			.filter({ hasText: 'Synthetic event 15 renamed' })
+		await renamed.first().waitFor({ timeout: 15000 })
+		check(
+			`${tag} Save closes the dialog at once and the block shows the new title dimmed`,
+			(await page.locator('[role="dialog"]').count()) === 0 &&
+				(await renamed.first().locator('[data-slot="calendar-event-pending"]').count()) === 1 &&
+				(await page.getByText(/Saving…|Event updated/).count()) === 0
+		)
+		await confirmAll(page, state)
+		check(`${tag} a confirmed save leaves no success toast`, (await page.getByText('Event updated').count()) === 0)
 		const update = calls.find((call) => call.operation === 'event_update')
 		check(
 			`${tag} single event save sends only the title with scope one`,
@@ -492,8 +634,77 @@ async function lessonScope(viewport) {
 		state.lessonInfo = { seriesId: randomUUID(), studentId: card.id, version: 'lesson-check-version' }
 		await openWeek(page)
 		await page.locator(BODY).filter({ hasText: 'Busy' }).first().waitFor({ timeout: 20000 })
-		const dialog = await openEvent(page, 'Busy')
+		let dialog = await openEvent(page, 'Busy')
 		await shot(page, `calendar-editor-${tag}`, 'lesson-details')
+		check(
+			`${tag} the lesson dialog has no Whole series panel and no Move series button`,
+			(await dialog.getByText('Whole series').count()) === 0 &&
+				(await dialog.getByRole('button', { name: 'Move series' }).count()) === 0
+		)
+		const footer = dialog.getByRole('button', { name: 'Move lesson' }).locator('xpath=..')
+		const future = Date.parse(state.lessonStart) > Date.now()
+		check(
+			`${tag} End series sits in the footer row of a future series lesson and nowhere else`,
+			(await footer.getByRole('button', { name: 'End series' }).count()) === (future ? 1 : 0) &&
+				(await dialog.getByRole('button', { name: 'End series' }).count()) === (future ? 1 : 0),
+			`${state.lessonStart}`
+		)
+		if (future) {
+			await footer.getByRole('button', { name: 'End series' }).click()
+			const end = page.getByRole('dialog').last()
+			await end.getByText('End this series?').waitFor({ timeout: 10000 })
+			await page.waitForTimeout(600)
+			await shot(page, `calendar-editor-${tag}`, 'lesson-end-series')
+			await end.getByRole('button', { name: 'Keep series' }).click()
+			await idle(page)
+			dialog = await openEvent(page, 'Busy')
+		}
+
+		await dialog.getByRole('button', { name: 'Move lesson' }).click()
+		const moveForm = page.getByRole('group', { name: 'Move lesson' })
+		await moveForm.waitFor({ timeout: 10000 })
+		await page.locator('#move-lesson-length').fill('02')
+		await page.locator('#move-lesson-length-minutes').press('Enter')
+		const submitMove = moveForm.getByRole('button', { name: 'Move lesson' })
+		check(`${tag} Move lesson is enabled once the length changed`, await enabled(submitMove))
+		await submitMove.click()
+		const moveScope = page.getByRole('dialog').last()
+		await moveScope.getByText('Change repeating lesson').waitFor({ timeout: 10000 })
+		await page.waitForTimeout(600)
+		check(
+			`${tag} Save of a series lesson asks the scope with three rows and the marks line, nothing sent yet`,
+			(await moveScope.getByRole('radio').count()) === 3 &&
+				(await moveScope.getByText('Past lessons and their marks stay at their old time.').count()) === 1 &&
+				calls.filter((call) => call.operation === 'move' || call.operation === 'move_series').length === 0
+		)
+		await shot(page, `calendar-editor-${tag}`, 'lesson-move-scope')
+		await moveScope.getByRole('button', { name: 'Back' }).click()
+		await page.waitForTimeout(600)
+		check(
+			`${tag} Back returns to the Move lesson form with the typed length kept`,
+			(await moveForm.count()) === 1 &&
+				`${await page.locator('#move-lesson-length').inputValue()}:${await page.locator('#move-lesson-length-minutes').inputValue()}` ===
+					'02:00'
+		)
+		await submitMove.click()
+		const allScope = page.getByRole('dialog').last()
+		await allScope.getByText('Change repeating lesson').waitFor({ timeout: 10000 })
+		await allScope.getByRole('radio', { name: 'All lessons' }).click()
+		await allScope.getByRole('button', { name: 'Save', exact: true }).click()
+		await closed(page, calls, 'move_series', 1)
+		const seriesMove = calls.find((call) => call.operation === 'move_series')
+		check(
+			`${tag} All lessons sends the series move at once with the new length, no Move series dialog`,
+			Boolean(seriesMove) &&
+				/\/schedule\/series\/[^/]+\/move$/.test(seriesMove.path) &&
+				seriesMove.body.durationMinutes === 120 &&
+				/^\d{4}-\d{2}-\d{2}$/.test(seriesMove.body.from) &&
+				/^\d{2}:\d{2}$/.test(seriesMove.body.startTime) &&
+				(await page.getByText('Move series').count()) === 0,
+			JSON.stringify(seriesMove)
+		)
+
+		dialog = await openEvent(page, 'Busy')
 		await dialog.getByRole('button', { name: 'Cancel lesson' }).click()
 		const scope = page.getByRole('dialog').last()
 		await scope.getByText('Cancel repeating lesson').waitFor({ timeout: 10000 })
