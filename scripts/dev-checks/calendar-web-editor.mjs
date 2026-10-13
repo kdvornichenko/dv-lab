@@ -361,11 +361,11 @@ async function suite(viewport) {
 		dialog = await openEvent(page, 'Synthetic event 13')
 		const otherText = await dialog.innerText()
 		check(
-			`${tag} unsupported repeat is read-only with the Google sentence`,
+			`${tag} unsupported repeat keeps the Google sentence and offers Delete only`,
 			otherText.includes('Repeats every 2 weeks') &&
 				otherText.includes("This repeat rule can't be edited here. Change it in Google Calendar.") &&
 				(await dialog.getByRole('button', { name: 'Edit event' }).count()) === 0 &&
-				(await dialog.getByRole('button', { name: 'Delete event' }).count()) === 0,
+				(await dialog.getByRole('button', { name: 'Delete event' }).count()) === 1,
 			otherText.replace(/\n/g, ' | ')
 		)
 		await shot(page, `calendar-editor-${tag}`, 'unsupported-repeat')
