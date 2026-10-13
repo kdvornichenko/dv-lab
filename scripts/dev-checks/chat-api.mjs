@@ -1,11 +1,11 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
-import { ENV_TEST, STUDENT_LOGIN } from './api.mjs'
+import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 import { call, quote, sql, startApi, studentCookie, teacherCookie } from './schedule-api/io.ts'
 
@@ -20,6 +20,7 @@ const SECTIONS = {
 	actions: sectionActions,
 	budget: sectionBudget,
 	answers: sectionAnswers,
+	models: sectionModels,
 }
 
 let failures = 0
@@ -2052,6 +2053,317 @@ async function sectionBudget(ctx) {
 			})
 		await first.pool.end()
 		await second.pool.end()
+	}
+}
+
+const MODELS_PORT = 4232
+const HAIKU = 'claude-haiku-5-5'
+const SONNET = 'claude-sonnet-5-5'
+const OPUS = 'claude-opus-5-5'
+const ABSENT = 'claude-absent-9-9'
+const INVENTED = 'claude-invented-1-0'
+
+async function startFakeProviderApi() {
+	const base = `http://127.0.0.1:${MODELS_PORT}`
+	const env = {
+		...process.env,
+		NODE_ENV: 'test',
+		PORT: String(MODELS_PORT),
+		APP_ORIGIN: base,
+		LOG_LEVEL: 'info',
+		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
+		CHAT_FAKE_DELAY_MS: '5',
+	}
+	delete env.DATABASE_URL
+	delete env.MIGRATOR_DATABASE_URL
+	const child = spawn(
+		process.execPath,
+		[
+			'--import',
+			`${ROOT}/scripts/dev-checks/chat-fake-anthropic.mjs`,
+			'--env-file=.env.test',
+			'apps/api/src/server.ts',
+		],
+		{ cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] }
+	)
+	let output = ''
+	child.stdout.on('data', (chunk) => (output += chunk))
+	child.stderr.on('data', (chunk) => (output += chunk))
+	const stop = () =>
+		new Promise((resolve) => {
+			if (child.exitCode !== null) return resolve()
+			const timer = setTimeout(() => child.kill('SIGKILL'), 15000)
+			child.once('exit', () => {
+				clearTimeout(timer)
+				resolve()
+			})
+			child.kill('SIGTERM')
+		})
+	const deadline = Date.now() + 30000
+	while (Date.now() < deadline) {
+		if (child.exitCode !== null) break
+		try {
+			if ((await fetch(`${base}/healthz`)).status === 200) return { base, port: MODELS_PORT, logs: () => output, stop }
+		} catch {}
+		await new Promise((resolve) => setTimeout(resolve, 300))
+	}
+	await stop()
+	throw new Error('the api with the fake provider did not answer /healthz in 30 s')
+}
+
+async function sectionModels(ctx) {
+	const fake = await startFakeProviderApi()
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const original = sql(
+		`select chat_models as models, chat_model as model, chat_effort as effort from teacher_settings where account_id = ${quote(accountId)}`
+	).rows[0]
+	const clearBudget = () => {
+		sql(`delete from chat_usage_attempts where account_id = ${quote(accountId)}`)
+		return sql(`delete from chat_budget_periods where account_id = ${quote(accountId)}`).rowCount
+	}
+	try {
+		const cookie = await teacherCookie(fake)
+		const as = (method, path, body) => send(fake, method, path, { cookie, body })
+		const track = (id) => ctx.conversations.push(id)
+		console.log(`fixture conversations removed ${removeChats('true')}`)
+		console.log(`fixture budget periods removed ${clearBudget()}`)
+		const reset = await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null })
+		check('the settings start from the defaults', reset.status === 200 && reset.json.settings.model === null)
+		const capabilities = async () => (await as('GET', '/settings/assistant')).json.capabilities
+		const availableIds = async () =>
+			(await capabilities())
+				.filter((item) => item.available)
+				.map((item) => item.id)
+				.join()
+		check(
+			'with a provider all four default models are available, in the order of the settings',
+			(await availableIds()) === `${HAIKU},${SONNET},${OPUS},claude-fable-5-1`,
+			await availableIds()
+		)
+
+		const created = await as('POST', '/chat/conversations')
+		const id = created.json.conversation.id
+		track(id)
+		const fresh = created.json.conversation
+		check(
+			'a new conversation shows the teacher default and no override',
+			created.status === 201 && fresh.model === HAIKU && fresh.effort === 'medium' && fresh.override === false,
+			JSON.stringify(fresh)
+		)
+		const patch = (body) => as('PATCH', `/chat/conversations/${id}/model`, body)
+		const choose = await patch({ model: SONNET, effort: 'high', expectedRevision: fresh.revision })
+		const chosen = choose.json.conversation
+		check(
+			'choosing a model and a level saves them with the conversation and bumps the revision',
+			choose.status === 200 &&
+				chosen.model === SONNET &&
+				chosen.effort === 'high' &&
+				chosen.override === true &&
+				chosen.revision === fresh.revision + 1 &&
+				chosen.updatedAt === fresh.updatedAt,
+			JSON.stringify(chosen)
+		)
+		const read = await as('GET', `/chat/conversations/${id}`)
+		const listed = (await as('GET', '/chat/conversations')).json.conversations.find((item) => item.id === id)
+		check(
+			'the read and the list give the same effective values',
+			read.json.conversation.model === SONNET &&
+				read.json.conversation.effort === 'high' &&
+				listed?.model === SONNET &&
+				listed.override === true
+		)
+		const stale = await patch({ model: OPUS, effort: null, expectedRevision: fresh.revision })
+		check('a stale revision gives 409 and changes nothing', stale.status === 409)
+		const unknown = await patch({ model: INVENTED, effort: null, expectedRevision: chosen.revision })
+		check('a model outside the settings gives 400', unknown.status === 400)
+		const wrongBody = await patch({ model: SONNET, expectedRevision: chosen.revision })
+		check('a body without effort gives 400', wrongBody.status === 400)
+		const none = await as('PATCH', `/chat/conversations/${randomUUID()}/model`, {
+			model: null,
+			effort: null,
+			expectedRevision: 1,
+		})
+		check('an unknown conversation gives 404', none.status === 404)
+		const anonymous = await send(fake, 'PATCH', `/chat/conversations/${id}/model`, {
+			body: { model: null, effort: null, expectedRevision: chosen.revision },
+		})
+		check('no session gives 401', anonymous.status === 401)
+		check(
+			'the override is stored on the conversation row',
+			sql(`select model_override as m, effort_override as e from chat_conversations where id = ${quote(id)}`).rows[0]
+				.m === SONNET
+		)
+		const back = await patch({ model: null, effort: null, expectedRevision: chosen.revision })
+		check(
+			'null and null reset the conversation to the teacher default',
+			back.status === 200 &&
+				back.json.conversation.model === HAIKU &&
+				back.json.conversation.override === false &&
+				sql(`select model_override as m from chat_conversations where id = ${quote(id)}`).rows[0].m === null
+		)
+
+		const trimmed = (await as('GET', '/settings/assistant')).json.settings.models.map((model) =>
+			model.id === HAIKU ? { ...model, efforts: ['low', 'medium', 'high'] } : model
+		)
+		const withAbsent = [
+			...trimmed,
+			{
+				...trimmed[0],
+				id: ABSENT,
+				name: 'Absent',
+				description: 'Not given to this key',
+				efforts: ['low', 'medium'],
+				defaultEffort: 'medium',
+				recommendedEffort: 'medium',
+			},
+		]
+		const saved = await as('PATCH', '/settings/assistant', { models: withAbsent })
+		check('the models with a lower ceiling and an absent one are saved', saved.status === 200)
+		const abilities = saved.json.capabilities
+		check(
+			'a model the provider does not know is listed as unavailable',
+			abilities.find((item) => item.id === ABSENT)?.available === false &&
+				abilities.find((item) => item.id === HAIKU)?.available === true
+		)
+		let revision = back.json.conversation.revision
+		const toAbsent = await patch({ model: ABSENT, effort: null, expectedRevision: revision })
+		check('choosing a model the provider does not give gives 400', toAbsent.status === 400)
+		const tooHigh = await patch({ model: HAIKU, effort: 'max', expectedRevision: revision })
+		check('a level above the ceiling of the model gives 400', tooHigh.status === 400)
+		const lowered = await patch({ model: HAIKU, effort: 'high', expectedRevision: revision })
+		check(
+			'a level inside the ceiling is accepted',
+			lowered.status === 200 && lowered.json.conversation.effort === 'high'
+		)
+		revision = lowered.json.conversation.revision
+		const effortOnly = await patch({ model: null, effort: 'low', expectedRevision: revision })
+		check(
+			'a level alone applies to the model of the teacher',
+			effortOnly.status === 200 &&
+				effortOnly.json.conversation.model === HAIKU &&
+				effortOnly.json.conversation.effort === 'low' &&
+				effortOnly.json.conversation.override === true
+		)
+		revision = effortOnly.json.conversation.revision
+
+		const toOpus = await patch({ model: OPUS, effort: 'xhigh', expectedRevision: revision })
+		revision = toOpus.json.conversation.revision
+		const withoutOpus = trimmed.filter((model) => model.id !== OPUS)
+		await as('PATCH', '/settings/assistant', { models: withoutOpus })
+		const orphan = (await as('GET', `/chat/conversations/${id}`)).json.conversation
+		check(
+			'a model removed from the settings stays on the conversation and is not replaced',
+			orphan.model === OPUS && orphan.override === true,
+			JSON.stringify(orphan)
+		)
+		const orphanChoice = await patch({ model: OPUS, effort: null, expectedRevision: revision })
+		check('the removed model cannot be chosen again', orphanChoice.status === 400)
+		const orphanSend = await as('POST', `/chat/conversations/${id}/messages`, {
+			requestId: randomUUID(),
+			text: 'Plan the next lesson',
+			mentions: [],
+		})
+		check(
+			'sending with a removed model is refused with model_unavailable and no turn',
+			orphanSend.status === 201 &&
+				orphanSend.json.turn === null &&
+				orphanSend.json.messages[1].blocks[0]?.code === 'model_unavailable',
+			JSON.stringify(orphanSend.json?.messages?.[1]?.blocks)
+		)
+		const release = await patch({ model: null, effort: null, expectedRevision: revision })
+		check('a removed model can always be reset', release.status === 200 && release.json.conversation.model === HAIKU)
+		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null })
+
+		const second = await as('POST', '/chat/conversations')
+		const secondId = second.json.conversation.id
+		track(secondId)
+		const third = await as('POST', '/chat/conversations')
+		const thirdId = third.json.conversation.id
+		track(thirdId)
+		const own = await as('PATCH', `/chat/conversations/${thirdId}/model`, {
+			model: OPUS,
+			effort: 'low',
+			expectedRevision: third.json.conversation.revision,
+		})
+		await as('PATCH', '/settings/assistant', { model: SONNET, effort: 'xhigh' })
+		const afterDefault = (await as('GET', '/chat/conversations')).json.conversations
+		const plain = afterDefault.find((item) => item.id === secondId)
+		const kept = afterDefault.find((item) => item.id === thirdId)
+		check(
+			'a new default changes the conversations without a choice of their own and not the others',
+			own.status === 200 &&
+				plain?.model === SONNET &&
+				plain.effort === 'xhigh' &&
+				plain.override === false &&
+				kept?.model === OPUS &&
+				kept.effort === 'low',
+			JSON.stringify([plain, kept])
+		)
+		await as('PATCH', '/settings/assistant', { model: null, effort: null })
+
+		const running = await as('POST', '/chat/conversations')
+		const runningId = running.json.conversation.id
+		track(runningId)
+		const picked = await as('PATCH', `/chat/conversations/${runningId}/model`, {
+			model: HAIKU,
+			effort: 'low',
+			expectedRevision: running.json.conversation.revision,
+		})
+		const hung = await as('POST', `/chat/conversations/${runningId}/messages`, {
+			requestId: randomUUID(),
+			text: '[fake:hang] think about the next lesson',
+			mentions: [],
+		})
+		const turn = hung.json.turn
+		check(
+			'an accepted turn keeps the model and the level it was admitted with',
+			picked.status === 200 && hung.status === 201 && turn?.model === HAIKU && turn.effort === 'low',
+			JSON.stringify(turn)
+		)
+		const during = await as('PATCH', `/chat/conversations/${runningId}/model`, {
+			model: SONNET,
+			effort: 'high',
+			expectedRevision: picked.json.conversation.revision,
+		})
+		const sameTurn = await as('GET', `/chat/turns/${turn.id}`)
+		check(
+			'a change during the turn is saved and the running turn keeps its own model and level',
+			during.status === 200 &&
+				during.json.conversation.model === SONNET &&
+				sameTurn.json.turn.model === HAIKU &&
+				sameTurn.json.turn.effort === 'low' &&
+				['accepted', 'running'].includes(sameTurn.json.turn.state)
+		)
+		const busy = await as('POST', `/chat/conversations/${runningId}/messages`, {
+			requestId: randomUUID(),
+			text: 'And another question',
+			mentions: [],
+		})
+		check('a second message during the turn is still refused as busy', busy.status === 409)
+		const stopped = await as('POST', `/chat/turns/${turn.id}/stop`, {})
+		check('the turn stops', stopped.status === 200 && stopped.json.turn.state === 'stopped', `${stopped.status}`)
+		const next = await as('POST', `/chat/conversations/${runningId}/messages`, {
+			requestId: randomUUID(),
+			text: '[fake:hang] one more time',
+			mentions: [],
+		})
+		check(
+			'the next Send uses the new choice',
+			next.status === 201 && next.json.turn?.model === SONNET && next.json.turn.effort === 'high',
+			JSON.stringify(next.json?.turn)
+		)
+		await as('POST', `/chat/turns/${next.json.turn.id}/stop`, {})
+		check(
+			'api log has no key and no fixture name',
+			!fake.logs().includes('sk-ant-fake-check') && !fake.logs().includes('Alex Example')
+		)
+		return 'CHAT_MODELS_OK'
+	} finally {
+		await fake.stop()
+		sql(
+			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
+		)
+		console.log(`fixture budget periods removed ${clearBudget()}`)
 	}
 }
 

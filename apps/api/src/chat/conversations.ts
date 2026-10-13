@@ -1,7 +1,17 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 
-import type { ChatConversation, DeleteConversationRequest, RenameConversationRequest } from '@dv-lab/contracts'
+import {
+	type AssistantSettings,
+	type ChatConversation,
+	type ConversationModelRequest,
+	type DeleteConversationRequest,
+	type RenameConversationRequest,
+	chatEffort,
+} from '@dv-lab/contracts'
 import { type DbExecutor, chatConversations } from '@dv-lab/db'
+
+import { readAssistantSettings } from '../settings/settings.ts'
+import { modelCapabilities, resolveModelChoice, selectionAllowed } from './model-config.ts'
 
 const NEW_CONVERSATION_TITLE = 'New chat'
 const DELETED_CONVERSATION_TITLE = 'Deleted chat'
@@ -9,12 +19,16 @@ const DELETED_CONVERSATION_TITLE = 'Deleted chat'
 export type ConversationChange =
 	{ kind: 'saved'; conversation: ChatConversation } | { kind: 'changed' } | { kind: 'not_found' }
 
+export type ConversationModelChange = ConversationChange | { kind: 'invalid' }
+
 export type ConversationDeletion = { kind: 'deleted' } | { kind: 'changed' } | { kind: 'not_found' }
 
 const columns = {
 	id: chatConversations.id,
 	title: chatConversations.title,
 	revision: chatConversations.revision,
+	modelOverride: chatConversations.modelOverride,
+	effortOverride: chatConversations.effortOverride,
 	createdAt: chatConversations.createdAt,
 	updatedAt: chatConversations.updatedAt,
 }
@@ -23,17 +37,27 @@ type ConversationRow = {
 	id: string
 	title: string
 	revision: number
+	modelOverride: string | null
+	effortOverride: string | null
 	createdAt: Date
 	updatedAt: Date
 }
 
-const toConversation = (row: ConversationRow): ChatConversation => ({
-	id: row.id,
-	title: row.title,
-	revision: row.revision,
-	createdAt: row.createdAt.toISOString(),
-	updatedAt: row.updatedAt.toISOString(),
-})
+function toConversation(row: ConversationRow, settings: AssistantSettings): ChatConversation {
+	const effortOverride = chatEffort.safeParse(row.effortOverride)
+	const override = { model: row.modelOverride, effort: effortOverride.success ? effortOverride.data : null }
+	const choice = resolveModelChoice(settings, override)
+	return {
+		id: row.id,
+		title: row.title,
+		revision: row.revision,
+		model: choice.kind === 'resolved' ? choice.model.id : choice.modelId,
+		effort: choice.kind === 'resolved' ? choice.effort : override.effort,
+		override: row.modelOverride !== null || row.effortOverride !== null,
+		createdAt: row.createdAt.toISOString(),
+		updatedAt: row.updatedAt.toISOString(),
+	}
+}
 
 const owned = (accountId: string, id: string) =>
 	and(eq(chatConversations.id, id), eq(chatConversations.accountId, accountId), isNull(chatConversations.deletedAt))
@@ -44,7 +68,7 @@ export async function createConversation(executor: DbExecutor, accountId: string
 		.values({ accountId, title: NEW_CONVERSATION_TITLE })
 		.returning(columns)
 	if (!row) throw new Error('conversation insert returned no row')
-	return toConversation(row)
+	return toConversation(row, await readAssistantSettings(executor, accountId))
 }
 
 export async function listConversations(executor: DbExecutor, accountId: string): Promise<ChatConversation[]> {
@@ -53,7 +77,8 @@ export async function listConversations(executor: DbExecutor, accountId: string)
 		.from(chatConversations)
 		.where(and(eq(chatConversations.accountId, accountId), isNull(chatConversations.deletedAt)))
 		.orderBy(desc(chatConversations.updatedAt), chatConversations.id)
-	return rows.map(toConversation)
+	const settings = await readAssistantSettings(executor, accountId)
+	return rows.map((row) => toConversation(row, settings))
 }
 
 export async function readConversation(
@@ -62,7 +87,7 @@ export async function readConversation(
 	id: string
 ): Promise<ChatConversation | null> {
 	const [row] = await executor.select(columns).from(chatConversations).where(owned(accountId, id))
-	return row ? toConversation(row) : null
+	return row ? toConversation(row, await readAssistantSettings(executor, accountId)) : null
 }
 
 export async function lockConversation(executor: DbExecutor, accountId: string, id: string) {
@@ -85,7 +110,7 @@ export async function touchConversation(
 		.where(owned(accountId, id))
 		.returning(columns)
 	if (!row) throw new Error('conversation touch returned no row')
-	return toConversation(row)
+	return toConversation(row, await readAssistantSettings(executor, accountId))
 }
 
 export async function renameConversation(
@@ -103,7 +128,32 @@ export async function renameConversation(
 		.where(owned(accountId, id))
 		.returning(columns)
 	if (!row) throw new Error('conversation update returned no row')
-	return { kind: 'saved', conversation: toConversation(row) }
+	return { kind: 'saved', conversation: toConversation(row, await readAssistantSettings(executor, accountId)) }
+}
+
+export async function setConversationModel(
+	executor: DbExecutor,
+	accountId: string,
+	id: string,
+	input: ConversationModelRequest,
+	availability: (modelId: string) => Promise<boolean>
+): Promise<ConversationModelChange> {
+	const locked = await lockConversation(executor, accountId, id)
+	if (locked === null) return { kind: 'not_found' }
+	if (locked.revision !== input.expectedRevision) return { kind: 'changed' }
+	const settings = await readAssistantSettings(executor, accountId)
+	if (input.model !== null || input.effort !== null) {
+		const modelId = input.model ?? settings.model ?? settings.models[0]?.id
+		const capabilities = await modelCapabilities(settings, availability)
+		if (modelId === undefined || !selectionAllowed(capabilities, modelId, input.effort)) return { kind: 'invalid' }
+	}
+	const [row] = await executor
+		.update(chatConversations)
+		.set({ modelOverride: input.model, effortOverride: input.effort, revision: locked.revision + 1 })
+		.where(owned(accountId, id))
+		.returning(columns)
+	if (!row) throw new Error('conversation update returned no row')
+	return { kind: 'saved', conversation: toConversation(row, settings) }
 }
 
 export async function deleteConversation(

@@ -16,6 +16,7 @@ import {
 	type UndoResponse,
 	chatRecordsQuery,
 	chatRecordsRefreshRequest,
+	conversationModelRequest,
 	deleteConversationRequest,
 	renameConversationRequest,
 	sendMessageRequest,
@@ -34,6 +35,7 @@ import {
 	listConversations,
 	readConversation,
 	renameConversation,
+	setConversationModel,
 } from '../chat/conversations.ts'
 import { readChatFacts, readChatRecords } from '../chat/facts.ts'
 import { listMessages } from '../chat/messages.ts'
@@ -42,7 +44,12 @@ import { activeTurn, isActive, toTurn } from '../chat/turns.ts'
 import { errorBody } from '../request-context.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type ChatRouteDeps = { db: Database; calendarCommands?: CalendarCommands; chat?: ChatRunner }
+type ChatRouteDeps = {
+	db: Database
+	calendarCommands?: CalendarCommands
+	chat?: ChatRunner
+	availability?: (modelId: string) => Promise<boolean>
+}
 
 const HEARTBEAT_MS = 15000
 
@@ -60,7 +67,7 @@ function conversationId(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
-export function chatRoutes({ db, calendarCommands, chat }: ChatRouteDeps) {
+export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -272,6 +279,21 @@ export function chatRoutes({ db, calendarCommands, chat }: ChatRouteDeps) {
 		const result = await db.transaction((tx) => renameConversation(tx, accountId, id, input))
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'changed') return conversationChanged(c)
+		return c.json({ conversation: result.conversation } satisfies ChatConversationResponse, 200)
+	})
+
+	routes.patch('/conversations/:id/model', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, conversationModelRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const result = await db.transaction((tx) =>
+			setConversationModel(tx, accountId, id, input, availability ?? (async () => false))
+		)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'changed') return conversationChanged(c)
+		if (result.kind === 'invalid') return invalidRequest(c)
 		return c.json({ conversation: result.conversation } satisfies ChatConversationResponse, 200)
 	})
 

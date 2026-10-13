@@ -139,9 +139,12 @@ globalThis.fetch = async function chatFakeFetch(input, init = {}) {
 	const model = /^\/v1\/models\/([^/]+)$/.exec(url.pathname)
 	if (method === 'GET' && model) {
 		state.models++
+		const id = decodeURIComponent(model[1])
+		if (id.includes('absent'))
+			return json(404, { type: 'error', error: { type: 'not_found_error', message: 'Not found' } })
 		return json(200, {
 			type: 'model',
-			id: decodeURIComponent(model[1]),
+			id,
 			display_name: 'Fake model',
 			created_at: '2026-01-01T00:00:00Z',
 			deprecated_at: null,

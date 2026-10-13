@@ -8,7 +8,7 @@ import {
 	calendarTimeZone,
 	nextLessonRead,
 } from './calendar.ts'
-import { chatEffort } from './chat-settings.ts'
+import { CHAT_MODEL_ID_MAX_LENGTH, chatEffort } from './chat-settings.ts'
 import { CLOCK_TIME_PATTERN, MARK_KINDS } from './schedule.ts'
 import { LESSON_MINUTES_MIN, SECTION_KINDS, STUDENT_STATUSES } from './students.ts'
 
@@ -47,6 +47,9 @@ export const chatConversation = z.strictObject({
 	id: z.uuid(),
 	title: z.string(),
 	revision: z.number().int().min(1),
+	model: z.string(),
+	effort: chatEffort.nullable(),
+	override: z.boolean(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 })
@@ -67,6 +70,14 @@ export const renameConversationRequest = z.strictObject({
 })
 
 export type RenameConversationRequest = z.infer<typeof renameConversationRequest>
+
+export const conversationModelRequest = z.strictObject({
+	model: z.string().max(CHAT_MODEL_ID_MAX_LENGTH).nullable(),
+	effort: chatEffort.nullable(),
+	expectedRevision: z.number().int().min(1),
+})
+
+export type ConversationModelRequest = z.infer<typeof conversationModelRequest>
 
 export const deleteConversationRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
 
