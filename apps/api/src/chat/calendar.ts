@@ -23,6 +23,7 @@ import {
 import {
 	canChange,
 	firstOnOrAfter,
+	lessonDay,
 	localTimeCandidates,
 	mondayOf,
 	occurrenceKey,
@@ -208,14 +209,23 @@ export async function proposeCalendarChange(
 		return refuseProposal(executor, context, source, 'outside_sync_window')
 	const move = target.move
 	let operation: StoredTarget['operation'] = target.intent === 'move' ? 'move' : 'cancel'
+	const lessonDate = lessonDay(lessonStart, zone)
 	let shownLesson: ChatCalendarProposalBlock['lesson'] = {
 		key: lesson.key,
+		ref: lesson.ref,
+		date: lessonDate,
 		startsAt: lesson.startsAt,
 		durationMinutes: lesson.durationMinutes,
 	}
-	let shownTarget: ChatCalendarProposalBlock['target'] = { kind: 'cancelled' }
+	let shownTarget: ChatCalendarProposalBlock['target'] = { kind: 'cancelled', date: lessonDate }
 	let series: StoredTarget['series'] = null
-	if (move !== null) shownTarget = { kind: 'lesson', startsAt: move.startsAt, durationMinutes: move.durationMinutes }
+	if (move !== null)
+		shownTarget = {
+			kind: 'lesson',
+			startsAt: move.startsAt,
+			durationMinutes: move.durationMinutes,
+			date: lessonDay(new Date(move.startsAt), zone),
+		}
 	if (target.kind === 'series') {
 		if (move === null) return refuseProposal(executor, context, source, 'not_found')
 		const parts = zonedParts(new Date(move.startsAt), zone)
@@ -268,6 +278,7 @@ export async function proposeCalendarChange(
 		type: 'calendar_proposal',
 		actionId,
 		operation,
+		studentId: lesson.studentId,
 		studentName,
 		timeZone: zone,
 		lesson: shownLesson,

@@ -231,7 +231,13 @@ export type GoogleScheduleWindow = z.infer<typeof googleScheduleWindow>
 
 export const nextLessonRead = z
 	.discriminatedUnion('result', [
-		z.strictObject({ status: calendarReadStatus, result: z.literal('known'), startsAt: calendarInstant }),
+		z.strictObject({
+			status: calendarReadStatus,
+			result: z.literal('known'),
+			startsAt: calendarInstant,
+			ref: calendarOccurrenceRef.optional(),
+			date: calendarDate.optional(),
+		}),
 		z.strictObject({ status: calendarReadStatus, result: z.literal('none'), startsAt: z.null() }),
 		z.strictObject({ status: calendarReadStatus, result: z.literal('unknown'), startsAt: z.null() }),
 	])

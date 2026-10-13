@@ -24,7 +24,7 @@ import {
 	calendarInstant,
 	calendarOccurrenceRef,
 } from '@dv-lab/contracts'
-import { markEffect } from '@dv-lab/core'
+import { lessonDay, markEffect } from '@dv-lab/core'
 import { type Database, type DbExecutor, chatActions, students, violatesUnique } from '@dv-lab/db'
 
 import type { CalendarCommands } from '../calendar/commands.ts'
@@ -243,7 +243,10 @@ async function applyMark(
 		kind: 'mark',
 		mark: intent.kind,
 		before: saved.before?.kind ?? 'none',
+		studentId: lesson.studentId,
 		studentName: card.displayName,
+		lessonRef: lesson.ref,
+		lessonDate: lessonDay(new Date(lesson.startsAt), context.defaultTimeZone),
 		lessonStartsAt: lesson.startsAt,
 		timeZone: context.defaultTimeZone,
 		effect: markEffect({
@@ -285,7 +288,10 @@ async function applyComment(
 		type: 'action_result',
 		actionId,
 		kind: 'comment',
+		studentId: lesson.studentId,
 		studentName: card.displayName,
+		lessonRef: lesson.ref,
+		lessonDate: lessonDay(new Date(lesson.startsAt), context.defaultTimeZone),
 		lessonStartsAt: lesson.startsAt,
 		timeZone: context.defaultTimeZone,
 		text: saved.body,
@@ -319,7 +325,9 @@ async function applyNote(
 		type: 'action_result',
 		actionId,
 		kind: 'note',
+		studentId,
 		studentName: card.displayName,
+		entryId: saved.id,
 		text: saved.body,
 		undo: 'available',
 	}

@@ -225,7 +225,7 @@ function ReadFailed({ block, onUse }: { block: ChatReadFailedBlock; onUse: (text
 			setRefreshing(false)
 		}
 	}
-	if (fresh !== null) return <RecordBlockView block={fresh} onUse={onUse} />
+	if (fresh !== null && fresh.type !== 'lesson_dates') return <RecordBlockView block={fresh} onUse={onUse} />
 	return (
 		<Banner status="error" role="alert" aria-busy={refreshing} data-reply-state="read-failed">
 			<BannerTitle>Could not read the student&apos;s records.</BannerTitle>

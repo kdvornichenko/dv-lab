@@ -1,7 +1,7 @@
 import { inArray } from 'drizzle-orm'
 
 import type { NextLessonRead } from '@dv-lab/contracts'
-import { type BalanceLesson, type BalancePayment, studentBalance } from '@dv-lab/core'
+import { type BalanceLesson, type BalancePayment, lessonDay, studentBalance } from '@dv-lab/core'
 import { type DbExecutor, payments } from '@dv-lab/db'
 
 import { readNextLessons } from '../calendar/read-model.ts'
@@ -60,8 +60,10 @@ export async function cardFacts(
 	)
 	return new Map(
 		cards.map((card) => {
-			const nextLesson = next.get(card.id)
-			if (!nextLesson) throw new Error('Card next lesson result is missing')
+			const read = next.get(card.id)
+			if (!read) throw new Error('Card next lesson result is missing')
+			const nextLesson: NextLessonRead =
+				read.result === 'known' ? { ...read, date: lessonDay(new Date(read.startsAt), context.defaultTimeZone) } : read
 			return [card.id, { balanceMinutes: balances.get(card.id) ?? null, nextLesson }]
 		})
 	)

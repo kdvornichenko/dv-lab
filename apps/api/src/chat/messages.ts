@@ -7,13 +7,16 @@ import {
 	type ChatMessage,
 	type ChatUndoState,
 	type MentionBinding,
+	type ChatStep,
+	CHAT_ACTIVE_TURN_STATES,
 	CHAT_CALENDAR_STATES,
 	CHAT_UNDO_STATES,
 	chatBlock,
 	chatCalendarIssue,
+	chatStep,
 	mentionBinding,
 } from '@dv-lab/contracts'
-import { type DbExecutor, chatActions, chatMessages } from '@dv-lab/db'
+import { type DbExecutor, chatActions, chatMessages, chatTurns, lessonComments, studentNotes } from '@dv-lab/db'
 
 export type MessageRow = typeof chatMessages.$inferSelect
 
@@ -55,6 +58,8 @@ type NewMessage = {
 
 const storedBlocks = z.array(chatBlock)
 const storedMentions = z.array(mentionBinding)
+const storedSteps = z.array(chatStep)
+const ACTIVE: readonly string[] = CHAT_ACTIVE_TURN_STATES
 const storedUndo = z.object({ undo: z.enum(CHAT_UNDO_STATES) }).nullable()
 
 export function undoState(action: Pick<ActionUndo, 'state' | 'undoResult'>): ChatUndoState {
@@ -91,15 +96,86 @@ export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<stri
 	})
 }
 
-export function toMessage(row: MessageRow, actions: ReadonlyMap<string, ActionUndo>): ChatMessage {
+export function stepsOf(row: Pick<MessageRow, 'steps'>): ChatStep[] {
+	const parsed = storedSteps.safeParse(row.steps)
+	return parsed.success ? parsed.data : []
+}
+
+type Reading = {
+	actions: ReadonlyMap<string, ActionUndo>
+	turns: ReadonlyMap<string, { state: string; updatedAt: Date }>
+	gone: ReadonlySet<string>
+}
+
+function withSources(blocks: readonly ChatBlock[], gone: ReadonlySet<string>): ChatBlock[] {
+	return blocks.map((block) => {
+		if (block.type !== 'excerpt' || !gone.has(citeId(block.source, block.id))) return block
+		const { entry: _entry, lesson: _lesson, ...rest } = block
+		return rest
+	})
+}
+
+function finishedAt(row: MessageRow, turns: Reading['turns']): string | null {
+	if (row.role === 'teacher') return null
+	const turn = turns.get(row.id)
+	if (turn === undefined) return row.createdAt.toISOString()
+	return ACTIVE.includes(turn.state) ? null : turn.updatedAt.toISOString()
+}
+
+function toMessage(row: MessageRow, reading: Reading): ChatMessage {
 	return {
 		id: row.id,
 		role: row.role === 'teacher' ? 'teacher' : 'assistant',
 		body: row.body,
 		mentions: storedMentions.parse(row.mentions),
-		blocks: withUndo(storedBlocks.parse(row.blocks), actions),
+		blocks: withSources(withUndo(storedBlocks.parse(row.blocks), reading.actions), reading.gone),
+		steps: stepsOf(row),
 		createdAt: row.createdAt.toISOString(),
+		finishedAt: finishedAt(row, reading.turns),
 	}
+}
+
+const citeId = (source: string, id: string) => `${source}:${id.toLowerCase()}`
+
+async function turnsOf(executor: DbExecutor, rows: readonly MessageRow[]) {
+	const ids = rows.filter((row) => row.role === 'assistant').map((row) => row.id)
+	if (ids.length === 0) return new Map<string, { state: string; updatedAt: Date }>()
+	const found = await executor
+		.select({ messageId: chatTurns.assistantMessageId, state: chatTurns.state, updatedAt: chatTurns.updatedAt })
+		.from(chatTurns)
+		.where(inArray(chatTurns.assistantMessageId, ids))
+	return new Map(found.flatMap((turn) => (turn.messageId === null ? [] : [[turn.messageId, turn] as const])))
+}
+
+const UUID_TEXT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
+
+async function goneSources(executor: DbExecutor, rows: readonly MessageRow[]): Promise<Set<string>> {
+	const notes = new Set<string>()
+	const comments = new Set<string>()
+	for (const row of rows)
+		for (const block of blocksOf(row)) {
+			if (block.type !== 'excerpt' || !UUID_TEXT.test(block.id)) continue
+			if (block.source === 'note') notes.add(block.id.toLowerCase())
+			if (block.source === 'comment') comments.add(block.id.toLowerCase())
+		}
+	const gone = new Set<string>()
+	if (notes.size > 0) {
+		const live = await executor
+			.select({ id: studentNotes.id })
+			.from(studentNotes)
+			.where(and(inArray(studentNotes.id, [...notes]), isNull(studentNotes.retractedAt)))
+		const kept = new Set(live.map((note) => note.id.toLowerCase()))
+		for (const id of notes) if (!kept.has(id)) gone.add(citeId('note', id))
+	}
+	if (comments.size > 0) {
+		const live = await executor
+			.select({ id: lessonComments.id })
+			.from(lessonComments)
+			.where(and(inArray(lessonComments.id, [...comments]), isNull(lessonComments.retractedAt)))
+		const kept = new Set(live.map((comment) => comment.id.toLowerCase()))
+		for (const id of comments) if (!kept.has(id)) gone.add(citeId('comment', id))
+	}
+	return gone
 }
 
 export function blocksOf(row: MessageRow): ChatBlock[] {
@@ -126,8 +202,12 @@ async function actionsOf(executor: DbExecutor, rows: readonly MessageRow[]): Pro
 }
 
 export async function toMessages(executor: DbExecutor, rows: readonly MessageRow[]): Promise<ChatMessage[]> {
-	const actions = await actionsOf(executor, rows)
-	return rows.map((row) => toMessage(row, actions))
+	const reading: Reading = {
+		actions: await actionsOf(executor, rows),
+		turns: await turnsOf(executor, rows),
+		gone: await goneSources(executor, rows),
+	}
+	return rows.map((row) => toMessage(row, reading))
 }
 
 export async function listMessages(
@@ -254,7 +334,7 @@ export async function redactConversationContent(
 		)
 	await executor
 		.update(chatMessages)
-		.set({ body: '', mentions: [], blocks: [], redactedAt: sql`now()` })
+		.set({ body: '', mentions: [], blocks: [], steps: [], redactedAt: sql`now()` })
 		.where(
 			and(
 				eq(chatMessages.accountId, accountId),

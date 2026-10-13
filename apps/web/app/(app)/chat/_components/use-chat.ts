@@ -411,7 +411,7 @@ export function useChat(initialConversationId: string | null) {
 
 	const apply = useCallback(
 		(conversationId: string, stream: Stream, event: ChatStreamEvent) => {
-			if (event.type === 'heartbeat') return
+			if (event.type === 'heartbeat' || event.type === 'step') return
 			if (event.type === 'snapshot') {
 				stream.seq = event.seq
 				const message = event.message

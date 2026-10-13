@@ -212,6 +212,17 @@ export async function lockLesson(executor: DbExecutor, id: string): Promise<Sing
 	return row ? toSingleLesson(row) : null
 }
 
+export async function occurrenceStartsAt(executor: DbExecutor, ref: OccurrenceRef): Promise<Date | null> {
+	if (ref.kind === 'single') {
+		const [row] = await executor.select(lessonColumns).from(lessons).where(eq(lessons.id, ref.lessonId))
+		return row ? toSingleLesson(row).startsAt : null
+	}
+	const [row] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, ref.seriesId))
+	if (!row) return null
+	const exception = await seriesException(executor, ref.seriesId, ref.originalOn)
+	return occurrenceAt(toSeriesRule(row), ref.originalOn, exception ?? undefined)?.startsAt ?? null
+}
+
 export async function seriesException(
 	executor: DbExecutor,
 	seriesId: string,

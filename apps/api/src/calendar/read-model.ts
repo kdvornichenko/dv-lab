@@ -16,7 +16,7 @@ import {
 	type NextLessonRead,
 } from '@dv-lab/contracts'
 import { occurrenceKey, seriesStart, type MarkKind } from '@dv-lab/core'
-import { googleEventIgnores, type DbExecutor } from '@dv-lab/db'
+import { googleEventIgnores, type DbExecutor, type GoogleLocalRef } from '@dv-lab/db'
 
 import { loadMarks } from '../schedule/rows.ts'
 import { seriesAnchor } from '../schedule/series.ts'
@@ -357,7 +357,7 @@ export async function readNextLessons(
 	}
 	const snapshot = await loadMappings(executor, context.accountId, row.id)
 	const wanted = new Set(studentIds)
-	const earliest = new Map<string, string>()
+	const earliest = new Map<string, { startsAt: string; ref: GoogleLocalRef }>()
 	for (const item of await nextRows(executor, row.id, context.now, familyIds(snapshot, wanted))) {
 		if (!item.startsAt || item.startsAt >= facts.windowEnd) continue
 		const event = bindEvent(rowEvent(item), snapshot)
@@ -365,14 +365,14 @@ export async function readNextLessons(
 		if (!event.start || !('dateTime' in event.start)) continue
 		const startsAt = item.startsAt.toISOString()
 		const known = earliest.get(event.studentId)
-		if (!known || startsAt < known) earliest.set(event.studentId, startsAt)
+		if (!known || startsAt < known.startsAt) earliest.set(event.studentId, { startsAt, ref: event.localRef })
 	}
 	for (const studentId of studentIds) {
-		const startsAt = earliest.get(studentId)
+		const found = earliest.get(studentId)
 		results.set(
 			studentId,
-			startsAt
-				? { result: 'known', startsAt, status }
+			found
+				? { result: 'known', startsAt: found.startsAt, ref: found.ref, status }
 				: read.state === 'fresh'
 					? { result: 'none', startsAt: null, status }
 					: { result: 'unknown', startsAt: null, status }

@@ -54,6 +54,7 @@ export const chatMessages = pgTable(
 		body: text('body').notNull(),
 		mentions: jsonb('mentions').$type<unknown>().notNull().default([]),
 		blocks: jsonb('blocks').$type<unknown>().notNull().default([]),
+		steps: jsonb('steps').$type<unknown>().notNull().default([]),
 		requestId: uuid('request_id'),
 		requestDigest: text('request_digest'),
 		replyTo: uuid('reply_to').references((): AnyPgColumn => chatMessages.id, { onDelete: 'restrict' }),

@@ -272,7 +272,11 @@ export const chatActionResultBlock = z.strictObject({
 	kind: z.enum(CHAT_LOCAL_ACTION_KINDS),
 	mark: z.enum(['done', 'no_show']).optional(),
 	before: z.enum(MARK_KINDS).optional(),
+	studentId: z.uuid().optional(),
 	studentName: z.string(),
+	lessonRef: calendarOccurrenceRef.optional(),
+	lessonDate: calendarDate.optional(),
+	entryId: z.uuid().optional(),
 	lessonStartsAt: calendarInstant.optional(),
 	timeZone: calendarTimeZone.optional(),
 	effect: chatMarkEffect.optional(),
@@ -335,12 +339,24 @@ export const chatCalendarProposalBlock = z.strictObject({
 	type: z.literal('calendar_proposal'),
 	actionId: z.uuid(),
 	operation: z.enum(CHAT_CALENDAR_OPERATIONS),
+	studentId: z.uuid().optional(),
 	studentName: z.string(),
 	timeZone: calendarTimeZone,
-	lesson: z.strictObject({ key: z.string().min(1), startsAt: calendarInstant, durationMinutes: lessonLength }),
+	lesson: z.strictObject({
+		key: z.string().min(1),
+		ref: calendarOccurrenceRef.optional(),
+		date: calendarDate.optional(),
+		startsAt: calendarInstant,
+		durationMinutes: lessonLength,
+	}),
 	target: z.discriminatedUnion('kind', [
-		z.strictObject({ kind: z.literal('lesson'), startsAt: calendarInstant, durationMinutes: lessonLength }),
-		z.strictObject({ kind: z.literal('cancelled') }),
+		z.strictObject({
+			kind: z.literal('lesson'),
+			startsAt: calendarInstant,
+			durationMinutes: lessonLength,
+			date: calendarDate.optional(),
+		}),
+		z.strictObject({ kind: z.literal('cancelled'), date: calendarDate.optional() }),
 		z.strictObject({
 			kind: z.literal('series'),
 			startsAt: calendarInstant,
@@ -369,9 +385,24 @@ export const chatDay = z.enum(CHAT_DAYS)
 
 export type ChatDay = z.infer<typeof chatDay>
 
+export const CHAT_LESSON_DATE_SCOPES = ['held', 'ahead', 'no_show', 'all'] as const
+
+export const chatLessonDateScope = z.enum(CHAT_LESSON_DATE_SCOPES)
+
+export type ChatLessonDateScope = z.infer<typeof chatLessonDateScope>
+
+export const CHAT_LESSON_DATES_DAYS_MAX = 366
+
 export const chatRecordsKey = z.discriminatedUnion('kind', [
 	z.strictObject({ kind: z.literal('student'), studentId: z.uuid() }),
 	z.strictObject({ kind: z.literal('day'), day: z.enum([...CHAT_DAYS, 'payments']) }),
+	z.strictObject({
+		kind: z.literal('lesson_dates'),
+		studentId: z.uuid(),
+		from: calendarDate,
+		to: calendarDate,
+		scope: chatLessonDateScope,
+	}),
 ])
 
 export type ChatRecordsKey = z.infer<typeof chatRecordsKey>
@@ -387,6 +418,8 @@ export const chatDayLesson = z.strictObject({
 	durationMinutes: z.number().int().min(LESSON_MINUTES_MIN),
 	outcome: lessonOutcome,
 	movedTo: calendarInstant.nullable(),
+	ref: calendarOccurrenceRef.optional(),
+	date: calendarDate.optional(),
 })
 
 export const chatLessonsBlock = z.strictObject({
@@ -424,6 +457,23 @@ export const chatExcerptBlock = z.strictObject({
 	body: z.string(),
 	createdAt: calendarInstant,
 	timeZone: calendarTimeZone,
+	entry: z.uuid().optional(),
+	section: z.strictObject({ key: z.enum(SECTION_KINDS), tab: z.enum(['overview', 'notes']) }).optional(),
+	lesson: z.strictObject({ ref: calendarOccurrenceRef, date: calendarDate }).optional(),
+})
+
+export const chatLessonDatesBlock = z.strictObject({
+	type: z.literal('lesson_dates'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	from: calendarDate,
+	to: calendarDate,
+	scope: chatLessonDateScope,
+	defaultTimeZone: calendarTimeZone,
+	asOf: z.string(),
+	dates: z.array(calendarDate),
+	leftOut: z.strictObject({ noShow: z.number().int().min(0), ahead: z.number().int().min(0) }),
+	coverage: z.enum(['complete', 'partial']),
 })
 
 export const CHAT_SUGGESTIONS_MAX = 4
@@ -451,6 +501,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatExcerptBlock,
 	chatSuggestionsBlock,
 	chatReadFailedBlock,
+	chatLessonDatesBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -458,7 +509,7 @@ export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
 export type ChatRecordsRefreshRequest = z.infer<typeof chatRecordsRefreshRequest>
 
 export const chatRecordsRefreshResponse = z.strictObject({
-	block: z.discriminatedUnion('type', [chatFactsBlock, chatLessonsBlock, chatPaysSoonBlock]),
+	block: z.discriminatedUnion('type', [chatFactsBlock, chatLessonsBlock, chatPaysSoonBlock, chatLessonDatesBlock]),
 })
 
 export type ChatRecordsRefreshResponse = z.infer<typeof chatRecordsRefreshResponse>
@@ -470,6 +521,7 @@ export type ChatPaysSoonBlock = z.infer<typeof chatPaysSoonBlock>
 export type ChatExcerptBlock = z.infer<typeof chatExcerptBlock>
 export type ChatSuggestionsBlock = z.infer<typeof chatSuggestionsBlock>
 export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
+export type ChatLessonDatesBlock = z.infer<typeof chatLessonDatesBlock>
 export type ChatDayLesson = z.infer<typeof chatDayLesson>
 export type ChatActionResultBlock = z.infer<typeof chatActionResultBlock>
 export type ChatClarifyBlock = z.infer<typeof chatClarifyBlock>
@@ -481,13 +533,44 @@ export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 
 export const CHAT_MESSAGE_ROLES = ['teacher', 'assistant'] as const
 
+export const CHAT_STEP_TOOLS = [
+	'find_students',
+	'student_facts',
+	'student_notes',
+	'lessons',
+	'lesson_dates',
+	'mark_lesson',
+	'add_note',
+	'add_comment',
+	'propose_lesson_change',
+	'answer',
+] as const
+
+export const CHAT_STEP_STATES = ['running', 'done', 'failed', 'stopped'] as const
+
+export const chatStep = z.strictObject({
+	id: z.string().min(1).max(120),
+	tool: z.enum(CHAT_STEP_TOOLS),
+	state: z.enum(CHAT_STEP_STATES),
+	studentId: z.uuid().optional(),
+	studentName: z.string().min(1).max(200).optional(),
+	from: calendarDate.optional(),
+	to: calendarDate.optional(),
+})
+
+export type ChatStep = z.infer<typeof chatStep>
+export type ChatStepTool = (typeof CHAT_STEP_TOOLS)[number]
+export type ChatStepState = (typeof CHAT_STEP_STATES)[number]
+
 export const chatMessage = z.strictObject({
 	id: z.uuid(),
 	role: z.enum(CHAT_MESSAGE_ROLES),
 	body: z.string(),
 	mentions: z.array(mentionBinding),
 	blocks: z.array(chatBlock),
+	steps: z.array(chatStep),
 	createdAt: z.string(),
+	finishedAt: z.string().nullable(),
 })
 
 export type ChatMessage = z.infer<typeof chatMessage>
@@ -530,7 +613,8 @@ export const chatStreamEvent = z.discriminatedUnion('type', [
 	z.strictObject({ type: z.literal('snapshot'), seq: streamSeq, turn: chatTurn, message: chatMessage.nullable() }),
 	z.strictObject({ type: z.literal('text'), seq: streamSeq, messageId: z.uuid(), text: z.string().min(1) }),
 	z.strictObject({ type: z.literal('block'), seq: streamSeq, messageId: z.uuid(), block: chatBlock }),
-	z.strictObject({ type: z.literal('state'), turn: chatTurn }),
+	z.strictObject({ type: z.literal('step'), seq: streamSeq, messageId: z.uuid(), step: chatStep }),
+	z.strictObject({ type: z.literal('state'), turn: chatTurn, message: chatMessage.nullable().optional() }),
 	z.strictObject({ type: z.literal('heartbeat') }),
 ])
 

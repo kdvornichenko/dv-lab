@@ -48,3 +48,38 @@ export async function validateMentions(
 	}
 	return { kind: 'ok', bindings: [...bindings].sort((left, right) => left.start - right.start) }
 }
+
+export async function studentNames(executor: DbExecutor, ids: readonly string[]): Promise<Map<string, string>> {
+	const wanted = [...new Set(ids)]
+	if (wanted.length === 0) return new Map()
+	const rows = await executor
+		.select({ id: students.id, displayName: students.displayName })
+		.from(students)
+		.where(inArray(students.id, wanted))
+	return new Map(rows.map((row) => [row.id, row.displayName]))
+}
+
+const NAME_MAX = 200
+
+function escape(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}
+
+export function replyMentions(body: string, people: ReadonlyMap<string, string>): MentionBinding[] {
+	const taken: MentionBinding[] = []
+	const named = [...people]
+		.map(([studentId, name]) => ({ studentId, name: name.normalize('NFC').trim() }))
+		.filter((person) => person.name.length >= 2 && person.name.length <= NAME_MAX)
+		.sort((left, right) => right.name.length - left.name.length)
+	for (const person of named) {
+		const pattern = new RegExp(`(?<![\\p{L}\\p{Nd}])${escape(person.name)}(?![\\p{L}\\p{Nd}])`, 'giu')
+		for (const match of body.matchAll(pattern)) {
+			const start = match.index
+			const end = start + match[0].length
+			if (taken.some((binding) => start < binding.end && binding.start < end)) continue
+			taken.push({ studentId: person.studentId, text: match[0], start, end })
+			break
+		}
+	}
+	return taken.sort((left, right) => left.start - right.start)
+}
