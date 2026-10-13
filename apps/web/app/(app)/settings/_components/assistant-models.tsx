@@ -1,8 +1,18 @@
 'use client'
 
-import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+	useEffect,
+	useId,
+	useRef,
+	useState,
+	type FocusEvent,
+	type FormEvent,
+	type KeyboardEvent,
+	type ReactNode,
+} from 'react'
 
-import { ArrowDown, ArrowUp, Check, LoaderCircle, Pencil, Plus } from 'lucide-react'
+import { Reorder, useDragControls, useReducedMotion } from 'framer-motion'
+import { Check, GripVertical, LoaderCircle, Pencil, Plus } from 'lucide-react'
 
 import { EFFORT_LABEL, clampEffort } from '@/components/app/effort-slider'
 import { Panel } from '@/components/app/layout-parts'
@@ -11,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 
@@ -462,36 +473,54 @@ function ModelForm({
 function ModelRow({
 	draft,
 	place,
-	first,
-	last,
 	only,
 	isDefault,
 	unavailable,
+	lifted,
 	errors,
 	onChange,
-	onMove,
 	onDefault,
 	onRemove,
+	onHandleKey,
+	onHandleBlur,
+	handleRef,
 }: {
 	draft: Draft
 	place: number
-	first: boolean
-	last: boolean
 	only: boolean
 	isDefault: boolean
 	unavailable: boolean
+	lifted: boolean
 	errors: RowErrors
 	onChange: (change: Partial<Draft>) => void
-	onMove: (delta: -1 | 1) => void
 	onDefault: () => void
 	onRemove: () => void
+	onHandleKey: (event: KeyboardEvent<HTMLButtonElement>) => void
+	onHandleBlur: (event: FocusEvent<HTMLButtonElement>) => void
+	handleRef: (element: HTMLButtonElement | null) => void
 }) {
 	const label = draft.name.trim() || 'new model'
+	const controls = useDragControls()
+	const reduceMotion = useReducedMotion() ?? false
+	const [dragging, setDragging] = useState(false)
+	const raised = dragging || lifted
+	const sortable = !only && !draft.editing
 	return (
-		<li
+		<Reorder.Item
+			as="li"
+			value={draft}
+			layout="position"
+			dragListener={false}
+			dragControls={controls}
+			animate={{ scale: raised ? 1.01 : 1 }}
+			transition={reduceMotion ? { duration: 0 } : { type: 'spring', duration: 0.16, bounce: 0 }}
+			style={{ position: 'relative', zIndex: raised ? 1 : 0 }}
+			onDragStart={() => setDragging(true)}
+			onDragEnd={() => setDragging(false)}
 			className={cn(
 				'rounded-xl p-3 ring-1 ring-border',
 				draft.editing && 'ring-input',
+				raised && 'bg-surface-4 shadow-surface-4 ring-input',
 				unavailable && !draft.editing && 'opacity-70'
 			)}
 			data-slot="model-entry"
@@ -499,60 +528,69 @@ function ModelRow({
 		>
 			<div className="flex items-start gap-3">
 				<span className="w-4 pt-0.5 text-caption text-muted-foreground tabular-nums">{place}</span>
-				<div className="flex flex-col">
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-compact"
-						aria-label={`Move ${label} up`}
-						disabled={first}
-						onClick={() => onMove(-1)}
-					>
-						<ArrowUp />
-					</Button>
-					<Button
-						type="button"
-						variant="ghost"
-						size="icon-compact"
-						aria-label={`Move ${label} down`}
-						disabled={last}
-						onClick={() => onMove(1)}
-					>
-						<ArrowDown />
-					</Button>
-				</div>
-				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-					<div className="flex items-center gap-2">
-						<span className="truncate text-body font-medium text-foreground">{draft.name.trim() || 'New model'}</span>
-						{isDefault ? (
-							<span className="shrink-0 rounded-full bg-hover px-1.5 text-micro text-foreground">Default</span>
+				{only ? null : (
+					<Tooltip content="Drag to reorder" side="top">
+						<Button
+							ref={handleRef}
+							type="button"
+							variant="ghost"
+							size="icon-compact"
+							aria-label={`Reorder ${label}`}
+							aria-pressed={lifted}
+							disabled={draft.editing}
+							data-slot="model-handle"
+							className="h-6 w-6 cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+							onPointerDown={(event) => {
+								if (sortable) controls.start(event)
+							}}
+							onKeyDown={onHandleKey}
+							onBlur={onHandleBlur}
+						>
+							<GripVertical />
+						</Button>
+					</Tooltip>
+				)}
+				<div
+					className={cn('flex min-w-0 flex-1 items-start gap-3', sortable && 'select-none')}
+					onPointerDown={(event) => {
+						if (!sortable || event.pointerType === 'touch') return
+						if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea')) return
+						controls.start(event)
+					}}
+				>
+					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+						<div className="flex items-center gap-2">
+							<span className="truncate text-body font-medium text-foreground">{draft.name.trim() || 'New model'}</span>
+							{isDefault ? (
+								<span className="shrink-0 rounded-full bg-hover px-1.5 text-micro text-foreground">Default</span>
+							) : null}
+						</div>
+						<span className="truncate font-mono text-micro text-muted-foreground">{draft.id || 'No id yet'}</span>
+						<span className="text-caption text-muted-foreground">{effortSummary(draft)}</span>
+						<span className="text-caption text-muted-foreground tabular-nums">
+							Input ${draft.input || '–'} · Cache write ${draft.cacheWrite || '–'} · Cache read $
+							{draft.cacheRead || '–'} · Output ${draft.output || '–'} per 1M tokens
+						</span>
+						{unavailable ? (
+							<span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+								<DotShape tone="amber" />
+								Not available with your API key. The chat menu skips it.
+							</span>
 						) : null}
 					</div>
-					<span className="truncate font-mono text-micro text-muted-foreground">{draft.id || 'No id yet'}</span>
-					<span className="text-caption text-muted-foreground">{effortSummary(draft)}</span>
-					<span className="text-caption text-muted-foreground tabular-nums">
-						Input ${draft.input || '–'} · Cache write ${draft.cacheWrite || '–'} · Cache read ${draft.cacheRead || '–'}{' '}
-						· Output ${draft.output || '–'} per 1M tokens
-					</span>
-					{unavailable ? (
-						<span className="flex items-center gap-1.5 text-caption text-muted-foreground">
-							<DotShape tone="amber" />
-							Not available with your API key. The chat menu skips it.
-						</span>
-					) : null}
+					{draft.editing ? null : (
+						<Button
+							type="button"
+							variant="ghost"
+							size="compact"
+							leadingIcon={Pencil}
+							aria-label={`Edit ${label}`}
+							onClick={() => onChange({ editing: true })}
+						>
+							Edit
+						</Button>
+					)}
 				</div>
-				{draft.editing ? null : (
-					<Button
-						type="button"
-						variant="ghost"
-						size="compact"
-						leadingIcon={Pencil}
-						aria-label={`Edit ${label}`}
-						onClick={() => onChange({ editing: true })}
-					>
-						Edit
-					</Button>
-				)}
 			</div>
 			{draft.editing ? (
 				<ModelForm
@@ -566,7 +604,7 @@ function ModelRow({
 					onClose={() => onChange({ editing: false })}
 				/>
 			) : null}
-		</li>
+		</Reorder.Item>
 	)
 }
 
@@ -591,6 +629,9 @@ export function ModelsForm({
 	const [saving, setSaving] = useState(false)
 	const [saveError, setSaveError] = useState(false)
 	const inflight = useRef(false)
+	const [lift, setLift] = useState<{ key: string; snapshot: Draft[] } | null>(null)
+	const [message, setMessage] = useState('')
+	const handles = useRef(new Map<string, HTMLButtonElement>())
 
 	const allErrors = rows.map((row) => rowErrors(row, rows))
 	const rowsValid = allErrors.every((errors) => Object.keys(errors).length === 0)
@@ -615,16 +656,56 @@ export function ModelsForm({
 	}
 
 	function move(index: number, delta: -1 | 1) {
-		setRows((current) => {
-			const target = index + delta
-			if (target < 0 || target >= current.length) return current
-			const next = [...current]
-			const [row] = next.splice(index, 1)
-			if (row) next.splice(target, 0, row)
-			return next
-		})
+		const target = index + delta
+		if (target < 0 || target >= rows.length) return index
+		const next = [...rows]
+		const [row] = next.splice(index, 1)
+		if (row) next.splice(target, 0, row)
+		setRows(next)
 		setSaveError(false)
+		return target
 	}
+
+	function say(row: Draft, position: number, text = '') {
+		setMessage(`${row.name.trim() || 'New model'}${text}, position ${position} of ${rows.length}.`)
+	}
+
+	function onHandleKey(key: string, event: KeyboardEvent<HTMLButtonElement>) {
+		const index = rows.findIndex((row) => row.key === key)
+		const row = rows[index]
+		if (!row) return
+		if (event.key === ' ' || event.key === 'Enter') {
+			event.preventDefault()
+			if (lift === null) {
+				if (event.key !== ' ') return
+				setLift({ key, snapshot: rows })
+				say(row, index + 1)
+				return
+			}
+			setLift(null)
+			say(row, index + 1, ' dropped')
+			return
+		}
+		if (lift?.key !== key) return
+		if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+			event.preventDefault()
+			say(row, move(index, event.key === 'ArrowUp' ? -1 : 1) + 1)
+		} else if (event.key === 'Escape') {
+			event.preventDefault()
+			setRows(lift.snapshot)
+			setLift(null)
+			setMessage('Reorder cancelled.')
+		}
+	}
+
+	useEffect(() => {
+		if (lift === null) return
+		const element = handles.current.get(lift.key)
+		if (element && document.activeElement !== element) element.focus({ preventScroll: true })
+		const drop = () => setLift(null)
+		document.addEventListener('pointerdown', drop)
+		return () => document.removeEventListener('pointerdown', drop)
+	}, [lift, rows])
 
 	function remove(key: string) {
 		if (rows.length <= 1) return
@@ -689,25 +770,44 @@ export function ModelsForm({
 				onSubmit={(event) => void save(event)}
 				noValidate
 			>
-				<ul className="flex flex-col gap-3" data-slot="model-list">
+				<Reorder.Group
+					as="ul"
+					axis="y"
+					values={rows}
+					onReorder={(next) => {
+						setRows(next)
+						setSaveError(false)
+					}}
+					className="flex flex-col gap-3"
+					data-slot="model-list"
+				>
 					{rows.map((row, index) => (
 						<ModelRow
 							key={row.key}
 							draft={row}
 							place={index + 1}
-							first={index === 0}
-							last={index === rows.length - 1}
 							only={rows.length <= 1}
 							isDefault={row.key === defaultKey}
 							unavailable={capabilities.find((item) => item.id === row.id)?.available === false}
+							lifted={lift?.key === row.key}
 							errors={allErrors[index] ?? {}}
 							onChange={(change) => update(row.key, change)}
-							onMove={(delta) => move(index, delta)}
 							onDefault={() => setDefaultKey(row.key)}
 							onRemove={() => remove(row.key)}
+							onHandleKey={(event) => onHandleKey(row.key, event)}
+							onHandleBlur={(event) => {
+								if (lift?.key === row.key && event.relatedTarget !== null) setLift(null)
+							}}
+							handleRef={(element) => {
+								if (element) handles.current.set(row.key, element)
+								else handles.current.delete(row.key)
+							}}
 						/>
 					))}
-				</ul>
+				</Reorder.Group>
+				<p role="status" aria-live="polite" className="sr-only">
+					{message}
+				</p>
 				{rows.length <= 1 ? (
 					<p className="text-caption text-muted-foreground">
 						At least one model is needed, so the last one cannot be removed.
