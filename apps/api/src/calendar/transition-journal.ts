@@ -231,18 +231,20 @@ export async function acknowledgeTransition(
 					updatedAt: sql`now()`,
 				})
 				.where(eq(googleCommands.id, command.id))
-		if (stage.kind === 'write')
+		if (stage.kind === 'write') {
+			const running = (await readCommand(tx, command.accountId, command.id)).dispatchDeadline.getTime() > Date.now()
 			await tx
 				.update(googleCommands)
 				.set({
-					state: 'partial_recovery',
+					state: running ? 'dispatching' : 'partial_recovery',
 					effect: 'partial',
 					acknowledgedAt: new Date(),
-					issue: 'provider_unavailable',
-					nextAction: 'resume_recovery',
+					issue: running ? null : 'provider_unavailable',
+					nextAction: running ? 'wait' : 'resume_recovery',
 					updatedAt: sql`now()`,
 				})
 				.where(eq(googleCommands.id, command.id))
+		}
 	})
 }
 
