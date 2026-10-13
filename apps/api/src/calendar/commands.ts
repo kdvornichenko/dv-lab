@@ -72,7 +72,7 @@ export function createCalendarCommands(deps: {
 		context: CalendarReadContext,
 		input: Exclude<ValidatedCalendarCommand, { operation: 'create' }>
 	) {
-		if (isEventCommand(input)) throw new CommandFault('invalid_request', 400)
+		if (isEventCommand(input) || input.operation === 'assign') throw new CommandFault('invalid_request', 400)
 		const observed =
 			input.operation === 'move_series' || input.operation === 'end_series'
 				? await observeSeries(access, input, context.now, deps.gateway)

@@ -12,14 +12,18 @@ import {
 } from './calendar.ts'
 
 export {
+	assignCalendarEventRequest,
 	calendarEditScope,
 	calendarEventColor,
+	calendarEventSuggestion,
 	createCalendarEventRequest,
 	deleteCalendarEventRequest,
 	hexColor,
 	updateCalendarEventRequest,
+	type AssignCalendarEventRequest,
 	type CalendarEditScope,
 	type CalendarEventColor,
+	type CalendarEventSuggestion,
 	type CreateCalendarEventRequest,
 	type DeleteCalendarEventRequest,
 	type UpdateCalendarEventRequest,
@@ -63,12 +67,6 @@ export const calendarEventRepeat = z.discriminatedUnion('kind', [
 ])
 export type CalendarEventRepeat = z.infer<typeof calendarEventRepeat>
 
-export const calendarEventSuggestion = z.strictObject({
-	studentId: z.uuid(),
-	scope: z.enum(['event', 'series']),
-})
-export type CalendarEventSuggestion = z.infer<typeof calendarEventSuggestion>
-
 export const calendarEventDetails = z.strictObject({
 	eventKey,
 	version: calendarVersion,
@@ -84,13 +82,6 @@ export const calendarEventDetails = z.strictObject({
 	}),
 })
 export type CalendarEventDetails = z.infer<typeof calendarEventDetails>
-
-export const assignCalendarEventRequest = z.strictObject({
-	requestId: z.uuid(),
-	expectedVersion: calendarVersion,
-	studentId: z.uuid(),
-})
-export type AssignCalendarEventRequest = z.infer<typeof assignCalendarEventRequest>
 
 export const ignoreCalendarEventRequest = z.strictObject({
 	requestId: z.uuid(),

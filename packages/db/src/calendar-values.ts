@@ -139,6 +139,13 @@ export const googleCommandInput = z.discriminatedUnion('operation', [
 		eventId,
 		scope: eventScope,
 	}),
+	z.strictObject({
+		operation: z.literal('assign'),
+		eventKey: z.string().min(1).max(1024),
+		eventId,
+		studentId: z.uuid(),
+		scope: z.enum(['event', 'series']),
+	}),
 ])
 
 const reservation = z.strictObject({

@@ -139,6 +139,12 @@ export const calendarEventColor = z.strictObject({
 })
 export type CalendarEventColor = z.infer<typeof calendarEventColor>
 
+export const calendarEventSuggestion = z.strictObject({
+	studentId: z.uuid(),
+	scope: z.enum(['event', 'series']),
+})
+export type CalendarEventSuggestion = z.infer<typeof calendarEventSuggestion>
+
 export const calendarEventView = z.strictObject({
 	eventKey: z.string().min(1),
 	version: calendarVersion,
@@ -159,6 +165,7 @@ export const calendarEventView = z.strictObject({
 		z.strictObject({ kind: z.literal('transition'), commandId: z.uuid() }),
 		z.strictObject({ kind: z.literal('external') }),
 	]),
+	suggestion: calendarEventSuggestion.nullable(),
 	editBlock: calendarIssue.nullable(),
 })
 
@@ -351,6 +358,13 @@ export const deleteCalendarEventRequest = z.strictObject({
 })
 export type DeleteCalendarEventRequest = z.infer<typeof deleteCalendarEventRequest>
 
+export const assignCalendarEventRequest = z.strictObject({
+	requestId: z.uuid(),
+	expectedVersion: calendarVersion,
+	studentId: z.uuid(),
+})
+export type AssignCalendarEventRequest = z.infer<typeof assignCalendarEventRequest>
+
 export const validatedCalendarCommand = z.discriminatedUnion('operation', [
 	z.strictObject({ operation: z.literal('create'), input: createCalendarLessonRequest }),
 	z.strictObject({ operation: z.literal('move'), ref: calendarOccurrenceRef, input: moveCalendarLessonRequest }),
@@ -361,6 +375,7 @@ export const validatedCalendarCommand = z.discriminatedUnion('operation', [
 	z.strictObject({ operation: z.literal('event_create'), input: createCalendarEventCommand }),
 	z.strictObject({ operation: z.literal('event_update'), eventKey, input: updateCalendarEventRequest }),
 	z.strictObject({ operation: z.literal('event_delete'), eventKey, input: deleteCalendarEventRequest }),
+	z.strictObject({ operation: z.literal('assign'), eventKey, input: assignCalendarEventRequest }),
 ])
 
 export type ValidatedCalendarCommand = z.infer<typeof validatedCalendarCommand>

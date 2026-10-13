@@ -3,6 +3,7 @@ import {
 	googleEventPalette,
 	googleScheduleWindow,
 	type CalendarEventColor,
+	type CalendarEventSuggestion,
 	type CalendarEventView,
 	type CalendarIssue,
 	type CalendarReadStatus,
@@ -38,7 +39,12 @@ export type SyncRead =
 	| { state: 'unavailable'; reason: CalendarIssue }
 
 export type EventColors = { palette: readonly GooglePaletteColor[] | null; calendarColor: string | null }
-export type ViewEvent = BoundEvent & { eventKey: string; colorId: string | null; location: string | null }
+export type ViewEvent = BoundEvent & {
+	eventKey: string
+	colorId: string | null
+	location: string | null
+	suggestion?: CalendarEventSuggestion | null
+}
 
 const NO_COLORS: EventColors = { palette: null, calendarColor: null }
 
@@ -132,6 +138,7 @@ export function eventView(
 		location: event.location,
 		seriesMember: event.recurringEventId !== null,
 		binding,
+		suggestion: binding.kind === 'external' ? (event.suggestion ?? null) : null,
 		editBlock,
 	})
 	return view.success ? view.data : null
