@@ -280,17 +280,77 @@ export const chatClarifyBlock = z.strictObject({
 export const chatRefusedBlock = z.strictObject({
 	type: z.literal('refused'),
 	code: chatRefusalCode,
-	kind: z.enum(CHAT_LOCAL_ACTION_KINDS).optional(),
+	kind: z.enum([...CHAT_LOCAL_ACTION_KINDS, 'calendar']).optional(),
 	lessonStartsAt: calendarInstant.optional(),
 	timeZone: calendarTimeZone.optional(),
 })
 
-export const chatBlock = z.discriminatedUnion('type', [chatActionResultBlock, chatClarifyBlock, chatRefusedBlock])
+export const CHAT_CALENDAR_OPERATIONS = ['move', 'cancel', 'restore', 'move_series'] as const
+
+export const CHAT_CALENDAR_STATES = [
+	'proposed',
+	'submitting',
+	'pending',
+	'unknown',
+	'applied',
+	'failed',
+	'stale',
+] as const
+
+export const CHAT_CALENDAR_ISSUES = [
+	'command_pending',
+	'connection_required',
+	'precondition_failed',
+	'outside_sync_window',
+	'lesson_done',
+	'provider_unavailable',
+	'external_change',
+] as const
+
+export const chatCalendarIssue = z.enum(CHAT_CALENDAR_ISSUES)
+
+const lessonLength = z.number().int().min(LESSON_MINUTES_MIN)
+
+export const chatCalendarProposalBlock = z.strictObject({
+	type: z.literal('calendar_proposal'),
+	actionId: z.uuid(),
+	operation: z.enum(CHAT_CALENDAR_OPERATIONS),
+	studentName: z.string(),
+	timeZone: calendarTimeZone,
+	lesson: z.strictObject({ key: z.string().min(1), startsAt: calendarInstant, durationMinutes: lessonLength }),
+	target: z.discriminatedUnion('kind', [
+		z.strictObject({ kind: z.literal('lesson'), startsAt: calendarInstant, durationMinutes: lessonLength }),
+		z.strictObject({ kind: z.literal('cancelled') }),
+		z.strictObject({
+			kind: z.literal('series'),
+			startsAt: calendarInstant,
+			durationMinutes: lessonLength,
+			from: calendarDate,
+			area: z.enum(['following', 'all']),
+		}),
+	]),
+	clearsNoShow: z.boolean(),
+	state: z.enum(CHAT_CALENDAR_STATES),
+	accepted: z.boolean().optional(),
+	issue: chatCalendarIssue.optional(),
+	undo: z.enum(CHAT_UNDO_STATES).nullable(),
+	undoIssue: chatCalendarIssue.optional(),
+})
+
+export const chatBlock = z.discriminatedUnion('type', [
+	chatActionResultBlock,
+	chatClarifyBlock,
+	chatRefusedBlock,
+	chatCalendarProposalBlock,
+])
 
 export type ChatBlock = z.infer<typeof chatBlock>
 export type ChatActionResultBlock = z.infer<typeof chatActionResultBlock>
 export type ChatClarifyBlock = z.infer<typeof chatClarifyBlock>
 export type ChatRefusedBlock = z.infer<typeof chatRefusedBlock>
+export type ChatCalendarProposalBlock = z.infer<typeof chatCalendarProposalBlock>
+export type ChatCalendarState = (typeof CHAT_CALENDAR_STATES)[number]
+export type ChatCalendarIssue = z.infer<typeof chatCalendarIssue>
 export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 
 export const CHAT_MESSAGE_ROLES = ['teacher', 'assistant'] as const
@@ -324,6 +384,12 @@ export const undoRequest = z.strictObject({ requestId: z.uuid() })
 
 export type UndoRequest = z.infer<typeof undoRequest>
 
-export const undoResponse = z.strictObject({ block: chatActionResultBlock })
+export const undoResponse = z.strictObject({
+	block: z.discriminatedUnion('type', [chatActionResultBlock, chatCalendarProposalBlock]),
+})
 
 export type UndoResponse = z.infer<typeof undoResponse>
+
+export const calendarActionResponse = z.strictObject({ block: chatCalendarProposalBlock })
+
+export type CalendarActionResponse = z.infer<typeof calendarActionResponse>

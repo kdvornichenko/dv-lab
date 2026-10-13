@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
 	type ChatActionResultBlock,
 	type ChatBlock,
+	type ChatCalendarProposalBlock,
 	type ChatConversation,
 	type ChatLessonIntent,
 	type ChatMessage,
@@ -22,17 +23,28 @@ import {
 import { markEffect } from '@dv-lab/core'
 import { type Database, type DbExecutor, chatActions, students, violatesUnique } from '@dv-lab/db'
 
+import type { CalendarCommands } from '../calendar/commands.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
 import { appendStudentNote, retractStudentNote } from '../cards/notes.ts'
 import { appendLessonComment, retractLessonComment } from '../schedule/comments.ts'
 import { writeMark } from '../schedule/marks.ts'
+import { type CalendarOutcome, proposeCalendarChange, undoCalendarAction } from './calendar.ts'
 import { lockConversation, readConversation, touchConversation } from './conversations.ts'
 import { resolveLessonTarget } from './lesson-target.ts'
 import { validateMentions } from './mentions.ts'
-import { blocksOf, findRequest, insertMessage, replyOf, toMessages, undoState, withUndo } from './messages.ts'
+import {
+	blocksOf,
+	findRequest,
+	insertAction,
+	insertMessage,
+	replyOf,
+	toMessages,
+	undoState,
+	withUndo,
+} from './messages.ts'
 import { parseNoteCommand, parseQuickCommand } from './quick-command.ts'
 
-export type ChatContext = CardReadContext
+export type ChatContext = CardReadContext & { calendarEnabled?: boolean }
 
 export type LocalRequest =
 	{ kind: 'lesson'; intent: ChatLessonIntent; body?: string } | { kind: 'note'; studentId: string; body: string }
@@ -45,7 +57,10 @@ export type SendOutcome =
 	| { kind: 'conflict' }
 
 export type UndoOutcome =
-	{ kind: 'ok'; block: ChatActionResultBlock } | { kind: 'not_found' } | { kind: 'not_undoable' } | { kind: 'conflict' }
+	| { kind: 'ok'; block: ChatActionResultBlock | ChatCalendarProposalBlock }
+	| { kind: 'not_found' }
+	| { kind: 'not_undoable' }
+	| { kind: 'conflict' }
 
 const NOTE_SECTION = 'general_info'
 const REQUEST_UNIQUE = 'chat_messages_account_request_uq'
@@ -72,7 +87,7 @@ type Card = {
 }
 
 type ActionRecord = {
-	kind: 'mark' | 'note' | 'comment'
+	kind: 'mark' | 'note' | 'comment' | 'calendar'
 	state: 'applied' | 'refused'
 	target?: unknown
 	before?: unknown
@@ -111,28 +126,13 @@ async function cardOf(executor: DbExecutor, studentId: string): Promise<Card | n
 	return row ?? null
 }
 
-async function recordAction(
+function recordAction(
 	executor: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
 	action: ActionRecord
 ): Promise<string> {
-	const [row] = await executor
-		.insert(chatActions)
-		.values({
-			accountId: context.accountId,
-			conversationId: source.conversationId,
-			messageId: source.messageId,
-			kind: action.kind,
-			state: action.state,
-			target: action.target ?? null,
-			before: action.before ?? null,
-			after: action.after ?? null,
-			result: action.result,
-		})
-		.returning({ id: chatActions.id })
-	if (!row) throw new Error('chat action insert returned no row')
-	return row.id
+	return insertAction(executor, { accountId: context.accountId, ...source, ...action })
 }
 
 async function refuse(
@@ -310,16 +310,19 @@ export async function executeLocalAction(
 ): Promise<ChatBlock> {
 	if (request.kind === 'note') return applyNote(tx, context, source, request.studentId, request.body)
 	const { intent } = request
-	if (intent.kind === 'cancel' || intent.kind === 'move' || intent.kind === 'note') {
-		return { type: 'refused', code: 'out_of_phase' }
-	}
-	const kind = intent.kind === 'comment' ? 'comment' : 'mark'
+	if (intent.kind === 'note') return { type: 'refused', code: 'out_of_phase' }
+	const calendar = intent.kind === 'cancel' || intent.kind === 'move'
+	if (intent.kind === 'cancel' && intent.scope === 'series') return { type: 'refused', code: 'out_of_phase' }
+	const kind = intent.kind === 'comment' ? 'comment' : calendar ? 'calendar' : 'mark'
 	const body = intent.kind === 'comment' ? appendLessonCommentRequest.parse({ body: request.body }).body : null
 	const card = await cardOf(tx, intent.studentId)
 	if (card === null) return refuse(tx, context, source, kind, 'not_found')
+	if (calendar && !context.calendarEnabled) return refuse(tx, context, source, kind, 'connection_required')
 	const target = await resolveLessonTarget(tx, context, intent)
 	if (target.kind === 'clarify') return clarify(tx, context, source, kind, intent, target, card)
 	if (target.kind === 'refused') return refuse(tx, context, source, kind, target.code)
+	if (calendar && (target.kind === 'lesson' || target.kind === 'series'))
+		return proposeCalendarChange(tx, context, source, target, card.displayName)
 	if (target.kind !== 'lesson') return refuse(tx, context, source, kind, 'not_found')
 	if (body !== null) return applyComment(tx, context, source, target.lesson, card, body)
 	if (intent.kind === 'done' || intent.kind === 'no_show') {
@@ -448,19 +451,25 @@ async function inverse(
 	return result.kind === 'retracted'
 }
 
-async function undo(tx: DbExecutor, context: ChatContext, actionId: string, input: UndoRequest): Promise<UndoOutcome> {
+async function undo(
+	tx: DbExecutor,
+	context: ChatContext,
+	actionId: string,
+	input: UndoRequest
+): Promise<UndoOutcome | { kind: 'calendar' }> {
 	const [action] = await tx
 		.select()
 		.from(chatActions)
 		.where(and(eq(chatActions.id, actionId), eq(chatActions.accountId, context.accountId)))
 		.for('update')
 	if (!action) return { kind: 'not_found' }
+	if (action.kind === 'calendar') return { kind: 'calendar' }
 	const block = await originalBlock(tx, context.accountId, action)
 	if (block === null) return { kind: 'not_undoable' }
 	if (action.undoRequestId !== null) {
 		return { kind: 'ok', block: { ...block, undo: undoState(action) } }
 	}
-	if (action.state !== 'applied' || action.kind === 'calendar') return { kind: 'not_undoable' }
+	if (action.state !== 'applied') return { kind: 'not_undoable' }
 	const done = await inSavepoint(tx, async (executor) => {
 		if (!(await inverse(executor, context, action))) throw new Refusal('lesson_changed')
 		return true
@@ -483,16 +492,25 @@ async function undo(tx: DbExecutor, context: ChatContext, actionId: string, inpu
 	return shown?.type === 'action_result' ? { kind: 'ok', block: shown } : { kind: 'not_undoable' }
 }
 
+function calendarUndo(outcome: CalendarOutcome): UndoOutcome {
+	if (outcome.kind === 'ok' || outcome.kind === 'not_found' || outcome.kind === 'conflict') return outcome
+	return { kind: 'not_undoable' }
+}
+
 export async function undoAction(
 	db: Database,
 	context: ChatContext,
 	actionId: string,
-	input: UndoRequest
+	input: UndoRequest,
+	commands?: CalendarCommands
 ): Promise<UndoOutcome> {
+	let outcome: UndoOutcome | { kind: 'calendar' }
 	try {
-		return await db.transaction((tx) => undo(tx, context, actionId, input))
+		outcome = await db.transaction((tx) => undo(tx, context, actionId, input))
 	} catch (error) {
 		if (violatesUnique(error, UNDO_UNIQUE)) return { kind: 'conflict' }
 		throw error
 	}
+	if (outcome.kind !== 'calendar') return outcome
+	return calendarUndo(await undoCalendarAction(db, commands, context, actionId, input))
 }

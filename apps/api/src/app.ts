@@ -94,7 +94,7 @@ export function createApp(deps: AppDeps) {
 			isStopping: deps.isStopping,
 		})
 	)
-	app.route('/chat', chatRoutes({ db: deps.db }))
+	app.route('/chat', chatRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))

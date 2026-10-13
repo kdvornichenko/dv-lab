@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	type CalendarActionResponse,
 	type ChatConversationReadResponse,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
@@ -18,7 +19,9 @@ import {
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
-import { sendMessage, undoAction } from '../chat/actions.ts'
+import type { CalendarCommands } from '../calendar/commands.ts'
+import { type ChatContext, sendMessage, undoAction } from '../chat/actions.ts'
+import { type CalendarOutcome, checkCalendarAction, confirmCalendarChange } from '../chat/calendar.ts'
 import {
 	createConversation,
 	deleteConversation,
@@ -31,7 +34,9 @@ import { listMessages } from '../chat/messages.ts'
 import { errorBody } from '../request-context.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type ChatRouteDeps = { db: Database }
+type ChatRouteDeps = { db: Database; calendarCommands?: CalendarCommands }
+
+const emptyRequest = z.strictObject({})
 
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
@@ -45,9 +50,26 @@ function conversationId(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
-export function chatRoutes({ db }: ChatRouteDeps) {
+export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
+
+	async function chatContext(c: Context<AppEnv>): Promise<ChatContext> {
+		const accountId = c.get('session').account.id
+		const settings = await readTeacherSettings(db, accountId)
+		return {
+			accountId,
+			now: new Date(),
+			defaultTimeZone: settings.defaultTimeZone,
+			calendarEnabled: calendarCommands !== undefined,
+		}
+	}
+
+	function calendarReply(c: Context<AppEnv>, outcome: CalendarOutcome, status: 200 | 202) {
+		if (outcome.kind === 'not_found') return notFound(c)
+		if (outcome.kind !== 'ok') return c.json(errorBody('precondition_failed', 'The action cannot be changed'), 409)
+		return c.json({ block: outcome.block } satisfies CalendarActionResponse, status)
+	}
 
 	routes.get('/records', async (c) => {
 		const query = chatRecordsQuery.safeParse(c.req.query())
@@ -97,10 +119,7 @@ export function chatRoutes({ db }: ChatRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, sendMessageRequest)
 		if (!input) return invalidRequest(c)
-		const accountId = c.get('session').account.id
-		const now = new Date()
-		const settings = await readTeacherSettings(db, accountId)
-		const result = await sendMessage(db, { accountId, now, defaultTimeZone: settings.defaultTimeZone }, id, input)
+		const result = await sendMessage(db, await chatContext(c), id, input)
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'conflict') return c.json(errorBody('precondition_failed', 'The request changed'), 409)
 		const body = { conversation: result.conversation, messages: result.messages } satisfies SendMessageResponse
@@ -112,17 +131,26 @@ export function chatRoutes({ db }: ChatRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, undoRequest)
 		if (!input) return invalidRequest(c)
-		const accountId = c.get('session').account.id
-		const settings = await readTeacherSettings(db, accountId)
-		const result = await undoAction(
-			db,
-			{ accountId, now: new Date(), defaultTimeZone: settings.defaultTimeZone },
-			id,
-			input
-		)
+		const result = await undoAction(db, await chatContext(c), id, input, calendarCommands)
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind !== 'ok') return c.json(errorBody('precondition_failed', 'The action cannot be undone'), 409)
 		return c.json({ block: result.block } satisfies UndoResponse, 200)
+	})
+
+	routes.post('/actions/:id/confirm', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
+		const outcome = await confirmCalendarChange(db, calendarCommands, await chatContext(c), id)
+		return calendarReply(c, outcome, 202)
+	})
+
+	routes.post('/actions/:id/check', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
+		const outcome = await checkCalendarAction(db, calendarCommands, await chatContext(c), id)
+		return calendarReply(c, outcome, 200)
 	})
 
 	routes.patch('/conversations/:id', async (c) => {

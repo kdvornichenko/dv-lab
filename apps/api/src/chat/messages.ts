@@ -3,18 +3,43 @@ import { z } from 'zod'
 
 import {
 	type ChatBlock,
+	type ChatCalendarProposalBlock,
 	type ChatMessage,
 	type ChatUndoState,
 	type MentionBinding,
+	CHAT_CALENDAR_STATES,
 	CHAT_UNDO_STATES,
 	chatBlock,
+	chatCalendarIssue,
 	mentionBinding,
 } from '@dv-lab/contracts'
 import { type DbExecutor, chatActions, chatMessages } from '@dv-lab/db'
 
 export type MessageRow = typeof chatMessages.$inferSelect
 
-export type ActionUndo = { id: string; state: string; undoResult: unknown }
+export type ActionUndo = { id: string; state: string; result?: unknown; undoResult: unknown }
+
+export type NewAction = {
+	accountId: string
+	conversationId: string
+	messageId: string
+	kind: 'mark' | 'note' | 'comment' | 'calendar'
+	state: 'applied' | 'refused' | 'proposed'
+	target?: unknown
+	before?: unknown
+	after?: unknown
+	result: unknown
+	calendarRequestId?: string
+}
+
+export const calendarProgress = z.object({
+	state: z.enum(CHAT_CALENDAR_STATES),
+	commandId: z.uuid().nullable().optional(),
+	accepted: z.boolean().optional(),
+	issue: chatCalendarIssue.optional(),
+})
+
+const calendarUndo = z.object({ issue: chatCalendarIssue.optional() }).nullable()
 
 type NewMessage = {
 	accountId: string
@@ -40,11 +65,29 @@ export function undoState(action: Pick<ActionUndo, 'state' | 'undoResult'>): Cha
 	return 'available'
 }
 
+export function calendarView(block: ChatCalendarProposalBlock, action: ActionUndo): ChatCalendarProposalBlock {
+	const progress = calendarProgress.safeParse(action.result)
+	if (!progress.success) return block
+	const { state, accepted, issue } = progress.data
+	const single = block.operation === 'move' || block.operation === 'cancel'
+	const undo = state === 'applied' && single ? undoState(action) : null
+	const recorded = calendarUndo.safeParse(action.undoResult ?? null)
+	return {
+		...block,
+		state,
+		undo,
+		accepted: accepted === true ? true : undefined,
+		issue,
+		undoIssue: undo !== null && recorded.success ? recorded.data?.issue : undefined,
+	}
+}
+
 export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<string, ActionUndo>): ChatBlock[] {
 	return blocks.map((block) => {
-		if (block.type !== 'action_result') return block
+		if (block.type !== 'action_result' && block.type !== 'calendar_proposal') return block
 		const action = actions.get(block.actionId)
-		return action ? { ...block, undo: undoState(action) } : block
+		if (!action) return block
+		return block.type === 'calendar_proposal' ? calendarView(block, action) : { ...block, undo: undoState(action) }
 	})
 }
 
@@ -65,11 +108,18 @@ export function blocksOf(row: MessageRow): ChatBlock[] {
 
 async function actionsOf(executor: DbExecutor, rows: readonly MessageRow[]): Promise<Map<string, ActionUndo>> {
 	const ids = rows.flatMap((row) =>
-		blocksOf(row).flatMap((block) => (block.type === 'action_result' ? [block.actionId] : []))
+		blocksOf(row).flatMap((block) =>
+			block.type === 'action_result' || block.type === 'calendar_proposal' ? [block.actionId] : []
+		)
 	)
 	if (ids.length === 0) return new Map()
 	const found = await executor
-		.select({ id: chatActions.id, state: chatActions.state, undoResult: chatActions.undoResult })
+		.select({
+			id: chatActions.id,
+			state: chatActions.state,
+			result: chatActions.result,
+			undoResult: chatActions.undoResult,
+		})
 		.from(chatActions)
 		.where(inArray(chatActions.id, ids))
 	return new Map(found.map((action) => [action.id, action]))
@@ -116,6 +166,26 @@ export async function insertMessage(executor: DbExecutor, message: NewMessage): 
 		.returning()
 	if (!row) throw new Error('chat message insert returned no row')
 	return row
+}
+
+export async function insertAction(executor: DbExecutor, action: NewAction): Promise<string> {
+	const [row] = await executor
+		.insert(chatActions)
+		.values({
+			accountId: action.accountId,
+			conversationId: action.conversationId,
+			messageId: action.messageId,
+			kind: action.kind,
+			state: action.state,
+			target: action.target ?? null,
+			before: action.before ?? null,
+			after: action.after ?? null,
+			result: action.result,
+			calendarRequestId: action.calendarRequestId ?? null,
+		})
+		.returning({ id: chatActions.id })
+	if (!row) throw new Error('chat action insert returned no row')
+	return row.id
 }
 
 export async function findRequest(
