@@ -117,7 +117,7 @@ function SwitchDialog({
 			pendingLabel={connected ? 'Disconnecting…' : 'Opening Google…'}
 			tone="primary"
 			failureText={SWITCH_ERROR}
-			reserveFailure
+			failureLine
 			onConfirm={onConfirm}
 			onClose={onClose}
 		/>
@@ -147,7 +147,7 @@ function ConnectionDialog({
 			pendingLabel={manual ? 'Recording your confirmation…' : 'Disconnecting…'}
 			tone="primary"
 			failureText={DISCONNECT_ERROR}
-			reserveFailure
+			failureLine
 			onConfirm={onConfirm}
 			onClose={onClose}
 		/>
@@ -182,7 +182,7 @@ function SyncState({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 	let content: ReactNode = null
 	if (snapshot.state !== 'connected' || sync?.state === 'off')
 		content = <p>Sync is off. Connect Google Calendar to resume.</p>
-	else if (sync === null) content = <Skeleton className="h-5 w-65 max-w-full" />
+	else if (sync === null) content = <Skeleton className="h-3 w-55 max-w-full" />
 	else if (sync.state === 'running')
 		content = (
 			<>
@@ -203,7 +203,7 @@ function SyncState({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 		)
 	else if (checked !== null) content = <p className="text-muted-foreground">{checked}</p>
 	return (
-		<div data-slot="calendar-sync-state" data-sync={sync?.state ?? 'loading'} className="flex min-h-28 flex-col gap-2">
+		<div data-slot="calendar-sync-state" data-sync={sync?.state ?? 'loading'} className="flex flex-col gap-2">
 			{content}
 		</div>
 	)
@@ -212,7 +212,7 @@ function SyncState({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 function SyncCard({ snapshot }: { snapshot: GoogleConnectionSnapshot }) {
 	return (
 		<Panel id="settings-calendar-sync" title="Sync" description="Calendar requests and their confirmation status.">
-			<div className="flex flex-col gap-2 px-4 pt-1 pb-4 text-body" role="status">
+			<div className="flex flex-col gap-3 px-4 pt-1 pb-4 text-body" role="status">
 				<SyncState snapshot={snapshot} />
 				<p>Unconfirmed changes: {snapshot.pendingCommandCount === 0 ? 'None' : snapshot.pendingCommandCount}</p>
 				{snapshot.pendingCommandCount > 0 && snapshot.state !== 'connected' ? (
@@ -268,7 +268,7 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 			<Panel id="settings-calendar-connection" title="Connection">
 				<div
 					data-slot="calendar-connection-content"
-					className="flex min-h-73 flex-col gap-4 px-4 pt-1 pb-4"
+					className="flex flex-col gap-3 px-4 pt-1 pb-4"
 					aria-busy={state.pending !== null || state.view.status === 'loading'}
 				>
 					{state.view.status === 'loading' ? <ConnectionSkeleton /> : null}
@@ -287,7 +287,7 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 						<CalendarChoice snapshot={snapshot} busy={state.pending !== null} onChanged={state.refresh} />
 					) : null}
 					{state.view.status !== 'loading' ? (
-						<div className="mt-auto flex flex-wrap items-center gap-2">
+						<div className="mt-1 flex flex-wrap items-center gap-2">
 							{snapshot?.allowedActions.map((action) => (
 								<Button
 									key={action}

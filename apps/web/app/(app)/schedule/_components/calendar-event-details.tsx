@@ -561,7 +561,7 @@ export function CalendarEventDialog({
 						pendingLabel="Deleting…"
 						tone="destructive"
 						failureText="Could not delete the event. Try again."
-						reserveFailure
+						failureLine
 						onConfirm={() => remove('one')}
 						onClose={() => setRemoving(null)}
 					/>
