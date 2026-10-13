@@ -166,7 +166,13 @@ export function useScheduleWeek() {
 			const since = epoch.current
 			loading.current = true
 			query.current = requested
-			const target = requested ?? (await bootstrap())
+			const target =
+				requested ??
+				(await bootstrap().then((known) => {
+					if (known !== null && id === requests.current)
+						setState((previous) => (previous.query === null ? { ...previous, query: known } : previous))
+					return known
+				}))
 			if (id !== requests.current) return null
 			query.current = target
 			const result = target === null ? null : await readWeek(target, () => id !== requests.current, readWindow)

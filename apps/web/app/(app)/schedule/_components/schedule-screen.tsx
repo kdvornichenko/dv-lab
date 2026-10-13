@@ -11,9 +11,7 @@ import { CalendarReadNotice, CalendarReadStatusButton } from '@/components/app/g
 import { PageHeader, PageScroll, WorkspacePage } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
 import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker'
-import { useTopbarSlot } from '@/components/app/topbar-slot'
 import { Button } from '@/components/ui/button'
-import { SkeletonTable } from '@/components/ui/skeleton'
 import { calendarLesson, canEditCalendarEvent, canEditPlainEvent, changeableLesson } from '@/lib/lesson-actions'
 import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
@@ -27,44 +25,12 @@ import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
+import { NOTICE_SLOT, WORKSPACE_BODY, LOADING_BLOCKS, ScheduleLoading, useLaptop } from './schedule-loading'
 import { ScheduleBar, ScheduleToolbar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { useScheduleWeek } from './use-schedule-week'
 import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
-
-const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
-const MOBILE_FRAME = 'h-112'
-const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2'
-
-function useLaptop() {
-	const left = useTopbarSlot('left')
-	const right = useTopbarSlot('right')
-	return left !== null && right !== null ? { left, right } : null
-}
-
-function ScheduleLoading() {
-	const laptop = useLaptop()
-	if (laptop !== null)
-		return (
-			<WorkspacePage>
-				<div className={WORKSPACE_BODY}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			</WorkspacePage>
-		)
-	return (
-		<PageScroll>
-			<PageHeader title="Schedule" />
-			<div className="space-y-4">
-				<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
-				<div className={MOBILE_FRAME}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			</div>
-		</PageScroll>
-	)
-}
 
 export function ScheduleScreen() {
 	const now = useMinuteNow()
@@ -229,6 +195,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			onSlot={(seed) => void openNew(seed)}
 			frame={draft?.seed ?? null}
 			scrollTopRef={scrollTopRef}
+			placeholders={loadingFirst ? LOADING_BLOCKS : undefined}
 		/>
 	)
 	const windowAttributes = {
@@ -310,7 +277,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 				)}
 				<WorkspacePage>
 					<div {...windowAttributes} className={WORKSPACE_BODY}>
-						{loadingFirst ? <SkeletonTable rows={10} className="h-full" /> : grid}
+						{grid}
 					</div>
 				</WorkspacePage>
 				{dialogs}
@@ -345,21 +312,12 @@ function LoadedSchedule({ now }: { now: Date }) {
 				/>
 				<ScheduleToolbar {...navigation} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
 				<div {...windowAttributes} className="space-y-4">
-					{loadingFirst ? (
-						<>
-							<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
-							<div className={MOBILE_FRAME}>
-								<SkeletonTable rows={10} className="h-full" />
-							</div>
-						</>
-					) : (
-						<>
-							<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
-								<CalendarReadNotice read={read} write={write} timeZone={mainTimeZone} onRefresh={refreshWeek} />
-							</div>
-							{grid}
-						</>
-					)}
+					<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
+						{loadingFirst ? null : (
+							<CalendarReadNotice read={read} write={write} timeZone={mainTimeZone} onRefresh={refreshWeek} />
+						)}
+					</div>
+					{grid}
 				</div>
 				<CalendarRecovery showEmpty={false} />
 			</PageScroll>

@@ -3,6 +3,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 
 import { TimePair } from '@/components/app/time-pair'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
 import { eventPaint } from '@/lib/event-colors'
@@ -44,6 +45,12 @@ export interface SecondZone {
 	caption: string
 }
 
+export interface GridPlaceholder {
+	day: number
+	start: number
+	minutes: number
+}
+
 export interface SlotChoice {
 	date: string
 	time: string
@@ -77,6 +84,7 @@ interface WeekGridProps {
 	mark?: (event: CalendarEventView) => BlockMark | null
 	emptyNote?: string | null
 	scrollTopRef?: { current: number }
+	placeholders?: readonly GridPlaceholder[]
 }
 
 function AllDayBand({
@@ -418,6 +426,7 @@ export function WeekGrid({
 	mark,
 	emptyNote = null,
 	scrollTopRef,
+	placeholders = [],
 }: WeekGridProps) {
 	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, mainTimeZone)
@@ -632,6 +641,20 @@ export function WeekGrid({
 											<span className="sr-only">Now {nowParts.time}</span>
 										</div>
 									) : null}
+									{placeholders
+										.filter((placeholder) => placeholder.day === dayIndex)
+										.map((placeholder) => (
+											<Skeleton
+												key={placeholder.start}
+												className="absolute rounded-md"
+												style={{
+													top: placeholder.start * MINUTE_HEIGHT,
+													height: placeholder.minutes * MINUTE_HEIGHT - 2,
+													left: 2,
+													width: FRAME_WIDTH,
+												}}
+											/>
+										))}
 									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT, columnWidth).map(({ event, layout }) => (
 										<EventTooltip
 											editable={canEdit(event)}
