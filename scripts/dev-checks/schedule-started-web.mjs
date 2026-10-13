@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 import { TEACHER_LOGIN } from './api.mjs'
@@ -19,6 +19,7 @@ const DAY_START = 120
 const CARD = 'calendar-seed:alex-example-0001'
 const NAME = 'Alex Example 0001'
 const DONE_LINE = 'Marked Done: this lesson stays where it is. To move or cancel it, set the mark to Scheduled first.'
+const EARLIER = 'section[aria-labelledby="today-earlier"]'
 const DONE_REFUSAL = 'This lesson is marked Done, so it stays where it is.'
 const OUTSIDE_LINE =
 	'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.'
@@ -40,7 +41,12 @@ const MODES = {
 }
 
 const real = (problems) =>
-	problems.filter((problem) => !problem.includes('server caches disabled') && !problem.includes('status of 404'))
+	problems.filter(
+		(problem) =>
+			!problem.includes('server caches disabled') &&
+			!problem.includes('status of 404') &&
+			!problem.includes('status of 409')
+	)
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const addDays = (date, days) => {
 	const value = new Date(`${date}T00:00:00Z`)
@@ -141,6 +147,10 @@ async function prepare(ctx) {
 		if (json?.connection?.generation !== undefined) state.generation = json.connection.generation
 		if (json?.read?.state === 'fresh') {
 			const zone = json.requestedRange.timeZone
+			state.window = {
+				range: json.requestedRange,
+				keyParts: [zone, json.connection?.calendar?.id, json.connection?.generation, json.read.revision],
+			}
 			const want = instant(ctx.lessonDate, '15:00', zone).getTime()
 			const target = json.events.find(
 				(event) => event.title === 'Synthetic event 12' && Date.parse(event.when.startsAt) === want
@@ -262,6 +272,22 @@ async function prepare(ctx) {
 		return route.fulfill({
 			status: 202,
 			json: { commandId, statusUrl: `/api/google/commands/${commandId}` },
+		})
+	})
+	await context.route(/\/api\/google\/conflicts$/, async (route) => {
+		const request = route.request()
+		if (request.method() !== 'POST' || !state.window) return route.continue()
+		const values = [request.postData() ?? '', ...state.window.keyParts]
+		const inputKey = createHash('sha256').update(values.map(String).join('\0')).digest('hex')
+		return route.fulfill({
+			json: {
+				state: 'complete',
+				complete: true,
+				inputKey,
+				checkedRange: state.window.range,
+				checkedAt: new Date().toISOString(),
+				events: [],
+			},
 		})
 	})
 	await context.route(/\/api\/google\/commands\//, async (route) => {
@@ -647,13 +673,13 @@ async function today(ctx, state, page, calls, problems) {
 	state.today = true
 	state.scenario = 'single'
 	await page.goto(`${BASE}/`, { timeout: 120000 })
-	await page.locator('#today-earlier [data-slot="today-row-open"]').first().waitFor({ timeout: 60000 })
+	await page.locator(`${EARLIER} [data-slot="today-row-open"]`).first().waitFor({ timeout: 60000 })
 	await page.waitForTimeout(1000)
-	const rows = page.locator('#today-earlier [data-slot="today-row-open"]')
+	const rows = page.locator(`${EARLIER} [data-slot="today-row-open"]`)
 	check('Earlier, not marked has the two synthetic rows and no move button', (await rows.count()) === 2)
 	check(
 		'a row has no move button of its own',
-		(await page.locator('#today-earlier').getByRole('button', { name: /move/i }).count()) === 0
+		(await page.locator(EARLIER).getByRole('button', { name: /move/i }).count()) === 0
 	)
 
 	await rows.nth(1).click()
@@ -745,7 +771,7 @@ async function today(ctx, state, page, calls, problems) {
 	await shot(page, 'schedule-started', 'today-unavailable')
 	await closeAll(page)
 
-	await page.locator('#today-lessons [data-slot="today-row-open"]').first().click()
+	await page.locator('section[aria-labelledby="today-lessons"] [data-slot="today-row-open"]').first().click()
 	dialog = page.getByRole('dialog').last()
 	await dialog.waitFor({ timeout: 15000 })
 	await page.waitForTimeout(2500)
