@@ -18,7 +18,7 @@ import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-l
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
-import { type CalendarHandlers, Messages } from './messages'
+import { type ActiveReply, type CalendarHandlers, Messages, type ReplyHandlers } from './messages'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
 import { useChat, useComposerDraft, useMentionStudents, type ThreadState } from './use-chat'
 
@@ -92,6 +92,8 @@ function Thread({
 	onChoose,
 	onRefresh,
 	calendar,
+	replies,
+	active,
 	empty,
 }: {
 	state: ThreadState
@@ -99,13 +101,24 @@ function Thread({
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	onRefresh: () => void
 	calendar: CalendarHandlers
+	replies: ReplyHandlers
+	active: ActiveReply | null
 	empty: boolean
 }) {
 	if (state.kind === 'loading') return <ThreadSkeleton />
 	if (state.kind === 'error') return <ReadError screen="this conversation" onRefresh={onRefresh} />
 	const messages = state.kind === 'ready' ? state.messages : []
 	if (messages.length === 0) return empty ? <EmptyLine text="What do you want to ask?" /> : null
-	return <Messages messages={messages} onUndo={onUndo} onChoose={onChoose} calendar={calendar} />
+	return (
+		<Messages
+			messages={messages}
+			onUndo={onUndo}
+			onChoose={onChoose}
+			calendar={calendar}
+			replies={replies}
+			active={active}
+		/>
+	)
 }
 
 function focusAllChats() {
@@ -262,6 +275,15 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
 										onCheck: chat.checkCalendar,
 									}}
+									replies={{
+										onAsk: () => later(() => input.current?.focus()),
+										onCheckStatus: chat.checkStatus,
+									}}
+									active={
+										chat.reply === null
+											? null
+											: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
+									}
 									empty={studentId === null}
 								/>
 							</div>
@@ -280,6 +302,9 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 							disabled={listOpen || chat.sending}
 							sending={chat.sending}
 							onSend={() => void send()}
+							replying={chat.reply !== null}
+							stopping={chat.reply?.stopping ?? false}
+							onStop={() => void chat.stop()}
 							inputRef={input}
 						/>
 					</div>

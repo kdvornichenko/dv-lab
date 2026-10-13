@@ -1,13 +1,14 @@
 'use client'
 
-import { Fragment, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 import { motion, useReducedMotion } from 'framer-motion'
+import { LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 
 import { Panel } from '@/components/app/layout-parts'
 import { useSecondZone } from '@/components/app/time-zone-picker'
-import { Banner, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
+import { Banner, BannerAction, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
@@ -23,6 +24,13 @@ export type CalendarHandlers = {
 	onConfirm: (actionId: string) => void
 	onCheck: (actionId: string) => Promise<void>
 }
+
+export type ReplyHandlers = {
+	onAsk: () => void
+	onCheckStatus: () => Promise<void>
+}
+
+export type ActiveReply = { messageId: string | null; stopping: boolean }
 
 type Notice = { tone: 'info' | 'warning'; title: string; line?: string; settings?: boolean }
 
@@ -181,17 +189,63 @@ function Block({
 	onUndo,
 	onChoose,
 	calendar,
+	replies,
 }: {
 	block: ChatBlock
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
+	replies: ReplyHandlers
 }) {
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
 	if (block.type === 'refused') return <Refused block={block} />
-	return null
+	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
+	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
+	return <Interrupted onCheckStatus={replies.onCheckStatus} />
+}
+
+function Withheld({ onAsk }: { onAsk: () => void }) {
+	return (
+		<Banner status="warning" role="status" data-reply-state="withheld">
+			<BannerTitle>Could not verify this answer from the available records.</BannerTitle>
+			<BannerActions>
+				<BannerAction onClick={onAsk}>Ask another question</BannerAction>
+			</BannerActions>
+		</Banner>
+	)
+}
+
+function Interrupted({ onCheckStatus }: { onCheckStatus: () => Promise<void> }) {
+	const [checking, setChecking] = useState(false)
+	async function check() {
+		setChecking(true)
+		try {
+			await onCheckStatus()
+		} finally {
+			setChecking(false)
+		}
+	}
+	return (
+		<Banner status="warning" role="status" data-reply-state="interrupted" aria-busy={checking}>
+			<BannerTitle>This reply was interrupted. Check its status before sending again.</BannerTitle>
+			<BannerActions>
+				<BannerAction disabled={checking} onClick={() => void check()}>
+					Check status
+				</BannerAction>
+			</BannerActions>
+		</Banner>
+	)
+}
+
+function Working({ label }: { label: string }) {
+	return (
+		<p role="status" className="flex items-center gap-2 text-body text-muted-foreground">
+			<LoaderCircle size={16} className="shrink-0 animate-spin" aria-hidden />
+			{label}
+		</p>
+	)
 }
 
 function TeacherText({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {
@@ -215,16 +269,19 @@ function TeacherText({ text, mentions }: { text: string; mentions: readonly Ment
 function MessageItem({
 	message,
 	reduceMotion,
+	busy = false,
 	children,
 }: {
 	message: ChatMessage
 	reduceMotion: boolean
+	busy?: boolean
 	children: ReactNode
 }) {
 	return (
 		<motion.li
 			data-message-id={message.id}
 			data-role={message.role}
+			aria-busy={busy || undefined}
 			className={
 				message.role === 'teacher' ? 'flex max-w-[80%] flex-col items-end gap-1 self-end' : 'flex flex-col gap-3'
 			}
@@ -242,11 +299,15 @@ export function Messages({
 	onUndo,
 	onChoose,
 	calendar,
+	replies,
+	active,
 }: {
 	messages: readonly ChatMessage[]
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
+	replies: ReplyHandlers
+	active: ActiveReply | null
 }) {
 	const reduceMotion = useReducedMotion() ?? false
 	const end = useRef<HTMLDivElement>(null)
@@ -282,12 +343,30 @@ export function Messages({
 							</span>
 						</MessageItem>
 					) : (
-						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
+						<MessageItem
+							key={message.id}
+							message={message}
+							reduceMotion={reduceMotion}
+							busy={active?.messageId === message.id}
+						>
+							{active?.messageId === message.id && message.body === '' && message.blocks.length === 0 ? (
+								<Working label="Reading student records…" />
+							) : null}
 							{message.body === '' ? null : (
-								<p className="text-subtitle font-normal break-words whitespace-pre-wrap text-foreground">
+								<p
+									data-slot="chat-reply-text"
+									className="text-subtitle font-normal break-words whitespace-pre-wrap text-foreground"
+								>
 									{message.body}
+									{active?.messageId === message.id && !active.stopping ? (
+										<span
+											aria-hidden
+											className="ml-0.5 inline-block h-4 w-0.5 translate-y-[3px] bg-foreground motion-safe:animate-pulse"
+										/>
+									) : null}
 								</p>
 							)}
+							{active?.messageId === message.id && active.stopping ? <Working label="Stopping reply…" /> : null}
 							{message.blocks.map((block, index) => (
 								<Block
 									key={
@@ -299,6 +378,7 @@ export function Messages({
 									onUndo={onUndo}
 									onChoose={onChoose}
 									calendar={calendar}
+									replies={replies}
 								/>
 							))}
 						</MessageItem>

@@ -244,7 +244,7 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 				conversationId: turn.conversationId,
 				model: turn.model,
 				effort: turn.effort,
-				state: result.state,
+				turnState: result.state,
 				issue: result.issue,
 				requests: published.row.requests,
 			},

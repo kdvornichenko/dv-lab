@@ -5,11 +5,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useCalendarController } from '@/components/app/calendar-command-provider'
-import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest } from '@/lib/api-client'
+import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiEventStream, apiRequest } from '@/lib/api-client'
 
 import {
+	CHAT_ACTIVE_TURN_STATES,
 	calendarActionResponse,
 	chatConversationReadResponse,
+	chatStreamEvent,
+	chatTurnResponse,
 	sendMessageResponse,
 	studentLessonOptionsResponse,
 	undoResponse,
@@ -19,6 +22,8 @@ import {
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
 	type ChatMessage,
+	type ChatStreamEvent,
+	type ChatTurn,
 	type ChatUndoState,
 	type DeleteConversationRequest,
 	type MentionBinding,
@@ -163,11 +168,52 @@ type Pending = { requestId: string; conversationId: string; text: string; mentio
 
 const EMPTY_THREAD: Thread = { conversationId: null, state: { kind: 'empty' } }
 
-async function readThread(conversationId: string): Promise<ThreadState> {
+export type Reply = { conversationId: string; turn: ChatTurn; stopping: boolean }
+
+type Stream = { turnId: string; controller: AbortController; seq: number }
+
+const ACTIVE_TURN: readonly string[] = CHAT_ACTIVE_TURN_STATES
+const RECONNECTS = 5
+
+export function turnActive(turn: ChatTurn): boolean {
+	return ACTIVE_TURN.includes(turn.state)
+}
+
+async function readThread(conversationId: string): Promise<{ state: ThreadState; turn: ChatTurn | null }> {
 	const result = await apiRequest<unknown>('GET', `/chat/conversations/${conversationId}`)
-	if (!result.ok) return { kind: 'error' }
+	if (!result.ok) return { state: { kind: 'error' }, turn: null }
 	const parsed = chatConversationReadResponse.safeParse(result.data)
-	return parsed.success ? { kind: 'ready', messages: parsed.data.messages } : { kind: 'error' }
+	return parsed.success
+		? { state: { kind: 'ready', messages: parsed.data.messages }, turn: parsed.data.turn }
+		: { state: { kind: 'error' }, turn: null }
+}
+
+function withMessage(messages: readonly ChatMessage[], next: ChatMessage): ChatMessage[] {
+	return messages.some((message) => message.id === next.id)
+		? messages.map((message) => (message.id === next.id ? next : message))
+		: [...messages, next]
+}
+
+function changeMessage(
+	messages: readonly ChatMessage[],
+	id: string,
+	change: (message: ChatMessage) => ChatMessage
+): ChatMessage[] {
+	return messages.map((message) => (message.id === id ? change(message) : message))
+}
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+	return new Promise((resolve) => {
+		const timer = window.setTimeout(resolve, ms)
+		signal.addEventListener(
+			'abort',
+			() => {
+				window.clearTimeout(timer)
+				resolve()
+			},
+			{ once: true }
+		)
+	})
 }
 
 function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMessage[]): ChatMessage[] {
@@ -230,6 +276,9 @@ export function useChat(initialConversationId: string | null) {
 	const pending = useRef<Pending | null>(null)
 	const requests = useRef(0)
 	const mounted = useRef(true)
+	const [reply, setReplyState] = useState<Reply | null>(null)
+	const replyRef = useRef<Reply | null>(null)
+	const streamRef = useRef<Stream | null>(null)
 
 	const commitThread = useCallback((next: Thread) => {
 		threadRef.current = next
@@ -296,16 +345,132 @@ export function useChat(initialConversationId: string | null) {
 		if (!known) router.replace(selectionHref(null), { scroll: false })
 	}, [known, router])
 
+	const setReply = useCallback((next: Reply | null) => {
+		replyRef.current = next
+		setReplyState(next)
+	}, [])
+
+	const unfollow = useCallback(() => {
+		streamRef.current?.controller.abort()
+		streamRef.current = null
+		setReply(null)
+	}, [setReply])
+
+	const apply = useCallback(
+		(conversationId: string, stream: Stream, event: ChatStreamEvent) => {
+			if (event.type === 'heartbeat') return
+			if (event.type === 'snapshot') {
+				stream.seq = event.seq
+				const message = event.message
+				if (message !== null) updateThread(conversationId, (messages) => withMessage(messages, message))
+			} else if (event.type === 'text' || event.type === 'block') {
+				if (event.seq <= stream.seq) return
+				stream.seq = event.seq
+				if (event.type === 'text') {
+					updateThread(conversationId, (messages) =>
+						changeMessage(messages, event.messageId, (message) => ({ ...message, body: message.body + event.text }))
+					)
+				} else {
+					updateThread(conversationId, (messages) =>
+						changeMessage(messages, event.messageId, (message) => ({
+							...message,
+							blocks: [...message.blocks, event.block],
+						}))
+					)
+					if (event.block.type === 'action_result') {
+						announceChange()
+						void calendar.store.refresh()
+					}
+				}
+				return
+			}
+			if (streamRef.current !== stream) return
+			const current = replyRef.current
+			if (!turnActive(event.turn)) {
+				streamRef.current = null
+				stream.controller.abort()
+				setReply(null)
+			} else setReply({ conversationId, turn: event.turn, stopping: current?.stopping ?? false })
+		},
+		[calendar, setReply, updateThread]
+	)
+
+	const follow = useCallback(
+		(conversationId: string, turn: ChatTurn) => {
+			if (!turnActive(turn) || streamRef.current?.turnId === turn.id) return
+			streamRef.current?.controller.abort()
+			const stream: Stream = { turnId: turn.id, controller: new AbortController(), seq: -1 }
+			streamRef.current = stream
+			setReply({ conversationId, turn, stopping: false })
+			void (async () => {
+				let failures = 0
+				while (streamRef.current === stream && failures < RECONNECTS) {
+					let received = false
+					const result = await apiEventStream(`/chat/turns/${turn.id}/stream`, {
+						signal: stream.controller.signal,
+						schema: chatStreamEvent,
+						onEvent: (event) => {
+							received = true
+							apply(conversationId, stream, event)
+						},
+					})
+					if (streamRef.current !== stream || !mounted.current) return
+					failures = received && result.ok ? 0 : failures + 1
+					await pause(1000, stream.controller.signal)
+				}
+				if (streamRef.current !== stream || !mounted.current) return
+				streamRef.current = null
+				setReply(null)
+				const read = await readThread(conversationId)
+				if (mounted.current && threadRef.current.conversationId === conversationId)
+					commitThread({ conversationId, state: read.state })
+			})()
+		},
+		[apply, commitThread, setReply]
+	)
+
 	useEffect(() => {
 		if (activeId === null || threadRef.current.conversationId === activeId) return
 		let live = true
-		void readThread(activeId).then((state) => {
-			if (live && mounted.current) commitThread({ conversationId: activeId, state })
+		void readThread(activeId).then((read) => {
+			if (!live || !mounted.current) return
+			commitThread({ conversationId: activeId, state: read.state })
+			if (read.turn !== null) follow(activeId, read.turn)
 		})
 		return () => {
 			live = false
 		}
-	}, [activeId, threadGeneration, commitThread])
+	}, [activeId, threadGeneration, commitThread, follow])
+
+	useEffect(() => {
+		if (replyRef.current !== null && replyRef.current.conversationId !== activeId) unfollow()
+	}, [activeId, unfollow])
+
+	useEffect(
+		() => () => {
+			streamRef.current?.controller.abort()
+			streamRef.current = null
+		},
+		[]
+	)
+
+	const stop = useCallback(async () => {
+		const current = replyRef.current
+		if (current === null || current.stopping) return
+		setReply({ ...current, stopping: true })
+		const result = await apiRequest<unknown>('POST', `/chat/turns/${current.turn.id}/stop`, {})
+		if (!mounted.current) return
+		const parsed = result.ok ? chatTurnResponse.safeParse(result.data) : null
+		if (!parsed?.success) {
+			if (replyRef.current?.turn.id === current.turn.id) setReply({ ...current, stopping: false })
+			return
+		}
+		if (turnActive(parsed.data.turn) || streamRef.current?.turnId !== current.turn.id) return
+		unfollow()
+		const read = await readThread(current.conversationId)
+		if (mounted.current && threadRef.current.conversationId === current.conversationId)
+			commitThread({ conversationId: current.conversationId, state: read.state })
+	}, [commitThread, setReply, unfollow])
 
 	const shownThread: ThreadState =
 		activeId === null ? { kind: 'empty' } : thread.conversationId === activeId ? thread.state : { kind: 'loading' }
@@ -314,6 +479,15 @@ export function useChat(initialConversationId: string | null) {
 		commitThread(EMPTY_THREAD)
 		setThreadGeneration((value) => value + 1)
 	}, [commitThread])
+
+	const checkStatus = useCallback(async () => {
+		const conversationId = threadRef.current.conversationId
+		if (conversationId === null) return
+		const read = await readThread(conversationId)
+		if (!mounted.current || threadRef.current.conversationId !== conversationId) return
+		if (read.state.kind === 'ready') commitThread({ conversationId, state: read.state })
+		if (read.turn !== null) follow(conversationId, read.turn)
+	}, [commitThread, follow])
 
 	const putFirst = useCallback(
 		(conversation: ChatConversation) => {
@@ -377,13 +551,14 @@ export function useChat(initialConversationId: string | null) {
 				pending.current = null
 				putFirst(parsed.data.conversation)
 				updateThread(conversationId, (messages) => mergeMessages(messages, parsed.data.messages))
+				if (parsed.data.turn !== null) follow(conversationId, parsed.data.turn)
 				return true
 			} finally {
 				sendingRef.current = false
 				if (mounted.current) setSending(false)
 			}
 		},
-		[load, openConversation, putFirst, updateThread]
+		[follow, load, openConversation, putFirst, updateThread]
 	)
 
 	const shownCalendar = useCallback(
@@ -496,6 +671,9 @@ export function useChat(initialConversationId: string | null) {
 		thread: shownThread,
 		sending,
 		sendFailed,
+		reply: reply !== null && reply.conversationId === activeId ? reply : null,
+		stop,
+		checkStatus,
 		select,
 		newChat,
 		send,

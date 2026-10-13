@@ -12,7 +12,7 @@ import {
 } from 'react'
 
 import { AnimatePresence } from 'framer-motion'
-import { ArrowUp, Info } from 'lucide-react'
+import { ArrowUp, Info, Square } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Elevated } from '@/lib/elevated'
@@ -116,6 +116,9 @@ export function Composer({
 	disabled,
 	sending,
 	onSend,
+	replying,
+	stopping,
+	onStop,
 	inputRef,
 }: {
 	draft: Draft
@@ -126,9 +129,12 @@ export function Composer({
 	disabled: boolean
 	sending: boolean
 	onSend: () => void
+	replying: boolean
+	stopping: boolean
+	onStop: () => void
 	inputRef: RefObject<HTMLTextAreaElement | null>
 }) {
-	const canSend = !disabled && !sending && !draft.stale && draft.text.trim() !== ''
+	const canSend = !disabled && !replying && !sending && !draft.stale && draft.text.trim() !== ''
 	const listId = useId()
 	const backdrop = useRef<HTMLDivElement>(null)
 	const pendingCaret = useRef<number | null>(null)
@@ -150,10 +156,12 @@ export function Composer({
 				: students.kind === 'ready'
 					? studentItems(students.rows, trigger.query)
 					: []
-	const hidesEmpty = trigger?.kind === 'mention' && /\s/.test(trigger.query) && items.length === 0
+	const hidesEmpty =
+		trigger?.kind === 'mention' && students.kind === 'ready' && /\s/.test(trigger.query) && items.length === 0
 	const open =
 		focused &&
 		!disabled &&
+		!replying &&
 		trigger !== null &&
 		triggerAt !== dismissed &&
 		!hidesEmpty &&
@@ -290,8 +298,8 @@ export function Composer({
 							)}
 							value={draft.text}
 							rows={1}
-							disabled={disabled}
-							placeholder="What do you want to ask?"
+							disabled={disabled || replying}
+							placeholder={replying ? 'Wait for the reply, or stop it' : 'What do you want to ask?'}
 							aria-label="Message"
 							role="combobox"
 							aria-expanded={listed}
@@ -317,7 +325,7 @@ export function Composer({
 							onKeyDown={onKeyDown}
 						/>
 					</div>
-					{draft.bindings.length > 0 ? (
+					{draft.bindings.length > 0 && !replying ? (
 						<div className="flex flex-wrap gap-2" data-slot="chat-quick-actions">
 							{QUICK.map((item) => (
 								<Button
@@ -334,19 +342,33 @@ export function Composer({
 						</div>
 					) : null}
 					<div className="flex items-center justify-end">
-						<Button
-							variant="primary"
-							size="icon-compact"
-							aria-label="Send"
-							data-slot="chat-send"
-							className="rounded-full"
-							loading={sending}
-							disabled={!canSend}
-							onMouseDown={(event) => event.preventDefault()}
-							onClick={onSend}
-						>
-							<ArrowUp />
-						</Button>
+						{replying ? (
+							<Button
+								variant="secondary"
+								size="compact"
+								leadingIcon={Square}
+								data-slot="chat-stop"
+								className="rounded-full"
+								loading={stopping}
+								onClick={onStop}
+							>
+								{stopping ? 'Stopping reply…' : 'Stop reply'}
+							</Button>
+						) : (
+							<Button
+								variant="primary"
+								size="icon-compact"
+								aria-label="Send"
+								data-slot="chat-send"
+								className="rounded-full"
+								loading={sending}
+								disabled={!canSend}
+								onMouseDown={(event) => event.preventDefault()}
+								onClick={onSend}
+							>
+								<ArrowUp />
+							</Button>
+						)}
 					</div>
 				</Elevated>
 			</div>

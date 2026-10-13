@@ -1,5 +1,6 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { createConnection } from 'node:net'
 
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
@@ -22,6 +23,7 @@ const sections = {
 	actions: sectionActions,
 	calendar: sectionCalendar,
 	budget: sectionBudget,
+	stream: sectionStream,
 }
 
 function removeFixtures() {
@@ -185,8 +187,9 @@ const SERVER_ERROR = { error: { code: 'internal_error', message: 'Internal Serve
 function removeConversations(ids) {
 	if (ids.length === 0) return
 	const list = ids.map((id) => `'${id}'`).join(', ')
-	sql(`delete from chat_usage_attempts where conversation_id in (${list})`)
 	sql(`delete from chat_actions where conversation_id in (${list})`)
+	sql(`delete from chat_usage_attempts where conversation_id in (${list})`)
+	sql(`delete from chat_turns where conversation_id in (${list})`)
 	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${list})`)
 	sql(`delete from chat_messages where conversation_id in (${list})`)
 	const result = sql(`delete from chat_conversations where id in (${list})`)
@@ -1085,6 +1088,28 @@ async function sectionComposer() {
 			await retype(page, '@Zzzz')
 			await popup.getByText('No students found').waitFor({ timeout: 5000 })
 			check('no match says No students found', (await popup.getByText('Try a student name.').count()) === 1)
+			await page.keyboard.press('Enter')
+			await page.waitForTimeout(400)
+			check(
+				'Enter with the open empty list sends nothing and keeps the list and the text',
+				writes.length === 0 && (await popup.count()) === 1 && (await value(page)) === '@Zzzz'
+			)
+
+			await page.route('**/api/students/options', async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 4000))
+				await route.continue()
+			})
+			await page.reload()
+			await field.waitFor({ timeout: 30000 })
+			await retype(page, '@Alex Ex')
+			await popup.waitFor({ timeout: 3000 })
+			await page.keyboard.press('Enter')
+			await page.waitForTimeout(400)
+			check(
+				'Enter while the student rows are still loading sends nothing, even with a space in the name',
+				writes.length === 0 && (await popup.count()) === 1 && (await value(page)) === '@Alex Ex'
+			)
+			await page.unroute('**/api/students/options')
 
 			await page.route('**/api/students/options', (route) =>
 				route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
@@ -1625,6 +1650,170 @@ async function sectionBudget() {
 		},
 		restore
 	)
+}
+
+const STOP = '[data-slot="chat-stop"]'
+const REPLY_TEXT = '[data-slot="chat-reply-text"]'
+const FAKE_FIRST = 'Here is a short plan for the next lesson.'
+const FAKE_LAST = 'That should fit well into one session.'
+
+function portFree(port) {
+	return new Promise((resolve) => {
+		const socket = createConnection({ port, host: '127.0.0.1' })
+		socket.setTimeout(1500)
+		socket.on('connect', () => {
+			socket.destroy()
+			resolve(false)
+		})
+		socket.on('timeout', () => {
+			socket.destroy()
+			resolve(true)
+		})
+		socket.on('error', () => resolve(true))
+	})
+}
+
+async function startFakeModelApi() {
+	if (!(await portFree(4000))) throw new Error('port 4000 is busy: stop the dev api first, this section starts its own')
+	const env = {
+		...process.env,
+		PORT: '4000',
+		APP_ORIGIN: BASE,
+		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
+		LOG_LEVEL: 'info',
+	}
+	delete env.DATABASE_URL
+	delete env.MIGRATOR_DATABASE_URL
+	const child = spawn(
+		process.execPath,
+		['--import', `${ROOT}/scripts/dev-checks/chat-fake-anthropic.mjs`, '--env-file=.env', 'apps/api/src/server.ts'],
+		{ cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] }
+	)
+	let output = ''
+	child.stdout.on('data', (chunk) => (output += chunk))
+	child.stderr.on('data', (chunk) => (output += chunk))
+	const deadline = Date.now() + 30000
+	while (Date.now() < deadline) {
+		if (child.exitCode !== null) break
+		try {
+			const res = await fetch('http://127.0.0.1:4000/healthz')
+			if (res.status === 200) return { child, logs: () => output }
+		} catch {}
+		await new Promise((resolve) => setTimeout(resolve, 300))
+	}
+	child.kill('SIGTERM')
+	throw new Error('the api with the fake model did not answer /healthz in 30 s')
+}
+
+function stopFakeModelApi(started) {
+	if (!started || started.child.exitCode !== null) return Promise.resolve()
+	return new Promise((resolve) => {
+		const timer = setTimeout(() => {
+			started.child.kill('SIGKILL')
+			resolve()
+		}, 15000)
+		started.child.once('exit', () => {
+			clearTimeout(timer)
+			resolve()
+		})
+		started.child.kill('SIGTERM')
+	})
+}
+
+async function replyText(page) {
+	const texts = await page.locator(REPLY_TEXT).allInnerTexts()
+	return texts.at(-1) ?? ''
+}
+
+async function sectionStream() {
+	const started = await startFakeModelApi()
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = teacher
+		? sql(
+				`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${teacher}' order by starts_on desc limit 1`
+			).rows[0]
+		: undefined
+	const turns = (conversationId) =>
+		sql(`select state from chat_turns where conversation_id = '${conversationId}' order by created_at`).rows.map(
+			(row) => row.state
+		)
+	try {
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await setTheme(page)
+				await signIn(page)
+				await openChat(page, null)
+				const field = page.locator(FIELD)
+				await field.waitFor({ timeout: 30000 })
+				await field.click()
+				await page.keyboard.type('Plan the next lesson for my group')
+				await page.keyboard.press('Enter')
+				await page.locator(STOP).waitFor({ timeout: 15000 })
+				check('while the reply comes Send becomes Stop reply and the field is off', await field.isDisabled())
+				await page.locator(REPLY_TEXT).waitFor({ timeout: 15000 })
+				const early = await replyText(page)
+				await page.waitForTimeout(1500)
+				const later = await replyText(page)
+				check(
+					'the reply grows sentence by sentence',
+					early.startsWith(FAKE_FIRST) && later.length > early.length,
+					`${early.length} -> ${later.length}`
+				)
+				await shot(page, 'chat-stream', 'streaming')
+				const conversationId = new URL(page.url()).searchParams.get('c')
+				if (conversationId) conversations.push(conversationId)
+				await page.reload()
+				await page.locator(REPLY_TEXT).waitFor({ timeout: 30000 })
+				const resumed = await replyText(page)
+				check('after a reload during the reply the same text is back', resumed.startsWith(later), resumed)
+				await page.getByText(FAKE_LAST).waitFor({ timeout: 30000 })
+				await page.locator(SEND).waitFor({ timeout: 15000 })
+				check(
+					'the reply finishes once, with one turn and no second request after the reload',
+					conversationId !== null && JSON.stringify(turns(conversationId)) === '["completed"]',
+					JSON.stringify(conversationId ? turns(conversationId) : null)
+				)
+				await shot(page, 'chat-stream', 'done')
+
+				await field.click()
+				await page.keyboard.type('Another plan please')
+				await page.keyboard.press('Enter')
+				await page.locator(STOP).waitFor({ timeout: 15000 })
+				await page.waitForFunction(
+					(selector) => {
+						const items = document.querySelectorAll(selector)
+						return (items[items.length - 1]?.textContent ?? '').length > 10
+					},
+					REPLY_TEXT,
+					{ timeout: 15000 }
+				)
+				await page.locator(STOP).click()
+				await page.getByText('Reply stopped.').waitFor({ timeout: 15000 })
+				await page.locator(SEND).waitFor({ timeout: 15000 })
+				const states = conversationId ? turns(conversationId) : []
+				check(
+					'Stop reply ends the turn as stopped and keeps the text that arrived',
+					JSON.stringify(states) === '["completed","stopped"]' && (await replyText(page)).startsWith(FAKE_FIRST),
+					JSON.stringify(states)
+				)
+				await shot(page, 'chat-stream', 'stopped')
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+				check('the api log has no reply text', !started.logs().includes(FAKE_FIRST))
+			},
+			() => removeConversations(conversations),
+			() => {
+				if (period)
+					sql(
+						`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = '${period.id}'`
+					)
+			}
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
 }
 
 const section = process.argv[2]

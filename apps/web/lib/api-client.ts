@@ -47,6 +47,71 @@ export async function apiRequest<T>(
 	}
 }
 
+export type EventSchema<T> = {
+	safeParse: (value: unknown) => { success: true; data: T } | { success: false }
+}
+
+export type EventStreamResult = { ok: true } | { ok: false; status: number }
+
+function eventData(frame: string): string {
+	return frame
+		.split('\n')
+		.filter((line) => line.startsWith('data:'))
+		.map((line) => line.slice(5).replace(/^ /, ''))
+		.join('\n')
+}
+
+export async function apiEventStream<T>(
+	path: string,
+	options: { signal: AbortSignal; schema: EventSchema<T>; onEvent: (event: T) => void }
+): Promise<EventStreamResult> {
+	let response: Response
+	try {
+		response = await fetch(`/api${path}`, {
+			signal: options.signal,
+			method: 'GET',
+			credentials: 'same-origin',
+			cache: 'no-store',
+			headers: { accept: 'text/event-stream' },
+		})
+	} catch {
+		return { ok: false, status: 0 }
+	}
+	notifyCache(response, 'GET', path)
+	if (!response.ok || response.body === null) return { ok: false, status: response.status }
+	const reader = response.body.getReader()
+	const decoder = new TextDecoder()
+	let buffer = ''
+	try {
+		for (;;) {
+			const chunk = await reader.read()
+			if (chunk.done) break
+			buffer += decoder.decode(chunk.value, { stream: true })
+			for (let cut = buffer.indexOf('\n\n'); cut >= 0; cut = buffer.indexOf('\n\n')) {
+				const data = eventData(buffer.slice(0, cut))
+				buffer = buffer.slice(cut + 2)
+				if (data === '') continue
+				let parsed: unknown
+				try {
+					parsed = JSON.parse(data)
+				} catch {
+					await reader.cancel()
+					return { ok: false, status: response.status }
+				}
+				const checked = options.schema.safeParse(parsed)
+				if (!checked.success) {
+					await reader.cancel()
+					return { ok: false, status: response.status }
+				}
+				options.onEvent(checked.data)
+			}
+		}
+	} catch {
+		return { ok: false, status: 0 }
+	}
+	return { ok: true }
+}
+
 const UNCHANGED_PATHS = new Set([
 	'/auth/renew',
 	'/google/conflicts',
@@ -55,7 +120,7 @@ const UNCHANGED_PATHS = new Set([
 	'/google/disconnect/confirm-revoked',
 ])
 
-const STATUS_CHECK = /^\/chat\/actions\/[^/]+\/check$/
+const STATUS_CHECK = /^\/chat\/(?:actions\/[^/]+\/check|turns\/[^/]+\/stop)$/
 
 function notifyCache(response: Response, method: ApiMethod, path: string): void {
 	if (typeof window === 'undefined') return
