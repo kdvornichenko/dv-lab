@@ -263,7 +263,7 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 
 	return (
 		<div className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
-			<div className="mx-auto flex min-h-0 w-full max-w-180 flex-1 flex-col gap-4">
+			<div className="mx-auto w-full max-w-180 pb-4">
 				<ChatHeader
 					title={selected?.title ?? 'Chat'}
 					loadingTitle={loadingTitle}
@@ -271,34 +271,39 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 					onToggleList={() => setListOpen((open) => !open)}
 					onCreate={create}
 				/>
-				<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
-					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
-						<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade [&>div]:!min-w-0">
-							<div role="log" aria-label="Messages" className="flex flex-col gap-4 pb-2">
-								{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
-								<Thread
-									state={chat.thread}
-									onUndo={(actionId) => void chat.undo(actionId)}
-									onChoose={choose}
-									onRefresh={chat.reloadThread}
-									calendar={{
-										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
-										onCheck: chat.checkCalendar,
-									}}
-									replies={{
-										onAsk: () => later(() => input.current?.focus()),
-										onSuggest: suggest,
-										onCheckStatus: chat.checkStatus,
-									}}
-									active={
-										chat.reply === null
-											? null
-											: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
-									}
-									empty={studentId === null}
-								/>
-							</div>
-						</ScrollArea>
+			</div>
+			<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
+				<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
+					<ScrollArea
+						className="-mx-3 min-h-0 flex-1 md:-mx-6"
+						viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0"
+					>
+						<div role="log" aria-label="Messages" className="mx-auto flex w-full max-w-180 flex-col gap-4 pb-2">
+							{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
+							<Thread
+								state={chat.thread}
+								onUndo={(actionId) => void chat.undo(actionId)}
+								onChoose={choose}
+								onRefresh={chat.reloadThread}
+								calendar={{
+									onConfirm: (actionId) => void chat.confirmCalendar(actionId),
+									onCheck: chat.checkCalendar,
+								}}
+								replies={{
+									onAsk: () => later(() => input.current?.focus()),
+									onSuggest: suggest,
+									onCheckStatus: chat.checkStatus,
+								}}
+								active={
+									chat.reply === null
+										? null
+										: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
+								}
+								empty={studentId === null}
+							/>
+						</div>
+					</ScrollArea>
+					<div className="mx-auto flex w-full max-w-180 flex-col gap-3">
 						{chat.sendFailed ? (
 							<Banner status="error">
 								<BannerTitle>Could not send the message. Try again.</BannerTitle>
@@ -319,6 +324,8 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 							inputRef={input}
 						/>
 					</div>
+				</div>
+				<div className="absolute inset-x-0 top-0 mx-auto max-w-180">
 					<AnimatePresence>
 						{listOpen ? (
 							<ConversationList
