@@ -12,9 +12,13 @@ const NOT_SET = { name: 'Alex Example 2212', hundredths: null }
 const READ_ERROR = "Could not read the student's records."
 const EXPECTED_NOISE = /status of 500|Failed to load resource/
 
-const sections = { records: sectionRecords, conversations: sectionConversations }
+const sections = { records: sectionRecords, conversations: sectionConversations, notes: sectionNotes }
 
 function removeFixtures() {
+	const cards = `select id from students where display_name like '${PREFIX}%' and import_key is null`
+	sql(`delete from lesson_comments where student_id in (${cards})`)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
 	const result = sql(`delete from students where display_name like '${PREFIX}%' and import_key is null`)
 	console.log(`fixture cards removed ${result.rowCount}`)
 }
@@ -382,6 +386,273 @@ async function sectionConversations() {
 			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 		},
 		() => removeConversations(createdIds)
+	)
+}
+
+const NOTES_CARD = 'Alex Example 2214'
+const NOTES_READ_ERROR = 'Could not load the added notes.'
+const sectionPanel = (page, kind) => page.locator(`section[aria-labelledby="section-${kind}"]`)
+const noteState = (id) =>
+	sql(`select revision, retracted_at is not null as retracted, body from student_notes where id = '${id}'`).rows[0]
+
+async function openNotesTab(page, id) {
+	await page.goto(`${BASE}/students/${id}`)
+	await page.getByRole('tab', { name: 'Notes', exact: true }).click()
+	await sectionPanel(page, 'goals').waitFor({ timeout: 30000 })
+}
+
+async function sectionNotes() {
+	removeFixtures()
+	const noteIds = {}
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ page, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			const id = await createCard(page, NOTES_CARD)
+			const base = 'Goals base text'
+			const put = await api(page, 'PUT', `/students/${id}/sections/goals`, { body: base })
+			check('the goals section text is saved', put.status === 200, String(put.status))
+			const insert = (kind, body, ago) =>
+				sql(
+					`insert into student_notes (student_id, section_kind, body, created_at) values ('${id}', '${kind}', '${body}', now() - interval '${ago}') returning id`
+				).rows[0].id
+			noteIds.alpha = insert('goals', 'Note alpha text', '2 days')
+			noteIds.beta = insert('goals', 'Note beta text', '1 minute')
+			noteIds.gamma = insert('interests', 'Note gamma text', '1 hour')
+
+			await openNotesTab(page, id)
+			const goals = sectionPanel(page, 'goals')
+			const interests = sectionPanel(page, 'interests')
+			await goals.getByText('Note beta text').waitFor({ timeout: 15000 })
+			check(
+				'goals lists both added notes, newest first, under the section text',
+				(await goals.innerText()).indexOf(base) < (await goals.innerText()).indexOf('Note beta text') &&
+					(await goals.innerText()).indexOf('Note beta text') < (await goals.innerText()).indexOf('Note alpha text')
+			)
+			check(
+				'each entry says it was added in chat and has a named Remove button',
+				(await goals.getByText('Added in chat').count()) >= 2 &&
+					(await goals.getByRole('button', { name: /^Remove note from \d{1,2} [A-Z][a-z]{2}/ }).count()) === 2
+			)
+			check(
+				'only sections with entries draw the Added notes heading',
+				(await page.getByText('Added notes', { exact: true }).count()) === 2 &&
+					(await interests.getByText('Note gamma text').count()) === 1 &&
+					(await sectionPanel(page, 'general_info').getByText('Added notes').count()) === 0
+			)
+			const list = goals.getByRole('list')
+			check('the entries are a list', (await list.count()) >= 1)
+			const firstRemove = goals.getByRole('button', { name: /^Remove note from / }).first()
+			await page.mouse.move(0, 0)
+			check(
+				'Remove keeps its place and is hidden until hover on a pointer screen',
+				(await firstRemove.evaluate((node) => getComputedStyle(node).opacity)) === '0'
+			)
+			await goals.getByText('Note beta text').hover()
+			await page.waitForTimeout(300)
+			check(
+				'hovering the row shows Remove',
+				(await firstRemove.evaluate((node) => getComputedStyle(node).opacity)) === '1'
+			)
+			await shot(page, 'chat-notes', 'list')
+
+			await goals.getByRole('button', { name: 'Edit' }).click()
+			const area = goals.getByRole('textbox', { name: 'Goals' })
+			check(
+				'the editor holds only the section text',
+				(await area.inputValue()) === base && !(await area.inputValue()).includes('Note ')
+			)
+			check(
+				'the editor says later notes are not part of the text',
+				(await goals
+					.getByText('Notes added later are listed under the section. They are not part of this text.')
+					.count()) === 1
+			)
+			check('the entries stay under the editor', (await goals.getByText('Note beta text').count()) === 1)
+			await area.fill(`${base} edited`)
+			const saving = page.waitForRequest(
+				(request) => request.method() === 'PUT' && request.url().includes('/sections/goals')
+			)
+			await goals.getByRole('button', { name: 'Save section' }).click()
+			const request = await saving
+			check(
+				'saving sends only the section text',
+				request.postData() === JSON.stringify({ body: `${base} edited` }),
+				request.postData()
+			)
+			await page.getByText('Section saved').waitFor({ timeout: 15000 })
+			const savedBody = sql(`select body from student_sections where student_id = '${id}' and kind = 'goals'`).rows[0]
+				.body
+			check('the saved section text has no note in it', savedBody === `${base} edited`)
+			check(
+				'saving the section changed no note',
+				['alpha', 'beta', 'gamma'].every((key) => {
+					const row = noteState(noteIds[key])
+					return row.revision === 1 && row.retracted === false
+				})
+			)
+			check(
+				'both goals entries are still listed after the save',
+				(await goals.getByText(/^Note (alpha|beta) text$/).count()) === 2
+			)
+
+			const removeButton = goals.getByRole('button', { name: /^Remove note from / }).first()
+			await goals.getByText('Note beta text').hover()
+			await removeButton.click()
+			const dialog = page.getByRole('dialog', { name: 'Remove this note?' })
+			await dialog.waitFor({ timeout: 15000 })
+			check(
+				'the confirm explains the removal and focuses Keep note',
+				(await dialog
+					.getByText("The note is deleted from the student's notes. The text of the section is not changed.")
+					.count()) === 1 && (await page.evaluate(() => document.activeElement?.textContent?.trim())) === 'Keep note'
+			)
+			await shot(page, 'chat-notes', 'confirm')
+			await dialog.getByRole('button', { name: 'Keep note' }).click()
+			await dialog.waitFor({ state: 'detached', timeout: 15000 })
+			check(
+				'Keep note changes nothing',
+				noteState(noteIds.beta).retracted === false && noteState(noteIds.beta).revision === 1
+			)
+
+			await page.route('**/api/students/*/notes/*/retract', (route) =>
+				route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+			)
+			await goals.getByText('Note beta text').hover()
+			await removeButton.click()
+			await dialog.waitFor({ timeout: 15000 })
+			await dialog.getByRole('button', { name: 'Remove note' }).click()
+			await dialog.getByText('Could not remove the note. Try again.').waitFor({ timeout: 15000 })
+			check(
+				'a failed removal keeps the dialog and the row',
+				(await goals.getByText('Note beta text').count()) === 1 && noteState(noteIds.beta).retracted === false
+			)
+			await shot(page, 'chat-notes', 'failed')
+			await page.unroute('**/api/students/*/notes/*/retract')
+
+			const delayed = page.route('**/api/students/*/notes/*/retract', async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 1200))
+				await route.continue()
+			})
+			await delayed
+			await dialog.getByRole('button', { name: 'Remove note' }).click()
+			await goals.getByText('Removing…').first().waitFor({ timeout: 5000 })
+			check(
+				'during the request the row is dimmed and says Removing',
+				(await goals.getByText('Note beta text').count()) === 1
+			)
+			await shot(page, 'chat-notes', 'removing')
+			await dialog.waitFor({ state: 'detached', timeout: 15000 })
+			await page.unroute('**/api/students/*/notes/*/retract')
+			await page.getByText('Note removed').waitFor({ timeout: 15000 })
+			const beta = noteState(noteIds.beta)
+			check(
+				'removal leaves the row, marks it retracted and raises the revision',
+				beta.retracted === true && beta.revision === 2 && beta.body === 'Note beta text'
+			)
+			check(
+				'the removed entry left the list and the other stayed',
+				(await goals.getByText('Note beta text').count()) === 0 &&
+					(await goals.getByText('Note alpha text').count()) === 1
+			)
+			check(
+				'the section text was not changed by the removal',
+				sql(`select body from student_sections where student_id = '${id}' and kind = 'goals'`).rows[0].body ===
+					`${base} edited`
+			)
+			check(
+				'focus moved to the next entry',
+				(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).startsWith(
+					'Remove note from'
+				)
+			)
+
+			sql(`update student_notes set revision = revision + 1 where id = '${noteIds.alpha}'`)
+			await goals.getByText('Note alpha text').hover()
+			await goals
+				.getByRole('button', { name: /^Remove note from / })
+				.first()
+				.click()
+			await dialog.waitFor({ timeout: 15000 })
+			await dialog.getByRole('button', { name: 'Remove note' }).click()
+			await dialog.waitFor({ state: 'detached', timeout: 15000 })
+			await goals.getByText('This note changed after it was added. The list is updated.').waitFor({ timeout: 15000 })
+			check(
+				'a stale revision closes the dialog, says so and keeps the note',
+				(await goals.getByText('Note alpha text').count()) === 1 &&
+					noteState(noteIds.alpha).retracted === false &&
+					noteState(noteIds.alpha).revision === 2
+			)
+			await shot(page, 'chat-notes', 'conflict')
+			await goals.getByText('Note alpha text').hover()
+			await goals
+				.getByRole('button', { name: /^Remove note from / })
+				.first()
+				.click()
+			await dialog.getByRole('button', { name: 'Remove note' }).click()
+			await dialog.waitFor({ state: 'detached', timeout: 15000 })
+			await page.waitForTimeout(300)
+			check(
+				'the second try with the fresh revision removes the note',
+				noteState(noteIds.alpha).retracted === true &&
+					noteState(noteIds.alpha).revision === 3 &&
+					(await goals.getByText('Added notes').count()) === 0
+			)
+
+			await page.route('**/api/students/*/notes', async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 1500))
+				await route.continue()
+			})
+			await page.reload()
+			await page.getByRole('tab', { name: 'Notes', exact: true }).click()
+			await goals.getByText('Goals base text edited').waitFor({ timeout: 30000 })
+			check(
+				'while the entries load the section text is there and two skeleton lines wait under it',
+				(await goals.getByRole('status', { name: 'Loading added notes' }).count()) === 1
+			)
+			await shot(page, 'chat-notes', 'loading')
+			await page.unroute('**/api/students/*/notes')
+
+			await page.route('**/api/students/*/notes', (route) =>
+				route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+			)
+			await page.reload()
+			await page.getByRole('tab', { name: 'Notes', exact: true }).click()
+			await goals.getByText(NOTES_READ_ERROR).waitFor({ timeout: 30000 })
+			check(
+				'a failed read keeps the section text and shows one line with Refresh under each section',
+				(await goals.getByText('Goals base text edited').count()) === 1 &&
+					(await goals.getByRole('button', { name: 'Refresh' }).count()) === 1
+			)
+			await shot(page, 'chat-notes', 'read-error')
+			await goals.getByRole('button', { name: 'Refresh' }).click()
+			await page.waitForTimeout(800)
+			check('Refresh with a failing read keeps the line', (await goals.getByText(NOTES_READ_ERROR).count()) === 1)
+			await page.unroute('**/api/students/*/notes')
+			await goals.getByRole('button', { name: 'Refresh' }).click()
+			await interests.getByText('Note gamma text').waitFor({ timeout: 15000 })
+			check('Refresh after the failure shows the entries', (await goals.getByText(NOTES_READ_ERROR).count()) === 0)
+
+			await page.setViewportSize({ width: 390, height: 800 })
+			await page.reload()
+			await page.getByRole('tab', { name: 'Notes', exact: true }).click()
+			await interests.getByText('Note gamma text').waitFor({ timeout: 30000 })
+			const phoneRemove = interests.getByRole('button', { name: /^Remove note from / })
+			check(
+				'on a phone Remove is visible without hover',
+				(await phoneRemove.evaluate((node) => getComputedStyle(node).opacity)) === '1'
+			)
+			check(
+				'on a phone the page does not scroll sideways',
+				await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+			)
+			await shot(page, 'chat-notes', 'phone')
+
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		() => removeFixtures()
 	)
 }
 

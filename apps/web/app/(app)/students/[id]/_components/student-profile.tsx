@@ -294,7 +294,13 @@ export function StudentProfile({ id }: { id: string }) {
 						/>
 					</TabPanel>
 					<TabPanel value="notes" className="mt-4">
-						<NotesTab student={student} drafts={drafts} onDraftChange={changeDraft} />
+						<NotesTab
+							student={student}
+							drafts={drafts}
+							timeZone={mainTimeZone}
+							asOf={asOf}
+							onDraftChange={changeDraft}
+						/>
 					</TabPanel>
 					<TabPanel value="vocabulary" className="mt-4">
 						<VocabularyTab student={student} />
