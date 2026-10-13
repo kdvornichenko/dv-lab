@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Check, ChevronDown, Info, RotateCcw } from 'lucide-react'
 
 import { EFFORT_LABEL, EffortMeter, EffortSlider, clampEffort, highestEffort } from '@/components/app/effort-slider'
@@ -28,6 +29,8 @@ import type { BudgetSnapshot, ChatEffort, ModelCapability } from '@dv-lab/contra
 import type { ChatModels, ModelChoice } from './use-chat'
 
 const MENU_ROWS = 4
+const LONGEST_WORD = EFFORT_LABEL.xhigh
+const WORD_EASE = [0.23, 1, 0.32, 1] as const
 const UNAVAILABLE_LINE = 'Not available with your API key.'
 
 export type ChoiceView = {
@@ -179,7 +182,7 @@ function ModelMenu({
 	disabled: boolean
 	open: boolean
 	onOpenChange: (open: boolean) => void
-	onChoose: (choice: ModelChoice) => void
+	onChoose: (choice: ModelChoice) => unknown
 }) {
 	const top = view.capabilities.slice(0, MENU_ROWS)
 	const extra = view.capabilities.slice(MENU_ROWS)
@@ -192,7 +195,7 @@ function ModelMenu({
 
 	function pick(capability: ModelCapability) {
 		const wanted = view.effort ?? view.defaultEffortOf(capability)
-		onChoose(request(view, capability.id, clampEffort(capability.efforts, wanted)))
+		void onChoose(request(view, capability.id, clampEffort(capability.efforts, wanted)))
 		onOpenChange(false)
 	}
 
@@ -252,7 +255,7 @@ function ModelMenu({
 						label={`Use default (${view.defaultName})`}
 						icon={RotateCcw}
 						onSelect={() => {
-							onChoose({ model: null, effort: null })
+							void onChoose({ model: null, effort: null })
 							onOpenChange(false)
 						}}
 					/>
@@ -283,6 +286,32 @@ function ModelMenu({
 	)
 }
 
+function EffortWord({ word }: { word: string }) {
+	const reduceMotion = useReducedMotion() ?? false
+	return (
+		<span className="inline-grid align-top">
+			<span aria-hidden className="invisible col-start-1 row-start-1">
+				{LONGEST_WORD}
+			</span>
+			{reduceMotion ? (
+				<span className="col-start-1 row-start-1">{word}</span>
+			) : (
+				<AnimatePresence initial={false}>
+					<motion.span
+						key={word}
+						className="col-start-1 row-start-1"
+						initial={{ opacity: 0, filter: 'blur(2px)' }}
+						animate={{ opacity: 1, filter: 'blur(0px)', transition: { duration: 0.16, ease: WORD_EASE } }}
+						exit={{ opacity: 0, filter: 'blur(2px)', transition: { duration: 0.12, ease: WORD_EASE } }}
+					>
+						{word}
+					</motion.span>
+				</AnimatePresence>
+			)}
+		</span>
+	)
+}
+
 function EffortPopover({
 	view,
 	level,
@@ -294,15 +323,17 @@ function EffortPopover({
 	level: ChatEffort
 	capability: ModelCapability
 	disabled: boolean
-	onChoose: (choice: ModelChoice) => void
+	onChoose: (choice: ModelChoice) => Promise<boolean>
 }) {
 	const [open, setOpen] = useState(false)
+	const thumb = useRef<HTMLDivElement>(null)
 	const fallback = view.defaultEffortOf(capability)
 	const marker = fallback === capability.recommendedEffort ? 'Default · recommended' : 'Default'
 	const word = EFFORT_LABEL[level]
 	const ceiling = highestEffort(capability.efforts)
 	const differs = level !== fallback
 	const modelOverride = view.modelId === view.defaultId ? null : view.modelId
+	const resetLabel = `Use default (${EFFORT_LABEL[fallback]})`
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -327,24 +358,49 @@ function EffortPopover({
 				sideOffset={8}
 				className="w-72 max-w-[calc(100vw-2rem)] gap-3 p-4"
 				onKeyDown={(event) => {
-					if (event.key === 'Enter') {
+					if (event.key === 'Enter' && event.target === thumb.current) {
 						event.preventDefault()
 						setOpen(false)
 					}
 				}}
 			>
 				<div className="flex items-center justify-between gap-2">
-					<PopoverTitle>Effort: {word}</PopoverTitle>
-					<Tooltip content="Higher effort thinks longer: answers take more time and cost more." side="top">
-						<span
-							role="img"
-							aria-label="Higher effort thinks longer: answers take more time and cost more."
-							tabIndex={0}
-							className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
-						>
-							<Info size={14} aria-hidden />
-						</span>
-					</Tooltip>
+					<PopoverTitle className="whitespace-nowrap">
+						Effort: <EffortWord word={word} />
+					</PopoverTitle>
+					<div className="flex items-center gap-1">
+						<Tooltip content={resetLabel} side="top">
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon-compact"
+								aria-label={resetLabel}
+								aria-hidden={differs ? undefined : true}
+								tabIndex={differs ? 0 : -1}
+								data-slot="effort-reset"
+								className={cn(
+									'size-6 text-muted-foreground transition-opacity duration-160 motion-reduce:transition-none',
+									differs ? 'opacity-100' : 'pointer-events-none opacity-0'
+								)}
+								onClick={() => {
+									void onChoose({ model: modelOverride, effort: null })
+									thumb.current?.focus({ preventScroll: true })
+								}}
+							>
+								<RotateCcw />
+							</Button>
+						</Tooltip>
+						<Tooltip content="Higher effort thinks longer: answers take more time and cost more." side="top">
+							<span
+								role="img"
+								aria-label="Higher effort thinks longer: answers take more time and cost more."
+								tabIndex={0}
+								className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+							>
+								<Info size={14} aria-hidden />
+							</span>
+						</Tooltip>
+					</div>
 				</div>
 				<EffortSlider
 					value={level}
@@ -353,27 +409,13 @@ function EffortPopover({
 					marker={marker}
 					markerAt={fallback}
 					label="Effort"
+					thumbRef={thumb}
 					onChange={(next) => onChoose(request(view, view.modelId, next))}
 				/>
 				{capability.efforts.length < 5 ? (
 					<p className="text-caption text-muted-foreground">
 						{capability.name} goes up to {EFFORT_LABEL[ceiling]}.
 					</p>
-				) : null}
-				{differs ? (
-					<Button
-						type="button"
-						variant="tertiary"
-						size="compact"
-						leadingIcon={RotateCcw}
-						className="self-start"
-						onClick={() => {
-							onChoose({ model: modelOverride, effort: null })
-							setOpen(false)
-						}}
-					>
-						Use default ({EFFORT_LABEL[fallback]})
-					</Button>
 				) : null}
 			</PopoverContent>
 		</Popover>
@@ -400,7 +442,7 @@ export function ModelControls({
 				disabled={disabled}
 				open={menuOpen}
 				onOpenChange={onMenuOpenChange}
-				onChoose={(choice) => void models.choose(choice)}
+				onChoose={(choice) => models.choose(choice)}
 			/>
 			{view.model && view.effort ? (
 				<EffortPopover
@@ -408,7 +450,7 @@ export function ModelControls({
 					level={view.effort}
 					capability={view.model}
 					disabled={disabled || !view.model.available}
-					onChoose={(choice) => void models.choose(choice)}
+					onChoose={(choice) => models.choose(choice)}
 				/>
 			) : null}
 		</div>
