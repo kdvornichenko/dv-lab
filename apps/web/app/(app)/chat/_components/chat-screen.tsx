@@ -12,10 +12,7 @@ import type { ChatStudentFacts } from '@dv-lab/contracts'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
 
 type ReadState =
-	| { kind: 'loading' }
-	| { kind: 'error' }
-	| { kind: 'missing' }
-	| { kind: 'ready'; facts: ChatStudentFacts }
+	{ kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; facts: ChatStudentFacts }
 
 async function readRecords(studentId: string): Promise<ReadState> {
 	const result = await apiRequest<ChatStudentFacts>('GET', `/chat/records?studentId=${encodeURIComponent(studentId)}`)
