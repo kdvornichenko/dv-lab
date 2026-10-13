@@ -17,6 +17,7 @@ import { CommandFault, commandHash, digest, unresolvedCommands } from '../calend
 import { insideSyncWindow, syncFacts, syncRevision } from '../calendar/projection.ts'
 import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
+import { checkMarkRestore } from './marks.ts'
 import { occurrenceChange } from './occurrence-change.ts'
 import type { SingleCommand } from './single-command.ts'
 
@@ -58,6 +59,8 @@ export async function prepareOccurrenceCommand(
 		throw new CommandFault('precondition_failed')
 	const change = await occurrenceChange(executor, context.accountId, input, context.now)
 	if (JSON.stringify(change.rule) !== JSON.stringify(target.rule)) throw new CommandFault('precondition_failed')
+	const restoreMark = input.operation === 'move' ? input.restoreMark : undefined
+	if (restoreMark) await checkMarkRestore(executor, input.ref, restoreMark, change.startsAt, context.now)
 	const sync = await syncFacts(executor, connection.id)
 	const { occurrence } = change
 	if (
@@ -105,6 +108,7 @@ export async function prepareOccurrenceCommand(
 				beforeDurationMinutes: change.occurrence.durationMinutes,
 				beforeStatus: change.occurrence.status,
 				...(change.clearMark ? { clearMark: true } : {}),
+				...(restoreMark ? { restoreMark } : {}),
 			},
 		],
 		preconditions: [precondition],

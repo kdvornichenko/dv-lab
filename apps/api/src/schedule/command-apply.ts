@@ -17,7 +17,7 @@ import { CommandFault } from '../calendar/journal.ts'
 import { advanceCommandRevision } from '../calendar/read-store.ts'
 import { applyLessonChange } from './changes.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
-import { settleMarkAfterMove } from './marks.ts'
+import { restoreMarkAfterMove, settleMarkAfterMove } from './marks.ts'
 import { applyOccurrenceChange } from './occurrence-change.ts'
 
 export async function applyConfirmedCommand(
@@ -204,6 +204,7 @@ async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {
 		await confirmOccurrenceMapping(tx, command)
 		await applyOccurrenceChange(tx, input, command.plan)
 		if (lineage.clearMark === true) await settleMarkAfterMove(tx, input.ref)
+		if (lineage.restoreMark) await restoreMarkAfterMove(tx, input.ref, lineage.restoreMark)
 		return
 	}
 	if (!lineage || lineage.to.kind !== 'single' || lineage.to.lessonId !== input.ref.lessonId)
@@ -216,6 +217,7 @@ async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {
 			: { status: input.operation === 'cancel' ? 'cancelled' : 'scheduled' }
 	)
 	if (lineage.clearMark === true) await settleMarkAfterMove(tx, input.ref)
+	if (lineage.restoreMark) await restoreMarkAfterMove(tx, input.ref, lineage.restoreMark)
 }
 
 export { applyConfirmedCut } from './cut-apply.ts'

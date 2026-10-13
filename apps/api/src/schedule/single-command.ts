@@ -21,6 +21,7 @@ import { eventVersion, type CalendarReadContext } from '../calendar/read-state.t
 import type { SingleEvidence } from '../calendar/single-observation.ts'
 import { prepareLessonChange } from './changes.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
+import { checkMarkRestore } from './marks.ts'
 
 export type SingleCommand = Extract<ValidatedCalendarCommand, { operation: 'move' | 'cancel' | 'restore' }>
 export type SingleObservation = Awaited<ReturnType<GoogleGateway['observeEvent']>>
@@ -81,6 +82,8 @@ export async function prepareSingleCommand(
 		context.now
 	)
 	if (change.kind !== 'ok') changeRefusal(change)
+	const restoreMark = input.operation === 'move' ? input.restoreMark : undefined
+	if (restoreMark) await checkMarkRestore(executor, input.ref, restoreMark, change.startsAt, context.now)
 	const sync = await syncFacts(executor, connection.id)
 	const { lesson } = change
 	if (
@@ -110,6 +113,7 @@ export async function prepareSingleCommand(
 				timeZone: change.lesson.timeZone,
 				durationMinutes: change.durationMinutes,
 				...(change.clearMark ? { clearMark: true } : {}),
+				...(restoreMark ? { restoreMark } : {}),
 			},
 		],
 		preconditions: [singlePrecondition(evidence, target.mapping.eventId, target.row.etag)],

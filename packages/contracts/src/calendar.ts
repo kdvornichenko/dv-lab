@@ -370,7 +370,12 @@ export type AssignCalendarEventRequest = z.infer<typeof assignCalendarEventReque
 
 export const validatedCalendarCommand = z.discriminatedUnion('operation', [
 	z.strictObject({ operation: z.literal('create'), input: createCalendarLessonRequest }),
-	z.strictObject({ operation: z.literal('move'), ref: calendarOccurrenceRef, input: moveCalendarLessonRequest }),
+	z.strictObject({
+		operation: z.literal('move'),
+		ref: calendarOccurrenceRef,
+		input: moveCalendarLessonRequest,
+		restoreMark: z.strictObject({ kind: z.literal('no_show'), revision: z.number().int().min(1) }).optional(),
+	}),
 	z.strictObject({ operation: z.literal('cancel'), ref: calendarOccurrenceRef, input: calendarLessonActionRequest }),
 	z.strictObject({ operation: z.literal('restore'), ref: calendarOccurrenceRef, input: calendarLessonActionRequest }),
 	z.strictObject({ operation: z.literal('move_series'), seriesId: z.uuid(), input: moveCalendarSeriesRequest }),
