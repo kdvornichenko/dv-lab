@@ -298,6 +298,7 @@ export const lessonMarks = pgTable(
 		originalOn: date('original_on'),
 		lessonId: uuid('lesson_id').references(() => lessons.id, { onDelete: 'restrict' }),
 		kind: text('kind').notNull(),
+		revision: integer('revision').notNull().default(1),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
@@ -305,6 +306,7 @@ export const lessonMarks = pgTable(
 		uniqueIndex('lesson_marks_occurrence_uq').on(table.seriesId, table.originalOn),
 		uniqueIndex('lesson_marks_lesson_uq').on(table.lessonId),
 		check('lesson_marks_kind_ck', sql`${table.kind} in ('done', 'no_show', 'none')`),
+		check('lesson_marks_revision_ck', sql`${table.revision} >= 1`),
 		check(
 			'lesson_marks_ref_ck',
 			sql`(${table.seriesId} is null) = (${table.originalOn} is null) and (${table.seriesId} is null) <> (${table.lessonId} is null)`

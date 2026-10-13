@@ -54,6 +54,7 @@ export type LessonMarkKind = (typeof MARK_KINDS)[number]
 export const markLessonRequest = z.object({
 	kind: z.enum(MARK_KINDS),
 	expectedStartsAt,
+	expectedRevision: z.number().int().min(1).nullable().optional(),
 })
 
 export const moveSeriesRequest = z.object({
@@ -97,6 +98,7 @@ export type ScheduleBlock = {
 	actions: ScheduleLessonActions
 	ledger: ScheduleBlockLedger
 	mark: LessonMarkKind | null
+	markRevision: number | null
 }
 
 export type ScheduleSeriesReference = { originalOn: string; actualStartsAt: string; ruleStartsAt: string | null }
@@ -143,7 +145,12 @@ export type ScheduleOccurrence = {
 
 export type ScheduleOccurrenceResponse = { occurrence: ScheduleOccurrence }
 
-export type ScheduleMark = { ref: ScheduleOccurrenceRef; kind: LessonMarkKind; outcome: ScheduleLessonOutcome }
+export type ScheduleMark = {
+	ref: ScheduleOccurrenceRef
+	kind: LessonMarkKind
+	outcome: ScheduleLessonOutcome
+	revision: number
+}
 
 export type ScheduleMarkResponse = { mark: ScheduleMark }
 
