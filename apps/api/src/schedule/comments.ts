@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 
 import type { LessonComment } from '@dv-lab/contracts'
 import { type OccurrenceRef, canChange } from '@dv-lab/core'
@@ -105,6 +105,21 @@ export async function listLessonComments(
 		.from(lessonComments)
 		.where(and(commentKey(ref), isNull(lessonComments.retractedAt)))
 		.orderBy(asc(lessonComments.createdAt), asc(lessonComments.id))
+	return rows.map(toComment)
+}
+
+export async function listStudentComments(
+	executor: DbExecutor,
+	_accountId: string,
+	studentId: string,
+	limit: number
+): Promise<LessonComment[]> {
+	const rows = await executor
+		.select(columns)
+		.from(lessonComments)
+		.where(and(eq(lessonComments.studentId, studentId), isNull(lessonComments.retractedAt)))
+		.orderBy(desc(lessonComments.createdAt), desc(lessonComments.id))
+		.limit(limit)
 	return rows.map(toComment)
 }
 

@@ -7,9 +7,12 @@ import {
 	type ChatBlock,
 	type ChatCalendarProposalBlock,
 	type ChatConversation,
+	type ChatEffort,
 	type ChatLessonIntent,
 	type ChatMessage,
 	type ChatRefusalCode,
+	type ChatTurn,
+	type MentionBinding,
 	type LessonTargetLesson,
 	type LessonTargetResult,
 	type SendMessageRequest,
@@ -43,6 +46,7 @@ import {
 	withUndo,
 } from './messages.ts'
 import { parseNoteCommand, parseQuickCommand } from './quick-command.ts'
+import { type NewTurn, type TurnRow, activeTurn, toTurn, turnOfMessage } from './turns.ts'
 
 export type ChatContext = CardReadContext & { calendarEnabled?: boolean }
 
@@ -51,10 +55,25 @@ export type LocalRequest =
 
 export type ActionSource = { conversationId: string; messageId: string }
 
+export type Admission =
+	{ kind: 'ready'; model: string; effort: ChatEffort } | { kind: 'refused'; code: ChatRefusalCode }
+
+export type TurnStarter = {
+	admit: (context: ChatContext, conversationId: string) => Promise<Admission>
+	startTurn: (tx: DbExecutor, context: ChatContext, turn: NewTurn) => Promise<{ row: TurnRow; launch: () => void }>
+}
+
 export type SendOutcome =
-	| { kind: 'sent'; replayed: boolean; conversation: ChatConversation; messages: ChatMessage[] }
+	| {
+			kind: 'sent'
+			replayed: boolean
+			conversation: ChatConversation
+			messages: ChatMessage[]
+			turn: ChatTurn | null
+	  }
 	| { kind: 'not_found' }
 	| { kind: 'conflict' }
+	| { kind: 'busy' }
 
 export type UndoOutcome =
 	| { kind: 'ok'; block: ChatActionResultBlock | ChatCalendarProposalBlock }
@@ -64,6 +83,7 @@ export type UndoOutcome =
 
 const NOTE_SECTION = 'general_info'
 const REQUEST_UNIQUE = 'chat_messages_account_request_uq'
+const ACTIVE_TURN_UNIQUE = 'chat_turns_active_uq'
 const UNDO_UNIQUE = 'chat_actions_undo_request_uq'
 
 const markTarget = z.object({ ref: calendarOccurrenceRef, startsAt: calendarInstant })
@@ -302,6 +322,20 @@ async function applyNote(
 	}
 }
 
+export function executeIntent(
+	executor: DbExecutor,
+	context: ChatContext,
+	source: ActionSource,
+	request: LocalRequest,
+	persist?: (tx: DbExecutor, block: ChatBlock) => Promise<void>
+): Promise<ChatBlock> {
+	return executor.transaction(async (tx) => {
+		const block = await executeLocalAction(tx, context, source, request)
+		if (persist) await persist(tx, block)
+		return block
+	})
+}
+
 export async function executeLocalAction(
 	tx: DbExecutor,
 	context: ChatContext,
@@ -331,21 +365,28 @@ export async function executeLocalAction(
 	return refuse(tx, context, source, kind, 'not_found')
 }
 
+function quickRequest(context: ChatContext, text: string, bindings: readonly MentionBinding[]): LocalRequest | null {
+	const note = parseNoteCommand(text, bindings)
+	if (note !== null && appendStudentNoteRequest.safeParse({ sectionKind: NOTE_SECTION, body: note.body }).success) {
+		return { kind: 'note', ...note }
+	}
+	const intent = parseQuickCommand(text, bindings, context.now, context.defaultTimeZone)
+	return intent === null ? null : { kind: 'lesson', intent }
+}
+
+type Response = { blocks: ChatBlock[]; model: boolean }
+
 async function respond(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
 	input: SendMessageRequest
-): Promise<ChatBlock[]> {
+): Promise<Response> {
 	const mentions = await validateMentions(tx, context.accountId, input.text, input.mentions)
-	if (mentions.kind === 'stale') return [{ type: 'refused', code: 'mention_stale' }]
-	const note = parseNoteCommand(input.text, mentions.bindings)
-	if (note !== null && appendStudentNoteRequest.safeParse({ sectionKind: NOTE_SECTION, body: note.body }).success) {
-		return [await executeLocalAction(tx, context, source, { kind: 'note', ...note })]
-	}
-	const intent = parseQuickCommand(input.text, mentions.bindings, context.now, context.defaultTimeZone)
-	if (intent === null) return [{ type: 'refused', code: 'model_unavailable' }]
-	return [await executeLocalAction(tx, context, source, { kind: 'lesson', intent })]
+	if (mentions.kind === 'stale') return { blocks: [{ type: 'refused', code: 'mention_stale' }], model: false }
+	const request = quickRequest(context, input.text, mentions.bindings)
+	if (request === null) return { blocks: [], model: true }
+	return { blocks: [await executeIntent(tx, context, source, request)], model: false }
 }
 
 async function replay(
@@ -365,18 +406,23 @@ async function replay(
 	const conversation = await readConversation(executor, context.accountId, conversationId)
 	if (conversation === null) return { kind: 'not_found' }
 	const messages = await toMessages(executor, [found.teacher, ...found.replies])
-	return { kind: 'sent', replayed: true, conversation, messages }
+	const turn = await turnOfMessage(executor, context.accountId, found.teacher.id)
+	return { kind: 'sent', replayed: true, conversation, messages, turn: turn === null ? null : toTurn(turn) }
 }
+
+type SendPlan = { turns: TurnStarter | null; admission: Admission | null; launch: (() => void) | null }
 
 async function send(
 	tx: DbExecutor,
 	context: ChatContext,
 	conversationId: string,
-	input: SendMessageRequest
+	input: SendMessageRequest,
+	plan: SendPlan
 ): Promise<SendOutcome> {
 	if ((await lockConversation(tx, context.accountId, conversationId)) === null) return { kind: 'not_found' }
 	const earlier = await replay(tx, context, conversationId, input)
 	if (earlier !== null) return earlier
+	if ((await activeTurn(tx, conversationId)) !== null) return { kind: 'busy' }
 	const teacher = await insertMessage(tx, {
 		accountId: context.accountId,
 		conversationId,
@@ -386,7 +432,10 @@ async function send(
 		requestId: input.requestId,
 		requestDigest: requestDigest(conversationId, input),
 	})
-	const blocks = await respond(tx, context, { conversationId, messageId: teacher.id }, input)
+	const response = await respond(tx, context, { conversationId, messageId: teacher.id }, input)
+	const admission = response.model ? (plan.admission ?? { kind: 'refused', code: 'model_unavailable' }) : null
+	const blocks: ChatBlock[] =
+		admission?.kind === 'refused' ? [{ type: 'refused', code: admission.code }] : response.blocks
 	const reply = await insertMessage(tx, {
 		accountId: context.accountId,
 		conversationId,
@@ -395,23 +444,47 @@ async function send(
 		blocks,
 		replyTo: teacher.id,
 	})
+	let turn: ChatTurn | null = null
+	if (admission?.kind === 'ready' && plan.turns !== null) {
+		const started = await plan.turns.startTurn(tx, context, {
+			accountId: context.accountId,
+			conversationId,
+			teacherMessageId: teacher.id,
+			assistantMessageId: reply.id,
+			model: admission.model,
+			effort: admission.effort,
+		})
+		turn = toTurn(started.row)
+		plan.launch = started.launch
+	}
 	const conversation = await touchConversation(tx, context.accountId, conversationId)
-	return { kind: 'sent', replayed: false, conversation, messages: await toMessages(tx, [teacher, reply]) }
+	return { kind: 'sent', replayed: false, conversation, messages: await toMessages(tx, [teacher, reply]), turn }
 }
 
 export async function sendMessage(
 	db: Database,
 	context: ChatContext,
 	conversationId: string,
-	input: SendMessageRequest
+	input: SendMessageRequest,
+	turns: TurnStarter | null = null
 ): Promise<SendOutcome> {
+	const freeText = quickRequest(context, input.text, input.mentions) === null
+	const plan: SendPlan = {
+		turns,
+		admission: turns !== null && freeText ? await turns.admit(context, conversationId) : null,
+		launch: null,
+	}
+	let outcome: SendOutcome
 	try {
-		return await db.transaction((tx) => send(tx, context, conversationId, input))
+		outcome = await db.transaction((tx) => send(tx, context, conversationId, input, plan))
 	} catch (error) {
+		if (violatesUnique(error, ACTIVE_TURN_UNIQUE)) return { kind: 'busy' }
 		if (!violatesUnique(error, REQUEST_UNIQUE)) throw error
 		const earlier = await db.transaction((tx) => replay(tx, context, conversationId, input))
 		return earlier ?? { kind: 'conflict' }
 	}
+	if (outcome.kind === 'sent' && !outcome.replayed) plan.launch?.()
+	return outcome
 }
 
 async function originalBlock(

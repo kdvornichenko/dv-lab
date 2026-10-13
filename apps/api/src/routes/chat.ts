@@ -122,10 +122,11 @@ export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 		const result = await sendMessage(db, await chatContext(c), id, input)
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'conflict') return c.json(errorBody('precondition_failed', 'The request changed'), 409)
+		if (result.kind === 'busy') return c.json(errorBody('busy', 'A reply is still coming'), 409)
 		const body = {
 			conversation: result.conversation,
 			messages: result.messages,
-			turn: null,
+			turn: result.turn,
 		} satisfies SendMessageResponse
 		return c.json(body, result.replayed ? 200 : 201)
 	})
