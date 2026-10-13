@@ -149,7 +149,7 @@ function writeSelection(id: string | null): void {
 	const url = new URL(window.location.href)
 	if (id === null) url.searchParams.delete('c')
 	else url.searchParams.set('c', id)
-	window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+	window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
 }
 
 export type ThreadState =

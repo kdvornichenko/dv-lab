@@ -72,7 +72,8 @@ function useStartedWeek(block: ScheduleBlock | null, wanted: boolean, mainTimeZo
 export function LessonDialogs(props: Props) {
 	const { series, calendar, reload, onClose } = props
 	const snapshot = useSelectedLesson(props)
-	const lookup = snapshot === null || calendar === null ? null : calendarEventFor(calendar, snapshot.block.ref)
+	const lookup =
+		snapshot === null || calendar === null ? null : (calendarEventFor(calendar, snapshot.block.ref) ?? null)
 	const needsWeek =
 		snapshot !== null &&
 		snapshot.event === null &&
