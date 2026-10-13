@@ -11,7 +11,7 @@ import { MarkdownView } from '@/components/app/markdown-view'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerAction, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import { formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
+import { formatTime, formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -21,7 +21,6 @@ import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 import { ActionResult } from './action-result'
 import { CalendarProposal } from './calendar-proposal'
 import { ChatProgress } from './chat-progress'
-import { conversationTime } from './conversation-list'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
 import { StudentMention } from './student-mention'
@@ -264,6 +263,10 @@ function renderMention(studentId: string, children: ReactNode): ReactNode {
 	return <StudentMention studentId={studentId}>{children}</StudentMention>
 }
 
+function messageTime(iso: string): string {
+	return formatTime(new Date(iso), SCHEDULE_TIME_ZONE)
+}
+
 function fullTime(iso: string): string {
 	const at = new Date(iso)
 	return `${formatWhen(at, SCHEDULE_TIME_ZONE, yearInZone(new Date(), SCHEDULE_TIME_ZONE))} ${zoneLabel(SCHEDULE_TIME_ZONE, at)}`
@@ -336,7 +339,6 @@ export function Messages({
 	const end = useRef<HTMLDivElement>(null)
 	const atBottom = useRef(true)
 	const lastSent = useRef<string | null>(null)
-	const now = new Date()
 	const orphan = active !== null && !messages.some((message) => message.id === active.messageId)
 
 	useEffect(() => {
@@ -368,9 +370,7 @@ export function Messages({
 							<p className="rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground">
 								<TeacherText text={message.body} mentions={message.mentions} />
 							</p>
-							<span className="text-caption text-muted-foreground tabular-nums">
-								{conversationTime(message.createdAt, now)}
-							</span>
+							<span className="text-caption text-muted-foreground tabular-nums">{messageTime(message.createdAt)}</span>
 						</MessageItem>
 					) : (
 						<MessageItem
@@ -411,7 +411,7 @@ export function Messages({
 							))}
 							{active?.messageId === message.id ? null : (
 								<ReplyFooter
-									time={conversationTime(message.finishedAt ?? message.createdAt, now)}
+									time={messageTime(message.finishedAt ?? message.createdAt)}
 									title={fullTime(message.finishedAt ?? message.createdAt)}
 									copyText={message.body === '' ? null : message.body}
 								/>

@@ -17,6 +17,7 @@ import { eventTitle } from './calendar-event-details'
 export type ArrivalParams = { week: string | null; lesson: string | null; day: string | null }
 
 const SETTLE_MS = 200
+const PULSE_AFTER_SCROLL_MS = 80
 
 export function arrivalMonday(params: ArrivalParams | null): string | null {
 	if (params === null) return null
@@ -136,7 +137,8 @@ export function useScheduleArrival({
 			dropParams()
 			if (parts.length === 0) return
 			const reduce = prefersReducedMotion()
-			void (target === null ? Promise.resolve() : scrollToMiddle(target, reduce)).then(() => {
+			void (target === null ? Promise.resolve() : scrollToMiddle(target, reduce)).then(async () => {
+				if (!reduce) await new Promise((resolve) => window.setTimeout(resolve, PULSE_AFTER_SCROLL_MS))
 				end.current = startMark(parts, reduce, () => {
 					end.current = null
 				})

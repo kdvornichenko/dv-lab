@@ -32,7 +32,7 @@ export function ConversationRail({
 		<nav aria-label="Chats" className="flex w-72 shrink-0 flex-col border-l border-border pt-4">
 			<div className="flex h-12 shrink-0 items-center gap-2 px-3">
 				<h2 className="min-w-0 flex-1 truncate text-subtitle font-semibold text-foreground">Chats</h2>
-				<Button variant="tertiary" size="compact" leadingIcon={Plus} onClick={onCreate}>
+				<Button data-all-chats="" variant="tertiary" size="compact" leadingIcon={Plus} onClick={onCreate}>
 					New chat
 				</Button>
 			</div>
