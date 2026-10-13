@@ -1,7 +1,8 @@
-import { timeZoneIdentity } from '@dv-lab/contracts'
+import { isTimeZone, timeZoneIdentity } from '@dv-lab/contracts'
 import {
 	addDays,
 	lastSeriesDateOnOrBefore,
+	localTimeCandidates,
 	nextSeriesDate,
 	seriesStart,
 	startOfZonedDay,
@@ -9,7 +10,7 @@ import {
 } from '@dv-lab/core'
 import type { GoogleCommandPlan } from '@dv-lab/db'
 
-import type { MasterRecurrence } from './projection.ts'
+import type { EventFact, MasterRecurrence } from './projection.ts'
 
 type Rule = NonNullable<GoogleCommandPlan['capturedRule']>
 const weekdays = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
@@ -82,6 +83,76 @@ function untilDate(value: string | undefined, timeZone: string): string | null {
 	return Number.isNaN(instant.getTime()) ? null : zonedParts(instant, timeZone).date
 }
 
+const EXCLUSION = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/
+
+function exclusionParams(head: string) {
+	const params = new Map<string, string>()
+	if (!head) return params
+	if (!head.startsWith(';')) return null
+	for (const part of head.slice(1).split(';')) {
+		const [key, value, ...rest] = part.split('=')
+		if (!key || value === undefined || rest.length) return null
+		params.set(key.toUpperCase(), value.replace(/^"(.*)"$/, '$1'))
+	}
+	return params
+}
+
+function exclusionStart(value: string, zone: string): Date | null {
+	const match = EXCLUSION.exec(value)
+	if (!match) return null
+	const [, year, month, day, hour, minute, second, utc] = match
+	const date = `${year}-${month}-${day}`
+	const midnight = new Date(`${date}T00:00:00Z`)
+	if (Number.isNaN(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== date) return null
+	if (Number(hour) > 23 || Number(minute) > 59 || Number(second) > 59) return null
+	if (utc) return new Date(`${date}T${hour}:${minute}:${second}Z`)
+	if (second !== '00') return null
+	return localTimeCandidates(date, `${hour}:${minute}`, zone)[0] ?? null
+}
+
+function lineExclusions(line: string, timeZone: string): Date[] | null {
+	const colon = line.indexOf(':')
+	if (!line.startsWith('EXDATE') || colon < 0) return null
+	const params = exclusionParams(line.slice(6, colon))
+	if (!params || [...params.keys()].some((key) => key !== 'TZID' && key !== 'VALUE')) return null
+	if ((params.get('VALUE') ?? 'DATE-TIME') !== 'DATE-TIME') return null
+	const zone = params.get('TZID') ?? timeZone
+	if (!isTimeZone(zone)) return null
+	const starts = line
+		.slice(colon + 1)
+		.split(',')
+		.map((value) => exclusionStart(value, zone))
+	return starts.every((start) => start !== null) ? (starts as Date[]) : null
+}
+
+function exclusions(lines: readonly string[], timeZone: string): Date[] | null {
+	const starts: Date[] = []
+	for (const line of lines) {
+		const found = lineExclusions(line, timeZone)
+		if (!found) return null
+		starts.push(...found)
+	}
+	return starts
+}
+
+export function exclusionFacts(master: EventFact, lines: readonly string[], timeZone: string, now: Date): EventFact[] {
+	if (master.status === 'cancelled' || master.recurrence?.recurrenceKind !== 'weekly' || !master.etag) return []
+	const starts = exclusions(
+		lines.filter((line) => !line.startsWith('RRULE:')),
+		timeZone
+	)
+	return (starts ?? [])
+		.filter((start) => start.getTime() >= now.getTime())
+		.map((start) => ({
+			eventId: `${master.eventId}_${start.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+			status: 'cancelled' as const,
+			etag: `exdate:${master.etag}`,
+			recurringEventId: master.eventId,
+			originalStartTime: { dateTime: start.toISOString(), timeZone },
+			factAt: master.factAt,
+		}))
+}
+
 export function classifyRecurrence(lines: readonly string[], timeZone: string): MasterRecurrence {
 	const rules = lines.filter((line) => line.startsWith('RRULE:'))
 	const rest = lines.filter((line) => !line.startsWith('RRULE:'))
@@ -92,7 +163,7 @@ export function classifyRecurrence(lines: readonly string[], timeZone: string): 
 	const weekly =
 		fields !== null &&
 		rules.length === 1 &&
-		rest.length === 0 &&
+		exclusions(rest, timeZone) !== null &&
 		frequency === 'weekly' &&
 		interval === 1 &&
 		day > 0 &&
