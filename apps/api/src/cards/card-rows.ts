@@ -1,6 +1,8 @@
 import {
 	CURRENCIES,
 	type Currency,
+	GENDERS,
+	type Gender,
 	type StudentAccount,
 	type StudentDetail,
 	type StudentRow,
@@ -24,6 +26,7 @@ export const cardColumns = {
 	openingBalanceMinutes: students.openingBalanceMinutes,
 	openingBalanceOn: students.openingBalanceOn,
 	noShowDeducts: students.noShowDeducts,
+	gender: students.gender,
 	archivedAt: students.archivedAt,
 }
 
@@ -38,6 +41,13 @@ function toCurrency(value: string | null): Currency | null {
 	if (value === null) return null
 	const known = CURRENCIES.find((currency) => currency === value)
 	if (!known) throw new Error('unexpected student currency')
+	return known
+}
+
+export function toGender(value: string | null): Gender | null {
+	if (value === null) return null
+	const known = GENDERS.find((gender) => gender === value)
+	if (!known) throw new Error('unexpected student gender')
 	return known
 }
 
@@ -67,6 +77,7 @@ export function toStudentDetail(row: CardRecord, facts: CardFacts, account: Stud
 				? null
 				: { minutes: row.openingBalanceMinutes, on: row.openingBalanceOn },
 		noShowDeducts: row.noShowDeducts,
+		gender: toGender(row.gender),
 		archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
 		account,
 	}

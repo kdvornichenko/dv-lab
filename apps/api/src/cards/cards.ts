@@ -1,7 +1,8 @@
-import { and, eq, isNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type {
+	Gender,
 	StudentDetail,
 	StudentLessonOption,
 	StudentResponse,
@@ -15,7 +16,7 @@ import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
 import { findStudentAccount } from '../auth/accounts.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
 import { cardFacts, type CardFacts, type CardReadContext } from './card-facts.ts'
-import { type CardRecord, cardColumns, toCardRow, toStudentDetail } from './card-rows.ts'
+import { type CardRecord, cardColumns, toCardRow, toGender, toStudentDetail } from './card-rows.ts'
 
 type SaveStudentInput = z.output<typeof saveStudentRequest>
 
@@ -57,7 +58,7 @@ export async function createCard(
 ): Promise<StudentDetail> {
 	const [row] = await executor
 		.insert(students)
-		.values({ ...cardValues(input), noShowDeducts: input.noShowDeducts ?? true })
+		.values({ ...cardValues(input), noShowDeducts: input.noShowDeducts ?? true, gender: input.gender ?? null })
 		.returning(cardColumns)
 	if (!row) throw new Error('student card insert returned no row')
 	return toDetail(executor, row, context)
@@ -99,6 +100,19 @@ export async function listLessonStudents(executor: DbExecutor): Promise<StudentL
 		.orderBy(sql`lower(${students.displayName})`, students.id)
 }
 
+export async function studentGenders(
+	executor: DbExecutor,
+	ids: readonly string[]
+): Promise<Map<string, Gender | null>> {
+	const wanted = [...new Set(ids)]
+	if (wanted.length === 0) return new Map()
+	const rows = await executor
+		.select({ id: students.id, gender: students.gender })
+		.from(students)
+		.where(inArray(students.id, wanted))
+	return new Map(rows.map((row) => [row.id, toGender(row.gender)]))
+}
+
 export async function updateCard(
 	executor: DbExecutor,
 	id: string,
@@ -110,6 +124,7 @@ export async function updateCard(
 		.set({
 			...cardValues(input),
 			...(input.noShowDeducts === undefined ? {} : { noShowDeducts: input.noShowDeducts }),
+			...(input.gender === undefined ? {} : { gender: input.gender }),
 			updatedAt: sql`now()`,
 		})
 		.where(eq(students.id, id))

@@ -27,6 +27,10 @@ export const PAYMENT_SOURCES = ['manual', 'vault'] as const
 
 export type PaymentSource = (typeof PAYMENT_SOURCES)[number]
 
+export const GENDERS = ['female', 'male'] as const
+
+export type Gender = (typeof GENDERS)[number]
+
 export const LESSON_MINUTES_MIN = 1
 export const LESSON_MINUTES_DEFAULT = 60
 
@@ -106,6 +110,7 @@ export const saveStudentRequest = z
 		goals: optionalText(STUDENT_TEXT_MAX_LENGTH),
 		timeZone: optionalText(TIME_ZONE_MAX_LENGTH).refine((value) => value === null || isTimeZone(value)),
 		noShowDeducts: z.boolean().optional(),
+		gender: z.enum(GENDERS).nullable().optional(),
 	})
 	.refine((value) => (value.rateMinor === null) === (value.currency === null))
 
@@ -195,6 +200,7 @@ export type StudentDetail = StudentRow & {
 	timeZone: string | null
 	openingBalance: { minutes: number; on: string } | null
 	noShowDeducts: boolean
+	gender: Gender | null
 	archivedAt: string | null
 	account: StudentAccount | null
 }
