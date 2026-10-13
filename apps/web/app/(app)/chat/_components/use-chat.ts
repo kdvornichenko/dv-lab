@@ -164,6 +164,12 @@ function selectionHref(id: string | null): string {
 	return `${url.pathname}${url.search}${url.hash}`
 }
 
+function latestConversation(conversations: readonly ChatConversation[]): ChatConversation | null {
+	let latest: ChatConversation | null = null
+	for (const item of conversations) if (latest === null || item.updatedAt > latest.updatedAt) latest = item
+	return latest
+}
+
 export type ThreadState =
 	{ kind: 'empty' } | { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; messages: ChatMessage[] }
 
@@ -306,6 +312,7 @@ export function useChat(initialConversationId: string | null) {
 	const [list, setList] = useState<ConversationListState>({ kind: 'loading' })
 	const listRef = useRef<ConversationListState>(list)
 	const [selectedId, setSelectedId] = useState<string | null>(initialConversationId)
+	const [startedNew, setStartedNew] = useState(false)
 	const [thread, setThread] = useState<Thread>(EMPTY_THREAD)
 	const threadRef = useRef<Thread>(thread)
 	const [threadGeneration, setThreadGeneration] = useState(0)
@@ -382,11 +389,16 @@ export function useChat(initialConversationId: string | null) {
 
 	const known =
 		list.kind !== 'ready' || selectedId === null || list.conversations.some((item) => item.id === selectedId)
-	const activeId = known ? selectedId : null
+	const fallbackId =
+		list.kind === 'ready' && !startedNew && (selectedId === null || !known)
+			? (latestConversation(list.conversations)?.id ?? null)
+			: null
+	const activeId = fallbackId ?? (known ? selectedId : null)
 
 	useEffect(() => {
-		if (!known) router.replace(selectionHref(null), { scroll: false })
-	}, [known, router])
+		if (fallbackId !== null) router.replace(selectionHref(fallbackId), { scroll: false })
+		else if (!known) router.replace(selectionHref(null), { scroll: false })
+	}, [fallbackId, known, router])
 
 	const setReply = useCallback((next: Reply | null) => {
 		replyRef.current = next
@@ -515,8 +527,14 @@ export function useChat(initialConversationId: string | null) {
 			commitThread({ conversationId: current.conversationId, state: read.state })
 	}, [commitThread, setReply, unfollow])
 
-	const shownThread: ThreadState =
-		activeId === null ? { kind: 'empty' } : thread.conversationId === activeId ? thread.state : { kind: 'loading' }
+	const choosingDefault = !startedNew && list.kind === 'loading' && selectedId === null
+	const shownThread: ThreadState = choosingDefault
+		? { kind: 'loading' }
+		: activeId === null
+			? { kind: 'empty' }
+			: thread.conversationId === activeId
+				? thread.state
+				: { kind: 'loading' }
 
 	const reloadThread = useCallback(() => {
 		commitThread(EMPTY_THREAD)
@@ -552,6 +570,7 @@ export function useChat(initialConversationId: string | null) {
 	const newChat = useCallback(() => {
 		setSendFailed(false)
 		setPending(null)
+		setStartedNew(true)
 		select(null)
 	}, [select, setPending])
 
@@ -772,7 +791,7 @@ export function useChat(initialConversationId: string | null) {
 				(item) => item.id !== conversation.id
 			)
 			commit({ kind: 'ready', conversations: remaining })
-			if (activeId === conversation.id) select(remaining[0]?.id ?? null)
+			if (activeId === conversation.id) select(latestConversation(remaining)?.id ?? null)
 			void load(true)
 			return 'deleted'
 		},
