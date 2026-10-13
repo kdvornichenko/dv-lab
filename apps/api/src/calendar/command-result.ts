@@ -259,12 +259,10 @@ function unownedValues(input: unknown, payload: OwnedWritable = {}) {
 				.optional(),
 		})
 		.parse(input).extendedProperties
-	if (properties) {
-		const privateFields = Object.fromEntries(
-			Object.entries(properties.private ?? {}).filter(([key]) => !Object.hasOwn(marker.shape, key))
-		)
-		unowned.extendedProperties = { private: privateFields, shared: properties.shared ?? {} }
-	}
+	const privateFields = Object.fromEntries(
+		Object.entries(properties?.private ?? {}).filter(([key]) => !Object.hasOwn(marker.shape, key))
+	)
+	unowned.extendedProperties = { private: privateFields, shared: properties?.shared ?? {} }
 	return unowned
 }
 
