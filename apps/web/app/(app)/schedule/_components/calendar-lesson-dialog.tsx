@@ -11,8 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { calendarSeriesFor, canEditCalendarEvent, type CalendarLesson } from '@/lib/lesson-actions'
 
-import type { CalendarSeriesContext, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { scheduleDate } from '@dv-lab/core'
+import type { CalendarEditScope, CalendarSeriesContext, GoogleScheduleWindow } from '@dv-lab/contracts'
+import { addDays, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
@@ -22,6 +22,7 @@ import { LessonFooter } from './lesson-footer'
 import { LessonMoveForm } from './lesson-move-form'
 import { MoveSeriesDialog } from './move-series-dialog'
 import { useScheduleMutation } from './schedule-mutations'
+import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 
 type Props = {
@@ -94,11 +95,13 @@ function LessonContent({
 		mainTimeZone,
 		date: scheduleDate(new Date(initial.when.startsAt), mainTimeZone),
 		event: initial,
+		series: series ?? undefined,
 	})
 	const { blocked } = useCalendarCommands()
 	const [moving, setMoving] = useState(moveSeed !== undefined)
 	const [movePending, setMovePending] = useState(false)
 	const [confirming, setConfirming] = useState(false)
+	const [scoping, setScoping] = useState(false)
 	const [failure, setFailure] = useState(false)
 	const moveButton = useRef<HTMLButtonElement>(null)
 	const editable = canEditCalendarEvent(event, window) && !blocked
@@ -115,20 +118,39 @@ function LessonContent({
 		restore: editable && event.status === 'cancelled',
 	}
 	const title = student?.name ?? eventTitle(event)
-	async function change(action: 'cancel' | 'restore') {
-		if (pending || !editable) return
-		setFailure(false)
+	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'failed' | 'detached'> {
 		const result = await command.mutate(initial.binding.ref, action, { expectedStartsAt: initial.when.startsAt })
-		if (result.kind === 'detached') return
-		if (result.kind !== 'ok') {
-			setFailure(true)
-			return
-		}
+		if (result.kind === 'detached') return 'detached'
+		if (result.kind !== 'ok') return 'failed'
 		toast.show({
 			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
 			description: `${title}. Google Calendar confirmed the change.`,
 		})
 		onClose()
+		return 'ok'
+	}
+	async function change(action: 'cancel' | 'restore') {
+		if (pending || !editable) return
+		setFailure(false)
+		if ((await apply(action)) === 'failed') setFailure(true)
+	}
+	async function cancelScope(scope: CalendarEditScope): Promise<boolean> {
+		if (pending || !editable) return false
+		if (scope === 'one') return (await apply('cancel')) === 'ok'
+		const ref = initial.binding.ref
+		if (series === null || ref.kind !== 'series') return false
+		const result = await command.mutate({ kind: 'rule', seriesId: series.series.id }, 'end', {
+			lastOn: addDays(ref.originalOn, -1),
+			expectedDefaultTimeZone: mainTimeZone,
+		})
+		if (result.kind !== 'ok') return false
+		toast.show({ title: 'Series ended', description: `${title}'s series was ended.` })
+		onClose()
+		return true
+	}
+	function askCancel() {
+		if (initial.binding.ref.kind === 'series') setScoping(true)
+		else setConfirming(true)
 	}
 	return (
 		<Dialog
@@ -217,12 +239,20 @@ function LessonContent({
 					onCancel={() => void change('cancel')}
 					onRestore={() => void change('restore')}
 					onMove={() => setMoving(true)}
-					onConfirm={() => setConfirming(true)}
+					onConfirm={askCancel}
 				/>
 				{!pending && !moving ? (
 					<Button variant="secondary" onClick={onClose}>
 						Close
 					</Button>
+				) : null}
+				{scoping ? (
+					<ScopeDialog
+						kind={{ subject: 'lesson', action: 'cancel' }}
+						allowed={series !== null && editable ? ['one', 'following'] : ['one']}
+						onConfirm={cancelScope}
+						onClose={() => setScoping(false)}
+					/>
 				) : null}
 			</DialogContent>
 		</Dialog>

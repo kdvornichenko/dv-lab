@@ -244,6 +244,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 				moveSeed={moveSeed}
 				event={selected}
 				window={data}
+				editable={editable}
 				now={now}
 				timeZone={mainTimeZone}
 				secondZone={zone}
@@ -390,6 +391,7 @@ function SelectedEventDialog({
 	moveSeed,
 	event,
 	window,
+	editable,
 	now,
 	timeZone,
 	secondZone,
@@ -401,6 +403,7 @@ function SelectedEventDialog({
 	moveSeed?: MoveSeed
 	event: CalendarEventView | null
 	window: GoogleScheduleWindow | null
+	editable: boolean
 	now: Date
 	timeZone: string
 	secondZone: string | null
@@ -427,11 +430,15 @@ function SelectedEventDialog({
 		)
 	return (
 		<CalendarEventDialog
+			key={event.eventKey}
 			event={event}
+			window={window}
+			editable={editable}
 			timeZone={timeZone}
 			secondZone={secondZone}
 			currentYear={currentYear}
 			onClose={onClose}
+			onReload={onRefresh}
 		/>
 	)
 }

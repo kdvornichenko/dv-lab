@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 
 import { RefreshCw } from 'lucide-react'
 
+import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
-import { FormFooter, type useGoogleConflicts } from '@/components/app/google-conflicts'
+import { ConflictStatus, FormFooter, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { LengthField } from '@/components/app/length-field'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,11 +19,35 @@ import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 import { formatDate, secondWhen, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone } from '@/lib/time-zones'
 
-import type { LessonRepeats } from '@dv-lab/contracts'
-import { scheduleDate, weekdayOf } from '@dv-lab/core'
+import type {
+	CalendarEditScope,
+	CalendarEventDetails,
+	CalendarEventView,
+	GoogleScheduleWindow,
+	LessonRepeats,
+	UpdateCalendarEventRequest,
+} from '@dv-lab/contracts'
+import { scheduleDate, weekdayOf, zonedParts } from '@dv-lab/core'
 
-import { ColorSelect, COLOR_DEFAULT, type PaletteState } from './color-select'
-import { gapMessage, LocalTimeHint, localTimeInput, type useScheduleFormContext } from './schedule-form-context'
+import { useToast } from '../../_components/toasts'
+import {
+	COLOR_CUSTOM,
+	COLOR_DEFAULT,
+	ColorSelect,
+	colorIdOf,
+	colorValueOf,
+	useEventPalette,
+	type PaletteState,
+} from './color-select'
+import {
+	gapMessage,
+	LocalTimeHint,
+	localTimeInput,
+	TimeZoneStaleNotice,
+	useScheduleFormContext,
+} from './schedule-form-context'
+import { useScheduleMutation } from './schedule-mutations'
+import { ScopeDialog } from './scope-dialog'
 
 export const EVENT_TITLE_ERROR = 'Enter a title.'
 export const CHECK_STUDENT = '00000000-0000-0000-0000-000000000000'
@@ -470,5 +495,227 @@ export function EventFooter({
 				{pending ? pendingLabel : label}
 			</Button>
 		</FormFooter>
+	)
+}
+
+export function EventEditForm({
+	event,
+	details,
+	latestVersion,
+	window,
+	mainTimeZone,
+	secondZone,
+	available,
+	onDirtyChange,
+	onRefresh,
+	onReload,
+	onDiscard,
+	onSaved,
+}: {
+	event: CalendarEventView
+	details: CalendarEventDetails
+	latestVersion: string
+	window: GoogleScheduleWindow
+	mainTimeZone: string
+	secondZone: string | null
+	available: boolean
+	onDirtyChange: (dirty: boolean) => void
+	onRefresh: () => void
+	onReload: () => void
+	onDiscard: () => void
+	onSaved: () => void
+}) {
+	const toast = useToast()
+	const asOf = window.read.state === 'unavailable' ? new Date().toISOString() : window.read.fetchedAt
+	const context = useScheduleFormContext({ mainTimeZone, asOf }, window.requestedRange.timeZone)
+	const [seed] = useState(() => {
+		if (event.when.kind !== 'timed') throw new Error('Only timed events are edited')
+		const start = new Date(event.when.startsAt)
+		const parts = zonedParts(start, mainTimeZone)
+		return {
+			date: parts.date,
+			time: clockOf(parts.minutes),
+			durationMinutes: Math.round((Date.parse(event.when.endsAt) - start.getTime()) / 60000),
+		}
+	})
+	const locked = details.repeat.kind === 'other' ? READ_ISSUES.unsupported_recurrence : null
+	const seedRepeats: LessonRepeats = details.repeat.kind === 'weekly' ? 'weekly' : 'once'
+	const fields = useTimeFields(seed, context, secondZone, {
+		idPrefix: 'event-edit',
+		repeats: seedRepeats,
+		allowPast: true,
+	})
+	const base = {
+		title: details.title?.trim() ?? '',
+		color: colorValueOf(details.color),
+		location: details.location ?? '',
+		description: details.description ?? '',
+	}
+	const values = useEventValues({
+		title: base.title,
+		colorValue: base.color,
+		location: base.location,
+		description: base.description,
+	})
+	const palette = useEventPalette()
+	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: seed.date })
+	const pending = command.pending
+	const [titleTouched, setTitleTouched] = useState(false)
+	const [failed, setFailed] = useState(false)
+	const [serverStale, setServerStale] = useState(false)
+	const [scoping, setScoping] = useState(false)
+	const lengthRef = useRef<HTMLInputElement>(null)
+	const titleRef = useRef<HTMLInputElement>(null)
+
+	const { date, time, minutes, repeats, input, errors } = fields
+	const title = values.title.trim()
+	const changes: UpdateCalendarEventRequest['changes'] = {}
+	const timeChanged = date !== seed.date || time !== seed.time || minutes !== seed.durationMinutes
+	if (title !== base.title) changes.title = title
+	if (date !== seed.date || time !== seed.time) {
+		changes.date = date
+		changes.startTime = time ?? seed.time
+	}
+	if (minutes !== seed.durationMinutes && minutes !== null) changes.durationMinutes = minutes
+	if (locked === null && repeats !== seedRepeats) changes.repeats = repeats
+	if (values.colorValue !== base.color && values.colorValue !== COLOR_CUSTOM)
+		changes.colorId = colorIdOf(values.colorValue)
+	if (values.description !== base.description)
+		changes.description = values.description.trim() === '' ? null : values.description
+	if (values.location !== base.location)
+		changes.location = values.location.trim() === '' ? null : values.location.trim()
+	const dirty = Object.keys(changes).length > 0
+	const titleMissing = title === '' && base.title !== ''
+	const titleError = titleMissing && (titleTouched || fields.submitted) ? EVENT_TITLE_ERROR : undefined
+	const stale = serverStale || latestVersion !== details.version
+	const invalid = Boolean(errors.date || errors.time || errors.length) || titleMissing
+
+	useEffect(() => {
+		onDirtyChange(dirty)
+	}, [dirty, onDirtyChange])
+
+	const conflicts = useGoogleConflicts({
+		proposal: createProposal(
+			{
+				studentId: CHECK_STUDENT,
+				date,
+				startTime: time,
+				durationMinutes: minutes,
+				repeats: 'once',
+				expectedDefaultTimeZone: context.mainTimeZone,
+			},
+			Boolean(fields.timeError || errors.date)
+		),
+		date,
+		available: available && timeChanged && !stale && !context.stale && !command.blocked,
+	})
+	const check = withoutEvent(conflicts, event.eventKey)
+	const waiting = timeChanged && !conflicts.ready
+	const scopeAsked = event.seriesMember && details.scopes.edit.length > 1
+
+	async function send(scope: CalendarEditScope): Promise<boolean> {
+		if (time === null || minutes === null) return false
+		const result = await command.mutate(
+			{ kind: 'event', eventKey: event.eventKey, version: details.version },
+			'event_update',
+			{ scope, changes },
+			timeChanged ? (conflicts.checked ?? undefined) : undefined
+		)
+		if (result.kind === 'detached') return false
+		if (result.kind === 'zone_changed') {
+			context.markStale()
+			return false
+		}
+		if (result.kind === 'gap') {
+			fields.setServerGap(true)
+			return false
+		}
+		if (result.kind === 'stale') {
+			setServerStale(true)
+			return false
+		}
+		if (result.kind !== 'ok') return false
+		toast.show({
+			title: 'Event updated',
+			description: `${title || 'Event'}, ${formatDate(date, context.currentYear)}, ${time} ${input.label}.`,
+		})
+		onSaved()
+		return true
+	}
+
+	async function onSubmit(submitted: FormEvent<HTMLFormElement>) {
+		submitted.preventDefault()
+		if (pending || !dirty || command.blocked || context.stale || stale) return
+		fields.setSubmitted(true)
+		setFailed(false)
+		if (titleMissing) return titleRef.current?.focus()
+		if (errors.date) return document.getElementById('event-edit-date')?.focus()
+		if (errors.time || time === null) return document.getElementById('event-edit-time')?.focus()
+		if (errors.length || minutes === null) return lengthRef.current?.focus()
+		if (waiting) return
+		if (scopeAsked) return setScoping(true)
+		if (!(await send('one'))) setFailed(true)
+	}
+
+	const status = stale ? (
+		<ChangedInGoogle onRefresh={onRefresh} disabled={pending} />
+	) : (
+		<ConflictStatus
+			check={check}
+			timeZone={context.mainTimeZone}
+			durationMinutes={minutes}
+			failure={failed ? 'Could not save the event. Try again.' : null}
+			lessons={[]}
+		/>
+	)
+
+	return (
+		<form noValidate onSubmit={onSubmit} className="flex min-h-0 flex-col">
+			<CalendarFormStatus
+				entry={command.entry}
+				blocked={command.blocked}
+				connectionShown
+				onViewSchedule={() => {
+					command.detach()
+					onDiscard()
+				}}
+			/>
+			<div className="flex flex-col gap-3 py-1">
+				<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onReload} />
+				<div onBlur={() => setTitleTouched(true)}>
+					<EventTitleRow
+						id="event-edit-title"
+						values={values}
+						error={titleError}
+						disabled={pending}
+						inputRef={titleRef}
+					/>
+				</div>
+				<TimeRows fields={fields} pending={pending} lengthRef={lengthRef} repeatsLocked={locked} />
+				<EventExtraRows
+					prefix="event-edit"
+					values={values}
+					palette={palette}
+					custom={details.color.custom ? { background: details.color.background } : null}
+					disabled={pending}
+				/>
+			</div>
+			<EventFooter
+				status={status}
+				pending={pending}
+				disabled={!dirty || invalid || stale || command.blocked || context.stale || waiting || !available}
+				label="Save changes"
+				pendingLabel="Saving…"
+				onDiscard={onDiscard}
+			/>
+			{scoping ? (
+				<ScopeDialog
+					kind={{ subject: 'event', action: 'save' }}
+					allowed={details.scopes.edit}
+					onConfirm={send}
+					onClose={() => setScoping(false)}
+				/>
+			) : null}
+		</form>
 	)
 }
