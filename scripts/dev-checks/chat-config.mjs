@@ -200,7 +200,7 @@ async function sectionSave(db, accountId) {
 				],
 			},
 		],
-		['an id outside the claude- form', { models: [modelWith('gpt-5')] }],
+		['an id outside the claude- form', { models: [modelWith('other-vendor-5')] }],
 		['maxInputTokens 150000', { maxInputTokens: 150000 }],
 		['maxInputTokens 999', { maxInputTokens: 999 }],
 		['maxOutputTokens above the limit', { maxOutputTokens: contracts.CHAT_MAX_OUTPUT_TOKENS_LIMIT + 1 }],
