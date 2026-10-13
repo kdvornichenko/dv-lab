@@ -420,12 +420,14 @@ export function WeekGrid({
 	useLayoutEffect(() => {
 		const column = columnRef.current
 		if (!column) return
-		const measure = () => setColumnWidth(column.clientWidth)
+		const measure = () => {
+			if (column.isConnected && column.clientWidth > 0) setColumnWidth(column.clientWidth)
+		}
 		measure()
 		const observer = new ResizeObserver(measure)
 		observer.observe(column)
 		return () => observer.disconnect()
-	}, [])
+	}, [monday])
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
