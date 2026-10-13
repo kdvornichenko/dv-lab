@@ -20,6 +20,8 @@ import { WeekGrid, type GridPlaceholder } from './week-grid'
 
 export const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
 export const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2'
+export const STRIP = 'flex min-h-7 flex-wrap items-center gap-2'
+export const STRIP_TOOLS = 'ml-auto flex items-center gap-2'
 
 const FIRST_HOUR = DAY_START_MINUTES / 60
 
@@ -52,7 +54,7 @@ function never() {
 
 function LoadingSlots() {
 	return (
-		<div className="flex items-center gap-2">
+		<div className={STRIP_TOOLS}>
 			<Skeleton className="size-7 rounded-md" />
 			<Skeleton className="size-7 rounded-md" />
 			<Skeleton className="size-7 rounded-md" />
@@ -103,7 +105,7 @@ export function ScheduleLoading() {
 						</Button>
 					}
 				/>
-				<div className="flex min-h-7 items-center justify-between gap-2">
+				<div className={STRIP}>
 					{today !== null && monday !== null ? (
 						<ScheduleBar
 							monday={monday}

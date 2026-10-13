@@ -25,7 +25,15 @@ import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
-import { NOTICE_SLOT, WORKSPACE_BODY, LOADING_BLOCKS, ScheduleLoading, useLaptop } from './schedule-loading'
+import {
+	NOTICE_SLOT,
+	STRIP,
+	STRIP_TOOLS,
+	WORKSPACE_BODY,
+	LOADING_BLOCKS,
+	ScheduleLoading,
+	useLaptop,
+} from './schedule-loading'
 import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
@@ -308,9 +316,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 						</Button>
 					}
 				/>
-				<div className="flex min-h-7 items-center gap-2">
+				<div className={STRIP}>
 					<ScheduleBar {...navigation} onWeek={pickWeek} today={today} titleRef={null} summary={null} heading={false} />
-					<div className="ml-auto flex items-center gap-2">{tools}</div>
+					<div className={STRIP_TOOLS}>{tools}</div>
 				</div>
 				<div {...windowAttributes} className="space-y-4">
 					<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
