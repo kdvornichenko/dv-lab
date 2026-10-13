@@ -236,94 +236,94 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 
 	return (
 		<div ref={area} className="flex min-h-0 flex-1">
-		<div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
-			<div className="mx-auto w-full max-w-180 pb-4">
-				<ChatHeader
-					title={selected?.title ?? 'Chat'}
-					loadingTitle={loadingTitle}
-					compact={wide}
-					listOpen={listOpen}
-					onToggleList={() => setListOpen((open) => !open)}
-					onCreate={create}
-				/>
-			</div>
-			<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
-				<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
-					<ScrollArea
-						className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
-						viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col [&>div]:justify-end"
-					>
-						<div
-							role="log"
-							aria-label="Messages"
-							className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col justify-end gap-4 pb-2"
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
+				<div className="mx-auto w-full max-w-180 pb-4">
+					<ChatHeader
+						title={selected?.title ?? 'Chat'}
+						loadingTitle={loadingTitle}
+						compact={wide}
+						listOpen={listOpen}
+						onToggleList={() => setListOpen((open) => !open)}
+						onCreate={create}
+					/>
+				</div>
+				<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
+					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
+						<ScrollArea
+							className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
+							viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col [&>div]:justify-end"
 						>
-							{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
-							<Thread
-								state={chat.thread}
-								onUndo={(actionId) => void chat.undo(actionId)}
-								onChoose={choose}
-								onRefresh={chat.reloadThread}
-								calendar={{
-									onConfirm: (actionId) => void chat.confirmCalendar(actionId),
-									onCheck: chat.checkCalendar,
-								}}
-								replies={{
-									onAsk: () => later(() => input.current?.focus()),
-									onCheckStatus: chat.checkStatus,
-								}}
-								active={
-									chat.reply === null
-										? null
-										: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
-								}
-								empty={studentId === null}
-								onCommand={command}
+							<div
+								role="log"
+								aria-label="Messages"
+								className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col justify-end gap-4 pb-2"
+							>
+								{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
+								<Thread
+									state={chat.thread}
+									onUndo={(actionId) => void chat.undo(actionId)}
+									onChoose={choose}
+									onRefresh={chat.reloadThread}
+									calendar={{
+										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
+										onCheck: chat.checkCalendar,
+									}}
+									replies={{
+										onAsk: () => later(() => input.current?.focus()),
+										onCheckStatus: chat.checkStatus,
+									}}
+									active={
+										chat.reply === null
+											? null
+											: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
+									}
+									empty={studentId === null}
+									onCommand={command}
+								/>
+							</div>
+						</ScrollArea>
+						<div className="mx-auto flex w-full max-w-180 flex-col gap-3">
+							{chat.sendFailed ? (
+								<Banner status="error">
+									<BannerTitle>Could not send the message. Try again.</BannerTitle>
+								</Banner>
+							) : null}
+							<Composer
+								draft={composer.draft}
+								onDraft={composer.setDraft}
+								onType={composer.type}
+								students={students.state}
+								onRetryStudents={students.retry}
+								disabled={listOpen || chat.sending}
+								sending={chat.sending}
+								onSend={() => void send()}
+								replying={chat.reply !== null}
+								stopping={chat.reply?.stopping ?? false}
+								onStop={() => void chat.stop()}
+								inputRef={input}
+								models={chat.models}
 							/>
 						</div>
-					</ScrollArea>
-					<div className="mx-auto flex w-full max-w-180 flex-col gap-3">
-						{chat.sendFailed ? (
-							<Banner status="error">
-								<BannerTitle>Could not send the message. Try again.</BannerTitle>
-							</Banner>
-						) : null}
-						<Composer
-							draft={composer.draft}
-							onDraft={composer.setDraft}
-							onType={composer.type}
-							students={students.state}
-							onRetryStudents={students.retry}
-							disabled={listOpen || chat.sending}
-							sending={chat.sending}
-							onSend={() => void send()}
-							replying={chat.reply !== null}
-							stopping={chat.reply?.stopping ?? false}
-							onStop={() => void chat.stop()}
-							inputRef={input}
-							models={chat.models}
-						/>
+					</div>
+					<div className="absolute inset-x-0 top-0 mx-auto max-w-180">
+						<AnimatePresence>
+							{listOpen ? (
+								<ConversationList
+									state={chat.list}
+									selectedId={chat.selectedId}
+									onSelect={(id) => {
+										chat.select(id)
+										setListOpen(false)
+									}}
+									onRename={setRenaming}
+									onDelete={setDeleting}
+									onRefresh={() => void chat.reload()}
+								/>
+							) : null}
+						</AnimatePresence>
 					</div>
 				</div>
-				<div className="absolute inset-x-0 top-0 mx-auto max-w-180">
-					<AnimatePresence>
-						{listOpen ? (
-							<ConversationList
-								state={chat.list}
-								selectedId={chat.selectedId}
-								onSelect={(id) => {
-									chat.select(id)
-									setListOpen(false)
-								}}
-								onRename={setRenaming}
-								onDelete={setDeleting}
-								onRefresh={() => void chat.reload()}
-							/>
-						) : null}
-					</AnimatePresence>
-				</div>
 			</div>
-		</div>
 			{wide ? (
 				<ConversationRail
 					state={chat.list}

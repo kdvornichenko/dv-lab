@@ -15,7 +15,11 @@ export function ReplyFooter({ time, title, copyText }: { time: string; title: st
 			</span>
 			{copyText === null ? null : (
 				<>
-					<Tooltip side="right" forceOpen={state === 'idle' ? undefined : true} content={copyTooltip(state, 'Copy reply')}>
+					<Tooltip
+						side="right"
+						forceOpen={state === 'idle' ? undefined : true}
+						content={copyTooltip(state, 'Copy reply')}
+					>
 						<Button
 							variant="ghost"
 							size="icon-compact"

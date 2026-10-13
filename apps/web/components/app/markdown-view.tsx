@@ -138,7 +138,8 @@ export type ChatMarkdown = {
 function ChatView({ body, chat }: { body: string; chat: ChatMarkdown }) {
 	const { mentions, streaming, renderMention } = chat
 	const plugins = useMemo(
-		() => [remarkGfm, [remarkMarks, { mentions, caret: streaming }]] as unknown as NonNullable<Options['remarkPlugins']>,
+		() =>
+			[remarkGfm, [remarkMarks, { mentions, caret: streaming }]] as unknown as NonNullable<Options['remarkPlugins']>,
 		[mentions, streaming]
 	)
 	const mapped = useMemo(
@@ -151,7 +152,10 @@ function ChatView({ body, chat }: { body: string; chat: ChatMarkdown }) {
 		[renderMention]
 	)
 	return (
-		<div data-slot="chat-reply-text" className="flex flex-col gap-3 text-subtitle font-normal wrap-anywhere text-foreground">
+		<div
+			data-slot="chat-reply-text"
+			className="flex flex-col gap-3 text-subtitle font-normal wrap-anywhere text-foreground"
+		>
 			<Markdown remarkPlugins={plugins} skipHtml components={mapped}>
 				{body}
 			</Markdown>

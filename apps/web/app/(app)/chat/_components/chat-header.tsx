@@ -34,54 +34,54 @@ export function ChatHeader({
 				</h1>
 			)}
 			{compact ? null : (
-			<>
-			<Button
-				data-all-chats=""
-				variant="ghost"
-				size="compact"
-				leadingIcon={List}
-				active={listOpen}
-				aria-expanded={listOpen}
-				disabled={disabled}
-				className="max-md:hidden"
-				onClick={onToggleList}
-			>
-				All chats
-			</Button>
-			<Button
-				data-all-chats=""
-				variant="ghost"
-				size="icon-compact"
-				active={listOpen}
-				aria-expanded={listOpen}
-				aria-label="All chats"
-				disabled={disabled}
-				className="w-9 md:hidden"
-				onClick={onToggleList}
-			>
-				<List />
-			</Button>
-			<Button
-				variant="tertiary"
-				size="compact"
-				leadingIcon={Plus}
-				disabled={disabled}
-				className="max-md:hidden"
-				onClick={onCreate}
-			>
-				New chat
-			</Button>
-			<Button
-				variant="tertiary"
-				size="icon-compact"
-				aria-label="New chat"
-				disabled={disabled}
-				className="w-9 md:hidden"
-				onClick={onCreate}
-			>
-				<Plus />
-			</Button>
-			</>
+				<>
+					<Button
+						data-all-chats=""
+						variant="ghost"
+						size="compact"
+						leadingIcon={List}
+						active={listOpen}
+						aria-expanded={listOpen}
+						disabled={disabled}
+						className="max-md:hidden"
+						onClick={onToggleList}
+					>
+						All chats
+					</Button>
+					<Button
+						data-all-chats=""
+						variant="ghost"
+						size="icon-compact"
+						active={listOpen}
+						aria-expanded={listOpen}
+						aria-label="All chats"
+						disabled={disabled}
+						className="w-9 md:hidden"
+						onClick={onToggleList}
+					>
+						<List />
+					</Button>
+					<Button
+						variant="tertiary"
+						size="compact"
+						leadingIcon={Plus}
+						disabled={disabled}
+						className="max-md:hidden"
+						onClick={onCreate}
+					>
+						New chat
+					</Button>
+					<Button
+						variant="tertiary"
+						size="icon-compact"
+						aria-label="New chat"
+						disabled={disabled}
+						className="w-9 md:hidden"
+						onClick={onCreate}
+					>
+						<Plus />
+					</Button>
+				</>
 			)}
 		</header>
 	)
