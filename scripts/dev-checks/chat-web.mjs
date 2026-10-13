@@ -1559,9 +1559,9 @@ async function sectionBudget() {
 			const warningText = await card.innerText()
 			check(
 				'usage, remaining and the conversation come from the server',
-				warningText.includes('Estimated usage this month: $8.50 of $10.') &&
-					warningText.includes('Remaining estimate: $1.50.') &&
-					!warningText.includes('Reserved estimate') &&
+				warningText.includes('$8.50 used') &&
+					warningText.includes('$1.50 left') &&
+					!warningText.includes('held by a request in progress') &&
 					warningText.includes(BUDGET_TITLE) &&
 					warningText.includes('Costs count toward your monthly budget.') &&
 					warningText.includes('Saved to your account.'),
@@ -1578,9 +1578,9 @@ async function sectionBudget() {
 				'usage with an unconfirmed reserve at the cap is the reached state with a full bar',
 				(await card.getAttribute('data-budget-state')) === 'reached' &&
 					(await card.locator('[data-budget-fill]').getAttribute('data-budget-fill')) === '100' &&
-					reachedText.includes('Remaining estimate: $0.00.') &&
-					reachedText.includes('Reserved estimate: $2.00.') &&
-					reachedText.includes('Usage has not been confirmed.'),
+					reachedText.includes('$0.00 left') &&
+					reachedText.includes('$2.00 is held by a request in progress.') &&
+					reachedText.includes('Usage has not been confirmed. The figures are estimates.'),
 				reachedText
 			)
 			await shot(page, 'chat-budget', 'reached')
@@ -1621,8 +1621,7 @@ async function sectionBudget() {
 			)
 			check(
 				'after saving $15 the state follows the server',
-				(await card.getAttribute('data-budget-state')) === 'ok' &&
-					(await card.innerText()).includes('Estimated usage this month: $8.50 of $15.')
+				(await card.getAttribute('data-budget-state')) === 'ok' && (await card.innerText()).includes('$8.50 used')
 			)
 			await shot(page, 'chat-budget', 'saved')
 
@@ -2180,8 +2179,11 @@ async function sectionModels() {
 				)
 
 				await openModelsSettings(page)
-				await card.getByRole('button', { name: 'Move Opus 5.5 up' }).click()
-				await card.getByRole('button', { name: 'Move Opus 5.5 up' }).click()
+				await card.getByLabel('Reorder Opus 5.5').focus()
+				await page.keyboard.press('Space')
+				await page.keyboard.press('ArrowUp')
+				await page.keyboard.press('ArrowUp')
+				await page.keyboard.press('Space')
 				await card.getByRole('button', { name: 'Edit Opus 5.5' }).click()
 				const opus = card.locator(`${ENTRY}[data-model="claude-opus-5-5"]`)
 				await opus.getByLabel('Input', { exact: true }).fill('4.50')
