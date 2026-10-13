@@ -186,6 +186,16 @@ async function insertDomain(
 			const mark = marks.get(lineage.from.originalOn)
 			if (mark !== undefined)
 				await putMark(tx, { kind: 'single', lessonId: reservation.localEntityId }, toMarkKind(mark))
+			await tx
+				.update(lessonComments)
+				.set({
+					lessonId: reservation.localEntityId,
+					seriesId: null,
+					originalOn: null,
+					revision: sql`${lessonComments.revision} + 1`,
+					updatedAt: sql`now()`,
+				})
+				.where(and(eq(lessonComments.seriesId, oldSeriesId), eq(lessonComments.originalOn, lineage.from.originalOn)))
 		}
 		await confirmEventMapping(tx, command.accountId, command.id, reservation.eventId)
 	}
