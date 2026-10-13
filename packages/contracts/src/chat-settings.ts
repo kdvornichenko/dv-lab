@@ -132,7 +132,12 @@ export const conversationUsage = z.strictObject({
 
 export type ConversationUsage = z.infer<typeof conversationUsage>
 
-export type AssistantSettingsResponse = { settings: AssistantSettings; capabilities: ModelCapability[] }
+export type AssistantSettingsResponse = {
+	settings: AssistantSettings
+	capabilities: ModelCapability[]
+	budget: BudgetSnapshot
+	usage: ConversationUsage[]
+}
 
 export const CHAT_SETTINGS_DEFAULT: AssistantSettings = {
 	monthlyCapUsd: '10.00',
