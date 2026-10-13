@@ -421,6 +421,22 @@ async function readStatus() {
 
 async function settings() {
 	const { browser, page, problems } = await launch(VIEWPORTS[0])
+	await page.route('**/api/google/calendars', (route) =>
+		route.fulfill({
+			json: {
+				calendars: [
+					{
+						id: 'synthetic-calendar',
+						label: 'Synthetic calendar',
+						timeZone: 'Asia/Ho_Chi_Minh',
+						primary: true,
+						current: true,
+						color: null,
+					},
+				],
+			},
+		})
+	)
 	const open = async (state) => {
 		seed('state', 'dev', state)
 		await page.goto(`${BASE}/settings?tab=calendar`, { timeout: 120000 })
