@@ -25,6 +25,7 @@ export function LessonFooter({
 	onRestore,
 	onMove,
 	onConfirm,
+	onEndSeries,
 }: {
 	block: Pick<ScheduleBlock, 'startsAt'> & { actions: Pick<ScheduleBlock['actions'], 'move' | 'cancel' | 'restore'> }
 	mainTimeZone: string
@@ -38,6 +39,7 @@ export function LessonFooter({
 	onRestore: () => void
 	onMove: () => void
 	onConfirm: () => void
+	onEndSeries?: () => void
 }) {
 	const start = new Date(block.startsAt)
 	const { actions } = block
@@ -92,6 +94,11 @@ export function LessonFooter({
 									onClick={onConfirm}
 								>
 									Cancel lesson
+								</Button>
+							) : null}
+							{onEndSeries !== undefined ? (
+								<Button type="button" variant="ghost" size="compact" disabled={locked} onClick={onEndSeries}>
+									End series
 								</Button>
 							) : null}
 						</div>

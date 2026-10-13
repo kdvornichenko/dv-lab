@@ -27,7 +27,6 @@ import { calendarVersionFor, type CalendarTarget } from './calendar-overlaps'
 
 export const STALE_TITLE = 'This lesson was changed elsewhere'
 export const STALE_LESSON = 'The schedule has been refreshed.'
-export const STALE_DATES = 'The schedule has been refreshed. Check the dates and try again.'
 export const STALE_DATE = 'The schedule has been refreshed. Check the date and try again.'
 
 export type LessonBody = { expectedStartsAt?: string }
@@ -88,7 +87,7 @@ export type CalendarSelection = {
 	series?: CalendarSeriesContext
 }
 
-type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
+export type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
 export type MutationResult<T> =
 	| { kind: 'ok'; data: T; status: number }
 	| { kind: 'stale' }

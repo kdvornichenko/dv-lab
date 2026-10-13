@@ -4,7 +4,9 @@ import {
 	type CalendarSeriesContext,
 	type GoogleScheduleWindow,
 	type ScheduleOccurrenceRef,
+	type ScheduleSeries,
 } from '@dv-lab/contracts'
+import { scheduleDate, seriesStart } from '@dv-lab/core'
 
 export type CalendarLesson = CalendarEventView & {
 	binding: Extract<CalendarEventView['binding'], { kind: 'lesson' }>
@@ -53,6 +55,11 @@ export function calendarSeriesFor(
 	if (event.binding.kind !== 'lesson' || event.binding.ref.kind !== 'series') return null
 	const id = event.binding.ref.seriesId
 	return window.series.find((context) => context.series.id === id) ?? null
+}
+
+export function seriesDateInZone(rule: ScheduleSeries, date: string, mainTimeZone: string): string | null {
+	const instant = seriesStart(rule, date)
+	return instant === null ? null : scheduleDate(instant, mainTimeZone)
 }
 
 export function staleCalendarWindow(data: GoogleScheduleWindow | null): GoogleScheduleWindow | null {

@@ -9,11 +9,11 @@ import { useCalendarCommands } from '@/components/app/calendar-command-provider'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { calendarSeriesFor, canEditCalendarEvent, type CalendarLesson } from '@/lib/lesson-actions'
+import { calendarSeriesFor, canEditCalendarEvent, seriesDateInZone, type CalendarLesson } from '@/lib/lesson-actions'
 import { cn } from '@/lib/utils'
 
 import type { CalendarEditScope, CalendarSeriesContext, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, nextSeriesDate, scheduleDate, weekdayOf } from '@dv-lab/core'
+import { addDays, canChange, nextSeriesDate, scheduleDate, weekdayOf } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
@@ -21,10 +21,8 @@ import { EndSeriesDialog } from './end-series-dialog'
 import type { DirectState } from './event-form'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
-import { LessonMoveForm, type SeriesDraft } from './lesson-move-form'
-import { MoveSeriesDialog, type SeriesSeed } from './move-series-dialog'
-import { seriesDateInZone } from './move-series-preview'
-import { useScheduleMutation } from './schedule-mutations'
+import { LessonMoveForm, type MoveDraft } from './lesson-move-form'
+import { useScheduleMutation, type MoveLessonBody, type MoveSeriesBody } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 
@@ -42,71 +40,70 @@ type Props = {
 }
 
 export function CalendarLessonDialog(props: Props) {
-	const [series, setSeries] = useState<{
-		kind: 'move' | 'end'
-		context: CalendarSeriesContext
-		seed?: SeriesSeed
-	} | null>(null)
+	const [ending, setEnding] = useState(false)
 	const mainTimeZone = props.mainTimeZone
 	const asOf = props.window.read.state === 'unavailable' ? props.now.toISOString() : props.window.read.fetchedAt
 	const currentSeries = calendarSeriesFor(props.window, props.event)
 	const usableSeries = currentSeries !== null && canEditCalendarEvent(props.event, props.window)
-	const shared = {
-		mainTimeZone,
-		currentMainTimeZone: props.window.requestedRange.timeZone,
-		asOf,
-		studentName: props.student?.name ?? eventTitle(props.event),
-		now: props.now,
-		onClose: props.onClose,
-		onStale: props.onRefresh,
-		onRefresh: props.onRefresh,
-	}
-	if (series?.kind === 'move')
+	if (ending && currentSeries !== null)
 		return (
-			<MoveSeriesDialog
-				{...shared}
-				seed={series.seed}
-				series={series.context}
+			<EndSeriesDialog
+				mainTimeZone={mainTimeZone}
+				currentMainTimeZone={props.window.requestedRange.timeZone}
+				asOf={asOf}
+				studentName={props.student?.name ?? eventTitle(props.event)}
+				now={props.now}
+				onClose={props.onClose}
+				onStale={props.onRefresh}
+				onRefresh={props.onRefresh}
+				series={currentSeries}
 				available={usableSeries}
-				onMoved={props.onClose}
+				onEnded={props.onClose}
 			/>
 		)
-	if (series?.kind === 'end')
-		return <EndSeriesDialog {...shared} series={series.context} available={usableSeries} onEnded={props.onClose} />
-	return (
-		<LessonContent
-			{...props}
-			asOf={asOf}
-			series={currentSeries}
-			onSeries={(kind) => {
-				if (currentSeries !== null) setSeries({ kind, context: currentSeries })
-			}}
-			onSeriesScope={(scope, draft) => {
-				if (currentSeries === null) return
-				setSeries({
-					kind: 'move',
-					context: currentSeries,
-					seed: seriesSeed(scope, draft, props.event, currentSeries, props.now, mainTimeZone),
-				})
-			}}
-		/>
-	)
+	return <LessonContent {...props} asOf={asOf} series={currentSeries} onEndSeries={() => setEnding(true)} />
 }
 
-function seriesSeed(
+function dayGap(later: string, earlier: string): number {
+	return Math.round((Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86400000)
+}
+
+function lessonMoveBody(event: CalendarLesson, draft: MoveDraft, mainTimeZone: string): MoveLessonBody {
+	const length = (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000
+	return {
+		date: draft.date,
+		startTime: draft.time,
+		...(draft.durationMinutes !== length ? { durationMinutes: draft.durationMinutes } : {}),
+		expectedStartsAt: event.when.startsAt,
+		expectedDefaultTimeZone: mainTimeZone,
+	}
+}
+
+function seriesMoveBody(
 	scope: 'following' | 'all',
-	draft: SeriesDraft,
+	draft: MoveDraft,
 	event: CalendarLesson,
 	context: CalendarSeriesContext,
 	now: Date,
 	mainTimeZone: string
-): SeriesSeed {
-	const ref = event.binding.ref
+): MoveSeriesBody {
 	const rule = context.series
-	const natural = scope === 'following' && ref.kind === 'series' ? ref.originalOn : nextSeriesDate(rule, now)
-	const from =
-		natural === null ? scheduleDate(now, mainTimeZone) : (seriesDateInZone(rule, natural, mainTimeZone) ?? natural)
-	return { from, weekday: weekdayOf(draft.date), time: draft.time, durationMinutes: draft.durationMinutes }
+	const ref = event.binding.ref
+	const today = scheduleDate(now, mainTimeZone)
+	const inZone = (date: string) => seriesDateInZone(rule, date, mainTimeZone) ?? date
+	const opened =
+		ref.kind === 'series' ? inZone(ref.originalOn) : scheduleDate(new Date(event.when.startsAt), mainTimeZone)
+	const natural = scope === 'following' ? opened : nextSeriesDate(rule, now)
+	const cut = natural === null ? today : scope === 'following' ? natural : inZone(natural)
+	const first = addDays(cut, dayGap(draft.date, opened))
+	const earlier = first < cut ? first : cut
+	return {
+		from: earlier < today ? today : earlier,
+		weekday: weekdayOf(first),
+		startTime: draft.time,
+		...(draft.durationMinutes !== rule.durationMinutes ? { durationMinutes: draft.durationMinutes } : {}),
+		expectedDefaultTimeZone: mainTimeZone,
+	}
 }
 
 function LessonContent({
@@ -122,13 +119,11 @@ function LessonContent({
 	onRefresh,
 	asOf,
 	series,
-	onSeries,
-	onSeriesScope,
+	onEndSeries,
 }: Props & {
 	asOf: string
 	series: CalendarSeriesContext | null
-	onSeries: (kind: 'move' | 'end') => void
-	onSeriesScope: (scope: 'following' | 'all', draft: SeriesDraft) => void
+	onEndSeries: () => void
 }) {
 	const toast = useToast()
 	const [initial] = useState(event)
@@ -141,19 +136,19 @@ function LessonContent({
 	const { blocked } = useCalendarCommands()
 	const [moving, setMoving] = useState(moveSeed !== undefined)
 	const [direct, setDirect] = useState<DirectState>(moveSeed !== undefined ? 'sending' : 'shown')
-	const [movePending, setMovePending] = useState(false)
 	const [confirming, setConfirming] = useState(false)
 	const [scoping, setScoping] = useState(false)
 	const [failure, setFailure] = useState(false)
 	const moveButton = useRef<HTMLButtonElement>(null)
 	const editable = canEditCalendarEvent(event, window) && !blocked
-	const pending = command.pending || movePending
+	const pending = command.pending
 	const details = {
 		startsAt: event.when.startsAt,
 		durationMinutes: (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
 		timeZone: event.when.timeZone,
-		actions: { series: editable && series !== null },
 	}
+	const endable =
+		editable && series !== null && event.status !== 'cancelled' && canChange(new Date(event.when.startsAt), now)
 	const actions = {
 		move: editable && event.status !== 'cancelled',
 		cancel: editable && event.status !== 'cancelled',
@@ -187,6 +182,29 @@ function LessonContent({
 		})
 		if (result.kind !== 'ok') return false
 		toast.show({ title: 'Series ended', description: `${title}'s series was ended.` })
+		onClose()
+		return true
+	}
+	async function save(scope: CalendarEditScope, draft: MoveDraft): Promise<boolean> {
+		if (pending || !editable) return false
+		const result =
+			scope === 'one' || series === null
+				? await command.mutate(initial.binding.ref, 'move', lessonMoveBody(initial, draft, mainTimeZone), draft.checked)
+				: await command.mutate(
+						{ kind: 'rule', seriesId: series.series.id },
+						'move',
+						seriesMoveBody(scope, draft, initial, series, now, mainTimeZone)
+					)
+		if (result.kind === 'detached') return true
+		if (result.kind === 'stale') {
+			onRefresh()
+			return true
+		}
+		if (result.kind !== 'ok') return false
+		toast.show({
+			title: scope === 'one' ? 'Lesson moved' : 'Series moved',
+			description: 'Google Calendar confirmed the new time.',
+		})
 		onClose()
 		return true
 	}
@@ -244,9 +262,6 @@ function LessonContent({
 							series={series?.series ?? null}
 							mainTimeZone={mainTimeZone}
 							secondZone={secondZone}
-							currentYear={Number(scheduleDate(now, mainTimeZone).slice(0, 4))}
-							pending={pending}
-							onSeries={onSeries}
 						/>
 						{moving ? (
 							<LessonMoveForm
@@ -263,18 +278,12 @@ function LessonContent({
 								direct={direct !== 'shown'}
 								onDirect={setDirect}
 								onClose={onClose}
-								onPendingChange={setMovePending}
 								onDiscard={() => {
-									if (movePending) onClose()
-									else {
-										setMoving(false)
-										onMoveDiscard?.()
-									}
+									setMoving(false)
+									onMoveDiscard?.()
 								}}
-								onStale={onRefresh}
 								onRefresh={onRefresh}
-								onMoved={onClose}
-								onSeriesScope={onSeriesScope}
+								onSave={save}
 							/>
 						) : null}
 					</div>
@@ -292,6 +301,7 @@ function LessonContent({
 					onRestore={() => void change('restore')}
 					onMove={() => setMoving(true)}
 					onConfirm={askCancel}
+					onEndSeries={endable ? onEndSeries : undefined}
 				/>
 				{!pending && !moving ? (
 					<Button variant="secondary" onClick={onClose}>

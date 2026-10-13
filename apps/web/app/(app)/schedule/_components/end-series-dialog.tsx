@@ -15,13 +15,13 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import { seriesDateInZone } from '@/lib/lesson-actions'
 import { formatDate, seriesWhen } from '@/lib/schedule-format'
 
 import type { CalendarSeriesContext } from '@dv-lab/contracts'
 import { endSeriesAt, hasOccurrences, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
-import { seriesDateInZone } from './move-series-preview'
 import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
 import { STALE_DATE, STALE_TITLE, useScheduleMutation } from './schedule-mutations'
 

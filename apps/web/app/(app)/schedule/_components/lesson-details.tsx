@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react'
 
-import { CalendarClock, CalendarX2 } from 'lucide-react'
-
 import { StatusDot } from '@/components/app/status-dot'
-import { Button } from '@/components/ui/button'
 import { statusTone, statusWord } from '@/lib/lesson-mark-text'
-import { formatDate, seriesWhen, seriesSecondLine, mainDayTime, weekdayName } from '@/lib/schedule-format'
+import { formatTime, mainDayTime, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
 import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
@@ -74,93 +71,46 @@ export function LessonStatus({
 	)
 }
 
+function everyAt(instant: Date, zone: string): string {
+	return `Every ${weekdayName(zonedParts(instant, zone).weekday)} at ${formatTime(instant, zone)} ${zoneLabel(zone, instant)}`
+}
+
 export function LessonDetails({
 	block,
 	series,
 	mainTimeZone,
 	secondZone,
-	currentYear,
-	pending,
-	onSeries,
 }: {
-	block: Pick<ScheduleBlock, 'durationMinutes' | 'startsAt'> & { timeZone: string | null; actions: { series: boolean } }
+	block: Pick<ScheduleBlock, 'durationMinutes' | 'startsAt'> & { timeZone: string | null }
 	series: ScheduleSeries | null
 	mainTimeZone: string
 	secondZone: string | null
-	currentYear: number
-	pending: boolean
-	onSeries?: (kind: 'move' | 'end') => void
 }) {
-	const { actions } = block
-	const reference = series?.referenceOccurrence ?? null
-	const seriesMain = seriesWhen(reference, mainTimeZone, null)
-	const seriesSecond = seriesSecondLine(reference, mainTimeZone, secondZone)
-	const repeats =
-		reference?.ruleStartsAt == null
-			? 'Weekly'
-			: `Every ${weekdayName(zonedParts(new Date(reference.ruleStartsAt), mainTimeZone).weekday)}`
+	const reference = series?.referenceOccurrence?.ruleStartsAt
+	const ruleStart = reference == null ? null : new Date(reference)
+	const second = secondZone !== null && !sameTimeZone(secondZone, mainTimeZone) ? secondZone : null
 	return (
-		<>
-			<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
-				<Detail label="Length">{block.durationMinutes} min</Detail>
-				<Detail label="Repeats">{series === null ? 'Once' : repeats}</Detail>
-				{block.timeZone === null || sameTimeZone(block.timeZone, mainTimeZone) ? null : (
-					<Detail label="Created in">
-						{zoneName(block.timeZone)} time ({zoneLabel(block.timeZone, new Date(block.startsAt))})
-					</Detail>
-				)}
-				{series === null ? null : (
-					<Detail label="Series" wide>
-						{series.endsOn === null
-							? `From ${formatDate(series.startsOn, currentYear)}`
-							: `From ${formatDate(series.startsOn, currentYear)} until ${formatDate(series.endsOn, currentYear)}`}
-					</Detail>
-				)}
-			</dl>
-			{actions.series && series !== null && onSeries !== undefined ? (
-				<div data-slot="lesson-series" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
-					<div className="flex min-w-0 flex-col gap-1">
-						<p className="text-body font-semibold text-foreground">Whole series</p>
-						<p data-slot="lesson-series-main" className="text-caption text-muted-foreground tabular-nums">
-							{seriesMain === null ? 'From ' : `Every ${seriesMain} · from `}
-							{formatDate(series.startsOn, currentYear)}
-						</p>
-						{seriesSecond === null ? null : (
-							<p data-slot="lesson-series-second" className="text-micro text-muted-foreground tabular-nums">
-								{seriesSecond}
-							</p>
+		<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
+			<Detail label="Length">{block.durationMinutes} min</Detail>
+			<Detail label="Repeats">
+				{series === null ? (
+					'Once'
+				) : ruleStart === null ? (
+					'Weekly'
+				) : (
+					<span data-slot="lesson-repeats" className="flex flex-col gap-1 tabular-nums">
+						<span>{everyAt(ruleStart, mainTimeZone)}</span>
+						{second === null ? null : (
+							<span className="text-micro text-muted-foreground">{everyAt(ruleStart, second)}</span>
 						)}
-						{reference?.ruleStartsAt == null || sameTimeZone(series.timeZone, mainTimeZone) ? null : (
-							<p className="text-caption text-muted-foreground">
-								Created in {zoneName(series.timeZone)} time (
-								{zoneLabel(series.timeZone, new Date(reference.ruleStartsAt))})
-							</p>
-						)}
-					</div>
-					<div data-slot="lesson-series-actions" className="flex flex-wrap gap-2">
-						<Button
-							type="button"
-							variant="secondary"
-							size="compact"
-							leadingIcon={CalendarClock}
-							disabled={pending}
-							onClick={() => onSeries('move')}
-						>
-							Move series
-						</Button>
-						<Button
-							type="button"
-							variant="secondary"
-							size="compact"
-							leadingIcon={CalendarX2}
-							disabled={pending}
-							onClick={() => onSeries('end')}
-						>
-							End series
-						</Button>
-					</div>
-				</div>
-			) : null}
-		</>
+					</span>
+				)}
+			</Detail>
+			{block.timeZone === null || sameTimeZone(block.timeZone, mainTimeZone) ? null : (
+				<Detail label="Created in">
+					{zoneName(block.timeZone)} time ({zoneLabel(block.timeZone, new Date(block.startsAt))})
+				</Detail>
+			)}
+		</dl>
 	)
 }
