@@ -19,7 +19,8 @@ import { CommandFault } from '../calendar/journal.ts'
 import { advanceCommandRevision } from '../calendar/read-store.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
 import { requireCutProof } from './cut-proof.ts'
-import { lockSeries, toSeriesException } from './rows.ts'
+import { putMark } from './marks.ts'
+import { lockSeries, toMarkKind, toSeriesException } from './rows.ts'
 
 export async function applyConfirmedCut(tx: DbExecutor, command: PreparedCalendarCommand) {
 	const [connection] = await tx
@@ -162,7 +163,8 @@ async function insertDomain(tx: DbExecutor, command: PreparedCalendarCommand, ma
 				status: lineage.status ?? 'scheduled',
 			})
 			const mark = marks.get(lineage.from.originalOn)
-			if (mark !== undefined) await tx.insert(lessonMarks).values({ lessonId: reservation.localEntityId, kind: mark })
+			if (mark !== undefined)
+				await putMark(tx, { kind: 'single', lessonId: reservation.localEntityId }, toMarkKind(mark))
 		}
 		await confirmEventMapping(tx, command.accountId, command.id, reservation.eventId)
 	}

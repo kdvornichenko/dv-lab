@@ -80,7 +80,10 @@ const markColumns = {
 	originalOn: lessonMarks.originalOn,
 	lessonId: lessonMarks.lessonId,
 	kind: lessonMarks.kind,
+	revision: lessonMarks.revision,
 }
+
+export type MarkState = { kind: MarkKind; revision: number }
 
 type SeriesRecord = Pick<typeof lessonSeries.$inferSelect, keyof typeof seriesColumns>
 
@@ -275,7 +278,10 @@ function markRef(row: MarkRecord): OccurrenceRef {
 	throw new Error('lesson mark has no occurrence')
 }
 
-export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceRef[]): Promise<Map<string, MarkKind>> {
+export async function loadMarkStates(
+	executor: DbExecutor,
+	refs: readonly OccurrenceRef[]
+): Promise<Map<string, MarkState>> {
 	const wanted = new Set(refs.map(occurrenceKey))
 	const seriesIds = [...new Set(refs.flatMap((ref) => (ref.kind === 'series' ? [ref.seriesId] : [])))]
 	const lessonIds = [...new Set(refs.flatMap((ref) => (ref.kind === 'single' ? [ref.lessonId] : [])))]
@@ -289,24 +295,40 @@ export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceR
 				lessonIds.length === 0 ? undefined : inArray(lessonMarks.lessonId, lessonIds)
 			)
 		)
-	const marks = new Map<string, MarkKind>()
+	const marks = new Map<string, MarkState>()
 	for (const row of rows) {
 		const key = occurrenceKey(markRef(row))
-		if (wanted.has(key)) marks.set(key, toMarkKind(row.kind))
+		if (wanted.has(key)) marks.set(key, { kind: toMarkKind(row.kind), revision: row.revision })
 	}
 	return marks
 }
 
-export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<MarkKind | null> {
-	const [row] = await executor
-		.select({ kind: lessonMarks.kind })
+export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceRef[]): Promise<Map<string, MarkKind>> {
+	const states = await loadMarkStates(executor, refs)
+	return new Map([...states].map(([key, state]) => [key, state.kind]))
+}
+
+export function markKey(ref: OccurrenceRef) {
+	return ref.kind === 'series'
+		? and(eq(lessonMarks.seriesId, ref.seriesId), eq(lessonMarks.originalOn, ref.originalOn))
+		: eq(lessonMarks.lessonId, ref.lessonId)
+}
+
+export async function markStateOf(
+	executor: DbExecutor,
+	ref: OccurrenceRef,
+	lock = false
+): Promise<MarkState | null> {
+	const query = executor
+		.select({ kind: lessonMarks.kind, revision: lessonMarks.revision })
 		.from(lessonMarks)
-		.where(
-			ref.kind === 'series'
-				? and(eq(lessonMarks.seriesId, ref.seriesId), eq(lessonMarks.originalOn, ref.originalOn))
-				: eq(lessonMarks.lessonId, ref.lessonId)
-		)
-	return row ? toMarkKind(row.kind) : null
+		.where(markKey(ref))
+	const [row] = lock ? await query.for('update') : await query
+	return row ? { kind: toMarkKind(row.kind), revision: row.revision } : null
+}
+
+export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<MarkKind | null> {
+	return (await markStateOf(executor, ref))?.kind ?? null
 }
 
 export async function loadMarkRows(
