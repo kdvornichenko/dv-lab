@@ -243,6 +243,7 @@ export function CalendarEventDialog({
 	const latest = state.kind === 'ready' ? state.data : null
 	const [formBase, setFormBase] = useState<EventDetailsData | null>(null)
 	const [dirty, setDirty] = useState(false)
+	const [refreshing, setRefreshing] = useState(false)
 	const [removing, setRemoving] = useState<'confirm' | 'scope' | null>(null)
 	const allDay = event.when.kind === 'all_day'
 	const day = event.when.kind === 'timed' ? scheduleDate(new Date(event.when.startsAt), timeZone) : event.when.startsOn
@@ -251,6 +252,10 @@ export function CalendarEventDialog({
 	const [seenVersion, setSeenVersion] = useState<string | null>(null)
 
 	if (latest !== null && latest.version !== seenVersion) setSeenVersion(latest.version)
+	if (refreshing && latest !== null && event.version === latest.version) {
+		setRefreshing(false)
+		setFormBase(latest)
+	}
 	if (
 		formBase !== null &&
 		latest !== null &&
@@ -269,12 +274,20 @@ export function CalendarEventDialog({
 	const paint = eventPaint((latest ?? event).color)
 	const unsupported = latest?.repeat.kind === 'other'
 	const canWrite = window !== null && editable && canChangePlainEvent(event, window)
-	const canEdit = canWrite && !allDay && latest !== null && latest.scopes.edit.length > 0 && !unsupported
+	const editShape =
+		!allDay &&
+		latest !== null &&
+		latest.scopes.edit.length > 0 &&
+		!unsupported &&
+		event.binding.kind === 'external' &&
+		event.status !== 'cancelled' &&
+		event.editBlock === null
+	const canEdit = canWrite && editShape
 	const canDelete = canWrite && latest !== null && latest.scopes.delete.length > 0 && !unsupported
 	const reason = readOnlyReason(event, window, latest, editable)
 	const transition = event.binding.kind === 'transition'
 	const removed = state.kind === 'removed'
-	const editing = formBase !== null && canEdit && !removed
+	const editing = formBase !== null && editShape && !removed
 	const pending = command.pending
 	const tentative = (latest === null ? event.status : event.status) === 'tentative'
 	const repeats = latest === null ? null : repeatLine(latest.repeat)
@@ -336,7 +349,10 @@ export function CalendarEventDialog({
 							secondZone={secondZone}
 							available={editable}
 							onDirtyChange={setDirty}
-							onRefresh={() => setFormBase(latest)}
+							onRefresh={() => {
+								setRefreshing(true)
+								void controller.readWindow(day)
+							}}
 							onReload={onReload}
 							onDiscard={() => {
 								setDirty(false)

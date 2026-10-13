@@ -74,7 +74,7 @@ export function NewLessonDialog({
 	const palette = useEventPalette()
 	const [mode, setMode] = useState<Mode>('lesson')
 	const [studentId, setStudentId] = useState('')
-	const [titleTouched, setTitleTouched] = useState(false)
+	const [titleSeen, setTitleSeen] = useState(false)
 	const [failed, setFailed] = useState(false)
 	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: fields.date })
 	const pending = command.pending
@@ -88,7 +88,8 @@ export function NewLessonDialog({
 	const studentName = active.find((student) => student.id === studentId)?.displayName ?? null
 	const noStudents = students.kind === 'ready' && active.length === 0
 	const title = values.title.trim()
-	const titleError = title === '' && (titleTouched || fields.submitted) ? EVENT_TITLE_ERROR : undefined
+	if (title !== '' && !titleSeen) setTitleSeen(true)
+	const titleError = title === '' && (titleSeen || fields.submitted) ? EVENT_TITLE_ERROR : undefined
 	const blocked = eventMode
 		? !available || title === ''
 		: !available || students.kind !== 'ready' || noStudents || studentId === ''
@@ -237,16 +238,14 @@ export function NewLessonDialog({
 								</div>
 							</Tabs>
 							{eventMode ? (
-								<div onBlur={() => setTitleTouched(true)}>
-									<EventTitleRow
-										id="new-event-title"
-										values={values}
-										error={titleError}
-										disabled={pending}
-										inputRef={titleRef}
-										autoFocus
-									/>
-								</div>
+								<EventTitleRow
+									id="new-event-title"
+									values={values}
+									error={titleError}
+									disabled={pending}
+									inputRef={titleRef}
+									autoFocus
+								/>
 							) : (
 								<NewLessonStudent
 									studentId={studentId}
