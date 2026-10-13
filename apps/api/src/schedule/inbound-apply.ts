@@ -226,6 +226,11 @@ async function applyOccurrence(
 	const exception = await seriesException(tx, rule.id, originalOn)
 	const occurrence = occurrenceAt(rule, originalOn, exception ?? undefined)
 	if (!occurrence?.naturalStart) return UNCHANGED
+	if (
+		entity.originalOn === null &&
+		(!original || !('dateTime' in original) || Date.parse(original.dateTime) !== occurrence.naturalStart.getTime())
+	)
+		return UNCHANGED
 	if ((await markOf(tx, occurrence.ref)) !== null) return 'skipped_marked'
 	if (!canChange(occurrence.startsAt, now)) return 'skipped_past'
 	if (row.status === 'cancelled') {

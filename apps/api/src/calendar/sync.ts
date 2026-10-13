@@ -188,7 +188,8 @@ export function createCalendarSync(deps: {
 			try {
 				const result = await deps.source.master(read, eventId)
 				const readAt = now()
-				if (result.kind === 'missing') facts.push({ eventId, status: 'cancelled', factAt: readAt })
+				if (result.kind === 'missing')
+					facts.push({ eventId, status: 'cancelled', etag: `missing:${readAt.toISOString()}`, factAt: readAt })
 				else if (result.kind === 'event' && result.fact.status === 'cancelled')
 					facts.push({ ...result.fact, factAt: readAt })
 				else if (result.kind === 'event') facts.push(result.fact)

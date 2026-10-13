@@ -284,7 +284,8 @@ function seriesRef(event: ProviderEvent, rule: SeriesRule | undefined, expectedO
 	if (!rule || !original || !('dateTime' in original)) return null
 	const originalOn = scheduleDate(new Date(original.dateTime), rule.timeZone)
 	if (expectedOn && expectedOn !== originalOn) return null
-	if (!occurrenceAt(rule, originalOn)) return null
+	const natural = occurrenceAt(rule, originalOn)?.naturalStart
+	if (!natural || natural.getTime() !== Date.parse(original.dateTime)) return null
 	return { kind: 'series' as const, seriesId: rule.id, originalOn }
 }
 
