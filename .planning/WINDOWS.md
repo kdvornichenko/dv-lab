@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 12
+open_count: 13
 waived_count: 0
 fixed_count: 1
-total_count: 13
-last_updated: 2026-10-13T18:24:49.766Z
+total_count: 14
+last_updated: 2026-10-13T18:48:45.670Z
 ---
 
 # Broken Windows Ledger
@@ -28,6 +28,7 @@ last_updated: 2026-10-13T18:24:49.766Z
 | 11 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-SUMMARY.md |  | Journal07 source и disconnected E2E завершены; connected create/ACK/recovery и фактический fault transport не запускались. Bundled runtime13 интегрирован, SSH loader/control и PRIMARY binding готовятся. Закрыть на существующем разрешённом HTTPS target с exact build/persistence и synthetic fixtures; отсутствие proof не PASS. | open |  | 2026-10-11T19:11:40.648Z |  |
 | 12 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-15: chat-web.mjs models light\|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000 | open |  | 2026-10-13T18:06:24.770Z |  |
 | 13 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-16: chat-web.mjs delete light\|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000, раздел сам поднимает api на 4000; раздел проверен node --check и prettier | open |  | 2026-10-13T18:24:49.766Z |  |
+| 14 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-17: yarn test:e2e, wait-dev.mjs down и все разделы chat-web.mjs (records, conversations, notes, comments, composer, actions, calendar, budget, stream, answers, models, delete) в обеих темах не запускались: стенд владельца занимает порты 3000 и 4000, проверки с этими портами запрещены заданием | open |  | 2026-10-13T18:48:45.670Z |  |
 
 ````json
 [
@@ -197,6 +198,19 @@ last_updated: 2026-10-13T18:24:49.766Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-13T18:24:49.766Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 14,
+    "kind": "unrun-verify",
+    "phase": "22",
+    "file": "scripts/dev-checks/chat-web.mjs",
+    "line": null,
+    "description": "22-17: yarn test:e2e, wait-dev.mjs down и все разделы chat-web.mjs (records, conversations, notes, comments, composer, actions, calendar, budget, stream, answers, models, delete) в обеих темах не запускались: стенд владельца занимает порты 3000 и 4000, проверки с этими портами запрещены заданием",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-13T18:48:45.670Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }
