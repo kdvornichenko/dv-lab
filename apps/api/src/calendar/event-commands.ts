@@ -379,7 +379,7 @@ function masterTime(
 	const clock = zonedParts(next.startsAt, zone).time
 	const startsAt = localInstant(first, clock, zone)
 	if (repeats === 'once') return { ...timePair(startsAt, next.minutes, zone), recurrence: [] as string[] }
-	if (shift % 7 === 0) return timePair(startsAt, next.minutes, zone)
+	if (shift % 7 === 0 && (shift === 0 || master.recurrenceUntil === null)) return timePair(startsAt, next.minutes, zone)
 	return weeklyFrom(
 		startsAt,
 		next.minutes,
