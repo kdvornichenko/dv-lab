@@ -533,6 +533,36 @@ async function main() {
 		notes.truncated === true && notes.records?.length === 30
 	)
 
+	const movedCard = await as('POST', '/students', cardBody(`${NAME} Moved`))
+	if (movedCard.status !== 201) throw new Error(`moved card create returned ${movedCard.status}`)
+	const movedId = movedCard.json.student.id
+	ids.push(movedId)
+	const movedDate = core.addDays(core.zonedParts(new Date(), core.SCHEDULE_TIME_ZONE).date, -3)
+	const movedSeries = sql(
+		`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on, ends_on) values (${quote(movedId)}, ${core.weekdayOf(movedDate)}, '16:00', 60, ${quote(core.addDays(movedDate, -14))}, null) returning id`
+	).rows[0].id
+	const movedStart = core.zonedInstant(movedDate, '17:00', core.SCHEDULE_TIME_ZONE).toISOString()
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(movedSeries)}, ${quote(movedDate)}, 'moved', ${quote(movedStart)}, 60)`
+	)
+	sql(
+		`insert into lesson_marks (series_id, original_on, kind) values (${quote(movedSeries)}, ${quote(movedDate)}, 'done')`
+	)
+	fake.script.push(
+		use('lessons', { student_id: movedId, from: core.addDays(movedDate, -1), to: core.addDays(movedDate, 1) }),
+		capture(say('Here are the lessons.'))
+	)
+	await settled((await ask(first, 'What lessons did that student have?')).json.turn.id)
+	const movedView = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	const movedOn = (movedView.records ?? []).filter(
+		(record) => core.zonedParts(new Date(record.starts_at), core.SCHEDULE_TIME_ZONE).date === movedDate
+	)
+	check(
+		'a series lesson moved within its day and marked done is one record in the lessons tool, at the new time',
+		movedOn.length === 1 && movedOn[0].starts_at === movedStart && movedOn[0].outcome === 'done',
+		JSON.stringify(movedView.records)
+	)
+
 	const quoteText = 'Prefers short reading texts, about 7 pages a week.'
 	const sectionText = 'Studies for the 2027 exam.'
 	sql(

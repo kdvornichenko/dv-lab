@@ -309,6 +309,7 @@ async function lessons(
 		context
 	)
 	const blocks = window.blocks
+		.filter((block) => block.movedTo === null)
 		.filter((block) => input.student_id === null || block.studentId === input.student_id)
 		.sort((left, right) => right.startsAt.localeCompare(left.startsAt))
 		.map((block) => ({
