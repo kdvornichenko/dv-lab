@@ -525,7 +525,19 @@ async function settleUndo(
 	let commandId = undo.commandId ?? null
 	if (commandId === null && action.undoCalendarRequestId !== null)
 		commandId = (await findRequest(db, context.accountId, action.undoCalendarRequestId))?.id ?? null
-	if (commandId === null) return
+	if (commandId === null) {
+		if (context.now.getTime() - action.updatedAt.getTime() < SUBMIT_GRACE_MS) return
+		await db
+			.update(chatActions)
+			.set({
+				undoRequestId: null,
+				undoCalendarRequestId: null,
+				undoResult: { undo: 'available' } satisfies UndoProgress,
+				updatedAt: sql`now()`,
+			})
+			.where(pendingOnly)
+		return
+	}
 	const snapshot = await commands.readCalendarCommand(context, commandId)
 	let next: UndoProgress = { ...undo, commandId }
 	let state: ActionRow['state'] = action.state
