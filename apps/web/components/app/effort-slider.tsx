@@ -19,6 +19,9 @@ const LAST = CHAT_EFFORTS.length - 1
 const THUMB = 16
 const EASE = 'ease-[cubic-bezier(0.23,1,0.32,1)]'
 const DRAG_THRESHOLD = 3
+const KEY_PAUSE = 400
+
+const KEYS = ['ArrowRight', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'Home', 'End']
 
 const rank = (level: ChatEffort) => CHAT_EFFORTS.indexOf(level)
 
@@ -65,6 +68,8 @@ export function EffortSlider({
 	disabled = false,
 	label,
 	thumbRef,
+	commit: mode = 'change',
+	onPreview,
 	onChange,
 }: {
 	value: ChatEffort
@@ -75,6 +80,8 @@ export function EffortSlider({
 	disabled?: boolean
 	label: string
 	thumbRef?: RefObject<HTMLDivElement | null>
+	commit?: 'change' | 'release'
+	onPreview?: (level: ChatEffort) => void
 	onChange: (level: ChatEffort) => unknown
 }) {
 	const reachable = CHAT_EFFORTS.map((level, at) => (supported.includes(level) ? at : -1)).filter((at) => at >= 0)
@@ -90,11 +97,19 @@ export function EffortSlider({
 	const busy = useRef(false)
 	const queued = useRef<ChatEffort | null>(null)
 	const press = useRef<{ id: number; x: number; moved: boolean; last: number } | null>(null)
+	const hold = useRef<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null)
 
 	useEffect(() => {
 		sent.current = value
 		if (!busy.current) setShown(rank(value))
 	}, [value])
+
+	useEffect(
+		() => () => {
+			if (hold.current) clearTimeout(hold.current.timer)
+		},
+		[]
+	)
 
 	const nearest = (target: number) => {
 		let chosen = reachable[0] ?? 0
@@ -111,6 +126,11 @@ export function EffortSlider({
 
 	const shownIndex = drag === null ? shown : nearest(Math.round(drag))
 	const fraction = (drag ?? shown) / LAST
+
+	useEffect(() => {
+		const level = CHAT_EFFORTS[shownIndex]
+		if (level !== undefined) onPreview?.(level)
+	}, [shownIndex, onPreview])
 
 	async function commit(at: number) {
 		const level = CHAT_EFFORTS[at]
@@ -136,10 +156,28 @@ export function EffortSlider({
 		busy.current = false
 	}
 
+	function cancelHold() {
+		if (!hold.current) return
+		clearTimeout(hold.current.timer)
+		hold.current = null
+	}
+
+	function flushHold() {
+		const current = hold.current
+		if (!current) return
+		cancelHold()
+		void commit(current.at)
+	}
+
 	function select(at: number) {
 		if (at === shown) return
 		setShown(at)
-		void commit(at)
+		if (mode === 'change') {
+			void commit(at)
+			return
+		}
+		cancelHold()
+		hold.current = { at, timer: setTimeout(flushHold, KEY_PAUSE) }
 	}
 
 	function pointerIndex(clientX: number) {
@@ -156,7 +194,11 @@ export function EffortSlider({
 		thumb.current?.focus({ preventScroll: true })
 		const at = nearest(Math.round(pointerIndex(event.clientX)))
 		press.current = { id: event.pointerId, x: event.clientX, moved: false, last: at }
-		select(at)
+		if (mode === 'change') select(at)
+		else {
+			cancelHold()
+			setShown(at)
+		}
 	}
 
 	function onPointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -170,7 +212,7 @@ export function EffortSlider({
 		if (at !== current.last) {
 			current.last = at
 			setShown(at)
-			void commit(at)
+			if (mode === 'change') void commit(at)
 		}
 	}
 
@@ -178,6 +220,7 @@ export function EffortSlider({
 		const current = press.current
 		if (!current || current.id !== event.pointerId) return
 		press.current = null
+		if (mode === 'release') void commit(current.last)
 		if (event.currentTarget.hasPointerCapture(event.pointerId))
 			event.currentTarget.releasePointerCapture(event.pointerId)
 		setDrag(null)
@@ -194,6 +237,10 @@ export function EffortSlider({
 		else return
 		event.preventDefault()
 		if (target !== undefined) select(target)
+	}
+
+	function onKeyUp(event: KeyboardEvent<HTMLDivElement>) {
+		if (mode === 'release' && KEYS.includes(event.key)) flushHold()
 	}
 
 	const move = cn(
@@ -281,6 +328,8 @@ export function EffortSlider({
 							data-slot="effort-thumb"
 							className="pointer-events-auto absolute top-0 left-0 size-4 rounded-full bg-primary-foreground shadow-surface-2 ring-2 ring-primary outline-none focus-visible:ring-[3px]"
 							onKeyDown={onKeyDown}
+							onKeyUp={onKeyUp}
+							onBlur={flushHold}
 						/>
 					</div>
 				</div>

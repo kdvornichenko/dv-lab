@@ -231,6 +231,7 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 	const { data, setData, loadState, refresh } = state
 	const [saving, setSaving] = useState(false)
 	const [saveError, setSaveError] = useState(false)
+	const [preview, setPreview] = useState<ChatEffort | null>(null)
 	const inflight = useRef(false)
 
 	if (loadState === 'loading' && data === null) return <ChatModelLoading />
@@ -316,7 +317,9 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 				</div>
 				<div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
 					<div className="flex min-w-0 flex-col gap-1">
-						<span className="text-body text-foreground">Effort: {EFFORT_LABEL[effort]}</span>
+						<span className="text-body text-foreground">
+							Effort: {EFFORT_LABEL[capability ? (preview ?? effort) : effort]}
+						</span>
 						<p className="text-caption text-muted-foreground">
 							Faster answers, or smarter ones that take longer and cost more
 						</p>
@@ -330,6 +333,8 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 								marker="Recommended"
 								markerAt={capability.recommendedEffort}
 								label="Effort"
+								commit="release"
+								onPreview={setPreview}
 								disabled={saving || !CHAT_EFFORTS.includes(effort)}
 								onChange={(next) => (modelId === undefined ? false : save({ model: modelId, effort: next }))}
 							/>
