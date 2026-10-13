@@ -101,7 +101,12 @@ async function confirmedByProjection(executor: DbExecutor, connection: HistoryCo
 	)
 }
 
-export async function historyEligibility(executor: DbExecutor, accountId: string, subjects: readonly HistorySubject[]) {
+export async function historyEligibility(
+	executor: DbExecutor,
+	accountId: string,
+	subjects: readonly HistorySubject[],
+	mode: 'read' | 'write' = 'read'
+) {
 	const eligible = new Set<string>()
 	if (subjects.length === 0) return eligible
 	const [connection] = await executor.select().from(googleConnections).where(currentConnection(accountId))
@@ -111,8 +116,10 @@ export async function historyEligibility(executor: DbExecutor, accountId: string
 	const pending = await pendingKeys(executor, connection, subjects)
 	for (const subject of subjects) {
 		const key = occurrenceKey(subject.ref)
+		const unsettled = pending.has(key) || pending.has(`series:${entityId(subject.ref)}`)
+		if (mode === 'write' && unsettled) continue
 		if (subject.mark !== null) eligible.add(key)
-		else if (pending.has(key) || pending.has(`series:${entityId(subject.ref)}`)) continue
+		else if (unsettled) continue
 		else if (subject.startsAt < cutoff && existing.has(entityId(subject.ref))) eligible.add(key)
 		else if (await confirmedByProjection(executor, connection, subject)) eligible.add(key)
 	}

@@ -163,6 +163,7 @@ async function prepare(viewport, ids) {
 						ref: { kind: 'single', lessonId: ids.fakeLesson },
 						studentId: ids.one,
 						version: event.version,
+						mark: null,
 					}
 				}
 				if (event.title === 'Synthetic event 07' && !state.ignored)
@@ -175,6 +176,7 @@ async function prepare(viewport, ids) {
 						ref: { kind: 'single', lessonId: ids.pastLesson },
 						studentId: ids.one,
 						version: event.version,
+						mark: null,
 					}
 					event.suggestion = null
 				}

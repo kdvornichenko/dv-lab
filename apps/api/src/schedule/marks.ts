@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type { ScheduleMark, markLessonRequest } from '@dv-lab/contracts'
@@ -11,7 +11,7 @@ import {
 	occurrenceOutcome,
 	occurrenceKey,
 } from '@dv-lab/core'
-import { type Database, lessonMarks } from '@dv-lab/db'
+import { type Database, type DbExecutor, lessonMarks } from '@dv-lab/db'
 
 import { historyEligibility, lockHistoryConnection } from '../calendar/history.ts'
 import { type ChangeFailure, lockOccurrence, stale } from './changes.ts'
@@ -42,6 +42,17 @@ function savedMark(ref: OccurrenceRef, subject: Pick<Occurrence, 'status'>, row:
 	} satisfies MarkResult
 }
 
+export async function settleMarkAfterMove(executor: DbExecutor, ref: OccurrenceRef): Promise<void> {
+	const key =
+		ref.kind === 'series'
+			? and(eq(lessonMarks.seriesId, ref.seriesId), eq(lessonMarks.originalOn, ref.originalOn))
+			: eq(lessonMarks.lessonId, ref.lessonId)
+	await executor
+		.update(lessonMarks)
+		.set({ kind: 'none', updatedAt: sql`now()` })
+		.where(and(key, eq(lessonMarks.kind, 'no_show')))
+}
+
 export function markOccurrence(
 	db: Database,
 	accountId: string,
@@ -57,7 +68,7 @@ export function markOccurrence(
 		const { occurrence } = locked
 		if (occurrence === null) return CHANGED
 		const mark = await markOf(tx, occurrence.ref)
-		const eligible = await historyEligibility(tx, accountId, [{ ...occurrence, mark }])
+		const eligible = await historyEligibility(tx, accountId, [{ ...occurrence, mark }], 'write')
 		if (!eligible.has(occurrenceKey(occurrence.ref))) return CHANGED
 		const current = occurrenceOutcome(occurrence, mark)
 		const refused = markRefusal(current, occurrence.startsAt, input.expectedStartsAt, now)
@@ -88,7 +99,7 @@ export function markLesson(
 		if (lesson === null) return NOT_FOUND
 		const ref: OccurrenceRef = { kind: 'single', lessonId: id }
 		const mark = await markOf(tx, ref)
-		const eligible = await historyEligibility(tx, accountId, [{ ...lesson, ref, mark }])
+		const eligible = await historyEligibility(tx, accountId, [{ ...lesson, ref, mark }], 'write')
 		if (!eligible.has(occurrenceKey(ref))) return CHANGED
 		const current = occurrenceOutcome(lesson, mark)
 		const refused = markRefusal(current, lesson.startsAt, input.expectedStartsAt, now)

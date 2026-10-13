@@ -142,6 +142,7 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 					ref: { kind: 'series', seriesId, originalOn },
 					studentId,
 					version,
+					mark: null,
 				}
 				target.title = null
 				json.series = [
