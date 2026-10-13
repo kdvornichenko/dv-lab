@@ -108,7 +108,7 @@ export async function prepareSingleCommand(
 				to: input.ref,
 				startsAt: change.startsAt.toISOString(),
 				timeZone: change.lesson.timeZone,
-				durationMinutes: change.lesson.durationMinutes,
+				durationMinutes: change.durationMinutes,
 			},
 		],
 		preconditions: [singlePrecondition(evidence, target.mapping.eventId, target.row.etag)],
@@ -123,7 +123,7 @@ export async function prepareSingleCommand(
 					summary: student.name,
 					start: { dateTime: change.startsAt.toISOString(), timeZone: change.lesson.timeZone },
 					end: {
-						dateTime: new Date(change.startsAt.getTime() + change.lesson.durationMinutes * 60000).toISOString(),
+						dateTime: new Date(change.startsAt.getTime() + change.durationMinutes * 60000).toISOString(),
 						timeZone: change.lesson.timeZone,
 					},
 				}),
