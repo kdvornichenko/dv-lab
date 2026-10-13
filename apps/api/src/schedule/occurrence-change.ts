@@ -1,11 +1,11 @@
 import { sql } from 'drizzle-orm'
 
-import { canChange, lessonActions, localTimeCandidates, occurrenceOutcome } from '@dv-lab/core'
+import { lessonActions, localTimeCandidates, occurrenceOutcome } from '@dv-lab/core'
 import { lessonExceptions, type GoogleCommandPlan, type DbExecutor } from '@dv-lab/db'
 
 import { CommandFault } from '../calendar/journal.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
-import { lockOccurrence, stale } from './changes.ts'
+import { clearsMark, lockOccurrence, stale } from './changes.ts'
 import { markOf } from './rows.ts'
 import type { SingleCommand } from './single-command.ts'
 
@@ -14,8 +14,8 @@ export async function occurrenceChange(executor: DbExecutor, accountId: string, 
 	const locked = await lockOccurrence(executor, input.ref.seriesId, input.ref.originalOn)
 	if (!locked?.occurrence?.naturalStart) throw new CommandFault('history_only')
 	const { rule, occurrence } = locked
-	if (!canChange(occurrence.startsAt, now)) throw new CommandFault('history_only')
 	const mark = await markOf(executor, occurrence.ref)
+	if (mark === 'done') throw new CommandFault('lesson_done')
 	if (
 		stale(input.input.expectedStartsAt, occurrence.startsAt) ||
 		!lessonActions(occurrenceOutcome(occurrence, mark), occurrence.startsAt, now)[input.operation]
@@ -35,8 +35,13 @@ export async function occurrenceChange(executor: DbExecutor, accountId: string, 
 		durationMinutes = length
 	}
 	if (input.operation === 'restore') startsAt = locked.occurrence.naturalStart
-	if (!canChange(startsAt, now)) throw new CommandFault('history_only')
-	return { rule, occurrence, startsAt, durationMinutes }
+	return {
+		rule,
+		occurrence,
+		startsAt,
+		durationMinutes,
+		clearMark: clearsMark(input.operation, mark, startsAt, now),
+	}
 }
 
 export async function applyOccurrenceChange(

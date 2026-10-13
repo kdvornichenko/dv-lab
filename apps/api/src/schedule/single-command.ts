@@ -2,7 +2,6 @@ import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import type { ValidatedCalendarCommand } from '@dv-lab/contracts'
-import { canChange } from '@dv-lab/core'
 import {
 	googleCommandPlan,
 	googleConnections,
@@ -17,7 +16,7 @@ import { replacementCommand, rowForLocal } from '../calendar/event-mapping.ts'
 import type { GoogleGateway } from '../calendar/gateway.ts'
 import { currentConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
-import { syncRevision } from '../calendar/projection.ts'
+import { insideSyncWindow, syncFacts, syncRevision } from '../calendar/projection.ts'
 import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
 import type { SingleEvidence } from '../calendar/single-observation.ts'
 import { prepareLessonChange } from './changes.ts'
@@ -72,12 +71,6 @@ export async function prepareSingleCommand(
 	if (target.mapping.connectionId !== connection.id || target.mapping.calendarId !== connection.calendarId)
 		throw new CommandFault('precondition_failed')
 	validateEvidence(evidence, target, input)
-	if (
-		target.row.start &&
-		'dateTime' in target.row.start &&
-		!canChange(new Date(target.row.start.dateTime), context.now)
-	)
-		throw new CommandFault('history_only')
 	if (input.ref.kind !== 'single') throw new CommandFault('history_only')
 	const change = await prepareLessonChange(
 		executor,
@@ -88,6 +81,13 @@ export async function prepareSingleCommand(
 		context.now
 	)
 	if (change.kind !== 'ok') changeRefusal(change)
+	const sync = await syncFacts(executor, connection.id)
+	const { lesson } = change
+	if (
+		!insideSyncWindow(sync, lesson.startsAt, new Date(lesson.startsAt.getTime() + lesson.durationMinutes * 60000)) ||
+		!insideSyncWindow(sync, change.startsAt, new Date(change.startsAt.getTime() + change.durationMinutes * 60000))
+	)
+		throw new CommandFault('outside_sync_window')
 	const [student] = await executor
 		.select({ name: students.displayName, status: students.status })
 		.from(students)
@@ -109,6 +109,7 @@ export async function prepareSingleCommand(
 				startsAt: change.startsAt.toISOString(),
 				timeZone: change.lesson.timeZone,
 				durationMinutes: change.durationMinutes,
+				...(change.clearMark ? { clearMark: true } : {}),
 			},
 		],
 		preconditions: [singlePrecondition(evidence, target.mapping.eventId, target.row.etag)],
@@ -189,7 +190,7 @@ function singlePrecondition(evidence: SingleEvidence, eventId: string, etag: str
 }
 
 function changeRefusal(failure: Exclude<Awaited<ReturnType<typeof prepareLessonChange>>, { kind: 'ok' }>): never {
-	if (failure.kind === 'history_only' || failure.kind === 'default_time_zone_changed')
+	if (failure.kind === 'lesson_done' || failure.kind === 'default_time_zone_changed')
 		throw new CommandFault(failure.kind)
 	if (failure.kind === 'nonexistent_local_time') throw new CommandFault(failure.kind, 400)
 	throw new CommandFault('precondition_failed')
