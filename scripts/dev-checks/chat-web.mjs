@@ -18,6 +18,7 @@ const sections = {
 	notes: sectionNotes,
 	comments: sectionComments,
 	composer: sectionComposer,
+	actions: sectionActions,
 }
 
 function removeFixtures() {
@@ -175,6 +176,9 @@ const SERVER_ERROR = { error: { code: 'internal_error', message: 'Internal Serve
 function removeConversations(ids) {
 	if (ids.length === 0) return
 	const list = ids.map((id) => `'${id}'`).join(', ')
+	sql(`delete from chat_actions where conversation_id in (${list})`)
+	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${list})`)
+	sql(`delete from chat_messages where conversation_id in (${list})`)
 	const result = sql(`delete from chat_conversations where id in (${list})`)
 	console.log(`fixture conversations removed ${result.rowCount}`)
 }
@@ -197,13 +201,35 @@ async function openRowMenu(page, id, item) {
 }
 
 async function readNewConversation(page) {
+	const posts = []
+	const listen = (request) => {
+		if (request.method() === 'POST' && request.url().endsWith('/api/chat/conversations')) posts.push(request.url())
+	}
+	page.on('request', listen)
+	await page.getByRole('button', { name: 'New chat', exact: true }).click()
+	const field = page.locator(FIELD)
+	await field.waitFor({ timeout: 15000 })
+	await field.fill('Chat check message')
+	await page.waitForTimeout(300)
+	const savedBySelf = posts.length
 	const created = page.waitForResponse(
 		(response) => response.url().endsWith('/api/chat/conversations') && response.request().method() === 'POST'
 	)
-	await page.getByRole('button', { name: 'New chat', exact: true }).click()
+	const sent = page.waitForResponse(
+		(response) => response.url().endsWith('/messages') && response.request().method() === 'POST'
+	)
+	await page.locator(SEND).click()
 	const response = await created
 	const body = await response.json()
-	return { status: response.status(), id: body.conversation?.id ?? null, title: body.conversation?.title ?? null }
+	const message = await sent
+	page.off('request', listen)
+	return {
+		status: response.status(),
+		id: body.conversation?.id ?? null,
+		title: body.conversation?.title ?? null,
+		savedBySelf,
+		messageStatus: message.status(),
+	}
 }
 
 async function sectionConversations() {
@@ -222,7 +248,11 @@ async function sectionConversations() {
 
 			const first = await readNewConversation(page)
 			if (first.id) createdIds.push(first.id)
-			check('New chat creates a conversation with New chat title', first.status === 201 && first.title === 'New chat')
+			check('New chat alone saves no conversation', first.savedBySelf === 0)
+			check(
+				'the first message creates the conversation with New chat title and is sent to it',
+				first.status === 201 && first.title === 'New chat' && first.messageStatus === 201
+			)
 			await page.getByRole('heading', { name: 'New chat', level: 1 }).waitFor({ timeout: 15000 })
 			check('the new conversation is selected in the address', page.url().includes(`c=${first.id}`), page.url())
 			check(
@@ -238,7 +268,7 @@ async function sectionConversations() {
 			await openList(page)
 			const row = rowOf(page, first.id)
 			await row.waitFor({ timeout: 15000 })
-			check('the list shows the conversation as Empty chat', (await row.innerText()).includes('Empty chat'))
+			check('the list shows the conversation', (await row.count()) === 1)
 			await shot(page, 'chat-conversations', 'list')
 
 			await openRowMenu(page, first.id, 'Rename conversation')
@@ -984,11 +1014,7 @@ async function sectionComposer() {
 			)
 			await shot(page, 'chat-composer', 'quick')
 
-			await page.keyboard.press('Enter')
-			check(
-				'Enter without the list adds no line and sends nothing',
-				!(await value(page)).includes('\n') && writes.length === 0
-			)
+			check('Send is on with a bound command in the field', await page.locator(SEND).isEnabled())
 			await page.keyboard.press('Shift+Enter')
 			check('Shift+Enter adds a line', (await value(page)).endsWith('\n'))
 
@@ -1011,6 +1037,11 @@ async function sectionComposer() {
 			check(
 				'editing the name breaks the binding and says so',
 				(await bindings(page)).length === 0 && (await page.getByText(STALE).count()) === 1
+			)
+			await page.keyboard.press('Enter')
+			check(
+				'with a broken binding Send is off and Enter sends nothing',
+				(await page.locator(SEND).isDisabled()) && writes.length === 0 && !(await value(page)).includes('\n')
 			)
 			await shot(page, 'chat-composer', 'stale')
 
@@ -1086,6 +1117,137 @@ async function sectionComposer() {
 			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 		},
+		removeFixtures
+	)
+}
+
+const ACTIONS_CARD = 'Alex Example 2218'
+const SEND = '[data-slot="chat-send"]'
+const RESULT = '[data-slot="chat-action-result"]'
+const SEND_ERROR = 'Could not send the message. Try again.'
+
+const isPost = (response, suffix) => response.request().method() === 'POST' && response.url().endsWith(suffix)
+const isToday = (response) => response.request().method() === 'GET' && response.url().endsWith('/api/today')
+const lessonMark = (lessonId) =>
+	sql(`select kind, revision from lesson_marks where lesson_id = '${lessonId}'`).rows[0] ?? null
+
+async function sectionActions() {
+	removeFixtures()
+	const conversationIds = []
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ page, context, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			const card = await createCard(page, ACTIONS_CARD)
+			await setOpening(page, card, core.addDays(core.scheduleToday(new Date(), VN), -30), 600)
+			const lessonId = insertLesson(card, -20)
+
+			const today = await context.newPage()
+			await setTheme(today)
+			await today.goto(`${BASE}/`)
+			const row = (status) =>
+				today.locator(`[data-slot="today-row"][data-student-id="${card}"]${status ? `[data-status="${status}"]` : ''}`)
+			await row(null).waitFor({ timeout: 30000 })
+			check('Today in the second tab waits for a mark', (await row(null).getAttribute('data-status')) === 'needs_mark')
+
+			await openChat(page, null)
+			const field = page.locator(FIELD)
+			await field.waitFor({ timeout: 30000 })
+			await field.click()
+			await page.keyboard.type(`@${ACTIONS_CARD}`)
+			await page.locator(POPUP).waitFor({ timeout: 15000 })
+			await page.keyboard.press('Enter')
+			await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+			await page.locator(QUICK_ROW).getByRole('button', { name: 'Was' }).click()
+			const draftText = `@${ACTIONS_CARD} was at the lesson today`
+			check('the quick button puts the command in the field', (await value(page)) === draftText)
+
+			const bodies = []
+			const conversationPosts = []
+			page.on('request', (request) => {
+				if (request.method() === 'POST' && request.url().endsWith('/api/chat/conversations'))
+					conversationPosts.push(request.url())
+			})
+			await page.route('**/api/chat/conversations/*/messages', (route) => {
+				bodies.push(route.request().postDataJSON())
+				if (bodies.length === 1) return route.fulfill({ status: 500, json: SERVER_ERROR })
+				return route.fallback()
+			})
+			const created = page.waitForResponse((response) => isPost(response, '/api/chat/conversations'))
+			await page.locator(SEND).click()
+			const conversation = await (await created).json()
+			if (conversation.conversation?.id) conversationIds.push(conversation.conversation.id)
+			await page.getByText(SEND_ERROR).waitFor({ timeout: 15000 })
+			check(
+				'a failed send keeps the draft and its binding',
+				(await value(page)) === draftText && (await bindings(page)).length === 1
+			)
+			check('the failed send changed no mark', lessonMark(lessonId) === null)
+			await shot(page, 'chat-actions', 'send-error')
+
+			const todayRead = today.waitForResponse(isToday, { timeout: 30000 })
+			const sent = page.waitForResponse((response) => isPost(response, '/messages') && response.status() === 201)
+			await page.locator(SEND).click()
+			await sent
+			check(
+				'the retry goes out with the same requestId to the same conversation',
+				bodies.length === 2 &&
+					bodies[0].requestId === bodies[1].requestId &&
+					bodies[1].text === draftText &&
+					conversationPosts.length === 1,
+				JSON.stringify(bodies.map((body) => body.requestId))
+			)
+			const result = page.locator(RESULT).last()
+			await result.waitFor({ timeout: 15000 })
+			check(
+				'the reply shows Lesson marked Done with the lesson and Undo',
+				(await result.innerText()).includes('Lesson marked Done.') &&
+					(await result.innerText()).includes(ACTIONS_CARD) &&
+					(await result.getByRole('button', { name: 'Undo: Lesson marked Done' }).count()) === 1
+			)
+			check('the draft is cleared after the answer', (await value(page)) === '')
+			check('the mark is Done', lessonMark(lessonId)?.kind === 'done')
+			check(
+				'the teacher message is on the right with the student token',
+				(await page.locator('[data-role="teacher"]').last().innerText()).includes(`@${ACTIONS_CARD}`)
+			)
+			await shot(page, 'chat-actions', 'result')
+
+			await today.bringToFront()
+			await todayRead
+			await row('done').waitFor({ timeout: 15000 })
+			check('Today in the other tab shows Done without a reload', true)
+			await shot(today, 'chat-actions', 'today-done')
+
+			await page.bringToFront()
+			const todayBack = today.waitForResponse(isToday, { timeout: 30000 })
+			const undone = page.waitForResponse((response) => isPost(response, '/undo'))
+			await result.getByRole('button', { name: 'Undo: Lesson marked Done' }).click()
+			await undone
+			await page.locator(`${RESULT}[data-undo="done"]`).waitFor({ timeout: 15000 })
+			check(
+				'Undo turns the block into Change undone with no second Undo',
+				(await result.innerText()).includes('Change undone.') &&
+					(await result.innerText()).includes('back to Scheduled') &&
+					(await result.getByRole('button', { name: /^Undo/ }).count()) === 0
+			)
+			check('the mark is back to none', lessonMark(lessonId)?.kind === 'none')
+			await today.bringToFront()
+			await todayBack
+			await row('needs_mark').waitFor({ timeout: 15000 })
+			check('Today in the other tab is back without a reload', true)
+
+			await page.bringToFront()
+			await page.reload()
+			await page.locator(`${RESULT}[data-undo="done"]`).waitFor({ timeout: 30000 })
+			check('a reload shows the same undone result', (await page.locator(RESULT).count()) === 1)
+			await shot(page, 'chat-actions', 'undone')
+
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		() => removeConversations(conversationIds),
 		removeFixtures
 	)
 }

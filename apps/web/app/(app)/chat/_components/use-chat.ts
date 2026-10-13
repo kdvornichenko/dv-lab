@@ -5,14 +5,22 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '@/lib/api-client'
 
 import {
+	chatConversationReadResponse,
+	sendMessageResponse,
 	studentLessonOptionsResponse,
+	undoResponse,
+	type ChatActionResultBlock,
 	type ChatConversation,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
+	type ChatMessage,
+	type ChatUndoState,
 	type DeleteConversationRequest,
 	type MentionBinding,
 	type RenameConversationRequest,
+	type SendMessageRequest,
 	type StudentLessonOption,
+	type UndoRequest,
 } from '@dv-lab/contracts'
 
 export const MENTION_LIMIT = 6
@@ -141,14 +149,71 @@ function writeSelection(id: string | null): void {
 	window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
 }
 
+export type ThreadState =
+	{ kind: 'empty' } | { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; messages: ChatMessage[] }
+
+type Thread = { conversationId: string | null; state: ThreadState }
+
+type Pending = { requestId: string; conversationId: string; text: string; mentions: string }
+
+const EMPTY_THREAD: Thread = { conversationId: null, state: { kind: 'empty' } }
+
+async function readThread(conversationId: string): Promise<ThreadState> {
+	const result = await apiRequest<unknown>('GET', `/chat/conversations/${conversationId}`)
+	if (!result.ok) return { kind: 'error' }
+	const parsed = chatConversationReadResponse.safeParse(result.data)
+	return parsed.success ? { kind: 'ready', messages: parsed.data.messages } : { kind: 'error' }
+}
+
+function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMessage[]): ChatMessage[] {
+	const known = new Set(current.map((message) => message.id))
+	return [...current, ...added.filter((message) => !known.has(message.id))]
+}
+
+function withBlock(messages: readonly ChatMessage[], next: ChatActionResultBlock): ChatMessage[] {
+	return messages.map((message) => ({
+		...message,
+		blocks: message.blocks.map((block) =>
+			block.type === 'action_result' && block.actionId === next.actionId ? next : block
+		),
+	}))
+}
+
+function withUndo(messages: readonly ChatMessage[], actionId: string, undo: ChatUndoState): ChatMessage[] {
+	return messages.map((message) => ({
+		...message,
+		blocks: message.blocks.map((block) =>
+			block.type === 'action_result' && block.actionId === actionId ? { ...block, undo } : block
+		),
+	}))
+}
+
 export function useChat(initialConversationId: string | null) {
 	const [list, setList] = useState<ConversationListState>({ kind: 'loading' })
 	const listRef = useRef<ConversationListState>(list)
 	const [selectedId, setSelectedId] = useState<string | null>(initialConversationId)
-	const [creating, setCreating] = useState(false)
-	const [createFailed, setCreateFailed] = useState(false)
+	const [thread, setThread] = useState<Thread>(EMPTY_THREAD)
+	const threadRef = useRef<Thread>(thread)
+	const [threadGeneration, setThreadGeneration] = useState(0)
+	const [sending, setSending] = useState(false)
+	const [sendFailed, setSendFailed] = useState(false)
+	const sendingRef = useRef(false)
+	const pending = useRef<Pending | null>(null)
 	const requests = useRef(0)
 	const mounted = useRef(true)
+
+	const commitThread = useCallback((next: Thread) => {
+		threadRef.current = next
+		setThread(next)
+	}, [])
+
+	const updateThread = useCallback((conversationId: string, change: (messages: ChatMessage[]) => ChatMessage[]) => {
+		const current = threadRef.current
+		if (current.conversationId !== conversationId || current.state.kind !== 'ready') return
+		const next: Thread = { conversationId, state: { kind: 'ready', messages: change(current.state.messages) } }
+		threadRef.current = next
+		setThread(next)
+	}, [])
 
 	const commit = useCallback((next: ConversationListState) => {
 		listRef.current = next
@@ -199,24 +264,113 @@ export function useChat(initialConversationId: string | null) {
 		if (!known) writeSelection(null)
 	}, [known])
 
-	const create = useCallback(async () => {
-		if (creating) return
-		setCreating(true)
-		setCreateFailed(false)
-		const result = await apiRequest<ChatConversationResponse>('POST', '/chat/conversations')
-		if (!mounted.current) return
-		setCreating(false)
-		if (!result.ok) {
-			setCreateFailed(true)
-			return
+	useEffect(() => {
+		if (activeId === null || threadRef.current.conversationId === activeId) return
+		let live = true
+		void readThread(activeId).then((state) => {
+			if (live && mounted.current) commitThread({ conversationId: activeId, state })
+		})
+		return () => {
+			live = false
 		}
-		const created = result.data.conversation
-		requests.current++
-		const current = listRef.current
-		commit({ kind: 'ready', conversations: [created, ...(current.kind === 'ready' ? current.conversations : [])] })
-		select(created.id)
-		void load(true)
-	}, [commit, creating, load, select])
+	}, [activeId, threadGeneration, commitThread])
+
+	const shownThread: ThreadState =
+		activeId === null ? { kind: 'empty' } : thread.conversationId === activeId ? thread.state : { kind: 'loading' }
+
+	const reloadThread = useCallback(() => {
+		commitThread(EMPTY_THREAD)
+		setThreadGeneration((value) => value + 1)
+	}, [commitThread])
+
+	const putFirst = useCallback(
+		(conversation: ChatConversation) => {
+			requests.current++
+			const current = listRef.current
+			const others = (current.kind === 'ready' ? current.conversations : []).filter(
+				(item) => item.id !== conversation.id
+			)
+			commit({ kind: 'ready', conversations: [conversation, ...others] })
+		},
+		[commit]
+	)
+
+	const newChat = useCallback(() => {
+		setSendFailed(false)
+		select(null)
+	}, [select])
+
+	const openConversation = useCallback(async (): Promise<string | null> => {
+		if (activeId !== null) return activeId
+		const created = await apiRequest<ChatConversationResponse>('POST', '/chat/conversations')
+		if (!created.ok || !mounted.current) return null
+		const conversation = created.data.conversation
+		putFirst(conversation)
+		commitThread({ conversationId: conversation.id, state: { kind: 'ready', messages: [] } })
+		select(conversation.id)
+		return conversation.id
+	}, [activeId, commitThread, putFirst, select])
+
+	const send = useCallback(
+		async (draft: Draft): Promise<boolean> => {
+			if (sendingRef.current || draft.stale || draft.text.trim() === '') return false
+			sendingRef.current = true
+			setSending(true)
+			setSendFailed(false)
+			try {
+				const conversationId = await openConversation()
+				if (conversationId === null) {
+					setSendFailed(true)
+					return false
+				}
+				const mentions = JSON.stringify(draft.bindings)
+				const previous = pending.current
+				const entry: Pending =
+					previous !== null &&
+					previous.conversationId === conversationId &&
+					previous.text === draft.text &&
+					previous.mentions === mentions
+						? previous
+						: { requestId: crypto.randomUUID(), conversationId, text: draft.text, mentions }
+				pending.current = entry
+				const body: SendMessageRequest = { requestId: entry.requestId, text: draft.text, mentions: draft.bindings }
+				const result = await apiRequest<unknown>('POST', `/chat/conversations/${conversationId}/messages`, body)
+				if (!mounted.current) return false
+				const parsed = result.ok ? sendMessageResponse.safeParse(result.data) : null
+				if (!parsed?.success) {
+					if (result.status === 404) void load(true)
+					setSendFailed(true)
+					return false
+				}
+				pending.current = null
+				putFirst(parsed.data.conversation)
+				updateThread(conversationId, (messages) => mergeMessages(messages, parsed.data.messages))
+				return true
+			} finally {
+				sendingRef.current = false
+				if (mounted.current) setSending(false)
+			}
+		},
+		[load, openConversation, putFirst, updateThread]
+	)
+
+	const undo = useCallback(
+		async (actionId: string) => {
+			const conversationId = threadRef.current.conversationId
+			if (conversationId === null) return
+			updateThread(conversationId, (messages) => withUndo(messages, actionId, 'pending'))
+			const body: UndoRequest = { requestId: crypto.randomUUID() }
+			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/undo`, body)
+			if (!mounted.current) return
+			const parsed = result.ok ? undoResponse.safeParse(result.data) : null
+			if (parsed?.success) updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
+			else
+				updateThread(conversationId, (messages) =>
+					withUndo(messages, actionId, result.status === 409 ? 'stale' : 'available')
+				)
+		},
+		[updateThread]
+	)
 
 	const rename = useCallback(
 		async (conversation: ChatConversation, title: string): Promise<RenameOutcome> => {
@@ -260,10 +414,14 @@ export function useChat(initialConversationId: string | null) {
 	return {
 		list,
 		selectedId: activeId,
-		creating,
-		createFailed,
+		thread: shownThread,
+		sending,
+		sendFailed,
 		select,
-		create,
+		newChat,
+		send,
+		undo,
+		reloadThread,
 		rename,
 		remove,
 		reload: () => load(false),

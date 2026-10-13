@@ -12,7 +12,7 @@ import {
 } from 'react'
 
 import { AnimatePresence } from 'framer-motion'
-import { Info } from 'lucide-react'
+import { ArrowUp, Info } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Elevated } from '@/lib/elevated'
@@ -114,6 +114,8 @@ export function Composer({
 	students,
 	onRetryStudents,
 	disabled,
+	sending,
+	onSend,
 	inputRef,
 }: {
 	draft: Draft
@@ -122,8 +124,11 @@ export function Composer({
 	students: MentionStudents
 	onRetryStudents: () => void
 	disabled: boolean
+	sending: boolean
+	onSend: () => void
 	inputRef: RefObject<HTMLTextAreaElement | null>
 }) {
+	const canSend = !disabled && !sending && !draft.stale && draft.text.trim() !== ''
 	const listId = useId()
 	const backdrop = useRef<HTMLDivElement>(null)
 	const pendingCaret = useRef<number | null>(null)
@@ -246,7 +251,10 @@ export function Composer({
 				return
 			}
 		}
-		if (event.key === 'Enter' && !event.shiftKey) event.preventDefault()
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault()
+			if (canSend) onSend()
+		}
 	}
 
 	return (
@@ -325,6 +333,21 @@ export function Composer({
 							))}
 						</div>
 					) : null}
+					<div className="flex items-center justify-end">
+						<Button
+							variant="primary"
+							size="icon-compact"
+							aria-label="Send"
+							data-slot="chat-send"
+							className="rounded-full"
+							loading={sending}
+							disabled={!canSend}
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onSend}
+						>
+							<ArrowUp />
+						</Button>
+					</div>
 				</Elevated>
 			</div>
 			{draft.stale ? (

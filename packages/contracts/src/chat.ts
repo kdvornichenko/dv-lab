@@ -280,6 +280,7 @@ export const chatClarifyBlock = z.strictObject({
 export const chatRefusedBlock = z.strictObject({
 	type: z.literal('refused'),
 	code: chatRefusalCode,
+	kind: z.enum(CHAT_LOCAL_ACTION_KINDS).optional(),
 	lessonStartsAt: calendarInstant.optional(),
 	timeZone: calendarTimeZone.optional(),
 })

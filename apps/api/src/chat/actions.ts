@@ -145,8 +145,8 @@ async function refuse(
 ): Promise<ChatBlock> {
 	await recordAction(executor, context, source, { kind, state: 'refused', result: { kind: 'refused', code } })
 	return lesson
-		? { type: 'refused', code, lessonStartsAt: lesson.startsAt, timeZone: context.defaultTimeZone }
-		: { type: 'refused', code }
+		? { type: 'refused', code, kind, lessonStartsAt: lesson.startsAt, timeZone: context.defaultTimeZone }
+		: { type: 'refused', code, kind }
 }
 
 function clarifyReply(intent: ChatLessonIntent, date: string, time: string): string {

@@ -6,19 +6,21 @@ import { AnimatePresence } from 'framer-motion'
 import { List, Plus } from 'lucide-react'
 
 import { EmptyLine } from '@/components/app/empty-line'
+import { ReadError } from '@/components/app/read-error'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 
-import type { ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
+import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
 
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
+import { Messages } from './messages'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
-import { useChat, useComposerDraft, useMentionStudents } from './use-chat'
+import { useChat, useComposerDraft, useMentionStudents, type ThreadState } from './use-chat'
 
 type ReadState =
 	{ kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; facts: ChatStudentFacts }
@@ -74,6 +76,36 @@ function StudentRecords({ studentId }: { studentId: string }) {
 	return <StudentFacts facts={state.facts} />
 }
 
+function ThreadSkeleton() {
+	return (
+		<div role="status" aria-label="Loading messages" className="flex flex-col gap-4">
+			<Skeleton className="h-9 w-56 self-end rounded-2xl" />
+			<Skeleton className="h-20 w-full rounded-2xl" />
+			<Skeleton className="h-9 w-40 self-end rounded-2xl" />
+		</div>
+	)
+}
+
+function Thread({
+	state,
+	onUndo,
+	onChoose,
+	onRefresh,
+	empty,
+}: {
+	state: ThreadState
+	onUndo: (actionId: string) => void
+	onChoose: (block: ChatClarifyBlock, reply: string) => void
+	onRefresh: () => void
+	empty: boolean
+}) {
+	if (state.kind === 'loading') return <ThreadSkeleton />
+	if (state.kind === 'error') return <ReadError screen="this conversation" onRefresh={onRefresh} />
+	const messages = state.kind === 'ready' ? state.messages : []
+	if (messages.length === 0) return empty ? <EmptyLine text="What do you want to ask?" /> : null
+	return <Messages messages={messages} onUndo={onUndo} onChoose={onChoose} />
+}
+
 function focusAllChats() {
 	const buttons = Array.from(document.querySelectorAll<HTMLElement>('[data-all-chats]'))
 	buttons.find((button) => button.offsetParent !== null)?.focus()
@@ -91,14 +123,12 @@ function ChatHeader({
 	title,
 	loadingTitle,
 	listOpen,
-	creating,
 	onToggleList,
 	onCreate,
 }: {
 	title: string
 	loadingTitle: boolean
 	listOpen: boolean
-	creating: boolean
 	onToggleList: () => void
 	onCreate: () => void
 }) {
@@ -137,24 +167,10 @@ function ChatHeader({
 			>
 				<List />
 			</Button>
-			<Button
-				variant="tertiary"
-				size="compact"
-				leadingIcon={Plus}
-				loading={creating}
-				className="max-md:hidden"
-				onClick={onCreate}
-			>
+			<Button variant="tertiary" size="compact" leadingIcon={Plus} className="max-md:hidden" onClick={onCreate}>
 				New chat
 			</Button>
-			<Button
-				variant="tertiary"
-				size="icon-compact"
-				loading={creating}
-				aria-label="New chat"
-				className="w-9 md:hidden"
-				onClick={onCreate}
-			>
+			<Button variant="tertiary" size="icon-compact" aria-label="New chat" className="w-9 md:hidden" onClick={onCreate}>
 				<Plus />
 			</Button>
 		</header>
@@ -195,7 +211,29 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 
 	function create() {
 		setListOpen(false)
-		void chat.create()
+		composer.clear()
+		chat.newChat()
+		later(() => input.current?.focus())
+	}
+
+	async function send() {
+		if (await chat.send(composer.draft)) composer.clear()
+		later(() => input.current?.focus())
+	}
+
+	function choose(block: ChatClarifyBlock, reply: string) {
+		const name = block.studentName
+		composer.setDraft({
+			text: `@${name} ${reply}`,
+			bindings: [{ studentId: block.studentId, text: name, start: 1, end: 1 + name.length }],
+			stale: false,
+		})
+		later(() => {
+			const field = input.current
+			if (!field) return
+			field.focus()
+			field.setSelectionRange(field.value.length, field.value.length)
+		})
 	}
 
 	return (
@@ -205,33 +243,37 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 					title={selected?.title ?? 'Chat'}
 					loadingTitle={loadingTitle}
 					listOpen={listOpen}
-					creating={chat.creating}
 					onToggleList={() => setListOpen((open) => !open)}
 					onCreate={create}
 				/>
-				{chat.createFailed ? (
-					<Banner status="error">
-						<BannerTitle>Could not create a chat. Try again.</BannerTitle>
-					</Banner>
-				) : null}
 				<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
 					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
 						<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade [&>div]:!min-w-0">
 							<div role="log" aria-label="Messages" className="flex flex-col gap-4 pb-2">
-								{studentId === null ? (
-									<EmptyLine text="What do you want to ask?" />
-								) : (
-									<StudentRecords key={studentId} studentId={studentId} />
-								)}
+								{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
+								<Thread
+									state={chat.thread}
+									onUndo={(actionId) => void chat.undo(actionId)}
+									onChoose={choose}
+									onRefresh={chat.reloadThread}
+									empty={studentId === null}
+								/>
 							</div>
 						</ScrollArea>
+						{chat.sendFailed ? (
+							<Banner status="error">
+								<BannerTitle>Could not send the message. Try again.</BannerTitle>
+							</Banner>
+						) : null}
 						<Composer
 							draft={composer.draft}
 							onDraft={composer.setDraft}
 							onType={composer.type}
 							students={students.state}
 							onRetryStudents={students.retry}
-							disabled={listOpen}
+							disabled={listOpen || chat.sending}
+							sending={chat.sending}
+							onSend={() => void send()}
 							inputRef={input}
 						/>
 					</div>

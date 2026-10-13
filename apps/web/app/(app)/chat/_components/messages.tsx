@@ -1,0 +1,287 @@
+'use client'
+
+import { Fragment, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+
+import { motion, useReducedMotion } from 'framer-motion'
+import Link from 'next/link'
+
+import { Panel } from '@/components/app/layout-parts'
+import { useSecondZone } from '@/components/app/time-zone-picker'
+import { Banner, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
+import { spring } from '@/lib/springs'
+import { zoneLabel } from '@/lib/time-zones'
+
+import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, MentionBinding } from '@dv-lab/contracts'
+
+import { ActionResult } from './action-result'
+import { conversationTime } from './conversation-list'
+
+type Notice = { tone: 'info' | 'warning'; title: string; line?: string; settings?: boolean }
+
+const CALENDAR_STILL = 'Marks, notes and comments still work.'
+
+function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
+	switch (block.code) {
+		case 'lesson_done':
+			return {
+				tone: 'info',
+				title: 'This lesson is marked Done, so it stays where it is.',
+				line: 'Set the mark to Scheduled first, then ask again.',
+			}
+		case 'lesson_not_started': {
+			const zone = block.timeZone
+			const at = block.lessonStartsAt ? new Date(block.lessonStartsAt) : null
+			const line =
+				at !== null && zone !== undefined
+					? `This lesson is on ${mainWhen(at, zone, secondZone, yearInZone(new Date(), zone))}.`
+					: undefined
+			if (block.kind === 'comment')
+				return { tone: 'info', title: 'Comments can be added once the lesson has started.', line }
+			return { tone: 'info', title: 'You can mark a lesson once it has started.', line }
+		}
+		case 'outside_sync_window':
+			return {
+				tone: 'info',
+				title:
+					'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.',
+				line: CALENDAR_STILL,
+			}
+		case 'connection_required':
+			return {
+				tone: 'info',
+				title: 'Connect Google Calendar to use the calendar. Previously saved history is available for viewing.',
+				line: CALENDAR_STILL,
+				settings: true,
+			}
+		case 'command_pending':
+			return { tone: 'info', title: 'Earlier calendar requests need recovery before you can make new changes.' }
+		case 'calendar_unavailable':
+			return {
+				tone: 'info',
+				title: 'Google Calendar is unavailable. Showing the last checked view. Calendar changes are disabled.',
+			}
+		case 'series_marked':
+			return {
+				tone: 'info',
+				title: 'This series has marked lessons on or after that date, so it cannot move from there.',
+				line: 'Lessons with a mark or a comment stay where they are. Choose a later date, or move one lesson.',
+			}
+		case 'lesson_changed':
+			return {
+				tone: 'warning',
+				title: 'This lesson changed after you asked. Nothing was changed.',
+				line: 'Ask again to use its current time.',
+			}
+		case 'mention_stale':
+			return { tone: 'warning', title: 'This student is no longer available. Choose a student again.' }
+		case 'out_of_phase':
+			return { tone: 'info', title: 'This change is not available in chat yet. Use the existing screen.' }
+		case 'budget_reached':
+			return { tone: 'info', title: 'Chat is paused because its monthly budget has been reached.' }
+		case 'budget_insufficient':
+			return { tone: 'info', title: 'Not enough budget for this request.' }
+		case 'not_found':
+			return block.kind === 'note'
+				? { tone: 'warning', title: 'This student is no longer available. Choose a student again.' }
+				: { tone: 'warning', title: 'Could not find this lesson. Nothing was changed.' }
+		case 'model_unavailable':
+		case 'credits_unavailable':
+		case 'provider_unavailable':
+			return { tone: 'info', title: 'Model settings are unavailable. Refresh before sending.' }
+	}
+}
+
+function Refused({ block }: { block: ChatRefusedBlock }) {
+	const [secondZone] = useSecondZone(block.timeZone ?? null)
+	const shown = notice(block, secondZone)
+	return (
+		<Banner status={shown.tone} role="status" data-refusal={block.code}>
+			<BannerTitle>{shown.title}</BannerTitle>
+			{shown.line ? <BannerDescription>{shown.line}</BannerDescription> : null}
+			{shown.settings ? (
+				<BannerActions>
+					<Button variant="secondary" size="compact" render={<Link href="/settings" />}>
+						Connect Google Calendar
+					</Button>
+				</BannerActions>
+			) : null}
+		</Banner>
+	)
+}
+
+function Clarify({
+	block,
+	onChoose,
+}: {
+	block: ChatClarifyBlock
+	onChoose: (block: ChatClarifyBlock, reply: string) => void
+}) {
+	const zone = block.options[0]?.timeZone ?? null
+	const [secondZone] = useSecondZone(zone)
+	const year = zone === null ? 0 : yearInZone(new Date(), zone)
+	if (block.question === 'date_time') {
+		return (
+			<Panel>
+				<div role="status" data-slot="chat-clarify" className="flex flex-col gap-1 px-4 py-3">
+					<p className="text-body font-semibold text-foreground">What date and time do you mean?</p>
+					<p className="text-caption text-muted-foreground">Answer in the message box.</p>
+				</div>
+			</Panel>
+		)
+	}
+	return (
+		<Panel>
+			<div role="status" data-slot="chat-clarify" className="flex flex-col gap-2 px-4 py-3">
+				<p className="text-body font-semibold text-foreground">Which lesson do you mean?</p>
+				<ul className="-mx-2 flex flex-col">
+					{block.options.slice(0, 5).map((option) => {
+						const at = new Date(option.startsAt)
+						const second = secondWhen(at, option.timeZone, secondZone)
+						const main = `${formatWhen(at, option.timeZone, year)} ${zoneLabel(option.timeZone, at)}`
+						return (
+							<li key={option.startsAt}>
+								<button
+									type="button"
+									className="flex h-10 w-full items-center gap-3 rounded-lg px-2 text-left tabular-nums outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus-ring"
+									onClick={() => onChoose(block, option.reply)}
+								>
+									<span className="min-w-0 flex-1 truncate">
+										<span className="text-body text-foreground">{main}</span>{' '}
+										<span className="text-micro text-muted-foreground">
+											{second === null ? block.studentName : `${second} · ${block.studentName}`}
+										</span>
+									</span>
+								</button>
+							</li>
+						)
+					})}
+				</ul>
+			</div>
+		</Panel>
+	)
+}
+
+function Block({
+	block,
+	onUndo,
+	onChoose,
+}: {
+	block: ChatBlock
+	onUndo: (actionId: string) => void
+	onChoose: (block: ChatClarifyBlock, reply: string) => void
+}) {
+	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
+	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
+	return <Refused block={block} />
+}
+
+function TeacherText({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {
+	const parts: ReactNode[] = []
+	let cursor = 0
+	for (const binding of [...mentions].sort((left, right) => left.start - right.start)) {
+		const start = binding.start > 0 && text[binding.start - 1] === '@' ? binding.start - 1 : binding.start
+		if (start < cursor || binding.end > text.length) continue
+		parts.push(<Fragment key={`t${cursor}`}>{text.slice(cursor, start)}</Fragment>)
+		parts.push(
+			<span key={`m${start}`} className="font-semibold">
+				{text.slice(start, binding.end)}
+			</span>
+		)
+		cursor = binding.end
+	}
+	parts.push(<Fragment key={`t${cursor}`}>{text.slice(cursor)}</Fragment>)
+	return <>{parts}</>
+}
+
+function MessageItem({
+	message,
+	reduceMotion,
+	children,
+}: {
+	message: ChatMessage
+	reduceMotion: boolean
+	children: ReactNode
+}) {
+	return (
+		<motion.li
+			data-message-id={message.id}
+			data-role={message.role}
+			className={
+				message.role === 'teacher' ? 'flex max-w-[80%] flex-col items-end gap-1 self-end' : 'flex flex-col gap-3'
+			}
+			initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+			animate={{ opacity: 1, y: 0 }}
+			transition={{ type: 'spring', duration: spring.moderate.duration, bounce: 0 }}
+		>
+			{children}
+		</motion.li>
+	)
+}
+
+export function Messages({
+	messages,
+	onUndo,
+	onChoose,
+}: {
+	messages: readonly ChatMessage[]
+	onUndo: (actionId: string) => void
+	onChoose: (block: ChatClarifyBlock, reply: string) => void
+}) {
+	const reduceMotion = useReducedMotion() ?? false
+	const end = useRef<HTMLDivElement>(null)
+	const atBottom = useRef(true)
+	const now = new Date()
+
+	useEffect(() => {
+		const viewport = end.current?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+		if (!viewport) return
+		const track = () => {
+			atBottom.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 32
+		}
+		viewport.addEventListener('scroll', track, { passive: true })
+		return () => viewport.removeEventListener('scroll', track)
+	}, [])
+
+	useLayoutEffect(() => {
+		const viewport = end.current?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+		if (viewport && atBottom.current) viewport.scrollTop = viewport.scrollHeight
+	}, [messages])
+
+	return (
+		<>
+			<ol className="flex flex-col gap-4" data-slot="chat-messages">
+				{messages.map((message) =>
+					message.role === 'teacher' ? (
+						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
+							<p className="rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground">
+								<TeacherText text={message.body} mentions={message.mentions} />
+							</p>
+							<span className="text-caption text-muted-foreground tabular-nums">
+								{conversationTime(message.createdAt, now)}
+							</span>
+						</MessageItem>
+					) : (
+						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
+							{message.body === '' ? null : (
+								<p className="text-subtitle font-normal break-words whitespace-pre-wrap text-foreground">
+									{message.body}
+								</p>
+							)}
+							{message.blocks.map((block, index) => (
+								<Block
+									key={block.type === 'action_result' ? block.actionId : `${message.id}-${index}`}
+									block={block}
+									onUndo={onUndo}
+									onChoose={onChoose}
+								/>
+							))}
+						</MessageItem>
+					)
+				)}
+			</ol>
+			<div ref={end} aria-hidden />
+		</>
+	)
+}
