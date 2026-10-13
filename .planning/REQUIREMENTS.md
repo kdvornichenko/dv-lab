@@ -79,7 +79,7 @@ Requirements for milestone v2.0 Unified dv-lab. Each maps to a roadmap phase. Th
 - [ ] **GCAL-03**: Commands to Google go through one serialized writer per lesson. Saved state is published only after Google confirms the result. Without Google availability, the last known calendar is read-only and new offline edits are not accepted.
 - [ ] **GCAL-04**: Changes made in Google reach the schedule through push notifications (`events.watch`) and incremental sync with `syncToken`; a `410` response triggers a full resync.
 - [ ] **GCAL-05**: Watch channels renew before they expire, and a nightly reconcile catches missed notifications.
-- [ ] **GCAL-06**: Events created by the app carry the lesson id; other events whose title matches a student's short name become lessons; unmatched events are listed to assign or ignore; all other events count only as busy time.
+- [ ] **GCAL-06**: Events created by the app carry the lesson id; an event whose title matches a student's short name is only suggested, and the teacher binds it with Assign or discards it with Ignore (nothing is bound automatically); all other events are shown as regular events.
 - [ ] **GCAL-07**: When the same lesson changed in both places, the Google version wins.
 - [ ] **GCAL-08**: Moving one occurrence in Google moves exactly that occurrence in the schedule, and moving a series in Google moves the series.
 - [ ] **GCAL-09**: The connection screen shows expired or revoked authorization and offers reconnect.
@@ -184,11 +184,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GCAL-01     | Phase 24   | Pending  |
 | GCAL-02     | Phase 24   | Pending  |
 | GCAL-03     | Phase 24   | Pending  |
-| GCAL-04     | Phase 25   | Pending  |
-| GCAL-05     | Phase 25   | Pending  |
-| GCAL-06     | Phase 25   | Pending  |
-| GCAL-07     | Phase 25   | Pending  |
-| GCAL-08     | Phase 25   | Pending  |
+| GCAL-04     | Phase 25.1 | Implemented, live check pending |
+| GCAL-05     | Phase 25.1 | Implemented, live check pending |
+| GCAL-06     | Phase 25.1 | Implemented, live check pending |
+| GCAL-07     | Phase 25.1 | Implemented, live check pending |
+| GCAL-08     | Phase 25.1 | Implemented, live check pending |
 | GCAL-09     | Phase 24   | Pending  |
 | GCAL-10     | Phase 24   | Pending  |
 | CHAT-01     | Phase 22   | Pending  |
