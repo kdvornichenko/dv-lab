@@ -300,7 +300,7 @@ export function CalendarEventDialog({
 		if (editShape && canWrite) setFormBase(latest)
 	}
 	const canEdit = canWrite && editShape
-	const canDelete = canWrite && latest !== null && latest.scopes.delete.length > 0 && !unsupported
+	const canDelete = canWrite && latest !== null && latest.scopes.delete.length > 0
 	const reason = readOnlyReason(event, window, latest, editable)
 	const transition = event.binding.kind === 'transition'
 	const removed = state.kind === 'removed'
@@ -529,7 +529,7 @@ export function CalendarEventDialog({
 									Edit event
 								</Button>
 							</>
-						) : !removed && !transition && allDay && canDelete ? (
+						) : !removed && !transition && canDelete ? (
 							<>
 								<Button
 									type="button"
