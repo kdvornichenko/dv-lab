@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { useRouter } from 'next/navigation'
+
 import { useCalendarController } from '@/components/app/calendar-command-provider'
 import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest } from '@/lib/api-client'
 
@@ -145,11 +147,11 @@ export type ConversationListState =
 
 export type RenameOutcome = 'saved' | 'gone' | 'failed'
 
-function writeSelection(id: string | null): void {
+function selectionHref(id: string | null): string {
 	const url = new URL(window.location.href)
 	if (id === null) url.searchParams.delete('c')
 	else url.searchParams.set('c', id)
-	window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+	return `${url.pathname}${url.search}${url.hash}`
 }
 
 export type ThreadState =
@@ -215,6 +217,7 @@ function announceChange() {
 
 export function useChat(initialConversationId: string | null) {
 	const calendar = useCalendarController()
+	const router = useRouter()
 	const [list, setList] = useState<ConversationListState>({ kind: 'loading' })
 	const listRef = useRef<ConversationListState>(list)
 	const [selectedId, setSelectedId] = useState<string | null>(initialConversationId)
@@ -277,18 +280,21 @@ export function useChat(initialConversationId: string | null) {
 		}
 	}, [fetchList])
 
-	const select = useCallback((id: string | null) => {
-		setSelectedId(id)
-		writeSelection(id)
-	}, [])
+	const select = useCallback(
+		(id: string | null) => {
+			setSelectedId(id)
+			router.replace(selectionHref(id), { scroll: false })
+		},
+		[router]
+	)
 
 	const known =
 		list.kind !== 'ready' || selectedId === null || list.conversations.some((item) => item.id === selectedId)
 	const activeId = known ? selectedId : null
 
 	useEffect(() => {
-		if (!known) writeSelection(null)
-	}, [known])
+		if (!known) router.replace(selectionHref(null), { scroll: false })
+	}, [known, router])
 
 	useEffect(() => {
 		if (activeId === null || threadRef.current.conversationId === activeId) return
