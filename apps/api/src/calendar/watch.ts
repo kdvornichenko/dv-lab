@@ -141,17 +141,7 @@ export function createCalendarWatch(deps: {
 		return 'renewed'
 	}
 
-	async function stopAll(connectionId: string, token: string) {
-		const row = await current(connectionId)
-		if (!row) return { stopped: 0, failed: 0 }
-		const pairs: ChannelPair[] = []
-		if (row.channelId && row.channelResourceId) pairs.push({ id: row.channelId, resourceId: row.channelResourceId })
-		if (row.retiringChannelId && row.retiringResourceId)
-			pairs.push({ id: row.retiringChannelId, resourceId: row.retiringResourceId })
-		return stop(pairs, token)
-	}
-
-	return { maintain, stop, stopAll }
+	return { maintain, stop }
 }
 
 export type CalendarWatch = ReturnType<typeof createCalendarWatch>

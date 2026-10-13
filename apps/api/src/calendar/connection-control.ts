@@ -27,7 +27,7 @@ type ControlDeps = {
 	credentials: Credentials
 	envelope: TokenEnvelope
 	gateway: GoogleGateway
-	watch: Pick<CalendarWatch, 'stopAll'>
+	watch: Pick<CalendarWatch, 'stop'>
 	logger: Logger
 	observation: CalendarObservation
 	isStopping: () => boolean
@@ -244,7 +244,6 @@ export function createConnectionControl(deps: ControlDeps) {
 			const access = await deps.credentials
 				.accessToken(actor.accountId, AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS))
 				.catch(() => null)
-			if (access) await deps.watch.stopAll(access.connection.id, access.accessToken)
 			const transition = await deps.db.transaction(async (tx) => {
 				await requireConsentSession(tx, actor)
 				const [row] = await tx
@@ -270,9 +269,11 @@ export function createConnectionControl(deps: ControlDeps) {
 					.returning()
 				if (!updated) throw new CalendarFault('command_pending')
 				await failUnsent(tx, row.id)
-				await retireSyncRow(tx, row.id)
-				return { before: row, after: updated }
+				const pairs = await retireSyncRow(tx, row.id)
+				return { before: row, after: updated, pairs }
 			})
+			if (transition && access && access.connection.id === transition.before.id && transition.pairs.length)
+				await deps.watch.stop(transition.pairs, access.accessToken)
 			if (transition) deps.observation.control(transition.before, transition.after, 'google_disconnect_started')
 			deps.credentials.evict(actor.accountId)
 			wake()
