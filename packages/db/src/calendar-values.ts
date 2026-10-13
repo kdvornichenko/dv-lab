@@ -105,6 +105,7 @@ export const googleCommandInput = z.discriminatedUnion('operation', [
 		weekday: z.literal([1, 2, 3, 4, 5, 6, 7]),
 		startTime: clock,
 		durationMinutes: z.number().int().min(1).optional(),
+		newStartsOn: isoDate.optional(),
 		expectedDefaultTimeZone: zone,
 	}),
 	z.strictObject({

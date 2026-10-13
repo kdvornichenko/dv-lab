@@ -87,7 +87,7 @@ function selectionRange(selection: Selection) {
 		proposal?.operation === 'create'
 			? proposal.input.date
 			: proposal?.operation === 'move_series'
-				? firstOnOrAfter(proposal.input.from, proposal.input.weekday)
+				? firstOnOrAfter(proposal.input.newStartsOn ?? proposal.input.from, proposal.input.weekday)
 				: selection.date
 	return { infinite, minimum }
 }

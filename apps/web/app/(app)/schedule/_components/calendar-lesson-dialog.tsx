@@ -104,11 +104,13 @@ function seriesMoveBody(
 	const cut = natural === null ? today : scope === 'following' ? natural : inZone(natural)
 	const first = addDays(cut, dayGap(draft.date, opened))
 	const earlier = first < cut ? first : cut
+	const from = earlier < today ? today : earlier
 	return {
-		from: earlier < today ? today : earlier,
+		from,
 		weekday: weekdayOf(first),
 		startTime: draft.time,
 		...(draft.durationMinutes !== rule.durationMinutes ? { durationMinutes: draft.durationMinutes } : {}),
+		...(first > from ? { newStartsOn: first } : {}),
 		expectedDefaultTimeZone: mainTimeZone,
 	}
 }

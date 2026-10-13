@@ -61,6 +61,7 @@ export const moveSeriesRequest = z.object({
 	weekday,
 	startTime: clockTime,
 	durationMinutes: lessonMinutes.optional(),
+	newStartsOn: isoDate.optional(),
 	expectedDefaultTimeZone,
 })
 

@@ -41,6 +41,7 @@ export type MoveSeriesBody = {
 	weekday: ScheduleWeekday
 	startTime: string
 	durationMinutes?: number
+	newStartsOn?: string
 	expectedDefaultTimeZone: string
 }
 export type EndSeriesBody = { lastOn: string; expectedDefaultTimeZone: string }
