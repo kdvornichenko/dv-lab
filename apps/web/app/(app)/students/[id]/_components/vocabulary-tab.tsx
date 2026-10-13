@@ -84,21 +84,26 @@ export function VocabularyTab({ student }: { student: StudentDetail }) {
 		return true
 	}
 
-	if (state.kind === 'loading') return <SkeletonTable columns={skeletonColumns} />
 	if (state.kind === 'error') return <ReadError screen="vocabulary" onRefresh={load} />
 
-	const { terms } = state
+	const terms = state.kind === 'ready' ? state.terms : null
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between gap-2">
-				<p className="text-body text-foreground tabular-nums">
-					{terms.length === 1 ? '1 term' : `${terms.length} terms`}
-				</p>
+				{terms === null ? (
+					<SkeletonLine box="h-5" className="w-16" />
+				) : (
+					<p className="text-body text-foreground tabular-nums">
+						{terms.length === 1 ? '1 term' : `${terms.length} terms`}
+					</p>
+				)}
 				<Button ref={addButton} variant="secondary" leadingIcon={Plus} onClick={() => setAdding(true)}>
 					Add term
 				</Button>
 			</div>
-			{terms.length === 0 ? (
+			{terms === null ? (
+				<SkeletonTable columns={skeletonColumns} />
+			) : terms.length === 0 ? (
 				<EmptyLine />
 			) : (
 				<Elevated offset={1} shadowLevel={2} className="w-0 min-w-full overflow-hidden rounded-2xl">

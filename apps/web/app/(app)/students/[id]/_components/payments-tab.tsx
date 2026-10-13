@@ -115,7 +115,13 @@ export function PaymentsTab({ student, refreshKey, onChanged }: PaymentsTabProps
 		requestAnimationFrame(() => document.getElementById(`set-currency-${payment.id}`)?.focus())
 	}
 
-	if (state.kind === 'loading') return <SkeletonTable columns={skeletonColumns} />
+	if (state.kind === 'loading')
+		return (
+			<div className="flex flex-col gap-4">
+				<SkeletonLine box="h-5" className="w-36" />
+				<SkeletonTable columns={skeletonColumns} />
+			</div>
+		)
 	if (state.kind === 'error') return <ReadError screen="payments" onRefresh={load} />
 	if (state.payments.length === 0) return <EmptyLine />
 
