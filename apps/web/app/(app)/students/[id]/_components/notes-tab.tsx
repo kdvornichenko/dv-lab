@@ -55,10 +55,18 @@ function LoadingPanels() {
 	return (
 		<div className="flex flex-col gap-4 md:gap-6">
 			{SECTION_KINDS.map((kind) => (
-				<Panel key={kind} title={TITLES[kind]}>
+				<Panel
+					key={kind}
+					title={TITLES[kind]}
+					action={
+						<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
+							Edit
+						</Button>
+					}
+				>
 					<div className="flex flex-col gap-2 px-4 pb-4">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-3/5" />
+						<Skeleton className="h-3 w-full" />
+						<Skeleton className="h-3 w-3/5" />
 					</div>
 				</Panel>
 			))}
