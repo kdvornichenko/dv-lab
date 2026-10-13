@@ -36,18 +36,24 @@ function uniqueSeries(...lists: ScheduleSeries[][]): ScheduleSeries[] {
 	return [...byId.values()]
 }
 
-export async function readToday(
-	executor: DbExecutor,
-	context: CardReadContext,
-	paysSoonLessons: number
-): Promise<TodayResponse> {
+export type LessonDay = Pick<
+	TodayResponse,
+	'date' | 'defaultTimeZone' | 'calendarRead' | 'calendarWrite' | 'lessons' | 'earlier' | 'series'
+>
+
+export async function readLessonDay(executor: DbExecutor, context: CardReadContext, date: string): Promise<LessonDay> {
 	const { now, defaultTimeZone } = context
-	const date = lessonDay(now, defaultTimeZone)
 	const dayStart = startOfLessonDay(date, defaultTimeZone)
 	const dayEnd = startOfLessonDay(addDays(date, 1), defaultTimeZone)
-	const calendar = await readCalendarWindow(executor, context, todayWindow(context))
-	const upcoming = await calendarLessons(executor, calendar.events, now, dayEnd)
-	const day = await readWindow(executor, dayStart, new Date(now.getTime() + 1), context)
+	const calendar = await readCalendarWindow(executor, context, {
+		kind: 'window',
+		...scheduleWeekRange(mondayOf(date), defaultTimeZone),
+		displayTimeZone: defaultTimeZone,
+	})
+	const upcomingFrom = dayStart > now ? new Date(dayStart.getTime() - 1) : now
+	const upcoming = await calendarLessons(executor, calendar.events, upcomingFrom, dayEnd)
+	const pastEnd = new Date(Math.min(now.getTime() + 1, dayEnd.getTime()))
+	const day = dayStart > now ? { blocks: [], series: [] } : await readWindow(executor, dayStart, pastEnd, context)
 	const past = await readWindow(
 		executor,
 		startOfZonedDay(addDays(date, -MARK_LOOKBACK_DAYS), defaultTimeZone),
@@ -71,11 +77,9 @@ export async function readToday(
 			)
 		)
 	const earlierSeries = new Set(earlier.flatMap((block) => (block.ref.kind === 'series' ? [block.ref.seriesId] : [])))
-	const cards = await listCards(executor, context)
 	return {
 		date,
 		defaultTimeZone,
-		asOf: now.toISOString(),
 		calendarRead: calendar.read,
 		calendarWrite: calendar.write,
 		lessons,
@@ -85,6 +89,19 @@ export async function readToday(
 			past.series.filter((series) => earlierSeries.has(series.id)),
 			calendar.series.map((item) => item.series).filter((series) => daySeries.has(series.id))
 		),
+	}
+}
+
+export async function readToday(
+	executor: DbExecutor,
+	context: CardReadContext,
+	paysSoonLessons: number
+): Promise<TodayResponse> {
+	const day = await readLessonDay(executor, context, lessonDay(context.now, context.defaultTimeZone))
+	const cards = await listCards(executor, context)
+	return {
+		...day,
+		asOf: context.now.toISOString(),
 		paysSoon: paysSoonList(cards.students, paysSoonLessons),
 		paysSoonLessons,
 	}
