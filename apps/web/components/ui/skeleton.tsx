@@ -82,23 +82,5 @@ function SkeletonStat() {
 	)
 }
 
-function SkeletonProfileHeader() {
-	return (
-		<div className="flex items-center gap-4">
-			<SkeletonAvatar size="lg" />
-			<SkeletonText lines={2} className="w-full max-w-xs" />
-		</div>
-	)
-}
-
-export {
-	Skeleton,
-	SkeletonText,
-	SkeletonAvatar,
-	SkeletonLine,
-	SkeletonCount,
-	SkeletonTable,
-	SkeletonStat,
-	SkeletonProfileHeader,
-}
+export { Skeleton, SkeletonText, SkeletonAvatar, SkeletonLine, SkeletonCount, SkeletonTable, SkeletonStat }
 export type { SkeletonTableColumn }

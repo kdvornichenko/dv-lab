@@ -1,29 +1,29 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { Archive, ArchiveRestore, ArrowLeft, Wallet } from 'lucide-react'
-import Link from 'next/link'
+import { Archive, ArchiveRestore, Wallet } from 'lucide-react'
 
 import { Avatar } from '@/components/app/avatar'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
+import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
 import { NotFoundPage } from '@/components/app/status-pages'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
-import { Skeleton, SkeletonProfileHeader } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
 
 import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
+import { BackButton } from './back-button'
 import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
+import { ProfileLoading } from './profile-loading'
 import { RecordPaymentDialog } from './record-payment-dialog'
 import { VocabularyTab } from './vocabulary-tab'
 
@@ -34,64 +34,6 @@ async function readStudent(id: string): Promise<ReadState> {
 	const result = await apiRequest<StudentResponse>('GET', `/students/${id}`)
 	if (result.ok) return { kind: 'ready', data: result.data }
 	return { kind: result.status === 404 ? 'not_found' : 'error', data: null }
-}
-
-function BackButton() {
-	return (
-		<Button
-			variant="ghost"
-			size="compact"
-			leadingIcon={ArrowLeft}
-			nativeButton={false}
-			render={<Link href="/students" />}
-			className="self-start"
-		>
-			Students
-		</Button>
-	)
-}
-
-function SectionTabs({ children, disabled }: { children: ReactNode; disabled: boolean }) {
-	return (
-		<Tabs defaultValue="overview">
-			<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
-				<TabsList
-					aria-label="Student sections"
-					className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
-				>
-					<TabItem value="overview" label="Overview" disabled={disabled} />
-					<TabItem value="notes" label="Notes" disabled={disabled} />
-					<TabItem value="vocabulary" label="Vocabulary" disabled={disabled} />
-					<TabItem value="payments" label="Payments" disabled={disabled} />
-				</TabsList>
-			</div>
-			<TabPanel value="overview" className="mt-4">
-				{children}
-			</TabPanel>
-		</Tabs>
-	)
-}
-
-function LoadingBody() {
-	return (
-		<div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-			<Panel>
-				<div className="flex flex-col gap-4 p-4">
-					<Skeleton className="h-5 w-24" />
-					<Skeleton className="h-4 w-full" />
-					<Skeleton className="h-4 w-full" />
-					<Skeleton className="h-4 w-3/5" />
-				</div>
-			</Panel>
-			<Panel>
-				<div className="flex flex-col gap-4 p-4">
-					<Skeleton className="h-5 w-32" />
-					<Skeleton className="h-9 w-full" />
-					<Skeleton className="h-9 w-full" />
-				</div>
-			</Panel>
-		</div>
-	)
 }
 
 function SummaryLine({
@@ -212,17 +154,7 @@ export function StudentProfile({ id }: { id: string }) {
 		)
 	}
 
-	if (state.data === null) {
-		return (
-			<PageScroll>
-				<BackButton />
-				<SkeletonProfileHeader />
-				<SectionTabs disabled>
-					<LoadingBody />
-				</SectionTabs>
-			</PageScroll>
-		)
-	}
+	if (state.data === null) return <ProfileLoading />
 
 	const { student, paysSoonLessons: threshold, defaultTimeZone: mainTimeZone, asOf } = state.data
 	return (
