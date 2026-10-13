@@ -9,6 +9,8 @@ import {
 	ROOT,
 	SYNTHETIC_CALENDAR_ID,
 	calendarSql,
+	googleDateTime,
+	googleTimes,
 	startCalendarApi,
 	syntheticTokenConfig,
 	targetEnvFile,
@@ -373,9 +375,9 @@ function createStub() {
 					private: { ...privateProperties, ...body.extendedProperties.private },
 				},
 			}
-			events.set(updated.id, updated)
+			events.set(updated.id, googleTimes(updated, timeZone))
 			await new Promise((done) => setTimeout(done, 500))
-			return verifyGoogleResult(structuredClone(updated), request, timeZone, generation, 200, true)
+			return verifyGoogleResult(read(updated.id), request, timeZone, generation, 200, true)
 		},
 	}
 }
@@ -440,7 +442,10 @@ function createGoogle(zone) {
 		changes: [],
 		put(item) {
 			version += 1
-			const next = { ...item, etag: `"inbound-${version}"`, updated: new Date(Date.now() + version).toISOString() }
+			const next = googleTimes(
+				{ ...item, etag: `"inbound-${version}"`, updated: new Date(Date.now() + version).toISOString() },
+				zone
+			)
 			if (next.recurrence) google.masters.set(next.id, next)
 			else google.items.set(next.id, next)
 			return next
@@ -733,8 +738,8 @@ ${mapping('single', pastSingle, 'dvinbsingle')}
 ${mapping('single', markedSingle, 'dvinbmarked')}
 commit;`)
 	const timed = (startsAt, minutes) => ({
-		start: { dateTime: startsAt.toISOString(), timeZone: fx.zone },
-		end: { dateTime: new Date(startsAt.getTime() + minutes * 60000).toISOString(), timeZone: fx.zone },
+		start: { dateTime: googleDateTime(startsAt, fx.zone), timeZone: fx.zone },
+		end: { dateTime: googleDateTime(startsAt.getTime() + minutes * 60000, fx.zone), timeZone: fx.zone },
 	})
 	const base = { status: 'confirmed', eventType: 'default', transparency: 'opaque', summary: 'Synthetic inbound' }
 	const master = {
@@ -751,7 +756,7 @@ commit;`)
 			etag: `"inbound-past-${index}"`,
 			...timed(item.startsAt, 60),
 			recurringEventId: 'dvinbpast',
-			originalStartTime: { dateTime: item.startsAt.toISOString(), timeZone: fx.zone },
+			originalStartTime: { dateTime: googleDateTime(item.startsAt, fx.zone), timeZone: fx.zone },
 		})),
 		{ ...base, id: 'dvinbsingle', etag: '"inbound-single-0"', ...timed(singleAt, 60) },
 		{ ...base, id: 'dvinbmarked', etag: '"inbound-marked-0"', ...timed(markedAt, 60) },
@@ -798,8 +803,8 @@ representation_generation, command_id, state) values (${quote(fx.connection.acco
 ${quote(fx.connection.calendar_id)}, 'series', ${quote(series)}, ${quote(fx.fixtureCard)}, 'dvinbexdate', 0, ${quote(fx.seriesCommand)}, 'active');
 commit;`)
 	const timed = (startsAt) => ({
-		start: { dateTime: startsAt.toISOString(), timeZone: fx.zone },
-		end: { dateTime: new Date(startsAt.getTime() + 3600000).toISOString(), timeZone: fx.zone },
+		start: { dateTime: googleDateTime(startsAt, fx.zone), timeZone: fx.zone },
+		end: { dateTime: googleDateTime(startsAt.getTime() + 3600000, fx.zone), timeZone: fx.zone },
 	})
 	const base = { status: 'confirmed', eventType: 'default', transparency: 'opaque', summary: 'Synthetic inbound' }
 	const master = {
@@ -817,7 +822,7 @@ commit;`)
 		updated: new Date(Date.now() - 60000).toISOString(),
 		...timed(item.startsAt),
 		recurringEventId: 'dvinbexdate',
-		originalStartTime: { dateTime: item.startsAt.toISOString(), timeZone: fx.zone },
+		originalStartTime: { dateTime: googleDateTime(item.startsAt, fx.zone), timeZone: fx.zone },
 	}))
 	const fact = (resource) => ({
 		eventId: resource.id,
@@ -841,12 +846,82 @@ commit;`)
 	return { series, master, resources, instances }
 }
 
+async function cutFixtures(db, fx) {
+	const today = core.scheduleToday(new Date(), fx.zone)
+	const first = core.addDays(today, -7)
+	const weekday = core.weekdayOf(first)
+	const series = randomUUID()
+	const marker = { dvLocalId: series, dvKind: 'series' }
+	const instances = [0, 1, 2, 3, 4, 5].map((week) => {
+		const date = core.addDays(first, week * 7)
+		const startsAt = core.zonedInstant(date, '15:00', fx.zone)
+		return { date, startsAt, id: `dvinbcut_${stamp(startsAt)}` }
+	})
+	rows(`begin;
+insert into lesson_series (id, student_id, weekday, start_time, time_zone, duration_minutes, starts_on) values (${quote(series)},
+${quote(fx.fixtureCard)}, ${weekday}, '15:00', ${quote(fx.zone)}, 60, ${quote(first)});
+insert into google_event_mappings (account_id, connection_id, calendar_id, entity_kind, local_entity_id, student_id, event_id,
+representation_generation, command_id, state) values (${quote(fx.connection.account_id)}, ${quote(fx.connection.id)},
+${quote(fx.connection.calendar_id)}, 'series', ${quote(series)}, ${quote(fx.fixtureCard)}, 'dvinbcut', 0, ${quote(fx.seriesCommand)}, 'active');
+commit;`)
+	const timed = (startsAt) => ({
+		start: { dateTime: googleDateTime(startsAt, fx.zone), timeZone: fx.zone },
+		end: { dateTime: googleDateTime(startsAt.getTime() + 3600000, fx.zone), timeZone: fx.zone },
+	})
+	const base = {
+		status: 'confirmed',
+		eventType: 'default',
+		transparency: 'opaque',
+		summary: 'Synthetic inbound',
+		extendedProperties: { private: marker },
+	}
+	const master = {
+		...base,
+		id: 'dvinbcut',
+		etag: '"inbound-cut-0"',
+		updated: new Date(Date.now() - 60000).toISOString(),
+		...timed(instances[0].startsAt),
+		recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${WEEKDAYS[weekday - 1]}`],
+	}
+	const resources = instances.map((item, index) => ({
+		...base,
+		id: item.id,
+		etag: `"inbound-cut-${index + 1}"`,
+		updated: new Date(Date.now() - 60000).toISOString(),
+		...timed(item.startsAt),
+		recurringEventId: 'dvinbcut',
+		originalStartTime: { dateTime: googleDateTime(item.startsAt, fx.zone), timeZone: fx.zone },
+	}))
+	const fact = (resource) => ({
+		eventId: resource.id,
+		etag: resource.etag,
+		status: resource.status,
+		recurringEventId: resource.recurringEventId ?? null,
+		originalStartTime: resource.originalStartTime ?? null,
+		summary: resource.summary,
+		start: resource.start,
+		end: resource.end,
+		eventType: 'default',
+		transparency: 'opaque',
+		markerLocalId: series,
+		markerKind: 'series',
+		factAt: new Date(Date.now() - 60000),
+	})
+	await db.transaction((tx) =>
+		upsertEventFacts(tx, fx.target, [
+			...resources.map(fact),
+			{ ...fact(master), master: true, recurrence: classifyRecurrence(master.recurrence, fx.zone) },
+		])
+	)
+	return { series, marker, master, resources, instances, weekday }
+}
+
 function localStamp(startsAt, zone) {
 	const parts = core.zonedParts(startsAt, zone)
 	return `${parts.date.replaceAll('-', '')}T${parts.time.replace(':', '')}00`
 }
 
-function loadGoogle(fx, extra, exclusion) {
+function loadGoogle(fx, extra, exclusion, cut) {
 	const google = createGoogle(fx.zone)
 	const bound = rows(
 		`select event_id from google_calendar_events where connection_id = ${quote(fx.connection.id)}
@@ -859,7 +934,7 @@ and (event_id in (${quote(fx.singleEvent)}, ${quote(fx.masterEvent)}) or recurri
 		else google.items.set(id, resource)
 		google.originals.set(id, resource)
 	}
-	for (const fixture of [extra, exclusion]) {
+	for (const fixture of [extra, exclusion, cut]) {
 		google.masters.set(fixture.master.id, fixture.master)
 		for (const resource of fixture.resources) {
 			google.items.set(resource.id, resource)
@@ -895,7 +970,8 @@ function stamped(fx, eventId) {
 async function inboundSection(db, fx) {
 	const extra = await pastFixtures(db, fx)
 	const exclusion = await exclusionFixtures(db, fx)
-	const google = loadGoogle(fx, extra, exclusion)
+	const cut = await cutFixtures(db, fx)
+	const google = loadGoogle(fx, extra, exclusion, cut)
 	const notes = []
 	let crash = false
 	const sync = startSync(db, fx, google, notes, {
@@ -1108,6 +1184,11 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 		const splitOn = core.addDays(fx.monday, 30)
 		const splitAt = core.zonedInstant(splitOn, '18:00', fx.zone)
 		const marker = { dvLocalId: fx.series, dvKind: 'series' }
+		const untilBefore = (date) => stamp(new Date(core.startOfZonedDay(date, fx.zone).getTime() - 1000))
+		const headMaster = google.masters.get(fx.masterEvent)
+		google.put({ ...headMaster, recurrence: [`${headMaster.recurrence[0]};UNTIL=${untilBefore(splitOn)}`] })
+		const headTail = `${fx.masterEvent}_${stamp(splitAt)}`
+		if (!google.items.has(headTail)) fail('inbound 12', 'fixture instance on the split date is missing')
 		google.put({
 			id: 'dvinbsplit',
 			status: 'confirmed',
@@ -1120,6 +1201,7 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 		})
 		const seriesBeforeSplit = counts().series
 		await drive(sync, fx, google, notes, [
+			google.cancel(headTail),
 			google.put({
 				id: `dvinbsplit_${stamp(splitAt)}`,
 				status: 'confirmed',
@@ -1246,9 +1328,83 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 		if (!exOk) fail('inbound 16', 'an EXDATE on a lesson master did not cancel only the excluded future occurrence')
 		steady('inbound 16')
 
+		const timedAt = (date, time) => {
+			const startsAt = core.zonedInstant(date, time, fx.zone)
+			return {
+				start: { dateTime: googleDateTime(startsAt, fx.zone), timeZone: fx.zone },
+				end: { dateTime: googleDateTime(startsAt.getTime() + 3600000, fx.zone), timeZone: fx.zone },
+			}
+		}
+		const cutSeriesBefore = counts().series
+		google.put({ ...cut.master, ...timedAt(cut.instances[0].date, '16:00') })
+		await drive(
+			sync,
+			fx,
+			google,
+			notes,
+			cut.instances.slice(1).map((item) => google.moved(item.id, core.zonedInstant(item.date, '16:00', fx.zone), 60))
+		)
+		const [timeCut] = rows(
+			`select local_entity_id from google_event_mappings where connection_id = ${quote(fx.connection.id)} and event_id = 'dvinbcut' and state = 'active'`
+		)
+		const tailOn = cut.instances[4].date
+		const tailAt = core.zonedInstant(tailOn, '16:00', fx.zone)
+		const skippedOn = core.addDays(tailOn, 7)
+		const cutMaster = google.masters.get('dvinbcut')
+		google.put({ ...cutMaster, recurrence: [`${cutMaster.recurrence[0]};UNTIL=${untilBefore(tailOn)}`] })
+		google.put({
+			...cut.master,
+			id: 'dvinbcut2',
+			...timedAt(tailOn, '16:00'),
+			recurrence: [
+				`RRULE:FREQ=WEEKLY;BYDAY=${WEEKDAYS[cut.weekday - 1]}`,
+				`EXDATE;TZID=${fx.zone}:${localStamp(core.zonedInstant(skippedOn, '16:00', fx.zone), fx.zone)}`,
+			],
+		})
+		await drive(sync, fx, google, notes, [
+			google.cancel(cut.instances[4].id),
+			google.put({
+				...cut.resources[4],
+				id: `dvinbcut2_${stamp(tailAt)}`,
+				...timedAt(tailOn, '16:00'),
+				recurringEventId: 'dvinbcut2',
+				originalStartTime: { dateTime: tailAt.toISOString(), timeZone: fx.zone },
+			}),
+		])
+		await drive(sync, fx, google, notes, [])
+		const [splitTail] = rows(
+			`select local_entity_id, state from google_event_mappings where connection_id = ${quote(fx.connection.id)} and event_id = 'dvinbcut2'`
+		)
+		const middle = timeCut ? seriesOf(timeCut.local_entity_id) : null
+		const last = splitTail ? seriesOf(splitTail.local_entity_id) : null
+		const [lastStudent] = splitTail
+			? rows(`select student_id from lesson_series where id = ${quote(splitTail.local_entity_id)}`)
+			: []
+		const lastExceptions = splitTail ? exceptionsOf(splitTail.local_entity_id) : []
+		const autoOk =
+			Boolean(timeCut) &&
+			timeCut.local_entity_id !== cut.series &&
+			counts().series === cutSeriesBefore + 2 &&
+			splitTail?.state === 'active' &&
+			last?.starts_on === tailOn &&
+			last.start_time === '16:00' &&
+			last.ends_on === null &&
+			lastStudent?.student_id === fx.fixtureCard &&
+			middle?.ends_on === core.addDays(tailOn, -1) &&
+			lastExceptions.length === 1 &&
+			lastExceptions[0].original_on === skippedOn &&
+			lastExceptions[0].kind === 'cancelled' &&
+			stamped(fx, 'dvinbcut2')
+		console.log(
+			`inbound 17 Google split after a Google time change, marker names the first series: series +${counts().series - cutSeriesBefore} time_cut_moved ${timeCut?.local_entity_id !== cut.series} tail_bound ${splitTail?.state} tail_from_split ${last?.starts_on === tailOn} same_student ${lastStudent?.student_id === fx.fixtureCard} previous_ends ${middle?.ends_on === core.addDays(tailOn, -1)} exdate_cancelled ${lastExceptions.length === 1 && lastExceptions[0]?.original_on === skippedOn}`
+		)
+		if (!autoOk)
+			fail('inbound 17', 'a Google split of a series cut by a Google time change was not bound automatically')
+		steady('inbound 17')
+
 		const end = counts()
 		console.log(
-			`inbound 17 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
+			`inbound 18 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
 		)
 	} finally {
 		await sync.close()

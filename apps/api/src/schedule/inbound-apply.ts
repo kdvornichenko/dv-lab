@@ -1,4 +1,4 @@
-import { and, eq, gte, ne, or, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, lt, ne, or, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import {
@@ -111,20 +111,37 @@ async function resolveEntity(tx: DbExecutor, connectionId: string, row: Projecti
 		return own?.entityKind === 'single' ? { kind: 'single', lessonId: own.localEntityId } : null
 	if (row.rowKind === 'master') {
 		if (own?.entityKind === 'series') return { kind: 'series', mapping: own }
-		if (own || row.markerKind !== 'series' || !row.markerLocalId) return null
+		if (own || row.markerKind !== 'series' || !row.markerLocalId || !row.startsAt) return null
 		const [parent] = await tx
-			.select()
+			.select({ mapping: googleEventMappings })
 			.from(googleEventMappings)
+			.innerJoin(
+				googleCalendarEvents,
+				and(
+					eq(googleCalendarEvents.connectionId, googleEventMappings.connectionId),
+					eq(googleCalendarEvents.eventId, googleEventMappings.eventId)
+				)
+			)
 			.where(
 				and(
 					eq(googleEventMappings.connectionId, connectionId),
 					eq(googleEventMappings.state, 'active'),
 					eq(googleEventMappings.entityKind, 'series'),
-					eq(googleEventMappings.localEntityId, row.markerLocalId),
-					ne(googleEventMappings.eventId, row.eventId)
+					ne(googleEventMappings.eventId, row.eventId),
+					eq(googleCalendarEvents.rowKind, 'master'),
+					lt(googleCalendarEvents.startsAt, row.startsAt),
+					or(
+						eq(googleEventMappings.localEntityId, row.markerLocalId),
+						and(
+							eq(googleCalendarEvents.markerKind, 'series'),
+							eq(googleCalendarEvents.markerLocalId, row.markerLocalId)
+						)
+					)
 				)
 			)
-		return parent ? { kind: 'split', parent } : null
+			.orderBy(desc(googleCalendarEvents.startsAt))
+			.limit(1)
+		return parent ? { kind: 'split', parent: parent.mapping } : null
 	}
 	if (own?.entityKind === 'occurrence')
 		return { kind: 'occurrence', seriesId: own.localEntityId, originalOn: own.originalOn }
