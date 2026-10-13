@@ -107,7 +107,11 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 				line: 'The API account cannot admit this request. Check its billing status.',
 			}
 		case 'model_refused':
-			return { tone: 'info', title: 'The assistant declined to answer this request.' }
+			return {
+				tone: 'info',
+				title: 'The assistant declined to answer this request.',
+				line: 'Try asking in other words.',
+			}
 		case 'model_unavailable':
 		case 'provider_unavailable':
 			return { tone: 'info', title: 'Model settings are unavailable. Refresh before sending.' }
