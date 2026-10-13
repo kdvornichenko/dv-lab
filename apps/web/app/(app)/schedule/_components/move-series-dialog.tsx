@@ -124,7 +124,8 @@ export function MoveSeriesDialog({
 	const changedLength = length !== null && length !== rule.durationMinutes
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
-	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: today, series })
+	const windowDate = seed?.from ?? today
+	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: windowDate, series })
 	const pending = command.pending
 	const [notice, setNotice] = useState<'stale' | 'failed' | null>(null)
 	const [serverEnds, setServerEnds] = useState(false)
@@ -169,7 +170,7 @@ export function MoveSeriesDialog({
 				? undefined
 				: { kind: 'series', seriesId: rule.id, originalOn: rule.referenceOccurrence.originalOn },
 		series,
-		date: today,
+		date: windowDate,
 		available: available && !command.blocked && !context.stale && notice !== 'stale',
 	})
 

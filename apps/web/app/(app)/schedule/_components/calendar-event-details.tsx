@@ -338,7 +338,7 @@ export function CalendarEventDialog({
 			studentId,
 		})
 		setBusy(null)
-		if (result.kind === 'detached') return
+		if (result.kind === 'detached') return onClose()
 		if (result.kind === 'stale') return setAssignChanged(true)
 		if (result.kind !== 'ok') return setAssignFailure('assign')
 		toast.show({ title: 'Event assigned', description: whenText(name) })
