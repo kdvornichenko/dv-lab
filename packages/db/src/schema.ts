@@ -5,6 +5,7 @@ import {
 	date,
 	index,
 	integer,
+	jsonb,
 	numeric,
 	pgTable,
 	primaryKey,
@@ -261,10 +262,7 @@ export const lessonExceptions = pgTable(
 			'lesson_exceptions_moved_ck',
 			sql`(${table.kind} <> 'moved' or ${table.startsAt} is not null) and (${table.startsAt} is null) = (${table.durationMinutes} is null)`
 		),
-		check(
-			'lesson_exceptions_minutes_ck',
-			sql`${table.durationMinutes} is null or ${table.durationMinutes} > 0`
-		),
+		check('lesson_exceptions_minutes_ck', sql`${table.durationMinutes} is null or ${table.durationMinutes} > 0`),
 	]
 )
 
@@ -322,7 +320,22 @@ export const teacherSettings = pgTable(
 			.references(() => accounts.id, { onDelete: 'restrict' }),
 		paysSoonLessons: integer('pays_soon_lessons').notNull(),
 		defaultTimeZone: text('default_time_zone').default('Asia/Ho_Chi_Minh').notNull(),
+		chatMonthlyCapUsd: numeric('chat_monthly_cap_usd', { precision: 10, scale: 2 }).default('10.00').notNull(),
+		chatMaxInputTokens: integer('chat_max_input_tokens').default(100000).notNull(),
+		chatMaxOutputTokens: integer('chat_max_output_tokens').default(16000).notNull(),
+		chatModels: jsonb('chat_models').$type<unknown>(),
+		chatModel: text('chat_model'),
+		chatEffort: text('chat_effort'),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
-	(table) => [check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`)]
+	(table) => [
+		check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`),
+		check('teacher_settings_chat_cap_ck', sql`${table.chatMonthlyCapUsd} > 0`),
+		check('teacher_settings_chat_input_ck', sql`${table.chatMaxInputTokens} between 1000 and 100000`),
+		check('teacher_settings_chat_output_ck', sql`${table.chatMaxOutputTokens} >= 1000`),
+		check(
+			'teacher_settings_chat_effort_ck',
+			sql`${table.chatEffort} is null or ${table.chatEffort} in ('low', 'medium', 'high', 'xhigh', 'max')`
+		),
+	]
 )

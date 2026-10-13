@@ -1,6 +1,16 @@
 import { eq, sql } from 'drizzle-orm'
 
-import { type TeacherSettings, type UpdateSettingsRequest, timeZoneIdentity } from '@dv-lab/contracts'
+import {
+	type AssistantSettings,
+	CHAT_SETTINGS_DEFAULT,
+	type ChatModelEntry,
+	type SaveAssistantSettingsRequest,
+	type TeacherSettings,
+	type UpdateSettingsRequest,
+	chatEffort,
+	chatModels,
+	timeZoneIdentity,
+} from '@dv-lab/contracts'
 import { PAYS_SOON_LESSONS_DEFAULT, SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 import { type Database, type DbExecutor, accounts, teacherSettings } from '@dv-lab/db'
 
@@ -9,6 +19,8 @@ export type TeacherTimeContext = { now: Date; defaultTimeZone: string }
 type TimeContextFailure = { ok: false; error: 'default_time_zone_changed' }
 
 type TimeContextResult = { ok: true; context: TeacherTimeContext; settings: TeacherSettings } | TimeContextFailure
+
+type SaveAssistantResult = { ok: true; settings: AssistantSettings } | { ok: false; error: 'invalid' }
 
 type SaveSettingsResult = { ok: true; settings: TeacherSettings } | TimeContextFailure
 
@@ -66,5 +78,94 @@ export function saveTeacherSettings(
 			})
 		if (!row) throw new Error('Teacher settings upsert returned no row')
 		return { ok: true, settings: row }
+	})
+}
+
+export async function readAssistantSettings(executor: DbExecutor, accountId: string): Promise<AssistantSettings> {
+	const [row] = await executor
+		.select({
+			monthlyCapUsd: teacherSettings.chatMonthlyCapUsd,
+			maxInputTokens: teacherSettings.chatMaxInputTokens,
+			maxOutputTokens: teacherSettings.chatMaxOutputTokens,
+			models: teacherSettings.chatModels,
+			model: teacherSettings.chatModel,
+			effort: teacherSettings.chatEffort,
+		})
+		.from(teacherSettings)
+		.where(eq(teacherSettings.accountId, accountId))
+	if (!row) return CHAT_SETTINGS_DEFAULT
+	return {
+		monthlyCapUsd: row.monthlyCapUsd,
+		maxInputTokens: row.maxInputTokens,
+		maxOutputTokens: row.maxOutputTokens,
+		models: row.models === null ? CHAT_SETTINGS_DEFAULT.models : chatModels.parse(row.models),
+		model: row.model,
+		effort: chatEffort.nullable().parse(row.effort),
+	}
+}
+
+type ModelsColumn = ChatModelEntry[] | null | undefined
+
+function mergeAssistant(
+	current: AssistantSettings,
+	input: SaveAssistantSettingsRequest
+): { settings: AssistantSettings; modelsColumn: ModelsColumn } | null {
+	const modelsColumn: ModelsColumn = input.models
+	const models = input.models === undefined ? current.models : (input.models ?? CHAT_SETTINGS_DEFAULT.models)
+	let model = input.model === undefined ? current.model : input.model
+	let effort = input.effort === undefined ? current.effort : input.effort
+	if (model !== null && !models.some((entry) => entry.id === model)) {
+		if (input.model !== undefined) return null
+		model = null
+		if (input.effort === undefined) effort = null
+	}
+	const active = models.find((entry) => entry.id === (model ?? models[0]?.id))
+	if (!active) return null
+	if (effort !== null && !active.efforts.includes(effort)) {
+		if (input.effort !== undefined) return null
+		effort = null
+	}
+	return {
+		settings: {
+			monthlyCapUsd: input.monthlyCapUsd ?? current.monthlyCapUsd,
+			maxInputTokens: input.maxInputTokens ?? current.maxInputTokens,
+			maxOutputTokens: input.maxOutputTokens ?? current.maxOutputTokens,
+			models,
+			model,
+			effort,
+		},
+		modelsColumn,
+	}
+}
+
+export function saveAssistantSettings(
+	db: Database,
+	accountId: string,
+	input: SaveAssistantSettingsRequest
+): Promise<SaveAssistantResult> {
+	return db.transaction(async (tx): Promise<SaveAssistantResult> => {
+		const [account] = await tx
+			.select({ id: accounts.id })
+			.from(accounts)
+			.where(eq(accounts.id, accountId))
+			.for('update')
+		if (!account) throw new Error('Teacher account missing while locking settings')
+		const current = await readAssistantSettings(tx, accountId)
+		const merged = mergeAssistant(current, input)
+		if (!merged) return { ok: false, error: 'invalid' }
+		const { settings, modelsColumn } = merged
+		const changed = {
+			chatMonthlyCapUsd: settings.monthlyCapUsd,
+			chatMaxInputTokens: settings.maxInputTokens,
+			chatMaxOutputTokens: settings.maxOutputTokens,
+			chatModel: settings.model,
+			chatEffort: settings.effort,
+			...(modelsColumn === undefined ? {} : { chatModels: modelsColumn }),
+		}
+		await tx
+			.insert(teacherSettings)
+			.values({ accountId, paysSoonLessons: PAYS_SOON_LESSONS_DEFAULT, ...changed })
+			.onConflictDoUpdate({ target: teacherSettings.accountId, set: { ...changed, updatedAt: sql`now()` } })
+		return { ok: true, settings: await readAssistantSettings(tx, accountId) }
 	})
 }
