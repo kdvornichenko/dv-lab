@@ -445,7 +445,7 @@ export async function applyInbound(tx: DbExecutor, item: InboundItem): Promise<I
 	if (!row) return { result: UNCHANGED, stamp: null }
 	const stamp = { eventId: row.eventId, etag: row.etag }
 	const entity = await resolveEntity(tx, item.connectionId, row)
-	if (!entity) return { result: UNCHANGED, stamp }
+	if (!entity) return { result: UNCHANGED, stamp: row.markerLocalId || row.recurringEventId ? null : stamp }
 	const local =
 		entity.kind === 'single'
 			? entity.lessonId
