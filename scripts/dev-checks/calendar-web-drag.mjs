@@ -496,13 +496,18 @@ async function suite(viewport, monday, ids) {
 			await page.mouse.move(pastTo.x, pastTo.y, { steps: 10 })
 			await page.waitForTimeout(250)
 			check(
-				`${tag} a past lesson has the default cursor and shows no frame`,
-				pastCursor === 'default' && (await page.locator('[data-slot="week-grid-move-frame"]').count()) === 0,
+				`${tag} a started lesson without Done has the grab cursor and shows a frame`,
+				pastCursor === 'grab' && (await page.locator('[data-slot="week-grid-move-frame"]').count()) === 1,
 				pastCursor
 			)
+			await page.keyboard.press('Escape')
 			await page.mouse.up()
 			await page.waitForTimeout(500)
 			await closeAll(page)
+			check(
+				`${tag} Esc on a started lesson sends nothing`,
+				calls.filter((call) => call.operation === 'move').length === 0
+			)
 		} else {
 			console.log(`SKIP [${theme}] ${tag} no past lesson: Monday 11:00 has not come yet`)
 		}
@@ -796,7 +801,9 @@ async function suite(viewport, monday, ids) {
 		check(
 			`${tag} a series lesson drop asks only the scope, three rows and the marks line, no form`,
 			(await lessonScope.getByRole('radio').count()) === 3 &&
-				(await lessonScope.getByText('Past lessons and their marks stay at their old time.').count()) === 1 &&
+				(await lessonScope
+					.getByText('Lessons with a mark or a comment, and the lessons before them, stay at their old time.')
+					.count()) === 1 &&
 				(await page.getByRole('group', { name: 'Move lesson' }).count()) === 0 &&
 				beforeScope === 2
 		)
