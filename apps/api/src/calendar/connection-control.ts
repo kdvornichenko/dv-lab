@@ -17,7 +17,9 @@ import { retireReservations } from './journal.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'
 import type { CalendarObservation } from './observation.ts'
+import { retireSyncRow } from './sync-store.ts'
 import type { TokenEnvelope } from './token-envelope.ts'
+import type { CalendarWatch } from './watch.ts'
 
 type ControlDeps = {
 	db: Database
@@ -25,6 +27,7 @@ type ControlDeps = {
 	credentials: Credentials
 	envelope: TokenEnvelope
 	gateway: GoogleGateway
+	watch: Pick<CalendarWatch, 'stopAll'>
 	logger: Logger
 	observation: CalendarObservation
 	isStopping: () => boolean
@@ -238,6 +241,10 @@ export function createConnectionControl(deps: ControlDeps) {
 		},
 		async disconnect(actor: ConsentActor) {
 			if (!accepting()) throw new CalendarFault('provider_unavailable')
+			const access = await deps.credentials
+				.accessToken(actor.accountId, AbortSignal.timeout(GOOGLE_REQUEST_TIMEOUT_MS))
+				.catch(() => null)
+			if (access) await deps.watch.stopAll(access.connection.id, access.accessToken)
 			const transition = await deps.db.transaction(async (tx) => {
 				await requireConsentSession(tx, actor)
 				const [row] = await tx
@@ -263,6 +270,7 @@ export function createConnectionControl(deps: ControlDeps) {
 					.returning()
 				if (!updated) throw new CalendarFault('command_pending')
 				await failUnsent(tx, row.id)
+				await retireSyncRow(tx, row.id)
 				return { before: row, after: updated }
 			})
 			if (transition) deps.observation.control(transition.before, transition.after, 'google_disconnect_started')

@@ -2,6 +2,7 @@ import { Hono, type Context } from 'hono'
 
 import {
 	assignCalendarEventRequest,
+	chooseGoogleCalendarRequest,
 	ignoreCalendarEventRequest,
 	googleCallbackQuery,
 	googleConnectRequest,
@@ -128,6 +129,16 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 		if (!connection || isStopping()) return refusal(c, new CalendarFault('connection_required'))
 		try {
 			return c.json(googleCalendarList.parse(await connection.listCalendars(actor(c))))
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.post('/calendar', async (c) => {
+		const input = await readJson(c, chooseGoogleCalendarRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!connection || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			return c.json(await connection.chooseCalendar(actor(c), input))
 		} catch (error) {
 			return refusal(c, error)
 		}

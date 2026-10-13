@@ -1,7 +1,12 @@
 import { and, count, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
-import { googleConnectionSnapshot, type GoogleCalendarList, type GoogleConnectionSnapshot } from '@dv-lab/contracts'
+import {
+	googleConnectionSnapshot,
+	type ChooseGoogleCalendarRequest,
+	type GoogleCalendarList,
+	type GoogleConnectionSnapshot,
+} from '@dv-lab/contracts'
 import {
 	googleCommands,
 	googleConnections,
@@ -11,12 +16,22 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
+import type { WritableCalendar } from './gateway-sync.ts'
 import { CalendarFault, type GoogleGateway, type GoogleTokens, type PrimaryCalendar } from './gateway.ts'
-import { credentialBinding, findConnection, type ConnectionRow, type Credentials } from './google-access.ts'
+import {
+	credentialBinding,
+	currentConnection,
+	findConnection,
+	type ConnectionRow,
+	type Credentials,
+} from './google-access.ts'
+import { CommandFault } from './journal.ts'
 import type { ConnectionLease, ConnectionLeaseContext } from './lease.ts'
 import { requireConsentSession, type ConsentActor } from './oauth-session.ts'
 import type { CalendarObservation } from './observation.ts'
+import { ensureSyncRow, retireSyncRow } from './sync-store.ts'
 import type { TokenEnvelope } from './token-envelope.ts'
+import type { CalendarWatch } from './watch.ts'
 
 const actions: Record<GoogleConnectionSnapshot['state'], GoogleConnectionSnapshot['allowedActions']> = {
 	not_connected: ['connect', 'switch'],
@@ -48,6 +63,20 @@ export async function readConnection(db: DbExecutor, accountId: string): Promise
 	})
 }
 
+async function unresolved(executor: DbExecutor, accountId: string) {
+	const [pending] = await executor
+		.select({ value: count() })
+		.from(googleCommands)
+		.where(and(eq(googleCommands.accountId, accountId), notInArray(googleCommands.state, ['applied', 'failed'])))
+	return (pending?.value ?? 0) > 0
+}
+
+function choice(row: ConnectionRow | undefined, input: ChooseGoogleCalendarRequest): ConnectionRow | null {
+	if (!row || row.state !== 'connected') throw new CalendarFault('connection_required')
+	if (row.generation !== input.expectedGeneration) throw new CommandFault('precondition_failed')
+	return row.calendarId === input.calendarId ? null : row
+}
+
 export function createConnection(deps: {
 	db: Database
 	lease: ConnectionLease
@@ -55,7 +84,78 @@ export function createConnection(deps: {
 	gateway: GoogleGateway
 	credentials: Credentials
 	observation: CalendarObservation
+	watch: Pick<CalendarWatch, 'stop'>
+	wake: (connectionId: string) => void
 }) {
+	async function consentTarget(
+		row: ConnectionRow,
+		primary: PrimaryCalendar,
+		accessToken: string,
+		signal: AbortSignal
+	): Promise<PrimaryCalendar> {
+		if (row.calendarId === null || row.calendarId === primary.id) return primary
+		const kept = (await deps.gateway.calendars(accessToken, signal)).find((calendar) => calendar.id === row.calendarId)
+		return kept ? { id: kept.id, label: kept.label, timeZone: kept.timeZone } : primary
+	}
+
+	async function switchCalendar(
+		tx: DbExecutor,
+		row: ConnectionRow,
+		sealed: NonNullable<ConnectionRow['encryptedRefreshToken']>,
+		chosen: WritableCalendar
+	) {
+		const refreshToken = deps.envelope.open(sealed, credentialBinding(row))
+		const id = randomUUID()
+		const credentialGeneration = row.credentialGeneration + 1
+		const encryptedRefreshToken = deps.envelope.seal(refreshToken, {
+			...credentialBinding({ ...row, id }),
+			generation: credentialGeneration,
+		})
+		const [retired] = await tx
+			.update(googleConnections)
+			.set({
+				state: 'not_connected',
+				issue: 'connection_required',
+				encryptedRefreshToken: null,
+				credentialMode: null,
+				revokeAttemptId: null,
+				revokeStartedAt: null,
+				revokeFinishedAt: null,
+				retiredAt: sql`now()`,
+				updatedAt: sql`now()`,
+			})
+			.where(
+				and(
+					eq(googleConnections.id, row.id),
+					eq(googleConnections.generation, row.generation),
+					eq(googleConnections.credentialGeneration, row.credentialGeneration),
+					eq(googleConnections.state, 'connected'),
+					isNull(googleConnections.retiredAt)
+				)
+			)
+			.returning({ id: googleConnections.id })
+		if (!retired) throw new CommandFault('precondition_failed')
+		await tx.insert(googleConnections).values({
+			id,
+			accountId: row.accountId,
+			state: 'connected',
+			issue: null,
+			calendarId: chosen.id,
+			calendarLabel: chosen.label,
+			calendarTimeZone: chosen.timeZone,
+			historyCutoverAt: new Date(),
+			generation: row.generation + 1,
+			credentialGeneration,
+			encryptedRefreshToken,
+			credentialMode: 'active',
+			disconnectResolution: 'none',
+			snapshotRevision: row.snapshotRevision,
+		})
+		const pairs = await retireSyncRow(tx, row.id)
+		await ensureSyncRow(tx, { id, accountId: row.accountId, calendarId: chosen.id }, new Date())
+		return { id, pairs }
+	}
+
 	async function consume(
 		context: ConnectionLeaseContext,
 		actor: ConsentActor,
@@ -91,11 +191,7 @@ export function createConnection(deps: {
 	}
 
 	async function retire(tx: DbExecutor, row: ConnectionRow) {
-		const [pending] = await tx
-			.select({ value: count() })
-			.from(googleCommands)
-			.where(and(eq(googleCommands.accountId, row.accountId), notInArray(googleCommands.state, ['applied', 'failed'])))
-		if (pending?.value) throw new CalendarFault('command_pending')
+		if (await unresolved(tx, row.accountId)) throw new CalendarFault('command_pending')
 		const [retired] = await tx
 			.update(googleConnections)
 			.set({ retiredAt: sql`now()`, updatedAt: sql`now()` })
@@ -127,10 +223,10 @@ export function createConnection(deps: {
 		actor: ConsentActor,
 		row: ConnectionRow,
 		tokens: GoogleTokens,
-		primary: PrimaryCalendar,
+		calendar: PrimaryCalendar,
 		issuedAt: number
 	) {
-		const switching = row.calendarId !== null && row.calendarId !== primary.id
+		const switching = row.calendarId !== null && row.calendarId !== calendar.id
 		if (switching && row.state !== 'not_connected') throw new CalendarFault('wrong_primary')
 		const refreshToken =
 			tokens.refresh_token ??
@@ -148,9 +244,9 @@ export function createConnection(deps: {
 		const target = {
 			state: 'connected' as const,
 			issue: null,
-			calendarId: primary.id,
-			calendarLabel: primary.label,
-			calendarTimeZone: primary.timeZone,
+			calendarId: calendar.id,
+			calendarLabel: calendar.label,
+			calendarTimeZone: calendar.timeZone,
 			generation: row.generation + 1,
 			credentialGeneration,
 			encryptedRefreshToken,
@@ -258,8 +354,40 @@ export function createConnection(deps: {
 				const tokens = await deps.gateway.exchange(input.code, verifier, context.signal)
 				const issuedAt = Date.now()
 				const primary = await deps.gateway.primary(tokens.access_token, context.signal)
-				await install(context, actor, row, tokens, primary, issuedAt)
+				const target = await consentTarget(row, primary, tokens.access_token, context.signal)
+				await install(context, actor, row, tokens, target, issuedAt)
 			})
+		},
+		async chooseCalendar(actor: ConsentActor, input: ChooseGoogleCalendarRequest): Promise<GoogleConnectionSnapshot> {
+			const switched = await deps.lease.run(actor.accountId, async (context) => {
+				if (!choice(await findConnection(context.db, actor.accountId), input)) return null
+				if (await unresolved(context.db, actor.accountId)) throw new CalendarFault('command_pending')
+				const access = await deps.credentials.accessToken(actor.accountId, context.signal)
+				const calendars = await deps.gateway.calendars(access.accessToken, context.signal)
+				const chosen = calendars.find((calendar) => calendar.id === input.calendarId)
+				if (!chosen) throw new CommandFault('invalid_request', 400)
+				context.signal.throwIfAborted()
+				const moved = await context.db.transaction(async (tx) => {
+					await requireConsentSession(tx, actor)
+					const [locked] = await tx
+						.select()
+						.from(googleConnections)
+						.where(currentConnection(actor.accountId))
+						.for('update')
+						.limit(1)
+					const current = choice(locked, input)
+					if (!current?.encryptedRefreshToken) throw new CommandFault('precondition_failed')
+					if (await unresolved(tx, actor.accountId)) throw new CalendarFault('command_pending')
+					return switchCalendar(tx, current, current.encryptedRefreshToken, chosen)
+				})
+				return { ...moved, token: access.accessToken }
+			})
+			deps.credentials.evict(actor.accountId)
+			if (switched) {
+				if (switched.pairs.length) await deps.watch.stop(switched.pairs, switched.token)
+				deps.wake(switched.id)
+			}
+			return readConnection(deps.db, actor.accountId)
 		},
 	}
 }

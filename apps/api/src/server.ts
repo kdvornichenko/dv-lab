@@ -48,17 +48,6 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 	const gateway = createGoogleGateway(calendarConfig)
 	const observation = createCalendarObservation({ logger, gitSha: config.GIT_SHA })
 	const credentials = createCredentials({ db, lease, envelope, gateway, observation })
-	const connection = createConnection({ db, lease, envelope, gateway, credentials, observation })
-	const control = createConnectionControl({
-		db,
-		lease,
-		credentials,
-		envelope,
-		gateway,
-		logger,
-		observation,
-		isStopping: lifecycle.isStopping,
-	})
 	const watch = createCalendarWatch({ db, source: gateway, appOrigin: config.APP_ORIGIN, logger })
 	const sync = createCalendarSync({
 		db,
@@ -66,6 +55,19 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		watch,
 		credentials,
 		logger,
+		isStopping: lifecycle.isStopping,
+	})
+	const wake = (connectionId: string) => void sync.wake(connectionId)
+	const connection = createConnection({ db, lease, envelope, gateway, credentials, observation, watch, wake })
+	const control = createConnectionControl({
+		db,
+		lease,
+		credentials,
+		envelope,
+		gateway,
+		watch,
+		logger,
+		observation,
 		isStopping: lifecycle.isStopping,
 	})
 	const worker = createCalendarWorker({
@@ -76,7 +78,7 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		gateway,
 		logger,
 		isStopping: lifecycle.isStopping,
-		afterApply: (connectionId) => void sync.wake(connectionId),
+		afterApply: wake,
 	})
 	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
 	return { connection, control, commands, worker, sync, resources: [sync, worker, control, lease, credentials] }
