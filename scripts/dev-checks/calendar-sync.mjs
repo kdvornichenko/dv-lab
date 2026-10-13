@@ -4,7 +4,14 @@ import dns from 'node:dns'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
-import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, targetEnvFile } from './calendar-env.mjs'
+import {
+	ROOT,
+	SYNTHETIC_CALENDAR_ID,
+	calendarSql,
+	googleDateTime,
+	googleTimes,
+	targetEnvFile,
+} from './calendar-env.mjs'
 
 const SECTIONS = ['pass', 'claim', 'loop']
 const section = process.argv[2]
@@ -169,11 +176,14 @@ function createGoogle(zone) {
 		},
 		put(item) {
 			version += 1
-			const next = {
-				...item,
-				etag: `"synthetic-sync-${version}"`,
-				updated: new Date(Date.now() + version).toISOString(),
-			}
+			const next = googleTimes(
+				{
+					...item,
+					etag: `"synthetic-sync-${version}"`,
+					updated: new Date(Date.now() + version).toISOString(),
+				},
+				zone
+			)
 			google.items.set(next.id, next)
 			return next
 		},
@@ -201,8 +211,8 @@ function createGoogle(zone) {
 				etag: `"synthetic-master-${version}"`,
 				status: 'confirmed',
 				summary: `Synthetic series ${id}`,
-				start: { dateTime: start.toISOString(), timeZone: zone },
-				end: { dateTime: end.toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(start, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(end, zone), timeZone: zone },
 				recurrence,
 				updated: new Date().toISOString(),
 			}
@@ -349,7 +359,7 @@ async function passSection(db, fx) {
 		etag: '"synthetic-tombstone"',
 		status: 'cancelled',
 		recurringEventId: 'dvsync06',
-		originalStartTime: { dateTime: tombstoneStart.toISOString(), timeZone: zone },
+		originalStartTime: { dateTime: googleDateTime(tombstoneStart, zone), timeZone: zone },
 	})
 	google.timed('dvsync07', day(5), '08:00', 60)
 	google.masterItem('dvsync08', day(-14), '12:00', 60, ['RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20991231T050000Z'])
@@ -433,10 +443,10 @@ async function passSection(db, fx) {
 				etag: '"synthetic-old-instance"',
 				status: 'confirmed',
 				recurringEventId: fx.master,
-				originalStartTime: { dateTime: oldStart.toISOString(), timeZone: zone },
+				originalStartTime: { dateTime: googleDateTime(oldStart, zone), timeZone: zone },
 				summary: 'Synthetic old instance',
-				start: { dateTime: oldStart.toISOString(), timeZone: zone },
-				end: { dateTime: new Date(oldStart.getTime() + 3600000).toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(oldStart, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(oldStart.getTime() + 3600000, zone), timeZone: zone },
 				factAt: new Date(),
 			},
 			{
@@ -445,8 +455,8 @@ async function passSection(db, fx) {
 				status: 'confirmed',
 				recurringEventId: null,
 				summary: 'Synthetic marker only',
-				start: { dateTime: core.zonedInstant(day(3), '20:00', zone).toISOString(), timeZone: zone },
-				end: { dateTime: core.zonedInstant(day(3), '21:00', zone).toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(core.zonedInstant(day(3), '20:00', zone), zone), timeZone: zone },
+				end: { dateTime: googleDateTime(core.zonedInstant(day(3), '21:00', zone), zone), timeZone: zone },
 				markerLocalId: randomUUID(),
 				markerKind: 'single',
 				factAt: new Date(),

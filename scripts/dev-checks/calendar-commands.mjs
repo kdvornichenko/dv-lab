@@ -5,7 +5,15 @@ import { readdirSync, readFileSync } from 'node:fs'
 import net from 'node:net'
 import { parseEnv } from 'node:util'
 
-import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, syntheticTokenConfig, targetEnvFile } from './calendar-env.mjs'
+import {
+	ROOT,
+	SYNTHETIC_CALENDAR_ID,
+	calendarSql,
+	googleDateTime,
+	googleTimes,
+	syntheticTokenConfig,
+	targetEnvFile,
+} from './calendar-env.mjs'
 
 const [mode, argument] = process.argv.slice(2)
 const target = mode === 'check' ? 'test' : argument
@@ -141,10 +149,10 @@ function createStub(state) {
 				status: 'confirmed',
 				eventType: 'default',
 				summary: master.summary,
-				start: { dateTime: start.toISOString(), timeZone: zone },
-				end: { dateTime: end.toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(start, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(end, zone), timeZone: zone },
 				recurringEventId: master.id,
-				originalStartTime: { dateTime: start.toISOString(), timeZone: zone },
+				originalStartTime: { dateTime: googleDateTime(start, zone), timeZone: zone },
 				extendedProperties: structuredClone(master.extendedProperties),
 			}
 			events.set(instance.id, instance)
@@ -166,7 +174,10 @@ function createStub(state) {
 		async insert(_token, _calendarId, request, timeZone, generation) {
 			allowed('insert')
 			const body = insertEventBody(request)
-			const resource = { ...body, id: request.eventId, etag: etag(), status: 'confirmed', eventType: 'default' }
+			const resource = googleTimes(
+				{ ...body, id: request.eventId, etag: etag(), status: 'confirmed', eventType: 'default' },
+				timeZone
+			)
 			events.set(resource.id, resource)
 			if (resource.recurrence?.length) instances(resource)
 			return {
@@ -200,16 +211,19 @@ function createStub(state) {
 			const resource = read(request.eventId)
 			if (resource.etag !== request.ifMatch) throw new GoogleWriteFault(412)
 			const body = insertEventBody(request)
-			const updated = {
-				...resource,
-				...body,
-				id: resource.id,
-				etag: etag(),
-				extendedProperties: {
-					...body.extendedProperties,
-					private: { ...privateProperties, ...body.extendedProperties.private },
+			const updated = googleTimes(
+				{
+					...resource,
+					...body,
+					id: resource.id,
+					etag: etag(),
+					extendedProperties: {
+						...body.extendedProperties,
+						private: { ...privateProperties, ...body.extendedProperties.private },
+					},
 				},
-			}
+				timeZone
+			)
 			events.set(updated.id, updated)
 			const response = request.payload.status === 'cancelled' ? { id: updated.id } : structuredClone(updated)
 			return verifyGoogleResult(response, request, timeZone, generation, 200, true)
@@ -579,8 +593,8 @@ commit;`)
 			{
 				...resourceFact(pipeline.stub.events.get(historyEvent)),
 				etag: `"synthetic-history-${Date.now()}"`,
-				start: { dateTime: past.toISOString(), timeZone: zone },
-				end: { dateTime: pastEnd.toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(past, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(pastEnd, zone), timeZone: zone },
 			},
 		])
 	)
@@ -607,8 +621,8 @@ commit;`)
 				status: 'confirmed',
 				recurringEventId: null,
 				summary: 'Synthetic event 99',
-				start: { dateTime: pastEnd.toISOString(), timeZone: zone },
-				end: { dateTime: new Date(pastEnd.getTime() + 3600000).toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(pastEnd, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(pastEnd.getTime() + 3600000, zone), timeZone: zone },
 				markerLocalId: randomUUID(),
 				markerKind: 'single',
 				factAt: new Date(),

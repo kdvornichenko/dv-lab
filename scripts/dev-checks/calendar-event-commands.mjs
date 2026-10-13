@@ -4,7 +4,15 @@ import dns from 'node:dns'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
-import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, syntheticTokenConfig, targetEnvFile } from './calendar-env.mjs'
+import {
+	ROOT,
+	SYNTHETIC_CALENDAR_ID,
+	calendarSql,
+	googleDateTime,
+	googleTimes,
+	syntheticTokenConfig,
+	targetEnvFile,
+} from './calendar-env.mjs'
 
 const TARGET = 'test'
 if (process.env.CALENDAR_EVENT_COMMANDS_OFFLINE !== '1') {
@@ -118,10 +126,10 @@ function createStub() {
 				status: 'confirmed',
 				eventType: 'default',
 				summary: master.summary,
-				start: { dateTime: start.toISOString(), timeZone: zone },
-				end: { dateTime: end.toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(start, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(end, zone), timeZone: zone },
 				recurringEventId: master.id,
-				originalStartTime: { dateTime: start.toISOString(), timeZone: zone },
+				originalStartTime: { dateTime: googleDateTime(start, zone), timeZone: zone },
 				extendedProperties: structuredClone(master.extendedProperties),
 			}
 			events.set(instance.id, instance)
@@ -143,7 +151,10 @@ function createStub() {
 		async insert(_token, _calendarId, request, timeZone, generation) {
 			calls.insert.push(request.eventId)
 			const body = insertEventBody(request)
-			const resource = clean({ ...body, id: request.eventId, etag: etag(), status: 'confirmed', eventType: 'default' })
+			const resource = googleTimes(
+				clean({ ...body, id: request.eventId, etag: etag(), status: 'confirmed', eventType: 'default' }),
+				timeZone
+			)
 			events.set(resource.id, resource)
 			if (resource.recurrence?.length && request.payload.markers.entityKind === 'series') instances(resource)
 			await latency()
@@ -185,16 +196,19 @@ function createStub() {
 			if (resource.etag !== request.ifMatch) throw new GoogleWriteFault(412)
 			calls.patch.push(request.eventId)
 			const body = insertEventBody(request)
-			const updated = clean({
-				...resource,
-				...body,
-				id: resource.id,
-				etag: etag(),
-				extendedProperties: {
-					...body.extendedProperties,
-					private: { ...privateProperties, ...body.extendedProperties.private },
-				},
-			})
+			const updated = googleTimes(
+				clean({
+					...resource,
+					...body,
+					id: resource.id,
+					etag: etag(),
+					extendedProperties: {
+						...body.extendedProperties,
+						private: { ...privateProperties, ...body.extendedProperties.private },
+					},
+				}),
+				timeZone
+			)
 			events.set(updated.id, updated)
 			modified.add(updated.id)
 			await latency()
@@ -727,8 +741,11 @@ insert into lesson_marks (series_id, original_on, kind) values (${quote(seriesB.
 commit;`)
 	const masterB = pipeline.stub.events.get(fx.masterB)
 	const shiftedStart = core.zonedInstant(pastStart, startTime, seriesB.time_zone)
-	masterB.start = { dateTime: shiftedStart.toISOString(), timeZone: seriesB.time_zone }
-	masterB.end = { dateTime: new Date(shiftedStart.getTime() + 3600000).toISOString(), timeZone: seriesB.time_zone }
+	masterB.start = { dateTime: googleDateTime(shiftedStart, seriesB.time_zone), timeZone: seriesB.time_zone }
+	masterB.end = {
+		dateTime: googleDateTime(shiftedStart.getTime() + 3600000, seriesB.time_zone),
+		timeZone: seriesB.time_zone,
+	}
 	let firstFuture = pastStart
 	while (!core.canChange(core.zonedInstant(firstFuture, startTime, seriesB.time_zone), new Date()))
 		firstFuture = core.addDays(firstFuture, 7)

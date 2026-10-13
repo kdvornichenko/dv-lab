@@ -7,6 +7,7 @@ import {
 	SYNTHETIC_CALENDAR_ID,
 	assertTarget,
 	calendarSql,
+	googleDateTime,
 	syntheticTokenConfig,
 	targetEnvFile,
 } from './calendar-env.mjs'
@@ -115,8 +116,8 @@ const timed = (date, time, minutes, zone) => {
 	const start = zonedInstant(date, time, zone)
 	const end = new Date(start.getTime() + minutes * 60000)
 	return {
-		start: { dateTime: iso(start), timeZone: zone },
-		end: { dateTime: iso(end), timeZone: zone },
+		start: { dateTime: googleDateTime(start, zone), timeZone: zone },
+		end: { dateTime: googleDateTime(end, zone), timeZone: zone },
 		startsAt: start,
 		endsAt: end,
 		allDay: false,
@@ -340,12 +341,13 @@ function bump(target, eventId) {
 	const [row] = rows(
 		target,
 		'migrator',
-		`select count(*)::int as n from google_calendar_events where connection_id = ${quote(connectionId)}
+		`select starts_at, ends_at, start ->> 'timeZone' as zone from google_calendar_events where connection_id = ${quote(connectionId)}
 and event_id = ${quote(eventId)} and all_day = false and start ? 'dateTime' and starts_at is not null and ends_at is not null`
 	)
-	if (row.n !== 1) fail(`${target} has no timed synthetic event ${eventId}`)
+	if (!row) fail(`${target} has no timed synthetic event ${eventId}`)
+	const later = { start: row.starts_at, '"end"': row.ends_at }
 	const moved = (column) =>
-		`jsonb_set(${column}, '{dateTime}', to_jsonb(to_char((${column === 'start' ? 'starts_at' : 'ends_at'} + interval '1 hour') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')))`
+		`jsonb_set(${column}, '{dateTime}', to_jsonb(${quote(googleDateTime(new Date(later[column]).getTime() + 3600000, row.zone))}::text))`
 	rows(
 		target,
 		'migrator',
