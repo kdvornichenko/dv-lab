@@ -188,7 +188,6 @@ async function prepareDispatch(
 			!connection ||
 			connection.state !== 'connected' ||
 			connection.generation !== command.generation ||
-			connection.credentialGeneration !== access.connection.credentialGeneration ||
 			connection.calendarId !== command.calendarId
 		)
 			throw new CommandFault('not_applied')
@@ -433,7 +432,6 @@ export async function acknowledgeCommand(
 			connection?.state === 'connected' &&
 			connection.generation === result.generation &&
 			connection.generation === access.connection.generation &&
-			connection.credentialGeneration === access.connection.credentialGeneration &&
 			connection.calendarId === command.calendarId
 		const canProject = fresh && !result.recoveryIssue
 		access.signal.throwIfAborted()
