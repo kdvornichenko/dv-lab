@@ -20,7 +20,7 @@ const { CHAT_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
 const budget = await import(`${ROOT}/apps/api/src/chat/budget.ts`)
 const { resolveModelChoice } = await import(`${ROOT}/apps/api/src/chat/model-config.ts`)
 const { readAssistantSettings, saveAssistantSettings } = await import(`${ROOT}/apps/api/src/settings/settings.ts`)
-const { chatStreamEvent } = await import(`${ROOT}/packages/contracts/src/index.ts`)
+const { chatConversationReadResponse, chatStreamEvent } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
 const apiRequire = createRequire(new URL('../../apps/api/package.json', import.meta.url))
 const pino = apiRequire('pino')
@@ -343,7 +343,7 @@ async function providerSmoke() {
 	check(
 		'the tool list is the phase list, strict, without server tools',
 		tools ===
-			'find_students,student_facts,student_notes,suggest,lessons,mark_lesson,add_note,add_comment,propose_lesson_change' &&
+			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change' &&
 			CHAT_TOOLS.every(
 				(item) => item.strict === true && item.input_schema.additionalProperties === false && !('type' in item)
 			)
@@ -382,12 +382,13 @@ function askAbout(conversationId, text, studentId) {
 }
 
 async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
+	const day = core.lessonDay(new Date(startsAt), zone)
 	const todayText = `были сегодня уроки у @${NAME}?`
 	fake.script.push(
-		use('lessons', { student_id: studentId, from: wall.date, to: wall.date, show: true }),
+		use('lessons', { student_id: studentId, from: day, to: day, show: true }),
 		capture(
 			say(
-				`Сегодня, ${weekdayRu(wall.date, zone)} ${spoken(wall.date)}, у ${NAME} был урок в ${wall.time}. Отметку видно в блоке ниже.`
+				`Сегодня, ${weekdayRu(day, zone)} ${spoken(day)}, у ${NAME} был урок в ${wall.time}. Отметку видно в блоке ниже.`
 			)
 		)
 	)
@@ -402,14 +403,14 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 		todayView.records?.[0]?.date === wall.date &&
 			todayView.records[0].time === wall.time &&
 			typeof todayView.records[0].weekday === 'string' &&
-			todayView.from === wall.date &&
+			todayView.from === day &&
 			todayView.shown === true,
 		JSON.stringify(todayView)
 	)
 	check(
 		'an answer about a lesson with its date, time and the student name is published whole, without withheld',
 		today.state === 'completed' &&
-			todayReply.body.includes(spoken(wall.date)) &&
+			todayReply.body.includes(spoken(day)) &&
 			todayReply.body.includes(wall.time) &&
 			todayReply.body.includes(NAME) &&
 			todayReply.body.includes('Отметку видно в блоке ниже.') &&
@@ -419,14 +420,14 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 	check(
 		'a question about the lesson of one day shows one lessons block with that lesson',
 		todayBlocks.length === 1 &&
-			todayBlocks[0].date === wall.date &&
+			todayBlocks[0].date === day &&
 			todayBlocks[0].lessons.length === 1 &&
 			todayBlocks[0].lessons[0].studentId === studentId &&
 			todayBlocks[0].lessons[0].startsAt === startsAt,
 		JSON.stringify(todayBlocks)
 	)
 
-	const yesterday = core.addDays(wall.date, -1)
+	const yesterday = core.addDays(day, -1)
 	fake.script.push(
 		use('lessons', { student_id: studentId, from: yesterday, to: yesterday, show: true }),
 		say(`Вчера, ${weekdayRu(yesterday, zone)} ${spoken(yesterday)}, уроков у ${NAME} не было.`)
@@ -472,7 +473,7 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 	const about = await settled((await askAbout(conversationId, `расскажи про @${NAME}`, studentId)).json.turn.id)
 	const aboutReply = replyOf(about.id)
 	const listed = [
-		`Вот что было ${spoken(wall.date)}:`,
+		`Вот что было ${spoken(day)}:`,
 		'- времена глаголов;',
 		'- **чтение** коротких текстов.',
 		'',
@@ -481,7 +482,7 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 		'',
 		'**Итог:** тема закрыта.',
 	].join('\n')
-	fake.script.push(use('lessons', { student_id: studentId, from: wall.date, to: wall.date, show: false }), say(listed))
+	fake.script.push(use('lessons', { student_id: studentId, from: day, to: day, show: false }), say(listed))
 	const markdown = await settled((await askAbout(conversationId, `что прошли с @${NAME}?`, studentId)).json.turn.id)
 	const markdownReply = replyOf(markdown.id)
 	check(
@@ -497,6 +498,340 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 			aboutReply.body.includes(NAME) &&
 			!aboutReply.blocks.some((block) => block.type === 'facts' || block.type === 'withheld'),
 		JSON.stringify(aboutReply)
+	)
+}
+
+function slowUse(name, input, ms = 300) {
+	return async function* toolUse(request, signal) {
+		await pause(ms, signal)
+		const block = { type: 'tool_use', id: `toolu_${randomUUID().slice(0, 8)}`, name, input }
+		yield { type: 'final', message: message(request.model, [block], 'tool_use') }
+	}
+}
+
+const finished = (list) => list.some((event) => event.type === 'state' && !ACTIVE.includes(event.turn.state))
+
+async function readThread(conversationId) {
+	const res = await as('GET', `/chat/conversations/${conversationId}`)
+	return chatConversationReadResponse.parse(res.json)
+}
+
+async function stepsAndMentions(studentId, zone) {
+	const thread = await conversation()
+	const day = core.lessonDay(new Date(), zone)
+	const ghost = randomUUID()
+	const replyText = `${NAME} is doing well. Later ${NAME} reads more.`
+	fake.script.push(
+		slowUse('student_facts', { student_id: studentId, show: false }),
+		use('lessons', { student_id: studentId, from: day, to: day, show: false }),
+		use('student_notes', { student_id: ghost }),
+		say(replyText, { delay: 40 })
+	)
+	const sent = await askAbout(thread, `как дела у @${NAME}?`, studentId)
+	const list = await events(sent.json.turn.id, { until: finished, timeout: 15000 })
+	const turn = await settled(sent.json.turn.id)
+	const live = list.filter((event) => event.type === 'step').map((event) => event.step)
+	const byTool = (tool) => live.filter((step) => step.tool === tool)
+	check(
+		'the stream carries step events: a running then a done step per tool with the student name and the range',
+		byTool('student_facts')
+			.map((step) => step.state)
+			.join(',') === 'running,done' &&
+			byTool('student_facts')[0].studentId === studentId &&
+			byTool('student_facts')[0].studentName === NAME &&
+			byTool('lessons')[0]?.from === day &&
+			byTool('lessons')[0]?.to === day &&
+			byTool('lessons').at(-1)?.state === 'done',
+		JSON.stringify(live)
+	)
+	check(
+		'a tool that fails gives a failed step without a name it cannot know',
+		byTool('student_notes').at(-1)?.state === 'failed' && byTool('student_notes')[0].studentName === undefined,
+		JSON.stringify(byTool('student_notes'))
+	)
+	check(
+		'Writing the answer is a step that starts with the first text and ends done',
+		byTool('answer').length >= 2 && byTool('answer')[0].state === 'running' && byTool('answer').at(-1).state === 'done'
+	)
+	const seqs = list.filter((event) => 'seq' in event && event.type !== 'snapshot').map((event) => event.seq)
+	check(
+		'step events take part in the turn sequence',
+		seqs.every((seq, index) => index === 0 || seq > seqs[index - 1]),
+		JSON.stringify(seqs)
+	)
+	const last = list.findLast((event) => event.type === 'state')
+	const stored = sql(
+		`select m.steps, m.mentions, m.body from chat_messages m join chat_turns t on t.assistant_message_id = m.id where t.id = ${quote(turn.id)}`
+	).rows[0]
+	check(
+		'the steps are stored with the reply, all closed, in the order they started',
+		turn.state === 'completed' &&
+			stored.steps.map((step) => `${step.tool}:${step.state}`).join(',') ===
+				'student_facts:done,lessons:done,student_notes:failed,answer:done',
+		JSON.stringify(stored.steps)
+	)
+	const expected = { studentId, text: NAME, start: 0, end: NAME.length }
+	check(
+		'the reply marks the first use of a known name as a mention range over the stored text',
+		stored.body === replyText &&
+			stored.mentions.length === 1 &&
+			isDeepStrictEqual(stored.mentions[0], expected) &&
+			stored.body.slice(stored.mentions[0].start, stored.mentions[0].end) === NAME,
+		JSON.stringify(stored.mentions)
+	)
+	const read = await readThread(thread)
+	const reply = read.messages.find((item) => item.role === 'assistant')
+	const teacher = read.messages.find((item) => item.role === 'teacher')
+	check(
+		'reading the conversation gives the steps, the mentions and finishedAt of the reply, none for the teacher',
+		isDeepStrictEqual(reply?.steps, stored.steps) &&
+			isDeepStrictEqual(reply?.mentions, [expected]) &&
+			typeof reply?.finishedAt === 'string' &&
+			Date.parse(reply.finishedAt) >= Date.parse(reply.createdAt) &&
+			teacher?.finishedAt === null &&
+			teacher.steps.length === 0
+	)
+	check(
+		'the last state event carries the finished message with closed steps, mentions and finishedAt',
+		last?.message?.id === reply?.id &&
+			isDeepStrictEqual(last.message.steps, stored.steps) &&
+			isDeepStrictEqual(last.message.mentions, [expected]) &&
+			last.message.finishedAt === reply.finishedAt
+	)
+	check(
+		'step words carry no figure: only ids, names and dates',
+		stored.steps.every((step) =>
+			Object.keys(step).every((key) => ['id', 'tool', 'state', 'studentId', 'studentName', 'from', 'to'].includes(key))
+		)
+	)
+
+	const other = await as('POST', '/students', cardBody(`${NAME} Found`))
+	ids.push(other.json.student.id)
+	fake.script.push(use('find_students', { query: `${NAME} Found` }), say(`${NAME} Found is the one. Ask ${NAME} too.`))
+	const found = await settled((await askAbout(thread, `найди @${NAME}`, studentId)).json.turn.id)
+	const foundRow = sql(
+		`select m.steps, m.mentions, m.body from chat_messages m join chat_turns t on t.assistant_message_id = m.id where t.id = ${quote(found.id)}`
+	).rows[0]
+	const at = foundRow.body.indexOf(`Ask ${NAME}`) + 4
+	check(
+		'a name read in this turn is marked, a longer name wins over its prefix and each student once',
+		isDeepStrictEqual(foundRow.mentions, [
+			{ studentId: other.json.student.id, text: `${NAME} Found`, start: 0, end: `${NAME} Found`.length },
+			{ studentId, text: NAME, start: at, end: at + NAME.length },
+		]),
+		JSON.stringify(foundRow.mentions)
+	)
+	check(
+		'find_students with one match ends with that student in the step',
+		foundRow.steps[0]?.tool === 'find_students' &&
+			foundRow.steps[0].state === 'done' &&
+			foundRow.steps[0].studentId === other.json.student.id &&
+			foundRow.steps[0].studentName === `${NAME} Found`,
+		JSON.stringify(foundRow.steps)
+	)
+
+	fake.script.push(say('One part. Two parts. Three parts. Four parts. Five parts.', { delay: 300 }))
+	const stopping = await ask(thread, 'Tell me a story')
+	await events(stopping.json.turn.id, {
+		until: (list) => list.some((event) => event.type === 'step' && event.step.tool === 'answer'),
+	})
+	await as('POST', `/chat/turns/${stopping.json.turn.id}/stop`, {})
+	const stoppedRow = sql(
+		`select m.steps from chat_messages m join chat_turns t on t.assistant_message_id = m.id where t.id = ${quote(stopping.json.turn.id)}`
+	).rows[0]
+	check(
+		'Stop reply closes the running step as stopped',
+		stoppedRow.steps.length === 1 && stoppedRow.steps[0].tool === 'answer' && stoppedRow.steps[0].state === 'stopped',
+		JSON.stringify(stoppedRow.steps)
+	)
+
+	const raw = sql(
+		`insert into chat_messages (account_id, conversation_id, role, body) values (${quote(accountId)}, ${quote(thread)}, 'assistant', 'Old reply.') returning id`
+	).rows[0].id
+	const old = (await readThread(thread)).messages.find((item) => item.id === raw)
+	check(
+		'a reply stored without steps and without a turn reads with no steps and its own time as finishedAt',
+		old !== undefined && old.steps.length === 0 && old.finishedAt === old.createdAt
+	)
+	return thread
+}
+
+async function todayFromLessonDay(conversationId, zone) {
+	const day = core.lessonDay(new Date(), zone)
+	fake.script.push(say(`Сегодня ${spoken(day)}. Хорошего дня.`))
+	const turn = await settled((await ask(conversationId, 'Какое сегодня число?')).json.turn.id)
+	const request = String(fake.calls.at(-1).messages.at(-1).content)
+	const reply = replyOf(turn.id)
+	check(
+		'the turn context has a Lesson day line from lessonDay and the answer with that date is published',
+		request.includes(`\nLesson day: ${day} (`) &&
+			request.includes(`\nNow: ${core.zonedParts(new Date(), zone).date} `) &&
+			reply.body.includes(spoken(day)) &&
+			!reply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify({ request: request.split('\n').slice(0, 5), reply })
+	)
+	check(
+		'the system prompt says today and yesterday count from the lesson day',
+		String(fake.calls.at(-1).system).includes('Lesson day line')
+	)
+}
+
+async function lessonDates(conversationId) {
+	const zone = core.SCHEDULE_TIME_ZONE
+	const card = await as('POST', '/students', cardBody(`${NAME} Dates`))
+	const studentId = card.json.student.id
+	ids.push(studentId)
+	const today = core.lessonDay(new Date(), zone)
+	const first = core.addDays(today, -14)
+	const series = sql(
+		`insert into lesson_series (student_id, weekday, start_time, duration_minutes, starts_on, ends_on) values (${quote(studentId)}, ${core.weekdayOf(first)}, '10:00', 60, ${quote(first)}, null) returning id`
+	).rows[0].id
+	const movedOn = core.addDays(today, -7)
+	const movedTo = core.addDays(today, -6)
+	sql(`insert into lesson_marks (series_id, original_on, kind) values (${quote(series)}, ${quote(first)}, 'no_show')`)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(series)}, ${quote(movedOn)}, 'moved', ${quote(core.zonedInstant(movedTo, '11:00', zone).toISOString())}, 60)`
+	)
+	sql(`insert into lesson_marks (series_id, original_on, kind) values (${quote(series)}, ${quote(movedOn)}, 'done')`)
+	sql(
+		`insert into lesson_exceptions (series_id, original_on, kind) values (${quote(series)}, ${quote(today)}, 'cancelled')`
+	)
+	const to = core.addDays(today, 14)
+	fake.script.push(
+		use('lesson_dates', { student_id: studentId, from: first, to, scope: 'held', show: true }),
+		use('lesson_dates', { student_id: studentId, from: first, to, scope: 'all', show: true }),
+		capture(say('Here are the held lessons.'))
+	)
+	const turn = await settled((await ask(conversationId, 'Which lessons were held?')).json.turn.id)
+	const reply = replyOf(turn.id)
+	const blocks = reply.blocks.filter((block) => block.type === 'lesson_dates')
+	const view = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'lesson_dates gives one block per student: held dates on the day a lesson was moved to, the cancelled and moved-away days left out',
+		blocks.length === 1 &&
+			blocks[0].studentId === studentId &&
+			blocks[0].studentName === `${NAME} Dates` &&
+			blocks[0].from === first &&
+			blocks[0].to === to &&
+			blocks[0].scope === 'held' &&
+			isDeepStrictEqual(blocks[0].dates, [movedTo]) &&
+			isDeepStrictEqual(blocks[0].leftOut, { noShow: 1, ahead: 2 }) &&
+			blocks[0].coverage === 'complete',
+		JSON.stringify(blocks)
+	)
+	check(
+		'the second call reads all lessons for the model without a second block and gives no counts',
+		isDeepStrictEqual(view.dates, [first, movedTo, core.addDays(today, 7), to]) &&
+			view.shown === false &&
+			!('leftOut' in view) &&
+			reply.body === 'Here are the held lessons.',
+		JSON.stringify(view)
+	)
+	const steps = sql(
+		`select m.steps from chat_messages m join chat_turns t on t.assistant_message_id = m.id where t.id = ${quote(turn.id)}`
+	).rows[0].steps
+	check(
+		'the lesson_dates step has the student and the period',
+		steps[0]?.tool === 'lesson_dates' &&
+			steps[0].from === first &&
+			steps[0].to === to &&
+			steps[0].studentName === `${NAME} Dates`,
+		JSON.stringify(steps)
+	)
+	const refreshed = await as('POST', '/chat/records/refresh', {
+		key: { kind: 'lesson_dates', studentId, from: first, to, scope: 'held' },
+	})
+	check(
+		'Refresh records by the lesson_dates key reads the same block',
+		refreshed.status === 200 &&
+			isDeepStrictEqual({ ...refreshed.json.block, asOf: null }, { ...blocks[0], asOf: null }),
+		JSON.stringify(refreshed.json)
+	)
+
+	const monthStart = `${today.slice(0, 8)}01`
+	const monthEnd = core.addDays(`${core.addDays(monthStart, 32).slice(0, 8)}01`, -1)
+	const pastFrom = core.addDays(first, -60)
+	const pastTo = core.addDays(first, -31)
+	fake.script.push(
+		use('lesson_dates', { student_id: studentId, from: null, to: null, scope: 'no_show', show: true }),
+		use('lesson_dates', { student_id: ids[0], from: pastFrom, to: pastTo, scope: 'all', show: true }),
+		say('Done.')
+	)
+	const second = await settled((await ask(conversationId, 'Lessons this month?')).json.turn.id)
+	const shown = replyOf(second.id).blocks.filter((block) => block.type === 'lesson_dates')
+	const inMonth = (date) => date >= monthStart && date <= monthEnd
+	check(
+		'without a period the block is the current month of lesson days',
+		shown[0]?.from === monthStart &&
+			shown[0].to === monthEnd &&
+			isDeepStrictEqual(shown[0].dates, inMonth(first) ? [first] : []) &&
+			shown[0].leftOut.noShow === 0,
+		JSON.stringify(shown[0])
+	)
+	check(
+		'an empty period is still one block with no dates and nothing left out',
+		shown[1]?.studentId === ids[0] &&
+			shown[1].dates.length === 0 &&
+			isDeepStrictEqual(shown[1].leftOut, { noShow: 0, ahead: 0 }),
+		JSON.stringify(shown[1])
+	)
+	fake.script.push(
+		use('lesson_dates', { student_id: studentId, from: first, to: core.addDays(first, 400), scope: 'all', show: true }),
+		capture(say('Too long.'))
+	)
+	await settled((await ask(conversationId, 'All lessons ever?')).json.turn.id)
+	check(
+		'a period over the limit is a tool error',
+		JSON.parse(seen.at(-1)?.[0]?.content ?? '{}').error === 'range_too_long'
+	)
+}
+
+async function linkFields(conversationId, studentId, lessonId, startsAt, zone) {
+	const day = core.lessonDay(new Date(startsAt), zone)
+	fake.script.push(use('lessons', { student_id: studentId, from: day, to: day, show: true }), say('Here it is.'))
+	const shownTurn = await settled((await ask(conversationId, 'That lesson?')).json.turn.id)
+	const lessonsBlock = replyOf(shownTurn.id).blocks.find((block) => block.type === 'lessons')
+	const shownLesson = lessonsBlock?.lessons.find((item) => item.startsAt === startsAt)
+	check(
+		'a lesson in the lessons block has its ref and main-zone lesson day',
+		isDeepStrictEqual(shownLesson?.ref, { kind: 'single', lessonId }) && shownLesson.date === day,
+		JSON.stringify(lessonsBlock)
+	)
+	const commentId = sql(
+		`insert into lesson_comments (lesson_id, student_id, body) values (${quote(lessonId)}, ${quote(studentId)}, 'Worked on linking words.') returning id`
+	).rows[0].id
+	const noteId = sql(
+		`insert into student_notes (student_id, section_kind, body) values (${quote(studentId)}, 'general_info', 'Likes podcasts.') returning id`
+	).rows[0].id
+	fake.script.push(
+		use('student_notes', { student_id: studentId }),
+		say(`Notes. [[note:${noteId}]] Comment. [[comment:${commentId}]] Goal. [[section:${studentId}:goals]]`)
+	)
+	const quoted = await settled((await ask(conversationId, 'Quote them')).json.turn.id)
+	const excerpts = replyOf(quoted.id).blocks.filter((block) => block.type === 'excerpt')
+	const note = excerpts.find((block) => block.source === 'note')
+	const comment = excerpts.find((block) => block.source === 'comment')
+	const section = excerpts.find((block) => block.source === 'section')
+	check(
+		'excerpts carry the note entry, the section key and tab and the lesson ref and day of a comment',
+		note?.entry === noteId &&
+			isDeepStrictEqual(section?.section, { key: 'goals', tab: 'notes' }) &&
+			isDeepStrictEqual(comment?.lesson, { ref: { kind: 'single', lessonId }, date: day }),
+		JSON.stringify(excerpts)
+	)
+	sql(`update student_notes set retracted_at = now() where id = ${quote(noteId)}`)
+	sql(`update lesson_comments set retracted_at = now() where id = ${quote(commentId)}`)
+	const read = await readThread(conversationId)
+	const readBlocks = read.messages.flatMap((item) => item.blocks).filter((block) => block.type === 'excerpt')
+	const readNote = readBlocks.find((block) => block.source === 'note' && block.id === noteId)
+	const readComment = readBlocks.find((block) => block.source === 'comment' && block.id === commentId)
+	check(
+		'a quote of a removed note or comment is read without its link fields',
+		readNote !== undefined &&
+			!('entry' in readNote) &&
+			readComment !== undefined &&
+			!('lesson' in readComment) &&
+			readBlocks.some((block) => block.source === 'section' && block.section?.key === 'goals')
 	)
 }
 
@@ -584,6 +919,13 @@ async function main() {
 			action?.kind === 'mark' &&
 			action.mark === 'done',
 		JSON.stringify(markReply.blocks)
+	)
+	check(
+		'a mark receipt carries the student, the lesson ref and its lesson day',
+		action?.studentId === studentId &&
+			isDeepStrictEqual(action.lessonRef, { kind: 'single', lessonId }) &&
+			action.lessonDate === core.lessonDay(new Date(startsAt), zone),
+		JSON.stringify(action)
 	)
 	check(
 		'the tool result comes back to the model in the next request',
@@ -863,38 +1205,10 @@ async function main() {
 		JSON.stringify(factsReply)
 	)
 
-	const notesBefore = sql(`select count(*)::int as n from student_notes where student_id = ${quote(studentId)}`).rows[0]
-		.n
-	fake.script.push(
-		use('suggest', {
-			ideas: [
-				'Start with a short reading warm-up.',
-				'Give the writing task a time limit.',
-				'Do 10 minutes of vocabulary review.',
-				'  ',
-			],
-		}),
-		capture(say('I added a few ideas.'))
-	)
-	const ideas = await settled((await ask(first, 'Give me ideas')).json.turn.id)
-	const ideasReply = replyOf(ideas.id)
-	const suggestions = ideasReply.blocks.filter((block) => block.type === 'suggestions')
-	const ideasResult = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
-	check(
-		'suggest shows the allowed ideas as one block, drops the one with counts and writes nothing',
-		suggestions.length === 1 &&
-			isDeepStrictEqual(suggestions[0].lines, [
-				'Start with a short reading warm-up.',
-				'Give the writing task a time limit.',
-			]) &&
-			ideasResult.shown === 2 &&
-			sql(`select count(*)::int as n from student_notes where student_id = ${quote(studentId)}`).rows[0].n ===
-				notesBefore
-	)
-	fake.script.push(use('suggest', { ideas: ['Practise 5 minutes daily.'] }), capture(say('Nothing to suggest.')))
-	await settled((await ask(first, 'More ideas')).json.turn.id)
-	const refusedIdeas = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
-	check('suggest with only disallowed ideas is a tool error', refusedIdeas.error === 'ideas_not_allowed')
+	await todayFromLessonDay(first, zone)
+	await lessonDates(first)
+	await linkFields(first, studentId, lessonId, startsAt, zone)
+	await stepsAndMentions(studentId, zone)
 
 	fake.script.push(say('Which student?'))
 	await settled((await ask(first, '/recap')).json.turn.id)

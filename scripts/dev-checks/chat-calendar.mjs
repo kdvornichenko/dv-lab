@@ -506,6 +506,17 @@ async function caseMove(pipeline, fx, ids) {
 			commandRows(fx).length === before,
 		JSON.stringify(block)
 	)
+	check(
+		'a move proposal carries the student, the lesson ref and day and the new day',
+		block.type === 'calendar_proposal' &&
+			block.studentId === ids.a.id &&
+			block.lesson.ref?.kind === 'single' &&
+			block.lesson.ref.lessonId === lesson.id &&
+			block.lesson.date === lesson.day &&
+			block.target.kind === 'lesson' &&
+			block.target.date === tomorrow,
+		JSON.stringify(block)
+	)
 	const version = versionOf(fx, lesson.eventId)
 	const pending = await confirm(pipeline, fx, block.actionId)
 	const afterConfirm = action(block.actionId)
@@ -551,9 +562,10 @@ async function caseCancel(pipeline, fx, ids) {
 	const { pending, commandId, finished, applied } = await confirmed(pipeline, fx, block, 'cancel')
 	const operation = commandRows(fx).find((row) => row.id === commandId)?.operation
 	check(
-		"didn't happen to a started unmarked lesson: cancel, applied",
+		"didn't happen to a started unmarked lesson: cancel, applied, with the day of the cancelled lesson",
 		block.operation === 'cancel' &&
 			block.target.kind === 'cancelled' &&
+			block.target.date === lesson.day &&
 			pending.state === 'pending' &&
 			operation === 'cancel' &&
 			finished.state === 'applied' &&
@@ -788,7 +800,7 @@ async function caseSeries(pipeline, fx, ids) {
 	)
 }
 
-async function caseRoutes(fx, actionId, markActionId) {
+async function caseRoutes(fx, actionId, markActionId, ids) {
 	const api = await startCalendarApi({ port: PORT, envFile: '.env.test' })
 	try {
 		const cookie = await teacherCookie(api)
@@ -809,6 +821,18 @@ async function caseRoutes(fx, actionId, markActionId) {
 				extra.status === 400 &&
 				mark.status === 409,
 			JSON.stringify([shown.status, again.status, unknown.status, extra.status, mark.status])
+		)
+		const facts = await call(api, 'GET', `/chat/records?studentId=${ids.s.id}`, { cookie })
+		const next = facts.json?.nextLesson
+		check(
+			'the facts next lesson carries its ref and lesson day',
+			facts.status === 200 &&
+				next?.result === 'known' &&
+				next.ref?.kind === 'series' &&
+				rows(`select student_id from lesson_series where id = ${quote(next.ref.seriesId)}`)[0]?.student_id ===
+					ids.s.id &&
+				next.date === core.lessonDay(new Date(next.startsAt), fx.zone),
+			JSON.stringify(next)
 		)
 		check('api log has no fixture name', !api.logs().includes('Alex Example'))
 	} finally {
@@ -896,7 +920,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	const [markAction] = rows(
 		`select id from chat_actions where conversation_id = ${quote(fx.conversationId)} and kind = 'mark' limit 1`
 	)
-	await caseRoutes(fx, moved.block.actionId, markAction?.id ?? null)
+	await caseRoutes(fx, moved.block.actionId, markAction?.id ?? null, ids)
 } catch (error) {
 	failures++
 	const message = error instanceof Error ? error.message : 'unexpected failure'
