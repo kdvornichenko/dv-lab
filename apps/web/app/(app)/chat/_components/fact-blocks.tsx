@@ -109,15 +109,15 @@ function Lessons({ block }: { block: ChatLessonsBlock }) {
 	const zone = block.defaultTimeZone
 	const [secondZone] = useSecondZone(zone)
 	const asOf = new Date(block.asOf)
-	const fresh = block.calendarRead.state === 'fresh'
-	const word = block.day === 'today' ? 'today' : 'tomorrow'
+	const fresh = block.calendarRead === null || block.calendarRead.state === 'fresh'
+	const word = block.day === null ? '' : ` ${block.day}`
 	return (
-		<Panel title={`Lessons ${word}`} description={dayTitle(block.date, zone)}>
+		<Panel title={`Lessons${word}`} description={dayTitle(block.date, zone)}>
 			{block.lessons.length === 0 ? (
 				fresh ? (
 					<EmptyState
 						icon={CalendarDays}
-						title={`No lessons ${word}`}
+						title={`No lessons${word}`}
 						action={
 							<Button variant="secondary" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
 								Open schedule

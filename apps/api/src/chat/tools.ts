@@ -9,12 +9,13 @@ import {
 	type ChatBlock,
 	type ChatExcerptBlock,
 	type ChatLessonIntent,
+	type ChatLessonsBlock,
 	appendLessonCommentRequest,
 	appendStudentNoteRequest,
 	calendarDate,
 	chatLessonIntent,
 } from '@dv-lab/contracts'
-import { addDays, startOfZonedDay } from '@dv-lab/core'
+import { addDays, startOfZonedDay, zonedParts } from '@dv-lab/core'
 import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
 
 import { listLessonStudents } from '../cards/cards.ts'
@@ -25,7 +26,7 @@ import { readWindow } from '../schedule/schedule.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { type ActionSource, type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
 import { readChatFacts } from './facts.ts'
-import { type Issued, checkSentence, citeKey } from './publish-gate.ts'
+import { type Issued, checkSentence, citeKey, gateContext } from './publish-gate.ts'
 
 export type ToolContext = {
 	db: Database
@@ -51,10 +52,10 @@ const nullable = <T extends z.ZodType>(schema: T) => schema.nullable()
 
 const inputs = {
 	find_students: z.strictObject({ query: z.string().min(1).max(200) }),
-	student_facts: z.strictObject({ student_id: id }),
+	student_facts: z.strictObject({ student_id: id, show: z.boolean() }),
 	student_notes: z.strictObject({ student_id: id }),
 	suggest: z.strictObject({ ideas: z.array(z.string()) }),
-	lessons: z.strictObject({ student_id: nullable(id), from: date, to: date }),
+	lessons: z.strictObject({ student_id: nullable(id), from: date, to: date, show: z.boolean() }),
 	mark_lesson: z.strictObject({
 		student_id: id,
 		outcome: z.enum(['done', 'no_show']),
@@ -78,6 +79,7 @@ const inputs = {
 type ToolName = keyof typeof inputs
 
 const string = { type: 'string' }
+const boolean = { type: 'boolean' }
 const nullableString = { type: ['string', 'null'] }
 const stringList = { type: 'array', items: { type: 'string' } }
 
@@ -96,8 +98,8 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	}),
 	tool(
 		'student_facts',
-		'Read the computed facts of one student: balance, next lesson and whether the student pays soon. The app shows these facts to the teacher in its own block; never restate their numbers in your text.',
-		{ student_id: string }
+		'Read the computed facts of one student: balance, next lesson and whether the student pays soon. show true only if the teacher asked about the balance, lessons left, the next lesson or a payment; otherwise false: the facts are read for your answer but no block is shown. The app shows the block to the teacher; never restate its numbers in your text.',
+		{ student_id: string, show: boolean }
 	),
 	tool(
 		'student_notes',
@@ -111,8 +113,8 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	),
 	tool(
 		'lessons',
-		'Read lessons between two dates (YYYY-MM-DD, teacher time zone, at most 31 days), optionally for one student.',
-		{ student_id: nullableString, from: string, to: string }
+		'Read lessons between two dates (YYYY-MM-DD, teacher time zone, at most 31 days), optionally for one student. Each record has its date, weekday and time (HH:MM) in the teacher time zone; name them as they are. show true only when the teacher asks about one lesson or the lessons of one day and from equals to: the app then shows these lessons in a block. false for a period or when the lessons are only read for the answer.',
+		{ student_id: nullableString, from: string, to: string, show: boolean }
 	),
 	tool(
 		'mark_lesson',
@@ -145,6 +147,10 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 		}
 	),
 ]
+
+export function weekdayName(instant: Date, zone: string): string {
+	return new Intl.DateTimeFormat('en-US', { weekday: 'long', timeZone: zone }).format(instant)
+}
 
 function clip(value: string): string {
 	return value.length > FIELD_MAX ? `${value.slice(0, FIELD_MAX)}…` : value
@@ -187,7 +193,11 @@ async function show(context: ToolContext, block: ChatBlock, outcome: ToolOutcome
 	return { ...outcome, block }
 }
 
-async function studentFacts(context: ToolContext, studentId: string): Promise<ToolOutcome> {
+async function studentFacts(
+	context: ToolContext,
+	input: z.infer<(typeof inputs)['student_facts']>
+): Promise<ToolOutcome> {
+	const studentId = input.student_id
 	let facts: Awaited<ReturnType<typeof readChatFacts>>
 	try {
 		facts = await readSnapshot(context.db, async (executor) => {
@@ -195,12 +205,13 @@ async function studentFacts(context: ToolContext, studentId: string): Promise<To
 			return readChatFacts(executor, context.chat, studentId, settings.paysSoonLessons)
 		})
 	} catch {
+		if (!input.show) return failure('tool_failed')
 		return show(context, { type: 'read_failed', key: { kind: 'student', studentId } }, failure('tool_failed'))
 	}
 	if (facts === null) return failure('student_not_found')
 	const outcome = result({ facts })
 	const key = `facts:${studentId}`
-	if (context.shown.has(key)) return outcome
+	if (!input.show || context.shown.has(key)) return outcome
 	context.shown.add(key)
 	return show(context, { type: 'facts', facts }, outcome)
 }
@@ -281,7 +292,7 @@ async function suggest(context: ToolContext, input: z.infer<(typeof inputs)['sug
 		.map((idea) => idea.trim().slice(0, CHAT_SUGGESTION_MAX_LENGTH))
 		.filter((idea) => idea !== '')
 		.slice(0, CHAT_SUGGESTIONS_MAX)
-	const lines = wanted.filter((idea) => checkSentence(idea, { knownIds: new Set() }) === 'publish')
+	const lines = wanted.filter((idea) => checkSentence(idea, gateContext()) === 'publish')
 	if (lines.length === 0) return failure(wanted.length === 0 ? 'invalid_arguments' : 'ideas_not_allowed')
 	return show(
 		context,
@@ -308,20 +319,50 @@ async function lessons(
 		startOfZonedDay(addDays(input.to, 1), zone),
 		context
 	)
-	const blocks = window.blocks
+	const found = window.blocks
 		.filter((block) => block.movedTo === null)
 		.filter((block) => input.student_id === null || block.studentId === input.student_id)
 		.sort((left, right) => right.startsAt.localeCompare(left.startsAt))
-		.map((block) => ({
+	const records = found.map((block) => {
+		const start = new Date(block.startsAt)
+		const local = zonedParts(start, zone)
+		return {
 			student_id: block.studentId,
 			student: block.studentName,
+			date: local.date,
+			weekday: weekdayName(start, zone),
+			time: local.time,
+			end_time: zonedParts(new Date(start.getTime() + block.durationMinutes * 60000), zone).time,
 			starts_at: block.startsAt,
 			time_zone: block.timeZone,
 			duration_minutes: block.durationMinutes,
 			outcome: block.outcome,
 			mark: block.mark,
-		}))
-	return { content: fit(blocks, { time_zone: zone }).text, isError: false, block: null }
+		}
+	})
+	const shown = input.show && input.from === input.to && found.length > 0
+	const content = fit(records, { time_zone: zone, from: input.from, to: input.to, shown }).text
+	if (!shown) return { content, isError: false, block: null }
+	const today = zonedParts(context.now, zone).date
+	const block: ChatLessonsBlock = {
+		type: 'lessons',
+		day: input.from === today ? 'today' : input.from === addDays(today, 1) ? 'tomorrow' : null,
+		date: input.from,
+		defaultTimeZone: zone,
+		asOf: context.now.toISOString(),
+		calendarRead: null,
+		lessons: found.toReversed().map((lesson) => ({
+			key: lesson.key,
+			studentId: lesson.studentId,
+			studentName: lesson.studentName,
+			startsAt: lesson.startsAt,
+			timeZone: lesson.timeZone,
+			durationMinutes: lesson.durationMinutes,
+			outcome: lesson.outcome,
+			movedTo: lesson.movedTo,
+		})),
+	}
+	return { content, isError: false, block }
 }
 
 function lessonIntent(intent: unknown): ChatLessonIntent | null {
@@ -408,13 +449,16 @@ async function write(context: ToolContext, name: ToolName, input: unknown): Prom
 }
 
 async function read(context: ToolContext, name: ToolName, input: unknown): Promise<ToolOutcome> {
-	if (name === 'student_facts') return studentFacts(context, inputs.student_facts.parse(input).student_id)
+	if (name === 'student_facts') return studentFacts(context, inputs.student_facts.parse(input))
 	if (name === 'suggest') return suggest(context, inputs.suggest.parse(input))
-	return readSnapshot(context.db, async (executor) => {
+	const outcome = await readSnapshot(context.db, async (executor) => {
 		if (name === 'find_students') return findStudents(executor, inputs.find_students.parse(input).query)
 		if (name === 'student_notes') return studentNotes(executor, context, inputs.student_notes.parse(input).student_id)
 		return lessons(executor, context.chat, inputs.lessons.parse(input))
 	})
+	if (outcome.block === null || context.shown.has('lessons')) return { ...outcome, block: null }
+	context.shown.add('lessons')
+	return show(context, outcome.block, outcome)
 }
 
 export async function runTool(context: ToolContext, name: string, input: unknown): Promise<ToolOutcome> {

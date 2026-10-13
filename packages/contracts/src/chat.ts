@@ -391,11 +391,11 @@ export const chatDayLesson = z.strictObject({
 
 export const chatLessonsBlock = z.strictObject({
 	type: z.literal('lessons'),
-	day: chatDay,
+	day: chatDay.nullable(),
 	date: calendarDate,
 	defaultTimeZone: calendarTimeZone,
 	asOf: z.string(),
-	calendarRead: calendarReadStatus,
+	calendarRead: calendarReadStatus.nullable(),
 	lessons: z.array(chatDayLesson),
 })
 

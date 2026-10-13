@@ -350,6 +350,136 @@ async function providerSmoke() {
 	)
 }
 
+const RU_MONTHS = [
+	'января',
+	'февраля',
+	'марта',
+	'апреля',
+	'мая',
+	'июня',
+	'июля',
+	'августа',
+	'сентября',
+	'октября',
+	'ноября',
+	'декабря',
+]
+const spoken = (date) => `${Number(date.slice(8, 10))} ${RU_MONTHS[Number(date.slice(5, 7)) - 1]}`
+const weekdayRu = (date, zone) =>
+	new Intl.DateTimeFormat('ru-RU', { weekday: 'long', timeZone: zone }).format(core.zonedInstant(date, '12:00', zone))
+
+function mentionOf(text, studentId) {
+	const start = text.indexOf('@') + 1
+	return { studentId, text: NAME, start, end: start + NAME.length }
+}
+
+function askAbout(conversationId, text, studentId) {
+	return as('POST', `/chat/conversations/${conversationId}/messages`, {
+		requestId: randomUUID(),
+		text,
+		mentions: [mentionOf(text, studentId)],
+	})
+}
+
+async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
+	const todayText = `были сегодня уроки у @${NAME}?`
+	fake.script.push(
+		use('lessons', { student_id: studentId, from: wall.date, to: wall.date, show: true }),
+		capture(
+			say(
+				`Сегодня, ${weekdayRu(wall.date, zone)} ${spoken(wall.date)}, у ${NAME} был урок в ${wall.time}. Отметку видно в блоке ниже.`
+			)
+		)
+	)
+	const todaySent = await askAbout(conversationId, todayText, studentId)
+	if (todaySent.status !== 201) throw new Error(`mention ask returned ${todaySent.status}`)
+	const today = await settled(todaySent.json.turn.id)
+	const todayReply = replyOf(today.id)
+	const todayBlocks = todayReply.blocks.filter((block) => block.type === 'lessons')
+	const todayView = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'the lessons tool gives the date, weekday and time of each lesson in the teacher time zone',
+		todayView.records?.[0]?.date === wall.date &&
+			todayView.records[0].time === wall.time &&
+			typeof todayView.records[0].weekday === 'string' &&
+			todayView.from === wall.date &&
+			todayView.shown === true,
+		JSON.stringify(todayView)
+	)
+	check(
+		'an answer about a lesson with its date, time and the student name is published whole, without withheld',
+		today.state === 'completed' &&
+			todayReply.body.includes(spoken(wall.date)) &&
+			todayReply.body.includes(wall.time) &&
+			todayReply.body.includes(NAME) &&
+			todayReply.body.includes('Отметку видно в блоке ниже.') &&
+			!todayReply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(todayReply)
+	)
+	check(
+		'a question about the lesson of one day shows one lessons block with that lesson',
+		todayBlocks.length === 1 &&
+			todayBlocks[0].date === wall.date &&
+			todayBlocks[0].lessons.length === 1 &&
+			todayBlocks[0].lessons[0].studentId === studentId &&
+			todayBlocks[0].lessons[0].startsAt === startsAt,
+		JSON.stringify(todayBlocks)
+	)
+
+	const yesterday = core.addDays(wall.date, -1)
+	fake.script.push(
+		use('lessons', { student_id: studentId, from: yesterday, to: yesterday, show: true }),
+		say(`Вчера, ${weekdayRu(yesterday, zone)} ${spoken(yesterday)}, уроков у ${NAME} не было.`)
+	)
+	const before = await settled((await askAbout(conversationId, `а вчера у @${NAME}?`, studentId)).json.turn.id)
+	const beforeReply = replyOf(before.id)
+	check(
+		'an answer about yesterday names the checked date, is published whole and an empty day shows no block',
+		before.state === 'completed' &&
+			beforeReply.body.includes(spoken(yesterday)) &&
+			!beforeReply.blocks.some((block) => block.type === 'withheld' || block.type === 'lessons'),
+		JSON.stringify(beforeReply)
+	)
+
+	const far = core.addDays(core.zonedParts(new Date(), zone).date, 10)
+	fake.script.push(say(`Сначала повторите тему. Встретимся ${spoken(far)}. Удачи.`))
+	const invented = await settled((await ask(conversationId, 'Что дальше?')).json.turn.id)
+	const inventedReply = replyOf(invented.id)
+	check(
+		'a sentence with a date that is not in the turn data is withheld',
+		inventedReply.body.includes('Сначала повторите тему.') &&
+			inventedReply.body.includes('Удачи.') &&
+			!inventedReply.body.includes('Встретимся') &&
+			inventedReply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(inventedReply)
+	)
+
+	fake.script.push(say('Оплата прошла. Он оплатил 1500 рублей. Спасибо.'))
+	const paid = await settled((await ask(conversationId, 'Он заплатил?')).json.turn.id)
+	const paidReply = replyOf(paid.id)
+	check(
+		'a sentence with a sum is withheld',
+		paidReply.body.includes('Оплата прошла.') &&
+			!paidReply.body.includes('1500') &&
+			paidReply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(paidReply)
+	)
+
+	fake.script.push(
+		use('student_facts', { student_id: studentId, show: false }),
+		say(`${NAME} занимается по общему курсу.`)
+	)
+	const about = await settled((await askAbout(conversationId, `расскажи про @${NAME}`, studentId)).json.turn.id)
+	const aboutReply = replyOf(about.id)
+	check(
+		'student_facts with show false reads the facts and shows no facts block',
+		about.state === 'completed' &&
+			aboutReply.body.includes(NAME) &&
+			!aboutReply.blocks.some((block) => block.type === 'facts' || block.type === 'withheld'),
+		JSON.stringify(aboutReply)
+	)
+}
+
 async function main() {
 	removeEntries(`display_name like ${quote(`${NAME}%`)} and import_key is null`)
 	removeCards(`display_name like ${quote(`${NAME}%`)} and import_key is null`)
@@ -549,10 +679,15 @@ async function main() {
 		`insert into lesson_marks (series_id, original_on, kind) values (${quote(movedSeries)}, ${quote(movedDate)}, 'done')`
 	)
 	fake.script.push(
-		use('lessons', { student_id: movedId, from: core.addDays(movedDate, -1), to: core.addDays(movedDate, 1) }),
+		use('lessons', {
+			student_id: movedId,
+			from: core.addDays(movedDate, -1),
+			to: core.addDays(movedDate, 1),
+			show: true,
+		}),
 		capture(say('Here are the lessons.'))
 	)
-	await settled((await ask(first, 'What lessons did that student have?')).json.turn.id)
+	const movedTurn = await settled((await ask(first, 'What lessons did that student have?')).json.turn.id)
 	const movedView = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
 	const movedOn = (movedView.records ?? []).filter(
 		(record) => core.zonedParts(new Date(record.starts_at), core.SCHEDULE_TIME_ZONE).date === movedDate
@@ -562,6 +697,31 @@ async function main() {
 		movedOn.length === 1 && movedOn[0].starts_at === movedStart && movedOn[0].outcome === 'done',
 		JSON.stringify(movedView.records)
 	)
+	check(
+		'lessons over a period with show true read the records but show no block',
+		movedView.shown === false && !replyOf(movedTurn.id).blocks.some((block) => block.type === 'lessons')
+	)
+	fake.script.push(
+		use('lessons', { student_id: movedId, from: movedDate, to: movedDate, show: true }),
+		use('lessons', { student_id: movedId, from: movedDate, to: movedDate, show: true }),
+		say('Here is that lesson.')
+	)
+	const movedShown = await settled((await ask(first, 'What about that lesson?')).json.turn.id)
+	const movedBlocks = replyOf(movedShown.id).blocks.filter((block) => block.type === 'lessons')
+	check(
+		'lessons of one day with show true give one block with the moved lesson once, at the new time',
+		movedBlocks.length === 1 &&
+			movedBlocks[0].date === movedDate &&
+			movedBlocks[0].day === null &&
+			movedBlocks[0].calendarRead === null &&
+			movedBlocks[0].lessons.length === 1 &&
+			movedBlocks[0].lessons[0].startsAt === movedStart &&
+			movedBlocks[0].lessons[0].movedTo === null &&
+			movedBlocks[0].lessons[0].outcome === 'done',
+		JSON.stringify(movedBlocks)
+	)
+
+	await datedAnswers(first, studentId, wall, zone, startsAt)
 
 	const quoteText = 'Prefers short reading texts, about 7 pages a week.'
 	const sectionText = 'Studies for the 2027 exam.'
@@ -659,8 +819,8 @@ async function main() {
 	)
 
 	fake.script.push(
-		use('student_facts', { student_id: studentId }),
-		use('student_facts', { student_id: studentId }),
+		use('student_facts', { student_id: studentId, show: true }),
+		use('student_facts', { student_id: studentId, show: true }),
 		capture(say('Here is the balance. You have 3 lessons left. Nothing else to add.'))
 	)
 	const factsTurn = await settled((await ask(first, 'How many lessons are left?')).json.turn.id)
