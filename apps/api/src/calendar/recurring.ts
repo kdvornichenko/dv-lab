@@ -178,11 +178,31 @@ export function classifyRecurrence(lines: readonly string[], timeZone: string): 
 	}
 }
 
+const UNTIL_UTC = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+function untilInstant(value: string | undefined) {
+	const match = value ? UNTIL_UTC.exec(value) : null
+	if (!match) return null
+	const [, year, month, day, hour, minute, second] = match
+	return Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second))
+}
+
+function sameLastOccurrence(actual: string | undefined, expected: string | undefined) {
+	const given = untilInstant(actual)
+	const last = untilInstant(expected)
+	return given !== null && last !== null && given >= last && given < last + WEEK_MS
+}
+
 export function sameRecurrence(actual: readonly string[], expected: readonly string[]) {
 	const left = recurrenceFields(actual)
 	const right = recurrenceFields(expected)
 	const weekday = right?.get('BYDAY')
 	if (left && weekday && !left.has('BYDAY')) left.set('BYDAY', weekday)
+	if (left && right && sameLastOccurrence(left.get('UNTIL'), right.get('UNTIL'))) {
+		left.delete('UNTIL')
+		right.delete('UNTIL')
+	}
 	return Boolean(
 		left && right && left.size === right.size && [...left].every(([key, value]) => right.get(key) === value)
 	)
