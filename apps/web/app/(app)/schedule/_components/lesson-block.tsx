@@ -32,10 +32,10 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	onClick?: ComponentProps<'button'>['onClick']
 }
 
-function surface(plain: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
+function surface(coloured: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
 	if (ghost) return GHOST
 	if (cancelled) return 'text-muted-foreground ring-1 ring-selected ring-inset'
-	if (plain)
+	if (coloured)
 		return tentative ? `${HATCH} text-foreground` : 'bg-(--event-fill) text-(--event-ink) ring-1 ring-surface-2'
 	return tentative ? `${LESSON_HATCH} text-foreground` : 'bg-selected text-foreground ring-1 ring-surface-2'
 }
@@ -62,7 +62,7 @@ export function LessonBlock({
 	const chip = layout === null
 	const availability = calendarEvent.blocksTime ? 'Busy' : 'Available'
 	const short = layout !== null && layout.height < (plain ? EVENT_SHORT_HEIGHT : LESSON_SHORT_HEIGHT)
-	const paint = plain ? (eventPaint(calendarEvent.color) ?? SELECTED_PAINT) : null
+	const paint = eventPaint(calendarEvent.color) ?? (plain ? SELECTED_PAINT : null)
 	const position: CSSProperties | undefined =
 		layout === null
 			? undefined
@@ -101,7 +101,7 @@ export function LessonBlock({
 				chip ? 'relative w-full' : 'absolute',
 				layout?.cutTop && 'rounded-t-none',
 				layout?.cutBottom && 'rounded-b-none',
-				surface(plain, ghost, cancelled, tentative),
+				surface(paint !== null, ghost, cancelled, tentative),
 				unconfirmed && !ghost && 'opacity-60',
 				className
 			)}

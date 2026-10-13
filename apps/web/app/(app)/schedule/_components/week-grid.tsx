@@ -157,7 +157,11 @@ function AgendaRow({
 				event.status === 'cancelled' && 'text-muted-foreground line-through'
 			)}
 		>
-			<span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-selected" />
+			<span
+				aria-hidden
+				className="mt-1.5 size-2 shrink-0 rounded-full bg-selected"
+				style={{ background: eventPaint(event.color)?.fill }}
+			/>
 			<TimePair
 				as="span"
 				main={eventRange(event, mainTimeZone)}
@@ -317,7 +321,7 @@ function MoveFrameBlock({
 	const chip = sameDay || gesture === 'resize' ? range : `${formatDate(frame.date, currentYear)}, ${range}`
 	const height = Math.min(frame.durationMinutes, DAY_MINUTES - start) * MINUTE_HEIGHT
 	const short = height < 34
-	const paint = event.binding.kind === 'external' ? (eventPaint(event.color) ?? null) : null
+	const paint = eventPaint(event.color)
 	const foot = start * MINUTE_HEIGHT + height
 	const chipTop =
 		gesture === 'resize'
