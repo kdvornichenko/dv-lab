@@ -6,18 +6,19 @@ import { AnimatePresence } from 'framer-motion'
 import { List, Plus } from 'lucide-react'
 
 import { EmptyLine } from '@/components/app/empty-line'
-import { PageScroll } from '@/components/app/layout-parts'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 
 import type { ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
 
+import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
-import { useChat } from './use-chat'
+import { useChat, useComposerDraft, useMentionStudents } from './use-chat'
 
 type ReadState =
 	{ kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; facts: ChatStudentFacts }
@@ -170,6 +171,16 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 	const liveRenaming = renaming && (conversations.find((item) => item.id === renaming.id) ?? renaming)
 	const liveDeleting = deleting && (conversations.find((item) => item.id === deleting.id) ?? deleting)
 	const loadingTitle = chat.selectedId !== null && chat.list.kind === 'loading'
+	const composer = useComposerDraft()
+	const students = useMentionStudents()
+	const input = useRef<HTMLTextAreaElement>(null)
+	const shownId = useRef(chat.selectedId)
+
+	useEffect(() => {
+		if (shownId.current === chat.selectedId) return
+		shownId.current = chat.selectedId
+		later(() => input.current?.focus())
+	}, [chat.selectedId])
 
 	function closeList() {
 		setListOpen(false)
@@ -188,8 +199,8 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 	}
 
 	return (
-		<PageScroll>
-			<div className="mx-auto flex w-full max-w-180 flex-col gap-4">
+		<div className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
+			<div className="mx-auto flex min-h-0 w-full max-w-180 flex-1 flex-col gap-4">
 				<ChatHeader
 					title={selected?.title ?? 'Chat'}
 					loadingTitle={loadingTitle}
@@ -203,13 +214,26 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 						<BannerTitle>Could not create a chat. Try again.</BannerTitle>
 					</Banner>
 				) : null}
-				<div className="relative flex flex-col gap-4" onKeyDown={onKeyDown}>
-					<div inert={listOpen} className="flex flex-col gap-4">
-						{studentId === null ? (
-							<EmptyLine text="What do you want to ask?" />
-						) : (
-							<StudentRecords key={studentId} studentId={studentId} />
-						)}
+				<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
+					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
+						<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade [&>div]:!min-w-0">
+							<div role="log" aria-label="Messages" className="flex flex-col gap-4 pb-2">
+								{studentId === null ? (
+									<EmptyLine text="What do you want to ask?" />
+								) : (
+									<StudentRecords key={studentId} studentId={studentId} />
+								)}
+							</div>
+						</ScrollArea>
+						<Composer
+							draft={composer.draft}
+							onDraft={composer.setDraft}
+							onType={composer.type}
+							students={students.state}
+							onRetryStudents={students.retry}
+							disabled={listOpen}
+							inputRef={input}
+						/>
 					</div>
 					<AnimatePresence>
 						{listOpen ? (
@@ -249,6 +273,6 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 					}}
 				/>
 			) : null}
-		</PageScroll>
+		</div>
 	)
 }
