@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Archive, ArchiveRestore, Wallet } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
@@ -15,6 +16,7 @@ import { StudentBalance } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
+import { withoutSearchParams } from '@/lib/arrival-mark'
 
 import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
@@ -23,6 +25,7 @@ import { BackButton } from './back-button'
 import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
+import { initialProfileTab, type ProfileArrival, type ProfileMark } from './profile-arrival'
 import { ProfileLoading } from './profile-loading'
 import { RecordPaymentDialog } from './record-payment-dialog'
 import { VocabularyTab } from './vocabulary-tab'
@@ -72,9 +75,12 @@ function SummaryLine({
 	)
 }
 
-export function StudentProfile({ id }: { id: string }) {
+export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileArrival }) {
+	const router = useRouter()
 	const [state, setState] = useState<ReadState>({ kind: 'loading', data: null })
-	const [tab, setTab] = useState('overview')
+	const [tab, setTab] = useState<string>(() => initialProfileTab(arrival))
+	const [mark, setMark] = useState<ProfileMark | null>(arrival.mark)
+	const [editRequested, setEditRequested] = useState(false)
 	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
 	const [recordOpen, setRecordOpen] = useState(false)
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
@@ -83,15 +89,32 @@ export function StudentProfile({ id }: { id: string }) {
 	const statusButton = useRef<HTMLButtonElement>(null)
 	const recordButton = useRef<HTMLButtonElement>(null)
 	const requests = useRef(0)
+	const dialogRequest = useRef(arrival.dialog)
 	const toast = useToast()
+
+	const dropParams = useCallback(
+		(names: readonly string[]) => {
+			const next = withoutSearchParams(names)
+			if (next !== undefined) router.replace(next, { scroll: false })
+		},
+		[router]
+	)
 
 	const reload = useCallback(async () => {
 		const requestId = ++requests.current
 		const next = await readStudent(id)
 		if (requestId !== requests.current) return false
 		setState((previous) => (next.kind === 'ready' ? next : { ...next, data: previous.data }))
+		const wanted = dialogRequest.current
+		if (wanted !== null && next.kind !== 'error') {
+			dialogRequest.current = null
+			if (wanted === 'payment' && next.kind === 'ready' && next.data.student.balanceMinutes !== null)
+				setRecordOpen(true)
+			if (wanted === 'details' && next.kind === 'ready') setEditRequested(true)
+			dropParams(['dialog'])
+		}
 		return next.kind === 'ready'
-	}, [id])
+	}, [id, dropParams])
 
 	useEffect(() => {
 		const counter = requests
@@ -108,6 +131,13 @@ export function StudentProfile({ id }: { id: string }) {
 			else next[kind] = value
 			return next
 		})
+	}
+
+	function changeTab(next: string) {
+		setTab(next)
+		if (mark === null) return
+		setMark(null)
+		dropParams(['entry', 'section'])
 	}
 
 	function focusOpeningBalance() {
@@ -204,7 +234,7 @@ export function StudentProfile({ id }: { id: string }) {
 						</>
 					}
 				/>
-				<Tabs value={tab} onValueChange={setTab}>
+				<Tabs value={tab} onValueChange={changeTab}>
 					<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
 						<TabsList
 							aria-label="Student sections"
@@ -223,6 +253,8 @@ export function StudentProfile({ id }: { id: string }) {
 							asOf={asOf}
 							lessonsInputRef={lessonsInput}
 							onSaved={reload}
+							autoOpenEdit={editRequested}
+							onAutoOpened={() => setEditRequested(false)}
 						/>
 					</TabPanel>
 					<TabPanel value="notes" className="mt-4">
@@ -232,6 +264,11 @@ export function StudentProfile({ id }: { id: string }) {
 							timeZone={mainTimeZone}
 							asOf={asOf}
 							onDraftChange={changeDraft}
+							mark={mark}
+							onMarkDone={() => {
+								setMark(null)
+								dropParams(['entry', 'section'])
+							}}
 						/>
 					</TabPanel>
 					<TabPanel value="vocabulary" className="mt-4">

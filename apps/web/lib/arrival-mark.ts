@@ -26,6 +26,13 @@ export function prefersReducedMotion(): boolean {
 	return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+export function withoutSearchParams(names: readonly string[]): string | undefined {
+	const url = new URL(window.location.href)
+	if (!names.some((name) => url.searchParams.has(name))) return undefined
+	for (const name of names) url.searchParams.delete(name)
+	return `${url.pathname}${url.search}${url.hash}`
+}
+
 export function isShown(el: Element): boolean {
 	return el.getClientRects().length > 0
 }

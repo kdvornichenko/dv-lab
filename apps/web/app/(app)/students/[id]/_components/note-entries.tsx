@@ -82,6 +82,7 @@ function EntryRow({ note, timeZone, now, removing, onRemove }: EntryRowProps) {
 	const date = formatDay(created, timeZone, yearInZone(now, timeZone))
 	return (
 		<li
+			data-note-id={note.id}
 			className={cn(
 				'group/entry flex flex-col gap-1.5 border-t border-border py-2.5 first:border-t-0 md:flex-row md:items-start md:gap-3',
 				removing && 'opacity-50'

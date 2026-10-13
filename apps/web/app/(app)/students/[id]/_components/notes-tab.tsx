@@ -27,6 +27,8 @@ import {
 
 import { useToast } from '../../../_components/toasts'
 import { NoteEntries, type NotesState } from './note-entries'
+import type { ProfileMark } from './profile-arrival'
+import { useNotesArrival } from './use-notes-arrival'
 
 export type SectionDrafts = Partial<Record<SectionKind, string>>
 
@@ -228,13 +230,16 @@ interface NotesTabProps {
 	timeZone: string
 	asOf: string
 	onDraftChange: (kind: SectionKind, value: string | undefined) => void
+	mark: ProfileMark | null
+	onMarkDone: () => void
 }
 
-export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange }: NotesTabProps) {
+export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark, onMarkDone }: NotesTabProps) {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [notes, setNotes] = useState<NotesState>({ kind: 'loading' })
 	const studentId = student.id
 	const now = new Date(asOf)
+	useNotesArrival(mark, state.kind !== 'loading' && notes.kind !== 'loading', onMarkDone)
 
 	const reloadNotes = useCallback(async () => {
 		setNotes(await readNotes(studentId))

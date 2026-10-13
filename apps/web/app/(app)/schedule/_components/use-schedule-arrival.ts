@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
+import {
+	isShown,
+	prefersReducedMotion,
+	scrollToMiddle,
+	startMark,
+	withoutSearchParams,
+	type MarkPart,
+} from '@/lib/arrival-mark'
 import { sameCalendarRef } from '@/lib/lesson-actions'
 import { formatDate, formatTime } from '@/lib/schedule-format'
 import { isCalendarDay, parseLessonRef } from '@/lib/schedule-links'
@@ -11,7 +19,6 @@ import { isCalendarDay, parseLessonRef } from '@/lib/schedule-links'
 import type { CalendarEventView } from '@dv-lab/contracts'
 import { addDays, mondayOf } from '@dv-lab/core'
 
-import { isShown, prefersReducedMotion, scrollToMiddle, startMark, type MarkPart } from './arrival-mark'
 import { eventTitle } from './calendar-event-details'
 
 export type ArrivalParams = { week: string | null; lesson: string | null; day: string | null }
@@ -44,13 +51,7 @@ function dayParts(date: string): MarkPart[] {
 	return parts
 }
 
-function dropMarkParams() {
-	const url = new URL(window.location.href)
-	if (!url.searchParams.has('lesson') && !url.searchParams.has('day')) return
-	url.searchParams.delete('lesson')
-	url.searchParams.delete('day')
-	return `${url.pathname}${url.search}${url.hash}`
-}
+const MARK_PARAMS = ['lesson', 'day'] as const
 
 export function useScheduleArrival({
 	week: weekParam,
@@ -82,7 +83,7 @@ export function useScheduleArrival({
 	const key = lessonParam !== null || dayParam !== null ? `${weekParam}|${lessonParam}|${dayParam}` : null
 
 	const dropParams = useCallback(() => {
-		const next = dropMarkParams()
+		const next = withoutSearchParams(MARK_PARAMS)
 		if (next !== undefined) router.replace(next, { scroll: false })
 	}, [router])
 

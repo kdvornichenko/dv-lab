@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 
 import { Pencil } from 'lucide-react'
 
@@ -20,6 +20,8 @@ interface OverviewTabProps {
 	asOf: string
 	lessonsInputRef: RefObject<HTMLInputElement | null>
 	onSaved: () => Promise<boolean>
+	autoOpenEdit: boolean
+	onAutoOpened: () => void
 }
 
 function NotSet() {
@@ -39,10 +41,22 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 	)
 }
 
-export function OverviewTab({ student, mainTimeZone, asOf, lessonsInputRef, onSaved }: OverviewTabProps) {
-	const [editOpen, setEditOpen] = useState(false)
+export function OverviewTab({
+	student,
+	mainTimeZone,
+	asOf,
+	lessonsInputRef,
+	onSaved,
+	autoOpenEdit,
+	onAutoOpened,
+}: OverviewTabProps) {
+	const [editOpen, setEditOpen] = useState(autoOpenEdit)
 	const [openingVersion, setOpeningVersion] = useState(0)
 	const editButton = useRef<HTMLButtonElement>(null)
+
+	useEffect(() => {
+		if (autoOpenEdit) onAutoOpened()
+	}, [autoOpenEdit, onAutoOpened])
 
 	async function refreshOpening() {
 		if (await onSaved()) setOpeningVersion((version) => version + 1)
