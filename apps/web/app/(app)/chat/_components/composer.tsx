@@ -7,6 +7,7 @@ import {
 	useRef,
 	useState,
 	type KeyboardEvent,
+	type MouseEvent,
 	type ReactNode,
 	type RefObject,
 } from 'react'
@@ -278,8 +279,16 @@ export function Composer({
 		}
 	}
 
+	function focusField(event: MouseEvent<HTMLDivElement>) {
+		const target = event.target
+		if (!(target instanceof Element) || !event.currentTarget.contains(target)) return
+		if (target.closest('button, a, textarea, input, [role="option"]')) return
+		event.preventDefault()
+		inputRef.current?.focus()
+	}
+
 	return (
-		<div className="flex flex-col gap-2">
+		<div className="flex flex-col gap-2" onMouseDown={focusField}>
 			{budget ? <BudgetNotice budget={budget} /> : null}
 			<div className="relative">
 				<AnimatePresence>
@@ -295,7 +304,11 @@ export function Composer({
 						/>
 					) : null}
 				</AnimatePresence>
-				<Elevated offset={2} shadowLevel={2} className="flex flex-col gap-2 rounded-2xl p-3">
+				<Elevated
+					offset={2}
+					shadowLevel={2}
+					className="flex flex-col gap-2 rounded-2xl p-3 focus-within:ring-1 focus-within:ring-[color:var(--focus-ring,#6B97FF)]"
+				>
 					<div className="relative">
 						<div
 							ref={backdrop}
