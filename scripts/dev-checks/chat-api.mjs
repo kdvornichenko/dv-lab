@@ -18,6 +18,7 @@ const SECTIONS = {
 	notes: sectionNotes,
 	comments: sectionComments,
 	actions: sectionActions,
+	budget: sectionBudget,
 }
 
 let failures = 0
@@ -236,6 +237,7 @@ const conversationCounts = () =>
 
 function removeChats(where) {
 	const conversations = `select id from chat_conversations where ${where}`
+	sql(`delete from chat_usage_attempts where conversation_id in (${conversations})`)
 	sql(`delete from chat_actions where conversation_id in (${conversations})`)
 	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${conversations})`)
 	sql(`delete from chat_messages where conversation_id in (${conversations})`)
@@ -1424,6 +1426,387 @@ async function sectionActions(ctx) {
 		return 'CHAT_ACTIONS_OK'
 	} finally {
 		await pool.end()
+	}
+}
+
+const periodOf = (id) =>
+	sql(
+		`select starts_on::text as starts_on, ends_before::text as ends_before, time_zone, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where id = ${quote(id)}`
+	).rows[0]
+
+const attemptOf = (id) =>
+	sql(
+		`select state, cost_nano::text as cost, reserved_nano::text as reserved, usage from chat_usage_attempts where id = ${quote(id)}`
+	).rows[0]
+
+function throws(action) {
+	try {
+		action()
+		return false
+	} catch {
+		return true
+	}
+}
+
+async function sectionBudget(ctx) {
+	const { api, cookie } = ctx
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const budget = await import('../../apps/api/src/chat/budget.ts')
+	const { resolveModelChoice } = await import('../../apps/api/src/chat/model-config.ts')
+	const { readAssistantSettings, saveAssistantSettings } = await import('../../apps/api/src/settings/settings.ts')
+	const pino = createRequire(new URL('../../apps/api/package.json', import.meta.url))('pino')
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const first = createDb(url)
+	const second = createDb(url)
+	const db = first.db
+	const logLines = []
+	const logger = pino({ level: 'info' }, { write: (line) => logLines.push(line) })
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const original = sql(
+		`select chat_monthly_cap_usd::text as cap, chat_models as models, chat_model as model, chat_effort as effort from teacher_settings where account_id = ${quote(accountId)}`
+	).rows[0]
+	const clearBudget = () => {
+		sql(`delete from chat_usage_attempts where account_id = ${quote(accountId)}`)
+		return sql(`delete from chat_budget_periods where account_id = ${quote(accountId)}`).rowCount
+	}
+	console.log(`fixture budget periods removed ${clearBudget()}`)
+	const setCap = async (monthlyCapUsd) => {
+		const saved = await saveAssistantSettings(db, accountId, { monthlyCapUsd })
+		if (!saved.ok) throw new Error(`cap ${monthlyCapUsd} was not saved`)
+	}
+	const choose = async (model) => {
+		const settings = await readAssistantSettings(db, accountId)
+		const choice = resolveModelChoice(settings, model === null ? null : { model, effort: null })
+		if (choice.kind !== 'resolved') throw new Error(`model ${model} is not resolved`)
+		return choice
+	}
+	const reserve = (conversationId, choice, now = new Date(), executor = db) =>
+		executor.transaction((tx) => budget.reserveAttempt(tx, accountId, conversationId, choice, now))
+	try {
+		await saveAssistantSettings(db, accountId, { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		const defaults = await readAssistantSettings(db, accountId)
+		check(
+			'the default monthly cap is $10 and reads as 10 dollars in nano',
+			defaults.monthlyCapUsd === '10.00' && budget.usdToNano(defaults.monthlyCapUsd) === 10_000_000_000n
+		)
+		check(
+			'usdToNano and nanoToUsd convert decimal text without floats',
+			budget.usdToNano('0.125') === 125_000_000n &&
+				budget.usdToNano('12.5') === 12_500_000_000n &&
+				budget.usdToNano('0.000000001') === 1n &&
+				budget.nanoToUsd(10_000_000_000n) === '10.00' &&
+				budget.nanoToUsd(2_000_000n) === '0.002' &&
+				budget.nanoToUsd(1n) === '0.000000001' &&
+				budget.nanoToUsd(0n) === '0.00'
+		)
+		check(
+			'usdToNano rejects exponent, sign, bare fraction and more than nine decimals',
+			['1e3', '-1', '.5', '1.0000000001', ''].every((text) => throws(() => budget.usdToNano(text)))
+		)
+		const haiku = await choose(null)
+		const fable = await choose('claude-fable-5-1')
+		check(
+			'reserve uses max input at the larger of input and cache write plus max output at the output price',
+			budget.reserveNano(haiku) === 20_500_000n && budget.reserveNano(fable) === 2_050_000_000n,
+			`${budget.reserveNano(haiku)} ${budget.reserveNano(fable)}`
+		)
+		const tinyPricing = {
+			inputPerMTok: '0.000001',
+			cacheWrite5mPerMTok: '0.000001',
+			cacheReadPerMTok: '0.000001',
+			outputPerMTok: '0.000001',
+		}
+		const zeroUsage = { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 }
+		check(
+			'cost counts input, cache write, cache read and output and rounds up',
+			budget.costNano(haiku.model.pricing, {
+				inputTokens: 1000,
+				outputTokens: 100000,
+				cacheCreationInputTokens: 2000,
+				cacheReadInputTokens: 5000,
+			}) === 50_400_000n &&
+				budget.costNano(tinyPricing, { ...zeroUsage, inputTokens: 1 }) === 1n &&
+				budget.costNano(tinyPricing, zeroUsage) === 0n
+		)
+
+		const conversation = async () => {
+			const res = await send(api, 'POST', '/chat/conversations', { cookie })
+			if (res.status !== 201) throw new Error(`conversation create returned ${res.status}`)
+			ctx.conversations.push(res.json.conversation.id)
+			return res.json.conversation.id
+		}
+		const one = await conversation()
+		const two = await conversation()
+
+		const a1 = await reserve(one, haiku)
+		check(
+			'a reserve that fits is accepted',
+			a1.ok && a1.reservedNano === 20_500_000n,
+			JSON.stringify(a1, (k, v) => (typeof v === 'bigint' ? String(v) : v))
+		)
+		const period = periodOf(a1.periodId)
+		const zone = sql(
+			`select coalesce((select default_time_zone from teacher_settings where account_id = ${quote(accountId)}), ${quote(VN)}) as zone`
+		).rows[0].zone
+		const month = core.zonedParts(new Date(), zone).date.slice(0, 7)
+		check(
+			'the period is the current month in the teacher zone and holds the reserve',
+			period.starts_on === `${month}-01` &&
+				period.time_zone === zone &&
+				period.held === '20500000' &&
+				period.spent === '0' &&
+				attemptOf(a1.attemptId).state === 'reserved',
+			JSON.stringify(period)
+		)
+		const dispatched = await budget.markDispatched(db, a1.attemptId)
+		const dispatchedAgain = await budget.markDispatched(db, a1.attemptId)
+		check('markDispatched moves reserved to dispatched once', dispatched && !dispatchedAgain)
+		check('release refuses an attempt that may have been sent', !(await budget.release(db, a1.attemptId)))
+		const bigUsage = {
+			inputTokens: 1000,
+			outputTokens: 100000,
+			cacheCreationInputTokens: 2000,
+			cacheReadInputTokens: 5000,
+		}
+		const settled = await budget.settleAttempt(db, logger, a1.attemptId, bigUsage)
+		const afterSettle = periodOf(a1.periodId)
+		check(
+			'settle with usage above the reserve writes the actual cost to spent and frees the reserve',
+			settled.settled &&
+				afterSettle.spent === '50400000' &&
+				afterSettle.held === '0' &&
+				attemptOf(a1.attemptId).state === 'settled' &&
+				attemptOf(a1.attemptId).cost === '50400000',
+			JSON.stringify(afterSettle)
+		)
+		const overLine = logLines.map((line) => JSON.parse(line)).find((line) => line.attemptId === a1.attemptId)
+		check(
+			'the overrun is logged at warn with attempt, model, reserve, cost and token counts only',
+			overLine?.level === 40 &&
+				overLine.model === haiku.model.id &&
+				overLine.reservedNano === '20500000' &&
+				overLine.costNano === '50400000' &&
+				overLine.outputTokens === 100000 &&
+				Object.keys(overLine).every((key) =>
+					[
+						'level',
+						'time',
+						'pid',
+						'hostname',
+						'msg',
+						'attemptId',
+						'model',
+						'reservedNano',
+						'costNano',
+						'inputTokens',
+						'outputTokens',
+						'cacheCreationInputTokens',
+						'cacheReadInputTokens',
+					].includes(key)
+				),
+			JSON.stringify(overLine)
+		)
+		const settledAgain = await budget.settleAttempt(db, logger, a1.attemptId, { ...bigUsage, outputTokens: 1 })
+		check(
+			'a second settle changes nothing',
+			!settledAgain.settled && periodOf(a1.periodId).spent === '50400000' && attemptOf(a1.attemptId).cost === '50400000'
+		)
+
+		const a2 = await reserve(two, haiku)
+		const priced = (await readAssistantSettings(db, accountId)).models.map((entry) =>
+			entry.id === haiku.model.id
+				? {
+						...entry,
+						pricing: {
+							inputPerMTok: '1.00',
+							cacheWrite5mPerMTok: '1.25',
+							cacheReadPerMTok: '0.10',
+							outputPerMTok: '5.00',
+						},
+					}
+				: entry
+		)
+		const repriced = await saveAssistantSettings(db, accountId, { models: priced })
+		const smallUsage = { inputTokens: 1000, outputTokens: 1000, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 }
+		await budget.markDispatched(db, a2.attemptId)
+		await budget.settleAttempt(db, logger, a2.attemptId, smallUsage)
+		check(
+			'a tariff change in settings does not change the cost of an accepted attempt',
+			repriced.ok &&
+				attemptOf(a2.attemptId).cost === '600000' &&
+				budget.costNano(priced[0].pricing, smallUsage) === 6_000_000n &&
+				periodOf(a1.periodId).spent === '51000000',
+			JSON.stringify(attemptOf(a2.attemptId))
+		)
+		await saveAssistantSettings(db, accountId, { models: null })
+
+		const a3 = await reserve(one, haiku)
+		await budget.markDispatched(db, a3.attemptId)
+		const unknown = await budget.markUnknown(db, a3.attemptId)
+		const snapshotUnknown = await budget.readBudgetSnapshot(db, accountId)
+		check(
+			'markUnknown keeps the reserve held and the snapshot counts the unconfirmed attempt',
+			unknown &&
+				attemptOf(a3.attemptId).state === 'unknown' &&
+				periodOf(a1.periodId).held === '20500000' &&
+				snapshotUnknown.budget.unknownAttempts === 1 &&
+				snapshotUnknown.budget.heldUsd === '0.0205' &&
+				snapshotUnknown.budget.spentUsd === '0.051',
+			JSON.stringify(snapshotUnknown.budget)
+		)
+		const a4 = await reserve(two, haiku)
+		check('an unknown attempt does not close admission while the next reserve fits', a4.ok)
+		const released = await budget.release(db, a4.attemptId)
+		const releasedAgain = await budget.release(db, a4.attemptId)
+		check(
+			'release returns the reserve of a reserved attempt once',
+			released &&
+				!releasedAgain &&
+				attemptOf(a4.attemptId).state === 'released' &&
+				periodOf(a1.periodId).held === '20500000'
+		)
+
+		const states = {}
+		for (const cap of ['1.00', '0.09', '0.08', '0.07']) {
+			await setCap(cap)
+			states[cap] = (await budget.readBudgetSnapshot(db, accountId)).budget
+		}
+		check(
+			'snapshot state is ok below 80%, warning from 80% and reached at the cap',
+			states['1.00'].state === 'ok' &&
+				states['0.09'].state === 'ok' &&
+				states['0.08'].state === 'warning' &&
+				states['0.07'].state === 'reached' &&
+				states['0.07'].remainingUsd === '0.00' &&
+				states['0.08'].remainingUsd === '0.0085',
+			JSON.stringify(states)
+		)
+		await setCap('0.08')
+		const insufficient = await reserve(one, haiku)
+		await setCap('0.07')
+		const reached = await reserve(one, haiku)
+		check(
+			'a reserve that does not fit is budget_insufficient and a cap below usage is budget_reached, nothing held',
+			!insufficient.ok &&
+				insufficient.code === 'budget_insufficient' &&
+				!reached.ok &&
+				reached.code === 'budget_reached' &&
+				periodOf(a1.periodId).held === '20500000' &&
+				sql(`select count(*)::int as n from chat_usage_attempts where account_id = ${quote(accountId)}`).rows[0].n === 4
+		)
+
+		await setCap('10.00')
+		const read = await send(api, 'GET', '/settings/assistant', { cookie })
+		const usage = read.json?.usage ?? []
+		check(
+			'GET /settings/assistant carries budget and usage by conversation',
+			read.status === 200 &&
+				read.json.budget.capUsd === '10.00' &&
+				read.json.budget.spentUsd === '0.051' &&
+				read.json.budget.heldUsd === '0.0205' &&
+				read.json.budget.unknownAttempts === 1 &&
+				read.json.budget.state === 'ok' &&
+				read.json.budget.resetOn > `${month}-01` &&
+				usage.length === 2 &&
+				usage[0].conversationId === one &&
+				usage[0].costUsd === '0.0709' &&
+				usage[0].attempts === 2 &&
+				usage[0].models.join() === haiku.model.id &&
+				usage[1].conversationId === two &&
+				usage[1].costUsd === '0.0006' &&
+				usage[1].attempts === 1,
+			JSON.stringify(read.json?.budget) + JSON.stringify(usage)
+		)
+		const patched = await send(api, 'PATCH', '/settings/assistant', { cookie, body: { monthlyCapUsd: '12.50' } })
+		check(
+			'PATCH /settings/assistant answers with the new cap in the budget',
+			patched.status === 200 && patched.json.budget.capUsd === '12.50' && patched.json.usage.length === 2
+		)
+		await setCap('10.00')
+
+		await setCap('3.00')
+		const racedAt = core.zonedInstant('2031-03-15', '12:00', zone)
+		const raced = await Promise.all([reserve(one, fable, racedAt, first.db), reserve(two, fable, racedAt, second.db)])
+		const racedPeriods = sql(
+			`select id, held_nano::text as held from chat_budget_periods where account_id = ${quote(accountId)} and starts_on = '2031-03-01'`
+		).rows
+		check(
+			'two parallel first reserves of a new month share one period and stay within the cap',
+			racedPeriods.length === 1 &&
+				raced.filter((item) => item.ok).length === 1 &&
+				raced.filter((item) => !item.ok && item.code === 'budget_insufficient').length === 1 &&
+				racedPeriods[0].held === '2050000000',
+			JSON.stringify(racedPeriods)
+		)
+		await setCap('10.00')
+		const bothAt = core.zonedInstant('2031-04-15', '12:00', zone)
+		const both = await Promise.all([reserve(one, fable, bothAt, first.db), reserve(two, fable, bothAt, second.db)])
+		const bothPeriods = sql(
+			`select held_nano::text as held from chat_budget_periods where account_id = ${quote(accountId)} and starts_on = '2031-04-01'`
+		).rows
+		check(
+			'two parallel reserves that fit both pass without a unique key error',
+			both.every((item) => item.ok) && bothPeriods.length === 1 && bothPeriods[0].held === '4100000000',
+			JSON.stringify(bothPeriods)
+		)
+
+		const lateAt = core.zonedInstant('2031-05-31', '23:30', zone)
+		const nextAt = core.zonedInstant('2031-06-01', '00:30', zone)
+		const may = await reserve(one, haiku, lateAt)
+		const june = await reserve(one, haiku, nextAt)
+		await budget.markDispatched(db, may.attemptId)
+		await budget.settleAttempt(db, logger, may.attemptId, smallUsage)
+		const mayPeriod = periodOf(may.periodId)
+		const junePeriod = periodOf(june.periodId)
+		check(
+			'the month turns at midnight in the teacher zone and a late settle lands in its own period',
+			may.periodId !== june.periodId &&
+				mayPeriod.starts_on === '2031-05-01' &&
+				mayPeriod.ends_before === '2031-06-01' &&
+				junePeriod.starts_on === '2031-06-01' &&
+				junePeriod.ends_before === '2031-07-01' &&
+				mayPeriod.spent === '600000' &&
+				mayPeriod.held === '0' &&
+				junePeriod.spent === '0' &&
+				junePeriod.held === '20500000',
+			`${JSON.stringify(mayPeriod)} ${JSON.stringify(junePeriod)}`
+		)
+		const decemberAt = core.zonedInstant('2031-12-31', '12:00', zone)
+		const december = await reserve(one, haiku, decemberAt)
+		check('December ends before January of the next year', periodOf(december.periodId).ends_before === '2032-01-01')
+
+		const denied = (statement) => {
+			try {
+				sql(statement, 'app')
+				return 'done'
+			} catch (err) {
+				return String(err.message)
+			}
+		}
+		const refusals = [
+			denied(`delete from chat_usage_attempts where account_id = ${quote(accountId)}`),
+			denied(`delete from chat_budget_periods where account_id = ${quote(accountId)}`),
+			denied('truncate chat_usage_attempts'),
+			denied('truncate chat_budget_periods'),
+		]
+		check(
+			'the application role cannot DELETE or TRUNCATE budget periods and attempts',
+			refusals.every((text) => text.includes('42501')),
+			refusals.join(' | ')
+		)
+		check('api log has no budget numbers of the check', !api.logs().includes('50400000'))
+		return 'CHAT_BUDGET_OK'
+	} finally {
+		clearBudget()
+		if (original)
+			await saveAssistantSettings(db, accountId, {
+				monthlyCapUsd: original.cap,
+				models: original.models,
+				model: original.model,
+				effort: original.effort,
+			})
+		await first.pool.end()
+		await second.pool.end()
 	}
 }
 

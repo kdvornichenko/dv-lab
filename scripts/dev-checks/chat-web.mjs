@@ -1,7 +1,8 @@
+import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
 import * as core from '../../packages/core/src/index.ts'
-import { BASE, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
+import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
 import { VN, createCard, openStudentsList, setOpening } from './ledger-web/common.mjs'
 import { balanceFacts } from './ledger-web/students.mjs'
@@ -20,6 +21,7 @@ const sections = {
 	composer: sectionComposer,
 	actions: sectionActions,
 	calendar: sectionCalendar,
+	budget: sectionBudget,
 }
 
 function removeFixtures() {
@@ -183,6 +185,7 @@ const SERVER_ERROR = { error: { code: 'internal_error', message: 'Internal Serve
 function removeConversations(ids) {
 	if (ids.length === 0) return
 	const list = ids.map((id) => `'${id}'`).join(', ')
+	sql(`delete from chat_usage_attempts where conversation_id in (${list})`)
 	sql(`delete from chat_actions where conversation_id in (${list})`)
 	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${list})`)
 	sql(`delete from chat_messages where conversation_id in (${list})`)
@@ -1434,6 +1437,193 @@ async function sectionCalendar() {
 		},
 		() => removeConversations(conversationIds),
 		removeFixtures
+	)
+}
+
+function appSql(text) {
+	const result = spawnSync(process.execPath, [`${ROOT}/scripts/dev-checks/sql.mjs`, `${ROOT}/.env`, 'app', text], {
+		encoding: 'utf8',
+	})
+	if (result.status !== 0 || result.error) throw new Error('Fixture SQL under the application role failed')
+	return JSON.parse(result.stdout.trim().split('\n').pop() ?? '')
+}
+
+const BUDGET_TITLE = 'Alex Example 2220 budget'
+const BUDGET = '[data-budget-state]'
+
+async function openBudget(page) {
+	await page.goto(`${BASE}/settings?tab=assistant`)
+	await page.locator(`${BUDGET}:visible`).waitFor({ timeout: 30000 })
+}
+
+async function sectionBudget() {
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const settingsRow = sql(
+		`select chat_monthly_cap_usd::text as cap, default_time_zone as zone from teacher_settings where account_id = '${accountId}'`
+	).rows[0]
+	const zone = settingsRow?.zone ?? core.SCHEDULE_TIME_ZONE
+	const startsOn = `${core.zonedParts(new Date(), zone).date.slice(0, 7)}-01`
+	const existing = sql(
+		`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`
+	).rows[0]
+	const conversations = []
+	const restore = () => {
+		if (conversations.length > 0) {
+			const list = conversations.map((id) => `'${id}'`).join(', ')
+			sql(`delete from chat_usage_attempts where conversation_id in (${list})`)
+		}
+		if (existing)
+			sql(
+				`update chat_budget_periods set spent_nano = ${existing.spent}, held_nano = ${existing.held} where id = '${existing.id}'`
+			)
+		else sql(`delete from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`)
+		if (settingsRow)
+			sql(`update teacher_settings set chat_monthly_cap_usd = ${settingsRow.cap} where account_id = '${accountId}'`)
+		removeConversations(conversations)
+	}
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ page, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			if (settingsRow)
+				appSql(`update teacher_settings set chat_monthly_cap_usd = 10.00 where account_id = '${accountId}'`)
+			const conversationId = appSql(
+				`insert into chat_conversations (account_id, title) values ('${accountId}', '${BUDGET_TITLE}') returning id`
+			).rows[0].id
+			conversations.push(conversationId)
+			const zoneLiteral = zone.replaceAll("'", "''")
+			const endsBefore = (() => {
+				const year = Number.parseInt(startsOn.slice(0, 4), 10)
+				const month = Number.parseInt(startsOn.slice(5, 7), 10)
+				return month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`
+			})()
+			appSql(
+				`insert into chat_budget_periods (account_id, starts_on, ends_before, time_zone) values ('${accountId}', '${startsOn}', '${endsBefore}', '${zoneLiteral}') on conflict (account_id, starts_on) do nothing`
+			)
+			const periodId = sql(
+				`select id from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`
+			).rows[0].id
+			const base = sql(
+				`select spent_nano::text as spent, held_nano::text as held from chat_budget_periods where id = '${periodId}'`
+			).rows[0]
+			if (base.spent !== '0' || base.held !== '0') {
+				sql(`update chat_budget_periods set spent_nano = 0, held_nano = 0 where id = '${periodId}'`)
+			}
+			const pricing = JSON.stringify({
+				inputPerMTok: '0.10',
+				cacheWrite5mPerMTok: '0.125',
+				cacheReadPerMTok: '0.01',
+				outputPerMTok: '0.50',
+			})
+			const attempt = (state, reserved, cost) =>
+				appSql(
+					`insert into chat_usage_attempts (account_id, conversation_id, period_id, model, effort, pricing, max_input_tokens, max_output_tokens, reserved_nano, state, cost_nano) values ('${accountId}', '${conversationId}', '${periodId}', 'claude-haiku-5-5', 'medium', '${pricing}'::jsonb, 100000, 16000, ${reserved}, '${state}', ${cost ?? 'null'})`
+				)
+			attempt('settled', 20500000, 8500000000)
+			appSql(`update chat_budget_periods set spent_nano = spent_nano + 8500000000 where id = '${periodId}'`)
+
+			await openBudget(page)
+			const card = page.locator(`${BUDGET}:visible`)
+			const field = page.locator('#settings-monthly-limit')
+			check('the limit field shows the saved $10', (await field.inputValue()) === '10.00', await field.inputValue())
+			check('85% is the warning state', (await card.getAttribute('data-budget-state')) === 'warning')
+			const warningText = await card.innerText()
+			check(
+				'usage, remaining and the conversation come from the server',
+				warningText.includes('Estimated usage this month: $8.50 of $10.') &&
+					warningText.includes('Remaining estimate: $1.50.') &&
+					!warningText.includes('Reserved estimate') &&
+					warningText.includes(BUDGET_TITLE) &&
+					warningText.includes('Costs count toward your monthly budget.') &&
+					warningText.includes('Saved to your account.'),
+				warningText
+			)
+			check('the bar shows 85%', (await card.locator('[data-budget-fill]').getAttribute('data-budget-fill')) === '85')
+			await shot(page, 'chat-budget', 'warning')
+
+			attempt('unknown', 2000000000, null)
+			appSql(`update chat_budget_periods set held_nano = held_nano + 2000000000 where id = '${periodId}'`)
+			await openBudget(page)
+			const reachedText = await card.innerText()
+			check(
+				'usage with an unconfirmed reserve at the cap is the reached state with a full bar',
+				(await card.getAttribute('data-budget-state')) === 'reached' &&
+					(await card.locator('[data-budget-fill]').getAttribute('data-budget-fill')) === '100' &&
+					reachedText.includes('Remaining estimate: $0.00.') &&
+					reachedText.includes('Reserved estimate: $2.00.') &&
+					reachedText.includes('Usage has not been confirmed.'),
+				reachedText
+			)
+			await shot(page, 'chat-budget', 'reached')
+
+			const save = card.getByRole('button', { name: 'Save' })
+			check('Save is off without changes', await save.isDisabled())
+			await field.fill('0')
+			check(
+				'a zero limit shows the field error and keeps Save off',
+				(await card.innerText()).includes('Enter a monthly budget above zero.') &&
+					(await field.getAttribute('aria-invalid')) === 'true' &&
+					(await save.isDisabled())
+			)
+			await shot(page, 'chat-budget', 'invalid')
+			await field.fill('5')
+			check(
+				'a limit below this month usage says the assistant stays paused',
+				(await card.locator('[data-budget-note="above-limit"]').count()) === 1 &&
+					(await card.innerText()).includes('Unsaved changes') &&
+					!(await save.isDisabled())
+			)
+			const patches = []
+			page.on('request', (request) => {
+				if (request.method() === 'PATCH' && request.url().includes('/api/settings/assistant'))
+					patches.push(request.postData())
+			})
+			await field.fill('15')
+			await save.click()
+			await page.getByText('Monthly limit: $15.00.').waitFor({ timeout: 15000 })
+			await card.getByText('Saved to your account.').waitFor({ timeout: 15000 })
+			const savedCap = sql(
+				`select chat_monthly_cap_usd::text as cap from teacher_settings where account_id = '${accountId}'`
+			).rows[0].cap
+			check(
+				'Save sends one PATCH, the toast follows the server answer and the cap is stored',
+				patches.length === 1 && JSON.parse(patches[0]).monthlyCapUsd === '15' && savedCap === '15.00',
+				`${patches.join()} ${savedCap}`
+			)
+			check(
+				'after saving $15 the state follows the server',
+				(await card.getAttribute('data-budget-state')) === 'ok' &&
+					(await card.innerText()).includes('Estimated usage this month: $8.50 of $15.')
+			)
+			await shot(page, 'chat-budget', 'saved')
+
+			await page.route('**/api/settings/assistant', (route) =>
+				route.request().method() === 'GET'
+					? route.fulfill({
+							status: 500,
+							json: { error: { code: 'internal_error', message: 'Internal Server Error' } },
+						})
+					: route.continue()
+			)
+			await page.goto(`${BASE}/settings?tab=assistant`)
+			await page.getByText('Budget status unavailable. Refresh before sending.').waitFor({ timeout: 30000 })
+			check(
+				'a read error shows the unavailable state with Refresh status, no numbers',
+				(await page.locator('[data-budget-state="unavailable"]:visible').count()) === 1 &&
+					(await page.getByRole('button', { name: 'Refresh status' }).count()) === 1 &&
+					(await page.locator('[data-budget-usage]').count()) === 0
+			)
+			await shot(page, 'chat-budget', 'unavailable')
+			await page.unroute('**/api/settings/assistant')
+			await page.getByRole('button', { name: 'Refresh status' }).click()
+			await page.locator(`${BUDGET}[data-budget-state="ok"]:visible`).waitFor({ timeout: 30000 })
+			check('Refresh status reads the budget again', true)
+
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		restore
 	)
 }
 

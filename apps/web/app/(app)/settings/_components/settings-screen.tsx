@@ -17,11 +17,12 @@ import type { SettingsResponse, StudentsResponse, TeacherSettings } from '@dv-la
 
 import { useToast } from '../../_components/toasts'
 import { useMinuteNow } from '../../_components/use-minute-now'
+import { AssistantCard } from './assistant-card'
 import { CalendarCard } from './calendar-card'
 import { PaymentsCard } from './payments-card'
 import { ZoneChangeDialog, type ZoneChangeExample } from './zone-change-dialog'
 
-const SETTINGS_TABS = ['general', 'calendar'] as const
+const SETTINGS_TABS = ['general', 'calendar', 'assistant'] as const
 
 type SettingsTab = (typeof SETTINGS_TABS)[number]
 type LoadState = 'loading' | 'ready' | 'failed'
@@ -380,6 +381,7 @@ export function SettingsScreen() {
 					>
 						<TabItem value="general" label="General" />
 						<TabItem value="calendar" label="Google Calendar" />
+						<TabItem value="assistant" label="Assistant" />
 					</TabsList>
 				</div>
 				<TabPanel value="general" keepMounted className="mt-4">
@@ -398,6 +400,11 @@ export function SettingsScreen() {
 				<TabPanel value="calendar" keepMounted className="mt-4">
 					<Activity mode={activeTab === 'calendar' ? 'visible' : 'hidden'}>
 						<CalendarCard callbackOutcome={callbackOutcome} />
+					</Activity>
+				</TabPanel>
+				<TabPanel value="assistant" keepMounted className="mt-4">
+					<Activity mode={activeTab === 'assistant' ? 'visible' : 'hidden'}>
+						<AssistantCard />
 					</Activity>
 				</TabPanel>
 			</Tabs>

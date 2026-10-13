@@ -92,8 +92,13 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 			return block.kind === 'note'
 				? { tone: 'warning', title: 'This student is no longer available. Choose a student again.' }
 				: { tone: 'warning', title: 'Could not find this lesson. Nothing was changed.' }
-		case 'model_unavailable':
 		case 'credits_unavailable':
+			return {
+				tone: 'info',
+				title: 'API credits unavailable',
+				line: 'The API account cannot admit this request. Check its billing status.',
+			}
+		case 'model_unavailable':
 		case 'provider_unavailable':
 			return { tone: 'info', title: 'Model settings are unavailable. Refresh before sending.' }
 	}
