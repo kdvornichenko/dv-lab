@@ -28,9 +28,9 @@ affects: [22-09, 22-10, 22-13, 22-14, 22-16]
 actuals:
   tokens: 26347
   tasks: 3
-  commits: 4
+  commits: 5
 plan_head_before: 6c6a506
-plan_head_after: 49d5132
+plan_head_after: 85b4e02
 
 tech-stack:
   added: []
@@ -82,9 +82,9 @@ completed: 2026-10-13
 | 1 | `readLessonDay`, контракт привязки, намерения и результата, `validateMentions`, `parseQuickCommand`, `resolveLessonTarget` | 434879b |
 | 3a | `chat-api.mjs target` -> `chat-target.mjs`, строка README | d26894a |
 | 2 | Композер, `MentionPopup`, черновик и список учеников в `use-chat.ts`, раскладка `chat-screen.tsx` | 22cc5c2 |
-| 3b | `chat-web.mjs composer`, строка README | 49d5132 |
+| 3b | `chat-web.mjs composer`, строка README | 49d5132, 85b4e02 (допуск двух чтений списка под StrictMode) |
 
-`commits: 4` измерено `git log --oneline --grep "(22-08)"`; коммит `docs(22-08)` с этим SUMMARY в счёт не входит. `actuals.tokens` — символы `git log --grep "(22-08)" -p` / 4 (105387 / 4).
+`commits: 5` измерено `git log --oneline --grep "(22-08)"`; коммит `docs(22-08)` с этим SUMMARY в счёт не входит. `actuals.tokens` — символы `git log --grep "(22-08)" -p` / 4 (105387 / 4).
 
 ## Что построено
 
@@ -115,7 +115,7 @@ completed: 2026-10-13
 
 Не выполнено, по распоряжению ведущей сессии (порты 3000 и 4000 заняты стендом владельца из этого же worktree, его не останавливали):
 
-- `node scripts/dev-checks/chat-web.mjs composer light` и `dark`. Раздел написан, проходит `node --check`, без аргументов печатает usage, ни разу не исполнялся; при первом запуске вероятны ошибки селекторов и ожиданий (`[data-slot="mention-popup"]` с `waitFor detached` после exit-анимации, `allInnerTexts` кнопок, `setSelectionRange` внутри токена, клик по строке `/note`). Запуск владельцем с ведущей сессией на поднятом стенде: `node scripts/dev-checks/chat-web.mjs composer light`, затем `dark`. Скрипт входит dev-учителем из `.env`, создаёт в `dvlab_dev` карточки `Alex Example 2216` и две `Alex Example 2217`, в конце удаляет их.
+- `node scripts/dev-checks/chat-web.mjs composer light` и `dark`. Раздел написан, проходит `node --check`, без аргументов печатает usage, ни разу не исполнялся; при первом запуске вероятны ошибки селекторов и ожиданий (`[data-slot="mention-popup"]` с `waitFor detached` после exit-анимации, `allInnerTexts` кнопок, `setSelectionRange` внутри токена, клик по строке `/note`). В `next dev` App Router включает StrictMode, эффект `useMentionStudents` срабатывает дважды и читает `/students/options` два раза; проверка допускает одно или два чтения на открытие. Запуск владельцем с ведущей сессией на поднятом стенде: `node scripts/dev-checks/chat-web.mjs composer light`, затем `dark`. Скрипт входит dev-учителем из `.env`, создаёт в `dvlab_dev` карточки `Alex Example 2216` и две `Alex Example 2217`, в конце удаляет их.
 - `node scripts/dev-checks/wait-dev.mjs down` (стенд владельца не трогали).
 - Ручная проверка композера в браузере в обеих темах не выполнялась: вид токена (совпадение подсветки с текстом поля, особенно при переносе строк и прокрутке после пяти строк), список над полем, кнопки и раскладка колонки не сверены со скриншотами. Для UI это значит «не проверено». Нужна запись `unrun-verify` в `.planning/WINDOWS.md` ведущей сессией (файл не моего плана).
 - `yarn build`, `yarn test`, `yarn install` не запускались по распоряжению.
@@ -154,4 +154,4 @@ completed: 2026-10-13
 
 ## Self-Check: PASSED
 
-Файлы найдены: `apps/api/src/chat/mentions.ts`, `quick-command.ts`, `lesson-target.ts`, `apps/web/app/(app)/chat/_components/composer.tsx`, `mention-popup.tsx`, `scripts/dev-checks/chat-target.mjs`. Коммиты 434879b, d26894a, 22cc5c2, 49d5132 есть в ветке (`git log --grep "(22-08)"` = 4). Рабочее дерево чисто по файлам плана (остался только `apps/web/next.config.ts` владельца), процессов не оставлено.
+Файлы найдены: `apps/api/src/chat/mentions.ts`, `quick-command.ts`, `lesson-target.ts`, `apps/web/app/(app)/chat/_components/composer.tsx`, `mention-popup.tsx`, `scripts/dev-checks/chat-target.mjs`. Коммиты 434879b, d26894a, 22cc5c2, 49d5132, 85b4e02 есть в ветке (без docs-коммитов). На портах 4224 и 4103 после проверок никто не слушает. Рабочее дерево чисто по файлам плана (остался только `apps/web/next.config.ts` владельца), процессов не оставлено.
