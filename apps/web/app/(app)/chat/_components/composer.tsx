@@ -12,20 +12,23 @@ import {
 } from 'react'
 
 import { AnimatePresence } from 'framer-motion'
-import { ArrowUp, Info, Square } from 'lucide-react'
+import { ArrowUp, Info, RefreshCw, Square } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Elevated } from '@/lib/elevated'
 
 import type { MentionBinding, StudentLessonOption } from '@dv-lab/contracts'
 
+import { BudgetNotice } from './budget-notice'
 import { MentionPopup, popupOptionId, type PopupItem, type PopupState } from './mention-popup'
+import { ModelControls, choiceUnavailable, readChoice } from './model-controls'
 import {
 	insertMention,
 	matchStudents,
 	removeToken,
 	replaceText,
 	tokenStart,
+	type ChatModels,
 	type Draft,
 	type MentionStudents,
 } from './use-chat'
@@ -120,6 +123,7 @@ export function Composer({
 	stopping,
 	onStop,
 	inputRef,
+	models,
 }: {
 	draft: Draft
 	onDraft: (draft: Draft) => void
@@ -133,8 +137,16 @@ export function Composer({
 	stopping: boolean
 	onStop: () => void
 	inputRef: RefObject<HTMLTextAreaElement | null>
+	models: ChatModels
 }) {
-	const canSend = !disabled && !replying && !sending && !draft.stale && draft.text.trim() !== ''
+	const [menuOpen, setMenuOpen] = useState(false)
+	const choice = readChoice(models)
+	const budget = models.assistant.kind === 'ready' ? models.assistant.data.budget : null
+	const reached = budget?.state === 'reached'
+	const unavailable = choice !== null && choiceUnavailable(choice)
+	const configFailed = models.assistant.kind === 'failed'
+	const closed = reached || unavailable || configFailed
+	const canSend = !disabled && !replying && !sending && !draft.stale && !closed && draft.text.trim() !== ''
 	const listId = useId()
 	const backdrop = useRef<HTMLDivElement>(null)
 	const pendingCaret = useRef<number | null>(null)
@@ -162,6 +174,7 @@ export function Composer({
 		focused &&
 		!disabled &&
 		!replying &&
+		!reached &&
 		trigger !== null &&
 		triggerAt !== dismissed &&
 		!hidesEmpty &&
@@ -267,6 +280,7 @@ export function Composer({
 
 	return (
 		<div className="flex flex-col gap-2">
+			{budget ? <BudgetNotice budget={budget} /> : null}
 			<div className="relative">
 				<AnimatePresence>
 					{open ? (
@@ -298,8 +312,14 @@ export function Composer({
 							)}
 							value={draft.text}
 							rows={1}
-							disabled={disabled || replying}
-							placeholder={replying ? 'Wait for the reply, or stop it' : 'What do you want to ask?'}
+							disabled={disabled || replying || reached}
+							placeholder={
+								reached
+									? 'Monthly budget reached'
+									: replying
+										? 'Wait for the reply, or stop it'
+										: 'What do you want to ask?'
+							}
 							aria-label="Message"
 							role="combobox"
 							aria-expanded={listed}
@@ -341,7 +361,15 @@ export function Composer({
 							))}
 						</div>
 					) : null}
-					<div className="flex items-center justify-end">
+					<div className="flex items-center justify-between gap-2">
+						<div className="min-w-0 flex-1">
+							<ModelControls
+								models={models}
+								disabled={disabled || replying || reached}
+								menuOpen={menuOpen}
+								onMenuOpenChange={setMenuOpen}
+							/>
+						</div>
 						{replying ? (
 							<Button
 								variant="secondary"
@@ -372,6 +400,33 @@ export function Composer({
 					</div>
 				</Elevated>
 			</div>
+			{unavailable && choice ? (
+				<p
+					role="status"
+					className="flex items-center gap-2 text-caption text-muted-foreground"
+					data-slot="model-unavailable"
+				>
+					<Info aria-hidden className="size-3.5 shrink-0 text-info" />
+					<span className="min-w-0 flex-1">
+						{choice.model?.name ?? choice.modelId} is not available. Choose another model.
+					</span>
+					<Button type="button" variant="ghost" size="compact" onClick={() => setMenuOpen(true)}>
+						Choose another model
+					</Button>
+				</p>
+			) : null}
+			{configFailed ? (
+				<p
+					role="alert"
+					className="flex items-center gap-2 text-caption text-destructive"
+					data-slot="model-config-failed"
+				>
+					<span className="min-w-0 flex-1">Model settings are unavailable. Refresh before sending.</span>
+					<Button type="button" variant="tertiary" size="compact" leadingIcon={RefreshCw} onClick={models.refresh}>
+						Refresh
+					</Button>
+				</p>
+			) : null}
 			{draft.stale ? (
 				<p role="status" className="flex items-start gap-2 text-caption text-muted-foreground">
 					<Info aria-hidden className="mt-0.5 size-3.5 shrink-0 text-info" />

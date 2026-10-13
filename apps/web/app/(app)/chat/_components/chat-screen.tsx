@@ -322,6 +322,7 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 							stopping={chat.reply?.stopping ?? false}
 							onStop={() => void chat.stop()}
 							inputRef={input}
+							models={chat.models}
 						/>
 					</div>
 				</div>

@@ -16,6 +16,7 @@ import {
 	sendMessageResponse,
 	studentLessonOptionsResponse,
 	undoResponse,
+	type AssistantSettingsResponse,
 	type ChatActionResultBlock,
 	type ChatCalendarProposalBlock,
 	type ChatConversation,
@@ -23,8 +24,10 @@ import {
 	type ChatConversationsResponse,
 	type ChatMessage,
 	type ChatStreamEvent,
+	type ChatEffort,
 	type ChatTurn,
 	type ChatUndoState,
+	type ConversationModelRequest,
 	type DeleteConversationRequest,
 	type MentionBinding,
 	type RenameConversationRequest,
@@ -261,6 +264,40 @@ function announceChange() {
 	DATA_CHANGED_CHANNEL?.postMessage('changed')
 }
 
+export type AssistantView =
+	{ kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; data: AssistantSettingsResponse }
+
+export type ModelChoice = { model: string | null; effort: ChatEffort | null }
+
+export type ChatModels = {
+	assistant: AssistantView
+	conversation: ChatConversation | null
+	pending: ModelChoice | null
+	choose: (choice: ModelChoice) => Promise<boolean>
+	refresh: () => void
+}
+
+function useAssistantSnapshot() {
+	const [view, setView] = useState<AssistantView>({ kind: 'loading' })
+	const requests = useRef(0)
+	const mounted = useRef(true)
+	useEffect(() => {
+		mounted.current = true
+		return () => {
+			mounted.current = false
+		}
+	}, [])
+	const refresh = useCallback(() => {
+		const id = ++requests.current
+		void apiRequest<AssistantSettingsResponse>('GET', '/settings/assistant').then((result) => {
+			if (id !== requests.current || !mounted.current) return
+			if (result.ok) setView({ kind: 'ready', data: result.data })
+			else setView((current) => (current.kind === 'ready' ? current : { kind: 'failed' }))
+		})
+	}, [])
+	return { view, refresh }
+}
+
 export function useChat(initialConversationId: string | null) {
 	const calendar = useCalendarController()
 	const router = useRouter()
@@ -279,6 +316,10 @@ export function useChat(initialConversationId: string | null) {
 	const [reply, setReplyState] = useState<Reply | null>(null)
 	const replyRef = useRef<Reply | null>(null)
 	const streamRef = useRef<Stream | null>(null)
+	const assistant = useAssistantSnapshot()
+	const refreshAssistant = assistant.refresh
+	const [pendingChoice, setPendingChoice] = useState<ModelChoice | null>(null)
+	const pendingChoiceRef = useRef<ModelChoice | null>(null)
 
 	const commitThread = useCallback((next: Thread) => {
 		threadRef.current = next
@@ -501,21 +542,57 @@ export function useChat(initialConversationId: string | null) {
 		[commit]
 	)
 
+	const setPending = useCallback((next: ModelChoice | null) => {
+		pendingChoiceRef.current = next
+		setPendingChoice(next)
+	}, [])
+
 	const newChat = useCallback(() => {
 		setSendFailed(false)
+		setPending(null)
 		select(null)
-	}, [select])
+	}, [select, setPending])
+
+	const replaceConversation = useCallback(
+		(conversation: ChatConversation) => {
+			requests.current++
+			const current = listRef.current
+			if (current.kind !== 'ready') return
+			commit({
+				kind: 'ready',
+				conversations: current.conversations.map((item) => (item.id === conversation.id ? conversation : item)),
+			})
+		},
+		[commit]
+	)
 
 	const openConversation = useCallback(async (): Promise<string | null> => {
 		if (activeId !== null) return activeId
 		const created = await apiRequest<ChatConversationResponse>('POST', '/chat/conversations')
 		if (!created.ok || !mounted.current) return null
-		const conversation = created.data.conversation
+		let conversation = created.data.conversation
+		const choice = pendingChoiceRef.current
+		let applied = true
+		if (choice !== null) {
+			const body: ConversationModelRequest = { ...choice, expectedRevision: conversation.revision }
+			const result = await apiRequest<ChatConversationResponse>(
+				'PATCH',
+				`/chat/conversations/${conversation.id}/model`,
+				body
+			)
+			if (!mounted.current) return null
+			if (result.ok) conversation = result.data.conversation
+			else {
+				applied = false
+				refreshAssistant()
+			}
+			setPending(null)
+		}
 		putFirst(conversation)
 		commitThread({ conversationId: conversation.id, state: { kind: 'ready', messages: [] } })
 		select(conversation.id)
-		return conversation.id
-	}, [activeId, commitThread, putFirst, select])
+		return applied ? conversation.id : null
+	}, [activeId, commitThread, putFirst, refreshAssistant, select, setPending])
 
 	const send = useCallback(
 		async (draft: Draft): Promise<boolean> => {
@@ -560,6 +637,40 @@ export function useChat(initialConversationId: string | null) {
 		},
 		[follow, load, openConversation, putFirst, updateThread]
 	)
+
+	const activeConversation =
+		list.kind === 'ready' && activeId !== null
+			? (list.conversations.find((item) => item.id === activeId) ?? null)
+			: null
+
+	const choose = useCallback(
+		async (choice: ModelChoice): Promise<boolean> => {
+			if (activeId === null) {
+				setPending(choice.model === null && choice.effort === null ? null : choice)
+				return true
+			}
+			const current = listRef.current
+			const conversation =
+				current.kind === 'ready' ? (current.conversations.find((item) => item.id === activeId) ?? null) : null
+			if (conversation === null) return false
+			const body: ConversationModelRequest = { ...choice, expectedRevision: conversation.revision }
+			const result = await apiRequest<ChatConversationResponse>('PATCH', `/chat/conversations/${activeId}/model`, body)
+			if (!mounted.current) return false
+			if (result.ok) {
+				replaceConversation(result.data.conversation)
+				return true
+			}
+			if (result.status === 409 || result.status === 404) await load(true)
+			refreshAssistant()
+			return false
+		},
+		[activeId, load, refreshAssistant, replaceConversation, setPending]
+	)
+
+	const replying = reply !== null
+	useEffect(() => {
+		if (!replying) refreshAssistant()
+	}, [replying, refreshAssistant])
 
 	const shownCalendar = useCallback(
 		(conversationId: string, block: ChatCalendarProposalBlock) => {
@@ -684,5 +795,12 @@ export function useChat(initialConversationId: string | null) {
 		rename,
 		remove,
 		reload: () => load(false),
+		models: {
+			assistant: assistant.view,
+			conversation: activeConversation,
+			pending: pendingChoice,
+			choose,
+			refresh: refreshAssistant,
+		} satisfies ChatModels,
 	}
 }
