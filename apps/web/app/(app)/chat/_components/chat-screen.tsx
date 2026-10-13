@@ -3,18 +3,17 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 
 import { AnimatePresence } from 'framer-motion'
-import { List, Plus } from 'lucide-react'
 
 import { EmptyLine } from '@/components/app/empty-line'
 import { ReadError } from '@/components/app/read-error'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 
 import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
 
+import { ChatHeader } from './chat-header'
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
@@ -138,64 +137,6 @@ function focusRow(id: string) {
 
 function later(action: () => void) {
 	window.setTimeout(action, 60)
-}
-
-function ChatHeader({
-	title,
-	loadingTitle,
-	listOpen,
-	onToggleList,
-	onCreate,
-}: {
-	title: string
-	loadingTitle: boolean
-	listOpen: boolean
-	onToggleList: () => void
-	onCreate: () => void
-}) {
-	return (
-		<header className="flex h-12 items-center gap-2">
-			{loadingTitle ? (
-				<h1 className="min-w-0 flex-1" aria-label="Chat">
-					<Skeleton className="h-5 w-40" />
-				</h1>
-			) : (
-				<h1 className="min-w-0 flex-1 truncate text-subtitle font-semibold text-foreground" title={title}>
-					{title}
-				</h1>
-			)}
-			<Button
-				data-all-chats=""
-				variant="ghost"
-				size="compact"
-				leadingIcon={List}
-				active={listOpen}
-				aria-expanded={listOpen}
-				className="max-md:hidden"
-				onClick={onToggleList}
-			>
-				All chats
-			</Button>
-			<Button
-				data-all-chats=""
-				variant="ghost"
-				size="icon-compact"
-				active={listOpen}
-				aria-expanded={listOpen}
-				aria-label="All chats"
-				className="w-9 md:hidden"
-				onClick={onToggleList}
-			>
-				<List />
-			</Button>
-			<Button variant="tertiary" size="compact" leadingIcon={Plus} className="max-md:hidden" onClick={onCreate}>
-				New chat
-			</Button>
-			<Button variant="tertiary" size="icon-compact" aria-label="New chat" className="w-9 md:hidden" onClick={onCreate}>
-				<Plus />
-			</Button>
-		</header>
-	)
 }
 
 export function ChatScreen({ studentId, conversationId }: { studentId: string | null; conversationId: string | null }) {

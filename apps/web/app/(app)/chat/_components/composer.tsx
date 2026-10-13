@@ -16,6 +16,7 @@ import { AnimatePresence } from 'framer-motion'
 import { ArrowUp, Info, RefreshCw, Square } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
 
 import type { MentionBinding, StudentLessonOption } from '@dv-lab/contracts'
@@ -107,6 +108,9 @@ function Highlight({ text, bindings }: { text: string; bindings: readonly Mentio
 	parts.push(<Fragment key={`t${cursor}`}>{`${text.slice(cursor)}​`}</Fragment>)
 	return <>{parts}</>
 }
+
+const PLACEHOLDER = 'What do you want to ask?'
+const HINT = 'Shift+Enter — new line · @ — student'
 
 const FIELD_TEXT =
 	'text-body pointer-coarse:text-[16px] pointer-coarse:leading-6 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [scrollbar-gutter:stable]'
@@ -327,11 +331,7 @@ export function Composer({
 							rows={1}
 							disabled={disabled || replying || reached}
 							placeholder={
-								reached
-									? 'Monthly budget reached'
-									: replying
-										? 'Wait for the reply, or stop it'
-										: 'What do you want to ask?'
+								reached ? 'Monthly budget reached' : replying ? 'Wait for the reply, or stop it' : PLACEHOLDER
 							}
 							aria-label="Message"
 							role="combobox"
@@ -447,8 +447,34 @@ export function Composer({
 				</p>
 			) : null}
 			<p id={`${listId}-hint`} className="text-caption text-muted-foreground">
-				Shift+Enter — new line · @ — student
+				{HINT}
 			</p>
+		</div>
+	)
+}
+
+export function ComposerSkeleton() {
+	return (
+		<div className="flex flex-col gap-2">
+			<Elevated offset={2} shadowLevel={2} className="flex flex-col gap-2 rounded-2xl p-3">
+				<textarea
+					rows={1}
+					disabled
+					aria-label="Message"
+					placeholder={PLACEHOLDER}
+					className={`block field-sizing-content max-h-[5lh] min-h-[1lh] w-full resize-none bg-transparent p-0 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 ${FIELD_TEXT}`}
+				/>
+				<div className="flex items-center justify-between gap-2">
+					<div className="flex min-w-0 flex-1 gap-0.5">
+						<Skeleton className="h-7 w-28 rounded-full" />
+						<Skeleton className="h-7 w-24 rounded-full" />
+					</div>
+					<Button variant="primary" size="icon-compact" aria-label="Send" className="rounded-full" disabled>
+						<ArrowUp />
+					</Button>
+				</div>
+			</Elevated>
+			<p className="text-caption text-muted-foreground">{HINT}</p>
 		</div>
 	)
 }

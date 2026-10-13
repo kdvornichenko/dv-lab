@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 
+import { SkeletonContent } from '@/components/app/skeleton-swap'
 import { requireTeacherPage } from '@/lib/session'
 
 import { ChatScreen } from './_components/chat-screen'
@@ -16,9 +17,11 @@ export default async function ChatPage({
 	await requireTeacherPage()
 	const { student, c } = await searchParams
 	return (
-		<ChatScreen
-			studentId={typeof student === 'string' && UUID.test(student) ? student : null}
-			conversationId={typeof c === 'string' && UUID.test(c) ? c : null}
-		/>
+		<SkeletonContent>
+			<ChatScreen
+				studentId={typeof student === 'string' && UUID.test(student) ? student : null}
+				conversationId={typeof c === 'string' && UUID.test(c) ? c : null}
+			/>
+		</SkeletonContent>
 	)
 }
