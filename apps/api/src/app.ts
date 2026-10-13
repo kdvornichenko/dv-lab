@@ -36,6 +36,7 @@ export type AppDeps = {
 	calendarControl?: ConnectionControl
 	calendarCommands?: CalendarCommands
 	calendarWake?: (connectionId: string) => void
+	chatEnabled?: boolean
 }
 
 function clientErrorBody(status: number) {
@@ -97,7 +98,7 @@ export function createApp(deps: AppDeps) {
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
-	app.route('/settings', settingsRoutes({ db: deps.db }))
+	app.route('/settings', settingsRoutes({ db: deps.db, chatEnabled: deps.chatEnabled }))
 	app.route('/today', todayRoutes({ db: deps.db }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {

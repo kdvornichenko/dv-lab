@@ -92,6 +92,7 @@ const app = createApp({
 	production,
 	isStopping: lifecycle.isStopping,
 	signIn,
+	chatEnabled: config.chat.enabled,
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
 	calendarCommands: calendar?.commands,
