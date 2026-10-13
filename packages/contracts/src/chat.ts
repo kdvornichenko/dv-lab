@@ -1,9 +1,16 @@
 import { z } from 'zod'
 
-import { calendarDate, calendarInstant, calendarOccurrenceRef, calendarTimeZone, nextLessonRead } from './calendar.ts'
+import {
+	calendarDate,
+	calendarInstant,
+	calendarOccurrenceRef,
+	calendarReadStatus,
+	calendarTimeZone,
+	nextLessonRead,
+} from './calendar.ts'
 import { chatEffort } from './chat-settings.ts'
 import { CLOCK_TIME_PATTERN, MARK_KINDS } from './schedule.ts'
-import { LESSON_MINUTES_MIN, STUDENT_STATUSES } from './students.ts'
+import { LESSON_MINUTES_MIN, SECTION_KINDS, STUDENT_STATUSES } from './students.ts'
 
 export const chatRecordsQuery = z.strictObject({ studentId: z.uuid() })
 
@@ -345,6 +352,80 @@ export const chatStoppedBlock = z.strictObject({ type: z.literal('stopped') })
 
 export const chatInterruptedBlock = z.strictObject({ type: z.literal('interrupted') })
 
+export const CHAT_DAYS = ['today', 'tomorrow'] as const
+
+export const chatDay = z.enum(CHAT_DAYS)
+
+export type ChatDay = z.infer<typeof chatDay>
+
+export const chatRecordsKey = z.discriminatedUnion('kind', [
+	z.strictObject({ kind: z.literal('student'), studentId: z.uuid() }),
+	z.strictObject({ kind: z.literal('day'), day: z.enum([...CHAT_DAYS, 'payments']) }),
+])
+
+export type ChatRecordsKey = z.infer<typeof chatRecordsKey>
+
+export const chatFactsBlock = z.strictObject({ type: z.literal('facts'), facts: chatStudentFacts })
+
+export const chatDayLesson = z.strictObject({
+	key: z.string().min(1),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	startsAt: calendarInstant,
+	timeZone: calendarTimeZone,
+	durationMinutes: z.number().int().min(LESSON_MINUTES_MIN),
+	outcome: lessonOutcome,
+	movedTo: calendarInstant.nullable(),
+})
+
+export const chatLessonsBlock = z.strictObject({
+	type: z.literal('lessons'),
+	day: chatDay,
+	date: calendarDate,
+	defaultTimeZone: calendarTimeZone,
+	asOf: z.string(),
+	calendarRead: calendarReadStatus,
+	lessons: z.array(chatDayLesson),
+})
+
+export const chatDueStudent = z.strictObject({
+	id: z.uuid(),
+	displayName: z.string(),
+	balanceMinutes: z.number().int().nullable(),
+	defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN),
+})
+
+export const chatPaysSoonBlock = z.strictObject({
+	type: z.literal('pays_soon'),
+	students: z.array(chatDueStudent),
+	paysSoonLessons: z.number().int(),
+	asOf: z.string(),
+})
+
+export const CHAT_EXCERPT_SOURCES = ['section', 'note', 'comment'] as const
+
+export const chatExcerptBlock = z.strictObject({
+	type: z.literal('excerpt'),
+	source: z.enum(CHAT_EXCERPT_SOURCES),
+	id: z.string().min(1),
+	studentId: z.uuid(),
+	sectionKind: z.enum(SECTION_KINDS).optional(),
+	body: z.string(),
+	createdAt: calendarInstant,
+	timeZone: calendarTimeZone,
+})
+
+export const CHAT_SUGGESTIONS_MAX = 4
+
+export const CHAT_SUGGESTION_MAX_LENGTH = 200
+
+export const chatSuggestionsBlock = z.strictObject({
+	type: z.literal('suggestions'),
+	lines: z.array(z.string().min(1).max(CHAT_SUGGESTION_MAX_LENGTH)).min(1).max(CHAT_SUGGESTIONS_MAX),
+})
+
+export const chatReadFailedBlock = z.strictObject({ type: z.literal('read_failed'), key: chatRecordsKey })
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
@@ -353,9 +434,32 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatWithheldBlock,
 	chatStoppedBlock,
 	chatInterruptedBlock,
+	chatFactsBlock,
+	chatLessonsBlock,
+	chatPaysSoonBlock,
+	chatExcerptBlock,
+	chatSuggestionsBlock,
+	chatReadFailedBlock,
 ])
 
+export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
+
+export type ChatRecordsRefreshRequest = z.infer<typeof chatRecordsRefreshRequest>
+
+export const chatRecordsRefreshResponse = z.strictObject({
+	block: z.discriminatedUnion('type', [chatFactsBlock, chatLessonsBlock, chatPaysSoonBlock]),
+})
+
+export type ChatRecordsRefreshResponse = z.infer<typeof chatRecordsRefreshResponse>
+
 export type ChatBlock = z.infer<typeof chatBlock>
+export type ChatFactsBlock = z.infer<typeof chatFactsBlock>
+export type ChatLessonsBlock = z.infer<typeof chatLessonsBlock>
+export type ChatPaysSoonBlock = z.infer<typeof chatPaysSoonBlock>
+export type ChatExcerptBlock = z.infer<typeof chatExcerptBlock>
+export type ChatSuggestionsBlock = z.infer<typeof chatSuggestionsBlock>
+export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
+export type ChatDayLesson = z.infer<typeof chatDayLesson>
 export type ChatActionResultBlock = z.infer<typeof chatActionResultBlock>
 export type ChatClarifyBlock = z.infer<typeof chatClarifyBlock>
 export type ChatRefusedBlock = z.infer<typeof chatRefusedBlock>

@@ -8,12 +8,14 @@ import {
 	type ChatConversationReadResponse,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
+	type ChatRecordsRefreshResponse,
 	type ChatStreamEvent,
 	type ChatStudentFacts,
 	type ChatTurnResponse,
 	type SendMessageResponse,
 	type UndoResponse,
 	chatRecordsQuery,
+	chatRecordsRefreshRequest,
 	deleteConversationRequest,
 	renameConversationRequest,
 	sendMessageRequest,
@@ -33,7 +35,7 @@ import {
 	readConversation,
 	renameConversation,
 } from '../chat/conversations.ts'
-import { readChatFacts } from '../chat/facts.ts'
+import { readChatFacts, readChatRecords } from '../chat/facts.ts'
 import { listMessages } from '../chat/messages.ts'
 import { type ChatRunner, turnSnapshot } from '../chat/runs.ts'
 import { activeTurn, isActive, toTurn } from '../chat/turns.ts'
@@ -95,6 +97,18 @@ export function chatRoutes({ db, calendarCommands, chat }: ChatRouteDeps) {
 		})
 		if (facts === null) return c.json(errorBody('not_found', 'Not Found'), 404)
 		return c.json(facts satisfies ChatStudentFacts, 200)
+	})
+
+	routes.post('/records/refresh', async (c) => {
+		const input = await readJson(c, chatRecordsRefreshRequest)
+		if (!input) return invalidRequest(c)
+		const context = await chatContext(c)
+		const block = await readSnapshot(db, async (executor) => {
+			const settings = await readTeacherSettings(executor, context.accountId)
+			return readChatRecords(executor, context, input.key, settings.paysSoonLessons)
+		})
+		if (block === null) return notFound(c)
+		return c.json({ block } satisfies ChatRecordsRefreshResponse, 200)
 	})
 
 	routes.post('/conversations', async (c) => {

@@ -10,6 +10,7 @@ import {
 	type ChatEffort,
 	type ChatLessonIntent,
 	type ChatMessage,
+	type ChatRecordsKey,
 	type ChatRefusalCode,
 	type ChatTurn,
 	type MentionBinding,
@@ -31,8 +32,10 @@ import type { CardReadContext } from '../cards/card-facts.ts'
 import { appendStudentNote, retractStudentNote } from '../cards/notes.ts'
 import { appendLessonComment, retractLessonComment } from '../schedule/comments.ts'
 import { writeMark } from '../schedule/marks.ts'
+import { readTeacherSettings } from '../settings/settings.ts'
 import { type CalendarOutcome, proposeCalendarChange, undoCalendarAction } from './calendar.ts'
 import { lockConversation, readConversation, touchConversation } from './conversations.ts'
+import { readChatRecords } from './facts.ts'
 import { resolveLessonTarget } from './lesson-target.ts'
 import { validateMentions } from './mentions.ts'
 import {
@@ -374,6 +377,29 @@ function quickRequest(context: ChatContext, text: string, bindings: readonly Men
 	return intent === null ? null : { kind: 'lesson', intent }
 }
 
+const READ_COMMANDS: Record<string, ChatRecordsKey> = {
+	'/today': { kind: 'day', day: 'today' },
+	'/tomorrow': { kind: 'day', day: 'tomorrow' },
+	'/payments': { kind: 'day', day: 'payments' },
+}
+
+function readCommand(text: string): ChatRecordsKey | null {
+	return READ_COMMANDS[text.normalize('NFC').trim().toLowerCase()] ?? null
+}
+
+async function readBlock(tx: DbExecutor, context: ChatContext, key: ChatRecordsKey): Promise<ChatBlock> {
+	try {
+		return await tx.transaction(async (executor) => {
+			const settings = await readTeacherSettings(executor, context.accountId)
+			const block = await readChatRecords(executor, context, key, settings.paysSoonLessons)
+			if (block === null) throw new Refusal('not_found')
+			return block
+		})
+	} catch {
+		return { type: 'read_failed', key }
+	}
+}
+
 type Response = { blocks: ChatBlock[]; model: boolean }
 
 async function respond(
@@ -382,6 +408,8 @@ async function respond(
 	source: ActionSource,
 	input: SendMessageRequest
 ): Promise<Response> {
+	const reading = readCommand(input.text)
+	if (reading !== null) return { blocks: [await readBlock(tx, context, reading)], model: false }
 	const mentions = await validateMentions(tx, context.accountId, input.text, input.mentions)
 	if (mentions.kind === 'stale') return { blocks: [{ type: 'refused', code: 'mention_stale' }], model: false }
 	const request = quickRequest(context, input.text, mentions.bindings)
@@ -468,7 +496,7 @@ export async function sendMessage(
 	input: SendMessageRequest,
 	turns: TurnStarter | null = null
 ): Promise<SendOutcome> {
-	const freeText = quickRequest(context, input.text, input.mentions) === null
+	const freeText = readCommand(input.text) === null && quickRequest(context, input.text, input.mentions) === null
 	const plan: SendPlan = {
 		turns,
 		admission: turns !== null && freeText ? await turns.admit(context, conversationId) : null,

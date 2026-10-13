@@ -117,6 +117,18 @@ function blockNote(block: ChatBlock): string {
 			return '[Reply stopped by the teacher]'
 		case 'interrupted':
 			return '[Reply interrupted]'
+		case 'facts':
+			return `[Showed the facts of ${block.facts.student.displayName}]`
+		case 'lessons':
+			return `[Showed the lessons of ${block.day}]`
+		case 'pays_soon':
+			return '[Showed the students who pay soon]'
+		case 'excerpt':
+			return `[Quoted a stored ${block.source}]`
+		case 'suggestions':
+			return '[Offered suggestions]'
+		case 'read_failed':
+			return '[Records could not be read]'
 	}
 }
 

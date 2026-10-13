@@ -19,6 +19,7 @@ const SECTIONS = {
 	comments: sectionComments,
 	actions: sectionActions,
 	budget: sectionBudget,
+	answers: sectionAnswers,
 }
 
 let failures = 0
@@ -1446,6 +1447,249 @@ function throws(action) {
 		return false
 	} catch {
 		return true
+	}
+}
+
+const dayRows = (block) =>
+	block.lessons.map((lesson) => `${lesson.key}|${lesson.startsAt}|${lesson.outcome}|${lesson.studentId}`)
+
+const todayRows = (lessons) =>
+	lessons.map((lesson) => `${lesson.key}|${lesson.startsAt}|${lesson.outcome}|${lesson.studentId}`)
+
+const dueRows = (students) =>
+	students.map((item) => `${item.id}|${item.displayName}|${item.balanceMinutes}|${item.defaultLessonMinutes}`)
+
+const countOf = (table) => Number(sql(`select count(*)::int as n from ${table}`).rows[0].n)
+
+async function sectionAnswers(ctx) {
+	const { api, cookie } = ctx
+	const student = await studentCookie(api)
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const { readChatDay } = await import('../../apps/api/src/chat/facts.ts')
+	const { readLessonDay } = await import('../../apps/api/src/today/today.ts')
+	const { sendMessage } = await import('../../apps/api/src/chat/actions.ts')
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const { pool, db } = createDb(url)
+	try {
+		const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+		const first = await call(api, 'GET', '/today', { cookie })
+		if (first.status !== 200) throw new Error(`today returned ${first.status}`)
+		const zone = first.json.defaultTimeZone
+		const date = first.json.date
+		const tomorrow = core.addDays(date, 1)
+		const opening = core.addDays(date, -4)
+		const cards = {
+			unset: await createCard(ctx, 'Alex Example 2207'),
+			owes: await createCard(ctx, 'Alex Example 2208'),
+			zero: await createCard(ctx, 'Alex Example 2209'),
+		}
+		await setOpening(ctx, cards.owes, 0, opening)
+		await setOpening(ctx, cards.zero, 0, opening)
+		await doneLesson(ctx, cards.owes, core.addDays(opening, 1))
+		const dayStart = core.startOfLessonDay(date, zone)
+		const startsAt = new Date(Math.max(dayStart.getTime() + 60000, Date.now() - 30 * 60000)).toISOString()
+		sql(
+			`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(cards.zero)}, ${quote(startsAt)}, 60, 'scheduled')`
+		)
+		const expected = { unset: null, owes: -60, zero: 0 }
+		const todayRes = await call(api, 'GET', '/today', { cookie })
+		if (todayRes.status !== 200) throw new Error(`today returned ${todayRes.status}`)
+
+		const created = await call(api, 'POST', '/chat/conversations', { cookie })
+		const conversation = created.json.conversation.id
+		ctx.conversations.push(conversation)
+		const say = (text) =>
+			send(api, 'POST', `/chat/conversations/${conversation}/messages`, {
+				cookie,
+				body: { requestId: randomUUID(), text, mentions: [] },
+			})
+		const refresh = (key, as = cookie) => send(api, 'POST', '/chat/records/refresh', { cookie: as, body: { key } })
+
+		const usageBefore = countOf('chat_usage_attempts')
+		const turnsBefore = countOf('chat_turns')
+
+		const today = await say('/today')
+		const todayBlock = today.json?.messages?.[1]?.blocks?.[0]
+		check(
+			'/today answers 201 with one lessons block and no model turn',
+			today.status === 201 &&
+				today.json.turn === null &&
+				today.json.messages.length === 2 &&
+				today.json.messages[1].body === '' &&
+				today.json.messages[1].blocks.length === 1 &&
+				todayBlock.type === 'lessons' &&
+				todayBlock.day === 'today'
+		)
+		check(
+			'/today shows the lessons of GET /today for the same date and zone',
+			isDeepStrictEqual(dayRows(todayBlock), todayRows(todayRes.json.lessons)) &&
+				todayBlock.date === todayRes.json.date &&
+				todayBlock.defaultTimeZone === zone &&
+				todayBlock.calendarRead.state === todayRes.json.calendarRead.state,
+			JSON.stringify(dayRows(todayBlock))
+		)
+		check(
+			'the fixture lesson of today is in the block',
+			todayBlock.lessons.some((lesson) => lesson.studentId === cards.zero && lesson.startsAt === startsAt)
+		)
+
+		const tomorrowReply = await say('/tomorrow')
+		const tomorrowBlock = tomorrowReply.json?.messages?.[1]?.blocks?.[0]
+		check(
+			'/tomorrow answers a lessons block for the next day of the teacher zone',
+			tomorrowReply.status === 201 &&
+				tomorrowReply.json.turn === null &&
+				tomorrowBlock.type === 'lessons' &&
+				tomorrowBlock.day === 'tomorrow' &&
+				tomorrowBlock.date === tomorrow &&
+				tomorrowBlock.lessons.every((lesson) => core.lessonDay(new Date(lesson.startsAt), zone) === tomorrow)
+		)
+
+		const paysReply = await say('/payments')
+		const paysBlock = paysReply.json?.messages?.[1]?.blocks?.[0]
+		const dueToday = todayRes.json.paysSoon.map((item) => ({
+			id: item.id,
+			displayName: item.displayName,
+			balanceMinutes: item.balanceMinutes,
+			defaultLessonMinutes: item.defaultLessonMinutes,
+		}))
+		check(
+			'/payments shows the Pays soon list of GET /today in the same order',
+			paysReply.status === 201 &&
+				paysReply.json.turn === null &&
+				paysBlock.type === 'pays_soon' &&
+				isDeepStrictEqual(dueRows(paysBlock.students), dueRows(dueToday)) &&
+				paysBlock.paysSoonLessons === todayRes.json.paysSoonLessons,
+			JSON.stringify(dueRows(paysBlock?.students ?? []))
+		)
+		check(
+			'the debt and zero cards are in Pays soon and the card without an opening balance is not',
+			paysBlock.students.some((item) => item.id === cards.owes && item.balanceMinutes === -60) &&
+				paysBlock.students.some((item) => item.id === cards.zero && item.balanceMinutes === 0) &&
+				!paysBlock.students.some((item) => item.id === cards.unset)
+		)
+
+		const spaced = await say('  /TODAY ')
+		check('a read command ignores case and outer spaces', spaced.json?.messages?.[1]?.blocks?.[0]?.type === 'lessons')
+		const prose = await say('/today please')
+		check(
+			'a read command with extra words is a free question and needs the model',
+			prose.status === 201 &&
+				prose.json.turn === null &&
+				prose.json.messages[1].blocks.length === 1 &&
+				prose.json.messages[1].blocks[0].type === 'refused' &&
+				prose.json.messages[1].blocks[0].code === 'model_unavailable'
+		)
+		check(
+			'no read command created a budget attempt or a model turn',
+			countOf('chat_usage_attempts') === usageBefore && countOf('chat_turns') === turnsBefore
+		)
+
+		const tablesBefore = tableCounts()
+		const listRes = await call(api, 'GET', '/students', { cookie })
+		for (const [key, id] of Object.entries(cards)) {
+			const res = await refresh({ kind: 'student', studentId: id })
+			const detail = await call(api, 'GET', `/students/${id}`, { cookie })
+			const block = res.json?.block
+			check(
+				`${key}: refresh answers a facts block with no-store`,
+				res.status === 200 && res.headers.get('cache-control') === 'no-store' && block?.type === 'facts'
+			)
+			check(
+				`${key}: the facts balance equals the profile and the list`,
+				block.facts.balanceMinutes === detail.json.student.balanceMinutes &&
+					block.facts.balanceMinutes === listRes.json.students.find((item) => item.id === id).balanceMinutes &&
+					block.facts.balanceMinutes === expected[key],
+				`got ${block.facts.balanceMinutes}`
+			)
+			check(
+				`${key}: the facts next lesson equals the profile and is never none without a fresh read`,
+				isDeepStrictEqual(block.facts.nextLesson, detail.json.student.nextLesson) &&
+					(block.facts.nextLesson.result !== 'none' || block.facts.nextLesson.status.state === 'fresh')
+			)
+			check(
+				`${key}: the facts Pays soon equals Today`,
+				block.facts.paysSoon === todayRes.json.paysSoon.some((item) => item.id === id) &&
+					block.facts.paysSoonLessons === todayRes.json.paysSoonLessons &&
+					block.facts.defaultTimeZone === zone &&
+					block.facts.student.id === id
+			)
+		}
+		check(
+			'the card without an opening balance has a null balance, not zero',
+			(await refresh({ kind: 'student', studentId: cards.unset })).json.block.facts.balanceMinutes === null
+		)
+		const dayAgain = await refresh({ kind: 'day', day: 'today' })
+		const paysAgain = await refresh({ kind: 'day', day: 'payments' })
+		const tomorrowAgain = await refresh({ kind: 'day', day: 'tomorrow' })
+		check(
+			'refresh by day answers the same blocks as the commands',
+			dayAgain.json.block.type === 'lessons' &&
+				isDeepStrictEqual(dayRows(dayAgain.json.block), todayRows(todayRes.json.lessons)) &&
+				paysAgain.json.block.type === 'pays_soon' &&
+				isDeepStrictEqual(dueRows(paysAgain.json.block.students), dueRows(dueToday)) &&
+				tomorrowAgain.json.block.type === 'lessons' &&
+				tomorrowAgain.json.block.date === tomorrow
+		)
+		const malformed = [
+			['no key', {}],
+			['unknown kind', { key: { kind: 'week' } }],
+			['bad student id', { key: { kind: 'student', studentId: 'x' } }],
+			['bad day', { key: { kind: 'day', day: 'yesterday' } }],
+			['extra field', { key: { kind: 'day', day: 'today' }, x: 1 }],
+		]
+		for (const [label, body] of malformed) {
+			const res = await send(api, 'POST', '/chat/records/refresh', { cookie, body })
+			check(`refresh ${label}: 400 invalid_request`, res.status === 400 && res.json?.error?.code === 'invalid_request')
+		}
+		const missing = await refresh({ kind: 'student', studentId: randomUUID() })
+		check('refresh of an unknown student: 404', missing.status === 404 && missing.json?.error?.code === 'not_found')
+		const asStudent = await refresh({ kind: 'day', day: 'today' }, student)
+		check('refresh with a student session: 403 without data', asStudent.status === 403 && !('block' in asStudent.json))
+		const anonymous = await send(api, 'POST', '/chat/records/refresh', {
+			body: { key: { kind: 'day', day: 'today' } },
+		})
+		check('refresh without a session: 401', anonymous.status === 401)
+		check('refresh and the read commands create no extra rows outside chat messages', tableCounts() === tablesBefore)
+
+		const context = { accountId, now: new Date(), defaultTimeZone: 'Invalid/Zone', calendarEnabled: false }
+		const broken = await sendMessage(db, context, conversation, {
+			requestId: randomUUID(),
+			text: '/today',
+			mentions: [],
+		})
+		const failed = broken.kind === 'sent' ? broken.messages[1]?.blocks[0] : null
+		check(
+			'a failing read gives a read_failed block with the key and no model turn',
+			failed?.type === 'read_failed' && failed.key.kind === 'day' && failed.key.day === 'today' && broken.turn === null
+		)
+		const healed = await refresh(failed.key)
+		check(
+			'Refresh records for the failed key answers a fresh lessons block',
+			healed.status === 200 && healed.json.block.type === 'lessons'
+		)
+
+		const sunday = '2026-10-11'
+		const sundayNoon = core.zonedInstant(sunday, '12:00', zone)
+		const sundayContext = { accountId, now: sundayNoon, defaultTimeZone: zone }
+		const monday = core.addDays(core.lessonDay(sundayNoon, zone), 1)
+		const onSunday = await readChatDay(db, sundayContext, 'tomorrow')
+		const owner = await readLessonDay(db, sundayContext, monday)
+		check(
+			'on a teacher Sunday, tomorrow is the Monday of the next week read from its own window',
+			core.lessonDay(sundayNoon, zone) === sunday &&
+				onSunday.date === monday &&
+				core.mondayOf(monday) !== core.mondayOf(sunday) &&
+				isDeepStrictEqual(dayRows(onSunday), todayRows(owner.lessons))
+		)
+
+		check(
+			'the read commands left no budget attempt or turn behind',
+			countOf('chat_usage_attempts') === usageBefore && countOf('chat_turns') === turnsBefore
+		)
+		return 'CHAT_ANSWERS_OK'
+	} finally {
+		await pool.end()
 	}
 }
 
