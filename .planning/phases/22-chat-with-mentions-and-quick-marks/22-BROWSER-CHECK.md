@@ -45,7 +45,7 @@
 
 ### 2. После первого сообщения адрес чата теряет `?c=`, перезагрузка теряет разговор
 
-- Файл: `apps/web/app/(app)/chat/_components/use-chat.ts`, строки 148-153 (`writeSelection`). Вызов `window.history.replaceState(window.history.state, ...)` передаёт служебное состояние Next (`__NA`, `__PRIVATE_NEXTJS_INTERNALS_TREE`). Next принимает такой вызов за свой и не обновляет канонический адрес роутера. Следующий коммит роутера (`HistoryUpdater`) пишет обратно `/chat`.
+- Файл: `apps/web/app/(app)/chat/_components/use-chat.ts`, строки 148-153 (`writeSelection`). Вызов `window.history.replaceState(window.history.state, ...)` передаёт служебное состояние Next (`__NA`, `__PRIVATE_NEXTJS_INTERNALS_TREE`). По стеку вызовов (патч `replaceState` в установленной версии Next не читался, при исправлении проверить) Next принимает такой вызов за свой и не обновляет канонический адрес роутера. Следующий коммит роутера (`HistoryUpdater`) пишет обратно `/chat`.
 - Воспроизведение: /chat, New chat, ввести текст, Send.
 - Ожидается: адрес `/chat?c=<id>` сохраняется, после перезагрузки открыт тот же разговор.
 - Фактически: `?c=<id>` появляется и через доли секунды заменяется на `/chat`; это видно по `framenavigated` и по стеку `replaceState`. После перезагрузки открывается пустой экран чата.
@@ -63,7 +63,7 @@
   - Сценарий сам отдаёт отказы 409 (`lesson_done`, `outside_sync_window`), а Chromium пишет их в консоль как ошибки. 409 добавлен в фильтр шума. Обратная сторона: настоящий 409 в этом сценарии тоже не попадёт в «console problems». Пункт для ревьюера.
 - `chat-web.mjs`, коммит `0c1ded0`:
   - В шум добавлено предупреждение next dev «server caches disabled» (`schedule-started-web` уже его фильтровал).
-  - `records`: при пороге 0 карточка с остатком 1 урок в Students получает «Plenty left». Чат состояние показывает только у Pays soon, поэтому для «Plenty left» проверяется отсутствие метки. Состояние Pays soon на dev не проверено, потому что порог там 0.
+  - `records`: при пороге 0 карточка с остатком 1 урок в Students получает «Plenty left». По README `ChatFacts` метка состояния в чате бывает только у Pays soon, No lessons left и Owes lessons, поэтому для «Plenty left» проверяется отсутствие метки. Состояние Pays soon на dev не проверено, потому что порог там 0.
   - `notes`: отложенный `route.continue()` падал «Route is already handled» после `reload` и ронял процесс до очистки. Теперь ошибка гасится.
   - `calendar`: Enter нажимался, пока список упоминаний был пуст. Теперь сценарий ждёт строку ученика. `getByText('Saved.')` совпадал с «Calendar change saved…», добавлен `exact`.
 
