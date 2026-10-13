@@ -275,7 +275,7 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 			<div className="relative flex min-h-0 flex-1 flex-col" onKeyDown={onKeyDown}>
 				<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
 					<ScrollArea
-						className="-mx-3 min-h-0 flex-1 md:-mx-6"
+						className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
 						viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0"
 					>
 						<div role="log" aria-label="Messages" className="mx-auto flex w-full max-w-180 flex-col gap-4 pb-2">
