@@ -112,7 +112,7 @@ async function currentTail(tx: DbExecutor, command: PreparedCalendarCommand, old
 			lineage.startsAt !== occurrence.startsAt.toISOString() ||
 			lineage.durationMinutes !== occurrence.durationMinutes ||
 			lineage.timeZone !== occurrence.timeZone ||
-			(lineage.status ?? 'scheduled') !== occurrence.status
+			(lineage.status ?? 'scheduled') !== (occurrence.status === 'cancelled' ? 'cancelled' : 'scheduled')
 		)
 			throw new CommandFault('external_change')
 	}
