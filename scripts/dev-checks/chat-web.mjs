@@ -17,6 +17,7 @@ const sections = {
 	conversations: sectionConversations,
 	notes: sectionNotes,
 	comments: sectionComments,
+	composer: sectionComposer,
 }
 
 function removeFixtures() {
@@ -869,6 +870,219 @@ async function sectionComments() {
 			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 		},
 		() => removeFixtures()
+	)
+}
+
+const COMPOSER_CARD = 'Alex Example 2216'
+const COMPOSER_TWIN = 'Alex Example 2217'
+const FIELD = '[data-slot="chat-composer-field"]'
+const POPUP = '[data-slot="mention-popup"]'
+const QUICK_ROW = '[data-slot="chat-quick-actions"]'
+const STALE = 'This student is no longer available. Choose a student again.'
+
+async function bindings(page) {
+	return JSON.parse((await page.locator(FIELD).getAttribute('data-mentions')) ?? '[]')
+}
+
+async function value(page) {
+	return page.locator(FIELD).inputValue()
+}
+
+async function retype(page, text) {
+	const field = page.locator(FIELD)
+	await field.fill('')
+	await field.click()
+	await page.keyboard.type(text)
+}
+
+async function sectionComposer() {
+	removeFixtures()
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ page, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			const ids = {
+				single: await createCard(page, COMPOSER_CARD),
+				twinA: await createCard(page, COMPOSER_TWIN),
+				twinB: await createCard(page, COMPOSER_TWIN),
+			}
+			const twins = [ids.twinA, ids.twinB].sort()
+			const reads = []
+			const writes = []
+			page.on('request', (request) => {
+				const url = request.url()
+				if (!url.includes('/api/')) return
+				if (url.includes('/api/students/options')) reads.push(url)
+				else if (request.method() !== 'GET') writes.push(`${request.method()} ${url}`)
+			})
+			await openChat(page, null)
+			const field = page.locator(FIELD)
+			await field.waitFor({ timeout: 30000 })
+			await page.waitForTimeout(500)
+			const readsOnOpen = reads.length
+			check('the screen reads /students/options once on open', readsOnOpen === 1, String(readsOnOpen))
+
+			await retype(page, `@${COMPOSER_TWIN}`)
+			const popup = page.locator(POPUP)
+			await popup.waitFor({ timeout: 15000 })
+			const options = popup.getByRole('option')
+			check('@ opens the list with the two students of one name', (await options.count()) === 2)
+			const details = await options.evaluateAll((rows) => rows.map((row) => row.innerText))
+			check(
+				'two students with one name each have a second line',
+				details.every((text) => text.includes(COMPOSER_TWIN) && text.includes('Usual lesson')),
+				details.join(' | ')
+			)
+			check('the field keeps the focus', await field.evaluate((node) => node === document.activeElement))
+			await shot(page, 'chat-composer', 'list')
+			await page.keyboard.press('ArrowDown')
+			check(
+				'arrow down moves the active row',
+				(await options.nth(1).getAttribute('aria-selected')) === 'true' &&
+					(await field.getAttribute('aria-activedescendant')) === (await options.nth(1).getAttribute('id'))
+			)
+			await page.keyboard.press('Enter')
+			await popup.waitFor({ state: 'detached', timeout: 5000 })
+			const chosen = await bindings(page)
+			check(
+				'Enter inserts the name and binds the chosen id without sending',
+				(await value(page)) === `@${COMPOSER_TWIN} ` &&
+					chosen.length === 1 &&
+					chosen[0].studentId === twins[1] &&
+					chosen[0].start === 1 &&
+					chosen[0].end === 1 + COMPOSER_TWIN.length &&
+					writes.length === 0,
+				JSON.stringify(chosen)
+			)
+			check('choosing a student makes no request', reads.length === readsOnOpen)
+
+			const quick = page.locator(QUICK_ROW)
+			await quick.waitFor({ timeout: 5000 })
+			check(
+				'four quick buttons appear with a bound student',
+				(await quick.getByRole('button').allInnerTexts()).join('|') === "Was|Didn't happen|No-show|Moved to…"
+			)
+			await quick.getByRole('button', { name: 'Was' }).click()
+			const afterWas = await value(page)
+			await quick.getByRole('button', { name: 'No-show' }).click()
+			const afterNoShow = await value(page)
+			await quick.getByRole('button', { name: 'Moved to…' }).click()
+			const afterMoved = await value(page)
+			check(
+				'quick buttons put an editable command after the name and send nothing',
+				afterWas === `@${COMPOSER_TWIN} was at the lesson today` &&
+					afterNoShow === `@${COMPOSER_TWIN} didn't come` &&
+					afterMoved === `@${COMPOSER_TWIN} moved to ` &&
+					writes.length === 0 &&
+					(await bindings(page)).length === 1,
+				JSON.stringify([afterWas, afterNoShow, afterMoved])
+			)
+			await shot(page, 'chat-composer', 'quick')
+
+			await page.keyboard.press('Enter')
+			check(
+				'Enter without the list adds no line and sends nothing',
+				!(await value(page)).includes('\n') && writes.length === 0
+			)
+			await page.keyboard.press('Shift+Enter')
+			check('Shift+Enter adds a line', (await value(page)).endsWith('\n'))
+
+			await page.keyboard.type('@Alex')
+			await popup.waitFor({ timeout: 5000 })
+			await page.keyboard.press('Escape')
+			await popup.waitFor({ state: 'detached', timeout: 5000 })
+			check(
+				'Esc closes only the list, the text stays',
+				(await value(page)).endsWith('@Alex') && (await page.getByRole('button', { name: 'All chats' }).count()) > 0
+			)
+
+			await retype(page, `@${COMPOSER_CARD}`)
+			await popup.waitFor({ timeout: 5000 })
+			await page.keyboard.press('Tab')
+			await popup.waitFor({ state: 'detached', timeout: 5000 })
+			check('Tab chooses the student too', (await bindings(page)).length === 1)
+			await field.evaluate((node) => node.setSelectionRange(5, 5))
+			await page.keyboard.type('x')
+			check(
+				'editing the name breaks the binding and says so',
+				(await bindings(page)).length === 0 && (await page.getByText(STALE).count()) === 1
+			)
+			await shot(page, 'chat-composer', 'stale')
+
+			await retype(page, `@${COMPOSER_CARD}`)
+			await popup.waitFor({ timeout: 5000 })
+			await page.keyboard.press('Enter')
+			await page.keyboard.press('Backspace')
+			await page.keyboard.press('Backspace')
+			check(
+				'one Backspace at the end of the name removes the whole name',
+				(await value(page)) === '' && (await bindings(page)).length === 0 && (await page.getByText(STALE).count()) === 0
+			)
+
+			await retype(page, '/')
+			await popup.waitFor({ timeout: 5000 })
+			const commands = await popup.getByRole('option').allInnerTexts()
+			check(
+				'/ offers only the phase 22 commands',
+				commands.length === 5 &&
+					['/today', '/tomorrow', '/payments', '/note', '/recap'].every((name) =>
+						commands.some((text) => text.startsWith(name))
+					) &&
+					!commands.some((text) => text.startsWith('/pay ') || text.startsWith('/feedback')),
+				commands.join(' | ')
+			)
+			await popup.getByRole('option').filter({ hasText: '/note' }).click()
+			await popup.getByRole('option').first().waitFor({ timeout: 5000 })
+			check('/note inserts the command and opens the student list', (await value(page)) === '/note @')
+			await shot(page, 'chat-composer', 'commands')
+
+			await retype(page, '@Zzzz')
+			await popup.getByText('No students found').waitFor({ timeout: 5000 })
+			check('no match says No students found', (await popup.getByText('Try a student name.').count()) === 1)
+
+			await page.route('**/api/students/options', (route) =>
+				route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+			)
+			await page.reload()
+			await field.waitFor({ timeout: 30000 })
+			await retype(page, '@Alex')
+			await popup.getByText('Could not load students. Try again.').waitFor({ timeout: 15000 })
+			check(
+				'a failed read is an error with Try again, not an empty list',
+				(await popup.getByRole('option').count()) === 0
+			)
+			await shot(page, 'chat-composer', 'error')
+			await page.unroute('**/api/students/options')
+			await popup.getByRole('button', { name: 'Try again' }).click()
+			await popup.getByRole('option').first().waitFor({ timeout: 15000 })
+			check('Try again loads the list and keeps the text', (await value(page)) === '@Alex')
+
+			await page.setViewportSize({ width: 375, height: 760 })
+			await retype(page, `@${COMPOSER_TWIN}`)
+			await popup.waitFor({ timeout: 5000 })
+			const box = await popup.boundingBox()
+			check(
+				'on 375px the list fits the screen',
+				box !== null && box.x >= 0 && box.x + box.width <= 375,
+				JSON.stringify(box)
+			)
+			await page.keyboard.press('Enter')
+			await quick.waitFor({ timeout: 5000 })
+			const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+			const quickBox = await quick.boundingBox()
+			check(
+				'on 375px the quick buttons fit without horizontal scroll',
+				overflow <= 0 && quickBox !== null && quickBox.x + quickBox.width <= 375,
+				`${overflow} ${JSON.stringify(quickBox)}`
+			)
+			await shot(page, 'chat-composer', 'phone')
+
+			check('nothing was sent from the composer', writes.length === 0, writes.join(' | '))
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		removeFixtures
 	)
 }
 
