@@ -62,7 +62,7 @@ export async function calendarReadFixture(request: APIRequestContext): Promise<C
 
 export function requireUncachedWindow(fixture: CalendarReadFixture): void {
 	const rows = sql(
-		`select count(*)::int as n from google_read_windows where account_id = ${quote(fixture.accountId)}::uuid and window_start = ${quote(fixture.uncachedWindowStart)}::timestamptz`
+		`select count(*)::int as n from google_sync_state where account_id = ${quote(fixture.accountId)}::uuid and window_start <= ${quote(fixture.uncachedWindowStart)}::timestamptz and window_end > ${quote(fixture.uncachedWindowStart)}::timestamptz`
 	)
-	if (integer(rows[0]?.n) !== 0) throw new Error('The unread Calendar range already has a persisted snapshot')
+	if (integer(rows[0]?.n) !== 0) throw new Error('The unread Calendar range already lies inside the synced window')
 }

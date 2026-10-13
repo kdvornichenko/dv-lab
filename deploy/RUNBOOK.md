@@ -950,3 +950,63 @@ Upsert порога требует этих трёх прав на `teacher_sett
 | `recovery_required`, `partial_recovery`                           | учитель продолжает запрос в Settings > Google Calendar > Sync кнопкой `Resume recovery`                     |
 
 Строки `google_commands` и `google_command_stages` руками не удаляются и не правятся. Назад присылается только таблица счётчиков.
+
+### 13.2. Условие выпуска синхронизации 25.1
+
+Первый полный проход на проде сверяет каждый привязанный урок с Google, поэтому выпуск ждёт живую сессию владельца на тестовом аккаунте Google (локальный стек и локальный OAuth-клиент, `scripts/dev-checks/README.md`, раздел «Живая сессия владельца»). Режима «только отчёт» нет. Выпуск разрешён, когда владелец подтвердил:
+
+- допущения провайдера A2, A3 и A6 из `25.1-RESEARCH`: копия маркера при разделении серии в Google, `originalStartTime` после правки «все события», Assign на событиях, организованных другими;
+- сценарии D-21: повтор, заведённый в Google вручную для ученика, у которого уже есть серия приложения, даёт предложение Assign и никогда не сливается с серией; две серии Google одного ученика привязываются двумя отдельными Assign; перенос мастера из Google с областями «этот и следующие» и «все» оставляет прошлые уроки и их отметки; перенос и растяжение члена серии из приложения с областями «этот», «этот и следующие», «все» оставляют прошлые отмеченные уроки и остаток на месте; то же для ученика с одной серией приложения и одним повтором Google.
+
+Назад владелец присылает только «подтверждено» по каждому пункту, без названий календарей и содержимого событий. Остальные допущения (A1, A4, A5, A7) владелец записывает по тому же списку.
+
+Серверные команды выполняет Server guy или владелец (D-12).
+
+### 13.3. Выкатка 25.1 и наблюдение
+
+Выкатка идёт по разделу 8.1 или 8.2. Этап `migrate` применяет миграции фазы: `20261012164953_google_calendar_sync` (таблицы `google_calendar_events`, `google_event_ignores`, `google_sync_state`), `20261012164959_google_calendar_sync_revoke_delete` (отзыв `DELETE, TRUNCATE` у `dvlab_app` на двух из них; на `google_calendar_events` `DELETE` остаётся) и `20261012234051_google_event_commands` (расширенный `google_commands_operation_ck`). Миграции только добавляют. `deploy.sh` перезагружает Caddy: две новые строки фильтра убирают `X-Goog-Channel-Token` и `X-Goog-Resource-Uri` из обоих журналов. Новых переменных и областей Google нет.
+
+После старта api по каждому текущему подключению идёт один полный проход. В журнале api он выглядит одной строкой `Calendar sync pass` с полями `pass` (`full`), `upserted`, `removed`, `skipped`, `truncated`, `masters`, `unseen`, `durationMs`; следом строка `Calendar inbound apply` со счётчиками `applied`, `unchanged`, `skipped_marked`, `skipped_past`, `skipped_pending`, `skipped_locked`, `failed`, если среди них есть значимые. Сбои — строки `Calendar sync pass failed` и `Calendar inbound apply failed` с `failed: 1`. В строках только счётчики.
+
+Push работает по HTTPS-пути `/api/google/notifications`, который Caddy уже проксирует; каналы регистрируются только при HTTPS в `APP_ORIGIN`, продлеваются за сутки до срока. Ночной полный проход идёт в 03:00 по зоне учителя.
+
+Наблюдение, только счётчики:
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  dc exec -T db psql -X -U dvlab_migrator -d dvlab -v ON_ERROR_STOP=1 -c "select count(*) as sync_rows, count(*) filter (where sync_token is not null) as with_token, count(*) filter (where last_full_at is not null) as with_full_pass, count(*) filter (where issue is not null) as with_issue, count(*) filter (where watch_issue is not null) as with_watch_issue, count(*) filter (where channel_id is not null) as with_channel, coalesce(max(failure_count), 0) as max_failures from google_sync_state"
+  dc exec -T db psql -X -U dvlab_migrator -d dvlab -v ON_ERROR_STOP=1 -c "select count(*) as projection_rows from google_calendar_events"
+  dc logs --no-color --no-log-prefix --since 15m api | grep -E 'Calendar (sync pass|inbound apply)' || true
+)
+```
+
+Ожидаемо: `sync_rows` равно числу текущих подключений, у каждого `with_full_pass` после первого прохода, `with_issue` и `with_watch_issue` равны нулю, `max_failures` равен нулю. Ненулевые `with_issue` и `max_failures` значат, что проход не завершается: Server guy присылает строки журнала со счётчиками и код `issue`, без данных событий.
+
+### 13.4. Откат
+
+`deploy.sh` откатывает образы и Caddy, миграции не откатывает. Обе миграции только добавляют (три таблицы и расширенный `google_commands_operation_ck`), поэтому прежний образ api работает на новой схеме, пока в `google_commands` нет строки с новой операцией (`event_create`, `event_update`, `event_delete`, `assign`): прежний код такую строку разобрать не может. Сначала счётчик:
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  APP_TAG="sha-${SHA:?}"
+  dc() { sudo env APP_TAG="$APP_TAG" docker compose -f /opt/dv-lab/repo/deploy/compose.yaml --env-file /opt/dv-lab/env/db.env "$@"; }
+  dc exec -T db psql -X -U dvlab_migrator -d dvlab -v ON_ERROR_STOP=1 -c "select count(*) as new_operations from google_commands where operation in ('event_create', 'event_update', 'event_delete', 'assign')"
+)
+```
+
+- `new_operations = 0`: откат образа api по разделу 8.2, затем Caddy, если нужно. Образы api и web возвращаются вместе на один прежний sha.
+- `new_operations > 0`: образ api не откатывается, проблема чинится новой выкаткой. Миграции руками не откатываются.
+
+### 13.5. Старые таблицы снимков
+
+Таблицы `google_read_windows`, `google_read_events` и `google_next_lessons` в этом релизе не очищаются и не удаляются: прежний образ после отката читает их. Их удаляет более поздний релиз, когда образ, который их читает, вернуться уже не может.
