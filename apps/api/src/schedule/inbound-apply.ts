@@ -3,13 +3,12 @@ import { randomUUID } from 'node:crypto'
 
 import {
 	addDays,
-	canChange,
 	cutSeries,
+	emptySeriesEnd,
+	firstOnOrAfter,
 	lastSeriesDateOnOrBefore,
-	nextSeriesDate,
 	occurrenceAt,
 	scheduleDate,
-	scheduleToday,
 	type SeriesException,
 	type SeriesRule,
 } from '@dv-lab/core'
@@ -31,15 +30,16 @@ import type { MappingRow } from '../calendar/read-state.ts'
 import { applyLessonChange, clearsMark } from './changes.ts'
 import { settleMarkAfterMove } from './marks.ts'
 import {
+	heldSeriesDates,
 	lessonColumns,
 	markOf,
 	seriesColumns,
 	seriesException,
 	seriesExceptionsFrom,
-	seriesMarksFrom,
 	toSeriesRule,
 	toSingleLesson,
 } from './rows.ts'
+import { seriesAnchor } from './series.ts'
 
 export type InboundResult =
 	'applied' | 'unchanged' | 'skipped_marked' | 'skipped_past' | 'skipped_pending' | 'skipped_locked'
@@ -290,18 +290,12 @@ function later(left: string, right: string) {
 	return left > right ? left : right
 }
 
-async function frozenThrough(tx: DbExecutor, rule: SeriesRule, now: Date): Promise<string> {
-	const open = { ...rule, endsOn: null }
-	const anchor = nextSeriesDate(open, now)
-	let frozen = anchor ? addDays(anchor, -1) : scheduleToday(now, rule.timeZone)
-	frozen = later(frozen, addDays(rule.startsOn, -1))
-	const after = addDays(frozen, 1)
-	for (const date of (await seriesMarksFrom(tx, rule.id, after)).keys()) frozen = later(frozen, date)
-	for (const exception of await seriesExceptionsFrom(tx, rule.id, after)) {
-		const occurrence = occurrenceAt(open, exception.originalOn, exception)
-		if (occurrence && !canChange(occurrence.startsAt, now)) frozen = later(frozen, exception.originalOn)
-	}
-	return frozen
+function openAnchor(tx: DbExecutor, rule: SeriesRule, connectionId: string): Promise<string | null> {
+	return seriesAnchor(tx, { ...rule, endsOn: null }, connectionId)
+}
+
+function frozenThrough(rule: SeriesRule, anchor: string | null): string {
+	return anchor === null ? (rule.endsOn ?? emptySeriesEnd(rule)) : addDays(anchor, -1)
 }
 
 function lastOn(rule: SeriesRule, endsOn: string | null): string | null {
@@ -333,13 +327,8 @@ async function retireTail(tx: DbExecutor, connectionId: string, seriesId: string
 		)
 }
 
-async function frozenTail(tx: DbExecutor, rule: SeriesRule, from: string, now: Date) {
-	if ((await seriesMarksFrom(tx, rule.id, from)).size) return true
-	const open = { ...rule, endsOn: null }
-	return (await seriesExceptionsFrom(tx, rule.id, from)).some((exception) => {
-		const occurrence = occurrenceAt(open, exception.originalOn, exception)
-		return occurrence !== null && !canChange(occurrence.startsAt, now)
-	})
+async function frozenTail(tx: DbExecutor, rule: SeriesRule, from: string) {
+	return (await heldSeriesDates(tx, rule.id, from)).size > 0
 }
 
 async function insertSeries(tx: DbExecutor, rule: Omit<SeriesRule, 'id'>) {
@@ -352,14 +341,14 @@ async function cutAt(
 	tx: DbExecutor,
 	connectionId: string,
 	rule: SeriesRule,
+	from: string | null,
 	google: MasterRule,
 	mapping: MappingRow,
 	now: Date
 ): Promise<InboundResult> {
 	const open = { ...rule, endsOn: null }
-	const from = nextSeriesDate(open, now)
 	if (!from) return UNCHANGED
-	if (await frozenTail(tx, rule, from, now)) return 'skipped_marked'
+	if (await frozenTail(tx, rule, from)) return 'skipped_marked'
 	const cut = cutSeries(
 		open,
 		await seriesExceptionsFrom(tx, rule.id, from),
@@ -389,7 +378,8 @@ async function applyMaster(
 	const rule = await lockedSeries(tx, mapping.localEntityId)
 	if (rule === 'locked') return 'skipped_locked'
 	if (!rule) return UNCHANGED
-	const frozen = await frozenThrough(tx, rule, now)
+	const anchor = await openAnchor(tx, rule, connectionId)
+	const frozen = frozenThrough(rule, anchor)
 	const google = masterSeriesRule(row, rule.timeZone)
 	if (!google) {
 		if (rule.endsOn !== null && rule.endsOn <= frozen) return UNCHANGED
@@ -400,7 +390,7 @@ async function applyMaster(
 		google.startTime !== rule.startTime ||
 		google.durationMinutes !== rule.durationMinutes
 	)
-		return cutAt(tx, connectionId, rule, google, mapping, now)
+		return cutAt(tx, connectionId, rule, anchor, google, mapping, now)
 	if (google.until === null || (rule.endsOn !== null && google.until >= rule.endsOn))
 		return setEndsOn(tx, rule, google.until)
 	return setEndsOn(tx, rule, later(google.until, rule.endsOn !== null && rule.endsOn < frozen ? rule.endsOn : frozen))
@@ -410,19 +400,17 @@ async function applySplit(
 	tx: DbExecutor,
 	connectionId: string,
 	row: ProjectionRow,
-	parent: MappingRow,
-	now: Date
+	parent: MappingRow
 ): Promise<InboundResult> {
 	const rule = await lockedSeries(tx, parent.localEntityId)
 	if (rule === 'locked') return 'skipped_locked'
 	if (!rule) return UNCHANGED
 	const google = masterSeriesRule(row, rule.timeZone)
 	if (!google) return UNCHANGED
-	const candidate = { ...google, startsOn: google.startsOn, endsOn: null }
-	const startsOn = nextSeriesDate(candidate, now)
-	if (!startsOn || (google.until !== null && google.until < startsOn)) return UNCHANGED
-	const frozen = await frozenThrough(tx, rule, now)
-	const oldEndsOn = later(addDays(google.startsOn, -1), frozen)
+	const anchor = await openAnchor(tx, rule, connectionId)
+	const startsOn = firstOnOrAfter(anchor === null ? google.startsOn : later(google.startsOn, anchor), google.weekday)
+	if (google.until !== null && google.until < startsOn) return UNCHANGED
+	const oldEndsOn = later(addDays(startsOn, -1), frozenThrough(rule, anchor))
 	if (rule.endsOn === null || rule.endsOn > oldEndsOn) await setEndsOn(tx, rule, oldEndsOn)
 	const seriesId = await insertSeries(tx, {
 		studentId: rule.studentId,
@@ -485,6 +473,6 @@ export async function applyInbound(tx: DbExecutor, item: InboundItem): Promise<I
 				? await applyOccurrence(tx, item.connectionId, row, entity, item.now)
 				: entity.kind === 'series'
 					? await applyMaster(tx, item.connectionId, row, entity.mapping, item.now)
-					: await applySplit(tx, item.connectionId, row, entity.parent, item.now)
+					: await applySplit(tx, item.connectionId, row, entity.parent)
 	return { result, stamp: result === APPLIED || result === UNCHANGED ? stamp : null }
 }

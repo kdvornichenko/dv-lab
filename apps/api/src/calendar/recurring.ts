@@ -135,14 +135,19 @@ function exclusions(lines: readonly string[], timeZone: string): Date[] | null {
 	return starts
 }
 
-export function exclusionFacts(master: EventFact, lines: readonly string[], timeZone: string, now: Date): EventFact[] {
+export function exclusionFacts(
+	master: EventFact,
+	lines: readonly string[],
+	timeZone: string,
+	notBefore: Date
+): EventFact[] {
 	if (master.status === 'cancelled' || master.recurrence?.recurrenceKind !== 'weekly' || !master.etag) return []
 	const starts = exclusions(
 		lines.filter((line) => !line.startsWith('RRULE:')),
 		timeZone
 	)
 	return (starts ?? [])
-		.filter((start) => start.getTime() >= now.getTime())
+		.filter((start) => start.getTime() >= notBefore.getTime())
 		.map((start) => ({
 			eventId: `${master.eventId}_${start
 				.toISOString()

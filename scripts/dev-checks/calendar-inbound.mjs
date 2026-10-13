@@ -848,6 +848,69 @@ commit;`)
 	return { series, master, resources, instances }
 }
 
+async function startedFixtures(db, fx) {
+	const today = core.scheduleToday(new Date(), fx.zone)
+	const first = core.addDays(today, -15)
+	const weekday = core.weekdayOf(first)
+	const series = randomUUID()
+	const instances = [0, 1, 2, 3].map((week) => {
+		const date = core.addDays(first, week * 7)
+		const startsAt = core.zonedInstant(date, '08:00', fx.zone)
+		return { date, startsAt, id: `dvinbstarted_${stamp(startsAt)}` }
+	})
+	rows(`begin;
+insert into lesson_series (id, student_id, weekday, start_time, time_zone, duration_minutes, starts_on) values (${quote(series)},
+${quote(fx.fixtureCard)}, ${weekday}, '08:00', ${quote(fx.zone)}, 60, ${quote(first)});
+insert into lesson_marks (series_id, original_on, kind) values (${quote(series)}, ${quote(instances[0].date)}, 'done'),
+(${quote(series)}, ${quote(instances[1].date)}, 'none');
+insert into google_event_mappings (account_id, connection_id, calendar_id, entity_kind, local_entity_id, student_id, event_id,
+representation_generation, command_id, state) values (${quote(fx.connection.account_id)}, ${quote(fx.connection.id)},
+${quote(fx.connection.calendar_id)}, 'series', ${quote(series)}, ${quote(fx.fixtureCard)}, 'dvinbstarted', 0, ${quote(fx.seriesCommand)}, 'active');
+commit;`)
+	const timed = (startsAt) => ({
+		start: { dateTime: googleDateTime(startsAt, fx.zone), timeZone: fx.zone },
+		end: { dateTime: googleDateTime(startsAt.getTime() + 3600000, fx.zone), timeZone: fx.zone },
+	})
+	const base = { status: 'confirmed', eventType: 'default', transparency: 'opaque', summary: 'Synthetic inbound' }
+	const master = {
+		...base,
+		id: 'dvinbstarted',
+		etag: '"inbound-started-0"',
+		updated: new Date(Date.now() - 60000).toISOString(),
+		...timed(instances[0].startsAt),
+		recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${WEEKDAYS[weekday - 1]}`],
+	}
+	const resources = instances.map((item, index) => ({
+		...base,
+		id: item.id,
+		etag: `"inbound-started-${index + 1}"`,
+		updated: new Date(Date.now() - 60000).toISOString(),
+		...timed(item.startsAt),
+		recurringEventId: 'dvinbstarted',
+		originalStartTime: { dateTime: googleDateTime(item.startsAt, fx.zone), timeZone: fx.zone },
+	}))
+	const fact = (resource) => ({
+		eventId: resource.id,
+		etag: resource.etag,
+		status: resource.status,
+		recurringEventId: resource.recurringEventId ?? null,
+		originalStartTime: resource.originalStartTime ?? null,
+		summary: resource.summary,
+		start: resource.start,
+		end: resource.end,
+		eventType: 'default',
+		transparency: 'opaque',
+		factAt: new Date(Date.now() - 60000),
+	})
+	await db.transaction((tx) =>
+		upsertEventFacts(tx, fx.target, [
+			...resources.map(fact),
+			{ ...fact(master), master: true, recurrence: classifyRecurrence(master.recurrence, fx.zone) },
+		])
+	)
+	return { series, master, resources, instances, weekday }
+}
+
 async function cutFixtures(db, fx) {
 	const today = core.scheduleToday(new Date(), fx.zone)
 	const first = core.addDays(today, -7)
@@ -923,7 +986,7 @@ function localStamp(startsAt, zone) {
 	return `${parts.date.replaceAll('-', '')}T${parts.time.replace(':', '')}00`
 }
 
-function loadGoogle(fx, extra, exclusion, cut) {
+function loadGoogle(fx, extra, exclusion, cut, started) {
 	const google = createGoogle(fx.zone)
 	const bound = rows(
 		`select event_id from google_calendar_events where connection_id = ${quote(fx.connection.id)}
@@ -936,7 +999,7 @@ and (event_id in (${quote(fx.singleEvent)}, ${quote(fx.masterEvent)}) or recurri
 		else google.items.set(id, resource)
 		google.originals.set(id, resource)
 	}
-	for (const fixture of [extra, exclusion, cut]) {
+	for (const fixture of [extra, exclusion, cut, started]) {
 		google.masters.set(fixture.master.id, fixture.master)
 		for (const resource of fixture.resources) {
 			google.items.set(resource.id, resource)
@@ -973,7 +1036,8 @@ async function inboundSection(db, fx) {
 	const extra = await pastFixtures(db, fx)
 	const exclusion = await exclusionFixtures(db, fx)
 	const cut = await cutFixtures(db, fx)
-	const google = loadGoogle(fx, extra, exclusion, cut)
+	const started = await startedFixtures(db, fx)
+	const google = loadGoogle(fx, extra, exclusion, cut, started)
 	const notes = []
 	let crash = false
 	const sync = startSync(db, fx, google, notes, {
@@ -1094,11 +1158,15 @@ async function inboundSection(db, fx) {
 			`select count(*)::int as n from lesson_marks where series_id = ${quote(extra.past)} and original_on = ${quote(marked.date)}`
 		)[0].n
 		const untilOk =
-			ended.ends_on !== null && ended.ends_on >= extra.instances[3].date && ended.ends_on < future.date && markRow === 1
+			ended.ends_on !== null &&
+			ended.ends_on >= marked.date &&
+			ended.ends_on < extra.instances[3].date &&
+			ended.ends_on < future.date &&
+			markRow === 1
 		console.log(
-			`inbound 7 master UNTIL shortened into the past: ends_on_set ${ended.ends_on !== null} keeps_started ${ended.ends_on >= extra.instances[3].date} drops_future ${ended.ends_on < future.date} mark_kept ${markRow === 1}`
+			`inbound 7 master UNTIL shortened into the past: ends_on_set ${ended.ends_on !== null} keeps_done ${ended.ends_on >= marked.date} drops_started_with_none_mark ${ended.ends_on < extra.instances[3].date} drops_future ${ended.ends_on < future.date} mark_kept ${markRow === 1}`
 		)
-		if (!untilOk) fail('inbound 7', 'a shortened UNTIL cut a started or marked occurrence or kept the future')
+		if (!untilOk) fail('inbound 7', 'a shortened UNTIL cut a done occurrence or kept a started unmarked or future one')
 		steady('inbound 7')
 
 		const seriesBefore = counts().series
@@ -1123,15 +1191,16 @@ async function inboundSection(db, fx) {
 			moved.local_entity_id !== extra.past &&
 			replacement.start_time === '11:00' &&
 			replacement.weekday === extra.weekday &&
-			replacement.starts_on === future.date &&
+			replacement.starts_on === extra.instances[3].date &&
 			replacement.ends_on === null &&
 			old.ends_on !== null &&
-			old.ends_on < future.date &&
+			old.ends_on >= marked.date &&
+			old.ends_on < extra.instances[3].date &&
 			exceptionsOf(moved.local_entity_id).length === 0 &&
 			rows(`select count(*)::int as n from lesson_marks where series_id = ${quote(extra.past)} and kind = 'done'`)[0]
 				.n === 1
 		console.log(
-			`inbound 8 master time changed: series +${counts().series - seriesBefore} mapping_moved ${moved.local_entity_id !== extra.past} new_start ${replacement.start_time} from_first_changeable ${replacement.starts_on === future.date} old_ends ${old.ends_on !== null} mark_kept true`
+			`inbound 8 master time changed: series +${counts().series - seriesBefore} mapping_moved ${moved.local_entity_id !== extra.past} new_start ${replacement.start_time} from_first_unmarked_after_done ${replacement.starts_on === extra.instances[3].date} old_ends_after_done ${old.ends_on !== null && old.ends_on >= marked.date} mark_kept true`
 		)
 		if (!cutOk) fail('inbound 8', 'a changed master time did not cut the series into a new row')
 		steady('inbound 8')
@@ -1317,6 +1386,11 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 		const exMarks = rows(
 			`select count(*)::int as n from lesson_marks where series_id = ${quote(exclusion.series)} and kind = 'done'`
 		)[0].n
+		const exCancelled =
+			exList.length === 2 &&
+			exList[0].original_on === startedEx.date &&
+			exList[1].original_on === cancelledEx.date &&
+			exList.every((row) => row.kind === 'cancelled')
 		const exOk =
 			kinds.exdate === 'weekly' &&
 			kinds.dateOnly === 'other' &&
@@ -1325,18 +1399,19 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 			exMaster.recurrence_kind === 'weekly' &&
 			exBefore.ends_on === null &&
 			exAfter.ends_on === null &&
-			exList.length === 1 &&
-			exList[0].original_on === cancelledEx.date &&
-			exList[0].kind === 'cancelled' &&
+			exCancelled &&
 			exRow.status === 'cancelled' &&
-			exPass.inbound?.skipped_marked >= 1 &&
+			exPass.inbound?.skipped_marked >= 2 &&
 			!stamped(fx, markedEx.id) &&
+			!stamped(fx, pastMarkedEx.id) &&
+			stamped(fx, startedEx.id) &&
 			stamped(fx, cancelledEx.id) &&
 			exMarks === 2
 		console.log(
-			`inbound 16 master with EXDATE: kinds exdate ${kinds.exdate} date_only ${kinds.dateOnly} rdate ${kinds.rdate} interval ${kinds.interval} series_alive ${exAfter.ends_on === null} cancelled_only_excluded ${exList.length === 1 && exList[0]?.original_on === cancelledEx.date && exList[0]?.kind === 'cancelled'} marked_frozen ${exPass.inbound?.skipped_marked >= 1 && !stamped(fx, markedEx.id)} marks ${exMarks}`
+			`inbound 16 master with EXDATE: kinds exdate ${kinds.exdate} date_only ${kinds.dateOnly} rdate ${kinds.rdate} interval ${kinds.interval} series_alive ${exAfter.ends_on === null} cancelled_started_and_future_unmarked ${exCancelled} done_frozen ${exPass.inbound?.skipped_marked >= 2 && !stamped(fx, markedEx.id) && !stamped(fx, pastMarkedEx.id)} marks ${exMarks}`
 		)
-		if (!exOk) fail('inbound 16', 'an EXDATE on a lesson master did not cancel only the excluded future occurrence')
+		if (!exOk)
+			fail('inbound 16', 'an EXDATE on a lesson master did not cancel exactly the excluded occurrences without done')
 		steady('inbound 16')
 
 		const timedAt = (date, time) => {
@@ -1413,9 +1488,44 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 			fail('inbound 17', 'a Google split of a series cut by a Google time change was not bound automatically')
 		steady('inbound 17')
 
+		const startedBefore = counts().series
+		const [startedDone, startedNone, startedLast] = started.instances
+		google.put({ ...started.master, ...timedAt(startedDone.date, '09:00') })
+		await drive(
+			sync,
+			fx,
+			google,
+			notes,
+			started.instances.map((item) => google.moved(item.id, core.zonedInstant(item.date, '09:00', fx.zone), 60))
+		)
+		const [startedMapping] = rows(
+			`select local_entity_id from google_event_mappings where connection_id = ${quote(fx.connection.id)} and event_id = 'dvinbstarted' and state = 'active'`
+		)
+		const startedNew = startedMapping ? seriesOf(startedMapping.local_entity_id) : null
+		const startedOld = seriesOf(started.series)
+		const [startedMark] = rows(
+			`select kind from lesson_marks where series_id = ${quote(started.series)} and original_on = ${quote(startedDone.date)}`
+		)
+		const followOk =
+			counts().series === startedBefore + 1 &&
+			startedMapping?.local_entity_id !== started.series &&
+			startedNew?.starts_on === startedNone.date &&
+			startedNew.start_time === '09:00' &&
+			startedLast.date >= startedNew.starts_on &&
+			startedOld.start_time === '08:00' &&
+			startedOld.ends_on === core.addDays(startedNone.date, -1) &&
+			startedMark?.kind === 'done' &&
+			exceptionsOf(started.series).length === 0
+		console.log(
+			`inbound 18 master time changed with done and started unmarked occurrences: series +${counts().series - startedBefore} new_from_first_unmarked ${startedNew?.starts_on === startedNone.date} new_time ${startedNew?.start_time} done_kept_on_old_time ${startedOld.start_time === '08:00' && startedOld.ends_on === core.addDays(startedNone.date, -1)} done_mark ${startedMark?.kind}`
+		)
+		if (!followOk)
+			fail('inbound 18', 'a Google time change did not move started unmarked occurrences or moved the done one')
+		steady('inbound 18')
+
 		const end = counts()
 		console.log(
-			`inbound 18 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
+			`inbound 19 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
 		)
 	} finally {
 		await sync.close()
