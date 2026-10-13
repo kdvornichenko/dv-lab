@@ -1778,15 +1778,16 @@ async function sectionStream() {
 				await shot(page, 'chat-stream', 'done')
 
 				await field.click()
+				const repliesBefore = await page.locator(REPLY_TEXT).count()
 				await page.keyboard.type('Another plan please')
 				await page.keyboard.press('Enter')
 				await page.locator(STOP).waitFor({ timeout: 15000 })
 				await page.waitForFunction(
-					(selector) => {
+					({ selector, before }) => {
 						const items = document.querySelectorAll(selector)
-						return (items[items.length - 1]?.textContent ?? '').length > 10
+						return items.length > before && (items[items.length - 1]?.textContent ?? '').length > 10
 					},
-					REPLY_TEXT,
+					{ selector: REPLY_TEXT, before: repliesBefore },
 					{ timeout: 15000 }
 				)
 				await page.locator(STOP).click()
