@@ -921,7 +921,11 @@ async function sectionComposer() {
 			await field.waitFor({ timeout: 30000 })
 			await page.waitForTimeout(500)
 			const readsOnOpen = reads.length
-			check('the screen reads /students/options once on open', readsOnOpen === 1, String(readsOnOpen))
+			check(
+				'the screen reads /students/options on open, at most twice under StrictMode in next dev',
+				readsOnOpen >= 1 && readsOnOpen <= 2,
+				String(readsOnOpen)
+			)
 
 			await retype(page, `@${COMPOSER_TWIN}`)
 			const popup = page.locator(POPUP)
