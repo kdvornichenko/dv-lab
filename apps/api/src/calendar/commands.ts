@@ -6,6 +6,7 @@ import { googleConnections, type Database } from '@dv-lab/db'
 
 import { checkCalendarConflicts } from '../schedule/calendar-conflicts.ts'
 import { prepareScheduleCommand } from '../schedule/command-plan.ts'
+import { admitAssign } from './assign.ts'
 import { admitEventCommand, isEventCommand } from './event-commands.ts'
 import { CalendarFault, type GoogleGateway } from './gateway.ts'
 import { currentConnection, type CalendarAccess, type Credentials } from './google-access.ts'
@@ -37,8 +38,10 @@ export function createCalendarCommands(deps: {
 	): Promise<CalendarCommandReceipt> {
 		const existing = await findRequest(deps.db, context.accountId, input.input.requestId)
 		if (existing) return matchingReceipt(existing, input)
-		if (isEventCommand(input)) {
-			const admitted = await deps.db.transaction((tx) => admitEventCommand(tx, input, context))
+		if (isEventCommand(input) || input.operation === 'assign') {
+			const admitted = await deps.db.transaction((tx) =>
+				input.operation === 'assign' ? admitAssign(tx, input, context) : admitEventCommand(tx, input, context)
+			)
 			await deps.wake(admitted.commandId).catch(() => undefined)
 			return admitted
 		}

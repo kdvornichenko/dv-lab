@@ -300,7 +300,7 @@ export type LocalRow =
 	| { kind: 'single'; mapping: MappingRow; row: ProjectionRow }
 	| { kind: 'series'; mapping: MappingRow; row: ProjectionRow; rule: SeriesRule; natural: Date }
 
-const LESSON_MARKERS = ['single', 'series', 'occurrence']
+export const LESSON_MARKERS = ['single', 'series', 'occurrence']
 
 export function boundRowCondition(connectionId: string): SQL {
 	const active = sql`${googleEventMappings.connectionId} = ${connectionId} and ${googleEventMappings.state} = 'active'`

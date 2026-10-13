@@ -1,6 +1,8 @@
 import { Hono, type Context } from 'hono'
 
 import {
+	assignCalendarEventRequest,
+	ignoreCalendarEventRequest,
 	googleCallbackQuery,
 	googleConnectRequest,
 	googleConfirmRevokedRequest,
@@ -23,6 +25,7 @@ import { scheduleDate } from '@dv-lab/core'
 import { readSnapshot, type Database, type DbExecutor } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { ignoreEvent } from '../calendar/assign.ts'
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { ConnectionControl } from '../calendar/connection-control.ts'
 import type { CalendarConnection } from '../calendar/connection.ts'
@@ -181,6 +184,33 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 			const context = { accountId: actor(c).accountId, now: new Date() }
 			const command = { operation: 'event_delete' as const, eventKey: params.data.eventKey, input }
 			return c.json(await commands.submitCalendarCommand(context, command), 202)
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.post('/events/:eventKey/assign', async (c) => {
+		const params = googleEventKeyParams.safeParse(c.req.param())
+		if (!params.success) return c.json(errorBody('not_found', 'Not Found'), 404)
+		const input = await readJson(c, assignCalendarEventRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (!commands || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			const context = { accountId: actor(c).accountId, now: new Date() }
+			const command = { operation: 'assign' as const, eventKey: params.data.eventKey, input }
+			return c.json(await commands.submitCalendarCommand(context, command), 202)
+		} catch (error) {
+			return refusal(c, error)
+		}
+	})
+	routes.post('/events/:eventKey/ignore', async (c) => {
+		const params = googleEventKeyParams.safeParse(c.req.param())
+		if (!params.success) return c.json(errorBody('not_found', 'Not Found'), 404)
+		const input = await readJson(c, ignoreCalendarEventRequest)
+		if (!input) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
+		if (isStopping()) return refusal(c, null)
+		try {
+			await ignoreEvent(db, actor(c).accountId, params.data.eventKey, input)
+			return c.body(null, 204)
 		} catch (error) {
 			return refusal(c, error)
 		}

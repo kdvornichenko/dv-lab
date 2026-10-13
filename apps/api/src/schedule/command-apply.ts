@@ -1,8 +1,10 @@
 import { and, eq, sql } from 'drizzle-orm'
 
+import { seriesStart } from '@dv-lab/core'
 import {
 	googleCommands,
 	googleConnections,
+	googleEventMappings,
 	lessons,
 	lessonSeries,
 	type DbExecutor,
@@ -52,6 +54,8 @@ export async function applyConfirmedCommand(
 		throw new CommandFault('precondition_failed')
 	if (input.operation === 'create') {
 		await applyCreation(tx, command, input, confirmation.acknowledgement)
+	} else if (input.operation === 'assign') {
+		await applyAssignment(tx, command, input, confirmation.acknowledgement)
 	} else {
 		await applySingle(tx, command)
 		if (command.request.method === 'insert')
@@ -110,6 +114,75 @@ async function applyCreation(
 		})
 	}
 	await confirmEventMapping(tx, command.accountId, command.id, event.eventId)
+}
+
+async function applyAssignment(
+	tx: DbExecutor,
+	command: PreparedCalendarCommand,
+	input: Extract<GoogleCommandPlan['input'], { operation: 'assign' }>,
+	ack: WriteAcknowledgement
+) {
+	const event = confirmedEvent(ack)
+	const markers = command.request.payload.markers
+	const series = input.scope === 'series'
+	const id = markers.localEntityId
+	if (
+		event.eventId !== input.eventId ||
+		command.request.eventId !== input.eventId ||
+		markers.entityKind !== (series ? 'series' : 'single') ||
+		ack.kind !== (series ? 'master' : 'event') ||
+		!event.start ||
+		!('dateTime' in event.start) ||
+		!event.end ||
+		!('dateTime' in event.end)
+	)
+		throw new CommandFault('precondition_failed')
+	if (series) {
+		const [existing] = await tx
+			.select({ studentId: lessonSeries.studentId })
+			.from(lessonSeries)
+			.where(eq(lessonSeries.id, id))
+			.for('update')
+		const rule = command.plan.capturedRule
+		if (existing) {
+			if (existing.studentId !== input.studentId) throw new CommandFault('precondition_failed')
+		} else {
+			if (!rule || seriesStart(rule, rule.startsOn)?.getTime() !== Date.parse(event.start.dateTime))
+				throw new CommandFault('precondition_failed')
+			await tx.insert(lessonSeries).values({ id, studentId: input.studentId, ...rule })
+		}
+	} else {
+		const [existing] = await tx
+			.select({ studentId: lessons.studentId })
+			.from(lessons)
+			.where(eq(lessons.id, id))
+			.for('update')
+		if (existing) {
+			if (existing.studentId !== input.studentId) throw new CommandFault('precondition_failed')
+		} else {
+			const startsAt = new Date(event.start.dateTime)
+			await tx.insert(lessons).values({
+				id,
+				studentId: input.studentId,
+				startsAt,
+				timeZone: event.start.timeZone,
+				durationMinutes: Math.round((Date.parse(event.end.dateTime) - startsAt.getTime()) / 60000),
+				status: event.status === 'cancelled' ? 'cancelled' : 'scheduled',
+			})
+		}
+	}
+	await tx.insert(googleEventMappings).values({
+		accountId: command.accountId,
+		connectionId: command.connectionId,
+		calendarId: command.calendarId,
+		entityKind: series ? 'series' : 'single',
+		localEntityId: id,
+		studentId: input.studentId,
+		eventId: input.eventId,
+		representationGeneration: markers.representationGeneration,
+		commandId: command.id,
+		state: 'active',
+	})
 }
 
 async function applySingle(tx: DbExecutor, command: PreparedCalendarCommand) {

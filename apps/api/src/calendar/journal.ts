@@ -45,7 +45,8 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		command.operation !== 'end_series' &&
 		command.operation !== 'event_create' &&
 		command.operation !== 'event_update' &&
-		command.operation !== 'event_delete'
+		command.operation !== 'event_delete' &&
+		command.operation !== 'assign'
 	)
 		throw new CommandFault('precondition_failed')
 	const prepared: PreparedCalendarCommand = { ...command, plan, request, operation: command.operation }
