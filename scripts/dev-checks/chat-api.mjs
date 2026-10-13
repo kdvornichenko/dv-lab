@@ -2115,7 +2115,7 @@ async function sectionModels(ctx) {
 	const fake = await startFakeProviderApi()
 	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
 	const original = sql(
-		`select chat_models as models, chat_model as model, chat_effort as effort from teacher_settings where account_id = ${quote(accountId)}`
+		`select chat_models as models, chat_model as model, chat_effort as effort, chat_monthly_cap_usd::text as cap from teacher_settings where account_id = ${quote(accountId)}`
 	).rows[0]
 	const clearBudget = () => {
 		sql(`delete from chat_usage_attempts where account_id = ${quote(accountId)}`)
@@ -2353,6 +2353,42 @@ async function sectionModels(ctx) {
 			JSON.stringify(next.json?.turn)
 		)
 		await as('POST', `/chat/turns/${next.json.turn.id}/stop`, {})
+		await as('PATCH', '/settings/assistant', { monthlyCapUsd: '0.01' })
+		const capped = await as('GET', '/settings/assistant')
+		check(
+			'a cap below the held reserve is the reached state',
+			capped.json.budget.state === 'reached',
+			capped.json.budget.state
+		)
+		const quick = await as('POST', `/chat/conversations/${runningId}/messages`, {
+			requestId: randomUUID(),
+			text: '/today',
+			mentions: [],
+		})
+		check(
+			'a quick form still answers at the cap and is not a refusal',
+			quick.status === 201 && quick.json.turn === null && quick.json.messages[1].blocks[0]?.type !== 'refused',
+			JSON.stringify(quick.json?.messages?.[1]?.blocks?.[0]?.type)
+		)
+		const paid = await as('POST', `/chat/conversations/${runningId}/messages`, {
+			requestId: randomUUID(),
+			text: 'Plan the next lesson',
+			mentions: [],
+		})
+		let ended = paid.json.turn
+		for (let attempt = 0; ended && ['accepted', 'running'].includes(ended.state) && attempt < 50; attempt++) {
+			await new Promise((resolve) => setTimeout(resolve, 100))
+			ended = (await as('GET', `/chat/turns/${ended.id}`)).json.turn
+		}
+		const answer = (await as('GET', `/chat/conversations/${runningId}`)).json.messages.at(-1)
+		check(
+			'a paid question at the cap ends without an answer and with a refusal block',
+			paid.status === 201 &&
+				answer.role === 'assistant' &&
+				answer.body === '' &&
+				answer.blocks.some((block) => block.type === 'refused'),
+			JSON.stringify(answer.blocks.map((block) => block.type))
+		)
 		check(
 			'api log has no key and no fixture name',
 			!fake.logs().includes('sk-ant-fake-check') && !fake.logs().includes('Alex Example')
@@ -2360,6 +2396,8 @@ async function sectionModels(ctx) {
 		return 'CHAT_MODELS_OK'
 	} finally {
 		await fake.stop()
+		if (original?.cap)
+			sql(`update teacher_settings set chat_monthly_cap_usd = ${original.cap} where account_id = ${quote(accountId)}`)
 		sql(
 			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
 		)

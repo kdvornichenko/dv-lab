@@ -2170,7 +2170,7 @@ async function sectionModels() {
 				const chat = page.locator('[data-slot="chat-model-card"]')
 				await chat.getByRole('combobox').first().click()
 				await page.getByRole('option', { name: /^Sonnet 5\.5/ }).click()
-				await page.getByText('Saved').first().waitFor({ timeout: 15000 })
+				await page.getByText(/^Chat model: Sonnet 5\.5/).waitFor({ timeout: 15000 })
 				await page.goto(`${BASE}/chat?c=${conversationId}`)
 				await page.locator(MODEL_CHIP).waitFor({ timeout: 30000 })
 				check(
@@ -2273,7 +2273,11 @@ async function sectionModels() {
 				await shot(page, 'chat-models', 'reached')
 				await page.goto(`${BASE}/students`)
 				await page.getByRole('heading', { name: 'Students', level: 1 }).waitFor({ timeout: 30000 })
-				check('the rest of the app keeps working at the cap', true)
+				check(
+					'the rest of the app keeps working at the cap',
+					(await page.getByRole('heading', { name: 'Students', level: 1 }).isVisible()) &&
+						(await page.locator(MODEL_CHIP).count()) === 0
+				)
 
 				sql(`update chat_budget_periods set spent_nano = 0, held_nano = 0 where id = '${periodId}'`)
 				await page.setViewportSize({ width: 375, height: 800 })
