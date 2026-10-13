@@ -19,6 +19,7 @@ const sections = {
 	comments: sectionComments,
 	composer: sectionComposer,
 	actions: sectionActions,
+	calendar: sectionCalendar,
 }
 
 function removeFixtures() {
@@ -1244,6 +1245,184 @@ async function sectionActions() {
 			check('a reload shows the same undone result', (await page.locator(RESULT).count()) === 1)
 			await shot(page, 'chat-actions', 'undone')
 
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		() => removeConversations(conversationIds),
+		removeFixtures
+	)
+}
+
+const CALENDAR_CARD = 'Alex Example 2219'
+const CHANGE = '[data-slot="chat-calendar-change"]'
+const WAITING = 'Waiting for Google Calendar to confirm this change…'
+const ACCEPTED = 'Google Calendar accepted the change. Updating the schedule…'
+const UNKNOWN = 'This calendar change has not been confirmed. Check its status before trying another change.'
+const REFUSED = 'Google Calendar did not accept the change. Nothing was changed.'
+const PENDING_LINE = 'Earlier calendar requests need recovery before you can make new changes.'
+
+function proposal(actionId) {
+	const tomorrow = core.addDays(core.scheduleToday(new Date(), VN), 1)
+	return {
+		type: 'calendar_proposal',
+		actionId,
+		operation: 'move',
+		studentName: CALENDAR_CARD,
+		timeZone: VN,
+		lesson: {
+			key: `l:${randomUUID()}`,
+			startsAt: core.zonedInstant(tomorrow, '10:00', VN).toISOString(),
+			durationMinutes: 60,
+		},
+		target: { kind: 'lesson', startsAt: core.zonedInstant(tomorrow, '18:00', VN).toISOString(), durationMinutes: 60 },
+		clearsNoShow: false,
+		state: 'proposed',
+		undo: null,
+	}
+}
+
+async function proposeIn(page, text) {
+	const field = page.locator(FIELD)
+	await field.click()
+	await page.keyboard.type(`@${CALENDAR_CARD}`)
+	await page.locator(POPUP).waitFor({ timeout: 15000 })
+	await page.keyboard.press('Enter')
+	await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+	await page.keyboard.type(text)
+	const sent = page.waitForResponse((response) => isPost(response, '/messages'))
+	await page.locator(SEND).click()
+	await sent
+	return page.locator(CHANGE).last()
+}
+
+async function sectionCalendar() {
+	removeFixtures()
+	const conversationIds = []
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ page, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			await createCard(page, CALENDAR_CARD)
+			const writes = []
+			page.on('request', (request) => {
+				if (request.method() !== 'GET' && /\/api\/(schedule|google)\//.test(request.url())) writes.push(request.url())
+			})
+			let conversation = null
+			const blocks = []
+			const created = page.waitForResponse((response) => isPost(response, '/api/chat/conversations'))
+			await page.route('**/api/chat/conversations/*/messages', async (route) => {
+				conversation ??= (await (await created).json()).conversation
+				if (conversation?.id && !conversationIds.includes(conversation.id)) conversationIds.push(conversation.id)
+				const body = route.request().postDataJSON()
+				const block = proposal(randomUUID())
+				blocks.push(block)
+				const now = new Date().toISOString()
+				return route.fulfill({
+					status: 201,
+					json: {
+						conversation,
+						messages: [
+							{
+								id: randomUUID(),
+								role: 'teacher',
+								body: body.text,
+								mentions: body.mentions,
+								blocks: [],
+								createdAt: now,
+							},
+							{ id: randomUUID(), role: 'assistant', body: '', mentions: [], blocks: [block], createdAt: now },
+						],
+					},
+				})
+			})
+			const confirms = []
+			const checks = []
+			const answers = { confirm: [], check: [] }
+			await page.route('**/api/chat/actions/*/confirm', (route) => {
+				confirms.push(route.request().url())
+				const next = answers.confirm.shift()
+				return route.fulfill({ status: 202, json: { block: next } })
+			})
+			await page.route('**/api/chat/actions/*/check', (route) => {
+				checks.push(route.request().url())
+				const next = answers.check.shift() ?? answers.last
+				return route.fulfill({ status: 200, json: { block: next } })
+			})
+
+			await openChat(page, null)
+			await page.locator(FIELD).waitFor({ timeout: 30000 })
+			const first = await proposeIn(page, ' moved to tomorrow 18:00')
+			await first.waitFor({ timeout: 15000 })
+			const shownFirst = await first.innerText()
+			check(
+				'the proposal shows Move, Was and Now with Confirm and Keep and nothing is written',
+				shownFirst.includes(`Move ${CALENDAR_CARD}'s lesson?`) &&
+					shownFirst.includes('Was') &&
+					shownFirst.includes('Now') &&
+					(await first.getByRole('button', { name: 'Confirm' }).count()) === 1 &&
+					(await first.getByRole('button', { name: 'Keep' }).count()) === 1 &&
+					confirms.length === 0,
+				shownFirst
+			)
+			await shot(page, 'chat-calendar', 'proposed')
+
+			const block = blocks[0]
+			answers.confirm.push({ ...block, state: 'pending' })
+			answers.check.push({ ...block, state: 'pending', accepted: true })
+			answers.last = { ...block, state: 'applied', undo: 'available' }
+			await first.getByRole('button', { name: 'Confirm' }).click()
+			await first.getByText(WAITING).waitFor({ timeout: 15000 })
+			check('Confirm waits for Google without Saved', !(await first.innerText()).includes('Saved.'))
+			await shot(page, 'chat-calendar', 'pending')
+			await first.getByText(ACCEPTED).waitFor({ timeout: 15000 })
+			check('accepted by Google is not Saved yet', !(await first.innerText()).includes('Saved.'))
+			await first.getByText('Saved.').waitFor({ timeout: 15000 })
+			check(
+				'applied shows Saved, the saved line and Undo',
+				(await first.innerText()).includes('Calendar change saved.') &&
+					(await first.getByRole('button', { name: 'Undo: Calendar change saved' }).count()) === 1 &&
+					checks.length >= 2
+			)
+			await shot(page, 'chat-calendar', 'saved')
+
+			const second = await proposeIn(page, ' moved to tomorrow 18:00')
+			await second.waitFor({ timeout: 15000 })
+			const unknown = blocks[1]
+			answers.confirm.push({ ...unknown, state: 'unknown' })
+			answers.check.push({ ...unknown, state: 'applied', undo: 'available' })
+			answers.last = { ...unknown, state: 'applied', undo: 'available' }
+			const checksBefore = checks.length
+			await second.getByRole('button', { name: 'Confirm' }).click()
+			await second.getByText(UNKNOWN).waitFor({ timeout: 15000 })
+			await page.waitForTimeout(2500)
+			check('an unknown result asks for Check status and sends nothing by itself', checks.length === checksBefore)
+			await second.getByRole('button', { name: 'Check status' }).click()
+			await second.getByText('Saved.').waitFor({ timeout: 15000 })
+			check('Check status turns into Saved only when the block is applied', checks.length === checksBefore + 1)
+			await shot(page, 'chat-calendar', 'unknown-checked')
+
+			const third = await proposeIn(page, ' moved to tomorrow 18:00')
+			await third.waitFor({ timeout: 15000 })
+			answers.confirm.push({ ...blocks[2], state: 'failed', issue: 'command_pending' })
+			await third.getByRole('button', { name: 'Confirm' }).click()
+			const refused = page.locator(`${CHANGE}[data-state="failed"]`).last()
+			await refused.waitFor({ timeout: 15000 })
+			const refusedText = await refused.innerText()
+			check(
+				'failed command_pending says nothing was changed and why',
+				refusedText.includes(REFUSED) && refusedText.includes(PENDING_LINE),
+				refusedText
+			)
+			await shot(page, 'chat-calendar', 'failed')
+
+			const fourth = await proposeIn(page, ' moved to tomorrow 18:00')
+			await fourth.waitFor({ timeout: 15000 })
+			await fourth.getByRole('button', { name: 'Keep' }).click()
+			await page.locator(`${CHANGE}[data-state="kept"]`).waitFor({ timeout: 15000 })
+			check('Keep collapses the proposal and sends nothing', confirms.length === 3)
+
+			check('the block never writes to schedule or Google routes', writes.length === 0, writes.join(' | '))
 			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 		},

@@ -1288,10 +1288,10 @@ async function sectionActions(ctx) {
 		const moved = await post(message(randomUUID(), 'moved to tomorrow 18:00'))
 		const cancelled = await post(message(randomUUID(), `didn't happen ${yesterday}`))
 		check(
-			'"moved to" and "didn\'t happen" answer P12 out_of_phase',
+			'"moved to" and "didn\'t happen" answer connection_required on an api without Google',
 			replyBlock(moved)?.type === 'refused' &&
-				replyBlock(moved)?.code === 'out_of_phase' &&
-				replyBlock(cancelled)?.code === 'out_of_phase'
+				replyBlock(moved)?.code === 'connection_required' &&
+				replyBlock(cancelled)?.code === 'connection_required'
 		)
 		const free = await post(message(randomUUID(), 'how is the reading going?'))
 		const plain = await post({ requestId: randomUUID(), text: 'What should we do next week?', mentions: [] })
@@ -1430,15 +1430,19 @@ async function sectionActions(ctx) {
 const section = process.argv[2]
 const run = SECTIONS[section]
 
-if (section === 'target') {
-	const child = spawnSync(process.execPath, [new URL('./chat-target.mjs', import.meta.url).pathname], {
+const CHILDREN = { target: './chat-target.mjs', calendar: './chat-calendar.mjs' }
+
+if (section in CHILDREN) {
+	const child = spawnSync(process.execPath, [new URL(CHILDREN[section], import.meta.url).pathname], {
 		stdio: 'inherit',
 	})
 	process.exit(child.status ?? 1)
 }
 
 if (!run) {
-	console.log(`usage: node scripts/dev-checks/chat-api.mjs ${[...Object.keys(SECTIONS), 'target'].join('|')}`)
+	console.log(
+		`usage: node scripts/dev-checks/chat-api.mjs ${[...Object.keys(SECTIONS), ...Object.keys(CHILDREN)].join('|')}`
+	)
 	process.exit(2)
 }
 
