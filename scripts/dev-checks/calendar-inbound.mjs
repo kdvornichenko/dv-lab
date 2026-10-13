@@ -778,7 +778,75 @@ commit;`)
 	return { past, pastSingle, markedSingle, instances, master, resources, first, weekday }
 }
 
-function loadGoogle(fx, extra) {
+async function exclusionFixtures(db, fx) {
+	const today = core.scheduleToday(new Date(), fx.zone)
+	const first = core.addDays(today, -15)
+	const weekday = core.weekdayOf(first)
+	const series = randomUUID()
+	const instances = [0, 1, 2, 3, 4].map((week) => {
+		const date = core.addDays(first, week * 7)
+		const startsAt = core.zonedInstant(date, '09:00', fx.zone)
+		return { date, startsAt, id: `dvinbexdate_${stamp(startsAt)}` }
+	})
+	rows(`begin;
+insert into lesson_series (id, student_id, weekday, start_time, time_zone, duration_minutes, starts_on) values (${quote(series)},
+${quote(fx.fixtureCard)}, ${weekday}, '09:00', ${quote(fx.zone)}, 60, ${quote(first)});
+insert into lesson_marks (series_id, original_on, kind) values (${quote(series)}, ${quote(instances[1].date)}, 'done'),
+(${quote(series)}, ${quote(instances[3].date)}, 'done');
+insert into google_event_mappings (account_id, connection_id, calendar_id, entity_kind, local_entity_id, student_id, event_id,
+representation_generation, command_id, state) values (${quote(fx.connection.account_id)}, ${quote(fx.connection.id)},
+${quote(fx.connection.calendar_id)}, 'series', ${quote(series)}, ${quote(fx.fixtureCard)}, 'dvinbexdate', 0, ${quote(fx.seriesCommand)}, 'active');
+commit;`)
+	const timed = (startsAt) => ({
+		start: { dateTime: startsAt.toISOString(), timeZone: fx.zone },
+		end: { dateTime: new Date(startsAt.getTime() + 3600000).toISOString(), timeZone: fx.zone },
+	})
+	const base = { status: 'confirmed', eventType: 'default', transparency: 'opaque', summary: 'Synthetic inbound' }
+	const master = {
+		...base,
+		id: 'dvinbexdate',
+		etag: '"inbound-exdate-0"',
+		updated: new Date(Date.now() - 60000).toISOString(),
+		...timed(instances[0].startsAt),
+		recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${WEEKDAYS[weekday - 1]}`],
+	}
+	const resources = instances.map((item, index) => ({
+		...base,
+		id: item.id,
+		etag: `"inbound-exdate-${index + 1}"`,
+		updated: new Date(Date.now() - 60000).toISOString(),
+		...timed(item.startsAt),
+		recurringEventId: 'dvinbexdate',
+		originalStartTime: { dateTime: item.startsAt.toISOString(), timeZone: fx.zone },
+	}))
+	const fact = (resource) => ({
+		eventId: resource.id,
+		etag: resource.etag,
+		status: resource.status,
+		recurringEventId: resource.recurringEventId ?? null,
+		originalStartTime: resource.originalStartTime ?? null,
+		summary: resource.summary,
+		start: resource.start,
+		end: resource.end,
+		eventType: 'default',
+		transparency: 'opaque',
+		factAt: new Date(Date.now() - 60000),
+	})
+	await db.transaction((tx) =>
+		upsertEventFacts(tx, fx.target, [
+			...resources.map(fact),
+			{ ...fact(master), master: true, recurrence: classifyRecurrence(master.recurrence, fx.zone) },
+		])
+	)
+	return { series, master, resources, instances }
+}
+
+function localStamp(startsAt, zone) {
+	const parts = core.zonedParts(startsAt, zone)
+	return `${parts.date.replaceAll('-', '')}T${parts.time.replace(':', '')}00`
+}
+
+function loadGoogle(fx, extra, exclusion) {
 	const google = createGoogle(fx.zone)
 	const bound = rows(
 		`select event_id from google_calendar_events where connection_id = ${quote(fx.connection.id)}
@@ -791,10 +859,12 @@ and (event_id in (${quote(fx.singleEvent)}, ${quote(fx.masterEvent)}) or recurri
 		else google.items.set(id, resource)
 		google.originals.set(id, resource)
 	}
-	google.masters.set(extra.master.id, extra.master)
-	for (const resource of extra.resources) {
-		google.items.set(resource.id, resource)
-		google.originals.set(resource.id, resource)
+	for (const fixture of [extra, exclusion]) {
+		google.masters.set(fixture.master.id, fixture.master)
+		for (const resource of fixture.resources) {
+			google.items.set(resource.id, resource)
+			google.originals.set(resource.id, resource)
+		}
 	}
 	return google
 }
@@ -824,7 +894,8 @@ function stamped(fx, eventId) {
 
 async function inboundSection(db, fx) {
 	const extra = await pastFixtures(db, fx)
-	const google = loadGoogle(fx, extra)
+	const exclusion = await exclusionFixtures(db, fx)
+	const google = loadGoogle(fx, extra, exclusion)
 	const notes = []
 	let crash = false
 	const sync = startSync(db, fx, google, notes, {
@@ -1122,9 +1193,62 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 			fail('inbound 15', 'a deleted master did not end the series at the last past occurrence')
 		steady('inbound 15')
 
+		const [, startedEx, markedEx, cancelledEx] = exclusion.instances.slice(1)
+		const pastMarkedEx = exclusion.instances[1]
+		const exRule = exclusion.master.recurrence[0]
+		const exLines = [
+			exRule,
+			`EXDATE;TZID=${fx.zone}:${localStamp(pastMarkedEx.startsAt, fx.zone)},${localStamp(startedEx.startsAt, fx.zone)}`,
+			`EXDATE:${stamp(markedEx.startsAt)}`,
+			`EXDATE;TZID=${fx.zone}:${localStamp(cancelledEx.startsAt, fx.zone)}`,
+		]
+		const kinds = {
+			exdate: classifyRecurrence(exLines, fx.zone).recurrenceKind,
+			dateOnly: classifyRecurrence([exRule, `EXDATE;VALUE=DATE:${cancelledEx.date.replaceAll('-', '')}`], fx.zone)
+				.recurrenceKind,
+			rdate: classifyRecurrence([exRule, `RDATE:${stamp(cancelledEx.startsAt)}`], fx.zone).recurrenceKind,
+			interval: classifyRecurrence(
+				[exRule.replace('FREQ=WEEKLY', 'FREQ=WEEKLY;INTERVAL=2'), `EXDATE:${stamp(cancelledEx.startsAt)}`],
+				fx.zone
+			).recurrenceKind,
+		}
+		google.put({ ...exclusion.master, recurrence: exLines })
+		const exBefore = seriesOf(exclusion.series)
+		const exPass = await drive(sync, fx, google, notes, [
+			google.moved(exclusion.instances[0].id, exclusion.instances[0].startsAt, 60),
+		])
+		const exAfter = seriesOf(exclusion.series)
+		const exList = exceptionsOf(exclusion.series)
+		const exMaster = projection(fx, 'dvinbexdate')
+		const exRow = projection(fx, cancelledEx.id)
+		const exMarks = rows(
+			`select count(*)::int as n from lesson_marks where series_id = ${quote(exclusion.series)} and kind = 'done'`
+		)[0].n
+		const exOk =
+			kinds.exdate === 'weekly' &&
+			kinds.dateOnly === 'other' &&
+			kinds.rdate === 'other' &&
+			kinds.interval === 'other' &&
+			exMaster.recurrence_kind === 'weekly' &&
+			exBefore.ends_on === null &&
+			exAfter.ends_on === null &&
+			exList.length === 1 &&
+			exList[0].original_on === cancelledEx.date &&
+			exList[0].kind === 'cancelled' &&
+			exRow.status === 'cancelled' &&
+			exPass.inbound?.skipped_marked >= 1 &&
+			!stamped(fx, markedEx.id) &&
+			stamped(fx, cancelledEx.id) &&
+			exMarks === 2
+		console.log(
+			`inbound 16 master with EXDATE: kinds exdate ${kinds.exdate} date_only ${kinds.dateOnly} rdate ${kinds.rdate} interval ${kinds.interval} series_alive ${exAfter.ends_on === null} cancelled_only_excluded ${exList.length === 1 && exList[0]?.original_on === cancelledEx.date && exList[0]?.kind === 'cancelled'} marked_frozen ${exPass.inbound?.skipped_marked >= 1 && !stamped(fx, markedEx.id)} marks ${exMarks}`
+		)
+		if (!exOk) fail('inbound 16', 'an EXDATE on a lesson master did not cancel only the excluded future occurrence')
+		steady('inbound 16')
+
 		const end = counts()
 		console.log(
-			`inbound 16 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
+			`inbound 17 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
 		)
 	} finally {
 		await sync.close()
