@@ -33,10 +33,28 @@ const keyring = z.record(
 const calendarSchema = z.object({
 	GOOGLE_CLIENT_ID: z.string().trim().min(1),
 	GOOGLE_CLIENT_SECRET: z.string().trim().min(1),
-	GOOGLE_REDIRECT_URI: z.literal('https://dv-lab.dev/api/google/callback'),
+	GOOGLE_REDIRECT_URI: z.string().min(1),
 	GOOGLE_TOKEN_KEY_ID: keyId,
 	GOOGLE_TOKEN_KEYRING: z.string().min(1),
 })
+
+const CALLBACK_PATH = '/api/google/callback'
+
+type BaseConfig = Pick<z.infer<typeof schema>, 'NODE_ENV' | 'APP_ORIGIN'>
+
+function redirectAllowed(value: string, base: BaseConfig): boolean {
+	let url: URL
+	try {
+		url = new URL(value)
+	} catch {
+		return false
+	}
+	if (url.username !== '' || url.password !== '' || value !== `${url.origin}${CALLBACK_PATH}`) return false
+	if (base.NODE_ENV === 'production')
+		return base.APP_ORIGIN.startsWith('https://') && value === `${base.APP_ORIGIN}${CALLBACK_PATH}`
+	if (url.protocol === 'https:') return true
+	return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+}
 
 export type CalendarConfig =
 	| { enabled: false }
@@ -54,15 +72,20 @@ export type ApiConfig = z.infer<typeof schema> & { databaseUrl: string; calendar
 export function loadConfig(env: NodeJS.ProcessEnv): ApiConfig {
 	const parsed = schema.safeParse(env)
 	if (!parsed.success) throw new Error(`Invalid environment\n${z.prettifyError(parsed.error)}`)
-	return { ...parsed.data, databaseUrl: resolveDatabaseUrl('app', env), calendar: loadCalendarConfig(env) }
+	return {
+		...parsed.data,
+		databaseUrl: resolveDatabaseUrl('app', env),
+		calendar: loadCalendarConfig(env, parsed.data),
+	}
 }
 
-function loadCalendarConfig(env: NodeJS.ProcessEnv): CalendarConfig {
+function loadCalendarConfig(env: NodeJS.ProcessEnv, base: BaseConfig): CalendarConfig {
 	const enabled = z.enum(['true', 'false']).default('false').safeParse(env.GOOGLE_CALENDAR_ENABLED)
 	if (!enabled.success) throw new Error('Invalid GOOGLE_CALENDAR_ENABLED')
 	if (enabled.data === 'false') return { enabled: false }
 	const parsed = calendarSchema.safeParse(env)
-	if (!parsed.success) throw new Error('Invalid Google Calendar configuration')
+	if (!parsed.success || !redirectAllowed(parsed.data.GOOGLE_REDIRECT_URI, base))
+		throw new Error('Invalid Google Calendar configuration')
 	const config = parsed.data
 	try {
 		const keys: unknown = JSON.parse(config.GOOGLE_TOKEN_KEYRING)

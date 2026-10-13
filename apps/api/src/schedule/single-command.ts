@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import type { ValidatedCalendarCommand } from '@dv-lab/contracts'
@@ -7,18 +7,17 @@ import {
 	googleCommandPlan,
 	googleConnections,
 	googleEventMappings,
-	googleReadEvents,
-	googleReadWindows,
 	googleStageRequest,
 	students,
 	type DbExecutor,
 } from '@dv-lab/db'
 
-import { cancelledSingles } from '../calendar/cancelled-singles.ts'
-import { currentConnection } from '../calendar/credentials.ts'
-import { replacementCommand } from '../calendar/event-mapping.ts'
+import { cancelledSingleBaseline } from '../calendar/cancelled-singles.ts'
+import { replacementCommand, rowForLocal } from '../calendar/event-mapping.ts'
 import type { GoogleGateway } from '../calendar/gateway.ts'
+import { currentConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
+import { syncRevision } from '../calendar/projection.ts'
 import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
 import type { SingleEvidence } from '../calendar/single-observation.ts'
 import { prepareLessonChange } from './changes.ts'
@@ -41,44 +40,19 @@ export async function singleTarget(executor: DbExecutor, accountId: string, inpu
 			)
 		)
 	if (!mapping) throw new CommandFault('history_only')
-	const rows = await executor
-		.select()
-		.from(googleReadEvents)
-		.where(
-			and(
-				eq(googleReadEvents.accountId, accountId),
-				eq(googleReadEvents.connectionId, mapping.connectionId),
-				eq(googleReadEvents.eventId, mapping.eventId)
-			)
-		)
-		.orderBy(desc(googleReadEvents.snapshotRevision))
-	let event = rows.find((row) => eventVersion(row) === input.input.expectedVersion)
-	let cancellationBaselineFingerprint: string | undefined
-	if (!event && input.operation === 'restore') {
-		const windows = await executor
-			.select()
-			.from(googleReadWindows)
-			.where(
-				and(
-					eq(googleReadWindows.accountId, accountId),
-					eq(googleReadWindows.connectionId, mapping.connectionId),
-					eq(googleReadWindows.coverageState, 'complete')
-				)
-			)
-			.orderBy(desc(googleReadWindows.snapshotRevision))
-			.limit(1)
-		if (windows[0]) {
-			const historical = (await cancelledSingles(executor, windows[0])).find(
-				(row) => row.eventId === mapping.eventId && eventVersion(row) === input.input.expectedVersion
-			)
-			event = historical
-			cancellationBaselineFingerprint = historical?.cancellationBaselineFingerprint
-		}
-	}
-	if (!event || event.bindingKind !== 'lesson') throw new CommandFault('precondition_failed')
-	const [window] = await executor.select().from(googleReadWindows).where(eq(googleReadWindows.id, event.windowId))
-	if (!window || window.coverageState !== 'complete') throw new CommandFault('precondition_failed')
-	return { mapping, event, window, cancellationBaselineFingerprint }
+	const local = await rowForLocal(executor, mapping.connectionId, input.ref)
+	if (
+		local?.kind !== 'single' ||
+		local.mapping.id !== mapping.id ||
+		local.row.eventType !== 'default' ||
+		eventVersion(local.row) !== input.input.expectedVersion
+	)
+		throw new CommandFault('precondition_failed')
+	const cancellationBaselineFingerprint =
+		local.row.status === 'cancelled'
+			? await cancelledSingleBaseline(executor, mapping, input.ref.lessonId, local.row.eventId)
+			: undefined
+	return { mapping, row: local.row, cancellationBaselineFingerprint }
 }
 
 export async function prepareSingleCommand(
@@ -95,16 +69,13 @@ export async function prepareSingleCommand(
 	if (!connection?.calendarId || connection.state !== 'connected') throw new CommandFault('connection_required')
 	if ((await unresolvedCommands(executor, context.accountId)).length) throw new CommandFault('command_pending')
 	const target = await singleTarget(executor, context.accountId, input)
-	if (
-		target.event.snapshotRevision !== connection.snapshotRevision ||
-		target.event.generation !== connection.generation
-	)
+	if (target.mapping.connectionId !== connection.id || target.mapping.calendarId !== connection.calendarId)
 		throw new CommandFault('precondition_failed')
 	validateEvidence(evidence, target, input)
 	if (
-		target.event.start &&
-		'dateTime' in target.event.start &&
-		!canChange(new Date(target.event.start.dateTime), context.now)
+		target.row.start &&
+		'dateTime' in target.row.start &&
+		!canChange(new Date(target.row.start.dateTime), context.now)
 	)
 		throw new CommandFault('history_only')
 	if (input.ref.kind !== 'single') throw new CommandFault('history_only')
@@ -137,10 +108,10 @@ export async function prepareSingleCommand(
 				to: input.ref,
 				startsAt: change.startsAt.toISOString(),
 				timeZone: change.lesson.timeZone,
-				durationMinutes: change.lesson.durationMinutes,
+				durationMinutes: change.durationMinutes,
 			},
 		],
-		preconditions: [singlePrecondition(evidence, target.mapping.eventId, target.event.etag)],
+		preconditions: [singlePrecondition(evidence, target.mapping.eventId, target.row.etag)],
 		affectedRefs: [input.ref],
 		oldEndsOn: null,
 		newRule: null,
@@ -152,7 +123,7 @@ export async function prepareSingleCommand(
 					summary: student.name,
 					start: { dateTime: change.startsAt.toISOString(), timeZone: change.lesson.timeZone },
 					end: {
-						dateTime: new Date(change.startsAt.getTime() + change.lesson.durationMinutes * 60000).toISOString(),
+						dateTime: new Date(change.startsAt.getTime() + change.durationMinutes * 60000).toISOString(),
 						timeZone: change.lesson.timeZone,
 					},
 				}),
@@ -195,7 +166,7 @@ export async function prepareSingleCommand(
 		requestId,
 		inputHash: commandHash(input),
 		expectedVersion,
-		baseRevision: connection.snapshotRevision,
+		baseRevision: await syncRevision(executor, connection.id),
 		generation: connection.generation,
 		operation: input.operation,
 		plan,
@@ -230,7 +201,7 @@ function validateEvidence(
 	input: SingleCommand
 ) {
 	if (evidence.kind !== 'present') {
-		if (input.operation !== 'restore' || target.event.status !== 'cancelled') throw new CommandFault('external_change')
+		if (input.operation !== 'restore' || target.row.status !== 'cancelled') throw new CommandFault('external_change')
 		return
 	}
 	const observed = evidence.observation
@@ -251,7 +222,7 @@ function validateObservedRevision(
 	input: SingleCommand
 ) {
 	if (observed.event.eventId !== target.mapping.eventId) throw new CommandFault('external_change')
-	if (observed.event.etag === target.event.etag) return
+	if (observed.event.etag === target.row.etag) return
 	if (
 		input.operation === 'restore' &&
 		observed.event.status === 'cancelled' &&

@@ -46,10 +46,18 @@ export async function apiRequest<T>(
 	}
 }
 
+const UNCHANGED_PATHS = new Set([
+	'/auth/renew',
+	'/google/conflicts',
+	'/google/connect',
+	'/google/disconnect',
+	'/google/disconnect/confirm-revoked',
+])
+
 function notifyCache(response: Response, method: ApiMethod, path: string): void {
 	if (typeof window === 'undefined') return
 	if (response.status === 401 && path !== '/auth/sign-in') window.location.replace('/login?reason=expired')
-	if (!response.ok || method === 'GET' || path === '/auth/renew' || path === '/google/conflicts') return
+	if (!response.ok || method === 'GET' || UNCHANGED_PATHS.has(path)) return
 	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
 		SESSION_CACHE_CHANNEL?.postMessage('changed')
 	} else window.dispatchEvent(new Event(API_CACHE_INVALIDATED))

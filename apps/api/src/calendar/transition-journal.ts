@@ -18,7 +18,6 @@ import {
 import type { CommandAccess } from './dispatch.ts'
 import { CalendarFault, GoogleWriteFault } from './gateway.ts'
 import { CommandFault, digest, readCommand, retireReservations, type CommandRow, type StageRow } from './journal.ts'
-import { publishTransition } from './transition-view.ts'
 
 export async function transitionStage(
 	access: Pick<CommandAccess, 'db'>,
@@ -232,19 +231,20 @@ export async function acknowledgeTransition(
 					updatedAt: sql`now()`,
 				})
 				.where(eq(googleCommands.id, command.id))
-		if (stage.kind === 'write') await publishTransition(tx, command)
-		if (stage.kind === 'write')
+		if (stage.kind === 'write') {
+			const running = (await readCommand(tx, command.accountId, command.id)).dispatchDeadline.getTime() > Date.now()
 			await tx
 				.update(googleCommands)
 				.set({
-					state: 'partial_recovery',
+					state: running ? 'dispatching' : 'partial_recovery',
 					effect: 'partial',
 					acknowledgedAt: new Date(),
-					issue: 'provider_unavailable',
-					nextAction: 'resume_recovery',
+					issue: running ? null : 'provider_unavailable',
+					nextAction: running ? 'wait' : 'resume_recovery',
 					updatedAt: sql`now()`,
 				})
 				.where(eq(googleCommands.id, command.id))
+		}
 	})
 }
 
@@ -277,7 +277,12 @@ export async function pauseTransition(
 										outcome: rejected ? ('rejected' as const) : ('unknown' as const),
 										finishedAt: new Date().toISOString(),
 										httpStatus: error instanceof GoogleWriteFault ? error.httpStatus : null,
-										errorCode: 'transport' as const,
+										...(error instanceof GoogleWriteFault && error.rateLimited
+											? {
+													errorCode: 'rate_limit' as const,
+													retryAfterSeconds: error.retryAfterMs === null ? null : Math.ceil(error.retryAfterMs / 1000),
+												}
+											: { errorCode: 'transport' as const }),
 									}
 								: attempt
 						),

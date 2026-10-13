@@ -22,22 +22,21 @@ export async function occurrenceChange(executor: DbExecutor, accountId: string, 
 	)
 		throw new CommandFault('precondition_failed')
 	let startsAt = occurrence.startsAt
+	let durationMinutes = input.operation === 'restore' ? rule.durationMinutes : occurrence.durationMinutes
 	if (input.operation === 'move') {
 		const settings = await lockTeacherTimeContext(executor, accountId, input.input.expectedDefaultTimeZone, now)
 		if (!settings.ok) throw new CommandFault(settings.error)
 		const target = localTimeCandidates(input.input.date, input.input.startTime, settings.context.defaultTimeZone)[0]
 		if (!target) throw new CommandFault('nonexistent_local_time', 400)
-		if (target.getTime() === startsAt.getTime()) throw new CommandFault('invalid_request', 400)
+		const length = input.input.durationMinutes ?? occurrence.durationMinutes
+		if (target.getTime() === startsAt.getTime() && length === occurrence.durationMinutes)
+			throw new CommandFault('invalid_request', 400)
 		startsAt = target
+		durationMinutes = length
 	}
 	if (input.operation === 'restore') startsAt = locked.occurrence.naturalStart
 	if (!canChange(startsAt, now)) throw new CommandFault('history_only')
-	return {
-		rule,
-		occurrence,
-		startsAt,
-		durationMinutes: input.operation === 'restore' ? rule.durationMinutes : occurrence.durationMinutes,
-	}
+	return { rule, occurrence, startsAt, durationMinutes }
 }
 
 export async function applyOccurrenceChange(
@@ -63,7 +62,8 @@ export async function applyOccurrenceChange(
 	const kind =
 		input.operation === 'cancel'
 			? 'cancelled'
-			: startsAt.getTime() === locked.occurrence.naturalStart.getTime()
+			: startsAt.getTime() === locked.occurrence.naturalStart.getTime() &&
+				  durationMinutes === locked.rule.durationMinutes
 				? 'restored'
 				: 'moved'
 	const time = kind === 'restored' ? { startsAt: null, durationMinutes: null } : { startsAt, durationMinutes }

@@ -175,7 +175,18 @@ export const googleCommands = pgTable(
 		baseRevision: bigint('base_revision', { mode: 'bigint' }).notNull(),
 		generation: bigint('generation', { mode: 'number' }).notNull(),
 		operation: text('operation', {
-			enum: ['create', 'move', 'cancel', 'restore', 'move_series', 'end_series'],
+			enum: [
+				'create',
+				'move',
+				'cancel',
+				'restore',
+				'move_series',
+				'end_series',
+				'event_create',
+				'event_update',
+				'event_delete',
+				'assign',
+			],
 		}).notNull(),
 		plan: jsonb('plan').$type<GoogleCommandPlan>().notNull(),
 		state: text('state', {
@@ -228,7 +239,7 @@ export const googleCommands = pgTable(
 		),
 		check(
 			'google_commands_operation_ck',
-			sql`${t.operation} in ('create', 'move', 'cancel', 'restore', 'move_series', 'end_series') and (jsonb_typeof(${t.plan}) = 'object' and ${t.plan}->>'version' = '1' and ${t.plan}->'input'->>'operation' = ${t.operation}) is true`
+			sql`${t.operation} in ('create', 'move', 'cancel', 'restore', 'move_series', 'end_series', 'event_create', 'event_update', 'event_delete', 'assign') and (jsonb_typeof(${t.plan}) = 'object' and ${t.plan}->>'version' = '1' and ${t.plan}->'input'->>'operation' = ${t.operation}) is true`
 		),
 		check(
 			'google_commands_state_ck',

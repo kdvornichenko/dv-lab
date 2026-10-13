@@ -13,8 +13,9 @@ import {
 	type DbExecutor,
 } from '@dv-lab/db'
 
-import { currentConnection } from '../calendar/credentials.ts'
+import { currentConnection } from '../calendar/google-access.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
+import { syncRevision } from '../calendar/projection.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
 import { masterRepresentation } from '../calendar/recurring.ts'
 import type { SeriesEvidence } from '../calendar/series-observation.ts'
@@ -182,7 +183,7 @@ export async function prepareSeriesCommand(
 		requestId,
 		inputHash: commandHash(input),
 		expectedVersion,
-		baseRevision: connection.snapshotRevision,
+		baseRevision: await syncRevision(executor, connection.id),
 		generation: connection.generation,
 		operation: input.operation,
 		plan,

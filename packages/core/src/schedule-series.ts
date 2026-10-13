@@ -26,9 +26,17 @@ export type CutLesson = {
 	status?: 'cancelled'
 }
 
-export type SeriesChange = { from: string; weekday: Weekday; startTime: string }
+export type SeriesChange = {
+	from: string
+	weekday: Weekday
+	startTime: string
+	durationMinutes?: number
+	newStartsOn?: string
+}
 
 type SeriesContext = { now: Date; defaultTimeZone: string }
+
+const SERIES_SHIFT_DAYS = 366
 
 const laterDate = (left: string, right: string) => (left > right ? left : right)
 
@@ -110,7 +118,8 @@ function replacementRule(
 	| { kind: 'invalid' }
 	| { kind: 'nonexistent_local_time' }
 	| { kind: 'ends_before_new_day'; endsOn: string } {
-	const { weekday, startTime, from } = change
+	const { weekday, startTime } = change
+	const from = change.newStartsOn ?? change.from
 	const candidate = { weekday, startTime, timeZone: context.defaultTimeZone, startsOn: from, endsOn: null }
 	const first = firstOnOrAfter(from, weekday)
 	if (seriesStart(candidate, first) === null) return { kind: 'nonexistent_local_time' }
@@ -120,7 +129,13 @@ function replacementRule(
 	if (end !== null && endsOn === null) return { kind: 'ends_before_new_day', endsOn: end.endsOn }
 	return {
 		kind: 'ok',
-		rule: { ...candidate, studentId: rule.studentId, durationMinutes: rule.durationMinutes, startsOn, endsOn },
+		rule: {
+			...candidate,
+			studentId: rule.studentId,
+			durationMinutes: change.durationMinutes ?? rule.durationMinutes,
+			startsOn,
+			endsOn,
+		},
 	}
 }
 
@@ -135,13 +150,20 @@ export function cutSeries(
 	const { now, defaultTimeZone } = context
 	const today = scheduleToday(now, defaultTimeZone)
 	if (change.from < today) return { kind: 'invalid' }
+	if (
+		change.newStartsOn !== undefined &&
+		(change.newStartsOn < change.from || change.newStartsOn > addDays(change.from, SERIES_SHIFT_DAYS))
+	)
+		return { kind: 'invalid' }
 	const boundary = seriesCutBoundary(rule, change.from, defaultTimeZone, 'from')
 	const end = finiteBoundary(rule)
 	if (end !== null && end.instant.getTime() <= boundary.instant.getTime()) return { kind: 'changed' }
 	if (
 		change.weekday === rule.weekday &&
 		change.startTime === rule.startTime &&
-		sameTimeZone(defaultTimeZone, rule.timeZone)
+		sameTimeZone(defaultTimeZone, rule.timeZone) &&
+		(change.durationMinutes ?? rule.durationMinutes) === rule.durationMinutes &&
+		firstOnOrAfter(change.newStartsOn ?? change.from, change.weekday) <= boundary.naturalCutoff
 	) {
 		return { kind: 'invalid' }
 	}

@@ -4,7 +4,9 @@ import {
 	type CalendarSeriesContext,
 	type GoogleScheduleWindow,
 	type ScheduleOccurrenceRef,
+	type ScheduleSeries,
 } from '@dv-lab/contracts'
+import { scheduleDate, seriesStart } from '@dv-lab/core'
 
 export type CalendarLesson = CalendarEventView & {
 	binding: Extract<CalendarEventView['binding'], { kind: 'lesson' }>
@@ -26,6 +28,20 @@ export function canEditCalendarEvent(event: CalendarEventView, window: GoogleSch
 	)
 }
 
+export function canChangePlainEvent(event: CalendarEventView, window: GoogleScheduleWindow): boolean {
+	return (
+		window.read.state === 'fresh' &&
+		window.write.state === 'ready' &&
+		event.editBlock === null &&
+		event.binding.kind === 'external' &&
+		event.status !== 'cancelled'
+	)
+}
+
+export function canEditPlainEvent(event: CalendarEventView, window: GoogleScheduleWindow): boolean {
+	return canChangePlainEvent(event, window) && event.when.kind === 'timed'
+}
+
 export function calendarEventFor(window: GoogleScheduleWindow, ref: ScheduleOccurrenceRef) {
 	return window.events.find(
 		(event): event is CalendarLesson => calendarLesson(event) && sameCalendarRef(event.binding.ref, ref)
@@ -39,6 +55,11 @@ export function calendarSeriesFor(
 	if (event.binding.kind !== 'lesson' || event.binding.ref.kind !== 'series') return null
 	const id = event.binding.ref.seriesId
 	return window.series.find((context) => context.series.id === id) ?? null
+}
+
+export function seriesDateInZone(rule: ScheduleSeries, date: string, mainTimeZone: string): string | null {
+	const instant = seriesStart(rule, date)
+	return instant === null ? null : scheduleDate(instant, mainTimeZone)
 }
 
 export function staleCalendarWindow(data: GoogleScheduleWindow | null): GoogleScheduleWindow | null {

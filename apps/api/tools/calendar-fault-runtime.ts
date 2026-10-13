@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { createDb } from '@dv-lab/db'
 
 import { faultManifest, hash, type CalendarFaultManifest } from '../../../e2e/support/calendar-fault-protocol.ts'
-import { credentialBinding, findConnection } from '../src/calendar/credentials.ts'
+import { credentialBinding, findConnection } from '../src/calendar/google-access.ts'
 import { createTokenEnvelope } from '../src/calendar/token-envelope.ts'
 import { loadConfig } from '../src/config.ts'
 

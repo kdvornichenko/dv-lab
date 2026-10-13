@@ -2,11 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
+import { Banner, BannerAction, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
 
 interface ToastContent {
 	title: string
 	description: string
+	status?: 'success' | 'error' | 'warning'
+	sticky?: boolean
+	action?: { label: string; href?: string; onClick?: () => void }
 }
 
 interface ToastItem extends ToastContent {
@@ -14,7 +17,8 @@ interface ToastItem extends ToastContent {
 }
 
 interface ToastApi {
-	show: (toast: ToastContent) => void
+	show: (toast: ToastContent) => number
+	dismiss: (id: number) => void
 }
 
 const AUTO_DISMISS_MS = 4000
@@ -44,10 +48,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 			nextId.current += 1
 			const id = nextId.current
 			setToasts((current) => [...current, { ...toast, id }])
-			timers.current.set(
-				id,
-				setTimeout(() => dismiss(id), AUTO_DISMISS_MS)
-			)
+			if (toast.sticky !== true)
+				timers.current.set(
+					id,
+					setTimeout(() => dismiss(id), AUTO_DISMISS_MS)
+				)
+			return id
 		},
 		[dismiss]
 	)
@@ -60,7 +66,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 		}
 	}, [])
 
-	const api = useMemo(() => ({ show }), [show])
+	const api = useMemo(() => ({ show, dismiss }), [show, dismiss])
 
 	return (
 		<ToastContext.Provider value={api}>
@@ -68,9 +74,31 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 			<div className="pointer-events-none fixed inset-x-0 top-14 z-50 mx-auto flex w-full max-w-md flex-col gap-2 px-4 md:top-auto md:bottom-6">
 				{toasts.map((toast) => (
 					<div key={toast.id} className="pointer-events-auto rounded-xl bg-background shadow-surface-3">
-						<Banner status="success" dismissible dismissLabel="Dismiss" onDismiss={() => dismiss(toast.id)}>
+						<Banner
+							status={toast.status ?? 'success'}
+							size={toast.status === undefined || toast.status === 'success' ? undefined : 'compact'}
+							dismissible
+							dismissLabel="Dismiss"
+							onDismiss={() => dismiss(toast.id)}
+						>
 							<BannerTitle>{toast.title}</BannerTitle>
-							<BannerDescription>{toast.description}</BannerDescription>
+							<BannerDescription className={toast.sticky ? 'text-muted-foreground' : undefined}>
+								{toast.description}
+							</BannerDescription>
+							{toast.action ? (
+								<BannerActions>
+									<BannerAction
+										variant="ghost"
+										href={toast.action.href}
+										onClick={() => {
+											toast.action?.onClick?.()
+											dismiss(toast.id)
+										}}
+									>
+										{toast.action.label}
+									</BannerAction>
+								</BannerActions>
+							) : null}
 						</Banner>
 					</div>
 				))}

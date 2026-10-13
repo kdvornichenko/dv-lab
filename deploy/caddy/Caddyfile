@@ -5,6 +5,8 @@
 			fields {
 				request>uri regexp "[?].*$" ""
 				request>headers>Referer delete
+				request>headers>X-Goog-Channel-Token delete
+				request>headers>X-Goog-Resource-Uri delete
 			}
 		}
 	}
@@ -29,6 +31,8 @@ dv-lab.dev {
 			fields {
 				request>uri regexp "[?].*$" ""
 				request>headers>Referer delete
+				request>headers>X-Goog-Channel-Token delete
+				request>headers>X-Goog-Resource-Uri delete
 			}
 		}
 	}

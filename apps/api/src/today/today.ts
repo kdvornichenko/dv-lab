@@ -13,7 +13,7 @@ import {
 import type { DbExecutor } from '@dv-lab/db'
 
 import { readCalendarWindow } from '../calendar/read-model.ts'
-import type { CalendarReadSelection } from '../calendar/reads.ts'
+import type { CalendarReadSelection } from '../calendar/read-state.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
 import { listCards } from '../cards/cards.ts'
 import { filterHistoryBlocks } from '../schedule/rows.ts'

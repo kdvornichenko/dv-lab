@@ -5,7 +5,7 @@ import { type BalanceLesson, type BalancePayment, studentBalance } from '@dv-lab
 import { type DbExecutor, payments } from '@dv-lab/db'
 
 import { readNextLessons } from '../calendar/read-model.ts'
-import type { CalendarReadContext } from '../calendar/reads.ts'
+import type { CalendarReadContext } from '../calendar/read-state.ts'
 import { loadMarkRows, toBalanceCard } from '../schedule/rows.ts'
 import type { TeacherTimeContext } from '../settings/settings.ts'
 import type { CardRecord } from './card-rows.ts'

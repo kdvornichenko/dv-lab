@@ -13,7 +13,13 @@ import {
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import type { VerifiedGoogleResponse } from './command-result.ts'
-import { acknowledgeCommand, preservesUnowned, projectCommand, type CommandAccess } from './dispatch.ts'
+import {
+	acknowledgeCommand,
+	ensureCompanion,
+	preservesUnowned,
+	projectCommand,
+	type CommandAccess,
+} from './dispatch.ts'
 import { CalendarFault, GoogleWriteFault, type GoogleGateway } from './gateway.ts'
 import {
 	CommandFault,
@@ -136,8 +142,12 @@ async function observeAbsence(
 	stage: StageRow,
 	gateway: GoogleGateway
 ) {
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== command.calendarId) throw new CalendarFault('external_change')
+	if (
+		access.connection.calendarId !== command.calendarId ||
+		access.connection.generation !== command.generation ||
+		access.connection.state !== 'connected'
+	)
+		throw new CalendarFault('external_change')
 	const absent = await gateway.identityAbsent(
 		access.accessToken,
 		command.calendarId,
@@ -223,7 +233,9 @@ export async function reconcileCommand(
 	if (!preservesUnowned(prepared, result)) return requireRecovery(access.db, command, 'external_change')
 	await acknowledgeCommand(access, prepared, result, 'get')
 	const confirmed = await readCommand(access.db, command.accountId, command.id)
-	if (confirmed.state === 'projection_pending') await projectCommand(access, confirmed)
+	if (confirmed.state !== 'projection_pending') return
+	await ensureCompanion(access, confirmed, gateway)
+	await projectCommand(access, confirmed)
 }
 
 async function handleReadFailure(

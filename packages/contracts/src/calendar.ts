@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import {
 	CLOCK_TIME_PATTERN,
+	REPEATS,
 	createLessonRequest,
 	endSeriesRequest,
 	lessonActionRequest,
@@ -22,6 +23,9 @@ export const calendarIssue = z.enum([
 	'disconnect_failed',
 	'invalid_provider_data',
 	'history_only',
+	'outside_sync_window',
+	'unsupported_recurrence',
+	'read_only_event',
 ])
 
 export type CalendarIssue = z.infer<typeof calendarIssue>
@@ -125,12 +129,32 @@ const eventWhen = z.discriminatedUnion('kind', [
 		.refine((value) => value.startsOn < value.endsBefore),
 ])
 
+export const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+
+export const calendarEventColor = z.strictObject({
+	id: z.string().nullable(),
+	background: hexColor.nullable(),
+	foreground: hexColor.nullable(),
+	custom: z.boolean(),
+})
+export type CalendarEventColor = z.infer<typeof calendarEventColor>
+
+export const calendarEventSuggestion = z.strictObject({
+	studentId: z.uuid(),
+	scope: z.enum(['event', 'series']),
+})
+export type CalendarEventSuggestion = z.infer<typeof calendarEventSuggestion>
+
 export const calendarEventView = z.strictObject({
 	eventKey: z.string().min(1),
+	version: calendarVersion,
 	title: z.string().nullable(),
 	when: eventWhen,
 	status: z.enum(['confirmed', 'tentative', 'cancelled']),
 	blocksTime: z.boolean(),
+	color: calendarEventColor,
+	location: z.string().nullable(),
+	seriesMember: z.boolean(),
 	binding: z.discriminatedUnion('kind', [
 		z.strictObject({
 			kind: z.literal('lesson'),
@@ -141,6 +165,7 @@ export const calendarEventView = z.strictObject({
 		z.strictObject({ kind: z.literal('transition'), commandId: z.uuid() }),
 		z.strictObject({ kind: z.literal('external') }),
 	]),
+	suggestion: calendarEventSuggestion.nullable(),
 	editBlock: calendarIssue.nullable(),
 })
 
@@ -212,7 +237,18 @@ export const nextLessonRead = z
 
 export type NextLessonRead = z.infer<typeof nextLessonRead>
 
-export const calendarCommandOperation = z.enum(['create', 'move', 'cancel', 'restore', 'move_series', 'end_series'])
+export const calendarCommandOperation = z.enum([
+	'create',
+	'move',
+	'cancel',
+	'restore',
+	'move_series',
+	'end_series',
+	'event_create',
+	'event_update',
+	'event_delete',
+	'assign',
+])
 export const calendarCommandEffect = z.enum(['none', 'unknown', 'partial', 'confirmed'])
 export const calendarCommandState = z.enum([
 	'pending',
@@ -249,6 +285,7 @@ export const calendarCommandSnapshot = z
 		confirmedRevision: calendarRevision.nullable(),
 		affectedRefs: z.array(calendarOccurrenceRef),
 		nextAction: calendarCommandNextAction,
+		retryAfterSeconds: z.number().int().min(0).nullable().optional(),
 	})
 	.refine((value) => (value.state === 'applied') === (value.confirmedRevision !== null))
 	.refine(
@@ -269,6 +306,66 @@ export const calendarLessonActionRequest = lessonActionRequest.extend(calendarCo
 export const moveCalendarSeriesRequest = moveSeriesRequest.extend(calendarCommandMeta.shape).strict()
 export const endCalendarSeriesRequest = endSeriesRequest.extend(calendarCommandMeta.shape).strict()
 
+const eventKey = z.string().min(1).max(1024)
+const eventColorId = z.string().min(1).max(64)
+const eventClock = z.string().regex(CLOCK_TIME_PATTERN)
+const eventMinutes = z.number().int().min(LESSON_MINUTES_MIN).max(1440)
+const eventTitle = z.string().trim().min(1).max(1024)
+const eventDescription = z.string().max(8192)
+const eventLocation = z.string().max(1024)
+
+export const calendarEditScope = z.enum(['one', 'following', 'all'])
+export type CalendarEditScope = z.infer<typeof calendarEditScope>
+
+export const createCalendarEventRequest = z.strictObject({
+	requestId: z.uuid(),
+	title: eventTitle,
+	date: calendarDate,
+	startTime: eventClock,
+	durationMinutes: eventMinutes,
+	repeats: z.enum(REPEATS),
+	colorId: eventColorId.nullable(),
+	description: eventDescription.nullable(),
+	location: eventLocation.nullable(),
+	expectedDefaultTimeZone: calendarTimeZone,
+})
+export type CreateCalendarEventRequest = z.infer<typeof createCalendarEventRequest>
+
+export const createCalendarEventCommand = createCalendarEventRequest.extend(calendarCommandMeta.shape).strict()
+
+export const updateCalendarEventRequest = z.strictObject({
+	requestId: z.uuid(),
+	expectedVersion: calendarVersion,
+	scope: calendarEditScope,
+	changes: z
+		.strictObject({
+			title: eventTitle.optional(),
+			date: calendarDate.optional(),
+			startTime: eventClock.optional(),
+			durationMinutes: eventMinutes.optional(),
+			repeats: z.enum(REPEATS).optional(),
+			colorId: eventColorId.nullable().optional(),
+			description: eventDescription.nullable().optional(),
+			location: eventLocation.nullable().optional(),
+		})
+		.refine((changes) => Object.values(changes).some((value) => value !== undefined)),
+})
+export type UpdateCalendarEventRequest = z.infer<typeof updateCalendarEventRequest>
+
+export const deleteCalendarEventRequest = z.strictObject({
+	requestId: z.uuid(),
+	expectedVersion: calendarVersion,
+	scope: calendarEditScope,
+})
+export type DeleteCalendarEventRequest = z.infer<typeof deleteCalendarEventRequest>
+
+export const assignCalendarEventRequest = z.strictObject({
+	requestId: z.uuid(),
+	expectedVersion: calendarVersion,
+	studentId: z.uuid(),
+})
+export type AssignCalendarEventRequest = z.infer<typeof assignCalendarEventRequest>
+
 export const validatedCalendarCommand = z.discriminatedUnion('operation', [
 	z.strictObject({ operation: z.literal('create'), input: createCalendarLessonRequest }),
 	z.strictObject({ operation: z.literal('move'), ref: calendarOccurrenceRef, input: moveCalendarLessonRequest }),
@@ -276,6 +373,10 @@ export const validatedCalendarCommand = z.discriminatedUnion('operation', [
 	z.strictObject({ operation: z.literal('restore'), ref: calendarOccurrenceRef, input: calendarLessonActionRequest }),
 	z.strictObject({ operation: z.literal('move_series'), seriesId: z.uuid(), input: moveCalendarSeriesRequest }),
 	z.strictObject({ operation: z.literal('end_series'), seriesId: z.uuid(), input: endCalendarSeriesRequest }),
+	z.strictObject({ operation: z.literal('event_create'), input: createCalendarEventCommand }),
+	z.strictObject({ operation: z.literal('event_update'), eventKey, input: updateCalendarEventRequest }),
+	z.strictObject({ operation: z.literal('event_delete'), eventKey, input: deleteCalendarEventRequest }),
+	z.strictObject({ operation: z.literal('assign'), eventKey, input: assignCalendarEventRequest }),
 ])
 
 export type ValidatedCalendarCommand = z.infer<typeof validatedCalendarCommand>

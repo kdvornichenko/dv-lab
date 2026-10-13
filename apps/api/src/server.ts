@@ -11,12 +11,14 @@ import { createSignIn } from './auth/sign-in.ts'
 import { createCalendarCommands } from './calendar/commands.ts'
 import { createConnectionControl } from './calendar/connection-control.ts'
 import { createConnection } from './calendar/connection.ts'
-import { createCredentials } from './calendar/credentials.ts'
 import { createGoogleGateway } from './calendar/gateway.ts'
+import { createCredentials } from './calendar/google-access.ts'
 import { createConnectionLease } from './calendar/lease.ts'
 import { createCalendarObservation } from './calendar/observation.ts'
-import { createCalendarReads } from './calendar/reads.ts'
+import { googleSyncSource } from './calendar/sync-provider.ts'
+import { createCalendarSync } from './calendar/sync.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
+import { createCalendarWatch } from './calendar/watch.ts'
 import { createCalendarWorker } from './calendar/worker.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
@@ -38,25 +40,36 @@ const signIn = createSignIn({ db, logger, requireClientIp: production })
 const housekeeping = createHousekeeping({ db, logger })
 const calendar = config.calendar.enabled ? createCalendar(config.calendar) : undefined
 await calendar?.worker.start()
+calendar?.sync.start()
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)
 	const envelope = createTokenEnvelope(calendarConfig)
 	const gateway = createGoogleGateway(calendarConfig)
 	const observation = createCalendarObservation({ logger, gitSha: config.GIT_SHA })
-	const credentials = createCredentials({ lease, envelope, gateway, observation })
-	const connection = createConnection({ db, lease, envelope, gateway, credentials, observation })
+	const credentials = createCredentials({ db, lease, envelope, gateway, observation })
+	const watch = createCalendarWatch({ db, source: gateway, appOrigin: config.APP_ORIGIN, logger })
+	const sync = createCalendarSync({
+		db,
+		source: googleSyncSource(gateway),
+		watch,
+		credentials,
+		logger,
+		isStopping: lifecycle.isStopping,
+	})
+	const wake = (connectionId: string) => void sync.wake(connectionId)
+	const connection = createConnection({ db, lease, envelope, gateway, credentials, observation, watch, wake })
 	const control = createConnectionControl({
 		db,
 		lease,
 		credentials,
 		envelope,
 		gateway,
+		watch,
 		logger,
 		observation,
 		isStopping: lifecycle.isStopping,
 	})
-	const reads = createCalendarReads({ db, gateway, credentials, observation })
 	const worker = createCalendarWorker({
 		db,
 		lease,
@@ -65,9 +78,10 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		gateway,
 		logger,
 		isStopping: lifecycle.isStopping,
+		afterApply: wake,
 	})
 	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
-	return { connection, control, reads, commands, worker, observation, resources: [worker, control, lease, credentials] }
+	return { connection, control, commands, worker, sync, resources: [sync, worker, control, lease, credentials] }
 }
 
 const app = createApp({
@@ -80,19 +94,15 @@ const app = createApp({
 	signIn,
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
-	calendarReads: calendar?.reads,
 	calendarCommands: calendar?.commands,
+	calendarWake: calendar ? (connectionId) => void calendar.sync.wake(connectionId) : undefined,
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
 
 const server = serve(
 	{
-		async fetch(request, bindings) {
-			const response = await app.fetch(request, bindings)
-			calendar?.observation.publicResponse(request, response, bindings.outgoing)
-			return response
-		},
+		fetch: app.fetch,
 		port: config.PORT,
 		websocket: { server: wss },
 	},

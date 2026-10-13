@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 
-import { CircleAlert, Info, RefreshCw, TriangleAlert } from 'lucide-react'
+import { CircleAlert, Info, LoaderCircle, RefreshCw, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 import { TimePair } from '@/components/app/time-pair'
+import { useGoogleSync } from '@/components/app/use-google-sync'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -37,7 +38,14 @@ export const READ_ISSUES: Record<CalendarIssue, string> = {
 	disconnect_failed: 'Calendar changes are stopped. Google access removal is not confirmed.',
 	invalid_provider_data: 'Could not read a complete calendar view from Google.',
 	history_only: 'This record is local history. Calendar changes are unavailable.',
+	outside_sync_window:
+		'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.',
+	unsupported_recurrence: "This repeat rule can't be edited here. Change it in Google Calendar.",
+	read_only_event: "This event can't be edited here. Change it in Google Calendar.",
 }
+
+const FULL_CHECK_RUNNING = 'A full check is running.'
+const NO_CHECKED_VIEW = 'No checked calendar view is available for these dates.'
 
 function checkedAt(read: Exclude<CalendarReadStatus, { state: 'unavailable' }>, timeZone: string) {
 	const at = new Date(read.fetchedAt)
@@ -56,6 +64,7 @@ export function CalendarReadNotice({
 	onRefresh: () => Promise<void>
 }) {
 	const [refreshing, setRefreshing] = useState(false)
+	const running = useGoogleSync()?.state === 'running'
 	const issue = write.state === 'blocked' ? write.reason : read.state === 'fresh' ? null : read.reason
 	const connection =
 		issue === 'connection_required' || issue === 'reconnect_required' || issue === 'permission_required'
@@ -71,10 +80,11 @@ export function CalendarReadNotice({
 		<div className="flex flex-wrap items-center gap-3 text-body" data-slot="calendar-read-status">
 			<div className="min-w-0 flex-1 space-y-1" role="status">
 				{read.state === 'unavailable' ? (
-					<p>No checked calendar view is available for these dates.</p>
+					<p>{NO_CHECKED_VIEW}</p>
 				) : (
 					<p className="text-muted-foreground">{checkedAt(read, timeZone)}</p>
 				)}
+				{running ? <p className="text-muted-foreground">{FULL_CHECK_RUNNING}</p> : null}
 				{issue !== null && !(read.state === 'unavailable' && issue === 'provider_unavailable') ? (
 					<p className="text-muted-foreground">{READ_ISSUES[issue]}</p>
 				) : null}
@@ -93,7 +103,7 @@ export function CalendarReadNotice({
 						{issue === 'connection_required' ? 'Connect Google Calendar' : 'Reconnect'}
 					</Button>
 				) : null}
-				<Button variant="secondary" size="compact" loading={refreshing} onClick={() => void refresh()}>
+				<Button variant="secondary" size="compact" loading={refreshing || running} onClick={() => void refresh()}>
 					Refresh
 				</Button>
 			</div>
@@ -113,6 +123,9 @@ const ISSUE_TONES: Record<CalendarIssue, NoticeTone> = {
 	disconnect_failed: 'error',
 	invalid_provider_data: 'warning',
 	history_only: 'info',
+	outside_sync_window: 'info',
+	unsupported_recurrence: 'info',
+	read_only_event: 'info',
 }
 
 const TONE_STYLE: Record<NoticeTone, { icon: typeof Info; button: string; dot: string | null }> = {
@@ -126,6 +139,7 @@ const TONE_STYLE: Record<NoticeTone, { icon: typeof Info; button: string; dot: s
 }
 
 function readOnlyLabel(issue: CalendarIssue | null): string {
+	if (issue === 'outside_sync_window') return 'Read-only. Outside the synced weeks'
 	if (issue === 'connection_required') return 'Read-only. Connect Google Calendar'
 	if (issue === 'reconnect_required' || issue === 'permission_required') return 'Read-only. Reconnect Google Calendar'
 	return 'Read-only'
@@ -147,6 +161,7 @@ export function CalendarReadStatusButton({
 	recovery: ReactNode
 }) {
 	const [refreshing, setRefreshing] = useState(false)
+	const running = useGoogleSync()?.state === 'running'
 	const blocked = write.state === 'blocked' || read.state !== 'fresh'
 	const issue =
 		write.state === 'blocked'
@@ -163,6 +178,36 @@ export function CalendarReadStatusButton({
 		} finally {
 			setRefreshing(false)
 		}
+	}
+	if (running) {
+		const label = 'Checking Google Calendar…'
+		return (
+			<span className="relative inline-flex" data-slot="calendar-read-status-button" data-tone="running">
+				<span role="status" className="sr-only">
+					{label}
+				</span>
+				<Popover>
+					<Tooltip side="bottom" content={label}>
+						<PopoverTrigger
+							render={
+								<Button variant="tertiary" size="icon-compact" aria-label={label} className="text-muted-foreground">
+									<LoaderCircle className="animate-spin" />
+								</Button>
+							}
+						/>
+					</Tooltip>
+					<PopoverContent align="end" className="w-90 max-w-[calc(100vw-2rem)] gap-3 p-4">
+						<div className="flex min-w-0 flex-col gap-1 text-body" data-slot="calendar-read-status">
+							<p>{FULL_CHECK_RUNNING}</p>
+							<p className="text-muted-foreground">
+								{read.state === 'unavailable' ? NO_CHECKED_VIEW : checkedAt(read, timeZone)}
+							</p>
+						</div>
+						{recovery}
+					</PopoverContent>
+				</Popover>
+			</span>
+		)
 	}
 	if (issue === null && read.state === 'fresh') {
 		const label = `${checkedAt(read, timeZone)}. Refresh`

@@ -13,9 +13,9 @@ import type { SignIn } from './auth/sign-in.ts'
 import type { CalendarCommands } from './calendar/commands.ts'
 import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
-import type { CalendarReads } from './calendar/reads.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
+import { googleNotificationRoutes } from './routes/google-notifications.ts'
 import { googleRoutes } from './routes/google.ts'
 import { paymentRoutes } from './routes/payments.ts'
 import { scheduleRoutes } from './routes/schedule.ts'
@@ -33,8 +33,8 @@ export type AppDeps = {
 	signIn: SignIn
 	calendar?: CalendarConnection
 	calendarControl?: ConnectionControl
-	calendarReads?: CalendarReads
 	calendarCommands?: CalendarCommands
+	calendarWake?: (connectionId: string) => void
 }
 
 function clientErrorBody(status: number) {
@@ -56,6 +56,7 @@ const upgrade: (events: () => WSEvents<WebSocketLike>) => MiddlewareHandler<AppE
 export function createApp(deps: AppDeps) {
 	const app = new Hono<AppEnv>()
 	app.use('*', requestContext(deps.logger))
+	app.route('/google/notifications', googleNotificationRoutes({ db: deps.db, wake: deps.calendarWake }))
 	app.use('*', sameOrigin(deps.appOrigin))
 	app.get('/healthz', async (c) => {
 		const sha = deps.gitSha
@@ -91,14 +92,11 @@ export function createApp(deps: AppDeps) {
 			isStopping: deps.isStopping,
 		})
 	)
-	app.route('/students', studentRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
+	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
-	app.route(
-		'/schedule',
-		scheduleRoutes({ db: deps.db, calendarReads: deps.calendarReads, calendarCommands: deps.calendarCommands })
-	)
+	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
 	app.route('/settings', settingsRoutes({ db: deps.db }))
-	app.route('/today', todayRoutes({ db: deps.db, calendarReads: deps.calendarReads }))
+	app.route('/today', todayRoutes({ db: deps.db }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {
 			return c.json(clientErrorBody(err.status), err.status)

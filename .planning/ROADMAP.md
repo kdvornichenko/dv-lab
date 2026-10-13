@@ -13,7 +13,7 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 
 ### v2.0 Unified dv-lab (In Progress)
 
-**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and merged in PR #8 after green CI (c1ddae4).
+**Execution order (owner decision 2026-10-11):** 21 -> 21.1 -> 24 -> 25.1 -> 22 -> 23 -> 26. Phase 21.1 makes the default time zone configurable before Google Calendar. Google Calendar is the source of truth, so the Google phases run before chat and the schedule is checked by hand only after Google sync is ready; existing phase numbers stay as they are. Phase 21 merged through PR #7 after green CI. Implementation of 21.1 and then the prepared Phase 24 is authorized; Phase 21.1 is verified and merged in PR #8 after green CI (c1ddae4).
 
 **Status 2026-10-12:** 17-21.1 are released; 24 has plan 24-14 (live Google check) open; 25 is being reworked into 25.1; 22, 23 and 26 are planned and not started.
 
@@ -31,7 +31,8 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [ ] **Phase 22: Chat with Mentions and Quick Marks** - Conversations, `@student` mentions, instant marks with undo, answers from data, budget cap
 - [ ] **Phase 23: Confirmed Chat Changes and Entry Points** - Payments, new students, deletions and bulk moves after confirmation; palette, profile and phone layouts
 - [ ] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check (13 of 14 plans; live provider check pending)
-- [ ] **Phase 25: Google Calendar Two-Way Sync** - Push notifications, `syncToken`, `410` resync, event matching, Google wins (to be reworked as 25.1 core: see STATE.md decisions D5-D10)
+- [~] **Phase 25: Google Calendar Two-Way Sync** - Superseded by 25.1 (documents archived in `.planning/archive/phase-25-superseded`)
+- [x] **Phase 25.1: Google Calendar Core** - Any event created, moved, resized, edited and deleted in the app; push and incremental sync rewritten as one task per connection; calendar choice; Google wins
 - [ ] **Phase 26: IELTS Section** - ielts ported under `/ielts` with its data moved from Neon and Blob
 
 ## Phase Details
@@ -501,18 +502,37 @@ Plans:
 
 ### Phase 25: Google Calendar Two-Way Sync
 
-**Goal**: Changes the teacher makes in Google reach the schedule on their own, without duplicates, and Google wins when both sides changed.
+Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and design analysis are archived in `.planning/archive/phase-25-superseded` and used only as provider reference.
+
+### Phase 25.1: Google Calendar Core
+
+**Goal**: The schedule is a two-way Google Calendar for any event: the teacher creates, moves, resizes, edits and deletes events in the app, sees Google changes without an open page, and Google wins on conflicts.
 **Depends on**: Phase 24
 **Requirements**: GCAL-04, GCAL-05, GCAL-06, GCAL-07, GCAL-08
 **Success Criteria** (what must be TRUE):
 
-1. An event moved, edited or deleted in Google shows up in the schedule shortly after through push notifications and incremental sync, with no app page open; a `410` from Google leads to a full resync that leaves no duplicate lessons.
-2. Moving one occurrence in Google moves exactly that occurrence in the schedule, and moving the whole series in Google moves the series.
-3. Events created by the app map back to their lessons by id; other events whose title matches a student's short name become lessons; unmatched events are listed to assign or ignore; all other events only count as busy time.
-4. When the same lesson changed in the app and in Google, the Google version is what remains after sync.
-5. Watch channels are renewed before they expire, and a change made while notifications were not delivered (for example while the API was stopped) appears after the nightly reconcile.
+1. An event created, moved, edited or deleted in Google appears shortly after with no page open; a `410` leads to a full resync with no duplicate lessons; a change made while notifications were not delivered appears after the nightly reconcile.
+2. Moving one occurrence changes only that occurrence; moving a master changes the series; delete works for one occurrence, a series, and this and following.
+3. Any event can be created, moved and resized by mouse, edited (color, description, place, repeat) and deleted in the app, and the result is what Google holds.
+4. App-created events map back by id; title matches are suggested with Assign or Ignore; other events are plain events with their Google color.
+5. Google wins on concurrent edits; marks and accounting of past lessons stay as they were.
+6. The account can pick a calendar inside the connected Google account.
+7. One sync task per connection survives restart and does not block week reads; the week version grows only when something changed.
 
-**Plans**: 12 plans, 30 tasks, 11 waves. Research, UI and independent plan checks prepared; implementation remains pending final Phase 24 interfaces.
+**Plans**: 12/12 plans executed, 43 tasks, 8 waves. Research, UI contract (design v53), plan check, squad review and the owner's plan review are done; execution has not started.
+- [x] 25.1-01-PLAN.md
+- [x] 25.1-02-PLAN.md
+- [x] 25.1-03-PLAN.md
+- [x] 25.1-04-PLAN.md
+- [x] 25.1-05-PLAN.md
+- [x] 25.1-06-PLAN.md
+- [x] 25.1-07-PLAN.md
+- [x] 25.1-08-PLAN.md
+- [x] 25.1-09-PLAN.md
+- [x] 25.1-10-PLAN.md
+- [x] 25.1-11-PLAN.md
+- [x] 25.1-12-PLAN.md
+
 **UI hint**: yes
 
 ### Phase 26: IELTS Section

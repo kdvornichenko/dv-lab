@@ -26,8 +26,8 @@ export async function resumeUnsentInstance(access: CommandAccess, command: Comma
 	const identity = request.instance
 	if (!('dateTime' in identity.originalStartTime) || !prepared.plan.capturedRule)
 		throw new CommandFault('precondition_failed')
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== command.calendarId) throw new CommandFault('external_change')
+	if (access.connection.calendarId !== command.calendarId || access.connection.state !== 'connected')
+		throw new CommandFault('external_change')
 	const master = await gateway.master(
 		access.accessToken,
 		command.calendarId,

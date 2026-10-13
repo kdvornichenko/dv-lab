@@ -64,10 +64,26 @@ export const googleSeriesRule = z
 const moveInput = z.strictObject({
 	date: isoDate,
 	startTime: clock,
+	durationMinutes: z.number().int().min(1).optional(),
 	expectedStartsAt: instant.optional(),
 	expectedDefaultTimeZone: zone,
 })
 const actionInput = z.strictObject({ expectedStartsAt: instant.optional() })
+const eventScope = z.enum(['one', 'following', 'all'])
+const eventRepeats = z.enum(['once', 'weekly'])
+const colorId = z.string().min(1).max(64)
+const description = z.string().max(8192)
+const location = z.string().max(1024)
+const eventChanges = z.strictObject({
+	title: z.string().min(1).max(1024).optional(),
+	date: isoDate.optional(),
+	startTime: clock.optional(),
+	durationMinutes: z.number().int().min(1).optional(),
+	repeats: eventRepeats.optional(),
+	colorId: colorId.nullable().optional(),
+	description: description.nullable().optional(),
+	location: location.nullable().optional(),
+})
 
 export const googleCommandInput = z.discriminatedUnion('operation', [
 	z.strictObject({
@@ -88,6 +104,8 @@ export const googleCommandInput = z.discriminatedUnion('operation', [
 		from: isoDate,
 		weekday: z.literal([1, 2, 3, 4, 5, 6, 7]),
 		startTime: clock,
+		durationMinutes: z.number().int().min(1).optional(),
+		newStartsOn: isoDate.optional(),
 		expectedDefaultTimeZone: zone,
 	}),
 	z.strictObject({
@@ -95,6 +113,39 @@ export const googleCommandInput = z.discriminatedUnion('operation', [
 		seriesId: z.uuid(),
 		lastOn: isoDate,
 		expectedDefaultTimeZone: zone,
+	}),
+	z.strictObject({
+		operation: z.literal('event_create'),
+		eventId,
+		title: z.string().min(1).max(1024),
+		date: isoDate,
+		startTime: clock,
+		durationMinutes: z.number().int().min(1),
+		repeats: eventRepeats,
+		colorId: colorId.nullable(),
+		description: description.nullable(),
+		location: location.nullable(),
+		expectedDefaultTimeZone: zone,
+	}),
+	z.strictObject({
+		operation: z.literal('event_update'),
+		eventKey: z.string().min(1).max(1024),
+		eventId,
+		scope: eventScope,
+		changes: eventChanges,
+	}),
+	z.strictObject({
+		operation: z.literal('event_delete'),
+		eventKey: z.string().min(1).max(1024),
+		eventId,
+		scope: eventScope,
+	}),
+	z.strictObject({
+		operation: z.literal('assign'),
+		eventKey: z.string().min(1).max(1024),
+		eventId,
+		studentId: z.uuid(),
+		scope: z.enum(['event', 'series']),
 	}),
 ])
 
@@ -135,6 +186,35 @@ const lineage = z.strictObject({
 	beforeStatus: z.enum(['scheduled', 'cancelled', 'moved']).optional(),
 	status: z.enum(['scheduled', 'cancelled']).optional(),
 })
+
+export const GOOGLE_WRITABLE_FIELDS = [
+	'description',
+	'location',
+	'attendees',
+	'attachments',
+	'colorId',
+	'conferenceData',
+	'guestsCanInviteOthers',
+	'guestsCanModify',
+	'guestsCanSeeOtherGuests',
+	'reminders',
+	'source',
+	'transparency',
+	'visibility',
+] as const
+
+const OWNABLE_FIELDS = new Set<string>(['colorId', 'description', 'location'])
+
+export function ownedWritableKeys(payload: {
+	colorId?: string | null
+	description?: string | null
+	location?: string | null
+}): (typeof GOOGLE_WRITABLE_FIELDS)[number][] {
+	return GOOGLE_WRITABLE_FIELDS.filter(
+		(key) =>
+			OWNABLE_FIELDS.has(key) && Object.hasOwn(payload, key) && payload[key as keyof typeof payload] !== undefined
+	)
+}
 
 export const googleUnownedWritable = z.strictObject({
 	description: z.string().optional(),
@@ -184,7 +264,7 @@ export const googleCommandPlan = z
 	.readonly()
 
 const markers = z.strictObject({
-	entityKind: z.enum(['single', 'series', 'occurrence']),
+	entityKind: z.enum(['single', 'series', 'occurrence', 'event']),
 	localEntityId: z.uuid(),
 	representationGeneration: generation,
 	commandId: z.uuid(),
@@ -195,7 +275,7 @@ const markers = z.strictObject({
 
 export const googleProviderMarkers = z.object({
 	dvLocalId: z.uuid(),
-	dvKind: z.enum(['single', 'series', 'occurrence']),
+	dvKind: z.enum(['single', 'series', 'occurrence', 'event']),
 	dvGeneration: z.string().regex(/^(0|[1-9]\d*)$/),
 	dvCommandId: z.uuid(),
 	dvStage: z.string().regex(/^(0|[1-9]\d*)$/),
@@ -210,6 +290,9 @@ export const googleOwnedPayload = z
 		end: googleEventTime.optional(),
 		recurrence: z.array(z.string().min(1).max(4096)).optional(),
 		status: z.enum(['confirmed', 'cancelled']).optional(),
+		colorId: colorId.nullable().optional(),
+		description: description.nullable().optional(),
+		location: location.nullable().optional(),
 		markers,
 		preserved: googleUnownedWritable.nullable().optional(),
 	})
@@ -234,6 +317,9 @@ export const googleEventFact = z
 		status: z.enum(['confirmed', 'tentative', 'cancelled']),
 		transparency: z.enum(['opaque', 'transparent']),
 		eventType: z.string().min(1),
+		colorId: colorId.nullable().optional(),
+		description: description.nullable().optional(),
+		location: location.nullable().optional(),
 	})
 	.refine((value) => (value.start === null) === (value.end === null))
 	.refine((value) => value.status === 'cancelled' || value.start !== null)
@@ -329,6 +415,7 @@ export const googleStageAttempt = z.strictObject({
 	errorCode: z
 		.enum(['transport', 'timeout', 'permission', 'reconnect', 'precondition', 'rate_limit', 'invalid_data'])
 		.nullable(),
+	retryAfterSeconds: z.number().int().min(0).nullable().optional(),
 })
 
 export type GoogleCredentialEnvelope = z.infer<typeof googleCredentialEnvelope>

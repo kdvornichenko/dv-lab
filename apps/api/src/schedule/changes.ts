@@ -76,7 +76,7 @@ export async function lockOccurrence(
 export async function applyLessonChange(
 	executor: DbExecutor,
 	id: string,
-	set: { startsAt: Date } | { status: 'scheduled' | 'cancelled' }
+	set: { startsAt: Date; durationMinutes?: number } | { status: 'scheduled' | 'cancelled' }
 ): Promise<LessonResult> {
 	const [row] = await executor
 		.update(lessons)
@@ -102,13 +102,17 @@ export async function prepareLessonChange(
 	const refused = refusal(change, outcome, lesson.startsAt, input.expectedStartsAt, now)
 	if (refused) return refused
 	let startsAt = lesson.startsAt
+	let durationMinutes = lesson.durationMinutes
 	if (change === 'move' && 'date' in input) {
 		const time = await lockTeacherTimeContext(executor, accountId, input.expectedDefaultTimeZone, now)
 		if (!time.ok) return { kind: time.error }
 		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
 		if (!target) return { kind: 'nonexistent_local_time' as const }
-		if (!canChange(target, now) || target.getTime() === startsAt.getTime()) return INVALID
+		const length = input.durationMinutes ?? lesson.durationMinutes
+		if (!canChange(target, now) || (target.getTime() === startsAt.getTime() && length === lesson.durationMinutes))
+			return INVALID
 		startsAt = target
+		durationMinutes = length
 	}
-	return { kind: 'ok' as const, lesson, startsAt }
+	return { kind: 'ok' as const, lesson, startsAt, durationMinutes }
 }

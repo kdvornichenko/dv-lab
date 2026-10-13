@@ -34,11 +34,7 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		.limit(1)
 	const plan = googleCommandPlan.parse(command.plan)
 	const request = googleStageRequest.parse(stage?.request)
-	if (
-		!stage ||
-		!['create', 'move', 'cancel', 'restore', 'move_series', 'end_series'].includes(command.operation) ||
-		(request.method !== 'insert' && request.method !== 'patch')
-	)
+	if (!stage || (request.method !== 'insert' && request.method !== 'patch'))
 		throw new CommandFault('precondition_failed')
 	if (
 		command.operation !== 'create' &&
@@ -46,7 +42,11 @@ export async function preparedCommand(executor: DbExecutor, command: CommandRow)
 		command.operation !== 'cancel' &&
 		command.operation !== 'restore' &&
 		command.operation !== 'move_series' &&
-		command.operation !== 'end_series'
+		command.operation !== 'end_series' &&
+		command.operation !== 'event_create' &&
+		command.operation !== 'event_update' &&
+		command.operation !== 'event_delete' &&
+		command.operation !== 'assign'
 	)
 		throw new CommandFault('precondition_failed')
 	const prepared: PreparedCalendarCommand = { ...command, plan, request, operation: command.operation }
@@ -144,6 +144,22 @@ export function commandSnapshot(command: CommandRow): CalendarCommandSnapshot {
 		affectedRefs: command.plan.affectedRefs,
 		nextAction: command.nextAction,
 	})
+}
+
+export async function commandStatus(executor: DbExecutor, command: CommandRow): Promise<CalendarCommandSnapshot> {
+	const snapshot = commandSnapshot(command)
+	if (command.state !== 'failed') return snapshot
+	const stages = await executor
+		.select({ attempts: googleCommandStages.attempts })
+		.from(googleCommandStages)
+		.where(eq(googleCommandStages.commandId, command.id))
+	const last = stages
+		.flatMap((stage) => stage.attempts)
+		.filter((attempt) => attempt.finishedAt !== null)
+		.sort((left, right) => (left.finishedAt ?? '').localeCompare(right.finishedAt ?? ''))
+		.at(-1)
+	if (last?.errorCode !== 'rate_limit') return snapshot
+	return calendarCommandSnapshot.parse({ ...snapshot, retryAfterSeconds: last.retryAfterSeconds ?? null })
 }
 
 export async function findRequest(executor: DbExecutor, accountId: string, requestId: string) {

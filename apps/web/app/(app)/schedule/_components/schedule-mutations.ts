@@ -10,6 +10,7 @@ import type { CalendarLesson } from '@/lib/lesson-actions'
 import {
 	timeZoneIdentity,
 	type CalendarCommandSnapshot,
+	type CalendarEditScope,
 	type CalendarSeriesContext,
 	type ErrorCode,
 	type GoogleScheduleWindow,
@@ -18,6 +19,7 @@ import {
 	type ScheduleMarkResponse,
 	type ScheduleOccurrenceRef,
 	type ScheduleWeekday,
+	type UpdateCalendarEventRequest,
 } from '@dv-lab/contracts'
 import { mondayOf, scheduleDate } from '@dv-lab/core'
 
@@ -25,15 +27,21 @@ import { calendarVersionFor, type CalendarTarget } from './calendar-overlaps'
 
 export const STALE_TITLE = 'This lesson was changed elsewhere'
 export const STALE_LESSON = 'The schedule has been refreshed.'
-export const STALE_DATES = 'The schedule has been refreshed. Check the dates and try again.'
 export const STALE_DATE = 'The schedule has been refreshed. Check the date and try again.'
 
 export type LessonBody = { expectedStartsAt?: string }
-export type MoveLessonBody = LessonBody & { date: string; startTime: string; expectedDefaultTimeZone: string }
+export type MoveLessonBody = LessonBody & {
+	date: string
+	startTime: string
+	durationMinutes?: number
+	expectedDefaultTimeZone: string
+}
 export type MoveSeriesBody = {
 	from: string
 	weekday: ScheduleWeekday
 	startTime: string
+	durationMinutes?: number
+	newStartsOn?: string
 	expectedDefaultTimeZone: string
 }
 export type EndSeriesBody = { lastOn: string; expectedDefaultTimeZone: string }
@@ -45,9 +53,34 @@ export type CreateLessonBody = {
 	repeats: LessonRepeats
 	expectedDefaultTimeZone: string
 }
-type Target = CalendarTarget
-type Body = LessonBody | MoveLessonBody | MoveSeriesBody | EndSeriesBody | CreateLessonBody
-type Action = 'create' | 'move' | 'cancel' | 'restore' | 'end'
+export type CreateEventBody = {
+	title: string
+	date: string
+	startTime: string
+	durationMinutes: number
+	repeats: LessonRepeats
+	colorId: string | null
+	description: string | null
+	location: string | null
+	expectedDefaultTimeZone: string
+}
+export type UpdateEventBody = { scope: CalendarEditScope; changes: UpdateCalendarEventRequest['changes'] }
+export type DeleteEventBody = { scope: CalendarEditScope }
+export type AssignEventBody = { studentId: string }
+export type EventTarget = { kind: 'event_new' } | { kind: 'event'; eventKey: string; version: string }
+type Target = CalendarTarget | EventTarget
+type Body =
+	| LessonBody
+	| MoveLessonBody
+	| MoveSeriesBody
+	| EndSeriesBody
+	| CreateLessonBody
+	| CreateEventBody
+	| UpdateEventBody
+	| DeleteEventBody
+	| AssignEventBody
+type Action =
+	'create' | 'move' | 'cancel' | 'restore' | 'end' | 'event_create' | 'event_update' | 'event_delete' | 'assign'
 export type CalendarSelection = {
 	mainTimeZone: string
 	date: string
@@ -55,19 +88,24 @@ export type CalendarSelection = {
 	series?: CalendarSeriesContext
 }
 
-type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
+export type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
 export type MutationResult<T> =
 	| { kind: 'ok'; data: T; status: number }
 	| { kind: 'stale' }
 	| { kind: 'zone_changed' }
 	| { kind: 'gap' }
-	| { kind: 'failed'; code: ErrorCode | null }
+	| { kind: 'failed'; code: ErrorCode | null; retryAfterSeconds?: number | null }
 export type CalendarMutationResult =
 	| { kind: 'ok'; command: CalendarCommandSnapshot; window: GoogleScheduleWindow }
 	| Exclude<MutationResult<never>, { kind: 'ok' }>
 	| { kind: 'detached' }
 
 function pathOf(target: Target, action: string): string {
+	if (target.kind === 'event_new') return '/google/events'
+	if (target.kind === 'event') {
+		const suffix = action === 'event_delete' ? '/delete' : action === 'assign' ? '/assign' : ''
+		return `/google/events/${encodeURIComponent(target.eventKey)}${suffix}`
+	}
 	if (target.kind === 'new') return '/schedule/lessons'
 	if (target.kind === 'single') return `/schedule/lessons/${encodeURIComponent(target.lessonId)}/${action}`
 	if (target.kind === 'series')
@@ -75,12 +113,15 @@ function pathOf(target: Target, action: string): string {
 	return `/schedule/series/${encodeURIComponent(target.seriesId)}/${action}`
 }
 
-function rejected(code: ErrorCode | null): Exclude<CalendarMutationResult, { kind: 'ok' | 'detached' }> {
+function rejected(
+	code: ErrorCode | null,
+	retryAfterSeconds?: number | null
+): Exclude<CalendarMutationResult, { kind: 'ok' | 'detached' }> {
 	if (code === 'default_time_zone_changed') return { kind: 'zone_changed' }
 	if (code === 'nonexistent_local_time') return { kind: 'gap' }
 	if (code === 'lesson_changed' || code === 'precondition_failed' || code === 'external_change' || code === 'not_found')
 		return { kind: 'stale' }
-	return { kind: 'failed', code }
+	return retryAfterSeconds === undefined ? { kind: 'failed', code } : { kind: 'failed', code, retryAfterSeconds }
 }
 
 function checkedConnection(window: GoogleScheduleWindow, connection: GoogleScheduleWindow['connection'] | null) {
@@ -91,6 +132,14 @@ function checkedConnection(window: GoogleScheduleWindow, connection: GoogleSched
 		window.connection.generation === connection.generation &&
 		window.connection.calendar?.id === connection.calendar?.id
 	)
+}
+
+function eventVersionFor(window: GoogleScheduleWindow, target: EventTarget): string | null {
+	if (window.read.state !== 'fresh') return null
+	if (target.kind === 'event_new') return window.read.revision
+	const current = window.events.find((event) => event.eventKey === target.eventKey)
+	if (!current || current.version !== target.version || current.status === 'cancelled') return null
+	return current.version
 }
 
 function validateWindow(
@@ -109,10 +158,13 @@ function validateWindow(
 	if (scheduleDate(new Date(window.requestedRange.start), window.requestedRange.timeZone) !== mondayOf(date))
 		return { ok: false, code: 'precondition_failed' }
 	if (window.write.state !== 'ready') return { ok: false, code: window.write.reason }
-	const expectedVersion = calendarVersionFor(window, target, {
-		series: selection.series,
-		previous: target.kind === 'new' || target.kind === 'rule' ? undefined : (selection.event ?? null),
-	})
+	const expectedVersion =
+		target.kind === 'event' || target.kind === 'event_new'
+			? eventVersionFor(window, target)
+			: calendarVersionFor(window, target, {
+					series: selection.series,
+					previous: target.kind === 'new' || target.kind === 'rule' ? undefined : (selection.event ?? null),
+				})
 	return expectedVersion === null ? { ok: false, code: 'precondition_failed' } : { ok: true, window, expectedVersion }
 }
 
@@ -122,14 +174,47 @@ function operation(target: Target, action: Action): CalendarCommandSnapshot['ope
 }
 
 function selectedDate(target: Target, selection: CalendarSelection, body: Body) {
-	if (target.kind === 'new' && 'date' in body) return body.date
+	if ((target.kind === 'new' || target.kind === 'event_new') && 'date' in body) return body.date
 	return selection.date
 }
 
 function mapCompletion(result: CommandResult): CalendarMutationResult {
 	if (result.kind === 'applied') return { kind: 'ok', command: result.command, window: result.window }
 	if (result.kind === 'detached') return result
-	return rejected(result.code)
+	return rejected(result.code, result.retryAfterSeconds)
+}
+
+type Controller = ReturnType<typeof useCalendarCommands>
+export type CalendarSend = (onRequest: (requestId: string) => void) => Promise<CalendarMutationResult>
+
+async function prepareCommand(
+	controller: Controller,
+	selection: CalendarSelection,
+	target: Target,
+	action: Action,
+	body: Body,
+	checkedWindow: CheckedWindow | null | undefined,
+	current: () => boolean
+): Promise<{ ok: true; intent: CommandIntent } | { ok: false; result: CalendarMutationResult }> {
+	await controller.store.refresh()
+	const date = selectedDate(target, selection, body)
+	const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
+	if (!current()) return { ok: false, result: { kind: 'detached' } }
+	const connection = controller.store.getSnapshot().connection
+	const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
+	if (!validated.ok) return { ok: false, result: rejected(validated.code) }
+	const { window, expectedVersion } = validated
+	return {
+		ok: true,
+		intent: {
+			path: pathOf(target, action),
+			body,
+			operation: operation(target, action),
+			expectedVersion,
+			generation: window.connection.generation,
+			date: 'date' in body ? body.date : date,
+		},
+	}
 }
 
 export function useScheduleMutation(selection: CalendarSelection | null) {
@@ -161,26 +246,20 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		sending.current = true
 		setPending(true)
 		try {
-			await controller.store.refresh()
-			const date = selectedDate(target, selection, body)
-			const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
-			if (!alive.current) return { kind: 'detached' }
-			const connection = controller.store.getSnapshot().connection
-			const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
-			if (!validated.ok) return rejected(validated.code)
-			const { window, expectedVersion } = validated
+			const prepared = await prepareCommand(
+				controller,
+				selection,
+				target,
+				action,
+				body,
+				checkedWindow,
+				() => alive.current
+			)
+			if (!prepared.ok) return prepared.result
 			const id = crypto.randomUUID()
 			current.current = id
 			setRequestId(id)
-			const intent: CommandIntent = {
-				path: pathOf(target, action),
-				body,
-				operation: operation(target, action),
-				expectedVersion,
-				generation: window.connection.generation,
-				date: 'date' in body ? body.date : date,
-			}
-			const result = await controller.store.submit(id, intent)
+			const result = await controller.store.submit(id, prepared.intent)
 			if (!alive.current || current.current !== id) return { kind: 'detached' }
 			return mapCompletion(result)
 		} finally {
@@ -189,11 +268,32 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		}
 	}
 
+	function prepare(target: Target, action: Action, body: Body, checkedWindow?: CheckedWindow | null): CalendarSend {
+		const chosen = selection
+		return async (onRequest) => {
+			if (chosen === null) return { kind: 'failed', code: 'command_pending' }
+			const prepared = await prepareCommand(controller, chosen, target, action, body, checkedWindow, () => true)
+			if (!prepared.ok) return prepared.result
+			const id = crypto.randomUUID()
+			onRequest(id)
+			return mapCompletion(await controller.store.submit(id, prepared.intent))
+		}
+	}
+
 	function detach() {
 		current.current = null
 	}
 
-	return { mutate, pending, entry, blocked: controller.blocked, detach }
+	return { mutate, prepare, pending, entry, blocked: controller.blocked, detach }
+}
+
+export async function ignoreEvent(eventKey: string, version: string): Promise<MutationResult<null>> {
+	const result = await apiRequest<unknown>('POST', `/google/events/${encodeURIComponent(eventKey)}/ignore`, {
+		requestId: crypto.randomUUID(),
+		expectedVersion: version,
+	})
+	if (result.ok) return { kind: 'ok', data: null, status: result.status }
+	return rejected(result.error?.code ?? null)
 }
 
 async function postMark(path: string, body: object): Promise<MutationResult<ScheduleMarkResponse>> {

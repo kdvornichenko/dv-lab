@@ -1,8 +1,10 @@
+import { eq } from 'drizzle-orm'
 import { isDeepStrictEqual } from 'node:util'
 
 import { timeZoneIdentity } from '@dv-lab/contracts'
 import { scheduleDate } from '@dv-lab/core'
 import {
+	googleConnections,
 	googleObservedResource,
 	type GoogleObservedResource,
 	type GoogleCutPlan,
@@ -67,8 +69,17 @@ export async function observedResource(
 }
 
 export async function verifyPrimary(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
-	const primary = await gateway.primary(access.accessToken, access.signal)
-	if (primary.id !== command.calendarId || access.connection.calendarId !== command.calendarId)
+	const [connection] = await access.db
+		.select()
+		.from(googleConnections)
+		.where(eq(googleConnections.id, command.connectionId))
+	if (
+		!connection ||
+		connection.state !== 'connected' ||
+		connection.calendarId !== command.calendarId ||
+		connection.generation !== access.connection.generation ||
+		access.connection.calendarId !== command.calendarId
+	)
 		throw new CommandFault('reconnect_required')
 }
 

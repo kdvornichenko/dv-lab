@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useCalendarController, useCalendarRefresh } from '@/components/app/calendar-command-provider'
+import { useGoogleSync } from '@/components/app/use-google-sync'
 import { apiRequest } from '@/lib/api-client'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
 
@@ -21,6 +22,8 @@ export function useToday(minuteNow: Date) {
 	const latest = useRef<TodayResponse | null>(null)
 	const controller = useCalendarController()
 	const [calendar, setCalendar] = useState<GoogleScheduleWindow | null>(null)
+	const handledRevision = useRef<string | null>(null)
+	const sync = useGoogleSync()
 
 	const reload = useCallback(async () => {
 		const id = ++requests.current
@@ -38,6 +41,13 @@ export function useToday(minuteNow: Date) {
 		)
 	}, [controller])
 	useCalendarRefresh(reload)
+
+	useEffect(() => {
+		if (sync === null || state.kind !== 'ready' || calendar === null || calendar.read.state === 'unavailable') return
+		if (calendar.read.revision === sync.revision || handledRevision.current === sync.revision) return
+		handledRevision.current = sync.revision
+		void reload()
+	}, [sync, state.kind, calendar, reload])
 
 	useEffect(() => {
 		const counter = requests
