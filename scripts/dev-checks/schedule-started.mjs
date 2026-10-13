@@ -51,6 +51,7 @@ const OPENING_MINUTES = 6000
 const quote = (value) => `'${String(value).replaceAll("'", "''")}'`
 const hash = (value) => createHash('sha256').update(String(value)).digest('hex').slice(0, 12)
 const stamp = (date) => date.toISOString().replace('.000Z', 'Z').replaceAll('-', '').replaceAll(':', '')
+const latency = () => new Promise((resolve) => setTimeout(resolve, 300))
 
 function fail(check, message) {
 	throw new Error(`case ${check}: ${message}`)
@@ -142,6 +143,7 @@ function createStub() {
 			throw new Error('primary calendar lookup is not expected')
 		},
 		async insert(_token, _calendarId, request, timeZone, generation) {
+			await latency()
 			calls.insert.push(request.eventId)
 			const body = insertEventBody(request)
 			const resource = googleTimes(
@@ -175,6 +177,7 @@ function createStub() {
 		async patch(_token, _calendarId, request, timeZone, generation, privateProperties) {
 			const resource = read(request.eventId)
 			if (resource.etag !== request.ifMatch) throw new GoogleWriteFault(412)
+			await latency()
 			calls.patch.push(request.eventId)
 			const body = insertEventBody(request)
 			const updated = googleTimes(
