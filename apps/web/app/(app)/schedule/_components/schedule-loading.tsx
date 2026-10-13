@@ -4,13 +4,13 @@ import { createPortal } from 'react-dom'
 
 import { PageScroll, WorkspacePage } from '@/components/app/layout-parts'
 import { useTopbarSlot } from '@/components/app/topbar-slot'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
 
 import { DAY_START_MINUTES, SCHEDULE_TIME_ZONE, lessonDay, mondayOf } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { AgendaSkeleton } from './agenda-skeleton'
-import { LessonCountDialog } from './lesson-count-dialog'
 import { ScheduleBar } from './schedule-toolbar'
 import { WeekGrid, type GridPlaceholder } from './week-grid'
 
@@ -75,6 +75,7 @@ export function ScheduleLoading() {
 				canEdit={never}
 				onMove={ignore}
 				placeholders={LOADING_BLOCKS}
+				zoneKnown={false}
 			/>
 		)
 	if (laptop === null)
@@ -106,8 +107,9 @@ export function ScheduleLoading() {
 				: null}
 			{createPortal(
 				<div className="flex items-center gap-2">
-					<span className="size-7" />
-					<LessonCountDialog iconOnly />
+					<Skeleton className="size-7 rounded-md" />
+					<Skeleton className="size-7 rounded-md" />
+					<Skeleton className="size-7 rounded-md" />
 				</div>,
 				laptop.right
 			)}
