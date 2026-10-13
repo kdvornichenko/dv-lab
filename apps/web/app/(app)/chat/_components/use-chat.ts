@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { apiRequest } from '@/lib/api-client'
+import { useCalendarController } from '@/components/app/calendar-command-provider'
+import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest } from '@/lib/api-client'
 
 import {
+	calendarActionResponse,
 	chatConversationReadResponse,
 	sendMessageResponse,
 	studentLessonOptionsResponse,
 	undoResponse,
 	type ChatActionResultBlock,
+	type ChatCalendarProposalBlock,
 	type ChatConversation,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
@@ -170,25 +173,48 @@ function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMess
 	return [...current, ...added.filter((message) => !known.has(message.id))]
 }
 
-function withBlock(messages: readonly ChatMessage[], next: ChatActionResultBlock): ChatMessage[] {
+type ActionBlock = ChatActionResultBlock | ChatCalendarProposalBlock
+
+function withBlock(messages: readonly ChatMessage[], next: ActionBlock): ChatMessage[] {
 	return messages.map((message) => ({
 		...message,
 		blocks: message.blocks.map((block) =>
-			block.type === 'action_result' && block.actionId === next.actionId ? next : block
+			block.type === next.type && block.actionId === next.actionId ? next : block
 		),
 	}))
+}
+
+function calendarBlock(messages: readonly ChatMessage[], actionId: string): ChatCalendarProposalBlock | null {
+	for (const message of messages)
+		for (const block of message.blocks)
+			if (block.type === 'calendar_proposal' && block.actionId === actionId) return block
+	return null
 }
 
 function withUndo(messages: readonly ChatMessage[], actionId: string, undo: ChatUndoState): ChatMessage[] {
 	return messages.map((message) => ({
 		...message,
 		blocks: message.blocks.map((block) =>
-			block.type === 'action_result' && block.actionId === actionId ? { ...block, undo } : block
+			(block.type === 'action_result' || block.type === 'calendar_proposal') && block.actionId === actionId
+				? { ...block, undo }
+				: block
 		),
 	}))
 }
 
+function settled(before: ChatCalendarProposalBlock | null, after: ChatCalendarProposalBlock): boolean {
+	return (
+		(after.state === 'applied' && before?.state !== 'applied') || (after.undo === 'done' && before?.undo !== 'done')
+	)
+}
+
+function announceChange() {
+	window.dispatchEvent(new Event(API_CACHE_INVALIDATED))
+	DATA_CHANGED_CHANNEL?.postMessage('changed')
+}
+
 export function useChat(initialConversationId: string | null) {
+	const calendar = useCalendarController()
 	const [list, setList] = useState<ConversationListState>({ kind: 'loading' })
 	const listRef = useRef<ConversationListState>(list)
 	const [selectedId, setSelectedId] = useState<string | null>(initialConversationId)
@@ -354,6 +380,21 @@ export function useChat(initialConversationId: string | null) {
 		[load, openConversation, putFirst, updateThread]
 	)
 
+	const shownCalendar = useCallback(
+		(conversationId: string, block: ChatCalendarProposalBlock) => {
+			const current = threadRef.current
+			const before =
+				current.conversationId === conversationId && current.state.kind === 'ready'
+					? calendarBlock(current.state.messages, block.actionId)
+					: null
+			updateThread(conversationId, (messages) => withBlock(messages, block))
+			if (!settled(before, block)) return
+			announceChange()
+			void calendar.store.refresh()
+		},
+		[calendar, updateThread]
+	)
+
 	const undo = useCallback(
 		async (actionId: string) => {
 			const conversationId = threadRef.current.conversationId
@@ -363,13 +404,45 @@ export function useChat(initialConversationId: string | null) {
 			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/undo`, body)
 			if (!mounted.current) return
 			const parsed = result.ok ? undoResponse.safeParse(result.data) : null
-			if (parsed?.success) updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
+			if (parsed?.success && parsed.data.block.type === 'calendar_proposal') {
+				shownCalendar(conversationId, parsed.data.block)
+				void calendar.store.refresh()
+			} else if (parsed?.success) updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
 			else
 				updateThread(conversationId, (messages) =>
 					withUndo(messages, actionId, result.status === 409 ? 'stale' : 'available')
 				)
 		},
-		[updateThread]
+		[calendar, shownCalendar, updateThread]
+	)
+
+	const confirmCalendar = useCallback(
+		async (actionId: string) => {
+			const conversationId = threadRef.current.conversationId
+			const current = threadRef.current.state
+			const block = current.kind === 'ready' ? calendarBlock(current.messages, actionId) : null
+			if (conversationId === null || block === null || block.state !== 'proposed') return
+			updateThread(conversationId, (messages) => withBlock(messages, { ...block, state: 'submitting' }))
+			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/confirm`, {})
+			if (!mounted.current) return
+			const parsed = result.ok ? calendarActionResponse.safeParse(result.data) : null
+			if (parsed?.success) shownCalendar(conversationId, parsed.data.block)
+			else updateThread(conversationId, (messages) => withBlock(messages, { ...block, state: 'unknown' }))
+			void calendar.store.refresh()
+		},
+		[calendar, shownCalendar, updateThread]
+	)
+
+	const checkCalendar = useCallback(
+		async (actionId: string) => {
+			const conversationId = threadRef.current.conversationId
+			if (conversationId === null) return
+			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/check`, {})
+			if (!mounted.current) return
+			const parsed = result.ok ? calendarActionResponse.safeParse(result.data) : null
+			if (parsed?.success) shownCalendar(conversationId, parsed.data.block)
+		},
+		[shownCalendar]
 	)
 
 	const rename = useCallback(
@@ -421,6 +494,8 @@ export function useChat(initialConversationId: string | null) {
 		newChat,
 		send,
 		undo,
+		confirmCalendar,
+		checkCalendar,
 		reloadThread,
 		rename,
 		remove,

@@ -18,7 +18,7 @@ import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-l
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
-import { Messages } from './messages'
+import { type CalendarHandlers, Messages } from './messages'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
 import { useChat, useComposerDraft, useMentionStudents, type ThreadState } from './use-chat'
 
@@ -91,19 +91,21 @@ function Thread({
 	onUndo,
 	onChoose,
 	onRefresh,
+	calendar,
 	empty,
 }: {
 	state: ThreadState
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	onRefresh: () => void
+	calendar: CalendarHandlers
 	empty: boolean
 }) {
 	if (state.kind === 'loading') return <ThreadSkeleton />
 	if (state.kind === 'error') return <ReadError screen="this conversation" onRefresh={onRefresh} />
 	const messages = state.kind === 'ready' ? state.messages : []
 	if (messages.length === 0) return empty ? <EmptyLine text="What do you want to ask?" /> : null
-	return <Messages messages={messages} onUndo={onUndo} onChoose={onChoose} />
+	return <Messages messages={messages} onUndo={onUndo} onChoose={onChoose} calendar={calendar} />
 }
 
 function focusAllChats() {
@@ -256,6 +258,10 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 									onUndo={(actionId) => void chat.undo(actionId)}
 									onChoose={choose}
 									onRefresh={chat.reloadThread}
+									calendar={{
+										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
+										onCheck: chat.checkCalendar,
+									}}
 									empty={studentId === null}
 								/>
 							</div>

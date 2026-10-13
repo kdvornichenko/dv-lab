@@ -16,7 +16,13 @@ import { zoneLabel } from '@/lib/time-zones'
 import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, MentionBinding } from '@dv-lab/contracts'
 
 import { ActionResult } from './action-result'
+import { CalendarProposal } from './calendar-proposal'
 import { conversationTime } from './conversation-list'
+
+export type CalendarHandlers = {
+	onConfirm: (actionId: string) => void
+	onCheck: (actionId: string) => Promise<void>
+}
 
 type Notice = { tone: 'info' | 'warning'; title: string; line?: string; settings?: boolean }
 
@@ -167,13 +173,16 @@ function Block({
 	block,
 	onUndo,
 	onChoose,
+	calendar,
 }: {
 	block: ChatBlock
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
+	calendar: CalendarHandlers
 }) {
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
+	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
 	return <Refused block={block} />
 }
 
@@ -224,10 +233,12 @@ export function Messages({
 	messages,
 	onUndo,
 	onChoose,
+	calendar,
 }: {
 	messages: readonly ChatMessage[]
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
+	calendar: CalendarHandlers
 }) {
 	const reduceMotion = useReducedMotion() ?? false
 	const end = useRef<HTMLDivElement>(null)
@@ -271,10 +282,15 @@ export function Messages({
 							)}
 							{message.blocks.map((block, index) => (
 								<Block
-									key={block.type === 'action_result' ? block.actionId : `${message.id}-${index}`}
+									key={
+										block.type === 'action_result' || block.type === 'calendar_proposal'
+											? block.actionId
+											: `${message.id}-${index}`
+									}
 									block={block}
 									onUndo={onUndo}
 									onChoose={onChoose}
+									calendar={calendar}
 								/>
 							))}
 						</MessageItem>

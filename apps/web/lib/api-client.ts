@@ -55,10 +55,12 @@ const UNCHANGED_PATHS = new Set([
 	'/google/disconnect/confirm-revoked',
 ])
 
+const STATUS_CHECK = /^\/chat\/actions\/[^/]+\/check$/
+
 function notifyCache(response: Response, method: ApiMethod, path: string): void {
 	if (typeof window === 'undefined') return
 	if (response.status === 401 && path !== '/auth/sign-in') window.location.replace('/login?reason=expired')
-	if (!response.ok || method === 'GET' || UNCHANGED_PATHS.has(path)) return
+	if (!response.ok || method === 'GET' || UNCHANGED_PATHS.has(path) || STATUS_CHECK.test(path)) return
 	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
 		SESSION_CACHE_CHANNEL?.postMessage('changed')
 	} else {
