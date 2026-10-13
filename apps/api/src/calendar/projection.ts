@@ -193,6 +193,7 @@ function known<T>(value: T | undefined, stored: T | undefined, fallback: T): T {
 
 function rowKind(fact: EventFact, stored: ProjectionRow | undefined): ProjectionRow['rowKind'] {
 	if (fact.master) return 'master'
+	if (fact.status === 'cancelled' && stored) return stored.rowKind
 	if (fact.recurringEventId !== undefined) return fact.recurringEventId ? 'instance' : 'single'
 	return stored?.rowKind ?? 'single'
 }
