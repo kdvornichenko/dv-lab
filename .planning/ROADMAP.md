@@ -387,7 +387,7 @@ Plans:
 4. Questions about a student (what was covered, weak points, next lesson ideas) are answered from stored data, and any balance, count or "pays soon" list in an answer matches the numbers on the Today and Students screens.
 5. Token usage is recorded per conversation, and once the monthly cap is reached chat stops calling the model and says why.
 
-**Plans**: 12/18 plans executed / 64 tasks / 17 waves; planned 2026-10-13 against the Phase 25.1 code and the owner answers of 2026-10-13 (decisions in 22-CONTEXT); review squad pending
+**Plans**: 13/18 plans executed / 64 tasks / 17 waves; planned 2026-10-13 against the Phase 25.1 code and the owner answers of 2026-10-13 (decisions in 22-CONTEXT); review squad pending
 - [x] 22-01-PLAN.md
 - [x] 22-02-PLAN.md
 - [x] 22-03-PLAN.md
@@ -399,7 +399,7 @@ Plans:
 - [x] 22-09-PLAN.md
 - [x] 22-10-PLAN.md
 - [x] 22-11-PLAN.md
-- [ ] 22-12-PLAN.md
+- [x] 22-12-PLAN.md
 - [ ] 22-13-PLAN.md
 - [ ] 22-14-PLAN.md
 - [ ] 22-15-PLAN.md
@@ -588,7 +588,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
-| 22. Chat with Mentions and Quick Marks           | v2.0      | 12/18 | In Progress|  |
+| 22. Chat with Mentions and Quick Marks           | v2.0      | 13/18 | In Progress|  |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/15           | Planned     | -          |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
