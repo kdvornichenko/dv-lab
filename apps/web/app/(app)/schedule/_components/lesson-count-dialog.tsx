@@ -23,25 +23,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { apiRequest } from '@/lib/api-client'
+import { datesPlural, lessonCountText } from '@/lib/lesson-count-text'
 import { cn } from '@/lib/utils'
 
 import type { CalendarIssue, GoogleScheduleWindow } from '@dv-lab/contracts'
 import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
 
-const MONTHS = [
-	'January',
-	'February',
-	'March',
-	'April',
-	'May',
-	'June',
-	'July',
-	'August',
-	'September',
-	'October',
-	'November',
-	'December',
-]
 const MAX_WEEKS = 53
 const BATCH = 1
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -108,21 +95,6 @@ async function loadEvents(from: string, to: string): Promise<EventDates | { issu
 		}
 	}
 	return events
-}
-
-function lessonCountText(dates: Iterable<string>): string {
-	const byMonth = new Map<string, number[]>()
-	for (const date of [...dates].sort()) {
-		const key = date.slice(0, 7)
-		const days = byMonth.get(key) ?? []
-		days.push(Number(date.slice(8, 10)))
-		byMonth.set(key, days)
-	}
-	return [...byMonth].map(([key, days]) => `${days.join(', ')} - ${MONTHS[Number(key.slice(5, 7)) - 1]}`).join('\n')
-}
-
-function plural(total: number): string {
-	return `${total} ${total === 1 ? 'date' : 'dates'}`
 }
 
 function EventList({
@@ -196,7 +168,7 @@ function EventList({
 									type="button"
 									role="option"
 									aria-selected={chosen}
-									aria-label={`${name}, ${plural(total)}`}
+									aria-label={`${name}, ${datesPlural(total)}`}
 									tabIndex={name === stop ? 0 : -1}
 									title={name}
 									onClick={() => onSelect(name)}
@@ -210,7 +182,7 @@ function EventList({
 										{chosen ? <Check size={14} aria-hidden /> : null}
 									</span>
 									<span className={cn('min-w-0 flex-1 truncate', chosen && 'font-semibold')}>{name}</span>
-									<span className="shrink-0 text-muted-foreground tabular-nums">{plural(total)}</span>
+									<span className="shrink-0 text-muted-foreground tabular-nums">{datesPlural(total)}</span>
 								</button>
 							)
 						})}
