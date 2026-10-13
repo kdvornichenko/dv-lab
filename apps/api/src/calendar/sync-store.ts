@@ -437,6 +437,57 @@ export function applyPass(db: Database, current: SyncClaim, pass: SyncPass): Pro
 	})
 }
 
+export type InboundCursor = { family: string; rank: number; eventId: string }
+export type InboundRow = InboundCursor & { etag: string }
+
+const family = sql<string>`coalesce(${e.recurringEventId}, ${e.eventId})`
+const rank = sql<number>`(case when ${e.rowKind} = 'master' then 0 else 1 end)`
+
+export async function inboundWork(
+	executor: DbExecutor,
+	connectionId: string,
+	after: InboundCursor | null,
+	limit: number
+): Promise<{ rows: InboundRow[]; next: InboundCursor | null }> {
+	const rows = await executor
+		.select({ eventId: e.eventId, etag: e.etag, family, rank: sql<number>`${rank}::int` })
+		.from(e)
+		.where(
+			and(
+				eq(e.connectionId, connectionId),
+				boundRowCondition(connectionId),
+				sql`${e.etag} is distinct from ${e.inboundAppliedEtag}`,
+				after
+					? sql`(${family}, ${rank}, ${e.eventId}) > (${after.family}::text, ${after.rank}::int, ${after.eventId}::text)`
+					: undefined
+			)
+		)
+		.orderBy(family, rank, e.eventId)
+		.limit(limit)
+	const last = rows.at(-1)
+	return {
+		rows,
+		next: rows.length === limit && last ? { family: last.family, rank: last.rank, eventId: last.eventId } : null,
+	}
+}
+
+export async function markInboundApplied(
+	executor: DbExecutor,
+	connectionId: string,
+	rows: readonly { eventId: string; etag: string }[]
+) {
+	let stamped = 0
+	for (const row of rows) {
+		const updated = await executor
+			.update(e)
+			.set({ inboundAppliedEtag: row.etag })
+			.where(and(eq(e.connectionId, connectionId), eq(e.eventId, row.eventId), eq(e.etag, row.etag)))
+			.returning({ eventId: e.eventId })
+		stamped += updated.length
+	}
+	return stamped
+}
+
 export function applyReads(db: Database, current: SyncClaim, facts: readonly EventFact[]) {
 	return db.transaction(async (tx) => {
 		const [connection] = await tx.select().from(c).where(eq(c.id, current.connectionId)).for('update')

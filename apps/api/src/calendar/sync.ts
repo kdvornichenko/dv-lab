@@ -3,6 +3,7 @@ import type { Logger } from 'pino'
 import { addDays, zonedInstant, zonedParts } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
+import { applyInbound, type InboundResult } from '../schedule/inbound-apply.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { SyncTokenGone, type SyncPageQuery } from './gateway-sync.ts'
 import { CalendarFault, GoogleWriteFault } from './gateway.ts'
@@ -14,11 +15,14 @@ import {
 	applyReads,
 	claim,
 	ensureSyncRows,
+	inboundWork,
+	markInboundApplied,
 	masterCandidates,
 	recordFailure,
 	releaseClaim,
 	startFull,
 	syncWindow,
+	type InboundCursor,
 	type PassResult,
 	type SyncClaim,
 	type SyncIssue,
@@ -31,7 +35,18 @@ const POLL_MINUTES = { channel: 30, none: 2 }
 const NIGHTLY_TIME = '03:00'
 const READ_LIMIT = 50
 const PAGE_LIMIT = 1000
+const INBOUND_PAGE = 200
+const NO_INBOUND = {
+	applied: 0,
+	unchanged: 0,
+	skipped_marked: 0,
+	skipped_past: 0,
+	skipped_pending: 0,
+	skipped_locked: 0,
+	failed: 0,
+}
 
+type InboundCounts = Record<InboundResult | 'failed', number>
 type Pages = { facts: EventFact[]; skipped: number; truncated: number; nextSyncToken: string }
 type Outcome = { kind: 'full' | 'incremental'; claim: SyncClaim; result: PassResult; masters: number }
 
@@ -62,6 +77,7 @@ export function createCalendarSync(deps: {
 	logger: Pick<Logger, 'info' | 'warn' | 'debug'>
 	isStopping: () => boolean
 	now?: () => Date
+	hooks?: { afterPassCommit?: (connectionId: string) => void | Promise<void> }
 }) {
 	const running = new Map<string, Promise<void>>()
 	const again = new Set<string>()
@@ -185,6 +201,46 @@ export function createCalendarSync(deps: {
 		return facts.length
 	}
 
+	async function inbound(current: SyncClaim): Promise<InboundCounts> {
+		const counts: InboundCounts = { ...NO_INBOUND }
+		let after: InboundCursor | null = null
+		do {
+			const page = await inboundWork(deps.db, current.connectionId, after, INBOUND_PAGE)
+			for (const row of page.rows) {
+				if (!active()) return counts
+				try {
+					const result = await deps.db.transaction(async (tx) => {
+						const outcome = await applyInbound(tx, {
+							accountId: current.accountId,
+							connectionId: current.connectionId,
+							eventId: row.eventId,
+							now: now(),
+						})
+						if (outcome.stamp) await markInboundApplied(tx, current.connectionId, [outcome.stamp])
+						return outcome.result
+					})
+					counts[result] += 1
+				} catch {
+					counts.failed += 1
+				}
+			}
+			after = page.next
+		} while (after)
+		return counts
+	}
+
+	async function afterPass(current: SyncClaim) {
+		try {
+			await deps.hooks?.afterPassCommit?.(current.connectionId)
+			const counts = await inbound(current)
+			const notable = counts.applied + counts.skipped_pending + counts.skipped_locked + counts.failed
+			if (notable) deps.logger.info(counts, 'Calendar inbound apply')
+			else deps.logger.debug(counts, 'Calendar inbound apply')
+		} catch {
+			deps.logger.warn({ failed: 1 }, 'Calendar inbound apply failed')
+		}
+	}
+
 	async function run(current: SyncClaim) {
 		const startedAt = Date.now()
 		const signal = AbortSignal.any([stopped.signal, AbortSignal.timeout(PASS_BUDGET_MS)])
@@ -208,8 +264,10 @@ export function createCalendarSync(deps: {
 			calendarTimeZone: current.calendarTimeZone,
 			signal,
 		}
+		let committed = false
 		try {
 			const outcome = await pass(current, read)
+			committed = Boolean(outcome?.result.applied)
 			if (!outcome || !outcome.result.applied) {
 				await releaseClaim(deps.db, outcome?.claim ?? current)
 				deps.logger.info({ discarded: 1 }, 'Calendar sync pass discarded')
@@ -235,6 +293,7 @@ export function createCalendarSync(deps: {
 			else await recordFailure(deps.db, current, callIssue(error))
 			deps.logger.warn({ failed: 1, durationMs: Date.now() - startedAt }, 'Calendar sync pass failed')
 		}
+		if (committed && active()) await afterPass(current)
 		try {
 			const row = await syncFacts(deps.db, current.connectionId)
 			if (row && active()) await deps.watch.maintain(row, token)
