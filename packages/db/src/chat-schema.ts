@@ -111,6 +111,44 @@ export const chatActions = pgTable(
 	]
 )
 
+export const chatTurns = pgTable(
+	'chat_turns',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		accountId: uuid('account_id')
+			.notNull()
+			.references(() => accounts.id, { onDelete: 'restrict' }),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'restrict' }),
+		teacherMessageId: uuid('teacher_message_id')
+			.notNull()
+			.references(() => chatMessages.id, { onDelete: 'restrict' }),
+		assistantMessageId: uuid('assistant_message_id').references(() => chatMessages.id, { onDelete: 'restrict' }),
+		state: text('state').notNull(),
+		model: text('model').notNull(),
+		effort: text('effort').notNull(),
+		issue: text('issue'),
+		requests: integer('requests').notNull().default(0),
+		seq: integer('seq').notNull().default(0),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex('chat_turns_active_uq')
+			.on(table.conversationId)
+			.where(sql`${table.state} in ('accepted', 'running')`),
+		uniqueIndex('chat_turns_teacher_message_uq').on(table.teacherMessageId),
+		index('chat_turns_state_idx').on(table.state),
+		check(
+			'chat_turns_state_ck',
+			sql`${table.state} in ('accepted', 'running', 'completed', 'stopped', 'interrupted', 'failed')`
+		),
+		check('chat_turns_requests_ck', sql`${table.requests} >= 0`),
+		check('chat_turns_seq_ck', sql`${table.seq} >= 0`),
+	]
+)
+
 export const chatBudgetPeriods = pgTable(
 	'chat_budget_periods',
 	{
@@ -147,6 +185,7 @@ export const chatUsageAttempts = pgTable(
 		periodId: uuid('period_id')
 			.notNull()
 			.references(() => chatBudgetPeriods.id, { onDelete: 'restrict' }),
+		turnId: uuid('turn_id').references(() => chatTurns.id, { onDelete: 'restrict' }),
 		model: text('model').notNull(),
 		effort: text('effort').notNull(),
 		pricing: jsonb('pricing').$type<unknown>().notNull(),
@@ -162,6 +201,7 @@ export const chatUsageAttempts = pgTable(
 	(table) => [
 		index('chat_usage_attempts_conversation_idx').on(table.conversationId),
 		index('chat_usage_attempts_period_idx').on(table.periodId, table.state),
+		index('chat_usage_attempts_turn_idx').on(table.turnId),
 		check(
 			'chat_usage_attempts_state_ck',
 			sql`${table.state} in ('reserved', 'dispatched', 'settled', 'unknown', 'released')`

@@ -108,7 +108,7 @@ export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 		const read = await readSnapshot(db, async (executor) => {
 			const conversation = await readConversation(executor, accountId, id)
 			if (conversation === null) return null
-			return { conversation, messages: await listMessages(executor, accountId, id) }
+			return { conversation, messages: await listMessages(executor, accountId, id), turn: null }
 		})
 		if (read === null) return notFound(c)
 		return c.json(read satisfies ChatConversationReadResponse, 200)
@@ -122,7 +122,11 @@ export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 		const result = await sendMessage(db, await chatContext(c), id, input)
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'conflict') return c.json(errorBody('precondition_failed', 'The request changed'), 409)
-		const body = { conversation: result.conversation, messages: result.messages } satisfies SendMessageResponse
+		const body = {
+			conversation: result.conversation,
+			messages: result.messages,
+			turn: null,
+		} satisfies SendMessageResponse
 		return c.json(body, result.replayed ? 200 : 201)
 	})
 

@@ -98,6 +98,8 @@ function notice(block: ChatRefusedBlock, secondZone: string | null): Notice {
 				title: 'API credits unavailable',
 				line: 'The API account cannot admit this request. Check its billing status.',
 			}
+		case 'model_refused':
+			return { tone: 'info', title: 'The assistant declined to answer this request.' }
 		case 'model_unavailable':
 		case 'provider_unavailable':
 			return { tone: 'info', title: 'Model settings are unavailable. Refresh before sending.' }
@@ -188,7 +190,8 @@ function Block({
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
-	return <Refused block={block} />
+	if (block.type === 'refused') return <Refused block={block} />
+	return null
 }
 
 function TeacherText({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {

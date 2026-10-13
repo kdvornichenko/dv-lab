@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { calendarDate, calendarInstant, calendarOccurrenceRef, calendarTimeZone, nextLessonRead } from './calendar.ts'
+import { chatEffort } from './chat-settings.ts'
 import { CLOCK_TIME_PATTERN, MARK_KINDS } from './schedule.ts'
 import { LESSON_MINUTES_MIN, STUDENT_STATUSES } from './students.ts'
 
@@ -212,6 +213,7 @@ export const CHAT_REFUSAL_CODES = [
 	'budget_insufficient',
 	'credits_unavailable',
 	'provider_unavailable',
+	'model_refused',
 ] as const
 
 export const chatRefusalCode = z.enum(CHAT_REFUSAL_CODES)
@@ -337,11 +339,20 @@ export const chatCalendarProposalBlock = z.strictObject({
 	undoIssue: chatCalendarIssue.optional(),
 })
 
+export const chatWithheldBlock = z.strictObject({ type: z.literal('withheld') })
+
+export const chatStoppedBlock = z.strictObject({ type: z.literal('stopped') })
+
+export const chatInterruptedBlock = z.strictObject({ type: z.literal('interrupted') })
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
 	chatRefusedBlock,
 	chatCalendarProposalBlock,
+	chatWithheldBlock,
+	chatStoppedBlock,
+	chatInterruptedBlock,
 ])
 
 export type ChatBlock = z.infer<typeof chatBlock>
@@ -366,9 +377,54 @@ export const chatMessage = z.strictObject({
 
 export type ChatMessage = z.infer<typeof chatMessage>
 
+export const CHAT_TURN_STATES = ['accepted', 'running', 'completed', 'stopped', 'interrupted', 'failed'] as const
+
+export const CHAT_ACTIVE_TURN_STATES = ['accepted', 'running'] as const
+
+export const CHAT_TURN_ISSUES = [
+	'provider_unavailable',
+	'credits_unavailable',
+	'model_unavailable',
+	'budget_reached',
+	'budget_insufficient',
+	'model_refused',
+	'max_tokens',
+	'request_limit',
+] as const
+
+export const chatTurn = z.strictObject({
+	id: z.uuid(),
+	state: z.enum(CHAT_TURN_STATES),
+	model: z.string(),
+	effort: chatEffort,
+	issue: z.enum(CHAT_TURN_ISSUES).nullable(),
+	assistantMessageId: z.uuid().nullable(),
+})
+
+export type ChatTurn = z.infer<typeof chatTurn>
+export type ChatTurnState = (typeof CHAT_TURN_STATES)[number]
+export type ChatTurnIssue = (typeof CHAT_TURN_ISSUES)[number]
+
+export const chatTurnResponse = z.strictObject({ turn: chatTurn })
+
+export type ChatTurnResponse = z.infer<typeof chatTurnResponse>
+
+const streamSeq = z.number().int().min(0)
+
+export const chatStreamEvent = z.discriminatedUnion('type', [
+	z.strictObject({ type: z.literal('snapshot'), seq: streamSeq, turn: chatTurn, message: chatMessage.nullable() }),
+	z.strictObject({ type: z.literal('text'), seq: streamSeq, messageId: z.uuid(), text: z.string().min(1) }),
+	z.strictObject({ type: z.literal('block'), seq: streamSeq, messageId: z.uuid(), block: chatBlock }),
+	z.strictObject({ type: z.literal('state'), turn: chatTurn }),
+	z.strictObject({ type: z.literal('heartbeat') }),
+])
+
+export type ChatStreamEvent = z.infer<typeof chatStreamEvent>
+
 export const chatConversationReadResponse = z.strictObject({
 	conversation: chatConversation,
 	messages: z.array(chatMessage),
+	turn: chatTurn.nullable(),
 })
 
 export type ChatConversationReadResponse = z.infer<typeof chatConversationReadResponse>
@@ -376,6 +432,7 @@ export type ChatConversationReadResponse = z.infer<typeof chatConversationReadRe
 export const sendMessageResponse = z.strictObject({
 	conversation: chatConversation,
 	messages: z.array(chatMessage),
+	turn: chatTurn.nullable(),
 })
 
 export type SendMessageResponse = z.infer<typeof sendMessageResponse>
