@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
+import { SkeletonContent } from '@/components/app/skeleton-swap'
 import { requireTeacherPage } from '@/lib/session'
 
 import { StudentProfile } from './_components/student-profile'
@@ -13,5 +14,9 @@ export default async function StudentPage({ params }: { params: Promise<{ id: st
 	await requireTeacherPage()
 	const { id } = await params
 	if (!UUID.test(id)) notFound()
-	return <StudentProfile id={id} />
+	return (
+		<SkeletonContent>
+			<StudentProfile id={id} />
+		</SkeletonContent>
+	)
 }

@@ -577,3 +577,29 @@ html.transitioning *::after {
 		background-color: rgb(var(--overlay) / 0.16);
 	}
 }
+
+::view-transition {
+	pointer-events: none;
+}
+::view-transition-old(.skeleton-exit) {
+	animation: swap-out 120ms ease-out both;
+}
+::view-transition-new(.content-enter) {
+	animation: swap-in 160ms ease-out both;
+}
+@keyframes swap-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes swap-in {
+	from {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(.skeleton-exit),
+	::view-transition-new(.content-enter) {
+		animation: none;
+	}
+}
