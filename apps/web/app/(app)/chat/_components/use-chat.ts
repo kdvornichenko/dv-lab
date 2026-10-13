@@ -36,8 +36,6 @@ import {
 	type UndoRequest,
 } from '@dv-lab/contracts'
 
-export const MENTION_LIMIT = 6
-
 export type MentionStudents = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; rows: StudentLessonOption[] }
 
 export type Draft = { text: string; bindings: MentionBinding[]; stale: boolean }
@@ -50,7 +48,7 @@ function searchKey(value: string): string {
 
 export function matchStudents(rows: readonly StudentLessonOption[], query: string): StudentLessonOption[] {
 	const key = searchKey(query.trim())
-	return rows.filter((row) => searchKey(row.displayName).includes(key)).slice(0, MENTION_LIMIT)
+	return rows.filter((row) => searchKey(row.displayName).includes(key))
 }
 
 export function tokenStart(text: string, binding: MentionBinding): number {

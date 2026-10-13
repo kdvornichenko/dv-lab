@@ -136,7 +136,7 @@ export function MentionPopup({
 						id={listId}
 						role="listbox"
 						aria-label={label}
-						className="scroll-fade flex max-h-60 flex-col overflow-y-auto"
+						className="scroll-fade flex max-h-60 scroll-py-6 flex-col overflow-y-auto overscroll-contain [--scroll-fade-size:var(--scroll-fade-size-compact)]"
 					>
 						{items.map((item, index) => (
 							<div
