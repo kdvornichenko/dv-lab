@@ -57,6 +57,20 @@ export const markLessonRequest = z.object({
 	expectedRevision: z.number().int().min(1).nullable().optional(),
 })
 
+export const COMMENT_MAX_LENGTH = 2000
+
+export const appendLessonCommentRequest = z.strictObject({
+	body: z
+		.string()
+		.transform((value) => value.trim())
+		.refine((value) => {
+			const length = Array.from(value).length
+			return length >= 1 && length <= COMMENT_MAX_LENGTH && !value.includes('\u0000')
+		}),
+})
+
+export const retractCommentRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
+
 export const moveSeriesRequest = z.object({
 	from: isoDate,
 	weekday,
@@ -155,3 +169,16 @@ export type ScheduleMark = {
 export type ScheduleMarkResponse = { mark: ScheduleMark }
 
 export type ScheduleCreateResponse = ScheduleLessonResponse | ScheduleSeriesResponse
+
+export type LessonComment = {
+	id: string
+	ref: ScheduleOccurrenceRef
+	body: string
+	revision: number
+	createdAt: string
+	retractedAt: string | null
+}
+
+export type LessonCommentsResponse = { comments: LessonComment[] }
+
+export type LessonCommentResponse = { comment: LessonComment }

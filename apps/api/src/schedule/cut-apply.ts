@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm'
 import { isDeepStrictEqual } from 'node:util'
 
 import { occurrenceAt, type SeriesRule } from '@dv-lab/core'
@@ -9,6 +9,7 @@ import {
 	googleSeriesRule,
 	lessonSeries,
 	lessonExceptions,
+	lessonComments,
 	lessonMarks,
 	lessons,
 	type DbExecutor,
@@ -66,7 +67,7 @@ export async function applyConfirmedCut(tx: DbExecutor, command: PreparedCalenda
 		.update(lessonSeries)
 		.set({ endsOn: command.plan.oldEndsOn, updatedAt: sql`now()` })
 		.where(eq(lessonSeries.id, old.id))
-	await insertDomain(tx, command, marks)
+	await insertDomain(tx, command, old.id, marks)
 	await retireOldTail(tx, command, old)
 	const confirmedRevision = await advanceCommandRevision(
 		tx,
@@ -100,6 +101,21 @@ async function currentTail(tx: DbExecutor, command: PreparedCalendarCommand, old
 		.from(lessonMarks)
 		.where(and(eq(lessonMarks.seriesId, old.id), gte(lessonMarks.originalOn, cut.cutoff)))
 		.for('update')
+	const comments = await tx
+		.select({ originalOn: lessonComments.originalOn })
+		.from(lessonComments)
+		.where(
+			and(
+				eq(lessonComments.seriesId, old.id),
+				isNull(lessonComments.retractedAt),
+				gte(lessonComments.originalOn, cut.cutoff)
+			)
+		)
+		.for('update')
+	for (const row of comments) {
+		if (!command.plan.lineage.some((item) => item.from.kind === 'series' && item.from.originalOn === row.originalOn))
+			throw new CommandFault('external_change')
+	}
 	const index = new Map(exceptions.map((row) => [row.originalOn, toSeriesException(row)]))
 	const markIndex = new Map(marks.filter((row) => row.originalOn !== null).map((row) => [row.originalOn!, row.kind]))
 	for (const date of new Set([...index.keys(), ...markIndex.keys()])) {
@@ -142,7 +158,12 @@ async function lockReservations(tx: DbExecutor, command: PreparedCalendarCommand
 	if (existingSeries.length || existingLessons.length) throw new CommandFault('precondition_failed')
 }
 
-async function insertDomain(tx: DbExecutor, command: PreparedCalendarCommand, marks: ReadonlyMap<string, string>) {
+async function insertDomain(
+	tx: DbExecutor,
+	command: PreparedCalendarCommand,
+	oldSeriesId: string,
+	marks: ReadonlyMap<string, string>
+) {
 	for (const reservation of command.plan.reservations) {
 		if (reservation.entityKind === 'series') {
 			if (!command.plan.newRule) throw new CommandFault('precondition_failed')

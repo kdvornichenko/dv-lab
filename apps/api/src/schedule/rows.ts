@@ -24,7 +24,15 @@ import {
 	occurrenceOutcome,
 	scheduleDate,
 } from '@dv-lab/core'
-import { type DbExecutor, lessonExceptions, lessonMarks, lessonSeries, lessons, type students } from '@dv-lab/db'
+import {
+	type DbExecutor,
+	lessonComments,
+	lessonExceptions,
+	lessonMarks,
+	lessonSeries,
+	lessons,
+	type students,
+} from '@dv-lab/db'
 
 import { historyEligibility } from '../calendar/history.ts'
 
@@ -257,7 +265,7 @@ export async function seriesMarksFrom(
 }
 
 export async function heldSeriesDates(executor: DbExecutor, seriesId: string, from?: string): Promise<Set<string>> {
-	const rows = await executor
+	const marked = await executor
 		.select({ originalOn: lessonMarks.originalOn })
 		.from(lessonMarks)
 		.where(
@@ -267,7 +275,17 @@ export async function heldSeriesDates(executor: DbExecutor, seriesId: string, fr
 				from === undefined ? undefined : gte(lessonMarks.originalOn, from)
 			)
 		)
-	return new Set(rows.flatMap((row) => (row.originalOn === null ? [] : [row.originalOn])))
+	const commented = await executor
+		.select({ originalOn: lessonComments.originalOn })
+		.from(lessonComments)
+		.where(
+			and(
+				eq(lessonComments.seriesId, seriesId),
+				isNull(lessonComments.retractedAt),
+				from === undefined ? undefined : gte(lessonComments.originalOn, from)
+			)
+		)
+	return new Set([...marked, ...commented].flatMap((row) => (row.originalOn === null ? [] : [row.originalOn])))
 }
 
 function markRef(row: MarkRecord): OccurrenceRef {
