@@ -359,8 +359,8 @@ test('[calendar] public policies describe calendar storage and recovery', async 
 		'Calendar access',
 		'Information sent to Google',
 		'Calendar information read and stored',
-		'Calendar view metadata',
-		'Last checked view and retention',
+		'Background updates from Google',
+		'Stored copy and retention',
 		'Connection and request records',
 		'Local teaching records',
 		'Form recovery',
@@ -368,16 +368,17 @@ test('[calendar] public policies describe calendar storage and recovery', async 
 		'Data recipients',
 		'Operational records',
 		'Disconnecting',
-		'Refreshing the view',
+		'Changes made in Google',
+		'Chat assistant',
 	])
 		await expect(page.getByRole('heading', { level: 2, name: section, exact: true })).toBeVisible()
 	for (const disclosure of [
-		'This feature does not automatically delete the cache or history after a fixed period.',
+		'During a full reconcile, events outside that range or no longer present in Google are removed from it unless they are linked to a lesson.',
 		'Access and refresh tokens are not sent to the browser.',
 		'To preserve event settings, these records can include validated event descriptions, locations',
 		'Attendee details, conference data and attachments are not kept in these supported snapshots',
 		'Unsaved form inputs stay only in the memory of the open tab.',
-		'Your local history, existing Google events, last checked view, links and request records are kept.',
+		'Your local history, existing Google events, the stored copy, links and request records are kept.',
 	])
 		await expect(page.getByText(disclosure, { exact: false })).toBeVisible()
 	await expect(
