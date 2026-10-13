@@ -86,9 +86,7 @@ function seriesError(draft: Draft, cut: ReturnType<typeof cutSeries> | null): st
 		durationMinutes === rule.durationMinutes &&
 		sameTimeZone(mainTimeZone, rule.timeZone)
 	) {
-		return durationMinutes === rule.durationMinutes
-			? 'Choose a different day or time.'
-			: 'Choose a different day, time or length.'
+		return 'Choose a different day, time or length.'
 	}
 	if (cut?.kind === 'ends_before_new_day' || serverEnds) return endsText()
 	if (cut?.kind === 'invalid' || cut?.kind === 'changed') return 'Choose a date within this series.'

@@ -725,6 +725,13 @@ async function suite(viewport, monday, ids) {
 				dialogText.includes('Friday') && dialogText.includes('10:00'),
 				dialogText.replace(/\n/g, ' | ').slice(0, 300)
 			)
+			const seriesLength = `${await seriesDialog.locator('#move-series-length').inputValue()}:${await seriesDialog.locator('#move-series-length-minutes').inputValue()}`
+			check(
+				`${tag} ${label} shows Length as the third column of the day and time row`,
+				seriesLength === '01:00' &&
+					(await seriesDialog.locator('#move-series-day, #move-series-time, #move-series-length').count()) === 3,
+				seriesLength
+			)
 			if (label === 'following') await shot(page, `calendar-drag-${tag}`, 'lesson-following')
 			const apply = seriesDialog.getByRole('button', { name: 'Move series' }).last()
 			await enabled(apply)
@@ -736,7 +743,8 @@ async function suite(viewport, monday, ids) {
 				/\/schedule\/series\/[^/]+\/move$/.test(call.path) &&
 					call.body.weekday === 5 &&
 					call.body.startTime === '10:00' &&
-					call.body.from === day(9),
+					call.body.from === day(9) &&
+					call.body.durationMinutes === undefined,
 				JSON.stringify(call.body)
 			)
 			await page.waitForTimeout(800)

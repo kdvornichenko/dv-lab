@@ -100,7 +100,7 @@ export async function seriesChangesMoveSeries(
 	facts = await seriesDialogFacts(page)
 	check(
 		'move series: the same day and time give an error under the row',
-		facts.error === 'Choose a different day or time.' && facts.dayInvalid === 'true',
+		facts.error === 'Choose a different day, time or length.' && facts.dayInvalid === 'true',
 		`${facts.error} ${facts.dayInvalid}`
 	)
 	check(

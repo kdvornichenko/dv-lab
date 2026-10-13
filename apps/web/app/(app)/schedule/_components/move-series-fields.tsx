@@ -1,3 +1,4 @@
+import { LengthField } from '@/components/app/length-field'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { TimePicker } from '@/components/ui/time-picker'
 import { weekdayName } from '@/lib/schedule-format'
@@ -18,8 +19,11 @@ export function MoveSeriesFields({
 	zoneLine,
 	timeLabel,
 	foldHint,
+	lengthMinutes,
+	lengthError,
 	onDayChange,
 	onTimeChange,
+	onLengthChange,
 }: {
 	weekday: ScheduleWeekday | null
 	time: string | null
@@ -30,12 +34,15 @@ export function MoveSeriesFields({
 	zoneLine: string | null
 	timeLabel: string
 	foldHint: string | null
+	lengthMinutes: number
+	lengthError: string | undefined
 	onDayChange: (value: string) => void
 	onTimeChange: (value: string | null) => void
+	onLengthChange: (value: number | null) => void
 }) {
 	return (
 		<div className="flex flex-col gap-2">
-			<div className="grid items-start gap-4 sm:grid-cols-2">
+			<div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
 				<div className="flex min-w-0 flex-col gap-2">
 					<label htmlFor="move-series-day" className="text-body text-muted-foreground">
 						New day
@@ -93,6 +100,13 @@ export function MoveSeriesFields({
 					) : null}
 					<LocalTimeHint id="move-series-time-dst" hint={foldHint} />
 				</div>
+				<LengthField
+					id="move-series-length"
+					initialMinutes={lengthMinutes}
+					onCommit={onLengthChange}
+					disabled={pending}
+					error={lengthError}
+				/>
 			</div>
 			{shownRow ? (
 				<p id="move-series-row-error" data-slot="move-series-error" className="text-caption text-destructive">

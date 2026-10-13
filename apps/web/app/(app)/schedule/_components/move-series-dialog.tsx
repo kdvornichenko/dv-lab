@@ -5,13 +5,12 @@ import { useState } from 'react'
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { ConflictStatus, FormFooter, GoogleConflicts, useGoogleConflicts } from '@/components/app/google-conflicts'
-import { LengthField } from '@/components/app/length-field'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
+import { LENGTH_ERROR } from '@/lib/lesson-length'
 import { seriesWhen } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
@@ -39,7 +38,7 @@ interface MoveSeriesDialogProps extends ScheduleFormContext {
 	onMoved: () => void
 }
 
-type Field = 'day' | 'time'
+type Field = 'day' | 'time' | 'length'
 
 function toWeekday(value: string): ScheduleWeekday | null {
 	return WEEKDAYS.find((day) => String(day) === value) ?? null
@@ -148,8 +147,8 @@ export function MoveSeriesDialog({
 		serverGap,
 	})
 	const seeded = seed !== undefined
-	const visible = submitted || touched.day || touched.time || serverEnds || seeded
-	const shownRow = visible ? rowError : undefined
+	const visible = submitted || touched.day || touched.time || touched.length || serverEnds || seeded
+	const shownRow = visible && length !== null ? rowError : undefined
 	const shownDay = submitted || touched.day ? errors.day : undefined
 	const shownTime = submitted || touched.time || input.error || serverGap ? errors.time : undefined
 	const conflicts = useGoogleConflicts({
@@ -195,6 +194,7 @@ export function MoveSeriesDialog({
 		if (errors.from) return document.getElementById('move-series-from')?.focus()
 		if (errors.day || weekday === null) return document.getElementById('move-series-day')?.focus()
 		if (errors.time || time === null) return document.getElementById('move-series-time')?.focus()
+		if (length === null) return document.getElementById('move-series-length')?.focus()
 		if (rowError) return document.getElementById('move-series-day')?.focus()
 		const result = await command.mutate(
 			{ kind: 'rule', seriesId: rule.id },
@@ -279,19 +279,12 @@ export function MoveSeriesDialog({
 							zoneLine={zoneLine}
 							timeLabel={input.label}
 							foldHint={input.hint}
+							lengthMinutes={length ?? rule.durationMinutes}
+							lengthError={(submitted || touched.length) && length === null ? LENGTH_ERROR : undefined}
 							onDayChange={edit((value: string) => setWeekday(toWeekday(value)), 'day')}
 							onTimeChange={edit(setTime, 'time')}
+							onLengthChange={edit(setLength, 'length')}
 						/>
-						{seeded ? (
-							<LengthField
-								id="move-series-length"
-								initialMinutes={length ?? rule.durationMinutes}
-								onCommit={edit(setLength)}
-								disabled={pending}
-								helper={LENGTH_HELPER}
-								error={submitted && length === null ? LENGTH_ERROR : undefined}
-							/>
-						) : null}
 						{preview !== null ? (
 							<div
 								data-slot="move-series-preview"
