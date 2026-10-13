@@ -125,6 +125,7 @@ export function parseMaster(input: unknown, timeZone: string): ProviderMaster {
 
 export const DESCRIPTION_LIMIT = 8192
 export const LOCATION_LIMIT = 1024
+const SUMMARY_LIMIT = 1024
 const MARKER_KIND = /^[a-z_]{1,32}$/
 const looseObject = z.record(z.string(), z.unknown())
 const markerId = z.uuid()
@@ -214,7 +215,7 @@ export function parseSyncItem(input: unknown, timeZone: string, readAt: Date): S
 				kind: 'fact',
 				fact: {
 					...normalized,
-					summary: normalized.summary === null ? null : clean(normalized.summary),
+					summary: normalized.summary === null ? null : [...clean(normalized.summary)].slice(0, SUMMARY_LIMIT).join(''),
 					description: details.description,
 					location: details.location,
 					colorId: details.colorId,
