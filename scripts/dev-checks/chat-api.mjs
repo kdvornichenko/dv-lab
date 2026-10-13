@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { createRequire } from 'node:module'
 import { isDeepStrictEqual } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
@@ -68,7 +69,7 @@ function tableCounts() {
 
 async function routeList() {
 	const { createApp } = await import('../../apps/api/src/app.ts')
-	const pino = (await import('pino')).default
+	const pino = createRequire(new URL('../../apps/api/package.json', import.meta.url))('pino')
 	const app = createApp({
 		logger: pino({ level: 'silent' }),
 		db: {},
