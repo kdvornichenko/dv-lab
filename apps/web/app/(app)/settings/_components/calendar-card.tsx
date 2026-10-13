@@ -19,6 +19,8 @@ import { zoneLabel } from '@/lib/time-zones'
 import { timeZoneIdentity, type GoogleConnectionSnapshot, type SettingsResponse } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
+import { CalendarChoice } from './calendar-choice'
+
 type ConnectionAction = GoogleConnectionSnapshot['allowedActions'][number]
 type Confirmation = { action: 'disconnect' | 'confirm_revoked' | 'switch'; generation: number; connected: boolean }
 
@@ -265,7 +267,8 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 		<div className="flex max-w-180 flex-col gap-4">
 			<Panel id="settings-calendar-connection" title="Connection">
 				<div
-					className="flex min-h-50 flex-col gap-4 px-4 pt-1 pb-4"
+					data-slot="calendar-connection-content"
+					className="flex min-h-73 flex-col gap-4 px-4 pt-1 pb-4"
 					aria-busy={state.pending !== null || state.view.status === 'loading'}
 				>
 					{state.view.status === 'loading' ? <ConnectionSkeleton /> : null}
@@ -280,6 +283,9 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 						</Banner>
 					) : null}
 					{snapshot !== null ? <ConnectionSummary snapshot={snapshot} /> : null}
+					{snapshot !== null ? (
+						<CalendarChoice snapshot={snapshot} busy={state.pending !== null} onChanged={state.refresh} />
+					) : null}
 					{state.view.status !== 'loading' ? (
 						<div className="mt-auto flex flex-wrap items-center gap-2">
 							{snapshot?.allowedActions.map((action) => (
