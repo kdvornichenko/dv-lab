@@ -320,7 +320,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 									)
 								}
 							>
-								New lesson
+								New event
 							</Button>
 						</div>
 					}

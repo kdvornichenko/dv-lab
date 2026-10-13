@@ -10,6 +10,7 @@ import type { CalendarLesson } from '@/lib/lesson-actions'
 import {
 	timeZoneIdentity,
 	type CalendarCommandSnapshot,
+	type CalendarEditScope,
 	type CalendarSeriesContext,
 	type ErrorCode,
 	type GoogleScheduleWindow,
@@ -18,6 +19,7 @@ import {
 	type ScheduleMarkResponse,
 	type ScheduleOccurrenceRef,
 	type ScheduleWeekday,
+	type UpdateCalendarEventRequest,
 } from '@dv-lab/contracts'
 import { mondayOf, scheduleDate } from '@dv-lab/core'
 
@@ -45,9 +47,31 @@ export type CreateLessonBody = {
 	repeats: LessonRepeats
 	expectedDefaultTimeZone: string
 }
-type Target = CalendarTarget
-type Body = LessonBody | MoveLessonBody | MoveSeriesBody | EndSeriesBody | CreateLessonBody
-type Action = 'create' | 'move' | 'cancel' | 'restore' | 'end'
+export type CreateEventBody = {
+	title: string
+	date: string
+	startTime: string
+	durationMinutes: number
+	repeats: LessonRepeats
+	colorId: string | null
+	description: string | null
+	location: string | null
+	expectedDefaultTimeZone: string
+}
+export type UpdateEventBody = { scope: CalendarEditScope; changes: UpdateCalendarEventRequest['changes'] }
+export type DeleteEventBody = { scope: CalendarEditScope }
+export type EventTarget = { kind: 'event_new' } | { kind: 'event'; eventKey: string; version: string }
+type Target = CalendarTarget | EventTarget
+type Body =
+	| LessonBody
+	| MoveLessonBody
+	| MoveSeriesBody
+	| EndSeriesBody
+	| CreateLessonBody
+	| CreateEventBody
+	| UpdateEventBody
+	| DeleteEventBody
+type Action = 'create' | 'move' | 'cancel' | 'restore' | 'end' | 'event_create' | 'event_update' | 'event_delete'
 export type CalendarSelection = {
 	mainTimeZone: string
 	date: string
@@ -68,6 +92,9 @@ export type CalendarMutationResult =
 	| { kind: 'detached' }
 
 function pathOf(target: Target, action: string): string {
+	if (target.kind === 'event_new') return '/google/events'
+	if (target.kind === 'event')
+		return `/google/events/${encodeURIComponent(target.eventKey)}${action === 'event_delete' ? '/delete' : ''}`
 	if (target.kind === 'new') return '/schedule/lessons'
 	if (target.kind === 'single') return `/schedule/lessons/${encodeURIComponent(target.lessonId)}/${action}`
 	if (target.kind === 'series')
@@ -93,6 +120,14 @@ function checkedConnection(window: GoogleScheduleWindow, connection: GoogleSched
 	)
 }
 
+function eventVersionFor(window: GoogleScheduleWindow, target: EventTarget): string | null {
+	if (window.read.state !== 'fresh') return null
+	if (target.kind === 'event_new') return window.read.revision
+	const current = window.events.find((event) => event.eventKey === target.eventKey)
+	if (!current || current.version !== target.version || current.status === 'cancelled') return null
+	return current.version
+}
+
 function validateWindow(
 	window: GoogleScheduleWindow | null,
 	selection: CalendarSelection,
@@ -109,10 +144,13 @@ function validateWindow(
 	if (scheduleDate(new Date(window.requestedRange.start), window.requestedRange.timeZone) !== mondayOf(date))
 		return { ok: false, code: 'precondition_failed' }
 	if (window.write.state !== 'ready') return { ok: false, code: window.write.reason }
-	const expectedVersion = calendarVersionFor(window, target, {
-		series: selection.series,
-		previous: target.kind === 'new' || target.kind === 'rule' ? undefined : (selection.event ?? null),
-	})
+	const expectedVersion =
+		target.kind === 'event' || target.kind === 'event_new'
+			? eventVersionFor(window, target)
+			: calendarVersionFor(window, target, {
+					series: selection.series,
+					previous: target.kind === 'new' || target.kind === 'rule' ? undefined : (selection.event ?? null),
+				})
 	return expectedVersion === null ? { ok: false, code: 'precondition_failed' } : { ok: true, window, expectedVersion }
 }
 
@@ -122,7 +160,7 @@ function operation(target: Target, action: Action): CalendarCommandSnapshot['ope
 }
 
 function selectedDate(target: Target, selection: CalendarSelection, body: Body) {
-	if (target.kind === 'new' && 'date' in body) return body.date
+	if ((target.kind === 'new' || target.kind === 'event_new') && 'date' in body) return body.date
 	return selection.date
 }
 

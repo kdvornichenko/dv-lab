@@ -1,0 +1,474 @@
+'use client'
+
+import { useState, type ReactNode, type RefObject } from 'react'
+
+import { RefreshCw } from 'lucide-react'
+
+import { DateField } from '@/components/app/date-field'
+import { READ_ISSUES } from '@/components/app/google-calendar-state'
+import { FormFooter, type useGoogleConflicts } from '@/components/app/google-conflicts'
+import { LengthField } from '@/components/app/length-field'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { TabItem, Tabs, TabsList } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { TimePicker } from '@/components/ui/time-picker'
+import { Tooltip } from '@/components/ui/tooltip'
+import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
+import { formatDate, secondWhen, weekdayName } from '@/lib/schedule-format'
+import { sameTimeZone } from '@/lib/time-zones'
+
+import type { LessonRepeats } from '@dv-lab/contracts'
+import { scheduleDate, weekdayOf } from '@dv-lab/core'
+
+import { ColorSelect, COLOR_DEFAULT, type PaletteState } from './color-select'
+import { gapMessage, LocalTimeHint, localTimeInput, type useScheduleFormContext } from './schedule-form-context'
+
+export const EVENT_TITLE_ERROR = 'Enter a title.'
+export const CHECK_STUDENT = '00000000-0000-0000-0000-000000000000'
+
+const DAY_MINUTES = 1440
+
+type ScheduleContext = ReturnType<typeof useScheduleFormContext>
+type ConflictCheck = ReturnType<typeof useGoogleConflicts>
+type TimeField = 'date' | 'time' | 'length'
+
+export interface TimeSeed {
+	date: string
+	time: string
+	durationMinutes?: number
+	dragged?: boolean
+}
+
+function clockMinutes(time: string): number {
+	return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+}
+
+function clockOf(minutes: number): string {
+	const wall = ((minutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES
+	return `${String(Math.floor(wall / 60)).padStart(2, '0')}:${String(wall % 60).padStart(2, '0')}`
+}
+
+function dateError(date: string, repeats: LessonRepeats, today: string, allowPast: boolean) {
+	if (date === '') return 'Choose a date.'
+	if (!allowPast && repeats === 'weekly' && date < today) return 'Choose today or later.'
+	return undefined
+}
+
+export function createProposal(
+	input: {
+		studentId: string
+		date: string
+		startTime: string | null
+		durationMinutes: number | null
+		repeats: LessonRepeats
+		expectedDefaultTimeZone: string
+	},
+	invalid: boolean
+) {
+	if (!input.studentId || input.startTime === null || input.durationMinutes === null || invalid) return null
+	return {
+		operation: 'create' as const,
+		input: { ...input, startTime: input.startTime, durationMinutes: input.durationMinutes },
+	}
+}
+
+export function withoutEvent(check: ConflictCheck, eventKey: string): ConflictCheck {
+	const result = check.result
+	if (result?.state !== 'complete') return check
+	return { ...check, result: { ...result, events: result.events.filter((event) => event.eventKey !== eventKey) } }
+}
+
+export function HelperLine({ id, text, error }: { id: string; text: string | null; error?: string }) {
+	return (
+		<p
+			id={id}
+			className={error ? 'min-h-4 text-caption text-destructive' : 'min-h-4 text-caption text-muted-foreground'}
+		>
+			{error ?? text}
+		</p>
+	)
+}
+
+export function useTimeFields(
+	seed: TimeSeed,
+	context: ScheduleContext,
+	secondZone: string | null,
+	options: { idPrefix: string; repeats?: LessonRepeats; allowPast?: boolean }
+) {
+	const { today, currentYear } = context
+	const initialMinutes = seed.durationMinutes ?? 60
+	const [date, setDateValue] = useState(seed.date)
+	const [time, setTimeValue] = useState<string | null>(seed.time)
+	const [length, setLength] = useState<number | null>(initialMinutes)
+	const [lengthKey, setLengthKey] = useState(0)
+	const [span, setSpan] = useState(initialMinutes)
+	const [lengthEdited, setLengthEdited] = useState(seed.dragged === true)
+	const [repeats, setRepeats] = useState<LessonRepeats>(options.repeats ?? 'once')
+	const [touched, setTouched] = useState<Partial<Record<TimeField, boolean>>>({})
+	const [submitted, setSubmitted] = useState(false)
+	const [serverGap, setServerGap] = useState(false)
+
+	const weekday = weekdayOf(date)
+	const input = localTimeInput(date, time, context)
+	const timeError = serverGap ? gapMessage(context.mainTimeZone) : input.error
+	const errors = {
+		date: dateError(date, repeats, today, options.allowPast === true),
+		time: timeError ?? (time === null ? 'Choose a start time.' : undefined),
+		length: length === null ? LENGTH_ERROR : undefined,
+	}
+	const shown = (field: TimeField) =>
+		submitted || touched[field] || (field === 'time' && timeError) ? errors[field] : undefined
+	const touch = (field: TimeField) => setTouched((current) => ({ ...current, [field]: true }))
+
+	const second = secondZone !== null && !sameTimeZone(secondZone, context.mainTimeZone) ? secondZone : null
+	const startLine = input.instant === null ? null : secondWhen(input.instant, context.mainTimeZone, second)
+	const end = time === null ? null : clockOf(clockMinutes(time) + span)
+	const endInstant = input.instant === null ? null : new Date(input.instant.getTime() + span * 60000)
+	const endDate = endInstant === null ? null : scheduleDate(endInstant, context.mainTimeZone)
+	const endSecond = endInstant === null ? null : secondWhen(endInstant, context.mainTimeZone, second)
+	const endLine =
+		endDate !== null && endDate !== date
+			? [formatDate(endDate, currentYear), endSecond].filter(Boolean).join(' · ')
+			: endSecond
+
+	function setDate(value: string) {
+		setDateValue(value)
+		setServerGap(false)
+		touch('date')
+	}
+
+	function setTime(value: string | null) {
+		setTimeValue(value)
+		setServerGap(false)
+		touch('time')
+	}
+
+	function commitLength(next: number | null) {
+		if (next !== span) setLengthEdited(true)
+		setLength(next)
+		if (next !== null) setSpan(next)
+		touch('length')
+	}
+
+	function chooseEnd(value: string | null) {
+		if (value === null || time === null) return
+		let next = clockMinutes(value) - clockMinutes(time)
+		if (next <= 0) next += DAY_MINUTES
+		setSpan(next)
+		setLength(next)
+		setLengthKey((key) => key + 1)
+		setLengthEdited(true)
+		touch('length')
+	}
+
+	function setUsualLength(minutes: number) {
+		setLength(minutes)
+		setLengthKey((key) => key + 1)
+		setSpan(minutes)
+	}
+
+	return {
+		idPrefix: options.idPrefix,
+		date,
+		time,
+		length,
+		lengthKey,
+		span,
+		lengthEdited,
+		repeats,
+		minutes: length,
+		weekday,
+		input,
+		timeError,
+		errors,
+		shown,
+		startLine,
+		end,
+		endLine,
+		serverGap,
+		setServerGap,
+		submitted,
+		setSubmitted,
+		setDate,
+		setTime,
+		setRepeats,
+		commitLength,
+		chooseEnd,
+		setUsualLength,
+	}
+}
+
+export type TimeFields = ReturnType<typeof useTimeFields>
+
+export function TimeRows({
+	fields,
+	pending,
+	lengthRef,
+	lengthHelper = LENGTH_HELPER,
+	repeatsLocked = null,
+}: {
+	fields: TimeFields
+	pending: boolean
+	lengthRef?: RefObject<HTMLInputElement | null>
+	lengthHelper?: string
+	repeatsLocked?: string | null
+}) {
+	const { idPrefix: prefix, input, time, repeats } = fields
+	return (
+		<>
+			<div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_minmax(0,1fr)]">
+				<div className="col-span-2 min-w-0 sm:col-span-1">
+					<DateField
+						id={`${prefix}-date`}
+						label="Date"
+						short
+						reserve
+						value={fields.date}
+						onChange={fields.setDate}
+						disabled={pending}
+						error={fields.shown('date')}
+					/>
+				</div>
+				<div className="flex min-w-0 flex-col gap-2">
+					<span id={`${prefix}-time-label`} className="text-body text-muted-foreground">
+						Start, {input.label}
+					</span>
+					<TimePicker
+						id={`${prefix}-time`}
+						aria-labelledby={`${prefix}-time-label`}
+						aria-describedby={`${prefix}-time-note ${prefix}-time-dst`}
+						value={time}
+						onValueChange={fields.setTime}
+						minuteStep={15}
+						hourCycle={24}
+						disabled={pending}
+						invalid={Boolean(fields.shown('time'))}
+						className="w-full"
+					/>
+					<HelperLine id={`${prefix}-time-note`} text={fields.startLine} error={fields.shown('time')} />
+					<LocalTimeHint id={`${prefix}-time-dst`} hint={input.hint} />
+				</div>
+				<div className="flex min-w-0 flex-col gap-2">
+					<span id={`${prefix}-end-label`} className="text-body text-muted-foreground">
+						End, {input.label}
+					</span>
+					<TimePicker
+						id={`${prefix}-end`}
+						aria-labelledby={`${prefix}-end-label`}
+						aria-describedby={`${prefix}-end-note`}
+						value={fields.end}
+						onValueChange={fields.chooseEnd}
+						minuteStep={15}
+						hourCycle={24}
+						disabled={pending || time === null}
+						className="w-full"
+					/>
+					<HelperLine id={`${prefix}-end-note`} text={fields.endLine} />
+				</div>
+			</div>
+			<div className="grid items-start gap-3 sm:grid-cols-2">
+				<LengthField
+					key={fields.lengthKey}
+					hoursRef={lengthRef}
+					id={`${prefix}-length`}
+					initialMinutes={fields.length ?? fields.span}
+					onCommit={fields.commitLength}
+					disabled={pending}
+					helper={lengthHelper}
+					error={fields.shown('length')}
+				/>
+				<div className="flex min-w-0 flex-col gap-2">
+					<span id={`${prefix}-repeats-label`} className="text-body text-muted-foreground">
+						Repeats
+					</span>
+					<Tabs
+						value={repeatsLocked === null ? repeats : ''}
+						onValueChange={(value) => fields.setRepeats(value === 'weekly' ? 'weekly' : 'once')}
+					>
+						<div className="flex min-w-0 rounded-xl bg-muted">
+							<TabsList
+								aria-labelledby={`${prefix}-repeats-label`}
+								className="w-full bg-transparent *:flex-1 *:justify-center"
+							>
+								<TabItem value="once" label="Once" disabled={pending || repeatsLocked !== null} />
+								<TabItem value="weekly" label="Every week" disabled={pending || repeatsLocked !== null} />
+							</TabsList>
+						</div>
+					</Tabs>
+					<HelperLine
+						id={`${prefix}-repeat-note`}
+						text={
+							repeatsLocked ??
+							(repeats === 'weekly' && time !== null && input.instant !== null
+								? `Every ${weekdayName(fields.weekday)}, ${time} ${input.label}.`
+								: null)
+						}
+					/>
+				</div>
+			</div>
+		</>
+	)
+}
+
+export interface EventValues {
+	title: string
+	colorValue: string
+	location: string
+	description: string
+}
+
+export function useEventValues(initial?: Partial<EventValues>) {
+	const [title, setTitle] = useState(initial?.title ?? '')
+	const [colorValue, setColorValue] = useState(initial?.colorValue ?? COLOR_DEFAULT)
+	const [location, setLocation] = useState(initial?.location ?? '')
+	const [description, setDescription] = useState(initial?.description ?? '')
+	return { title, setTitle, colorValue, setColorValue, location, setLocation, description, setDescription }
+}
+
+export type EventFields = ReturnType<typeof useEventValues>
+
+export function EventTitleRow({
+	id,
+	values,
+	error,
+	disabled,
+	inputRef,
+	autoFocus,
+}: {
+	id: string
+	values: EventFields
+	error?: string
+	disabled: boolean
+	inputRef?: RefObject<HTMLInputElement | null>
+	autoFocus?: boolean
+}) {
+	return (
+		<div className="flex min-w-0 flex-col gap-2">
+			<label htmlFor={id} className="text-body text-muted-foreground">
+				Title
+			</label>
+			<Input
+				id={id}
+				ref={inputRef}
+				value={values.title}
+				onChange={(event) => values.setTitle(event.target.value)}
+				placeholder="Title"
+				maxLength={1024}
+				disabled={disabled}
+				autoFocus={autoFocus}
+				aria-invalid={error ? true : undefined}
+				aria-describedby={`${id}-note`}
+				autoComplete="off"
+			/>
+			<HelperLine id={`${id}-note`} text={null} error={error} />
+		</div>
+	)
+}
+
+export function EventExtraRows({
+	prefix,
+	values,
+	palette,
+	custom,
+	disabled,
+}: {
+	prefix: string
+	values: EventFields
+	palette: PaletteState
+	custom: { background: string | null } | null
+	disabled: boolean
+}) {
+	return (
+		<>
+			<div className="grid items-start gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+				<div className="flex min-w-0 flex-col gap-2">
+					<label htmlFor={`${prefix}-color`} className="text-body text-muted-foreground">
+						Color
+					</label>
+					<ColorSelect
+						id={`${prefix}-color`}
+						value={values.colorValue}
+						onValueChange={values.setColorValue}
+						palette={palette}
+						custom={custom}
+						disabled={disabled}
+					/>
+				</div>
+				<div className="flex min-w-0 flex-col gap-2">
+					<label htmlFor={`${prefix}-place`} className="text-body text-muted-foreground">
+						Place
+					</label>
+					<Input
+						id={`${prefix}-place`}
+						value={values.location}
+						onChange={(event) => values.setLocation(event.target.value)}
+						placeholder="Place"
+						maxLength={1024}
+						disabled={disabled}
+						autoComplete="off"
+					/>
+				</div>
+			</div>
+			<div className="flex min-w-0 flex-col gap-2">
+				<label htmlFor={`${prefix}-description`} className="text-body text-muted-foreground">
+					Description
+				</label>
+				<Textarea
+					id={`${prefix}-description`}
+					value={values.description}
+					onChange={(event) => values.setDescription(event.target.value)}
+					placeholder="Description"
+					maxLength={8192}
+					disabled={disabled}
+					className="max-h-44 min-h-19 overflow-y-auto pointer-coarse:max-h-52"
+				/>
+			</div>
+		</>
+	)
+}
+
+export function ChangedInGoogle({ onRefresh, disabled }: { onRefresh: () => void; disabled: boolean }) {
+	return (
+		<Tooltip content={READ_ISSUES.external_change} className="max-w-[280px]">
+			<Button
+				type="button"
+				variant="ghost"
+				size="compact"
+				leadingIcon={RefreshCw}
+				disabled={disabled}
+				className="[&_svg]:text-warning"
+				onClick={onRefresh}
+			>
+				Changed in Google. Refresh
+			</Button>
+		</Tooltip>
+	)
+}
+
+export function EventFooter({
+	status,
+	pending,
+	disabled,
+	label,
+	pendingLabel,
+	onDiscard,
+}: {
+	status: ReactNode
+	pending: boolean
+	disabled: boolean
+	label: string
+	pendingLabel: string
+	onDiscard: () => void
+}) {
+	return (
+		<FormFooter status={status}>
+			<Button type="button" variant="ghost" onClick={onDiscard} disabled={pending}>
+				Discard changes
+			</Button>
+			<Button type="submit" loading={pending} disabled={disabled}>
+				{pending ? pendingLabel : label}
+			</Button>
+		</FormFooter>
+	)
+}
