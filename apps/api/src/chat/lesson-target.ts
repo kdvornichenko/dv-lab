@@ -11,7 +11,16 @@ import type {
 	LessonTargetResult,
 	ScheduleBlock,
 } from '@dv-lab/contracts'
-import { awaitsMark, canChange, lessonActions, lessonDay, localTimeCandidates, zonedParts } from '@dv-lab/core'
+import {
+	addDays,
+	awaitsMark,
+	canChange,
+	lessonActions,
+	lessonDay,
+	localTimeCandidates,
+	namedDateRange,
+	zonedParts,
+} from '@dv-lab/core'
 import { lessonSeries, type DbExecutor } from '@dv-lab/db'
 
 import { findConnection } from '../calendar/google-access.ts'
@@ -104,6 +113,20 @@ function sameTime(block: ScheduleBlock, time: string, zone: string): boolean {
 	return zonedParts(new Date(block.startsAt), zone).time === time
 }
 
+async function readNamedDate(executor: DbExecutor, context: CardReadContext, date: string) {
+	const { start, end } = namedDateRange(date, context.now, context.defaultTimeZone)
+	const before = await readLessonDay(executor, context, addDays(date, -1))
+	const day = await readLessonDay(executor, context, date)
+	const inside = (block: ScheduleBlock) => {
+		const at = Date.parse(block.startsAt)
+		return at >= start.getTime() && at < end.getTime()
+	}
+	const lessons = unique([...before.lessons, ...day.lessons])
+		.filter(inside)
+		.sort((left, right) => left.startsAt.localeCompare(right.startsAt))
+	return { ...day, lessons }
+}
+
 async function connectionSync(executor: DbExecutor, accountId: string) {
 	const connection = await findConnection(executor, accountId)
 	return { connectionId: connection?.id ?? null, sync: connection ? await syncFacts(executor, connection.id) : null }
@@ -179,7 +202,10 @@ export async function resolveLessonTarget(
 	const { now, defaultTimeZone: zone } = context
 	const calendar = intent.kind === 'move' || intent.kind === 'cancel'
 	const source = intent.date ?? (intent.scope === 'series' ? intent.from : undefined)
-	const day = await readLessonDay(executor, context, source ?? lessonDay(now, zone))
+	const day =
+		source === undefined
+			? await readLessonDay(executor, context, lessonDay(now, zone))
+			: await readNamedDate(executor, context, source)
 	if (calendar) {
 		const blocked = writeRefusal(day.calendarWrite)
 		if (blocked) return blocked

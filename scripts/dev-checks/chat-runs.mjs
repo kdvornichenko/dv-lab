@@ -379,12 +379,7 @@ async function main() {
 	const lessonId = sql(
 		`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(startsAt)}, 60, 'scheduled') returning id`
 	).rows[0].id
-	const markInput = {
-		student_id: studentId,
-		outcome: 'done',
-		date: core.lessonDay(new Date(startsAt), zone),
-		time: wall.time,
-	}
+	const markInput = { student_id: studentId, outcome: 'done', date: wall.date, time: wall.time }
 
 	fake.script.push(say('Привет. У ученика осталось 3 урока. Дальше работайте над Unit 5.'))
 	const first = await conversation()

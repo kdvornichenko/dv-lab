@@ -627,6 +627,40 @@ async function cases(pipeline, fx, ids) {
 	const note = await resolveLessonTarget(db, context, { kind: 'note', studentId: ids.a, scope: 'one' })
 	check('a note needs no lesson', note.kind === 'student' && note.studentId === ids.a)
 
+	const at = (date, time) => ({ ...context, now: core.zonedInstant(date, time, fx.zone) })
+	const named = (ctx, kind, studentId, date, time) =>
+		resolveLessonTarget(db, ctx, { kind, studentId, date, ...(time ? { time } : {}), scope: 'one' })
+	const isLesson = (result, lessonId) => result.kind === 'lesson' && result.lesson.ref.lessonId === lessonId
+	const night = at(tomorrow, '00:35')
+	const nightMark = await named(night, 'done', ids.a, tomorrow)
+	const nightComment = await named(night, 'comment', ids.a, tomorrow)
+	const nightTimed = await named(night, 'no_show', ids.a, tomorrow, '10:00')
+	check(
+		'at 00:35 the calendar date from Now still reaches the lesson day that has not ended: mark, comment and a timed mark',
+		isLesson(nightMark, ids.aLesson) && isLesson(nightComment, ids.aLesson) && isLesson(nightTimed, ids.aLesson),
+		JSON.stringify({ nightMark, nightComment, nightTimed })
+	)
+	const dayBefore = await named(context, 'done', ids.a, tomorrow)
+	check(
+		'in the daytime the next calendar date does not reach the lessons of today',
+		dayBefore.kind === 'clarify' && dayBefore.question === 'date_time' && dayBefore.options.length === 0,
+		JSON.stringify(dayBefore)
+	)
+	const late = at(tomorrow, '01:45')
+	const lateCalendar = await named(late, 'done', ids.h, tomorrow, '01:30')
+	const lateDay = await named(late, 'comment', ids.h, fx.today, '01:30')
+	const after = at(tomorrow, '02:10')
+	const afterMark = await named(after, 'done', ids.h, tomorrow, '01:30')
+	const afterComment = await named(after, 'comment', ids.h, tomorrow)
+	check(
+		'a lesson at 01:30 is found by its calendar date and by its lesson day, before and after 02:00',
+		isLesson(lateCalendar, ids.hLesson) &&
+			isLesson(lateDay, ids.hLesson) &&
+			isLesson(afterMark, ids.hLesson) &&
+			isLesson(afterComment, ids.hLesson),
+		JSON.stringify({ lateCalendar, lateDay, afterMark, afterComment })
+	)
+
 	const day = await readLessonDay(db, context, fx.today)
 	const today = await readToday(db, context, 2)
 	check(
@@ -657,6 +691,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 		e: card(5),
 		f: card(6),
 		g: card(7),
+		h: card(10),
 		twinA: card(0),
 		twinB: card(0),
 		archived: card(8, 'archived'),
@@ -684,6 +719,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	const eLesson = await createLesson(pipeline, fx, ids.e, fx.today, '09:00')
 	ids.gDate = core.addDays(core.mondayOf(fx.today), 7)
 	ids.gLesson = await createLesson(pipeline, fx, ids.g, ids.gDate, '10:00')
+	ids.hLesson = await createLesson(pipeline, fx, ids.h, core.addDays(fx.today, 1), '01:30')
 	ids.series = await createSeries(pipeline, fx, ids.s, core.addDays(fx.today, -21), '10:00')
 	const marks = [
 		await markLesson(pipeline.app.db, fx.accountId, eLesson, { kind: 'done' }, fx.now),
@@ -707,7 +743,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	if (marks.some((result) => result.kind !== 'ok'))
 		throw new Error(`fixture marks refused: ${marks.map((result) => result.kind).join(' ')}`)
 	freshAt(fx)
-	console.log(`FIXTURES cards 11 lessons 7 series ${hash(ids.series)} today ${fx.today} now ${fx.now.toISOString()}`)
+	console.log(`FIXTURES cards 12 lessons 8 series ${hash(ids.series)} today ${fx.today} now ${fx.now.toISOString()}`)
 	await cases(pipeline, fx, ids)
 } catch (error) {
 	failures++
