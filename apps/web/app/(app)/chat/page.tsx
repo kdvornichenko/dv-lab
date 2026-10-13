@@ -1,17 +1,15 @@
 import type { Metadata } from 'next'
 
-import { EmptyLine } from '@/components/app/empty-line'
-import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { requireTeacherPage } from '@/lib/session'
+
+import { ChatScreen } from './_components/chat-screen'
 
 export const metadata: Metadata = { title: 'Chat' }
 
-export default async function ChatPage() {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export default async function ChatPage({ searchParams }: { searchParams: Promise<{ student?: string | string[] }> }) {
 	await requireTeacherPage()
-	return (
-		<PageScroll>
-			<PageHeader title="Chat" />
-			<EmptyLine />
-		</PageScroll>
-	)
+	const { student } = await searchParams
+	return <ChatScreen studentId={typeof student === 'string' && UUID.test(student) ? student : null} />
 }
