@@ -19,6 +19,7 @@ export type CommandEntry = {
 	commandId: string | null
 	command: CalendarCommandSnapshot | null
 	status: 'checking' | 'ready' | 'missing' | 'unavailable'
+	settling?: boolean
 }
 export type CommandView = {
 	entries: readonly CommandEntry[]
@@ -45,6 +46,11 @@ type LiveCommand = {
 type RecoveryId = { requestId: string; commandId: string | null }
 type ConfirmedWindow = (date: string | undefined, current: () => boolean) => Promise<GoogleScheduleWindow | null>
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const DISPATCH_WINDOW_MS = 32_000
+
+function between(command: CalendarCommandSnapshot | null) {
+	return command?.state === 'partial_recovery' && command.nextAction === 'resume_recovery'
+}
 
 function storedIds(key: string): RecoveryId[] {
 	try {
@@ -100,6 +106,7 @@ export class CalendarCommandStore {
 	private completed: Set<string>
 	private active: boolean
 	private listSequence: number
+	private sentAt: Map<string, number>
 	private timer: ReturnType<typeof setTimeout> | undefined
 	subscribe: (listener: () => void) => () => void
 	getSnapshot: () => CommandView
@@ -117,6 +124,7 @@ export class CalendarCommandStore {
 		this.epoch = 0
 		this.active = false
 		this.listSequence = 0
+		this.sentAt = new Map()
 		this.subscribe = (listener) => {
 			this.listeners.add(listener)
 			return () => {
@@ -134,7 +142,13 @@ export class CalendarCommandStore {
 
 	private publish(update: Partial<CommandView>) {
 		if (!this.active) return
-		this.view = { ...this.view, ...update }
+		const now = Date.now()
+		const entries = (update.entries ?? this.view.entries).map((entry) => {
+			const sent = this.sentAt.get(entry.requestId)
+			const settling = between(entry.command) && sent !== undefined && now - sent < DISPATCH_WINDOW_MS
+			return entry.settling === settling ? entry : { ...entry, settling }
+		})
+		this.view = { ...this.view, ...update, entries }
 		try {
 			const ids = this.view.entries
 				.filter((entry) => entry.command?.state !== 'failed')
@@ -238,6 +252,7 @@ export class CalendarCommandStore {
 			const body = { ...intent.body, requestId, expectedVersion: intent.expectedVersion }
 			this.publish({ entries: this.view.entries.filter((entry) => entry.command?.state !== 'failed') })
 			this.live.set(requestId, { intent, body, resolve })
+			this.sentAt.set(requestId, Date.now())
 			this.set({ requestId, commandId: null, command: null, status: 'checking' })
 			void this.post(requestId, true)
 		})
@@ -385,6 +400,7 @@ export class CalendarCommandStore {
 			(entry) =>
 				!terminal(entry.command) &&
 				(entry.command === null ||
+					entry.settling === true ||
 					entry.command.state === 'applied' ||
 					['wait', 'refresh'].includes(entry.command.nextAction))
 		)
