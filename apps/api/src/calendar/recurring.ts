@@ -144,7 +144,10 @@ export function exclusionFacts(master: EventFact, lines: readonly string[], time
 	return (starts ?? [])
 		.filter((start) => start.getTime() >= now.getTime())
 		.map((start) => ({
-			eventId: `${master.eventId}_${start.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
+			eventId: `${master.eventId}_${start
+				.toISOString()
+				.replace(/[-:]/g, '')
+				.replace(/\.\d{3}/, '')}`,
 			status: 'cancelled' as const,
 			etag: `exdate:${master.etag}`,
 			recurringEventId: master.eventId,
