@@ -22,7 +22,7 @@ const lessonMinutes = z.number().int().min(LESSON_MINUTES_MIN)
 
 const weekday = z.literal([1, 2, 3, 4, 5, 6, 7])
 
-const expectedStartsAt = z.iso.datetime().optional()
+const expectedStartsAt = z.iso.datetime({ offset: true }).optional()
 
 const expectedDefaultTimeZone = z.string().refine(isTimeZone)
 
