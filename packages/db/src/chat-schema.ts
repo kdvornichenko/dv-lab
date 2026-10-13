@@ -1,7 +1,9 @@
 import { sql } from 'drizzle-orm'
 import {
 	type AnyPgColumn,
+	bigint,
 	check,
+	date,
 	index,
 	integer,
 	jsonb,
@@ -23,6 +25,8 @@ export const chatConversations = pgTable(
 			.references(() => accounts.id, { onDelete: 'restrict' }),
 		title: text('title').notNull(),
 		revision: integer('revision').notNull().default(1),
+		modelOverride: text('model_override'),
+		effortOverride: text('effort_override'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 		deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -104,5 +108,65 @@ export const chatActions = pgTable(
 		index('chat_actions_message_idx').on(table.messageId),
 		check('chat_actions_kind_ck', sql`${table.kind} in ('mark', 'note', 'comment', 'calendar')`),
 		check('chat_actions_state_ck', sql`${table.state} in ('proposed', 'submitted', 'applied', 'refused', 'undone')`),
+	]
+)
+
+export const chatBudgetPeriods = pgTable(
+	'chat_budget_periods',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		accountId: uuid('account_id')
+			.notNull()
+			.references(() => accounts.id, { onDelete: 'restrict' }),
+		startsOn: date('starts_on', { mode: 'string' }).notNull(),
+		endsBefore: date('ends_before', { mode: 'string' }).notNull(),
+		timeZone: text('time_zone').notNull(),
+		spentNano: bigint('spent_nano', { mode: 'bigint' }).notNull().default(0n),
+		heldNano: bigint('held_nano', { mode: 'bigint' }).notNull().default(0n),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		uniqueIndex('chat_budget_periods_account_starts_uq').on(table.accountId, table.startsOn),
+		check('chat_budget_periods_spent_ck', sql`${table.spentNano} >= 0`),
+		check('chat_budget_periods_held_ck', sql`${table.heldNano} >= 0`),
+		check('chat_budget_periods_range_ck', sql`${table.endsBefore} > ${table.startsOn}`),
+	]
+)
+
+export const chatUsageAttempts = pgTable(
+	'chat_usage_attempts',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		accountId: uuid('account_id')
+			.notNull()
+			.references(() => accounts.id, { onDelete: 'restrict' }),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => chatConversations.id, { onDelete: 'restrict' }),
+		periodId: uuid('period_id')
+			.notNull()
+			.references(() => chatBudgetPeriods.id, { onDelete: 'restrict' }),
+		model: text('model').notNull(),
+		effort: text('effort').notNull(),
+		pricing: jsonb('pricing').$type<unknown>().notNull(),
+		maxInputTokens: integer('max_input_tokens').notNull(),
+		maxOutputTokens: integer('max_output_tokens').notNull(),
+		reservedNano: bigint('reserved_nano', { mode: 'bigint' }).notNull(),
+		state: text('state').notNull(),
+		usage: jsonb('usage').$type<unknown>(),
+		costNano: bigint('cost_nano', { mode: 'bigint' }),
+		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		index('chat_usage_attempts_conversation_idx').on(table.conversationId),
+		index('chat_usage_attempts_period_idx').on(table.periodId, table.state),
+		check(
+			'chat_usage_attempts_state_ck',
+			sql`${table.state} in ('reserved', 'dispatched', 'settled', 'unknown', 'released')`
+		),
+		check('chat_usage_attempts_reserved_ck', sql`${table.reservedNano} >= 0`),
+		check('chat_usage_attempts_cost_ck', sql`${table.costNano} is null or ${table.costNano} >= 0`),
 	]
 )

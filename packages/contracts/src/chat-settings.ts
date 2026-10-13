@@ -106,6 +106,32 @@ export const modelCapability = z.strictObject({
 
 export type ModelCapability = z.infer<typeof modelCapability>
 
+export const BUDGET_WARNING_PERCENT = 80
+
+export const budgetState = z.enum(['ok', 'warning', 'reached'])
+
+export const budgetSnapshot = z.strictObject({
+	capUsd: z.string(),
+	spentUsd: z.string(),
+	heldUsd: z.string(),
+	remainingUsd: z.string(),
+	unknownAttempts: z.number().int().min(0),
+	resetOn: z.string(),
+	state: budgetState,
+})
+
+export type BudgetSnapshot = z.infer<typeof budgetSnapshot>
+
+export const conversationUsage = z.strictObject({
+	conversationId: z.string(),
+	title: z.string(),
+	costUsd: z.string(),
+	attempts: z.number().int().min(0),
+	models: z.array(z.string()),
+})
+
+export type ConversationUsage = z.infer<typeof conversationUsage>
+
 export type AssistantSettingsResponse = { settings: AssistantSettings; capabilities: ModelCapability[] }
 
 export const CHAT_SETTINGS_DEFAULT: AssistantSettings = {
