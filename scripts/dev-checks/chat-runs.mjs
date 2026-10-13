@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import http from 'node:http'
 import { createRequire } from 'node:module'
-import { parseEnv } from 'node:util'
+import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, call, quote, sql, studentCookie, teacherCookie } from './api.mjs'
@@ -343,7 +343,7 @@ async function providerSmoke() {
 	check(
 		'the tool list is the phase list, strict, without server tools',
 		tools ===
-			'find_students,student_facts,student_notes,lessons,mark_lesson,add_note,add_comment,propose_lesson_change' &&
+			'find_students,student_facts,student_notes,suggest,lessons,mark_lesson,add_note,add_comment,propose_lesson_change' &&
 			CHAT_TOOLS.every(
 				(item) => item.strict === true && item.input_schema.additionalProperties === false && !('type' in item)
 			)
@@ -408,7 +408,7 @@ async function main() {
 		answerRequest.model === choice.model.id &&
 			answerRequest.effort === choice.effort &&
 			answerRequest.maxOutputTokens === 16000 &&
-			answerRequest.tools.length === 8
+			answerRequest.tools.length === 9
 	)
 	const firstAttempts = attempts(answered.id)
 	check(
@@ -531,6 +531,157 @@ async function main() {
 	check(
 		'a tool result over 30 records is cut to 30 and says truncated',
 		notes.truncated === true && notes.records?.length === 30
+	)
+
+	const quoteText = 'Prefers short reading texts, about 7 pages a week.'
+	const sectionText = 'Studies for the 2027 exam.'
+	sql(
+		`insert into student_notes (student_id, section_kind, body) values (${quote(studentId)}, 'general_info', ${quote(quoteText)})`
+	)
+	sql(
+		`insert into student_sections (student_id, kind, body) values (${quote(studentId)}, 'goals', ${quote(sectionText)})`
+	)
+	const quotedId = sql(
+		`select id from student_notes where student_id = ${quote(studentId)} and body = ${quote(quoteText)}`
+	).rows[0].id
+	const oldestId = sql(`select id from student_notes where student_id = ${quote(studentId)} and body = 'Note 1'`)
+		.rows[0].id
+	fake.script.push(
+		use('student_notes', { student_id: studentId }),
+		capture(
+			say(
+				`Short texts work well. [[note:${quotedId}]] Keep it up. The goal is clear. [[section:${studentId}:goals]] [[note:${quotedId.toUpperCase()}]]`
+			)
+		)
+	)
+	const cited = await settled((await ask(first, 'What do the notes say?')).json.turn.id)
+	const citedReply = replyOf(cited.id)
+	const excerpts = citedReply.blocks.filter((block) => block.type === 'excerpt')
+	const noteView = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'the tool result carries cite markers and ids for the kept records',
+		noteView.records?.some((record) => record.cite === `[[note:${quotedId}]]`) &&
+			noteView.sections?.some((record) => record.cite === `[[section:${studentId}:goals]]`)
+	)
+	check(
+		'a cite of an issued note and section is replaced by blocks with the stored text, once each',
+		cited.state === 'completed' &&
+			excerpts.length === 2 &&
+			excerpts[0].source === 'note' &&
+			excerpts[0].id === quotedId &&
+			excerpts[0].body === quoteText &&
+			excerpts[0].studentId === studentId &&
+			typeof excerpts[0].createdAt === 'string' &&
+			excerpts[1].source === 'section' &&
+			excerpts[1].sectionKind === 'goals' &&
+			excerpts[1].body === sectionText,
+		JSON.stringify(citedReply.blocks.map((block) => block.type))
+	)
+	check(
+		'the reply text keeps the sentences, loses the markers and has no stored text',
+		citedReply.body.includes('Short texts work well.') &&
+			citedReply.body.includes('Keep it up.') &&
+			citedReply.body.includes('The goal is clear.') &&
+			!citedReply.body.includes('[[') &&
+			!citedReply.body.includes(quoteText) &&
+			!citedReply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(citedReply.body)
+	)
+
+	fake.script.push(
+		use('student_notes', { student_id: studentId }),
+		say(`See [[note:${randomUUID()}]] for details. Fine. Also [[note:${oldestId}]] now. Done. Plain [[ text. End.`)
+	)
+	const invented = await settled((await ask(first, 'Quote something')).json.turn.id)
+	const inventedReply = replyOf(invented.id)
+	check(
+		'an invented id, a stored id not issued in the turn and a stray marker hold the sentence back',
+		invented.state === 'completed' &&
+			!inventedReply.blocks.some((block) => block.type === 'excerpt') &&
+			inventedReply.blocks.some((block) => block.type === 'withheld') &&
+			inventedReply.body.includes('Fine.') &&
+			inventedReply.body.includes('Done.') &&
+			inventedReply.body.includes('End.') &&
+			!inventedReply.body.includes('details') &&
+			!inventedReply.body.includes('[[') &&
+			!inventedReply.body.includes('now'),
+		JSON.stringify(inventedReply)
+	)
+	fake.script.push(say(`Straight to the point. [[note:${quotedId}]]`))
+	const unread = await settled((await ask(first, 'Quote without reading')).json.turn.id)
+	check(
+		'a real note id is not quoted when no tool issued it in this turn',
+		!replyOf(unread.id).blocks.some((block) => block.type === 'excerpt') &&
+			replyOf(unread.id).blocks.some((block) => block.type === 'withheld')
+	)
+
+	fake.script.push(
+		use('student_facts', { student_id: studentId }),
+		use('student_facts', { student_id: studentId }),
+		capture(say('Here is the balance. You have 3 lessons left. Nothing else to add.'))
+	)
+	const factsTurn = await settled((await ask(first, 'How many lessons are left?')).json.turn.id)
+	const factsReply = replyOf(factsTurn.id)
+	const factsBlocks = factsReply.blocks.filter((block) => block.type === 'facts')
+	const factsRead = await as('GET', `/chat/records?studentId=${studentId}`)
+	const toolFacts = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'a question about lessons gets one facts block equal to the records read and no number in the text',
+		factsTurn.state === 'completed' &&
+			factsBlocks.length === 1 &&
+			factsBlocks[0].facts.student.id === studentId &&
+			factsBlocks[0].facts.balanceMinutes === factsRead.json.balanceMinutes &&
+			isDeepStrictEqual(factsBlocks[0].facts.nextLesson, factsRead.json.nextLesson) &&
+			toolFacts.facts?.balanceMinutes === factsRead.json.balanceMinutes &&
+			!/\p{Nd}/u.test(factsReply.body) &&
+			factsReply.body.includes('Here is the balance.') &&
+			factsReply.body.includes('Nothing else to add.') &&
+			factsReply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(factsReply)
+	)
+
+	const notesBefore = sql(`select count(*)::int as n from student_notes where student_id = ${quote(studentId)}`).rows[0]
+		.n
+	fake.script.push(
+		use('suggest', {
+			ideas: [
+				'Start with a short reading warm-up.',
+				'Give the writing task a time limit.',
+				'Do 10 minutes of vocabulary review.',
+				'  ',
+			],
+		}),
+		capture(say('I added a few ideas.'))
+	)
+	const ideas = await settled((await ask(first, 'Give me ideas')).json.turn.id)
+	const ideasReply = replyOf(ideas.id)
+	const suggestions = ideasReply.blocks.filter((block) => block.type === 'suggestions')
+	const ideasResult = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'suggest shows the allowed ideas as one block, drops the one with counts and writes nothing',
+		suggestions.length === 1 &&
+			isDeepStrictEqual(suggestions[0].lines, [
+				'Start with a short reading warm-up.',
+				'Give the writing task a time limit.',
+			]) &&
+			ideasResult.shown === 2 &&
+			sql(`select count(*)::int as n from student_notes where student_id = ${quote(studentId)}`).rows[0].n ===
+				notesBefore
+	)
+	fake.script.push(use('suggest', { ideas: ['Practise 5 minutes daily.'] }), capture(say('Nothing to suggest.')))
+	await settled((await ask(first, 'More ideas')).json.turn.id)
+	const refusedIdeas = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check('suggest with only disallowed ideas is a tool error', refusedIdeas.error === 'ideas_not_allowed')
+
+	fake.script.push(say('Which student?'))
+	await settled((await ask(first, '/recap')).json.turn.id)
+	const recapRequest = fake.calls.at(-1)
+	const recapText = String(recapRequest.messages.at(-1).content)
+	check(
+		'/recap goes to the model as a recap task with the tools',
+		recapText.includes('Prepare a recap for the mentioned student') &&
+			!recapText.includes('[Message]\n/recap') &&
+			recapRequest.tools.some((item) => item.name === 'student_notes')
 	)
 
 	const periodBefore = sql(

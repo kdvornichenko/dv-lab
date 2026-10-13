@@ -1,4 +1,8 @@
+import type { ChatExcerptBlock } from '@dv-lab/contracts'
+
 export type GateContext = { knownIds: ReadonlySet<string> }
+
+export type Issued = Map<string, ChatExcerptBlock>
 
 export type GateVerdict = 'publish' | 'withhold'
 
@@ -10,6 +14,9 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
 const LINK = /\bhttps?:\/\/|\bwww\./iu
 const HALF_PREFIX = /(^|[^\p{L}])пол-?(час|урок|минут)/iu
 const WORD = /[\p{L}\p{Nd}]+/gu
+const CITE = /\[\[(note|comment|section):([^\]\s]{1,80})\]\]/giu
+const BEFORE_MARK = /[ \t]+([.,;:!?])/gu
+const REPEATED_SPACE = /[ \t]{2,}/gu
 
 const NUMBER_WORDS = new Set([
 	'zero',
@@ -198,6 +205,28 @@ export function checkSentence(sentence: string, context: GateContext): GateVerdi
 		if (ledger.slice(from, to).some(Boolean)) return 'withhold'
 	}
 	return 'publish'
+}
+
+export function citeKey(source: ChatExcerptBlock['source'], id: string): string {
+	return `${source}:${id}`.toLowerCase()
+}
+
+export type Cited = { text: string; excerpts: ChatExcerptBlock[] }
+
+export function resolveCites(sentence: string, issued: Issued): Cited | null {
+	const excerpts: ChatExcerptBlock[] = []
+	let unknown = false
+	let marked = false
+	const stripped = sentence.replace(CITE, (_match, source: string, id: string) => {
+		marked = true
+		const excerpt = issued.get(citeKey(source as ChatExcerptBlock['source'], id))
+		if (excerpt) excerpts.push(excerpt)
+		else unknown = true
+		return ''
+	})
+	if (unknown || stripped.includes('[[')) return null
+	if (!marked) return { text: sentence, excerpts }
+	return { text: stripped.replace(BEFORE_MARK, '$1').replace(REPEATED_SPACE, ' '), excerpts }
 }
 
 function boundary(text: string): number {
