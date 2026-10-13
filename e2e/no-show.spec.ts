@@ -56,7 +56,7 @@ test('cancelled marked lesson deducts nothing until restored', async ({ page, fx
 	const card = await fx.card('Alex Example 2184')
 	await fx.opening(card.id, 300, addDays(today, -3))
 	const lesson = await fx.once(card.id, yesterday, '12:00')
-	await fx.mark(lesson, 'done')
+	await fx.mark(lesson, 'no_show')
 	await balanceEverywhere(page, fx, card, '2 lessons left', 120)
 	let dialog = await openLesson(page, card, yesterday, '12:00')
 	await dialog.getByRole('button', { name: 'Cancel lesson', exact: true }).click()
@@ -68,7 +68,7 @@ test('cancelled marked lesson deducts nothing until restored', async ({ page, fx
 	await page.keyboard.press('Escape')
 	await balanceEverywhere(page, fx, card, '3 lessons left', 180)
 	dialog = await openLesson(page, card, yesterday, '12:00')
-	await expect(markRadio(dialog, 'Done')).toBeChecked()
+	await expect(markRadio(dialog, 'No-show')).toBeChecked()
 	for (const label of ['Scheduled', 'Done', 'No-show']) await expect(markRadio(dialog, label)).toBeDisabled()
 	await expect(
 		dialog.getByText(
@@ -77,7 +77,7 @@ test('cancelled marked lesson deducts nothing until restored', async ({ page, fx
 		)
 	).toBeVisible()
 	expect(fx.markCount(card.id)).toBe(1)
-	expect(fx.markKind(lesson)).toBe('done')
+	expect(fx.markKind(lesson)).toBe('no_show')
 	await screenshot(dialog, info)
 	const restored = page.waitForResponse(
 		(value) => new URL(value.url()).pathname.endsWith('/restore') && value.request().method() === 'POST'

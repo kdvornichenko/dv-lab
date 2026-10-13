@@ -266,11 +266,10 @@ async function restoredTail(page: Page, fx: Fx, label: 'Done' | 'No-show', actio
 	await page.keyboard.press('Escape')
 }
 
-test('a marked started lesson moves with its mark', async ({ page, fx }, info) => {
+test('a Done started lesson stays where it is until the mark is cleared', async ({ page, fx }, info) => {
 	const today = vnToday()
 	const yesterday = addDays(today, -1)
 	const opening = addDays(today, -3)
-	const future = addDays(today, 2)
 	const card = await fx.card('Alex Example 2185')
 	await fx.opening(card.id, 200, opening)
 	await fx.once(card.id, yesterday, '10:00')
@@ -279,27 +278,19 @@ test('a marked started lesson moves with its mark', async ({ page, fx }, info) =
 	await page.keyboard.press('Escape')
 	await balanceEverywhere(page, fx, card, '1 lesson left', 60)
 	dialog = await openLesson(page, card, yesterday, '10:00')
-	await moveLesson(page, dialog, opening, '09:00')
-	await openWeekOf(page, yesterday)
-	await expect(block(page, card.name, yesterday, '10:00')).toHaveCount(0)
-	await balanceEverywhere(page, fx, card, '2 lessons left', 120)
-	dialog = await openLesson(page, card, opening, '09:00')
-	await expect(markRadio(dialog, 'Done')).toBeChecked()
 	await expect(
-		dialog.getByText(`Not counted: it falls on or before the opening balance date (${shortDay(opening)}).`, {
-			exact: true,
-		})
+		dialog.getByText(
+			'Marked Done: this lesson stays where it is. To move or cancel it, set the mark to Scheduled first.',
+			{
+				exact: true,
+			}
+		)
 	).toBeVisible()
-	await expect(block(page, card.name, opening, '09:00')).toHaveAttribute('aria-label', /done/)
-	await moveLesson(page, dialog, future, '10:00')
-	await balanceEverywhere(page, fx, card, '1 lesson left', 60)
-	dialog = await openLesson(page, card, future, '10:00')
-	await expect(block(page, card.name, future, '10:00')).toHaveAttribute('aria-label', /done/)
-	await expect(markRadio(dialog, 'Done')).toBeChecked()
-	for (const label of ['Scheduled', 'Done', 'No-show']) await expect(markRadio(dialog, label)).toBeEnabled()
-	await chooseMark(page, dialog, 'Scheduled', 'You can mark a lesson once it has started.')
-	for (const label of ['Scheduled', 'Done', 'No-show']) await expect(markRadio(dialog, label)).toBeDisabled()
+	await expect(dialog.getByRole('button', { name: 'Move lesson', exact: true })).toHaveCount(0)
+	await expect(dialog.getByRole('button', { name: 'Cancel lesson', exact: true })).toHaveCount(0)
 	await screenshot(dialog, info)
+	await chooseMark(page, dialog, 'Scheduled', 'Not marked yet. Nothing is deducted until you mark it.')
+	await expect(dialog.getByRole('button', { name: 'Move lesson', exact: true })).toBeEnabled()
 	await page.keyboard.press('Escape')
 	await balanceEverywhere(page, fx, card, '2 lessons left', 120)
 })
