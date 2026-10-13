@@ -1080,9 +1080,51 @@ issue = null, next_action = 'none', updated_at = now() where id = ${quote(comman
 		if (!splitOk) fail('inbound 12', 'a Google split carrying our marker did not continue the series')
 		steady('inbound 12')
 
+		const touch = (item) => google.moved(item.id, core.zonedInstant(item.date, '11:00', fx.zone), 60)
+		const pastMaster = google.masters.get('dvinbpast')
+		const lastFuture = extra.instances[5]
+		const finiteStamp = stamp(core.zonedInstant(lastFuture.date, '11:00', fx.zone))
+		google.put({ ...pastMaster, recurrence: [`${pastMaster.recurrence[0]};UNTIL=${finiteStamp}`] })
+		await drive(sync, fx, google, notes, [touch(future)])
+		const finite = seriesOf(moved.local_entity_id).ends_on
+		google.put({ ...pastMaster })
+		await drive(sync, fx, google, notes, [touch(future)])
+		const reopened = seriesOf(moved.local_entity_id).ends_on
+		console.log(
+			`inbound 13 UNTIL set then removed on the cut series: ends_on ${finite === lastFuture.date} then_open ${reopened === null}`
+		)
+		if (finite !== lastFuture.date || reopened !== null) fail('inbound 13', 'UNTIL was not mirrored into ends_on')
+		steady('inbound 13')
+
+		google.put({
+			...pastMaster,
+			recurrence: [pastMaster.recurrence[0].replace('FREQ=WEEKLY', 'FREQ=WEEKLY;INTERVAL=2')],
+		})
+		await drive(sync, fx, google, notes, [touch(future)])
+		const irregular = seriesOf(moved.local_entity_id)
+		console.log(
+			`inbound 14 master no longer weekly: ends_before_first ${irregular.ends_on === core.addDays(irregular.starts_on, -1)}`
+		)
+		if (irregular.ends_on !== core.addDays(irregular.starts_on, -1))
+			fail('inbound 14', 'a series whose Google rule stopped being weekly kept its future occurrences')
+		steady('inbound 14')
+
+		const lessonMaster = google.masters.get(fx.masterEvent)
+		google.put({ ...lessonMaster, status: 'cancelled' })
+		const weekZero = core.addDays(fx.monday, 9)
+		const firstInstance = `${fx.masterEvent}_${stamp(core.zonedInstant(weekZero, '18:00', fx.zone))}`
+		await drive(sync, fx, google, notes, [google.cancel(firstInstance)])
+		const deleted = seriesOf(fx.series)
+		console.log(
+			`inbound 15 master deleted in Google: ends_on ${deleted.ends_on === core.addDays(weekZero, -1)} rows_kept ${Boolean(deleted.id)}`
+		)
+		if (deleted.ends_on !== core.addDays(weekZero, -1))
+			fail('inbound 15', 'a deleted master did not end the series at the last past occurrence')
+		steady('inbound 15')
+
 		const end = counts()
 		console.log(
-			`inbound 13 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
+			`inbound 16 totals: lessons ${baseline.lessons}->${end.lessons} series ${baseline.series}->${end.series} exceptions ${baseline.exceptions}->${end.exceptions} marks ${baseline.marks}->${end.marks}`
 		)
 	} finally {
 		await sync.close()
