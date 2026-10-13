@@ -25,6 +25,7 @@ const sections = {
 	budget: sectionBudget,
 	stream: sectionStream,
 	answers: sectionAnswers,
+	models: sectionModels,
 }
 
 function removeFixtures() {
@@ -2048,6 +2049,260 @@ async function sectionAnswers() {
 		() => removeConversations(conversationIds),
 		removeFixtures
 	)
+}
+
+const MODELS_TITLE = 'Alex Example 2221 models'
+const MODEL_CHIP = '[data-slot="model-chip"]'
+const EFFORT_CHIP = '[data-slot="effort-chip"]'
+const MODEL_ROW = '[data-slot="model-row"]'
+const ENTRY = '[data-slot="model-entry"]'
+const MODELS_CARD = 'section[aria-labelledby="settings-models"]'
+const GHOST_ID = 'claude-absent-1-0'
+
+async function openModelsSettings(page) {
+	await page.goto(`${BASE}/settings?tab=assistant`)
+	await page.locator(MODELS_CARD).waitFor({ timeout: 30000 })
+}
+
+async function menuNames(page) {
+	await page.locator(MODEL_CHIP).click()
+	await page.locator(MODEL_ROW).first().waitFor({ timeout: 15000 })
+	const names = await page.locator(MODEL_ROW).evaluateAll((rows) => rows.map((row) => row.getAttribute('aria-label')))
+	return names
+}
+
+async function sectionModels() {
+	const started = await startFakeModelApi()
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const original = sql(
+		`select chat_monthly_cap_usd::text as cap, chat_models as models, chat_model as model, chat_effort as effort, chat_max_input_tokens as input, chat_max_output_tokens as output from teacher_settings where account_id = '${accountId}'`
+	).rows[0]
+	const zone = sql(
+		`select coalesce((select default_time_zone from teacher_settings where account_id = '${accountId}'), '${core.SCHEDULE_TIME_ZONE}') as zone`
+	).rows[0].zone
+	const startsOn = `${core.zonedParts(new Date(), zone).date.slice(0, 7)}-01`
+	const period = sql(
+		`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`
+	).rows[0]
+	const conversations = []
+	const defaults = () =>
+		appSql(
+			`update teacher_settings set chat_models = null, chat_model = null, chat_effort = null, chat_max_input_tokens = 100000, chat_max_output_tokens = 16000, chat_monthly_cap_usd = 10.00 where account_id = '${accountId}'`
+		)
+	const restore = () => {
+		if (!original) return
+		const json = original.models === null ? 'null' : `'${JSON.stringify(original.models).replaceAll("'", "''")}'::jsonb`
+		const text = (value) => (value === null ? 'null' : `'${value}'`)
+		appSql(
+			`update teacher_settings set chat_models = ${json}, chat_model = ${text(original.model)}, chat_effort = ${text(original.effort)}, chat_max_input_tokens = ${original.input}, chat_max_output_tokens = ${original.output}, chat_monthly_cap_usd = ${original.cap} where account_id = '${accountId}'`
+		)
+	}
+	try {
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await setTheme(page)
+				await signIn(page)
+				defaults()
+				const conversationId = appSql(
+					`insert into chat_conversations (account_id, title) values ('${accountId}', '${MODELS_TITLE}') returning id`
+				).rows[0].id
+				conversations.push(conversationId)
+				const overrideRow = () =>
+					sql(
+						`select model_override as model, effort_override as effort from chat_conversations where id = '${conversationId}'`
+					).rows[0]
+
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(MODEL_CHIP).waitFor({ timeout: 30000 })
+				const names = await menuNames(page)
+				check(
+					'the menu shows the four models in the order of the settings',
+					JSON.stringify(names) === JSON.stringify(['Haiku 5.5', 'Sonnet 5.5', 'Opus 5.5', 'Fable 5.1']),
+					JSON.stringify(names)
+				)
+				check(
+					'Default stands on the model of the teacher',
+					(await page.locator(`${MODEL_ROW}[data-model="claude-haiku-5-5"]`).innerText()).includes('Default')
+				)
+				await shot(page, 'chat-models', 'menu')
+				await page.locator(`${MODEL_ROW}[data-model="claude-sonnet-5-5"]`).click()
+				await page.waitForFunction(
+					(selector) => document.querySelector(selector)?.getAttribute('aria-label') === 'Model: Sonnet 5.5',
+					MODEL_CHIP,
+					{ timeout: 15000 }
+				)
+				await page.reload()
+				await page.locator(MODEL_CHIP).waitFor({ timeout: 30000 })
+				check(
+					'the choice is kept with the conversation after a reload',
+					(await page.locator(MODEL_CHIP).getAttribute('aria-label')) === 'Model: Sonnet 5.5' &&
+						overrideRow().model === 'claude-sonnet-5-5'
+				)
+				await page.locator(MODEL_CHIP).click()
+				await page.getByRole('menuitem', { name: 'Use default (Haiku 5.5)' }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelector(selector)?.getAttribute('aria-label') === 'Model: Haiku 5.5',
+					MODEL_CHIP,
+					{ timeout: 15000 }
+				)
+				check('Use default clears the choice', overrideRow().model === null && overrideRow().effort === null)
+
+				await openModelsSettings(page)
+				const card = page.locator(MODELS_CARD)
+				await card.getByRole('button', { name: 'Edit Haiku 5.5' }).click()
+				const haiku = card.locator(`${ENTRY}[data-model="claude-haiku-5-5"]`)
+				await haiku.getByRole('button', { name: 'Max', exact: true }).click()
+				await haiku.getByRole('button', { name: 'Extra high', exact: true }).click()
+				await card.getByRole('button', { name: 'Save' }).click()
+				await card.getByText('Saved to your account.').waitFor({ timeout: 15000 })
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(EFFORT_CHIP).click()
+				check(
+					'a level the model cannot do is dimmed and the ceiling is named',
+					(await page.locator('[data-slot="effort-unavailable"]').count()) === 2 &&
+						(await page.getByText('Haiku 5.5 goes up to High.').count()) === 1
+				)
+				await shot(page, 'chat-models', 'effort')
+				await page.keyboard.press('Escape')
+
+				await openModelsSettings(page)
+				const chat = page.locator('[data-slot="chat-model-card"]')
+				await chat.getByRole('combobox').first().click()
+				await page.getByRole('option', { name: /^Sonnet 5\.5/ }).click()
+				await page.getByText('Saved').first().waitFor({ timeout: 15000 })
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(MODEL_CHIP).waitFor({ timeout: 30000 })
+				check(
+					'the new default reaches a conversation without a choice of its own',
+					(await page.locator(MODEL_CHIP).getAttribute('aria-label')) === 'Model: Sonnet 5.5'
+				)
+
+				await openModelsSettings(page)
+				await card.getByRole('button', { name: 'Move Opus 5.5 up' }).click()
+				await card.getByRole('button', { name: 'Move Opus 5.5 up' }).click()
+				await card.getByRole('button', { name: 'Edit Opus 5.5' }).click()
+				const opus = card.locator(`${ENTRY}[data-model="claude-opus-5-5"]`)
+				await opus.getByLabel('Input', { exact: true }).fill('4.50')
+				const output = card.locator('#settings-max-output')
+				await output.fill('20000')
+				const input = card.locator('#settings-max-input')
+				await input.fill('150000')
+				check(
+					'Max input tokens above the limit shows the field text and keeps Save off',
+					(await card.innerText()).includes('Enter a whole number from 1,000 to 100,000.') &&
+						(await card.getByRole('button', { name: 'Save' }).isDisabled())
+				)
+				await input.fill('90000')
+				await card.getByRole('button', { name: 'Save' }).click()
+				await card.getByText('Saved to your account.').waitFor({ timeout: 15000 })
+				const stored = sql(
+					`select chat_models->0->>'id' as first, chat_models->0->'pricing'->>'inputPerMTok' as input, chat_max_input_tokens as max_input, chat_max_output_tokens as max_output from teacher_settings where account_id = '${accountId}'`
+				).rows[0]
+				check(
+					'the order, the rate and the limits are stored',
+					stored.first === 'claude-opus-5-5' &&
+						stored.input === '4.50' &&
+						Number(stored.max_input) === 90000 &&
+						Number(stored.max_output) === 20000,
+					JSON.stringify(stored)
+				)
+				await page.reload()
+				await page.locator(MODELS_CARD).waitFor({ timeout: 30000 })
+				check(
+					'after a reload the saved values are shown',
+					(await page.locator('#settings-max-output').inputValue()) === '20,000' &&
+						(await page.locator(MODELS_CARD).innerText()).includes('Input $4.50')
+				)
+				await shot(page, 'chat-models', 'settings')
+
+				await page.locator(MODELS_CARD).getByRole('button', { name: 'Add model' }).click()
+				const form = page.locator(`${MODELS_CARD} [data-slot="model-form"]`).last()
+				await form.getByLabel('Name', { exact: true }).fill('Ghost 1.0')
+				await form.getByLabel('Model id', { exact: true }).fill(GHOST_ID)
+				await form.getByLabel('Short description', { exact: true }).fill('Not given to this key')
+				for (const label of ['Input', 'Cache write', 'Cache read', 'Output'])
+					await form.getByLabel(label, { exact: true }).fill('1.00')
+				await page.locator(MODELS_CARD).getByRole('button', { name: 'Save' }).click()
+				await page.locator(MODELS_CARD).getByText('Saved to your account.').waitFor({ timeout: 15000 })
+				check(
+					'a model the provider does not give is listed as not available',
+					(await page.locator(MODELS_CARD).innerText()).includes(
+						'Not available with your API key. The chat menu skips it.'
+					)
+				)
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(MODEL_CHIP).waitFor({ timeout: 30000 })
+				await page.locator(MODEL_CHIP).click()
+				await page.getByRole('menuitem', { name: 'Other models' }).hover()
+				check(
+					'the added model sits in Other models, dimmed and not selectable',
+					(await page.locator(`${MODEL_ROW}[data-model="${GHOST_ID}"]`).count()) === 1 &&
+						(await page.locator(`${MODEL_ROW}[data-model="${GHOST_ID}"]`).getAttribute('aria-disabled')) === 'true'
+				)
+				await page.keyboard.press('Escape')
+
+				defaults()
+				const year = Number.parseInt(startsOn.slice(0, 4), 10)
+				const month = Number.parseInt(startsOn.slice(5, 7), 10)
+				const endsBefore = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`
+				appSql(
+					`insert into chat_budget_periods (account_id, starts_on, ends_before, time_zone) values ('${accountId}', '${startsOn}', '${endsBefore}', '${zone.replaceAll("'", "''")}') on conflict (account_id, starts_on) do nothing`
+				)
+				const periodId = sql(
+					`select id from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`
+				).rows[0].id
+				sql(`update chat_budget_periods set spent_nano = 8500000000, held_nano = 0 where id = '${periodId}'`)
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				const warning = page.locator('[data-slot="budget-warning"]')
+				await warning.waitFor({ timeout: 30000 })
+				check(
+					'at 85% a line shows the share and the amounts',
+					(await warning.innerText()).includes('85% of the monthly budget is used. $8.50 of $10.')
+				)
+				await shot(page, 'chat-models', 'warning')
+				sql(`update chat_budget_periods set spent_nano = 10000000000 where id = '${periodId}'`)
+				await page.reload()
+				await page.locator('[data-slot="budget-reached"]').waitFor({ timeout: 30000 })
+				check(
+					'at 100% the banner shows and the field, the chips and Send are off',
+					(await page.locator(FIELD).isDisabled()) &&
+						(await page.locator(MODEL_CHIP).isDisabled()) &&
+						(await page.locator(SEND).isDisabled())
+				)
+				await shot(page, 'chat-models', 'reached')
+				await page.goto(`${BASE}/students`)
+				await page.getByRole('heading', { name: 'Students', level: 1 }).waitFor({ timeout: 30000 })
+				check('the rest of the app keeps working at the cap', true)
+
+				sql(`update chat_budget_periods set spent_nano = 0, held_nano = 0 where id = '${periodId}'`)
+				await page.setViewportSize({ width: 375, height: 800 })
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(SEND).waitFor({ timeout: 30000 })
+				const box = await page.locator(SEND).boundingBox()
+				check('on 375px Send stays inside the screen', box !== null && box.x + box.width <= 375, JSON.stringify(box))
+				check(
+					'on 375px the effort chip keeps only its meter',
+					(await page.locator(`${EFFORT_CHIP} span.sr-only, ${EFFORT_CHIP} span[class*="sr-only"]`).count()) >= 1
+				)
+				await shot(page, 'chat-models', 'phone')
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeConversations(conversations),
+			() => {
+				if (period)
+					sql(
+						`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = '${period.id}'`
+					)
+				else sql(`delete from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`)
+			},
+			restore
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
 }
 
 const section = process.argv[2]
