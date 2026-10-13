@@ -415,6 +415,7 @@ export const googleStageAttempt = z.strictObject({
 	errorCode: z
 		.enum(['transport', 'timeout', 'permission', 'reconnect', 'precondition', 'rate_limit', 'invalid_data'])
 		.nullable(),
+	retryAfterSeconds: z.number().int().min(0).nullable().optional(),
 })
 
 export type GoogleCredentialEnvelope = z.infer<typeof googleCredentialEnvelope>

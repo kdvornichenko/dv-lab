@@ -94,7 +94,7 @@ export type MutationResult<T> =
 	| { kind: 'stale' }
 	| { kind: 'zone_changed' }
 	| { kind: 'gap' }
-	| { kind: 'failed'; code: ErrorCode | null }
+	| { kind: 'failed'; code: ErrorCode | null; retryAfterSeconds?: number | null }
 export type CalendarMutationResult =
 	| { kind: 'ok'; command: CalendarCommandSnapshot; window: GoogleScheduleWindow }
 	| Exclude<MutationResult<never>, { kind: 'ok' }>
@@ -113,12 +113,15 @@ function pathOf(target: Target, action: string): string {
 	return `/schedule/series/${encodeURIComponent(target.seriesId)}/${action}`
 }
 
-function rejected(code: ErrorCode | null): Exclude<CalendarMutationResult, { kind: 'ok' | 'detached' }> {
+function rejected(
+	code: ErrorCode | null,
+	retryAfterSeconds?: number | null
+): Exclude<CalendarMutationResult, { kind: 'ok' | 'detached' }> {
 	if (code === 'default_time_zone_changed') return { kind: 'zone_changed' }
 	if (code === 'nonexistent_local_time') return { kind: 'gap' }
 	if (code === 'lesson_changed' || code === 'precondition_failed' || code === 'external_change' || code === 'not_found')
 		return { kind: 'stale' }
-	return { kind: 'failed', code }
+	return retryAfterSeconds === undefined ? { kind: 'failed', code } : { kind: 'failed', code, retryAfterSeconds }
 }
 
 function checkedConnection(window: GoogleScheduleWindow, connection: GoogleScheduleWindow['connection'] | null) {
@@ -178,7 +181,7 @@ function selectedDate(target: Target, selection: CalendarSelection, body: Body) 
 function mapCompletion(result: CommandResult): CalendarMutationResult {
 	if (result.kind === 'applied') return { kind: 'ok', command: result.command, window: result.window }
 	if (result.kind === 'detached') return result
-	return rejected(result.code)
+	return rejected(result.code, result.retryAfterSeconds)
 }
 
 type Controller = ReturnType<typeof useCalendarCommands>

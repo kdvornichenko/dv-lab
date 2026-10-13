@@ -28,7 +28,7 @@ export type CommandView = {
 }
 export type CommandResult =
 	| { kind: 'applied'; command: CalendarCommandSnapshot; window: GoogleScheduleWindow }
-	| { kind: 'failed'; code: ErrorCode | null }
+	| { kind: 'failed'; code: ErrorCode | null; retryAfterSeconds?: number | null }
 	| { kind: 'detached' }
 export type CommandIntent = {
 	path: string
@@ -322,7 +322,7 @@ export class CalendarCommandStore {
 		if (command.state === 'failed' && command.effect === 'none') {
 			if (live) {
 				this.live.delete(entry.requestId)
-				live.resolve({ kind: 'failed', code: command.issue })
+				live.resolve({ kind: 'failed', code: command.issue, retryAfterSeconds: command.retryAfterSeconds })
 				void this.refresh()
 			}
 			return

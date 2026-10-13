@@ -31,6 +31,8 @@ const ACCESS_CODES: readonly ErrorCode[] = ['connection_required', 'reconnect_re
 
 function refusal(result: CalendarMutationResult): string {
 	if (result.kind === 'stale') return 'It was changed in Google Calendar meanwhile. The schedule has been refreshed.'
+	if (result.kind === 'failed' && result.retryAfterSeconds !== undefined)
+		return 'Google Calendar is limiting requests. Try again in a minute.'
 	if (result.kind === 'failed' && result.code !== null && ACCESS_CODES.includes(result.code))
 		return 'Google Calendar access is unavailable. Reconnect it in Settings.'
 	return 'Google Calendar did not accept the change.'

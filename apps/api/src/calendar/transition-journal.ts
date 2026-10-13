@@ -277,7 +277,12 @@ export async function pauseTransition(
 										outcome: rejected ? ('rejected' as const) : ('unknown' as const),
 										finishedAt: new Date().toISOString(),
 										httpStatus: error instanceof GoogleWriteFault ? error.httpStatus : null,
-										errorCode: 'transport' as const,
+										...(error instanceof GoogleWriteFault && error.rateLimited
+											? {
+													errorCode: 'rate_limit' as const,
+													retryAfterSeconds: error.retryAfterMs === null ? null : Math.ceil(error.retryAfterMs / 1000),
+												}
+											: { errorCode: 'transport' as const }),
 									}
 								: attempt
 						),

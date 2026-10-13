@@ -395,7 +395,12 @@ async function checkDispatchWindow(
 	return { privateProperties: {} }
 }
 
-function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttempt['outcome'], status: number | null) {
+function finishAttempt(
+	attempts: GoogleStageAttempt[],
+	outcome: GoogleStageAttempt['outcome'],
+	status: number | null,
+	limited?: GoogleWriteFault
+) {
 	return attempts.map((attempt, index) =>
 		index === attempts.length - 1
 			? {
@@ -403,6 +408,12 @@ function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttem
 					outcome,
 					finishedAt: new Date().toISOString(),
 					httpStatus: status,
+					...(limited
+						? {
+								errorCode: 'rate_limit' as const,
+								retryAfterSeconds: limited.retryAfterMs === null ? null : Math.ceil(limited.retryAfterMs / 1000),
+							}
+						: {}),
 				}
 			: attempt
 	)
@@ -487,7 +498,8 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 					error instanceof GoogleWriteFault && (error.outcome === 'rejected' || error.httpStatus === 409)
 						? 'rejected'
 						: 'unknown',
-					error instanceof GoogleWriteFault ? error.httpStatus : null
+					error instanceof GoogleWriteFault ? error.httpStatus : null,
+					error instanceof GoogleWriteFault && error.rateLimited ? error : undefined
 				),
 				updatedAt: sql`now()`,
 			})
