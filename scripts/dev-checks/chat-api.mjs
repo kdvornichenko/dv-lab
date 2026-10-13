@@ -11,7 +11,12 @@ import { call, quote, sql, startApi, studentCookie, teacherCookie } from './sche
 const PORT = 4224
 const VN = core.SCHEDULE_TIME_ZONE
 const PREFIX = 'Alex Example 220'
-const SECTIONS = { records: sectionRecords, conversations: sectionConversations, notes: sectionNotes }
+const SECTIONS = {
+	records: sectionRecords,
+	conversations: sectionConversations,
+	notes: sectionNotes,
+	comments: sectionComments,
+}
 
 let failures = 0
 
@@ -677,6 +682,359 @@ async function sectionNotes(ctx) {
 		)
 		check('api log has no note text', !api.logs().includes(secret) && !api.logs().includes('Third note'))
 		return 'CHAT_NOTES_OK'
+	} finally {
+		await pool.end()
+	}
+}
+
+const commentRow = (id) =>
+	sql(
+		`select student_id, series_id::text as series_id, original_on::text as original_on, lesson_id::text as lesson_id, body, revision, retracted_at is not null as retracted from lesson_comments where id = ${quote(id)}`
+	).rows[0]
+
+async function sectionComments(ctx) {
+	const { api, cookie } = ctx
+	const { appendLessonCommentRequest, COMMENT_MAX_LENGTH } = await import('../../packages/contracts/src/index.ts')
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const { appendLessonComment, listLessonComments, retractLessonComment } =
+		await import('../../apps/api/src/schedule/comments.ts')
+	const { seriesAnchor, prepareSeriesChange } = await import('../../apps/api/src/schedule/series.ts')
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const { db, pool } = createDb(url)
+	try {
+		const student = await studentCookie(api)
+		const as = (method, path, body) => send(api, method, path, { cookie, body })
+		const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+		const zone = sql(
+			`select coalesce((select default_time_zone from teacher_settings where account_id = ${quote(accountId)}), ${quote(VN)}) as zone`
+		).rows[0].zone
+		const today = core.scheduleToday(new Date(), zone)
+		const card = await createCard(ctx, 'Alex Example 2200')
+		await setOpening(ctx, card, 600, core.addDays(today, -60))
+		const secret = 'Zeta comment body'
+		const lessonAt = (days, status = 'scheduled') =>
+			sql(
+				`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(card)}, ${quote(core.zonedInstant(core.addDays(today, days), '09:00', zone).toISOString())}, 60, ${quote(status)}) returning id`
+			).rows[0].id
+		const started = lessonAt(-3)
+		const future = lessonAt(3)
+		const cancelled = lessonAt(-2, 'cancelled')
+		const startsOn = core.addDays(today, -21)
+		const weekday = core.weekdayOf(startsOn)
+		const seriesId = sql(
+			`insert into lesson_series (student_id, weekday, start_time, time_zone, duration_minutes, starts_on) values (${quote(card)}, ${weekday}, '09:00', ${quote(zone)}, 60, ${quote(startsOn)}) returning id`
+		).rows[0].id
+		const rule = {
+			id: seriesId,
+			studentId: card,
+			weekday,
+			startTime: '09:00',
+			timeZone: zone,
+			durationMinutes: 60,
+			startsOn,
+			endsOn: null,
+		}
+		const dayMinus14 = core.addDays(today, -14)
+		const dayMinus7 = core.addDays(today, -7)
+		const dayPlus14 = core.addDays(today, 14)
+		const single = (lessonId) => ({ kind: 'single', lessonId })
+		const occurrence = (originalOn) => ({ kind: 'series', seriesId, originalOn })
+		const marksBefore = sql('select count(*)::int as n from lesson_marks').rows[0].n
+		const balanceBefore = (await as('GET', `/chat/records?studentId=${card}`)).json.balanceMinutes
+
+		check(
+			'a series with no marks and no comments anchors at its first date',
+			(await seriesAnchor(db, rule, null)) === startsOn
+		)
+		const early = await appendLessonComment(db, accountId, single(future), secret, new Date())
+		const earlyOccurrence = await appendLessonComment(db, accountId, occurrence(dayPlus14), secret, new Date())
+		check(
+			'a comment on a lesson that has not started is not_started and writes nothing',
+			early.kind === 'not_started' &&
+				earlyOccurrence.kind === 'not_started' &&
+				sql(`select count(*)::int as n from lesson_comments where student_id = ${quote(card)}`).rows[0].n === 0
+		)
+		check(
+			'a comment on an unknown lesson, an unknown series or a date off the series is not_found',
+			(await appendLessonComment(db, accountId, single(randomUUID()), secret, new Date())).kind === 'not_found' &&
+				(await appendLessonComment(db, accountId, occurrence(core.addDays(dayMinus14, 1)), secret, new Date())).kind ===
+					'not_found' &&
+				(
+					await appendLessonComment(
+						db,
+						accountId,
+						{ kind: 'series', seriesId: randomUUID(), originalOn: dayMinus14 },
+						secret,
+						new Date()
+					)
+				).kind === 'not_found'
+		)
+		const first = await appendLessonComment(db, accountId, single(started), secret, new Date())
+		const second = await appendLessonComment(db, accountId, single(started), secret, new Date())
+		check(
+			'two comments with the same text on a started lesson are two records with their own ids at revision 1',
+			first.kind === 'ok' &&
+				second.kind === 'ok' &&
+				first.comment.id !== second.comment.id &&
+				first.comment.revision === 1 &&
+				second.comment.revision === 1 &&
+				commentRow(first.comment.id).student_id === card
+		)
+		const onCancelled = await appendLessonComment(db, accountId, single(cancelled), 'Cancelled but started', new Date())
+		check('a cancelled lesson that has started takes a comment', onCancelled.kind === 'ok')
+		const onOccurrence = await appendLessonComment(db, accountId, occurrence(dayMinus14), 'Occurrence note', new Date())
+		check(
+			'a started occurrence of a series takes a comment keyed by the series and the date',
+			onOccurrence.kind === 'ok' &&
+				onOccurrence.comment.ref.kind === 'series' &&
+				commentRow(onOccurrence.comment.id).series_id === seriesId &&
+				commentRow(onOccurrence.comment.id).original_on === dayMinus14 &&
+				commentRow(onOccurrence.comment.id).lesson_id === null
+		)
+
+		const parsed = (body) => appendLessonCommentRequest.safeParse({ body })
+		check(
+			'the append contract trims, keeps 2000 characters, refuses 2001, empty, NUL and extra keys without cutting',
+			parsed(`  ${'ж'.repeat(COMMENT_MAX_LENGTH)}  `).data?.body === 'ж'.repeat(COMMENT_MAX_LENGTH) &&
+				parsed('😀'.repeat(COMMENT_MAX_LENGTH)).success &&
+				!parsed('x'.repeat(COMMENT_MAX_LENGTH + 1)).success &&
+				!parsed('   ').success &&
+				!parsed('a\u0000b').success &&
+				!appendLessonCommentRequest.safeParse({ body: 'fine', x: 1 }).success
+		)
+
+		const list = await as('GET', `/schedule/lessons/${started}/comments`)
+		check(
+			'GET lesson comments answers 200 no-store with both comments, oldest first, with the lesson ref',
+			list.status === 200 &&
+				list.headers.get('cache-control') === 'no-store' &&
+				list.json.comments.map((item) => item.id).join() === [first.comment.id, second.comment.id].join() &&
+				list.json.comments.every(
+					(item) =>
+						item.body === secret &&
+						item.revision === 1 &&
+						item.retractedAt === null &&
+						item.ref.kind === 'single' &&
+						item.ref.lessonId === started &&
+						!('studentId' in item)
+				),
+			`${list.status}`
+		)
+		const listOccurrence = await as('GET', `/schedule/series/${seriesId}/occurrences/${dayMinus14}/comments`)
+		check(
+			'GET occurrence comments answers 200 with the occurrence comment only',
+			listOccurrence.status === 200 &&
+				listOccurrence.json.comments.length === 1 &&
+				listOccurrence.json.comments[0].id === onOccurrence.comment.id
+		)
+		const listEmpty = await as('GET', `/schedule/lessons/${future}/comments`)
+		check(
+			'GET comments of a lesson with none answers 200 and empty',
+			listEmpty.status === 200 && listEmpty.json.comments.length === 0
+		)
+		for (const [label, path] of [
+			['unknown lesson', `/schedule/lessons/${randomUUID()}/comments`],
+			['malformed lesson id', '/schedule/lessons/not-a-uuid/comments'],
+			['unknown series', `/schedule/series/${randomUUID()}/occurrences/${dayMinus14}/comments`],
+			['malformed date', `/schedule/series/${seriesId}/occurrences/2026-13-40/comments`],
+		]) {
+			const res = await as('GET', path)
+			check(`GET comments ${label}: 404 not_found`, res.status === 404 && res.json?.error?.code === 'not_found')
+		}
+		const noCreate = await as('POST', `/schedule/lessons/${started}/comments`, { body: secret })
+		check(
+			'there is no route that creates a comment',
+			noCreate.status === 404 &&
+				sql(`select count(*)::int as n from lesson_comments where lesson_id = ${quote(started)}`).rows[0].n === 2
+		)
+
+		const lowRevision = await as('POST', `/schedule/comments/${first.comment.id}/retract`, { expectedRevision: 0 })
+		const noRevision = await as('POST', `/schedule/comments/${first.comment.id}/retract`, {})
+		const extraKey = await as('POST', `/schedule/comments/${first.comment.id}/retract`, { expectedRevision: 1, x: 1 })
+		check(
+			'retract with a bad body: 400 invalid_request and the comment is untouched',
+			[lowRevision, noRevision, extraKey].every(
+				(res) => res.status === 400 && res.json?.error?.code === 'invalid_request'
+			) &&
+				commentRow(first.comment.id).revision === 1 &&
+				commentRow(first.comment.id).retracted === false
+		)
+		const stale = await as('POST', `/schedule/comments/${first.comment.id}/retract`, { expectedRevision: 5 })
+		check(
+			'retract with a stale revision: 409 precondition_failed and nothing changed',
+			stale.status === 409 &&
+				stale.json?.error?.code === 'precondition_failed' &&
+				commentRow(first.comment.id).revision === 1 &&
+				commentRow(first.comment.id).retracted === false
+		)
+		for (const [label, path] of [
+			['unknown comment', `/schedule/comments/${randomUUID()}/retract`],
+			['malformed comment id', '/schedule/comments/not-a-uuid/retract'],
+		]) {
+			const res = await as('POST', path, { expectedRevision: 1 })
+			check(`retract ${label}: 404 not_found`, res.status === 404 && res.json?.error?.code === 'not_found')
+		}
+
+		const held = async () => seriesAnchor(db, rule, null)
+		const anchoredAfter = core.addDays(dayMinus14, 7)
+		check(
+			'an unretracted comment on a started unmarked occurrence moves the anchor to the next series date',
+			(await held()) === anchoredAfter,
+			`${await held()}`
+		)
+		const prepare = (from, startTime) =>
+			db.transaction((tx) =>
+				prepareSeriesChange(
+					tx,
+					accountId,
+					{
+						operation: 'move_series',
+						seriesId,
+						input: {
+							from,
+							weekday: core.weekdayOf(from),
+							startTime,
+							expectedDefaultTimeZone: zone,
+							requestId: randomUUID(),
+							expectedVersion: 'fixture-version',
+						},
+					},
+					new Date(),
+					null
+				)
+			)
+		const refusal = async (from) => {
+			try {
+				await prepare(from, '10:30')
+				return 'accepted'
+			} catch (error) {
+				return error?.code ?? String(error?.message)
+			}
+		}
+		const commandsBefore = sql('select count(*)::int as n from google_commands').rows[0].n
+		check(
+			'move_series from the commented occurrence or earlier: precondition_failed, from the anchor: accepted',
+			(await refusal(dayMinus14)) === 'precondition_failed' &&
+				(await refusal(startsOn)) === 'precondition_failed' &&
+				(await refusal(anchoredAfter)) === 'accepted' &&
+				sql('select count(*)::int as n from google_commands').rows[0].n === commandsBefore
+		)
+
+		const moved = sql(
+			`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(seriesId)}, ${quote(dayMinus14)}, 'moved', ${quote(core.zonedInstant(core.addDays(dayMinus14, 1), '15:00', zone).toISOString())}, 60) returning original_on`
+		).rowCount
+		sql(
+			`update lessons set starts_at = ${quote(core.zonedInstant(core.addDays(today, -4), '16:00', zone).toISOString())} where id = ${quote(started)}`
+		)
+		const afterMove = await as('GET', `/schedule/lessons/${started}/comments`)
+		const afterMoveOccurrence = await as('GET', `/schedule/series/${seriesId}/occurrences/${dayMinus14}/comments`)
+		check(
+			'moving a lesson or an occurrence leaves its comments on the same key',
+			moved === 1 &&
+				afterMove.json.comments.map((item) => item.id).join() === [first.comment.id, second.comment.id].join() &&
+				afterMoveOccurrence.json.comments.map((item) => item.id).join() === onOccurrence.comment.id
+		)
+
+		const retracted = await as('POST', `/schedule/comments/${first.comment.id}/retract`, { expectedRevision: 1 })
+		const kept = commentRow(first.comment.id)
+		check(
+			'retract with the right revision: 200, revision +1, retracted_at set and the row stays',
+			retracted.status === 200 &&
+				retracted.json.comment.id === first.comment.id &&
+				retracted.json.comment.revision === 2 &&
+				retracted.json.comment.retractedAt !== null &&
+				kept.revision === 2 &&
+				kept.retracted === true &&
+				kept.body === secret
+		)
+		const again = await as('POST', `/schedule/comments/${first.comment.id}/retract`, { expectedRevision: 1 })
+		const againCurrent = await as('POST', `/schedule/comments/${first.comment.id}/retract`, { expectedRevision: 2 })
+		check(
+			'a second retract is 409 with the old revision and with the current one, and changes nothing',
+			again.status === 409 && againCurrent.status === 409 && commentRow(first.comment.id).revision === 2
+		)
+		const afterRetract = await as('GET', `/schedule/lessons/${started}/comments`)
+		check(
+			'the retracted comment leaves the list, its twin stays',
+			afterRetract.json.comments.map((item) => item.id).join() === second.comment.id
+		)
+		const race = await Promise.all([
+			as('POST', `/schedule/comments/${second.comment.id}/retract`, { expectedRevision: 1 }),
+			as('POST', `/schedule/comments/${second.comment.id}/retract`, { expectedRevision: 1 }),
+		])
+		check(
+			'two simultaneous retracts: one 200 and one 409, revision grows once',
+			race
+				.map((res) => res.status)
+				.sort()
+				.join() === '200,409' && commentRow(second.comment.id).revision === 2
+		)
+
+		const tx = await db.transaction(async (executor) => {
+			const result = await retractLessonComment(executor, accountId, onCancelled.comment.id, 1)
+			const listed = await listLessonComments(executor, accountId, single(cancelled))
+			return { result, listed }
+		})
+		check(
+			'retract works inside a caller transaction with the caller executor',
+			tx.result.kind === 'retracted' && tx.result.comment.revision === 2 && tx.listed.length === 0
+		)
+		check('list of an unknown lesson is null', (await listLessonComments(db, accountId, single(randomUUID()))) === null)
+
+		const lastRetract = await as('POST', `/schedule/comments/${onOccurrence.comment.id}/retract`, {
+			expectedRevision: 1,
+		})
+		check(
+			'after the last comment on the occurrence is retracted the anchor is the first series date again',
+			lastRetract.status === 200 && (await held()) === startsOn,
+			`${await held()}`
+		)
+		check(
+			'comments leave marks and the balance as they were',
+			sql('select count(*)::int as n from lesson_marks').rows[0].n === marksBefore &&
+				(await as('GET', `/chat/records?studentId=${card}`)).json.balanceMinutes === balanceBefore
+		)
+		check(
+			'every comment row is still there after the retracts',
+			sql(`select count(*)::int as n from lesson_comments where student_id = ${quote(card)}`).rows[0].n === 4
+		)
+
+		const routesAsStudent = [
+			['GET', `/schedule/lessons/${started}/comments`],
+			['GET', `/schedule/series/${seriesId}/occurrences/${dayMinus14}/comments`],
+			['POST', `/schedule/comments/${second.comment.id}/retract`],
+		]
+		for (const [method, path] of routesAsStudent) {
+			const body = method === 'GET' ? undefined : { expectedRevision: 2 }
+			const asStudent = await send(api, method, path, { cookie: student, body })
+			const anonymous = await send(api, method, path, { body })
+			check(
+				`${method} ${path.replace(/[0-9a-f-]{36}/g, ':id').replace(/\d{4}-\d{2}-\d{2}/, ':date')}: student 403 and no session 401 without text`,
+				asStudent.status === 403 &&
+					anonymous.status === 401 &&
+					!JSON.stringify(asStudent.json).includes(secret) &&
+					!JSON.stringify(anonymous.json).includes(secret)
+			)
+		}
+		const denied = (statement) => {
+			try {
+				sql(statement, 'app')
+				return 'done'
+			} catch (err) {
+				return String(err.message)
+			}
+		}
+		const refusals = [
+			denied(`delete from lesson_comments where id = ${quote(second.comment.id)}`),
+			denied('truncate lesson_comments'),
+		]
+		check(
+			'the application role cannot DELETE or TRUNCATE lesson_comments',
+			refusals.every((text) => text.includes('42501')),
+			refusals.join(' | ')
+		)
+		check('api log has no comment text', !api.logs().includes(secret) && !api.logs().includes('Occurrence note'))
+		return 'CHAT_COMMENTS_OK'
 	} finally {
 		await pool.end()
 	}

@@ -12,11 +12,18 @@ const NOT_SET = { name: 'Alex Example 2212', hundredths: null }
 const READ_ERROR = "Could not read the student's records."
 const EXPECTED_NOISE = /status of 500|Failed to load resource/
 
-const sections = { records: sectionRecords, conversations: sectionConversations, notes: sectionNotes }
+const sections = {
+	records: sectionRecords,
+	conversations: sectionConversations,
+	notes: sectionNotes,
+	comments: sectionComments,
+}
 
 function removeFixtures() {
 	const cards = `select id from students where display_name like '${PREFIX}%' and import_key is null`
 	sql(`delete from lesson_comments where student_id in (${cards})`)
+	sql(`delete from lesson_marks where lesson_id in (select id from lessons where student_id in (${cards}))`)
+	sql(`delete from lessons where student_id in (${cards})`)
 	sql(`delete from student_notes where student_id in (${cards})`)
 	sql(`delete from student_sections where student_id in (${cards})`)
 	const result = sql(`delete from students where display_name like '${PREFIX}%' and import_key is null`)
@@ -648,6 +655,215 @@ async function sectionNotes() {
 				await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
 			)
 			await shot(page, 'chat-notes', 'phone')
+
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		() => removeFixtures()
+	)
+}
+
+const COMMENTS_CARD = 'Alex Example 2215'
+const COMMENT_READ_ERROR = 'Could not load the comments.'
+const NO_COMMENTS = 'No comments yet. Ask in the chat to add one.'
+const EVENT_BLOCK = '[data-slot="week-grid-body"] [data-slot="calendar-event"]'
+const commentState = (id) =>
+	sql(`select revision, retracted_at is not null as retracted from lesson_comments where id = '${id}'`).rows[0]
+const markRows = () => sql('select count(*)::int as n from lesson_marks').rows[0].n
+const commentsIn = (dialog) => dialog.locator('section[aria-labelledby="lesson-comments-title"]')
+
+function insertLesson(cardId, minutes) {
+	return sql(
+		`insert into lessons (student_id, starts_at, duration_minutes, status) values ('${cardId}', now() + interval '${minutes} minutes', 60, 'scheduled') returning id`
+	).rows[0].id
+}
+
+function insertComment(cardId, lessonId, body, ago) {
+	return sql(
+		`insert into lesson_comments (lesson_id, student_id, body, created_at) values ('${lessonId}', '${cardId}', '${body}', now() - interval '${ago}') returning id`
+	).rows[0].id
+}
+
+async function removeOne(page, dialog, body, ids) {
+	const section = commentsIn(dialog)
+	const row = section.getByRole('listitem').filter({ hasText: body })
+	await row.hover()
+	await row.getByRole('button', { name: /^Remove comment from / }).click()
+	const confirm = page.getByRole('dialog', { name: 'Remove this comment?' })
+	await confirm.waitFor({ timeout: 15000 })
+	check(
+		'the confirm explains the removal and focuses Keep comment',
+		(await confirm.getByText('The comment is deleted. The lesson and its mark do not change.').count()) === 1 &&
+			(await page.evaluate(() => document.activeElement?.textContent?.trim())) === 'Keep comment'
+	)
+	await confirm.getByRole('button', { name: 'Keep comment' }).click()
+	await confirm.waitFor({ state: 'detached', timeout: 15000 })
+	check('Keep comment changes nothing', commentState(ids[body]).retracted === false)
+	const marksBefore = markRows()
+	await row.hover()
+	await row.getByRole('button', { name: /^Remove comment from / }).click()
+	await confirm.waitFor({ timeout: 15000 })
+	await confirm.getByRole('button', { name: 'Remove comment' }).click()
+	await confirm.waitFor({ state: 'detached', timeout: 15000 })
+	await page.getByText('Comment removed').first().waitFor({ timeout: 15000 })
+	check(
+		`removing "${body}" retracts the row, keeps it in the table and changes no mark`,
+		commentState(ids[body]).retracted === true &&
+			commentState(ids[body]).revision === 2 &&
+			markRows() === marksBefore &&
+			(await section.getByText(body).count()) === 0
+	)
+}
+
+async function sectionComments() {
+	removeFixtures()
+	const ids = {}
+	let lessonId = null
+	let futureId = null
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ page, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			const card = await createCard(page, COMMENTS_CARD)
+			lessonId = insertLesson(card, -20)
+			const local = core.zonedParts(new Date(), VN).time
+			const canFuture = Number(local.slice(0, 2)) < 21
+			futureId = canFuture ? insertLesson(card, 120) : null
+			ids['Comment alpha text'] = insertComment(card, lessonId, 'Comment alpha text', '2 hours')
+			ids['Comment beta text'] = insertComment(card, lessonId, 'Comment beta text', '1 minute')
+			insertComment(card, lessonId, 'Comment retracted text', '3 hours')
+			sql(
+				`update lesson_comments set retracted_at = now(), revision = 2 where body = 'Comment retracted text' and student_id = '${card}'`
+			)
+
+			await page.route('**/api/schedule/lessons/*/comments', (route) =>
+				route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+			)
+			await page.goto(`${BASE}/`)
+			const open = (name) => page.locator('[data-slot="today-row-open"]').filter({ hasText: name }).first()
+			await open(COMMENTS_CARD).waitFor({ timeout: 60000 })
+			await open(COMMENTS_CARD).click()
+			let dialog = page.getByRole('dialog').last()
+			await dialog.getByText(COMMENT_READ_ERROR).waitFor({ timeout: 30000 })
+			check(
+				'a failed read is a line with Refresh, never an empty list',
+				(await commentsIn(dialog).getByText(NO_COMMENTS).count()) === 0 &&
+					(await commentsIn(dialog).getByRole('button', { name: 'Refresh' }).count()) === 1
+			)
+			await shot(page, 'chat-comments', 'error')
+			await commentsIn(dialog).getByRole('button', { name: 'Refresh' }).click()
+			await commentsIn(dialog).getByRole('button', { name: 'Refresh' }).waitFor({ timeout: 15000 })
+			check('Refresh with a failing read keeps the line', (await dialog.getByText(COMMENT_READ_ERROR).count()) === 1)
+			await page.unroute('**/api/schedule/lessons/*/comments')
+			await commentsIn(dialog).getByRole('button', { name: 'Refresh' }).click()
+			await dialog.getByText('Comment beta text').waitFor({ timeout: 15000 })
+
+			const section = commentsIn(dialog)
+			const text = await section.innerText()
+			check(
+				'the Today dialog of a started lesson lists two comments, newest first, and not the retracted one',
+				text.indexOf('Comment beta text') >= 0 &&
+					text.indexOf('Comment beta text') < text.indexOf('Comment alpha text') &&
+					!text.includes('Comment retracted text')
+			)
+			check(
+				'each comment has a time with the zone label and a named Remove button',
+				(await section
+					.getByRole('button', { name: /^Remove comment from \d{1,2} [A-Z][a-z]{2}, \d{2}:\d{2}$/ })
+					.count()) === 2 && /\d{2}:\d{2} [A-Z]{2,}/.test(text)
+			)
+			check('the window has no field to write a comment', (await dialog.getByRole('textbox').count()) === 0)
+			check(
+				'the comments are not part of the move form',
+				(await dialog.getByRole('group', { name: 'Move lesson' }).locator('text=Comment').count()) === 0
+			)
+			await shot(page, 'chat-comments', 'today')
+			await removeOne(page, dialog, 'Comment beta text', ids)
+			await removeOne(page, dialog, 'Comment alpha text', ids)
+			await section.getByText(NO_COMMENTS).waitFor({ timeout: 15000 })
+			check('with none left the section says to ask in the chat', true)
+			await shot(page, 'chat-comments', 'empty')
+			await page.keyboard.press('Escape')
+
+			if (futureId !== null) {
+				await page.reload()
+				await open(COMMENTS_CARD).waitFor({ timeout: 60000 })
+				const rows = page.locator('[data-slot="today-row-open"]').filter({ hasText: COMMENTS_CARD })
+				await rows.last().click()
+				dialog = page.getByRole('dialog').last()
+				await dialog
+					.getByRole('button', { name: /Move lesson|Cancel lesson/ })
+					.first()
+					.waitFor({ timeout: 30000 })
+				check(
+					'a lesson that has not started shows no Comments section',
+					(await dialog.getByText('Comments', { exact: true }).count()) === 0
+				)
+				await page.keyboard.press('Escape')
+			}
+
+			ids['Schedule first text'] = insertComment(card, lessonId, 'Schedule first text', '30 minutes')
+			ids['Schedule second text'] = insertComment(card, lessonId, 'Schedule second text', '10 minutes')
+			await page.route(/\/api\/schedule\/week/, async (route) => {
+				const response = await route.fetch()
+				let json
+				try {
+					json = await response.json()
+				} catch {
+					return route.fulfill({ response })
+				}
+				const target = json?.events?.find(
+					(event) => event.when?.kind === 'timed' && Date.parse(event.when.endsAt) < Date.now()
+				)
+				if (json?.read?.state === 'fresh' && target) {
+					target.binding = {
+						kind: 'lesson',
+						ref: { kind: 'single', lessonId },
+						studentId: card,
+						version: target.version,
+						mark: null,
+					}
+					target.title = null
+					target.suggestion = null
+				}
+				return route.fulfill({ response, json })
+			})
+			await page.goto(`${BASE}/schedule`)
+			await page.locator(EVENT_BLOCK).first().waitFor({ timeout: 120000 })
+			const block = page.locator(EVENT_BLOCK).filter({ hasText: COMMENTS_CARD }).first()
+			await block.waitFor({ timeout: 30000 })
+			await block.click()
+			dialog = page.getByRole('dialog').last()
+			await dialog.getByText('Schedule second text').waitFor({ timeout: 30000 })
+			check(
+				'the Schedule dialog of a started lesson lists the same comments',
+				(await commentsIn(dialog).getByRole('listitem').count()) === 2
+			)
+			await shot(page, 'chat-comments', 'schedule')
+			await removeOne(page, dialog, 'Schedule first text', ids)
+			check(
+				'one comment is left in the Schedule dialog',
+				(await commentsIn(dialog).getByRole('listitem').count()) === 1
+			)
+			await page.keyboard.press('Escape')
+
+			await page.setViewportSize({ width: 390, height: 800 })
+			await page.goto(`${BASE}/`)
+			await open(COMMENTS_CARD).waitFor({ timeout: 60000 })
+			await open(COMMENTS_CARD).click()
+			dialog = page.getByRole('dialog').last()
+			await dialog.getByText('Schedule second text').waitFor({ timeout: 30000 })
+			const phoneRemove = commentsIn(dialog).getByRole('button', { name: /^Remove comment from / })
+			check(
+				'on a phone Remove is visible without hover',
+				(await phoneRemove.evaluate((node) => getComputedStyle(node).opacity)) === '1'
+			)
+			check(
+				'on a phone the page does not scroll sideways',
+				await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+			)
+			await shot(page, 'chat-comments', 'phone')
 
 			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
