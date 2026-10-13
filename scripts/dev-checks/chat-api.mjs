@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -1043,8 +1044,15 @@ async function sectionComments(ctx) {
 const section = process.argv[2]
 const run = SECTIONS[section]
 
+if (section === 'target') {
+	const child = spawnSync(process.execPath, [new URL('./chat-target.mjs', import.meta.url).pathname], {
+		stdio: 'inherit',
+	})
+	process.exit(child.status ?? 1)
+}
+
 if (!run) {
-	console.log(`usage: node scripts/dev-checks/chat-api.mjs ${Object.keys(SECTIONS).join('|')}`)
+	console.log(`usage: node scripts/dev-checks/chat-api.mjs ${[...Object.keys(SECTIONS), 'target'].join('|')}`)
 	process.exit(2)
 }
 
