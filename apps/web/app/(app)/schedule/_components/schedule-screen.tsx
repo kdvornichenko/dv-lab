@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import { CalendarPlus } from 'lucide-react'
@@ -25,7 +25,8 @@ import { useMinuteNow } from '../../_components/use-minute-now'
 import { CalendarEventDialog } from './calendar-event-details'
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonCountDialog } from './lesson-count-dialog'
-import { NewLessonDialog } from './new-lesson-dialog'
+import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
+import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
 import { ScheduleBar, ScheduleToolbar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
@@ -98,7 +99,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 		seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes' | 'dragged'>
 		mainTimeZone: string
 		asOf: string
+		initial?: NewLessonDraft
 	} | null>(null)
+	const [redo, setRedo] = useState<NewLessonDraft | null>(null)
+	const refused = useCallback(() => {
+		void reload()
+	}, [reload])
+	const writes = useOptimisticWrites(refused)
 	const students = useLessonStudents(
 		draft !== null || selection !== null || (week.data?.events.some((event) => event.suggestion !== null) ?? false)
 	)
@@ -136,18 +143,21 @@ function LoadedSchedule({ now }: { now: Date }) {
 
 	const data = week.data
 	const requestedMonday = week.query.monday
-	const { mainTimeZone, monday, today, currentYear, currentMonday, read, write, events } = displayWindow(
-		data,
-		week.query,
-		now
-	)
+	const shown = displayWindow(data, week.query, now)
+	const { mainTimeZone, monday, today, currentYear, currentMonday, read, write } = shown
+	const events = writes.apply(shown.events)
 	const selected = events.find((event) => event.eventKey === selection?.eventKey) ?? selection
 	const secondZone = zone ? { id: zone, caption: zoneLabel(zone, zonedInstant(monday, '12:00', mainTimeZone)) } : null
 
-	const editable = read.state === 'fresh' && write.state === 'ready' && !commands.blocked && week.kind === 'ready'
+	const editable =
+		read.state === 'fresh' && write.state === 'ready' && !commands.blocked && !writes.writing && week.kind === 'ready'
 	function openNew(seed: Pick<SlotChoice, 'date' | 'time' | 'durationMinutes' | 'dragged'>) {
 		if (!editable || read.state !== 'fresh') return
 		setDraft({ seed, mainTimeZone, asOf: read.fetchedAt })
+	}
+	if (redo !== null && editable && read.state === 'fresh' && draft === null) {
+		setRedo(null)
+		setDraft({ seed: redo.seed, mainTimeZone, asOf: read.fetchedAt, initial: redo })
 	}
 	function refreshForms() {
 		setSelection(null)
@@ -156,12 +166,13 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 
 	function openEvent(event: CalendarEventView) {
+		if (event.eventKey.startsWith('optimistic:')) return
 		returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
 		setSelection(event)
 		setMoveSeed(undefined)
 	}
 	function canMove(event: CalendarEventView) {
-		if (!editable || data === null) return false
+		if (!editable || data === null || writes.mark(event) !== null) return false
 		if (calendarLesson(event))
 			return (
 				canEditCalendarEvent(event, data) &&
@@ -202,6 +213,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 		<WeekGrid
 			emptyNote={read.state === 'fresh' && events.length === 0 ? 'No Google Calendar events in this range.' : null}
 			placed={selected !== null && moveSeed !== undefined ? { event: selected, seed: moveSeed } : null}
+			mark={writes.mark}
 			monday={monday}
 			mainTimeZone={mainTimeZone}
 			today={today}
@@ -243,8 +255,9 @@ function LoadedSchedule({ now }: { now: Date }) {
 					currentMainTimeZone={mainTimeZone}
 					secondZone={zone}
 					onClose={() => setDraft(null)}
-					onCreated={() => setDraft(null)}
 					onRefresh={refreshForms}
+					onWrite={writes.run}
+					onRedo={setRedo}
 				/>
 			) : null}
 			<SelectedEventDialog
@@ -260,6 +273,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 				onClose={closeEvent}
 				onMoveDiscard={() => setMoveSeed(undefined)}
 				onRefresh={refreshForms}
+				onWrite={writes.run}
 			/>
 		</>
 	)
@@ -408,6 +422,7 @@ function SelectedEventDialog({
 	onClose,
 	onMoveDiscard,
 	onRefresh,
+	onWrite,
 }: {
 	moveSeed?: MoveSeed
 	students: StudentsState
@@ -421,6 +436,7 @@ function SelectedEventDialog({
 	onClose: () => void
 	onMoveDiscard: () => void
 	onRefresh: () => void
+	onWrite: WriteRunner
 }) {
 	if (event === null) return null
 	if (window !== null && calendarLesson(event))
@@ -436,6 +452,7 @@ function SelectedEventDialog({
 				onClose={onClose}
 				onMoveDiscard={onMoveDiscard}
 				onRefresh={onRefresh}
+				onWrite={onWrite}
 			/>
 		)
 	return (
@@ -452,6 +469,7 @@ function SelectedEventDialog({
 			onClose={onClose}
 			onMoveDiscard={onMoveDiscard}
 			onReload={onRefresh}
+			onWrite={onWrite}
 		/>
 	)
 }

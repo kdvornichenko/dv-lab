@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 
 import { calendarEventFor, type CalendarLesson } from '@/lib/lesson-actions'
 import { occurrenceSlot, type OccurrenceSlot } from '@/lib/lesson-mark-text'
@@ -9,6 +9,7 @@ import type { GoogleScheduleWindow, LessonMarkKind, ScheduleBlock, ScheduleSerie
 
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
+import { useOptimisticWrites } from './optimistic-writes'
 import { markLesson } from './schedule-mutations'
 
 export type LessonSelection = { key: string; slot: OccurrenceSlot }
@@ -47,6 +48,10 @@ function useSelectedLesson({ selected, selection, calendar, now }: Props) {
 export function LessonDialogs(props: Props) {
 	const { series, calendar, reload, onClose } = props
 	const snapshot = useSelectedLesson(props)
+	const refused = useCallback(() => {
+		void reload()
+	}, [reload])
+	const writes = useOptimisticWrites(refused)
 	if (snapshot === null) return null
 	const shown = snapshot.block
 	const target = { key: shown.key, slot: occurrenceSlot(shown.outcome) }
@@ -64,6 +69,7 @@ export function LessonDialogs(props: Props) {
 				student={{ id: shown.studentId, name: shown.studentName }}
 				onClose={() => onClose(target)}
 				onRefresh={() => void reload()}
+				onWrite={writes.run}
 			/>
 		)
 	}

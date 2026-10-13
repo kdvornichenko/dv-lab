@@ -50,6 +50,7 @@ import { addDays, scheduleDate } from '@dv-lab/core'
 import { useToast } from '../../_components/toasts'
 import { ManualAssign, SuggestionBox, type AssignBusy, type AssignFailure } from './event-assign'
 import { EventEditForm, type DirectState } from './event-form'
+import type { WriteRunner } from './optimistic-writes'
 import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
@@ -233,6 +234,7 @@ export function CalendarEventDialog({
 	onClose,
 	onMoveDiscard,
 	onReload,
+	onWrite,
 }: {
 	moveSeed?: MoveSeed
 	students: StudentsState
@@ -245,6 +247,7 @@ export function CalendarEventDialog({
 	onClose: () => void
 	onMoveDiscard: () => void
 	onReload: () => void
+	onWrite: WriteRunner
 }) {
 	const toast = useToast()
 	const controller = useCalendarCommands()
@@ -440,6 +443,7 @@ export function CalendarEventDialog({
 								onMoveDiscard()
 							}}
 							onClose={onClose}
+							onWrite={onWrite}
 						/>
 					) : removed ? (
 						<Banner status="warning">

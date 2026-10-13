@@ -180,6 +180,39 @@ function mapCompletion(result: CommandResult): CalendarMutationResult {
 	return rejected(result.code)
 }
 
+type Controller = ReturnType<typeof useCalendarCommands>
+export type CalendarSend = (onRequest: (requestId: string) => void) => Promise<CalendarMutationResult>
+
+async function prepareCommand(
+	controller: Controller,
+	selection: CalendarSelection,
+	target: Target,
+	action: Action,
+	body: Body,
+	checkedWindow: CheckedWindow | null | undefined,
+	current: () => boolean
+): Promise<{ ok: true; intent: CommandIntent } | { ok: false; result: CalendarMutationResult }> {
+	await controller.store.refresh()
+	const date = selectedDate(target, selection, body)
+	const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
+	if (!current()) return { ok: false, result: { kind: 'detached' } }
+	const connection = controller.store.getSnapshot().connection
+	const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
+	if (!validated.ok) return { ok: false, result: rejected(validated.code) }
+	const { window, expectedVersion } = validated
+	return {
+		ok: true,
+		intent: {
+			path: pathOf(target, action),
+			body,
+			operation: operation(target, action),
+			expectedVersion,
+			generation: window.connection.generation,
+			date: 'date' in body ? body.date : date,
+		},
+	}
+}
+
 export function useScheduleMutation(selection: CalendarSelection | null) {
 	const controller = useCalendarCommands()
 	const [requestId, setRequestId] = useState<string | null>(null)
@@ -209,26 +242,20 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		sending.current = true
 		setPending(true)
 		try {
-			await controller.store.refresh()
-			const date = selectedDate(target, selection, body)
-			const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
-			if (!alive.current) return { kind: 'detached' }
-			const connection = controller.store.getSnapshot().connection
-			const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
-			if (!validated.ok) return rejected(validated.code)
-			const { window, expectedVersion } = validated
+			const prepared = await prepareCommand(
+				controller,
+				selection,
+				target,
+				action,
+				body,
+				checkedWindow,
+				() => alive.current
+			)
+			if (!prepared.ok) return prepared.result
 			const id = crypto.randomUUID()
 			current.current = id
 			setRequestId(id)
-			const intent: CommandIntent = {
-				path: pathOf(target, action),
-				body,
-				operation: operation(target, action),
-				expectedVersion,
-				generation: window.connection.generation,
-				date: 'date' in body ? body.date : date,
-			}
-			const result = await controller.store.submit(id, intent)
+			const result = await controller.store.submit(id, prepared.intent)
 			if (!alive.current || current.current !== id) return { kind: 'detached' }
 			return mapCompletion(result)
 		} finally {
@@ -237,11 +264,23 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		}
 	}
 
+	function prepare(target: Target, action: Action, body: Body, checkedWindow?: CheckedWindow | null): CalendarSend {
+		const chosen = selection
+		return async (onRequest) => {
+			if (chosen === null) return { kind: 'failed', code: 'command_pending' }
+			const prepared = await prepareCommand(controller, chosen, target, action, body, checkedWindow, () => true)
+			if (!prepared.ok) return prepared.result
+			const id = crypto.randomUUID()
+			onRequest(id)
+			return mapCompletion(await controller.store.submit(id, prepared.intent))
+		}
+	}
+
 	function detach() {
 		current.current = null
 	}
 
-	return { mutate, pending, entry, blocked: controller.blocked, detach }
+	return { mutate, prepare, pending, entry, blocked: controller.blocked, detach }
 }
 
 export async function ignoreEvent(eventKey: string, version: string): Promise<MutationResult<null>> {

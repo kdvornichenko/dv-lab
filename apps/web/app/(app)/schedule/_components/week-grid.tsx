@@ -24,6 +24,7 @@ import {
 import { eventRange, eventTitle } from './calendar-event-details'
 import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
+import type { BlockMark } from './optimistic-writes'
 import { useEventResize } from './use-event-resize'
 import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
@@ -73,6 +74,7 @@ interface WeekGridProps {
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
 	placed?: { event: CalendarEventView; seed: MoveSeed } | null
+	mark?: (event: CalendarEventView) => BlockMark | null
 	emptyNote?: string | null
 	scrollTopRef?: { current: number }
 }
@@ -413,6 +415,7 @@ export function WeekGrid({
 	studentName,
 	frame = null,
 	placed = null,
+	mark,
 	emptyNote = null,
 	scrollTopRef,
 }: WeekGridProps) {
@@ -635,6 +638,7 @@ export function WeekGrid({
 											movable={canMove(event)}
 											studentName={studentName}
 											ghost={event.eventKey === ghostKey}
+											mark={mark?.(event) ?? null}
 											key={event.eventKey}
 											event={event}
 											mainTimeZone={mainTimeZone}

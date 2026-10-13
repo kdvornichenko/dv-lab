@@ -12,8 +12,13 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { calendarSeriesFor, canEditCalendarEvent, seriesDateInZone, type CalendarLesson } from '@/lib/lesson-actions'
 import { cn } from '@/lib/utils'
 
-import type { CalendarEditScope, CalendarSeriesContext, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, canChange, nextSeriesDate, scheduleDate, weekdayOf } from '@dv-lab/core'
+import type {
+	CalendarEditScope,
+	CalendarEventView,
+	CalendarSeriesContext,
+	GoogleScheduleWindow,
+} from '@dv-lab/contracts'
+import { addDays, canChange, nextSeriesDate, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
@@ -22,6 +27,7 @@ import type { DirectState } from './event-form'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
 import { LessonMoveForm, type MoveDraft } from './lesson-move-form'
+import { backAt, placedEvent, type WriteRunner } from './optimistic-writes'
 import { useScheduleMutation, type MoveLessonBody, type MoveSeriesBody } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
@@ -37,6 +43,7 @@ type Props = {
 	onClose: () => void
 	onMoveDiscard?: () => void
 	onRefresh: () => void
+	onWrite: WriteRunner
 }
 
 export function CalendarLessonDialog(props: Props) {
@@ -106,6 +113,34 @@ function seriesMoveBody(
 	}
 }
 
+function movedBlocks(
+	scope: CalendarEditScope,
+	draft: MoveDraft,
+	event: CalendarLesson,
+	events: readonly CalendarEventView[],
+	now: Date,
+	mainTimeZone: string
+): CalendarEventView[] {
+	const ref = event.binding.ref
+	const shift = dayGap(draft.date, scheduleDate(new Date(event.when.startsAt), mainTimeZone))
+	const place = (block: CalendarEventView) => {
+		if (block.when.kind !== 'timed') return block
+		const date = addDays(scheduleDate(new Date(block.when.startsAt), mainTimeZone), shift)
+		return placedEvent(block, zonedInstant(date, draft.time, mainTimeZone), draft.durationMinutes)
+	}
+	if (scope === 'one' || ref.kind !== 'series') return [place(event)]
+	const members = events.filter((block) => {
+		if (block.eventKey === event.eventKey) return true
+		if (block.binding.kind !== 'lesson' || block.binding.ref.kind !== 'series') return false
+		if (block.binding.ref.seriesId !== ref.seriesId || block.status === 'cancelled' || block.when.kind !== 'timed')
+			return false
+		return scope === 'following'
+			? block.binding.ref.originalOn >= ref.originalOn
+			: canChange(new Date(block.when.startsAt), now)
+	})
+	return members.map(place)
+}
+
 function LessonContent({
 	moveSeed,
 	event,
@@ -117,6 +152,7 @@ function LessonContent({
 	onClose,
 	onMoveDiscard,
 	onRefresh,
+	onWrite,
 	asOf,
 	series,
 	onEndSeries,
@@ -185,28 +221,27 @@ function LessonContent({
 		onClose()
 		return true
 	}
-	async function save(scope: CalendarEditScope, draft: MoveDraft): Promise<boolean> {
-		if (pending || !editable) return false
-		const result =
+	function save(scope: CalendarEditScope, draft: MoveDraft): Promise<boolean> {
+		if (pending || !editable) return Promise.resolve(false)
+		const send =
 			scope === 'one' || series === null
-				? await command.mutate(initial.binding.ref, 'move', lessonMoveBody(initial, draft, mainTimeZone), draft.checked)
-				: await command.mutate(
+				? command.prepare(initial.binding.ref, 'move', lessonMoveBody(initial, draft, mainTimeZone), draft.checked)
+				: command.prepare(
 						{ kind: 'rule', seriesId: series.series.id },
 						'move',
 						seriesMoveBody(scope, draft, initial, series, now, mainTimeZone)
 					)
-		if (result.kind === 'detached') return true
-		if (result.kind === 'stale') {
-			onRefresh()
-			return true
-		}
-		if (result.kind !== 'ok') return false
-		toast.show({
-			title: scope === 'one' ? 'Lesson moved' : 'Series moved',
-			description: 'Google Calendar confirmed the new time.',
-		})
+		onWrite(
+			{
+				title: 'Could not change the lesson',
+				back: backAt(initial, mainTimeZone),
+				hidden: [],
+				shown: movedBlocks(scope, draft, initial, window.events, now, mainTimeZone),
+			},
+			send
+		)
 		onClose()
-		return true
+		return Promise.resolve(true)
 	}
 	function askCancel() {
 		if (initial.binding.ref.kind === 'series') setScoping(true)

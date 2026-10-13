@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefOb
 
 import { RefreshCw } from 'lucide-react'
 
-import { CalendarFormStatus, commandUnconfirmed } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
 import { ConflictStatus, FormFooter, useGoogleConflicts } from '@/components/app/google-conflicts'
@@ -29,7 +28,6 @@ import type {
 } from '@dv-lab/contracts'
 import { scheduleDate, weekdayOf, zonedParts } from '@dv-lab/core'
 
-import { useToast } from '../../_components/toasts'
 import {
 	COLOR_CUSTOM,
 	COLOR_DEFAULT,
@@ -39,13 +37,8 @@ import {
 	useEventPalette,
 	type PaletteState,
 } from './color-select'
-import {
-	gapMessage,
-	LocalTimeHint,
-	localTimeInput,
-	TimeZoneStaleNotice,
-	useScheduleFormContext,
-} from './schedule-form-context'
+import { backAt, placedEvent, type WriteRunner } from './optimistic-writes'
+import { LocalTimeHint, localTimeInput, TimeZoneStaleNotice, useScheduleFormContext } from './schedule-form-context'
 import { useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
@@ -133,11 +126,10 @@ export function useTimeFields(
 	const [repeats, setRepeats] = useState<LessonRepeats>(options.repeats ?? 'once')
 	const [touched, setTouched] = useState<Partial<Record<TimeField, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
-	const [serverGap, setServerGap] = useState(false)
 
 	const weekday = weekdayOf(date)
 	const input = localTimeInput(date, time, context)
-	const timeError = serverGap ? gapMessage(context.mainTimeZone) : input.error
+	const timeError = input.error
 	const errors = {
 		date: dateError(date, repeats, today, options.allowPast === true),
 		time: timeError ?? (time === null ? 'Choose a start time.' : undefined),
@@ -160,13 +152,11 @@ export function useTimeFields(
 
 	function setDate(value: string) {
 		setDateValue(value)
-		setServerGap(false)
 		touch('date')
 	}
 
 	function setTime(value: string | null) {
 		setTimeValue(value)
-		setServerGap(false)
 		touch('time')
 	}
 
@@ -212,8 +202,6 @@ export function useTimeFields(
 		startLine,
 		end,
 		endLine,
-		serverGap,
-		setServerGap,
 		submitted,
 		setSubmitted,
 		setDate,
@@ -474,26 +462,22 @@ export function ChangedInGoogle({ onRefresh, disabled }: { onRefresh: () => void
 
 export function EventFooter({
 	status,
-	pending,
 	disabled,
 	label,
-	pendingLabel,
 	onDiscard,
 }: {
 	status: ReactNode
-	pending: boolean
 	disabled: boolean
 	label: string
-	pendingLabel: string
 	onDiscard: () => void
 }) {
 	return (
 		<FormFooter status={status}>
-			<Button type="button" variant="ghost" onClick={onDiscard} disabled={pending}>
+			<Button type="button" variant="ghost" onClick={onDiscard}>
 				Discard changes
 			</Button>
-			<Button type="submit" loading={pending} disabled={disabled}>
-				{pending ? pendingLabel : label}
+			<Button type="submit" disabled={disabled}>
+				{label}
 			</Button>
 		</FormFooter>
 	)
@@ -517,6 +501,7 @@ export function EventEditForm({
 	onReload,
 	onDiscard,
 	onClose,
+	onWrite,
 }: {
 	moveSeed?: MoveSeed
 	event: CalendarEventView
@@ -533,8 +518,8 @@ export function EventEditForm({
 	onReload: () => void
 	onDiscard: () => void
 	onClose: () => void
+	onWrite: WriteRunner
 }) {
-	const toast = useToast()
 	const asOf = window.read.state === 'unavailable' ? new Date().toISOString() : window.read.fetchedAt
 	const context = useScheduleFormContext({ mainTimeZone, asOf }, window.requestedRange.timeZone)
 	const [seed] = useState(() => {
@@ -569,10 +554,7 @@ export function EventEditForm({
 	})
 	const palette = useEventPalette()
 	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: seed.date })
-	const pending = command.pending
 	const [titleTouched, setTitleTouched] = useState(false)
-	const [failed, setFailed] = useState(false)
-	const [serverStale, setServerStale] = useState(false)
 	const [scoping, setScoping] = useState(false)
 	const [stage, setStage] = useState<'start' | 'asked' | 'sending' | 'shown'>(direct ? 'start' : 'shown')
 	const quick = stage !== 'shown'
@@ -600,7 +582,7 @@ export function EventEditForm({
 	const dirty = Object.keys(changes).length > 0
 	const titleMissing = title === '' && base.title !== ''
 	const titleError = titleMissing && (titleTouched || fields.submitted) ? EVENT_TITLE_ERROR : undefined
-	const stale = serverStale || latestVersion !== details.version
+	const stale = latestVersion !== details.version
 	const invalid = Boolean(errors.date || errors.time || errors.length) || titleMissing
 
 	useEffect(() => {
@@ -626,34 +608,38 @@ export function EventEditForm({
 	const waiting = timeChanged && !conflicts.ready
 	const scopeAsked = event.seriesMember && details.scopes.edit.length > 1
 
-	async function send(scope: CalendarEditScope): Promise<boolean> {
-		if (time === null || minutes === null) return false
-		const result = await command.mutate(
-			{ kind: 'event', eventKey: event.eventKey, version: details.version },
-			'event_update',
-			{ scope, changes },
-			timeChanged && !quick ? (conflicts.checked ?? undefined) : undefined
+	function shownEvent(): CalendarEventView {
+		const placed =
+			timeChanged && input.instant !== null && minutes !== null ? placedEvent(event, input.instant, minutes) : event
+		return {
+			...placed,
+			title: changes.title ?? placed.title,
+			location: changes.location === undefined ? placed.location : changes.location,
+			color:
+				changes.colorId === undefined
+					? placed.color
+					: { id: changes.colorId, background: null, foreground: null, custom: false },
+		}
+	}
+
+	function send(scope: CalendarEditScope): Promise<boolean> {
+		if (time === null || minutes === null) return Promise.resolve(false)
+		onWrite(
+			{
+				title: 'Could not change the event',
+				back: timeChanged ? backAt(event, context.mainTimeZone) : 'It is back as it was.',
+				hidden: [],
+				shown: [shownEvent()],
+			},
+			command.prepare(
+				{ kind: 'event', eventKey: event.eventKey, version: details.version },
+				'event_update',
+				{ scope, changes },
+				timeChanged && !quick ? (conflicts.checked ?? undefined) : undefined
+			)
 		)
-		if (result.kind === 'detached') return false
-		if (result.kind === 'zone_changed') {
-			context.markStale()
-			return false
-		}
-		if (result.kind === 'gap') {
-			fields.setServerGap(true)
-			return false
-		}
-		if (result.kind === 'stale') {
-			setServerStale(true)
-			return false
-		}
-		if (result.kind !== 'ok') return false
-		toast.show({
-			title: 'Event updated',
-			description: `${title || 'Event'}, ${formatDate(date, context.currentYear)}, ${time} ${input.label}.`,
-		})
 		onClose()
-		return true
+		return Promise.resolve(true)
 	}
 
 	if (stage === 'start') {
@@ -665,81 +651,64 @@ export function EventEditForm({
 	useEffect(() => {
 		if (stage !== 'sending' || sent.current) return
 		sent.current = true
-		void send('one').then((done) => {
-			if (done) return
-			setFailed(true)
-			setStage('shown')
-		})
+		void send('one')
 	})
 
-	async function onSubmit(submitted: FormEvent<HTMLFormElement>) {
+	function onSubmit(submitted: FormEvent<HTMLFormElement>) {
 		submitted.preventDefault()
-		if (pending || !dirty || command.blocked || context.stale || stale) return
+		if (!dirty || command.blocked || context.stale || stale) return
 		fields.setSubmitted(true)
-		setFailed(false)
 		if (titleMissing) return titleRef.current?.focus()
 		if (errors.date) return document.getElementById('event-edit-date')?.focus()
 		if (errors.time || time === null) return document.getElementById('event-edit-time')?.focus()
 		if (errors.length || minutes === null) return lengthRef.current?.focus()
 		if (waiting) return
 		if (scopeAsked) return setScoping(true)
-		if (!(await send('one'))) setFailed(true)
+		void send('one')
 	}
 
 	const status = stale ? (
-		<ChangedInGoogle onRefresh={onRefresh} disabled={pending} />
+		<ChangedInGoogle onRefresh={onRefresh} disabled={false} />
 	) : (
 		<ConflictStatus
 			check={check}
 			timeZone={context.mainTimeZone}
 			durationMinutes={minutes}
-			failure={failed ? 'Could not save the event. Try again.' : null}
+			failure={null}
 			lessons={[]}
 		/>
 	)
-	const shown = !quick || (!scoping && commandUnconfirmed(command.entry))
-	const directState: DirectState = shown ? 'shown' : stage === 'asked' ? 'asking' : 'sending'
+	const directState: DirectState = !quick ? 'shown' : stage === 'asked' ? 'asking' : 'sending'
 	useEffect(() => {
 		if (direct) onDirect?.(directState)
 	}, [direct, directState, onDirect])
 
 	return (
 		<form noValidate onSubmit={onSubmit} className="flex min-h-0 flex-col">
-			<CalendarFormStatus
-				entry={command.entry}
-				blocked={command.blocked}
-				connectionShown
-				onViewSchedule={() => {
-					command.detach()
-					onDiscard()
-				}}
-			/>
 			<div className="flex flex-col gap-3 py-1">
-				<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onReload} />
+				<TimeZoneStaleNotice stale={context.stale} pending={false} onRefresh={onReload} />
 				<div onBlur={() => setTitleTouched(true)}>
 					<EventTitleRow
 						id="event-edit-title"
 						values={values}
 						error={titleError}
-						disabled={pending || timeOnly}
+						disabled={timeOnly}
 						inputRef={titleRef}
 					/>
 				</div>
-				<TimeRows fields={fields} pending={pending} lengthRef={lengthRef} repeatsLocked={locked} />
+				<TimeRows fields={fields} pending={false} lengthRef={lengthRef} repeatsLocked={locked} />
 				<EventExtraRows
 					prefix="event-edit"
 					values={values}
 					palette={palette}
 					custom={details.color.custom ? { background: details.color.background } : null}
-					disabled={pending || timeOnly}
+					disabled={timeOnly}
 				/>
 			</div>
 			<EventFooter
 				status={status}
-				pending={pending}
 				disabled={!dirty || invalid || stale || command.blocked || context.stale || waiting || !available}
 				label="Save changes"
-				pendingLabel="Saving…"
 				onDiscard={onDiscard}
 			/>
 			{scoping ? (
