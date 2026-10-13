@@ -617,6 +617,43 @@ async function admissionCases(pipeline, fx) {
 		`check 5 details: weekly ${weeklyDetails?.repeat.kind}/${weeklyDetails?.scopes.edit.join('|')} other ${otherDetails?.repeat.kind}/${otherDetails?.scopes.edit.join('|')}/${otherDetails?.scopes.reason} all_day ${allDayDetails?.scopes.edit.length}/${allDayDetails?.scopes.delete.join('|')} place_and_description ${placeDetails?.location !== null && placeDetails?.description !== null} missing ${missing === null ? 404 : 'found'} expected ${detailsOk}`
 	)
 	if (!detailsOk) fail(5, 'event details from SQL are wrong')
+
+	const markedRows = `connection_id = ${quote(connection.id)} and (event_id in ('dvseed12', 'dvseed15') or recurring_event_id = 'dvseed12')`
+	const savedMarkers = rows(
+		`select event_id, marker_local_id, marker_kind from google_calendar_events where ${markedRows}`
+	)
+	rows(
+		`update google_calendar_events set marker_local_id = ${quote(randomUUID())}, marker_kind = 'series' where connection_id = ${quote(connection.id)} and (event_id = 'dvseed12' or recurring_event_id = 'dvseed12')`
+	)
+	const staleDetails = await details(next.event_id)
+	const staleAdmission = await refusal(prepareOnly(pipeline, context, update(next.event_id, 'one', { colorId: '3' })))
+	rows(`begin;
+update google_calendar_events set marker_local_id = ${quote(fx.single.id)}, marker_kind = 'single' where connection_id = ${quote(connection.id)} and event_id = 'dvseed15';
+update google_event_mappings set state = 'retired', retired_at = now() where local_entity_id = ${quote(fx.single.id)} and event_id = ${quote(fx.singleEvent)} and state = 'active';
+commit;`)
+	const historyDetails = await details('dvseed15')
+	const historyAdmission = await refusal(prepareOnly(pipeline, context, update('dvseed15', 'one', { colorId: '3' })))
+	rows(`begin;
+update google_event_mappings set state = 'active', retired_at = null where local_entity_id = ${quote(fx.single.id)} and event_id = ${quote(fx.singleEvent)} and state = 'retired';
+${savedMarkers
+	.map(
+		(row) =>
+			`update google_calendar_events set marker_local_id = ${row.marker_local_id === null ? 'null' : quote(row.marker_local_id)}, marker_kind = ${row.marker_kind === null ? 'null' : quote(row.marker_kind)} where connection_id = ${quote(connection.id)} and event_id = ${quote(row.event_id)};`
+	)
+	.join('\n')}
+commit;`)
+	const markerOk =
+		staleDetails?.scopes.edit.join() === 'one,following,all' &&
+		staleDetails.scopes.reason === null &&
+		staleAdmission === 'accepted' &&
+		historyDetails?.scopes.edit.length === 0 &&
+		historyDetails.scopes.reason === 'read_only_event' &&
+		historyAdmission === 'invalid_request' &&
+		mappingEvent(fx.single.id, 'single') === fx.singleEvent
+	console.log(
+		`check 5b lesson markers: unresolved ${staleDetails?.scopes.edit.join('|')}/${staleAdmission} history_only ${historyDetails?.scopes.reason}/${historyAdmission} expected ${markerOk}`
+	)
+	if (!markerOk) fail('5b', 'an unresolved lesson marker blocked editing or a resolved one allowed it')
 }
 
 function lessonCounts(cardId) {
