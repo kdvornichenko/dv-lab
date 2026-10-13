@@ -8,6 +8,7 @@ type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 export const API_CACHE_INVALIDATED = 'dvlab:cache-invalidated'
 export const SESSION_CACHE_CHANNEL =
 	typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:session-changed')
+export const DATA_CHANGED_CHANNEL = typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:data-changed')
 
 export async function apiRequest<T>(
 	method: ApiMethod,
@@ -60,7 +61,10 @@ function notifyCache(response: Response, method: ApiMethod, path: string): void 
 	if (!response.ok || method === 'GET' || UNCHANGED_PATHS.has(path)) return
 	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
 		SESSION_CACHE_CHANNEL?.postMessage('changed')
-	} else window.dispatchEvent(new Event(API_CACHE_INVALIDATED))
+	} else {
+		window.dispatchEvent(new Event(API_CACHE_INVALIDATED))
+		DATA_CHANGED_CHANNEL?.postMessage('changed')
+	}
 }
 
 function errorFrom(value: unknown): ErrorResponse['error'] | null {

@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 
+import { DATA_CHANGED_CHANNEL } from '@/lib/api-client'
+
 import type { GoogleScheduleWindow } from '@dv-lab/contracts'
 
 import { CalendarCommandStore } from './calendar-command-store'
@@ -32,10 +34,19 @@ function createController(accountId: string) {
 			return null
 		}
 	})
+	async function refreshReaders() {
+		for (const kind of ['projection', 'window'] as const)
+			for (const reader of [...readers].filter((reader) => reader.kind === kind)) {
+				try {
+					await reader.refresh()
+				} catch {}
+			}
+	}
 	return {
 		accountId,
 		store,
 		readWindow,
+		refreshReaders,
 		register(refresh: Reader['refresh'], kind: RefreshKind) {
 			const reader = { refresh, kind }
 			readers.add(reader)
@@ -58,13 +69,25 @@ export function CalendarCommandProvider({ accountId, children }: { accountId: st
 	const [controller] = useState(() => createController(accountId))
 	useEffect(() => {
 		controller.store.start()
-		const refresh = () => {
-			if (document.visibilityState === 'visible') void controller.store.refresh()
+		let missed = false
+		const changed = () => {
+			if (document.visibilityState === 'visible') void controller.refreshReaders()
+			else missed = true
 		}
+		const refresh = () => {
+			if (document.visibilityState !== 'visible') return
+			if (missed) {
+				missed = false
+				void controller.refreshReaders()
+			}
+			void controller.store.refresh()
+		}
+		DATA_CHANGED_CHANNEL?.addEventListener('message', changed)
 		window.addEventListener('focus', refresh)
 		document.addEventListener('visibilitychange', refresh)
 		return () => {
 			controller.store.stop()
+			DATA_CHANGED_CHANNEL?.removeEventListener('message', changed)
 			window.removeEventListener('focus', refresh)
 			document.removeEventListener('visibilitychange', refresh)
 		}
