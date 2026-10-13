@@ -6,10 +6,20 @@ import Link from 'next/link'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
+import { READ_ISSUES } from '@/components/app/google-calendar-state'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { calendarSeriesFor, canEditCalendarEvent, seriesDateInZone, type CalendarLesson } from '@/lib/lesson-actions'
+import {
+	calendarSeriesFor,
+	canEditCalendarEvent,
+	changeableLesson,
+	seriesDateInZone,
+	seriesScopesFor,
+	startedLesson,
+	writeIssueFor,
+	type CalendarLesson,
+} from '@/lib/lesson-actions'
 import { cn } from '@/lib/utils'
 
 import type {
@@ -18,7 +28,7 @@ import type {
 	CalendarSeriesContext,
 	GoogleScheduleWindow,
 } from '@dv-lab/contracts'
-import { addDays, canChange, nextSeriesDate, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
+import { addDays, canChange, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
@@ -27,7 +37,7 @@ import type { DirectState } from './event-form'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
 import { LessonMoveForm, type MoveDraft } from './lesson-move-form'
-import { backAt, placedEvent, type WriteRunner } from './optimistic-writes'
+import { backAt, codeRefusal, placedEvent, type WriteRunner } from './optimistic-writes'
 import { useScheduleMutation, type MoveLessonBody, type MoveSeriesBody } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
@@ -71,6 +81,8 @@ export function CalendarLessonDialog(props: Props) {
 	return <LessonContent {...props} asOf={asOf} series={currentSeries} onEndSeries={() => setEnding(true)} />
 }
 
+const FAILURE_LINE = 'Could not apply this change. Refresh the calendar before trying again.'
+
 function dayGap(later: string, earlier: string): number {
 	return Math.round((Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86400000)
 }
@@ -91,20 +103,18 @@ function seriesMoveBody(
 	draft: MoveDraft,
 	event: CalendarLesson,
 	context: CalendarSeriesContext,
-	now: Date,
 	mainTimeZone: string
 ): MoveSeriesBody {
 	const rule = context.series
 	const ref = event.binding.ref
-	const today = scheduleDate(now, mainTimeZone)
 	const inZone = (date: string) => seriesDateInZone(rule, date, mainTimeZone) ?? date
 	const opened =
 		ref.kind === 'series' ? inZone(ref.originalOn) : scheduleDate(new Date(event.when.startsAt), mainTimeZone)
-	const natural = scope === 'following' ? opened : nextSeriesDate(rule, now)
-	const cut = natural === null ? today : scope === 'following' ? natural : inZone(natural)
+	const floor = context.allFrom === null ? opened : inZone(context.allFrom)
+	const cut = scope === 'following' ? opened : floor
 	const first = addDays(cut, dayGap(draft.date, opened))
 	const earlier = first < cut ? first : cut
-	const from = earlier < today ? today : earlier
+	const from = earlier < floor ? floor : earlier
 	return {
 		from,
 		weekday: weekdayOf(first),
@@ -120,7 +130,7 @@ function movedBlocks(
 	draft: MoveDraft,
 	event: CalendarLesson,
 	events: readonly CalendarEventView[],
-	now: Date,
+	allFrom: string | null,
 	mainTimeZone: string
 ): CalendarEventView[] {
 	const ref = event.binding.ref
@@ -136,9 +146,7 @@ function movedBlocks(
 		if (block.binding.kind !== 'lesson' || block.binding.ref.kind !== 'series') return false
 		if (block.binding.ref.seriesId !== ref.seriesId || block.status === 'cancelled' || block.when.kind !== 'timed')
 			return false
-		return scope === 'following'
-			? block.binding.ref.originalOn >= ref.originalOn
-			: canChange(new Date(block.when.startsAt), now)
+		return block.binding.ref.originalOn >= (scope === 'all' && allFrom !== null ? allFrom : ref.originalOn)
 	})
 	return members.map(place)
 }
@@ -176,7 +184,7 @@ function LessonContent({
 	const [direct, setDirect] = useState<DirectState>(moveSeed !== undefined ? 'sending' : 'shown')
 	const [confirming, setConfirming] = useState(false)
 	const [scoping, setScoping] = useState(false)
-	const [failure, setFailure] = useState(false)
+	const [failure, setFailure] = useState<string | null>(null)
 	const moveButton = useRef<HTMLButtonElement>(null)
 	const editable = canEditCalendarEvent(event, window) && !blocked
 	const pending = command.pending
@@ -187,16 +195,26 @@ function LessonContent({
 	}
 	const endable =
 		editable && series !== null && event.status !== 'cancelled' && canChange(new Date(event.when.startsAt), now)
+	const mark = event.binding.mark
 	const actions = {
-		move: editable && event.status !== 'cancelled',
-		cancel: editable && event.status !== 'cancelled',
-		restore: editable && event.status === 'cancelled',
+		move: changeableLesson(event),
+		cancel: changeableLesson(event),
+		restore: event.status === 'cancelled' && mark !== 'done',
 	}
+	const unavailable =
+		editable || pending
+			? null
+			: (() => {
+					const issue = writeIssueFor(event, window, blocked)
+					return issue === null ? null : READ_ISSUES[issue]
+				})()
+	const scopes = editable ? seriesScopesFor(initial, series) : (['one'] as const)
 	const title = student?.name ?? eventTitle(event)
-	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'failed' | 'detached'> {
+	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'detached' | { failed: string }> {
 		const result = await command.mutate(initial.binding.ref, action, { expectedStartsAt: initial.when.startsAt })
 		if (result.kind === 'detached') return 'detached'
-		if (result.kind !== 'ok') return 'failed'
+		if (result.kind !== 'ok')
+			return { failed: (result.kind === 'failed' ? codeRefusal(result.code) : null) ?? FAILURE_LINE }
 		toast.show({
 			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
 			description: `${title}. Google Calendar confirmed the change.`,
@@ -206,8 +224,9 @@ function LessonContent({
 	}
 	async function change(action: 'cancel' | 'restore') {
 		if (pending || !editable) return
-		setFailure(false)
-		if ((await apply(action)) === 'failed') setFailure(true)
+		setFailure(null)
+		const outcome = await apply(action)
+		if (typeof outcome === 'object') setFailure(outcome.failed)
 	}
 	async function cancelScope(scope: CalendarEditScope): Promise<boolean> {
 		if (pending || !editable) return false
@@ -231,14 +250,14 @@ function LessonContent({
 				: command.prepare(
 						{ kind: 'rule', seriesId: series.series.id },
 						'move',
-						seriesMoveBody(scope, draft, initial, series, now, mainTimeZone)
+						seriesMoveBody(scope, draft, initial, series, mainTimeZone)
 					)
 		onWrite(
 			{
 				title: 'Could not change the lesson',
 				back: backAt(initial, mainTimeZone),
 				hidden: [],
-				shown: movedBlocks(scope, draft, initial, window.events, now, mainTimeZone),
+				shown: movedBlocks(scope, draft, initial, window.events, series?.allFrom ?? null, mainTimeZone),
 			},
 			send
 		)
@@ -246,7 +265,7 @@ function LessonContent({
 		return Promise.resolve(true)
 	}
 	function askCancel() {
-		if (initial.binding.ref.kind === 'series') setScoping(true)
+		if (initial.binding.ref.kind === 'series' && !startedLesson(initial, now)) setScoping(true)
 		else setConfirming(true)
 	}
 	return (
@@ -289,9 +308,9 @@ function LessonContent({
 								onClose()
 							}}
 						/>
-						{failure ? (
+						{failure !== null ? (
 							<p role="alert" className="text-body text-destructive">
-								Could not apply this change. Refresh the calendar before trying again.
+								{failure}
 							</p>
 						) : null}
 						<LessonDetails
@@ -304,7 +323,8 @@ function LessonContent({
 							<LessonMoveForm
 								moveSeed={moveSeed}
 								available={editable}
-								scopes={series !== null && editable ? ['one', 'following', 'all'] : ['one']}
+								scopes={scopes}
+								movesAlone={initial.binding.ref.kind === 'series' && series !== null && scopes.length === 1}
 								event={initial}
 								weekEvents={window.events}
 								mainTimeZone={mainTimeZone}
@@ -327,11 +347,13 @@ function LessonContent({
 				</ScrollArea>
 				<LessonFooter
 					block={{ startsAt: event.when.startsAt, actions }}
+					mark={mark}
+					unavailable={unavailable}
 					mainTimeZone={mainTimeZone}
 					confirming={confirming}
 					moving={moving}
 					pending={pending}
-					locked={pending}
+					locked={pending || !editable}
 					moveButton={moveButton}
 					onKeep={() => setConfirming(false)}
 					onCancel={() => void change('cancel')}
