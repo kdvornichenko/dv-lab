@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 
 import type { StudentDetail } from '@dv-lab/contracts'
 
-import { StudentFormDialog } from '../../_components/student-form-dialog'
+import { GENDER_LABEL, StudentFormDialog } from '../../_components/student-form-dialog'
 import { AccountPanel } from './account-panel'
 import { OpeningBalancePanel } from './opening-balance-panel'
 
@@ -85,6 +85,7 @@ export function OverviewTab({ student, mainTimeZone, asOf, lessonsInputRef, onSa
 							<span className="text-muted-foreground">Deducts nothing</span>
 						)}
 					</DetailRow>
+					<DetailRow label="Gender">{student.gender === null ? <NotSet /> : GENDER_LABEL[student.gender]}</DetailRow>
 					<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
 					<DetailRow label="Level">{textValue(student.level)}</DetailRow>
 					<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>

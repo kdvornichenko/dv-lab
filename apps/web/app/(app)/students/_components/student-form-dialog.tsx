@@ -1,5 +1,8 @@
 'use client'
 
+import { Radio } from '@base-ui/react/radio'
+import { RadioGroup } from '@base-ui/react/radio-group'
+
 import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useRouter } from 'next/navigation'
@@ -25,11 +28,13 @@ import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 import {
 	CURRENCIES,
 	DISPLAY_NAME_MAX_LENGTH,
+	GENDERS,
 	LESSON_MINUTES_DEFAULT,
 	STUDENT_TEXT_MAX_LENGTH,
 	isDisplayNameLength,
 	normalizeDisplayName,
 	type Currency,
+	type Gender,
 	type StudentDetail,
 	type StudentResponse,
 } from '@dv-lab/contracts'
@@ -40,11 +45,23 @@ import { useToast } from '../../_components/toasts'
 const NO_CURRENCY = 'none'
 const SAME_TIME_ZONE = 'same-as-teacher'
 const SAME_AS_TEACHER = { value: SAME_TIME_ZONE, label: 'Same as teacher' }
+const GENDER_NOT_SET = 'not-set'
+
+export const GENDER_LABEL: Record<Gender, string> = { female: 'Female', male: 'Male' }
+
+const GENDER_OPTIONS = [
+	...GENDERS.map((gender) => ({ value: gender, label: GENDER_LABEL[gender] })),
+	{ value: GENDER_NOT_SET, label: 'Not set' },
+]
+
+const SEGMENT_CLASS =
+	'inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center rounded-lg px-3 text-body whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring data-checked:bg-active data-checked:font-semibold data-checked:text-foreground data-disabled:cursor-default'
 
 type Field = 'name' | 'rate' | 'currency' | 'lessonMinutes' | 'parent' | 'level' | 'goals'
 
 interface Values {
 	name: string
+	gender: string
 	rate: string
 	currency: string
 	lessonMinutes: number | null
@@ -72,6 +89,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 	if (!student) {
 		return {
 			name: '',
+			gender: GENDER_NOT_SET,
 			rate: '',
 			currency: NO_CURRENCY,
 			lessonMinutes: LESSON_MINUTES_DEFAULT,
@@ -83,6 +101,7 @@ function initialValues(student: StudentDetail | undefined): Values {
 	}
 	return {
 		name: student.displayName,
+		gender: student.gender ?? GENDER_NOT_SET,
 		rate: student.rateMinor === null ? '' : minorToInput(student.rateMinor, student.currency),
 		currency: student.currency ?? NO_CURRENCY,
 		lessonMinutes: student.defaultLessonMinutes,
@@ -209,6 +228,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 			create ? '/students' : `/students/${student?.id}`,
 			{
 				displayName: name,
+				gender: GENDERS.find((gender) => gender === values.gender) ?? null,
 				rateMinor: parsed.rateMinor,
 				currency: parsed.currency,
 				defaultLessonMinutes: parsed.lessonMinutes,
@@ -271,6 +291,28 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 							disabled={pending}
 							error={shown('name')}
 						/>
+						<div className="flex min-w-0 flex-col gap-2">
+							<span id="student-form-gender-label" className="text-body text-muted-foreground">
+								Gender
+							</span>
+							<RadioGroup
+								aria-labelledby="student-form-gender-label"
+								aria-describedby="student-form-gender-helper"
+								value={values.gender}
+								onValueChange={(value) => set('gender', value)}
+								disabled={pending}
+								className="flex h-9 min-w-0 gap-0.5 rounded-xl bg-muted p-0.5"
+							>
+								{GENDER_OPTIONS.map((option) => (
+									<Radio.Root key={option.value} value={option.value} className={SEGMENT_CLASS}>
+										{option.label}
+									</Radio.Root>
+								))}
+							</RadioGroup>
+							<p id="student-form-gender-helper" className="text-caption text-muted-foreground">
+								Used by the assistant to choose the right words. Not shown to the student.
+							</p>
+						</div>
 						<div className="grid gap-4 sm:grid-cols-2">
 							<TextField
 								ref={rateRef}

@@ -50,6 +50,7 @@ function OverviewLoading() {
 					<DetailRowLoading label="Rate" width="w-28" />
 					<DetailRowLoading label="Lesson length" width="w-14" />
 					<DetailRowLoading label="No-show" width="w-28" />
+					<DetailRowLoading label="Gender" width="w-14" />
 					<DetailRowLoading label="Parent" width="w-24" />
 					<DetailRowLoading label="Level" width="w-16" />
 					<DetailRowLoading label="Goals" width="w-40" />
