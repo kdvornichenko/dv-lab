@@ -5,34 +5,30 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Info, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
+import { EFFORT_LABEL, EffortSlider, clampEffort } from '@/components/app/effort-slider'
 import { Panel } from '@/components/app/layout-parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
+import { dollars, toCents } from '@/lib/usd-text'
 
-import { saveAssistantSettingsRequest, type AssistantSettingsResponse } from '@dv-lab/contracts'
+import {
+	CHAT_EFFORTS,
+	saveAssistantSettingsRequest,
+	type AssistantSettingsResponse,
+	type ChatEffort,
+} from '@dv-lab/contracts'
 
 import { useToast } from '../../_components/toasts'
+import { ModelsForm } from './assistant-models'
 
 type LoadState = 'loading' | 'ready' | 'failed'
 
 const FIELD = 'settings-monthly-limit'
 const FIELD_ERROR = 'Enter a monthly budget above zero.'
 const SAVE_ERROR = 'Could not save the setting. Try again.'
-
-function toCents(text: string, roundUp: boolean): bigint {
-	const [whole = '0', fraction = ''] = text.split('.')
-	const rest = fraction.slice(2).replace(/0/g, '')
-	return BigInt(whole) * 100n + BigInt(fraction.slice(0, 2).padEnd(2, '0')) + (roundUp && rest !== '' ? 1n : 0n)
-}
-
-function dollars(cents: bigint, short = false): string {
-	const whole = cents / 100n
-	const part = cents % 100n
-	if (short && part === 0n) return `$${whole}`
-	return `$${whole}.${part.toString().padStart(2, '0')}`
-}
 
 function validCap(text: string): string | null {
 	const trimmed = text.trim()
@@ -274,10 +270,168 @@ function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> 
 const DESCRIPTION =
 	'When the limit is reached the assistant stops answering until next month. Everything else keeps working.'
 
+function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSettings> }) {
+	const toast = useToast()
+	const { data, setData, loadState, refresh } = state
+	const [saving, setSaving] = useState(false)
+	const [saveError, setSaveError] = useState(false)
+	const inflight = useRef(false)
+	const description = 'What new chats start with.'
+
+	if (loadState === 'loading' && data === null)
+		return (
+			<Panel id="settings-chat-model" title="Chat model" description={description}>
+				<div className="flex flex-col gap-3 px-4 pt-1 pb-4" role="status" aria-label="Loading chat model">
+					<Skeleton className="h-8 w-full" />
+					<Skeleton className="h-8 w-full" />
+				</div>
+			</Panel>
+		)
+
+	if (loadState === 'failed' || data === null)
+		return (
+			<Panel id="settings-chat-model" title="Chat model" description={description}>
+				<div className="flex flex-col items-start gap-2 px-4 pt-1 pb-4" data-chat-model-state="unavailable">
+					<Select value="" disabled>
+						<SelectTrigger placeholder="Models unavailable" className="w-65 max-w-full" aria-label="Model" />
+						<SelectContent>
+							<SelectItem index={0} value="none">
+								None
+							</SelectItem>
+						</SelectContent>
+					</Select>
+					<p role="alert" className="text-caption text-destructive">
+						Model settings are unavailable. Refresh before sending.
+					</p>
+					<Button type="button" variant="tertiary" size="compact" leadingIcon={RefreshCw} onClick={refresh}>
+						Refresh
+					</Button>
+				</div>
+			</Panel>
+		)
+
+	const { settings, capabilities } = data
+	const modelId = settings.model ?? settings.models[0]?.id
+	const capability = capabilities.find((item) => item.id === modelId)
+	const effort: ChatEffort = settings.effort ?? capability?.defaultEffort ?? 'medium'
+
+	async function save(body: { model: string; effort: ChatEffort }) {
+		if (inflight.current) return
+		inflight.current = true
+		setSaving(true)
+		setSaveError(false)
+		try {
+			const result = await apiRequest<AssistantSettingsResponse>('PATCH', '/settings/assistant', body)
+			if (!result.ok) {
+				setSaveError(true)
+				return
+			}
+			setData(result.data)
+			toast.show({
+				title: 'Saved',
+				description: `Chat model: ${capabilities.find((item) => item.id === body.model)?.name ?? body.model}, ${EFFORT_LABEL[body.effort].toLowerCase()} effort.`,
+			})
+		} finally {
+			inflight.current = false
+			setSaving(false)
+		}
+	}
+
+	function chooseModel(id: string) {
+		const next = capabilities.find((item) => item.id === id)
+		if (!next || id === modelId) return
+		void save({ model: id, effort: clampEffort(next.efforts, effort) })
+	}
+
+	return (
+		<Panel id="settings-chat-model" title="Chat model" description={description}>
+			<div className="flex flex-col gap-4 px-4 pt-1 pb-4" aria-busy={saving} data-slot="chat-model-card">
+				<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+					<div className="flex min-w-0 flex-col gap-1">
+						<label htmlFor="settings-chat-model-select" className="text-body text-foreground">
+							Model
+						</label>
+						<p className="text-caption text-muted-foreground">Used for every new chat</p>
+					</div>
+					<Select value={modelId ?? ''} onValueChange={chooseModel} disabled={saving}>
+						<SelectTrigger id="settings-chat-model-select" className="w-full md:w-65 md:shrink-0" />
+						<SelectContent>
+							{capabilities.map((item, index) => (
+								<SelectItem key={item.id} index={index} value={item.id} disabled={!item.available}>
+									{item.available
+										? `${item.name} · ${item.description}`
+										: `${item.name} · Not available with your API key`}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+				<div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
+					<div className="flex min-w-0 flex-col gap-1">
+						<span className="text-body text-foreground">Effort: {EFFORT_LABEL[effort]}</span>
+						<p className="text-caption text-muted-foreground">
+							Faster answers, or smarter ones that take longer and cost more
+						</p>
+					</div>
+					<div className="w-full md:w-65 md:shrink-0">
+						{capability ? (
+							<EffortSlider
+								value={effort}
+								supported={capability.efforts}
+								modelName={capability.name}
+								marker="Recommended"
+								markerAt={capability.recommendedEffort}
+								label="Effort"
+								disabled={saving || !CHAT_EFFORTS.includes(effort)}
+								onChange={(next) => {
+									if (modelId !== undefined) void save({ model: modelId, effort: next })
+								}}
+							/>
+						) : null}
+					</div>
+				</div>
+				{saveError ? (
+					<p role="alert" className="text-caption text-destructive">
+						{SAVE_ERROR}
+					</p>
+				) : (
+					<p className="text-caption text-muted-foreground">
+						Saved to your account. Each chat can change its own model and effort from its composer.
+					</p>
+				)}
+			</div>
+		</Panel>
+	)
+}
+
+function ModelsCard({ state }: { state: ReturnType<typeof useAssistantSettings> }) {
+	const { data, setData, loadState } = state
+	if (data === null) {
+		if (loadState === 'loading')
+			return (
+				<Panel id="settings-models" title="Models and limits" description={MODELS_DESCRIPTION}>
+					<div className="flex flex-col gap-3 px-4 pt-1 pb-4" role="status" aria-label="Loading models">
+						<Skeleton className="h-16 w-full" />
+						<Skeleton className="h-16 w-full" />
+					</div>
+				</Panel>
+			)
+		return null
+	}
+	const { settings } = data
+	const key = JSON.stringify([settings.models, settings.model, settings.maxInputTokens, settings.maxOutputTokens])
+	return <ModelsForm key={key} data={data} onSaved={setData} />
+}
+
+const MODELS_DESCRIPTION =
+	'The models the assistant may use, in the order of the chat menu, and what a request may cost.'
+
 export function AssistantCard() {
 	const state = useAssistantSettings()
 	return (
 		<div className="flex max-w-180 flex-col gap-4">
+			<ChatModelCard state={state} />
+			<ModelsCard state={state} />
 			<BudgetCard state={state} />
 		</div>
 	)
