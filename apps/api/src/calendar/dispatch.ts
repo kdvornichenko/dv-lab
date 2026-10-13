@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
 import { canChange } from '@dv-lab/core'
@@ -75,6 +75,86 @@ async function companionStage(executor: DbExecutor, commandId: string, lock: boo
 	return row ?? null
 }
 
+function newAttempt(generation: number, now: Date, requestDigest: string, ifMatch: string | null): GoogleStageAttempt {
+	return {
+		attemptId: randomUUID(),
+		generation,
+		startedAt: now.toISOString(),
+		finishedAt: null,
+		outcome: 'dispatching',
+		ifMatch,
+		requestDigest,
+		httpStatus: null,
+		errorCode: null,
+	}
+}
+
+async function startCompanion(db: Database, stage: StageRow, generation: number) {
+	const request = googleStageRequest.parse(stage.request)
+	if (request.method !== 'insert') throw new CommandFault('precondition_failed')
+	const [started] = await db
+		.update(googleCommandStages)
+		.set({
+			state: 'dispatching',
+			effect: 'unknown',
+			generation,
+			attempts: [...stage.attempts, newAttempt(generation, new Date(), request.digest, null)],
+			updatedAt: sql`now()`,
+		})
+		.where(and(eq(googleCommandStages.id, stage.id), ne(googleCommandStages.state, 'acknowledged')))
+		.returning()
+	return started ?? null
+}
+
+async function acknowledgeCompanion(db: Database, stageId: string, result: VerifiedGoogleResponse, observed: boolean) {
+	await db.transaction(async (tx) => {
+		const [current] = await tx
+			.select()
+			.from(googleCommandStages)
+			.where(eq(googleCommandStages.id, stageId))
+			.for('update')
+		if (!current || current.state === 'acknowledged') return
+		if (!observed && current.state !== 'dispatching') throw new CommandFault('precondition_failed')
+		await tx
+			.update(googleCommandStages)
+			.set({
+				state: 'acknowledged',
+				effect: 'confirmed',
+				acknowledgement: result.acknowledgement,
+				acknowledgedAt: sql`now()`,
+				attempts: observed
+					? confirmObservedAttempts(current.attempts)
+					: finishAttempt(current.attempts, 'acknowledged', result.httpStatus),
+				updatedAt: sql`now()`,
+			})
+			.where(eq(googleCommandStages.id, stageId))
+	})
+}
+
+export async function ensureCompanion(access: CommandAccess, command: CommandRow, gateway: GoogleGateway) {
+	const stage = await companionStage(access.db, command.id, false)
+	if (!stage || stage.state === 'acknowledged') return
+	const { prepared } = await preparedCommand(access.db, command)
+	const request = googleStageRequest.parse(stage.request)
+	if (request.method !== 'insert') return
+	try {
+		const found = await gateway.confirmedEvent(
+			access.accessToken,
+			command.calendarId,
+			request,
+			prepared.plan.capturedTimeZone,
+			access.connection.generation,
+			access.signal
+		)
+		if (!found.recoveryIssue) await acknowledgeCompanion(access.db, stage.id, found, true)
+		return
+	} catch (error) {
+		if (!(error instanceof GoogleWriteFault && error.outcome === 'missing')) return
+	}
+	const started = await startCompanion(access.db, stage, access.connection.generation)
+	if (started) await sendCompanion(access, prepared, started, gateway).catch(() => undefined)
+}
+
 function withPreserved(stage: StageRow, observation: DispatchWindow['observation']): InsertRequest {
 	const request = googleStageRequest.parse(stage.request)
 	if (request.method !== 'insert') throw new CommandFault('precondition_failed')
@@ -126,17 +206,6 @@ async function prepareDispatch(
 				? googleStageRequest.parse({ ...command.request, cancellationBaseline: window.baseline })
 				: command.request
 		if (request.method !== 'insert' && request.method !== 'patch') throw new CommandFault('precondition_failed')
-		const attempt = (digestValue: string, ifMatch: string | null): GoogleStageAttempt => ({
-			attemptId: randomUUID(),
-			generation: connection.generation,
-			startedAt: now.toISOString(),
-			finishedAt: null,
-			outcome: 'dispatching',
-			ifMatch,
-			requestDigest: digestValue,
-			httpStatus: null,
-			errorCode: null,
-		})
 		access.signal.throwIfAborted()
 		await tx
 			.update(googleCommandStages)
@@ -144,7 +213,10 @@ async function prepareDispatch(
 				state: 'dispatching',
 				effect: 'unknown',
 				request,
-				attempts: [...stage.attempts, attempt(request.digest, request.method === 'patch' ? request.ifMatch : null)],
+				attempts: [
+					...stage.attempts,
+					newAttempt(connection.generation, now, request.digest, request.method === 'patch' ? request.ifMatch : null),
+				],
 				updatedAt: sql`now()`,
 			})
 			.where(eq(googleCommandStages.id, stage.id))
@@ -153,19 +225,12 @@ async function prepareDispatch(
 		if (pending && pending.state !== 'acknowledged') {
 			if (pending.state !== 'pending') throw new CommandFault('precondition_failed')
 			const insert = withPreserved(pending, window.observation)
-			const [started] = await tx
+			const [prepared] = await tx
 				.update(googleCommandStages)
-				.set({
-					state: 'dispatching',
-					effect: 'unknown',
-					request: insert,
-					generation: connection.generation,
-					attempts: [...pending.attempts, attempt(insert.digest, null)],
-					updatedAt: sql`now()`,
-				})
+				.set({ request: insert, generation: connection.generation, updatedAt: sql`now()` })
 				.where(eq(googleCommandStages.id, pending.id))
 				.returning()
-			companion = started ?? null
+			companion = prepared ?? null
 		}
 		await tx
 			.update(googleCommands)
@@ -218,25 +283,7 @@ async function sendCompanion(
 			.where(and(eq(googleCommandStages.id, stage.id), eq(googleCommandStages.state, 'dispatching')))
 		throw error
 	}
-	await access.db.transaction(async (tx) => {
-		const [current] = await tx
-			.select()
-			.from(googleCommandStages)
-			.where(eq(googleCommandStages.id, stage.id))
-			.for('update')
-		if (!current || current.state !== 'dispatching') throw new CommandFault('precondition_failed')
-		await tx
-			.update(googleCommandStages)
-			.set({
-				state: 'acknowledged',
-				effect: 'confirmed',
-				acknowledgement: result.acknowledgement,
-				acknowledgedAt: sql`now()`,
-				attempts: finishAttempt(current.attempts, 'acknowledged', result.httpStatus),
-				updatedAt: sql`now()`,
-			})
-			.where(eq(googleCommandStages.id, stage.id))
-	})
+	await acknowledgeCompanion(access.db, stage.id, result, false)
 }
 
 async function checkInstanceDispatch(access: CommandAccess, command: PreparedCalendarCommand, gateway: GoogleGateway) {
@@ -451,7 +498,18 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 				updatedAt: sql`now()`,
 			})
 			.where(eq(googleCommands.id, command.id))
-		if (rejected) await retireReservations(tx, command.id)
+		if (!rejected) return
+		await tx
+			.update(googleCommandStages)
+			.set({ state: 'failed', effect: 'none', updatedAt: sql`now()` })
+			.where(
+				and(
+					eq(googleCommandStages.commandId, command.id),
+					eq(googleCommandStages.kind, 'create_master'),
+					eq(googleCommandStages.state, 'pending')
+				)
+			)
+		await retireReservations(tx, command.id)
 	})
 }
 
@@ -511,6 +569,19 @@ async function writtenFacts(tx: DbExecutor, command: CommandRow, kinds: ('write'
 async function projectEvent(access: Pick<CommandAccess, 'db' | 'signal'>, command: CommandRow) {
 	const { prepared, stage } = await preparedCommand(access.db, command)
 	if (!stage.acknowledgement) throw new CommandFault('precondition_failed')
+	const companion = await companionStage(access.db, command.id, false)
+	if (companion && companion.state !== 'acknowledged') {
+		await access.db
+			.update(googleCommands)
+			.set({
+				state: 'recovery_required',
+				issue: 'provider_unavailable',
+				nextAction: 'resume_recovery',
+				updatedAt: sql`now()`,
+			})
+			.where(and(eq(googleCommands.id, command.id), eq(googleCommands.state, 'projection_pending')))
+		return
+	}
 	const result = storedGoogleResult(stage.acknowledgement, prepared.request, stage.generation)
 	access.signal.throwIfAborted()
 	await access.db.transaction(async (tx) => {
@@ -581,7 +652,6 @@ export async function dispatchCommand(
 	}
 	const prepared: PreparedCalendarCommand = { ...stored, request: ready.request }
 	try {
-		if (ready.companion) await sendCompanion(access, prepared, ready.companion, gateway)
 		const result =
 			prepared.request.method === 'patch'
 				? await gateway.patch(
@@ -623,7 +693,12 @@ export async function dispatchCommand(
 		return
 	}
 	const confirmed = await readCommand(access.db, command.accountId, command.id)
-	if (confirmed.state === 'projection_pending') await projectCommand(access, confirmed)
+	if (confirmed.state !== 'projection_pending') return
+	if (ready.companion) {
+		const started = await startCompanion(access.db, ready.companion, access.connection.generation)
+		if (started) await sendCompanion(access, prepared, started, gateway).catch(() => undefined)
+	}
+	await projectCommand(access, confirmed)
 }
 
 export function preservesUnowned(command: PreparedCalendarCommand, result: VerifiedGoogleResponse) {
