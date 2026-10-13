@@ -314,11 +314,7 @@ export function markKey(ref: OccurrenceRef) {
 		: eq(lessonMarks.lessonId, ref.lessonId)
 }
 
-export async function markStateOf(
-	executor: DbExecutor,
-	ref: OccurrenceRef,
-	lock = false
-): Promise<MarkState | null> {
+export async function markStateOf(executor: DbExecutor, ref: OccurrenceRef, lock = false): Promise<MarkState | null> {
 	const query = executor
 		.select({ kind: lessonMarks.kind, revision: lessonMarks.revision })
 		.from(lessonMarks)
