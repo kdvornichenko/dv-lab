@@ -19,6 +19,7 @@ import { occurrenceKey, seriesStart, type MarkKind } from '@dv-lab/core'
 import { googleEventIgnores, type DbExecutor } from '@dv-lab/db'
 
 import { loadMarks } from '../schedule/rows.ts'
+import { seriesAnchor } from '../schedule/series.ts'
 import { readConnection } from './connection.ts'
 import { bindEvent, loadMappings, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
 import { findConnection } from './google-access.ts'
@@ -258,6 +259,7 @@ async function seriesContexts(
 				},
 			},
 			version: opaqueVersion([mapping.id, mapping.representationGeneration, rule.id]),
+			allFrom: await seriesAnchor(executor, rule, connectionId),
 		})
 	}
 	return [...contexts.values()]

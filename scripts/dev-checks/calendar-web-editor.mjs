@@ -148,6 +148,7 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 				json.series = [
 					{
 						version,
+						allFrom: originalOn,
 						series: {
 							id: seriesId,
 							studentId,

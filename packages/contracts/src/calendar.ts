@@ -196,10 +196,11 @@ const scheduleSeries = z.strictObject({
 		.nullable(),
 }) satisfies z.ZodType<ScheduleSeries>
 
-export type CalendarSeriesContext = { series: ScheduleSeries; version: string }
+export type CalendarSeriesContext = { series: ScheduleSeries; version: string; allFrom: string | null }
 export const calendarSeriesContext = z.strictObject({
 	series: scheduleSeries,
 	version: calendarVersion,
+	allFrom: calendarDate.nullable(),
 }) satisfies z.ZodType<CalendarSeriesContext>
 
 export const calendarWriteStatus = z.discriminatedUnion('state', [

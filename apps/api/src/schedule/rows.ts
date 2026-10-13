@@ -253,6 +253,20 @@ export async function seriesMarksFrom(
 	return marks
 }
 
+export async function heldSeriesDates(executor: DbExecutor, seriesId: string, from?: string): Promise<Set<string>> {
+	const rows = await executor
+		.select({ originalOn: lessonMarks.originalOn })
+		.from(lessonMarks)
+		.where(
+			and(
+				eq(lessonMarks.seriesId, seriesId),
+				inArray(lessonMarks.kind, ['done', 'no_show']),
+				from === undefined ? undefined : gte(lessonMarks.originalOn, from)
+			)
+		)
+	return new Set(rows.flatMap((row) => (row.originalOn === null ? [] : [row.originalOn])))
+}
+
 function markRef(row: MarkRecord): OccurrenceRef {
 	if (row.seriesId !== null && row.originalOn !== null) {
 		return { kind: 'series', seriesId: row.seriesId, originalOn: row.originalOn }
