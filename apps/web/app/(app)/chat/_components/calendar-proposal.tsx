@@ -19,11 +19,13 @@ import {
 	weekdayName,
 	yearInZone,
 } from '@/lib/schedule-format'
+import { dayHref, lessonHref } from '@/lib/schedule-links'
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { ChatCalendarIssue, ChatCalendarProposalBlock } from '@dv-lab/contracts'
 import { zonedParts } from '@dv-lab/core'
 
+import { CalendarLink } from './agent-links'
 import type { CalendarHandlers } from './messages'
 
 const CHECK_EVERY_MS = 2000
@@ -163,6 +165,16 @@ function savedLine(block: ChatCalendarProposalBlock, secondZone: string | null, 
 	return `Calendar change saved. ${name}, ${formatDay(start, zone, year)}, ${mainRange(start, block.target.durationMinutes, zone, secondZone)}.`
 }
 
+function placeHref(block: ChatCalendarProposalBlock): string | null {
+	const { target, lesson } = block
+	if (target.kind === 'cancelled') {
+		const date = target.date ?? lesson.date
+		return date === undefined ? null : dayHref(date)
+	}
+	if (target.kind === 'series') return dayHref(target.from)
+	return target.date !== undefined && lesson.ref !== undefined ? lessonHref(target.date, lesson.ref) : null
+}
+
 function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
 	return (
 		<div className="flex items-start gap-2">
@@ -233,6 +245,7 @@ function Applied({
 	return (
 		<div ref={status} tabIndex={-1} role="status" className="flex flex-col gap-2 outline-none">
 			<Header icon={<Check size={16} aria-hidden />} text="Saved.">
+				<CalendarLink href={placeHref(block)} />
 				{undoable ? (
 					<Button
 						variant="ghost"

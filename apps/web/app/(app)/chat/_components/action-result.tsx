@@ -9,9 +9,12 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { markHelp, markLabel } from '@/lib/lesson-mark-text'
 import { mainWhen, yearInZone } from '@/lib/schedule-format'
+import { lessonHref } from '@/lib/schedule-links'
 import { cn } from '@/lib/utils'
 
 import type { ChatActionResultBlock } from '@dv-lab/contracts'
+
+import { CalendarLink } from './agent-links'
 
 export const UNDO_CONFLICT = 'This record changed after your action. Undo is unavailable.'
 
@@ -98,6 +101,9 @@ export function ActionResult({ block, onUndo }: { block: ChatActionResultBlock; 
 					<p className="min-w-0 flex-1 text-body font-semibold text-foreground">
 						{done ? 'Change undone.' : sentence(block)}
 					</p>
+					{done || block.lessonRef === undefined || block.lessonDate === undefined ? null : (
+						<CalendarLink href={lessonHref(block.lessonDate, block.lessonRef)} />
+					)}
 					{undoable ? <UndoButton block={block} onUndo={onUndo} className="max-sm:hidden" /> : null}
 				</div>
 				<p className="pl-6 text-caption text-muted-foreground tabular-nums">

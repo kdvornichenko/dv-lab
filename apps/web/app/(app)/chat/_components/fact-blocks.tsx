@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { apiRequest } from '@/lib/api-client'
 import { statusKey, statusWord } from '@/lib/lesson-mark-text'
 import { formatDay, formatFullDate, formatTime, secondWhen, yearInZone } from '@/lib/schedule-format'
+import { lessonHref, studentHref } from '@/lib/schedule-links'
 import { cn } from '@/lib/utils'
 
 import type {
@@ -31,6 +32,8 @@ import { lessonsPhrase, zonedInstant } from '@dv-lab/core'
 
 import { DueList } from '../../_components/due-list'
 import { MoreRow, ROW_LIMIT } from '../../_components/today-lessons'
+import { CalendarLink, SourceLink } from './agent-links'
+import { LessonDates } from './lesson-dates'
 import { StudentFacts } from './student-facts'
 
 const STUDENTS_HREF = '/students'
@@ -40,7 +43,7 @@ const EXCERPT_SOURCES = { section: 'From profile', note: 'From notes', comment: 
 
 export type RecordBlock = Extract<
 	ChatBlock,
-	{ type: 'facts' | 'lessons' | 'pays_soon' | 'excerpt' | 'suggestions' | 'read_failed' }
+	{ type: 'facts' | 'lessons' | 'pays_soon' | 'excerpt' | 'suggestions' | 'read_failed' | 'lesson_dates' }
 >
 
 export function isRecordBlock(block: ChatBlock): block is RecordBlock {
@@ -50,7 +53,8 @@ export function isRecordBlock(block: ChatBlock): block is RecordBlock {
 		block.type === 'pays_soon' ||
 		block.type === 'excerpt' ||
 		block.type === 'suggestions' ||
-		block.type === 'read_failed'
+		block.type === 'read_failed' ||
+		block.type === 'lesson_dates'
 	)
 }
 
@@ -101,6 +105,11 @@ function LessonLine({
 					{statusWord(lesson, asOf, zone)}
 				</span>
 			)}
+			{lesson.ref !== undefined && lesson.date !== undefined && key !== 'cancelled' ? (
+				<span className="relative z-10 flex shrink-0">
+					<CalendarLink href={lessonHref(lesson.date, lesson.ref)} />
+				</span>
+			) : null}
 		</li>
 	)
 }
@@ -173,16 +182,32 @@ function PaysSoon({ block }: { block: ChatPaysSoonBlock }) {
 	)
 }
 
+function excerptHref(block: ChatExcerptBlock): string | null {
+	if (block.source === 'note')
+		return block.entry === undefined ? null : studentHref(block.studentId, { tab: 'notes', entry: block.entry })
+	if (block.source === 'section')
+		return block.section === undefined
+			? null
+			: studentHref(block.studentId, { tab: block.section.tab, section: block.section.key })
+	return block.lesson === undefined ? null : lessonHref(block.lesson.date, block.lesson.ref)
+}
+
 function Excerpt({ block }: { block: ChatExcerptBlock }) {
 	const at = new Date(block.createdAt)
 	const date = formatDay(at, block.timeZone, yearInZone(new Date(), block.timeZone))
+	const href = excerptHref(block)
 	return (
 		<figure data-slot="chat-excerpt" data-source={block.source} className="m-0 flex flex-col gap-1.5">
 			<blockquote className="m-0 border-l-2 border-border pl-3">
 				<MarkdownView body={block.body} />
 			</blockquote>
 			<figcaption className="text-caption text-muted-foreground">
-				{EXCERPT_SOURCES[block.source]} · {date} · stored text
+				{href === null ? (
+					EXCERPT_SOURCES[block.source]
+				) : (
+					<SourceLink href={href}>{EXCERPT_SOURCES[block.source]}</SourceLink>
+				)}{' '}
+				· {date} · stored text
 			</figcaption>
 		</figure>
 	)
@@ -212,7 +237,7 @@ function ReadFailed({ block }: { block: ChatReadFailedBlock }) {
 			setRefreshing(false)
 		}
 	}
-	if (fresh !== null && fresh.type !== 'lesson_dates') return <RecordBlockView block={fresh} />
+	if (fresh !== null) return <RecordBlockView block={fresh} />
 	return (
 		<Banner status="error" role="alert" aria-busy={refreshing} data-reply-state="read-failed">
 			<BannerTitle>Could not read the student&apos;s records.</BannerTitle>
@@ -231,5 +256,6 @@ export function RecordBlockView({ block }: { block: RecordBlock }) {
 	if (block.type === 'pays_soon') return <PaysSoon block={block} />
 	if (block.type === 'excerpt') return <Excerpt block={block} />
 	if (block.type === 'suggestions') return <Suggestions block={block} />
+	if (block.type === 'lesson_dates') return <LessonDates block={block} />
 	return <ReadFailed block={block} />
 }

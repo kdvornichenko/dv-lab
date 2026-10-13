@@ -2,8 +2,6 @@
 
 import type { ReactNode } from 'react'
 
-import Link from 'next/link'
-
 import { Avatar } from '@/components/app/avatar'
 import { Panel } from '@/components/app/layout-parts'
 import { DotShape } from '@/components/app/status-dot'
@@ -12,10 +10,13 @@ import { TimePair } from '@/components/app/time-pair'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
+import { lessonHref, studentHref } from '@/lib/schedule-links'
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { ChatStudentFacts } from '@dv-lab/contracts'
 import { balanceState } from '@dv-lab/core'
+
+import { TextLink } from './agent-links'
 
 export function Fact({ label, children }: { label: string; children: ReactNode }) {
 	return (
@@ -31,7 +32,13 @@ export function BalanceFact({ facts }: { facts: ChatStudentFacts }) {
 	if (balanceMinutes === null) {
 		return (
 			<Fact label="Balance">
-				<StudentBalance minutes={null} lessonMinutes={student.defaultLessonMinutes} className="text-body font-medium" />
+				<TextLink href={studentHref(student.id, { tab: 'payments' })} className="self-start">
+					<StudentBalance
+						minutes={null}
+						lessonMinutes={student.defaultLessonMinutes}
+						className="text-body font-medium"
+					/>
+				</TextLink>
 				<p className="text-micro text-muted-foreground">No opening balance yet.</p>
 			</Fact>
 		)
@@ -41,15 +48,17 @@ export function BalanceFact({ facts }: { facts: ChatStudentFacts }) {
 		: null
 	return (
 		<Fact label="Balance">
-			<StudentBalance
-				minutes={balanceMinutes}
-				lessonMinutes={student.defaultLessonMinutes}
-				className="text-body font-medium"
-			/>
+			<TextLink href={studentHref(student.id, { tab: 'payments' })} className="self-start">
+				<StudentBalance
+					minutes={balanceMinutes}
+					lessonMinutes={student.defaultLessonMinutes}
+					className="text-body font-medium"
+				/>
+			</TextLink>
 			{tone === null ? null : (
 				<p className="inline-flex items-center gap-1.5 text-micro text-muted-foreground">
 					<DotShape tone={tone.tone} />
-					{tone.label}
+					<TextLink href={studentHref(student.id)}>{tone.label}</TextLink>
 				</p>
 			)}
 		</Fact>
@@ -79,10 +88,17 @@ export function NextLessonFact({ facts, secondZone }: { facts: ChatStudentFacts;
 	}
 	const at = new Date(nextLesson.startsAt)
 	const year = yearInZone(new Date(asOf), defaultTimeZone)
+	const when = `${formatWhen(at, defaultTimeZone, year)} ${zoneLabel(defaultTimeZone, at)}`
 	return (
 		<Fact label="Next lesson">
 			<TimePair
-				main={`${formatWhen(at, defaultTimeZone, year)} ${zoneLabel(defaultTimeZone, at)}`}
+				main={
+					nextLesson.ref !== undefined && nextLesson.date !== undefined ? (
+						<TextLink href={lessonHref(nextLesson.date, nextLesson.ref)}>{when}</TextLink>
+					) : (
+						when
+					)
+				}
 				second={secondWhen(at, defaultTimeZone, secondZone)}
 				mainClassName="text-body font-medium"
 			/>
@@ -104,12 +120,9 @@ export function StudentFacts({ facts }: { facts: ChatStudentFacts }) {
 					<span className="flex shrink-0 [&>span]:size-6 [&>span]:text-micro">
 						<Avatar name={student.displayName} />
 					</span>
-					<Link
-						href={`/students/${student.id}`}
-						className="min-w-0 flex-1 truncate rounded-sm text-body font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
-					>
-						{student.displayName}
-					</Link>
+					<span className="min-w-0 flex-1 truncate text-body font-semibold text-foreground">
+						<TextLink href={studentHref(student.id)}>{student.displayName}</TextLink>
+					</span>
 					<p className="text-caption text-muted-foreground tabular-nums max-sm:basis-full max-sm:pl-8">
 						Checked {formatWhen(checked, defaultTimeZone, yearInZone(checked, defaultTimeZone))}{' '}
 						{zoneLabel(defaultTimeZone, checked)}

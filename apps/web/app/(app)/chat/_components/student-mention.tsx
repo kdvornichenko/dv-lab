@@ -1,16 +1,9 @@
 'use client'
 
-import {
-	Children,
-	useEffect,
-	useRef,
-	useState,
-	useSyncExternalStore,
-	type MouseEvent,
-	type ReactNode,
-} from 'react'
-
 import { PreviewCard } from '@base-ui/react/preview-card'
+
+import { Children, useEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode } from 'react'
+
 import { ArrowRight, CircleAlert } from 'lucide-react'
 import Link from 'next/link'
 
@@ -24,6 +17,7 @@ import { cachedStudentRecords, readStudentRecords, type StudentRecords } from '@
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
+import { TEXT_LINK_LOOK } from './agent-links'
 import { BalanceFact, Fact, NextLessonFact } from './student-facts'
 
 const OPEN_DELAY = 300
@@ -189,15 +183,6 @@ function MentionCard({ studentId, label, touch }: { studentId: string; label: st
 	)
 }
 
-export const MENTION_LOOK = cn(
-	'rounded-sm underline decoration-1 underline-offset-[3px] outline-none',
-	'decoration-dotted decoration-[color-mix(in_oklab,currentColor_45%,transparent)]',
-	'transition-colors duration-120 hover:decoration-solid data-[popup-open]:decoration-solid',
-	'hover:bg-[color-mix(in_oklab,currentColor_8%,transparent)] data-[popup-open]:bg-[color-mix(in_oklab,currentColor_8%,transparent)]',
-	'active:bg-[color-mix(in_oklab,currentColor_14%,transparent)]',
-	'focus-visible:ring-2 focus-visible:ring-focus-ring'
-)
-
 export function StudentMention({ studentId, children }: { studentId: string; children: ReactNode }) {
 	const [open, setOpen] = useState(false)
 	const touch = useTouch()
@@ -233,7 +218,7 @@ export function StudentMention({ studentId, children }: { studentId: string; chi
 				closeDelay={CLOSE_DELAY}
 				render={<Link href={`/students/${studentId}`} />}
 				data-slot="student-mention"
-				className={cn('font-semibold', MENTION_LOOK)}
+				className={cn('font-semibold', TEXT_LINK_LOOK)}
 				onClick={click}
 			>
 				{children}
@@ -244,7 +229,7 @@ export function StudentMention({ studentId, children }: { studentId: string; chi
 						role="dialog"
 						aria-label={`Facts: ${label}`}
 						render={<Elevated offset={2} shadowLevel={4} />}
-						className="z-50 w-[min(288px,calc(100vw-24px))] origin-(--transform-origin) rounded-xl p-3 text-popover-foreground outline-hidden duration-120 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.97] data-closed:duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.97] motion-reduce:data-closed:zoom-out-100 motion-reduce:data-open:zoom-in-100"
+						className="data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.97] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.97] motion-reduce:data-closed:zoom-out-100 motion-reduce:data-open:zoom-in-100 z-50 w-[min(288px,calc(100vw-24px))] origin-(--transform-origin) rounded-xl p-3 text-popover-foreground outline-hidden duration-120 data-closed:duration-100"
 					>
 						<MentionCard studentId={studentId} label={label} touch={touch} />
 					</PreviewCard.Popup>
