@@ -7,7 +7,6 @@ import type { Metadata } from 'next'
 
 import { ThemeProvider } from '@/components/app/theme-provider'
 
-import Loading from './(app)/loading'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -21,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 			<body className="app-scale font-sans antialiased">
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
 					<div className="isolate">
-						<Suspense fallback={<Loading />}>{children}</Suspense>
+						<Suspense fallback={null}>{children}</Suspense>
 					</div>
 				</ThemeProvider>
 			</body>

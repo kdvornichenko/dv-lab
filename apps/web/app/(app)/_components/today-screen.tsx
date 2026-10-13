@@ -295,7 +295,7 @@ function Shell({
 	)
 }
 
-function TodayLoading() {
+export function TodayLoading() {
 	return (
 		<Shell title="Today" description={<SkeletonText className="w-64 py-0.5" />}>
 			<LoadingCounters />

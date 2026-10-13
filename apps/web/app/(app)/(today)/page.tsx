@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { SkeletonContent } from '@/components/app/skeleton-swap'
 import { getMe } from '@/lib/session'
 
-import { TodayScreen } from './_components/today-screen'
+import { TodayScreen } from '../_components/today-screen'
 
 export async function generateMetadata(): Promise<Metadata> {
 	const me = await getMe()
