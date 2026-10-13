@@ -23,3 +23,42 @@ export const chatStudentFacts = z.strictObject({
 })
 
 export type ChatStudentFacts = z.infer<typeof chatStudentFacts>
+
+export const CHAT_TITLE_MAX = 160
+
+export const chatConversationTitle = z
+	.string()
+	.trim()
+	.refine((value) => {
+		const length = Array.from(value).length
+		return length >= 1 && length <= CHAT_TITLE_MAX && !value.includes('\u0000')
+	})
+
+export const chatConversation = z.strictObject({
+	id: z.uuid(),
+	title: z.string(),
+	revision: z.number().int().min(1),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+})
+
+export type ChatConversation = z.infer<typeof chatConversation>
+
+export const chatConversationResponse = z.strictObject({ conversation: chatConversation })
+
+export type ChatConversationResponse = z.infer<typeof chatConversationResponse>
+
+export const chatConversationsResponse = z.strictObject({ conversations: z.array(chatConversation) })
+
+export type ChatConversationsResponse = z.infer<typeof chatConversationsResponse>
+
+export const renameConversationRequest = z.strictObject({
+	title: chatConversationTitle,
+	expectedRevision: z.number().int().min(1),
+})
+
+export type RenameConversationRequest = z.infer<typeof renameConversationRequest>
+
+export const deleteConversationRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
+
+export type DeleteConversationRequest = z.infer<typeof deleteConversationRequest>
