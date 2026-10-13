@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 
 import { AnimatePresence } from 'framer-motion'
 
@@ -18,6 +18,7 @@ import { CommandList } from './command-list'
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
+import { ConversationRail, RAIL_MIN_WIDTH } from './conversation-rail'
 import { type ActiveReply, type CalendarHandlers, Messages, type ReplyHandlers } from './messages'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
 import { useChat, useComposerDraft, useMentionStudents, type ThreadState } from './use-chat'
@@ -142,9 +143,31 @@ function later(action: () => void) {
 	window.setTimeout(action, 60)
 }
 
+function useWide(area: RefObject<HTMLDivElement | null>): boolean {
+	const [wide, setWide] = useState(false)
+	useEffect(() => {
+		const node = area.current
+		if (!node) return
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry) setWide(entry.contentRect.width >= RAIL_MIN_WIDTH)
+		})
+		observer.observe(node)
+		return () => observer.disconnect()
+	}, [area])
+	return wide
+}
+
 export function ChatScreen({ studentId, conversationId }: { studentId: string | null; conversationId: string | null }) {
 	const chat = useChat(conversationId)
-	const [listOpen, setListOpen] = useState(false)
+	const area = useRef<HTMLDivElement>(null)
+	const wide = useWide(area)
+	const [wasWide, setWasWide] = useState(false)
+	const [listChosen, setListOpen] = useState(false)
+	if (wide !== wasWide) {
+		setWasWide(wide)
+		if (wide) setListOpen(false)
+	}
+	const listOpen = listChosen && !wide
 	const [renaming, setRenaming] = useState<ChatConversation | null>(null)
 	const [deleting, setDeleting] = useState<ChatConversation | null>(null)
 	const conversations = chat.list.kind === 'ready' ? chat.list.conversations : []
@@ -212,11 +235,13 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 	}
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
+		<div ref={area} className="flex min-h-0 flex-1">
+		<div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
 			<div className="mx-auto w-full max-w-180 pb-4">
 				<ChatHeader
 					title={selected?.title ?? 'Chat'}
 					loadingTitle={loadingTitle}
+					compact={wide}
 					listOpen={listOpen}
 					onToggleList={() => setListOpen((open) => !open)}
 					onCreate={create}
@@ -298,6 +323,18 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 					</AnimatePresence>
 				</div>
 			</div>
+		</div>
+			{wide ? (
+				<ConversationRail
+					state={chat.list}
+					selectedId={chat.selectedId}
+					onSelect={chat.select}
+					onRename={setRenaming}
+					onDelete={setDeleting}
+					onRefresh={() => void chat.reload()}
+					onCreate={create}
+				/>
+			) : null}
 			{liveRenaming ? (
 				<RenameConversationDialog
 					key={liveRenaming.id}

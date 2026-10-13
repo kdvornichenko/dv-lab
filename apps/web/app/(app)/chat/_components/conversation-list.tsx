@@ -41,6 +41,7 @@ interface ConversationListProps {
 	onRename: (conversation: ChatConversation) => void
 	onDelete: (conversation: ChatConversation) => void
 	onRefresh: () => void
+	rail?: boolean
 }
 
 function ListSkeleton() {
@@ -92,6 +93,7 @@ function Row({
 	selected,
 	now,
 	reduceMotion,
+	rail,
 	onSelect,
 	onRename,
 	onDelete,
@@ -101,6 +103,7 @@ function Row({
 	selected: boolean
 	now: Date
 	reduceMotion: boolean
+	rail: boolean
 	onSelect: (id: string) => void
 	onRename: (conversation: ChatConversation) => void
 	onDelete: (conversation: ChatConversation) => void
@@ -120,7 +123,7 @@ function Row({
 			<button
 				type="button"
 				data-row-id={conversation.id}
-				aria-current={selected ? 'true' : undefined}
+				aria-current={selected ? (rail ? 'page' : 'true') : undefined}
 				onClick={() => onSelect(conversation.id)}
 				className={cn(
 					'flex h-14 w-full cursor-pointer items-center gap-3 rounded-lg px-3 text-left outline-none',
@@ -164,9 +167,46 @@ export function ConversationList({
 	onRename,
 	onDelete,
 	onRefresh,
+	rail = false,
 }: ConversationListProps) {
-	const reduceMotion = useReducedMotion() ?? false
+	const reduceMotion = (useReducedMotion() ?? false) || rail
 	const now = new Date()
+	const body =
+		state.kind === 'loading' ? (
+			<ListSkeleton />
+		) : state.kind === 'error' ? (
+			<Banner status="error">
+				<BannerTitle>Could not load conversations.</BannerTitle>
+				<BannerActions>
+					<BannerAction onClick={onRefresh}>Refresh</BannerAction>
+				</BannerActions>
+			</Banner>
+		) : state.conversations.length === 0 ? (
+			<p className="px-3 py-6 text-center text-caption text-muted-foreground">No chats yet.</p>
+		) : (
+			<ScrollArea
+				className={rail ? 'min-h-0 flex-1' : 'max-h-[calc(100dvh-14rem)]'}
+				viewportClassName={rail ? 'scroll-fade h-full' : 'scroll-fade max-h-[inherit]'}
+			>
+				<ul aria-label="All chats" className="flex flex-col gap-0.5">
+					{state.conversations.map((conversation, index) => (
+						<Row
+							key={conversation.id}
+							conversation={conversation}
+							index={index}
+							selected={conversation.id === selectedId}
+							now={now}
+							reduceMotion={reduceMotion}
+							rail={rail}
+							onSelect={onSelect}
+							onRename={onRename}
+							onDelete={onDelete}
+						/>
+					))}
+				</ul>
+			</ScrollArea>
+		)
+	if (rail) return <div className="flex min-h-0 flex-1 flex-col p-2">{body}</div>
 	return (
 		<motion.div
 			className="absolute inset-x-0 top-0 z-10"
@@ -175,38 +215,7 @@ export function ConversationList({
 			exit={{ opacity: 0, transition: { duration: spring.moderate.exit.duration } }}
 			transition={{ type: 'spring', duration: spring.moderate.duration, bounce: 0 }}
 		>
-			<Panel className="p-2">
-				{state.kind === 'loading' ? (
-					<ListSkeleton />
-				) : state.kind === 'error' ? (
-					<Banner status="error">
-						<BannerTitle>Could not load conversations.</BannerTitle>
-						<BannerActions>
-							<BannerAction onClick={onRefresh}>Refresh</BannerAction>
-						</BannerActions>
-					</Banner>
-				) : state.conversations.length === 0 ? (
-					<p className="px-3 py-6 text-center text-caption text-muted-foreground">No chats yet.</p>
-				) : (
-					<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit]">
-						<ul aria-label="All chats" className="flex flex-col gap-0.5">
-							{state.conversations.map((conversation, index) => (
-								<Row
-									key={conversation.id}
-									conversation={conversation}
-									index={index}
-									selected={conversation.id === selectedId}
-									now={now}
-									reduceMotion={reduceMotion}
-									onSelect={onSelect}
-									onRename={onRename}
-									onDelete={onDelete}
-								/>
-							))}
-						</ul>
-					</ScrollArea>
-				)}
-			</Panel>
+			<Panel className="p-2">{body}</Panel>
 		</motion.div>
 	)
 }

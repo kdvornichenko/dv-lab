@@ -10,6 +10,7 @@ export function ChatHeader({
 	loadingTitle,
 	listOpen,
 	disabled = false,
+	compact = false,
 	onToggleList,
 	onCreate,
 }: {
@@ -17,6 +18,7 @@ export function ChatHeader({
 	loadingTitle: boolean
 	listOpen: boolean
 	disabled?: boolean
+	compact?: boolean
 	onToggleList: () => void
 	onCreate: () => void
 }) {
@@ -31,6 +33,8 @@ export function ChatHeader({
 					{title}
 				</h1>
 			)}
+			{compact ? null : (
+			<>
 			<Button
 				data-all-chats=""
 				variant="ghost"
@@ -77,6 +81,8 @@ export function ChatHeader({
 			>
 				<Plus />
 			</Button>
+			</>
+			)}
 		</header>
 	)
 }
