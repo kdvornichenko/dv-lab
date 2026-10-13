@@ -20,13 +20,13 @@ import {
 	saveTeacherSettings,
 } from '../settings/settings.ts'
 
-type SettingsRouteDeps = { db: Database; chatEnabled?: boolean }
+type SettingsRouteDeps = { db: Database; availability?: (modelId: string) => Promise<boolean> }
 
 const USAGE_ROWS = 5
 
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
-export function settingsRoutes({ db, chatEnabled = false }: SettingsRouteDeps) {
+export function settingsRoutes({ db, availability }: SettingsRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -55,7 +55,7 @@ export function settingsRoutes({ db, chatEnabled = false }: SettingsRouteDeps) {
 			const usage = await usageByConversation(executor, accountId, periodId, USAGE_ROWS)
 			return { settings, budget, usage }
 		})
-		const capabilities = await modelCapabilities(read.settings, async () => chatEnabled)
+		const capabilities = await modelCapabilities(read.settings, availability ?? (async () => false))
 		return { settings: read.settings, capabilities, budget: read.budget, usage: read.usage }
 	}
 

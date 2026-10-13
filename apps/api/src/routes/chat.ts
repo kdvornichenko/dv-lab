@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
+import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 
 import {
@@ -7,7 +8,9 @@ import {
 	type ChatConversationReadResponse,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
+	type ChatStreamEvent,
 	type ChatStudentFacts,
+	type ChatTurnResponse,
 	type SendMessageResponse,
 	type UndoResponse,
 	chatRecordsQuery,
@@ -19,6 +22,7 @@ import {
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { readSession } from '../auth/sessions.ts'
 import type { CalendarCommands } from '../calendar/commands.ts'
 import { type ChatContext, sendMessage, undoAction } from '../chat/actions.ts'
 import { type CalendarOutcome, checkCalendarAction, confirmCalendarChange } from '../chat/calendar.ts'
@@ -31,10 +35,14 @@ import {
 } from '../chat/conversations.ts'
 import { readChatFacts } from '../chat/facts.ts'
 import { listMessages } from '../chat/messages.ts'
+import { type ChatRunner, turnSnapshot } from '../chat/runs.ts'
+import { activeTurn, isActive, toTurn } from '../chat/turns.ts'
 import { errorBody } from '../request-context.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type ChatRouteDeps = { db: Database; calendarCommands?: CalendarCommands }
+type ChatRouteDeps = { db: Database; calendarCommands?: CalendarCommands; chat?: ChatRunner }
+
+const HEARTBEAT_MS = 15000
 
 const emptyRequest = z.strictObject({})
 
@@ -50,7 +58,7 @@ function conversationId(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
-export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
+export function chatRoutes({ db, calendarCommands, chat }: ChatRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -108,7 +116,9 @@ export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 		const read = await readSnapshot(db, async (executor) => {
 			const conversation = await readConversation(executor, accountId, id)
 			if (conversation === null) return null
-			return { conversation, messages: await listMessages(executor, accountId, id), turn: null }
+			const messages = await listMessages(executor, accountId, id)
+			const active = await activeTurn(executor, id)
+			return { conversation, messages, turn: active === null ? null : toTurn(active) }
 		})
 		if (read === null) return notFound(c)
 		return c.json(read satisfies ChatConversationReadResponse, 200)
@@ -119,7 +129,7 @@ export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 		if (id === null) return notFound(c)
 		const input = await readJson(c, sendMessageRequest)
 		if (!input) return invalidRequest(c)
-		const result = await sendMessage(db, await chatContext(c), id, input)
+		const result = await sendMessage(db, await chatContext(c), id, input, chat ?? null)
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'conflict') return c.json(errorBody('precondition_failed', 'The request changed'), 409)
 		if (result.kind === 'busy') return c.json(errorBody('busy', 'A reply is still coming'), 409)
@@ -156,6 +166,87 @@ export function chatRoutes({ db, calendarCommands }: ChatRouteDeps) {
 		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
 		const outcome = await checkCalendarAction(db, calendarCommands, await chatContext(c), id)
 		return calendarReply(c, outcome, 200)
+	})
+
+	routes.get('/turns/:id', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		const snapshot = await readSnapshot(db, (executor) => turnSnapshot(executor, c.get('session').account.id, id))
+		if (snapshot === null) return notFound(c)
+		return c.json({ turn: snapshot.turn } satisfies ChatTurnResponse, 200)
+	})
+
+	routes.post('/turns/:id/stop', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const turn = chat
+			? await chat.stopTurn(accountId, id)
+			: await readSnapshot(db, async (executor) => (await turnSnapshot(executor, accountId, id))?.turn ?? null)
+		if (turn === null) return notFound(c)
+		return c.json({ turn } satisfies ChatTurnResponse, 200)
+	})
+
+	routes.get('/turns/:id/stream', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		const session = c.get('session')
+		const accountId = session.account.id
+		const first = await readSnapshot(db, (executor) => turnSnapshot(executor, accountId, id))
+		if (first === null) return notFound(c)
+		const response = streamSSE(c, async (stream) => {
+			const queue: ChatStreamEvent[] = []
+			let wake: (() => void) | null = null
+			let closed = false
+			const notify = () => {
+				const next = wake
+				wake = null
+				next?.()
+			}
+			stream.onAbort(() => {
+				closed = true
+				notify()
+			})
+			const unsubscribe =
+				chat?.subscribe(id, (event) => {
+					queue.push(event)
+					notify()
+				}) ?? null
+			const send = (event: ChatStreamEvent) => stream.writeSSE({ event: event.type, data: JSON.stringify(event) })
+			try {
+				const snapshot = await readSnapshot(db, (executor) => turnSnapshot(executor, accountId, id))
+				if (snapshot === null) return
+				await send({ type: 'snapshot', seq: snapshot.seq, turn: snapshot.turn, message: snapshot.message })
+				let open = isActive(snapshot.turn.state) && unsubscribe !== null
+				while (open && !closed) {
+					if (queue.length === 0) {
+						const waited = await new Promise<boolean>((resolve) => {
+							const timer = setTimeout(() => resolve(false), HEARTBEAT_MS)
+							wake = () => {
+								clearTimeout(timer)
+								resolve(true)
+							}
+						})
+						if (closed) break
+						if (!waited && queue.length === 0) {
+							if ((await readSession(db, session.token)) === null) break
+							await send({ type: 'heartbeat' })
+							continue
+						}
+					}
+					for (const event of queue.splice(0)) {
+						if ((event.type === 'text' || event.type === 'block') && event.seq <= snapshot.seq) continue
+						await send(event)
+						if (event.type === 'state' && !isActive(event.turn.state)) open = false
+					}
+				}
+			} finally {
+				unsubscribe?.()
+			}
+		})
+		response.headers.set('Cache-Control', 'no-store, no-transform')
+		return response
 	})
 
 	routes.patch('/conversations/:id', async (c) => {

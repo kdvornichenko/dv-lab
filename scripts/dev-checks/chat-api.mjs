@@ -237,8 +237,9 @@ const conversationCounts = () =>
 
 function removeChats(where) {
 	const conversations = `select id from chat_conversations where ${where}`
-	sql(`delete from chat_usage_attempts where conversation_id in (${conversations})`)
 	sql(`delete from chat_actions where conversation_id in (${conversations})`)
+	sql(`delete from chat_usage_attempts where conversation_id in (${conversations})`)
+	sql(`delete from chat_turns where conversation_id in (${conversations})`)
 	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${conversations})`)
 	sql(`delete from chat_messages where conversation_id in (${conversations})`)
 	return sql(`delete from chat_conversations where ${where}`).rowCount
@@ -1813,7 +1814,7 @@ async function sectionBudget(ctx) {
 const section = process.argv[2]
 const run = SECTIONS[section]
 
-const CHILDREN = { target: './chat-target.mjs', calendar: './chat-calendar.mjs' }
+const CHILDREN = { target: './chat-target.mjs', calendar: './chat-calendar.mjs', runs: './chat-runs.mjs' }
 
 if (section in CHILDREN) {
 	const child = spawnSync(process.execPath, [new URL(CHILDREN[section], import.meta.url).pathname], {

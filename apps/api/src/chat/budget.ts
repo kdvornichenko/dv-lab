@@ -90,7 +90,8 @@ export async function reserveAttempt(
 	accountId: string,
 	conversationId: string,
 	choice: ResolvedChoice,
-	now = new Date()
+	now = new Date(),
+	turnId: string | null = null
 ): Promise<ReserveResult> {
 	const { defaultTimeZone } = await readTeacherSettings(tx, accountId)
 	const cap = usdToNano((await readAssistantSettings(tx, accountId)).monthlyCapUsd)
@@ -115,6 +116,7 @@ export async function reserveAttempt(
 			accountId,
 			conversationId,
 			periodId: period.id,
+			turnId,
 			model: choice.model.id,
 			effort: choice.effort,
 			pricing: choice.model.pricing,

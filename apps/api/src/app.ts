@@ -13,6 +13,7 @@ import type { SignIn } from './auth/sign-in.ts'
 import type { CalendarCommands } from './calendar/commands.ts'
 import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
+import type { ChatRunner } from './chat/runs.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
 import { chatRoutes } from './routes/chat.ts'
@@ -36,7 +37,7 @@ export type AppDeps = {
 	calendarControl?: ConnectionControl
 	calendarCommands?: CalendarCommands
 	calendarWake?: (connectionId: string) => void
-	chatEnabled?: boolean
+	chat?: ChatRunner
 }
 
 function clientErrorBody(status: number) {
@@ -94,11 +95,11 @@ export function createApp(deps: AppDeps) {
 			isStopping: deps.isStopping,
 		})
 	)
-	app.route('/chat', chatRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
+	app.route('/chat', chatRoutes({ db: deps.db, calendarCommands: deps.calendarCommands, chat: deps.chat }))
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
-	app.route('/settings', settingsRoutes({ db: deps.db, chatEnabled: deps.chatEnabled }))
+	app.route('/settings', settingsRoutes({ db: deps.db, availability: deps.chat?.availability }))
 	app.route('/today', todayRoutes({ db: deps.db }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {

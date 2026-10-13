@@ -112,5 +112,5 @@ export function clearSessionCookie(c: Context): void {
 
 export const noStore: MiddlewareHandler = async (c, next) => {
 	await next()
-	c.header('Cache-Control', 'no-store')
+	if (!/\bno-store\b/.test(c.res.headers.get('Cache-Control') ?? '')) c.header('Cache-Control', 'no-store')
 }

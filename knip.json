@@ -1,7 +1,6 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
 	"ignoreExportsUsedInFile": true,
-	"ignoreIssues": { "apps/api/src/chat/model-config.ts": ["exports"] },
 	"workspaces": {
 		".": {
 			"entry": [
@@ -35,8 +34,7 @@
 		},
 		"apps/api": {
 			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts", "src/import-vault.ts"],
-			"project": ["src/**/*.ts"],
-			"ignoreDependencies": ["@anthropic-ai/sdk"]
+			"project": ["src/**/*.ts"]
 		},
 		"packages/contracts": {
 			"entry": ["src/index.ts"],
