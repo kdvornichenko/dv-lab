@@ -33,6 +33,7 @@ describe('loadConfig', () => {
 			GIT_SHA: 'unknown',
 			databaseUrl,
 			calendar: { enabled: false },
+			chat: { enabled: false },
 		})
 	})
 

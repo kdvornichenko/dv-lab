@@ -67,7 +67,13 @@ export type CalendarConfig =
 			keyring: Readonly<Record<string, Buffer>>
 	  }
 
-export type ApiConfig = z.infer<typeof schema> & { databaseUrl: string; calendar: CalendarConfig }
+export type ChatConfig = { enabled: false } | { enabled: true; apiKey: string }
+
+export type ApiConfig = z.infer<typeof schema> & {
+	databaseUrl: string
+	calendar: CalendarConfig
+	chat: ChatConfig
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv): ApiConfig {
 	const parsed = schema.safeParse(env)
@@ -76,7 +82,16 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApiConfig {
 		...parsed.data,
 		databaseUrl: resolveDatabaseUrl('app', env),
 		calendar: loadCalendarConfig(env, parsed.data),
+		chat: loadChatConfig(env),
 	}
+}
+
+function loadChatConfig(env: NodeJS.ProcessEnv): ChatConfig {
+	const raw = env.ANTHROPIC_API_KEY
+	if (raw === undefined) return { enabled: false }
+	const apiKey = raw.trim()
+	if (apiKey === '') throw new Error('Invalid ANTHROPIC_API_KEY')
+	return { enabled: true, apiKey }
 }
 
 function loadCalendarConfig(env: NodeJS.ProcessEnv, base: BaseConfig): CalendarConfig {
