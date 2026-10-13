@@ -102,6 +102,7 @@ export const students = pgTable(
 		currency: text('currency'),
 		defaultLessonMinutes: integer('default_lesson_minutes').default(60).notNull(),
 		noShowDeducts: boolean('no_show_deducts').default(true).notNull(),
+		gender: text('gender'),
 		parent: text('parent'),
 		level: text('level'),
 		goals: text('goals'),
@@ -128,6 +129,7 @@ export const students = pgTable(
 			sql`(${table.parent} is null or char_length(${table.parent}) between 1 and 200) and (${table.level} is null or char_length(${table.level}) between 1 and 200) and (${table.goals} is null or char_length(${table.goals}) between 1 and 200)`
 		),
 		check('students_time_zone_ck', sql`${table.timeZone} is null or char_length(${table.timeZone}) between 1 and 64`),
+		check('students_gender_ck', sql`${table.gender} is null or ${table.gender} in ('female', 'male')`),
 		check(
 			'students_opening_ck',
 			sql`(${table.openingBalanceMinutes} is null) = (${table.openingBalanceOn} is null) and (${table.openingBalanceMinutes} is null or ${table.openingBalanceMinutes} >= 0)`
