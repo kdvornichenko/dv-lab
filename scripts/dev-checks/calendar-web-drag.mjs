@@ -17,6 +17,36 @@ const MINUTE = 48 / 60
 const DAY_START = 120
 const CARD_ONE = 'calendar-seed:alex-example-0001'
 const CARD_TWO = 'calendar-commands:alex-example-0002'
+const MODES = {
+	applied: (revision) => ({
+		state: 'applied',
+		effect: 'confirmed',
+		issue: null,
+		confirmedRevision: revision,
+		nextAction: 'none',
+	}),
+	syncing: () => ({
+		state: 'dispatching',
+		effect: 'unknown',
+		issue: null,
+		confirmedRevision: null,
+		nextAction: 'wait',
+	}),
+	unknown: () => ({
+		state: 'outcome_unknown',
+		effect: 'unknown',
+		issue: 'provider_unavailable',
+		confirmedRevision: null,
+		nextAction: 'wait',
+	}),
+	refused: () => ({
+		state: 'failed',
+		effect: 'none',
+		issue: 'not_applied',
+		confirmedRevision: null,
+		nextAction: 'retry_new_command',
+	}),
+}
 
 const real = (problems) =>
 	problems.filter((problem) => !problem.includes('server caches disabled') && !problem.includes('status of 404'))
@@ -104,7 +134,16 @@ async function prepare(viewport, ids) {
 	const calls = []
 	const conflictLog = []
 	const commands = new Map()
-	const state = { revision: '1', generation: 1, assigned: false, ignored: false }
+	const state = {
+		revision: '1',
+		generation: 1,
+		assigned: false,
+		ignored: false,
+		next: 'applied',
+		release: () => {
+			for (const item of commands.values()) item.mode = 'applied'
+		},
+	}
 	await context.route(/\/api\/schedule\/week/, async (route) => {
 		const response = await route.fetch()
 		let json
@@ -163,18 +202,17 @@ async function prepare(viewport, ids) {
 		const operation = operationOf(url.pathname)
 		calls.push({ path, body, operation })
 		commands.set(commandId, {
-			commandId,
-			requestId: body?.requestId,
-			generation: state.generation,
-			expectedVersion: body?.expectedVersion,
-			operation,
-			effect: 'confirmed',
-			state: 'applied',
-			issue: null,
-			confirmedRevision: state.revision,
-			affectedRefs: [],
-			nextAction: 'none',
+			mode: state.next,
+			base: {
+				commandId,
+				requestId: body?.requestId,
+				generation: state.generation,
+				expectedVersion: body?.expectedVersion,
+				operation,
+				affectedRefs: [],
+			},
 		})
+		state.next = 'applied'
 		if (operation === 'assign') state.assigned = true
 		return route.fulfill({
 			status: 202,
@@ -193,10 +231,10 @@ async function prepare(viewport, ids) {
 		const url = new URL(route.request().url())
 		const key = decodeURIComponent(url.pathname.split('/').pop())
 		const found = url.pathname.includes('/by-request/')
-			? [...commands.values()].find((item) => item.requestId === key)
+			? [...commands.values()].find((item) => item.base.requestId === key)
 			: commands.get(key)
 		if (!found) return route.continue()
-		return route.fulfill({ json: found })
+		return route.fulfill({ json: { ...found.base, ...MODES[found.mode](state.revision) } })
 	})
 	return { browser, page, problems, calls, conflictLog, state }
 }
@@ -280,14 +318,56 @@ async function resizeBlock(page, title, deltaMinutes, options = {}) {
 	return gesture(page, from, { x: from.x, y: from.y + deltaMinutes * MINUTE }, options)
 }
 
-async function settle(page, calls, operation, count) {
+async function sent(calls, operation, count) {
 	const started = Date.now()
 	while (calls.filter((call) => call.operation === operation).length < count) {
 		if (Date.now() - started > 25000) throw new Error(`no ${operation} call number ${count}`)
 		await wait(100)
 	}
-	await page.getByRole('dialog').first().waitFor({ state: 'detached', timeout: 25000 })
+}
+
+async function idle(page, timeout = 40000) {
+	const started = Date.now()
+	while (Date.now() - started < timeout) {
+		const open = await page.evaluate(
+			() =>
+				document.querySelectorAll('[role="dialog"]').length +
+				document.querySelectorAll('[data-slot="calendar-event"][data-mark]').length
+		)
+		if (open === 0) {
+			await page.waitForTimeout(600)
+			return
+		}
+		await wait(200)
+	}
+	throw new Error('the schedule did not settle: a dialog or a pending block is still there')
+}
+
+async function settle(page, calls, operation, count) {
+	await sent(calls, operation, count)
+	await idle(page)
+}
+
+async function confirmAll(page, state) {
+	state.release()
+	await idle(page)
+}
+
+async function asked(page, title) {
+	const dialog = page.getByRole('dialog').last()
+	await dialog.getByText(title).waitFor({ timeout: 20000 })
 	await page.waitForTimeout(600)
+	return dialog
+}
+
+function inColumn(page, date, title) {
+	return page
+		.locator(`[data-slot="week-grid-column"][data-date="${date}"] [data-slot="calendar-event"]`)
+		.filter({ hasText: title })
+}
+
+async function columnOf(locator) {
+	return locator.first().evaluate((element) => element.closest('[data-slot="week-grid-column"]')?.dataset.date ?? null)
 }
 
 async function formDialog(page) {
@@ -308,15 +388,6 @@ async function closeAll(page) {
 		if ((await discard.count()) > 0) await discard.first().click()
 		await page.waitForTimeout(400)
 	}
-}
-
-async function enabled(locator, timeout = 30000) {
-	const started = Date.now()
-	while (Date.now() - started < timeout) {
-		if (await locator.isEnabled().catch(() => false)) return true
-		await wait(250)
-	}
-	return false
 }
 
 async function suite(viewport, monday, ids) {
@@ -347,32 +418,57 @@ async function suite(viewport, monday, ids) {
 		)
 		check(`${tag} a cancelled event is not drawn`, (await block(page, 'Synthetic event 09').count()) === 0)
 
+		const updates = () => calls.filter((call) => call.operation === 'event_update')
+		const moves = () => calls.filter((call) => call.operation === 'move')
+
+		state.next = 'syncing'
 		const chip = await dragBlock(page, 'Synthetic event 01', day(3), 14)
 		check(
 			`${tag} the drag chip shows the date once the day changes`,
 			chip !== null && /\w{3} \d+ \w{3}, 14:00–15:00/.test(chip),
 			String(chip)
 		)
-		const edit = await formDialog(page)
+		await sent(calls, 'event_update', 1)
+		const moved = updates()[0]
 		check(
-			`${tag} the drop opens the edit form and sends nothing`,
-			(await edit.getByRole('button', { name: 'Save changes' }).count()) === 1 &&
-				calls.length === 0 &&
-				(await page.locator('[data-slot="week-grid-move-frame"][data-state="draft"]').count()) === 1
-		)
-		await shot(page, `calendar-drag-${tag}`, 'event-drop')
-		const save = edit.getByRole('button', { name: 'Save changes' })
-		check(`${tag} Save waits for the overlap check, then enables`, await enabled(save))
-		await save.click()
-		await settle(page, calls, 'event_update', 1)
-		const moved = calls.find((call) => call.operation === 'event_update')
-		check(
-			`${tag} the moved event is sent with scope one and the dropped time`,
+			`${tag} the drop is sent at once with scope one and the dropped time`,
 			moved?.body?.scope === 'one' &&
 				moved.body.changes.date === day(3) &&
 				moved.body.changes.startTime === '14:00' &&
 				moved.body.changes.durationMinutes === undefined,
 			JSON.stringify(moved?.body)
+		)
+		const dropped = inColumn(page, day(3), 'Synthetic event 01')
+		await dropped.first().waitFor({ timeout: 15000 })
+		check(
+			`${tag} the drop opens no form and no dialog stays`,
+			(await page.getByRole('button', { name: 'Save changes' }).count()) === 0 &&
+				(await page.locator('[role="dialog"]').count()) === 0 &&
+				(await page.getByText(/Saving…|Moving…/).count()) === 0
+		)
+		check(
+			`${tag} the dropped block stands at the new place, dimmed, with a spinner`,
+			(await dropped.count()) === 1 &&
+				(await block(page, 'Synthetic event 01').count()) === 1 &&
+				(await dropped.first().getAttribute('data-mark')) === 'syncing' &&
+				(await dropped.locator('[data-slot="calendar-event-pending"]').count()) === 1 &&
+				Number(await dropped.first().evaluate((element) => getComputedStyle(element).opacity)) < 1
+		)
+		await dropped.first().hover()
+		await page.waitForTimeout(900)
+		check(
+			`${tag} the tooltip of the dropped block says it is syncing`,
+			(await page.locator('[data-slot="event-tooltip"][data-variant="syncing"]').count()) > 0 &&
+				(await page.getByText('Syncing with Google Calendar…').count()) > 0
+		)
+		await page.mouse.move(2, 400)
+		await shot(page, `calendar-drag-${tag}`, 'event-syncing')
+		await confirmAll(page, state)
+		check(
+			`${tag} a confirmed drop leaves no success notice`,
+			(await page.getByText('Event updated').count()) === 0 &&
+				(await page.getByText('Could not change the event').count()) === 0 &&
+				(await page.getByText('Change not confirmed').count()) === 0
 		)
 
 		await reveal(page, 12)
@@ -383,7 +479,7 @@ async function suite(viewport, monday, ids) {
 			`${tag} Esc cancels the drag and opens nothing`,
 			escaped !== null &&
 				(await page.locator('[data-slot="week-grid-move-frame"]').count()) === 0 &&
-				(await page.getByRole('dialog').count()) === 0
+				(await page.locator('[role="dialog"]').count()) === 0
 		)
 
 		if (ids.pastLesson !== null) {
@@ -409,30 +505,87 @@ async function suite(viewport, monday, ids) {
 			console.log(`SKIP [${theme}] ${tag} no past lesson: Monday 11:00 has not come yet`)
 		}
 
-		await reveal(page, 15)
-		await dragBlock(page, 'Synthetic event 12', day(4), 16)
-		const weekly = await formDialog(page)
+		await reveal(page, 10)
+		const refusedFrom = await columnOf(block(page, 'Synthetic event 03'))
+		state.next = 'refused'
+		await dragBlock(page, 'Synthetic event 03', day(5), 11)
+		await sent(calls, 'event_update', 2)
+		const refusal = page.locator('[data-slot="banner"]').filter({ hasText: 'Could not change the event' })
+		await refusal.first().waitFor({ timeout: 30000 })
+		const refusalText = (await refusal.first().innerText()).replace(/\n/g, ' | ')
 		check(
-			`${tag} a weekly member drop opens the edit form and starts the check`,
-			(await weekly.getByRole('button', { name: 'Save changes' }).count()) === 1 &&
-				calls.filter((call) => call.operation === 'event_update').length === 1
+			`${tag} a Google refusal leaves a notice with the reason and the old time`,
+			refusalText.includes('Google Calendar did not accept the change.') && /It is back at /.test(refusalText),
+			refusalText
 		)
-		const weeklySave = weekly.getByRole('button', { name: 'Save changes' })
-		await enabled(weeklySave)
-		await weeklySave.click()
-		const scope = page.getByRole('dialog').last()
-		await scope.getByText('Change repeating event').waitFor({ timeout: 10000 })
 		await page.waitForTimeout(500)
 		check(
-			`${tag} the scope is asked at Save, three rows, nothing sent yet`,
-			(await scope.getByRole('radio').count()) === 3 &&
-				calls.filter((call) => call.operation === 'event_update').length === 1
+			`${tag} the refused block is back in its column and the dialog shows no error`,
+			(await inColumn(page, refusedFrom, 'Synthetic event 03').count()) === 1 &&
+				(await inColumn(page, day(5), 'Synthetic event 03').count()) === 0 &&
+				(await page.locator('[data-slot="calendar-event"][data-mark]').count()) === 0 &&
+				(await page.locator('[role="dialog"]').count()) === 0
+		)
+		check(`${tag} a refused move offers no Edit again`, (await refusal.first().getByText('Edit again').count()) === 0)
+		await shot(page, `calendar-drag-${tag}`, 'event-refused')
+		await page.waitForTimeout(4500)
+		check(`${tag} the refusal notice stays after the usual toast time`, (await refusal.count()) === 1)
+		await refusal.first().getByRole('button', { name: 'Dismiss' }).click()
+		await refusal.first().waitFor({ state: 'detached', timeout: 10000 })
+		await idle(page)
+
+		await reveal(page, 10)
+		state.next = 'unknown'
+		await dragBlock(page, 'Synthetic event 04', day(5), 12)
+		await sent(calls, 'event_update', 3)
+		const unconfirmed = inColumn(page, day(5), 'Synthetic event 04').and(page.locator('[data-mark="unconfirmed"]'))
+		await unconfirmed.first().waitFor({ timeout: 30000 })
+		const warning = page.locator('[data-slot="banner"]').filter({ hasText: 'Change not confirmed' })
+		await warning.first().waitFor({ timeout: 30000 })
+		check(
+			`${tag} an unknown outcome puts a triangle on the block and a notice with Check status`,
+			(await unconfirmed.locator('[data-slot="calendar-event-unconfirmed"]').count()) === 1 &&
+				(await unconfirmed.locator('[data-slot="calendar-event-pending"]').count()) === 0 &&
+				(await warning.first().getByText('This change has not been confirmed.').count()) === 1 &&
+				(await warning.first().locator('[data-slot="banner-action"]', { hasText: 'Check status' }).count()) === 1
+		)
+		await shot(page, `calendar-drag-${tag}`, 'event-unconfirmed')
+		await page.waitForTimeout(4500)
+		check(`${tag} the unconfirmed notice stays after the usual toast time`, (await warning.count()) === 1)
+		state.release()
+		await warning.first().waitFor({ state: 'detached', timeout: 40000 })
+		await idle(page)
+		check(
+			`${tag} once Google confirms, the triangle and the notice are gone`,
+			(await page.locator('[data-slot="calendar-event-unconfirmed"]').count()) === 0 &&
+				(await page.getByText('Change not confirmed').count()) === 0
+		)
+
+		await reveal(page, 15)
+		await dragBlock(page, 'Synthetic event 12', day(4), 16)
+		const weekly = await asked(page, 'Change repeating event')
+		check(
+			`${tag} a weekly member drop asks only the scope, three rows, no form, nothing sent`,
+			(await weekly.getByRole('radio').count()) === 3 &&
+				(await page.getByRole('button', { name: 'Save changes' }).count()) === 0 &&
+				updates().length === 3
 		)
 		await shot(page, `calendar-drag-${tag}`, 'event-scope')
-		await scope.getByRole('radio', { name: 'This and following events' }).click()
-		await scope.getByRole('button', { name: 'Save', exact: true }).click()
-		await settle(page, calls, 'event_update', 2)
-		const following = calls.filter((call) => call.operation === 'event_update').at(-1)
+		await weekly.getByRole('button', { name: 'Back' }).click()
+		await idle(page)
+		check(
+			`${tag} Back puts the weekly block back and sends nothing`,
+			updates().length === 3 &&
+				(await inColumn(page, day(2), 'Synthetic event 12').count()) === 1 &&
+				(await page.locator('[data-slot="week-grid-move-frame"]').count()) === 0
+		)
+		await reveal(page, 15)
+		await dragBlock(page, 'Synthetic event 12', day(4), 16)
+		const again = await asked(page, 'Change repeating event')
+		await again.getByRole('radio', { name: 'This and following events' }).click()
+		await again.getByRole('button', { name: 'Save', exact: true }).click()
+		await settle(page, calls, 'event_update', 4)
+		const following = updates().at(-1)
 		check(
 			`${tag} the weekly member is sent with scope following and the new time`,
 			following?.body?.scope === 'following' &&
@@ -443,21 +596,13 @@ async function suite(viewport, monday, ids) {
 
 		await reveal(page, 15)
 		await dragBlock(page, 'Synthetic event 13', day(3), 16)
-		const other = await formDialog(page)
+		await settle(page, calls, 'event_update', 5)
+		const otherCall = updates().at(-1)
 		check(
-			`${tag} one occurrence of a non-weekly series opens a time-only form`,
-			(await other.getByRole('button', { name: 'Save changes' }).count()) === 1 &&
-				(await page.locator('#event-edit-title').isDisabled())
-		)
-		await shot(page, `calendar-drag-${tag}`, 'event-other')
-		const otherSave = other.getByRole('button', { name: 'Save changes' })
-		await enabled(otherSave)
-		await otherSave.click()
-		await settle(page, calls, 'event_update', 3)
-		const otherCall = calls.filter((call) => call.operation === 'event_update').at(-1)
-		check(
-			`${tag} the non-weekly occurrence is sent with scope one`,
-			otherCall?.body?.scope === 'one' && otherCall.body.changes.startTime === '16:00',
+			`${tag} one occurrence of a non-weekly series is sent at once with scope one`,
+			otherCall?.body?.scope === 'one' &&
+				otherCall.body.changes.startTime === '16:00' &&
+				(await page.getByText('Change repeating event').count()) === 0,
 			JSON.stringify(otherCall?.body)
 		)
 
@@ -466,21 +611,13 @@ async function suite(viewport, monday, ids) {
 		check(`${tag} the resize chip shows the new range without a date`, resizeChip === '11:00–13:15', String(resizeChip))
 		await shot(page, `calendar-drag-${tag}`, 'event-resize')
 		await page.mouse.up()
-		const resized = await formDialog(page)
+		await settle(page, calls, 'event_update', 6)
+		const resizeCall = updates().at(-1)
 		check(
-			`${tag} the resize release opens the form with the new end`,
-			(await resized.getByRole('button', { name: 'Save changes' }).count()) === 1 &&
-				`${await page.locator('#event-edit-length').inputValue()}:${await page.locator('#event-edit-length-minutes').inputValue()}` ===
-					'02:15'
-		)
-		const resizeSave = resized.getByRole('button', { name: 'Save changes' })
-		await enabled(resizeSave)
-		await resizeSave.click()
-		await settle(page, calls, 'event_update', 4)
-		const resizeCall = calls.filter((call) => call.operation === 'event_update').at(-1)
-		check(
-			`${tag} the resize sends only the new length`,
-			resizeCall?.body?.changes?.durationMinutes === 135 && Object.keys(resizeCall.body.changes).length === 1,
+			`${tag} the resize release is sent at once with only the new length`,
+			resizeCall?.body?.changes?.durationMinutes === 135 &&
+				Object.keys(resizeCall.body.changes).length === 1 &&
+				(await page.getByRole('button', { name: 'Save changes' }).count()) === 0,
 			JSON.stringify(resizeCall?.body)
 		)
 
@@ -501,7 +638,7 @@ async function suite(viewport, monday, ids) {
 		await page.keyboard.press('Escape')
 		await page.mouse.up()
 		await page.waitForTimeout(400)
-		check(`${tag} the cancelled resizes opened nothing`, (await page.getByRole('dialog').count()) === 0)
+		check(`${tag} the cancelled resizes opened nothing`, (await page.locator('[role="dialog"]').count()) === 0)
 
 		await reveal(page, 13)
 		const suggested = block(page, 'Alex Example 0001')
@@ -605,26 +742,16 @@ async function suite(viewport, monday, ids) {
 		const singleFrom = { x: singleBox.x + singleBox.width / 2 - 6, y: singleBox.y + 9 }
 		const singleTo = await pointAt(page, addDays(nextMonday, 3), 19)
 		await gesture(page, singleFrom, { x: singleTo.x, y: singleTo.y + 9 })
-		const lesson = await formDialog(page)
-		check(
-			`${tag} a future lesson drop opens its Move form with the Length field`,
-			(await lesson.getByRole('group', { name: 'Move lesson' }).count()) === 1 &&
-				(await lesson.locator('#move-lesson-length').count()) === 1 &&
-				calls.filter((call) => call.operation === 'move').length === 0
-		)
-		await shot(page, `calendar-drag-${tag}`, 'lesson-drop')
-		const moveButton = lesson.getByRole('button', { name: 'Move lesson' })
-		await enabled(moveButton)
-		await moveButton.click()
 		await settle(page, calls, 'move', 1)
-		const singleMove = calls.find((call) => call.operation === 'move')
+		const singleMove = moves()[0]
 		check(
-			`${tag} a single lesson is moved without a scope question`,
+			`${tag} a single lesson drop is moved at once, without a form or a scope question`,
 			Boolean(singleMove) &&
 				/\/schedule\/lessons\/[^/]+\/move$/.test(singleMove.path) &&
 				singleMove.body.date === addDays(nextMonday, 3) &&
 				singleMove.body.startTime === '19:00' &&
-				singleMove.body.durationMinutes === undefined,
+				singleMove.body.durationMinutes === undefined &&
+				(await page.getByRole('group', { name: 'Move lesson' }).count()) === 0,
 			JSON.stringify(singleMove)
 		)
 
@@ -637,25 +764,16 @@ async function suite(viewport, monday, ids) {
 			{ release: false }
 		)
 		check(`${tag} the lesson resize chip shows the range`, lessonChip === '18:00–19:45', String(lessonChip))
-		await page.mouse.up()
-		const stretched = await formDialog(page)
-		const lengthText = `${await stretched.locator('#move-lesson-length').inputValue()}:${await stretched.locator('#move-lesson-length-minutes').inputValue()}`
-		check(
-			`${tag} the resize opens Move lesson with the new length`,
-			(await stretched.getByRole('group', { name: 'Move lesson' }).count()) === 1 && lengthText === '01:45',
-			lengthText
-		)
 		await shot(page, `calendar-drag-${tag}`, 'lesson-resize')
-		const stretchMove = stretched.getByRole('button', { name: 'Move lesson' })
-		await enabled(stretchMove)
-		await stretchMove.click()
+		await page.mouse.up()
 		await settle(page, calls, 'move', 2)
-		const stretchCall = calls.filter((call) => call.operation === 'move').at(-1)
+		const stretchCall = moves().at(-1)
 		check(
-			`${tag} the lesson resize sends durationMinutes`,
+			`${tag} the lesson resize is sent at once with durationMinutes`,
 			stretchCall?.body?.durationMinutes === 105 &&
 				stretchCall.body.date === day(8) &&
-				stretchCall.body.startTime === '18:00',
+				stretchCall.body.startTime === '18:00' &&
+				(await page.getByRole('group', { name: 'Move lesson' }).count()) === 0,
 			JSON.stringify(stretchCall?.body)
 		)
 
@@ -663,36 +781,37 @@ async function suite(viewport, monday, ids) {
 		await reveal(page, 15)
 		const seriesBox = await lessonOn(day(9)).boundingBox()
 		check(`${tag} the fixture series lesson is in next week`, seriesBox !== null)
-		const seriesFrom = { x: seriesBox.x + seriesBox.width / 2 - 6, y: seriesBox.y + 9 }
-		const seriesTo = await pointAt(page, addDays(nextMonday, 4), 10)
-		await gesture(page, seriesFrom, { x: seriesTo.x, y: seriesTo.y + 9 })
-		const member = await formDialog(page)
-		const memberMove = member.getByRole('button', { name: 'Move lesson' })
-		await enabled(memberMove)
+		const dropMember = async () => {
+			await page.waitForTimeout(1500)
+			await reveal(page, 15)
+			const box = await lessonOn(day(9)).boundingBox()
+			const to = await pointAt(page, addDays(nextMonday, 4), 10)
+			await gesture(page, { x: box.x + box.width / 2 - 6, y: box.y + 9 }, { x: to.x, y: to.y + 9 })
+			return asked(page, 'Change repeating lesson')
+		}
+		const lessonScope = await dropMember()
 		const beforeScope = calls.filter((call) => call.operation === 'move' || call.operation === 'move_series').length
-		await memberMove.click()
-		const lessonScope = page.getByRole('dialog').last()
-		await lessonScope.getByText('Change repeating lesson').waitFor({ timeout: 10000 })
-		await page.waitForTimeout(500)
 		check(
-			`${tag} the lesson scope is asked at Save with three rows and the marks line`,
+			`${tag} a series lesson drop asks only the scope, three rows and the marks line, no form`,
 			(await lessonScope.getByRole('radio').count()) === 3 &&
 				(await lessonScope.getByText('Past lessons and their marks stay at their old time.').count()) === 1 &&
-				calls.filter((call) => call.operation === 'move' || call.operation === 'move_series').length === beforeScope
+				(await page.getByRole('group', { name: 'Move lesson' }).count()) === 0 &&
+				beforeScope === 2
 		)
 		await shot(page, `calendar-drag-${tag}`, 'lesson-scope')
 		await lessonScope.getByRole('button', { name: 'Back' }).click()
-		await page.waitForTimeout(500)
+		await idle(page)
 		check(
-			`${tag} Back returns to the form with the values kept`,
-			(await page.getByRole('group', { name: 'Move lesson' }).count()) === 1
+			`${tag} Back puts the lesson back and sends nothing`,
+			calls.filter((call) => call.operation === 'move' || call.operation === 'move_series').length === beforeScope &&
+				(await lessonOn(day(9)).count()) === 1 &&
+				(await page.locator('[data-slot="week-grid-move-frame"]').count()) === 0
 		)
-		await memberMove.click()
-		const again = page.getByRole('dialog').last()
-		await again.getByRole('radio', { name: 'This lesson' }).click()
-		await again.getByRole('button', { name: 'Save', exact: true }).click()
+		const occurrenceScope = await dropMember()
+		await occurrenceScope.getByRole('radio', { name: 'This lesson' }).click()
+		await occurrenceScope.getByRole('button', { name: 'Save', exact: true }).click()
 		await settle(page, calls, 'move', 3)
-		const occurrence = calls.filter((call) => call.operation === 'move').at(-1)
+		const occurrence = moves().at(-1)
 		check(
 			`${tag} this lesson goes through the occurrence move`,
 			/\/occurrences\/[^/]+\/move$/.test(occurrence.path) && occurrence.body.startTime === '10:00',
@@ -703,51 +822,22 @@ async function suite(viewport, monday, ids) {
 			['This and following lessons', 'following'],
 			['All lessons', 'all'],
 		]) {
-			await page.waitForTimeout(1500)
-			await reveal(page, 15)
-			const box = await lessonOn(day(9)).boundingBox()
-			const to = await pointAt(page, addDays(nextMonday, 4), 10)
-			await gesture(page, { x: box.x + box.width / 2 - 6, y: box.y + 9 }, { x: to.x, y: to.y + 9 })
-			const form = await formDialog(page)
-			const submit = form.getByRole('button', { name: 'Move lesson' })
-			await enabled(submit)
-			await submit.click()
-			const picker = page.getByRole('dialog').last()
-			await picker.getByText('Change repeating lesson').waitFor({ timeout: 10000 })
+			const picker = await dropMember()
 			await picker.getByRole('radio', { name: choice }).click()
-			await picker.getByRole('button', { name: 'Save', exact: true }).click()
-			const seriesDialog = page.getByRole('dialog').last()
-			await seriesDialog.getByText('Move series', { exact: true }).first().waitFor({ timeout: 15000 })
-			await page.waitForTimeout(800)
-			const dialogText = await seriesDialog.innerText()
-			check(
-				`${tag} ${label} opens the move series dialog with the dropped day and time`,
-				dialogText.includes('Friday') && dialogText.includes('10:00'),
-				dialogText.replace(/\n/g, ' | ').slice(0, 300)
-			)
-			const seriesLength = `${await seriesDialog.locator('#move-series-length').inputValue()}:${await seriesDialog.locator('#move-series-length-minutes').inputValue()}`
-			check(
-				`${tag} ${label} shows Length as the third column of the day and time row`,
-				seriesLength === '01:00' &&
-					(await seriesDialog.locator('#move-series-day, #move-series-time, #move-series-length').count()) === 3,
-				seriesLength
-			)
 			if (label === 'following') await shot(page, `calendar-drag-${tag}`, 'lesson-following')
-			const apply = seriesDialog.getByRole('button', { name: 'Move series' }).last()
-			await enabled(apply)
-			await apply.click()
+			await picker.getByRole('button', { name: 'Save', exact: true }).click()
 			await settle(page, calls, 'move_series', label === 'following' ? 1 : 2)
 			const call = calls.filter((item) => item.operation === 'move_series').at(-1)
 			check(
-				`${tag} ${label} sends the series move from the right occurrence`,
+				`${tag} ${label} sends the series move at once, from the right occurrence, without a Move series dialog`,
 				/\/schedule\/series\/[^/]+\/move$/.test(call.path) &&
 					call.body.weekday === 5 &&
 					call.body.startTime === '10:00' &&
 					call.body.from === day(9) &&
-					call.body.durationMinutes === undefined,
+					call.body.durationMinutes === undefined &&
+					(await page.getByText('Move series').count()) === 0,
 				JSON.stringify(call.body)
 			)
-			await page.waitForTimeout(800)
 		}
 
 		await previousWeek(page)
