@@ -14,7 +14,7 @@ import { ReadError } from '@/components/app/read-error'
 import { Stat } from '@/components/app/stat'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
-import { Skeleton, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
+import { Skeleton, SkeletonCount, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
@@ -163,7 +163,15 @@ function LoadingPanels() {
 			<Panel id="today-lessons" title="Lessons today" action={<WeekLink />}>
 				<SkeletonRows count={5} rowClass="h-10" />
 			</Panel>
-			<Panel id="today-pays-soon" title="Pays soon">
+			<Panel
+				id="today-pays-soon"
+				title="Pays soon"
+				description={
+					<>
+						<SkeletonCount className="w-2.5" /> lessons or fewer left, or owing
+					</>
+				}
+			>
 				<SkeletonRows count={3} rowClass="h-8" />
 			</Panel>
 		</div>
