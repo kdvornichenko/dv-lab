@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom'
 
-import { PageScroll, WorkspacePage } from '@/components/app/layout-parts'
+import { PageHeader, PageScroll, WorkspacePage } from '@/components/app/layout-parts'
 import { useTopbarSlot } from '@/components/app/topbar-slot'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
@@ -46,6 +46,16 @@ function never() {
 	return false
 }
 
+function LoadingSlots() {
+	return (
+		<div className="flex items-center gap-2">
+			<Skeleton className="size-7 rounded-md" />
+			<Skeleton className="size-7 rounded-md" />
+			<Skeleton className="size-7 rounded-md" />
+		</div>
+	)
+}
+
 export function ScheduleLoading() {
 	const now = useMinuteNow()
 	const laptop = useLaptop()
@@ -81,6 +91,26 @@ export function ScheduleLoading() {
 	if (laptop === null)
 		return (
 			<PageScroll>
+				<PageHeader title="Schedule" />
+				<div className="flex min-h-7 items-center justify-between gap-2">
+					{today !== null && monday !== null ? (
+						<ScheduleBar
+							monday={monday}
+							currentMonday={monday}
+							today={today}
+							onToday={ignore}
+							onPrevious={ignore}
+							onNext={ignore}
+							onWeek={ignore}
+							summary={null}
+							titleRef={null}
+							heading={false}
+						/>
+					) : (
+						<span />
+					)}
+					<LoadingSlots />
+				</div>
 				<div aria-busy className="space-y-4">
 					<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
 					{grid}

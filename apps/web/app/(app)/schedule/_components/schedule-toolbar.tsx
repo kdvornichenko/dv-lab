@@ -162,10 +162,12 @@ export function ScheduleBar({
 	onWeek,
 	summary,
 	titleRef,
+	heading = true,
 }: WeekNavigation & {
 	today: string
 	summary: ReactNode
 	titleRef: Ref<HTMLHeadingElement>
+	heading?: boolean
 	onWeek: (monday: string) => void
 }) {
 	return (
@@ -187,15 +189,21 @@ export function ScheduleBar({
 						<ChevronLeft />
 					</Button>
 				</BarTip>
-				<h1
-					ref={titleRef}
-					tabIndex={-1}
-					aria-label={weekTitle(monday)}
-					data-slot="schedule-period"
-					className="shrink-0 outline-none"
-				>
-					<WeekPicker monday={monday} onWeek={onWeek} />
-				</h1>
+				{heading ? (
+					<h1
+						ref={titleRef}
+						tabIndex={-1}
+						aria-label={weekTitle(monday)}
+						data-slot="schedule-period"
+						className="shrink-0 outline-none"
+					>
+						<WeekPicker monday={monday} onWeek={onWeek} />
+					</h1>
+				) : (
+					<div data-slot="schedule-period" className="shrink-0">
+						<WeekPicker monday={monday} onWeek={onWeek} />
+					</div>
+				)}
 				<BarTip name="Next week" shortcut="J">
 					<Button variant="tertiary" size="icon-compact" aria-label="Next week" onClick={onNext}>
 						<ChevronRight />
