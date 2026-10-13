@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
 import {
 	type AssistantSettings,
@@ -6,11 +6,13 @@ import {
 	type ConversationModelRequest,
 	type DeleteConversationRequest,
 	type RenameConversationRequest,
+	CHAT_ACTIVE_TURN_STATES,
 	chatEffort,
 } from '@dv-lab/contracts'
-import { type DbExecutor, chatConversations } from '@dv-lab/db'
+import { type DbExecutor, chatConversations, chatTurns } from '@dv-lab/db'
 
 import { readAssistantSettings } from '../settings/settings.ts'
+import { redactConversationContent, unsettledActionIds } from './messages.ts'
 import { modelCapabilities, resolveModelChoice, selectionAllowed } from './model-config.ts'
 
 const NEW_CONVERSATION_TITLE = 'New chat'
@@ -21,7 +23,8 @@ export type ConversationChange =
 
 export type ConversationModelChange = ConversationChange | { kind: 'invalid' }
 
-export type ConversationDeletion = { kind: 'deleted' } | { kind: 'changed' } | { kind: 'not_found' }
+export type ConversationDeletion =
+	{ kind: 'deleted' } | { kind: 'pending' } | { kind: 'changed' } | { kind: 'not_found' }
 
 const columns = {
 	id: chatConversations.id,
@@ -165,6 +168,15 @@ export async function deleteConversation(
 	const locked = await lockConversation(executor, accountId, id)
 	if (locked === null) return { kind: 'not_found' }
 	if (locked.revision !== input.expectedRevision) return { kind: 'changed' }
+	const running = await executor
+		.select({ id: chatTurns.id })
+		.from(chatTurns)
+		.where(and(eq(chatTurns.conversationId, id), inArray(chatTurns.state, [...CHAT_ACTIVE_TURN_STATES])))
+		.for('update')
+		.limit(1)
+	if (running.length > 0) return { kind: 'pending' }
+	if ((await unsettledActionIds(executor, accountId, id, true)).length > 0) return { kind: 'pending' }
+	await redactConversationContent(executor, accountId, id)
 	await executor
 		.update(chatConversations)
 		.set({

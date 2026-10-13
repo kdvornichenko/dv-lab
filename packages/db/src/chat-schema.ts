@@ -69,7 +69,7 @@ export const chatMessages = pgTable(
 		check('chat_messages_role_ck', sql`${table.role} in ('teacher', 'assistant')`),
 		check(
 			'chat_messages_body_ck',
-			sql`(${table.role} = 'teacher' and char_length(${table.body}) between 1 and 20000) or (${table.role} = 'assistant' and char_length(${table.body}) <= 200000)`
+			sql`(${table.role} = 'teacher' and (char_length(${table.body}) between 1 and 20000 or (${table.redactedAt} is not null and ${table.body} = ''))) or (${table.role} = 'assistant' and char_length(${table.body}) <= 200000)`
 		),
 	]
 )

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
@@ -214,4 +214,52 @@ export async function replyOf(executor: DbExecutor, accountId: string, messageId
 		.orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
 		.limit(1)
 	return reply ?? null
+}
+
+export const unsettledCalendarAction = or(
+	eq(chatActions.state, 'submitted'),
+	sql`${chatActions.undoResult}->>'undo' = 'pending'`
+)
+
+export async function unsettledActionIds(
+	executor: DbExecutor,
+	accountId: string,
+	conversationId: string,
+	lock = false
+): Promise<string[]> {
+	const query = executor
+		.select({ id: chatActions.id })
+		.from(chatActions)
+		.where(
+			and(eq(chatActions.accountId, accountId), eq(chatActions.conversationId, conversationId), unsettledCalendarAction)
+		)
+	return (lock ? await query.for('update') : await query).map((row) => row.id)
+}
+
+export async function redactConversationContent(
+	executor: DbExecutor,
+	accountId: string,
+	conversationId: string
+): Promise<void> {
+	await executor
+		.update(chatActions)
+		.set({ state: 'refused', result: { state: 'stale' }, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatActions.accountId, accountId),
+				eq(chatActions.conversationId, conversationId),
+				eq(chatActions.kind, 'calendar'),
+				eq(chatActions.state, 'proposed')
+			)
+		)
+	await executor
+		.update(chatMessages)
+		.set({ body: '', mentions: [], blocks: [], redactedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatMessages.accountId, accountId),
+				eq(chatMessages.conversationId, conversationId),
+				isNull(chatMessages.redactedAt)
+			)
+		)
 }

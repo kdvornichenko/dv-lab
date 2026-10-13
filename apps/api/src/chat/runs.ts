@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk'
 
-import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, lte, sql } from 'drizzle-orm'
 import type { Logger } from 'pino'
 
 import {
@@ -301,12 +301,17 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 			}
 			const messageId = turn.assistantMessageId
 			const seq = await db.transaction(async (tx) => {
-				await tx
+				const written = await tx
 					.update(chatMessages)
 					.set({ body: sql`${chatMessages.body} || ${text}` })
-					.where(eq(chatMessages.id, messageId))
-				return bumpSeq(tx, turn.id)
+					.where(and(eq(chatMessages.id, messageId), isNull(chatMessages.redactedAt)))
+					.returning({ id: chatMessages.id })
+				return written.length === 0 ? null : bumpSeq(tx, turn.id)
 			})
+			if (seq === null) {
+				withheld++
+				return
+			}
 			length += text.length
 			if (text.trim() !== '') {
 				published++

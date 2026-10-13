@@ -38,7 +38,7 @@ import {
 	setConversationModel,
 } from '../chat/conversations.ts'
 import { readChatFacts, readChatRecords } from '../chat/facts.ts'
-import { listMessages } from '../chat/messages.ts'
+import { listMessages, unsettledActionIds } from '../chat/messages.ts'
 import { type ChatRunner, turnSnapshot } from '../chat/runs.ts'
 import { activeTurn, isActive, toTurn } from '../chat/turns.ts'
 import { errorBody } from '../request-context.ts'
@@ -303,9 +303,13 @@ export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRou
 		const input = await readJson(c, deleteConversationRequest)
 		if (!input) return invalidRequest(c)
 		const accountId = c.get('session').account.id
+		const context = await chatContext(c)
+		for (const actionId of await unsettledActionIds(db, accountId, id))
+			await checkCalendarAction(db, calendarCommands, context, actionId)
 		const result = await db.transaction((tx) => deleteConversation(tx, accountId, id, input))
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'changed') return conversationChanged(c)
+		if (result.kind === 'pending') return c.json(errorBody('busy', 'The conversation has unfinished work'), 409)
 		return c.body(null, 204)
 	})
 

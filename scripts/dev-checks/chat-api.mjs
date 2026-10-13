@@ -21,6 +21,7 @@ const SECTIONS = {
 	budget: sectionBudget,
 	answers: sectionAnswers,
 	models: sectionModels,
+	delete: sectionDelete,
 }
 
 let failures = 0
@@ -2057,18 +2058,19 @@ async function sectionBudget(ctx) {
 }
 
 const MODELS_PORT = 4232
+const DELETE_PORT = 4233
 const HAIKU = 'claude-haiku-5-5'
 const SONNET = 'claude-sonnet-5-5'
 const OPUS = 'claude-opus-5-5'
 const ABSENT = 'claude-absent-9-9'
 const INVENTED = 'claude-invented-1-0'
 
-async function startFakeProviderApi() {
-	const base = `http://127.0.0.1:${MODELS_PORT}`
+async function startFakeProviderApi(port = MODELS_PORT) {
+	const base = `http://127.0.0.1:${port}`
 	const env = {
 		...process.env,
 		NODE_ENV: 'test',
-		PORT: String(MODELS_PORT),
+		PORT: String(port),
 		APP_ORIGIN: base,
 		LOG_LEVEL: 'info',
 		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
@@ -2103,7 +2105,7 @@ async function startFakeProviderApi() {
 	while (Date.now() < deadline) {
 		if (child.exitCode !== null) break
 		try {
-			if ((await fetch(`${base}/healthz`)).status === 200) return { base, port: MODELS_PORT, logs: () => output, stop }
+			if ((await fetch(`${base}/healthz`)).status === 200) return { base, port, logs: () => output, stop }
 		} catch {}
 		await new Promise((resolve) => setTimeout(resolve, 300))
 	}
@@ -2401,6 +2403,243 @@ async function sectionModels(ctx) {
 		sql(
 			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
 		)
+		console.log(`fixture budget periods removed ${clearBudget()}`)
+	}
+}
+
+const conversationFacts = (conversationId) =>
+	sql(
+		`select
+			(select count(*)::int from chat_messages where conversation_id = ${quote(conversationId)}) as messages,
+			(select count(*)::int from chat_messages where conversation_id = ${quote(conversationId)} and redacted_at is not null) as redacted,
+			(select count(*)::int from chat_messages where conversation_id = ${quote(conversationId)} and (body <> '' or mentions <> '[]'::jsonb or blocks <> '[]'::jsonb)) as with_content,
+			(select count(*)::int from chat_actions where conversation_id = ${quote(conversationId)}) as actions,
+			(select count(*)::int from chat_turns where conversation_id = ${quote(conversationId)}) as turns,
+			(select count(*)::int from chat_usage_attempts where conversation_id = ${quote(conversationId)}) as attempts,
+			(select coalesce(sum(spent_nano), 0)::text from chat_budget_periods) as spent,
+			(select coalesce(sum(held_nano), 0)::text from chat_budget_periods) as held,
+			(select title from chat_conversations where id = ${quote(conversationId)}) as title,
+			(select deleted_at is not null from chat_conversations where id = ${quote(conversationId)}) as deleted`
+	).rows[0]
+
+async function sectionDelete(ctx) {
+	const fake = await startFakeProviderApi(DELETE_PORT)
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const clearBudget = () => {
+		sql(`delete from chat_usage_attempts where account_id = ${quote(accountId)}`)
+		return sql(`delete from chat_budget_periods where account_id = ${quote(accountId)}`).rowCount
+	}
+	try {
+		const cookie = await teacherCookie(fake)
+		const as = (method, path, body) => send(fake, method, path, { cookie, body })
+		const track = (id) => ctx.conversations.push(id)
+		console.log(`fixture conversations removed ${removeChats('true')}`)
+		console.log(`fixture budget periods removed ${clearBudget()}`)
+		const zone = sql(
+			`select coalesce((select default_time_zone from teacher_settings where account_id = ${quote(accountId)}), ${quote(VN)}) as zone`
+		).rows[0].zone
+		const today = core.scheduleToday(new Date(), zone)
+		const yesterday = core.addDays(today, -1)
+		const name = 'Alex Example 2207'
+		const card = await createCard(ctx, name)
+		await setOpening(ctx, card, 600, core.addDays(today, -60))
+		const lessonId = sql(
+			`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(card)}, ${quote(core.zonedInstant(yesterday, '09:00', zone).toISOString())}, 60, 'scheduled') returning id`
+		).rows[0].id
+		const binding = { studentId: card, text: name, start: 1, end: 1 + name.length }
+		const created = await as('POST', '/chat/conversations')
+		const id = created.json.conversation.id
+		track(id)
+		const post = (conversationId, body) => as('POST', `/chat/conversations/${conversationId}/messages`, body)
+		const remove = async (conversationId) => {
+			const read = await as('GET', `/chat/conversations/${conversationId}`)
+			return as('DELETE', `/chat/conversations/${conversationId}`, {
+				expectedRevision: read.json.conversation.revision,
+			})
+		}
+		const noteText = 'Zeta delete check note'
+		const marked = await post(id, { requestId: randomUUID(), text: `@${name} was ${yesterday}`, mentions: [binding] })
+		const noted = await post(id, {
+			requestId: randomUUID(),
+			text: `/note @${name} ${noteText}`,
+			mentions: [{ studentId: card, text: name, start: 7, end: 7 + name.length }],
+		})
+		const markAction = marked.json?.messages?.[1]?.blocks?.[0]
+		check(
+			'the fixture conversation holds a mark and a note made from chat',
+			marked.status === 201 &&
+				markAction?.type === 'action_result' &&
+				noted.status === 201 &&
+				noted.json.messages[1].blocks[0]?.type === 'action_result' &&
+				markOf(lessonId)?.kind === 'done',
+			`${marked.status} ${noted.status}`
+		)
+		const noteRows = () =>
+			sql(`select count(*)::int as n from student_notes where student_id = ${quote(card)}`).rows[0].n
+
+		const hung = await post(id, {
+			requestId: randomUUID(),
+			text: '[fake:hang] think about the next lesson',
+			mentions: [],
+		})
+		const turn = hung.json.turn
+		check('a turn is running in the conversation', hung.status === 201 && ['accepted', 'running'].includes(turn?.state))
+		const duringTurn = await remove(id)
+		const afterBusy = conversationFacts(id)
+		check(
+			'Delete during a running turn: 409 busy and nothing changes',
+			duringTurn.status === 409 &&
+				duringTurn.json?.error?.code === 'busy' &&
+				afterBusy.redacted === 0 &&
+				afterBusy.deleted === false &&
+				(await as('GET', `/chat/conversations/${id}`)).status === 200,
+			`${duringTurn.status} ${JSON.stringify(duringTurn.json)}`
+		)
+		const live = await as('GET', `/chat/turns/${turn.id}`)
+		check(
+			'the running turn was not stopped by the refused Delete',
+			['accepted', 'running'].includes(live.json.turn.state)
+		)
+		const stopped = await as('POST', `/chat/turns/${turn.id}/stop`, {})
+		check('Stop ends the turn', stopped.status === 200 && stopped.json.turn.state === 'stopped', `${stopped.status}`)
+
+		const assistantMessage = sql(
+			`select id from chat_messages where conversation_id = ${quote(id)} and role = 'assistant' order by created_at limit 1`
+		).rows[0].id
+		const calendarAction = (state, result) =>
+			sql(
+				`insert into chat_actions (account_id, conversation_id, message_id, kind, state, result) values (${quote(accountId)}, ${quote(id)}, ${quote(assistantMessage)}, 'calendar', ${quote(state)}, ${quote(JSON.stringify(result))}::jsonb) returning id`
+			).rows[0].id
+		const submitted = calendarAction('submitted', { state: 'pending', commandId: null })
+		const calendarBusy = await remove(id)
+		check(
+			'Delete with an unfinished calendar command: 409 busy',
+			calendarBusy.status === 409 && calendarBusy.json?.error?.code === 'busy',
+			`${calendarBusy.status}`
+		)
+		sql(
+			`update chat_actions set state = 'applied', result = '{"state":"applied"}'::jsonb, undo_result = '{"undo":"pending"}'::jsonb where id = ${quote(submitted)}`
+		)
+		const undoBusy = await remove(id)
+		check(
+			'Delete with an unfinished calendar undo: 409 busy',
+			undoBusy.status === 409 && undoBusy.json?.error?.code === 'busy',
+			`${undoBusy.status}`
+		)
+		sql(`update chat_actions set undo_result = '{"undo":"available"}'::jsonb where id = ${quote(submitted)}`)
+		const proposed = calendarAction('proposed', { state: 'proposed' })
+		sql(
+			`update chat_usage_attempts set state = 'unknown' where conversation_id = ${quote(id)} and state in ('reserved', 'dispatched')`
+		)
+		const unknownAttempts = sql(
+			`select count(*)::int as n from chat_usage_attempts where conversation_id = ${quote(id)} and state = 'unknown'`
+		).rows[0].n
+
+		const other = await as('POST', '/chat/conversations')
+		track(other.json.conversation.id)
+		const otherSent = await post(other.json.conversation.id, { requestId: randomUUID(), text: '/today', mentions: [] })
+		const renamed = await as('PATCH', `/chat/conversations/${other.json.conversation.id}`, {
+			title: 'Kept chat',
+			expectedRevision: other.json.conversation.revision,
+		})
+		const staleDelete = await as('DELETE', `/chat/conversations/${other.json.conversation.id}`, {
+			expectedRevision: other.json.conversation.revision,
+		})
+		check(
+			'a stale revision is 409 precondition_failed, not busy, and changes nothing',
+			otherSent.status === 201 &&
+				renamed.status === 200 &&
+				staleDelete.status === 409 &&
+				staleDelete.json?.error?.code === 'precondition_failed' &&
+				conversationFacts(other.json.conversation.id).redacted === 0
+		)
+
+		const before = conversationFacts(id)
+		const notesBefore = noteRows()
+		const markBefore = markOf(lessonId)
+		const actionsBefore = sql(
+			`select id, state, result::text as result from chat_actions where conversation_id = ${quote(id)} and id <> ${quote(proposed)} order by id`
+		).rows
+		check(
+			'before Delete the conversation holds text, mentions and blocks',
+			before.messages >= 6 &&
+				before.with_content > 0 &&
+				before.redacted === 0 &&
+				before.turns === 1 &&
+				before.attempts >= 1,
+			JSON.stringify(before)
+		)
+		const removed = await remove(id)
+		check(
+			'Delete after the turn ended: 204',
+			removed.status === 204,
+			`${removed.status} ${JSON.stringify(removed.json)}`
+		)
+		const after = conversationFacts(id)
+		check(
+			'the rows stay and every message is redacted: empty text, no mentions, no blocks, redacted_at set',
+			after.messages === before.messages &&
+				after.redacted === before.messages &&
+				after.with_content === 0 &&
+				after.title === 'Deleted chat' &&
+				after.deleted === true,
+			JSON.stringify(after)
+		)
+		const actionsAfter = sql(
+			`select id, state, result::text as result from chat_actions where conversation_id = ${quote(id)} and id <> ${quote(proposed)} order by id`
+		).rows
+		check(
+			'the receipts of the actions stay as they were',
+			after.actions === before.actions && isDeepStrictEqual(actionsAfter, actionsBefore)
+		)
+		const voided = sql(`select state, result::text as result from chat_actions where id = ${quote(proposed)}`).rows[0]
+		check(
+			'a never confirmed calendar proposal is closed so it cannot be confirmed later',
+			voided.state === 'refused' && JSON.parse(voided.result).state === 'stale',
+			JSON.stringify(voided)
+		)
+		const confirmAfter = await as('POST', `/chat/actions/${proposed}/confirm`, {})
+		check('confirming that proposal after Delete gives 404', confirmAfter.status === 404, `${confirmAfter.status}`)
+		check(
+			'turns and usage attempts stay, the unconfirmed attempt too, and the month totals do not change',
+			after.turns === before.turns &&
+				after.attempts === before.attempts &&
+				unknownAttempts >= 1 &&
+				sql(
+					`select count(*)::int as n from chat_usage_attempts where conversation_id = ${quote(id)} and state = 'unknown'`
+				).rows[0].n === unknownAttempts &&
+				after.spent === before.spent &&
+				after.held === before.held,
+			`${JSON.stringify(before)} ${JSON.stringify(after)}`
+		)
+		check(
+			'the note and the mark made from chat stay',
+			noteRows() === notesBefore && notesBefore >= 1 && isDeepStrictEqual(markOf(lessonId), markBefore)
+		)
+		const gone = await as('GET', `/chat/conversations/${id}`)
+		const listed = (await as('GET', '/chat/conversations')).json.conversations.map((item) => item.id)
+		check(
+			'the conversation is gone from the read and the list, the other one stays',
+			gone.status === 404 && !listed.includes(id) && listed.includes(other.json.conversation.id)
+		)
+		const otherRead = await as('GET', `/chat/conversations/${other.json.conversation.id}`)
+		check(
+			'another conversation keeps its messages',
+			otherRead.status === 200 &&
+				otherRead.json.messages.length === 2 &&
+				conversationFacts(other.json.conversation.id).redacted === 0
+		)
+		const again = await as('DELETE', `/chat/conversations/${id}`, { expectedRevision: 1 })
+		check('Delete of the same conversation again: 404', again.status === 404, `${again.status}`)
+		const resend = await post(id, { requestId: randomUUID(), text: 'Hello again', mentions: [] })
+		check('Send into the deleted conversation: 404', resend.status === 404, `${resend.status}`)
+		check(
+			'api log has no note text and no fixture name',
+			!fake.logs().includes(noteText) && !fake.logs().includes('Alex Example')
+		)
+		return 'CHAT_DELETE_OK'
+	} finally {
+		await fake.stop()
 		console.log(`fixture budget periods removed ${clearBudget()}`)
 	}
 }
