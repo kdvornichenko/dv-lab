@@ -36,7 +36,6 @@ export const OPEN_SCROLL_TOP = 5 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
-const EMPTY_GUTTER_COLUMNS = 'grid grid-cols-[88px_repeat(7,minmax(0,1fr))]'
 const DAY_MINUTES = 24 * 60
 const CHIP_BELOW_MINUTES = 30
 const FIRST_HOUR = DAY_START_MINUTES / 60
@@ -432,7 +431,6 @@ export function WeekGrid({
 	placeholders = [],
 	zoneKnown = true,
 }: WeekGridProps) {
-	const columns = zoneKnown ? COLUMNS : EMPTY_GUTTER_COLUMNS
 	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, mainTimeZone)
 	const nowMinutes = lessonDayMinutes(now, mainTimeZone)
@@ -538,7 +536,7 @@ export function WeekGrid({
 				data-resizing={resizing !== null ? '' : undefined}
 				className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl data-[dragging]:**:cursor-ns-resize! data-[moving]:**:cursor-grabbing! data-[resizing]:**:cursor-ns-resize! lg:flex"
 			>
-				<div data-slot="week-grid-head" className={cn(columns, '[scrollbar-gutter:stable] overflow-y-hidden')}>
+				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
 						{zoneKnown ? <GutterPair local={mainCaption} second={secondZone ? secondZone.caption : null} /> : null}
 					</div>
@@ -590,7 +588,7 @@ export function WeekGrid({
 					}}
 					className="scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto"
 				>
-					<div className={cn(columns, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
+					<div className={cn(COLUMNS, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
 						<div data-slot="week-grid-gutter" className="relative">
 							{(zoneKnown ? HOURS : []).map((hour) => (
 								<GutterPair
@@ -715,10 +713,7 @@ export function WeekGrid({
 								key={hour}
 								data-slot="week-grid-line"
 								data-hour={hour}
-								className={cn(
-									'pointer-events-none absolute right-0 h-px bg-gcal-line',
-									zoneKnown ? 'left-[100px]' : 'left-[88px]'
-								)}
+								className="pointer-events-none absolute right-0 left-[100px] h-px bg-gcal-line"
 								style={{ top: hour * HOUR_HEIGHT }}
 							/>
 						))}
