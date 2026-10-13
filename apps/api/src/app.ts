@@ -15,6 +15,7 @@ import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
+import { chatRoutes } from './routes/chat.ts'
 import { googleNotificationRoutes } from './routes/google-notifications.ts'
 import { googleRoutes } from './routes/google.ts'
 import { paymentRoutes } from './routes/payments.ts'
@@ -92,6 +93,7 @@ export function createApp(deps: AppDeps) {
 			isStopping: deps.isStopping,
 		})
 	)
+	app.route('/chat', chatRoutes({ db: deps.db }))
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
 	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
