@@ -21,7 +21,7 @@ import { readWindow } from '../schedule/schedule.ts'
 import type { TeacherTimeContext } from '../settings/settings.ts'
 import { calendarLessons } from './calendar-lessons.ts'
 
-export function todayWindow(context: TeacherTimeContext): Extract<CalendarReadSelection, { kind: 'window' }> {
+function todayWindow(context: TeacherTimeContext): Extract<CalendarReadSelection, { kind: 'window' }> {
 	const date = lessonDay(context.now, context.defaultTimeZone)
 	return {
 		kind: 'window',
