@@ -122,14 +122,15 @@ plan_head_after: 2e9c809f7ceaa7e2e6c5525a45e41a9186643cf0
 
 ## Deferred Issues
 
-**Отмена экземпляра повторяющегося события в разрезе серии падает на сравнении `instance`**
-- Где: `apps/api/src/calendar/command-result.ts:227`, `verifyStoredCancellation`: `JSON.stringify(ack.instance) !== JSON.stringify(request.instance)`.
-- Причина: `request` приходит в шлюз из строки стадии (jsonb, ключи в порядке Postgres: длина, затем алфавит — `originalOn, masterEventId, lookupVerified, originalStartTime`), а `ack.instance` собирается `googleStageAcknowledgement.parse` в порядке схемы. Строки не совпадают, `patch` отменяемого экземпляра бросает `external_change`, разрез уходит в `recovery_required` / `provider_unavailable`. Настоящий шлюз (`gateway.ts:401`) зовёт `verifyGoogleResult` с тем же `request`, значит ошибка есть и в продукте. Путь срабатывает при `end_series` и `move_series`, когда в хвосте есть перенесённое вхождение, которое становится одиночным уроком; существующие проверки такой хвост не строят.
-- Воспроизведение: `node scripts/dev-checks/mark-revision.mjs`, кейс 10.
-- Предлагаемая правка: сравнивать `canonical(ack.instance ?? null) !== canonical(request.instance)` (`canonical` уже есть в файле). Пробно с этой правкой разрез прошёл дальше, но остановился в `partial_recovery` / `provider_unavailable`: на этом пути есть ещё причина (в коде разреза или в заглушке шлюза скрипта), её не искал. Пробная правка откатана.
-- После исправления перезапустить `mark-revision.mjs`: кейс 10 проверяет новую строку отметки одиночного урока `done`/1 и неизменную строку вхождения `done`/2.
+Кейс 10 `mark-revision.mjs` (разрез серии с перенесённым вхождением в хвосте) исправлен после отчёта: три причины подряд, `MARK_REVISION_OK` на 11 кейсах, `calendar-final` 15/15, `schedule-started` OK.
 
-Запись в `.planning/WINDOWS.md` и `deferred-items.md` не делал: правила исполнителя разрешают трогать только файлы плана и свой SUMMARY.
+- `68cb46e`: `verifyStoredCancellation` сравнивал `instance` через `JSON.stringify`, порядок ключей из jsonb отличался от zod; теперь `canonical`.
+- `c9cf1b8`: `cutWrite` клал в запрос `instance: undefined` для мастера и одиночного события; jsonb ключ терял, `isDeepStrictEqual` расходился, `precondition_failed`.
+- `bc73132`: `currentTail` в `cut-apply.ts` сравнивал статус `moved` с lineage `scheduled`, `external_change` при применении после записи в Google.
+
+Остаётся: `cut-apply.ts` (`currentTail`) пропускает только дату без исключения, а `preservedLessons` в `packages/core/src/schedule-series.ts` пропускает ещё и исключение `restored` без отметки. Сценарий: будущее вхождение перенесли и вернули обратно без отметки, затем `end_series` или `move_series` дают `external_change` при применении, команда остаётся в `recovery_required`. Правка в одну строку (`(!exception || exception.kind === 'restored') && ...`), воспроизведения нет. Проверить отдельным шагом (кандидат в 22-10, где перенос серии идёт из чата).
+
+Ревизия в ответе `GET /schedule/week`: календарное окно (`calendar/read-model.ts`) несёт у отметки только вид, без ревизии. Ревизия есть в Today и `readWindow`; фаза 22 берёт её из ответа `writeMark` и журнала, из недели никто не читает.
 
 ## Known Stubs
 
