@@ -676,6 +676,72 @@ async function caseRestoreRefused(pipeline, fx) {
 	if (!ok) fail(9, 'the reverse move with a stale restoreMark failed or touched the mark')
 }
 
+async function restoreCycle(pipeline, fx, date, check) {
+	const natural = core.zonedInstant(date, '10:00', fx.zone)
+	const away = core.zonedInstant(core.addDays(date, 1), '11:00', fx.zone)
+	await run(pipeline, fx.accountId, moveCommand(fx, date, away), check)
+	await project(pipeline, fx, [fx.masterEvent])
+	await run(pipeline, fx.accountId, moveCommand(fx, date, natural), check)
+	await project(pipeline, fx, [fx.masterEvent])
+	const exception = exceptionKind(fx.series.id, date)
+	const mark = occurrenceMarkRow(fx.series.id, date)
+	if (exception !== 'restored' || mark !== null)
+		fail(check, `the restored occurrence has exception ${exception} and mark ${mark?.kind ?? 'none'}`)
+}
+
+async function caseRestoredTail(pipeline, base) {
+	const known = new Set(
+		rows(`select id from lesson_series where student_id = ${quote(base.card.id)}`).map((row) => row.id)
+	)
+	const first = core.addDays(base.today, 2)
+	await run(pipeline, base.accountId, createCommand(base, first, '10:00', 'weekly'), 12)
+	const [series] = rows(`select id from lesson_series where student_id = ${quote(base.card.id)}`).filter(
+		(row) => !known.has(row.id)
+	)
+	if (!series) fail(12, 'the second series was not created')
+	const fx = { ...base, series, masterEvent: mappingEvent(series.id, 'series') }
+	await project(pipeline, fx, [fx.masterEvent])
+	const restored = core.addDays(first, 14)
+	await restoreCycle(pipeline, fx, restored, 12)
+	const commandsBefore = commandCount(fx.accountId)
+	const lessonsBefore = cardLessons(fx.card.id).length
+	const move = await refusal(
+		submit(pipeline, fx.accountId, {
+			operation: 'move_series',
+			seriesId: fx.series.id,
+			input: {
+				from: restored,
+				weekday: core.weekdayOf(restored),
+				startTime: '11:00',
+				expectedDefaultTimeZone: fx.zone,
+				requestId: randomUUID(),
+				expectedVersion: seriesVersion(fx.series.id),
+			},
+		})
+	)
+	const end = await refusal(
+		submit(pipeline, fx.accountId, {
+			operation: 'end_series',
+			seriesId: fx.series.id,
+			input: {
+				lastOn: core.addDays(first, 7),
+				expectedDefaultTimeZone: fx.zone,
+				requestId: randomUUID(),
+				expectedVersion: seriesVersion(fx.series.id),
+			},
+		})
+	)
+	const ok =
+		move === 'external_change' &&
+		end === 'external_change' &&
+		commandCount(fx.accountId) === commandsBefore &&
+		cardLessons(fx.card.id).length === lessonsBefore
+	console.log(
+		`case 12 restored unmarked occurrence in the tail: move_series ${move} end_series ${end} command_rows ${commandsBefore}->${commandCount(fx.accountId)}`
+	)
+	if (!ok) fail(12, 'a cut over a restored occurrence was not refused at admission')
+}
+
 async function caseEndSeries(pipeline, fx) {
 	const date = fx.dates.tail
 	const yesterday = core.zonedInstant(core.addDays(fx.today, -1), '15:00', fx.zone)
@@ -757,6 +823,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 		console.log(`case 11 balance over http after the moves: ${balance === expectedBalance()}`)
 	})
 	await caseEndSeries(pipeline, fx)
+	await caseRestoredTail(pipeline, fx)
 } catch (error) {
 	const message = error instanceof Error ? error.message : 'unexpected failure'
 	console.log(`MARK_REVISION_FAILED ${message.replace(/postgres(ql)?:\/\/\S+/g, '<redacted>')}`)
