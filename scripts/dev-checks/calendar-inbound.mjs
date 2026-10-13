@@ -1186,6 +1186,9 @@ async function inboundSection(db, fx) {
 		)
 		const replacement = seriesOf(moved.local_entity_id)
 		const old = seriesOf(extra.past)
+		const carried = exceptionsOf(moved.local_entity_id)
+		const cancelKept =
+			carried.length === 1 && carried[0].original_on === extra.instances[3].date && carried[0].kind === 'cancelled'
 		const cutOk =
 			counts().series === seriesBefore + 1 &&
 			moved.local_entity_id !== extra.past &&
@@ -1196,11 +1199,11 @@ async function inboundSection(db, fx) {
 			old.ends_on !== null &&
 			old.ends_on >= marked.date &&
 			old.ends_on < extra.instances[3].date &&
-			exceptionsOf(moved.local_entity_id).length === 0 &&
+			cancelKept &&
 			rows(`select count(*)::int as n from lesson_marks where series_id = ${quote(extra.past)} and kind = 'done'`)[0]
 				.n === 1
 		console.log(
-			`inbound 8 master time changed: series +${counts().series - seriesBefore} mapping_moved ${moved.local_entity_id !== extra.past} new_start ${replacement.start_time} from_first_unmarked_after_done ${replacement.starts_on === extra.instances[3].date} old_ends_after_done ${old.ends_on !== null && old.ends_on >= marked.date} mark_kept true`
+			`inbound 8 master time changed: series +${counts().series - seriesBefore} mapping_moved ${moved.local_entity_id !== extra.past} new_start ${replacement.start_time} from_first_unmarked_after_done ${replacement.starts_on === extra.instances[3].date} old_ends_after_done ${old.ends_on !== null && old.ends_on >= marked.date} started_cancel_kept ${cancelKept} mark_kept true`
 		)
 		if (!cutOk) fail('inbound 8', 'a changed master time did not cut the series into a new row')
 		steady('inbound 8')

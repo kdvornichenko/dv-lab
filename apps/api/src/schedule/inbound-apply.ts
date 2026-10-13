@@ -337,6 +337,26 @@ async function insertSeries(tx: DbExecutor, rule: Omit<SeriesRule, 'id'>) {
 	return id
 }
 
+async function carryCancellations(
+	tx: DbExecutor,
+	lessons: readonly { originalOn: string; status?: 'cancelled' }[],
+	from: string,
+	newRule: { startsOn: string; endsOn: string | null },
+	seriesId: string
+) {
+	const cancelled = new Set(lessons.flatMap((lesson) => (lesson.status === 'cancelled' ? [lesson.originalOn] : [])))
+	const last = [...cancelled].sort().at(-1)
+	if (last === undefined) return
+	for (
+		let oldOn = from, newOn = newRule.startsOn;
+		oldOn <= last;
+		oldOn = addDays(oldOn, 7), newOn = addDays(newOn, 7)
+	) {
+		if (newRule.endsOn !== null && newOn > newRule.endsOn) return
+		if (cancelled.has(oldOn)) await writeException(tx, seriesId, newOn, 'cancelled', null)
+	}
+}
+
 async function cutAt(
 	tx: DbExecutor,
 	connectionId: string,
@@ -359,7 +379,9 @@ async function cutAt(
 	const oldEndsOn = rule.endsOn !== null && rule.endsOn < cut.oldEndsOn ? rule.endsOn : cut.oldEndsOn
 	const ended = await setEndsOn(tx, rule, oldEndsOn)
 	if (google.until !== null && google.until < cut.newRule.startsOn) return ended
-	const seriesId = await insertSeries(tx, { ...cut.newRule, endsOn: google.until })
+	const newRule = { ...cut.newRule, endsOn: google.until }
+	const seriesId = await insertSeries(tx, newRule)
+	await carryCancellations(tx, cut.lessons, from, newRule, seriesId)
 	await tx
 		.update(googleEventMappings)
 		.set({ localEntityId: seriesId })
