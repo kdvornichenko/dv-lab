@@ -39,6 +39,8 @@ import {
 	type ChatModelEntry,
 } from '@dv-lab/contracts'
 
+import { MODELS_DESCRIPTION } from './settings-loading-parts'
+
 type Draft = {
 	key: string
 	id: string
@@ -759,11 +761,7 @@ export function ModelsForm({
 	)
 
 	return (
-		<Panel
-			id="settings-models"
-			title="Models and limits"
-			description="The models the assistant may use, in the order of the chat menu, and what a request may cost."
-		>
+		<Panel id="settings-models" title="Models and limits" description={MODELS_DESCRIPTION}>
 			<form
 				className="flex flex-col gap-4 px-4 pt-1 pb-4"
 				aria-busy={saving}

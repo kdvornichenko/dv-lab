@@ -20,20 +20,14 @@ import { useMinuteNow } from '../../_components/use-minute-now'
 import { AssistantCard } from './assistant-card'
 import { CalendarCard } from './calendar-card'
 import { PaymentsCard } from './payments-card'
+import { activeTabOf, resolveTab } from './settings-tabs'
 import { ZoneChangeDialog, type ZoneChangeExample } from './zone-change-dialog'
 
-const SETTINGS_TABS = ['general', 'calendar', 'assistant'] as const
-
-type SettingsTab = (typeof SETTINGS_TABS)[number]
 type LoadState = 'loading' | 'ready' | 'failed'
 
 const SAVE_ERROR = 'Could not save the time zone. Try again.'
 const STALE_ERROR = 'Default time zone changed elsewhere. Refresh the page and try again.'
 const DEFAULT_FIELD = 'settings-default-zone'
-
-function resolveTab(tab: string | undefined): SettingsTab {
-	return SETTINGS_TABS.find((item) => item === tab) ?? 'general'
-}
 
 function focusDefaultField() {
 	requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById(DEFAULT_FIELD)?.focus()))
@@ -355,7 +349,7 @@ function SecondZoneCard({
 export function SettingsScreen() {
 	const searchParams = useSearchParams()
 	const callbackOutcome = searchParams.get('google')
-	const activeTab = callbackOutcome !== null ? 'calendar' : resolveTab(searchParams.get('tab') ?? undefined)
+	const activeTab = activeTabOf(searchParams)
 	const state = useSettings()
 	const now = useMinuteNow()
 	const mainTimeZone = state.settings?.defaultTimeZone ?? null

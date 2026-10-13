@@ -81,7 +81,7 @@ function ConnectionSummary({ snapshot }: { snapshot: GoogleConnectionSnapshot })
 	)
 }
 
-function ConnectionSkeleton() {
+export function ConnectionSkeleton() {
 	return (
 		<div className="flex flex-col gap-3" role="status" aria-label="Loading Google Calendar status">
 			<Skeleton className="h-3 w-65 max-w-full" />

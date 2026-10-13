@@ -10,7 +10,6 @@ import { Panel } from '@/components/app/layout-parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 import { dollars, toCents } from '@/lib/usd-text'
 
@@ -24,6 +23,13 @@ import {
 import { useToast } from '../../_components/toasts'
 import { ModelsForm } from './assistant-models'
 import { BudgetUsage } from './budget-usage'
+import {
+	BUDGET_DESCRIPTION,
+	BudgetLoading,
+	CHAT_MODEL_DESCRIPTION,
+	ChatModelLoading,
+	ModelsLoading,
+} from './settings-loading-parts'
 
 type LoadState = 'loading' | 'ready' | 'failed'
 
@@ -69,17 +75,6 @@ function useAssistantSettings() {
 	return { data, setData, loadState, refresh }
 }
 
-function BudgetSkeleton() {
-	return (
-		<div className="flex flex-col gap-3 px-4 pt-1 pb-4" role="status" aria-label="Loading budget">
-			<Skeleton className="h-8 w-full" />
-			<Skeleton className="h-3 w-65 max-w-full" />
-			<Skeleton className="h-1.5 w-full" />
-			<Skeleton className="h-3 w-50 max-w-full" />
-		</div>
-	)
-}
-
 function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> }) {
 	const toast = useToast()
 	const { data, setData, loadState, refresh } = state
@@ -89,16 +84,11 @@ function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> 
 	const [fieldError, setFieldError] = useState(false)
 	const inflight = useRef(false)
 
-	if (loadState === 'loading' && data === null)
-		return (
-			<Panel id="settings-budget" title="Budget" description={DESCRIPTION}>
-				<BudgetSkeleton />
-			</Panel>
-		)
+	if (loadState === 'loading' && data === null) return <BudgetLoading />
 
 	if (loadState === 'failed' || data === null)
 		return (
-			<Panel id="settings-budget" title="Budget" description={DESCRIPTION}>
+			<Panel id="settings-budget" title="Budget" description={BUDGET_DESCRIPTION}>
 				<div className="flex flex-col items-start gap-2 px-4 pt-1 pb-4" data-budget-state="unavailable">
 					<p role="alert" className="text-caption text-destructive">
 						Budget status unavailable. Refresh before sending.
@@ -166,7 +156,7 @@ function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> 
 	)
 
 	return (
-		<Panel id="settings-budget" title="Budget" description={DESCRIPTION}>
+		<Panel id="settings-budget" title="Budget" description={BUDGET_DESCRIPTION}>
 			<form
 				className="flex flex-col gap-4 px-4 pt-1 pb-4"
 				data-budget-state={budget.state}
@@ -236,30 +226,18 @@ function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> 
 	)
 }
 
-const DESCRIPTION =
-	'When the limit is reached the assistant stops answering until next month. Everything else keeps working.'
-
 function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSettings> }) {
 	const toast = useToast()
 	const { data, setData, loadState, refresh } = state
 	const [saving, setSaving] = useState(false)
 	const [saveError, setSaveError] = useState(false)
 	const inflight = useRef(false)
-	const description = 'What new chats start with.'
 
-	if (loadState === 'loading' && data === null)
-		return (
-			<Panel id="settings-chat-model" title="Chat model" description={description}>
-				<div className="flex flex-col gap-3 px-4 pt-1 pb-4" role="status" aria-label="Loading chat model">
-					<Skeleton className="h-8 w-full" />
-					<Skeleton className="h-8 w-full" />
-				</div>
-			</Panel>
-		)
+	if (loadState === 'loading' && data === null) return <ChatModelLoading />
 
 	if (loadState === 'failed' || data === null)
 		return (
-			<Panel id="settings-chat-model" title="Chat model" description={description}>
+			<Panel id="settings-chat-model" title="Chat model" description={CHAT_MODEL_DESCRIPTION}>
 				<div className="flex flex-col items-start gap-2 px-4 pt-1 pb-4" data-chat-model-state="unavailable">
 					<Select value="" disabled>
 						<SelectTrigger placeholder="Models unavailable" className="w-65 max-w-full" aria-label="Model" />
@@ -314,7 +292,7 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 	}
 
 	return (
-		<Panel id="settings-chat-model" title="Chat model" description={description}>
+		<Panel id="settings-chat-model" title="Chat model" description={CHAT_MODEL_DESCRIPTION}>
 			<div className="flex flex-col gap-4 px-4 pt-1 pb-4" aria-busy={saving} data-slot="chat-model-card">
 				<div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
 					<div className="flex min-w-0 flex-col gap-1">
@@ -375,24 +353,13 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 function ModelsCard({ state }: { state: ReturnType<typeof useAssistantSettings> }) {
 	const { data, setData, loadState } = state
 	if (data === null) {
-		if (loadState === 'loading')
-			return (
-				<Panel id="settings-models" title="Models and limits" description={MODELS_DESCRIPTION}>
-					<div className="flex flex-col gap-3 px-4 pt-1 pb-4" role="status" aria-label="Loading models">
-						<Skeleton className="h-16 w-full" />
-						<Skeleton className="h-16 w-full" />
-					</div>
-				</Panel>
-			)
+		if (loadState === 'loading') return <ModelsLoading />
 		return null
 	}
 	const { settings } = data
 	const key = JSON.stringify([settings.models, settings.model, settings.maxInputTokens, settings.maxOutputTokens])
 	return <ModelsForm key={key} data={data} onSaved={setData} />
 }
-
-const MODELS_DESCRIPTION =
-	'The models the assistant may use, in the order of the chat menu, and what a request may cost.'
 
 export function AssistantCard() {
 	const state = useAssistantSettings()
