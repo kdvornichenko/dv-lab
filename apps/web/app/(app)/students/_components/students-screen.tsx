@@ -47,7 +47,7 @@ async function readStudents(): Promise<ReadState> {
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
-const studentColumns: SkeletonTableColumn[] = [
+export const studentColumns: SkeletonTableColumn[] = [
 	{
 		title: 'Student',
 		cell: (
