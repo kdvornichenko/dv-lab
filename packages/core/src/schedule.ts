@@ -85,8 +85,8 @@ export type LessonActions = { move: boolean; cancel: boolean; restore: boolean; 
 export function lessonActions(outcome: LessonOutcome, startsAt: Date, now: Date): LessonActions {
 	const upcoming = canChange(startsAt, now)
 	return {
-		move: countsAsLesson(outcome),
-		cancel: countsAsLesson(outcome),
+		move: countsAsLesson(outcome) && outcome !== 'done',
+		cancel: countsAsLesson(outcome) && outcome !== 'done',
 		restore: outcome === 'cancelled',
 		mark: countsAsLesson(outcome) && (isMarked(outcome) || !upcoming),
 		series: outcome !== 'moved' && upcoming,

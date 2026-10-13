@@ -161,6 +161,7 @@ export const calendarEventView = z.strictObject({
 			ref: calendarOccurrenceRef,
 			studentId: z.uuid(),
 			version: calendarVersion,
+			mark: z.enum(['done', 'no_show']).nullable(),
 		}),
 		z.strictObject({ kind: z.literal('transition'), commandId: z.uuid() }),
 		z.strictObject({ kind: z.literal('external') }),

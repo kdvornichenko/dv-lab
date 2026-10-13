@@ -185,6 +185,7 @@ const lineage = z.strictObject({
 	beforeDurationMinutes: z.number().int().min(1).optional(),
 	beforeStatus: z.enum(['scheduled', 'cancelled', 'moved']).optional(),
 	status: z.enum(['scheduled', 'cancelled']).optional(),
+	clearMark: z.literal(true).optional(),
 })
 
 export const GOOGLE_WRITABLE_FIELDS = [
