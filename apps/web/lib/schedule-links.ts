@@ -1,4 +1,4 @@
-import type { ScheduleOccurrenceRef } from '@dv-lab/contracts'
+import type { ChatActionLinkBlock, ScheduleOccurrenceRef } from '@dv-lab/contracts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -33,4 +33,18 @@ export function dayHref(date: string): string {
 export function studentHref(studentId: string, params?: Record<string, string>): string {
 	const query = params === undefined ? '' : `?${new URLSearchParams(params).toString()}`
 	return `/students/${studentId}${query}`
+}
+
+export function actionLinkHref(block: ChatActionLinkBlock): string | null {
+	if (block.kind === 'schedule_day') return isCalendarDay(block.date) ? dayHref(block.date) : null
+	if (block.kind === 'settings') return block.tab === null ? '/settings' : `/settings?tab=${block.tab}`
+	if (block.studentId === null || block.studentName === null) return null
+	if (block.kind === 'payments')
+		return studentHref(block.studentId, {
+			tab: 'payments',
+			...(block.dialog === 'payment' ? { dialog: 'payment' } : {}),
+		})
+	if (block.kind === 'overview')
+		return studentHref(block.studentId, block.dialog === 'details' ? { dialog: 'details' } : undefined)
+	return studentHref(block.studentId, { tab: block.kind })
 }

@@ -45,6 +45,10 @@ export function dayNumber(date: string): number {
 	return dayOf(date)
 }
 
+export function dayMonthShort(date: string): string {
+	return `${dayOf(date)} ${monthShort(date)}`
+}
+
 function twoDigits(date: string): string {
 	return String(dayOf(date)).padStart(2, '0')
 }

@@ -18,6 +18,7 @@ import { zoneLabel } from '@/lib/time-zones'
 import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, MentionBinding } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
+import { ActionLink } from './action-link'
 import { ActionResult } from './action-result'
 import { CalendarProposal } from './calendar-proposal'
 import { ChatProgress } from './chat-progress'
@@ -211,6 +212,7 @@ function Block({
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
 	if (block.type === 'refused') return <Refused block={block} />
 	if (isRecordBlock(block)) return <RecordBlockView block={block} />
+	if (block.type === 'action_link') return <ActionLink block={block} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
 	if (block.type === 'interrupted') return <Interrupted onCheckStatus={replies.onCheckStatus} />
