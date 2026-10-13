@@ -163,7 +163,7 @@ function Chip({
 			className={cn('min-w-0 gap-1 rounded-full px-2.5 font-medium pointer-coarse:h-9', className)}
 			{...props}
 		>
-			{children}
+			<span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap">{children}</span>
 		</Button>
 	)
 }
@@ -223,7 +223,7 @@ function ModelMenu({
 						/>
 					}
 				>
-					<span className="min-w-0 truncate">{name}</span>
+					<span className="max-w-36 min-w-0 truncate @max-[376px]:max-w-24">{name}</span>
 					<ChevronDown size={12} aria-hidden className="shrink-0" />
 				</DropdownTrigger>
 			</Tooltip>
