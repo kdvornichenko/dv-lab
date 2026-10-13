@@ -13,7 +13,7 @@ import { currentConnection, type CalendarAccess, type Credentials } from './goog
 import { observeInstance } from './instance-observation.ts'
 import {
 	CommandFault,
-	commandSnapshot,
+	commandStatus,
 	findRequest,
 	matchingReceipt,
 	persistCommand,
@@ -122,7 +122,7 @@ export function createCalendarCommands(deps: {
 			checkCalendarConflicts(deps, context, input),
 		submitCalendarCommand,
 		async readCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandSnapshot> {
-			return commandSnapshot(await readCommand(deps.db, context.accountId, commandId))
+			return commandStatus(deps.db, await readCommand(deps.db, context.accountId, commandId))
 		},
 		async resumeCalendarCommand(context: CalendarReadContext, commandId: string): Promise<CalendarCommandReceipt> {
 			const command = await readCommand(deps.db, context.accountId, commandId)

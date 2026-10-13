@@ -102,11 +102,13 @@ export function ScopeDialog({
 	allowed,
 	onConfirm,
 	onClose,
+	onDone = onClose,
 }: {
 	kind: ScopeKind
 	allowed: readonly CalendarEditScope[]
 	onConfirm: (scope: CalendarEditScope) => Promise<boolean>
 	onClose: () => void
+	onDone?: () => void
 }) {
 	const copy = copyOf(kind)
 	const [scope, setScope] = useState<CalendarEditScope>('one')
@@ -122,7 +124,7 @@ export function ScopeDialog({
 		setPending(true)
 		const done = await onConfirm(scope)
 		setPending(false)
-		if (done) onClose()
+		if (done) onDone()
 		else setFailed(true)
 	}
 
@@ -174,9 +176,11 @@ export function ScopeDialog({
 					</p>
 				) : null}
 				{copy.note !== null ? <p className="mt-2 text-caption text-muted-foreground">{copy.note}</p> : null}
-				<p role="alert" className="mt-2 min-h-11 text-body text-destructive">
-					{failed ? copy.failure : null}
-				</p>
+				{failed ? (
+					<p role="alert" className="mt-2 text-body text-destructive">
+						{copy.failure}
+					</p>
+				) : null}
 				<DialogFooter className="mt-2 max-sm:flex-col-reverse max-sm:*:h-10 max-sm:*:w-full">
 					<Button type="button" variant="secondary" autoFocus onClick={onClose} disabled={pending}>
 						{copy.safe}

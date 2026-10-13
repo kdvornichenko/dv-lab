@@ -209,7 +209,7 @@ export function CalendarChoice({
 					pendingLabel="Switching…"
 					tone="primary"
 					failureText={SWITCH_ERROR}
-					reserveFailure
+					failureLine
 					onConfirm={() => change(choice, snapshot.generation)}
 					onClose={() => setChoice(null)}
 				/>

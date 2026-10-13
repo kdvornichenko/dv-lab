@@ -34,7 +34,14 @@ import type { CalendarConnection } from '../calendar/connection.ts'
 import { readEventDetails } from '../calendar/event-commands.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
 import { findConnection } from '../calendar/google-access.ts'
-import { CommandFault, commandSnapshot, findRequest, readCommand, unresolvedCommands } from '../calendar/journal.ts'
+import {
+	CommandFault,
+	commandSnapshot,
+	commandStatus,
+	findRequest,
+	readCommand,
+	unresolvedCommands,
+} from '../calendar/journal.ts'
 import type { ConsentActor } from '../calendar/oauth-session.ts'
 import { syncFacts, type SyncFacts } from '../calendar/projection.ts'
 import { eventColors, lastChecked } from '../calendar/read-model.ts'
@@ -269,7 +276,7 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 		if (!parsed.success) return c.json(errorBody('invalid_request', 'Invalid request'), 400)
 		const command = await findRequest(db, actor(c).accountId, parsed.data.requestId)
 		if (!command) return c.json(errorBody('not_found', 'Not Found'), 404)
-		return c.json(commandSnapshot(command))
+		return c.json(await commandStatus(db, command))
 	})
 	routes.get('/commands', async (c) => {
 		if (!googleUnresolvedCommandsQuery.safeParse(c.req.query()).success)
@@ -284,7 +291,7 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 			return c.json(
 				commands
 					? await commands.readCalendarCommand(context, parsed.data.commandId)
-					: commandSnapshot(await readCommand(db, context.accountId, parsed.data.commandId))
+					: await commandStatus(db, await readCommand(db, context.accountId, parsed.data.commandId))
 			)
 		} catch (error) {
 			return refusal(c, error)

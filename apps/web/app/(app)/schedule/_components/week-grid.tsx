@@ -24,6 +24,7 @@ import {
 import { eventRange, eventTitle } from './calendar-event-details'
 import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
+import type { BlockMark } from './optimistic-writes'
 import { useEventResize } from './use-event-resize'
 import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
@@ -73,6 +74,7 @@ interface WeekGridProps {
 	onSlot?: (choice: SlotChoice) => void
 	frame?: SlotFrame | null
 	placed?: { event: CalendarEventView; seed: MoveSeed } | null
+	mark?: (event: CalendarEventView) => BlockMark | null
 	emptyNote?: string | null
 	scrollTopRef?: { current: number }
 }
@@ -157,7 +159,11 @@ function AgendaRow({
 				event.status === 'cancelled' && 'text-muted-foreground line-through'
 			)}
 		>
-			<span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full bg-selected" />
+			<span
+				aria-hidden
+				className="mt-1.5 size-2 shrink-0 rounded-full bg-selected"
+				style={{ background: eventPaint(event.color)?.fill }}
+			/>
 			<TimePair
 				as="span"
 				main={eventRange(event, mainTimeZone)}
@@ -317,7 +323,7 @@ function MoveFrameBlock({
 	const chip = sameDay || gesture === 'resize' ? range : `${formatDate(frame.date, currentYear)}, ${range}`
 	const height = Math.min(frame.durationMinutes, DAY_MINUTES - start) * MINUTE_HEIGHT
 	const short = height < 34
-	const paint = event.binding.kind === 'external' ? (eventPaint(event.color) ?? null) : null
+	const paint = eventPaint(event.color)
 	const foot = start * MINUTE_HEIGHT + height
 	const chipTop =
 		gesture === 'resize'
@@ -409,6 +415,7 @@ export function WeekGrid({
 	studentName,
 	frame = null,
 	placed = null,
+	mark,
 	emptyNote = null,
 	scrollTopRef,
 }: WeekGridProps) {
@@ -420,12 +427,14 @@ export function WeekGrid({
 	useLayoutEffect(() => {
 		const column = columnRef.current
 		if (!column) return
-		const measure = () => setColumnWidth(column.clientWidth)
+		const measure = () => {
+			if (column.isConnected && column.clientWidth > 0) setColumnWidth(column.clientWidth)
+		}
 		measure()
 		const observer = new ResizeObserver(measure)
 		observer.observe(column)
 		return () => observer.disconnect()
-	}, [])
+	}, [monday])
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, editable, canMove, onMove)
@@ -629,6 +638,7 @@ export function WeekGrid({
 											movable={canMove(event)}
 											studentName={studentName}
 											ghost={event.eventKey === ghostKey}
+											mark={mark?.(event) ?? null}
 											key={event.eventKey}
 											event={event}
 											mainTimeZone={mainTimeZone}

@@ -11,6 +11,7 @@ import type { CalendarEventView } from '@dv-lab/contracts'
 import { CalendarEventDetails, EventTime, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
 import { LessonBlock } from './lesson-block'
+import { SYNCING_LINE, type BlockMark } from './optimistic-writes'
 
 const OPEN_DELAY = 200
 const SKIP_DELAY = 300
@@ -63,6 +64,7 @@ interface EventTooltipProps {
 	editable: boolean
 	movable?: boolean
 	ghost?: boolean
+	mark?: BlockMark | null
 	studentName?: (id: string) => string | null
 	onOpen: (event: CalendarEventView) => void
 }
@@ -76,6 +78,7 @@ export function EventTooltip({
 	editable,
 	movable,
 	ghost,
+	mark = null,
 	studentName,
 	onOpen,
 }: EventTooltipProps) {
@@ -129,7 +132,15 @@ export function EventTooltip({
 			forceOpen={open && !ghost}
 			className="max-w-[280px] rounded-xl bg-surface-4 p-3 text-foreground shadow-surface-3 [text-box:normal] supports-[text-box:trim-both]:py-3"
 			content={
-				event.binding.kind === 'external' ? (
+				mark === 'syncing' ? (
+					<div data-slot="event-tooltip" data-variant="syncing" className="flex flex-col gap-1">
+						<span className="text-body font-semibold wrap-anywhere">{eventTitle(event)}</span>
+						<div className="flex min-w-0 flex-col gap-1 text-body wrap-anywhere">
+							<EventTime event={event} timeZone={mainTimeZone} secondZone={secondZone} currentYear={currentYear} />
+						</div>
+						<span className="text-caption text-muted-foreground">{SYNCING_LINE}</span>
+					</div>
+				) : event.binding.kind === 'external' ? (
 					<PlainEventCard
 						event={event}
 						timeZone={mainTimeZone}
@@ -155,6 +166,7 @@ export function EventTooltip({
 				editable={editable}
 				movable={movable}
 				ghost={ghost}
+				mark={mark}
 				event={event}
 				mainTimeZone={mainTimeZone}
 				layout={layout}

@@ -19,6 +19,37 @@ const DATABASES = { test: /_test$/, dev: /_dev$/ }
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms))
 
+export function googleDateTime(value, timeZone) {
+	const parts = Object.fromEntries(
+		new Intl.DateTimeFormat('en-US', {
+			timeZone,
+			hourCycle: 'h23',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			timeZoneName: 'longOffset',
+		})
+			.formatToParts(new Date(value))
+			.map((part) => [part.type, part.value])
+	)
+	const offset = parts.timeZoneName.replace('GMT', '').replace(/^(\+00:00)?$/, 'Z')
+	return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${offset}`
+}
+
+export function googleTimes(resource, timeZone) {
+	if (!resource || typeof resource !== 'object') return resource
+	const next = { ...resource }
+	for (const key of ['start', 'end', 'originalStartTime']) {
+		const time = resource[key]
+		if (time && typeof time.dateTime === 'string')
+			next[key] = { ...time, dateTime: googleDateTime(time.dateTime, timeZone ?? time.timeZone ?? 'UTC') }
+	}
+	return next
+}
+
 function readKeyring() {
 	try {
 		const parsed = JSON.parse(readFileSync(KEYRING_FILE, 'utf8'))

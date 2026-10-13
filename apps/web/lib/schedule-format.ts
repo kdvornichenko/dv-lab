@@ -160,15 +160,6 @@ export function seriesWhen(
 	)
 }
 
-export function seriesSecondLine(
-	reference: ScheduleSeriesReference | null,
-	mainTimeZone: string,
-	secondTimeZone: string | null
-): string | null {
-	if (reference?.ruleStartsAt == null) return null
-	return secondWhen(new Date(reference.ruleStartsAt), mainTimeZone, secondTimeZone)
-}
-
 export function lessonCount(count: number): string {
 	if (count === 0) return 'no lessons'
 	return count === 1 ? '1 lesson' : `${count} lessons`

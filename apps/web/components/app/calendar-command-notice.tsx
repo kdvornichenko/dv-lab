@@ -37,7 +37,7 @@ function commandCopy(entry: CommandEntry): string {
 		return 'Google Calendar may have received this change. Its result is not confirmed. Check the status before making another change.'
 	if (command.state === 'failed') return 'This change was not applied. Refresh the calendar before trying again.'
 	if (command.effect === 'partial')
-		return command.nextAction === 'resume_recovery'
+		return command.nextAction === 'resume_recovery' && entry.settling !== true
 			? 'Only part of this calendar change is confirmed. Resume recovery to check the remaining steps.'
 			: 'Only part of this calendar change is confirmed. Checking the remaining steps…'
 	return command.nextAction === 'resume_recovery'
@@ -50,6 +50,7 @@ export function CalendarCommandNotice({ entry, onViewSchedule }: { entry: Comman
 	const [busy, setBusy] = useState(false)
 	const command = entry.command
 	const resume =
+		entry.settling !== true &&
 		command?.nextAction === 'resume_recovery' &&
 		(command.state === 'partial_recovery' || command.state === 'recovery_required')
 	const terminal = command?.state === 'failed'

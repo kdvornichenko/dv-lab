@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ArrowRight, CalendarClock } from 'lucide-react'
 
-import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { DateField } from '@/components/app/date-field'
 import { ConflictStatus, FormFooter, lessonOverlaps, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { LengthField } from '@/components/app/length-field'
@@ -17,20 +16,19 @@ import { formatDate, formatDay, mainRange, mainWhen } from '@/lib/schedule-forma
 import type { CalendarEditScope, CalendarEventView } from '@dv-lab/contracts'
 import { scheduleDate, zonedParts } from '@dv-lab/core'
 
-import { useToast } from '../../_components/toasts'
+import type { DirectState } from './event-form'
 import {
-	gapMessage,
 	localTimeInput,
 	LocalTimeHint,
 	TimeZoneStaleNotice,
 	useScheduleFormContext,
 	type ScheduleFormContext,
 } from './schedule-form-context'
-import { useScheduleMutation } from './schedule-mutations'
+import type { CheckedWindow } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 
-export type SeriesDraft = { date: string; time: string; durationMinutes: number }
+export type MoveDraft = { date: string; time: string; durationMinutes: number; checked?: CheckedWindow | null }
 
 interface LessonMoveFormProps extends ScheduleFormContext {
 	moveSeed?: MoveSeed
@@ -41,12 +39,12 @@ interface LessonMoveFormProps extends ScheduleFormContext {
 	currentMainTimeZone: string
 	secondZone: string | null
 	locked: boolean
-	onPendingChange: (pending: boolean) => void
+	direct?: boolean
+	onDirect?: (state: DirectState) => void
+	onClose: () => void
 	onDiscard: () => void
-	onStale: () => void
 	onRefresh: () => void
-	onMoved: () => void
-	onSeriesScope: (scope: 'following' | 'all', draft: SeriesDraft) => void
+	onSave: (scope: CalendarEditScope, draft: MoveDraft) => Promise<boolean>
 }
 
 type Field = 'date' | 'time' | 'length'
@@ -84,14 +82,13 @@ export function LessonMoveForm({
 	currentMainTimeZone,
 	secondZone,
 	locked,
-	onPendingChange,
+	direct = false,
+	onDirect,
+	onClose,
 	onDiscard,
-	onStale,
 	onRefresh,
-	onMoved,
-	onSeriesScope,
+	onSave,
 }: LessonMoveFormProps) {
-	const toast = useToast()
 	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
 	const { currentYear } = context
 	const [event] = useState(initialEvent)
@@ -107,28 +104,25 @@ export function LessonMoveForm({
 	const [time, setTime] = useState<string | null>(moveSeed?.time ?? current.time)
 	const [length, setLength] = useState<number | null>(moveSeed?.durationMinutes ?? block.durationMinutes)
 	const [scoping, setScoping] = useState(false)
+	const [stage, setStage] = useState<'start' | 'asked' | 'sending' | 'shown'>(direct ? 'start' : 'shown')
+	const quick = stage !== 'shown'
+	const sent = useRef(false)
 	const lengthRef = useRef<HTMLInputElement>(null)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState<string | null>(null)
-	const command = useScheduleMutation({
-		mainTimeZone: context.mainTimeZone,
-		date: scheduleDate(start, context.mainTimeZone),
-		event,
-	})
-	const pending = command.pending
-	const [serverGap, setServerGap] = useState(false)
-	const [sourceChanged, setSourceChanged] = useState(false)
-	const disabled = pending || locked
+	const pending = locked
+	const disabled = pending
 
 	useEffect(() => {
+		if (quick) return
 		const timer = setTimeout(() => document.getElementById('move-lesson-date')?.focus(), 50)
 		return () => clearTimeout(timer)
-	}, [])
+	}, [quick])
 
 	const input = localTimeInput(date, time, context)
 	const target = input.instant
-	const timeError = serverGap ? gapMessage(context.mainTimeZone) : input.error
+	const timeError = input.error
 	const lengthChanged = length !== null && length !== block.durationMinutes
 	const minutes = length ?? block.durationMinutes
 	const errors = moveErrors(date, time, length, lengthChanged, target, start, timeError)
@@ -150,52 +144,19 @@ export function LessonMoveForm({
 				: null,
 		editedRef: block.ref,
 		date: scheduleDate(start, context.mainTimeZone),
-		available: available && !locked && !command.blocked && !context.stale && !sourceChanged,
+		available: available && !locked && !context.stale,
 	})
-
-	useEffect(() => {
-		onPendingChange(pending)
-	}, [pending, onPendingChange])
 
 	async function send(scope: CalendarEditScope): Promise<boolean> {
 		if (time === null || length === null) return false
-		if (scope !== 'one') {
-			onSeriesScope(scope, { date, time, durationMinutes: length })
-			return true
-		}
-		const result = await command.mutate(
-			block.ref,
-			'move',
-			{
-				date,
-				startTime: time,
-				...(lengthChanged ? { durationMinutes: length } : {}),
-				expectedStartsAt: block.startsAt,
-				expectedDefaultTimeZone: context.mainTimeZone,
-			},
-			conflicts.checked
-		)
-		if (result.kind === 'detached') return true
-		if (result.kind === 'zone_changed') {
-			context.markStale()
-			return true
-		}
-		if (result.kind === 'gap') {
-			setServerGap(true)
-			return true
-		}
-		if (result.kind === 'failed') {
-			setFailed('Could not move the lesson. Try again.')
-			return false
-		}
-		if (result.kind === 'stale') {
-			setSourceChanged(true)
-			onStale()
-			return true
-		}
-		toast.show({ title: 'Lesson moved', description: 'Google Calendar confirmed the new time.' })
-		onMoved()
-		return true
+		const done = await onSave(scope, {
+			date,
+			time,
+			durationMinutes: length,
+			checked: quick || scope !== 'one' ? undefined : conflicts.checked,
+		})
+		if (!done && scope === 'one') setFailed('Could not move the lesson. Try again.')
+		return done
 	}
 
 	async function submit() {
@@ -209,19 +170,28 @@ export function LessonMoveForm({
 		await send('one')
 	}
 
+	if (stage === 'start') {
+		const ready =
+			available && !locked && !context.stale && target !== null && !errors.date && !errors.time && !errors.length
+		const series = block.ref.kind === 'series'
+		setStage(!ready ? 'shown' : series ? 'asked' : 'sending')
+		if (ready && series) setScoping(true)
+	}
+
+	useEffect(() => {
+		if (stage !== 'sending' || sent.current) return
+		sent.current = true
+		void send('one').then(() => setStage('shown'))
+	})
+
+	const directState: DirectState = !quick ? 'shown' : stage === 'asked' ? 'asking' : 'sending'
+	useEffect(() => {
+		if (direct) onDirect?.(directState)
+	}, [direct, directState, onDirect])
+
 	return (
 		<div role="group" aria-label="Move lesson" className="flex flex-col gap-4 rounded-xl bg-hover p-4">
 			<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
-			<CalendarFormStatus
-				entry={command.entry}
-				blocked={command.blocked}
-				connectionShown
-
-				onViewSchedule={() => {
-					command.detach()
-					onDiscard()
-				}}
-			/>
 			<div className="grid items-start gap-4 sm:grid-cols-2">
 				<DateField
 					id="move-lesson-date"
@@ -229,7 +199,6 @@ export function LessonMoveForm({
 					value={date}
 					onChange={(value) => {
 						setDate(value)
-						setServerGap(false)
 						setTouched((state) => ({ ...state, date: true }))
 					}}
 					disabled={disabled}
@@ -246,7 +215,6 @@ export function LessonMoveForm({
 						value={time}
 						onValueChange={(value) => {
 							setTime(value)
-							setServerGap(false)
 							setTouched((state) => ({ ...state, time: true }))
 						}}
 						minuteStep={15}
@@ -323,7 +291,7 @@ export function LessonMoveForm({
 					disabled={!conflicts.ready}
 					onClick={() => void submit()}
 				>
-					{pending ? 'Moving…' : 'Move lesson'}
+					Move lesson
 				</Button>
 			</FormFooter>
 			{scoping ? (
@@ -331,7 +299,11 @@ export function LessonMoveForm({
 					kind={{ subject: 'lesson', action: 'save' }}
 					allowed={scopes}
 					onConfirm={send}
-					onClose={() => setScoping(false)}
+					onClose={quick ? onClose : () => setScoping(false)}
+					onDone={() => {
+						setScoping(false)
+						setStage('shown')
+					}}
 				/>
 			) : null}
 		</div>

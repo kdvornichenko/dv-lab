@@ -71,24 +71,22 @@ export function NewLessonStudent({
 
 export function NewLessonFooter({
 	onClose,
-	pending,
 	blocked,
 	repeats,
 	status,
 }: {
 	onClose: () => void
-	pending: boolean
 	blocked: boolean
 	repeats: LessonRepeats
 	status: ReactNode
 }) {
 	return (
 		<FormFooter status={status}>
-			<Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
+			<Button type="button" variant="ghost" onClick={onClose}>
 				Discard changes
 			</Button>
-			<Button type="submit" loading={pending} disabled={blocked}>
-				{pending ? 'Adding…' : repeats === 'weekly' ? 'Add series' : 'Add lesson'}
+			<Button type="submit" disabled={blocked}>
+				{repeats === 'weekly' ? 'Add series' : 'Add lesson'}
 			</Button>
 		</FormFooter>
 	)

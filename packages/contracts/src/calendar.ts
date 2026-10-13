@@ -285,6 +285,7 @@ export const calendarCommandSnapshot = z
 		confirmedRevision: calendarRevision.nullable(),
 		affectedRefs: z.array(calendarOccurrenceRef),
 		nextAction: calendarCommandNextAction,
+		retryAfterSeconds: z.number().int().min(0).nullable().optional(),
 	})
 	.refine((value) => (value.state === 'applied') === (value.confirmedRevision !== null))
 	.refine(

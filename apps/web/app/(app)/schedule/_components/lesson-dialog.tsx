@@ -148,8 +148,6 @@ export function LessonDialog({
 							series={series}
 							mainTimeZone={context.mainTimeZone}
 							secondZone={shownSecondZone}
-							currentYear={currentYear}
-							pending={busy}
 						/>
 					</div>
 				</ScrollArea>

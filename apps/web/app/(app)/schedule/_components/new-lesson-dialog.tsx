@@ -2,18 +2,15 @@
 
 import { useRef, useState, type FormEvent } from 'react'
 
-import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
 import { ConflictStatus, GoogleConflicts, lessonOverlaps, useGoogleConflicts } from '@/components/app/google-conflicts'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { TabItem, Tabs, TabsList } from '@/components/ui/tabs'
-import { formatDate, weekdayName } from '@/lib/schedule-format'
 import { zoneName } from '@/lib/time-zones'
 
-import type { CalendarEventView } from '@dv-lab/contracts'
+import type { CalendarEventView, LessonRepeats } from '@dv-lab/contracts'
 
-import { useToast } from '../../_components/toasts'
 import { colorIdOf, useEventPalette } from './color-select'
 import {
 	CHECK_STUDENT,
@@ -25,26 +22,38 @@ import {
 	TimeRows,
 	useEventValues,
 	useTimeFields,
+	type EventValues,
 	type TimeSeed,
 } from './event-form'
 import { NewLessonFooter, NewLessonStudent } from './new-lesson-content'
+import type { WriteRunner } from './optimistic-writes'
 import { TimeZoneStaleNotice, useScheduleFormContext, type ScheduleFormContext } from './schedule-form-context'
 import { useScheduleMutation } from './schedule-mutations'
 import type { StudentsState } from './use-lesson-students'
+
+type Mode = 'lesson' | 'event'
+
+export type NewLessonDraft = {
+	seed: Required<TimeSeed>
+	mode: Mode
+	studentId: string
+	repeats: LessonRepeats
+	values: EventValues
+}
 
 interface NewLessonDialogProps extends ScheduleFormContext {
 	students: StudentsState
 	available: boolean
 	seed: TimeSeed
+	initial?: NewLessonDraft
 	events: readonly CalendarEventView[]
 	currentMainTimeZone: string
 	secondZone: string | null
 	onClose: () => void
-	onCreated: () => void
 	onRefresh: () => void
+	onWrite: WriteRunner
+	onRedo: (draft: NewLessonDraft) => void
 }
-
-type Mode = 'lesson' | 'event'
 
 const nameCollator = new Intl.Collator('en', { sensitivity: 'base' })
 
@@ -57,27 +66,29 @@ export function NewLessonDialog({
 	students,
 	available,
 	seed,
+	initial,
 	events,
 	mainTimeZone,
 	asOf,
 	currentMainTimeZone,
 	secondZone,
 	onClose,
-	onCreated,
 	onRefresh,
+	onWrite,
+	onRedo,
 }: NewLessonDialogProps) {
-	const toast = useToast()
 	const { view } = useCalendarCommands()
 	const context = useScheduleFormContext({ mainTimeZone, asOf }, currentMainTimeZone)
-	const fields = useTimeFields(seed, context, secondZone, { idPrefix: 'new-lesson' })
-	const values = useEventValues()
+	const fields = useTimeFields(initial?.seed ?? seed, context, secondZone, {
+		idPrefix: 'new-lesson',
+		repeats: initial?.repeats,
+	})
+	const values = useEventValues(initial?.values)
 	const palette = useEventPalette()
-	const [mode, setMode] = useState<Mode>('lesson')
-	const [studentId, setStudentId] = useState('')
+	const [mode, setMode] = useState<Mode>(initial?.mode ?? 'lesson')
+	const [studentId, setStudentId] = useState(initial?.studentId ?? '')
 	const [titleSeen, setTitleSeen] = useState(false)
-	const [failed, setFailed] = useState(false)
 	const command = useScheduleMutation({ mainTimeZone: context.mainTimeZone, date: fields.date })
-	const pending = command.pending
 	const studentRef = useRef<HTMLButtonElement>(null)
 	const lengthRef = useRef<HTMLInputElement>(null)
 	const titleRef = useRef<HTMLInputElement>(null)
@@ -119,35 +130,47 @@ export function NewLessonDialog({
 	}
 
 	function changeMode(next: string) {
-		if (pending || (next !== 'lesson' && next !== 'event')) return
+		if (next !== 'lesson' && next !== 'event') return
 		setMode(next)
-		setFailed(false)
 	}
 
-	function announceCreated() {
-		const name = eventMode ? title : (studentName ?? '')
-		const label = input.label
-		if (repeats === 'weekly')
-			toast.show({
-				title: 'Series added',
-				description: `${name} every ${weekdayName(fields.weekday)} at ${time} ${label}.`,
-			})
-		else
-			toast.show({
-				title: eventMode ? 'Event added' : 'Lesson added',
-				description: `${name}, ${formatDate(date, context.currentYear)}, ${time} ${label}.`,
-			})
+	function shownBlock(start: Date, length: number): CalendarEventView {
+		const location = values.location.trim()
+		return {
+			eventKey: `optimistic:${crypto.randomUUID()}`,
+			version: 'optimistic',
+			title: eventMode ? title : studentName,
+			when: {
+				kind: 'timed',
+				startsAt: start.toISOString(),
+				endsAt: new Date(start.getTime() + length * 60000).toISOString(),
+				timeZone: context.mainTimeZone,
+			},
+			status: 'confirmed',
+			blocksTime: true,
+			color: {
+				id: eventMode ? colorIdOf(values.colorValue) : null,
+				background: null,
+				foreground: null,
+				custom: false,
+			},
+			location: eventMode && location !== '' ? location : null,
+			seriesMember: repeats === 'weekly',
+			binding: { kind: 'external' },
+			suggestion: null,
+			editBlock: null,
+		}
 	}
 
-	async function onSubmit(event: FormEvent<HTMLFormElement>) {
+	function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending || blocked || command.blocked || context.stale) return
+		if (blocked || command.blocked || context.stale) return
 		fields.setSubmitted(true)
-		setFailed(false)
 		if (eventMode && title === '') return titleRef.current?.focus()
 		if (!eventMode && studentId === '') return studentRef.current?.focus()
 		if (errors.date) return document.getElementById('new-lesson-date')?.focus()
-		if (errors.time || time === null) return document.getElementById('new-lesson-time')?.focus()
+		if (errors.time || time === null || input.instant === null)
+			return document.getElementById('new-lesson-time')?.focus()
 		if (errors.length || minutes === null) return lengthRef.current?.focus()
 		const common = {
 			date,
@@ -156,8 +179,8 @@ export function NewLessonDialog({
 			repeats,
 			expectedDefaultTimeZone: context.mainTimeZone,
 		}
-		const result = eventMode
-			? await command.mutate(
+		const send = eventMode
+			? command.prepare(
 					{ kind: 'event_new' },
 					'event_create',
 					{
@@ -169,16 +192,30 @@ export function NewLessonDialog({
 					},
 					conflicts.checked ?? undefined
 				)
-			: await command.mutate({ kind: 'new' }, 'create', { ...common, studentId }, conflicts.checked ?? undefined)
-		if (result.kind === 'detached') return
-		if (result.kind === 'zone_changed') return context.markStale()
-		if (result.kind === 'gap') return fields.setServerGap(true)
-		if (result.kind !== 'ok') {
-			setFailed(true)
-			return
+			: command.prepare({ kind: 'new' }, 'create', { ...common, studentId }, conflicts.checked ?? undefined)
+		const draft: NewLessonDraft = {
+			seed: { date, time, durationMinutes: minutes, dragged: fields.lengthEdited },
+			mode,
+			studentId,
+			repeats,
+			values: {
+				title: values.title,
+				colorValue: values.colorValue,
+				location: values.location,
+				description: values.description,
+			},
 		}
-		announceCreated()
-		onCreated()
+		onWrite(
+			{
+				title: eventMode ? 'Could not add the event' : 'Could not add the lesson',
+				back: 'Nothing was added.',
+				hidden: [],
+				shown: [shownBlock(input.instant, minutes)],
+				redo: () => onRedo(draft),
+			},
+			send
+		)
+		onClose()
 	}
 
 	const lengthHelper =
@@ -190,9 +227,7 @@ export function NewLessonDialog({
 			check={conflicts}
 			timeZone={context.mainTimeZone}
 			durationMinutes={minutes}
-			failure={
-				failed ? (eventMode ? 'Could not add the event. Try again.' : 'Could not add the lesson. Try again.') : null
-			}
+			failure={null}
 			lessons={localLessons}
 		/>
 	)
@@ -201,10 +236,10 @@ export function NewLessonDialog({
 		<Dialog
 			open
 			onOpenChange={(open) => {
-				if (!open && !pending) onClose()
+				if (!open) onClose()
 			}}
 		>
-			<DialogContent size="lg" showCloseButton={!pending}>
+			<DialogContent size="lg">
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>{eventMode ? 'New event' : 'New lesson'}</DialogTitle>
@@ -218,22 +253,13 @@ export function NewLessonDialog({
 						className="-m-1 max-h-[calc(100dvh-14rem+8px)]"
 						viewportClassName="scroll-fade max-h-[inherit] p-1"
 					>
-						<CalendarFormStatus
-							entry={command.entry}
-							blocked={command.blocked}
-							connectionShown
-							onViewSchedule={() => {
-								command.detach()
-								onClose()
-							}}
-						/>
 						<div className="flex flex-col gap-3">
-							<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
+							<TimeZoneStaleNotice stale={context.stale} pending={false} onRefresh={onRefresh} />
 							<Tabs value={mode} onValueChange={changeMode}>
 								<div className="flex min-w-0 rounded-xl bg-muted">
 									<TabsList aria-label="Lesson or event" className="w-full bg-transparent *:flex-1 *:justify-center">
-										<TabItem value="lesson" label="Lesson" disabled={pending} />
-										<TabItem value="event" label="Event" disabled={pending} />
+										<TabItem value="lesson" label="Lesson" />
+										<TabItem value="event" label="Event" />
 									</TabsList>
 								</div>
 							</Tabs>
@@ -242,7 +268,7 @@ export function NewLessonDialog({
 									id="new-event-title"
 									values={values}
 									error={titleError}
-									disabled={pending}
+									disabled={false}
 									inputRef={titleRef}
 									autoFocus
 								/>
@@ -250,33 +276,30 @@ export function NewLessonDialog({
 								<NewLessonStudent
 									studentId={studentId}
 									chooseStudent={chooseStudent}
-									pending={pending}
+									pending={false}
 									studentRef={studentRef}
 									students={students}
 									active={active}
 									noStudents={noStudents}
 								/>
 							)}
-							<TimeRows fields={fields} pending={pending} lengthRef={lengthRef} lengthHelper={lengthHelper} />
+							<TimeRows fields={fields} pending={false} lengthRef={lengthRef} lengthHelper={lengthHelper} />
 							{eventMode ? (
-								<EventExtraRows prefix="new-event" values={values} palette={palette} custom={null} disabled={pending} />
+								<EventExtraRows prefix="new-event" values={values} palette={palette} custom={null} disabled={false} />
 							) : null}
-							<GoogleConflicts check={conflicts} pending={pending} />
+							<GoogleConflicts check={conflicts} pending={false} />
 						</div>
 					</ScrollArea>
 					{eventMode ? (
 						<EventFooter
 							status={status}
-							pending={pending}
 							disabled={blocked || command.blocked || context.stale}
 							label={repeats === 'weekly' ? 'Add series' : 'Add event'}
-							pendingLabel="Adding…"
 							onDiscard={onClose}
 						/>
 					) : (
 						<NewLessonFooter
 							onClose={onClose}
-							pending={pending}
 							blocked={blocked || command.blocked || context.stale}
 							repeats={repeats}
 							status={status}

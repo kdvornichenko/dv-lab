@@ -35,7 +35,7 @@ import {
 	type StageRow,
 } from './journal.ts'
 import { upsertEventFacts, type EventFact } from './projection.ts'
-import { classifyRecurrence, matchesMaster } from './recurring.ts'
+import { classifyRecurrence, exclusionFacts, matchesMaster } from './recurring.ts'
 import { checkReplacement } from './single-observation.ts'
 
 export type CommandAccess = { db: Database; accessToken: string; connection: ConnectionRow; signal: AbortSignal }
@@ -340,6 +340,12 @@ async function observeAdmittedPatch(
 	)
 		throw new CommandFault('external_change')
 	if (!instance && observation.event.recurringEventId) throw new CommandFault('external_change')
+	if (
+		!instance &&
+		(request.payload.recurrence !== undefined || request.payload.start !== undefined) &&
+		observation.recurrence.some((line) => !line.startsWith('RRULE:'))
+	)
+		throw new CommandFault('unsupported_recurrence')
 	const baseline = observedBaseline(observation, request.payload)
 	return {
 		privateProperties: observation.privateProperties,
@@ -389,7 +395,12 @@ async function checkDispatchWindow(
 	return { privateProperties: {} }
 }
 
-function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttempt['outcome'], status: number | null) {
+function finishAttempt(
+	attempts: GoogleStageAttempt[],
+	outcome: GoogleStageAttempt['outcome'],
+	status: number | null,
+	limited?: GoogleWriteFault
+) {
 	return attempts.map((attempt, index) =>
 		index === attempts.length - 1
 			? {
@@ -397,6 +408,12 @@ function finishAttempt(attempts: GoogleStageAttempt[], outcome: GoogleStageAttem
 					outcome,
 					finishedAt: new Date().toISOString(),
 					httpStatus: status,
+					...(limited
+						? {
+								errorCode: 'rate_limit' as const,
+								retryAfterSeconds: limited.retryAfterMs === null ? null : Math.ceil(limited.retryAfterMs / 1000),
+							}
+						: {}),
 				}
 			: attempt
 	)
@@ -481,7 +498,8 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 					error instanceof GoogleWriteFault && (error.outcome === 'rejected' || error.httpStatus === 409)
 						? 'rejected'
 						: 'unknown',
-					error instanceof GoogleWriteFault ? error.httpStatus : null
+					error instanceof GoogleWriteFault ? error.httpStatus : null,
+					error instanceof GoogleWriteFault && error.rateLimited ? error : undefined
 				),
 				updatedAt: sql`now()`,
 			})
@@ -513,15 +531,16 @@ async function refusedDispatch(db: Database, command: PreparedCalendarCommand, e
 
 function acknowledgedFacts(ack: GoogleStageAcknowledgement | null): EventFact[] {
 	if (ack?.kind === 'event') return [{ ...ack.event, factAt: new Date(ack.checkedAt) }]
-	if (ack?.kind === 'master')
-		return [
-			{
-				...ack.event,
-				master: true,
-				recurrence: classifyRecurrence(ack.recurrence, ack.event.start?.timeZone ?? 'UTC'),
-				factAt: new Date(ack.checkedAt),
-			},
-		]
+	if (ack?.kind === 'master') {
+		const zone = ack.event.start?.timeZone ?? 'UTC'
+		const master: EventFact = {
+			...ack.event,
+			master: true,
+			recurrence: classifyRecurrence(ack.recurrence, zone),
+			factAt: new Date(ack.checkedAt),
+		}
+		return [master, ...exclusionFacts(master, ack.recurrence, zone, new Date(ack.checkedAt))]
+	}
 	if (ack?.kind !== 'cancellation') return []
 	const factAt = new Date(ack.checkedAt)
 	const baseline = ack.baselineEvent

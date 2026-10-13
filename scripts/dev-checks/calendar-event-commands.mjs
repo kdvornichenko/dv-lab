@@ -4,7 +4,15 @@ import dns from 'node:dns'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
-import { ROOT, SYNTHETIC_CALENDAR_ID, calendarSql, syntheticTokenConfig, targetEnvFile } from './calendar-env.mjs'
+import {
+	ROOT,
+	SYNTHETIC_CALENDAR_ID,
+	calendarSql,
+	googleDateTime,
+	googleTimes,
+	syntheticTokenConfig,
+	targetEnvFile,
+} from './calendar-env.mjs'
 
 const TARGET = 'test'
 if (process.env.CALENDAR_EVENT_COMMANDS_OFFLINE !== '1') {
@@ -118,10 +126,10 @@ function createStub() {
 				status: 'confirmed',
 				eventType: 'default',
 				summary: master.summary,
-				start: { dateTime: start.toISOString(), timeZone: zone },
-				end: { dateTime: end.toISOString(), timeZone: zone },
+				start: { dateTime: googleDateTime(start, zone), timeZone: zone },
+				end: { dateTime: googleDateTime(end, zone), timeZone: zone },
 				recurringEventId: master.id,
-				originalStartTime: { dateTime: start.toISOString(), timeZone: zone },
+				originalStartTime: { dateTime: googleDateTime(start, zone), timeZone: zone },
 				extendedProperties: structuredClone(master.extendedProperties),
 			}
 			events.set(instance.id, instance)
@@ -143,7 +151,10 @@ function createStub() {
 		async insert(_token, _calendarId, request, timeZone, generation) {
 			calls.insert.push(request.eventId)
 			const body = insertEventBody(request)
-			const resource = clean({ ...body, id: request.eventId, etag: etag(), status: 'confirmed', eventType: 'default' })
+			const resource = googleTimes(
+				clean({ ...body, id: request.eventId, etag: etag(), status: 'confirmed', eventType: 'default' }),
+				timeZone
+			)
 			events.set(resource.id, resource)
 			if (resource.recurrence?.length && request.payload.markers.entityKind === 'series') instances(resource)
 			await latency()
@@ -185,16 +196,19 @@ function createStub() {
 			if (resource.etag !== request.ifMatch) throw new GoogleWriteFault(412)
 			calls.patch.push(request.eventId)
 			const body = insertEventBody(request)
-			const updated = clean({
-				...resource,
-				...body,
-				id: resource.id,
-				etag: etag(),
-				extendedProperties: {
-					...body.extendedProperties,
-					private: { ...privateProperties, ...body.extendedProperties.private },
-				},
-			})
+			const updated = googleTimes(
+				clean({
+					...resource,
+					...body,
+					id: resource.id,
+					etag: etag(),
+					extendedProperties: {
+						...body.extendedProperties,
+						private: { ...privateProperties, ...body.extendedProperties.private },
+					},
+				}),
+				timeZone
+			)
 			events.set(updated.id, updated)
 			modified.add(updated.id)
 			await latency()
@@ -603,6 +617,43 @@ async function admissionCases(pipeline, fx) {
 		`check 5 details: weekly ${weeklyDetails?.repeat.kind}/${weeklyDetails?.scopes.edit.join('|')} other ${otherDetails?.repeat.kind}/${otherDetails?.scopes.edit.join('|')}/${otherDetails?.scopes.reason} all_day ${allDayDetails?.scopes.edit.length}/${allDayDetails?.scopes.delete.join('|')} place_and_description ${placeDetails?.location !== null && placeDetails?.description !== null} missing ${missing === null ? 404 : 'found'} expected ${detailsOk}`
 	)
 	if (!detailsOk) fail(5, 'event details from SQL are wrong')
+
+	const markedRows = `connection_id = ${quote(connection.id)} and (event_id in ('dvseed12', 'dvseed15') or recurring_event_id = 'dvseed12')`
+	const savedMarkers = rows(
+		`select event_id, marker_local_id, marker_kind from google_calendar_events where ${markedRows}`
+	)
+	rows(
+		`update google_calendar_events set marker_local_id = ${quote(randomUUID())}, marker_kind = 'series' where connection_id = ${quote(connection.id)} and (event_id = 'dvseed12' or recurring_event_id = 'dvseed12')`
+	)
+	const staleDetails = await details(next.event_id)
+	const staleAdmission = await refusal(prepareOnly(pipeline, context, update(next.event_id, 'one', { colorId: '3' })))
+	rows(`begin;
+update google_calendar_events set marker_local_id = ${quote(fx.single.id)}, marker_kind = 'single' where connection_id = ${quote(connection.id)} and event_id = 'dvseed15';
+update google_event_mappings set state = 'retired', retired_at = now() where local_entity_id = ${quote(fx.single.id)} and event_id = ${quote(fx.singleEvent)} and state = 'active';
+commit;`)
+	const historyDetails = await details('dvseed15')
+	const historyAdmission = await refusal(prepareOnly(pipeline, context, update('dvseed15', 'one', { colorId: '3' })))
+	rows(`begin;
+update google_event_mappings set state = 'active', retired_at = null where local_entity_id = ${quote(fx.single.id)} and event_id = ${quote(fx.singleEvent)} and state = 'retired';
+${savedMarkers
+	.map(
+		(row) =>
+			`update google_calendar_events set marker_local_id = ${row.marker_local_id === null ? 'null' : quote(row.marker_local_id)}, marker_kind = ${row.marker_kind === null ? 'null' : quote(row.marker_kind)} where connection_id = ${quote(connection.id)} and event_id = ${quote(row.event_id)};`
+	)
+	.join('\n')}
+commit;`)
+	const markerOk =
+		staleDetails?.scopes.edit.join() === 'one,following,all' &&
+		staleDetails.scopes.reason === null &&
+		staleAdmission === 'accepted' &&
+		historyDetails?.scopes.edit.length === 0 &&
+		historyDetails.scopes.reason === 'read_only_event' &&
+		historyAdmission === 'invalid_request' &&
+		mappingEvent(fx.single.id, 'single') === fx.singleEvent
+	console.log(
+		`check 5b lesson markers: unresolved ${staleDetails?.scopes.edit.join('|')}/${staleAdmission} history_only ${historyDetails?.scopes.reason}/${historyAdmission} expected ${markerOk}`
+	)
+	if (!markerOk) fail('5b', 'an unresolved lesson marker blocked editing or a resolved one allowed it')
 }
 
 function lessonCounts(cardId) {
@@ -727,8 +778,11 @@ insert into lesson_marks (series_id, original_on, kind) values (${quote(seriesB.
 commit;`)
 	const masterB = pipeline.stub.events.get(fx.masterB)
 	const shiftedStart = core.zonedInstant(pastStart, startTime, seriesB.time_zone)
-	masterB.start = { dateTime: shiftedStart.toISOString(), timeZone: seriesB.time_zone }
-	masterB.end = { dateTime: new Date(shiftedStart.getTime() + 3600000).toISOString(), timeZone: seriesB.time_zone }
+	masterB.start = { dateTime: googleDateTime(shiftedStart, seriesB.time_zone), timeZone: seriesB.time_zone }
+	masterB.end = {
+		dateTime: googleDateTime(shiftedStart.getTime() + 3600000, seriesB.time_zone),
+		timeZone: seriesB.time_zone,
+	}
 	let firstFuture = pastStart
 	while (!core.canChange(core.zonedInstant(firstFuture, startTime, seriesB.time_zone), new Date()))
 		firstFuture = core.addDays(firstFuture, 7)

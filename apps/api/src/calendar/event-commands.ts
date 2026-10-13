@@ -10,7 +10,6 @@ import {
 } from '@dv-lab/contracts'
 import { addDays, localTimeCandidates, scheduleDate, weekdayOf, zonedParts } from '@dv-lab/core'
 import {
-	googleCalendarEvents,
 	googleCommandPlan,
 	googleCommands,
 	googleCommandStages,
@@ -24,7 +23,7 @@ import {
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { lockTeacherTimeContext, readTeacherSettings } from '../settings/settings.ts'
 import type { VerifiedGoogleResult } from './command-result.ts'
-import { boundRowCondition } from './event-mapping.ts'
+import { bindEvent, loadMappings } from './event-mapping.ts'
 import { currentConnection, findConnection } from './google-access.ts'
 import {
 	CommandFault,
@@ -36,7 +35,7 @@ import {
 	receipt,
 	unresolvedCommands,
 } from './journal.ts'
-import { masterRow, rowByKey, syncFacts, type ProjectionRow, type SyncFacts } from './projection.ts'
+import { masterRow, rowByKey, rowEvent, syncFacts, type ProjectionRow, type SyncFacts } from './projection.ts'
 import { eventColor, eventColors } from './read-model.ts'
 import { eventVersion, type CalendarReadContext } from './read-state.ts'
 import { advanceCommandRevision } from './read-store.ts'
@@ -144,18 +143,21 @@ function scopeRules(target: Target): Scopes {
 	return { edit: ['one'], delete: ['one'], reason: 'unsupported_recurrence' }
 }
 
-async function isBound(executor: DbExecutor, connectionId: string, eventId: string) {
-	const [row] = await executor
-		.select({ eventId: googleCalendarEvents.eventId })
-		.from(googleCalendarEvents)
-		.where(
-			and(
-				eq(googleCalendarEvents.connectionId, connectionId),
-				eq(googleCalendarEvents.eventId, eventId),
-				boundRowCondition(connectionId)
-			)
-		)
-	return Boolean(row)
+async function isBound(executor: DbExecutor, connection: Pick<Connection, 'id' | 'accountId'>, row: ProjectionRow) {
+	const snapshot = await loadMappings(
+		executor,
+		connection.accountId,
+		connection.id,
+		row.markerLocalId ? [row.markerLocalId] : []
+	)
+	const mapped = snapshot.mappings.some(
+		(mapping) =>
+			mapping.state !== 'retired' &&
+			(mapping.eventId === row.eventId || (mapping.entityKind === 'series' && mapping.eventId === row.recurringEventId))
+	)
+	if (mapped) return true
+	const event = { ...rowEvent(row), markerLocalId: row.markerLocalId, markerKind: row.markerKind }
+	return bindEvent(event, snapshot).bindingKind !== 'external'
 }
 
 async function lockConnection(executor: DbExecutor, accountId: string): Promise<Connection> {
@@ -165,11 +167,11 @@ async function lockConnection(executor: DbExecutor, accountId: string): Promise<
 	return { ...connection, calendarId: connection.calendarId }
 }
 
-async function loadTarget(executor: DbExecutor, connectionId: string, eventKey: string): Promise<Target> {
-	const row = await rowByKey(executor, connectionId, eventKey)
+async function loadTarget(executor: DbExecutor, connection: Connection, eventKey: string): Promise<Target> {
+	const row = await rowByKey(executor, connection.id, eventKey)
 	if (!row || row.status === 'cancelled' || row.rowKind === 'master') throw new CommandFault('not_found', 404)
-	if (await isBound(executor, connectionId, row.eventId)) throw new CommandFault('invalid_request', 400)
-	const found = row.recurringEventId ? await masterRow(executor, connectionId, row.recurringEventId) : null
+	if (await isBound(executor, connection, row)) throw new CommandFault('invalid_request', 400)
+	const found = row.recurringEventId ? await masterRow(executor, connection.id, row.recurringEventId) : null
 	const master = found && found.status !== 'cancelled' ? found : null
 	return { row, master, kind: targetKind(row, master) }
 }
@@ -394,7 +396,7 @@ async function prepareUpdate(
 	context: CalendarReadContext,
 	connection: Connection
 ): Promise<Prepared> {
-	const target = await loadTarget(executor, connection.id, input.eventKey)
+	const target = await loadTarget(executor, connection, input.eventKey)
 	const { row, master, kind } = target
 	if (row.eventType !== 'default') throw new CommandFault('read_only_event')
 	if (input.input.expectedVersion !== eventVersion(row)) throw new CommandFault('precondition_failed')
@@ -475,7 +477,7 @@ async function prepareDelete(
 	context: CalendarReadContext,
 	connection: Connection
 ): Promise<Prepared> {
-	const target = await loadTarget(executor, connection.id, input.eventKey)
+	const target = await loadTarget(executor, connection, input.eventKey)
 	const { row, master, kind } = target
 	if (row.eventType !== 'default') throw new CommandFault('read_only_event')
 	if (input.input.expectedVersion !== eventVersion(row)) throw new CommandFault('precondition_failed')
@@ -622,8 +624,7 @@ export async function readEventDetails(
 	const sync = await syncFacts(executor, connection.id)
 	let scopes = scopeRules(target)
 	const blocked = (reason: CalendarIssue): Scopes => ({ edit: [], delete: [], reason })
-	if (row.eventType !== 'default' || (await isBound(executor, connection.id, row.eventId)))
-		scopes = blocked('read_only_event')
+	if (row.eventType !== 'default' || (await isBound(executor, connection, row))) scopes = blocked('read_only_event')
 	else if (sync && row.startsAt && (row.startsAt < sync.windowStart || (row.endsAt ?? row.startsAt) > sync.windowEnd))
 		scopes = blocked('outside_sync_window')
 	else if ((await unresolvedCommands(executor, accountId)).length) scopes = blocked('command_pending')

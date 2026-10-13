@@ -27,7 +27,6 @@ import { calendarVersionFor, type CalendarTarget } from './calendar-overlaps'
 
 export const STALE_TITLE = 'This lesson was changed elsewhere'
 export const STALE_LESSON = 'The schedule has been refreshed.'
-export const STALE_DATES = 'The schedule has been refreshed. Check the dates and try again.'
 export const STALE_DATE = 'The schedule has been refreshed. Check the date and try again.'
 
 export type LessonBody = { expectedStartsAt?: string }
@@ -42,6 +41,7 @@ export type MoveSeriesBody = {
 	weekday: ScheduleWeekday
 	startTime: string
 	durationMinutes?: number
+	newStartsOn?: string
 	expectedDefaultTimeZone: string
 }
 export type EndSeriesBody = { lastOn: string; expectedDefaultTimeZone: string }
@@ -88,13 +88,13 @@ export type CalendarSelection = {
 	series?: CalendarSeriesContext
 }
 
-type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
+export type CheckedWindow = { window: GoogleScheduleWindow; isCurrent: () => boolean }
 export type MutationResult<T> =
 	| { kind: 'ok'; data: T; status: number }
 	| { kind: 'stale' }
 	| { kind: 'zone_changed' }
 	| { kind: 'gap' }
-	| { kind: 'failed'; code: ErrorCode | null }
+	| { kind: 'failed'; code: ErrorCode | null; retryAfterSeconds?: number | null }
 export type CalendarMutationResult =
 	| { kind: 'ok'; command: CalendarCommandSnapshot; window: GoogleScheduleWindow }
 	| Exclude<MutationResult<never>, { kind: 'ok' }>
@@ -113,12 +113,15 @@ function pathOf(target: Target, action: string): string {
 	return `/schedule/series/${encodeURIComponent(target.seriesId)}/${action}`
 }
 
-function rejected(code: ErrorCode | null): Exclude<CalendarMutationResult, { kind: 'ok' | 'detached' }> {
+function rejected(
+	code: ErrorCode | null,
+	retryAfterSeconds?: number | null
+): Exclude<CalendarMutationResult, { kind: 'ok' | 'detached' }> {
 	if (code === 'default_time_zone_changed') return { kind: 'zone_changed' }
 	if (code === 'nonexistent_local_time') return { kind: 'gap' }
 	if (code === 'lesson_changed' || code === 'precondition_failed' || code === 'external_change' || code === 'not_found')
 		return { kind: 'stale' }
-	return { kind: 'failed', code }
+	return retryAfterSeconds === undefined ? { kind: 'failed', code } : { kind: 'failed', code, retryAfterSeconds }
 }
 
 function checkedConnection(window: GoogleScheduleWindow, connection: GoogleScheduleWindow['connection'] | null) {
@@ -178,7 +181,40 @@ function selectedDate(target: Target, selection: CalendarSelection, body: Body) 
 function mapCompletion(result: CommandResult): CalendarMutationResult {
 	if (result.kind === 'applied') return { kind: 'ok', command: result.command, window: result.window }
 	if (result.kind === 'detached') return result
-	return rejected(result.code)
+	return rejected(result.code, result.retryAfterSeconds)
+}
+
+type Controller = ReturnType<typeof useCalendarCommands>
+export type CalendarSend = (onRequest: (requestId: string) => void) => Promise<CalendarMutationResult>
+
+async function prepareCommand(
+	controller: Controller,
+	selection: CalendarSelection,
+	target: Target,
+	action: Action,
+	body: Body,
+	checkedWindow: CheckedWindow | null | undefined,
+	current: () => boolean
+): Promise<{ ok: true; intent: CommandIntent } | { ok: false; result: CalendarMutationResult }> {
+	await controller.store.refresh()
+	const date = selectedDate(target, selection, body)
+	const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
+	if (!current()) return { ok: false, result: { kind: 'detached' } }
+	const connection = controller.store.getSnapshot().connection
+	const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
+	if (!validated.ok) return { ok: false, result: rejected(validated.code) }
+	const { window, expectedVersion } = validated
+	return {
+		ok: true,
+		intent: {
+			path: pathOf(target, action),
+			body,
+			operation: operation(target, action),
+			expectedVersion,
+			generation: window.connection.generation,
+			date: 'date' in body ? body.date : date,
+		},
+	}
 }
 
 export function useScheduleMutation(selection: CalendarSelection | null) {
@@ -210,26 +246,20 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		sending.current = true
 		setPending(true)
 		try {
-			await controller.store.refresh()
-			const date = selectedDate(target, selection, body)
-			const found = checkedWindow === undefined ? await controller.readWindow(date) : (checkedWindow?.window ?? null)
-			if (!alive.current) return { kind: 'detached' }
-			const connection = controller.store.getSnapshot().connection
-			const validated = validateWindow(found, selection, target, date, checkedWindow, connection)
-			if (!validated.ok) return rejected(validated.code)
-			const { window, expectedVersion } = validated
+			const prepared = await prepareCommand(
+				controller,
+				selection,
+				target,
+				action,
+				body,
+				checkedWindow,
+				() => alive.current
+			)
+			if (!prepared.ok) return prepared.result
 			const id = crypto.randomUUID()
 			current.current = id
 			setRequestId(id)
-			const intent: CommandIntent = {
-				path: pathOf(target, action),
-				body,
-				operation: operation(target, action),
-				expectedVersion,
-				generation: window.connection.generation,
-				date: 'date' in body ? body.date : date,
-			}
-			const result = await controller.store.submit(id, intent)
+			const result = await controller.store.submit(id, prepared.intent)
 			if (!alive.current || current.current !== id) return { kind: 'detached' }
 			return mapCompletion(result)
 		} finally {
@@ -238,11 +268,23 @@ export function useScheduleMutation(selection: CalendarSelection | null) {
 		}
 	}
 
+	function prepare(target: Target, action: Action, body: Body, checkedWindow?: CheckedWindow | null): CalendarSend {
+		const chosen = selection
+		return async (onRequest) => {
+			if (chosen === null) return { kind: 'failed', code: 'command_pending' }
+			const prepared = await prepareCommand(controller, chosen, target, action, body, checkedWindow, () => true)
+			if (!prepared.ok) return prepared.result
+			const id = crypto.randomUUID()
+			onRequest(id)
+			return mapCompletion(await controller.store.submit(id, prepared.intent))
+		}
+	}
+
 	function detach() {
 		current.current = null
 	}
 
-	return { mutate, pending, entry, blocked: controller.blocked, detach }
+	return { mutate, prepare, pending, entry, blocked: controller.blocked, detach }
 }
 
 export async function ignoreEvent(eventKey: string, version: string): Promise<MutationResult<null>> {

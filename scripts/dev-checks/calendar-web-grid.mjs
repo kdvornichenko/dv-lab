@@ -266,6 +266,7 @@ async function transforms() {
 					}
 				if (event.title === 'Synthetic event 07')
 					event.color = { id: '11', background: PALETTE[11], foreground: INK, custom: false }
+				if (event.title === 'Synthetic event 03') event.binding = { kind: 'transition', commandId: randomUUID() }
 			}
 			await route.fulfill({ response, json })
 		})
@@ -297,6 +298,40 @@ async function transforms() {
 			contrast(parseRgb(tomato.background), parseRgb(tomato.color)).toFixed(2)
 		)
 		await shot(page, 'calendar-grid', 'lesson-and-white-ink')
+		const unconfirmed = page.locator(BODY, { hasText: 'Synthetic event 03' }).first()
+		const marked = await unconfirmed.evaluate((element) => ({
+			binding: element.dataset.binding,
+			mark: element.dataset.mark ?? null,
+			opacity: getComputedStyle(element).opacity,
+			label: element.getAttribute('aria-label') ?? '',
+		}))
+		check(
+			'a transition block is dimmed and named not confirmed',
+			marked.binding === 'transition' &&
+				marked.mark === 'unconfirmed' &&
+				Number(marked.opacity) < 1 &&
+				marked.label.includes('not confirmed'),
+			JSON.stringify(marked)
+		)
+		check(
+			'only the transition block carries the triangle and nothing spins',
+			(await page.locator('[data-slot="calendar-event-unconfirmed"]').count()) === 1 &&
+				(await unconfirmed.locator('[data-slot="calendar-event-unconfirmed"]').count()) === 1 &&
+				(await page.locator('[data-slot="calendar-event-pending"]').count()) === 0 &&
+				(await page.locator(BODY, { hasText: 'Synthetic event 06' }).first().getAttribute('data-mark')) === null
+		)
+		await shot(page, 'calendar-grid', 'transition-triangle')
+		await unconfirmed.click()
+		const notConfirmed = page.getByRole('dialog').last()
+		await notConfirmed.getByText('This change has not been confirmed.').waitFor({ timeout: 15000 })
+		check(
+			'the dialog of a transition block says it is not confirmed, links Check status and offers no Edit event',
+			(await notConfirmed.getByRole('link', { name: 'Check status' }).count()) === 1 &&
+				(await notConfirmed.getByRole('button', { name: 'Edit event' }).count()) === 0 &&
+				(await notConfirmed.getByRole('button', { name: 'Delete event' }).count()) === 0
+		)
+		await page.keyboard.press('Escape')
+		await page.waitForTimeout(500)
 		check(
 			'transform page has no console problems',
 			real(problems).length === 0,

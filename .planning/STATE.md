@@ -5,7 +5,7 @@ milestone_name: Unified dv-lab (In Progress)
 current_phase: 24
 current_phase_name: Google Calendar Connection and Outbound Sync
 status: paused
-stopped_at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; plan accepted by the owner (2026-10-12); execution has not started
+stopped_at: Phase 25.1 executed, live-checked on the test account and accepted by the owner (2026-10-13); PR open, merge by the owner
 last_updated: '2026-10-12T13:00:00.000Z'
 last_activity: 2026-10-12
 last_activity_desc: Status synced with master after PRs 10-29 made outside GSD plans
@@ -109,9 +109,9 @@ Count lessons by range, one week at a time, dialog v42 and Copy icon (10, 11, 13
 
 ### Next steps
 
-1. Execute Phase 25.1 (planned and accepted; the legacy runtime paths are already removed from documents). Start only on the owner's signal.
+1. Merge the Phase 25.1 PR (owner), then roll out through Server guy.
 2. Plan 24-14 live check after the local OAuth client for the test account exists.
-3. Then 22 -> 23 -> 26.
+3. Then 22 -> 23 -> 26; PWA for the teacher after Phase 23 (separate phase, not in ROADMAP yet).
 
 ### Roadmap Evolution
 
@@ -130,5 +130,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-12T13:00:00.000Z
-Stopped at: Phase 25.1 planned (12 plans, 8 waves) and squad-reviewed; plan accepted by the owner (2026-10-12); execution has not started
+Stopped at: Phase 25.1 executed, live-checked on the test account and accepted by the owner (2026-10-13); PR open, merge by the owner
 Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md

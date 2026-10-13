@@ -2,6 +2,8 @@
 
 import type { ComponentProps, CSSProperties } from 'react'
 
+import { Loader2, TriangleAlert } from 'lucide-react'
+
 import { eventPaint } from '@/lib/event-colors'
 import { cn } from '@/lib/utils'
 
@@ -9,7 +11,9 @@ import type { CalendarEventView } from '@dv-lab/contracts'
 
 import { eventRange, eventStatus, eventTitle } from './calendar-event-details'
 import type { BlockLayout } from './calendar-layout'
+import type { BlockMark } from './optimistic-writes'
 
+const MARKER_MIN_HEIGHT = 24
 const LESSON_SHORT_HEIGHT = 34
 const EVENT_SHORT_HEIGHT = 36
 const SELECTED_PAINT = { fill: 'var(--selected)', ink: 'var(--foreground)' }
@@ -28,14 +32,15 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 	editable: boolean
 	movable?: boolean
 	ghost?: boolean
+	mark?: BlockMark | null
 	onOpen: (event: CalendarEventView) => void
 	onClick?: ComponentProps<'button'>['onClick']
 }
 
-function surface(plain: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
+function surface(coloured: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
 	if (ghost) return GHOST
 	if (cancelled) return 'text-muted-foreground ring-1 ring-selected ring-inset'
-	if (plain)
+	if (coloured)
 		return tentative ? `${HATCH} text-foreground` : 'bg-(--event-fill) text-(--event-ink) ring-1 ring-surface-2'
 	return tentative ? `${LESSON_HATCH} text-foreground` : 'bg-selected text-foreground ring-1 ring-surface-2'
 }
@@ -47,6 +52,7 @@ export function LessonBlock({
 	editable,
 	movable = false,
 	ghost = false,
+	mark: markProp = null,
 	onOpen,
 	onClick,
 	className,
@@ -58,11 +64,13 @@ export function LessonBlock({
 	const cancelled = calendarEvent.status === 'cancelled'
 	const tentative = calendarEvent.status === 'tentative'
 	const plain = calendarEvent.binding.kind === 'external'
-	const unconfirmed = calendarEvent.binding.kind === 'transition'
+	const mark = markProp ?? (calendarEvent.binding.kind === 'transition' ? 'unconfirmed' : null)
+	const dimmed = mark !== null && !ghost
+	const marker = dimmed && layout !== null && layout.height >= MARKER_MIN_HEIGHT ? mark : null
 	const chip = layout === null
 	const availability = calendarEvent.blocksTime ? 'Busy' : 'Available'
 	const short = layout !== null && layout.height < (plain ? EVENT_SHORT_HEIGHT : LESSON_SHORT_HEIGHT)
-	const paint = plain ? (eventPaint(calendarEvent.color) ?? SELECTED_PAINT) : null
+	const paint = eventPaint(calendarEvent.color) ?? (plain ? SELECTED_PAINT : null)
 	const position: CSSProperties | undefined =
 		layout === null
 			? undefined
@@ -87,7 +95,8 @@ export function LessonBlock({
 			data-binding={calendarEvent.binding.kind}
 			data-status={calendarEvent.status}
 			data-ghost={ghost ? '' : undefined}
-			aria-label={`${title}, ${range}, ${eventStatus(calendarEvent)}, ${availability}, ${editable ? 'Editable' : 'Read-only'}`}
+			aria-label={`${title}, ${range}, ${eventStatus(calendarEvent)}, ${availability}, ${editable ? 'Editable' : 'Read-only'}${mark === 'syncing' ? ', syncing' : mark === 'unconfirmed' ? ', not confirmed' : ''}`}
+			data-mark={mark ?? undefined}
 			style={{ ...position, ...paintVars, ...style }}
 			onClick={(event) => {
 				onClick?.(event)
@@ -101,8 +110,8 @@ export function LessonBlock({
 				chip ? 'relative w-full' : 'absolute',
 				layout?.cutTop && 'rounded-t-none',
 				layout?.cutBottom && 'rounded-b-none',
-				surface(plain, ghost, cancelled, tentative),
-				unconfirmed && !ghost && 'opacity-60',
+				surface(paint !== null, ghost, cancelled, tentative),
+				dimmed && 'opacity-60',
 				className
 			)}
 		>
@@ -112,6 +121,7 @@ export function LessonBlock({
 					tentative ? 'font-normal' : 'font-semibold',
 					cancelled && 'line-through',
 					suggested && 'pr-[14px]',
+					marker !== null && 'pr-4',
 					hideText && 'invisible'
 				)}
 			>
@@ -121,7 +131,15 @@ export function LessonBlock({
 			{!short && !chip ? (
 				<span className={cn('block truncate text-caption tabular-nums', hideText && 'invisible')}>{range}</span>
 			) : null}
-			{suggested ? (
+			{marker === 'syncing' ? (
+				<Loader2
+					aria-hidden
+					data-slot="calendar-event-pending"
+					className="absolute top-1 right-1 size-3 animate-spin"
+				/>
+			) : marker === 'unconfirmed' ? (
+				<TriangleAlert aria-hidden data-slot="calendar-event-unconfirmed" className="absolute top-1 right-1 size-3" />
+			) : suggested ? (
 				<span
 					aria-hidden
 					data-slot="calendar-event-dot"

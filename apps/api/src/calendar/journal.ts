@@ -146,6 +146,22 @@ export function commandSnapshot(command: CommandRow): CalendarCommandSnapshot {
 	})
 }
 
+export async function commandStatus(executor: DbExecutor, command: CommandRow): Promise<CalendarCommandSnapshot> {
+	const snapshot = commandSnapshot(command)
+	if (command.state !== 'failed') return snapshot
+	const stages = await executor
+		.select({ attempts: googleCommandStages.attempts })
+		.from(googleCommandStages)
+		.where(eq(googleCommandStages.commandId, command.id))
+	const last = stages
+		.flatMap((stage) => stage.attempts)
+		.filter((attempt) => attempt.finishedAt !== null)
+		.sort((left, right) => (left.finishedAt ?? '').localeCompare(right.finishedAt ?? ''))
+		.at(-1)
+	if (last?.errorCode !== 'rate_limit') return snapshot
+	return calendarCommandSnapshot.parse({ ...snapshot, retryAfterSeconds: last.retryAfterSeconds ?? null })
+}
+
 export async function findRequest(executor: DbExecutor, accountId: string, requestId: string) {
 	const [command] = await executor
 		.select()

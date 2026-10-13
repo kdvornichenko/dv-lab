@@ -34,6 +34,7 @@ import {
 	weekdayName,
 } from '@/lib/schedule-format'
 import { zoneLabel, zoneName } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import {
 	calendarEventDetails,
@@ -48,7 +49,8 @@ import { addDays, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { ManualAssign, SuggestionBox, type AssignBusy, type AssignFailure } from './event-assign'
-import { EventEditForm } from './event-form'
+import { EventEditForm, type DirectState } from './event-form'
+import type { WriteRunner } from './optimistic-writes'
 import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
@@ -151,7 +153,7 @@ export function CalendarEventDetails({
 type DetailsState =
 	{ kind: 'loading' } | { kind: 'ready'; data: EventDetailsData } | { kind: 'removed' } | { kind: 'error' }
 
-function useEventDetails(eventKey: string, revision: string | null) {
+function useEventDetails(eventKey: string, revision: string) {
 	const [state, setState] = useState<DetailsState>({ kind: 'loading' })
 	useEffect(() => {
 		const abort = new AbortController()
@@ -232,6 +234,7 @@ export function CalendarEventDialog({
 	onClose,
 	onMoveDiscard,
 	onReload,
+	onWrite,
 }: {
 	moveSeed?: MoveSeed
 	students: StudentsState
@@ -244,11 +247,12 @@ export function CalendarEventDialog({
 	onClose: () => void
 	onMoveDiscard: () => void
 	onReload: () => void
+	onWrite: WriteRunner
 }) {
 	const toast = useToast()
 	const controller = useCalendarCommands()
 	const sync = useGoogleSync()
-	const state = useEventDetails(event.eventKey, sync?.revision ?? null)
+	const state = useEventDetails(event.eventKey, `${sync?.revision ?? ''}|${event.version}|${event.binding.kind}`)
 	const latest = state.kind === 'ready' ? state.data : null
 	const [formBase, setFormBase] = useState<EventDetailsData | null>(null)
 	const [dirty, setDirty] = useState(false)
@@ -263,6 +267,7 @@ export function CalendarEventDialog({
 	const command = useScheduleMutation({ mainTimeZone: timeZone, date: day })
 	const calendarLabel = controller.view.connection?.calendar?.label ?? null
 	const [seenVersion, setSeenVersion] = useState<string | null>(null)
+	const [direct, setDirect] = useState<DirectState>(moveSeed !== undefined ? 'sending' : 'shown')
 
 	if (latest !== null && latest.version !== seenVersion) setSeenVersion(latest.version)
 	if (refreshing && latest !== null && event.version === latest.version) {
@@ -321,6 +326,7 @@ export function CalendarEventDialog({
 			: (students.rows.find((row) => row.id === event.suggestion?.studentId)?.displayName ?? null)
 	const suggestionShown = assignable && event.suggestion !== null && suggestedName !== null
 	const waitingForSeed = moveSeed !== undefined && !seeded && state.kind === 'loading'
+	const quiet = editing ? direct : waitingForSeed && direct !== 'shown' ? 'sending' : 'shown'
 
 	function whenText(label = title) {
 		if (event.when.kind === 'timed') {
@@ -394,7 +400,12 @@ export function CalendarEventDialog({
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size={editing ? 'lg' : 'sm'} showCloseButton={false} className="overflow-hidden">
+			<DialogContent
+				size={editing ? 'lg' : 'sm'}
+				showCloseButton={false}
+				className={cn('overflow-hidden data-[nested-dialog-open]:invisible', quiet !== 'shown' && 'invisible')}
+				backdropClassName={quiet === 'sending' ? 'invisible' : undefined}
+			>
 				<DialogHeader>
 					<DialogTitle className="flex items-start gap-2 wrap-anywhere">
 						<Dot fill={paint?.fill ?? 'var(--selected)'} />
@@ -418,6 +429,8 @@ export function CalendarEventDialog({
 							mainTimeZone={timeZone}
 							secondZone={secondZone}
 							available={editable}
+							direct={direct !== 'shown'}
+							onDirect={setDirect}
 							onDirtyChange={setDirty}
 							onRefresh={() => {
 								setRefreshing(true)
@@ -429,7 +442,8 @@ export function CalendarEventDialog({
 								setFormBase(null)
 								onMoveDiscard()
 							}}
-							onSaved={onClose}
+							onClose={onClose}
+							onWrite={onWrite}
 						/>
 					) : removed ? (
 						<Banner status="warning">
@@ -561,7 +575,7 @@ export function CalendarEventDialog({
 						pendingLabel="Deleting…"
 						tone="destructive"
 						failureText="Could not delete the event. Try again."
-						reserveFailure
+						failureLine
 						onConfirm={() => remove('one')}
 						onClose={() => setRemoving(null)}
 					/>

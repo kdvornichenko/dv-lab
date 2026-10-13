@@ -9,6 +9,7 @@ import { SyncTokenGone, type SyncPageQuery } from './gateway-sync.ts'
 import { CalendarFault, GoogleWriteFault } from './gateway.ts'
 import type { Credentials } from './google-access.ts'
 import { syncFacts, type EventFact } from './projection.ts'
+import { exclusionFacts } from './recurring.ts'
 import { masterFact, type SyncRead, type SyncSource } from './sync-provider.ts'
 import {
 	applyPass,
@@ -116,7 +117,11 @@ export function createCalendarSync(deps: {
 			try {
 				const result = await deps.source.master(read, family)
 				const fact = result.kind === 'event' ? masterFact(result, read.calendarTimeZone) : null
-				if (fact) found.push(fact)
+				if (fact && result.kind === 'event')
+					found.push(
+						fact,
+						...exclusionFacts(fact, result.recurrence, fact.start?.timeZone ?? read.calendarTimeZone, now())
+					)
 			} catch {
 				read.signal.throwIfAborted()
 			}

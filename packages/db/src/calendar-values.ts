@@ -105,6 +105,7 @@ export const googleCommandInput = z.discriminatedUnion('operation', [
 		weekday: z.literal([1, 2, 3, 4, 5, 6, 7]),
 		startTime: clock,
 		durationMinutes: z.number().int().min(1).optional(),
+		newStartsOn: isoDate.optional(),
 		expectedDefaultTimeZone: zone,
 	}),
 	z.strictObject({
@@ -414,6 +415,7 @@ export const googleStageAttempt = z.strictObject({
 	errorCode: z
 		.enum(['transport', 'timeout', 'permission', 'reconnect', 'precondition', 'rate_limit', 'invalid_data'])
 		.nullable(),
+	retryAfterSeconds: z.number().int().min(0).nullable().optional(),
 })
 
 export type GoogleCredentialEnvelope = z.infer<typeof googleCredentialEnvelope>
