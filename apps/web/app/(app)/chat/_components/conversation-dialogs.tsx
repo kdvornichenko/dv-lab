@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 
 import { CHAT_TITLE_MAX, type ChatConversation } from '@dv-lab/contracts'
 
-import type { RenameOutcome } from './use-chat'
+import type { DeleteOutcome, RenameOutcome } from './use-chat'
 
 const RENAME_FAILED = 'Could not rename this conversation. Try again.'
+const DELETE_FAILED = 'Could not delete this conversation. Try again.'
+const DELETE_BLOCKED = 'This chat has an unconfirmed request or usage record. Check its status before deleting.'
 
 interface RenameConversationDialogProps {
 	conversation: ChatConversation
@@ -97,12 +99,13 @@ export function RenameConversationDialog({ conversation, onSave, onClose }: Rena
 
 interface DeleteConversationDialogProps {
 	conversation: ChatConversation
-	onDelete: () => Promise<boolean>
+	onDelete: () => Promise<DeleteOutcome>
 	onClose: (deleted: boolean) => void
 }
 
 export function DeleteConversationDialog({ conversation, onDelete, onClose }: DeleteConversationDialogProps) {
 	const deleted = useRef(false)
+	const [blocked, setBlocked] = useState(false)
 	return (
 		<ConfirmDialog
 			key={conversation.id}
@@ -112,10 +115,12 @@ export function DeleteConversationDialog({ conversation, onDelete, onClose }: De
 			confirmLabel="Delete conversation"
 			pendingLabel="Deleting…"
 			tone="destructive"
-			failureText="Could not delete this conversation. Try again."
+			failureText={blocked ? DELETE_BLOCKED : DELETE_FAILED}
 			failureLine
 			onConfirm={async () => {
-				deleted.current = await onDelete()
+				const outcome = await onDelete()
+				setBlocked(outcome === 'busy')
+				deleted.current = outcome === 'deleted'
 				return deleted.current
 			}}
 			onClose={() => onClose(deleted.current)}

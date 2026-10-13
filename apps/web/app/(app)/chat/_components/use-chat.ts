@@ -155,6 +155,8 @@ export type ConversationListState =
 
 export type RenameOutcome = 'saved' | 'gone' | 'failed'
 
+export type DeleteOutcome = 'deleted' | 'busy' | 'failed'
+
 function selectionHref(id: string | null): string {
 	const url = new URL(window.location.href)
 	if (id === null) url.searchParams.delete('c')
@@ -756,12 +758,13 @@ export function useChat(initialConversationId: string | null) {
 	)
 
 	const remove = useCallback(
-		async (conversation: ChatConversation): Promise<boolean> => {
+		async (conversation: ChatConversation): Promise<DeleteOutcome> => {
 			const body: DeleteConversationRequest = { expectedRevision: conversation.revision }
 			const result = await apiRequest<void>('DELETE', `/chat/conversations/${conversation.id}`, body)
 			if (!result.ok && result.status !== 404) {
+				if (result.status === 409 && result.error?.code === 'busy') return 'busy'
 				if (result.status === 409) await load(true)
-				return false
+				return 'failed'
 			}
 			requests.current++
 			const current = listRef.current
@@ -771,7 +774,7 @@ export function useChat(initialConversationId: string | null) {
 			commit({ kind: 'ready', conversations: remaining })
 			if (activeId === conversation.id) select(remaining[0]?.id ?? null)
 			void load(true)
-			return true
+			return 'deleted'
 		},
 		[activeId, commit, load, select]
 	)
