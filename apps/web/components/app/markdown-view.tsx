@@ -1,11 +1,16 @@
 'use client'
 
-import Markdown, { type Components } from 'react-markdown'
+import { useMemo, type ReactNode } from 'react'
+import Markdown, { type Components, type Options } from 'react-markdown'
 
 import { Check } from 'lucide-react'
 import remarkGfm from 'remark-gfm'
 
 import { cn } from '@/lib/utils'
+
+import type { MentionBinding } from '@dv-lab/contracts'
+
+import { MENTION_TAG, remarkMarks } from './markdown-marks'
 
 const listClass = 'flex flex-col gap-1 pl-5 marker:text-muted-foreground [li_&]:mt-1'
 
@@ -107,7 +112,55 @@ const components: Components = {
 	),
 }
 
-export function MarkdownView({ body }: { body: string }) {
+const headingClass = 'text-subtitle font-semibold'
+
+const chatComponents: Components = {
+	...components,
+	h1: ({ node: _node, className, ...props }) => <h1 className={cn(headingClass, className)} {...props} />,
+	h2: ({ node: _node, className, ...props }) => <h2 className={cn(headingClass, className)} {...props} />,
+	h3: ({ node: _node, className, ...props }) => <h3 className={cn(headingClass, className)} {...props} />,
+	h4: ({ node: _node, className, ...props }) => <h4 className={cn(headingClass, className)} {...props} />,
+	h5: ({ node: _node, className, ...props }) => <h5 className={cn(headingClass, className)} {...props} />,
+	h6: ({ node: _node, className, ...props }) => <h6 className={cn(headingClass, className)} {...props} />,
+	strong: ({ node: _node, className, ...props }) => <strong className={cn('font-semibold', className)} {...props} />,
+	code: ({ node: _node, className, ...props }) => (
+		<code className={cn('rounded-md bg-hover px-1 font-mono', className)} {...props} />
+	),
+	img: () => null,
+}
+
+export type ChatMarkdown = {
+	mentions: readonly MentionBinding[]
+	streaming: boolean
+	renderMention: (studentId: string, children: ReactNode) => ReactNode
+}
+
+function ChatView({ body, chat }: { body: string; chat: ChatMarkdown }) {
+	const { mentions, streaming, renderMention } = chat
+	const plugins = useMemo(
+		() => [remarkGfm, [remarkMarks, { mentions, caret: streaming }]] as unknown as NonNullable<Options['remarkPlugins']>,
+		[mentions, streaming]
+	)
+	const mapped = useMemo(
+		() =>
+			({
+				...chatComponents,
+				[MENTION_TAG]: ({ studentId, children }: { studentId?: string; children?: ReactNode }) =>
+					studentId === undefined ? children : renderMention(studentId, children),
+			}) as Components,
+		[renderMention]
+	)
+	return (
+		<div data-slot="chat-reply-text" className="flex flex-col gap-3 text-subtitle font-normal wrap-anywhere text-foreground">
+			<Markdown remarkPlugins={plugins} skipHtml components={mapped}>
+				{body}
+			</Markdown>
+		</div>
+	)
+}
+
+export function MarkdownView({ body, chat }: { body: string; chat?: ChatMarkdown }) {
+	if (chat !== undefined) return <ChatView body={body} chat={chat} />
 	if (body.trim() === '') {
 		return <p className="px-6 py-12 text-center text-body text-muted-foreground">Nothing here yet</p>
 	}

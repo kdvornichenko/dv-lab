@@ -7,6 +7,7 @@ import { LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 
 import { Panel } from '@/components/app/layout-parts'
+import { MarkdownView } from '@/components/app/markdown-view'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerAction, BannerActions, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -15,12 +16,14 @@ import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
 import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, MentionBinding } from '@dv-lab/contracts'
+import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { ActionResult } from './action-result'
 import { CalendarProposal } from './calendar-proposal'
 import { ChatProgress } from './chat-progress'
 import { conversationTime } from './conversation-list'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
+import { ReplyFooter } from './reply-footer'
 
 export type CalendarHandlers = {
 	onConfirm: (actionId: string) => void
@@ -257,6 +260,17 @@ function Working({ label }: { label: string }) {
 	)
 }
 
+const NO_MENTIONS: readonly MentionBinding[] = []
+
+function renderMention(_studentId: string, children: ReactNode): ReactNode {
+	return children
+}
+
+function fullTime(iso: string): string {
+	const at = new Date(iso)
+	return `${formatWhen(at, SCHEDULE_TIME_ZONE, yearInZone(new Date(), SCHEDULE_TIME_ZONE))} ${zoneLabel(SCHEDULE_TIME_ZONE, at)}`
+}
+
 function TeacherText({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {
 	const parts: ReactNode[] = []
 	let cursor = 0
@@ -292,7 +306,9 @@ function MessageItem({
 			data-role={message.role}
 			aria-busy={busy || undefined}
 			className={
-				message.role === 'teacher' ? 'flex max-w-[80%] flex-col items-end gap-1 self-end' : 'flex flex-col gap-3'
+				message.role === 'teacher'
+					? 'group/message flex max-w-[80%] flex-col items-end gap-1 self-end'
+					: 'group/message flex flex-col gap-3'
 			}
 			initial={reduceMotion ? false : { opacity: 0, y: 8 }}
 			animate={{ opacity: 1, y: 0 }}
@@ -371,18 +387,14 @@ export function Messages({
 								hasText={message.body !== ''}
 							/>
 							{message.body === '' ? null : (
-								<p
-									data-slot="chat-reply-text"
-									className="text-subtitle font-normal break-words whitespace-pre-wrap text-foreground"
-								>
-									{message.body}
-									{active?.messageId === message.id && !active.stopping ? (
-										<span
-											aria-hidden
-											className="ml-0.5 inline-block h-4 w-0.5 translate-y-[3px] bg-foreground motion-safe:animate-pulse"
-										/>
-									) : null}
-								</p>
+								<MarkdownView
+									body={message.body}
+									chat={{
+										mentions: NO_MENTIONS,
+										streaming: active?.messageId === message.id && !active.stopping,
+										renderMention,
+									}}
+								/>
 							)}
 							{active?.messageId === message.id && active.stopping ? <Working label="Stopping reply…" /> : null}
 							{message.blocks.map((block, index) => (
@@ -399,6 +411,13 @@ export function Messages({
 									replies={replies}
 								/>
 							))}
+							{active?.messageId === message.id ? null : (
+								<ReplyFooter
+									time={conversationTime(message.finishedAt ?? message.createdAt, now)}
+									title={fullTime(message.finishedAt ?? message.createdAt)}
+									copyText={message.body === '' ? null : message.body}
+								/>
+							)}
 						</MessageItem>
 					)
 				)}
