@@ -9,6 +9,7 @@ import { Elevated } from '@/lib/elevated'
 import { DAY_START_MINUTES, SCHEDULE_TIME_ZONE, lessonDay, mondayOf } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
+import { AgendaSkeleton } from './agenda-skeleton'
 import { LessonCountDialog } from './lesson-count-dialog'
 import { ScheduleBar } from './schedule-toolbar'
 import { WeekGrid, type GridPlaceholder } from './week-grid'
@@ -52,11 +53,14 @@ export function ScheduleLoading() {
 	const monday = today === null ? null : mondayOf(today)
 	const grid =
 		now === null || today === null || monday === null ? (
-			<Elevated
-				offset={1}
-				shadowLevel={2}
-				className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl lg:flex"
-			/>
+			<>
+				<AgendaSkeleton />
+				<Elevated
+					offset={1}
+					shadowLevel={2}
+					className="relative hidden min-h-90 flex-1 flex-col overflow-hidden rounded-2xl lg:flex"
+				/>
+			</>
 		) : (
 			<WeekGrid
 				monday={monday}

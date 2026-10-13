@@ -22,6 +22,7 @@ import {
 	zonedParts,
 } from '@dv-lab/core'
 
+import { AgendaSkeleton } from './agenda-skeleton'
 import { eventRange, eventTitle } from './calendar-event-details'
 import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
@@ -511,15 +512,19 @@ export function WeekGrid({
 
 	return (
 		<TooltipProvider>
-			<CalendarAgenda
-				dates={dates}
-				events={events}
-				today={today}
-				mainTimeZone={mainTimeZone}
-				secondZone={secondZone?.id ?? null}
-				emptyNote={emptyNote}
-				onOpen={onOpen}
-			/>
+			{placeholders.length > 0 ? (
+				<AgendaSkeleton />
+			) : (
+				<CalendarAgenda
+					dates={dates}
+					events={events}
+					today={today}
+					mainTimeZone={mainTimeZone}
+					secondZone={secondZone?.id ?? null}
+					emptyNote={emptyNote}
+					onOpen={onOpen}
+				/>
+			)}
 			<Elevated
 				offset={1}
 				shadowLevel={2}
