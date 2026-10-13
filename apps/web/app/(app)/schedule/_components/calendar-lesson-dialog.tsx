@@ -87,7 +87,7 @@ function dayGap(later: string, earlier: string): number {
 	return Math.round((Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86400000)
 }
 
-function lessonMoveBody(event: CalendarLesson, draft: MoveDraft, mainTimeZone: string): MoveLessonBody {
+export function lessonMoveBody(event: CalendarLesson, draft: MoveDraft, mainTimeZone: string): MoveLessonBody {
 	const length = (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000
 	return {
 		date: draft.date,
@@ -125,7 +125,7 @@ function seriesMoveBody(
 	}
 }
 
-function movedBlocks(
+export function movedBlocks(
 	scope: CalendarEditScope,
 	draft: MoveDraft,
 	event: CalendarLesson,

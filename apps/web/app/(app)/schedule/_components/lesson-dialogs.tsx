@@ -1,11 +1,13 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
+import { useCalendarController } from '@/components/app/calendar-command-provider'
 import { calendarEventFor, type CalendarLesson } from '@/lib/lesson-actions'
 import { occurrenceSlot, type OccurrenceSlot } from '@/lib/lesson-mark-text'
 
 import type { GoogleScheduleWindow, LessonMarkKind, ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
+import { countsAsLesson, scheduleDate } from '@dv-lab/core'
 
 import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonDialog, type ActionOutcome, type PairTarget } from './lesson-dialog'
@@ -45,9 +47,38 @@ function useSelectedLesson({ selected, selection, calendar, now }: Props) {
 		: null
 }
 
+type WeekRead = { key: string; window: GoogleScheduleWindow | null }
+
+function useStartedWeek(block: ScheduleBlock | null, wanted: boolean, mainTimeZone: string): WeekRead | null {
+	const controller = useCalendarController()
+	const [read, setRead] = useState<WeekRead | null>(null)
+	const key = block === null || !wanted ? null : `${block.key}:${block.startsAt}`
+	const startsAt = block?.startsAt ?? null
+	useEffect(() => {
+		if (key === null || startsAt === null) return
+		let live = true
+		void controller
+			.readWindow(scheduleDate(new Date(startsAt), mainTimeZone), () => live)
+			.then((window) => {
+				if (live) setRead({ key, window })
+			})
+		return () => {
+			live = false
+		}
+	}, [controller, key, startsAt, mainTimeZone])
+	return key !== null && read?.key === key ? read : null
+}
+
 export function LessonDialogs(props: Props) {
 	const { series, calendar, reload, onClose } = props
 	const snapshot = useSelectedLesson(props)
+	const lookup = snapshot === null || calendar === null ? null : calendarEventFor(calendar, snapshot.block.ref)
+	const needsWeek =
+		snapshot !== null &&
+		snapshot.event === null &&
+		lookup === null &&
+		(countsAsLesson(snapshot.block.outcome) || snapshot.block.outcome === 'cancelled')
+	const week = useStartedWeek(snapshot?.block ?? null, needsWeek, props.mainTimeZone)
 	const refused = useCallback(() => {
 		void reload()
 	}, [reload])
@@ -75,6 +106,15 @@ export function LessonDialogs(props: Props) {
 	}
 	const seriesId = shown.ref.kind === 'series' ? shown.ref.seriesId : null
 	const rule = series.find((rule) => rule.id === seriesId) ?? null
+	const hasCalendar = event !== null || countsAsLesson(shown.outcome) || shown.outcome === 'cancelled'
+	const calendarSide = hasCalendar
+		? {
+				event: event ?? (week?.window ? (calendarEventFor(week.window, shown.ref) ?? null) : null),
+				window: event !== null || week === null ? calendar : week.window,
+				loading: event === null && needsWeek && week === null,
+				onWrite: writes.run,
+			}
+		: undefined
 	const history = { ...shown, actions: { ...shown.actions, move: false, cancel: false, restore: false, series: false } }
 	async function mark(kind: LessonMarkKind): Promise<ActionOutcome> {
 		const result = await markLesson(shown, kind)
@@ -93,6 +133,7 @@ export function LessonDialogs(props: Props) {
 			key={`${shown.key}:${target.slot}`}
 			block={history}
 			series={rule}
+			calendar={calendarSide}
 			onClose={() => onClose(target)}
 			onMark={mark}
 			onRefresh={() => {
