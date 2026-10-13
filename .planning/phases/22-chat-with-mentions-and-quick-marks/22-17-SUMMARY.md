@@ -72,9 +72,11 @@ completed: 2026-10-14
 
 Строки `chat-final.mjs` (по порядку, секунды): `SCHEDULE_STARTED_OK` 26, `SCHEDULE_STARTED_SERIES_OK` 20, `SCHEDULE_COMMENTS_SERIES_OK` 17, `MARK_REVISION_OK` 28, `CHAT_CONFIG_OK` 8, `CHAT_RECORDS_OK` 7, `CHAT_CONVERSATIONS_OK` 6, `CHAT_NOTES_OK` 9, `CHAT_COMMENTS_OK` 11, `CHAT_TARGET_OK` 29, `CHAT_ACTIONS_OK` 14, `CHAT_CALENDAR_OK` 47, `CHAT_BUDGET_OK` 8, `CHAT_RUNS_OK` 29, `CHAT_ANSWERS_OK` 10, `CHAT_MODELS_OK` 8, `CHAT_DELETE_OK` 10, `CALENDAR_READS_OK` 10, `CALENDAR_FINAL_OK` 191 (15/15 внутри). После прогона в `dvlab_test` 0 вымышленных карточек, 0 разговоров, 0 ходов, 0 попыток.
 
-`CHAT_RUNS_OK` получен в 01:3x по `Asia/Ho_Chi_Minh`, то есть в окне 00:00–02:00, где 22-14 видел падение `clarify(date_time)`; в этот раз раздел прошёл.
+`CHAT_RUNS_OK` получен в 01:3x по `Asia/Ho_Chi_Minh`, в окне 00:00–02:00, где 22-14 видел падение `clarify(date_time)`; исправление 5916256 уже было в коде.
 
-`chat-final.mjs` прогнан на коде до правок другой сессии в `apps/api/src/chat/tools.ts` и `scripts/dev-checks/chat-runs.mjs` (появились в рабочем дереве после прогона, не мои).
+`chat-final.mjs` прогнан на коде до коммита 6eec690 другой сессии (`apps/api/src/chat/tools.ts`, `scripts/dev-checks/chat-runs.mjs`).
+
+В `dvlab_dev` одно текущее подключение Google в состоянии `connected` (запрос `select state, count(*) from google_connections where retired_at is null`): e2e на dev только если это тестовый аккаунт владельца, иначе `E2E_FIXTURE_DATABASE=test`.
 
 ## Статус SC и требований
 
@@ -118,7 +120,7 @@ completed: 2026-10-14
 
 ## Известные долги
 
-- 22-14: `lesson-target.ts` при указанной дате ищет только `day.lessons`; с 00:00 до 02:00 по зоне учителя модель получает календарную дату следующего дня, и `mark_lesson`/`add_comment` отвечают `clarify(date_time)` с пустыми вариантами. Не чинился.
+- 22-14: окно 00:00–02:00 в `lesson-target.ts` исправлено другой сессией коммитом 5916256 до прогона `chat-final.mjs`. Коммит 6eec690 (`chat/tools.ts`) и правки `chat-runs.mjs` пришли после прогона: перед PR `chat-final.mjs` нужно прогнать на итоговом HEAD.
 - 22-15: дата цен «as of 12 Oct 2026» зашита статично.
 - 22-16: Undo применённого действия по id после удаления разговора технически возможен (из интерфейса недоступен).
 - Порядок уборки фикстур чата и запрет параллели `models`/`delete`/`budget`/`chat-config.mjs` записаны в README.
