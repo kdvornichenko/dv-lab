@@ -9,7 +9,7 @@ import { balancePhrase, balanceState } from '@dv-lab/core'
 import { MoreRow, ROW_LIMIT } from './today-lessons'
 
 interface DueListProps {
-	students: readonly StudentRow[]
+	students: readonly Pick<StudentRow, 'id' | 'displayName' | 'balanceMinutes' | 'defaultLessonMinutes'>[]
 	threshold: number
 	moreHref: string
 }

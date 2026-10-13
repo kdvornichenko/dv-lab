@@ -236,6 +236,16 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 		later(() => input.current?.focus())
 	}
 
+	function suggest(text: string) {
+		composer.setDraft({ text, bindings: [], stale: false })
+		later(() => {
+			const field = input.current
+			if (!field) return
+			field.focus()
+			field.setSelectionRange(field.value.length, field.value.length)
+		})
+	}
+
 	function choose(block: ChatClarifyBlock, reply: string) {
 		const name = block.studentName
 		composer.setDraft({
@@ -277,6 +287,7 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 									}}
 									replies={{
 										onAsk: () => later(() => input.current?.focus()),
+										onSuggest: suggest,
 										onCheckStatus: chat.checkStatus,
 									}}
 									active={

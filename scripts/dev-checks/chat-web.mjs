@@ -24,6 +24,7 @@ const sections = {
 	calendar: sectionCalendar,
 	budget: sectionBudget,
 	stream: sectionStream,
+	answers: sectionAnswers,
 }
 
 function removeFixtures() {
@@ -1815,6 +1816,238 @@ async function sectionStream() {
 	} finally {
 		await stopFakeModelApi(started)
 	}
+}
+
+const ANSWER_PAYS = { name: 'Alex Example 2213', hundredths: 100 }
+const ANSWER_UNSET = { name: 'Alex Example 2214', hundredths: null }
+const READ_BROKEN = { type: 'read_failed', key: { kind: 'day', day: 'payments' } }
+const EXCERPT_TEXT = 'Prefers short reading texts. Needs more time for the writing task.'
+const IDEA_LINES = ['Start with a short reading warm-up.', 'Give the writing task a fixed time limit.']
+
+async function sendCommand(page, text) {
+	const field = page.locator(FIELD)
+	await field.click()
+	await page.keyboard.type(text)
+	await page.keyboard.press('Enter')
+	await page.locator(SEND).click()
+}
+
+async function sectionAnswers() {
+	removeFixtures()
+	const conversationIds = []
+	await withBrowser(
+		{ width: 1280, height: 800 },
+		async ({ context, page, problems }) => {
+			await setTheme(page)
+			await signIn(page)
+			const opening = core.addDays(core.zonedParts(new Date(), VN).date, -3)
+			const ids = {}
+			for (const item of [ANSWER_PAYS, ANSWER_UNSET]) {
+				ids[item.name] = await createCard(page, item.name)
+				if (item.hundredths !== null) await setOpening(page, ids[item.name], opening, item.hundredths)
+			}
+			await openStudentsList(page)
+			const students = {}
+			for (const item of [ANSWER_PAYS, ANSWER_UNSET]) students[item.name] = await balanceFacts(page, item.name)
+
+			const today = await context.newPage()
+			await setTheme(today)
+			await today.goto(`${BASE}/`)
+			await today.locator('#today-pays-soon').waitFor({ timeout: 30000 })
+			await today.waitForTimeout(500)
+			const todayDue = await today.locator('#today-pays-soon [data-slot="due-row"]').allInnerTexts()
+			const todayLessons = await today
+				.locator('#today-lessons [data-slot="today-row"]')
+				.evaluateAll((rows) =>
+					rows.map(
+						(row) =>
+							`${row.querySelector('[data-slot="time-main"]')?.textContent}|${row.querySelector('[data-slot="today-row-open"]')?.textContent}`
+					)
+				)
+
+			const posts = []
+			page.on('request', (request) => {
+				if (
+					request.method() === 'POST' &&
+					request.url().includes('/api/chat/conversations/') &&
+					request.url().endsWith('/messages')
+				)
+					posts.push(request.url())
+			})
+			const injected = []
+			await page.route('**/api/chat/conversations/*/messages', async (route) => {
+				if (route.request().method() !== 'POST') return route.continue()
+				const blocks = injected.shift()
+				if (blocks === undefined) return route.continue()
+				const response = await route.fetch()
+				const body = await response.json()
+				const reply = body.messages.at(-1)
+				await route.fulfill({
+					response,
+					json: { ...body, messages: [...body.messages.slice(0, -1), { ...reply, blocks }] },
+				})
+			})
+
+			await openChat(page, null)
+			await page.locator(FIELD).waitFor({ timeout: 30000 })
+			await sendCommand(page, '/payments')
+			const due = page.locator('[data-slot="due-list"]').last()
+			await due.waitFor({ timeout: 30000 })
+			const chatDue = await due.locator('[data-slot="due-row"]').allInnerTexts()
+			check(
+				'/payments shows the same Pays soon rows as Today in the other tab',
+				JSON.stringify(chatDue) === JSON.stringify(todayDue) && chatDue.length > 0,
+				`${chatDue.length} / ${todayDue.length}`
+			)
+			check(
+				'the fixture card with one lesson left is in the chat list and the card without a balance is not',
+				chatDue.some((row) => row.includes(ANSWER_PAYS.name)) && !chatDue.some((row) => row.includes(ANSWER_UNSET.name))
+			)
+			await shot(page, 'chat-answers', 'payments')
+
+			await sendCommand(page, '/today')
+			await page.getByRole('heading', { name: 'Lessons today' }).waitFor({ timeout: 30000 })
+			const lessonLists = page.locator('[data-slot="chat-lessons"]')
+			const chatLessons =
+				(await lessonLists.count()) === 0
+					? []
+					: await lessonLists
+							.last()
+							.locator('[data-slot="chat-lesson-row"]')
+							.evaluateAll((rows) =>
+								rows.map(
+									(row) =>
+										`${row.querySelector('[data-slot="time-main"]')?.textContent}|${row.querySelector('a')?.textContent}`
+								)
+							)
+			check(
+				'/today shows the same lessons as Today in the other tab',
+				JSON.stringify(chatLessons) === JSON.stringify(todayLessons.slice(0, 8)),
+				`${chatLessons.length} / ${todayLessons.length}`
+			)
+			await shot(page, 'chat-answers', 'today')
+			await sendCommand(page, '/tomorrow')
+			await page.getByRole('heading', { name: 'Lessons tomorrow' }).waitFor({ timeout: 30000 })
+			check(
+				'/tomorrow shows one Lessons tomorrow panel',
+				(await page.getByRole('heading', { name: 'Lessons tomorrow' }).count()) === 1
+			)
+			const conversationId = new URL(page.url()).searchParams.get('c')
+			if (conversationId) conversationIds.push(conversationId)
+
+			const factsNow = await api(page, 'GET', `/chat/records?studentId=${ids[ANSWER_PAYS.name]}`)
+			injected.push([{ type: 'facts', facts: factsNow.json }])
+			await page.locator(FIELD).waitFor({ timeout: 15000 })
+			await sendCommand(page, '/payments')
+			const group = factsGroup(page, ANSWER_PAYS.name)
+			await group.waitFor({ timeout: 30000 })
+			const groupText = await group.innerText()
+			check(
+				'a facts block in a message equals the Students row',
+				groupText.includes(students[ANSWER_PAYS.name].text) &&
+					(students[ANSWER_PAYS.name].dotLabel === null || groupText.includes(students[ANSWER_PAYS.name].dotLabel)),
+				groupText
+			)
+			await shot(page, 'chat-answers', 'facts')
+
+			injected.push([READ_BROKEN])
+			await sendCommand(page, '/payments')
+			await page.getByText(READ_ERROR).last().waitFor({ timeout: 30000 })
+			check(
+				'a failed read shows the read error block with Refresh records',
+				(await page.getByRole('alert').filter({ hasText: READ_ERROR }).count()) === 1
+			)
+			await shot(page, 'chat-answers', 'read-error')
+			const refreshed = []
+			page.on('request', (request) => {
+				if (request.url().includes('/api/chat/records/refresh')) refreshed.push(request.method())
+			})
+			await page.route('**/api/chat/records/refresh', (route) =>
+				route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
+			)
+			const postsBeforeRefresh = posts.length
+			await page.getByRole('button', { name: 'Refresh records' }).click()
+			await page.getByRole('button', { name: 'Refresh records' }).waitFor({ timeout: 15000 })
+			check(
+				'Refresh records with a failing read keeps the error',
+				(await page.getByText(READ_ERROR).count()) === 1 && refreshed.length === 1
+			)
+			await page.unroute('**/api/chat/records/refresh')
+			await page.getByRole('button', { name: 'Refresh records' }).click()
+			await page.getByText(READ_ERROR).waitFor({ state: 'detached', timeout: 30000 })
+			const afterRefresh = await page
+				.locator('[data-slot="due-list"]')
+				.last()
+				.locator('[data-slot="due-row"]')
+				.allInnerTexts()
+			check(
+				'Refresh records after the failure shows the fresh Pays soon rows in place',
+				JSON.stringify(afterRefresh) === JSON.stringify(todayDue),
+				`${afterRefresh.length} / ${todayDue.length}`
+			)
+			check(
+				'Refresh records sent no message and made no model request',
+				posts.length === postsBeforeRefresh && refreshed.length === 2
+			)
+
+			injected.push([
+				{
+					type: 'excerpt',
+					source: 'note',
+					id: randomUUID(),
+					studentId: ids[ANSWER_PAYS.name],
+					body: EXCERPT_TEXT,
+					createdAt: new Date(Date.now() - 6 * 86400000).toISOString(),
+					timeZone: VN,
+				},
+				{ type: 'suggestions', lines: IDEA_LINES },
+			])
+			await sendCommand(page, '/payments')
+			const excerpt = page.locator('[data-slot="chat-excerpt"]').last()
+			await excerpt.waitFor({ timeout: 30000 })
+			const excerptText = await excerpt.innerText()
+			check(
+				'an excerpt is a dated quote with its source and stored text, not a panel',
+				excerptText.includes(EXCERPT_TEXT) &&
+					/From notes · \w{3} \d{1,2} \w{3} · stored text/.test(excerptText) &&
+					(await excerpt.locator('blockquote').count()) === 1,
+				excerptText
+			)
+			const suggestions = page.locator('[data-slot="chat-suggestions"]').last()
+			check(
+				'suggestions are separate lines with the not-saved footer',
+				(await suggestions.getByRole('button').count()) === IDEA_LINES.length &&
+					(await suggestions.getByText("Not saved to the student's notes.").count()) === 1
+			)
+			await shot(page, 'chat-answers', 'excerpt')
+			const notesBefore = sql(
+				`select count(*)::int as n from student_notes where student_id = '${ids[ANSWER_PAYS.name]}'`
+			).rows[0].n
+			const postsBeforeUse = posts.length
+			await suggestions.getByRole('button', { name: IDEA_LINES[0] }).click()
+			check('a suggestion puts its text in the field', (await value(page)) === IDEA_LINES[0], await value(page))
+			await page.waitForTimeout(500)
+			check(
+				'a suggestion sends nothing and writes no note',
+				posts.length === postsBeforeUse &&
+					sql(`select count(*)::int as n from student_notes where student_id = '${ids[ANSWER_PAYS.name]}'`).rows[0]
+						.n === notesBefore
+			)
+
+			await page.setViewportSize({ width: 390, height: 800 })
+			await page.waitForTimeout(300)
+			const overflow = await page.evaluate(
+				() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+			)
+			check('on a phone the blocks do not overflow the page', overflow <= 0, String(overflow))
+			await shot(page, 'chat-answers', 'phone')
+
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		},
+		() => removeConversations(conversationIds),
+		removeFixtures
+	)
 }
 
 const section = process.argv[2]
