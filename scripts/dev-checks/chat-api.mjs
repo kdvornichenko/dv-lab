@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { isDeepStrictEqual } from 'node:util'
+import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
-import { STUDENT_LOGIN } from './api.mjs'
+import { ENV_TEST, STUDENT_LOGIN } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 import { call, quote, sql, startApi, studentCookie, teacherCookie } from './schedule-api/io.ts'
 
 const PORT = 4224
 const VN = core.SCHEDULE_TIME_ZONE
 const PREFIX = 'Alex Example 220'
-const SECTIONS = { records: sectionRecords, conversations: sectionConversations }
+const SECTIONS = { records: sectionRecords, conversations: sectionConversations, notes: sectionNotes }
 
 let failures = 0
 
@@ -427,6 +428,260 @@ async function sectionConversations(ctx) {
 	return 'CHAT_CONVERSATIONS_OK'
 }
 
+function removeEntries(where) {
+	const cards = `select id from students where ${where}`
+	sql(`delete from lesson_comments where student_id in (${cards})`)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+}
+
+const noteRow = (id) =>
+	sql(
+		`select student_id, section_kind, body, revision, retracted_at is not null as retracted from student_notes where id = ${quote(id)}`
+	).rows[0]
+
+async function sectionNotes(ctx) {
+	const { api, cookie } = ctx
+	const { appendStudentNoteRequest, NOTE_MAX_LENGTH } = await import('../../packages/contracts/src/index.ts')
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const { appendStudentNote, listStudentNotes, retractStudentNote } = await import('../../apps/api/src/cards/notes.ts')
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const { db, pool } = createDb(url)
+	try {
+		const student = await studentCookie(api)
+		const as = (method, path, body) => send(api, method, path, { cookie, body })
+		const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+		const live = await createCard(ctx, 'Alex Example 2207')
+		const archived = await createCard(ctx, 'Alex Example 2208')
+		const other = await createCard(ctx, 'Alex Example 2209')
+		const archive = await as('POST', `/students/${archived}/archive`, {})
+		if (archive.status !== 200) throw new Error(`archive returned ${archive.status}`)
+		const secret = 'Zeta note body'
+		const sectionText = 'Section text stays'
+
+		const first = await appendStudentNote(db, accountId, live, { sectionKind: 'goals', body: secret })
+		const second = await appendStudentNote(db, accountId, live, { sectionKind: 'goals', body: secret })
+		check(
+			'two notes with the same text are two records with their own ids at revision 1',
+			first !== null && second !== null && first.id !== second.id && first.revision === 1 && second.revision === 1
+		)
+		const foreignNote = await appendStudentNote(db, accountId, other, { sectionKind: 'level', body: 'Other card note' })
+		check('a note on another card is its own record', foreignNote !== null && foreignNote.id !== first.id)
+		check(
+			'append to an archived card gives null and writes nothing',
+			(await appendStudentNote(db, accountId, archived, { sectionKind: 'goals', body: secret })) === null &&
+				sql(`select count(*)::int as n from student_notes where student_id = ${quote(archived)}`).rows[0].n === 0
+		)
+		check(
+			'append to an unknown card gives null',
+			(await appendStudentNote(db, accountId, randomUUID(), { sectionKind: 'goals', body: secret })) === null
+		)
+		check(
+			'list of an unknown card is null, of an archived card is empty',
+			(await listStudentNotes(db, accountId, randomUUID())) === null &&
+				(await listStudentNotes(db, accountId, archived)).length === 0
+		)
+
+		const parsed = (body, sectionKind = 'goals') => appendStudentNoteRequest.safeParse({ sectionKind, body })
+		check(
+			'the append contract trims, keeps 2000 characters, refuses 2001, empty, NUL and unknown sections without cutting',
+			parsed(`  ${'ж'.repeat(NOTE_MAX_LENGTH)}  `).data?.body === 'ж'.repeat(NOTE_MAX_LENGTH) &&
+				parsed('😀'.repeat(NOTE_MAX_LENGTH)).success &&
+				!parsed('x'.repeat(NOTE_MAX_LENGTH + 1)).success &&
+				!parsed('   ').success &&
+				!parsed('a\u0000b').success &&
+				!parsed('fine', 'nope').success &&
+				!appendStudentNoteRequest.safeParse({ sectionKind: 'goals', body: 'fine', x: 1 }).success
+		)
+
+		const list = await as('GET', `/students/${live}/notes`)
+		check(
+			'GET notes answers 200 no-store with both notes, oldest first, no student id or account',
+			list.status === 200 &&
+				list.headers.get('cache-control') === 'no-store' &&
+				list.json.notes.map((item) => item.id).join() === [first.id, second.id].join() &&
+				list.json.notes.every(
+					(item) =>
+						item.sectionKind === 'goals' &&
+						item.body === secret &&
+						item.revision === 1 &&
+						item.retractedAt === null &&
+						!('studentId' in item)
+				),
+			`${list.status}`
+		)
+		const listOther = await as('GET', `/students/${other}/notes`)
+		check(
+			'notes of one card do not appear on another',
+			listOther.status === 200 && listOther.json.notes.length === 1 && listOther.json.notes[0].id === foreignNote.id
+		)
+		const listArchived = await as('GET', `/students/${archived}/notes`)
+		check(
+			'GET notes of an archived card answers 200 and empty',
+			listArchived.status === 200 && listArchived.json.notes.length === 0
+		)
+		for (const [label, path] of [
+			['unknown card', `/students/${randomUUID()}/notes`],
+			['malformed card id', '/students/not-a-uuid/notes'],
+		]) {
+			const res = await as('GET', path)
+			check(`GET notes ${label}: 404 not_found`, res.status === 404 && res.json?.error?.code === 'not_found')
+		}
+
+		const put = await as('PUT', `/students/${live}/sections/goals`, { body: sectionText })
+		const afterPut = await as('GET', `/students/${live}/notes`)
+		check(
+			'saving the section text changes no note',
+			put.status === 200 &&
+				put.json.section.body === sectionText &&
+				afterPut.json.notes.length === 2 &&
+				afterPut.json.notes.every((item) => item.body === secret && item.revision === 1)
+		)
+		const third = await appendStudentNote(db, accountId, live, { sectionKind: 'goals', body: 'Third note' })
+		const sections = await as('GET', `/students/${live}/sections`)
+		const goals = sections.json.sections.find((item) => item.kind === 'goals')
+		check(
+			'a note leaves the section text as it was and the text does not hold the note',
+			goals.body === sectionText && !goals.body.includes('Third note') && !goals.body.includes(secret)
+		)
+
+		const lowRevision = await as('POST', `/students/${live}/notes/${first.id}/retract`, { expectedRevision: 0 })
+		const noRevision = await as('POST', `/students/${live}/notes/${first.id}/retract`, {})
+		const extraKey = await as('POST', `/students/${live}/notes/${first.id}/retract`, { expectedRevision: 1, x: 1 })
+		check(
+			'retract with a bad body: 400 invalid_request and the note is untouched',
+			[lowRevision, noRevision, extraKey].every(
+				(res) => res.status === 400 && res.json?.error?.code === 'invalid_request'
+			) &&
+				noteRow(first.id).revision === 1 &&
+				noteRow(first.id).retracted === false
+		)
+		const stale = await as('POST', `/students/${live}/notes/${first.id}/retract`, { expectedRevision: 5 })
+		check(
+			'retract with a stale revision: 409 precondition_failed and nothing changed',
+			stale.status === 409 &&
+				stale.json?.error?.code === 'precondition_failed' &&
+				noteRow(first.id).revision === 1 &&
+				noteRow(first.id).retracted === false
+		)
+		const wrongCard = await as('POST', `/students/${other}/notes/${first.id}/retract`, { expectedRevision: 1 })
+		check(
+			'retract through another card URL: 404 and the note is untouched',
+			wrongCard.status === 404 && noteRow(first.id).retracted === false
+		)
+		for (const [label, path] of [
+			['unknown note', `/students/${live}/notes/${randomUUID()}/retract`],
+			['malformed note id', `/students/${live}/notes/not-a-uuid/retract`],
+			['unknown card', `/students/${randomUUID()}/notes/${first.id}/retract`],
+			['malformed card id', `/students/not-a-uuid/notes/${first.id}/retract`],
+		]) {
+			const res = await as('POST', path, { expectedRevision: 1 })
+			check(`retract ${label}: 404 not_found`, res.status === 404 && res.json?.error?.code === 'not_found')
+		}
+
+		const retracted = await as('POST', `/students/${live}/notes/${first.id}/retract`, { expectedRevision: 1 })
+		const kept = noteRow(first.id)
+		check(
+			'retract with the right revision: 200, revision +1, retracted_at set and the row stays',
+			retracted.status === 200 &&
+				retracted.json.note.id === first.id &&
+				retracted.json.note.revision === 2 &&
+				retracted.json.note.retractedAt !== null &&
+				kept.revision === 2 &&
+				kept.retracted === true &&
+				kept.body === secret
+		)
+		const again = await as('POST', `/students/${live}/notes/${first.id}/retract`, { expectedRevision: 1 })
+		const againCurrent = await as('POST', `/students/${live}/notes/${first.id}/retract`, { expectedRevision: 2 })
+		check(
+			'a second retract is 409 with the old revision and with the current one, and changes nothing',
+			again.status === 409 && againCurrent.status === 409 && noteRow(first.id).revision === 2
+		)
+		const afterRetract = await as('GET', `/students/${live}/notes`)
+		check(
+			'the retracted note leaves the list, its twin stays',
+			afterRetract.json.notes.map((item) => item.id).join() === [second.id, third.id].join()
+		)
+		const goalsAfter = (await as('GET', `/students/${live}/sections`)).json.sections.find(
+			(item) => item.kind === 'goals'
+		)
+		check('retracting a note leaves the section text as it was', goalsAfter.body === sectionText)
+
+		const race = await Promise.all([
+			as('POST', `/students/${live}/notes/${second.id}/retract`, { expectedRevision: 1 }),
+			as('POST', `/students/${live}/notes/${second.id}/retract`, { expectedRevision: 1 }),
+		])
+		check(
+			'two simultaneous retracts: one 200 and one 409, revision grows once',
+			race
+				.map((res) => res.status)
+				.sort()
+				.join() === '200,409' && noteRow(second.id).revision === 2
+		)
+		check(
+			'the other card note and the third note are intact',
+			noteRow(foreignNote.id).retracted === false && noteRow(third.id).retracted === false
+		)
+
+		const tx = await db.transaction(async (executor) => {
+			const result = await retractStudentNote(executor, accountId, third.id, 1)
+			const listed = await listStudentNotes(executor, accountId, live)
+			return { result, listed }
+		})
+		check(
+			'retract works inside a caller transaction with the caller executor',
+			tx.result.kind === 'retracted' && tx.result.note.revision === 2 && tx.listed.length === 0
+		)
+
+		const asStudentRoutes = [
+			['GET', `/students/${live}/notes`],
+			['POST', `/students/${live}/notes/${third.id}/retract`],
+		]
+		for (const [method, path] of asStudentRoutes) {
+			const body = method === 'GET' ? undefined : { expectedRevision: 2 }
+			const asStudent = await send(api, method, path, { cookie: student, body })
+			const anonymous = await send(api, method, path, { body })
+			check(
+				`${method} ${path.replace(/[0-9a-f-]{36}/g, ':id')}: student 403 and no session 401 without text`,
+				asStudent.status === 403 &&
+					anonymous.status === 401 &&
+					!JSON.stringify(asStudent.json).includes(secret) &&
+					!JSON.stringify(anonymous.json).includes(secret)
+			)
+		}
+
+		const denied = (statement) => {
+			try {
+				sql(statement, 'app')
+				return 'done'
+			} catch (err) {
+				return String(err.message)
+			}
+		}
+		const refusals = [
+			denied(`delete from student_notes where id = ${quote(second.id)}`),
+			denied('truncate student_notes'),
+			denied(`delete from lesson_comments where student_id = ${quote(live)}`),
+			denied('truncate lesson_comments'),
+		]
+		check(
+			'the application role cannot DELETE or TRUNCATE either table',
+			refusals.every((text) => text.includes('42501')),
+			refusals.join(' | ')
+		)
+		check(
+			'the application role has no DELETE or TRUNCATE privilege on either table',
+			sql(
+				"select bool_or(has_table_privilege('dvlab_app', t, 'DELETE') or has_table_privilege('dvlab_app', t, 'TRUNCATE')) as p from unnest(array['student_notes', 'lesson_comments']) as t"
+			).rows[0].p === false
+		)
+		check('api log has no note text', !api.logs().includes(secret) && !api.logs().includes('Third note'))
+		return 'CHAT_NOTES_OK'
+	} finally {
+		await pool.end()
+	}
+}
+
 const section = process.argv[2]
 const run = SECTIONS[section]
 
@@ -435,6 +690,7 @@ if (!run) {
 	process.exit(2)
 }
 
+removeEntries(`display_name like ${quote(`${PREFIX}%`)} and import_key is null`)
 const tails = removeCards(`display_name like ${quote(`${PREFIX}%`)} and import_key is null`)
 console.log(`fixture tails removed ${tails}`)
 
@@ -455,6 +711,7 @@ try {
 	if (api) await api.stop()
 	if (conversations.length > 0)
 		sql(`delete from chat_conversations where id in (${conversations.map(quote).join(', ')})`)
+	if (ids.length > 0) removeEntries(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 	if (ids.length > 0) removeCards(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 }
 

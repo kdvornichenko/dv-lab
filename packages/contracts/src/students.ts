@@ -43,6 +43,7 @@ export const STUDENT_TEXT_MAX_LENGTH = 200
 export const TIME_ZONE_MAX_LENGTH = 64
 export const SECTION_BODY_MAX_LENGTH = 20000
 export const TERM_MAX_LENGTH = 200
+export const NOTE_MAX_LENGTH = 2000
 export const TERM_NOTE_MAX_LENGTH = 2000
 export const PAYMENT_NOTE_MAX_LENGTH = 500
 export const AMOUNT_MINOR_MAX = 2000000000
@@ -117,6 +118,19 @@ export const openingBalanceRequest = z.object({
 export const saveSectionRequest = z.object({
 	body: z.string().refine((body) => textLength(body) <= SECTION_BODY_MAX_LENGTH),
 })
+
+export const appendStudentNoteRequest = z.strictObject({
+	sectionKind: z.enum(SECTION_KINDS),
+	body: z
+		.string()
+		.transform((value) => value.trim())
+		.refine((value) => {
+			const length = textLength(value)
+			return length >= 1 && length <= NOTE_MAX_LENGTH && !value.includes('\u0000')
+		}),
+})
+
+export const retractNoteRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
 
 export const addTermRequest = z.object({
 	term: z
@@ -197,6 +211,19 @@ export type StudentSection = { kind: SectionKind; body: string; updatedAt: strin
 export type StudentSectionsResponse = { sections: StudentSection[] }
 
 export type StudentSectionResponse = { section: StudentSection }
+
+export type StudentNote = {
+	id: string
+	sectionKind: SectionKind
+	body: string
+	revision: number
+	createdAt: string
+	retractedAt: string | null
+}
+
+export type StudentNotesResponse = { notes: StudentNote[] }
+
+export type StudentNoteResponse = { note: StudentNote }
 
 export type StudentTerm = { id: string; term: string; note: string | null; createdAt: string }
 

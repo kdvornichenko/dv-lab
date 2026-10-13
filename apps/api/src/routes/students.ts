@@ -8,6 +8,8 @@ import {
 	SECTION_KINDS,
 	type StudentAccountResponse,
 	type StudentDetail,
+	type StudentNoteResponse,
+	type StudentNotesResponse,
 	type StudentResponse,
 	type StudentSectionResponse,
 	type StudentSectionsResponse,
@@ -19,6 +21,7 @@ import {
 	deactivateStudentAccountRequest,
 	linkStudentAccountRequest,
 	openingBalanceRequest,
+	retractNoteRequest,
 	saveSectionRequest,
 	saveStudentRequest,
 	updateTermNoteRequest,
@@ -44,6 +47,7 @@ import {
 	setOpeningBalance,
 	updateCard,
 } from '../cards/cards.ts'
+import { listStudentNotes, retractStudentNote } from '../cards/notes.ts'
 import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
@@ -60,6 +64,11 @@ const cardHasAccount = (c: Context<AppEnv>) =>
 
 function cardId(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('id'))
+	return id.success ? id.data : null
+}
+
+function noteIdParam(c: Context<AppEnv>): string | null {
+	const id = z.uuid().safeParse(c.req.param('noteId'))
 	return id.success ? id.data : null
 }
 
@@ -237,6 +246,29 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const section = await saveSection(db, id, kind.data, input.body)
 		if (!section) return notFound(c)
 		return c.json({ section } satisfies StudentSectionResponse, 200)
+	})
+
+	routes.get('/:id/notes', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const notes = await readSnapshot(db, (executor) => listStudentNotes(executor, c.get('session').account.id, id))
+		if (!notes) return notFound(c)
+		return c.json({ notes } satisfies StudentNotesResponse, 200)
+	})
+
+	routes.post('/:id/notes/:noteId/retract', async (c) => {
+		const id = cardId(c)
+		const noteId = noteIdParam(c)
+		if (id === null || noteId === null) return notFound(c)
+		const input = await readJson(c, retractNoteRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const result = await db.transaction((tx) => retractStudentNote(tx, accountId, noteId, input.expectedRevision, id))
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'changed') {
+			return c.json(errorBody('precondition_failed', 'The note changed'), 409)
+		}
+		return c.json({ note: result.note } satisfies StudentNoteResponse, 200)
 	})
 
 	routes.get('/:id/terms', async (c) => {
