@@ -343,7 +343,7 @@ async function providerSmoke() {
 	check(
 		'the tool list is the phase list, strict, without server tools',
 		tools ===
-			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change' &&
+			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change,open_page' &&
 			CHAT_TOOLS.every(
 				(item) => item.strict === true && item.input_schema.additionalProperties === false && !('type' in item)
 			)
@@ -835,6 +835,205 @@ async function linkFields(conversationId, studentId, lessonId, startsAt, zone) {
 	)
 }
 
+async function genderOfCard(studentId) {
+	const name = `${NAME} Gender`
+	const created = await as('POST', '/students', { ...cardBody(name), gender: 'female' })
+	if (created.status !== 201) throw new Error(`gender card create returned ${created.status}`)
+	const id = created.json.student.id
+	ids.push(id)
+	const detail = await as('GET', `/students/${id}`)
+	const list = await as('GET', '/students')
+	const options = await as('GET', '/students/options')
+	const row = list.json.students.find((item) => item.id === id)
+	check(
+		'a card is created with a gender that the card reads, the list and the options do not carry it',
+		created.json.student.gender === 'female' &&
+			detail.json.student.gender === 'female' &&
+			row !== undefined &&
+			!('gender' in row) &&
+			options.json.students.every((item) => !('gender' in item)),
+		JSON.stringify({ created: created.json.student.gender, row })
+	)
+	const kept = await as('PATCH', `/students/${id}`, cardBody(name))
+	const male = await as('PATCH', `/students/${id}`, { ...cardBody(name), gender: 'male' })
+	const cleared = await as('PATCH', `/students/${id}`, { ...cardBody(name), gender: null })
+	const stored = sql(`select gender from students where id = ${quote(id)}`).rows[0].gender
+	const wrong = await as('PATCH', `/students/${id}`, { ...cardBody(name), gender: 'other' })
+	const fresh = await as('POST', '/students', cardBody(`${NAME} Unset`))
+	if (fresh.status === 201) ids.push(fresh.json.student.id)
+	check(
+		'a save without gender keeps it, male changes it, null clears it, an unknown value is 400 and a new card starts without one',
+		kept.json.student.gender === 'female' &&
+			male.json.student.gender === 'male' &&
+			cleared.json.student.gender === null &&
+			stored === null &&
+			wrong.status === 400 &&
+			fresh.json.student.gender === null,
+		JSON.stringify([kept.status, male.status, cleared.status, wrong.status, fresh.status])
+	)
+	await as('PATCH', `/students/${id}`, { ...cardBody(name), gender: 'male' })
+
+	const thread = await conversation()
+	const text = `как дела у @${name}?`
+	const start = text.indexOf('@') + 1
+	const calls = fake.calls.length
+	fake.script.push(
+		use('find_students', { query: name }),
+		capture(use('student_facts', { student_id: id, show: true })),
+		capture(say('Он молодец.'))
+	)
+	const turn = await settled(
+		(
+			await as('POST', `/chat/conversations/${thread}/messages`, {
+				requestId: randomUUID(),
+				text,
+				mentions: [{ studentId: id, text: name, start, end: start + name.length }],
+			})
+		).json.turn.id
+	)
+	const request = fake.calls[calls]
+	const found = JSON.parse(seen.at(-2)?.[0]?.content ?? '{}')
+	const facts = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	const block = replyOf(turn.id).blocks.find((item) => item.type === 'facts')
+	check(
+		'the gender reaches the model: the mentioned students line, find_students and student_facts, and the prompt has the rule',
+		String(request?.messages.at(-1).content).includes(`- ${name} (student_id: ${id}, gender: male)`) &&
+			String(request?.system).includes('Choose the grammatical gender') &&
+			String(request?.system).includes('never guess it from the name') &&
+			found.students?.[0]?.gender === 'male' &&
+			facts.gender === 'male',
+		JSON.stringify({ found, gender: facts.gender })
+	)
+	check(
+		'the facts block and the facts the model reads carry no gender',
+		block !== undefined && !JSON.stringify(block).includes('gender') && !('gender' in (facts.facts ?? {})),
+		JSON.stringify(block)
+	)
+	fake.script.push(say('Fine.'))
+	await settled((await askAbout(thread, `и @${NAME}?`, studentId)).json.turn.id)
+	check(
+		'a mentioned student without a gender goes to the model as gender null',
+		String(fake.calls.at(-1).messages.at(-1).content).includes(`- ${NAME} (student_id: ${studentId}, gender: null)`)
+	)
+}
+
+async function pageLinks(studentId) {
+	const thread = await conversation()
+	const sentence = "I can't record payments from the chat."
+	const payment = { kind: 'payments', student_id: studentId, date: null, tab: null, dialog: 'payment' }
+	fake.script.push(
+		use('open_page', payment),
+		capture(use('open_page', { kind: 'settings', student_id: null, date: null, tab: 'assistant', dialog: null })),
+		capture(say(sentence))
+	)
+	const sent = await askAbout(thread, `@${NAME} добавь оплату 8 уроков`, studentId)
+	const list = await events(sent.json.turn.id, { until: finished, timeout: 15000 })
+	const turn = await settled(sent.json.turn.id)
+	const reply = replyOf(turn.id)
+	const links = reply.blocks.filter((block) => block.type === 'action_link')
+	const firstResult = JSON.parse(seen.at(-2)?.[0]?.content ?? '{}')
+	const secondResult = JSON.parse(seen.at(-1)?.[0]?.content ?? '{}')
+	check(
+		'a request without a tool gives one action_link block to the payments with the Record payment dialog and no value',
+		links.length === 1 &&
+			isDeepStrictEqual(links[0], {
+				type: 'action_link',
+				kind: 'payments',
+				studentId,
+				studentName: NAME,
+				date: null,
+				tab: null,
+				dialog: 'payment',
+			}) &&
+			firstResult.status === 'shown' &&
+			secondResult.status === 'not_shown',
+		JSON.stringify({ links, firstResult, secondResult })
+	)
+	check(
+		'the reply is the one sentence, without the amount from the request and without withheld',
+		reply.body.trim() === sentence &&
+			!/\p{Nd}/u.test(reply.body) &&
+			!JSON.stringify(reply.blocks.map((block) => ({ ...block, studentId: null }))).includes('8') &&
+			!reply.blocks.some((block) => block.type === 'withheld'),
+		JSON.stringify(reply)
+	)
+	const read = await readThread(thread)
+	const streamed = list.filter((event) => event.type === 'block' && event.block.type === 'action_link')
+	check(
+		'the block is read back with the conversation and sent once in the stream, and open_page has no step',
+		read.messages.some((item) => item.blocks.some((block) => block.type === 'action_link')) &&
+			streamed.length === 1 &&
+			!sql(
+				`select m.steps from chat_messages m join chat_turns t on t.assistant_message_id = m.id where t.id = ${quote(turn.id)}`
+			).rows[0].steps.some((step) => step.tool === 'open_page'),
+		JSON.stringify(streamed)
+	)
+
+	fake.script.push(
+		use('open_page', { ...payment, dialog: null }),
+		say('Я не могу записать оплату из чата. Вы просили 8 уроков.')
+	)
+	const echoed = replyOf(
+		(await settled((await askAbout(thread, `@${NAME} запиши оплату 8 уроков`, studentId)).json.turn.id)).id
+	)
+	check(
+		'a sentence that repeats the number from the request is withheld, the short sentence and the block stay, the block before withheld',
+		echoed.body.trim() === 'Я не могу записать оплату из чата.' &&
+			echoed.blocks.map((block) => block.type).join(',') === 'action_link,withheld' &&
+			echoed.blocks[0].dialog === null,
+		JSON.stringify(echoed)
+	)
+
+	fake.script.push(
+		use('open_page', { kind: 'overview', student_id: studentId, date: null, tab: null, dialog: 'details' }),
+		use('student_facts', { student_id: studentId, show: true }),
+		say('This is the profile.')
+	)
+	const ordered = replyOf(
+		(await settled((await askAbout(thread, `@${NAME} измени профиль`, studentId)).json.turn.id)).id
+	)
+	check(
+		'the action block stands after the facts even when the page was asked first',
+		ordered.blocks.map((block) => block.type).join(',') === 'facts,action_link' &&
+			ordered.blocks[1].kind === 'overview' &&
+			ordered.blocks[1].dialog === 'details',
+		JSON.stringify(ordered.blocks.map((block) => block.type))
+	)
+
+	const day = core.lessonDay(new Date(), core.SCHEDULE_TIME_ZONE)
+	fake.script.push(
+		use('open_page', { kind: 'messages', student_id: studentId, date: null, tab: null, dialog: null }),
+		capture(use('open_page', { kind: 'payments', student_id: null, date: null, tab: null, dialog: null })),
+		capture(use('open_page', { kind: 'payments', student_id: studentId, date: null, tab: null, dialog: 'details' })),
+		capture(use('open_page', { kind: 'notes', student_id: randomUUID(), date: null, tab: null, dialog: null })),
+		capture(use('open_page', { kind: 'schedule_day', student_id: studentId, date: day, tab: null, dialog: null })),
+		capture(say('Here is the day.'))
+	)
+	const checked = await settled((await ask(thread, 'Open things')).json.turn.id)
+	const errors = seen.slice(-5, -1).map((results) => JSON.parse(results[0]?.content ?? '{}').error)
+	const dayLinks = replyOf(checked.id).blocks.filter((block) => block.type === 'action_link')
+	check(
+		'no page, a missing student, a dialog of another page and an unknown student give errors and no block; a day link has only its date',
+		isDeepStrictEqual(errors, ['no_page', 'invalid_arguments', 'invalid_arguments', 'student_not_found']) &&
+			isDeepStrictEqual(dayLinks, [
+				{
+					type: 'action_link',
+					kind: 'schedule_day',
+					studentId: null,
+					studentName: null,
+					date: day,
+					tab: null,
+					dialog: null,
+				},
+			]),
+		JSON.stringify({ errors, dayLinks })
+	)
+	check(
+		'a past action block goes to the model as a short note',
+		JSON.stringify(fake.calls.at(-1).messages).includes(`[Showed a link to the payments page of ${NAME}]`)
+	)
+}
+
 async function main() {
 	removeEntries(`display_name like ${quote(`${NAME}%`)} and import_key is null`)
 	removeCards(`display_name like ${quote(`${NAME}%`)} and import_key is null`)
@@ -893,7 +1092,8 @@ async function main() {
 		answerRequest.model === choice.model.id &&
 			answerRequest.effort === choice.effort &&
 			answerRequest.maxOutputTokens === 16000 &&
-			answerRequest.tools.length === 9
+			answerRequest.tools.length === 10 &&
+			answerRequest.tools.some((item) => item.name === 'open_page' && item.strict === true)
 	)
 	const firstAttempts = attempts(answered.id)
 	check(
@@ -1209,6 +1409,8 @@ async function main() {
 	await lessonDates(first)
 	await linkFields(first, studentId, lessonId, startsAt, zone)
 	await stepsAndMentions(studentId, zone)
+	await genderOfCard(studentId)
+	await pageLinks(studentId)
 
 	fake.script.push(say('Which student?'))
 	await settled((await ask(first, '/recap')).json.turn.id)
