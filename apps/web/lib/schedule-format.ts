@@ -63,17 +63,6 @@ export function weekTitle(monday: string): string {
 	return weekRange(monday)
 }
 
-export function periodTitle(monday: string): string {
-	const sunday = addDays(monday, 6)
-	if (yearOf(monday) !== yearOf(sunday)) {
-		return `${monthShort(monday)} ${yearOf(monday)}${dash}${monthShort(sunday)} ${yearOf(sunday)}`
-	}
-	if (monthShort(monday) !== monthShort(sunday)) {
-		return `${monthShort(monday)}${dash}${monthShort(sunday)} ${yearOf(sunday)}`
-	}
-	return `${monthLong(monday)} ${yearOf(monday)}`
-}
-
 export function formatTime(instant: Date, zone: string): string {
 	return zonedParts(instant, zone).time
 }

@@ -26,7 +26,7 @@ import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
 import { NOTICE_SLOT, WORKSPACE_BODY, LOADING_BLOCKS, ScheduleLoading, useLaptop } from './schedule-loading'
-import { ScheduleBar, ScheduleToolbar, useScheduleKeys, weekSummary } from './schedule-toolbar'
+import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { useScheduleWeek } from './use-schedule-week'
@@ -240,10 +240,29 @@ function LoadedSchedule({ now }: { now: Date }) {
 		</>
 	)
 
+	const pendingRecovery =
+		commands.view.entries.some((entry) => entry.command?.state !== 'failed') ||
+		(commands.view.connection?.pendingCommandCount ?? 0) > 0
+	const tools = (
+		<>
+			{loadingFirst ? (
+				<span className="size-7" />
+			) : (
+				<CalendarReadStatusButton
+					read={read}
+					write={write}
+					timeZone={mainTimeZone}
+					onRefresh={refreshWeek}
+					pendingRecovery={pendingRecovery}
+					recovery={<CalendarRecovery showEmpty={false} />}
+				/>
+			)}
+			<ScheduleZone monday={week.query.monday} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
+			<LessonCountDialog iconOnly />
+		</>
+	)
+
 	if (laptop !== null) {
-		const pendingRecovery =
-			commands.view.entries.some((entry) => entry.command?.state !== 'failed') ||
-			(commands.view.connection?.pendingCommandCount ?? 0) > 0
 		return (
 			<>
 				{inBar(
@@ -256,25 +275,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 					/>,
 					laptop.left
 				)}
-				{inBar(
-					<div className="flex items-center gap-2">
-						{loadingFirst ? (
-							<span className="size-7" />
-						) : (
-							<CalendarReadStatusButton
-								read={read}
-								write={write}
-								timeZone={mainTimeZone}
-								onRefresh={refreshWeek}
-								pendingRecovery={pendingRecovery}
-								recovery={<CalendarRecovery showEmpty={false} />}
-							/>
-						)}
-						<ScheduleZone monday={week.query.monday} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
-						<LessonCountDialog iconOnly />
-					</div>,
-					laptop.right
-				)}
+				{inBar(<div className="flex items-center gap-2">{tools}</div>, laptop.right)}
 				<WorkspacePage>
 					<div {...windowAttributes} className={WORKSPACE_BODY}>
 						{grid}
@@ -292,25 +293,25 @@ function LoadedSchedule({ now }: { now: Date }) {
 					titleRef={titleRef}
 					title={weekRange(monday)}
 					actions={
-						<div className="flex items-center gap-2">
-							<LessonCountDialog />
-							<Button
-								leadingIcon={CalendarPlus}
-								disabled={!editable}
-								onClick={() =>
-									openNew(
-										monday === currentMonday
-											? { ...nextWholeHour(now, mainTimeZone), durationMinutes: 60, dragged: false }
-											: { date: monday, time: '09:00', durationMinutes: 60, dragged: false }
-									)
-								}
-							>
-								New event
-							</Button>
-						</div>
+						<Button
+							leadingIcon={CalendarPlus}
+							disabled={!editable}
+							onClick={() =>
+								openNew(
+									monday === currentMonday
+										? { ...nextWholeHour(now, mainTimeZone), durationMinutes: 60, dragged: false }
+										: { date: monday, time: '09:00', durationMinutes: 60, dragged: false }
+								)
+							}
+						>
+							New event
+						</Button>
 					}
 				/>
-				<ScheduleToolbar {...navigation} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
+				<div className="flex min-h-7 items-center gap-2">
+					<ScheduleBar {...navigation} onWeek={pickWeek} today={today} titleRef={null} summary={null} heading={false} />
+					<div className="ml-auto flex items-center gap-2">{tools}</div>
+				</div>
 				<div {...windowAttributes} className="space-y-4">
 					<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
 						{loadingFirst ? null : (

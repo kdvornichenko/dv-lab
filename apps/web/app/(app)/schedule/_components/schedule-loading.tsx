@@ -2,10 +2,14 @@
 
 import { createPortal } from 'react-dom'
 
+import { CalendarPlus } from 'lucide-react'
+
 import { PageHeader, PageScroll, WorkspacePage } from '@/components/app/layout-parts'
 import { useTopbarSlot } from '@/components/app/topbar-slot'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
+import { weekRange } from '@/lib/schedule-format'
 
 import { DAY_START_MINUTES, SCHEDULE_TIME_ZONE, lessonDay, mondayOf } from '@dv-lab/core'
 
@@ -91,7 +95,14 @@ export function ScheduleLoading() {
 	if (laptop === null)
 		return (
 			<PageScroll>
-				<PageHeader title="Schedule" />
+				<PageHeader
+					title={monday === null ? ' ' : weekRange(monday)}
+					actions={
+						<Button leadingIcon={CalendarPlus} disabled>
+							New event
+						</Button>
+					}
+				/>
 				<div className="flex min-h-7 items-center justify-between gap-2">
 					{today !== null && monday !== null ? (
 						<ScheduleBar
