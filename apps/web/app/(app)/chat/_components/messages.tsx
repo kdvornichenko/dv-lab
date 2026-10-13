@@ -18,6 +18,7 @@ import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, Mentio
 
 import { ActionResult } from './action-result'
 import { CalendarProposal } from './calendar-proposal'
+import { ChatProgress } from './chat-progress'
 import { conversationTime } from './conversation-list'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 
@@ -210,7 +211,8 @@ function Block({
 	if (isRecordBlock(block)) return <RecordBlockView block={block} onUse={replies.onSuggest} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
-	return <Interrupted onCheckStatus={replies.onCheckStatus} />
+	if (block.type === 'interrupted') return <Interrupted onCheckStatus={replies.onCheckStatus} />
+	return null
 }
 
 function Withheld({ onAsk }: { onAsk: () => void }) {
@@ -321,6 +323,7 @@ export function Messages({
 	const atBottom = useRef(true)
 	const lastSent = useRef<string | null>(null)
 	const now = new Date()
+	const orphan = active !== null && !messages.some((message) => message.id === active.messageId)
 
 	useEffect(() => {
 		const viewport = end.current?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
@@ -362,9 +365,11 @@ export function Messages({
 							reduceMotion={reduceMotion}
 							busy={active?.messageId === message.id}
 						>
-							{active?.messageId === message.id && message.body === '' && message.blocks.length === 0 ? (
-								<Working label="Reading student records…" />
-							) : null}
+							<ChatProgress
+								steps={message.steps}
+								live={active?.messageId === message.id}
+								hasText={message.body !== ''}
+							/>
 							{message.body === '' ? null : (
 								<p
 									data-slot="chat-reply-text"
@@ -398,6 +403,7 @@ export function Messages({
 					)
 				)}
 			</ol>
+			{orphan ? <ChatProgress steps={[]} live hasText={false} /> : null}
 			<div ref={end} aria-hidden />
 		</>
 	)

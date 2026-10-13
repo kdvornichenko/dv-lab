@@ -23,6 +23,7 @@ import {
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
 	type ChatMessage,
+	type ChatStep,
 	type ChatStreamEvent,
 	type ChatEffort,
 	type ChatTurn,
@@ -225,6 +226,12 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
 	})
 }
 
+function withStep(steps: readonly ChatStep[], next: ChatStep): ChatStep[] {
+	return steps.some((step) => step.id === next.id)
+		? steps.map((step) => (step.id === next.id ? next : step))
+		: [...steps, next]
+}
+
 function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMessage[]): ChatMessage[] {
 	const known = new Set(current.map((message) => message.id))
 	return [...current, ...added.filter((message) => !known.has(message.id))]
@@ -411,17 +418,27 @@ export function useChat(initialConversationId: string | null) {
 
 	const apply = useCallback(
 		(conversationId: string, stream: Stream, event: ChatStreamEvent) => {
-			if (event.type === 'heartbeat' || event.type === 'step') return
+			if (event.type === 'heartbeat') return
 			if (event.type === 'snapshot') {
 				stream.seq = event.seq
 				const message = event.message
 				if (message !== null) updateThread(conversationId, (messages) => withMessage(messages, message))
-			} else if (event.type === 'text' || event.type === 'block') {
+			} else if (event.type === 'state') {
+				const message = event.message
+				if (message) updateThread(conversationId, (messages) => withMessage(messages, message))
+			} else if (event.type === 'text' || event.type === 'block' || event.type === 'step') {
 				if (event.seq <= stream.seq) return
 				stream.seq = event.seq
 				if (event.type === 'text') {
 					updateThread(conversationId, (messages) =>
 						changeMessage(messages, event.messageId, (message) => ({ ...message, body: message.body + event.text }))
+					)
+				} else if (event.type === 'step') {
+					updateThread(conversationId, (messages) =>
+						changeMessage(messages, event.messageId, (message) => ({
+							...message,
+							steps: withStep(message.steps, event.step),
+						}))
 					)
 				} else {
 					updateThread(conversationId, (messages) =>
