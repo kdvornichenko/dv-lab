@@ -96,7 +96,10 @@ function withoutKnownWhen(text: string, context: GateContext): string | null {
 
 function withoutNames(text: string, context: GateContext): string {
 	let out = text
-	for (const name of context.names) out = out.split(name).join(' ')
+	for (const name of context.names) {
+		const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+		out = out.replace(new RegExp(`(?<![\\p{L}\\p{Nd}])${escaped}(?![\\p{L}\\p{Nd}])`, 'giu'), ' ')
+	}
 	return out
 }
 
