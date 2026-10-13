@@ -14,7 +14,7 @@ import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker
 import { useTopbarSlot } from '@/components/app/topbar-slot'
 import { Button } from '@/components/ui/button'
 import { SkeletonTable } from '@/components/ui/skeleton'
-import { calendarLesson, canEditCalendarEvent, canEditPlainEvent } from '@/lib/lesson-actions'
+import { calendarLesson, canEditCalendarEvent, canEditPlainEvent, changeableLesson } from '@/lib/lesson-actions'
 import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -173,12 +173,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 	function canMove(event: CalendarEventView) {
 		if (!editable || data === null || writes.mark(event) !== null) return false
-		if (calendarLesson(event))
-			return (
-				canEditCalendarEvent(event, data) &&
-				event.status !== 'cancelled' &&
-				Date.parse(event.when.startsAt) > Math.max(now.getTime(), Date.now())
-			)
+		if (calendarLesson(event)) return canEditCalendarEvent(event, data) && changeableLesson(event)
 		return canEditPlainEvent(event, data)
 	}
 	function studentName(id: string) {

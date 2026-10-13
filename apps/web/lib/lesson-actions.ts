@@ -1,12 +1,14 @@
 import {
 	timeZoneIdentity,
+	type CalendarEditScope,
 	type CalendarEventView,
+	type CalendarIssue,
 	type CalendarSeriesContext,
 	type GoogleScheduleWindow,
 	type ScheduleOccurrenceRef,
 	type ScheduleSeries,
 } from '@dv-lab/contracts'
-import { scheduleDate, seriesStart } from '@dv-lab/core'
+import { canChange, scheduleDate, seriesStart } from '@dv-lab/core'
 
 export type CalendarLesson = CalendarEventView & {
 	binding: Extract<CalendarEventView['binding'], { kind: 'lesson' }>
@@ -26,6 +28,36 @@ export function canEditCalendarEvent(event: CalendarEventView, window: GoogleSch
 	return (
 		calendarLesson(event) && window.read.state === 'fresh' && window.write.state === 'ready' && event.editBlock === null
 	)
+}
+
+export function changeableLesson(event: CalendarEventView): event is CalendarLesson {
+	return calendarLesson(event) && event.binding.mark !== 'done' && event.status !== 'cancelled'
+}
+
+export function startedLesson(event: CalendarLesson, now: Date): boolean {
+	return !canChange(new Date(event.when.startsAt), now)
+}
+
+export function seriesScopesFor(
+	event: CalendarLesson,
+	context: CalendarSeriesContext | null
+): readonly CalendarEditScope[] {
+	const ref = event.binding.ref
+	if (ref.kind !== 'series' || context === null || context.allFrom === null) return ['one']
+	return ref.originalOn >= context.allFrom ? ['one', 'following', 'all'] : ['one']
+}
+
+export function writeIssueFor(
+	event: CalendarEventView | null,
+	window: GoogleScheduleWindow | null,
+	blocked: boolean
+): CalendarIssue | null {
+	if (window === null) return 'provider_unavailable'
+	if (window.write.state === 'blocked') return window.write.reason
+	if (window.read.state !== 'fresh') return window.read.reason
+	if (blocked) return 'command_pending'
+	if (event === null) return 'history_only'
+	return event.editBlock
 }
 
 export function canChangePlainEvent(event: CalendarEventView, window: GoogleScheduleWindow): boolean {
