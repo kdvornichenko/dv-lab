@@ -10,7 +10,7 @@ const PREFIX = 'Alex Example 221'
 const PAYS_SOON = { name: 'Alex Example 2211', hundredths: 100 }
 const NOT_SET = { name: 'Alex Example 2212', hundredths: null }
 const READ_ERROR = "Could not read the student's records."
-const EXPECTED_NOISE = /status of 500|Failed to load resource/
+const EXPECTED_NOISE = /status of 500|Failed to load resource|server caches disabled/
 
 const sections = {
 	records: sectionRecords,
@@ -85,7 +85,13 @@ async function sectionRecords() {
 				const text = await group.innerText()
 				const row = students[item.name]
 				check(`${item.name}: chat balance text equals Students (${row.text})`, text.includes(row.text), text)
-				if (row.dotLabel !== null) {
+				if (row.dotLabel === 'Plenty left') {
+					check(
+						`${item.name}: chat shows no state label for Plenty left`,
+						!/Pays soon|No lessons left|Owes lessons|Plenty left/.test(text),
+						text
+					)
+				} else if (row.dotLabel !== null) {
 					check(`${item.name}: chat shows the Students state ${row.dotLabel}`, text.includes(row.dotLabel), text)
 				} else {
 					check(
@@ -641,7 +647,7 @@ async function sectionNotes() {
 
 			await page.route('**/api/students/*/notes', async (route) => {
 				await new Promise((resolve) => setTimeout(resolve, 1500))
-				await route.continue()
+				await route.continue().catch(() => {})
 			})
 			await page.reload()
 			await page.getByRole('tab', { name: 'Notes', exact: true }).click()
@@ -1285,7 +1291,7 @@ async function proposeIn(page, text) {
 	const field = page.locator(FIELD)
 	await field.click()
 	await page.keyboard.type(`@${CALENDAR_CARD}`)
-	await page.locator(POPUP).waitFor({ timeout: 15000 })
+	await page.locator(POPUP).getByText(CALENDAR_CARD).first().waitFor({ timeout: 15000 })
 	await page.keyboard.press('Enter')
 	await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
 	await page.keyboard.type(text)
@@ -1377,7 +1383,7 @@ async function sectionCalendar() {
 			await shot(page, 'chat-calendar', 'pending')
 			await first.getByText(ACCEPTED).waitFor({ timeout: 15000 })
 			check('accepted by Google is not Saved yet', !(await first.innerText()).includes('Saved.'))
-			await first.getByText('Saved.').waitFor({ timeout: 15000 })
+			await first.getByText('Saved.', { exact: true }).waitFor({ timeout: 15000 })
 			check(
 				'applied shows Saved, the saved line and Undo',
 				(await first.innerText()).includes('Calendar change saved.') &&
@@ -1398,7 +1404,7 @@ async function sectionCalendar() {
 			await page.waitForTimeout(2500)
 			check('an unknown result asks for Check status and sends nothing by itself', checks.length === checksBefore)
 			await second.getByRole('button', { name: 'Check status' }).click()
-			await second.getByText('Saved.').waitFor({ timeout: 15000 })
+			await second.getByText('Saved.', { exact: true }).waitFor({ timeout: 15000 })
 			check('Check status turns into Saved only when the block is applied', checks.length === checksBefore + 1)
 			await shot(page, 'chat-calendar', 'unknown-checked')
 
