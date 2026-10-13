@@ -15,6 +15,7 @@ import {
 	createCalendarEventCommand,
 	deleteCalendarEventRequest,
 	googleEventKeyParams,
+	googleCalendarList,
 	googleEventPalette,
 	googleSyncSnapshot,
 	updateCalendarEventRequest,
@@ -122,6 +123,14 @@ export function googleRoutes({ db, connection, control, commands, isStopping }: 
 	routes.get('/connection', async (c) => {
 		if (!connection || isStopping()) return refusal(c, null)
 		return c.json(await connection.readConnection(actor(c).accountId))
+	})
+	routes.get('/calendars', async (c) => {
+		if (!connection || isStopping()) return refusal(c, new CalendarFault('connection_required'))
+		try {
+			return c.json(googleCalendarList.parse(await connection.listCalendars(actor(c))))
+		} catch (error) {
+			return refusal(c, error)
+		}
 	})
 	routes.get('/sync', async (c) =>
 		c.json(await readSnapshot(db, (executor) => syncSnapshot(executor, actor(c).accountId)))

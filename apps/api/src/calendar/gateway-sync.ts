@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import type { GoogleSyncPaletteColor } from '@dv-lab/db'
 
-import { GoogleWriteFault } from './gateway.ts'
+import { CalendarFault, GoogleWriteFault } from './gateway.ts'
 
 const ITEM_FIELDS =
 	'id,etag,updated,status,summary,description,location,start,end,colorId,transparency,eventType,recurringEventId,originalStartTime,extendedProperties/private'
@@ -16,6 +16,22 @@ const channel = z.object({
 	resourceId: z.string().min(1).max(1024),
 	expiration: z.union([z.string().regex(/^\d{1,16}$/), z.number().int().positive()]).optional(),
 })
+const listEntry = z.object({
+	id: z.string().min(1).max(1024),
+	summary: z.string().optional(),
+	summaryOverride: z.string().optional(),
+	timeZone: z.string().min(1).optional(),
+	primary: z.boolean().optional(),
+	deleted: z.boolean().optional(),
+	accessRole: z.string().optional(),
+	backgroundColor: z.string().optional(),
+})
+const listPage = z.object({
+	items: z.array(z.unknown()).optional(),
+	nextPageToken: z.string().min(1).optional(),
+})
+const LIST_PAGES = 40
+const WRITABLE = new Set(['owner', 'writer'])
 
 export class SyncTokenGone extends Error {
 	constructor() {
@@ -27,9 +43,34 @@ export class SyncTokenGone extends Error {
 export type SyncPageQuery = { syncToken: string } | { timeMin: Date; timeMax: Date }
 export type ChannelPair = { id: string; resourceId: string }
 export type ChannelRequest = { id: string; token: string; address: string; ttlSeconds: number }
+export type WritableCalendar = { id: string; label: string; timeZone: string; primary: boolean; color: string | null }
 
 function status(error: unknown) {
 	return error instanceof GoogleWriteFault ? error.httpStatus : null
+}
+
+function validZone(value: string) {
+	try {
+		new Intl.DateTimeFormat('en', { timeZone: value })
+		return true
+	} catch {
+		return false
+	}
+}
+
+function writableEntry(item: unknown): WritableCalendar | null {
+	const parsed = listEntry.safeParse(item)
+	if (!parsed.success) return null
+	const entry = parsed.data
+	if (entry.deleted || !entry.accessRole || !WRITABLE.has(entry.accessRole)) return null
+	if (!entry.timeZone || !validZone(entry.timeZone)) return null
+	return {
+		id: entry.id,
+		label: entry.summaryOverride ?? entry.summary ?? entry.id,
+		timeZone: entry.timeZone,
+		primary: entry.primary === true,
+		color: entry.backgroundColor && hex.safeParse(entry.backgroundColor).success ? entry.backgroundColor : null,
+	}
 }
 
 export function calendarSyncMethods(
@@ -92,6 +133,36 @@ export function calendarSyncMethods(
 			return Object.entries(parsed.data.event ?? {})
 				.map(([id, color]) => ({ id, background: color.background, foreground: color.foreground }))
 				.sort((left, right) => Number(left.id) - Number(right.id) || left.id.localeCompare(right.id))
+		},
+		async calendars(token: string, signal: AbortSignal): Promise<WritableCalendar[]> {
+			const found = new Map<string, WritableCalendar>()
+			const pages = new Set<string>()
+			let pageToken: string | undefined
+			do {
+				const response = await read(() =>
+					api(token, signal).calendarList.list(
+						{
+							showHidden: true,
+							maxResults: 250,
+							pageToken,
+							fields:
+								'nextPageToken,items(id,summary,summaryOverride,timeZone,primary,deleted,accessRole,backgroundColor)',
+						},
+						{ retry: false }
+					)
+				)
+				const parsed = listPage.safeParse(response.data)
+				if (!parsed.success) throw new CalendarFault('invalid_provider_data')
+				for (const item of parsed.data.items ?? []) {
+					const entry = writableEntry(item)
+					if (entry && !found.has(entry.id)) found.set(entry.id, entry)
+				}
+				pageToken = parsed.data.nextPageToken
+				if (pageToken && (pages.has(pageToken) || pages.size >= LIST_PAGES - 1))
+					throw new CalendarFault('invalid_provider_data')
+				if (pageToken) pages.add(pageToken)
+			} while (pageToken)
+			return [...found.values()]
 		},
 		async calendarColor(token: string, calendarId: string, signal: AbortSignal): Promise<string | null> {
 			const response = await read(() =>

@@ -1,7 +1,7 @@
 import { and, count, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 
-import { googleConnectionSnapshot, type GoogleConnectionSnapshot } from '@dv-lab/contracts'
+import { googleConnectionSnapshot, type GoogleCalendarList, type GoogleConnectionSnapshot } from '@dv-lab/contracts'
 import {
 	googleCommands,
 	googleConnections,
@@ -27,6 +27,7 @@ const actions: Record<GoogleConnectionSnapshot['state'], GoogleConnectionSnapsho
 	disconnect_failed: ['retry_disconnect', 'confirm_revoked'],
 }
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
+const LIST_BUDGET_MS = 30000
 export type ConsentCallback = { state: string; code: string } | { state: string; error: string }
 
 export async function readConnection(db: DbExecutor, accountId: string): Promise<GoogleConnectionSnapshot> {
@@ -203,6 +204,16 @@ export function createConnection(deps: {
 
 	return {
 		readConnection: (accountId: string) => readConnection(deps.db, accountId),
+		async listCalendars(actor: ConsentActor): Promise<GoogleCalendarList> {
+			const access = await deps.credentials.accessToken(actor.accountId, AbortSignal.timeout(LIST_BUDGET_MS))
+			const calendars = await deps.gateway.calendars(access.accessToken, access.signal)
+			return {
+				calendars: calendars.map((calendar) => ({
+					...calendar,
+					current: calendar.id === access.connection.calendarId,
+				})),
+			}
+		},
 		async beginConsent(actor: ConsentActor): Promise<{ url: string }> {
 			return deps.lease.run(actor.accountId, async (context) => {
 				const session = await requireConsentSession(context.db, actor)
