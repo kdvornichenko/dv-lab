@@ -14,9 +14,10 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu
 const LINK = /\bhttps?:\/\/|\bwww\./iu
 const HALF_PREFIX = /(^|[^\p{L}])пол-?(час|урок|минут)/iu
 const WORD = /[\p{L}\p{Nd}]+/gu
-const CITE = /\[\[(note|comment|section):([^\]\s]{1,80})\]\]/giu
+const CITE = /\[\[(note|comment|section):([^\]\s]{1,80})\]\][ \t]*[,;]?/giu
 const BEFORE_MARK = /[ \t]+([.,;:!?])/gu
 const REPEATED_SPACE = /[ \t]{2,}/gu
+const DANGLING_MARK = /[:;,][ \t]*([.!?])/gu
 
 const NUMBER_WORDS = new Set([
 	'zero',
@@ -226,7 +227,10 @@ export function resolveCites(sentence: string, issued: Issued): Cited | null {
 	})
 	if (unknown || stripped.includes('[[')) return null
 	if (!marked) return { text: sentence, excerpts }
-	return { text: stripped.replace(BEFORE_MARK, '$1').replace(REPEATED_SPACE, ' '), excerpts }
+	return {
+		text: stripped.replace(REPEATED_SPACE, ' ').replace(BEFORE_MARK, '$1').replace(DANGLING_MARK, '$1'),
+		excerpts,
+	}
 }
 
 function boundary(text: string): number {

@@ -621,6 +621,19 @@ async function main() {
 	)
 
 	fake.script.push(
+		use('student_notes', { student_id: studentId }),
+		say(`Sections: [[section:${studentId}:goals]], [[note:${quotedId}]].`)
+	)
+	const listed = await settled((await ask(first, 'List the records')).json.turn.id)
+	const listedReply = replyOf(listed.id)
+	check(
+		'markers in a list leave no stray punctuation and still give both blocks',
+		listedReply.body.trim() === 'Sections.' &&
+			listedReply.blocks.filter((block) => block.type === 'excerpt').length === 2,
+		JSON.stringify(listedReply.body)
+	)
+
+	fake.script.push(
 		use('student_facts', { student_id: studentId }),
 		use('student_facts', { student_id: studentId }),
 		capture(say('Here is the balance. You have 3 lessons left. Nothing else to add.'))
