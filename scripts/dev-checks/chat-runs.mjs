@@ -471,6 +471,26 @@ async function datedAnswers(conversationId, studentId, wall, zone, startsAt) {
 	)
 	const about = await settled((await askAbout(conversationId, `расскажи про @${NAME}`, studentId)).json.turn.id)
 	const aboutReply = replyOf(about.id)
+	const listed = [
+		`Вот что было ${spoken(wall.date)}:`,
+		'- времена глаголов;',
+		'- **чтение** коротких текстов.',
+		'',
+		'1. Повторить `present perfect`.',
+		`2. Начать в ${wall.time}.`,
+		'',
+		'**Итог:** тема закрыта.',
+	].join('\n')
+	fake.script.push(use('lessons', { student_id: studentId, from: wall.date, to: wall.date, show: false }), say(listed))
+	const markdown = await settled((await askAbout(conversationId, `что прошли с @${NAME}?`, studentId)).json.turn.id)
+	const markdownReply = replyOf(markdown.id)
+	check(
+		'an answer with markdown lists, bold and code is published whole with its line breaks',
+		markdown.state === 'completed' &&
+			markdownReply.body === listed &&
+			!markdownReply.blocks.some((block) => block.type === 'withheld' || block.type === 'lessons'),
+		JSON.stringify(markdownReply)
+	)
 	check(
 		'student_facts with show false reads the facts and shows no facts block',
 		about.state === 'completed' &&
