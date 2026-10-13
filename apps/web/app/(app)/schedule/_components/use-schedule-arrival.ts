@@ -53,6 +53,15 @@ function dayParts(date: string): MarkPart[] {
 
 const MARK_PARAMS = ['lesson', 'day'] as const
 
+export function useDropArrivalParams(active: boolean) {
+	const router = useRouter()
+	useEffect(() => {
+		if (!active) return
+		const next = withoutSearchParams(MARK_PARAMS)
+		if (next !== undefined) router.replace(next, { scroll: false })
+	}, [active, router])
+}
+
 export function useScheduleArrival({
 	week: weekParam,
 	lesson: lessonParam,
@@ -133,10 +142,13 @@ export function useScheduleArrival({
 			} else if (day !== null && dates.has(day)) {
 				parts = dayParts(day)
 				target = parts[0]?.el ?? null
-				said = `Showing ${formatDate(day, currentYear)}`
+				said = `Showing ${formatDate(day, currentYear)}${parts.length === 0 ? ', no events' : ''}`
 			}
 			dropParams()
-			if (parts.length === 0) return
+			if (parts.length === 0) {
+				if (said !== '') setAnnouncement(said)
+				return
+			}
 			const reduce = prefersReducedMotion()
 			void (target === null ? Promise.resolve() : scrollToMiddle(target, reduce)).then(async () => {
 				if (!reduce) await new Promise((resolve) => window.setTimeout(resolve, PULSE_AFTER_SCROLL_MS))

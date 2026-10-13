@@ -38,7 +38,7 @@ import {
 import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
-import { arrivalMonday, type ArrivalParams } from './use-schedule-arrival'
+import { arrivalMonday, useDropArrivalParams, type ArrivalParams } from './use-schedule-arrival'
 import { useScheduleWeek } from './use-schedule-week'
 import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
@@ -107,6 +107,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		setSelection(null)
 		navigate(target, current)
 	}
+	useDropArrivalParams(week.query === null && week.kind === 'error')
 
 	if (week.query === null)
 		return week.kind === 'error' ? (
