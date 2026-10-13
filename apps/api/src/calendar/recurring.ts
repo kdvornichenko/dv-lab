@@ -92,7 +92,7 @@ export function classifyRecurrence(lines: readonly string[], timeZone: string): 
 	const weekly =
 		fields !== null &&
 		rules.length === 1 &&
-		rest.every((line) => line.startsWith('EXDATE')) &&
+		rest.length === 0 &&
 		frequency === 'weekly' &&
 		interval === 1 &&
 		day > 0 &&
