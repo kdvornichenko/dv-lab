@@ -24,6 +24,7 @@ import { ChatProgress } from './chat-progress'
 import { conversationTime } from './conversation-list'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
+import { StudentMention } from './student-mention'
 
 export type CalendarHandlers = {
 	onConfirm: (actionId: string) => void
@@ -260,10 +261,8 @@ function Working({ label }: { label: string }) {
 	)
 }
 
-const NO_MENTIONS: readonly MentionBinding[] = []
-
-function renderMention(_studentId: string, children: ReactNode): ReactNode {
-	return children
+function renderMention(studentId: string, children: ReactNode): ReactNode {
+	return <StudentMention studentId={studentId}>{children}</StudentMention>
 }
 
 function fullTime(iso: string): string {
@@ -279,9 +278,9 @@ function TeacherText({ text, mentions }: { text: string; mentions: readonly Ment
 		if (start < cursor || binding.end > text.length) continue
 		parts.push(<Fragment key={`t${cursor}`}>{text.slice(cursor, start)}</Fragment>)
 		parts.push(
-			<span key={`m${start}`} className="font-semibold">
+			<StudentMention key={`m${start}`} studentId={binding.studentId}>
 				{text.slice(start, binding.end)}
-			</span>
+			</StudentMention>
 		)
 		cursor = binding.end
 	}
@@ -390,7 +389,7 @@ export function Messages({
 								<MarkdownView
 									body={message.body}
 									chat={{
-										mentions: NO_MENTIONS,
+										mentions: message.mentions,
 										streaming: active?.messageId === message.id && !active.stopping,
 										renderMention,
 									}}

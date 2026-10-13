@@ -17,7 +17,7 @@ import { zoneLabel } from '@/lib/time-zones'
 import type { ChatStudentFacts } from '@dv-lab/contracts'
 import { balanceState } from '@dv-lab/core'
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+export function Fact({ label, children }: { label: string; children: ReactNode }) {
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
 			<p className="text-caption text-muted-foreground">{label}</p>
@@ -26,7 +26,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 	)
 }
 
-function BalanceFact({ facts }: { facts: ChatStudentFacts }) {
+export function BalanceFact({ facts }: { facts: ChatStudentFacts }) {
 	const { balanceMinutes, paysSoon, paysSoonLessons, student } = facts
 	if (balanceMinutes === null) {
 		return (
@@ -56,7 +56,7 @@ function BalanceFact({ facts }: { facts: ChatStudentFacts }) {
 	)
 }
 
-function NextLessonFact({ facts, secondZone }: { facts: ChatStudentFacts; secondZone: string | null }) {
+export function NextLessonFact({ facts, secondZone }: { facts: ChatStudentFacts; secondZone: string | null }) {
 	const { nextLesson, defaultTimeZone, asOf } = facts
 	const unavailable =
 		nextLesson.result === 'unknown' ||
