@@ -319,13 +319,14 @@ export function Messages({
 	const reduceMotion = useReducedMotion() ?? false
 	const end = useRef<HTMLDivElement>(null)
 	const atBottom = useRef(true)
+	const lastSent = useRef<string | null>(null)
 	const now = new Date()
 
 	useEffect(() => {
 		const viewport = end.current?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
 		if (!viewport) return
 		const track = () => {
-			atBottom.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 32
+			atBottom.current = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 4
 		}
 		viewport.addEventListener('scroll', track, { passive: true })
 		return () => viewport.removeEventListener('scroll', track)
@@ -333,6 +334,11 @@ export function Messages({
 
 	useLayoutEffect(() => {
 		const viewport = end.current?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+		const sent = messages.findLast((message) => message.role === 'teacher')?.id ?? null
+		if (sent !== lastSent.current) {
+			lastSent.current = sent
+			atBottom.current = true
+		}
 		if (viewport && atBottom.current) viewport.scrollTop = viewport.scrollHeight
 	}, [messages])
 

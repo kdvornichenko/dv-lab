@@ -108,7 +108,13 @@ function Thread({
 	if (state.kind === 'loading') return <ThreadSkeleton />
 	if (state.kind === 'error') return <ReadError screen="this conversation" onRefresh={onRefresh} />
 	const messages = state.kind === 'ready' ? state.messages : []
-	if (messages.length === 0) return empty ? <EmptyLine text="What do you want to ask?" /> : null
+	if (messages.length === 0) {
+		return empty ? (
+			<p className="flex flex-1 items-center justify-center text-center text-title font-semibold text-foreground">
+				What do you want to ask?
+			</p>
+		) : null
+	}
 	return (
 		<Messages
 			messages={messages}
@@ -276,9 +282,13 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 				<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
 					<ScrollArea
 						className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
-						viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0"
+						viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col [&>div]:justify-end"
 					>
-						<div role="log" aria-label="Messages" className="mx-auto flex w-full max-w-180 flex-col gap-4 pb-2">
+						<div
+							role="log"
+							aria-label="Messages"
+							className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col justify-end gap-4 pb-2"
+						>
 							{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
 							<Thread
 								state={chat.thread}
