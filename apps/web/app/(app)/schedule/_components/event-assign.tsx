@@ -18,7 +18,7 @@ export type AssignFailure = 'assign' | 'ignore' | null
 
 const nameCollator = new Intl.Collator('en', { sensitivity: 'base' })
 const ASSIGN_FAILURE = 'Could not assign this event. Try again.'
-const IGNORE_FAILURE = 'Could not dismiss the suggestion. Try again.'
+const IGNORE_FAILURE = 'Could not ignore this suggestion. Try again.'
 
 export function scopeCaption(seriesMember: boolean): string {
 	return seriesMember ? 'Applies to this series.' : 'Applies to this event.'
