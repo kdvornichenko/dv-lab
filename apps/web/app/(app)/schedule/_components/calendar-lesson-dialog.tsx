@@ -318,6 +318,9 @@ function LessonContent({
 							series={series?.series ?? null}
 							mainTimeZone={mainTimeZone}
 							secondZone={secondZone}
+							commentRef={event.binding.ref}
+							started={startedLesson(event, now)}
+							now={now}
 						/>
 						{moving ? (
 							<LessonMoveForm

@@ -31,7 +31,7 @@ import type {
 	ScheduleBlock,
 	ScheduleSeries,
 } from '@dv-lab/contracts'
-import { countsAsLesson, scheduleDate } from '@dv-lab/core'
+import { canChange, countsAsLesson, scheduleDate } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { lessonMoveBody, movedBlocks } from './calendar-lesson-dialog'
@@ -248,6 +248,9 @@ export function LessonDialog({
 							series={series}
 							mainTimeZone={context.mainTimeZone}
 							secondZone={shownSecondZone}
+							commentRef={block.ref}
+							started={!canChange(new Date(block.startsAt), now)}
+							now={now}
 						/>
 						{calendar === undefined ? null : (
 							<CalendarFormStatus

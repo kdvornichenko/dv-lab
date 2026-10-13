@@ -5,9 +5,10 @@ import { statusTone, statusWord } from '@/lib/lesson-mark-text'
 import { formatTime, mainDayTime, weekdayName } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
-import type { ScheduleBlock, ScheduleSeries } from '@dv-lab/contracts'
+import type { ScheduleBlock, ScheduleOccurrenceRef, ScheduleSeries } from '@dv-lab/contracts'
 import { zonedParts } from '@dv-lab/core'
 
+import { LessonComments, commentsPath } from './lesson-comments'
 import type { PairTarget } from './lesson-dialog'
 
 function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
@@ -80,37 +81,48 @@ export function LessonDetails({
 	series,
 	mainTimeZone,
 	secondZone,
+	commentRef,
+	started = false,
+	now,
 }: {
 	block: Pick<ScheduleBlock, 'durationMinutes' | 'startsAt'> & { timeZone: string | null }
 	series: ScheduleSeries | null
 	mainTimeZone: string
 	secondZone: string | null
+	commentRef?: ScheduleOccurrenceRef
+	started?: boolean
+	now?: Date
 }) {
 	const reference = series?.referenceOccurrence?.ruleStartsAt
 	const ruleStart = reference == null ? null : new Date(reference)
 	const second = secondZone !== null && !sameTimeZone(secondZone, mainTimeZone) ? secondZone : null
 	return (
-		<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
-			<Detail label="Length">{block.durationMinutes} min</Detail>
-			<Detail label="Repeats">
-				{series === null ? (
-					'Once'
-				) : ruleStart === null ? (
-					'Weekly'
-				) : (
-					<span data-slot="lesson-repeats" className="flex flex-col gap-1 tabular-nums">
-						<span>{everyAt(ruleStart, mainTimeZone)}</span>
-						{second === null ? null : (
-							<span className="text-micro text-muted-foreground">{everyAt(ruleStart, second)}</span>
-						)}
-					</span>
-				)}
-			</Detail>
-			{block.timeZone === null || sameTimeZone(block.timeZone, mainTimeZone) ? null : (
-				<Detail label="Created in">
-					{zoneName(block.timeZone)} time ({zoneLabel(block.timeZone, new Date(block.startsAt))})
+		<>
+			<dl className="grid gap-4 rounded-xl bg-hover p-4 sm:grid-cols-2">
+				<Detail label="Length">{block.durationMinutes} min</Detail>
+				<Detail label="Repeats">
+					{series === null ? (
+						'Once'
+					) : ruleStart === null ? (
+						'Weekly'
+					) : (
+						<span data-slot="lesson-repeats" className="flex flex-col gap-1 tabular-nums">
+							<span>{everyAt(ruleStart, mainTimeZone)}</span>
+							{second === null ? null : (
+								<span className="text-micro text-muted-foreground">{everyAt(ruleStart, second)}</span>
+							)}
+						</span>
+					)}
 				</Detail>
-			)}
-		</dl>
+				{block.timeZone === null || sameTimeZone(block.timeZone, mainTimeZone) ? null : (
+					<Detail label="Created in">
+						{zoneName(block.timeZone)} time ({zoneLabel(block.timeZone, new Date(block.startsAt))})
+					</Detail>
+				)}
+			</dl>
+			{commentRef !== undefined && started && now !== undefined ? (
+				<LessonComments key={commentsPath(commentRef)} lessonRef={commentRef} mainTimeZone={mainTimeZone} now={now} />
+			) : null}
+		</>
 	)
 }
