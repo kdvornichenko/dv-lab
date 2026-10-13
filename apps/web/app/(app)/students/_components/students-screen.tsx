@@ -18,7 +18,15 @@ import { StudentBalance } from '@/components/app/student-balance'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { SkeletonTable, SkeletonText } from '@/components/ui/skeleton'
+import {
+	Skeleton,
+	SkeletonAvatar,
+	SkeletonCount,
+	SkeletonLine,
+	SkeletonTable,
+	SkeletonText,
+	type SkeletonTableColumn,
+} from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { apiRequest } from '@/lib/api-client'
@@ -29,7 +37,7 @@ import { cn } from '@/lib/utils'
 import type { StudentRow, StudentsResponse } from '@dv-lab/contracts'
 
 import { StudentFormDialog } from './student-form-dialog'
-import { UnassignedPayments } from './unassigned-payments'
+import { UnassignedPayments, UnassignedPaymentsSkeleton } from './unassigned-payments'
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; data: StudentsResponse }
 
@@ -39,6 +47,38 @@ async function readStudents(): Promise<ReadState> {
 }
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
+const studentColumns: SkeletonTableColumn[] = [
+	{
+		title: 'Student',
+		cell: (
+			<div className="flex items-center gap-2">
+				<SkeletonAvatar />
+				<Skeleton className="h-3 w-21" />
+			</div>
+		),
+	},
+	{ title: 'Status', cell: <Skeleton className="size-2 rounded-full" /> },
+	{ title: 'Rate', cell: <SkeletonLine className="w-16" /> },
+	{
+		title: 'Balance',
+		cell: (
+			<div className="flex h-5 items-center gap-2">
+				<Skeleton className="size-2 shrink-0 rounded-full" />
+				<Skeleton className="h-3 w-22" />
+			</div>
+		),
+	},
+	{
+		title: 'Next lesson',
+		cellClassName: 'py-1',
+		cell: (
+			<div className="flex flex-col">
+				<SkeletonLine className="w-32" />
+				<SkeletonLine box="h-3.5" className="h-2.5 w-16" />
+			</div>
+		),
+	},
+]
 const nameCollator = new Intl.Collator('en', { sensitivity: 'base' })
 
 function byName(left: StudentRow, right: StudentRow) {
@@ -65,11 +105,11 @@ function StudentsTable({ rows, searching, data }: { rows: StudentRow[]; searchin
 			<Table className="text-body">
 				<TableHeader>
 					<TableRow className="hover:bg-transparent">
-						<TableHead className={headClass}>Student</TableHead>
-						<TableHead className={headClass}>Status</TableHead>
-						<TableHead className={headClass}>Rate</TableHead>
-						<TableHead className={headClass}>Balance</TableHead>
-						<TableHead className={headClass}>Next lesson</TableHead>
+						{studentColumns.map((column, index) => (
+							<TableHead key={index} className={headClass}>
+								{column.title}
+							</TableHead>
+						))}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -197,19 +237,23 @@ export function StudentsScreen() {
 		body = (
 			<Tabs value={tab} onValueChange={setTab}>
 				<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-					<div className="flex min-w-0 rounded-xl bg-muted lg:flex-none">
+					<div className="flex min-w-0 rounded-xl bg-muted md:w-fit md:flex-none">
 						<TabsList
 							aria-label="Student lists"
-							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-lg:min-w-0 max-lg:flex-1 max-lg:overflow-x-auto"
+							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-md:min-w-0 max-md:flex-1 max-md:overflow-x-auto"
 						>
 							<TabItem value="active" label="Active" />
 							<TabItem value="archived" label="Archived" />
 							<TabItem
 								value="unassigned"
 								label={
-									state.kind === 'ready'
-										? `Unassigned payments (${state.data.unassignedPayments})`
-										: 'Unassigned payments'
+									state.kind === 'ready' ? (
+										`Unassigned payments (${state.data.unassignedPayments})`
+									) : (
+										<>
+											Unassigned payments (<SkeletonCount />)
+										</>
+									)
 								}
 							/>
 						</TabsList>
@@ -220,20 +264,32 @@ export function StudentsScreen() {
 							aria-label="Search students"
 							placeholder="Search students"
 							autoComplete="off"
-							className="w-full lg:ml-auto lg:max-w-80 lg:min-w-0 lg:flex-1"
+							className="w-full lg:ml-auto lg:max-w-72 lg:min-w-0 lg:flex-1"
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
 						/>
 					)}
 				</div>
 				<TabPanel value="active" className="mt-4">
-					{loading ? <SkeletonTable /> : <StudentsTable rows={shownActive} searching={searching} data={state.data} />}
+					{loading ? (
+						<SkeletonTable columns={studentColumns} />
+					) : (
+						<StudentsTable rows={shownActive} searching={searching} data={state.data} />
+					)}
 				</TabPanel>
 				<TabPanel value="archived" className="mt-4">
-					{loading ? <SkeletonTable /> : <StudentsTable rows={shownArchived} searching={searching} data={state.data} />}
+					{loading ? (
+						<SkeletonTable columns={studentColumns} />
+					) : (
+						<StudentsTable rows={shownArchived} searching={searching} data={state.data} />
+					)}
 				</TabPanel>
 				<TabPanel value="unassigned" className="mt-4">
-					{loading ? <SkeletonTable /> : <UnassignedPayments students={active} onChanged={() => void load()} />}
+					{loading ? (
+						<UnassignedPaymentsSkeleton />
+					) : (
+						<UnassignedPayments students={active} onChanged={() => void load()} />
+					)}
 				</TabPanel>
 			</Tabs>
 		)

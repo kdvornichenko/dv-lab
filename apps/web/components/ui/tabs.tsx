@@ -14,6 +14,7 @@ import {
 	cloneElement,
 	isValidElement,
 	type ComponentPropsWithoutRef,
+	type ReactNode,
 } from 'react'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -312,7 +313,7 @@ TabsList.displayName = 'TabsList'
 interface TabItemProps extends ComponentPropsWithoutRef<typeof TabsPrimitive.Tab> {
 	value: string
 	icon?: IconComponent
-	label: string
+	label: ReactNode
 	_index?: number
 }
 const TabItem = forwardRef<HTMLButtonElement, TabItemProps>(
