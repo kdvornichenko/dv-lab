@@ -7,6 +7,7 @@ export default defineConfig({
 		'./src/calendar-schema.ts',
 		'./src/calendar-read-schema.ts',
 		'./src/calendar-sync-schema.ts',
+		'./src/chat-schema.ts',
 	],
 	out: './drizzle',
 })
