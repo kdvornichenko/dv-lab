@@ -14,6 +14,7 @@ import { apiRequest } from '@/lib/api-client'
 import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
 
 import { ChatHeader } from './chat-header'
+import { CommandList } from './command-list'
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
@@ -94,6 +95,7 @@ function Thread({
 	replies,
 	active,
 	empty,
+	onCommand,
 }: {
 	state: ThreadState
 	onUndo: (actionId: string) => void
@@ -103,15 +105,16 @@ function Thread({
 	replies: ReplyHandlers
 	active: ActiveReply | null
 	empty: boolean
+	onCommand: (text: string) => void
 }) {
 	if (state.kind === 'loading') return <ThreadSkeleton />
 	if (state.kind === 'error') return <ReadError screen="this conversation" onRefresh={onRefresh} />
 	const messages = state.kind === 'ready' ? state.messages : []
 	if (messages.length === 0) {
 		return empty ? (
-			<p className="flex flex-1 items-center justify-center text-center text-title font-semibold text-foreground">
-				What do you want to ask?
-			</p>
+			<div className="flex flex-1 items-center justify-center">
+				<CommandList onPick={onCommand} />
+			</div>
 		) : null
 	}
 	return (
@@ -183,13 +186,13 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 		later(() => input.current?.focus())
 	}
 
-	function suggest(text: string) {
+	function command(text: string) {
 		composer.setDraft({ text, bindings: [], stale: false })
 		later(() => {
 			const field = input.current
 			if (!field) return
+			field.setSelectionRange(text.length, text.length)
 			field.focus()
-			field.setSelectionRange(field.value.length, field.value.length)
 		})
 	}
 
@@ -242,7 +245,6 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 								}}
 								replies={{
 									onAsk: () => later(() => input.current?.focus()),
-									onSuggest: suggest,
 									onCheckStatus: chat.checkStatus,
 								}}
 								active={
@@ -251,6 +253,7 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 										: { messageId: chat.reply.turn.assistantMessageId, stopping: chat.reply.stopping }
 								}
 								empty={studentId === null}
+								onCommand={command}
 							/>
 						</div>
 					</ScrollArea>

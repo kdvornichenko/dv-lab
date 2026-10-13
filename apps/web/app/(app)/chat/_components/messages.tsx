@@ -33,7 +33,6 @@ export type CalendarHandlers = {
 
 export type ReplyHandlers = {
 	onAsk: () => void
-	onSuggest: (text: string) => void
 	onCheckStatus: () => Promise<void>
 }
 
@@ -212,7 +211,7 @@ function Block({
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
 	if (block.type === 'refused') return <Refused block={block} />
-	if (isRecordBlock(block)) return <RecordBlockView block={block} onUse={replies.onSuggest} />
+	if (isRecordBlock(block)) return <RecordBlockView block={block} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
 	if (block.type === 'interrupted') return <Interrupted onCheckStatus={replies.onCheckStatus} />

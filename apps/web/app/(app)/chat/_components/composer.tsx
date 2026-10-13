@@ -37,12 +37,21 @@ import {
 
 type Trigger = { kind: 'mention'; from: number; query: string } | { kind: 'command'; query: string } | null
 
-const COMMANDS = [
+export const COMMANDS = [
 	{ name: '/today', detail: "Today's lessons", student: false },
 	{ name: '/tomorrow', detail: "Tomorrow's lessons", student: false },
 	{ name: '/payments', detail: 'Who pays soon', student: false },
 	{ name: '/note', detail: 'Add a note to a student', student: true },
 	{ name: '/recap', detail: 'Summarise a student', student: true },
+] as const
+
+export const COMMAND_ROWS = [
+	{ name: '@', detail: 'Mention a student', text: '@' },
+	...COMMANDS.map((command) => ({
+		name: command.name,
+		detail: command.detail,
+		text: command.student ? `${command.name} @` : `${command.name} `,
+	})),
 ] as const
 
 const QUICK = [
@@ -350,7 +359,10 @@ export function Composer({
 							onSelect={readCaret}
 							onKeyUp={readCaret}
 							onClick={readCaret}
-							onFocus={() => setFocused(true)}
+							onFocus={() => {
+								setFocused(true)
+								readCaret()
+							}}
 							onBlur={() => setFocused(false)}
 							onScroll={(event) => {
 								if (backdrop.current) backdrop.current.scrollTop = event.currentTarget.scrollTop

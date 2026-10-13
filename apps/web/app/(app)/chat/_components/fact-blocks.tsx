@@ -188,32 +188,19 @@ function Excerpt({ block }: { block: ChatExcerptBlock }) {
 	)
 }
 
-function Suggestions({ block, onUse }: { block: ChatSuggestionsBlock; onUse: (text: string) => void }) {
+function Suggestions({ block }: { block: ChatSuggestionsBlock }) {
 	return (
-		<Panel>
-			<div data-slot="chat-suggestions" className="flex flex-col gap-2 px-4 py-3">
-				<p className="text-caption text-muted-foreground">Suggestions</p>
-				<ul className="flex flex-col items-start gap-2">
-					{block.lines.map((line) => (
-						<li key={line} className="max-w-full">
-							<Button
-								variant="secondary"
-								size="compact"
-								className="h-auto min-h-7 max-w-full justify-start py-1 text-left whitespace-normal"
-								onClick={() => onUse(line)}
-							>
-								{line}
-							</Button>
-						</li>
-					))}
-				</ul>
-				<p className="text-caption text-muted-foreground">Not saved to the student&apos;s notes.</p>
-			</div>
-		</Panel>
+		<div data-slot="chat-suggestions" className="flex flex-col gap-1">
+			{block.lines.map((line) => (
+				<p key={line} className="text-body break-words text-foreground">
+					{line}
+				</p>
+			))}
+		</div>
 	)
 }
 
-function ReadFailed({ block, onUse }: { block: ChatReadFailedBlock; onUse: (text: string) => void }) {
+function ReadFailed({ block }: { block: ChatReadFailedBlock }) {
 	const [refreshing, setRefreshing] = useState(false)
 	const [fresh, setFresh] = useState<ChatRecordsRefreshResponse['block'] | null>(null)
 	async function refresh() {
@@ -225,7 +212,7 @@ function ReadFailed({ block, onUse }: { block: ChatReadFailedBlock; onUse: (text
 			setRefreshing(false)
 		}
 	}
-	if (fresh !== null && fresh.type !== 'lesson_dates') return <RecordBlockView block={fresh} onUse={onUse} />
+	if (fresh !== null && fresh.type !== 'lesson_dates') return <RecordBlockView block={fresh} />
 	return (
 		<Banner status="error" role="alert" aria-busy={refreshing} data-reply-state="read-failed">
 			<BannerTitle>Could not read the student&apos;s records.</BannerTitle>
@@ -238,11 +225,11 @@ function ReadFailed({ block, onUse }: { block: ChatReadFailedBlock; onUse: (text
 	)
 }
 
-export function RecordBlockView({ block, onUse }: { block: RecordBlock; onUse: (text: string) => void }) {
+export function RecordBlockView({ block }: { block: RecordBlock }) {
 	if (block.type === 'facts') return <StudentFacts facts={block.facts} />
 	if (block.type === 'lessons') return <Lessons block={block} />
 	if (block.type === 'pays_soon') return <PaysSoon block={block} />
 	if (block.type === 'excerpt') return <Excerpt block={block} />
-	if (block.type === 'suggestions') return <Suggestions block={block} onUse={onUse} />
-	return <ReadFailed block={block} onUse={onUse} />
+	if (block.type === 'suggestions') return <Suggestions block={block} />
+	return <ReadFailed block={block} />
 }
