@@ -10,7 +10,7 @@ import {
 	type DbExecutor,
 	type GoogleLocalRef,
 } from '@dv-lab/db'
-import { lessonSeries } from '@dv-lab/db'
+import { lessons, lessonSeries } from '@dv-lab/db'
 
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
@@ -199,15 +199,44 @@ export async function confirmEventMapping(executor: DbExecutor, accountId: strin
 		.returning({ id: googleEventMappings.id })
 	if (rows.length !== 1) throw new Error('Calendar command mapping is not reserved')
 }
+export type BindInput = ProviderEvent & { markerLocalId?: string | null; markerKind?: string | null }
 export type BoundEvent = ProviderEvent & {
 	localRef: GoogleLocalRef | null
 	studentId: string | null
 	representationGeneration: number | null
 	commandId: string | null
 	bindingKind: 'lesson' | 'transition' | 'external'
+	blocked: 'history_only' | null
+	suggestable: boolean
+}
+type MarkerEntity = { kind: 'single'; studentId: string } | { kind: 'series'; rule: SeriesRule }
+
+async function markerEntities(executor: DbExecutor, accountId: string, markerIds: readonly string[]) {
+	const entities = new Map<string, MarkerEntity>()
+	const wanted = [...new Set(markerIds)]
+	if (!wanted.length) return entities
+	const owned = await executor
+		.selectDistinct({ id: googleEventMappings.localEntityId })
+		.from(googleEventMappings)
+		.where(and(eq(googleEventMappings.accountId, accountId), inArray(googleEventMappings.localEntityId, wanted)))
+	const ids = owned.map((row) => row.id)
+	if (!ids.length) return entities
+	const singles = await executor
+		.select({ id: lessons.id, studentId: lessons.studentId })
+		.from(lessons)
+		.where(inArray(lessons.id, ids))
+	for (const row of singles) entities.set(row.id, { kind: 'single', studentId: row.studentId })
+	const series = await executor.select(seriesColumns).from(lessonSeries).where(inArray(lessonSeries.id, ids))
+	for (const row of series) entities.set(row.id, { kind: 'series', rule: toSeriesRule(row) })
+	return entities
 }
 
-export async function loadMappings(executor: DbExecutor, accountId: string, connectionId: string) {
+export async function loadMappings(
+	executor: DbExecutor,
+	accountId: string,
+	connectionId: string,
+	markerIds: readonly string[] = []
+) {
 	const mappings = await executor
 		.select()
 		.from(googleEventMappings)
@@ -233,7 +262,10 @@ export async function loadMappings(executor: DbExecutor, accountId: string, conn
 		if (reserved && plan.cut && plan.newRule && !rules.has(reserved.localEntityId))
 			rules.set(reserved.localEntityId, { id: reserved.localEntityId, studentId: plan.cut.studentId, ...plan.newRule })
 	}
-	return { mappings, commands, series: rules }
+	const active = new Set(
+		mappings.filter((row) => row.state === 'active' && row.entityKind !== 'occurrence').map((row) => row.localEntityId)
+	)
+	return { mappings, commands, series: rules, markers: await markerEntities(executor, accountId, markerIds), active }
 }
 
 function sameRef(left: GoogleLocalRef, right: GoogleLocalRef) {
@@ -247,18 +279,21 @@ function sameRef(left: GoogleLocalRef, right: GoogleLocalRef) {
 	)
 }
 
+function seriesRef(event: ProviderEvent, rule: SeriesRule | undefined, expectedOn?: string | null) {
+	const original = event.originalStartTime
+	if (!rule || !original || !('dateTime' in original)) return null
+	const originalOn = scheduleDate(new Date(original.dateTime), rule.timeZone)
+	if (expectedOn && expectedOn !== originalOn) return null
+	if (!occurrenceAt(rule, originalOn)) return null
+	return { kind: 'series' as const, seriesId: rule.id, originalOn }
+}
+
 function localRef(event: ProviderEvent, mapping: MappingRow, snapshot: MappingSnapshot): GoogleLocalRef | null {
 	if (mapping.entityKind === 'single') {
 		return event.recurringEventId ? null : { kind: 'single', lessonId: mapping.localEntityId }
 	}
-	const rule = snapshot.series.get(mapping.localEntityId)
-	const original = event.originalStartTime
-	if (!rule || !original || !('dateTime' in original)) return null
 	if (mapping.entityKind === 'occurrence' && mapping.recurringEventId !== event.recurringEventId) return null
-	const originalOn = scheduleDate(new Date(original.dateTime), rule.timeZone)
-	if (mapping.originalOn && mapping.originalOn !== originalOn) return null
-	if (!occurrenceAt(rule, originalOn)) return null
-	return { kind: 'series', seriesId: mapping.localEntityId, originalOn }
+	return seriesRef(event, snapshot.series.get(mapping.localEntityId), mapping.originalOn)
 }
 
 export type LocalRow =
@@ -336,32 +371,74 @@ export async function rowForLocal(
 	return row ? { kind: 'series', mapping, row, rule, natural } : null
 }
 
-export function bindEvent(event: ProviderEvent, snapshot: MappingSnapshot): BoundEvent {
-	const external: BoundEvent = {
-		...event,
+type MarkerBinding = { ref: GoogleLocalRef; studentId: string; blocked: BoundEvent['blocked'] } | 'plain' | null
+
+function markerBinding(event: BindInput, snapshot: MappingSnapshot): MarkerBinding {
+	const id = event.markerLocalId
+	const kind = event.markerKind
+	if (!id || !kind) return null
+	if (kind === 'event') return 'plain'
+	if (!LESSON_MARKERS.includes(kind)) return null
+	const entity = snapshot.markers.get(id)
+	if (!entity) return null
+	const blocked = snapshot.active.has(id) ? null : 'history_only'
+	if (entity.kind === 'single') {
+		if (kind !== 'single' || event.recurringEventId || !blocked) return 'plain'
+		return { ref: { kind: 'single', lessonId: id }, studentId: entity.studentId, blocked }
+	}
+	const ref = kind === 'single' ? null : seriesRef(event, entity.rule)
+	return ref ? { ref, studentId: entity.rule.studentId, blocked } : 'plain'
+}
+
+export function bindEvent(event: BindInput, snapshot: MappingSnapshot): BoundEvent {
+	const { markerLocalId: _markerLocalId, markerKind: _markerKind, ...provider } = event
+	const external = (suggestable: boolean): BoundEvent => ({
+		...provider,
 		localRef: null,
 		studentId: null,
 		representationGeneration: null,
 		commandId: null,
 		bindingKind: 'external',
+		blocked: null,
+		suggestable,
+	})
+	const byEvent = snapshot.mappings.filter((row) => row.eventId === event.eventId)
+	const byMaster = event.recurringEventId
+		? snapshot.mappings.filter((row) => row.entityKind === 'series' && row.eventId === event.recurringEventId)
+		: []
+	const mapping = byEvent.find((row) => row.state !== 'retired') ?? byMaster.find((row) => row.state !== 'retired')
+	if (event.eventType !== 'default') return external(false)
+	const timed = Boolean(event.start && 'dateTime' in event.start)
+	const transitionFor = (ref: GoogleLocalRef) =>
+		snapshot.commands.find((command) => command.plan.affectedRefs.some((affected) => sameRef(affected, ref)))
+	if (mapping) {
+		const ref = localRef(event, mapping, snapshot)
+		if (!ref || !timed) return external(false)
+		const pending = snapshot.commands.find((command) => command.id === mapping.commandId) ?? transitionFor(ref) ?? null
+		return {
+			...provider,
+			localRef: ref,
+			studentId: mapping.studentId,
+			representationGeneration: mapping.representationGeneration,
+			commandId: pending?.id ?? mapping.commandId,
+			bindingKind: mapping.state === 'reserved' || pending ? 'transition' : 'lesson',
+			blocked: null,
+			suggestable: false,
+		}
 	}
-	const mapping =
-		snapshot.mappings.find((row) => row.eventId === event.eventId) ??
-		snapshot.mappings.find((row) => row.entityKind === 'series' && row.eventId === event.recurringEventId)
-	if (!mapping || mapping.state === 'retired' || event.eventType !== 'default') return external
-	const ref = localRef(event, mapping, snapshot)
-	if (!ref || !event.start || !('dateTime' in event.start)) return external
-	const pending = snapshot.commands.find(
-		(command) =>
-			command.id === mapping.commandId || command.plan.affectedRefs.some((affected) => sameRef(affected, ref))
-	)
-	const transition = mapping.state === 'reserved' || Boolean(pending)
+	if (byEvent.length || byMaster.length) return external(false)
+	const marked = markerBinding(event, snapshot)
+	if (marked === 'plain' || (marked && !timed)) return external(false)
+	if (!marked) return external(true)
+	const pending = transitionFor(marked.ref)
 	return {
-		...event,
-		localRef: ref,
-		studentId: mapping.studentId,
-		representationGeneration: mapping.representationGeneration,
-		commandId: pending?.id ?? mapping.commandId,
-		bindingKind: transition ? 'transition' : 'lesson',
+		...provider,
+		localRef: marked.ref,
+		studentId: marked.studentId,
+		representationGeneration: null,
+		commandId: pending?.id ?? null,
+		bindingKind: pending ? 'transition' : 'lesson',
+		blocked: marked.blocked,
+		suggestable: false,
 	}
 }

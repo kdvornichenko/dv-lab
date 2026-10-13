@@ -1,3 +1,5 @@
+import { eq } from 'drizzle-orm'
+
 import {
 	calendarEventView,
 	googleEventPalette,
@@ -14,12 +16,14 @@ import {
 	type NextLessonRead,
 } from '@dv-lab/contracts'
 import { seriesStart } from '@dv-lab/core'
-import type { DbExecutor } from '@dv-lab/db'
+import { googleEventIgnores, type DbExecutor } from '@dv-lab/db'
 
 import { readConnection } from './connection.ts'
 import { bindEvent, loadMappings, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
 import { findConnection } from './google-access.ts'
+import { canonicalName, studentNames, suggestionFor, type MatchStudent } from './matching.ts'
 import {
+	masterRow,
 	nextRows,
 	rowEvent,
 	syncFacts,
@@ -125,6 +129,7 @@ export function eventView(
 	let editBlock = blocked
 	if (event.eventType !== 'default') editBlock = 'read_only_event'
 	else if (binding.kind === 'transition') editBlock = 'command_pending'
+	else if (event.blocked) editBlock = event.blocked
 	else if (binding.kind === 'lesson' && binding.ref.kind === 'series' && !editableSeries.has(binding.ref.seriesId))
 		editBlock = 'external_change'
 	const view = calendarEventView.safeParse({
@@ -145,7 +150,55 @@ export function eventView(
 }
 
 function boundRow(row: ProjectionRow, snapshot: MappingSnapshot): ViewEvent {
-	return { ...bindEvent(rowEvent(row), snapshot), eventKey: row.eventKey, colorId: row.colorId, location: row.location }
+	const event = { ...rowEvent(row), markerLocalId: row.markerLocalId, markerKind: row.markerKind }
+	return { ...bindEvent(event, snapshot), eventKey: row.eventKey, colorId: row.colorId, location: row.location }
+}
+
+async function ignoredEvents(executor: DbExecutor, connectionId: string): Promise<ReadonlySet<string>> {
+	const rows = await executor
+		.select({ eventId: googleEventIgnores.eventId })
+		.from(googleEventIgnores)
+		.where(eq(googleEventIgnores.connectionId, connectionId))
+	return new Set(rows.map((row) => row.eventId))
+}
+
+function seriesRuleOf(master: ProjectionRow | null): 'weekly' | 'other' {
+	return master?.status !== 'cancelled' && master?.recurrenceKind === 'weekly' && !master.allDay ? 'weekly' : 'other'
+}
+
+async function withSuggestions(
+	executor: DbExecutor,
+	connectionId: string,
+	events: readonly ViewEvent[],
+	students: readonly MatchStudent[] | undefined
+): Promise<ViewEvent[]> {
+	if (!students?.length) return [...events]
+	const names = studentNames(students)
+	const candidates = events.filter(
+		(event) => event.suggestable && event.summary !== null && names.has(canonicalName(event.summary))
+	)
+	if (!candidates.length) return [...events]
+	const ignores = await ignoredEvents(executor, connectionId)
+	const masters = new Map<string, ProjectionRow | null>()
+	for (const id of new Set(candidates.flatMap((event) => (event.recurringEventId ? [event.recurringEventId] : []))))
+		masters.set(id, await masterRow(executor, connectionId, id))
+	return events.map((event) => {
+		if (!candidates.includes(event)) return event
+		const suggestion = suggestionFor(
+			{
+				eventId: event.eventId,
+				recurringEventId: event.recurringEventId,
+				summary: event.summary,
+				status: event.status,
+				eventType: event.eventType,
+				timed: Boolean(event.start && 'dateTime' in event.start),
+				seriesRule: event.recurringEventId ? seriesRuleOf(masters.get(event.recurringEventId) ?? null) : null,
+			},
+			names,
+			ignores
+		)
+		return { ...event, suggestion }
+	})
 }
 
 async function seriesContexts(
@@ -201,7 +254,8 @@ async function seriesContexts(
 export async function readCalendarWindow(
 	executor: DbExecutor,
 	context: CalendarReadContext,
-	selection: WindowSelection
+	selection: WindowSelection,
+	students?: readonly MatchStudent[]
 ): Promise<GoogleScheduleWindow> {
 	const connection = await readConnection(executor, context.accountId)
 	const row = await findConnection(executor, context.accountId)
@@ -223,8 +277,15 @@ export async function readCalendarWindow(
 			write: { state: 'blocked', reason: read.state === 'unavailable' ? read.reason : 'connection_required' },
 		})
 	const blocked = connection.pendingCommandCount ? 'command_pending' : read.state === 'fresh' ? null : read.reason
-	const snapshot = await loadMappings(executor, context.accountId, row.id)
-	const events = (await weekRows(executor, row.id, selection)).map((item) => boundRow(item, snapshot))
+	const rows = await weekRows(executor, row.id, selection)
+	const markerIds = rows.flatMap((item) => (item.markerLocalId ? [item.markerLocalId] : []))
+	const snapshot = await loadMappings(executor, context.accountId, row.id, markerIds)
+	const events = await withSuggestions(
+		executor,
+		row.id,
+		rows.map((item) => boundRow(item, snapshot)),
+		students
+	)
 	const series =
 		read.state === 'fresh' && !blocked ? await seriesContexts(executor, row.id, context.now, snapshot, events) : []
 	const editableSeries = new Set(series.map((item) => item.series.id))

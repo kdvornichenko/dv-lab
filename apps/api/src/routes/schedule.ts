@@ -22,6 +22,7 @@ import { CalendarFault } from '../calendar/gateway.ts'
 import { CommandFault } from '../calendar/journal.ts'
 import { readCalendarWindow } from '../calendar/read-model.ts'
 import type { CalendarReadContext, CalendarReadSelection } from '../calendar/read-state.ts'
+import { listLessonStudents } from '../cards/cards.ts'
 import { errorBody } from '../request-context.ts'
 import type { ChangeFailure } from '../schedule/changes.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
@@ -111,7 +112,9 @@ export function scheduleRoutes({ db, calendarCommands }: ScheduleRouteDeps) {
 			...scheduleWeekRange(start, settings.defaultTimeZone),
 			displayTimeZone: settings.defaultTimeZone,
 		}
-		const week = await readSnapshot(db, (executor) => readCalendarWindow(executor, context, selection))
+		const week = await readSnapshot(db, async (executor) =>
+			readCalendarWindow(executor, context, selection, await listLessonStudents(executor))
+		)
 		return c.json(week, 200)
 	})
 
