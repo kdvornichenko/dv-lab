@@ -26,6 +26,7 @@ const sections = {
 	stream: sectionStream,
 	answers: sectionAnswers,
 	models: sectionModels,
+	delete: sectionDelete,
 }
 
 function removeFixtures() {
@@ -2303,6 +2304,128 @@ async function sectionModels() {
 				else sql(`delete from chat_budget_periods where account_id = '${accountId}' and starts_on = '${startsOn}'`)
 			},
 			restore
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
+const DELETE_BLOCKED = 'This chat has an unconfirmed request or usage record. Check its status before deleting.'
+
+async function sectionDelete() {
+	const started = await startFakeModelApi()
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = teacher
+		? sql(
+				`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${teacher}' order by starts_on desc limit 1`
+			).rows[0]
+		: undefined
+	try {
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, browser, problems }) => {
+				await setTheme(page)
+				await signIn(page)
+				await openChat(page, null)
+				const field = page.locator(FIELD)
+				await field.waitFor({ timeout: 30000 })
+				await field.click()
+				await page.keyboard.type('Plan the next lesson for my group')
+				await page.keyboard.press('Enter')
+				await page.getByText(FAKE_LAST).waitFor({ timeout: 30000 })
+				await page.locator(SEND).waitFor({ timeout: 15000 })
+				const id = new URL(page.url()).searchParams.get('c')
+				if (id) conversations.push(id)
+				check('a conversation with a finished reply exists', id !== null)
+				const facts = () =>
+					sql(
+						`select (select count(*)::int from chat_messages where conversation_id = '${id}') as messages,
+							(select count(*)::int from chat_messages where conversation_id = '${id}' and redacted_at is not null and body = '' and mentions = '[]'::jsonb and blocks = '[]'::jsonb) as redacted,
+							(select count(*)::int from chat_turns where conversation_id = '${id}') as turns,
+							(select deleted_at is not null from chat_conversations where id = '${id}') as deleted`
+					).rows[0]
+				const before = facts()
+
+				await openList(page)
+				await rowOf(page, id).waitFor({ timeout: 15000 })
+				await openRowMenu(page, id, 'Delete conversation')
+				const confirm = page.getByRole('dialog', { name: 'Delete this conversation?' })
+				await confirm.waitFor({ timeout: 15000 })
+				await page.route('**/api/chat/conversations/*', (route) =>
+					route.request().method() === 'DELETE'
+						? route.fulfill({
+								status: 409,
+								json: { error: { code: 'busy', message: 'The conversation has unfinished work' } },
+							})
+						: route.fallback()
+				)
+				await confirm.getByRole('button', { name: 'Delete conversation' }).click()
+				await confirm.getByText(DELETE_BLOCKED).waitFor({ timeout: 15000 })
+				check(
+					'a refused delete shows the unconfirmed request text, keeps the dialog and the chat',
+					(await confirm.getByText(DELETE_ERROR).count()) === 0 && (await rowOf(page, id).count()) === 1
+				)
+				await shot(page, 'chat-delete', 'blocked')
+				await page.unroute('**/api/chat/conversations/*')
+				await page.route('**/api/chat/conversations/*', (route) =>
+					route.request().method() === 'DELETE' ? route.fulfill({ status: 500, json: SERVER_ERROR }) : route.fallback()
+				)
+				await confirm.getByRole('button', { name: 'Delete conversation' }).click()
+				await confirm.getByText(DELETE_ERROR).waitFor({ timeout: 15000 })
+				check(
+					'a server failure after that shows the general text again',
+					(await confirm.getByText(DELETE_BLOCKED).count()) === 0
+				)
+				await page.unroute('**/api/chat/conversations/*')
+				check('nothing was erased by the refused deletes', JSON.stringify(facts()) === JSON.stringify(before))
+
+				await confirm.getByRole('button', { name: 'Delete conversation' }).click()
+				await confirm.waitFor({ state: 'detached', timeout: 15000 })
+				await page.waitForTimeout(300)
+				check('the deleted conversation leaves the list', (await rowOf(page, id).count()) === 0)
+				const focused = await page.evaluate(() => {
+					const node = document.activeElement
+					return node instanceof HTMLElement && node.hasAttribute('data-all-chats') && node.offsetParent !== null
+				})
+				check('after a delete the focus is on All chats', focused)
+				const after = facts()
+				check(
+					'the rows stay and every message is erased',
+					after.deleted === true &&
+						after.messages === before.messages &&
+						after.redacted === before.messages &&
+						after.turns === before.turns,
+					JSON.stringify(after)
+				)
+				await shot(page, 'chat-delete', 'deleted')
+
+				const visitor = await browser.newContext({ colorScheme: theme })
+				const policy = await visitor.newPage()
+				const response = await policy.goto(`${BASE}/privacy`)
+				await policy.getByRole('heading', { level: 2, name: 'Chat assistant', exact: true }).waitFor({ timeout: 30000 })
+				const text = await policy.locator('main').innerText()
+				check(
+					'the privacy page opens without a sign-in and describes the chat',
+					response?.status() === 200 && new URL(policy.url()).pathname === '/privacy' && text.includes('Anthropic')
+				)
+				check(
+					'the privacy page holds no key and no student name',
+					!/sk-ant|Alex Example/.test(text) && !text.includes('Plan the next lesson for my group')
+				)
+				await shot(policy, 'chat-delete', 'privacy')
+				await visitor.close()
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeConversations(conversations),
+			() => {
+				if (period)
+					sql(
+						`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = '${period.id}'`
+					)
+			}
 		)
 	} finally {
 		await stopFakeModelApi(started)
