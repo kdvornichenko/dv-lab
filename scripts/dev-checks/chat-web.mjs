@@ -81,7 +81,13 @@ async function sectionRecords() {
 				if (request.url().includes('/api/chat/records')) recordReads.push(request.url())
 			})
 			await openChat(page, null)
-			await page.getByText('What do you want to ask?').waitFor({ timeout: 15000 })
+			const commandList = page.getByRole('list', { name: 'Commands' })
+			await commandList.waitFor({ timeout: 15000 })
+			check(
+				'a new chat shows the command list instead of a greeting',
+				(await commandList.getByRole('button').count()) === 6 && (await page.getByText('Suggestions').count()) === 0,
+				(await commandList.innerText()).replace(/\n/g, ' | ')
+			)
 			await page.waitForTimeout(500)
 			check('no student selected makes no records request', recordReads.length === 0, String(recordReads.length))
 
@@ -435,6 +441,18 @@ async function sectionConversations() {
 				await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
 			)
 			await shot(page, 'chat-conversations', 'phone')
+
+			await page.setViewportSize({ width: 1440, height: 800 })
+			await page.reload()
+			const rail = page.getByRole('navigation', { name: 'Chats' })
+			await rail.waitFor({ timeout: 30000 })
+			await rail.locator(`[data-row-id="${first.id}"]`).waitFor({ timeout: 15000 })
+			check(
+				'from 1080px of page width the chats stand in a column with New chat and there is no All chats button',
+				(await rail.getByRole('button', { name: 'New chat' }).count()) === 1 &&
+					(await page.getByRole('button', { name: 'All chats', exact: true }).count()) === 0
+			)
+			await shot(page, 'chat-conversations', 'rail')
 
 			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
@@ -1789,6 +1807,13 @@ async function sectionStream() {
 					JSON.stringify(conversationId ? turns(conversationId) : null)
 				)
 				await shot(page, 'chat-stream', 'done')
+				const footer = page.locator('[data-slot="chat-reply-footer"]').last()
+				check(
+					'a finished reply has its time in the main zone without a weekday and a Copy reply button',
+					/^\d{1,2}:\d{2}$/.test((await footer.locator('span').first().innerText()).trim()) &&
+						(await footer.getByRole('button', { name: 'Copy reply' }).count()) === 1,
+					await footer.innerText()
+				)
 
 				await field.click()
 				const repliesBefore = await page.locator(REPLY_TEXT).count()
@@ -2002,11 +2027,13 @@ async function sectionAnswers() {
 				posts.length === postsBeforeRefresh && refreshed.length === 2
 			)
 
+			const excerptEntry = randomUUID()
 			injected.push([
 				{
 					type: 'excerpt',
 					source: 'note',
 					id: randomUUID(),
+					entry: excerptEntry,
 					studentId: ids[ANSWER_PAYS.name],
 					body: EXCERPT_TEXT,
 					createdAt: new Date(Date.now() - 6 * 86400000).toISOString(),
@@ -2025,26 +2052,56 @@ async function sectionAnswers() {
 					(await excerpt.locator('blockquote').count()) === 1,
 				excerptText
 			)
+			check(
+				'the source line of the excerpt is a link to the note entry',
+				(await excerpt.getByRole('link', { name: 'From notes' }).getAttribute('href')) ===
+					`/students/${ids[ANSWER_PAYS.name]}?tab=notes&entry=${excerptEntry}`
+			)
 			const suggestions = page.locator('[data-slot="chat-suggestions"]').last()
 			check(
-				'suggestions are separate lines with the not-saved footer',
-				(await suggestions.getByRole('button').count()) === IDEA_LINES.length &&
-					(await suggestions.getByText("Not saved to the student's notes.").count()) === 1
+				'suggestions are plain lines without buttons or a footer',
+				(await suggestions.getByRole('button').count()) === 0 &&
+					(await suggestions.locator('p').allInnerTexts()).join('|') === IDEA_LINES.join('|') &&
+					(await suggestions.getByText("Not saved to the student's notes.").count()) === 0
 			)
 			await shot(page, 'chat-answers', 'excerpt')
 			const notesBefore = sql(
 				`select count(*)::int as n from student_notes where student_id = '${ids[ANSWER_PAYS.name]}'`
 			).rows[0].n
 			const postsBeforeUse = posts.length
-			await suggestions.getByRole('button', { name: IDEA_LINES[0] }).click()
-			check('a suggestion puts its text in the field', (await value(page)) === IDEA_LINES[0], await value(page))
+			await suggestions.getByText(IDEA_LINES[0]).click()
 			await page.waitForTimeout(500)
 			check(
-				'a suggestion sends nothing and writes no note',
+				'clicking a suggestion line sends nothing, fills nothing and writes no note',
 				posts.length === postsBeforeUse &&
+					(await value(page)) === '' &&
 					sql(`select count(*)::int as n from student_notes where student_id = '${ids[ANSWER_PAYS.name]}'`).rows[0]
-						.n === notesBefore
+						.n === notesBefore,
+				await value(page)
 			)
+
+			injected.push([
+				{
+					type: 'action_link',
+					kind: 'payments',
+					studentId: ids[ANSWER_PAYS.name],
+					studentName: ANSWER_PAYS.name,
+					date: null,
+					tab: null,
+					dialog: 'payment',
+				},
+			])
+			await sendCommand(page, '/payments')
+			const actionLink = page.locator('[data-slot="chat-action-link"]').last()
+			await actionLink.waitFor({ timeout: 30000 })
+			check(
+				'an action block is one link to the Payments tab with the dialog word and no values',
+				(await actionLink.getAttribute('href')) === `/students/${ids[ANSWER_PAYS.name]}?tab=payments&dialog=payment` &&
+					(await actionLink.innerText()).includes(`Open ${ANSWER_PAYS.name}'s payments`) &&
+					(await actionLink.innerText()).includes('Payments · Record payment'),
+				await actionLink.innerText()
+			)
+			await shot(page, 'chat-answers', 'action-link')
 
 			await page.setViewportSize({ width: 390, height: 800 })
 			await page.waitForTimeout(300)
