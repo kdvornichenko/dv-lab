@@ -154,6 +154,16 @@ function moveIntent(rest: string, studentId: string, today: string): ChatLessonI
 	return intent
 }
 
+export type NoteCommand = { studentId: string; body: string }
+
+export function parseNoteCommand(text: string, bindings: readonly MentionBinding[]): NoteCommand | null {
+	if (bindings.length !== 1) return null
+	const binding = bindings[0]!
+	if (!/^\s*\/note\s+@$/i.test(text.slice(0, binding.start))) return null
+	const body = text.slice(binding.end).trim()
+	return body === '' ? null : { studentId: binding.studentId, body }
+}
+
 export function parseQuickCommand(
 	text: string,
 	bindings: readonly MentionBinding[],

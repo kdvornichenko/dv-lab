@@ -3,16 +3,22 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	type ChatConversationReadResponse,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
 	type ChatStudentFacts,
+	type SendMessageResponse,
+	type UndoResponse,
 	chatRecordsQuery,
 	deleteConversationRequest,
 	renameConversationRequest,
+	sendMessageRequest,
+	undoRequest,
 } from '@dv-lab/contracts'
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { sendMessage, undoAction } from '../chat/actions.ts'
 import {
 	createConversation,
 	deleteConversation,
@@ -21,6 +27,7 @@ import {
 	renameConversation,
 } from '../chat/conversations.ts'
 import { readChatFacts } from '../chat/facts.ts'
+import { listMessages } from '../chat/messages.ts'
 import { errorBody } from '../request-context.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
@@ -75,9 +82,47 @@ export function chatRoutes({ db }: ChatRouteDeps) {
 	routes.get('/conversations/:id', async (c) => {
 		const id = conversationId(c)
 		if (id === null) return notFound(c)
-		const conversation = await readConversation(db, c.get('session').account.id, id)
-		if (conversation === null) return notFound(c)
-		return c.json({ conversation } satisfies ChatConversationResponse, 200)
+		const accountId = c.get('session').account.id
+		const read = await readSnapshot(db, async (executor) => {
+			const conversation = await readConversation(executor, accountId, id)
+			if (conversation === null) return null
+			return { conversation, messages: await listMessages(executor, accountId, id) }
+		})
+		if (read === null) return notFound(c)
+		return c.json(read satisfies ChatConversationReadResponse, 200)
+	})
+
+	routes.post('/conversations/:id/messages', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, sendMessageRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const now = new Date()
+		const settings = await readTeacherSettings(db, accountId)
+		const result = await sendMessage(db, { accountId, now, defaultTimeZone: settings.defaultTimeZone }, id, input)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'conflict') return c.json(errorBody('precondition_failed', 'The request changed'), 409)
+		const body = { conversation: result.conversation, messages: result.messages } satisfies SendMessageResponse
+		return c.json(body, result.replayed ? 200 : 201)
+	})
+
+	routes.post('/actions/:id/undo', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, undoRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const settings = await readTeacherSettings(db, accountId)
+		const result = await undoAction(
+			db,
+			{ accountId, now: new Date(), defaultTimeZone: settings.defaultTimeZone },
+			id,
+			input
+		)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind !== 'ok') return c.json(errorBody('precondition_failed', 'The action cannot be undone'), 409)
+		return c.json({ block: result.block } satisfies UndoResponse, 200)
 	})
 
 	routes.patch('/conversations/:id', async (c) => {

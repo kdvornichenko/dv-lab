@@ -65,13 +65,27 @@ export async function readConversation(
 	return row ? toConversation(row) : null
 }
 
-async function lockConversation(executor: DbExecutor, accountId: string, id: string) {
+export async function lockConversation(executor: DbExecutor, accountId: string, id: string) {
 	const [row] = await executor
 		.select({ revision: chatConversations.revision })
 		.from(chatConversations)
 		.where(owned(accountId, id))
 		.for('update')
 	return row ?? null
+}
+
+export async function touchConversation(
+	executor: DbExecutor,
+	accountId: string,
+	id: string
+): Promise<ChatConversation> {
+	const [row] = await executor
+		.update(chatConversations)
+		.set({ updatedAt: sql`clock_timestamp()` })
+		.where(owned(accountId, id))
+		.returning(columns)
+	if (!row) throw new Error('conversation touch returned no row')
+	return toConversation(row)
 }
 
 export async function renameConversation(

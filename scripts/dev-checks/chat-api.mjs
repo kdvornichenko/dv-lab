@@ -17,6 +17,7 @@ const SECTIONS = {
 	conversations: sectionConversations,
 	notes: sectionNotes,
 	comments: sectionComments,
+	actions: sectionActions,
 }
 
 let failures = 0
@@ -233,6 +234,14 @@ const conversationCounts = () =>
 		.split(',')
 		.filter((item) => !item.startsWith('chat_conversations='))
 
+function removeChats(where) {
+	const conversations = `select id from chat_conversations where ${where}`
+	sql(`delete from chat_actions where conversation_id in (${conversations})`)
+	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${conversations})`)
+	sql(`delete from chat_messages where conversation_id in (${conversations})`)
+	return sql(`delete from chat_conversations where ${where}`).rowCount
+}
+
 function send(api, method, path, options = {}) {
 	if (method !== 'DELETE' || options.body === undefined) return call(api, method, path, options)
 	const length = String(Buffer.byteLength(JSON.stringify(options.body)))
@@ -244,7 +253,7 @@ async function sectionConversations(ctx) {
 	const student = await studentCookie(api)
 	const as = (method, path, body) => send(api, method, path, { cookie, body })
 	const track = (id) => ctx.conversations.push(id)
-	console.log(`fixture conversations removed ${sql('delete from chat_conversations').rowCount}`)
+	console.log(`fixture conversations removed ${removeChats('true')}`)
 	const before = conversationCounts()
 	const secret = 'Zeta check title'
 
@@ -1041,6 +1050,383 @@ async function sectionComments(ctx) {
 	}
 }
 
+const markOf = (lessonId) =>
+	sql(`select kind, revision from lesson_marks where lesson_id = ${quote(lessonId)}`).rows[0] ?? null
+
+const actionCount = (conversationId) =>
+	sql(`select count(*)::int as n from chat_actions where conversation_id = ${quote(conversationId)}`).rows[0].n
+
+async function sectionActions(ctx) {
+	const { api, cookie } = ctx
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const { executeLocalAction } = await import('../../apps/api/src/chat/actions.ts')
+	const { insertMessage } = await import('../../apps/api/src/chat/messages.ts')
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const { db, pool } = createDb(url)
+	try {
+		const as = (method, path, body) => send(api, method, path, { cookie, body })
+		const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+		const zone = sql(
+			`select coalesce((select default_time_zone from teacher_settings where account_id = ${quote(accountId)}), ${quote(VN)}) as zone`
+		).rows[0].zone
+		const today = core.scheduleToday(new Date(), zone)
+		const yesterday = core.addDays(today, -1)
+		const name = 'Alex Example 2206'
+		const card = await createCard(ctx, name)
+		await setOpening(ctx, card, 600, core.addDays(today, -60))
+		const lessonAt = (date, time) =>
+			sql(
+				`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(card)}, ${quote(core.zonedInstant(date, time, zone).toISOString())}, 60, 'scheduled') returning id`
+			).rows[0].id
+		const first = lessonAt(yesterday, '09:00')
+		const balance = async () => (await as('GET', `/chat/records?studentId=${card}`)).json.balanceMinutes
+		const binding = { studentId: card, text: name, start: 1, end: 1 + name.length }
+		const message = (requestId, tail) => ({ requestId, text: `@${name} ${tail}`, mentions: [binding] })
+		const created = await as('POST', '/chat/conversations')
+		const conversationId = created.json.conversation.id
+		ctx.conversations.push(conversationId)
+		const post = (body) => as('POST', `/chat/conversations/${conversationId}/messages`, body)
+		const undo = (actionId, requestId) => as('POST', `/chat/actions/${actionId}/undo`, { requestId })
+		const replyBlock = (res) => res.json?.messages?.[1]?.blocks?.[0]
+		const startBalance = await balance()
+		check('the card starts with six lessons', startBalance === 360, `${startBalance}`)
+
+		const r1 = randomUUID()
+		const was = message(r1, `was ${yesterday}`)
+		const sent = await post(was)
+		const block = replyBlock(sent)
+		check(
+			'"was <date>" marks the exact lesson Done at once with one action and a reply block',
+			sent.status === 201 &&
+				sent.json.messages.length === 2 &&
+				sent.json.messages[0].role === 'teacher' &&
+				sent.json.messages[0].body === was.text &&
+				sent.json.messages[1].role === 'assistant' &&
+				block?.type === 'action_result' &&
+				block.kind === 'mark' &&
+				block.mark === 'done' &&
+				block.before === 'none' &&
+				block.undo === 'available' &&
+				block.effect?.kind === 'deducts' &&
+				block.effect.minutes === 60 &&
+				block.lessonMinutes === 60 &&
+				block.studentName === name &&
+				block.timeZone === zone &&
+				markOf(first)?.kind === 'done' &&
+				markOf(first)?.revision === 1 &&
+				actionCount(conversationId) === 1,
+			`${sent.status} ${JSON.stringify(block)}`
+		)
+		check(
+			'the conversation moved up after the message',
+			sent.json.conversation.updatedAt > created.json.conversation.updatedAt
+		)
+		check('Done deducts one lesson', (await balance()) === 300)
+		const replayed = await post(was)
+		check(
+			'the same requestId returns the original messages and makes no second effect',
+			replayed.status === 200 &&
+				replayed.json.messages.map((item) => item.id).join() === sent.json.messages.map((item) => item.id).join() &&
+				markOf(first)?.revision === 1 &&
+				actionCount(conversationId) === 1
+		)
+		const changed = await post({ ...was, text: `${was.text} ` })
+		check(
+			'the same requestId with another text: 409 precondition_failed and nothing written',
+			changed.status === 409 &&
+				changed.json?.error?.code === 'precondition_failed' &&
+				markOf(first)?.revision === 1 &&
+				actionCount(conversationId) === 1
+		)
+		const other = await as('POST', '/chat/conversations')
+		ctx.conversations.push(other.json.conversation.id)
+		const crossed = await as('POST', `/chat/conversations/${other.json.conversation.id}/messages`, was)
+		check('the same requestId in another conversation: 409', crossed.status === 409)
+
+		const u1 = randomUUID()
+		const undone = await undo(block.actionId, u1)
+		check(
+			'Undo returns the previous mark with a new revision',
+			undone.status === 200 &&
+				undone.json.block.undo === 'done' &&
+				undone.json.block.actionId === block.actionId &&
+				markOf(first)?.kind === 'none' &&
+				markOf(first)?.revision === 2,
+			`${undone.status} ${JSON.stringify(markOf(first))}`
+		)
+		check('Undo gives the lesson back', (await balance()) === 360)
+		const undoAgain = await undo(block.actionId, u1)
+		const undoOther = await undo(block.actionId, randomUUID())
+		check(
+			'a repeated Undo returns the saved result and changes nothing',
+			undoAgain.status === 200 &&
+				undoAgain.json.block.undo === 'done' &&
+				undoOther.status === 200 &&
+				undoOther.json.block.undo === 'done' &&
+				markOf(first)?.revision === 2
+		)
+		const read = await as('GET', `/chat/conversations/${conversationId}`)
+		check(
+			'the conversation read shows the messages in order with the undone result',
+			read.status === 200 && read.json.messages.length === 2 && read.json.messages[1].blocks[0].undo === 'done'
+		)
+
+		const r2 = randomUUID()
+		const second = await post(message(r2, `was at the lesson ${yesterday}`))
+		const secondBlock = replyBlock(second)
+		check(
+			'a second Done from the chat writes the next revision',
+			second.status === 201 && secondBlock?.type === 'action_result' && markOf(first)?.revision === 3
+		)
+		for (const kind of ['no_show', 'done']) {
+			const res = await as('POST', `/schedule/lessons/${first}/mark`, { kind })
+			if (res.status !== 200) throw new Error(`mark returned ${res.status}`)
+		}
+		const staleUndo = await undo(secondBlock.actionId, randomUUID())
+		check(
+			'Undo after Done -> No-show -> Done outside the chat is stale and leaves the mark',
+			staleUndo.status === 200 &&
+				staleUndo.json.block.undo === 'stale' &&
+				markOf(first)?.kind === 'done' &&
+				markOf(first)?.revision === 5,
+			`${JSON.stringify(staleUndo.json)} ${JSON.stringify(markOf(first))}`
+		)
+		const staleRead = await as('GET', `/chat/conversations/${conversationId}`)
+		check('the read shows the stale result', staleRead.json.messages.at(-1).blocks[0].undo === 'stale')
+		check('the balance follows the mark', (await balance()) === 300)
+
+		const noteText = 'Zeta chat note body'
+		const noteMessage = { requestId: randomUUID(), text: `/note @${name} ${noteText}`, mentions: [] }
+		noteMessage.mentions.push({ studentId: card, text: name, start: 7, end: 7 + name.length })
+		const noted = await post(noteMessage)
+		const noteBlock = replyBlock(noted)
+		const twin = await post({ ...noteMessage, requestId: randomUUID() })
+		const twinBlock = replyBlock(twin)
+		const noteRows = () =>
+			sql(
+				`select id, revision, retracted_at is not null as retracted, section_kind from student_notes where student_id = ${quote(card)} order by created_at, id`
+			).rows
+		check(
+			'/note adds a note record in General info with the text in the result block',
+			noted.status === 201 &&
+				noteBlock?.type === 'action_result' &&
+				noteBlock.kind === 'note' &&
+				noteBlock.text === noteText &&
+				twinBlock?.type === 'action_result' &&
+				noteRows().length === 2 &&
+				noteRows().every((row) => row.section_kind === 'general_info' && row.revision === 1)
+		)
+		const noteUndo = await undo(noteBlock.actionId, randomUUID())
+		const [retractedNote, keptNote] = noteRows()
+		check(
+			'Undo of a note retracts only its own record, the twin with the same text stays',
+			noteUndo.status === 200 &&
+				noteUndo.json.block.undo === 'done' &&
+				retractedNote.retracted === true &&
+				retractedNote.revision === 2 &&
+				keptNote.retracted === false &&
+				keptNote.revision === 1
+		)
+
+		const commentText = 'Zeta chat comment body'
+		const context = { accountId, now: new Date(), defaultTimeZone: zone }
+		const commentCount = () =>
+			sql(`select count(*)::int as n from lesson_comments where student_id = ${quote(card)}`).rows[0].n
+		const viaModel = (intent) =>
+			db.transaction(async (tx) => {
+				const asked = await insertMessage(tx, {
+					accountId,
+					conversationId,
+					role: 'teacher',
+					body: 'model turn',
+					requestId: randomUUID(),
+					requestDigest: 'model',
+				})
+				const source = { conversationId, messageId: asked.id }
+				const result = await executeLocalAction(tx, context, source, { kind: 'lesson', intent, body: commentText })
+				await insertMessage(tx, {
+					accountId,
+					conversationId,
+					role: 'assistant',
+					body: '',
+					blocks: [result],
+					replyTo: asked.id,
+				})
+				return result
+			})
+		const commentBlock = await viaModel({ kind: 'comment', studentId: card, scope: 'one', date: yesterday })
+		check(
+			'a comment on a started lesson is added with its result block',
+			commentBlock.type === 'action_result' &&
+				commentBlock.kind === 'comment' &&
+				commentBlock.text === commentText &&
+				commentCount() === 1,
+			JSON.stringify(commentBlock)
+		)
+		const laterComment = await viaModel({
+			kind: 'comment',
+			studentId: card,
+			scope: 'one',
+			date: core.addDays(today, 1),
+		})
+		check(
+			'a comment on a lesson that has not started gets no result and writes nothing',
+			laterComment.type !== 'action_result' && commentCount() === 1,
+			JSON.stringify(laterComment)
+		)
+		const commentUndo = await undo(commentBlock.actionId, randomUUID())
+		check(
+			'Undo of a comment retracts it',
+			commentUndo.status === 200 &&
+				commentUndo.json.block.undo === 'done' &&
+				sql(
+					`select count(*)::int as n from lesson_comments where student_id = ${quote(card)} and retracted_at is not null`
+				).rows[0].n === 1
+		)
+
+		const effectsBefore = tableCounts()
+		const moved = await post(message(randomUUID(), 'moved to tomorrow 18:00'))
+		const cancelled = await post(message(randomUUID(), `didn't happen ${yesterday}`))
+		check(
+			'"moved to" and "didn\'t happen" answer P12 out_of_phase',
+			replyBlock(moved)?.type === 'refused' &&
+				replyBlock(moved)?.code === 'out_of_phase' &&
+				replyBlock(cancelled)?.code === 'out_of_phase'
+		)
+		const free = await post(message(randomUUID(), 'how is the reading going?'))
+		const plain = await post({ requestId: randomUUID(), text: 'What should we do next week?', mentions: [] })
+		check(
+			'free text without a quick form answers model_unavailable',
+			replyBlock(free)?.code === 'model_unavailable' && replyBlock(plain)?.code === 'model_unavailable'
+		)
+		const staleMention = await post({
+			requestId: randomUUID(),
+			text: `@${name}x was`,
+			mentions: [{ studentId: randomUUID(), text: `${name}x`, start: 1, end: 2 + name.length }],
+		})
+		check('a binding to an unknown student answers mention_stale', replyBlock(staleMention)?.code === 'mention_stale')
+		const effectsAfter = tableCounts()
+			.split(',')
+			.filter((item) => !item.startsWith('chat_'))
+			.join()
+		check(
+			'refusals write no effect outside the chat tables',
+			effectsBefore
+				.split(',')
+				.filter((item) => !item.startsWith('chat_'))
+				.join() === effectsAfter
+		)
+
+		const later = lessonAt(yesterday, '15:00')
+		const ambiguous = await post(message(randomUUID(), `no show ${yesterday}`))
+		const question = replyBlock(ambiguous)
+		check(
+			'two lessons on the day: a question with both lessons and a reply for each, nothing marked',
+			question?.type === 'clarify' &&
+				question.question === 'which_lesson' &&
+				question.options.length === 2 &&
+				question.studentName === name &&
+				question.options.every((option) => option.reply.startsWith("didn't come ")) &&
+				markOf(later) === null &&
+				markOf(first)?.revision === 5,
+			JSON.stringify(question)
+		)
+		const chosen = question.options.find((option) => option.time === '15:00')
+		const answered = await post(message(randomUUID(), chosen.reply))
+		check(
+			'the reply of an option marks that lesson No-show',
+			replyBlock(answered)?.type === 'action_result' &&
+				replyBlock(answered).mark === 'no_show' &&
+				markOf(later)?.kind === 'no_show',
+			JSON.stringify(replyBlock(answered))
+		)
+		check('No-show deducts one lesson', (await balance()) === 240)
+
+		for (const [label, body] of [
+			['empty text', { requestId: randomUUID(), text: '', mentions: [] }],
+			['spaces only', { requestId: randomUUID(), text: '   ', mentions: [] }],
+			['NUL', { requestId: randomUUID(), text: 'a\u0000b', mentions: [] }],
+			['too long', { requestId: randomUUID(), text: 'x'.repeat(20001), mentions: [] }],
+			['no requestId', { text: 'hello', mentions: [] }],
+			['extra key', { requestId: randomUUID(), text: 'hello', mentions: [], x: 1 }],
+			[
+				'21 mentions',
+				{
+					requestId: randomUUID(),
+					text: 'hello',
+					mentions: Array.from({ length: 21 }, () => ({ studentId: card, text: 'h', start: 0, end: 1 })),
+				},
+			],
+		]) {
+			const res = await post(body)
+			check(
+				`send with ${label}: 400 invalid_request`,
+				res.status === 400 && res.json?.error?.code === 'invalid_request'
+			)
+		}
+		const longest = await post({ requestId: randomUUID(), text: 'ж'.repeat(20000), mentions: [] })
+		check(
+			'a 20000-character message is kept whole',
+			longest.status === 201 && longest.json.messages[0].body.length === 20000
+		)
+		const unknown = await as('POST', `/chat/conversations/${randomUUID()}/messages`, message(randomUUID(), 'was'))
+		const removed = await as('POST', '/chat/conversations')
+		ctx.conversations.push(removed.json.conversation.id)
+		await send(api, 'DELETE', `/chat/conversations/${removed.json.conversation.id}`, {
+			cookie,
+			body: { expectedRevision: 1 },
+		})
+		const toDeleted = await as(
+			'POST',
+			`/chat/conversations/${removed.json.conversation.id}/messages`,
+			message(randomUUID(), 'was')
+		)
+		check('sending to an unknown or deleted conversation: 404', unknown.status === 404 && toDeleted.status === 404)
+		const undoUnknown = await undo(randomUUID(), randomUUID())
+		const refusedAction = sql(
+			`select id from chat_actions where conversation_id = ${quote(conversationId)} and state = 'refused' limit 1`
+		).rows[0].id
+		const undoRefused = await undo(refusedAction, randomUUID())
+		check(
+			'Undo of an unknown action is 404, of a question is 409',
+			undoUnknown.status === 404 && undoRefused.status === 409
+		)
+
+		const denied = (statement) => {
+			try {
+				sql(statement, 'app')
+				return 'done'
+			} catch (err) {
+				return String(err.message)
+			}
+		}
+		const refusals = [
+			denied(`delete from chat_messages where conversation_id = ${quote(conversationId)}`),
+			denied(`delete from chat_actions where conversation_id = ${quote(conversationId)}`),
+			denied('truncate chat_messages'),
+			denied('truncate chat_actions'),
+		]
+		check(
+			'the application role cannot DELETE or TRUNCATE chat messages and actions',
+			refusals.every((text) => text.includes('42501')),
+			refusals.join(' | ')
+		)
+		check(
+			'action rows keep no student text',
+			sql(
+				`select count(*)::int as n from chat_actions where conversation_id = ${quote(conversationId)} and (coalesce(target::text, '') || coalesce(before::text, '') || coalesce(after::text, '') || result::text) ~ 'Zeta|Alex'`
+			).rows[0].n === 0
+		)
+		check(
+			'api log has no message text',
+			!api.logs().includes(noteText) && !api.logs().includes(commentText) && !api.logs().includes('reading going')
+		)
+		return 'CHAT_ACTIONS_OK'
+	} finally {
+		await pool.end()
+	}
+}
+
 const section = process.argv[2]
 const run = SECTIONS[section]
 
@@ -1075,8 +1461,7 @@ try {
 	console.log(`FAIL ${section} crashed ${err instanceof Error ? err.message : String(err)}`)
 } finally {
 	if (api) await api.stop()
-	if (conversations.length > 0)
-		sql(`delete from chat_conversations where id in (${conversations.map(quote).join(', ')})`)
+	if (conversations.length > 0) removeChats(`id in (${conversations.map(quote).join(', ')})`)
 	if (ids.length > 0) removeEntries(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 	if (ids.length > 0) removeCards(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 }
