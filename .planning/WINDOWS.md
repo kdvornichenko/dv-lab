@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 11
+open_count: 12
 waived_count: 0
 fixed_count: 1
-total_count: 12
-last_updated: 2026-10-13T18:06:24.770Z
+total_count: 13
+last_updated: 2026-10-13T18:24:49.766Z
 ---
 
 # Broken Windows Ledger
@@ -27,6 +27,7 @@ last_updated: 2026-10-13T18:06:24.770Z
 | 10 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-06-SUMMARY.md |  | C2: disconnected API/UI, marks и Pays soon проверены; connected edit Schedule→Today→Students, failed pagination, proven none, last-known UI и real pending command ещё требуют authoring/execution. Exact startsAt=asOf после исправления статически проверен, но real-clock equality не наблюдалась. Сохранить UNVERIFIED до воспроизводимого evidence. | open |  | 2026-10-11T18:06:27.778Z |  |
 | 11 | 24 | unrun-verify | .planning/phases/24-google-calendar-connection-and-outbound-sync/24-07-SUMMARY.md |  | Journal07 source и disconnected E2E завершены; connected create/ACK/recovery и фактический fault transport не запускались. Bundled runtime13 интегрирован, SSH loader/control и PRIMARY binding готовятся. Закрыть на существующем разрешённом HTTPS target с exact build/persistence и synthetic fixtures; отсутствие proof не PASS. | open |  | 2026-10-11T19:11:40.648Z |  |
 | 12 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-15: chat-web.mjs models light\|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000 | open |  | 2026-10-13T18:06:24.770Z |  |
+| 13 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-16: chat-web.mjs delete light\|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000, раздел сам поднимает api на 4000; раздел проверен node --check и prettier | open |  | 2026-10-13T18:24:49.766Z |  |
 
 ````json
 [
@@ -183,6 +184,19 @@ last_updated: 2026-10-13T18:06:24.770Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-13T18:06:24.770Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 13,
+    "kind": "unrun-verify",
+    "phase": "22",
+    "file": "scripts/dev-checks/chat-web.mjs",
+    "line": null,
+    "description": "22-16: chat-web.mjs delete light|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000, раздел сам поднимает api на 4000; раздел проверен node --check и prettier",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-13T18:24:49.766Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }
