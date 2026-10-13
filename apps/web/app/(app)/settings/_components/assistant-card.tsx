@@ -23,6 +23,7 @@ import {
 
 import { useToast } from '../../_components/toasts'
 import { ModelsForm } from './assistant-models'
+import { BudgetUsage } from './budget-usage'
 
 type LoadState = 'loading' | 'ready' | 'failed'
 
@@ -117,11 +118,8 @@ function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> 
 	const cap = toCents(budget.capUsd, false)
 	const spent = toCents(budget.spentUsd, true)
 	const held = toCents(budget.heldUsd, true)
-	const remaining = toCents(budget.remainingUsd, false)
 	const shownCap = parsed === null ? null : toCents(parsed, false)
 	const aboveLimit = shownCap !== null && spent + held > shownCap
-	const percent = budget.state === 'reached' || cap === 0n ? 100n : (spent * 100n) / cap
-	const fill = percent > 100n ? 100n : percent
 
 	async function save(event: FormEvent) {
 		event.preventDefault()
@@ -225,36 +223,7 @@ function BudgetCard({ state }: { state: ReturnType<typeof useAssistantSettings> 
 						</span>
 					</p>
 				) : null}
-				<div className="flex flex-col gap-2" data-budget-usage>
-					<p className="text-body tabular-nums">
-						Estimated usage this month: {dollars(spent)} of {dollars(cap, true)}.
-					</p>
-					<div className="h-1.5 overflow-hidden rounded-full bg-selected" aria-hidden>
-						<div className="h-full bg-primary" style={{ width: `${fill}%` }} data-budget-fill={String(fill)} />
-					</div>
-					<p className="text-caption text-muted-foreground tabular-nums">
-						Remaining estimate: {dollars(remaining)}.{held > 0n ? ` Reserved estimate: ${dollars(held)}.` : ''}
-					</p>
-					{budget.unknownAttempts > 0 ? (
-						<p className="flex items-center gap-1.5 text-caption text-muted-foreground" data-budget-note="unconfirmed">
-							<Info size={14} className="shrink-0" aria-hidden />
-							Usage has not been confirmed.
-						</p>
-					) : null}
-				</div>
-				{usage.length > 0 ? (
-					<div className="flex flex-col gap-2" data-budget-conversations>
-						<p className="text-caption text-muted-foreground">Usage by conversation</p>
-						<ul className="flex flex-col gap-2">
-							{usage.map((row) => (
-								<li key={row.conversationId} className="flex justify-between gap-4 text-body">
-									<span className="min-w-0 truncate">{row.title}</span>
-									<span className="shrink-0 tabular-nums">{dollars(toCents(row.costUsd, true))}</span>
-								</li>
-							))}
-						</ul>
-					</div>
-				) : null}
+				<BudgetUsage budget={budget} usage={usage} capCents={shownCap ?? cap} />
 				<p className="text-caption text-muted-foreground">Costs count toward your monthly budget.</p>
 				<div className="flex items-center justify-between gap-3">
 					{status}
@@ -315,8 +284,8 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 	const capability = capabilities.find((item) => item.id === modelId)
 	const effort: ChatEffort = settings.effort ?? capability?.defaultEffort ?? 'medium'
 
-	async function save(body: { model: string; effort: ChatEffort }) {
-		if (inflight.current) return
+	async function save(body: { model: string; effort: ChatEffort }): Promise<boolean> {
+		if (inflight.current) return false
 		inflight.current = true
 		setSaving(true)
 		setSaveError(false)
@@ -324,13 +293,14 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 			const result = await apiRequest<AssistantSettingsResponse>('PATCH', '/settings/assistant', body)
 			if (!result.ok) {
 				setSaveError(true)
-				return
+				return false
 			}
 			setData(result.data)
 			toast.show({
 				title: 'Saved',
 				description: `Chat model: ${capabilities.find((item) => item.id === body.model)?.name ?? body.model}, ${EFFORT_LABEL[body.effort].toLowerCase()} effort.`,
 			})
+			return true
 		} finally {
 			inflight.current = false
 			setSaving(false)
@@ -383,9 +353,7 @@ function ChatModelCard({ state }: { state: ReturnType<typeof useAssistantSetting
 								markerAt={capability.recommendedEffort}
 								label="Effort"
 								disabled={saving || !CHAT_EFFORTS.includes(effort)}
-								onChange={(next) => {
-									if (modelId !== undefined) void save({ model: modelId, effort: next })
-								}}
+								onChange={(next) => (modelId === undefined ? false : save({ model: modelId, effort: next }))}
 							/>
 						) : null}
 					</div>
