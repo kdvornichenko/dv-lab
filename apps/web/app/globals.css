@@ -559,6 +559,66 @@ html.transitioning *::after {
 	}
 }
 
+@supports not (animation-timeline: scroll()) {
+	.scroll-fade {
+		mask-image: linear-gradient(
+			to bottom,
+			rgba(0, 0, 0, var(--sf-start)) 0,
+			#000 var(--scroll-fade-size),
+			#000 calc(100% - var(--scroll-fade-size)),
+			rgba(0, 0, 0, var(--sf-end)) 100%
+		);
+		-webkit-mask-image: linear-gradient(
+			to bottom,
+			rgba(0, 0, 0, var(--sf-start)) 0,
+			#000 var(--scroll-fade-size),
+			#000 calc(100% - var(--scroll-fade-size)),
+			rgba(0, 0, 0, var(--sf-end)) 100%
+		);
+	}
+	.scroll-fade-x {
+		mask-image: linear-gradient(
+			to right,
+			rgba(0, 0, 0, var(--sf-start)) 0,
+			#000 var(--scroll-fade-size),
+			#000 calc(100% - var(--scroll-fade-size)),
+			rgba(0, 0, 0, var(--sf-end)) 100%
+		);
+		-webkit-mask-image: linear-gradient(
+			to right,
+			rgba(0, 0, 0, var(--sf-start)) 0,
+			#000 var(--scroll-fade-size),
+			#000 calc(100% - var(--scroll-fade-size)),
+			rgba(0, 0, 0, var(--sf-end)) 100%
+		);
+	}
+	.scroll-divider {
+		position: relative;
+	}
+	.scroll-divider::before,
+	.scroll-divider::after {
+		content: '';
+		position: absolute;
+		left: var(--scroll-divider-inset, 0px);
+		right: var(--scroll-divider-inset, 0px);
+		height: 1px;
+		background-color: var(--border);
+		pointer-events: none;
+		z-index: 1;
+	}
+	.scroll-divider::before {
+		top: 0;
+		opacity: calc(1 - var(--sf-start));
+	}
+	.scroll-divider:first-child::before {
+		content: none;
+	}
+	.scroll-divider::after {
+		bottom: 0;
+		opacity: calc(1 - var(--sf-end));
+	}
+}
+
 @media (pointer: fine) {
 	* {
 		scrollbar-width: thin;
