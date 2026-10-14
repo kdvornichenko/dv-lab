@@ -6,7 +6,7 @@ import type { DateRange } from 'react-day-picker'
 import { Check, Copy, ListChecks, Search } from 'lucide-react'
 
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
-import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
+import { Banner, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -27,29 +27,25 @@ import { datesPlural, eventName, lessonCountText, nameMatches } from '@/lib/less
 import { copyTooltip, useCopy } from '@/lib/use-copy'
 import { cn } from '@/lib/utils'
 
-import type { CalendarIssue, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
+import {
+	EVENT_TITLES_MAX_DAYS,
+	calendarIssue,
+	rangeDays,
+	type CalendarIssue,
+	type EventTitlesResponse,
+} from '@dv-lab/contracts'
 
-const MAX_WEEKS = 53
-const BATCH = 1
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SEARCH_FROM = 6
 const ROW = 'h-9'
 
 type EventDates = Map<string, Set<string>>
-type Loaded = { events: EventDates; outside: boolean }
 
 function isoDay(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, '0')
 	const day = String(date.getDate()).padStart(2, '0')
 	return `${date.getFullYear()}-${month}-${day}`
-}
-
-function weekCount(from: string, to: string): number {
-	let count = 0
-	for (let monday = mondayOf(from); monday <= to; monday = addDays(monday, 7)) count++
-	return count
 }
 
 function rangeSummary(range: DateRange | undefined): string {
@@ -64,41 +60,20 @@ function rangeSummary(range: DateRange | undefined): string {
 	return `${part(from, !sameYear)} – ${part(to, true)}`
 }
 
-function collect(window: GoogleScheduleWindow, from: string, to: string, into: EventDates) {
-	for (const event of window.events) {
-		if (event.status === 'cancelled') continue
-		const day =
-			event.when.kind === 'timed'
-				? lessonDay(new Date(event.when.startsAt), window.requestedRange.timeZone)
-				: event.when.startsOn
-		if (day < from || day > to) continue
-		const title = eventName(event.title)
-		const dates = into.get(title) ?? new Set<string>()
-		dates.add(day)
-		into.set(title, dates)
+async function loadEvents(from: string, to: string): Promise<EventDates | { issue: CalendarIssue | null }> {
+	const result = await apiRequest<EventTitlesResponse>('GET', `/schedule/event-titles?from=${from}&to=${to}`)
+	if (!result.ok) {
+		const issue = calendarIssue.safeParse(result.error?.code)
+		return { issue: issue.success ? issue.data : null }
 	}
-}
-
-async function loadEvents(from: string, to: string): Promise<Loaded | { issue: CalendarIssue | null }> {
-	const mondays: string[] = []
-	for (let monday = mondayOf(from); monday <= to; monday = addDays(monday, 7)) mondays.push(monday)
-	if (mondays.length > MAX_WEEKS) return { issue: null }
 	const events: EventDates = new Map()
-	let outside = false
-	for (let index = 0; index < mondays.length; index += BATCH) {
-		const results = await Promise.all(
-			mondays
-				.slice(index, index + BATCH)
-				.map((monday) => apiRequest<GoogleScheduleWindow>('GET', `/schedule/week?start=${monday}`))
-		)
-		for (const result of results) {
-			if (!result.ok) return { issue: null }
-			if (result.data.read.state === 'unavailable') return { issue: result.data.read.reason }
-			if (result.data.read.state === 'last_known' && result.data.read.reason === 'outside_sync_window') outside = true
-			collect(result.data, from, to, events)
-		}
+	for (const event of result.data.events) {
+		const title = eventName(event.title)
+		const dates = events.get(title) ?? new Set<string>()
+		dates.add(event.day)
+		events.set(title, dates)
 	}
-	return { events, outside }
+	return events
 }
 
 function EventList({
@@ -205,7 +180,6 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 	const [range, setRange] = useState<DateRange | undefined>()
 	const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle')
 	const [events, setEvents] = useState<EventDates>(new Map())
-	const [outside, setOutside] = useState(false)
 	const [title, setTitle] = useState<string | null>(null)
 	const { state: copyState, copy, reset: resetCopy } = useCopy()
 	const [issue, setIssue] = useState<CalendarIssue | null>(null)
@@ -213,7 +187,9 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 	const showRef = useRef<HTMLButtonElement>(null)
 	const mobile = useIsMobile()
 
-	const tooLong = range?.from ? weekCount(isoDay(range.from), isoDay(range.to ?? range.from)) > MAX_WEEKS : false
+	const tooLong = range?.from
+		? rangeDays(isoDay(range.from), isoDay(range.to ?? range.from)) > EVENT_TITLES_MAX_DAYS
+		: false
 
 	function pick(next: DateRange | undefined) {
 		requests.current++
@@ -233,14 +209,13 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 		setState('loading')
 		void loadEvents(from, to).then((result) => {
 			if (id !== requests.current) return
-			if ('issue' in result) {
+			if (!(result instanceof Map)) {
 				setIssue(result.issue)
 				setState('error')
 				requestAnimationFrame(() => showRef.current?.focus())
 				return
 			}
-			setEvents(result.events)
-			setOutside(result.outside)
+			setEvents(result)
 			setState('ready')
 		})
 	}
@@ -319,15 +294,6 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 									<Skeleton key={row} className="h-3 rounded-md" />
 								))}
 							</div>
-						) : null}
-						{state === 'ready' && outside ? (
-							<Banner status="info">
-								<BannerTitle>Part of this range is outside the synced weeks.</BannerTitle>
-								<BannerDescription>
-									Google Calendar is synced from 8 weeks back to 53 weeks ahead. Outside that, only lessons with a
-									student are counted.
-								</BannerDescription>
-							</Banner>
 						) : null}
 						{state === 'ready' && titles.length === 0 ? (
 							<div className="flex flex-col items-center gap-1 border-t pt-4 text-center">

@@ -9,6 +9,8 @@ import {
 	createCalendarLessonRequest,
 	moveCalendarLessonRequest,
 	calendarLessonActionRequest,
+	calendarIssue,
+	eventTitlesQuery,
 	moveCalendarSeriesRequest,
 	endCalendarSeriesRequest,
 	isIsoDate,
@@ -21,6 +23,7 @@ import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarCommands } from '../calendar/commands.ts'
+import type { EventTitles } from '../calendar/event-titles.ts'
 import { CalendarFault } from '../calendar/gateway.ts'
 import { CommandFault } from '../calendar/journal.ts'
 import { readCalendarWindow } from '../calendar/read-model.ts'
@@ -32,7 +35,7 @@ import { listLessonComments, retractLessonComment } from '../schedule/comments.t
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
-type ScheduleRouteDeps = { db: Database; calendarCommands?: CalendarCommands }
+type ScheduleRouteDeps = { db: Database; calendarCommands?: CalendarCommands; eventTitles?: EventTitles }
 
 const WEEK_START_MIN = '2000-01-03'
 
@@ -106,7 +109,14 @@ function commandRefusal(c: Context<AppEnv, string, {}>, error: unknown) {
 	return c.json(errorBody('provider_unavailable', 'Calendar is unavailable'), 503)
 }
 
-export function scheduleRoutes({ db, calendarCommands }: ScheduleRouteDeps) {
+function readRefusal(c: Context<AppEnv, string, {}>, error: unknown) {
+	const issue = calendarIssue.safeParse(error instanceof CalendarFault ? error.code : null)
+	const code = issue.success ? issue.data : 'provider_unavailable'
+	const status = code === 'provider_unavailable' || code === 'invalid_provider_data' ? 503 : 409
+	return c.json(errorBody(code, 'Calendar is unavailable'), status)
+}
+
+export function scheduleRoutes({ db, calendarCommands, eventTitles }: ScheduleRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -125,6 +135,17 @@ export function scheduleRoutes({ db, calendarCommands }: ScheduleRouteDeps) {
 			readCalendarWindow(executor, context, selection, await listLessonStudents(executor))
 		)
 		return c.json(week, 200)
+	})
+
+	routes.get('/event-titles', async (c) => {
+		const query = eventTitlesQuery.safeParse({ from: c.req.query('from'), to: c.req.query('to') })
+		if (!query.success) return invalidRequest(c)
+		if (!eventTitles) return readRefusal(c, new CalendarFault('connection_required'))
+		try {
+			return c.json(await eventTitles(c.get('session').account.id, query.data), 200)
+		} catch (error) {
+			return readRefusal(c, error)
+		}
 	})
 
 	routes.post('/lessons', async (c) => {

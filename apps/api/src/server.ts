@@ -11,6 +11,7 @@ import { createSignIn } from './auth/sign-in.ts'
 import { createCalendarCommands } from './calendar/commands.ts'
 import { createConnectionControl } from './calendar/connection-control.ts'
 import { createConnection } from './calendar/connection.ts'
+import { createEventTitles } from './calendar/event-titles.ts'
 import { createGoogleGateway } from './calendar/gateway.ts'
 import { createCredentials } from './calendar/google-access.ts'
 import { createConnectionLease } from './calendar/lease.ts'
@@ -92,7 +93,16 @@ function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true 
 		afterApply: wake,
 	})
 	const commands = createCalendarCommands({ db, credentials, gateway, wake: worker.admit, resume: worker.resume })
-	return { connection, control, commands, worker, sync, resources: [sync, worker, control, lease, credentials] }
+	const eventTitles = createEventTitles({ db, credentials, source: gateway })
+	return {
+		connection,
+		control,
+		commands,
+		worker,
+		sync,
+		eventTitles,
+		resources: [sync, worker, control, lease, credentials],
+	}
 }
 
 const app = createApp({
@@ -107,6 +117,7 @@ const app = createApp({
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
 	calendarCommands: calendar?.commands,
+	eventTitles: calendar?.eventTitles,
 	calendarWake: calendar ? (connectionId) => void calendar.sync.wake(connectionId) : undefined,
 })
 
