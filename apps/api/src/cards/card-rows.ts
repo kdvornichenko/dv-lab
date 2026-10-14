@@ -38,7 +38,7 @@ function toStudentStatus(value: string): StudentStatus {
 	throw new Error('unexpected student status')
 }
 
-function toCurrency(value: string | null): Currency | null {
+export function toCurrency(value: string | null): Currency | null {
 	if (value === null) return null
 	const known = CURRENCIES.find((currency) => currency === value)
 	if (!known) throw new Error('unexpected student currency')
@@ -63,6 +63,7 @@ export function toCardRow(row: CardRecord, facts: CardFacts): StudentRow {
 		balanceMinutes: facts.balanceMinutes,
 		nextLessonAt: facts.nextLesson.startsAt,
 		nextLesson: facts.nextLesson,
+		lastPayment: facts.lastPayment,
 	}
 }
 
