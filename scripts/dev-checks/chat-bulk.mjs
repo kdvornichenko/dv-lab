@@ -4,18 +4,21 @@ import dns from 'node:dns'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
+import { call, teacherCookie } from './api.mjs'
 import {
 	ROOT,
 	SYNTHETIC_CALENDAR_ID,
 	calendarSql,
 	googleDateTime,
 	googleTimes,
+	startCalendarApi,
 	syntheticTokenConfig,
 	targetEnvFile,
 } from './calendar-env.mjs'
 
 const TARGET = 'test'
-const SECTIONS = ['zone', 'proposal']
+const PORT = 4246
+const SECTIONS = ['zone', 'proposal', 'children']
 const section = process.argv[2]
 if (!SECTIONS.includes(section)) {
 	console.log(`usage: node scripts/dev-checks/chat-bulk.mjs ${SECTIONS.join('|')}`)
@@ -55,10 +58,13 @@ const { classifyRecurrence } = await import(`${ROOT}/apps/api/src/calendar/recur
 const { checkCalendarConflicts } = await import(`${ROOT}/apps/api/src/schedule/calendar-conflicts.ts`)
 const { markOccurrence } = await import(`${ROOT}/apps/api/src/schedule/marks.ts`)
 const { seriesAnchor } = await import(`${ROOT}/apps/api/src/schedule/series.ts`)
-const { createConversation } = await import(`${ROOT}/apps/api/src/chat/conversations.ts`)
-const { insertMessage } = await import(`${ROOT}/apps/api/src/chat/messages.ts`)
+const { createConversation, deleteConversation, readConversation } = await import(
+	`${ROOT}/apps/api/src/chat/conversations.ts`
+)
+const { insertMessage, listMessages } = await import(`${ROOT}/apps/api/src/chat/messages.ts`)
 const { runTool } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
-const { chatBlock } = await import(`${ROOT}/packages/contracts/src/index.ts`)
+const { checkChange, confirmChange, declineAction } = await import(`${ROOT}/apps/api/src/chat/changes.ts`)
+const { chatActionResponse, chatBlock } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
 const CARD_NAME = 'Alex Example 2320'
 const KEY_PREFIX = 'chat-bulk:'
@@ -970,6 +976,241 @@ async function sectionProposal(pipeline) {
 	return 'CHAT_BULK_PROPOSAL_OK'
 }
 
+const MSK_TEXT = 'перенеси все уроки со вторника 12:00 на среду 14:00 MSK'
+const MSK_MOVE = { ...moves(2, '12:00', 3, '14:00'), time_zone: 'MSK' }
+
+async function projectAll(pipeline, fx) {
+	const facts = [...pipeline.stub.events.values()].map((event) => resourceFact(event, event.start?.timeZone ?? fx.zone))
+	await pipeline.app.db.transaction((tx) => upsertEventFacts(tx, fx.target, facts))
+	freshAt(fx)
+}
+
+function commandOf(requestId) {
+	return rows(`select id, state from google_commands where request_id = ${quote(requestId)}`)[0] ?? null
+}
+
+function actionRow(id) {
+	return rows(`select state, target, result from chat_actions where id = ${quote(id)}`)[0]
+}
+
+async function settle(pipeline, fx, requestId, check) {
+	const command = commandOf(requestId)
+	if (!command) fail(check, 'the child command is not in the journal')
+	const finished = await dispatch(pipeline, fx.accountId, command.id)
+	if (finished.state !== 'applied') fail(check, `the child command ended ${finished.state} with ${finished.issue}`)
+	await projectAll(pipeline, fx)
+}
+
+const states = (block) => block?.change?.targets?.map((target) => target.state).join(',')
+
+async function blockOf(outcome) {
+	return outcome.kind === 'ok' && chatActionResponse.safeParse({ block: outcome.block }).success ? outcome.block : null
+}
+
+async function twoSeries(pipeline, fx, n) {
+	const student = bulkCard(n)
+	const first = await createLessons(pipeline, fx, student, fx.next, 'weekly')
+	const second = await createLessons(pipeline, fx, student, core.addDays(fx.next, 7), 'weekly')
+	return { student, series: [first, second] }
+}
+
+async function proposeTwo(pipeline, fx, card, check) {
+	const asked = await askBulk(pipeline, fx, card.student, MSK_TEXT, MSK_MOVE)
+	const children = asked.block ? actionRow(asked.block.actionId).target.children : []
+	if (asked.block?.change?.targets?.length !== 2 || children.length !== 2)
+		fail(check, `the proposal does not hold both series: ${asked.content}`)
+	return { actionId: asked.block.actionId, children }
+}
+
+async function caseChildren(pipeline, fx) {
+	const card = await twoSeries(pipeline, fx, 2385)
+	const { actionId, children } = await proposeTwo(pipeline, fx, card, 1)
+	const db = pipeline.app.db
+	const before = commandCount(fx.accountId)
+	const first = await blockOf(await confirmChange(db, chatContext(fx), actionId, pipeline.commands))
+	const started = commandOf(children[0].requestId)
+	const ok1 =
+		first?.state === 'pending' &&
+		states(first) === 'pending,not_started' &&
+		started !== null &&
+		commandOf(children[1].requestId) === null &&
+		commandCount(fx.accountId) === before + 1
+	console.log(
+		`case 1 confirm: state ${first?.state} targets ${states(first)} first_child_in_journal ${started !== null} second_child_in_journal ${commandOf(children[1].requestId) !== null} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok1) fail(1, 'confirm did not send exactly the first child command')
+	const again = await blockOf(await confirmChange(db, chatContext(fx), actionId, pipeline.commands))
+	const kept = await blockOf(await declineAction(db, chatContext(fx), actionId))
+	const conversation = await readConversation(db, fx.accountId, fx.conversationId)
+	const deletion = await db.transaction((tx) =>
+		deleteConversation(tx, fx.accountId, fx.conversationId, { expectedRevision: conversation.revision })
+	)
+	const ok2 =
+		again?.state === 'pending' &&
+		kept?.state === 'pending' &&
+		deletion.kind === 'pending' &&
+		commandCount(fx.accountId) === before + 1
+	console.log(
+		`case 2 repeat confirm ${again?.state} decline after confirm ${kept?.state} delete conversation ${deletion.kind} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok2) fail(2, 'a repeated confirm or decline sent a command, or the conversation could be deleted')
+	await settle(pipeline, fx, children[0].requestId, 3)
+	const second = await blockOf(await checkChange(db, pipeline.commands, chatContext(fx), actionId))
+	const ok3 =
+		second?.state === 'pending' &&
+		states(second) === 'applied,pending' &&
+		commandOf(children[1].requestId) !== null &&
+		commandCount(fx.accountId) === before + 2
+	console.log(
+		`case 3 check after the first child is applied: state ${second?.state} targets ${states(second)} second_child_in_journal ${commandOf(children[1].requestId) !== null} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok3) fail(3, 'the second child did not start after the first was applied')
+	await settle(pipeline, fx, children[1].requestId, 4)
+	const third = await blockOf(await checkChange(db, pipeline.commands, chatContext(fx), actionId))
+	const all = rows(
+		`select id, weekday, time_zone, to_char(start_time, 'HH24:MI') as start_time, starts_on::text as starts_on, ends_on::text as ends_on from lesson_series where student_id = ${quote(card.student.id)}`
+	)
+	const fresh = all.filter((row) => !card.series.includes(row.id))
+	const cut = card.series.map((id, index) => ({ row: all.find((item) => item.id === id), from: children[index].from }))
+	const newStarts = children.map((child) => core.firstOnOrAfter(child.from, 3)).sort()
+	const movedIn =
+		fresh.length === 2 &&
+		fresh.every((row) => row.time_zone === MSK && row.start_time === '14:00' && Number(row.weekday) === 3) &&
+		JSON.stringify(fresh.map((row) => row.starts_on).sort()) === JSON.stringify(newStarts)
+	const endedBefore = cut.every(({ row, from }) => row?.ends_on != null && row.ends_on < from)
+	const ok4 =
+		third?.state === 'applied' &&
+		states(third) === 'applied,applied' &&
+		third.receipt?.studentId === card.student.id &&
+		all.length === 4 &&
+		movedIn &&
+		endedBefore &&
+		teacherSetting(fx.accountId) === fx.setting
+	console.log(
+		`case 4 second child applied: state ${third?.state} targets ${states(third)} series_rows ${all.length} new_in_msk_wednesday_14 ${movedIn} old_end_before_cut ${endedBefore} teacher_setting_same ${teacherSetting(fx.accountId) === fx.setting}`
+	)
+	if (!ok4) fail(4, 'the move is not complete or rows were removed')
+	const repeat = await blockOf(await confirmChange(db, chatContext(fx), actionId, pipeline.commands))
+	const messages = await listMessages(db, fx.accountId, fx.conversationId)
+	const reread = messages
+		.flatMap((message) => message.blocks)
+		.find((block) => block.type === 'change_proposal' && block.actionId === actionId)
+	const ok5 = repeat?.state === 'applied' && reread?.state === 'applied' && commandCount(fx.accountId) === before + 2
+	console.log(
+		`case 5 confirm after applied ${repeat?.state} reread ${reread?.state} targets ${states(reread)} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok5) fail(5, 'a repeated confirm sent a command or the reread block is not applied')
+	return actionId
+}
+
+async function casePartial(pipeline, fx) {
+	const card = await twoSeries(pipeline, fx, 2386)
+	const { actionId, children } = await proposeTwo(pipeline, fx, card, 6)
+	const db = pipeline.app.db
+	const before = commandCount(fx.accountId)
+	const first = await blockOf(await confirmChange(db, chatContext(fx), actionId, pipeline.commands))
+	if (first?.state !== 'pending') fail(6, `confirm answered ${first?.state}`)
+	rows(`update lesson_series set ends_on = ${quote(core.addDays(fx.next, 70))} where id = ${quote(card.series[1])}`)
+	await settle(pipeline, fx, children[0].requestId, 6)
+	const result = await blockOf(await checkChange(db, pipeline.commands, chatContext(fx), actionId))
+	const again = await blockOf(await checkChange(db, pipeline.commands, chatContext(fx), actionId))
+	const row = actionRow(actionId)
+	const ok =
+		result?.state === 'partial' &&
+		result.issue === 'calendar_changed' &&
+		states(result) === 'applied,failed' &&
+		row.state === 'refused' &&
+		row.result?.kind === 'partial' &&
+		again?.state === 'partial' &&
+		commandOf(children[1].requestId) === null &&
+		commandCount(fx.accountId) === before + 1
+	console.log(
+		`case 6 the second series changed between children: state ${result?.state} issue ${result?.issue} targets ${states(result)} second_child_in_journal ${commandOf(children[1].requestId) !== null} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok) fail(6, 'a changed series was sent or the partial result was called a success')
+	return actionId
+}
+
+async function caseLostResponse(pipeline, fx) {
+	const card = await twoSeries(pipeline, fx, 2387)
+	const { actionId, children } = await proposeTwo(pipeline, fx, card, 7)
+	const db = pipeline.app.db
+	let lost = 0
+	const lossy = {
+		...pipeline.commands,
+		async submitCalendarCommand(context, command) {
+			await pipeline.commands.submitCalendarCommand(context, command)
+			lost += 1
+			throw new Error('the response was lost')
+		},
+	}
+	const before = commandCount(fx.accountId)
+	const first = await blockOf(await confirmChange(db, chatContext(fx), actionId, lossy))
+	const found = actionRow(actionId).result?.children?.[0]?.commandId
+	const ok1 =
+		first?.state === 'pending' &&
+		states(first) === 'pending,not_started' &&
+		found === commandOf(children[0].requestId)?.id &&
+		commandCount(fx.accountId) === before + 1
+	console.log(
+		`case 7 lost response of the first child: state ${first?.state} targets ${states(first)} found_by_request ${found === commandOf(children[0].requestId)?.id} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok1) fail(7, 'the lost first child was not found in the journal')
+	await settle(pipeline, fx, children[0].requestId, 8)
+	const second = await blockOf(await checkChange(db, lossy, chatContext(fx), actionId))
+	const repeat = await blockOf(await checkChange(db, lossy, chatContext(fx), actionId))
+	const secondFound = actionRow(actionId).result?.children?.[1]?.commandId
+	const ok2 =
+		second?.state === 'pending' &&
+		states(second) === 'applied,pending' &&
+		repeat?.state === 'pending' &&
+		secondFound === commandOf(children[1].requestId)?.id &&
+		lost === 2 &&
+		commandCount(fx.accountId) === before + 2
+	console.log(
+		`case 8 lost response of the second child: state ${second?.state} targets ${states(second)} found_by_request ${secondFound === commandOf(children[1].requestId)?.id} submits ${lost} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok2) fail(8, 'the second child was sent twice or not found')
+	await settle(pipeline, fx, children[1].requestId, 9)
+	const finished = await blockOf(await checkChange(db, lossy, chatContext(fx), actionId))
+	console.log(`case 9 after both children: state ${finished?.state} targets ${states(finished)}`)
+	if (finished?.state !== 'applied') fail(9, 'the move did not finish after lost responses')
+}
+
+async function caseRoutes(appliedId, partialId) {
+	const api = await startCalendarApi({ port: PORT, envFile: '.env.test' })
+	try {
+		const cookie = await teacherCookie(api)
+		const applied = await call(api, 'POST', `/chat/actions/${appliedId}/check`, { cookie, body: {} })
+		const partial = await call(api, 'POST', `/chat/actions/${partialId}/check`, { cookie, body: {} })
+		const missing = await call(api, 'POST', `/chat/actions/${randomUUID()}/check`, { cookie, body: {} })
+		const ok =
+			applied.status === 200 &&
+			chatActionResponse.safeParse(applied.json).success &&
+			applied.json.block.type === 'change_proposal' &&
+			applied.json.block.state === 'applied' &&
+			partial.status === 200 &&
+			partial.json?.block?.state === 'partial' &&
+			missing.status === 404 &&
+			!api.logs().includes('Alex Example')
+		console.log(
+			`case 10 route check: applied ${applied.status} ${applied.json?.block?.state} partial ${partial.status} ${partial.json?.block?.state} unknown ${missing.status}`
+		)
+		if (!ok) fail(10, 'the check route does not dispatch change actions')
+	} finally {
+		await api.stop()
+	}
+}
+
+async function sectionChildren(pipeline) {
+	const fx = await chatFixtures(pipeline)
+	const appliedId = await caseChildren(pipeline, fx)
+	const partialId = await casePartial(pipeline, fx)
+	await caseLostResponse(pipeline, fx)
+	await caseRoutes(appliedId, partialId)
+	return 'CHAT_BULK_CHILDREN_OK'
+}
+
 let pipeline = null
 let exitCode = 0
 let marker = null
@@ -985,6 +1226,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	pipeline = await startPipeline()
 	if (section === 'zone') marker = await sectionZone(pipeline)
 	if (section === 'proposal') marker = await sectionProposal(pipeline)
+	if (section === 'children') marker = await sectionChildren(pipeline)
 } catch (error) {
 	const message = error instanceof Error ? error.message : 'unexpected failure'
 	console.log(`CHAT_BULK_FAILED ${message.replace(/postgres(ql)?:\/\/\S+/g, '<redacted>')}`)
