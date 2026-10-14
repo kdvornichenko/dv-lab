@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 
 import * as core from '../../packages/core/src/index.ts'
@@ -31,11 +32,11 @@ function portFree(port) {
 	})
 }
 
-async function startFakeModelApi() {
-	if (!(await portFree(4000))) throw new Error('port 4000 is busy: stop the dev api first, this section starts its own')
+async function startFakeModelApi(port = 4000) {
+	if (!(await portFree(port))) throw new Error(`port ${port} is busy: this section starts its own api`)
 	const env = {
 		...process.env,
-		PORT: '4000',
+		PORT: String(port),
 		APP_ORIGIN: BASE,
 		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
 		LOG_LEVEL: 'info',
@@ -55,7 +56,7 @@ async function startFakeModelApi() {
 	while (Date.now() < deadline) {
 		if (child.exitCode !== null) break
 		try {
-			const res = await fetch('http://127.0.0.1:4000/healthz')
+			const res = await fetch(`http://127.0.0.1:${port}/healthz`)
 			if (res.status === 200) return { child, logs: () => output }
 		} catch {}
 		await new Promise((resolve) => setTimeout(resolve, 300))
@@ -663,7 +664,627 @@ async function sectionForms() {
 	}
 }
 
-const sections = { payment: sectionPayment, forms: sectionForms }
+const PROPOSAL_PORT = 4252
+const PN = {
+	pay: 'Alex Example 2390',
+	archive: 'Alex Example 2391',
+	rate: 'Alex Example 2392',
+	end: 'Alex Example 2393',
+	created: 'Alex Example 2394',
+}
+const PROPOSAL_WHERE = `display_name like 'Alex Example 239_' and import_key is null`
+const NOTE_BODY = 'Proposal check note about the weekly plan'
+const VN = 'Asia/Ho_Chi_Minh'
+const CALENDAR_CHANGE = '[data-slot="chat-calendar-change"]'
+const q = (value) => `'${String(value).replaceAll("'", "''")}'`
+
+function removeProposalCards() {
+	const cards = `select id from students where ${PROPOSAL_WHERE}`
+	const conversations = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${PROPOSAL_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(conversations)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from lesson_comments where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${PROPOSAL_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+const cardRow = (name) =>
+	sql(
+		`select id, status, rate_minor::text as rate, revision from students where display_name = ${q(name)} and import_key is null`
+	).rows[0]
+
+const noteRow = (studentId) =>
+	sql(`select id, retracted_at is not null as retracted from student_notes where student_id = ${q(studentId)}`).rows[0]
+
+async function proposalsPrepare(page, apiOrigin, port) {
+	await setTheme(page)
+	if (apiOrigin !== BASE)
+		await page.route('**/api/**', async (route) => {
+			const headers = { ...(await route.request().allHeaders()), origin: apiOrigin }
+			try {
+				await route.fulfill({ response: await route.fetch({ headers }) })
+			} catch {
+				await route.abort().catch(() => undefined)
+			}
+		})
+	await page.route('**/api/chat/**', async (route) => {
+		const url = new URL(route.request().url())
+		const target = `http://127.0.0.1:${port}${url.pathname.replace(/^\/api/, '')}${url.search}`
+		const headers = { ...(await route.request().allHeaders()), origin: BASE, 'x-forwarded-for': '127.0.0.1' }
+		try {
+			await route.fulfill({ response: await route.fetch({ url: target, headers }) })
+		} catch {
+			await route.abort().catch(() => undefined)
+		}
+	})
+}
+
+async function sendIn(page, shown, text, mention) {
+	const field = page.locator(FIELD)
+	await field.waitFor({ timeout: 30000 })
+	await page.waitForFunction(
+		({ selector, count }) => document.querySelectorAll(selector).length === count,
+		{ selector: CHANGE, count: shown },
+		{ timeout: 30000 }
+	)
+	await field.click()
+	if (mention !== null) {
+		await page.keyboard.type(`@${mention}`)
+		await page.locator(POPUP).waitFor({ timeout: 15000 })
+		await page.keyboard.press('Enter')
+		await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+	}
+	await page.keyboard.type(text)
+	await page.locator(SEND).click()
+}
+
+async function askBlock(page, shown, text, mention) {
+	await sendIn(page, shown, text, mention)
+	await page.waitForFunction(
+		({ selector, count }) => document.querySelectorAll(selector).length > count,
+		{ selector: CHANGE, count: shown },
+		{ timeout: 30000 }
+	)
+	await page.locator(SEND).waitFor({ timeout: 30000 })
+	return page.locator(CHANGE).nth(shown)
+}
+
+function syntheticReply(conversation, body, block) {
+	const now = new Date().toISOString()
+	return {
+		conversation,
+		turn: null,
+		messages: [
+			{
+				id: randomUUID(),
+				role: 'teacher',
+				body: body.text,
+				mentions: body.mentions,
+				blocks: [],
+				steps: [],
+				createdAt: now,
+				finishedAt: null,
+			},
+			{
+				id: randomUUID(),
+				role: 'assistant',
+				body: '',
+				mentions: [],
+				blocks: [block],
+				steps: [],
+				createdAt: now,
+				finishedAt: now,
+			},
+		],
+	}
+}
+
+function calendarBlock(operation, target, lesson) {
+	return {
+		type: 'calendar_proposal',
+		actionId: randomUUID(),
+		operation,
+		studentName: PN.end,
+		timeZone: VN,
+		lesson,
+		target,
+		clearsNoShow: false,
+		state: 'proposed',
+		undo: null,
+	}
+}
+
+async function fitsWidth(page, width) {
+	const boxes = await page
+		.locator(`${CHANGE} button, ${CHANGE} a, ${CALENDAR_CHANGE} button, ${CALENDAR_CHANGE} a`)
+		.evaluateAll((nodes) =>
+			nodes.map((node) => {
+				const box = node.getBoundingClientRect()
+				return { x: box.x, right: box.x + box.width, width: box.width }
+			})
+		)
+	const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+	return {
+		ok: boxes.length > 0 && boxes.every((box) => box.width > 0 && box.x >= 0 && box.right <= width) && overflow <= 0,
+		boxes,
+		overflow,
+	}
+}
+
+async function sectionProposals() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+	const started = await startFakeModelApi(PROPOSAL_PORT)
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = teacher
+		? sql(
+				`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${teacher}' order by starts_on desc limit 1`
+			).rows[0]
+		: undefined
+	try {
+		removeProposalCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, PROPOSAL_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const zone = sql(`select default_time_zone as zone from teacher_settings where account_id = '${teacher}'`)
+					.rows[0]?.zone
+				const today = core.scheduleToday(new Date(), zone ?? core.SCHEDULE_TIME_ZONE)
+				const make = async (name) => {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+					const id = created.json.student.id
+					const opening = await call('PUT', `/students/${id}/opening-balance`, {
+						lessonsHundredths: 200,
+						on: core.addDays(today, -1),
+						expectedDefaultTimeZone: zone ?? core.SCHEDULE_TIME_ZONE,
+					})
+					check(`the opening balance of ${name} is set`, opening.status === 200, String(opening.status))
+					return id
+				}
+				const pay = async (studentId, lessons, amountMinor, note) => {
+					const res = await call('POST', '/payments', {
+						studentId,
+						paidOn: today,
+						expectedDefaultTimeZone: zone ?? core.SCHEDULE_TIME_ZONE,
+						amountMinor,
+						currency: 'RUB',
+						lessonsHundredths: lessons,
+						note,
+					})
+					check(`a payment is created (${note})`, res.status === 201, String(res.status))
+				}
+				const payId = await make(PN.pay)
+				await pay(payId, 200, 800000, 'first check payment')
+				await pay(payId, 100, 400000, 'second check payment')
+				sql(
+					`insert into student_notes (student_id, section_kind, body) values (${q(payId)}, 'general_info', ${q(NOTE_BODY)})`
+				)
+				const archiveId = await make(PN.archive)
+				const account = await call('POST', `/students/${archiveId}/account`, {
+					login: 'alex.check2391',
+					password: null,
+				})
+				check('the card with an account is prepared', account.status === 201, String(account.status))
+				const rateId = await make(PN.rate)
+				const endId = await make(PN.end)
+
+				const decisions = []
+				page.on('request', (request) => {
+					if (request.method() === 'POST' && /\/api\/chat\/actions\/[^/]+\/(confirm|decline)$/.test(request.url()))
+						decisions.push(request.url().split('/').pop())
+				})
+				const tally = () =>
+					sql(
+						`select (select count(*) from payments where student_id = ${q(payId)})::int as payments, (select count(*) from students where display_name like 'Alex Example 239_')::int as cards, (select count(*) from lesson_series where student_id = ${q(endId)})::int as series`
+					).rows[0]
+
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				let shown = 0
+				let chatId = null
+				const ask = async (text, mention) => {
+					const block = await askBlock(page, shown, text, mention)
+					shown++
+					chatId ??= new URL(page.url()).searchParams.get('c')
+					if (chatId && !conversations.includes(chatId)) conversations.push(chatId)
+					return block
+				}
+				const back = async () => {
+					await page.goto(`${BASE}/chat?c=${chatId}`)
+					await page.locator(CHANGE).first().waitFor({ timeout: 30000 })
+				}
+				const stateOf = (block) => block.getAttribute('data-state')
+				const buttonsOf = async (block) => (await block.getByRole('button').allInnerTexts()).map((text) => text.trim())
+				const decline = async (block, label) => {
+					await block.getByRole('button', { name: label }).click()
+					await block.getByText(DECLINED).waitFor({ timeout: 15000 })
+				}
+
+				const card = await ask(`[fake:card] name: ${PN.created}`, null)
+				let text = await card.innerText()
+				let before = tally()
+				check(
+					'a new student shows the question, the name, No rate set, no sign-in and the two decisions',
+					(await stateOf(card)) === 'proposed' &&
+						text.includes('Create a student card?') &&
+						text.includes(PN.created) &&
+						text.includes('No rate set') &&
+						text.includes('Same as the teacher') &&
+						text.includes('This creates a student card. Sign-in access is not created.') &&
+						JSON.stringify(await buttonsOf(card)) ===
+							JSON.stringify(['Create student card', "Don't create the card"]) &&
+						!cardRow(PN.created),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'card')
+				await decline(card, "Don't create the card")
+				check('declining the card creates no card', (await stateOf(card)) === 'declined' && !cardRow(PN.created))
+				await page.reload()
+				const cardAgain = page.locator(CHANGE).first()
+				await cardAgain.getByText(DECLINED).waitFor({ timeout: 30000 })
+				check('after reload the declined card stays declined and no card exists', !cardRow(PN.created))
+
+				const card2 = await ask(`[fake:card] name: ${PN.created}`, null)
+				await card2.getByRole('button', { name: 'Create student card' }).click()
+				await card2.getByText('Student card created.').waitFor({ timeout: 15000 })
+				const createdRow = cardRow(PN.created)
+				const open = card2.getByRole('link', { name: 'Open student' })
+				check(
+					'Create student card makes one card and links to its profile',
+					(await stateOf(card2)) === 'applied' &&
+						createdRow !== undefined &&
+						(await open.getAttribute('href')) === `/students/${createdRow?.id}`,
+					await card2.innerText()
+				)
+				await shot(page, 'changes-proposals', 'card-applied')
+				await open.click()
+				await page.getByRole('heading', { name: PN.created, level: 1 }).waitFor({ timeout: 30000 })
+				check('Open student opens the new profile', true)
+				await back()
+
+				const rate = await ask('[fake:rate] rate: 3000', PN.rate)
+				text = await rate.innerText()
+				check(
+					'a rate change shows the current and the new rate, the credit line and the decisions',
+					(await stateOf(rate)) === 'proposed' &&
+						text.includes(`Change ${PN.rate}'s rate?`) &&
+						text.includes('Current rate') &&
+						text.includes('New rate') &&
+						text.includes('4,000') &&
+						text.includes('3,000') &&
+						text.includes('Existing payment lesson credit stays unchanged.') &&
+						JSON.stringify(await buttonsOf(rate)) === JSON.stringify(['Save rate', 'Keep rate']) &&
+						cardRow(PN.rate).rate === '400000',
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'rate')
+				await rate.getByRole('button', { name: 'Save rate' }).click()
+				await rate.getByText('Rate changed.').waitFor({ timeout: 15000 })
+				const edit = rate.getByRole('link', { name: 'Edit details' })
+				check(
+					'Save rate changes only the rate and links to Edit details',
+					cardRow(PN.rate).rate === '300000' &&
+						(await edit.getAttribute('href')) === `/students/${rateId}?dialog=details`,
+					await rate.innerText()
+				)
+				await edit.click()
+				await page.getByRole('heading', { name: `Edit ${PN.rate}` }).waitFor({ timeout: 30000 })
+				check('Edit details opens the card form', true)
+				await back()
+
+				const archive = await ask('[fake:archive]', PN.archive)
+				text = await archive.innerText()
+				check(
+					'an archive proposal shows Active to Archived, what is kept and the sign-in line',
+					(await stateOf(archive)) === 'proposed' &&
+						text.includes(`Archive ${PN.archive}?`) &&
+						text.includes('The account, payments and notes are kept.') &&
+						text.includes('The account can still sign in; deactivate it separately.') &&
+						!text.includes('Permanent student deletion') &&
+						JSON.stringify(await buttonsOf(archive)) === JSON.stringify(['Archive student', 'Keep student active']),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'archive')
+				await decline(archive, 'Keep student active')
+				check('Keep student active leaves the card active', cardRow(PN.archive).status === 'active')
+
+				const removal = await ask('[fake:delete-student]', PN.rate)
+				text = await removal.innerText()
+				check(
+					'asking to delete a student shows the unsupported sentence and the archive decision',
+					(await stateOf(removal)) === 'proposed' &&
+						text.includes('Permanent student deletion is not available. You can archive this student instead.') &&
+						!text.includes('The account can still sign in') &&
+						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Archive student', 'Keep student active']),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'delete-student')
+				await removal.getByRole('button', { name: 'Archive student' }).click()
+				await removal.getByText('Student archived.').waitFor({ timeout: 15000 })
+				check(
+					'Archive student archives the card and deletes nothing',
+					cardRow(PN.rate)?.status === 'archived' &&
+						(await removal.getByRole('link', { name: 'Open student' }).getAttribute('href')) === `/students/${rateId}`
+				)
+
+				const payments = await ask('[fake:payments]', PN.pay)
+				text = await payments.innerText()
+				before = tally()
+				check(
+					'a payment deletion shows the date, amount, credit, balance before and after and the decisions',
+					(await stateOf(payments)) === 'proposed' &&
+						text.includes(`Delete ${PN.pay}'s payment?`) &&
+						text.includes('Payment date') &&
+						text.includes('Amount') &&
+						text.includes('Lesson credit') &&
+						text.includes('Balance') &&
+						text.includes('This removes only this payment. The balance will be recalculated.') &&
+						JSON.stringify(await buttonsOf(payments)) === JSON.stringify(['Delete payment', 'Keep payment']) &&
+						before.payments === 2,
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'delete-payment')
+				await decline(payments, 'Keep payment')
+				check('Keep payment deletes nothing', tally().payments === 2)
+				await page.reload()
+				await page
+					.locator(CHANGE)
+					.nth(shown - 1)
+					.getByText(DECLINED)
+					.waitFor({ timeout: 30000 })
+
+				check('after reload the declined deletion stays declined and nothing is deleted', tally().payments === 2)
+
+				const payments2 = await ask('[fake:payments]', PN.pay)
+				await payments2.getByRole('button', { name: 'Delete payment' }).click()
+				await payments2.getByText('Payment deleted.').waitFor({ timeout: 15000 })
+				const viewPayments = payments2.getByRole('link', { name: 'View payments' })
+				check(
+					'Delete payment removes exactly one payment and links to the payments tab',
+					tally().payments === 1 && (await viewPayments.getAttribute('href')) === `/students/${payId}?tab=payments`,
+					await payments2.innerText()
+				)
+				await shot(page, 'changes-proposals', 'delete-payment-applied')
+				await viewPayments.click()
+				await page.getByRole('heading', { name: PN.pay, level: 1 }).waitFor({ timeout: 30000 })
+				await page
+					.getByRole('button', { name: /^Edit payment of / })
+					.first()
+					.waitFor({ timeout: 15000 })
+				check(
+					'View payments shows the payments tab with the one remaining payment',
+					(await page.getByRole('button', { name: /^Edit payment of / }).count()) === 1
+				)
+				await back()
+
+				const noteBlock = await ask('[fake:remove-note]', PN.pay)
+				text = await noteBlock.innerText()
+				check(
+					'a note removal shows the student, the date, the bounded text and the decisions',
+					(await stateOf(noteBlock)) === 'proposed' &&
+						text.includes('Remove this note?') &&
+						text.includes(PN.pay) &&
+						text.includes(NOTE_BODY) &&
+						text.includes('Later notes stay.') &&
+						JSON.stringify(await buttonsOf(noteBlock)) === JSON.stringify(['Remove note', 'Keep note']) &&
+						noteRow(payId)?.retracted === false,
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'remove-note')
+				await decline(noteBlock, 'Keep note')
+				check('Keep note keeps the note', noteRow(payId)?.retracted === false)
+				const noteBlock2 = await ask('[fake:remove-note]', PN.pay)
+				await noteBlock2.getByRole('button', { name: 'Remove note' }).click()
+				await noteBlock2.getByText('Note removed.').waitFor({ timeout: 15000 })
+				const viewNotes = noteBlock2.getByRole('link', { name: 'View notes' })
+				check(
+					'Remove note retracts the note and links to the notes tab',
+					noteRow(payId)?.retracted === true &&
+						(await viewNotes.getAttribute('href')) === `/students/${payId}?tab=notes`,
+					await noteBlock2.innerText()
+				)
+				await viewNotes.click()
+				await page.getByRole('heading', { name: PN.pay, level: 1 }).waitFor({ timeout: 30000 })
+				await page.waitForTimeout(800)
+				check(
+					'View notes opens the notes tab without the removed note',
+					(await page.getByText(NOTE_BODY).filter({ visible: true }).count()) === 0
+				)
+				await back()
+
+				const changeCount = await page.locator(CHANGE).count()
+				const seriesBefore = tally().series
+				await sendIn(page, changeCount, '[fake:end]', PN.end)
+				await page.getByText('I could not prepare that change.').waitFor({ timeout: 30000 })
+				await page.locator(SEND).waitFor({ timeout: 30000 })
+				check(
+					'ending a series with no Google connection gives a refusal text, no decision block and no schedule write',
+					(await page.locator(CHANGE).count()) === changeCount &&
+						(await page.locator(CALENDAR_CHANGE).count()) === 0 &&
+						tally().series === seriesBefore
+				)
+
+				const sentDecisions = decisions.length
+				await page.reload()
+				await page.locator(CHANGE).first().waitFor({ timeout: 30000 })
+				await page.waitForTimeout(1500)
+				check('reading the thread again sends no decision', decisions.length === sentDecisions)
+				check(
+					'the decisions went out once each: four declines and five confirms in order',
+					JSON.stringify(decisions) ===
+						JSON.stringify([
+							'decline',
+							'confirm',
+							'confirm',
+							'decline',
+							'confirm',
+							'decline',
+							'confirm',
+							'decline',
+							'confirm',
+						]),
+					JSON.stringify(decisions)
+				)
+
+				await page.setViewportSize({ width: 390, height: 844 })
+				await page.reload()
+				await page.locator(CHANGE).first().waitFor({ timeout: 30000 })
+				const phone = await ask('[fake:payments]', PN.pay)
+				await phone.scrollIntoViewIfNeeded()
+				const fit = await fitsWidth(page, 390)
+				check(
+					'at 390 px every button and link of the blocks is fully visible and the page does not scroll sideways',
+					fit.ok,
+					JSON.stringify(fit)
+				)
+				await shot(page, 'changes-proposals', 'phone')
+				await decline(phone, 'Keep payment')
+				const phoneLink = page.locator(CHANGE).filter({ hasText: 'Student card created.' }).getByRole('link')
+				await phoneLink.scrollIntoViewIfNeeded()
+				const linkFit = await fitsWidth(page, 390)
+				check('at 390 px the receipt links are visible too', linkFit.ok, JSON.stringify(linkFit))
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const declines = []
+				await page.route('**/api/chat/actions/*/decline', (route) => {
+					const url = route.request().url()
+					declines.push(url)
+					const block = syntheticBlocks.find((item) => url.includes(item.actionId))
+					return route.fulfill({ status: 200, json: { block: { ...block, state: 'declined' } } })
+				})
+				const syntheticBlocks = []
+				const target = core.addDays(today, 7)
+				const lessonAt = core.zonedInstant(core.addDays(today, 1), '16:00', VN).toISOString()
+				let conversation = null
+				const created = page.waitForResponse(
+					(response) => response.request().method() === 'POST' && response.url().endsWith('/api/chat/conversations')
+				)
+				await page.route('**/api/chat/conversations/*/messages', async (route) => {
+					if (route.request().method() !== 'POST') return route.fallback()
+					conversation ??= (await (await created).json()).conversation
+					if (conversation?.id && !conversations.includes(conversation.id)) conversations.push(conversation.id)
+					const body = route.request().postDataJSON()
+					const block =
+						syntheticBlocks.length === 0
+							? calendarBlock(
+									'move',
+									{
+										kind: 'lesson',
+										startsAt: core.zonedInstant(core.addDays(today, 2), '18:00', VN).toISOString(),
+										durationMinutes: 60,
+									},
+									{ key: `l:${randomUUID()}`, startsAt: lessonAt, durationMinutes: 60 }
+								)
+							: calendarBlock(
+									'end_series',
+									{ kind: 'series_end', from: target, lastOn: core.addDays(target, -7) },
+									{
+										key: `s:${randomUUID()}`,
+										startsAt: core.zonedInstant(target, '16:00', VN).toISOString(),
+										durationMinutes: 60,
+									}
+								)
+					syntheticBlocks.push(block)
+					return route.fulfill({ status: 201, json: syntheticReply(conversation, body, block) })
+				})
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 30000 })
+				const syntheticAsk = async (index) => {
+					await page.locator(FIELD).click()
+					await page.keyboard.type(`@${PN.end}`)
+					await page.locator(POPUP).waitFor({ timeout: 15000 })
+					await page.keyboard.press('Enter')
+					await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+					await page.keyboard.type(' synthetic')
+					await page.locator(SEND).click()
+					await page.waitForFunction(
+						({ selector, count }) => document.querySelectorAll(selector).length > count,
+						{ selector: CALENDAR_CHANGE, count: index },
+						{ timeout: 15000 }
+					)
+
+					return page.locator(CALENDAR_CHANGE).nth(index)
+				}
+				const moved = await syntheticAsk(0)
+				await moved.getByRole('button', { name: 'Keep' }).click()
+				await moved.getByText('Kept as it was. Nothing changed.').waitFor({ timeout: 15000 })
+				check(
+					'Keep on a move proposal sends decline to the server and shows Kept as it was',
+					declines.length === 1 &&
+						declines[0].endsWith(`/api/chat/actions/${syntheticBlocks[0].actionId}/decline`) &&
+						(await stateOf(moved)) === 'declined'
+				)
+				const ending = await syntheticAsk(1)
+				text = await ending.innerText()
+				check(
+					'an end-series proposal shows the question, Was and Now, the history line and End series with Keep series',
+					text.includes(`End ${PN.end}'s weekly lessons?`) &&
+						text.includes('Was') &&
+						text.includes('Every ') &&
+						text.includes('No lessons from') &&
+						text.includes('An ended series cannot be undone from the chat.') &&
+						JSON.stringify(await buttonsOf(ending)) === JSON.stringify(['End series', 'Keep series']),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-proposals', 'end-series')
+				await page.setViewportSize({ width: 390, height: 844 })
+				await ending.scrollIntoViewIfNeeded()
+				const endFit = await fitsWidth(page, 390)
+				check(
+					'at 390 px the end-series decisions are fully visible and the page does not scroll sideways',
+					endFit.ok,
+					JSON.stringify(endFit)
+				)
+				await shot(page, 'changes-proposals', 'end-series-phone')
+				await page.setViewportSize({ width: 1280, height: 800 })
+				await ending.getByRole('button', { name: 'Keep series' }).click()
+				await ending.getByText('Kept as it was. Nothing changed.').waitFor({ timeout: 15000 })
+				check(
+					'Keep series sends decline for the end-series proposal',
+					declines.length === 2 && declines[1].endsWith(`/api/chat/actions/${syntheticBlocks[1].actionId}/decline`)
+				)
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+				check('the api log has no message text', !started.logs().includes('rate: 3000'))
+			},
+			() => removeConversations(conversations),
+			() => removeProposalCards(),
+			() => {
+				if (period)
+					sql(
+						`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = '${period.id}'`
+					)
+			}
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
+const sections = { payment: sectionPayment, forms: sectionForms, proposals: sectionProposals }
 const section = process.argv[2]
 const run = sections[section]
 if (!run) {

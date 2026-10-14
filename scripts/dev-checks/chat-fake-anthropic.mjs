@@ -27,9 +27,74 @@ function frame(event) {
 	return `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
 }
 
+function toolResultText(body) {
+	const last = body.messages.at(-1)
+	if (!Array.isArray(last?.content)) return ''
+	const part = last.content.find((item) => item.type === 'tool_result')
+	if (!part) return ''
+	return typeof part.content === 'string' ? part.content : JSON.stringify(part.content)
+}
+
+function proposalPlan(marker, content, continued, body) {
+	const message = content.slice(Math.max(0, content.indexOf('[Message]')))
+	const studentId = /student_id: ([0-9a-f-]{36})/.exec(content)?.[1] ?? null
+	const call = (name, input) => ({
+		blocks: [{ kind: 'tool', id: `toolu_fake_${++state.ids}`, name, input }],
+		stop: 'tool_use',
+	})
+	const say = (text) => ({ blocks: [{ kind: 'text', sentences: [text] }], stop: 'end_turn' })
+	const result = continued ? toolResultText(body) : ''
+	if (marker === 'card') {
+		if (continued) return say('I prepared the change. Confirm it below.')
+		const name = /name:\s*([^;\n]+)/.exec(message)?.[1]?.trim() ?? ''
+		return call('propose_student', {
+			display_name: name,
+			rate_text: null,
+			currency: null,
+			lesson_minutes: null,
+			gender: null,
+		})
+	}
+	if (marker === 'rate') {
+		if (continued) return say('I prepared the change. Confirm it below.')
+		const rate = /rate:\s*(\S+)/.exec(message)?.[1] ?? null
+		return call('propose_rate', { student_id: studentId, rate_text: rate, currency: null, clear: false })
+	}
+	if (marker === 'archive' || marker === 'delete-student') {
+		if (continued) return say('I prepared the change. Confirm it below.')
+		return call('propose_archive', { student_id: studentId, requested_deletion: marker === 'delete-student' })
+	}
+	if (marker === 'payments') {
+		if (!continued) return call('student_payments', { student_id: studentId })
+		const paymentId = /payment_id\W+([0-9a-f-]{36})/.exec(result)?.[1]
+		if (paymentId) return call('propose_payment_delete', { student_id: studentId, payment_id: paymentId })
+		return say('I prepared the deletion. Confirm it below.')
+	}
+	if (marker === 'remove-note') {
+		if (!continued) return call('student_notes', { student_id: studentId })
+		const noteId = /\[\[note:([0-9a-f-]{36})\]\]/.exec(result)?.[1]
+		if (noteId) return call('propose_entry_removal', { student_id: studentId, entry_id: noteId })
+		return say('I prepared the removal. Confirm it below.')
+	}
+	if (marker === 'end') {
+		if (continued) return say('I could not prepare that change.')
+		return call('propose_lesson_change', {
+			student_id: studentId,
+			operation: 'cancel',
+			date: null,
+			time: null,
+			new_date: null,
+			new_time: null,
+			scope: 'series',
+			from: null,
+		})
+	}
+	return null
+}
+
 function plan(body) {
 	const asked = body.messages.filter((message) => message.role === 'user' && typeof message.content === 'string')
-	const marker = /\[fake:([a-z]+)\]/.exec(asked.at(-1)?.content ?? '')?.[1] ?? 'answer'
+	const marker = /\[fake:([a-z-]+)\]/.exec(asked.at(-1)?.content ?? '')?.[1] ?? 'answer'
 	const last = body.messages.at(-1)
 	const continued = Array.isArray(last?.content) && last.content.some((part) => part.type === 'tool_result')
 	if (marker === 'tool' && !continued) {
@@ -55,6 +120,8 @@ function plan(body) {
 			stop: 'tool_use',
 		}
 	}
+	const proposal = proposalPlan(marker, asked.at(-1)?.content ?? '', continued, body)
+	if (proposal) return proposal
 	if (marker === 'hang') return { hang: true }
 	if (marker === 'credits') return { error: 'billing_error' }
 	return { blocks: [{ kind: 'text', sentences: ANSWER }], stop: 'end_turn' }

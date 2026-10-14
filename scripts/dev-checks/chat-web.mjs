@@ -1410,6 +1410,11 @@ async function sectionCalendar() {
 				const next = answers.confirm.shift()
 				return route.fulfill({ status: 202, json: { block: next } })
 			})
+			const declines = []
+			await page.route('**/api/chat/actions/*/decline', (route) => {
+				declines.push(route.request().url())
+				return route.fulfill({ status: 200, json: { block: { ...blocks[3], state: 'declined' } } })
+			})
 			await page.route('**/api/chat/actions/*/check', (route) => {
 				checks.push(route.request().url())
 				const next = answers.check.shift() ?? answers.last
@@ -1485,8 +1490,11 @@ async function sectionCalendar() {
 			const fourth = await proposeIn(page, ' moved to tomorrow 18:00')
 			await fourth.waitFor({ timeout: 15000 })
 			await fourth.getByRole('button', { name: 'Keep' }).click()
-			await page.locator(`${CHANGE}[data-state="kept"]`).waitFor({ timeout: 15000 })
-			check('Keep collapses the proposal and sends nothing', confirms.length === 3)
+			await page.locator(`${CHANGE}[data-state="declined"]`).waitFor({ timeout: 15000 })
+			check(
+				'Keep collapses the proposal and sends decline, not confirm',
+				confirms.length === 3 && declines.length === 1
+			)
 
 			check('the block never writes to schedule or Google routes', writes.length === 0, writes.join(' | '))
 			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
