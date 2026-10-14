@@ -76,6 +76,23 @@ function proposalPlan(marker, content, continued, body) {
 		if (noteId) return call('propose_entry_removal', { student_id: studentId, entry_id: noteId })
 		return say('I prepared the removal. Confirm it below.')
 	}
+	if (marker === 'essay') {
+		if (!continued) return call('essay_feedback', { task: null })
+		return {
+			blocks: [
+				{
+					kind: 'text',
+					sentences: [
+						'**Task response** The task criterion is not assessed: no task prompt or task type was given.\n',
+						'**Coherence and cohesion** The ideas follow in a clear order and the linking words help the reader.\n',
+						'**Lexical resource** The words fit the topic; "make a research" should be "do research".\n',
+						'**Grammatical range and accuracy** Most sentences are simple; try a complex sentence with "although".',
+					],
+				},
+			],
+			stop: 'end_turn',
+		}
+	}
 	if (marker === 'end') {
 		if (continued) return say('I could not prepare that change.')
 		return call('propose_lesson_change', {
