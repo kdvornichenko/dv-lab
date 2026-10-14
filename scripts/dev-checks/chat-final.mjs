@@ -22,6 +22,7 @@ const CHECKS = [
 	{ script: 'chat-api.mjs', args: ['answers'], token: 'CHAT_ANSWERS_OK' },
 	{ script: 'chat-api.mjs', args: ['models'], token: 'CHAT_MODELS_OK' },
 	{ script: 'chat-api.mjs', args: ['delete'], token: 'CHAT_DELETE_OK' },
+	{ script: 'chat-api.mjs', args: ['title'], token: 'CHAT_TITLE_OK' },
 	{ script: 'calendar-reads.mjs', args: [], token: 'CALENDAR_READS_OK' },
 	{ script: 'calendar-final.mjs', args: [], token: 'CALENDAR_FINAL_OK' },
 ]

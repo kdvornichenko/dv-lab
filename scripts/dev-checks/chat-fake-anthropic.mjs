@@ -243,6 +243,30 @@ function messagesResponse(body, signal) {
 	})
 }
 
+const TITLES = {
+	answer: '"Fake plan for the next lesson."',
+	long: 'Fake plan for the next lesson with many extra words at the end',
+	empty: '  ""  ',
+}
+
+async function titleResponse(body, signal) {
+	state.titles = (state.titles ?? 0) + 1
+	const asked = body.messages.at(-1)?.content
+	const marker = /\[fake:title-([a-z]+)\]/.exec(typeof asked === 'string' ? asked : '')?.[1] ?? 'answer'
+	if (marker === 'error') return json(500, { type: 'error', error: { type: 'api_error', message: 'Internal error' } })
+	if (marker === 'slow') await sleep(1500, signal)
+	return json(200, {
+		id: `msg_fake_${++state.ids}`,
+		type: 'message',
+		role: 'assistant',
+		model: body.model,
+		content: [{ type: 'text', text: TITLES[marker] ?? TITLES.answer, citations: null }],
+		stop_reason: 'end_turn',
+		stop_sequence: null,
+		usage: { input_tokens: 60, output_tokens: 9, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+	})
+}
+
 function target(input) {
 	if (typeof input === 'string') return new URL(input)
 	if (input instanceof URL) return input
@@ -275,7 +299,8 @@ globalThis.fetch = async function chatFakeFetch(input, init = {}) {
 	}
 	if (method === 'POST' && url.pathname === '/v1/messages') {
 		const raw = typeof init.body === 'string' ? init.body : input instanceof Request ? await input.text() : ''
-		return messagesResponse(JSON.parse(raw), signal)
+		const body = JSON.parse(raw)
+		return body.stream === true ? messagesResponse(body, signal) : titleResponse(body, signal)
 	}
 	return json(404, { type: 'error', error: { type: 'not_found_error', message: 'Not found' } })
 }

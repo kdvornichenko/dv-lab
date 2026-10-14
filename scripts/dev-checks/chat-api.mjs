@@ -22,6 +22,7 @@ const SECTIONS = {
 	answers: sectionAnswers,
 	models: sectionModels,
 	delete: sectionDelete,
+	title: sectionTitle,
 }
 
 let failures = 0
@@ -2127,13 +2128,14 @@ async function sectionBudget(ctx) {
 
 const MODELS_PORT = 4232
 const DELETE_PORT = 4233
+const TITLE_PORT = 4234
 const HAIKU = 'claude-haiku-5-5'
 const SONNET = 'claude-sonnet-5-5'
 const OPUS = 'claude-opus-5-5'
 const ABSENT = 'claude-absent-9-9'
 const INVENTED = 'claude-invented-1-0'
 
-async function startFakeProviderApi(port = MODELS_PORT) {
+async function startFakeProviderApi(port = MODELS_PORT, delay = '5') {
 	const base = `http://127.0.0.1:${port}`
 	const env = {
 		...process.env,
@@ -2142,7 +2144,7 @@ async function startFakeProviderApi(port = MODELS_PORT) {
 		APP_ORIGIN: base,
 		LOG_LEVEL: 'info',
 		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
-		CHAT_FAKE_DELAY_MS: '5',
+		CHAT_FAKE_DELAY_MS: delay,
 	}
 	delete env.DATABASE_URL
 	delete env.MIGRATOR_DATABASE_URL
@@ -2708,6 +2710,225 @@ async function sectionDelete(ctx) {
 		return 'CHAT_DELETE_OK'
 	} finally {
 		await fake.stop()
+		console.log(`fixture budget periods removed ${clearBudget()}`)
+	}
+}
+
+async function sectionTitle(ctx) {
+	const fake = await startFakeProviderApi(TITLE_PORT, '30')
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const original = sql(
+		`select chat_models as models, chat_model as model, chat_effort as effort, chat_monthly_cap_usd::text as cap from teacher_settings where account_id = ${quote(accountId)}`
+	).rows[0]
+	const clearBudget = () => {
+		sql(`delete from chat_usage_attempts where account_id = ${quote(accountId)}`)
+		return sql(`delete from chat_budget_periods where account_id = ${quote(accountId)}`).rowCount
+	}
+	const TITLE = 'Fake plan for the next lesson'
+	try {
+		const cookie = await teacherCookie(fake)
+		const as = (method, path, body) => send(fake, method, path, { cookie, body })
+		console.log(`fixture conversations removed ${removeChats('true')}`)
+		console.log(`fixture budget periods removed ${clearBudget()}`)
+		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		const name = 'Alex Example 2209 Title'
+		const card = await createCard(ctx, name)
+		const fresh = async () => {
+			const created = await as('POST', '/chat/conversations')
+			ctx.conversations.push(created.json.conversation.id)
+			return created.json.conversation.id
+		}
+		const ask = (id, text, mentions = []) =>
+			as('POST', `/chat/conversations/${id}/messages`, { requestId: randomUUID(), text, mentions })
+		const settle = async (turnId) => {
+			const deadline = Date.now() + 20000
+			while (Date.now() < deadline) {
+				const res = await as('GET', `/chat/turns/${turnId}`)
+				if (res.status === 200 && !['accepted', 'running'].includes(res.json.turn.state)) return res.json.turn
+				await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			throw new Error('turn did not finish in time')
+		}
+		const outcomeOf = async (turnId) => {
+			const deadline = Date.now() + 15000
+			while (Date.now() < deadline) {
+				for (const line of fake.logs().split('\n')) {
+					if (!line.includes('chat title finished') || !line.includes(turnId)) continue
+					return JSON.parse(line).outcome
+				}
+				await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			return 'none'
+		}
+		const row = (id) => sql(`select title, revision from chat_conversations where id = ${quote(id)}`).rows[0] ?? null
+		const titleAttempts = (id) =>
+			sql(
+				`select state, model, cost_nano::text as cost from chat_usage_attempts where conversation_id = ${quote(id)} and turn_id is null order by created_at, id`
+			).rows
+		const refusedIn = (res) =>
+			(res.json?.messages ?? []).some((message) => message.blocks.some((block) => block.type === 'refused'))
+		const turnOf = async (id, text, mentions) => {
+			const sent = await ask(id, text, mentions)
+			const turn = await settle(sent.json.turn.id)
+			const read = await as('GET', `/chat/conversations/${id}`)
+			return { sent, turn, read }
+		}
+
+		const first = await fresh()
+		const binding = { studentId: card, text: name, start: 1, end: 1 + name.length }
+		const one = await turnOf(first, `@${name} plan the next lesson`, [binding])
+		const firstOutcome = await outcomeOf(one.turn.id)
+		const listed = (await as('GET', '/chat/conversations')).json.conversations.find((item) => item.id === first)
+		const firstTitles = titleAttempts(first)
+		check(
+			'after the first answered turn the conversation gets a cleaned title and the next revision',
+			one.turn.state === 'completed' &&
+				one.turn.issue === null &&
+				firstOutcome === 'applied' &&
+				row(first)?.title === TITLE &&
+				row(first)?.revision === 2 &&
+				listed?.title === TITLE &&
+				listed.revision === 2,
+			JSON.stringify({ state: one.turn.state, firstOutcome, row: row(first) })
+		)
+		check(
+			'the title request is one settled attempt of the cheapest model without a turn',
+			firstTitles.length === 1 &&
+				firstTitles[0].state === 'settled' &&
+				firstTitles[0].model === 'claude-haiku-5-5' &&
+				BigInt(firstTitles[0].cost) > 0n,
+			JSON.stringify(firstTitles)
+		)
+		const two = await turnOf(first, 'And one idea for homework')
+		check(
+			'a second turn does not ask for a title again and the title stays',
+			two.turn.state === 'completed' &&
+				(await outcomeOf(two.turn.id)) === 'titled' &&
+				row(first)?.title === TITLE &&
+				row(first)?.revision === 2 &&
+				titleAttempts(first).length === 1
+		)
+
+		const raced = await fresh()
+		const slowSent = await ask(raced, '[fake:title-slow] plan the next lesson')
+		const slow = await settle(slowSent.json.turn.id)
+		const renamed = await as('PATCH', `/chat/conversations/${raced}`, { title: 'Manual name', expectedRevision: 1 })
+		const racedOutcome = await outcomeOf(slow.id)
+		check(
+			'a rename while the title is asked for wins and the title is not applied',
+			slow.state === 'completed' &&
+				renamed.status === 200 &&
+				racedOutcome === 'changed' &&
+				row(raced)?.title === 'Manual name' &&
+				row(raced)?.revision === 2 &&
+				titleAttempts(raced).length === 1,
+			JSON.stringify({ racedOutcome, status: renamed.status, row: row(raced) })
+		)
+
+		const named = await fresh()
+		await as('PATCH', `/chat/conversations/${named}`, { title: 'Named before', expectedRevision: 1 })
+		const early = await turnOf(named, 'plan the next lesson')
+		check(
+			'a conversation renamed before the first turn asks for no title',
+			(await outcomeOf(early.turn.id)) === 'titled' &&
+				row(named)?.title === 'Named before' &&
+				titleAttempts(named).length === 0
+		)
+
+		const failing = await fresh()
+		const failed = await turnOf(failing, '[fake:title-error] plan the next lesson')
+		const failedOutcome = await outcomeOf(failed.turn.id)
+		const failedTitles = titleAttempts(failing)
+		const after = await turnOf(failing, 'plan the lesson after that')
+		check(
+			'a provider error keeps New chat, the reply has no error and the title is not asked again',
+			failed.turn.state === 'completed' &&
+				failed.turn.issue === null &&
+				!refusedIn(failed.read) &&
+				failedOutcome === 'provider_fault' &&
+				failedTitles.length === 1 &&
+				failedTitles[0].state === 'settled' &&
+				failedTitles[0].cost === '0' &&
+				(await outcomeOf(after.turn.id)) === 'not_first' &&
+				row(failing)?.title === 'New chat' &&
+				row(failing)?.revision === 1 &&
+				titleAttempts(failing).length === 1,
+			JSON.stringify({ failedOutcome, failedTitles, row: row(failing) })
+		)
+
+		const blank = await fresh()
+		const empty = await turnOf(blank, '[fake:title-empty] plan the next lesson')
+		check(
+			'an empty title is not applied',
+			(await outcomeOf(empty.turn.id)) === 'empty' && row(blank)?.title === 'New chat' && row(blank)?.revision === 1
+		)
+
+		const wordy = await fresh()
+		const long = await turnOf(wordy, '[fake:title-long] plan the next lesson')
+		check(
+			'a long title is cut at a word boundary to 40 characters',
+			(await outcomeOf(long.turn.id)) === 'applied' && row(wordy)?.title === 'Fake plan for the next lesson with many',
+			JSON.stringify(row(wordy))
+		)
+
+		const gone = await fresh()
+		const goneSent = await ask(gone, '[fake:title-slow] plan the next lesson')
+		const goneTurn = await settle(goneSent.json.turn.id)
+		const removed = await as('DELETE', `/chat/conversations/${gone}`, { expectedRevision: 1 })
+		check(
+			'a conversation deleted while the title is asked for keeps Deleted chat',
+			goneTurn.state === 'completed' &&
+				removed.status === 204 &&
+				(await outcomeOf(goneTurn.id)) === 'changed' &&
+				row(gone)?.title === 'Deleted chat'
+		)
+
+		const capped = await fresh()
+		const cappedSent = await ask(capped, 'plan the next lesson')
+		const cappedTurnId = cappedSent.json.turn.id
+		const deadline = Date.now() + 10000
+		let periodId = null
+		while (Date.now() < deadline && periodId === null) {
+			periodId =
+				sql(`select period_id from chat_usage_attempts where turn_id = ${quote(cappedTurnId)} limit 1`).rows[0]
+					?.period_id ?? null
+			if (periodId === null) await new Promise((resolve) => setTimeout(resolve, 20))
+		}
+		const CAP = 10_000_000_000n
+		if (periodId !== null)
+			sql(`update chat_budget_periods set spent_nano = spent_nano + ${CAP} where id = ${quote(periodId)}`)
+		const cappedTurn = await settle(cappedTurnId)
+		const cappedRead = await as('GET', `/chat/conversations/${capped}`)
+		const cappedOutcome = await outcomeOf(cappedTurnId)
+		if (periodId !== null)
+			sql(`update chat_budget_periods set spent_nano = spent_nano - ${CAP} where id = ${quote(periodId)}`)
+		check(
+			'a reached budget after the turn keeps New chat without an error in the chat and without an attempt',
+			periodId !== null &&
+				cappedTurn.state === 'completed' &&
+				cappedTurn.issue === null &&
+				!refusedIn(cappedRead) &&
+				cappedOutcome === 'budget_reached' &&
+				row(capped)?.title === 'New chat' &&
+				titleAttempts(capped).length === 0,
+			JSON.stringify({ periodId, state: cappedTurn.state, cappedOutcome })
+		)
+
+		check(
+			'api log has no title text, no message text and no fixture name',
+			!fake.logs().includes(TITLE) &&
+				!fake.logs().includes('Manual name') &&
+				!fake.logs().includes('plan the next lesson') &&
+				!fake.logs().includes('Alex Example')
+		)
+		return 'CHAT_TITLE_OK'
+	} finally {
+		await fake.stop()
+		if (original?.cap)
+			sql(`update teacher_settings set chat_monthly_cap_usd = ${original.cap} where account_id = ${quote(accountId)}`)
+		sql(
+			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
+		)
 		console.log(`fixture budget periods removed ${clearBudget()}`)
 	}
 }

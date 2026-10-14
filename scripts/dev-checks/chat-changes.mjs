@@ -52,6 +52,11 @@ const fake = {
 	calls: [],
 	script: [],
 	availability: async () => true,
+	titles: 0,
+	async complete() {
+		this.titles++
+		throw new ProviderFault('model_unavailable', { answered: true })
+	},
 	stream(request, signal) {
 		this.calls.push(request)
 		const next = this.script.shift() ?? say('Fine.')
