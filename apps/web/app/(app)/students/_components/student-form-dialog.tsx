@@ -3,7 +3,7 @@
 import { Radio } from '@base-ui/react/radio'
 import { RadioGroup } from '@base-ui/react/radio-group'
 
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 
 import { useRouter } from 'next/navigation'
 
@@ -191,6 +191,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const [reloading, setReloading] = useState(false)
 	const [reloadFailed, setReloadFailed] = useState(false)
 	const [formVersion, setFormVersion] = useState(0)
+	const [focusName, setFocusName] = useState(0)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
@@ -209,6 +210,10 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const set = (field: keyof Values, value: string) => setValues((current) => ({ ...current, [field]: value }))
 	const currencyError = submitted || touched.currency || touched.rate ? parsed.errors.currency : undefined
 	const create = mode === 'create'
+
+	useEffect(() => {
+		if (focusName > 0) nameRef.current?.focus()
+	}, [focusName])
 
 	async function reload() {
 		if (!baseline || reloading) return
@@ -229,7 +234,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 		setFailed(false)
 		setNotice(null)
 		setFormVersion((version) => version + 1)
-		requestAnimationFrame(() => nameRef.current?.focus())
+		setFocusName((version) => version + 1)
 	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {

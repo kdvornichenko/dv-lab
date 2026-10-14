@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { Lock } from 'lucide-react'
 
@@ -112,6 +112,7 @@ export function RecordPaymentDialog({
 	const [lessonsDraft, setLessonsDraft] = useState<string | null>(() => lessonsText(initialPayment))
 	const [note, setNote] = useState(initialPayment?.note ?? '')
 	const lessonsEdited = useRef(false)
+	const [focusAmount, setFocusAmount] = useState(0)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
@@ -147,6 +148,10 @@ export function RecordPaymentDialog({
 		setSubmitted(false)
 		setFailed(false)
 	}
+
+	useEffect(() => {
+		if (focusAmount > 0) amountRef.current?.focus()
+	}, [focusAmount])
 
 	function changeAmount(value: string) {
 		setAmount(value)
@@ -184,7 +189,7 @@ export function RecordPaymentDialog({
 		setSubmitted(false)
 		setFailed(false)
 		setNotice(null)
-		requestAnimationFrame(() => amountRef.current?.focus())
+		setFocusAmount((version) => version + 1)
 	}
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {

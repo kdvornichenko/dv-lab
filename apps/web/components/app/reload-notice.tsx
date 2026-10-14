@@ -15,7 +15,7 @@ export function ReloadNotice({ status, text, reloadLabel, pending = false, onRel
 		<Banner status={status} role="alert">
 			<BannerTitle>{text}</BannerTitle>
 			<BannerActions className="col-start-2 row-start-2 my-0 mt-2 ml-0">
-				<BannerAction leadingIcon={RefreshCw} loading={pending} onClick={onReload}>
+				<BannerAction autoFocus leadingIcon={RefreshCw} loading={pending} onClick={onReload}>
 					{reloadLabel}
 				</BannerAction>
 			</BannerActions>
