@@ -166,7 +166,7 @@ function Chip({
 			className={cn('min-w-0 gap-1 rounded-full px-2.5 font-medium pointer-coarse:h-9', className)}
 			{...props}
 		>
-			<span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap">{children}</span>
+			<span className="flex min-w-0 items-center gap-1 whitespace-nowrap">{children}</span>
 		</Button>
 	)
 }
