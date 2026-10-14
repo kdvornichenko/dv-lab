@@ -12,12 +12,14 @@ import {
 	type ChatMessage,
 	type ChatRecordsKey,
 	type ChatRefusalCode,
+	type ChatStep,
 	type ChatTurn,
 	type MentionBinding,
 	type LessonTargetLesson,
 	type LessonTargetResult,
 	type SendMessageRequest,
 	type UndoRequest,
+	CHAT_FOLLOW_UP_TEXT,
 	MARK_KINDS,
 	appendLessonCommentRequest,
 	appendStudentNoteRequest,
@@ -25,7 +27,7 @@ import {
 	calendarOccurrenceRef,
 } from '@dv-lab/contracts'
 import { lessonDay, markEffect } from '@dv-lab/core'
-import { type Database, type DbExecutor, chatActions, students, violatesUnique } from '@dv-lab/db'
+import { type Database, type DbExecutor, chatActions, chatMessages, students, violatesUnique } from '@dv-lab/db'
 
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
@@ -394,6 +396,41 @@ function readCommand(text: string): ChatRecordsKey | null {
 	return READ_COMMANDS[text.normalize('NFC').trim().toLowerCase()] ?? null
 }
 
+function commandText(text: string): string {
+	return text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+const FOLLOW_UP = commandText(CHAT_FOLLOW_UP_TEXT)
+
+function followUpCommand(
+	context: ChatContext,
+	text: string,
+	bindings: readonly MentionBinding[]
+): ChatRecordsKey | null {
+	const [binding, ...others] = bindings
+	if (binding === undefined || others.length > 0) return null
+	const start = binding.start > 0 && text[binding.start - 1] === '@' ? binding.start - 1 : binding.start
+	if (commandText(`${text.slice(0, start)} ${text.slice(binding.end)}`) !== FOLLOW_UP) return null
+	const today = lessonDay(context.now, context.defaultTimeZone)
+	return { kind: 'lesson_dates', studentId: binding.studentId, from: today, to: today, scope: 'since_payment' }
+}
+
+function readStep(key: ChatRecordsKey, block: ChatBlock): ChatStep {
+	const studentId = key.kind === 'day' ? undefined : key.studentId
+	const step: ChatStep = {
+		id: `lesson_dates:${studentId ?? 'none'}`,
+		tool: 'lesson_dates',
+		state: block.type === 'lesson_dates' ? 'done' : 'failed',
+	}
+	if (studentId !== undefined) step.studentId = studentId
+	if (block.type === 'lesson_dates') {
+		step.studentName = block.studentName.slice(0, 200)
+		step.from = block.from
+		step.to = block.to
+	}
+	return step
+}
+
 async function readBlock(tx: DbExecutor, context: ChatContext, key: ChatRecordsKey): Promise<ChatBlock> {
 	try {
 		return await tx.transaction(async (executor) => {
@@ -407,7 +444,7 @@ async function readBlock(tx: DbExecutor, context: ChatContext, key: ChatRecordsK
 	}
 }
 
-type Response = { blocks: ChatBlock[]; model: boolean }
+type Response = { blocks: ChatBlock[]; model: boolean; steps?: ChatStep[] }
 
 async function respond(
 	tx: DbExecutor,
@@ -420,6 +457,11 @@ async function respond(
 	if (reading !== null) return { blocks: [await readBlock(tx, context, reading)], model: false }
 	const mentions = await validateMentions(tx, context.accountId, input.text, input.mentions)
 	if (mentions.kind === 'stale') return { blocks: [{ type: 'refused', code: 'mention_stale' }], model: false }
+	const followUp = followUpCommand(context, input.text, withTyped(mentions.bindings, typed))
+	if (followUp !== null) {
+		const block = await readBlock(tx, context, followUp)
+		return { blocks: [block], model: false, steps: [readStep(followUp, block)] }
+	}
 	const request = quickRequest(context, input.text, withTyped(mentions.bindings, typed))
 	if (request === null) return { blocks: [], model: true }
 	return { blocks: [await executeIntent(tx, context, source, request)], model: false }
@@ -477,7 +519,7 @@ async function send(
 	const admission = response.model ? (plan.admission ?? { kind: 'refused', code: 'model_unavailable' }) : null
 	const blocks: ChatBlock[] =
 		admission?.kind === 'refused' ? [{ type: 'refused', code: admission.code }] : response.blocks
-	const reply = await insertMessage(tx, {
+	const inserted = await insertMessage(tx, {
 		accountId: context.accountId,
 		conversationId,
 		role: 'assistant',
@@ -485,6 +527,9 @@ async function send(
 		blocks,
 		replyTo: teacher.id,
 	})
+	const steps = admission === null ? (response.steps ?? []) : []
+	if (steps.length > 0) await tx.update(chatMessages).set({ steps }).where(eq(chatMessages.id, inserted.id))
+	const reply = steps.length > 0 ? { ...inserted, steps } : inserted
 	let turn: ChatTurn | null = null
 	if (admission?.kind === 'ready' && plan.turns !== null) {
 		const started = await plan.turns.startTurn(tx, context, {
@@ -510,8 +555,11 @@ export async function sendMessage(
 	turns: TurnStarter | null = null
 ): Promise<SendOutcome> {
 	const typed = await typedMentions(db, input.text, input.mentions)
+	const bindings = withTyped(input.mentions, typed)
 	const freeText =
-		readCommand(input.text) === null && quickRequest(context, input.text, withTyped(input.mentions, typed)) === null
+		readCommand(input.text) === null &&
+		followUpCommand(context, input.text, bindings) === null &&
+		quickRequest(context, input.text, bindings) === null
 	const plan: SendPlan = {
 		turns,
 		admission: turns !== null && freeText ? await turns.admit(context, conversationId) : null,

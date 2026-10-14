@@ -31,6 +31,7 @@ const SCOPE_WORDS: Record<ChatLessonDateScope, string> = {
 	ahead: 'Lessons still ahead',
 	no_show: 'No-shows',
 	all: 'All lessons',
+	since_payment: 'Held lessons since the last payment',
 }
 
 function leftOutLine(leftOut: ChatLessonDatesBlock['leftOut']): string | null {

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
+import { CHAT_FOLLOW_UP_TEXT } from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
@@ -23,6 +24,7 @@ const SECTIONS = {
 	models: sectionModels,
 	delete: sectionDelete,
 	title: sectionTitle,
+	since: sectionSince,
 }
 
 let failures = 0
@@ -2834,6 +2836,183 @@ async function sectionDelete(ctx) {
 	} finally {
 		await fake.stop()
 		console.log(`fixture budget periods removed ${clearBudget()}`)
+	}
+}
+
+const SINCE_PORT = 4235
+
+async function sectionSince(ctx) {
+	const fake = await startFakeProviderApi(SINCE_PORT)
+	try {
+		const cookie = await teacherCookie(fake)
+		const own = { ...ctx, api: fake, cookie }
+		const as = (method, path, body) => send(fake, method, path, { cookie, body })
+		const today = core.lessonDay(new Date(), VN)
+		const day = (shift) => core.addDays(today, shift)
+		const lessonOn = async (studentId, date, kind) => {
+			const startsAt = core.zonedInstant(date, '10:00', VN).toISOString()
+			const status = kind === 'cancelled' ? 'cancelled' : 'scheduled'
+			const id = sql(
+				`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(startsAt)}, 60, ${quote(status)}) returning id`
+			).rows[0].id
+			if (kind === 'cancelled') return
+			const res = await as('POST', `/schedule/lessons/${id}/mark`, { kind })
+			if (res.status !== 200) throw new Error(`mark returned ${res.status}`)
+		}
+		const pay = async (studentId, paidOn, lessonsHundredths) => {
+			const res = await call(fake, 'POST', '/payments', {
+				cookie,
+				body: { studentId, paidOn, amountMinor: 100000, currency: 'RUB', lessonsHundredths, note: null },
+			})
+			if (res.status !== 201) throw new Error(`payment returned ${res.status}`)
+		}
+		const name = 'Alex Example 2207 Since'
+		const paid = await createCard(own, name)
+		await setOpening(own, paid, 100, day(-20))
+		await lessonOn(paid, day(-15), 'done')
+		await lessonOn(paid, day(-12), 'done')
+		await pay(paid, day(-10), 200)
+		await lessonOn(paid, day(-7), 'done')
+		await lessonOn(paid, day(-6), 'cancelled')
+		await lessonOn(paid, day(-5), 'no_show')
+		const otherName = 'Alex Example 2208 Since'
+		const unpaid = await createCard(own, otherName)
+		await setOpening(own, unpaid, 300, day(-20))
+		await lessonOn(unpaid, day(-4), 'done')
+
+		const factsPaid = (await as('GET', `/chat/records?studentId=${paid}`)).json
+		const factsUnpaid = (await as('GET', `/chat/records?studentId=${unpaid}`)).json
+		check(
+			'the facts of a student with a payment carry the follow-up, without a payment they do not',
+			factsPaid.followUp === 'since_payment' && !('followUp' in factsUnpaid),
+			JSON.stringify({ paid: factsPaid.followUp, unpaid: factsUnpaid.followUp })
+		)
+
+		const created = await as('POST', '/chat/conversations')
+		const conversationId = created.json.conversation.id
+		ctx.conversations.push(conversationId)
+		const post = (text, mentions) =>
+			as('POST', `/chat/conversations/${conversationId}/messages`, { requestId: randomUUID(), text, mentions })
+		const binding = (studentId, text, start) => ({ studentId, text, start, end: start + text.length })
+		const used = () =>
+			sql(
+				`select (select count(*) from chat_turns where conversation_id = ${quote(conversationId)})::int as turns, (select count(*) from chat_usage_attempts where conversation_id = ${quote(conversationId)})::int as attempts`
+			).rows[0]
+		const settle = async (res) => {
+			const turnId = res.json?.turn?.id
+			if (!turnId) return
+			const deadline = Date.now() + 20000
+			while (Date.now() < deadline) {
+				const read = await as('GET', `/chat/turns/${turnId}`)
+				if (read.status === 200 && !['accepted', 'running'].includes(read.json.turn.state)) return
+				await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			throw new Error('turn did not finish in time')
+		}
+		const modelPath = (res) =>
+			res.status === 201 &&
+			(res.json.turn !== null || res.json.messages[1].blocks.some((block) => block.type === 'refused'))
+
+		const before = used()
+		const button = await post(`@${name} ${CHAT_FOLLOW_UP_TEXT}`, [binding(paid, name, 1)])
+		const reply = button.json?.messages?.[1]
+		const block = reply?.blocks?.[0]
+		check(
+			'the follow-up with one mention answers the dates block since the last payment without the model',
+			button.status === 201 &&
+				button.json.turn === null &&
+				reply.body === '' &&
+				reply.blocks.length === 1 &&
+				block.type === 'lesson_dates' &&
+				block.scope === 'since_payment' &&
+				block.studentId === paid,
+			JSON.stringify({
+				status: button.status,
+				turn: button.json?.turn,
+				blocks: reply?.blocks?.map((item) => item.type),
+			})
+		)
+		check(
+			'the dates follow D-22: from the first lesson of the debt, Done and deducting No-show, not the cancelled day',
+			isDeepStrictEqual(block?.dates, [day(-12), day(-7), day(-5)]) &&
+				block.from === day(-12) &&
+				block.to === today &&
+				block.sinceFrom === day(-12) &&
+				block.lastPaidOn === day(-10) &&
+				block.coverage === 'complete',
+			JSON.stringify({
+				dates: block?.dates,
+				from: block?.from,
+				sinceFrom: block?.sinceFrom,
+				lastPaidOn: block?.lastPaidOn,
+			})
+		)
+		const stored = sql(`select steps from chat_messages where id = ${quote(reply?.id)}`).rows[0]?.steps
+		const step = reply?.steps?.[0]
+		check(
+			'the reply has one done lesson_dates step with the student and the period, also when read back',
+			reply?.steps?.length === 1 &&
+				step.tool === 'lesson_dates' &&
+				step.state === 'done' &&
+				step.studentId === paid &&
+				step.from === day(-12) &&
+				step.to === today &&
+				isDeepStrictEqual(stored, reply.steps),
+			JSON.stringify(reply?.steps)
+		)
+		const loose = await post(`@${name}   count lessons SINCE the last payment `, [binding(paid, name, 1)])
+		check(
+			'case and spaces do not matter for the follow-up',
+			loose.status === 201 && loose.json.turn === null && loose.json.messages[1].blocks[0]?.scope === 'since_payment'
+		)
+		const none = await post(`@${otherName} ${CHAT_FOLLOW_UP_TEXT}`, [binding(unpaid, otherName, 1)])
+		const empty = none.json?.messages?.[1]?.blocks?.[0]
+		check(
+			'the follow-up for a student without a payment gives the block without dates and without a last payment',
+			none.status === 201 &&
+				none.json.turn === null &&
+				empty?.type === 'lesson_dates' &&
+				empty.dates.length === 0 &&
+				empty.lastPaidOn === null &&
+				!('sinceFrom' in empty),
+			JSON.stringify(empty)
+		)
+		const after = used()
+		check(
+			'the follow-up reached neither the model nor the budget',
+			after.turns === before.turns && after.attempts === before.attempts,
+			JSON.stringify({ before, after })
+		)
+
+		const bare = await post(CHAT_FOLLOW_UP_TEXT, [])
+		check('the follow-up text without a mention is a usual turn', modelPath(bare), `status ${bare.status}`)
+		await settle(bare)
+		const longer = await post(`@${name} ${CHAT_FOLLOW_UP_TEXT} please`, [binding(paid, name, 1)])
+		check('the follow-up text with more words is a usual turn', modelPath(longer), `status ${longer.status}`)
+		await settle(longer)
+		const pair = `@${name} @${otherName} ${CHAT_FOLLOW_UP_TEXT}`
+		const both = await post(pair, [binding(paid, name, 1), binding(unpaid, otherName, name.length + 3)])
+		check('the follow-up text with two mentions is a usual turn', modelPath(both), `status ${both.status}`)
+		await settle(both)
+
+		await pay(paid, day(-1), 100)
+		const key = { kind: 'lesson_dates', studentId: paid, from: day(-12), to: today, scope: 'since_payment' }
+		const refreshed = await as('POST', '/chat/records/refresh', { key })
+		const fresh = refreshed.json?.block
+		check(
+			'Refresh records by the since_payment key finds the new period after a new payment',
+			refreshed.status === 200 &&
+				fresh?.type === 'lesson_dates' &&
+				fresh.sinceFrom === day(-5) &&
+				fresh.from === day(-5) &&
+				fresh.lastPaidOn === day(-1) &&
+				isDeepStrictEqual(fresh.dates, [day(-5)]),
+			JSON.stringify(fresh)
+		)
+		check('the api with the fake provider logs no fixture name', !fake.logs().includes('Alex Example'))
+		return 'CHAT_SINCE_OK'
+	} finally {
+		await fake.stop()
 	}
 }
 

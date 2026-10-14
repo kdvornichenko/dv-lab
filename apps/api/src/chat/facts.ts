@@ -18,6 +18,7 @@ import { type DbExecutor, students } from '@dv-lab/db'
 
 import type { CardReadContext } from '../cards/card-facts.ts'
 import { getCard, listCards } from '../cards/cards.ts'
+import { readStudentLessons } from '../cards/lessons-range.ts'
 import { readWindowBlocks } from '../schedule/window-blocks.ts'
 import { readLessonDay } from '../today/today.ts'
 
@@ -46,6 +47,7 @@ export async function readChatFacts(
 		paysSoonLessons,
 		asOf: context.now.toISOString(),
 		defaultTimeZone: context.defaultTimeZone,
+		...(card.lastPayment ? { followUp: 'since_payment' as const } : {}),
 	}
 }
 
@@ -136,6 +138,48 @@ function inScope(kind: DateKind, scope: ChatLessonDateScope): boolean {
 	return scope === 'all' || kind === scope
 }
 
+async function studentName(executor: DbExecutor, studentId: string): Promise<string | null> {
+	const [student] = await executor
+		.select({ displayName: students.displayName })
+		.from(students)
+		.where(eq(students.id, studentId))
+	return student?.displayName ?? null
+}
+
+export async function readChatSincePayment(
+	executor: DbExecutor,
+	context: CardReadContext,
+	studentId: string
+): Promise<ChatLessonDatesBlock | null> {
+	const name = await studentName(executor, studentId)
+	if (name === null) return null
+	const read = await readStudentLessons(executor, studentId, context, { range: 'since_payment' })
+	if (read === null) return null
+	const paid = read.lastPayment !== null
+	const dates = new Set<string>()
+	const leftOut = { noShow: 0, ahead: 0 }
+	for (const lesson of paid ? read.lessons : []) {
+		if (lesson.held && lesson.sinceLastPayment) dates.add(lesson.date)
+		else if (lesson.outcome === 'no_show') leftOut.noShow += 1
+		else if (lesson.outcome === 'planned' && Date.parse(lesson.startsAt) > context.now.getTime()) leftOut.ahead += 1
+	}
+	return {
+		type: 'lesson_dates',
+		studentId,
+		studentName: name,
+		from: read.from,
+		to: read.to,
+		scope: 'since_payment',
+		defaultTimeZone: context.defaultTimeZone,
+		asOf: context.now.toISOString(),
+		dates: [...dates].sort(),
+		leftOut,
+		coverage: read.coverage === 'complete' ? 'complete' : 'partial',
+		...(read.sinceLastPaymentFrom === null ? {} : { sinceFrom: read.sinceLastPaymentFrom }),
+		lastPaidOn: read.lastPayment?.paidOn ?? null,
+	}
+}
+
 export async function readChatLessonDates(
 	executor: DbExecutor,
 	context: CardReadContext,
@@ -143,11 +187,9 @@ export async function readChatLessonDates(
 	period: LessonDatesPeriod,
 	scope: ChatLessonDateScope
 ): Promise<ChatLessonDatesBlock | null> {
-	const [student] = await executor
-		.select({ displayName: students.displayName })
-		.from(students)
-		.where(eq(students.id, studentId))
-	if (!student) return null
+	if (scope === 'since_payment') return readChatSincePayment(executor, context, studentId)
+	const name = await studentName(executor, studentId)
+	if (name === null) return null
 	const zone = context.defaultTimeZone
 	const from = startOfLessonDay(period.from, zone)
 	const to = startOfLessonDay(addDays(period.to, 1), zone)
@@ -165,7 +207,7 @@ export async function readChatLessonDates(
 	return {
 		type: 'lesson_dates',
 		studentId,
-		studentName: student.displayName,
+		studentName: name,
 		from: period.from,
 		to: period.to,
 		scope,
@@ -188,6 +230,7 @@ export async function readChatRecords(
 		return facts === null ? null : { type: 'facts', facts }
 	}
 	if (key.kind === 'lesson_dates') {
+		if (key.scope === 'since_payment') return readChatSincePayment(executor, context, key.studentId)
 		const period = lessonDatesPeriod(key.from, key.to, context.now, context.defaultTimeZone)
 		return period === null ? null : readChatLessonDates(executor, context, key.studentId, period, key.scope)
 	}

@@ -203,7 +203,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	),
 	tool(
 		'lesson_dates',
-		`Read the dates of the lessons of one student in a period of lesson days (YYYY-MM-DD, teacher time zone, at most ${CHAT_LESSON_DATES_DAYS_MAX} days). from and to null mean the current month. scope: held (marked done), ahead (planned, not started yet), no_show, all (every lesson that was not cancelled). Use it when the teacher asks for the lessons or the dates of one student over a period or for a list of lessons; use lessons for one lesson or one day. show true when the teacher asked for these lessons or dates: the app shows them in a block with a copy button, once per student. Do not list, count or retell these dates in your text: the block shows them.`,
+		`Read the dates of the lessons of one student in a period of lesson days (YYYY-MM-DD, teacher time zone, at most ${CHAT_LESSON_DATES_DAYS_MAX} days). from and to null mean the current month. scope: held (marked done), ahead (planned, not started yet), no_show, all (every lesson that was not cancelled), since_payment (held lessons since the last payment: Done and the No-shows that took lessons off the balance; the app finds the period itself, so from and to are null). Use since_payment when the teacher asks to count the lessons since the last payment. Use it when the teacher asks for the lessons or the dates of one student over a period or for a list of lessons; use lessons for one lesson or one day. show true when the teacher asked for these lessons or dates: the app shows them in a block with a copy button, once per student. Do not list, count or retell these dates in your text: the block shows them.`,
 		{
 			student_id: string,
 			from: nullableString,
@@ -563,7 +563,8 @@ async function lessonDates(
 	input: z.infer<(typeof inputs)['lesson_dates']>
 ): Promise<ToolOutcome> {
 	const chat = context.chat
-	const period = lessonDatesPeriod(input.from, input.to, chat.now, chat.defaultTimeZone)
+	const since = input.scope === 'since_payment'
+	const period = lessonDatesPeriod(since ? null : input.from, since ? null : input.to, chat.now, chat.defaultTimeZone)
 	if (period === null) return failure('range_too_long')
 	const key = { kind: 'lesson_dates', studentId: input.student_id, ...period, scope: input.scope } as const
 	let block: Awaited<ReturnType<typeof readChatLessonDates>>
