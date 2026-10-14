@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
 import {
+	type ChatCalendarProposalBlock,
 	type ChatChangeIssue,
 	type ChatChangeProposalBlock,
 	type Currency,
@@ -24,6 +25,7 @@ import { cardFacts } from '../cards/card-facts.ts'
 import { insertPayment } from '../cards/payments.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
+import { declineCalendarChange } from './calendar.ts'
 import {
 	type CardChangeRequest,
 	type CardRefusal,
@@ -68,7 +70,9 @@ export type ProposeOutcome =
 	{ kind: 'proposed'; block: ChatChangeProposalBlock } | { kind: 'refused'; code: ChangeRefusal }
 
 export type ChangeOutcome =
-	{ kind: 'ok'; block: ChatChangeProposalBlock } | { kind: 'not_found' } | { kind: 'not_change' }
+	| { kind: 'ok'; block: ChatChangeProposalBlock | ChatCalendarProposalBlock }
+	| { kind: 'not_found' }
+	| { kind: 'not_change' }
 
 type ActionRow = typeof chatActions.$inferSelect
 
@@ -389,6 +393,10 @@ export function declineAction(db: Database, context: ChatContext, actionId: stri
 	return db.transaction(async (tx) => {
 		const action = await actionOf(tx, context.accountId, actionId, true)
 		if (!action) return { kind: 'not_found' }
+		if (action.kind === 'calendar') {
+			const kept = await declineCalendarChange(tx, context.accountId, action)
+			return kept.kind === 'ok' ? kept : { kind: 'not_found' }
+		}
 		if (action.kind !== 'change') return { kind: 'not_change' }
 		if ((await proposalOf(tx, context.accountId, action)) === null) return { kind: 'not_found' }
 		if (action.state === 'proposed') await settle(tx, action.id, 'refused', { kind: 'declined' })

@@ -317,7 +317,7 @@ export const chatRefusedBlock = z.strictObject({
 	timeZone: calendarTimeZone.optional(),
 })
 
-export const CHAT_CALENDAR_OPERATIONS = ['move', 'cancel', 'restore', 'move_series'] as const
+export const CHAT_CALENDAR_OPERATIONS = ['move', 'cancel', 'restore', 'move_series', 'end_series'] as const
 
 export const CHAT_CALENDAR_STATES = [
 	'proposed',
@@ -327,6 +327,7 @@ export const CHAT_CALENDAR_STATES = [
 	'applied',
 	'failed',
 	'stale',
+	'declined',
 ] as const
 
 export const CHAT_CALENDAR_ISSUES = [
@@ -372,6 +373,7 @@ export const chatCalendarProposalBlock = z.strictObject({
 			from: calendarDate,
 			area: z.enum(['following', 'all']),
 		}),
+		z.strictObject({ kind: z.literal('series_end'), from: calendarDate, lastOn: calendarDate }),
 	]),
 	clearsNoShow: z.boolean(),
 	state: z.enum(CHAT_CALENDAR_STATES),

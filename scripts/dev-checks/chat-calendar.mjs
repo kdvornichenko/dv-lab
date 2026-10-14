@@ -46,8 +46,10 @@ const { eventVersion } = await import(`${ROOT}/apps/api/src/calendar/read-state.
 const { classifyRecurrence } = await import(`${ROOT}/apps/api/src/calendar/recurring.ts`)
 const { markLesson, markOccurrence } = await import(`${ROOT}/apps/api/src/schedule/marks.ts`)
 const { createConversation } = await import(`${ROOT}/apps/api/src/chat/conversations.ts`)
-const { sendMessage, undoAction } = await import(`${ROOT}/apps/api/src/chat/actions.ts`)
+const { executeIntent, sendMessage, undoAction } = await import(`${ROOT}/apps/api/src/chat/actions.ts`)
 const { confirmCalendarChange, checkCalendarAction } = await import(`${ROOT}/apps/api/src/chat/calendar.ts`)
+const { declineAction } = await import(`${ROOT}/apps/api/src/chat/changes.ts`)
+const { insertMessage, listMessages } = await import(`${ROOT}/apps/api/src/chat/messages.ts`)
 const { chatBlock, calendarActionResponse } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
 const KEY = 'chat-calendar:'
@@ -800,6 +802,153 @@ async function caseSeries(pipeline, fx, ids) {
 	)
 }
 
+async function tell(pipeline, fx, student, intent, extra = {}) {
+	const db = pipeline.app.db
+	const teacher = await insertMessage(db, {
+		accountId: fx.accountId,
+		conversationId: fx.conversationId,
+		role: 'teacher',
+		body: `@${student.name} cancel all lessons`,
+		mentions: [{ studentId: student.id, text: student.name, start: 1, end: 1 + student.name.length }],
+	})
+	const persist = async (executor, block) => {
+		await insertMessage(executor, {
+			accountId: fx.accountId,
+			conversationId: fx.conversationId,
+			role: 'assistant',
+			body: '',
+			blocks: [block],
+			replyTo: teacher.id,
+		})
+	}
+	const block = await executeIntent(
+		db,
+		chatContext(fx, extra),
+		{ conversationId: fx.conversationId, messageId: teacher.id },
+		{ kind: 'lesson', intent: { studentId: student.id, ...intent } },
+		persist
+	)
+	if (!chatBlock.safeParse(block).success) throw new Error('the reply block does not match the contract')
+	return block
+}
+
+function seriesRows(studentId) {
+	const series = `(select id from lesson_series where student_id = ${quote(studentId)})`
+	const [row] = rows(
+		`select (select count(*)::int from lesson_series where student_id = ${quote(studentId)}) as series, (select count(*)::int from lesson_exceptions where series_id in ${series}) as exceptions, (select count(*)::int from lesson_marks where series_id in ${series}) as marks, (select count(*)::int from lessons where student_id = ${quote(studentId)}) as singles`
+	)
+	return row
+}
+
+async function shownBlock(pipeline, fx, actionId) {
+	const messages = await listMessages(pipeline.app.db, fx.accountId, fx.conversationId)
+	for (const message of messages)
+		for (const block of message.blocks)
+			if (block.type === 'calendar_proposal' && block.actionId === actionId) return block
+	return null
+}
+
+async function caseEndSeries(pipeline, fx, ids) {
+	const series = ids.ending
+	const student = ids.t
+	await markOccurrence(
+		pipeline.app.db,
+		fx.accountId,
+		series.id,
+		core.addDays(series.date, -7),
+		{ kind: 'done' },
+		new Date()
+	)
+	const before = commandRows(fx).length
+	const counts = seriesRows(student.id)
+	const block = await tell(pipeline, fx, student, { kind: 'cancel', scope: 'series' })
+	const ok =
+		block.type === 'calendar_proposal' &&
+		block.operation === 'end_series' &&
+		block.state === 'proposed' &&
+		block.target.kind === 'series_end' &&
+		block.target.lastOn === fx.calendarToday &&
+		block.target.from === core.addDays(fx.calendarToday, 1) &&
+		block.undo === null &&
+		commandRows(fx).length === before
+	check('cancel all lessons of a series: an end_series proposal and no command', ok, JSON.stringify(block))
+	if (!ok) return
+	const endsBefore = rows(`select ends_on::text as ends_on from lesson_series where id = ${quote(series.id)}`)[0]
+	check('the series keeps its end until Confirm', endsBefore?.ends_on === null, JSON.stringify(endsBefore))
+	const { pending, commandId, finished, applied } = await confirmed(pipeline, fx, block, 'end series')
+	const command = commandRows(fx).find((row) => row.id === commandId)
+	const ended = rows(`select ends_on::text as ends_on from lesson_series where id = ${quote(series.id)}`)[0]
+	check(
+		'Confirm: an end_series command through the journal, Saved only after Google and the projection',
+		pending.state === 'pending' &&
+			command?.operation === 'end_series' &&
+			command.plan?.input?.lastOn === block.target.lastOn &&
+			finished.state === 'applied' &&
+			applied?.state === 'applied' &&
+			applied.undo === null,
+		JSON.stringify({ pending: pending.state, operation: command?.operation, finished: finished.state })
+	)
+	check(
+		'the series ends on lastOn and its series, exception, mark and lesson rows stay',
+		ended?.ends_on === block.target.lastOn && JSON.stringify(seriesRows(student.id)) === JSON.stringify(counts),
+		JSON.stringify({ ended, counts, after: seriesRows(student.id) })
+	)
+	const back = await undo(pipeline, fx, block.actionId)
+	check('Undo of a series end is refused', back.kind === 'not_undoable')
+	const offline = await tell(pipeline, fx, student, { kind: 'cancel', scope: 'series' }, { calendarEnabled: false })
+	check(
+		'Google not configured: cancel all lessons is refused with connection_required',
+		offline.type === 'refused' && offline.code === 'connection_required',
+		JSON.stringify(offline)
+	)
+}
+
+async function caseKeep(pipeline, fx, ids) {
+	const lesson = ids.kept
+	const block = await say(pipeline, fx, ids.k, `moved from ${lesson.day} to tomorrow 21:00`)
+	if (block.type !== 'calendar_proposal') {
+		check('keep: a move proposal', false, JSON.stringify(block))
+		return null
+	}
+	const before = commandRows(fx).length
+	const kept = await declineAction(pipeline.app.db, chatContext(fx), block.actionId)
+	const row = action(block.actionId)
+	check(
+		'Keep stores declined on the server and sends nothing to Google',
+		kept.kind === 'ok' &&
+			kept.block.type === 'calendar_proposal' &&
+			kept.block.state === 'declined' &&
+			row.state === 'refused' &&
+			row.result?.state === 'declined' &&
+			commandRows(fx).length === before,
+		JSON.stringify({ kept, state: row.state, result: row.result })
+	)
+	const reread = await shownBlock(pipeline, fx, block.actionId)
+	check(
+		'after rereading the conversation the proposal is declined',
+		reread?.state === 'declined',
+		JSON.stringify(reread)
+	)
+	const late = await confirm(pipeline, fx, block.actionId)
+	const again = await declineAction(pipeline.app.db, chatContext(fx), block.actionId)
+	check(
+		'Confirm and a second Keep after Keep return the same block and send no command',
+		late?.state === 'declined' &&
+			again.kind === 'ok' &&
+			again.block.state === 'declined' &&
+			action(block.actionId).result?.state === 'declined' &&
+			commandRows(fx).length === before,
+		JSON.stringify({ late: late?.state, again: again.kind === 'ok' ? again.block.state : again.kind })
+	)
+	const status = rows(`select status, starts_at from lessons where id = ${quote(lesson.id)}`)[0]
+	check(
+		'the kept lesson stays in place',
+		status?.status === 'scheduled' && new Date(status.starts_at).getTime() === lesson.startsAt.getTime(),
+		JSON.stringify(status)
+	)
+	return block.actionId
+}
+
 async function caseRoutes(fx, actionId, markActionId, ids) {
 	const api = await startCalendarApi({ port: PORT, envFile: '.env.test' })
 	try {
@@ -834,6 +983,16 @@ async function caseRoutes(fx, actionId, markActionId, ids) {
 				next.date === core.lessonDay(new Date(next.startsAt), fx.zone),
 			JSON.stringify(next)
 		)
+		if (fx.keptActionId) {
+			const declined = await call(api, 'POST', `/chat/actions/${fx.keptActionId}/decline`, { cookie, body: {} })
+			check(
+				'routes: decline of a kept calendar proposal answers 200 with the declined block',
+				declined.status === 200 &&
+					calendarActionResponse.safeParse(declined.json).success &&
+					declined.json.block.state === 'declined',
+				JSON.stringify([declined.status, declined.json?.block?.state])
+			)
+		}
 		check('api log has no fixture name', !api.logs().includes('Alex Example'))
 	} finally {
 		await api.stop()
@@ -867,9 +1026,21 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 		accountId: connection.account_id,
 		zone,
 		today: core.lessonDay(new Date(), zone),
+		calendarToday: core.scheduleToday(new Date(), zone),
 		target: { accountId: connection.account_id, connectionId: connection.id, calendarId: connection.calendar_id },
 	})
-	const ids = { a: card(1), b: card(2), c: card(3), d: card(4), e: card(5), f: card(6), g: card(7), s: card(8) }
+	const ids = {
+		a: card(1),
+		b: card(2),
+		c: card(3),
+		d: card(4),
+		e: card(5),
+		f: card(6),
+		g: card(7),
+		s: card(8),
+		t: card(9),
+		k: card(10),
+	}
 	const now = Date.now()
 	ids.started = await createLesson(pipeline, fx, ids.a, minuteFloor(now - 30 * 60000))
 	ids.cancel = await createLesson(pipeline, fx, ids.b, minuteFloor(now - 40 * 60000))
@@ -879,6 +1050,8 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	ids.earlier = await createLesson(pipeline, fx, ids.f, minuteFloor(now - 140 * 60000))
 	ids.pending = await createLesson(pipeline, fx, ids.g, minuteFloor(now - 20 * 60000))
 	ids.series = await createSeries(pipeline, fx, ids.s, minuteFloor(now - 30 * 60000))
+	ids.ending = await createSeries(pipeline, fx, ids.t, minuteFloor(now - 35 * 60000))
+	ids.kept = await createLesson(pipeline, fx, ids.k, minuteFloor(now - 25 * 60000))
 	await project(pipeline, fx)
 	const doneMark = await markLesson(pipeline.app.db, fx.accountId, ids.done.id, { kind: 'done' }, new Date())
 	const held = [
@@ -905,7 +1078,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	fx.conversationId = conversation.id
 	fx.conversations.push(conversation.id)
 	freshAt(fx)
-	console.log(`FIXTURES cards 8 series ${hash(ids.series.id)} today ${fx.today} zone_set ${fx.zone.length > 0}`)
+	console.log(`FIXTURES cards 10 series ${hash(ids.series.id)} today ${fx.today} zone_set ${fx.zone.length > 0}`)
 	const moved = await caseMove(pipeline, fx, ids)
 	await caseCancel(pipeline, fx, ids)
 	await caseDone(pipeline, fx, ids)
@@ -916,6 +1089,8 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	await casePending(pipeline, fx, ids)
 	await caseRefusals(pipeline, fx, ids)
 	await caseSeries(pipeline, fx, ids)
+	await caseEndSeries(pipeline, fx, ids)
+	fx.keptActionId = await caseKeep(pipeline, fx, ids)
 	await say(pipeline, fx, ids.c, `was ${ids.done.day}`)
 	const [markAction] = rows(
 		`select id from chat_actions where conversation_id = ${quote(fx.conversationId)} and kind = 'mark' limit 1`

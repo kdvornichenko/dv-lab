@@ -21,6 +21,7 @@ import {
 	chatCalendarIssue,
 } from '@dv-lab/contracts'
 import {
+	addDays,
 	canChange,
 	firstOnOrAfter,
 	lessonDay,
@@ -28,6 +29,7 @@ import {
 	mondayOf,
 	occurrenceKey,
 	scheduleDate,
+	scheduleToday,
 	scheduleWeekRange,
 	seriesStart,
 	weekdayOf,
@@ -78,8 +80,16 @@ const KNOWN: readonly string[] = [
 
 const place = z.object({ startsAt: calendarInstant, durationMinutes: z.number().int() })
 
+const seriesMove = z.object({
+	from: calendarDate,
+	weekday: z.literal([1, 2, 3, 4, 5, 6, 7]),
+	startTime: z.string(),
+})
+
+const seriesEnd = z.object({ lastOn: calendarDate })
+
 const storedTarget = z.object({
-	operation: z.enum(['move', 'cancel', 'move_series']),
+	operation: z.enum(['move', 'cancel', 'move_series', 'end_series']),
 	key: z.string().min(1),
 	ref: calendarOccurrenceRef,
 	seriesId: z.uuid().nullable(),
@@ -87,7 +97,7 @@ const storedTarget = z.object({
 	durationMinutes: z.number().int(),
 	timeZone: z.string(),
 	move: place.nullable(),
-	series: z.object({ from: calendarDate, weekday: z.literal([1, 2, 3, 4, 5, 6, 7]), startTime: z.string() }).nullable(),
+	series: z.union([seriesMove, seriesEnd]).nullable(),
 })
 
 type StoredTarget = z.infer<typeof storedTarget>
@@ -191,6 +201,17 @@ async function seriesPlace(executor: DbExecutor, seriesId: string, from: string)
 	return was === null ? null : { was, durationMinutes: rule.durationMinutes }
 }
 
+async function seriesEndPlace(executor: DbExecutor, seriesId: string, lastOn: string) {
+	const [row] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, seriesId))
+	if (!row) return null
+	const rule = toSeriesRule(row)
+	const after = addDays(lastOn, 1)
+	const first = firstOnOrAfter(after > rule.startsOn ? after : rule.startsOn, rule.weekday)
+	if (rule.endsOn !== null && first > rule.endsOn) return null
+	const was = seriesStart(rule, first)
+	return was === null ? null : { was, durationMinutes: rule.durationMinutes }
+}
+
 export async function proposeCalendarChange(
 	executor: DbExecutor,
 	context: ChatContext,
@@ -227,7 +248,21 @@ export async function proposeCalendarChange(
 			durationMinutes: move.durationMinutes,
 			date: lessonDay(new Date(move.startsAt), zone),
 		}
-	if (target.kind === 'series') {
+	if (target.kind === 'series' && move === null) {
+		if (target.intent !== 'cancel') return refuseProposal(executor, context, source, 'not_found')
+		const today = scheduleToday(context.now, zone)
+		const dayBefore = addDays(target.from, -1)
+		const lastOn = dayBefore > today ? dayBefore : today
+		const first = await seriesEndPlace(executor, target.seriesId, lastOn)
+		if (first === null) return refuseProposal(executor, context, source, 'not_found')
+		const firstEnd = new Date(first.was.getTime() + first.durationMinutes * 60000)
+		if (!insideSyncWindow(sync, first.was, firstEnd))
+			return refuseProposal(executor, context, source, 'outside_sync_window')
+		operation = 'end_series'
+		series = { lastOn }
+		shownLesson = { key: lesson.key, startsAt: first.was.toISOString(), durationMinutes: first.durationMinutes }
+		shownTarget = { kind: 'series_end', from: addDays(lastOn, 1), lastOn }
+	} else if (target.kind === 'series') {
 		if (move === null) return refuseProposal(executor, context, source, 'not_found')
 		const parts = zonedParts(new Date(move.startsAt), zone)
 		const weekday = weekdayOf(parts.date)
@@ -315,6 +350,17 @@ async function present(executor: DbExecutor, accountId: string, actionId: string
 	return { kind: 'ok', block: calendarView(block, action) }
 }
 
+export async function declineCalendarChange(
+	tx: DbExecutor,
+	accountId: string,
+	action: Pick<ActionRow, 'id' | 'kind' | 'state'>
+): Promise<CalendarOutcome> {
+	const shown = await present(tx, accountId, action.id)
+	if (shown.kind !== 'ok' || action.state !== 'proposed') return shown
+	await setProgress(tx, action.id, 'refused', { state: 'declined' })
+	return present(tx, accountId, action.id)
+}
+
 type Built =
 	| { kind: 'command'; command: ValidatedCalendarCommand; before: StoredBefore }
 	| { kind: 'refused'; state: Extract<ChatCalendarState, 'failed' | 'stale'>; issue?: ChatCalendarIssue }
@@ -341,9 +387,31 @@ async function buildCommand(
 		mark: mark?.kind ?? null,
 		markRevision: mark?.revision ?? null,
 	}
+	if (target.operation === 'end_series') {
+		const series = window.series.find((item) => item.series.id === target.seriesId)
+		if (!series || target.seriesId === null || target.series === null || !('lastOn' in target.series)) return stale
+		const command: ValidatedCalendarCommand = {
+			operation: 'end_series',
+			seriesId: target.seriesId,
+			input: {
+				lastOn: target.series.lastOn,
+				expectedDefaultTimeZone: zone,
+				requestId,
+				expectedVersion: series.version,
+			},
+		}
+		return { kind: 'command', command, before }
+	}
 	if (target.operation === 'move_series') {
 		const series = window.series.find((item) => item.series.id === target.seriesId)
-		if (!series || target.seriesId === null || target.series === null || target.move === null) return stale
+		if (
+			!series ||
+			target.seriesId === null ||
+			target.series === null ||
+			!('from' in target.series) ||
+			target.move === null
+		)
+			return stale
 		const command: ValidatedCalendarCommand = {
 			operation: 'move_series',
 			seriesId: target.seriesId,
@@ -510,7 +578,7 @@ async function settleForward(
 	if (next.state === 'applied') {
 		const target = storedTarget.parse(action.target)
 		let version: string | null = null
-		if (target.operation !== 'move_series') {
+		if (target.operation === 'move' || target.operation === 'cancel') {
 			const window = await weekWindow(db, context.accountId, context.now, positionOf(target), target.timeZone)
 			version = eventVersion(lessonEvent(window, target.key))
 		}
@@ -630,7 +698,7 @@ async function prepareUndo(
 	if (action.kind !== 'calendar') return { kind: 'done', outcome: { kind: 'not_calendar' } }
 	if (action.undoRequestId !== null) return { kind: 'done', outcome: await present(tx, context.accountId, actionId) }
 	const target = storedTarget.parse(action.target)
-	if (action.state !== 'applied' || target.operation === 'move_series')
+	if (action.state !== 'applied' || (target.operation !== 'move' && target.operation !== 'cancel'))
 		return { kind: 'done', outcome: { kind: 'not_undoable' } }
 	const before = storedBefore.parse(action.before)
 	const after = storedAfter.parse(action.after)

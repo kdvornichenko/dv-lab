@@ -357,7 +357,6 @@ export async function executeLocalAction(
 	const { intent } = request
 	if (intent.kind === 'note') return { type: 'refused', code: 'out_of_phase' }
 	const calendar = intent.kind === 'cancel' || intent.kind === 'move'
-	if (intent.kind === 'cancel' && intent.scope === 'series') return { type: 'refused', code: 'out_of_phase' }
 	const kind = intent.kind === 'comment' ? 'comment' : calendar ? 'calendar' : 'mark'
 	const body = intent.kind === 'comment' ? appendLessonCommentRequest.parse({ body: request.body }).body : null
 	const card = await cardOf(tx, intent.studentId)
