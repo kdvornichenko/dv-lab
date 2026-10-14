@@ -41,6 +41,203 @@ export function studentBalance(
 	return minutes
 }
 
+export type LedgerPayment = BalancePayment & { id: string; createdAt: Date }
+
+export type LedgerLesson = BalanceLesson & { key: string }
+
+export type LedgerEntry = {
+	key: string
+	date: string
+	counted: boolean
+	deductedMinutes: number
+	balanceAfterMinutes: number | null
+	coveringPaymentId: string | null
+	paidAfter: boolean
+	held: boolean
+	sinceLastPayment: boolean
+}
+
+export type LedgerLastPayment = { id: string; paidOn: string; creditedMinutes: number }
+
+export type StudentLedger = {
+	balanceMinutes: number | null
+	entries: LedgerEntry[]
+	lastPayment: LedgerLastPayment | null
+	sinceLastPaymentFrom: string | null
+	balanceBeforeLastPayment: number | null
+}
+
+type LedgerEvent =
+	| { kind: 'payment'; date: string; payment: LedgerPayment }
+	| { kind: 'lesson'; date: string; lesson: LedgerLesson; entry: LedgerEntry }
+
+function compareText(left: string, right: string): number {
+	return left < right ? -1 : left > right ? 1 : 0
+}
+
+function compareEvents(left: LedgerEvent, right: LedgerEvent): number {
+	const byDate = compareText(left.date, right.date)
+	if (byDate !== 0) return byDate
+	if (left.kind === 'payment' && right.kind === 'payment') {
+		return (
+			left.payment.createdAt.getTime() - right.payment.createdAt.getTime() ||
+			compareText(left.payment.id, right.payment.id)
+		)
+	}
+	if (left.kind === 'lesson' && right.kind === 'lesson') {
+		return (
+			left.lesson.startsAt.getTime() - right.lesson.startsAt.getTime() || compareText(left.lesson.key, right.lesson.key)
+		)
+	}
+	return left.kind === 'payment' ? -1 : 1
+}
+
+type Credit = { id: string | null; minutes: number }
+type Debt = { entry: LedgerEntry | null; minutes: number }
+
+function fifo(openingMinutes: number) {
+	const credits: Credit[] = openingMinutes > 0 ? [{ id: null, minutes: openingMinutes }] : []
+	const debts: Debt[] = openingMinutes < 0 ? [{ entry: null, minutes: 0 - openingMinutes }] : []
+	function give(minutes: number, id: string): void {
+		let left = minutes
+		while (left > 0 && debts.length > 0) {
+			const debt = debts[0] as Debt
+			const paid = Math.min(left, debt.minutes)
+			debt.minutes -= paid
+			left -= paid
+			if (debt.minutes === 0) {
+				debts.shift()
+				if (debt.entry !== null) {
+					debt.entry.coveringPaymentId = id
+					debt.entry.paidAfter = true
+				}
+			}
+		}
+		if (left > 0) credits.push({ id, minutes: left })
+	}
+	function take(minutes: number, entry: LedgerEntry | null): void {
+		let left = minutes
+		let source: string | null = null
+		while (left > 0 && credits.length > 0) {
+			const credit = credits[0] as Credit
+			const used = Math.min(left, credit.minutes)
+			credit.minutes -= used
+			left -= used
+			source = credit.id
+			if (credit.minutes === 0) credits.shift()
+		}
+		if (left > 0) debts.push({ entry, minutes: left })
+		else if (entry !== null) entry.coveringPaymentId = source
+	}
+	return { give, take }
+}
+
+export function studentLedger(
+	card: BalanceCard,
+	payments: readonly LedgerPayment[],
+	lessons: readonly LedgerLesson[],
+	timeZone: string
+): StudentLedger {
+	const { openingMinutes, openingOn } = card
+	const events: LedgerEvent[] = []
+	for (const lesson of lessons) {
+		const date = scheduleDate(lesson.startsAt, timeZone)
+		const deducted = lessonDeduction(lesson, card, timeZone)
+		const counted =
+			openingMinutes !== null &&
+			openingOn !== null &&
+			countsAfterOpening(date, openingOn) &&
+			countsAsLesson(lesson.outcome)
+		const entry: LedgerEntry = {
+			key: lesson.key,
+			date,
+			counted,
+			deductedMinutes: deducted,
+			balanceAfterMinutes: null,
+			coveringPaymentId: null,
+			paidAfter: false,
+			held: deducted > 0,
+			sinceLastPayment: false,
+		}
+		events.push({ kind: 'lesson', date, lesson, entry })
+	}
+	if (openingMinutes === null || openingOn === null) {
+		const entries = events.sort(compareEvents).flatMap((event) => (event.kind === 'lesson' ? [event.entry] : []))
+		return {
+			balanceMinutes: null,
+			entries,
+			lastPayment: null,
+			sinceLastPaymentFrom: null,
+			balanceBeforeLastPayment: null,
+		}
+	}
+	for (const payment of payments) {
+		if (countsAfterOpening(payment.paidOn, openingOn)) events.push({ kind: 'payment', date: payment.paidOn, payment })
+	}
+	events.sort(compareEvents)
+	const entries = events.flatMap((event) => (event.kind === 'lesson' ? [event.entry] : []))
+
+	const queue = fifo(openingMinutes)
+	const after: number[] = []
+	let minutes = openingMinutes
+	let lastIndex = -1
+	for (const [index, event] of events.entries()) {
+		if (event.kind === 'payment') {
+			const credited = event.payment.creditedMinutes
+			if (credited > 0) {
+				queue.give(credited, event.payment.id)
+				lastIndex = index
+			} else if (credited < 0) queue.take(0 - credited, null)
+			minutes += credited
+		} else if (event.entry.counted) {
+			if (event.entry.deductedMinutes > 0) queue.take(event.entry.deductedMinutes, event.entry)
+			minutes -= event.entry.deductedMinutes
+			event.entry.balanceAfterMinutes = minutes
+		}
+		after.push(minutes)
+	}
+
+	const last = events[lastIndex]
+	if (last === undefined || last.kind !== 'payment') {
+		return {
+			balanceMinutes: minutes,
+			entries,
+			lastPayment: null,
+			sinceLastPaymentFrom: null,
+			balanceBeforeLastPayment: null,
+		}
+	}
+	const before = lastIndex === 0 ? openingMinutes : (after[lastIndex - 1] as number)
+	let start = lastIndex
+	if (before < 0) {
+		let solvent = -1
+		for (let index = lastIndex - 1; index >= 0; index -= 1) {
+			if ((after[index] as number) >= 0) {
+				solvent = index
+				break
+			}
+		}
+		for (let index = solvent + 1; index < lastIndex; index += 1) {
+			const event = events[index] as LedgerEvent
+			if (event.kind === 'lesson' && event.entry.counted && event.entry.deductedMinutes > 0) {
+				start = index
+				break
+			}
+		}
+	}
+	for (let index = start; index < events.length; index += 1) {
+		const event = events[index] as LedgerEvent
+		if (event.kind === 'lesson') event.entry.sinceLastPayment = true
+	}
+	return {
+		balanceMinutes: minutes,
+		entries,
+		lastPayment: { id: last.payment.id, paidOn: last.payment.paidOn, creditedMinutes: last.payment.creditedMinutes },
+		sinceLastPaymentFrom: (events[start] as LedgerEvent).date,
+		balanceBeforeLastPayment: before,
+	}
+}
+
 export type MarkEffect =
 	| { kind: 'cancelled' }
 	| { kind: 'moved' }

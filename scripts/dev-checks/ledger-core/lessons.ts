@@ -112,8 +112,8 @@ function actionVectors(expect: Expect): void {
 		{
 			plannedFuture: { move: true, cancel: true, restore: false, mark: false, series: true },
 			plannedStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
-			doneStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
-			doneFuture: { move: true, cancel: true, restore: false, mark: true, series: true },
+			doneStarted: { move: false, cancel: false, restore: false, mark: true, series: false },
+			doneFuture: { move: false, cancel: false, restore: false, mark: true, series: true },
 			noShowStarted: { move: true, cancel: true, restore: false, mark: true, series: false },
 			cancelledPast: { move: false, cancel: false, restore: true, mark: false, series: false },
 			cancelledFuture: { move: false, cancel: false, restore: true, mark: false, series: true },

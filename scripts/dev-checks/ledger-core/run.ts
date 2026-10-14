@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 
 import * as core from '../../../packages/core/src/index.ts'
 import { ROOT, sql as rawSql, quote } from '../api.mjs'
-import { balanceVectors, deductionVectors, paysSoonVectors } from './accounting.ts'
+import { balanceVectors, deductionVectors, ledgerVectors, paysSoonVectors } from './accounting.ts'
 import {
 	outcomeVectors,
 	actionVectors,
@@ -177,6 +177,7 @@ const partTwo = () =>
 		deductionVectors(expect)
 		todayVectors(expect)
 		paysSoonVectors(expect)
+		ledgerVectors(expect)
 	})
 const allResults = () => ({ one: scenarios().results, two: partTwo().results })
 
