@@ -40,6 +40,44 @@ export function lessonCountText(dates: Iterable<string>): string {
 	return lessonCountMonths(dates).map(lessonCountLine).join('\n')
 }
 
+function plainText(value: string): string {
+	return value
+		.normalize('NFKC')
+		.replace(/[\u200B-\u200D\u2060\u00AD]/g, '')
+		.replace(/\s+/g, ' ')
+		.trim()
+}
+
+export function eventName(title: string | null): string {
+	return plainText(title ?? '') || 'Untitled'
+}
+
+const LOOKALIKES: Record<string, string> = {
+	a: 'а',
+	b: 'в',
+	c: 'с',
+	e: 'е',
+	h: 'н',
+	k: 'к',
+	m: 'м',
+	o: 'о',
+	p: 'р',
+	t: 'т',
+	x: 'х',
+	y: 'у',
+	ё: 'е',
+}
+
+function searchKey(value: string): string {
+	return plainText(value)
+		.toLocaleLowerCase()
+		.replace(/[abcehkmoptxyё]/g, (letter) => LOOKALIKES[letter] ?? letter)
+}
+
+export function nameMatches(name: string, query: string): boolean {
+	return searchKey(name).includes(searchKey(query))
+}
+
 export function datesPlural(total: number): string {
 	return `${total} ${total === 1 ? 'date' : 'dates'}`
 }

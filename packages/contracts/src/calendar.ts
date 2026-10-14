@@ -449,3 +449,23 @@ export const googleCallbackQuery = z.union([
 		code: z.never().optional(),
 	}),
 ])
+
+export const EVENT_TITLES_MAX_DAYS = 400
+
+export function rangeDays(from: string, to: string): number {
+	return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1
+}
+
+export const eventTitlesQuery = z
+	.strictObject({ from: calendarDate, to: calendarDate })
+	.refine((value) => value.from <= value.to && rangeDays(value.from, value.to) <= EVENT_TITLES_MAX_DAYS)
+
+export type EventTitlesQuery = z.infer<typeof eventTitlesQuery>
+
+export const eventTitleItem = z.strictObject({ title: z.string().nullable(), day: calendarDate })
+
+export type EventTitleItem = z.infer<typeof eventTitleItem>
+
+export const eventTitlesResponse = z.strictObject({ timeZone: calendarTimeZone, events: z.array(eventTitleItem) })
+
+export type EventTitlesResponse = z.infer<typeof eventTitlesResponse>

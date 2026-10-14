@@ -429,6 +429,23 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 			)
 			return parseEventPage(response.data)
 		},
+		async eventTitles(accessToken: string, query: EventQuery & { timeMax: string }, signal: AbortSignal) {
+			const oauth = client(signal)
+			oauth.setCredentials({ access_token: accessToken })
+			const response = await safeCall(() =>
+				google.calendar({ version: 'v3', auth: oauth }).events.list(
+					{
+						...query,
+						singleEvents: true,
+						showDeleted: false,
+						maxResults: 2500,
+						fields: 'nextPageToken,items(status,summary,start)',
+					},
+					{ retry: false }
+				)
+			)
+			return response.data
+		},
 		async master(accessToken: string, calendarId: string, eventId: string, timeZone: string, signal: AbortSignal) {
 			const oauth = client(signal)
 			oauth.setCredentials({ access_token: accessToken })
