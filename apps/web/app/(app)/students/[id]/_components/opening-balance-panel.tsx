@@ -145,7 +145,7 @@ export function OpeningBalancePanel({
 				{changed ? (
 					<ReloadNotice
 						status="warning"
-						text="This student changed elsewhere. Your draft has been kept. Reload the current details before saving."
+						text="This student changed elsewhere. Reload the current details before saving."
 						reloadLabel="Reload student details"
 						onReload={onRefresh}
 					/>
