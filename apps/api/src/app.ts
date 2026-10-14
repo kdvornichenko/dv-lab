@@ -13,6 +13,7 @@ import type { SignIn } from './auth/sign-in.ts'
 import type { CalendarCommands } from './calendar/commands.ts'
 import type { ConnectionControl } from './calendar/connection-control.ts'
 import type { CalendarConnection } from './calendar/connection.ts'
+import type { EventTitles } from './calendar/event-titles.ts'
 import type { ChatRunner } from './chat/runs.ts'
 import { errorBody, requestContext } from './request-context.ts'
 import { authRoutes } from './routes/auth.ts'
@@ -37,6 +38,7 @@ export type AppDeps = {
 	calendarControl?: ConnectionControl
 	calendarCommands?: CalendarCommands
 	calendarWake?: (connectionId: string) => void
+	eventTitles?: EventTitles
 	chat?: ChatRunner
 }
 
@@ -106,7 +108,10 @@ export function createApp(deps: AppDeps) {
 	)
 	app.route('/students', studentRoutes({ db: deps.db }))
 	app.route('/payments', paymentRoutes({ db: deps.db }))
-	app.route('/schedule', scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands }))
+	app.route(
+		'/schedule',
+		scheduleRoutes({ db: deps.db, calendarCommands: deps.calendarCommands, eventTitles: deps.eventTitles })
+	)
 	app.route('/settings', settingsRoutes({ db: deps.db, availability: deps.chat?.availability }))
 	app.route('/today', todayRoutes({ db: deps.db }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {

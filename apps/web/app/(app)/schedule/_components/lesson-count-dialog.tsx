@@ -23,15 +23,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { apiRequest } from '@/lib/api-client'
-import { datesPlural, lessonCountText } from '@/lib/lesson-count-text'
+import { datesPlural, eventName, lessonCountText, nameMatches } from '@/lib/lesson-count-text'
 import { copyTooltip, useCopy } from '@/lib/use-copy'
 import { cn } from '@/lib/utils'
 
-import type { CalendarIssue, GoogleScheduleWindow } from '@dv-lab/contracts'
-import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
+import {
+	EVENT_TITLES_MAX_DAYS,
+	calendarIssue,
+	rangeDays,
+	type CalendarIssue,
+	type EventTitlesResponse,
+} from '@dv-lab/contracts'
 
-const MAX_WEEKS = 53
-const BATCH = 1
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SEARCH_FROM = 6
@@ -43,12 +46,6 @@ function isoDay(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, '0')
 	const day = String(date.getDate()).padStart(2, '0')
 	return `${date.getFullYear()}-${month}-${day}`
-}
-
-function weekCount(from: string, to: string): number {
-	let count = 0
-	for (let monday = mondayOf(from); monday <= to; monday = addDays(monday, 7)) count++
-	return count
 }
 
 function rangeSummary(range: DateRange | undefined): string {
@@ -63,37 +60,18 @@ function rangeSummary(range: DateRange | undefined): string {
 	return `${part(from, !sameYear)} – ${part(to, true)}`
 }
 
-function collect(window: GoogleScheduleWindow, from: string, to: string, into: EventDates) {
-	for (const event of window.events) {
-		if (event.status === 'cancelled') continue
-		const day =
-			event.when.kind === 'timed'
-				? lessonDay(new Date(event.when.startsAt), window.requestedRange.timeZone)
-				: event.when.startsOn
-		if (day < from || day > to) continue
-		const title = event.title?.trim() || 'Untitled'
-		const dates = into.get(title) ?? new Set<string>()
-		dates.add(day)
-		into.set(title, dates)
-	}
-}
-
 async function loadEvents(from: string, to: string): Promise<EventDates | { issue: CalendarIssue | null }> {
-	const mondays: string[] = []
-	for (let monday = mondayOf(from); monday <= to; monday = addDays(monday, 7)) mondays.push(monday)
-	if (mondays.length > MAX_WEEKS) return { issue: null }
+	const result = await apiRequest<EventTitlesResponse>('GET', `/schedule/event-titles?from=${from}&to=${to}`)
+	if (!result.ok) {
+		const issue = calendarIssue.safeParse(result.error?.code)
+		return { issue: issue.success ? issue.data : null }
+	}
 	const events: EventDates = new Map()
-	for (let index = 0; index < mondays.length; index += BATCH) {
-		const results = await Promise.all(
-			mondays
-				.slice(index, index + BATCH)
-				.map((monday) => apiRequest<GoogleScheduleWindow>('GET', `/schedule/week?start=${monday}`))
-		)
-		for (const result of results) {
-			if (!result.ok) return { issue: null }
-			if (result.data.read.state === 'unavailable') return { issue: result.data.read.reason }
-			collect(result.data, from, to, events)
-		}
+	for (const event of result.data.events) {
+		const title = eventName(event.title)
+		const dates = events.get(title) ?? new Set<string>()
+		dates.add(event.day)
+		events.set(title, dates)
 	}
 	return events
 }
@@ -112,8 +90,7 @@ function EventList({
 	const [query, setQuery] = useState('')
 	const listRef = useRef<HTMLDivElement>(null)
 	const searchable = titles.length > SEARCH_FROM
-	const needle = query.trim().toLowerCase()
-	const shown = needle === '' ? titles : titles.filter((name) => name.toLowerCase().includes(needle))
+	const shown = titles.filter((name) => nameMatches(name, query))
 	const stop = selected !== null && shown.includes(selected) ? selected : shown[0]
 
 	function move(event: React.KeyboardEvent) {
@@ -136,16 +113,20 @@ function EventList({
 	}
 
 	return (
-		<div className="overflow-hidden rounded-lg ring-1 ring-input ring-inset">
+		<div className="overflow-hidden rounded-lg ring-1 ring-input transition-shadow ring-inset has-[[data-slot=input]:focus-visible]:ring-ring">
 			{searchable ? (
-				<div className="flex h-10 items-center gap-2 border-b px-3">
-					<Search size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+				<div className="group/search flex h-10 items-center gap-2 border-b px-3">
+					<Search
+						size={14}
+						className="shrink-0 text-muted-foreground transition-colors duration-80 group-focus-within/search:text-foreground"
+						aria-hidden
+					/>
 					<Input
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Search events"
 						aria-label="Search events"
-						className="h-full rounded-none px-0 ring-0"
+						className="h-full rounded-none px-0 ring-0 outline-none focus-visible:outline-none"
 					/>
 				</div>
 			) : null}
@@ -206,7 +187,9 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 	const showRef = useRef<HTMLButtonElement>(null)
 	const mobile = useIsMobile()
 
-	const tooLong = range?.from ? weekCount(isoDay(range.from), isoDay(range.to ?? range.from)) > MAX_WEEKS : false
+	const tooLong = range?.from
+		? rangeDays(isoDay(range.from), isoDay(range.to ?? range.from)) > EVENT_TITLES_MAX_DAYS
+		: false
 
 	function pick(next: DateRange | undefined) {
 		requests.current++
