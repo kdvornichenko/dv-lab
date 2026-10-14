@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 import { StatusDot } from '@/components/app/status-dot'
-import { balanceTone } from '@/components/app/student-balance'
+import { balanceHint, balanceTone } from '@/components/app/student-balance'
 
 import type { StudentRow } from '@dv-lab/contracts'
 import { balancePhrase, balanceState } from '@dv-lab/core'
@@ -12,16 +12,18 @@ interface DueListProps {
 	students: readonly Pick<StudentRow, 'id' | 'displayName' | 'balanceMinutes' | 'defaultLessonMinutes'>[]
 	threshold: number
 	moreHref: string
+	still?: boolean
 }
 
-export function DueList({ students, threshold, moreHref }: DueListProps) {
+export function DueList({ students, threshold, moreHref, still = false }: DueListProps) {
 	const listed = students.flatMap((student) =>
 		student.balanceMinutes === null ? [] : [{ student, minutes: student.balanceMinutes }]
 	)
 	return (
 		<ul data-slot="due-list" className="flex flex-col px-1 pb-2">
 			{listed.slice(0, ROW_LIMIT).map(({ student, minutes }) => {
-				const tone = balanceTone(balanceState(minutes, student.defaultLessonMinutes, threshold))
+				const state = balanceState(minutes, student.defaultLessonMinutes, threshold)
+				const tone = balanceTone(state)
 				return (
 					<li
 						key={student.id}
@@ -43,7 +45,14 @@ export function DueList({ students, threshold, moreHref }: DueListProps) {
 							{balancePhrase(minutes, student.defaultLessonMinutes)}
 						</span>
 						<span className="relative z-10 flex size-6 shrink-0 items-center justify-center">
-							{tone === null ? null : <StatusDot tone={tone.tone} label={tone.label} />}
+							{tone === null ? null : (
+								<StatusDot
+									tone={tone.tone}
+									label={tone.label}
+									hint={balanceHint(state, threshold)}
+									attention={tone.attention === null || still ? undefined : { kind: tone.attention, mode: 'pulse' }}
+								/>
+							)}
 						</span>
 					</li>
 				)

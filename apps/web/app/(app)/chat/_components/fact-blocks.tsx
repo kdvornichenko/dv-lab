@@ -175,7 +175,7 @@ function PaysSoon({ block }: { block: ChatPaysSoonBlock }) {
 					description={`Students appear here when they have ${threshold} left or fewer, or owe lessons.`}
 				/>
 			) : (
-				<DueList students={block.students} threshold={block.paysSoonLessons} moreHref={STUDENTS_HREF} />
+				<DueList students={block.students} threshold={block.paysSoonLessons} moreHref={STUDENTS_HREF} still />
 			)}
 		</Panel>
 	)

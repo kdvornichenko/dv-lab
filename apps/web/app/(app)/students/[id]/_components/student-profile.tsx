@@ -66,7 +66,17 @@ function SummaryLine({
 					</>
 				)}
 			</span>
-			<StudentBalance dot minutes={balance} lessonMinutes={student.defaultLessonMinutes} threshold={threshold} />
+			{balance === null ? (
+				<StudentBalance minutes={null} lessonMinutes={student.defaultLessonMinutes} />
+			) : (
+				<StudentBalance
+					dot
+					attention="pulse"
+					minutes={balance}
+					lessonMinutes={student.defaultLessonMinutes}
+					threshold={threshold}
+				/>
+			)}
 			{balance === null ? (
 				<Button variant="ghost" size="compact" onClick={onSetBalance}>
 					Set opening balance

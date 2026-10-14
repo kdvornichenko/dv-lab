@@ -58,7 +58,7 @@ function SkeletonTable({ columns, rows = 5 }: { columns: SkeletonTableColumn[]; 
 				</TableHeader>
 				<TableBody>
 					{Array.from({ length: rows }, (_, row) => (
-						<TableRow key={row} className="hover:bg-transparent">
+						<TableRow key={row} className="h-11 hover:bg-transparent">
 							{columns.map((column, index) => (
 								<TableCell key={index} className={cn('px-4 py-2', column.cellClassName)}>
 									{column.cell}

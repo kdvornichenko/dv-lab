@@ -34,6 +34,7 @@ if to_regclass('lesson_series') is not null then
 delete from lesson_series where student_id in (select id from students where ${where});
 end if;
 delete from payments where student_id in (select id from students where ${where});
+delete from student_sections where student_id in (select id from students where ${where});
 delete from students where ${where};
 end $$`
 
@@ -271,7 +272,9 @@ export async function openStudentsList(page: Page) {
 
 export async function openProfile(page: Page, id: string) {
 	await page.goto(`${BASE}/students/${id}`)
-	await page.locator('#student-opening-balance').waitFor({ timeout: 30000 })
+	await page.waitForFunction(() => document.querySelectorAll('#student-opening-balance').length === 1, undefined, {
+		timeout: 30000,
+	})
 	await page.waitForTimeout(300)
 }
 
