@@ -7,7 +7,7 @@ import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, call, quote, sql, studentCookie, teacherCookie } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
-const SECTIONS = ['payment']
+const SECTIONS = ['payment', 'cards']
 const section = process.argv[2]
 if (!SECTIONS.includes(section)) {
 	console.log(`usage: node scripts/dev-checks/chat-changes.mjs ${SECTIONS.join('|')}`)
@@ -26,7 +26,7 @@ const pino = apiRequire('pino')
 const { serve } = apiRequire('@hono/node-server')
 
 const PORT = 4241
-const PREFIX = 'Alex Example 230'
+const PREFIX = section === 'cards' ? 'Alex Example 234' : 'Alex Example 230'
 const ACTIVE = ['accepted', 'running']
 const QUIET = 'I prepared the payment. Confirm it below.'
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -88,6 +88,14 @@ function removeChats(where) {
 	sql(`delete from chat_messages where reply_to is not null and conversation_id in (${conversations})`)
 	sql(`delete from chat_messages where conversation_id in (${conversations})`)
 	return sql(`delete from chat_conversations where ${where}`).rowCount
+}
+
+function removeCardRows(where) {
+	const cards = `select id from students where ${where}`
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
+	return removeCards(where)
 }
 
 const lines = []
@@ -184,24 +192,29 @@ function lastToolResult() {
 	return last.content.find((part) => part.type === 'tool_result') ?? null
 }
 
-async function ask(conversationId, studentId, name, text, input, answer = QUIET) {
-	fake.script.push(
-		use('propose_payment', {
-			student_id: studentId,
-			amount_text: '8000',
-			currency: null,
-			paid_on: null,
-			lessons_text: null,
-			note: null,
-			...input,
-		}),
-		say(answer)
-	)
+function ask(conversationId, studentId, name, text, input, answer = QUIET) {
+	const payment = {
+		student_id: studentId,
+		amount_text: '8000',
+		currency: null,
+		paid_on: null,
+		lessons_text: null,
+		note: null,
+		...input,
+	}
+	return askTool(conversationId, 'propose_payment', payment, text, { studentId, name }, answer)
+}
+
+async function askTool(conversationId, tool, input, text, mention = null, answer = QUIET) {
+	fake.script.push(use(tool, input), say(answer))
 	const start = text.indexOf('@') + 1
 	const sent = await as('POST', `/chat/conversations/${conversationId}/messages`, {
 		requestId: randomUUID(),
 		text,
-		mentions: [{ studentId, text: name, start, end: start + name.length }],
+		mentions:
+			mention === null
+				? []
+				: [{ studentId: mention.studentId, text: mention.name, start, end: start + mention.name.length }],
 	})
 	if (sent.status !== 201 || !sent.json.turn) throw new Error(`message returned ${sent.status}`)
 	const turn = await settled(sent.json.turn.id)
@@ -598,6 +611,426 @@ async function payment() {
 	check('a note action cannot be declined', noteDecline.status === 409, String(noteDecline.status))
 }
 
+const QUIET_CARD = 'I prepared the change. Confirm it below.'
+
+const cardRow = (studentId) =>
+	sql(
+		`select id, display_name as name, rate_minor::text as rate, currency, default_lesson_minutes as minutes, no_show_deducts as no_show, time_zone as zone, parent, level, goals, gender, status, revision from students where id = ${quote(studentId)}`
+	).rows[0]
+
+const namedCards = (name) =>
+	sql(`select id from students where lower(display_name) = lower(${quote(name)}) order by created_at`).rows
+
+const tableCounts = () =>
+	sql(
+		`select (select count(*) from students)::int as students, (select count(*) from payments)::int as payments, (select count(*) from student_notes)::int as notes, (select count(*) from lesson_series)::int as series, (select count(*) from lessons)::int as lessons`
+	).rows[0]
+
+const sameCounts = (left, right) => JSON.stringify(left) === JSON.stringify(right)
+
+function fullBody(row, change = {}) {
+	return {
+		displayName: row.name,
+		rateMinor: row.rate === null ? null : Number(row.rate),
+		currency: row.currency,
+		defaultLessonMinutes: row.minutes,
+		parent: row.parent,
+		level: row.level,
+		goals: row.goals,
+		timeZone: row.zone,
+		noShowDeducts: row.no_show,
+		gender: row.gender,
+		...change,
+	}
+}
+
+async function cards() {
+	const { appendStudentNote } = await import(`${ROOT}/apps/api/src/cards/notes.ts`)
+	const zone =
+		sql(`select default_time_zone as zone from teacher_settings where account_id = ${quote(accountId)}`).rows[0]
+			?.zone ?? core.SCHEDULE_TIME_ZONE
+	const today = core.scheduleToday(new Date(), zone)
+	const opening = { lessonsHundredths: 200, on: core.addDays(today, -1), expectedDefaultTimeZone: zone }
+	const chatId = await conversation()
+	const student = (text, input) => askTool(chatId, 'propose_student', input, text, null, QUIET_CARD)
+
+	const newName = `${PREFIX}7`
+	const createText = `Добавь нового ученика ${newName}, ставка 3500 рублей, урок 90 минут`
+	const created = await student(createText, {
+		display_name: newName,
+		rate_text: '3500',
+		currency: 'RUB',
+		lesson_minutes: 90,
+		gender: null,
+	})
+	const createBlock = created.block
+	check(
+		'propose_student stores one proposed change and creates no card',
+		actionsOf(created.teacherId).length === 1 &&
+			actionsOf(created.teacherId)[0].state === 'proposed' &&
+			namedCards(newName).length === 0,
+		JSON.stringify(actionsOf(created.teacherId))
+	)
+	check(
+		'the new card preview carries the name, rate and lesson length from the message and the form defaults',
+		createBlock !== null &&
+			createBlock.state === 'proposed' &&
+			createBlock.receipt === null &&
+			createBlock.change.operation === 'create_card' &&
+			createBlock.change.displayName === newName &&
+			createBlock.change.rateMinor === 350000 &&
+			createBlock.change.currency === 'RUB' &&
+			createBlock.change.lessonMinutes === 90 &&
+			createBlock.change.noShowDeducts === true &&
+			createBlock.change.timeZone === null &&
+			createBlock.change.gender === null &&
+			createBlock.change.duplicateName === false,
+		JSON.stringify(createBlock)
+	)
+	check(
+		'the tool result says proposed, names the student and carries no amount',
+		created.tool?.is_error !== true &&
+			String(created.tool?.content).includes('"status":"proposed"') &&
+			String(created.tool?.content).includes(newName) &&
+			!String(created.tool?.content).includes('3500'),
+		JSON.stringify(created.tool)
+	)
+	check(
+		'a sentence without numbers is published after the card proposal',
+		created.reply.body.trim() === QUIET_CARD && !created.reply.blocks.some((item) => item.type === 'withheld'),
+		JSON.stringify(created.reply)
+	)
+	const createConfirmed = await confirm(createBlock.actionId)
+	const createdId = createConfirmed.json?.block?.receipt?.studentId
+	if (createdId) ids.push(createdId)
+	const createdRow = createdId ? cardRow(createdId) : null
+	check(
+		'Create student card writes one card through the cards owner with the previewed values and form defaults',
+		valid(createConfirmed) &&
+			createConfirmed.json.block.state === 'applied' &&
+			namedCards(newName).length === 1 &&
+			createdRow?.name === newName &&
+			createdRow.rate === '350000' &&
+			createdRow.currency === 'RUB' &&
+			createdRow.minutes === 90 &&
+			createdRow.no_show === true &&
+			createdRow.zone === null &&
+			createdRow.parent === null &&
+			createdRow.level === null &&
+			createdRow.goals === null &&
+			createdRow.gender === null &&
+			createdRow.status === 'active',
+		JSON.stringify({ status: createConfirmed.status, block: createConfirmed.json?.block, createdRow })
+	)
+	const createAgain = await confirm(createBlock.actionId)
+	check(
+		'a repeated confirm returns the same block and creates no second card',
+		valid(createAgain) &&
+			JSON.stringify(createAgain.json.block) === JSON.stringify(createConfirmed.json.block) &&
+			namedCards(newName).length === 1
+	)
+	const createRead = await shown(chatId, createBlock.actionId)
+	check(
+		'after reload the card proposal is applied with the new card in the receipt',
+		createRead?.state === 'applied' && createRead.receipt?.studentId === createdId,
+		JSON.stringify(createRead)
+	)
+
+	const name0 = `${PREFIX}0`
+	const card0 = await card(name0)
+	const duplicate = await student(`Добавь ещё одного ученика ${name0}`, {
+		display_name: name0,
+		rate_text: null,
+		currency: null,
+		lesson_minutes: null,
+		gender: 'female',
+	})
+	check(
+		'a name of an existing card is marked duplicateName and takes the default lesson length',
+		duplicate.block?.change.duplicateName === true &&
+			duplicate.block.change.rateMinor === null &&
+			duplicate.block.change.currency === null &&
+			duplicate.block.change.lessonMinutes === 60 &&
+			duplicate.block.change.gender === 'female' &&
+			namedCards(name0).length === 1,
+		JSON.stringify(duplicate.block)
+	)
+	const duplicateConfirmed = await confirm(duplicate.block.actionId)
+	const duplicateId = duplicateConfirmed.json?.block?.receipt?.studentId
+	if (duplicateId) ids.push(duplicateId)
+	const sameName = namedCards(name0)
+	check(
+		'after confirm the two cards with the same name stay separate',
+		valid(duplicateConfirmed) &&
+			sameName.length === 2 &&
+			duplicateId !== card0 &&
+			sameName.some((row) => row.id === card0) &&
+			sameName.some((row) => row.id === duplicateId) &&
+			cardRow(duplicateId)?.gender === 'female',
+		JSON.stringify(sameName)
+	)
+	const lower = name0.toLowerCase()
+	const folded = await student(`добавь ${lower}`, {
+		display_name: lower,
+		rate_text: null,
+		currency: null,
+		lesson_minutes: null,
+		gender: null,
+	})
+	const foldedDeclined = await decline(folded.block?.actionId)
+	check(
+		'the duplicate check ignores case and Don’t create the card creates nothing',
+		folded.block?.change.duplicateName === true &&
+			valid(foldedDeclined) &&
+			foldedDeclined.json.block.state === 'declined' &&
+			namedCards(name0).length === 2,
+		JSON.stringify({ block: folded.block, declined: foldedDeclined.json })
+	)
+	const invented = await student('Добавь нового ученика', {
+		display_name: `${PREFIX}6`,
+		rate_text: null,
+		currency: null,
+		lesson_minutes: null,
+		gender: null,
+	})
+	check(
+		'a name that is not in the teacher message refuses with name_not_in_message',
+		refusedWith(invented, 'name_not_in_message') &&
+			actionsOf(invented.teacherId).length === 0 &&
+			namedCards(`${PREFIX}6`).length === 0,
+		JSON.stringify(invented.tool)
+	)
+	const noCurrency = await student(`Добавь ученика ${PREFIX}6, ставка 3500`, {
+		display_name: `${PREFIX}6`,
+		rate_text: '3500',
+		currency: null,
+		lesson_minutes: null,
+		gender: null,
+	})
+	const minutes = await student(`Добавь ученика ${PREFIX}6`, {
+		display_name: `${PREFIX}6`,
+		rate_text: null,
+		currency: null,
+		lesson_minutes: 45,
+		gender: null,
+	})
+	check(
+		'a rate without a currency and a lesson length not in the message refuse without a card',
+		refusedWith(noCurrency, 'currency_required') &&
+			refusedWith(minutes, 'lesson_minutes_not_in_message') &&
+			namedCards(`${PREFIX}6`).length === 0,
+		JSON.stringify({ noCurrency: noCurrency.tool, minutes: minutes.tool })
+	)
+
+	const name1 = `${PREFIX}1`
+	const card1 = await card(name1, { opening })
+	const kept = cardRow(card1)
+	const filled = await as('PATCH', `/students/${card1}`, {
+		...fullBody(kept, { parent: 'Parent of the check', goals: 'Goals before', gender: 'female' }),
+		expectedRevision: kept.revision,
+	})
+	if (filled.status !== 200) throw new Error(`card fill returned ${filled.status}`)
+	const paid = await as('POST', '/payments', {
+		studentId: card1,
+		paidOn: today,
+		expectedDefaultTimeZone: zone,
+		amountMinor: 800000,
+		currency: 'RUB',
+		lessonsHundredths: 200,
+		note: null,
+	})
+	if (paid.status !== 201) throw new Error(`payment create returned ${paid.status}`)
+	const creditsBefore = paymentsOf(card1).map((row) => Number(row.credited))
+	const balanceBefore = (await as('GET', `/students/${card1}`)).json?.student?.balanceMinutes
+	const rate = (text, input) =>
+		askTool(
+			chatId,
+			'propose_rate',
+			{ student_id: card1, ...input },
+			text,
+			{ studentId: card1, name: name1 },
+			QUIET_CARD
+		)
+	const rated = await rate(`@${name1} новая ставка 5000`, { rate_text: '5000', currency: null, clear: false })
+	check(
+		'propose_rate shows the current and the new rate pair and changes nothing',
+		rated.block?.change.operation === 'set_rate' &&
+			rated.block.change.studentId === card1 &&
+			rated.block.change.studentName === name1 &&
+			rated.block.change.before.rateMinor === 400000 &&
+			rated.block.change.before.currency === 'RUB' &&
+			rated.block.change.after.rateMinor === 500000 &&
+			rated.block.change.after.currency === 'RUB' &&
+			cardRow(card1).rate === '400000',
+		JSON.stringify(rated.block)
+	)
+	const beforeEdit = cardRow(card1)
+	const edited = await as('PATCH', `/students/${card1}`, {
+		...fullBody(beforeEdit, { goals: 'Goals after the proposal' }),
+		expectedRevision: beforeEdit.revision,
+	})
+	if (edited.status !== 200) throw new Error(`card edit returned ${edited.status}`)
+	const staleRate = await confirm(rated.block.actionId)
+	check(
+		'a card edit between the proposal and Save rate makes it stale and keeps the rate',
+		valid(staleRate) &&
+			staleRate.json.block.state === 'stale' &&
+			staleRate.json.block.issue === 'student_changed' &&
+			cardRow(card1).rate === '400000',
+		JSON.stringify(staleRate.json)
+	)
+	const fresh = await rate(`@${name1} новая ставка 5000`, { rate_text: '5000', currency: null, clear: false })
+	const ready = cardRow(card1)
+	const rateConfirmed = await confirm(fresh.block.actionId)
+	const rateRow = cardRow(card1)
+	const balanceAfter = (await as('GET', `/students/${card1}`)).json?.student?.balanceMinutes
+	check(
+		'Save rate changes only the rate pair and moves the revision by one',
+		valid(rateConfirmed) &&
+			rateConfirmed.json.block.state === 'applied' &&
+			rateConfirmed.json.block.receipt?.studentId === card1 &&
+			rateRow.rate === '500000' &&
+			rateRow.currency === 'RUB' &&
+			rateRow.goals === 'Goals after the proposal' &&
+			rateRow.parent === 'Parent of the check' &&
+			rateRow.gender === 'female' &&
+			rateRow.minutes === ready.minutes &&
+			rateRow.name === ready.name &&
+			rateRow.revision === ready.revision + 1,
+		JSON.stringify({ ready, rateRow })
+	)
+	check(
+		'existing payments keep their lesson credit and the balance stays the same',
+		JSON.stringify(paymentsOf(card1).map((row) => Number(row.credited))) === JSON.stringify(creditsBefore) &&
+			typeof balanceBefore === 'number' &&
+			balanceAfter === balanceBefore,
+		JSON.stringify({ creditsBefore, balanceBefore, balanceAfter })
+	)
+	const foreignRate = await rate(`@${name1} новая ставка`, { rate_text: '6000', currency: null, clear: false })
+	check(
+		'a rate that is not in the teacher message refuses with amount_not_in_message',
+		refusedWith(foreignRate, 'amount_not_in_message') && cardRow(card1).rate === '500000',
+		JSON.stringify(foreignRate.tool)
+	)
+	const cleared = await rate(`@${name1} убери ставку`, { rate_text: null, currency: null, clear: true })
+	const clearConfirmed = await confirm(cleared.block?.actionId)
+	const clearedRow = cardRow(card1)
+	check(
+		'clear true removes the rate pair',
+		cleared.block?.change.after.rateMinor === null &&
+			cleared.block.change.after.currency === null &&
+			valid(clearConfirmed) &&
+			clearConfirmed.json.block.state === 'applied' &&
+			clearedRow.rate === null &&
+			clearedRow.currency === null &&
+			clearedRow.goals === 'Goals after the proposal',
+		JSON.stringify({ block: cleared.block, clearedRow })
+	)
+	const unchanged = await rate(`@${name1} убери ставку`, { rate_text: null, currency: null, clear: true })
+	check(
+		'the same pair again refuses with no_change',
+		refusedWith(unchanged, 'no_change') && actionsOf(unchanged.teacherId).length === 0,
+		JSON.stringify(unchanged.tool)
+	)
+
+	const name2 = `${PREFIX}2`
+	const card2 = await card(name2)
+	const linked = await as('POST', `/students/${card2}/account`, { login: 'alex-example-2342', password: null })
+	if (linked.status !== 201) throw new Error(`card account returned ${linked.status}`)
+	const studentAccount = linked.json.account.id
+	const paidArchive = await as('POST', '/payments', {
+		studentId: card2,
+		paidOn: today,
+		expectedDefaultTimeZone: zone,
+		amountMinor: 400000,
+		currency: 'RUB',
+		lessonsHundredths: 100,
+		note: null,
+	})
+	if (paidArchive.status !== 201) throw new Error(`payment create returned ${paidArchive.status}`)
+	const note = await appendStudentNote(db, accountId, card2, { sectionKind: 'general_info', body: 'Note of the check' })
+	if (note === null) throw new Error('note append failed')
+	const accountState = () => sql(`select status from accounts where id = ${quote(studentAccount)}`).rows[0]?.status
+	const archive = (studentId, name, text, requestedDeletion) =>
+		askTool(
+			chatId,
+			'propose_archive',
+			{ student_id: studentId, requested_deletion: requestedDeletion },
+			text,
+			{ studentId, name },
+			QUIET_CARD
+		)
+	const removal = await archive(card2, name2, `@${name2} удали этого ученика`, true)
+	check(
+		'a request to delete gives an archive proposal marked requestedDeletion with the active account flag',
+		removal.block?.change.operation === 'archive_card' &&
+			removal.block.change.studentId === card2 &&
+			removal.block.change.requestedDeletion === true &&
+			removal.block.change.accountActive === true &&
+			cardRow(card2).status === 'active' &&
+			String(removal.tool?.content).includes('Permanent deletion is not available'),
+		JSON.stringify({ block: removal.block, tool: removal.tool })
+	)
+	const countsBefore = tableCounts()
+	const archived = await confirm(removal.block.actionId)
+	const countsAfter = tableCounts()
+	check(
+		'Archive student archives the same card and removes no rows',
+		valid(archived) &&
+			archived.json.block.state === 'applied' &&
+			archived.json.block.receipt?.studentId === card2 &&
+			cardRow(card2).status === 'archived' &&
+			sameCounts(countsBefore, countsAfter) &&
+			paymentsOf(card2).length === 1,
+		JSON.stringify({ countsBefore, countsAfter, block: archived.json?.block })
+	)
+	check('the account of the archived student keeps its status', accountState() === 'active', String(accountState()))
+	const twice = await askTool(
+		chatId,
+		'propose_archive',
+		{ student_id: card2, requested_deletion: false },
+		`${name2} в архив`,
+		null,
+		QUIET_CARD
+	)
+	check(
+		'an archived card refuses with already_archived',
+		refusedWith(twice, 'already_archived') && actionsOf(twice.teacherId).length === 0,
+		JSON.stringify(twice.tool)
+	)
+
+	const name3 = `${PREFIX}3`
+	const card3 = await card(name3)
+	const toArchive = await archive(card3, name3, `@${name3} в архив`, false)
+	check(
+		'a plain archive proposal has no deletion mark and no active account',
+		toArchive.block?.change.requestedDeletion === false && toArchive.block.change.accountActive === false,
+		JSON.stringify(toArchive.block)
+	)
+	const formArchive = await as('POST', `/students/${card3}/archive`, {})
+	if (formArchive.status !== 200) throw new Error(`form archive returned ${formArchive.status}`)
+	const restored = await as('POST', `/students/${card3}/restore`, {})
+	if (restored.status !== 200) throw new Error(`form restore returned ${restored.status}`)
+	const staleArchive = await confirm(toArchive.block.actionId)
+	check(
+		'a card changed after the archive proposal makes it stale and the card stays active',
+		valid(staleArchive) &&
+			staleArchive.json.block.state === 'stale' &&
+			staleArchive.json.block.issue === 'student_changed' &&
+			cardRow(card3).status === 'active',
+		JSON.stringify(staleArchive.json)
+	)
+	const name4 = `${PREFIX}4`
+	const card4 = await card(name4)
+	const keptActive = await archive(card4, name4, `@${name4} в архив`, false)
+	const keptDeclined = await decline(keptActive.block?.actionId)
+	check(
+		'Keep student active declines the archive without a change',
+		valid(keptDeclined) && keptDeclined.json.block.state === 'declined' && cardRow(card4).status === 'active',
+		JSON.stringify(keptDeclined.json)
+	)
+}
+
 let done = false
 try {
 	cookie = await teacherCookie(api)
@@ -607,9 +1040,9 @@ try {
 		`select chat_monthly_cap_usd::text as cap, chat_models as models, chat_model as model, chat_effort as effort, chat_max_input_tokens as input, chat_max_output_tokens as output from teacher_settings where account_id = ${quote(accountId)}`
 	).rows[0]
 	removeChats(
-		`id in (select conversation_id from chat_messages where body like ${quote(`%@${PREFIX}%`)} and role = 'teacher')`
+		`id in (select conversation_id from chat_messages where body ilike ${quote(`%${PREFIX}%`)} and role = 'teacher')`
 	)
-	removeCards(`display_name like ${quote(`${PREFIX}%`)} and import_key is null`)
+	removeCardRows(`display_name ilike ${quote(`${PREFIX}%`)} and import_key is null`)
 	clearBudget()
 	await saveAssistantSettings(db, accountId, {
 		models: null,
@@ -621,6 +1054,7 @@ try {
 	})
 	await readAssistantSettings(db, accountId)
 	if (section === 'payment') await payment()
+	if (section === 'cards') await cards()
 	done = true
 } catch (err) {
 	failures++
@@ -631,7 +1065,7 @@ try {
 	if (originalZone !== null && accountId)
 		sql(`update teacher_settings set default_time_zone = ${quote(originalZone)} where account_id = ${quote(accountId)}`)
 	if (conversations.length > 0) removeChats(`id in (${conversations.map(quote).join(', ')})`)
-	if (ids.length > 0) removeCards(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
+	if (ids.length > 0) removeCardRows(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 	clearBudget()
 	if (original && accountId) {
 		await saveAssistantSettings(db, accountId, {
