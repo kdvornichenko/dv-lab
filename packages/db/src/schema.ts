@@ -147,15 +147,26 @@ export const studentSections = pgTable(
 			.references(() => students.id, { onDelete: 'restrict' }),
 		kind: text('kind').notNull(),
 		body: text('body').notNull(),
+		id: uuid('id').defaultRandom().notNull(),
+		name: text('name'),
+		position: integer('position'),
+		revision: integer('revision').default(1).notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+		deletedAt: timestamp('deleted_at', { withTimezone: true }),
 	},
 	(table) => [
 		primaryKey({ name: 'student_sections_pk', columns: [table.studentId, table.kind] }),
-		check(
-			'student_sections_kind_ck',
-			sql`${table.kind} in ('general_info', 'interests', 'level', 'goals', 'typical_mistakes', 'lesson_ideas')`
-		),
+		uniqueIndex('student_sections_id_uq').on(table.id),
+		uniqueIndex('student_sections_name_uq')
+			.on(table.studentId, sql`lower(${table.name})`)
+			.where(sql`${table.deletedAt} is null and ${table.name} is not null`),
 		check('student_sections_body_ck', sql`char_length(${table.body}) <= 20000`),
+		check(
+			'student_sections_name_ck',
+			sql`${table.name} is null or char_length(btrim(${table.name})) between 1 and 60`
+		),
+		check('student_sections_position_ck', sql`${table.position} is null or ${table.position} >= 1`),
+		check('student_sections_revision_ck', sql`${table.revision} >= 1`),
 	]
 )
 
@@ -168,10 +179,18 @@ export const studentTerms = pgTable(
 			.references(() => students.id, { onDelete: 'restrict' }),
 		term: text('term').notNull(),
 		note: text('note'),
+		addedBy: text('added_by'),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+		removedAt: timestamp('removed_at', { withTimezone: true }),
+		removedBy: text('removed_by'),
 	},
 	(table) => [
 		uniqueIndex('student_terms_term_uq').on(table.studentId, sql`lower(${table.term})`),
+		check(
+			'student_terms_removed_by_ck',
+			sql`${table.removedBy} is null or ${table.removedBy} in ('chat', 'review', 'teacher')`
+		),
+		check('student_terms_added_by_ck', sql`${table.addedBy} is null or ${table.addedBy} in ('chat', 'review')`),
 		check(
 			'student_terms_term_ck',
 			sql`${table.term} = btrim(${table.term}) and char_length(${table.term}) between 1 and 200`
