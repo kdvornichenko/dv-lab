@@ -57,7 +57,7 @@ function refusal(
 }
 
 export function clearsMark(change: LessonChange, mark: MarkKind | null, target: Date, now: Date): boolean {
-	return change === 'move' && mark === 'no_show' && canChange(target, now)
+	return (change === 'move' || change === 'restore') && mark === 'no_show' && canChange(target, now)
 }
 
 type LockedOccurrence = { rule: SeriesRule; occurrence: Occurrence | null }
