@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 
 import { BASE, ROOT, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
@@ -13,7 +14,9 @@ const PLAIN = 'Alex Example 2330'
 const ASKED = 'Alex Example 2331'
 const TWIN = 'Alex Example 2332'
 const ARCHIVED = 'Alex Example 2333'
-const NAMES = [PLAIN, ASKED, TWIN, ARCHIVED]
+const LESSONS_MINE = 'Alex Example 2370'
+const LESSONS_OTHER = 'Alex Example 2371'
+const NAMES = [PLAIN, ASKED, TWIN, ARCHIVED, LESSONS_MINE, LESSONS_OTHER]
 const GONE = 'This student is no longer available. Choose a student again.'
 const EXPECTED_NOISE =
 	/status of 500|Failed to load resource|server caches disabled|Route "\/login": Next\.js encountered URL data/
@@ -34,13 +37,26 @@ function portFree(port) {
 	})
 }
 
+async function detectApiOrigin() {
+	const candidates = [...new Set([BASE, env.APP_ORIGIN].filter(Boolean))]
+	for (const origin of candidates) {
+		const response = await fetch(`${BASE}/api/auth/sign-in`, {
+			method: 'POST',
+			headers: { origin, 'content-type': 'application/json' },
+			body: JSON.stringify({ login: 'origin-probe', password: 'origin-probe' }),
+		}).catch(() => null)
+		const body = response ? await response.json().catch(() => null) : null
+		if (response && body?.error?.code !== 'forbidden_origin') return origin
+	}
+	throw new Error('the dev api accepts neither the web origin nor APP_ORIGIN from .env')
+}
+
 async function startApi() {
 	if (!(await portFree(4000))) {
 		const res = await fetch('http://127.0.0.1:4000/healthz')
 		if (res.status !== 200) throw new Error('port 4000 is busy and is not a healthy dev api')
 		console.log('using the dev api that already listens on 4000')
-		if (!env.APP_ORIGIN) throw new Error('APP_ORIGIN is not set in .env')
-		apiOrigin = env.APP_ORIGIN
+		apiOrigin = await detectApiOrigin()
 		return null
 	}
 	const childEnv = {
@@ -460,7 +476,336 @@ async function sectionAsk(page, problems, ids) {
 	void ids
 }
 
-const sections = { palette: sectionPalette, ask: sectionAsk }
+const HOUR = 3600000
+const DAY = 24 * HOUR
+const WEEK_REQUEST = /\/api\/schedule\/week\?/
+const PLAIN_COLOR = { id: null, background: null, foreground: null, custom: false }
+
+function zoneOffsetMs(zone, instant) {
+	const name =
+		new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+			.formatToParts(instant)
+			.find((part) => part.type === 'timeZoneName')?.value ?? 'GMT'
+	const match = /GMT([+-])(\d{2}):?(\d{2})?/.exec(name)
+	if (!match) return 0
+	return (match[1] === '-' ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] ?? 0)) * 60000
+}
+
+function zoneDate(instant, zone) {
+	return new Date(instant.getTime() + zoneOffsetMs(zone, instant)).toISOString().slice(0, 10)
+}
+
+function mondayOfDate(date) {
+	const day = new Date(`${date}T00:00:00Z`)
+	const weekday = (day.getUTCDay() + 6) % 7
+	return new Date(day.getTime() - weekday * DAY).toISOString().slice(0, 10)
+}
+
+function addDaysTo(date, days) {
+	return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10)
+}
+
+function weekRange(monday, zone) {
+	const guess = Date.parse(`${monday}T00:00:00Z`)
+	const start = guess - zoneOffsetMs(zone, new Date(guess))
+	return { start: new Date(start).toISOString(), end: new Date(start + 7 * DAY).toISOString(), timeZone: zone }
+}
+
+function lessonEvent(key, studentId, startMs, zone, options = {}) {
+	return {
+		eventKey: key,
+		version: 'v1',
+		title: null,
+		when: {
+			kind: 'timed',
+			startsAt: new Date(startMs).toISOString(),
+			endsAt: new Date(startMs + HOUR).toISOString(),
+			timeZone: zone,
+		},
+		status: options.status ?? 'confirmed',
+		blocksTime: true,
+		color: PLAIN_COLOR,
+		location: null,
+		seriesMember: false,
+		binding: {
+			kind: 'lesson',
+			ref: { kind: 'single', lessonId: randomUUID() },
+			studentId,
+			version: 'v1',
+			mark: options.mark ?? null,
+		},
+		suggestion: null,
+		editBlock: null,
+	}
+}
+
+function externalEvent(key, startMs, zone) {
+	return {
+		...lessonEvent(key, randomUUID(), startMs, zone),
+		binding: { kind: 'external' },
+		title: 'External booking',
+	}
+}
+
+function weekWindow(kind, monday, zone, events) {
+	const range = weekRange(monday, zone)
+	if (kind === 'unavailable')
+		return {
+			requestedRange: range,
+			snapshotRange: null,
+			connection: {
+				state: 'not_connected',
+				calendar: null,
+				generation: 0,
+				issue: null,
+				pendingCommandCount: 0,
+				disconnectResolution: 'none',
+				allowedActions: ['connect'],
+			},
+			read: { state: 'unavailable', reason: 'connection_required' },
+			events: [],
+			series: [],
+			write: { state: 'blocked', reason: 'connection_required' },
+		}
+	const fetchedAt = new Date().toISOString()
+	return {
+		requestedRange: range,
+		snapshotRange: range,
+		connection: {
+			state: 'connected',
+			calendar: { id: 'check-calendar', label: 'Check calendar', timeZone: zone },
+			generation: 1,
+			issue: null,
+			pendingCommandCount: 0,
+			disconnectResolution: 'none',
+			allowedActions: ['disconnect', 'switch'],
+		},
+		read:
+			kind === 'fresh'
+				? { state: 'fresh', fetchedAt, revision: '1' }
+				: { state: 'last_known', fetchedAt, revision: '1', reason: 'provider_unavailable' },
+		events,
+		series: [],
+		write: kind === 'fresh' ? { state: 'ready' } : { state: 'blocked', reason: 'provider_unavailable' },
+	}
+}
+
+const TAB = '[data-slot="lessons-tab"]'
+const ROW = '[data-slot="lessons-row"]'
+
+async function sectionLessons(page, problems) {
+	await prepare(page)
+	await signIn(page)
+	removeCards()
+	const mineId = await createCard(page, LESSONS_MINE)
+	const otherId = await createCard(page, LESSONS_OTHER)
+	const detail = await api(page, 'GET', `/students/${mineId}`)
+	const zone = detail.json.defaultTimeZone
+	const currentMonday = mondayOfDate(zoneDate(new Date(), zone))
+	const href = `${BASE}/students/${mineId}?tab=lessons`
+
+	let mode = 'real'
+	const starts = []
+	const urls = []
+	page.on('framenavigated', (frame) => {
+		if (frame === page.mainFrame()) urls.push(frame.url())
+	})
+	await page.route(WEEK_REQUEST, async (route) => {
+		if (mode === 'real') return route.fallback()
+		const start = new URL(route.request().url()).searchParams.get('start')
+		starts.push(start)
+		if (mode === 'error') return route.fulfill({ status: 500, json: { error: { code: 'internal', message: 'x' } } })
+		const now = Date.now()
+		const events =
+			start === currentMonday
+				? [
+						lessonEvent('past-done', mineId, now - 90 * 60000, zone, { mark: 'done' }),
+						lessonEvent('future-planned', mineId, now + 90 * 60000, zone),
+						lessonEvent('future-cancelled', mineId, now + 150 * 60000, zone, { status: 'cancelled' }),
+						lessonEvent('other-student', otherId, now + 120 * 60000, zone),
+						externalEvent('external', now + 60 * 60000, zone),
+					]
+				: []
+		return route.fulfill({ json: weekWindow(mode, start, zone, events) })
+	})
+
+	const realRead = page.waitForResponse(WEEK_REQUEST, { timeout: 30000 })
+	await page.goto(href)
+	await page.getByRole('heading', { name: LESSONS_MINE, level: 1 }).waitFor({ timeout: 30000 })
+	const loaded = page.locator(`${TAB}:not([data-state="loading"])`)
+	await loaded.waitFor({ timeout: 30000 })
+	const realBody = await (await realRead).json().catch(() => null)
+	const realKind = realBody?.read?.state ?? 'unknown'
+	const tabNames = await page.getByRole('tab').allInnerTexts()
+	check(
+		'the profile tabs run Overview, Lessons, Payments, Notes, Vocabulary',
+		tabNames.join(',') === 'Overview,Lessons,Payments,Notes,Vocabulary',
+		tabNames.join(',')
+	)
+	check(
+		'?tab=lessons opens the Lessons tab',
+		(await page.getByRole('tab', { name: 'Lessons' }).getAttribute('aria-selected')) === 'true'
+	)
+	const realState = await page.locator(TAB).getAttribute('data-state')
+	const realText = await page.locator(TAB).innerText()
+	check(
+		'the real read of the dev stack is shown as it is: fresh and empty says No lessons, anything else the warning',
+		realKind === 'fresh'
+			? realState === 'fresh' && realText.includes('No lessons in this range')
+			: realState === 'partial' &&
+					realText.includes('The full lesson range has not been checked') &&
+					!realText.includes('No lessons in this range'),
+		`${realKind} ${realState}`
+	)
+	await shot(page, 'entry-lessons', 'real')
+
+	mode = 'unavailable'
+	await page.goto(href)
+	await page.locator(`${TAB}[data-state="partial"]`).waitFor({ timeout: 30000 })
+	const unavailableText = await page.locator(TAB).innerText()
+	check(
+		'an unread calendar shows the full-range warning, not No lessons',
+		unavailableText.includes('The full lesson range has not been checked. Refresh before making changes.') &&
+			!unavailableText.includes('No lessons in this range') &&
+			(await page.locator(ROW).count()) === 0
+	)
+	await shot(page, 'entry-lessons', 'unchecked')
+
+	mode = 'fresh'
+	await page.getByRole('button', { name: 'Refresh records' }).click()
+	await page.locator(`${TAB}[data-state="fresh"]`).waitFor({ timeout: 15000 })
+	await page.locator(ROW).first().waitFor({ timeout: 15000 })
+	const rows = page.locator(ROW)
+	check('only the lessons of this student are listed', (await rows.count()) === 3, String(await rows.count()))
+	check(
+		'no other student and no external event in the list',
+		(await page.locator(`${ROW}[data-event-key="other-student"]`).count()) === 0 &&
+			(await page.locator(`${ROW}[data-event-key="external"]`).count()) === 0 &&
+			!(await page.locator(TAB).innerText()).includes('External booking')
+	)
+	check(
+		'the warning is gone after a fresh read',
+		(await page.getByText('The full lesson range has not been checked').count()) === 0
+	)
+	const upcoming = page.locator('#student-lessons-upcoming').locator('xpath=ancestor::section[1]')
+	const history = page.locator('#student-lessons-history').locator('xpath=ancestor::section[1]')
+	const upcomingKeys = await upcoming
+		.locator(ROW)
+		.evaluateAll((list) => list.map((node) => node.getAttribute('data-event-key')))
+	const historyKeys = await history
+		.locator(ROW)
+		.evaluateAll((list) => list.map((node) => node.getAttribute('data-event-key')))
+	check(
+		'Upcoming holds the future lessons in time order',
+		upcomingKeys.join(',') === 'future-planned,future-cancelled',
+		upcomingKeys.join(',')
+	)
+	check('History holds the past lesson', historyKeys.join(',') === 'past-done', historyKeys.join(','))
+	check('the past lesson shows Done', (await history.locator(ROW).first().innerText()).includes('Done'))
+	const cancelled = upcoming.locator(`${ROW}[data-event-key="future-cancelled"]`)
+	check('the cancelled lesson says Cancelled', (await cancelled.innerText()).includes('Cancelled'))
+	check(
+		'the cancelled lesson is struck through',
+		await cancelled
+			.locator('[data-slot="time-pair"]')
+			.evaluate((node) => getComputedStyle(node).textDecorationLine === 'line-through')
+	)
+	const firstName = await upcoming.locator(ROW).first().locator('a').getAttribute('aria-label')
+	check('a row has the whole lesson in its accessible name', /scheduled$/.test(firstName ?? ''), firstName)
+	await shot(page, 'entry-lessons', 'populated')
+
+	const monday = starts.at(-1)
+	check(
+		'the first read asks for the Monday of the current week',
+		monday === currentMonday,
+		`${monday} ${currentMonday}`
+	)
+	const picker = page.locator(`${TAB} [data-slot="schedule-week-picker"]`)
+	const label = await picker.innerText()
+	await page.getByRole('button', { name: 'Next week' }).click()
+	await page.locator(`${TAB}[data-state="fresh"]`).waitFor({ timeout: 15000 })
+	await page.getByText('Choose another week to view lessons.').waitFor({ timeout: 15000 })
+	check(
+		'Next week asks for the next Monday and changes the label',
+		starts.at(-1) === addDaysTo(currentMonday, 7) && (await picker.innerText()) !== label,
+		`${starts.at(-1)} ${await picker.innerText()}`
+	)
+	check(
+		'a fresh read without lessons says No lessons in this range',
+		(await page.locator(TAB).innerText()).includes('No lessons in this range')
+	)
+	await shot(page, 'entry-lessons', 'empty')
+	await page.getByRole('button', { name: 'Previous week' }).click()
+	await page.getByRole('button', { name: 'Previous week' }).click()
+	await page.getByText('Choose another week to view lessons.').waitFor({ timeout: 15000 })
+	check('Previous week asks for the earlier Monday', starts.at(-1) === addDaysTo(currentMonday, -7), `${starts.at(-1)}`)
+	await page.getByRole('button', { name: 'Today' }).click()
+	await page.locator(ROW).first().waitFor({ timeout: 15000 })
+	check('Today returns to the current week with its lessons', (await rows.count()) === 3)
+
+	await upcoming.locator(`${ROW}[data-event-key="future-planned"] a`).click()
+	await page.waitForURL(/\/schedule\?/, { timeout: 15000 })
+	const scheduleUrl = new URL(urls.find((url) => url.includes('/schedule?') && url.includes('lesson=')) ?? BASE)
+	check(
+		'a row opens that lesson in Schedule through week and lesson',
+		scheduleUrl.searchParams.get('week') !== null &&
+			(scheduleUrl.searchParams.get('lesson') ?? '').startsWith('single:'),
+		scheduleUrl.search.slice(0, 80)
+	)
+
+	mode = 'partial'
+	await page.goto(href)
+	await page.locator(`${TAB}[data-state="partial"]`).waitFor({ timeout: 30000 })
+	await page.locator(ROW).first().waitFor({ timeout: 15000 })
+	const partialText = await page.locator(TAB).innerText()
+	check(
+		'a partial read keeps the rows it has and shows the warning, not No lessons',
+		(await page.locator(ROW).count()) === 3 &&
+			partialText.includes('The full lesson range has not been checked. Refresh before making changes.') &&
+			!partialText.includes('No lessons in this range')
+	)
+	await shot(page, 'entry-lessons', 'partial')
+
+	mode = 'error'
+	await page.goto(href)
+	await page.getByText('Could not load lessons').waitFor({ timeout: 30000 })
+	check(
+		'a failed read shows the error inside the tab with the header and tabs in place',
+		(await page.getByRole('heading', { name: LESSONS_MINE, level: 1 }).count()) === 1 &&
+			(await page.getByRole('tab', { name: 'Payments' }).count()) === 1 &&
+			(await page.getByRole('button', { name: 'Refresh' }).count()) >= 1
+	)
+	await shot(page, 'entry-lessons', 'error')
+	mode = 'fresh'
+	await page.getByRole('button', { name: 'Refresh', exact: true }).click()
+	await page.locator(`${TAB}[data-state="fresh"]`).waitFor({ timeout: 15000 })
+	check('Refresh reads the week again', (await page.locator(ROW).count()) === 3)
+
+	await page.setViewportSize({ width: 390, height: 844 })
+	await page.goto(href)
+	await page.locator(`${TAB}[data-state="fresh"]`).waitFor({ timeout: 30000 })
+	await page.locator(ROW).first().waitFor({ timeout: 15000 })
+	const metrics = await page.evaluate(() => ({
+		page: document.documentElement.scrollWidth - window.innerWidth,
+		viewport: Math.max(
+			0,
+			...Array.from(document.querySelectorAll('[data-slot="scroll-area-viewport"]')).map(
+				(node) => node.scrollWidth - node.clientWidth
+			)
+		),
+	}))
+	check(
+		'at 390 px the page has no sideways scroll',
+		metrics.page <= 0 && metrics.viewport <= 0,
+		JSON.stringify(metrics)
+	)
+	await shot(page, 'entry-lessons', 'phone')
+
+	const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+	check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+}
+
+const sections = { palette: sectionPalette, ask: sectionAsk, lessons: sectionLessons }
 const section = process.argv[2]
 const run = sections[section]
 if (!run) {

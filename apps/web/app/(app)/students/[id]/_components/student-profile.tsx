@@ -15,13 +15,14 @@ import { NotFoundPage } from '@/components/app/status-pages'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
-import { apiRequest } from '@/lib/api-client'
+import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest } from '@/lib/api-client'
 import { withoutSearchParams } from '@/lib/arrival-mark'
 
 import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
 import { BackButton } from './back-button'
+import { LessonsTab } from './lessons-tab'
 import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
@@ -86,6 +87,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	const [openPayment, setOpenPayment] = useState(arrival.payment)
 	const [recordOpen, setRecordOpen] = useState(false)
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
+	const [lessonsVersion, setLessonsVersion] = useState(0)
 	const [drafts, setDrafts] = useState<SectionDrafts>({})
 	const lessonsInput = useRef<HTMLInputElement>(null)
 	const statusButton = useRef<HTMLButtonElement>(null)
@@ -125,6 +127,22 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 			counter.current++
 		}
 	}, [reload])
+
+	const refresh = useCallback(async () => {
+		const ready = await reload()
+		if (ready) setLessonsVersion((version) => version + 1)
+		return ready
+	}, [reload])
+
+	useEffect(() => {
+		const changed = () => setLessonsVersion((version) => version + 1)
+		window.addEventListener(API_CACHE_INVALIDATED, changed)
+		DATA_CHANGED_CHANNEL?.addEventListener('message', changed)
+		return () => {
+			window.removeEventListener(API_CACHE_INVALIDATED, changed)
+			DATA_CHANGED_CHANNEL?.removeEventListener('message', changed)
+		}
+	}, [])
 
 	function changeDraft(kind: SectionKind, value: string | undefined) {
 		setDrafts((current) => {
@@ -180,7 +198,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 				? { title: 'Student archived', description: `${name} is in the Archived tab.` }
 				: { title: 'Student restored', description: `${name} is back in the Active tab.` }
 		)
-		await reload()
+		await refresh()
 		return true
 	}
 
@@ -193,7 +211,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 				<ReadError
 					screen="student"
 					onRefresh={async () => {
-						await reload()
+						await refresh()
 					}}
 				/>
 			</PageScroll>
@@ -210,7 +228,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 				<ReadError
 					screen="student"
 					onRefresh={async () => {
-						await reload()
+						await refresh()
 					}}
 				/>
 			) : null}
@@ -266,9 +284,10 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
 						>
 							<TabItem value="overview" label="Overview" />
+							<TabItem value="lessons" label="Lessons" />
+							<TabItem value="payments" label="Payments" />
 							<TabItem value="notes" label="Notes" />
 							<TabItem value="vocabulary" label="Vocabulary" />
-							<TabItem value="payments" label="Payments" />
 						</TabsList>
 					</div>
 					<TabPanel value="overview" className="mt-4">
@@ -277,10 +296,13 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 							mainTimeZone={mainTimeZone}
 							asOf={asOf}
 							lessonsInputRef={lessonsInput}
-							onSaved={reload}
+							onSaved={refresh}
 							autoOpenEdit={editRequested}
 							onAutoOpened={() => setEditRequested(false)}
 						/>
+					</TabPanel>
+					<TabPanel value="lessons" className="mt-4">
+						<LessonsTab student={student} mainTimeZone={mainTimeZone} asOf={asOf} refreshKey={lessonsVersion} />
 					</TabPanel>
 					<TabPanel value="notes" className="mt-4">
 						<NotesTab
@@ -310,7 +332,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 								setOpenPayment(null)
 								dropParams(['payment'])
 							}}
-							onChanged={() => void reload()}
+							onChanged={() => void refresh()}
 						/>
 					</TabPanel>
 				</Tabs>
@@ -324,12 +346,12 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 					onClose={closeRecord}
 					onRefresh={() => {
 						closeRecord()
-						void reload()
+						void refresh()
 					}}
 					onRecorded={() => {
 						closeRecord()
 						setPaymentsVersion((version) => version + 1)
-						void reload()
+						void refresh()
 					}}
 				/>
 			) : null}

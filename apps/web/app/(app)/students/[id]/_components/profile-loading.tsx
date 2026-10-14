@@ -127,9 +127,10 @@ export function ProfileLoading() {
 						className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
 					>
 						<TabItem value="overview" label="Overview" disabled />
+						<TabItem value="lessons" label="Lessons" disabled />
+						<TabItem value="payments" label="Payments" disabled />
 						<TabItem value="notes" label="Notes" disabled />
 						<TabItem value="vocabulary" label="Vocabulary" disabled />
-						<TabItem value="payments" label="Payments" disabled />
 					</TabsList>
 				</div>
 				<TabPanel value="overview" className="mt-4">

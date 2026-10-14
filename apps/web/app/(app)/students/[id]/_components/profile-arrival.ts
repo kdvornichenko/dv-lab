@@ -2,7 +2,7 @@ import { SECTION_KINDS, type SectionKind } from '@dv-lab/contracts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-export const PROFILE_TABS = ['overview', 'notes', 'vocabulary', 'payments'] as const
+export const PROFILE_TABS = ['overview', 'lessons', 'payments', 'notes', 'vocabulary'] as const
 export const PROFILE_DIALOGS = ['payment', 'details'] as const
 
 export type ProfileTab = (typeof PROFILE_TABS)[number]
