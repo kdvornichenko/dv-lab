@@ -422,6 +422,53 @@ async function paymentChecks() {
 	)
 }
 
+async function creditChecks() {
+	const owner = await card(`${PREFIX}2`)
+	const payment = await record(owner.id, { lessonsHundredths: 300 })
+	const longer = await as('PATCH', `/students/${owner.id}`, {
+		...cardBody(owner.displayName),
+		defaultLessonMinutes: 90,
+	})
+	if (longer.status !== 200) throw new Error(`lesson length change returned ${longer.status}`)
+	const base = {
+		paidOn: payment.paidOn,
+		expectedDefaultTimeZone: zone,
+		amountMinor: payment.amountMinor,
+		currency: payment.currency,
+		lessonsHundredths: 300,
+		note: 'Only the note',
+		expectedRevision: payment.revision,
+	}
+	const noted = await as('PATCH', `/payments/${payment.id}`, base)
+	const notedRow = paymentRows(owner.id)[0]
+	check(
+		'a correction that keeps the lesson count keeps the stored credit after the lesson length changed',
+		payment.creditedMinutes === core.creditedMinutes(300, 60) &&
+			noted.status === 200 &&
+			noted.json.payment.note === 'Only the note' &&
+			noted.json.payment.creditedMinutes === payment.creditedMinutes &&
+			Number(notedRow.credited) === payment.creditedMinutes,
+		JSON.stringify({
+			status: noted.status,
+			before: payment.creditedMinutes,
+			after: noted.json?.payment?.creditedMinutes,
+		})
+	)
+	const recount = await as('PATCH', `/payments/${payment.id}`, {
+		...base,
+		lessonsHundredths: 400,
+		expectedRevision: noted.json.payment.revision,
+	})
+	const recountRow = paymentRows(owner.id)[0]
+	check(
+		'a correction of the lesson count recalculates the credit from the current lesson length',
+		recount.status === 200 &&
+			recount.json.payment.creditedMinutes === core.creditedMinutes(400, 90) &&
+			Number(recountRow.credited) === core.creditedMinutes(400, 90),
+		JSON.stringify({ status: recount.status, after: recount.json?.payment?.creditedMinutes })
+	)
+}
+
 let done = false
 try {
 	sql(`delete from payments where student_id is null and note = ${quote(NOTE)}`)
@@ -436,6 +483,7 @@ try {
 	today = core.scheduleToday(new Date(), zone)
 	await cardChecks()
 	await paymentChecks()
+	await creditChecks()
 	done = true
 } catch (err) {
 	failures++
