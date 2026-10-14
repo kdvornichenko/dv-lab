@@ -251,7 +251,33 @@ function todayVectors(expect: Expect): void {
 	)
 }
 
+function shortBalanceVectors(expect: Expect): void {
+	const lessons = [7, 1.5, 0, -2]
+	const phrases = (lessonMinutes: number, options?: { short?: boolean }) =>
+		lessons.map((count) => core.balancePhrase(count * lessonMinutes, lessonMinutes, options))
+	expect(
+		'p2 balancePhrase short form for 60 and 90 minute lessons, long form unchanged',
+		{
+			short60: phrases(60, { short: true }),
+			short90: phrases(90, { short: true }),
+			long60: phrases(60),
+			long90: phrases(90),
+			longFalse: phrases(90, { short: false }),
+			longEmpty: phrases(90, {}),
+		},
+		{
+			short60: ['7 left', '1.5 left', '0 left', 'owes 2'],
+			short90: ['7 left', '1.5 left', '0 left', 'owes 2'],
+			long60: ['7 lessons left', '1.5 lessons left', '0 lessons left', 'owes 2 lessons'],
+			long90: ['7 lessons left', '1.5 lessons left', '0 lessons left', 'owes 2 lessons'],
+			longFalse: ['7 lessons left', '1.5 lessons left', '0 lessons left', 'owes 2 lessons'],
+			longEmpty: ['7 lessons left', '1.5 lessons left', '0 lessons left', 'owes 2 lessons'],
+		}
+	)
+}
+
 export {
+	shortBalanceVectors,
 	VN,
 	at,
 	instant,

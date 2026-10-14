@@ -86,7 +86,11 @@ export function paysSoonList<
 		.sort((left, right) => lessons(left) - lessons(right) || left.displayName.localeCompare(right.displayName, 'en'))
 }
 
-export function balancePhrase(minutes: number, lessonMinutes: number): string {
+export function balancePhrase(minutes: number, lessonMinutes: number, options?: { short?: boolean }): string {
+	if (options?.short) {
+		if (minutes >= 0) return `${formatLessons(minutes, lessonMinutes)} left`
+		return `owes ${formatLessons(0 - minutes, lessonMinutes)}`
+	}
 	if (minutes >= 0) return `${lessonsPhrase(minutes, lessonMinutes)} left`
 	return `owes ${lessonsPhrase(0 - minutes, lessonMinutes)}`
 }

@@ -9,11 +9,13 @@ import {
 	actionVectors,
 	occurrenceVectors,
 	todayVectors,
+	shortBalanceVectors,
 	VN,
 	DATE_CASES,
 	instant,
 	dateVectors,
 } from './lessons.ts'
+import { textMatchVectors } from './text-match.ts'
 
 let failures = 0
 
@@ -178,6 +180,8 @@ const partTwo = () =>
 		todayVectors(expect)
 		paysSoonVectors(expect)
 		ledgerVectors(expect)
+		shortBalanceVectors(expect)
+		textMatchVectors(expect)
 	})
 const allResults = () => ({ one: scenarios().results, two: partTwo().results })
 
