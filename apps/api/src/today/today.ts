@@ -92,6 +92,26 @@ export async function readLessonDay(executor: DbExecutor, context: CardReadConte
 	}
 }
 
+export async function readLessonRange(executor: DbExecutor, context: CardReadContext, from: string, to: string) {
+	const { now, defaultTimeZone } = context
+	const start = startOfLessonDay(from, defaultTimeZone)
+	const end = startOfLessonDay(addDays(to, 1), defaultTimeZone)
+	const upcomingFrom = start > now ? new Date(start.getTime() - 1) : now
+	const upcoming = []
+	for (let monday = mondayOf(from); monday <= to; monday = addDays(monday, 7)) {
+		const calendar = await readCalendarWindow(executor, context, {
+			kind: 'window',
+			...scheduleWeekRange(monday, defaultTimeZone),
+			displayTimeZone: defaultTimeZone,
+		})
+		upcoming.push(...(await calendarLessons(executor, calendar.events, upcomingFrom, end)))
+	}
+	const pastEnd = new Date(Math.min(now.getTime() + 1, end.getTime()))
+	const past = start > now ? [] : (await readWindow(executor, start, pastEnd, context)).blocks
+	const history = await filterHistoryBlocks(executor, context.accountId, past)
+	return [...history, ...upcoming].sort((left, right) => left.startsAt.localeCompare(right.startsAt))
+}
+
 export async function readToday(
 	executor: DbExecutor,
 	context: CardReadContext,

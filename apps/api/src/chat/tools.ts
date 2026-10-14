@@ -23,7 +23,7 @@ import {
 	calendarDate,
 	chatLessonIntent,
 } from '@dv-lab/contracts'
-import { addDays, lessonDay, startOfLessonDay, zonedParts } from '@dv-lab/core'
+import { addDays, lessonDay, zonedParts } from '@dv-lab/core'
 import { type Database, type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
 import { listLessonStudents, studentGenders } from '../cards/cards.ts'
@@ -31,8 +31,8 @@ import { listStudentNotes } from '../cards/notes.ts'
 import { listSections } from '../cards/sections.ts'
 import { listStudentComments } from '../schedule/comments.ts'
 import { occurrenceStartsAt } from '../schedule/rows.ts'
-import { readWindow } from '../schedule/schedule.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
+import { readLessonRange } from '../today/today.ts'
 import { type ActionSource, type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
 import { proposeChange } from './changes.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
@@ -382,13 +382,7 @@ async function lessons(
 ): Promise<ToolOutcome> {
 	if (input.to < input.from || addDays(input.from, RANGE_DAYS_MAX - 1) < input.to) return failure('range_too_long')
 	const zone = context.defaultTimeZone
-	const window = await readWindow(
-		executor,
-		startOfLessonDay(input.from, zone),
-		startOfLessonDay(addDays(input.to, 1), zone),
-		context
-	)
-	const found = window.blocks
+	const found = (await readLessonRange(executor, context, input.from, input.to))
 		.filter((block) => block.movedTo === null)
 		.filter((block) => input.student_id === null || block.studentId === input.student_id)
 		.sort((left, right) => right.startsAt.localeCompare(left.startsAt))
