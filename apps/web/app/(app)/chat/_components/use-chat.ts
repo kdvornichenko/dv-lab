@@ -319,13 +319,13 @@ function useAssistantSnapshot() {
 	return { view, refresh }
 }
 
-export function useChat(initialConversationId: string | null) {
+export function useChat(initialConversationId: string | null, options: { startNew: boolean }) {
 	const calendar = useCalendarController()
 	const router = useRouter()
 	const [list, setList] = useState<ConversationListState>({ kind: 'loading' })
 	const listRef = useRef<ConversationListState>(list)
-	const [selectedId, setSelectedId] = useState<string | null>(initialConversationId)
-	const [startedNew, setStartedNew] = useState(false)
+	const [selectedId, setSelectedId] = useState<string | null>(options.startNew ? null : initialConversationId)
+	const [startedNew, setStartedNew] = useState(options.startNew)
 	const [thread, setThread] = useState<Thread>(EMPTY_THREAD)
 	const threadRef = useRef<Thread>(thread)
 	const [threadGeneration, setThreadGeneration] = useState(0)
@@ -597,6 +597,13 @@ export function useChat(initialConversationId: string | null) {
 		select(null)
 	}, [select, setPending])
 
+	const beginNew = useCallback(() => {
+		setSendFailed(false)
+		setPending(null)
+		setStartedNew(true)
+		setSelectedId(null)
+	}, [setPending])
+
 	const replaceConversation = useCallback(
 		(conversation: ChatConversation) => {
 			requests.current++
@@ -866,6 +873,7 @@ export function useChat(initialConversationId: string | null) {
 		checkStatus,
 		select,
 		newChat,
+		beginNew,
 		send,
 		undo,
 		confirmCalendar,

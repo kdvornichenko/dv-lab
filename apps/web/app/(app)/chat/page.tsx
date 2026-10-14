@@ -12,15 +12,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 export default async function ChatPage({
 	searchParams,
 }: {
-	searchParams: Promise<{ student?: string | string[]; c?: string | string[] }>
+	searchParams: Promise<{ student?: string | string[]; c?: string | string[]; new?: string | string[] }>
 }) {
 	await requireTeacherPage()
-	const { student, c } = await searchParams
+	const { student, c, new: fresh } = await searchParams
 	return (
 		<SkeletonContent>
 			<ChatScreen
 				studentId={typeof student === 'string' && UUID.test(student) ? student : null}
 				conversationId={typeof c === 'string' && UUID.test(c) ? c : null}
+				startNew={fresh === '1'}
 			/>
 		</SkeletonContent>
 	)

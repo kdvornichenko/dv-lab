@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { Archive, ArchiveRestore, Wallet } from 'lucide-react'
+import { Archive, ArchiveRestore, MessageSquare, Wallet } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
@@ -209,6 +209,15 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 					description={<SummaryLine student={student} threshold={threshold} onSetBalance={focusOpeningBalance} />}
 					actions={
 						<>
+							{student.status === 'active' ? (
+								<Button
+									variant="secondary"
+									leadingIcon={MessageSquare}
+									onClick={() => router.push(`/chat?new=1&student=${id}`)}
+								>
+									Ask in chat
+								</Button>
+							) : null}
 							{student.status === 'active' ? (
 								<Button
 									ref={statusButton}

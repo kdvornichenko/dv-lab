@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 
 import { AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 
 import { EmptyLine } from '@/components/app/empty-line'
 import { ReadError } from '@/components/app/read-error'
@@ -10,6 +11,7 @@ import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
+import { withoutSearchParams } from '@/lib/arrival-mark'
 
 import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
 
@@ -160,8 +162,25 @@ function useWide(area: RefObject<HTMLDivElement | null>): boolean {
 	return wide
 }
 
-export function ChatScreen({ studentId, conversationId }: { studentId: string | null; conversationId: string | null }) {
-	const chat = useChat(conversationId)
+const ASK_NOTICES = {
+	unavailable: 'This student is no longer available. Choose a student again.',
+	failed: 'Could not open chat for this student. Try again.',
+} as const
+
+type AskNotice = keyof typeof ASK_NOTICES
+
+export function ChatScreen({
+	studentId,
+	conversationId,
+	startNew,
+}: {
+	studentId: string | null
+	conversationId: string | null
+	startNew: boolean
+}) {
+	const router = useRouter()
+	const chat = useChat(conversationId, { startNew })
+	const beginNew = chat.beginNew
 	const area = useRef<HTMLDivElement>(null)
 	const wide = useWide(area)
 	const [wasWide, setWasWide] = useState(false)
@@ -182,6 +201,56 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 	const students = useMentionStudents()
 	const input = useRef<HTMLTextAreaElement>(null)
 	const shownId = useRef(chat.selectedId)
+	const [seenNew, setSeenNew] = useState(false)
+	const [pendingAsk, setPendingAsk] = useState<string | null>(null)
+	const [askNotice, setAskNotice] = useState<AskNotice | null>(null)
+	const [askFocus, setAskFocus] = useState(0)
+	const setDraft = composer.setDraft
+	const mentionStudents = students.state
+
+	if (startNew !== seenNew) {
+		setSeenNew(startNew)
+		if (startNew) {
+			beginNew()
+			setAskNotice(null)
+			setDraft({ text: '', bindings: [], stale: false })
+			setPendingAsk(studentId)
+		}
+	}
+
+	if (pendingAsk !== null && mentionStudents.kind !== 'loading') {
+		setPendingAsk(null)
+		const row =
+			mentionStudents.kind === 'ready' ? mentionStudents.rows.find((item) => item.id === pendingAsk) : undefined
+		if (mentionStudents.kind === 'error') setAskNotice('failed')
+		else if (row === undefined) setAskNotice('unavailable')
+		else {
+			const name = row.displayName
+			setDraft({
+				text: `@${name} `,
+				bindings: [{ studentId: row.id, text: name, start: 1, end: 1 + name.length }],
+				stale: false,
+			})
+			setAskFocus((value) => value + 1)
+		}
+	}
+
+	useEffect(() => {
+		if (!startNew) return
+		const href = withoutSearchParams(['new', 'c'])
+		if (href !== undefined) router.replace(href, { scroll: false })
+		later(() => input.current?.focus())
+	}, [startNew, router])
+
+	useEffect(() => {
+		if (askFocus === 0) return
+		later(() => {
+			const field = input.current
+			if (!field) return
+			field.focus()
+			field.setSelectionRange(field.value.length, field.value.length)
+		})
+	}, [askFocus])
 
 	useEffect(() => {
 		if (shownId.current === chat.selectedId) return
@@ -208,7 +277,10 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 	}
 
 	async function send() {
-		if (await chat.send(composer.draft)) composer.clear()
+		if (await chat.send(composer.draft)) {
+			composer.clear()
+			setAskNotice(null)
+		}
 		later(() => input.current?.focus())
 	}
 
@@ -291,6 +363,11 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 							</div>
 						</ScrollArea>
 						<div className="mx-auto flex w-full max-w-180 flex-col gap-3">
+							{askNotice === null ? null : (
+								<Banner status="error">
+									<BannerTitle>{ASK_NOTICES[askNotice]}</BannerTitle>
+								</Banner>
+							)}
 							{chat.sendFailed ? (
 								<Banner status="error">
 									<BannerTitle>Could not send the message. Try again.</BannerTitle>
