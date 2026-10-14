@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, type ReactNode } from 'react'
-import Markdown, { type Components, type Options } from 'react-markdown'
+import { useMemo, type ComponentProps, type ReactNode } from 'react'
+import Markdown, { type Components, type ExtraProps, type Options } from 'react-markdown'
 
 import { Check } from 'lucide-react'
 import remarkGfm from 'remark-gfm'
@@ -13,6 +13,20 @@ import type { MentionBinding } from '@dv-lab/contracts'
 import { MENTION_TAG, remarkMarks } from './markdown-marks'
 
 const listClass = 'flex flex-col gap-1 pl-5 marker:text-muted-foreground [li_&]:mt-1'
+
+function Link({ node: _node, className, ...props }: ComponentProps<'a'> & ExtraProps) {
+	return (
+		<a
+			className={cn(
+				'text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground',
+				className
+			)}
+			target="_blank"
+			rel="noreferrer noopener"
+			{...props}
+		/>
+	)
+}
 
 const components: Components = {
 	h1: ({ node: _node, className, ...props }) => (
@@ -59,17 +73,7 @@ const components: Components = {
 				{checked ? <Check size={12} aria-hidden /> : null}
 			</span>
 		) : null,
-	a: ({ node: _node, className, ...props }) => (
-		<a
-			className={cn(
-				'text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground',
-				className
-			)}
-			target="_blank"
-			rel="noreferrer noopener"
-			{...props}
-		/>
-	),
+	a: Link,
 	code: ({ node: _node, className, ...props }) => (
 		<code className={cn('rounded-md bg-hover px-1 font-mono text-body', className)} {...props} />
 	),
@@ -114,8 +118,20 @@ const components: Components = {
 
 const headingClass = 'text-subtitle font-semibold'
 
+const LOCAL_ORIGIN = 'https://dv.invalid'
+
+function localHref(href: string | undefined): boolean {
+	if (href === undefined || !href.startsWith('/')) return false
+	try {
+		return new URL(href, LOCAL_ORIGIN).origin === LOCAL_ORIGIN
+	} catch {
+		return false
+	}
+}
+
 const chatComponents: Components = {
 	...components,
+	a: (props) => (localHref(props.href) ? <Link {...props} /> : <span>{props.children}</span>),
 	h1: ({ node: _node, className, ...props }) => <h1 className={cn(headingClass, className)} {...props} />,
 	h2: ({ node: _node, className, ...props }) => <h2 className={cn(headingClass, className)} {...props} />,
 	h3: ({ node: _node, className, ...props }) => <h3 className={cn(headingClass, className)} {...props} />,
