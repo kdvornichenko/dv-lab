@@ -217,7 +217,7 @@
 | WR-04, T-23-38, F-03 | `953e8b4` | `runs.ts`, `complete()`: если ход `/essay` закончился без блока `essay` (модель не вызвала `essay_feedback`), сервер добавляет `{ type: 'essay', task: null }`. Блок `withheld` считается по исходным блокам, как раньше. `tool_choice` не менялся |
 | WR-01, F-01 | `dc6b51c` | `changes.ts`: сумма, уроки и ставка сверяются с текстом учителя по границам числа `(?<![\p{Nd}.,])…(?![\p{Nd}]\|[.,]\p{Nd})`, имя — по границам слова `(?<![\p{L}\p{Nd}])…(?![\p{L}\p{Nd}])`. `command-zone.ts`: пояс — по границам слова. `change-cards.ts`: `moneyText` снимает запятые разрядов (`^\d{1,3}(,\d{3})+(\.\d+)?$`) перед `parseMoney` у суммы оплаты и у ставки, `1,50` остаётся дробью. `parseMoney` в core не менялся |
 | WR-09 | `ddeb084` | `chatDeletePaymentChange` получил необязательное `lessonMinutes`; `change-deletions.ts` заполняет его длиной урока карточки; web берёт его, `lessonMinutesOf` остаётся запасным для старых предложений без поля |
-| WR-07 | `fdd1d98` | `routes/students.ts`, `mutateStudent`: `postgresCode(error) === '40001'` даёт `{ kind: 'changed' }` (409 `precondition_failed`), уровень изоляции `repeatable read` прежний. Это все маршруты с CAS карточки: `PATCH /students/:id`, `archive`, `restore`. `POST /students` (строка 146) не тронут: там только вставка без ревизии, ответ «карточка изменилась» для него неверен |
+| WR-07 | `fdd1d98` | `routes/students.ts`, `mutateStudent`: `postgresCode(error) === '40001'` даёт `{ kind: 'changed' }` (409 `precondition_failed`), уровень изоляции `repeatable read` прежний. Это все маршруты с CAS карточки под `repeatable read`: `PATCH /students/:id`, `archive`, `restore`. `POST /students` (строка 146) не тронут: там только вставка без ревизии, ответ «карточка изменилась» для него неверен |
 | WR-08 | `40ef428` | `lessons-tab.tsx`: первая неделя — `mondayOf(scheduleToday(new Date(asOf), mainTimeZone))` |
 | WR-02 | `99ba4de` | `change-proposal.tsx`: «Balance is now X» заменено на «Balance after this payment: X» в итоге записи и удаления оплаты (для удаления текст тот же, как задано) |
 | WR-05, WR-06 | `2d76291` | `bulk-move-proposal.tsx`: в состоянии `partial` кнопки Check status нет (у `refused` действия `/check` ничего не меняет); в состоянии «Could not load this change's status.» есть Refresh status через `onRefresh`, как в `ChangeProposal` |
@@ -247,7 +247,7 @@
 
 - Браузерные разделы не запускались: `changes-web.mjs` `payment` требует свободный 4000, а `bulk`, `essay`, `proposals` и `forms` работают через dev-стек владельца на 3000 и 4000. Строки «Balance after this payment», Refresh status у массового переноса, отсутствие Check status у `partial`, текст панели остатка на дату открытия, текст privacy и первая неделя Lessons глазами не проверены. Для проверки: `node scripts/dev-checks/changes-web.mjs payment light`, `… bulk light`, `… essay light`.
 - Состояние `unknown` блока массового переноса (Refresh status) ни одна проверка не воспроизводит.
-- Dev-серверы владельца на 3000 и 4000 запущены из этого worktree: правки api перезапускали api владельца через watch. Сами серверы не останавливались, `yarn test` в корне и `yarn build` не запускались.
+- Dev-серверы владельца на 3000 и 4000 запущены из этого worktree: api владельца запущен через `node --watch` и перезапускался после правок api. Сами серверы не останавливались, `yarn test` в корне и `yarn build` не запускались.
 
 ## NOT RUN и замечания
 
