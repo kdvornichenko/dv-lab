@@ -6,17 +6,20 @@ import {
 	type PaymentResponse,
 	type PaymentsResponse,
 	assignPaymentRequest,
+	paymentRevisionRequest,
 	recordPaymentRequest,
+	updatePaymentRequest,
 } from '@dv-lab/contracts'
 import type { Database } from '@dv-lab/db'
 
-import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { type AppEnv, noStore, readJson, readOptionalJson, requireRole, requireSession } from '../auth/middleware.ts'
 import {
 	assignPayment,
 	deletePayment,
 	listCardPayments,
 	listUnassignedPayments,
 	recordPayment,
+	updatePayment,
 } from '../cards/payments.ts'
 import { errorBody } from '../request-context.ts'
 
@@ -25,6 +28,8 @@ type PaymentRouteDeps = { db: Database }
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
 const notFound = (c: Context<AppEnv>) => c.json(errorBody('not_found', 'Not Found'), 404)
+
+const paymentChanged = (c: Context<AppEnv>) => c.json(errorBody('precondition_failed', 'The payment changed'), 409)
 
 function paymentId(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('id'))
@@ -58,10 +63,37 @@ export function paymentRoutes({ db }: PaymentRouteDeps) {
 		c.json({ payments: await listUnassignedPayments(db) } satisfies PaymentsResponse, 200)
 	)
 
+	routes.patch('/:id', async (c) => {
+		const id = paymentId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, updatePaymentRequest)
+		if (!input) return invalidRequest(c)
+		const result = await updatePayment(db, c.get('session').account.id, id, input)
+		switch (result.kind) {
+			case 'not_found':
+				return notFound(c)
+			case 'invalid':
+				return invalidRequest(c)
+			case 'changed':
+				return paymentChanged(c)
+			case 'default_time_zone_changed':
+				return c.json(
+					errorBody(result.kind, 'Default time zone changed elsewhere. Refresh the page and try again.'),
+					409
+				)
+			case 'updated':
+				return c.json({ payment: result.payment } satisfies PaymentResponse, 200)
+		}
+	})
+
 	routes.delete('/:id', async (c) => {
 		const id = paymentId(c)
 		if (id === null) return notFound(c)
-		if ((await deletePayment(db, id)) === 'not_found') return notFound(c)
+		const input = await readOptionalJson(c, paymentRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await deletePayment(db, id, input.expectedRevision)
+		if (result === 'not_found') return notFound(c)
+		if (result === 'changed') return paymentChanged(c)
 		return c.body(null, 204)
 	})
 
@@ -78,6 +110,8 @@ export function paymentRoutes({ db }: PaymentRouteDeps) {
 				return invalidRequest(c)
 			case 'already_assigned':
 				return c.json(errorBody('payment_already_assigned', 'This payment is already assigned'), 409)
+			case 'changed':
+				return paymentChanged(c)
 			case 'assigned':
 				return c.json({ payment: result.payment } satisfies PaymentResponse, 200)
 		}
