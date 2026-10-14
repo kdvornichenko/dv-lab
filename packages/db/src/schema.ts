@@ -161,10 +161,7 @@ export const studentSections = pgTable(
 			.on(table.studentId, sql`lower(${table.name})`)
 			.where(sql`${table.deletedAt} is null and ${table.name} is not null`),
 		check('student_sections_body_ck', sql`char_length(${table.body}) <= 20000`),
-		check(
-			'student_sections_name_ck',
-			sql`${table.name} is null or char_length(btrim(${table.name})) between 1 and 60`
-		),
+		check('student_sections_name_ck', sql`${table.name} is null or char_length(btrim(${table.name})) between 1 and 60`),
 		check('student_sections_position_ck', sql`${table.position} is null or ${table.position} >= 1`),
 		check('student_sections_revision_ck', sql`${table.revision} >= 1`),
 	]
@@ -196,6 +193,35 @@ export const studentTerms = pgTable(
 			sql`${table.term} = btrim(${table.term}) and char_length(${table.term}) between 1 and 200`
 		),
 		check('student_terms_note_ck', sql`${table.note} is null or char_length(${table.note}) between 1 and 2000`),
+	]
+)
+
+export const noteReviews = pgTable('note_reviews', {
+	studentId: uuid('student_id')
+		.primaryKey()
+		.references(() => students.id, { onDelete: 'restrict' }),
+	reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+	offeredOn: date('offered_on'),
+	runningConversationId: uuid('running_conversation_id'),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const chatCommandPrompts = pgTable(
+	'chat_command_prompts',
+	{
+		accountId: uuid('account_id')
+			.notNull()
+			.references(() => accounts.id, { onDelete: 'restrict' }),
+		command: text('command').notNull(),
+		body: text('body'),
+		revision: integer('revision').default(1).notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+	},
+	(table) => [
+		primaryKey({ name: 'chat_command_prompts_pk', columns: [table.accountId, table.command] }),
+		check('chat_command_prompts_command_ck', sql`${table.command} ~ '^/[a-z][a-z0-9_-]{0,31}$'`),
+		check('chat_command_prompts_body_ck', sql`${table.body} is null or char_length(${table.body}) between 1 and 8000`),
+		check('chat_command_prompts_revision_ck', sql`${table.revision} >= 1`),
 	]
 )
 
@@ -351,9 +377,13 @@ export const teacherSettings = pgTable(
 		chatModels: jsonb('chat_models').$type<unknown>(),
 		chatModel: text('chat_model'),
 		chatEffort: text('chat_effort'),
+		notifyLessonSoon: boolean('notify_lesson_soon').default(true).notNull(),
+		notifyLessonMinutes: integer('notify_lesson_minutes').default(30).notNull(),
+		notifyPaysSoon: boolean('notify_pays_soon').default(true).notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [
+		check('teacher_settings_notify_minutes_ck', sql`${table.notifyLessonMinutes} between 5 and 120`),
 		check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`),
 		check('teacher_settings_chat_cap_ck', sql`${table.chatMonthlyCapUsd} > 0`),
 		check('teacher_settings_chat_input_ck', sql`${table.chatMaxInputTokens} between 1000 and 100000`),
