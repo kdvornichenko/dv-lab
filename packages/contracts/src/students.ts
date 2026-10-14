@@ -147,6 +147,35 @@ export const appendStudentNoteRequest = z.strictObject({
 
 export const retractNoteRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
 
+const sectionBody = z.string().refine((body) => textLength(body) <= SECTION_BODY_MAX_LENGTH)
+
+export const noteBlock = z.strictObject({
+	id: z.uuid(),
+	key: z.string(),
+	name: z.string(),
+	body: z.string(),
+	position: z.number().int(),
+	revision,
+	updatedAt: z.string().nullable(),
+	standard: z.boolean(),
+})
+
+export type NoteBlock = z.infer<typeof noteBlock>
+
+export const studentBlocksResponse = z.strictObject({
+	blocks: z.array(noteBlock),
+	reviewedAt: z.string().nullable(),
+	reviewRunning: z.strictObject({ conversationId: z.string() }).nullable(),
+})
+
+export type StudentBlocksResponse = z.infer<typeof studentBlocksResponse>
+
+export const studentBlockResponse = z.strictObject({ block: noteBlock })
+
+export type StudentBlockResponse = z.infer<typeof studentBlockResponse>
+
+export const saveBlockRequest = z.strictObject({ body: sectionBody, expectedRevision: revision })
+
 export const addTermRequest = z.object({
 	term: z
 		.string()

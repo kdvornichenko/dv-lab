@@ -7,6 +7,8 @@ import {
 	type CreateStudentAccountResponse,
 	SECTION_KINDS,
 	type StudentAccountResponse,
+	type StudentBlockResponse,
+	type StudentBlocksResponse,
 	type StudentDetail,
 	type StudentNoteResponse,
 	type StudentNotesResponse,
@@ -23,6 +25,7 @@ import {
 	linkStudentAccountRequest,
 	openingBalanceRequest,
 	retractNoteRequest,
+	saveBlockRequest,
 	saveSectionRequest,
 	saveStudentRequest,
 	updateStudentRequest,
@@ -32,6 +35,7 @@ import { type Database, type DbExecutor, postgresCode, readSnapshot } from '@dv-
 
 import { type AppEnv, noStore, readJson, readOptionalJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
+import { type BlockWrite, listBlocks, saveBlockText } from '../cards/blocks.ts'
 import {
 	cardAccountCandidates,
 	createCardAccount,
@@ -78,6 +82,17 @@ function noteIdParam(c: Context<AppEnv>): string | null {
 function termIdParam(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('termId'))
 	return id.success ? id.data : null
+}
+
+function blockIdParam(c: Context<AppEnv>): string | null {
+	const id = z.uuid().safeParse(c.req.param('blockId'))
+	return id.success ? id.data : null
+}
+
+function blockReply(c: Context<AppEnv>, result: BlockWrite, status: 200 | 201 = 200) {
+	if (result.kind === 'not_found') return notFound(c)
+	if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The block changed'), 409)
+	return c.json({ block: result.block } satisfies StudentBlockResponse, status)
 }
 
 async function studentResponse(
@@ -278,6 +293,24 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const section = await saveSection(db, id, kind.data, input.body)
 		if (!section) return notFound(c)
 		return c.json({ section } satisfies StudentSectionResponse, 200)
+	})
+
+	routes.get('/:id/blocks', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const blocks = await readSnapshot(db, (executor) => listBlocks(executor, id))
+		if (!blocks) return notFound(c)
+		return c.json({ blocks, reviewedAt: null, reviewRunning: null } satisfies StudentBlocksResponse, 200)
+	})
+
+	routes.put('/:id/blocks/:blockId', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, saveBlockRequest)
+		if (!input) return invalidRequest(c)
+		const result = await db.transaction((tx) => saveBlockText(tx, id, blockId, input.body, input.expectedRevision))
+		return blockReply(c, result)
 	})
 
 	routes.get('/:id/notes', async (c) => {
