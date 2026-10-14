@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from 'react'
 
 import { redirect } from 'next/navigation'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 import { CalendarCommandProvider } from '@/components/app/calendar-command-provider'
 import { getMe } from '@/lib/session'
@@ -29,11 +30,13 @@ async function AuthenticatedLayout({ children }: { children: ReactNode }) {
 		)
 	}
 	return (
-		<AppShell key={me.account.id} account={me.account}>
-			<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
-				<SessionRenewal renewDue={me.renewDue} />
-				{children}
-			</CalendarCommandProvider>
-		</AppShell>
+		<NuqsAdapter>
+			<AppShell key={me.account.id} account={me.account}>
+				<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
+					<SessionRenewal renewDue={me.renewDue} />
+					{children}
+				</CalendarCommandProvider>
+			</AppShell>
+		</NuqsAdapter>
 	)
 }
