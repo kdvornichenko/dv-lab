@@ -326,10 +326,12 @@ function EffortPopover({
 	onChoose: (choice: ModelChoice) => Promise<boolean>
 }) {
 	const [open, setOpen] = useState(false)
+	const [preview, setPreview] = useState<ChatEffort | null>(null)
 	const thumb = useRef<HTMLDivElement>(null)
 	const fallback = view.defaultEffortOf(capability)
 	const marker = fallback === capability.recommendedEffort ? 'Default · recommended' : 'Default'
 	const word = EFFORT_LABEL[level]
+	const titleWord = EFFORT_LABEL[preview ?? level]
 	const ceiling = highestEffort(capability.efforts)
 	const differs = level !== fallback
 	const modelOverride = view.modelId === view.defaultId ? null : view.modelId
@@ -366,7 +368,7 @@ function EffortPopover({
 			>
 				<div className="flex items-center justify-between gap-2">
 					<PopoverTitle className="whitespace-nowrap">
-						Effort: <EffortWord word={word} />
+						Effort: <EffortWord word={titleWord} />
 					</PopoverTitle>
 					<div className="flex items-center gap-1">
 						<Tooltip content={resetLabel} side="top">
@@ -410,6 +412,8 @@ function EffortPopover({
 					markerAt={fallback}
 					label="Effort"
 					thumbRef={thumb}
+					commit="release"
+					onPreview={setPreview}
 					onChange={(next) => onChoose(request(view, view.modelId, next))}
 				/>
 				{capability.efforts.length < 5 ? (

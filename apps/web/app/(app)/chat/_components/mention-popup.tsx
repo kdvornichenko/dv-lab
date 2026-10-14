@@ -46,7 +46,9 @@ function StudentRow({ item }: { item: Extract<PopupItem, { kind: 'student' }> })
 				{initials(item.name)}
 			</span>
 			<span className="flex min-w-0 flex-1 flex-col">
-				<span className="truncate text-body text-foreground">{item.name}</span>
+				<span className="truncate text-body text-foreground" title={item.name}>
+					{item.name}
+				</span>
 				{item.detail ? <span className="truncate text-micro text-muted-foreground">{item.detail}</span> : null}
 			</span>
 		</>
@@ -57,7 +59,9 @@ function CommandRow({ item }: { item: Extract<PopupItem, { kind: 'command' }> })
 	return (
 		<>
 			<span className="w-24 shrink-0 text-body font-medium text-foreground">{item.name}</span>
-			<span className="min-w-0 flex-1 truncate text-caption text-muted-foreground">{item.detail}</span>
+			<span className="min-w-0 flex-1 truncate text-caption text-muted-foreground" title={item.detail}>
+				{item.detail}
+			</span>
 		</>
 	)
 }
@@ -136,7 +140,7 @@ export function MentionPopup({
 						id={listId}
 						role="listbox"
 						aria-label={label}
-						className="scroll-fade flex max-h-60 scroll-py-6 flex-col overflow-y-auto overscroll-contain [--scroll-fade-size:var(--scroll-fade-size-compact)]"
+						className="scroll-fade flex max-h-60 min-w-0 scroll-py-6 flex-col overflow-y-auto overscroll-contain [--scroll-fade-size:var(--scroll-fade-size-compact)]"
 					>
 						{items.map((item, index) => (
 							<div
@@ -146,7 +150,7 @@ export function MentionPopup({
 								aria-selected={index === activeIndex}
 								data-active={index === activeIndex ? '' : undefined}
 								className={cn(
-									'flex min-h-10 shrink-0 cursor-pointer items-center gap-2.5 rounded-md px-3 py-1.5 pointer-coarse:min-h-11',
+									'flex min-h-10 min-w-0 shrink-0 cursor-pointer items-center gap-2.5 rounded-md px-3 py-1.5 pointer-coarse:min-h-11',
 									index === activeIndex ? 'bg-hover' : 'hover:bg-hover'
 								)}
 								onClick={() => onChoose(index)}

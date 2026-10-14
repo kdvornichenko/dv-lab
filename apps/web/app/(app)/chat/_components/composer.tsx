@@ -55,15 +55,6 @@ export const COMMAND_ROWS = [
 	})),
 ] as const
 
-const QUICK = [
-	{ label: 'Was', text: 'was at the lesson today' },
-	{ label: "Didn't happen", text: "didn't happen" },
-	{ label: 'No-show', text: "didn't come" },
-	{ label: 'Moved to…', text: 'moved to ' },
-] as const
-
-const QUICK_TEXTS = new Set(QUICK.map((item) => item.text.trim()))
-
 function findTrigger(draft: Draft, caret: number): Trigger {
 	const text = draft.text
 	if (draft.bindings.some((binding) => caret > tokenStart(text, binding) && caret <= binding.end)) return null
@@ -119,8 +110,8 @@ function Highlight({ text, bindings }: { text: string; bindings: readonly Mentio
 	return <>{parts}</>
 }
 
-const PLACEHOLDER = 'What do you want to ask?'
-const HINT = 'Shift+Enter — new line · @ — student'
+const PLACEHOLDER = 'Type / for commands or @ for a student'
+const HINT = 'Shift+Enter — new line'
 
 const FIELD_TEXT =
 	'text-body pointer-coarse:text-[16px] pointer-coarse:leading-6 whitespace-pre-wrap break-words [overflow-wrap:anywhere] [scrollbar-gutter:stable]'
@@ -233,17 +224,6 @@ export function Composer({
 		if (students.kind !== 'ready') return
 		const student = students.rows.find((row) => row.id === item.id)
 		if (student) apply(insertMention(draft, trigger.from, caret, student))
-	}
-
-	function quick(text: string) {
-		const binding = draft.bindings[0]
-		if (!binding) return
-		const tail = draft.text.slice(binding.end).trim().toLocaleLowerCase()
-		if (tail === '' || QUICK_TEXTS.has(tail)) apply(replaceText(draft, binding.end, draft.text.length, ` ${text}`))
-		else {
-			const gap = /\s$/.test(draft.text) ? '' : ' '
-			apply(replaceText(draft, draft.text.length, draft.text.length, `${gap}${text}`))
-		}
 	}
 
 	function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -372,22 +352,6 @@ export function Composer({
 							onKeyDown={onKeyDown}
 						/>
 					</div>
-					{draft.bindings.length > 0 && !replying ? (
-						<div className="flex flex-wrap gap-2" data-slot="chat-quick-actions">
-							{QUICK.map((item) => (
-								<Button
-									key={item.label}
-									variant="secondary"
-									size="compact"
-									disabled={disabled}
-									onMouseDown={(event) => event.preventDefault()}
-									onClick={() => quick(item.text)}
-								>
-									{item.label}
-								</Button>
-							))}
-						</div>
-					) : null}
 					<div className="flex items-center justify-between gap-2">
 						<div className="min-w-0 flex-1">
 							<ModelControls
@@ -465,7 +429,7 @@ export function Composer({
 					<span className="min-w-0 flex-1">This student is no longer available. Choose a student again.</span>
 				</p>
 			) : null}
-			<p id={`${listId}-hint`} className="text-caption text-muted-foreground">
+			<p id={`${listId}-hint`} className="text-caption text-muted-foreground pointer-coarse:hidden">
 				{HINT}
 			</p>
 		</div>
@@ -493,7 +457,7 @@ export function ComposerSkeleton() {
 					</Button>
 				</div>
 			</Elevated>
-			<p className="text-caption text-muted-foreground">{HINT}</p>
+			<p className="text-caption text-muted-foreground pointer-coarse:hidden">{HINT}</p>
 		</div>
 	)
 }

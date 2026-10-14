@@ -149,7 +149,8 @@ function rowErrors(draft: Draft, rows: readonly Draft[]): RowErrors {
 	const name = draft.name.trim()
 	if (name === '' || name.length > 60) errors.name = 'Enter a name.'
 	const description = draft.description.trim()
-	if (description === '' || description.length > 120) errors.description = 'Enter a short description.'
+	if (description === '' || description.length > 120)
+		errors.description = 'Enter a short description of up to 120 characters.'
 	const id = draft.id.trim()
 	if (id === '') errors.id = 'Enter the model id.'
 	else if (rows.some((other) => other.key !== draft.key && other.id.trim() === id))
@@ -195,12 +196,14 @@ function Field({
 	id,
 	label,
 	error,
+	hint,
 	className,
 	children,
 }: {
 	id: string
 	label: string
 	error?: string
+	hint?: string
 	className?: string
 	children: ReactNode
 }) {
@@ -213,6 +216,10 @@ function Field({
 			{error ? (
 				<p id={`${id}-error`} className="text-caption text-destructive">
 					{error}
+				</p>
+			) : hint ? (
+				<p id={`${id}-hint`} className="text-caption text-muted-foreground">
+					{hint}
 				</p>
 			) : null}
 		</div>
@@ -353,13 +360,18 @@ function ModelForm({
 					/>
 				</Field>
 			</div>
-			<Field id={`${base}-description`} label="Short description" error={shown('description')}>
+			<Field
+				id={`${base}-description`}
+				label="Short description"
+				error={shown('description')}
+				hint="Shown under the model's name in the chat menu. 1 to 120 characters."
+			>
 				<Input
 					id={`${base}-description`}
 					value={draft.description}
 					autoComplete="off"
 					aria-invalid={shown('description') ? true : undefined}
-					aria-describedby={shown('description') ? `${base}-description-error` : undefined}
+					aria-describedby={shown('description') ? `${base}-description-error` : `${base}-description-hint`}
 					onChange={(event) => onChange({ description: event.target.value })}
 				/>
 			</Field>
@@ -464,7 +476,7 @@ function ModelForm({
 				>
 					Remove model
 				</Button>
-				<Button type="button" variant="ghost" size="compact" onClick={onClose}>
+				<Button type="button" variant="secondary" size="compact" onClick={onClose}>
 					Close
 				</Button>
 			</div>
@@ -561,13 +573,25 @@ function ModelRow({
 					}}
 				>
 					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-						<div className="flex items-center gap-2">
-							<span className="truncate text-body font-medium text-foreground">{draft.name.trim() || 'New model'}</span>
+						<div className="flex min-w-0 items-center gap-2">
+							<span
+								className="min-w-0 truncate text-body font-medium text-foreground"
+								title={draft.name.trim() || undefined}
+							>
+								{draft.name.trim() || 'New model'}
+							</span>
 							{isDefault ? (
-								<span className="shrink-0 rounded-full bg-hover px-1.5 text-micro text-foreground">Default</span>
+								<span className="flex-none rounded-full bg-hover px-1.5 text-micro text-foreground">Default</span>
 							) : null}
 						</div>
-						<span className="truncate font-mono text-micro text-muted-foreground">{draft.id || 'No id yet'}</span>
+						<span className="truncate font-mono text-micro text-muted-foreground" title={draft.id || undefined}>
+							{draft.id || 'No id yet'}
+						</span>
+						{draft.description.trim() ? (
+							<span className="truncate text-caption text-muted-foreground" title={draft.description.trim()}>
+								{draft.description.trim()}
+							</span>
+						) : null}
 						<span className="text-caption text-muted-foreground">{effortSummary(draft)}</span>
 						<span className="text-caption text-muted-foreground tabular-nums">
 							Input ${draft.input || '–'} · Cache write ${draft.cacheWrite || '–'} · Cache read $

@@ -111,7 +111,7 @@ function Row({
 }) {
 	return (
 		<motion.li
-			className="group/row relative"
+			className="group/row relative min-w-0"
 			initial={reduceMotion ? false : { opacity: 0, y: 12 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{
@@ -152,7 +152,7 @@ function Row({
 				</span>
 				<span
 					className={cn(
-						'shrink-0 text-caption text-muted-foreground tabular-nums',
+						'flex-none text-caption text-muted-foreground tabular-nums',
 						'group-focus-within/row:invisible group-hover/row:invisible group-has-[[data-popup-open]]/row:invisible',
 						'pointer-coarse:hidden'
 					)}
@@ -203,7 +203,7 @@ export function ConversationList({
 					rail ? 'scroll-fade h-full [&>div]:!min-w-0' : 'scroll-fade max-h-[inherit] [&>div]:!min-w-0'
 				}
 			>
-				<ul aria-label="All chats" className="flex flex-col gap-0.5">
+				<ul aria-label="All chats" className="flex min-w-0 flex-col gap-0.5">
 					{state.conversations.map((conversation, index) => (
 						<Row
 							key={conversation.id}
