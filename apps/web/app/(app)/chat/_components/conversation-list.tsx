@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'
+import { DotShape } from '@/components/app/status-dot'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { DropdownContent, DropdownMenu, DropdownTrigger } from '@/components/ui/dropdown'
@@ -13,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { spring } from '@/lib/springs'
 import { cn } from '@/lib/utils'
 
-import type { ChatConversation } from '@dv-lab/contracts'
+import type { ChatConversation, ChatConversationListItem } from '@dv-lab/contracts'
 
 import type { ConversationListState } from './use-chat'
 
@@ -98,7 +99,7 @@ function Row({
 	onRename,
 	onDelete,
 }: {
-	conversation: ChatConversation
+	conversation: ChatConversationListItem
 	index: number
 	selected: boolean
 	now: Date
@@ -135,7 +136,19 @@ function Row({
 					<span className="block truncate text-body font-medium text-foreground" title={conversation.title}>
 						{conversation.title}
 					</span>
-					<span className="block truncate text-caption text-muted-foreground">Empty chat</span>
+					{conversation.waiting ? (
+						<span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+							<DotShape tone="amber" />
+							<span className="truncate">Waiting for a decision</span>
+						</span>
+					) : (
+						<span
+							className="block truncate text-caption text-muted-foreground"
+							title={conversation.preview ?? undefined}
+						>
+							{conversation.preview ?? 'Empty chat'}
+						</span>
+					)}
 				</span>
 				<span
 					className={cn(
@@ -186,7 +199,9 @@ export function ConversationList({
 		) : (
 			<ScrollArea
 				className={rail ? 'min-h-0 flex-1' : 'max-h-[calc(100dvh-14rem)]'}
-				viewportClassName={rail ? 'scroll-fade h-full' : 'scroll-fade max-h-[inherit]'}
+				viewportClassName={
+					rail ? 'scroll-fade h-full [&>div]:!min-w-0' : 'scroll-fade max-h-[inherit] [&>div]:!min-w-0'
+				}
 			>
 				<ul aria-label="All chats" className="flex flex-col gap-0.5">
 					{state.conversations.map((conversation, index) => (

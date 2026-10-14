@@ -2079,11 +2079,11 @@ async function sectionTitle() {
 				await page.waitForTimeout(7000)
 				const afterSecond = conversationRow(first)
 				check(
-					'a second turn keeps the title, the revision and makes no extra list reads',
+					'a second turn keeps the title and the revision and reads the list only to refresh the preview (after sending and after the reply)',
 					afterSecond.title === AUTO_TITLE &&
 						Number(afterSecond.revision) === 2 &&
 						(await titleShown(page, first, AUTO_TITLE)).header &&
-						reads.count === readsAtTitle,
+						reads.count - readsAtTitle <= 2,
 					JSON.stringify({ afterSecond, extra: reads.count - readsAtTitle })
 				)
 

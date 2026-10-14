@@ -31,6 +31,7 @@ const sections = {
 	models: sectionModels,
 	delete: sectionDelete,
 	fade: sectionFade,
+	preview: sectionPreview,
 }
 
 function removeFixtures() {
@@ -2781,6 +2782,211 @@ async function sectionFade() {
 		const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 		check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 	})
+}
+
+const PREVIEW_ROWS = {
+	plain: { id: randomUUID(), title: 'Preview plain row', preview: 'Did the lesson happen today?', waiting: false },
+	long: {
+		id: randomUUID(),
+		title: 'Preview long row',
+		preview:
+			'Two students are close to the end of their packages and one of them still owes for last week, so check the payments list…',
+		waiting: false,
+	},
+	waiting: { id: randomUUID(), title: 'Preview waiting row', preview: 'Move the lesson to Friday', waiting: true },
+	empty: { id: randomUUID(), title: 'Preview empty row', preview: null, waiting: false },
+}
+const PREVIEW_WIDTHS = [1500, 1280, 390, 375, 320]
+const WAITING_TEXT = 'Waiting for a decision'
+
+function rowFacts(page, id) {
+	return page.evaluate((rowId) => {
+		const button = document.querySelector(`[data-row-id="${rowId}"]`)
+		const second = button?.querySelector('.min-w-0 > :nth-child(2)')
+		if (!button || !second) return null
+		const text = second.querySelector('.truncate') ?? second
+		const dot = second.querySelector('i')
+		return {
+			rowHeight: Math.round(button.getBoundingClientRect().height),
+			text: second.textContent,
+			title: second.getAttribute('title'),
+			clipped: text.scrollWidth > text.clientWidth,
+			lineHeight: Math.round(text.getBoundingClientRect().height),
+			dotSize: dot ? Math.round(dot.getBoundingClientRect().width) : 0,
+			dotColor: dot ? getComputedStyle(dot).backgroundColor : null,
+			full: button.innerText,
+		}
+	}, id)
+}
+
+async function routePreviewApi(page) {
+	const items = Object.values(PREVIEW_ROWS).map((row) => ({
+		...fadeConversation(row.id, row.title),
+		preview: row.preview,
+		waiting: row.waiting,
+	}))
+	await page.route('**/api/chat/conversations**', async (route) => {
+		const request = route.request()
+		const path = new URL(request.url()).pathname.replace(/^\/api/, '')
+		if (request.method() !== 'GET') return route.fallback()
+		if (path === '/chat/conversations') {
+			await route.fulfill({ json: { conversations: items } })
+			return
+		}
+		const conversation = items.find((item) => path === `/chat/conversations/${item.id}`)
+		if (!conversation) return route.fallback()
+		await route.fulfill({
+			json: { conversation: fadeConversation(conversation.id, conversation.title), messages: [], turn: null },
+		})
+	})
+}
+
+async function sectionPreviewRows() {
+	await withBrowser({ width: 1280, height: 800 }, async ({ page, problems }) => {
+		await setTheme(page)
+		await signIn(page)
+		await routePreviewApi(page)
+		for (const width of PREVIEW_WIDTHS) {
+			const tag = `${width}`
+			await page.setViewportSize({ width, height: 760 })
+			await page.goto(`${BASE}/chat?c=${PREVIEW_ROWS.plain.id}`)
+			await page.locator('h1').waitFor({ timeout: 30000 })
+			if (width < 1500) await openList(page)
+			await rowOf(page, PREVIEW_ROWS.plain.id).waitFor({ timeout: 15000 })
+			await page.waitForTimeout(600)
+			const plain = await rowFacts(page, PREVIEW_ROWS.plain.id)
+			const long = await rowFacts(page, PREVIEW_ROWS.long.id)
+			const waiting = await rowFacts(page, PREVIEW_ROWS.waiting.id)
+			const empty = await rowFacts(page, PREVIEW_ROWS.empty.id)
+			check(
+				`${tag}: a row shows the last message under the title`,
+				plain.text === PREVIEW_ROWS.plain.preview,
+				plain.text
+			)
+			check(
+				`${tag}: a row stays 56px with one caption line`,
+				plain.rowHeight === 56 && plain.lineHeight <= 20,
+				JSON.stringify(plain)
+			)
+			check(
+				`${tag}: a long preview is one clipped line with the full text as title`,
+				long.rowHeight === 56 && long.lineHeight <= 20 && long.title === PREVIEW_ROWS.long.preview,
+				JSON.stringify({ clipped: long.clipped, height: long.lineHeight })
+			)
+			check(
+				`${tag}: the accessible name of a row holds the full preview`,
+				(await page.getByRole('button', { name: PREVIEW_ROWS.long.preview }).count()) === 1
+			)
+			check(
+				`${tag}: a waiting row shows the amber dot and the waiting text instead of the preview`,
+				waiting.text === WAITING_TEXT &&
+					waiting.dotSize === 8 &&
+					waiting.dotColor !== 'rgba(0, 0, 0, 0)' &&
+					!waiting.full.includes(PREVIEW_ROWS.waiting.preview),
+				JSON.stringify(waiting)
+			)
+			check(
+				`${tag}: a conversation with no message says Empty chat and only then`,
+				empty.text === 'Empty chat' && [plain, long, waiting].every((row) => !row.text.includes('Empty chat')),
+				empty.text
+			)
+			await shot(page, 'chat-preview', tag)
+		}
+		const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+		check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+	})
+}
+
+async function sectionPreviewLive() {
+	const started = await startFakeModelApi()
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = teacher
+		? sql(
+				`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${teacher}' order by starts_on desc limit 1`
+			).rows[0]
+		: undefined
+	try {
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await setTheme(page)
+				await routeFake(page, started)
+				await signIn(page)
+				const listReads = []
+				page.on('request', (request) => {
+					if (request.method() === 'GET' && request.url().endsWith('/api/chat/conversations'))
+						listReads.push(Date.now())
+				})
+				await openChat(page, null)
+				const field = page.locator(FIELD)
+				await field.waitFor({ timeout: 30000 })
+				await field.click()
+				await page.keyboard.type('Plan the next lesson for my group')
+				const readsBefore = listReads.length
+				await page.keyboard.press('Enter')
+				await page.getByText(FAKE_LAST).waitFor({ timeout: 30000 })
+				await page.locator(SEND).waitFor({ timeout: 15000 })
+				const id = new URL(page.url()).searchParams.get('c')
+				if (id) conversations.push(id)
+				check('a conversation with a finished reply exists', id !== null)
+				await openList(page)
+				const row = rowOf(page, id)
+				await row.getByText(AUTO_TITLE).waitFor({ timeout: 20000 })
+				const reply = (await replyText(page)).replace(/\s+/g, ' ').trim()
+				const live = await rowFacts(page, id)
+				const wanted = live.text.replace(/…$/, '')
+				check(
+					'the row shows the last message after the reply and the auto title, without reopening the list',
+					wanted.length > 10 && live.text !== 'Empty chat' && reply.startsWith(wanted.slice(0, 40)),
+					`${live.text} | ${reply.slice(0, 60)}`
+				)
+				check(
+					'the list was read again after sending',
+					listReads.length > readsBefore,
+					String(listReads.length - readsBefore)
+				)
+				const apiRow = await page.evaluate(async () => {
+					const response = await fetch('/api/chat/conversations')
+					return response.json()
+				})
+				const fromApi = apiRow.conversations?.find((item) => item.id === id)
+				check(
+					'the preview in the row is the one the list endpoint returns',
+					fromApi?.preview === live.text && fromApi?.waiting === false,
+					JSON.stringify({ preview: fromApi?.preview, waiting: fromApi?.waiting })
+				)
+				await shot(page, 'chat-preview', 'live')
+
+				await openRowMenu(page, id, 'Rename conversation')
+				const dialog = page.getByRole('dialog', { name: 'Rename conversation' })
+				await dialog.waitFor({ timeout: 15000 })
+				await dialog.getByLabel('Conversation title').fill(TITLE_B)
+				await dialog.getByRole('button', { name: 'Save title' }).click()
+				await dialog.waitFor({ state: 'detached', timeout: 15000 })
+				await rowOf(page, id).getByText(TITLE_B).waitFor({ timeout: 15000 })
+				const renamed = await rowFacts(page, id)
+				check('a rename keeps the preview in the row', renamed.text === live.text, renamed.text)
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeConversations(conversations),
+			() => {
+				if (period)
+					sql(
+						`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = '${period.id}'`
+					)
+			}
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
+async function sectionPreview() {
+	await sectionPreviewRows()
+	await sectionPreviewLive()
 }
 
 const section = process.argv[2]

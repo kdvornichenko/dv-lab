@@ -21,6 +21,7 @@ import {
 	type ChatCalendarProposalBlock,
 	type ChatChangeProposalBlock,
 	type ChatConversation,
+	type ChatConversationListItem,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
 	type ChatMessage,
@@ -151,7 +152,7 @@ export function useMentionStudents() {
 }
 
 export type ConversationListState =
-	{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; conversations: ChatConversation[] }
+	{ kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; conversations: ChatConversationListItem[] }
 
 export type RenameOutcome = 'saved' | 'gone' | 'failed'
 
@@ -164,8 +165,8 @@ function selectionHref(id: string | null): string {
 	return `${url.pathname}${url.search}${url.hash}`
 }
 
-function latestConversation(conversations: readonly ChatConversation[]): ChatConversation | null {
-	let latest: ChatConversation | null = null
+function latestConversation(conversations: readonly ChatConversationListItem[]): ChatConversationListItem | null {
+	let latest: ChatConversationListItem | null = null
 	for (const item of conversations) if (latest === null || item.updatedAt > latest.updatedAt) latest = item
 	return latest
 }
@@ -517,10 +518,11 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				streamRef.current = null
 				stream.controller.abort()
 				setReply(null)
+				void readQuietly()
 				if (event.turn.state === 'completed' && TITLED_ISSUES.includes(event.turn.issue)) watchTitle(conversationId)
 			} else setReply({ conversationId, turn: event.turn, stopping: current?.stopping ?? false })
 		},
-		[calendar, setReply, updateThread, watchTitle]
+		[calendar, readQuietly, setReply, updateThread, watchTitle]
 	)
 
 	const follow = useCallback(
@@ -553,9 +555,10 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				const read = await readThread(conversationId)
 				if (mounted.current && threadRef.current.conversationId === conversationId)
 					commitThread({ conversationId, state: read.state })
+				void readQuietly()
 			})()
 		},
-		[apply, cancelTitleWatch, commitThread, setReply]
+		[apply, cancelTitleWatch, commitThread, readQuietly, setReply]
 	)
 
 	useEffect(() => {
@@ -630,10 +633,14 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		(conversation: ChatConversation) => {
 			requests.current++
 			const current = listRef.current
-			const others = (current.kind === 'ready' ? current.conversations : []).filter(
-				(item) => item.id !== conversation.id
-			)
-			commit({ kind: 'ready', conversations: [conversation, ...others] })
+			const all = current.kind === 'ready' ? current.conversations : []
+			const previous = all.find((item) => item.id === conversation.id)
+			const first: ChatConversationListItem = {
+				...conversation,
+				preview: previous?.preview ?? null,
+				waiting: previous?.waiting ?? false,
+			}
+			commit({ kind: 'ready', conversations: [first, ...all.filter((item) => item.id !== conversation.id)] })
 		},
 		[commit]
 	)
@@ -664,7 +671,9 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			if (current.kind !== 'ready') return
 			commit({
 				kind: 'ready',
-				conversations: current.conversations.map((item) => (item.id === conversation.id ? conversation : item)),
+				conversations: current.conversations.map((item) =>
+					item.id === conversation.id ? { ...item, ...conversation } : item
+				),
 			})
 		},
 		[commit]
@@ -734,13 +743,14 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				putFirst(parsed.data.conversation)
 				updateThread(conversationId, (messages) => mergeMessages(messages, parsed.data.messages))
 				if (parsed.data.turn !== null) follow(conversationId, parsed.data.turn)
+				void readQuietly()
 				return true
 			} finally {
 				sendingRef.current = false
 				if (mounted.current) setSending(false)
 			}
 		},
-		[cancelTitleWatch, follow, load, openConversation, putFirst, updateThread]
+		[cancelTitleWatch, follow, load, openConversation, putFirst, readQuietly, updateThread]
 	)
 
 	const activeConversation =
@@ -827,8 +837,9 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				shownCalendar(conversationId, parsed.data.block)
 			else updateThread(conversationId, (messages) => withBlock(messages, { ...block, state: 'unknown' }))
 			void calendar.store.refresh()
+			void readQuietly()
 		},
-		[calendar, shownCalendar, updateThread]
+		[calendar, readQuietly, shownCalendar, updateThread]
 	)
 
 	const landed = useCallback(
@@ -885,8 +896,9 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			if (parsed?.success && parsed.data.block.type === 'calendar_proposal')
 				updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
 			else void refreshThread()
+			void readQuietly()
 		},
-		[refreshThread, updateThread]
+		[readQuietly, refreshThread, updateThread]
 	)
 
 	const decideChange = useCallback(
@@ -903,13 +915,14 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				const shown = parsed.data.block
 				updateThread(conversationId, (messages) => withBlock(messages, shown))
 				landed(block, shown)
+				void readQuietly()
 				return true
 			}
 			if (await refreshThread()) return true
 			updateThread(conversationId, (messages) => withBlock(messages, block))
 			return false
 		},
-		[landed, refreshThread, updateThread]
+		[landed, readQuietly, refreshThread, updateThread]
 	)
 
 	const rename = useCallback(

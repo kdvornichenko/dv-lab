@@ -47,6 +47,26 @@ export function sql<T extends object = SqlRow>(text: string): { rows: T[]; rowCo
 	return { rows: parsed.rows as T[], rowCount: Number(parsed.rowCount), command: String(parsed.command) }
 }
 
+async function acceptedApiOrigin(): Promise<string> {
+	const candidates = [
+		...new Set([BASE, process.env.APP_ORIGIN, env.APP_ORIGIN].filter((origin): origin is string => !!origin)),
+	]
+	for (const origin of candidates) {
+		const response = await fetch(`${BASE}/api/auth/sign-in`, {
+			method: 'POST',
+			headers: { origin, 'content-type': 'application/json' },
+			body: JSON.stringify({ login: 'origin-probe', password: 'origin-probe' }),
+		}).catch(() => null)
+		const body: unknown = response ? await response.json().catch(() => null) : null
+		const code =
+			body && typeof body === 'object' && 'error' in body && body.error && typeof body.error === 'object'
+				? (body.error as { code?: unknown }).code
+				: null
+		if (response && code !== 'forbidden_origin') return origin
+	}
+	return BASE
+}
+
 export async function launch({
 	width = 1280,
 	height = 800,
@@ -65,6 +85,16 @@ export async function launch({
 			colorScheme,
 			...(timezoneId ? { timezoneId } : {}),
 		})
+		const apiOrigin = await acceptedApiOrigin()
+		if (apiOrigin !== BASE)
+			await context.route('**/api/**', async (route) => {
+				const headers = { ...(await route.request().allHeaders()), origin: apiOrigin }
+				try {
+					await route.fulfill({ response: await route.fetch({ headers }) })
+				} catch {
+					await route.abort().catch(() => undefined)
+				}
+			})
 		const page = await context.newPage()
 		const problems: string[] = []
 		page.on('console', (message) => {
