@@ -30,6 +30,7 @@ const sections = {
 	answers: sectionAnswers,
 	models: sectionModels,
 	delete: sectionDelete,
+	fade: sectionFade,
 }
 
 function removeFixtures() {
@@ -2575,6 +2576,211 @@ async function sectionDelete() {
 	} finally {
 		await stopFakeModelApi(started)
 	}
+}
+
+const FADE_SHORT = randomUUID()
+const FADE_LONG = randomUUID()
+const FADE_WIDTHS = [1280, 390, 375, 320]
+const FADE_NOW = '2026-10-14T09:00:00.000Z'
+
+function fadeConversation(id, title) {
+	return {
+		id,
+		title,
+		revision: 1,
+		model: 'claude-sonnet-5-5',
+		effort: null,
+		override: false,
+		createdAt: FADE_NOW,
+		updatedAt: FADE_NOW,
+	}
+}
+
+function fadeMessage(role, index) {
+	return {
+		id: randomUUID(),
+		role,
+		body:
+			role === 'teacher'
+				? `Teacher line ${index}`
+				: `Assistant answer ${index}. A reply long enough to wrap across the column on a narrow screen, so the thread has height.`,
+		mentions: [],
+		blocks: [],
+		steps: [],
+		createdAt: FADE_NOW,
+		finishedAt: role === 'teacher' ? null : FADE_NOW,
+	}
+}
+
+function fadeThread(count) {
+	return Array.from({ length: count }, (_, index) => fadeMessage(index % 2 === 0 ? 'teacher' : 'assistant', index + 1))
+}
+
+async function routeFadeApi(page, threads) {
+	const conversations = [
+		fadeConversation(FADE_SHORT, 'Fade short thread'),
+		fadeConversation(FADE_LONG, 'Fade long thread'),
+	]
+	await page.route('**/api/chat/conversations**', async (route) => {
+		const request = route.request()
+		const path = new URL(request.url()).pathname.replace(/^\/api/, '')
+		if (request.method() === 'GET' && path === '/chat/conversations') {
+			await route.fulfill({ json: { conversations } })
+			return
+		}
+		const id = path.split('/')[3]
+		const conversation = conversations.find((item) => item.id === id)
+		if (!conversation) return route.fallback()
+		if (request.method() === 'GET' && path === `/chat/conversations/${id}`) {
+			await route.fulfill({ json: { conversation, messages: threads[id], turn: null } })
+			return
+		}
+		if (request.method() === 'POST' && path === `/chat/conversations/${id}/messages`) {
+			const sent = fadeMessage('teacher', threads[id].length + 1)
+			threads[id].push(sent)
+			await route.fulfill({ status: 201, json: { conversation, messages: [sent], turn: null } })
+			return
+		}
+		return route.fallback()
+	})
+}
+
+function fadeState(page) {
+	return page.evaluate(() => {
+		const log = document.querySelector('[role="log"]')
+		const view = log?.closest('[data-slot="scroll-area-viewport"]')
+		if (!log || !view) return null
+		const alphas = [...getComputedStyle(view).maskImage.matchAll(/rgba?\(([^)]*)\)/g)].map((match) => {
+			const parts = match[1].split(/[,/]/).map((part) => part.trim())
+			return parts.length > 3 ? Number(parts[3]) : 1
+		})
+		const messages = log.querySelectorAll('[data-message-id]')
+		const first = messages[0]?.getBoundingClientRect()
+		const last = messages[messages.length - 1]?.getBoundingClientRect()
+		const box = view.getBoundingClientRect()
+		const field = document.querySelector('[data-slot="chat-composer-field"]')?.getBoundingClientRect()
+		const column = log.getBoundingClientRect()
+		return {
+			top: alphas[0] ?? 1,
+			bottom: alphas.at(-1) ?? 1,
+			scrollTop: view.scrollTop,
+			scrollHeight: view.scrollHeight,
+			clientHeight: view.clientHeight,
+			viewWidth: Math.round(box.width),
+			columnWidth: Math.round(column.width),
+			firstTop: first ? Math.round(first.top - box.top) : null,
+			lastBottom: last ? Math.round(box.bottom - last.bottom) : null,
+			toField: field ? Math.round(field.top - box.bottom) : null,
+			marginTop: log.firstElementChild ? getComputedStyle(log.firstElementChild).marginTop : null,
+			justify: getComputedStyle(log).justifyContent,
+			direction: getComputedStyle(log).flexDirection,
+		}
+	})
+}
+
+async function settleFade(page) {
+	await page.waitForTimeout(250)
+	return fadeState(page)
+}
+
+async function scrollFade(page, top) {
+	await page.evaluate((value) => {
+		const view = document.querySelector('[role="log"]')?.closest('[data-slot="scroll-area-viewport"]')
+		if (view) view.scrollTop = value < 0 ? view.scrollHeight : value
+	}, top)
+	return settleFade(page)
+}
+
+async function sectionFade() {
+	const threads = { [FADE_SHORT]: fadeThread(2), [FADE_LONG]: fadeThread(40) }
+	await withBrowser({ width: 1280, height: 800 }, async ({ page, problems }) => {
+		await setTheme(page)
+		await signIn(page)
+		await routeFadeApi(page, threads)
+		for (const width of FADE_WIDTHS) {
+			const tag = `${width}`
+			await page.setViewportSize({ width, height: width === 1280 ? 800 : 700 })
+
+			await page.goto(`${BASE}/chat?c=${FADE_SHORT}`)
+			await page.locator('[data-message-id]').first().waitFor({ timeout: 30000 })
+			const short = await settleFade(page)
+			check(
+				`${tag}: a short conversation does not scroll`,
+				short.scrollHeight <= short.clientHeight,
+				JSON.stringify(short)
+			)
+			check(
+				`${tag}: a short conversation has no fade on either edge`,
+				short.top === 1 && short.bottom === 1,
+				`${short.top} ${short.bottom}`
+			)
+			check(
+				`${tag}: a short conversation sits against the composer with room above`,
+				short.lastBottom <= 24 && short.firstTop > 40,
+				`last ${short.lastBottom} first ${short.firstTop}`
+			)
+			check(
+				`${tag}: the holding is margin-top auto, not justify-content or column-reverse`,
+				short.marginTop !== '0px' && short.justify === 'normal' && short.direction === 'column',
+				`${short.marginTop} ${short.justify} ${short.direction}`
+			)
+			await shot(page, 'chat-fade', `${tag}-short`)
+
+			await page.goto(`${BASE}/chat?c=${FADE_LONG}`)
+			await page.locator('[data-message-id]').first().waitFor({ timeout: 30000 })
+			const rest = await settleFade(page)
+			check(
+				`${tag}: the long conversation opens at its end`,
+				rest.scrollHeight - rest.scrollTop - rest.clientHeight < 4,
+				JSON.stringify(rest)
+			)
+			check(
+				`${tag}: at the newest message only the top edge fades`,
+				rest.top === 0 && rest.bottom === 1,
+				`${rest.top} ${rest.bottom}`
+			)
+			check(
+				`${tag}: the scroller is as wide as the page area and the column is at most 720px`,
+				rest.viewWidth >= rest.columnWidth && rest.columnWidth <= 720,
+				`${rest.viewWidth} ${rest.columnWidth}`
+			)
+			await shot(page, 'chat-fade', `${tag}-rest`)
+
+			const up = await scrollFade(page, rest.scrollTop - 300)
+			check(`${tag}: scrolled up both edges fade`, up.top === 0 && up.bottom === 0, `${up.top} ${up.bottom}`)
+			await shot(page, 'chat-fade', `${tag}-up`)
+
+			const near = await scrollFade(page, rest.scrollTop - 24)
+			check(
+				`${tag}: the bottom fade follows the scroll over the last 48px`,
+				near.bottom > 0 && near.bottom < 1,
+				String(near.bottom)
+			)
+
+			const top = await scrollFade(page, 0)
+			check(
+				`${tag}: the top of the long conversation is reachable and crisp`,
+				top.scrollTop === 0 && top.top === 1 && top.bottom === 0 && top.firstTop >= 0,
+				JSON.stringify(top)
+			)
+
+			await scrollFade(page, rest.scrollTop - 300)
+			const field = page.locator(FIELD)
+			await field.fill(`Fade check ${tag}`)
+			await page.locator(SEND).click()
+			await page.waitForTimeout(400)
+			const sent = await settleFade(page)
+			check(
+				`${tag}: a new message returns to the end and the bottom fade goes`,
+				sent.scrollHeight - sent.scrollTop - sent.clientHeight < 4 && sent.top === 0 && sent.bottom === 1,
+				`${sent.top} ${sent.bottom} ${sent.scrollHeight - sent.scrollTop - sent.clientHeight}`
+			)
+			await shot(page, 'chat-fade', `${tag}-sent`)
+		}
+
+		const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+		check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+	})
 }
 
 const section = process.argv[2]

@@ -326,12 +326,12 @@ export function ChatScreen({
 					<div inert={listOpen} className="flex min-h-0 flex-1 flex-col gap-3">
 						<ScrollArea
 							className={`-mx-3 min-h-0 flex-1 transition-opacity ease-out motion-reduce:transition-none md:-mx-6 ${listOpen ? 'opacity-0 duration-[160ms]' : 'duration-[120ms]'}`}
-							viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col [&>div]:justify-end"
+							viewportClassName="scroll-fade px-3 md:px-6 [&>div]:!min-w-0 [&>div]:flex [&>div]:min-h-full [&>div]:flex-col"
 						>
 							<div
 								role="log"
 								aria-label="Messages"
-								className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col justify-end gap-4 pb-2"
+								className="mx-auto flex min-h-full w-full max-w-180 flex-1 flex-col gap-4 pb-2 [&>:first-child]:mt-auto"
 							>
 								{studentId === null ? null : <StudentRecords key={studentId} studentId={studentId} />}
 								<Thread
