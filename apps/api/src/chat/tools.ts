@@ -65,7 +65,7 @@ const LESSON_MINUTES_TOOL_MAX = 1440
 const id = z.uuid()
 const date = calendarDate
 const time = z.string().regex(CLOCK_TIME_PATTERN)
-const nullable = <T extends z.ZodType>(schema: T) => schema.nullable()
+const nullable = <T extends z.ZodType>(schema: T) => schema.nullish().transform((value) => value ?? null)
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 const ZONE_TEXT_MAX = 64
 
@@ -147,14 +147,35 @@ type ToolName = keyof typeof inputs
 
 const string = { type: 'string' }
 const boolean = { type: 'boolean' }
+const integer = { type: 'integer' }
 const nullableString = { type: ['string', 'null'] }
 
-function tool(name: ToolName, description: string, properties: Record<string, object>): Anthropic.Tool {
+const STRICT_TOOLS: ReadonlySet<ToolName> = new Set([
+	'mark_lesson',
+	'add_comment',
+	'propose_lesson_change',
+	'propose_payment',
+	'propose_student',
+	'propose_rate',
+	'propose_bulk_move',
+])
+
+function tool(
+	name: ToolName,
+	description: string,
+	properties: Record<string, object>,
+	optional: readonly string[] = []
+): Anthropic.Tool {
 	return {
 		name,
 		description,
-		strict: true,
-		input_schema: { type: 'object', properties, required: Object.keys(properties), additionalProperties: false },
+		...(STRICT_TOOLS.has(name) ? { strict: true } : {}),
+		input_schema: {
+			type: 'object',
+			properties,
+			required: Object.keys(properties).filter((key) => !optional.includes(key)),
+			additionalProperties: false,
+		},
 	}
 }
 
@@ -222,36 +243,39 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	),
 	tool(
 		'propose_payment',
-		'Propose recording a payment. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; currency only when the teacher named it, otherwise null; paid_on YYYY-MM-DD lesson-day date or null for today. Nothing is recorded until the teacher confirms in the chat.',
+		'Propose recording a payment. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; omit lessons_text when the teacher gave no number of lessons; currency only when the teacher named it, otherwise omit it; paid_on YYYY-MM-DD lesson-day date, omit it for today; note only when the teacher gave one, otherwise omit it. Nothing is recorded until the teacher confirms in the chat.',
 		{
 			student_id: string,
 			amount_text: string,
-			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
-			paid_on: nullableString,
-			lessons_text: nullableString,
-			note: nullableString,
-		}
+			currency: { type: 'string', enum: [...CURRENCIES] },
+			paid_on: string,
+			lessons_text: string,
+			note: string,
+		},
+		['currency', 'paid_on', 'lessons_text', 'note']
 	),
 	tool(
 		'propose_student',
-		'Propose creating a new student card. display_name is the full name copied exactly as the teacher wrote it; rate_text is the rate per lesson copied exactly as written, the number without the currency, or null when the teacher gave no rate; currency only when the teacher named it, otherwise null; lesson_minutes only when the teacher wrote the lesson length in minutes, otherwise null; gender female or male only when the teacher said it, otherwise null. Never invent values. Nothing is created until the teacher confirms in the chat.',
+		'Propose creating a new student card. display_name is the full name copied exactly as the teacher wrote it; rate_text is the rate per lesson copied exactly as written, the number without the currency, omitted when the teacher gave no rate; currency only when the teacher named it, otherwise omit it; lesson_minutes only when the teacher wrote the lesson length in minutes, otherwise omit it; gender female or male only when the teacher said it, otherwise omit it. Never invent values. Nothing is created until the teacher confirms in the chat.',
 		{
 			display_name: string,
-			rate_text: nullableString,
-			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
-			lesson_minutes: { type: ['integer', 'null'] },
-			gender: { type: ['string', 'null'], enum: [...GENDERS, null] },
-		}
+			rate_text: string,
+			currency: { type: 'string', enum: [...CURRENCIES] },
+			lesson_minutes: integer,
+			gender: { type: 'string', enum: [...GENDERS] },
+		},
+		['rate_text', 'currency', 'lesson_minutes', 'gender']
 	),
 	tool(
 		'propose_rate',
-		'Propose changing the rate per lesson of a student. rate_text is the new rate copied exactly as the teacher wrote it, the number without the currency; currency only when the teacher named it, otherwise null (the current currency of the student is kept). clear true removes the rate and then rate_text is null. Payments already recorded keep their lesson credit. Nothing changes until the teacher confirms in the chat.',
+		'Propose changing the rate per lesson of a student. rate_text is the new rate copied exactly as the teacher wrote it, the number without the currency; currency only when the teacher named it, otherwise omit it (the current currency of the student is kept). clear true removes the rate and then rate_text is omitted. Payments already recorded keep their lesson credit. Nothing changes until the teacher confirms in the chat.',
 		{
 			student_id: string,
-			rate_text: nullableString,
-			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
+			rate_text: string,
+			currency: { type: 'string', enum: [...CURRENCIES] },
 			clear: boolean,
-		}
+		},
+		['rate_text', 'currency']
 	),
 	tool(
 		'propose_archive',
@@ -275,27 +299,29 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	),
 	tool(
 		'propose_bulk_move',
-		'Propose moving all weekly lessons of one student from one weekday and time to another. Copy the weekdays, times and the time zone exactly as the teacher wrote them; time_zone is null when the teacher named no zone (then Vietnam time is used). Nothing changes until the teacher confirms. from is the first date YYYY-MM-DD to move when the teacher named one, otherwise null.',
+		'Propose moving all weekly lessons of one student from one weekday and time to another. Copy the weekdays, times and the time zone exactly as the teacher wrote them; omit time_zone when the teacher named no zone (then Vietnam time is used). Nothing changes until the teacher confirms. from is the first date YYYY-MM-DD to move when the teacher named one, otherwise omit it.',
 		{
 			student_id: string,
 			from_weekday: { type: 'string', enum: [...WEEKDAYS] },
 			from_time: string,
 			to_weekday: { type: 'string', enum: [...WEEKDAYS] },
 			to_time: string,
-			time_zone: nullableString,
-			from: nullableString,
-		}
+			time_zone: string,
+			from: string,
+		},
+		['time_zone', 'from']
 	),
 	tool(
 		'open_page',
-		'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and null otherwise. dialog is null unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
+		'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and omitted otherwise. date is only for schedule_day. Omit dialog unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
 		{
 			kind: { type: 'string', enum: [...CHAT_ACTION_LINK_KINDS] },
-			student_id: nullableString,
-			date: nullableString,
-			tab: { type: ['string', 'null'], enum: [...CHAT_SETTINGS_TABS, null] },
-			dialog: { type: ['string', 'null'], enum: [...CHAT_ACTION_LINK_DIALOGS, null] },
-		}
+			student_id: string,
+			date: string,
+			tab: { type: 'string', enum: [...CHAT_SETTINGS_TABS] },
+			dialog: { type: 'string', enum: [...CHAT_ACTION_LINK_DIALOGS] },
+		},
+		['student_id', 'date', 'tab', 'dialog']
 	),
 	ESSAY_FEEDBACK_TOOL,
 ]

@@ -6,17 +6,22 @@ import { CHAT_ESSAY_TASKS } from '@dv-lab/contracts'
 
 export const ESSAY_TOOL_NAME = 'essay_feedback'
 
-export const essayFeedbackInput = z.strictObject({ task: z.enum(CHAT_ESSAY_TASKS).nullable() })
+export const essayFeedbackInput = z.strictObject({
+	task: z
+		.enum(CHAT_ESSAY_TASKS)
+		.nullish()
+		.transform((value) => value ?? null),
+})
 
 export const ESSAY_FEEDBACK_TOOL: Anthropic.Tool = {
 	name: ESSAY_TOOL_NAME,
 	description:
-		'Call first when the teacher pasted an essay or a piece of writing and asks for feedback. task is task1 or task2 only when the teacher named the task or pasted the task prompt; otherwise null. The app shows that the feedback is an approximate estimate.',
+		'Call first when the teacher pasted an essay or a piece of writing and asks for feedback. task is task1 or task2 only when the teacher named the task or pasted the task prompt; otherwise omit it. The app shows that the feedback is an approximate estimate.',
 	strict: true,
 	input_schema: {
 		type: 'object',
-		properties: { task: { type: ['string', 'null'], enum: [...CHAT_ESSAY_TASKS, null] } },
-		required: ['task'],
+		properties: { task: { type: 'string', enum: [...CHAT_ESSAY_TASKS] } },
+		required: [],
 		additionalProperties: false,
 	},
 }

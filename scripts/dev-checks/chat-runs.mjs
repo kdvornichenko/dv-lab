@@ -341,12 +341,14 @@ async function providerSmoke() {
 	check('an abort ends the stream as an aborted fault', stopped instanceof ProviderFault && stopped.aborted === true)
 	const tools = CHAT_TOOLS.map((item) => item.name).join(',')
 	check(
-		'the tool list is the phase list, strict, without server tools',
+		'the tool list is the phase list with closed schemas, strict where the grammar fits, without server tools',
 		tools ===
 			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change,propose_payment,propose_student,propose_rate,propose_archive,student_payments,propose_payment_delete,propose_entry_removal,propose_bulk_move,open_page,essay_feedback' &&
-			CHAT_TOOLS.every(
-				(item) => item.strict === true && item.input_schema.additionalProperties === false && !('type' in item)
-			)
+			CHAT_TOOLS.filter((item) => item.strict === true)
+				.map((item) => item.name)
+				.join(',') ===
+				'mark_lesson,add_comment,propose_lesson_change,propose_payment,propose_student,propose_rate,propose_bulk_move,essay_feedback' &&
+			CHAT_TOOLS.every((item) => item.input_schema.additionalProperties === false && !('type' in item))
 	)
 }
 
@@ -1006,14 +1008,14 @@ async function pageLinks(studentId) {
 		capture(use('open_page', { kind: 'payments', student_id: null, date: null, tab: null, dialog: null })),
 		capture(use('open_page', { kind: 'payments', student_id: studentId, date: null, tab: null, dialog: 'details' })),
 		capture(use('open_page', { kind: 'notes', student_id: randomUUID(), date: null, tab: null, dialog: null })),
-		capture(use('open_page', { kind: 'schedule_day', student_id: studentId, date: day, tab: null, dialog: null })),
+		capture(use('open_page', { kind: 'schedule_day', date: day })),
 		capture(say('Here is the day.'))
 	)
 	const checked = await settled((await ask(thread, 'Open things')).json.turn.id)
 	const errors = seen.slice(-5, -1).map((results) => JSON.parse(results[0]?.content ?? '{}').error)
 	const dayLinks = replyOf(checked.id).blocks.filter((block) => block.type === 'action_link')
 	check(
-		'no page, a missing student, a dialog of another page and an unknown student give errors and no block; a day link has only its date',
+		'no page, a missing student, a dialog of another page and an unknown student give errors and no block; a day link with omitted fields has only its date',
 		isDeepStrictEqual(errors, ['no_page', 'invalid_arguments', 'invalid_arguments', 'student_not_found']) &&
 			isDeepStrictEqual(dayLinks, [
 				{
@@ -1093,7 +1095,8 @@ async function main() {
 			answerRequest.effort === choice.effort &&
 			answerRequest.maxOutputTokens === 16000 &&
 			answerRequest.tools.length === 19 &&
-			answerRequest.tools.some((item) => item.name === 'open_page' && item.strict === true)
+			answerRequest.tools.some((item) => item.name === 'open_page') &&
+			answerRequest.tools.some((item) => item.name === 'propose_payment' && item.strict === true)
 	)
 	const firstAttempts = attempts(answered.id)
 	check(
