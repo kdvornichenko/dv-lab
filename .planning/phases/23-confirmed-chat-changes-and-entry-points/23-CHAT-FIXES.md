@@ -208,6 +208,47 @@
 - Fade в браузерах без scroll-driven animations (Firefox, Safari до 26) не проверялся: по дизайну там обычный скроллер без fade. Если владелец видел «нет fade» именно там, правка разметки это не меняет.
 - Превью в списке обновляется только перечитыванием: если разговор изменён в другой вкладке, строка обновится при следующем перечитывании списка.
 
+## 7. Подтверждённые находки ревью и аудита фазы 23
+
+Источники: `23-REVIEW.md` и `23-SECURITY.md`. Каждая находка — отдельный коммит.
+
+| Находка | Коммит | Что изменено |
+| --- | --- | --- |
+| WR-04, T-23-38, F-03 | `953e8b4` | `runs.ts`, `complete()`: если ход `/essay` закончился без блока `essay` (модель не вызвала `essay_feedback`), сервер добавляет `{ type: 'essay', task: null }`. Блок `withheld` считается по исходным блокам, как раньше. `tool_choice` не менялся |
+| WR-01, F-01 | `dc6b51c` | `changes.ts`: сумма, уроки и ставка сверяются с текстом учителя по границам числа `(?<![\p{Nd}.,])…(?![\p{Nd}]\|[.,]\p{Nd})`, имя — по границам слова `(?<![\p{L}\p{Nd}])…(?![\p{L}\p{Nd}])`. `command-zone.ts`: пояс — по границам слова. `change-cards.ts`: `moneyText` снимает запятые разрядов (`^\d{1,3}(,\d{3})+(\.\d+)?$`) перед `parseMoney` у суммы оплаты и у ставки, `1,50` остаётся дробью. `parseMoney` в core не менялся |
+| WR-09 | `ddeb084` | `chatDeletePaymentChange` получил необязательное `lessonMinutes`; `change-deletions.ts` заполняет его длиной урока карточки; web берёт его, `lessonMinutesOf` остаётся запасным для старых предложений без поля |
+| WR-07 | `fdd1d98` | `routes/students.ts`, `mutateStudent`: `postgresCode(error) === '40001'` даёт `{ kind: 'changed' }` (409 `precondition_failed`), уровень изоляции `repeatable read` прежний. Это все маршруты с CAS карточки: `PATCH /students/:id`, `archive`, `restore`. `POST /students` (строка 146) не тронут: там только вставка без ревизии, ответ «карточка изменилась» для него неверен |
+| WR-08 | `40ef428` | `lessons-tab.tsx`: первая неделя — `mondayOf(scheduleToday(new Date(asOf), mainTimeZone))` |
+| WR-02 | `99ba4de` | `change-proposal.tsx`: «Balance is now X» заменено на «Balance after this payment: X» в итоге записи и удаления оплаты (для удаления текст тот же, как задано) |
+| WR-05, WR-06 | `2d76291` | `bulk-move-proposal.tsx`: в состоянии `partial` кнопки Check status нет (у `refused` действия `/check` ничего не меняет); в состоянии «Could not load this change's status.» есть Refresh status через `onRefresh`, как в `ChangeProposal` |
+| IN-01 | `5ad0448` | `opening-balance-panel.tsx`: из предупреждения убрано «Your draft has been kept» |
+| F-04 | `e31486a` | `privacy/page.tsx`: в перечне данных для Anthropic названы оплаты (даты, суммы, число уроков, заметки к оплатам) |
+| T-23-46, F-05 | `8e4a94a` | `.continue-here.md` фазы 23: строка с частным адресом и портом dev-базы удалена. История не переписывалась: строка остаётся в коммите `a9a4965` |
+
+Не делались по условию: CR-01 (решение владельца), CR-02 (опровергнуто), WR-03, IN-02..IN-06.
+
+### 7.1. Сопутствующие правки проверок
+
+- `chat-changes.mjs essay`: новая проверка — ответ хода `/essay` без вызова `essay_feedback` получает один блок `essay` с `task: null`.
+- `chat-changes.mjs deletions`: превью удаления оплаты несёт `lessonMinutes` карточки (60).
+- `cards-revision.mjs`: новая проверка гонки — отдельное соединение держит неподтверждённый `UPDATE` той же карточки, `PATCH` ждёт блокировку (видно в `pg_stat_activity`), после фиксации получает 409 `precondition_failed`, правка не записана. Без правки `fdd1d98` та же проверка даёт 500 `internal_error`: прогон на временно возвращённом `students.ts` это показал.
+- `changes-web.mjs payment`: ожидаемая строка `Balance after this payment: …`. `changes-web.mjs bulk`: частичный итог без Check status, клик по ней из проверки убран.
+- README проверок дополнен по трём пунктам выше.
+
+### 7.2. Итоговая проверка
+
+- `yarn workspace @dv-lab/contracts typecheck`, `@dv-lab/api typecheck`, `@dv-lab/web typecheck`, `@dv-lab/web lint`, `yarn knip` (только подсказки конфигурации), prettier по изменённым файлам: без замечаний.
+- `yarn workspace @dv-lab/contracts test` (48), `yarn workspace @dv-lab/api test` (47): все прошли.
+- `chat-changes.mjs` `payment`, `cards`, `deletions`, `essay`: `CHAT_CHANGES_*_OK`. `chat-bulk.mjs proposal`: `CHAT_BULK_PROPOSAL_OK` (`zone_not_in_message` и `zone_unknown` прежние). `cards-revision.mjs`: `CARDS_REVISION_OK`.
+- Сверка по границам на настоящих `moneyText` и `resolveCommandZone` и на копии выражений `writtenIn` и `hasName` (скрипт вне репозитория): в «Оплатил 1500 за 10 уроков» не проходят 150, 15, 500, 50 и уроки 1 и 0, проходят 1500 и 10; в «paid 1,500 USD» не проходит «1,5», «1,500» разбирается как 1500.00 USD, «1,500.50» как 1500.50, «1,50» как 1.50; «Ann» не находится в «Anna»; `msk` не находится в «tomsk», «по москве» и `Europe/Moscow` находятся.
+- WR-08 на `@dv-lab/core`: для `asOf` `2026-10-18T22:00Z` (понедельник 05:00 во Вьетнаме) прежний расчёт давал неделю 2026-10-12, новый — 2026-10-19.
+
+### 7.3. NOT RUN и замечания
+
+- Браузерные разделы не запускались: `changes-web.mjs` `payment` требует свободный 4000, а `bulk`, `essay`, `proposals` и `forms` работают через dev-стек владельца на 3000 и 4000. Строки «Balance after this payment», Refresh status у массового переноса, отсутствие Check status у `partial`, текст панели остатка на дату открытия, текст privacy и первая неделя Lessons глазами не проверены. Для проверки: `node scripts/dev-checks/changes-web.mjs payment light`, `… bulk light`, `… essay light`.
+- Состояние `unknown` блока массового переноса (Refresh status) ни одна проверка не воспроизводит.
+- Dev-серверы владельца на 3000 и 4000 запущены из этого worktree: правки api перезапускали api владельца через watch. Сами серверы не останавливались, `yarn test` в корне и `yarn build` не запускались.
+
 ## NOT RUN и замечания
 
 - Браузер не проверялся: web не менялся, его и порты 3000/4000 занимает соседний план. Подсветка серверной привязки в сообщении на экране и ход модели с реальным ключом через UI не проверены.
