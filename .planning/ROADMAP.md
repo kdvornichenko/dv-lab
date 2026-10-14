@@ -424,23 +424,24 @@ Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-mark
 4. A pasted essay gets feedback labeled as an approximate estimate.
 5. The palette finds students and offers "New chat" and "Add payment"; a student profile shows payments, lessons and "Ask in chat"; Today, Schedule and Chat are usable at phone width.
 
-**Plans**: TBD
+**Plans**: 14 plans / 39 tasks / 9 waves; replanned 2026-10-14 against the Phase 22 code (decisions in 23-CONTEXT, accepted ARCH-A1..A3)
 
-- [ ] 23-01-PLAN.md
-- [ ] 23-02-PLAN.md
-- [ ] 23-03-PLAN.md
-- [ ] 23-04-PLAN.md
-- [ ] 23-05-PLAN.md
-- [ ] 23-06-PLAN.md
-- [ ] 23-07-PLAN.md
-- [ ] 23-08-PLAN.md
-- [ ] 23-09-PLAN.md
-- [ ] 23-10-PLAN.md
-- [ ] 23-11-PLAN.md
-- [ ] 23-12-PLAN.md
-- [ ] 23-13-PLAN.md
-- [ ] 23-14-PLAN.md
-- [ ] 23-15-PLAN.md
+- [ ] 23-01-PLAN.md — Tracer: payment proposal in chat → Record payment / Don't record
+- [ ] 23-02-PLAN.md — Card and payment revisions, same-row payment correction
+- [ ] 23-03-PLAN.md — Input time zone for series moves, separate from the teacher zone
+- [ ] 23-04-PLAN.md — Palette (students, New chat, Add payment) and Ask in chat
+- [ ] 23-05-PLAN.md — Proposals: new student, rate change, archive instead of deletion
+- [ ] 23-06-PLAN.md — Ordinary forms with revisions and Edit payment
+- [ ] 23-07-PLAN.md — Deletions: payment, note or comment, end of series; saved Keep
+- [ ] 23-08-PLAN.md — Lessons tab in the student profile
+- [ ] 23-09-PLAN.md — Bulk move of a student's lessons (CHAT-06)
+- [ ] 23-10-PLAN.md — Proposal blocks for all operations and result links
+- [ ] 23-11-PLAN.md — Essay feedback labeled as an approximate estimate (api)
+- [ ] 23-12-PLAN.md — Phone width: Today, Schedule, Chat, profile, palette
+- [ ] 23-13-PLAN.md — Bulk move and essay blocks, /essay command
+- [ ] 23-14-PLAN.md — Final checks and documents
+
+Plan graph and ownership: [.planning/phases/23-confirmed-chat-changes-and-entry-points/23-PLAN-INDEX.md](.planning/phases/23-confirmed-chat-changes-and-entry-points/23-PLAN-INDEX.md)
 
 **UI hint**: yes
 
