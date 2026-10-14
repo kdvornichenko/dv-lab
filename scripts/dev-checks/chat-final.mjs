@@ -25,6 +25,14 @@ const CHECKS = [
 	{ script: 'chat-api.mjs', args: ['title'], token: 'CHAT_TITLE_OK' },
 	{ script: 'calendar-reads.mjs', args: [], token: 'CALENDAR_READS_OK' },
 	{ script: 'calendar-final.mjs', args: [], token: 'CALENDAR_FINAL_OK' },
+	{ script: 'cards-revision.mjs', args: [], token: 'CARDS_REVISION_OK' },
+	{ script: 'chat-changes.mjs', args: ['payment'], token: 'CHAT_CHANGES_PAYMENT_OK' },
+	{ script: 'chat-changes.mjs', args: ['cards'], token: 'CHAT_CHANGES_CARDS_OK' },
+	{ script: 'chat-changes.mjs', args: ['deletions'], token: 'CHAT_CHANGES_DELETIONS_OK' },
+	{ script: 'chat-changes.mjs', args: ['essay'], token: 'CHAT_CHANGES_ESSAY_OK' },
+	{ script: 'chat-bulk.mjs', args: ['zone'], token: 'CHAT_BULK_ZONE_OK' },
+	{ script: 'chat-bulk.mjs', args: ['proposal'], token: 'CHAT_BULK_PROPOSAL_OK' },
+	{ script: 'chat-bulk.mjs', args: ['children'], token: 'CHAT_BULK_CHILDREN_OK' },
 ]
 
 const TIMEOUT_MS = 15 * 60 * 1000
