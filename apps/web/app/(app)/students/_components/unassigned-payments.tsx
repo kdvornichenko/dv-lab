@@ -60,6 +60,7 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [assigning, setAssigning] = useState<PaymentRow | null>(null)
 	const [removing, setRemoving] = useState<PaymentRow | null>(null)
+	const [removeFailure, setRemoveFailure] = useState<string | null>(null)
 
 	const load = useCallback(async () => {
 		setState(await readUnassigned())
@@ -76,9 +77,16 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 	}, [])
 
 	async function remove(payment: PaymentRow) {
-		const result = await apiRequest<undefined>('DELETE', `/payments/${payment.id}`)
+		const result = await apiRequest<undefined>('DELETE', `/payments/${payment.id}`, {
+			expectedRevision: payment.revision,
+		})
 		if (!result.ok) {
 			if (result.status === 404) void load()
+			setRemoveFailure(
+				result.error?.code === 'precondition_failed'
+					? 'This payment changed elsewhere. Reload the page and try again.'
+					: null
+			)
 			return false
 		}
 		toast.show({ title: 'Payment deleted', description: 'The payment was removed.' })
@@ -137,7 +145,10 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 												variant="ghost"
 												size="icon-compact"
 												aria-label="Delete payment"
-												onClick={() => setRemoving(payment)}
+												onClick={() => {
+													setRemoveFailure(null)
+													setRemoving(payment)
+												}}
 											>
 												<Trash2 />
 											</Button>
@@ -179,7 +190,7 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 					confirmLabel="Delete payment"
 					pendingLabel="Deleting…"
 					tone="destructive"
-					failureText="Could not delete the payment. Try again."
+					failureText={removeFailure ?? 'Could not delete the payment. Try again.'}
 					onConfirm={() => remove(removing)}
 					onClose={() => setRemoving(null)}
 				/>

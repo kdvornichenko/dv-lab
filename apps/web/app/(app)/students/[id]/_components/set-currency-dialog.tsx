@@ -44,7 +44,7 @@ export function SetCurrencyDialog({ student, payment, onClose, onSaved }: SetCur
 	const [lessonsDraft, setLessonsDraft] = useState<string | null>(null)
 	const [touched, setTouched] = useState({ currency: false, lessons: false })
 	const [submitted, setSubmitted] = useState(false)
-	const [failed, setFailed] = useState(false)
+	const [failed, setFailed] = useState<string | null>(null)
 	const [pending, setPending] = useState(false)
 	const currencyRef = useRef<HTMLButtonElement>(null)
 	const lessonsRef = useRef<HTMLInputElement>(null)
@@ -63,7 +63,7 @@ export function SetCurrencyDialog({ student, payment, onClose, onSaved }: SetCur
 		event.preventDefault()
 		if (pending) return
 		setSubmitted(true)
-		setFailed(false)
+		setFailed(null)
 		if (currencyError) return currencyRef.current?.focus()
 		if (lessonsError) return lessonsRef.current?.focus()
 		setPending(true)
@@ -71,10 +71,15 @@ export function SetCurrencyDialog({ student, payment, onClose, onSaved }: SetCur
 			studentId: student.id,
 			currency,
 			lessonsHundredths: lessons.trim() === '' ? null : parseLessons(lessons),
+			expectedRevision: payment.revision,
 		})
 		setPending(false)
 		if (!result.ok) {
-			setFailed(true)
+			setFailed(
+				result.error?.code === 'precondition_failed'
+					? 'This payment changed elsewhere. Close this dialog and try again.'
+					: 'Could not save the currency. Try again.'
+			)
 			return
 		}
 		toast.show({
@@ -102,7 +107,7 @@ export function SetCurrencyDialog({ student, payment, onClose, onSaved }: SetCur
 					<div className="flex flex-col gap-4">
 						{failed ? (
 							<Banner status="error">
-								<BannerTitle>Could not save the currency. Try again.</BannerTitle>
+								<BannerTitle>{failed}</BannerTitle>
 							</Banner>
 						) : null}
 						<div className="flex flex-col gap-2">
