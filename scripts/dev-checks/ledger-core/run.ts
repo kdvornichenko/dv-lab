@@ -3,17 +3,19 @@ import { fileURLToPath } from 'node:url'
 
 import * as core from '../../../packages/core/src/index.ts'
 import { ROOT, sql as rawSql, quote } from '../api.mjs'
-import { balanceVectors, deductionVectors, paysSoonVectors } from './accounting.ts'
+import { balanceVectors, deductionVectors, ledgerVectors, paysSoonVectors } from './accounting.ts'
 import {
 	outcomeVectors,
 	actionVectors,
 	occurrenceVectors,
 	todayVectors,
+	shortBalanceVectors,
 	VN,
 	DATE_CASES,
 	instant,
 	dateVectors,
 } from './lessons.ts'
+import { textMatchVectors } from './text-match.ts'
 
 let failures = 0
 
@@ -177,6 +179,9 @@ const partTwo = () =>
 		deductionVectors(expect)
 		todayVectors(expect)
 		paysSoonVectors(expect)
+		ledgerVectors(expect)
+		shortBalanceVectors(expect)
+		textMatchVectors(expect)
 	})
 const allResults = () => ({ one: scenarios().results, two: partTwo().results })
 

@@ -34,7 +34,11 @@
 		},
 		"apps/api": {
 			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts", "src/import-vault.ts"],
-			"project": ["src/**/*.ts"]
+			"project": ["src/**/*.ts"],
+			"ignoreDependencies": ["@types/web-push", "web-push", "diff"],
+			"ignoreIssues": {
+				"src/cards/terms.ts": ["exports"]
+			}
 		},
 		"packages/contracts": {
 			"entry": ["src/index.ts"],

@@ -301,13 +301,14 @@ function LessonContent({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal={moving || confirming}
 			onOpenChange={(open) => {
 				if (!open && !busy) onClose()
 			}}
 		>
 			<DialogContent
 				size="lg"
-				showCloseButton={!busy}
+				showCloseButton={!busy && !moving && !confirming}
 				className={cn('data-[nested-dialog-open]:invisible', direct !== 'shown' && 'invisible')}
 				backdropClassName={direct === 'sending' ? 'invisible' : undefined}
 			>
@@ -419,11 +420,6 @@ function LessonContent({
 					onConfirm={askCancel}
 					onEndSeries={endable ? onEndSeries : undefined}
 				/>
-				{!busy && !moving ? (
-					<Button variant="secondary" onClick={onClose}>
-						Close
-					</Button>
-				) : null}
 				{scoping ? (
 					<ScopeDialog
 						kind={{ subject: 'lesson', action: 'cancel' }}

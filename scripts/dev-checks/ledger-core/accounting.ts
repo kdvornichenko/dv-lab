@@ -198,4 +198,358 @@ function paysSoonVectors(expect: Expect): void {
 	)
 }
 
-export { balanceVectors, deductionVectors, paysSoonVectors }
+function ledgerVectors(expect: Expect): void {
+	const OPEN = '2026-10-01'
+	const card = (over: Partial<core.BalanceCard> = {}): core.BalanceCard => ({
+		openingMinutes: 0,
+		openingOn: OPEN,
+		noShowDeducts: true,
+		...over,
+	})
+	const pay = (id: string, paidOn: string, creditedMinutes: number, time = '12:00'): core.LedgerPayment => ({
+		id,
+		paidOn,
+		creditedMinutes,
+		createdAt: at(paidOn, time),
+	})
+	const lesson = (
+		key: string,
+		date: string,
+		durationMinutes: number,
+		outcome: core.LessonOutcome,
+		time = '18:00'
+	): core.LedgerLesson => ({ key, startsAt: at(date, time), durationMinutes, outcome })
+	const row = (entry: core.LedgerEntry) => [
+		entry.key,
+		entry.date,
+		entry.counted,
+		entry.deductedMinutes,
+		entry.balanceAfterMinutes,
+		entry.coveringPaymentId,
+		entry.paidAfter,
+		entry.held,
+		entry.sinceLastPayment,
+	]
+	const ledger = (over: Partial<core.BalanceCard>, payments: core.LedgerPayment[], lessons: core.LedgerLesson[]) => {
+		const result = core.studentLedger(card(over), payments, lessons, VN)
+		return {
+			same: result.balanceMinutes === core.studentBalance(card(over), payments, lessons, VN),
+			balance: result.balanceMinutes,
+			last: result.lastPayment,
+			from: result.sinceLastPaymentFrom,
+			before: result.balanceBeforeLastPayment,
+			entries: result.entries.map(row),
+		}
+	}
+
+	expect(
+		'p2 ledger 1 no debt before the last payment starts the period on the payment day',
+		ledger(
+			{ openingMinutes: 120 },
+			[pay('pay-1', '2026-10-05', 120)],
+			[
+				lesson('l-3', '2026-10-07', 60, 'done'),
+				lesson('l-2', '2026-10-05', 60, 'done'),
+				lesson('l-1', '2026-10-03', 60, 'done'),
+			]
+		),
+		{
+			same: true,
+			balance: 60,
+			last: { id: 'pay-1', paidOn: '2026-10-05', creditedMinutes: 120 },
+			from: '2026-10-05',
+			before: 60,
+			entries: [
+				['l-1', '2026-10-03', true, 60, 60, null, false, true, false],
+				['l-2', '2026-10-05', true, 60, 120, null, false, true, true],
+				['l-3', '2026-10-07', true, 60, 60, 'pay-1', false, true, true],
+			],
+		}
+	)
+
+	expect(
+		'p2 ledger 2 debt before the last payment starts the period at the first debt lesson',
+		{
+			debt: ledger(
+				{ openingMinutes: 60 },
+				[pay('pay-1', '2026-10-08', 180)],
+				[
+					lesson('l-1', '2026-10-02', 60, 'done'),
+					lesson('l-2', '2026-10-04', 60, 'done'),
+					lesson('l-c', '2026-10-05', 60, 'cancelled'),
+					lesson('l-3', '2026-10-06', 60, 'no_show'),
+					lesson('l-4', '2026-10-09', 60, 'done'),
+				]
+			),
+			openingDebt: ledger(
+				{ openingMinutes: -60 },
+				[pay('pay-1', '2026-10-03', 120)],
+				[lesson('l-1', '2026-10-04', 60, 'done')]
+			),
+		},
+		{
+			debt: {
+				same: true,
+				balance: 0,
+				last: { id: 'pay-1', paidOn: '2026-10-08', creditedMinutes: 180 },
+				from: '2026-10-04',
+				before: -120,
+				entries: [
+					['l-1', '2026-10-02', true, 60, 0, null, false, true, false],
+					['l-2', '2026-10-04', true, 60, -60, 'pay-1', true, true, true],
+					['l-c', '2026-10-05', false, 0, null, null, false, false, true],
+					['l-3', '2026-10-06', true, 60, -120, 'pay-1', true, true, true],
+					['l-4', '2026-10-09', true, 60, 0, 'pay-1', false, true, true],
+				],
+			},
+			openingDebt: {
+				same: true,
+				balance: 0,
+				last: { id: 'pay-1', paidOn: '2026-10-03', creditedMinutes: 120 },
+				from: '2026-10-03',
+				before: -60,
+				entries: [['l-1', '2026-10-04', true, 60, 0, 'pay-1', false, true, true]],
+			},
+		}
+	)
+
+	expect(
+		'p2 ledger 3 a lesson split between two payments is covered by the one that closes its last minute',
+		ledger(
+			{},
+			[
+				pay('pay-c', '2026-10-06', 30),
+				pay('pay-a', '2026-10-02', 60, '10:00'),
+				pay('pay-b', '2026-10-02', 30, '09:00'),
+			],
+			[lesson('l-1', '2026-10-03', 60, 'done'), lesson('l-2', '2026-10-04', 60, 'done')]
+		),
+		{
+			same: true,
+			balance: 0,
+			last: { id: 'pay-c', paidOn: '2026-10-06', creditedMinutes: 30 },
+			from: '2026-10-04',
+			before: -30,
+			entries: [
+				['l-1', '2026-10-03', true, 60, 30, 'pay-a', false, true, false],
+				['l-2', '2026-10-04', true, 60, -30, 'pay-c', true, true, true],
+			],
+		}
+	)
+
+	const noShows = [lesson('l-1', '2026-10-02', 60, 'no_show'), lesson('l-2', '2026-10-03', 60, 'done')]
+	expect(
+		'p2 ledger 4 a no-show without noShowDeducts is not held and deducts nothing',
+		{
+			off: ledger({ openingMinutes: 60, noShowDeducts: false }, [], noShows),
+			on: ledger({ openingMinutes: 60 }, [], noShows),
+		},
+		{
+			off: {
+				same: true,
+				balance: 0,
+				last: null,
+				from: null,
+				before: null,
+				entries: [
+					['l-1', '2026-10-02', true, 0, 60, null, false, false, false],
+					['l-2', '2026-10-03', true, 60, 0, null, false, true, false],
+				],
+			},
+			on: {
+				same: true,
+				balance: -60,
+				last: null,
+				from: null,
+				before: null,
+				entries: [
+					['l-1', '2026-10-02', true, 60, 0, null, false, true, false],
+					['l-2', '2026-10-03', true, 60, -60, null, false, true, false],
+				],
+			},
+		}
+	)
+
+	expect(
+		'p2 ledger 5 cancelled and moved lessons are not counted and have no balance after',
+		ledger(
+			{ openingMinutes: 60 },
+			[],
+			[
+				lesson('l-1', '2026-10-02', 60, 'cancelled'),
+				lesson('l-2', '2026-10-03', 60, 'moved'),
+				lesson('l-3', '2026-10-04', 60, 'done'),
+				lesson('l-4', '2026-10-05', 60, 'planned'),
+			]
+		),
+		{
+			same: true,
+			balance: 0,
+			last: null,
+			from: null,
+			before: null,
+			entries: [
+				['l-1', '2026-10-02', false, 0, null, null, false, false, false],
+				['l-2', '2026-10-03', false, 0, null, null, false, false, false],
+				['l-3', '2026-10-04', true, 60, 0, null, false, true, false],
+				['l-4', '2026-10-05', true, 0, 0, null, false, false, false],
+			],
+		}
+	)
+
+	const unopened = [lesson('l-1', '2026-10-06', 60, 'done')]
+	const nothing = {
+		same: true,
+		balance: null,
+		last: null,
+		from: null,
+		before: null,
+		entries: [['l-1', '2026-10-06', false, 0, null, null, false, false, false]],
+	}
+	expect(
+		'p2 ledger 6 without an opening everything is null',
+		{
+			none: ledger({ openingMinutes: null, openingOn: null }, [pay('pay-1', '2026-10-05', 60)], unopened),
+			minutesOnly: ledger({ openingMinutes: 60, openingOn: null }, [pay('pay-1', '2026-10-05', 60)], unopened),
+		},
+		{ none: nothing, minutesOnly: nothing }
+	)
+
+	expect(
+		'p2 ledger 7 a payment with no credited minutes is not the last payment',
+		ledger(
+			{},
+			[pay('pay-1', '2026-10-02', 120), pay('pay-0', '2026-10-05', 0)],
+			[lesson('l-1', '2026-10-03', 60, 'done')]
+		),
+		{
+			same: true,
+			balance: 60,
+			last: { id: 'pay-1', paidOn: '2026-10-02', creditedMinutes: 120 },
+			from: '2026-10-02',
+			before: 0,
+			entries: [['l-1', '2026-10-03', true, 60, 60, 'pay-1', false, true, true]],
+		}
+	)
+
+	expect(
+		'p2 ledger 8 payments on or before the opening day are not counted',
+		ledger(
+			{ openingMinutes: 60 },
+			[pay('pay-open', OPEN, 120), pay('pay-early', '2026-09-20', 60)],
+			[lesson('l-0', OPEN, 60, 'done'), lesson('l-1', '2026-10-02', 60, 'done')]
+		),
+		{
+			same: true,
+			balance: 0,
+			last: null,
+			from: null,
+			before: null,
+			entries: [
+				['l-0', OPEN, false, 0, null, null, false, false, false],
+				['l-1', '2026-10-02', true, 60, 0, null, false, true, false],
+			],
+		}
+	)
+
+	const factory: [string, Partial<core.BalanceCard>, core.LedgerPayment[], core.LedgerLesson[]][] = [
+		['noOpening', { openingMinutes: null, openingOn: null }, [pay('p-1', '2026-10-05', 60)], []],
+		['zeroOpening', {}, [], []],
+		['paidOnOpening', { openingMinutes: 120 }, [pay('p-1', OPEN, 60)], []],
+		['paidNextDay', { openingMinutes: 120 }, [pay('p-1', '2026-10-02', 60)], []],
+		['done60', {}, [], [lesson('l-1', '2026-10-02', 60, 'done')]],
+		['done90', {}, [], [lesson('l-1', '2026-10-02', 90, 'done')]],
+		['noShowOn', {}, [], [lesson('l-1', '2026-10-02', 60, 'no_show')]],
+		['noShowOff', { noShowDeducts: false }, [], [lesson('l-1', '2026-10-02', 60, 'no_show')]],
+		['cancelled', {}, [], [lesson('l-1', '2026-10-02', 60, 'cancelled')]],
+		['moved', {}, [], [lesson('l-1', '2026-10-02', 60, 'moved')]],
+		['planned', {}, [], [lesson('l-1', '2026-10-02', 60, 'planned')]],
+		['vnAfterMidnight', {}, [], [lesson('l-1', '2026-10-02', 60, 'done', '00:30')]],
+		['vnLateOnOpening', {}, [], [lesson('l-1', OPEN, 60, 'done', '23:30')]],
+		[
+			'mixed',
+			{ openingMinutes: 120 },
+			[pay('p-1', OPEN, 600), pay('p-2', '2026-10-03', 60)],
+			[lesson('l-1', OPEN, 60, 'done'), lesson('l-2', '2026-10-04', 60, 'done')],
+		],
+	]
+	let seed = 2101
+	const next = (size: number) => {
+		seed = (seed * 48271) % 2147483647
+		return Math.floor((seed / 2147483647) * size)
+	}
+	const pick = <T>(items: readonly T[]): T => items[next(items.length)] as T
+	const day = (offset: number) => core.addDays('2026-09-28', offset)
+	const outcomes: core.LessonOutcome[] = ['done', 'done', 'done', 'no_show', 'cancelled', 'moved', 'planned']
+	for (let series = 0; series < 60; series += 1) {
+		const payments: core.LedgerPayment[] = []
+		const lessons: core.LedgerLesson[] = []
+		for (let index = 0; index < 40; index += 1) {
+			const date = day(next(90))
+			if (next(4) === 0) {
+				const time = `${String(8 + next(12)).padStart(2, '0')}:${pick(['00', '15', '30', '45'])}`
+				payments.push(pay(`p-${series}-${index}`, date, pick([0, 30, 45, 60, 90, 240, 600, -30]), time))
+			} else {
+				const time = `${String(next(24)).padStart(2, '0')}:${pick(['00', '30'])}`
+				lessons.push(lesson(`l-${series}-${index}`, date, pick([30, 45, 60, 75, 90]), pick(outcomes), time))
+			}
+		}
+		const opening = pick<Partial<core.BalanceCard>>([
+			{ openingMinutes: 0 },
+			{ openingMinutes: 90 },
+			{ openingMinutes: -120 },
+			{ openingMinutes: 600 },
+			{ openingMinutes: null, openingOn: null },
+		])
+		factory.push([`series-${series}`, { ...opening, noShowDeducts: next(2) === 0 }, payments, lessons])
+	}
+	const mismatched: string[] = []
+	const chain: string[] = []
+	const fifo: string[] = []
+	const boundary: string[] = []
+	let checked = 0
+	let paidAfter = 0
+	for (const [name, over, payments, lessons] of factory) {
+		const own = card(over)
+		const result = core.studentLedger(own, payments, lessons, VN)
+		if (result.balanceMinutes !== core.studentBalance(own, payments, lessons, VN)) mismatched.push(name)
+		if (own.openingMinutes === null || own.openingOn === null) continue
+		const openingOn = own.openingOn
+		if (result.lastPayment !== null && result.balanceBeforeLastPayment !== null) {
+			const first = result.entries.find((entry) => entry.sinceLastPayment)
+			const debtStart = first !== undefined && first.held && first.date === result.sinceLastPaymentFrom
+			const ok =
+				result.balanceBeforeLastPayment >= 0
+					? result.sinceLastPaymentFrom === result.lastPayment.paidOn
+					: debtStart || result.sinceLastPaymentFrom === result.lastPayment.paidOn
+			if (!ok) boundary.push(name)
+		}
+		for (const entry of result.entries) {
+			if (!entry.counted) continue
+			checked += 1
+			if (entry.paidAfter) paidAfter += 1
+			const source = lessons.find((item) => item.key === entry.key) as core.LedgerLesson
+			const credited = payments
+				.filter((item) => item.paidOn > openingOn && item.paidOn <= entry.date)
+				.reduce((sum, item) => sum + item.creditedMinutes, 0)
+			const deducted = lessons
+				.filter((item) => {
+					const date = core.scheduleDate(item.startsAt, VN)
+					if (date !== entry.date) return date < entry.date
+					const time = item.startsAt.getTime() - source.startsAt.getTime()
+					return time < 0 || (time === 0 && item.key <= entry.key)
+				})
+				.reduce((sum, item) => sum + core.lessonDeduction(item, own, VN), 0)
+			if (entry.balanceAfterMinutes !== own.openingMinutes + credited - deducted) chain.push(`${name} ${entry.key}`)
+			if (entry.held && !entry.paidAfter && entry.coveringPaymentId !== null && (entry.balanceAfterMinutes ?? 0) < 0)
+				fifo.push(`${name} ${entry.key}`)
+		}
+	}
+	expect(
+		'p2 ledger 9 the pass total equals studentBalance on every factory vector and on series of mixed lengths',
+		{ cases: factory.length, mismatched, chain, fifo, boundary, enough: checked > 500 && paidAfter > 50 },
+		{ cases: 74, mismatched: [], chain: [], fifo: [], boundary: [], enough: true }
+	)
+}
+
+export { balanceVectors, deductionVectors, paysSoonVectors, ledgerVectors }

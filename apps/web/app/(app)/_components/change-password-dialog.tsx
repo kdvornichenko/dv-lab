@@ -86,11 +86,12 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open) onClose()
 			}}
 		>
-			<DialogContent size="sm">
+			<DialogContent size="sm" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>Change password</DialogTitle>

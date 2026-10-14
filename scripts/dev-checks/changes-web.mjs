@@ -324,6 +324,8 @@ const GONE = 'This record is no longer available. Open the current records to co
 
 function removeFormsCards() {
 	const where = `display_name = '${FORMS_NAME}' and import_key is null`
+	sql(`delete from student_notes where student_id in (select id from students where ${where})`)
+	sql(`delete from student_sections where student_id in (select id from students where ${where})`)
 	sql(`delete from payments where student_id in (select id from students where ${where})`)
 	const result = sql(`delete from students where ${where}`)
 	console.log(`fixture cards removed ${result.rowCount}`)

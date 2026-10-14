@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { StudentAccount } from './auth.ts'
 import type { NextLessonRead } from './calendar.ts'
 import { isDisplayNameLength, normalizeDisplayName } from './identity.ts'
+import type { LessonMarkKind, ScheduleLessonActions, ScheduleLessonOutcome, ScheduleOccurrenceRef } from './schedule.ts'
 
 export const SECTION_KINDS = [
 	'general_info',
@@ -147,6 +148,65 @@ export const appendStudentNoteRequest = z.strictObject({
 
 export const retractNoteRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
 
+const sectionBody = z.string().refine((body) => textLength(body) <= SECTION_BODY_MAX_LENGTH)
+
+export const noteBlock = z.strictObject({
+	id: z.uuid(),
+	key: z.string(),
+	name: z.string(),
+	body: z.string(),
+	position: z.number().int(),
+	revision,
+	updatedAt: z.string().nullable(),
+	standard: z.boolean(),
+})
+
+export type NoteBlock = z.infer<typeof noteBlock>
+
+export const studentBlocksResponse = z.strictObject({
+	blocks: z.array(noteBlock),
+	reviewedAt: z.string().nullable(),
+	reviewRunning: z.strictObject({ conversationId: z.string() }).nullable(),
+})
+
+export type StudentBlocksResponse = z.infer<typeof studentBlocksResponse>
+
+export const studentBlockResponse = z.strictObject({ block: noteBlock })
+
+export type StudentBlockResponse = z.infer<typeof studentBlockResponse>
+
+export const saveBlockRequest = z.strictObject({ body: sectionBody, expectedRevision: revision })
+
+export const BLOCK_NAME_MAX_LENGTH = 60
+
+export const BLOCKS_MAX = 200
+
+const blockName = z
+	.string()
+	.transform((value) => value.trim())
+	.refine((value) => {
+		const length = textLength(value)
+		return length >= 1 && length <= BLOCK_NAME_MAX_LENGTH && !value.includes('\u0000')
+	})
+
+export const createBlockRequest = z.strictObject({ name: blockName, body: sectionBody.default('') })
+
+export const renameBlockRequest = z.strictObject({ name: blockName, expectedRevision: revision })
+
+export const blockRevisionRequest = z.strictObject({ expectedRevision: revision })
+
+export const reorderBlocksRequest = z.strictObject({
+	blocks: z
+		.array(z.strictObject({ id: z.uuid(), expectedRevision: revision }))
+		.min(1)
+		.max(BLOCKS_MAX)
+		.refine((blocks) => new Set(blocks.map((block) => block.id)).size === blocks.length),
+})
+
+export const reorderBlocksResponse = z.strictObject({ blocks: z.array(noteBlock) })
+
+export type ReorderBlocksResponse = z.infer<typeof reorderBlocksResponse>
+
 export const addTermRequest = z.object({
 	term: z
 		.string()
@@ -196,6 +256,14 @@ export const deactivateStudentAccountRequest = z.object({
 	accountId: z.uuid(),
 })
 
+export type StudentLastPayment = {
+	id: string
+	paidOn: string
+	amountMinor: number
+	currency: Currency | null
+	creditedMinutes: number
+}
+
 export type StudentRow = {
 	id: string
 	displayName: string
@@ -206,6 +274,79 @@ export type StudentRow = {
 	balanceMinutes: number | null
 	nextLessonAt: string | null
 	nextLesson: NextLessonRead
+	lastPayment?: StudentLastPayment | null
+}
+
+export const STUDENT_LESSONS_DAYS_MAX = 366
+
+const DAY_MS = 86400000
+
+const daySpan = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY_MS + 1
+
+export const studentLessonsQuery = z.union([
+	z.object({ range: z.literal('since_payment'), from: z.never().optional(), to: z.never().optional() }),
+	z
+		.object({ range: z.never().optional(), from: isoDate, to: isoDate })
+		.refine(({ from, to }) => to >= from && daySpan(from, to) <= STUDENT_LESSONS_DAYS_MAX),
+])
+
+export type StudentLessonsQuery = z.infer<typeof studentLessonsQuery>
+
+export type StudentLessonsCoverage = 'complete' | 'partial' | 'unread'
+
+export type StudentLessonPayment = {
+	id: string
+	paidOn: string
+	amountMinor: number
+	currency: Currency | null
+	paidAfter: boolean
+}
+
+export type StudentLesson = {
+	key: string
+	ref: ScheduleOccurrenceRef
+	date: string
+	startsAt: string
+	timeZone: string
+	durationMinutes: number
+	outcome: ScheduleLessonOutcome
+	movedFrom: string | null
+	movedTo: string | null
+	actions: ScheduleLessonActions
+	mark: LessonMarkKind | null
+	markRevision: number | null
+	counted: boolean
+	deductedMinutes: number
+	balanceAfterMinutes: number | null
+	projected: boolean
+	payment: StudentLessonPayment | null
+	held: boolean
+	sinceLastPayment: boolean
+}
+
+export type StudentLessonsTotals = {
+	planned: number
+	done: number
+	noShow: number
+	cancelled: number
+	moved: number
+	heldCount: number
+	heldMinutes: number
+}
+
+export type StudentLessonsResponse = {
+	studentId: string
+	from: string
+	to: string
+	clipped: boolean
+	coverage: StudentLessonsCoverage
+	asOf: string
+	defaultTimeZone: string
+	defaultLessonMinutes: number
+	lastPayment: StudentLastPayment | null
+	sinceLastPaymentFrom: string | null
+	lessons: StudentLesson[]
+	totals: StudentLessonsTotals
 }
 
 export type StudentsResponse = {
@@ -255,7 +396,50 @@ export type StudentNotesResponse = { notes: StudentNote[] }
 
 export type StudentNoteResponse = { note: StudentNote }
 
-export type StudentTerm = { id: string; term: string; note: string | null; createdAt: string }
+export const TERM_ADDED_BY = ['chat', 'review'] as const
+
+export type TermAddedBy = (typeof TERM_ADDED_BY)[number]
+
+export const TERM_REMOVED_BY = ['chat', 'review', 'teacher'] as const
+
+export type TermRemovedBy = (typeof TERM_REMOVED_BY)[number]
+
+export const TERM_VIEWS = ['words', 'removed'] as const
+
+export type TermView = (typeof TERM_VIEWS)[number]
+
+export const studentTermsQuery = z.object({ view: z.enum(TERM_VIEWS).default('words') })
+
+export type StudentTerm = {
+	id: string
+	term: string
+	note: string | null
+	createdAt: string
+	addedBy?: TermAddedBy | null
+	removedAt?: string | null
+	removedBy?: TermRemovedBy | null
+}
+
+export const STUDENT_COMMENTS_MAX = 10
+
+export const STUDENT_COMMENTS_DEFAULT = 3
+
+export const studentCommentsQuery = z.object({
+	limit: z.coerce.number().int().min(1).max(STUDENT_COMMENTS_MAX).default(STUDENT_COMMENTS_DEFAULT),
+})
+
+export const studentComment = z.strictObject({
+	id: z.uuid(),
+	body: z.string(),
+	createdAt: z.string(),
+	lesson: z.strictObject({ key: z.string(), date: z.string(), startsAt: z.string().nullable() }),
+})
+
+export type StudentComment = z.infer<typeof studentComment>
+
+export const studentCommentsResponse = z.strictObject({ comments: z.array(studentComment).max(STUDENT_COMMENTS_MAX) })
+
+export type StudentCommentsResponse = z.infer<typeof studentCommentsResponse>
 
 export type StudentTermsResponse = { terms: StudentTerm[] }
 

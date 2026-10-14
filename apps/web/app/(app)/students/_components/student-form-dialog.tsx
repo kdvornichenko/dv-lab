@@ -295,11 +295,12 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="lg">
+			<DialogContent size="lg" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>{create ? 'New student' : `Edit ${baseline?.displayName ?? ''}`}</DialogTitle>

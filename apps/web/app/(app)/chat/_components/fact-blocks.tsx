@@ -26,7 +26,6 @@ import type {
 	ChatPaysSoonBlock,
 	ChatReadFailedBlock,
 	ChatRecordsRefreshResponse,
-	ChatSuggestionsBlock,
 } from '@dv-lab/contracts'
 import { lessonsPhrase, zonedInstant } from '@dv-lab/core'
 
@@ -176,7 +175,7 @@ function PaysSoon({ block }: { block: ChatPaysSoonBlock }) {
 					description={`Students appear here when they have ${threshold} left or fewer, or owe lessons.`}
 				/>
 			) : (
-				<DueList students={block.students} threshold={block.paysSoonLessons} moreHref={STUDENTS_HREF} />
+				<DueList students={block.students} threshold={block.paysSoonLessons} moreHref={STUDENTS_HREF} still />
 			)}
 		</Panel>
 	)
@@ -213,18 +212,6 @@ function Excerpt({ block }: { block: ChatExcerptBlock }) {
 	)
 }
 
-function Suggestions({ block }: { block: ChatSuggestionsBlock }) {
-	return (
-		<div data-slot="chat-suggestions" className="flex flex-col gap-1">
-			{block.lines.map((line) => (
-				<p key={line} className="text-body break-words text-foreground">
-					{line}
-				</p>
-			))}
-		</div>
-	)
-}
-
 function ReadFailed({ block }: { block: ChatReadFailedBlock }) {
 	const [refreshing, setRefreshing] = useState(false)
 	const [fresh, setFresh] = useState<ChatRecordsRefreshResponse['block'] | null>(null)
@@ -255,7 +242,7 @@ export function RecordBlockView({ block }: { block: RecordBlock }) {
 	if (block.type === 'lessons') return <Lessons block={block} />
 	if (block.type === 'pays_soon') return <PaysSoon block={block} />
 	if (block.type === 'excerpt') return <Excerpt block={block} />
-	if (block.type === 'suggestions') return <Suggestions block={block} />
+	if (block.type === 'suggestions') return null
 	if (block.type === 'lesson_dates') return <LessonDates block={block} />
 	return <ReadFailed block={block} />
 }

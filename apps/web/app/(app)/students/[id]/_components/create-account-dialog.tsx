@@ -108,11 +108,12 @@ export function CreateAccountDialog({ studentId, name, onClose, onCreated, onCon
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending && !revealed) onClose()
 			}}
 		>
-			<DialogContent size="lg" showCloseButton={!revealed && !pending}>
+			<DialogContent size="lg" showCloseButton={false}>
 				{revealed ? (
 					<RevealBody revealed={revealed} onSaved={onCreated} />
 				) : (

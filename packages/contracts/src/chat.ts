@@ -17,6 +17,7 @@ import {
 	LESSONS_HUNDREDTHS_MAX,
 	LESSON_MINUTES_MIN,
 	SECTION_KINDS,
+	STUDENT_LESSONS_DAYS_MAX,
 	STUDENT_STATUSES,
 } from './students.ts'
 
@@ -37,6 +38,7 @@ export const chatStudentFacts = z.strictObject({
 	paysSoonLessons: z.number().int(),
 	asOf: z.string(),
 	defaultTimeZone: z.string(),
+	followUp: z.literal('since_payment').optional(),
 })
 
 export type ChatStudentFacts = z.infer<typeof chatStudentFacts>
@@ -582,13 +584,15 @@ export const chatDay = z.enum(CHAT_DAYS)
 
 export type ChatDay = z.infer<typeof chatDay>
 
-export const CHAT_LESSON_DATE_SCOPES = ['held', 'ahead', 'no_show', 'all'] as const
+export const CHAT_LESSON_DATE_SCOPES = ['held', 'ahead', 'no_show', 'all', 'since_payment'] as const
 
 export const chatLessonDateScope = z.enum(CHAT_LESSON_DATE_SCOPES)
 
 export type ChatLessonDateScope = z.infer<typeof chatLessonDateScope>
 
-export const CHAT_LESSON_DATES_DAYS_MAX = 366
+export const CHAT_LESSON_DATES_DAYS_MAX = STUDENT_LESSONS_DAYS_MAX
+
+export const CHAT_FOLLOW_UP_TEXT = 'Count lessons since the last payment'
 
 export const chatRecordsKey = z.discriminatedUnion('kind', [
 	z.strictObject({ kind: z.literal('student'), studentId: z.uuid() }),
@@ -651,6 +655,7 @@ export const chatExcerptBlock = z.strictObject({
 	id: z.string().min(1),
 	studentId: z.uuid(),
 	sectionKind: z.enum(SECTION_KINDS).optional(),
+	blockId: z.uuid().optional(),
 	body: z.string(),
 	createdAt: calendarInstant,
 	timeZone: calendarTimeZone,
@@ -671,6 +676,8 @@ export const chatLessonDatesBlock = z.strictObject({
 	dates: z.array(calendarDate),
 	leftOut: z.strictObject({ noShow: z.number().int().min(0), ahead: z.number().int().min(0) }),
 	coverage: z.enum(['complete', 'partial']),
+	sinceFrom: calendarDate.optional(),
+	lastPaidOn: calendarDate.nullable().optional(),
 })
 
 export const CHAT_SUGGESTIONS_MAX = 4

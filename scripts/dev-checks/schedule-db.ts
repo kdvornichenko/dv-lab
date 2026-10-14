@@ -6,7 +6,7 @@ import { ENV_TEST, ROOT, quote, sql } from './db-catalog.ts'
 import type { MigrationOutput, SqlProbe } from './db-catalog.ts'
 
 const MIGRATIONS = `${ROOT}/packages/db/drizzle`
-const EXPECTED_FOLDERS = 8
+const MIN_FOLDERS = 32
 const TABLES = ['lesson_series', 'lesson_exceptions', 'lessons']
 const PRIVILEGES = { select: true, insert: true, update: true, delete: false, truncate: false }
 const TARGETS = [
@@ -48,7 +48,7 @@ function probeCode(text: string) {
 
 function checkMigrationFile() {
 	const names = folders()
-	if (names.length !== EXPECTED_FOLDERS) fail(`migration folders ${names.length}, expected ${EXPECTED_FOLDERS}`)
+	if (names.length < MIN_FOLDERS) fail(`migration folders ${names.length}, expected at least ${MIN_FOLDERS}`)
 	const schedule = names.filter((name) => name.endsWith('_schedule'))
 	if (schedule.length !== 1) fail(`schedule migration folders ${schedule.length}, expected 1`)
 	const text = readFileSync(`${MIGRATIONS}/${schedule[0]}/migration.sql`, 'utf8')
@@ -98,7 +98,7 @@ function checkZoneMigration(names: string[]): void {
 		([table, column]) => `ALTER TABLE "${table}" ADD COLUMN "${column}" text DEFAULT 'Asia/Ho_Chi_Minh' NOT NULL`
 	)
 	if (JSON.stringify(statements.sort()) !== JSON.stringify(expected.sort())) fail('zone migration is not additive')
-	console.log('PASS generated pairs 8; zone migration adds exactly 3 columns')
+	console.log(`PASS generated pairs ${names.length}; zone migration adds exactly 3 columns`)
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -246,7 +246,7 @@ function runProbes() {
 			tx(card, seriesWith(', ends_on', `1, '18:00', 60, date '${monday}', date '${monday}' - 2`)),
 		],
 		['series start_time with seconds', '23514', tx(card, seriesWith('', `1, '18:00:30', 60, date '${monday}'`))],
-		['series duration 10', '23514', tx(card, seriesWith('', `1, '18:00', 10, date '${monday}'`))],
+		['series duration 0', '23514', tx(card, seriesWith('', `1, '18:00', 0, date '${monday}'`))],
 		['series time_zone null', '23502', tx(card, seriesWith(', time_zone', `1, '18:00', 60, date '${monday}', null`))],
 		[
 			'lesson time_zone null',

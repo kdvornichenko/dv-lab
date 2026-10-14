@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Планы фазы 25.2</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<style data-mock-shared>
+  .ui { font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1c1b19; background: #fff; border: 1px solid #ddd8cc; border-radius: 10px; overflow: hidden; }
+  .ui .hd { padding: 10px 14px; border-bottom: 1px solid #eee9dd; font-weight: 650; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .ui .hd small { color: #8a8578; font-weight: 400; }
+  .ui .x { color: #8a8578; font-weight: 400; font-size: 16px; }
+  .ui .body { padding: 12px 14px; color: #5f5a4f; }
+  .ui .ft { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 10px 14px; border-top: 1px solid #eee9dd; background: #faf8f3; }
+  .ui .btn { font-weight: 600; font-size: 13px; padding: 6px 11px; border-radius: 7px; border: 1px solid #ddd8cc; background: #fff; }
+  .ui .btn.pri { background: #1c1b19; color: #fff; border-color: #1c1b19; }
+  .ui .btn.gh { border-color: transparent; color: #5f5a4f; }
+  .ui .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px; background: #f6f3ec; }
+  .ui table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ui th { text-align: left; font-weight: 400; color: #8a8578; padding: 8px 12px; border-bottom: 1px solid #eee9dd; }
+  .ui td { padding: 10px 12px; border-bottom: 1px solid #f3efe6; }
+  .ui .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .ui .amber { background: #c98a12; } .ui .red { background: #b42318; }
+  .ui .ring { box-shadow: 0 0 0 3px rgba(201,138,18,.35); }
+  .ui .hollow { background: transparent; border: 1.5px solid #8a8578; width: 6px; height: 6px; }
+  .ui .gap { display: inline-block; width: 14px; }
+  .ui .dim { color: #8a8578; }
+  .ui .cells { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #eee9dd; }
+  .ui .cells div { padding: 10px 14px; } .ui .cells div + div { border-left: 1px solid #eee9dd; }
+  .ui .cells b { display: block; font-size: 15px; }
+  .ui .foot { padding: 7px 14px; border-top: 1px solid #eee9dd; color: #8a8578; font-size: 12px; background: #faf8f3; }
+  .ui .chip { display: inline-block; margin: 10px 0 0; padding: 6px 11px; border: 1px solid #ddd8cc; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .ui .diff { font: 12.5px/1.5 ui-monospace, Menlo, monospace; padding: 8px 14px; }
+  .ui .add { background: #e6f4ec; color: #1f5f3f; } .ui .del { background: #fbe9e7; color: #8a2a1e; text-decoration: line-through; }
+  .ui .row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f3efe6; }
+  .ui .sw { width: 30px; height: 18px; border-radius: 9px; background: #1c1b19; display: inline-block; position: relative; }
+  .ui .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+</style>
+<body>
+
+<header>
+  <h1>Полировка dv-lab перед IELTS</h1>
+  <doc-changes new="64" changed="133"></doc-changes>
+  <details class="thread"><summary>Зачем · цель фазы и решения владельца</summary>
+    <doc-quote via="doc" from="25.2-CONTEXT.md · Phase Boundary">Polish of the built product before IELTS (Phase 26): design leftovers, tails of the checks of Phases 22 and 23, chat improvements, Students table, student profile (Overview, Lessons, Payments, Notes, Vocabulary) and installable PWA with push notifications.</doc-quote>
+    <doc-quote via="doc" from="D-01">Design is closed: v96-v101 (code-sync 76-111). Design dude tracks status by item number; after each plan send him the closed numbers.</doc-quote>
+    <doc-quote via="doc" from="D-02">No hard delete: schedule rows change status or ends_on only. For notes: words of the vocabulary are kept 30 days in Removed, then erased; empty blocks may be deleted at once; a block with text is deleted only after confirmation.</doc-quote>
+    <doc-quote via="doc" from="D-03">Testing: no new unit or e2e tests; acceptance by dev-check scripts, logs and the browser.</doc-quote>
+    <doc-quote via="doc" from="D-05">a held lesson takes its duration from the calendar (current length in the schedule), not frozen at the mark. Held lessons are not moved or changed.</doc-quote>
+    <doc-quote via="doc" from="D-10, D-14">asking dialogs have no corner X (footer Discard changes / Cancel then the action), showing dialogs have a corner X and no footer Close … scroll-fade, scroll-fade-x, scroll-divider need a fallback without animation-timeline</doc-quote>
+    <doc-quote via="doc" from="D-21, D-22">one follow-up button "Count lessons since the last payment" sends at once and disappears from that answer … starts at the first lesson of the debt series before the last payment</doc-quote>
+    <doc-quote via="doc" from="D-24">one tool edits Details fields … several fields in one Confirm/Decline card (ChangeCardDetails), expectedRevision CAS; Name, Status, account and Opening balance are not editable</doc-quote>
+    <doc-quote via="doc" from="D-25">the server decides by diff: new text that keeps every old line and only adds is written at once with a receipt and Undo; any removed, changed, merged, moved line … gives an "Update &lt;block&gt;?" Confirm/Decline card</doc-quote>
+    <doc-quote via="doc" from="D-26">the agent fixes duplicates and typos itself and reports conflicts in the result with one shared Undo … "Review now" in the profile opens a chat with the review already running.</doc-quote>
+    <doc-quote via="doc" from="D-27">only the prompt text of built-in /recap and /essay moves to the database and is editable in Settings</doc-quote>
+    <doc-quote via="doc" from="D-30, D-32">sorting and filters in the URL (nuqs) … actions through LessonDialog (mark, move, cancel, restore, open in calendar); held lessons are view only</doc-quote>
+    <doc-quote via="doc" from="D-40">Installable PWA, no offline. Push: "a lesson starts soon" … and "a student is about to pay" (once when the Pays soon threshold is reached); debt and sync failures are not pushed.</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ 1 · dialogs, fade, composer (plan 02) ═════ -->
+<doc-claim>
+  <p>Диалоги, fade и композер совпадают с дизайном v101.</p>
+  <doc-mock frame="none" w="460" caption="План 02. Слева спрашивающий диалог, справа показывающий."><template>
+<div class="ui" style="border:0">
+  <div class="two">
+    <div class="ui" data-ref="ask">
+      <div class="hd">Edit student</div>
+      <div class="body">Rate, Lesson length…</div>
+      <div class="ft"><span class="btn gh">Discard changes</span><span class="btn pri">Save</span></div>
+    </div>
+    <div class="ui" data-ref="show">
+      <div class="hd">Lesson <span class="x">✕</span></div>
+      <div class="body">Alex Example<br><span class="dim">Mon 10:00 · 60 min</span></div>
+      <div class="body dim" style="padding-top:0">Esc или клик снаружи</div>
+    </div>
+  </div>
+</div></template>
+    <doc-pin ref="ask" anchor="tl" title="Без X">Клик снаружи не закрывает.</doc-pin>
+    <doc-pin ref="show" anchor="tr" title="Только X">Футерного Close нет.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Спрашивающий диалог не закрывается кликом снаружи.</p>
+    <doc-calls title="Два вида диалога" caption="DialogContent получает проп; каждый диалог выбирает свой вид.">
+<script type="text/plain">
+~ <DialogContent/>                 @ apps/web/components/ui/dialog.tsx:89
++   disablePointerDismissal → Root @ apps/web/components/ui/dialog.tsx:78
+~ <LessonDialog/>                  @ apps/web/app/(app)/schedule/_components/lesson-dialog.tsx:191   -- показ, X
+~ <EventDetails/>                  @ apps/web/app/(app)/schedule/_components/calendar-event-details.tsx:403   -- показ, X
+~ <StudentForm/>                   @ apps/web/app/(app)/students/_components/student-form-dialog.tsx:302   -- вопрос, Discard changes
+~ <RecordPayment/>                 @ apps/web/app/(app)/students/[id]/_components/record-payment-dialog.tsx:250   -- вопрос
+~ <ConfirmDialog/>                 @ apps/web/components/app/confirm-dialog.tsx:61   -- вопрос
+</script>
+    </doc-calls>
+    <doc-claim at="apps/web/components/ui/dialog.tsx:89">
+      <doc-code src="apps/web/components/ui/dialog.tsx" lines="180-195" hl="185">
+        <doc-pin line="185" title="Угловой X">Показывающий диалог оставляет его.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>В Firefox край затухает по положению прокрутки.</p>
+    <doc-code title="scroll-fade-fallback.tsx · sketch" lang="tsx">
+<script type="text/plain">
+export function ScrollFadeFallback() {
+  useEffect(() => {
+    if (CSS.supports('animation-timeline: scroll()')) return
+    const update = (el: HTMLElement) => {
+      const end = el.scrollHeight - el.clientHeight - el.scrollTop
+      el.style.setProperty('--sf-start', el.scrollTop > 0 ? '1' : '0')
+      el.style.setProperty('--sf-end', end > 1 ? '1' : '0')
+    }
+    document.addEventListener('scroll', (e) => update(e.target as HTMLElement), true)
+  }, [])
+  return null
+}
+</script>
+      <doc-pin line="3" title="Chrome не трогает">Компонент работает без animation-timeline.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/web/app/globals.css:515">
+      <doc-code src="apps/web/app/globals.css" lines="515-537" hl="534">
+        <doc-pin line="534" title="Нет в Firefox">Маска в @supports not читает --sf-start и --sf-end.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Композер теряет быстрые кнопки и блок Suggestions.</p>
+    <doc-calls title="Композер" caption="Подсказка скрыта на тач-устройствах.">
+<script type="text/plain">
+~ <Composer/>                                         @ apps/web/app/(app)/chat/_components/composer.tsx:376
+-   QUICK: Was / Didn't happen / No-show / Moved to…  @ apps/web/app/(app)/chat/_components/composer.tsx:58
+~   PLACEHOLDER "Type / for commands or @ for a student"  @ apps/web/app/(app)/chat/_components/composer.tsx:122
+~   HINT "Shift+Enter — new line"                     @ apps/web/app/(app)/chat/_components/composer.tsx:123
+- <Suggestions/>                                      @ apps/web/app/(app)/chat/_components/fact-blocks.tsx:216
+</script>
+    </doc-calls>
+    <doc-claim at="apps/web/app/(app)/chat/_components/composer.tsx:58">
+      <doc-code src="apps/web/app/(app)/chat/_components/composer.tsx" lines="58-65"></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Длинное название не расширяет диалог Count lessons.</p>
+    <doc-code title="правило ширины · sketch" lang="tsx">
+<script type="text/plain">
+<div className="flex min-w-0 items-center gap-2">
+  <span className="min-w-0 flex-1 truncate" title={name}>{name}</span>
+  <span className="shrink-0 tabular-nums">{count}</span>
+  <CopyButton className="shrink-0" />
+</div>
+</script>
+      <doc-pin line="1" title="min-w-0 у каждого предка">То же в списке упоминаний, моделей и чатов.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/web/app/(app)/schedule/_components/lesson-count-dialog.tsx:324">
+      <doc-code src="apps/web/app/(app)/schedule/_components/lesson-count-dialog.tsx" lines="318-330" hl="324"></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Ползунок эффорта применяет значение при отпускании.</p>
+    <doc-calls title="Эффорт" caption="Заголовок поповера меняется при перетаскивании.">
+<script type="text/plain">
+~ <EffortSlider/>                       @ apps/web/components/app/effort-slider.tsx:62
+~   onValueChange → живой заголовок     @ apps/web/components/app/effort-slider.tsx:71
++   onValueCommitted → значение и чип   @ apps/web/app/(app)/chat/_components/model-controls.tsx:347
+</script>
+    </doc-calls>
+    <doc-claim at="apps/web/components/app/effort-slider.tsx:62">
+      <doc-code src="apps/web/components/app/effort-slider.tsx" lines="62-80"></doc-code>
+    </doc-claim>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 2 · Students and profile (plans 03, 05, 06, 08) ═════ -->
+<doc-claim>
+  <p>Таблица и профиль берут остаток и уроки из одного прохода.</p>
+  <doc-mock frame="none" w="460" caption="План 06. Четыре колонки, короткая форма остатка, кольцо у точки."><template>
+<div class="ui">
+  <table>
+    <tr><th>Student</th><th>Rate per lesson</th><th>Balance in lessons</th><th>Next lesson</th></tr>
+    <tr><td>Alex Example</td><td class="dim">No rate</td><td><span class="gap"></span>7 left</td><td>Tue 10:00</td></tr>
+    <tr><td>Alex Example 2</td><td class="dim">No rate</td><td data-ref="ring"><span class="dot amber ring"></span>1 left</td><td>Wed 18:00</td></tr>
+    <tr><td>Alex Example 3</td><td class="dim">No rate</td><td><span class="dot red"></span>owes 2</td><td class="dim">None</td></tr>
+    <tr><td>Alex Example 4</td><td class="dim">No rate</td><td><span class="dot hollow"></span>Not set</td><td class="dim">None</td></tr>
+  </table>
+</div></template>
+    <doc-pin ref="ring" anchor="r" title="Кольцо без конца">Pays soon 3.0 s, старт через 300 мс.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Один проход core даёт вычет, остаток после урока и оплату.</p>
+    <doc-code title="packages/core/src/balance.ts · sketch" lang="ts">
+<script type="text/plain">
+export type LedgerEntry = {
+  key: string
+  deducted: number
+  balanceAfter: number
+  coveredBy: string | null
+}
+export type StudentLedger = {
+  balanceMinutes: number | null
+  lastPayment: LedgerPayment | null
+  sinceLastPaymentFrom: string | null
+  entries: LedgerEntry[]
+}
+export function studentLedger(card, payments, lessons, timeZone): StudentLedger
+</script>
+      <doc-pin line="5" title="Последняя минута">Урок между двумя оплатами покрывает вторая.</doc-pin>
+      <doc-pin line="11" title="Граница D-22">С первого урока долга перед оплатой.</doc-pin>
+    </doc-code>
+    <doc-ask id="lastpay">
+      <p>Какая оплата считается последней?</p>
+      <label><input type="radio" name="lastpay" value="accounted" checked> Учтённая в остатке, с credited_minutes больше нуля <small>paid_on позже даты открытия</small></label>
+      <label><input type="radio" name="lastpay" value="latest"> Любая самая поздняя оплата <small>граница может уйти до даты открытия</small></label>
+    </doc-ask>
+    <doc-claim at="packages/core/src/balance.ts:28">
+      <doc-code src="packages/core/src/balance.ts" lines="28-42" caption="Итог studentLedger сверяется с этой функцией в ledger-core."></doc-code>
+    </doc-claim>
+    <doc-claim at="packages/core/src/lessons.ts:89">
+      <doc-code src="packages/core/src/lessons.ts" lines="89-92" caption="Опция short даёт «7 left» и «owes 2» только в таблице."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Остаток карточки и вкладку Lessons читает один загрузчик.</p>
+    <doc-calls title="Леджер в api" caption="Планы 03 и 05. balanceMinutes ни у одной карточки не меняется.">
+<script type="text/plain">
+~ cardFacts(cards)                            @ apps/api/src/cards/card-facts.ts:50
++   **readStudentLedgers**(ids)               @ apps/api/src/cards/card-facts.ts:29   -- новый ledger.ts вместо cardBalances
++     **studentLedger**(card, payments, lessons)  @ packages/core/src/balance.ts:28
+
++ GET /students/:id/lessons                   @ apps/api/src/routes/students.ts:264   -- рядом с маршрутами sections
++   **readStudentLessons**(range)             @ apps/api/src/chat/facts.ts:141   -- новый lessons-range.ts
++     **readWindowBlocks**(students, window)  @ apps/api/src/chat/facts.ts:141   -- окно выносится в schedule/window-blocks.ts
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/cards/card-facts.ts:29">
+      <doc-code src="apps/api/src/cards/card-facts.ts" lines="29-49" hl="45">
+        <doc-pin line="45" title="Уходит в ledger.ts">Тот же проход даёт lastPayment.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Сортировка и фильтры таблицы Students живут в URL.</p>
+    <doc-calls title="Students" caption="Чистая функция строк и счётчиков, как collectionView.">
+<script type="text/plain">
+~ <AppLayout/>                                     @ apps/web/app/(app)/layout.tsx:1
++   <NuqsAdapter/>                                 @ apps/web/app/(app)/layout.tsx:1
+~ <StudentsScreen/>                                @ apps/web/app/(app)/students/_components/students-screen.tsx:93
++   useQueryStates(sort, payment, currency, rate, next)  @ apps/web/app/(app)/students/_components/students-screen.tsx:93
++   **studentsView**(rows, state, threshold)       @ apps/web/app/(app)/students/_components/students-screen.tsx:84   -- новый students-view.ts вместо byName
++   <**StudentsFilters**/>                         @ apps/web/app/(app)/students/_components/students-screen.tsx:93   -- новый students-filters.tsx
+</script>
+    </doc-calls>
+    <doc-claim at="apps/web/app/(app)/students/_components/students-screen.tsx:50">
+      <doc-code src="apps/web/app/(app)/students/_components/students-screen.tsx" lines="50-81" collapsed caption="Колонка Status уходит."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Вкладка Lessons показывает уроки периода с оплатой и остатком.</p>
+    <doc-calls title="Вкладка Lessons" caption="План 08. Действия идут через существующий LessonDialog.">
+<script type="text/plain">
+~ <LessonsTab/>                                   @ apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx:171
+-   readWeek(monday)                              @ apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx:30
++   GET /students/:id/lessons?range=since_payment @ apps/api/src/routes/students.ts:264
++   <**LessonsRange**/> пресеты                   @ apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx:171   -- новый lessons-range.tsx
++   <**HeldDates**/> Copy dates                   @ apps/web/app/(app)/chat/_components/lesson-dates.tsx:76   -- тот же lessonCountText
++   <**LessonsTable**/> Outcome, Payment, Balance after  @ apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx:121   -- вместо LessonsPanel
++     TodayMarkControls как на Today              @ apps/web/app/(app)/_components/today-mark-controls.tsx:33
+</script>
+    </doc-calls>
+    <doc-ask id="heldmark">
+      <p>Можно ли менять отметку проведённого урока из вкладки Lessons?</p>
+      <label><input type="radio" name="heldmark" value="mark" checked> Да, как LessonMark на Today <small>Done, No-show, Clear mark; переноса и отмены нет</small></label>
+      <label><input type="radio" name="heldmark" value="view"> Нет, только просмотр <small>меню отметки у Done и No-show уходит</small></label>
+    </doc-ask>
+    <doc-claim at="apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx:30">
+      <doc-code src="apps/web/app/(app)/students/[id]/_components/lessons-tab.tsx" lines="30-36">
+        <doc-pin line="31" tone="warn" title="Уходит">Вкладка читает новый маршрут.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Overview показывает три факта; Opening balance уходит в Payments.</p>
+    <doc-calls title="Overview и Payments" caption="План 08. Запись Opening balance не меняется.">
+<script type="text/plain">
+~ <OverviewTab/>                                  @ apps/web/app/(app)/students/[id]/_components/overview-tab.tsx:44
++   Lessons left · Next lesson · Last payment     @ apps/web/app/(app)/students/[id]/_components/overview-tab.tsx:44
++   GET /students/:id/comments?limit=3            @ apps/api/src/schedule/comments.ts:1
+-   <OpeningBalancePanel/>                        @ apps/web/app/(app)/students/[id]/_components/overview-tab.tsx:110
+~ <PaymentsTab/>                                  @ apps/web/app/(app)/students/[id]/_components/payments-tab.tsx:1
++   строка Opening balance с правкой на месте     @ apps/web/app/(app)/students/[id]/_components/opening-balance-panel.tsx:1
+</script>
+    </doc-calls>
+    <doc-claim at="apps/web/app/(app)/students/[id]/_components/overview-tab.tsx:110">
+      <doc-code src="apps/web/app/(app)/students/[id]/_components/overview-tab.tsx" lines="105-118"></doc-code>
+    </doc-claim>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 3 · chat (plans 05, 07, 09, 12) ═════ -->
+<doc-claim>
+  <p>Чат отвечает блоком без фразы и правит Details по Confirm.</p>
+  <doc-mock frame="none" w="420" caption="Планы 05 и 12. Блок фактов v94 и одна кнопка follow-up."><template>
+<div class="ui">
+  <div class="hd"><span>● Alex Example</span></div>
+  <div class="cells"><div><small class="dim">Lessons left</small><b>3 left</b></div><div><small class="dim">Next lesson</small><b>Tue 10:00</b></div></div>
+  <div class="foot">Checked 10:42</div>
+</div>
+<span class="chip" data-ref="fu">Count lessons since the last payment</span></template>
+    <doc-pin ref="fu" anchor="r" title="Отправляет сразу">Кнопка исчезает из этого ответа.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Follow-up считает уроки с последней оплаты без модели.</p>
+    <doc-calls title="Follow-up" caption="Текст кнопки — одна константа в contracts.">
+<script type="text/plain">
+~ <StudentFacts/>                                  @ apps/web/app/(app)/chat/_components/student-facts.tsx:112
++   send(CHAT_FOLLOW_UP_TEXT, @ученик)             @ packages/contracts/src/chat.ts:1
+~ quickRequest(context, text, bindings)            @ apps/api/src/chat/actions.ts:378
++   since_payment → **readStudentLessons**(range)      @ apps/api/src/chat/facts.ts:137   -- новая область inScope
+~   readChatLessonDates() → блок дат, Copy dates   @ apps/api/src/chat/facts.ts:141
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/chat/actions.ts:378">
+      <doc-code src="apps/api/src/chat/actions.ts" lines="378-396"></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Правка полей Details идёт одной карточкой с ревизией.</p>
+    <doc-calls title="ChangeCardDetails" caption="План 09 пишет api, план 12 рисует карточку.">
+<script type="text/plain">
++ propose_details(fields)                          @ apps/api/src/chat/tools.ts:758
+~   preview → карточка «было → станет»            @ apps/api/src/chat/change-cards.ts:1
+~ confirmChange(action)                            @ apps/api/src/chat/changes.ts:1
++   **setCardDetails**(id, fields, expectedRevision)  @ apps/api/src/cards/cards.ts:163
+~ <ChangeProposal/> set_details                    @ apps/web/app/(app)/chat/_components/change-proposal.tsx:1
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/cards/cards.ts:163">
+      <doc-code src="apps/api/src/cards/cards.ts" lines="163-172" caption="Образец: setCardDetails пишет так же через writeCard."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Поиск по календарю только читает название, дату и длительность.</p>
+    <doc-code title="calendar_events · sketch" lang="ts">
+<script type="text/plain">
+type CalendarEventsInput = { query: string; from: string; to: string }
+type CalendarEventHit = {
+  title: string
+  date: string
+  time: string | null
+  minutes: number | null
+}
+</script>
+      <doc-pin line="1" title="До 400 дней">Пояс только IANA.</doc-pin>
+      <doc-pin line="3" title="Без описания">Фильтр nameMatches из core.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/api/src/calendar/event-titles.ts:49">
+      <doc-code src="apps/api/src/calendar/event-titles.ts" lines="49-64"></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Тексты /recap и /essay хранятся в базе и правятся в Settings.</p>
+    <doc-schema id="prompts" lang="sql" title="chat_command_prompts" caption="Режим хода /essay остаётся в коде.">
+<script type="text/plain">
+CREATE TABLE chat_command_prompts (
+  account_id  uuid NOT NULL REFERENCES accounts(id),
+  command     text NOT NULL,      -- '/recap' или '/essay'
+  body        text,               -- null: текст из кода
+  revision    integer NOT NULL DEFAULT 1,
+  updated_at  timestamptz NOT NULL,
+  PRIMARY KEY (account_id, command)
+);
+</script>
+    </doc-schema>
+    <doc-claim at="apps/api/src/chat/runs.ts:201">
+      <doc-code src="apps/api/src/chat/runs.ts" lines="201-207">
+        <doc-pin line="205" title="Текст из базы">readCommandPrompts читает его до разворота.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Каждый инструмент чата описан одной записью реестра.</p>
+    <doc-code title="apps/api/src/chat/tool-registry.ts · sketch" lang="ts">
+<script type="text/plain">
+type ToolEffect = 'read' | 'show' | 'write' | 'propose' | 'page' | 'feedback'
+type ToolEntry<I> = {
+  input: z.ZodType<I>
+  strict: boolean
+  effect: ToolEffect
+  step: ChatStepTool
+  run: (context: ToolContext, input: I) => Promise<ToolOutcome>
+}
+export const isReadOnly = (entry: ToolEntry<unknown>) =>
+  entry.effect === 'read' || entry.effect === 'show'
+</script>
+      <doc-pin line="9" title="По действию">Не по префиксу имени.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/api/src/chat/tools.ts:154">
+      <doc-code src="apps/api/src/chat/tools.ts" lines="154-162">
+        <doc-pin line="154" tone="warn" title="Уходит">Набор strict выводится из реестра.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 4 · notes and vocabulary (plans 04, 10, 11, 13, 14, 16) ═════ -->
+<doc-claim>
+  <p>Заметки — блоки; чат и ревизия меняют их с Undo.</p>
+  <doc-mock frame="none" w="420" caption="Планы 11 и 14. Квитанция добавления в блок."><template>
+<div class="ui">
+  <div class="hd">Updated Goals. <span class="btn" data-ref="undo">Undo</span></div>
+  <div class="diff"><div class="dim">Pass the exam in spring</div><div class="add">+ Speak for two minutes without notes</div></div>
+  <div class="foot">Open Goals</div>
+</div></template>
+    <doc-pin ref="undo" anchor="tr" title="Undo сверяет ревизию">Блок изменился — «Can't undo…».</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Каждая запись блока сверяет ревизию и при конфликте даёт 409.</p>
+    <doc-calls title="Блоки заметок" caption="Планы 04 и 10. Старые маршруты sections работают поверх блоков.">
+<script type="text/plain">
++ PUT /students/:id/blocks/order               @ apps/api/src/routes/students.ts:272   -- раньше маршрута :blockId
++   **reorderBlocks**(id, order, revisions)     @ apps/api/src/cards/sections.ts:19   -- новый blocks.ts
++ PUT /students/:id/blocks/:blockId            @ apps/api/src/routes/students.ts:272
++   **saveBlockText**(block, body, revision)    @ apps/api/src/cards/sections.ts:32   -- вместо saveSection
++ DELETE /students/:id/blocks/:blockId         @ apps/api/src/routes/students.ts:272
++   **deleteBlock**() → deleted_at              @ apps/api/src/cards/sections.ts:51   -- строки не удаляются
+~ createCard() + **standardBlocks**()          @ apps/api/src/cards/cards.ts:55
++ <**NoteBlock**/> имя, меню, P22              @ apps/web/app/(app)/students/[id]/_components/notes-tab.tsx:92   -- вместо SectionPanel
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/cards/sections.ts:32">
+      <doc-code src="apps/api/src/cards/sections.ts" lines="32-50" caption="Сейчас запись без ревизии. saveBlockText добавляет FOR UPDATE и сверку."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Слово, удалённое чатом или ревизией, 30 дней лежит в Removed.</p>
+    <doc-code title="apps/api/src/cards/terms.ts · sketch" lang="ts">
+<script type="text/plain">
+export function removeTerms(executor, studentId, ids, by: 'chat' | 'review') {
+  return executor.update(studentTerms)
+    .set({ removedAt: sql`now()`, removedBy: by })
+    .where(and(eq(studentTerms.studentId, studentId), inArray(studentTerms.id, ids)))
+}
+export function purgeRemovedTerms(executor) {
+  return executor.delete(studentTerms)
+    .where(lt(studentTerms.removedAt, sql`now() - interval '30 days'`))
+}
+</script>
+      <doc-pin line="6" title="Раз в проход">Зовёт auth/housekeeping.ts.</doc-pin>
+    </doc-code>
+    <doc-ask id="teacherdel">
+      <p>Куда уходит слово, которое удаляет сам учитель?</p>
+      <label><input type="radio" name="teacherdel" value="physical" checked> Удаляется сразу, как сейчас <small>Removed только для чата и ревизии</small></label>
+      <label><input type="radio" name="teacherdel" value="removed"> Тоже в Removed на 30 дней <small>removed_by = 'teacher' уже есть в check</small></label>
+    </doc-ask>
+    <doc-claim at="apps/api/src/cards/terms.ts:70">
+      <doc-code src="apps/api/src/cards/terms.ts" lines="70-76"></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Сервер решает по diff: добавление пишется сразу, правка ждёт Confirm.</p>
+    <doc-code title="apps/api/src/cards/note-diff.ts · sketch" lang="ts">
+<script type="text/plain">
+export function isAddition(before: string, after: string): boolean {
+  const old = lines(before)
+  const next = lines(after)
+  let at = 0
+  for (const line of next) if (at < old.length && line === old[at]) at++
+  return at === old.length && next.length >= old.length
+}
+</script>
+      <doc-pin line="5" title="Каждая старая строка">Порядок и текст остаются.</doc-pin>
+      <doc-pin line="6" title="Иначе «Update &lt;block&gt;?»">Запись только после Save.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/api/src/chat/actions.ts:302">
+      <doc-code src="apps/api/src/chat/actions.ts" lines="302-320" caption="/note пишет в general_info как добавление с квитанцией."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Ревизия применяет итог одной транзакцией с одним Undo.</p>
+    <doc-calls title="Ревизия" caption="Планы 13 и 16. До конца хода ревизия ничего не пишет.">
+<script type="text/plain">
+~ <Messages/> review_offer: Yes                   @ apps/web/app/(app)/chat/_components/messages.tsx:222   -- новый chat-review.tsx
++   send(REVIEW_COMMAND_TEXT, @ученик)            @ packages/contracts/src/chat.ts:1
+~ /review → режим хода ревизии                    @ apps/api/src/chat/runs.ts:589   -- как essayTurn
++   **apply_review**() одна транзакция           @ apps/api/src/chat/runs.ts:589   -- новый chat/review.ts
++     saveBlockText() для каждого блока           @ apps/api/src/cards/sections.ts:32
+~ actionsOf() → review_result, Undo changes       @ apps/api/src/chat/messages.ts:268
+</script>
+    </doc-calls>
+    <doc-ask id="review">
+      <p>Как приходит итог ревизии после Yes?</p>
+      <label><input type="radio" name="review" value="message" checked> Новым сообщением после команды /review <small>вопрос после ответа скрыт</small></label>
+      <label><input type="radio" name="review" value="inplace"> На месте блока вопроса, как в п.96 <small>нужен свой путь хода вне /review</small></label>
+    </doc-ask>
+    <doc-claim at="apps/api/src/chat/essay.ts:32">
+      <doc-code src="apps/api/src/chat/essay.ts" lines="32-44" caption="Образец встроенной команды с режимом хода."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Ревизия не теряет строки: спорная строка остаётся в блоке.</p>
+    <doc-code title="reviewKeptText · sketch" lang="ts">
+<script type="text/plain">
+export function reviewKeptText(before: string, after: string): Kept {
+  const keep = lines(before).filter(
+    (line) => !inText(after, line) && !isDuplicate(line, after) && !isTypoFix(line, after)
+  )
+  return { text: [after, ...keep].join('\n'), needsDecision: keep }
+}
+</script>
+      <doc-pin line="5" title="Needs your decision">Строка возвращается в блок.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/api/src/cards/notes.ts:71">
+      <doc-code src="apps/api/src/cards/notes.ts" lines="71-94" caption="Undo ревизии зовёт обратную функцию restoreStudentNote."></doc-code>
+    </doc-claim>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 5 · PWA and push (plans 15, 17, 18) ═════ -->
+<doc-claim>
+  <p>Учитель ставит PWA и получает push об уроке и оплате.</p>
+  <doc-mock frame="none" w="420" caption="План 17. Settings → General."><template>
+<div class="ui">
+  <div class="hd">Notifications on this device</div>
+  <div class="row"><span>Allow notifications</span><span class="sw"></span></div>
+  <div class="hd" style="border-top:1px solid #eee9dd">What to notify about</div>
+  <div class="row" data-ref="soon"><span>A lesson starts soon <span class="dim">· 30 min before</span></span><span class="sw"></span></div>
+  <div class="row"><span>A student is about to pay</span><span class="sw"></span></div>
+</div></template>
+    <doc-pin ref="soon" anchor="r" title="5-120 минут">По умолчанию 30.</doc-pin>
+  </doc-mock>
+
+  <doc-claim>
+    <p>Планировщик шлёт «скоро урок» один раз на урок.</p>
+    <doc-calls title="Тик раз в минуту" caption="План 15. Ключ в push_deliveries не даёт второй отправки. Сервер молчит, если экран открыт.">
+<script type="text/plain">
+~ lifecycle.manage(resources)                      @ apps/api/src/server.ts:138
++   **createPushScheduler**({ deliver })           @ apps/api/src/server.ts:43   -- рядом с createHousekeeping
++     runOnce() без наложения                      @ apps/api/src/auth/housekeeping.ts:31   -- тот же приём
++     **readWindowBlocks**(students, window)       @ apps/api/src/chat/facts.ts:141   -- окно блока дат чата
+</script>
+    </doc-calls>
+    <doc-claim at="apps/api/src/server.ts:138">
+      <doc-code src="apps/api/src/server.ts" lines="132-147">
+        <doc-pin line="141" title="Сюда планировщик">Закрывается вместе с housekeeping.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>«Скоро платить» уходит только при переходе plenty в Pays soon.</p>
+    <doc-machine name="alert" caption="push_payment_alerts: armed и last_state. Долг не уведомляется.">
+<script type="text/plain">
+machine alert initial first
+state first     # Строки нет. Первая оценка пишет состояние без отправки.
+state armed     # plenty: ученик взведён.
+state sent      # Pays soon: одна доставка, взвод снят.
+state quiet     # None left или Owes: ничего не уходит, взвод снят.
+
+| first | armed | sent |
+| .     | .     | quiet |
+
+first -plenty-> armed : plenty
+first -other-> quiet : не plenty
+armed -soon-> sent : Pays soon
+armed -debt-> quiet : None left, Owes
+sent -paid-> armed : plenty
+quiet -paid-> armed : plenty
+</script>
+      <div data-state="sent"><doc-mock frame="none" w="360"><template><div class="ui"><div class="hd">Alex Example has 1 lesson left</div><div class="body">Pays soon. Open payments to record a payment.</div></div></template></doc-mock></div>
+    </doc-machine>
+    <doc-ask id="paysoon">
+      <p>Когда уходит push «скоро платить»?</p>
+      <label><input type="radio" name="paysoon" value="armed" checked> Только при переходе plenty → Pays soon <small>прямой переход в None left или Owes молчит</small></label>
+      <label><input type="radio" name="paysoon" value="any"> При каждом входе в Pays soon <small>и после частичной оплаты долга</small></label>
+    </doc-ask>
+    <doc-claim at="packages/core/src/lessons.ts:68">
+      <doc-code src="packages/core/src/lessons.ts" lines="64-74"></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Service worker показывает каждое push и открывает урок по тапу.</p>
+    <doc-code title="apps/web/public/sw.js · sketch" lang="js">
+<script type="text/plain">
+self.addEventListener('push', (event) => {
+  const data = event.data.json()
+  event.waitUntil(self.registration.showNotification(data.title, { body: data.body, data }))
+})
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(focusOrOpen(event.notification.data.url))
+})
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(resubscribe())
+})
+</script>
+      <doc-pin line="3" title="Всегда показывает">Подавление присутствием делает api.</doc-pin>
+      <doc-pin line="7" title="lessonLink">Тот же формат, что у api.</doc-pin>
+    </doc-code>
+    <doc-claim at="apps/web/proxy.ts:14">
+      <doc-code src="apps/web/proxy.ts" lines="13-15">
+        <doc-pin line="14" title="Новые исключения">sw.js, manifest.webmanifest и иконки идут без cookie.</doc-pin>
+      </doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Без ключей VAPID push выключен, а api работает.</p>
+    <doc-code title="apps/api/src/config.ts · sketch" lang="ts">
+<script type="text/plain">
+export type PushConfig =
+  | { enabled: false }
+  | { enabled: true; publicKey: string; privateKey: string; subject: string }
+
+// PUSH_VAPID_PUBLIC_KEY, PUSH_VAPID_PRIVATE_KEY, PUSH_VAPID_SUBJECT
+// нет всех трёх: { enabled: false }; неверные: ошибка запуска
+</script>
+    </doc-code>
+    <doc-claim at="apps/api/src/config.ts:70">
+      <doc-code src="apps/api/src/config.ts" lines="59-76" caption="Образец: calendar и chat включаются так же."></doc-code>
+    </doc-claim>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Последняя волна проверяет сборку и обновляет AGENTS и RUNBOOK.</p>
+    <doc-mock frame="terminal" title="план 18" w="470"><template><span class="dim">></span> yarn build &amp;&amp; yarn typecheck &amp;&amp; yarn lint &amp;&amp; yarn knip
+<span class="g">✓</span> api, web
+<span class="dim">></span> yarn test            <span class="dim"># один раз, исполнитель один</span>
+<span class="g">✓</span> config, event-titles, migrate
+<span class="dim">></span> node scripts/privacy-check.mjs
+<span class="g">✓</span> нет имён учеников
+<span class="y">NOT RUN</span> push на проде <span class="dim">до выкатки Server guy</span></template></doc-mock>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ shared · not changing ═════ -->
+<doc-claim aux="shared">
+  <p>Общее: миграции M1-M9 плана 01.</p>
+  <doc-schema id="schema" lang="sql" title="packages/db/drizzle · M1-M9" caption="Только одна миграция снимает check. Остальные только добавляют.">
+<script type="text/plain">
+-- M1, M4: блоки и слова
+ALTER TABLE student_sections
+  ADD id uuid, ADD name text, ADD position integer,
+  ADD revision integer NOT NULL DEFAULT 1,
+  ADD deleted_at timestamptz;
+ALTER TABLE student_terms
+  ADD removed_at timestamptz, ADD removed_by text, ADD added_by text;
+-- M2: единственное снятие check
+ALTER TABLE student_sections DROP CONSTRAINT student_sections_kind_ck;
+-- M3: шесть стандартных блоков у каждой карточки
+-- M5-M7: ревизия, промпты, настройки
+CREATE TABLE note_reviews (
+  student_id uuid PRIMARY KEY, reviewed_at timestamptz,
+  offered_on date, running_conversation_id uuid);
+CREATE TABLE chat_command_prompts (
+  account_id uuid, command text, body text, revision integer);
+ALTER TABLE teacher_settings
+  ADD notify_lesson_soon boolean, ADD notify_lesson_minutes integer,
+  ADD notify_pays_soon boolean;
+-- M8-M9: push
+CREATE TABLE push_subscriptions (
+  id uuid, account_id uuid, endpoint text UNIQUE, revoked_at timestamptz);
+CREATE TABLE push_deliveries (
+  account_id uuid, kind text, key text, UNIQUE (account_id, kind, key));
+CREATE TABLE push_payment_alerts (
+  account_id uuid, student_id uuid, armed boolean, last_state text);
+REVOKE DELETE, TRUNCATE ON note_reviews, chat_command_prompts,
+  push_subscriptions, push_deliveries, push_payment_alerts FROM dvlab_app;
+</script>
+  </doc-schema>
+</doc-claim>
+
+<doc-claim aux="scope">
+  <p>Не меняется: конструктор команд, IELTS, окно синхронизации Google.</p>
+  <ul>
+    <li>Конструктор команд и /edvibe остаются в фазе 25.3.</li>
+    <li>Строки расписания не удаляются. Правило переноса и отмены прежнее.</li>
+    <li>Новых unit- и e2e-тестов нет. Приёмка — dev-check и браузер.</li>
+    <li>Офлайна нет. Долг и сбой синхронизации не уведомляются.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>

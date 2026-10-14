@@ -1043,26 +1043,17 @@ async function sectionComposer() {
 			)
 			check('choosing a student makes no request', reads.length === readsOnOpen)
 
-			const quick = page.locator(QUICK_ROW)
-			await quick.waitFor({ timeout: 5000 })
+			check('no quick buttons appear with a bound student', (await page.locator(QUICK_ROW).count()) === 0)
 			check(
-				'four quick buttons appear with a bound student',
-				(await quick.getByRole('button').allInnerTexts()).join('|') === "Was|Didn't happen|No-show|Moved to…"
+				'the placeholder tells what can be typed',
+				(await page.locator(FIELD).getAttribute('placeholder')) === 'Type / for commands or @ for a student'
 			)
-			await quick.getByRole('button', { name: 'Was' }).click()
-			const afterWas = await value(page)
-			await quick.getByRole('button', { name: 'No-show' }).click()
-			const afterNoShow = await value(page)
-			await quick.getByRole('button', { name: 'Moved to…' }).click()
-			const afterMoved = await value(page)
+			await page.keyboard.type('moved to ')
+			const afterTyped = await value(page)
 			check(
-				'quick buttons put an editable command after the name and send nothing',
-				afterWas === `@${COMPOSER_TWIN} was at the lesson today` &&
-					afterNoShow === `@${COMPOSER_TWIN} didn't come` &&
-					afterMoved === `@${COMPOSER_TWIN} moved to ` &&
-					writes.length === 0 &&
-					(await bindings(page)).length === 1,
-				JSON.stringify([afterWas, afterNoShow, afterMoved])
+				'a typed command stays editable after the name and sends nothing',
+				afterTyped === `@${COMPOSER_TWIN} moved to ` && writes.length === 0 && (await bindings(page)).length === 1,
+				JSON.stringify(afterTyped)
 			)
 			await shot(page, 'chat-composer', 'quick')
 
@@ -1177,13 +1168,13 @@ async function sectionComposer() {
 				JSON.stringify(box)
 			)
 			await page.keyboard.press('Enter')
-			await quick.waitFor({ timeout: 5000 })
+			await popup.waitFor({ state: 'detached', timeout: 5000 })
 			const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
-			const quickBox = await quick.boundingBox()
+			const fieldBox = await page.locator(FIELD).boundingBox()
 			check(
-				'on 375px the quick buttons fit without horizontal scroll',
-				overflow <= 0 && quickBox !== null && quickBox.x + quickBox.width <= 375,
-				`${overflow} ${JSON.stringify(quickBox)}`
+				'on 375px the composer fits without horizontal scroll',
+				overflow <= 0 && fieldBox !== null && fieldBox.x + fieldBox.width <= 375,
+				`${overflow} ${JSON.stringify(fieldBox)}`
 			)
 			await shot(page, 'chat-composer', 'phone')
 
@@ -1233,9 +1224,9 @@ async function sectionActions() {
 			await page.locator(POPUP).waitFor({ timeout: 15000 })
 			await page.keyboard.press('Enter')
 			await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
-			await page.locator(QUICK_ROW).getByRole('button', { name: 'Was' }).click()
+			await page.keyboard.type('was at the lesson today')
 			const draftText = `@${ACTIONS_CARD} was at the lesson today`
-			check('the quick button puts the command in the field', (await value(page)) === draftText)
+			check('the typed command is in the field', (await value(page)) === draftText)
 
 			const bodies = []
 			const conversationPosts = []
@@ -2131,28 +2122,12 @@ async function sectionAnswers() {
 				(await excerpt.getByRole('link', { name: 'From notes' }).getAttribute('href')) ===
 					`/students/${ids[ANSWER_PAYS.name]}?tab=notes&entry=${excerptEntry}`
 			)
-			const suggestions = page.locator('[data-slot="chat-suggestions"]').last()
 			check(
-				'suggestions are plain lines without buttons or a footer',
-				(await suggestions.getByRole('button').count()) === 0 &&
-					(await suggestions.locator('p').allInnerTexts()).join('|') === IDEA_LINES.join('|') &&
-					(await suggestions.getByText("Not saved to the student's notes.").count()) === 0
+				'a stored suggestions block draws nothing',
+				(await page.locator('[data-slot="chat-suggestions"]').count()) === 0 &&
+					(await page.getByText(IDEA_LINES[0]).count()) === 0
 			)
 			await shot(page, 'chat-answers', 'excerpt')
-			const notesBefore = sql(
-				`select count(*)::int as n from student_notes where student_id = '${ids[ANSWER_PAYS.name]}'`
-			).rows[0].n
-			const postsBeforeUse = posts.length
-			await suggestions.getByText(IDEA_LINES[0]).click()
-			await page.waitForTimeout(500)
-			check(
-				'clicking a suggestion line sends nothing, fills nothing and writes no note',
-				posts.length === postsBeforeUse &&
-					(await value(page)) === '' &&
-					sql(`select count(*)::int as n from student_notes where student_id = '${ids[ANSWER_PAYS.name]}'`).rows[0]
-						.n === notesBefore,
-				await value(page)
-			)
 
 			injected.push([
 				{

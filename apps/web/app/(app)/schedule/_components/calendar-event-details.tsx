@@ -396,17 +396,18 @@ export function CalendarEventDialog({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal={editing}
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
 			<DialogContent
 				size={editing ? 'lg' : 'sm'}
-				showCloseButton={false}
+				showCloseButton={!editing && !pending}
 				className={cn('overflow-hidden data-[nested-dialog-open]:invisible', quiet !== 'shown' && 'invisible')}
 				backdropClassName={quiet === 'sending' ? 'invisible' : undefined}
 			>
-				<DialogHeader>
+				<DialogHeader className={editing ? undefined : 'pr-10'}>
 					<DialogTitle className="flex items-start gap-2 wrap-anywhere">
 						<Dot fill={paint?.fill ?? 'var(--selected)'} />
 						<span className="min-w-0">{title}</span>
@@ -518,52 +519,30 @@ export function CalendarEventDialog({
 						</div>
 					)}
 				</ScrollArea>
-				{editing ? null : (
+				{editing || removed || transition || !(canEdit || canDelete) ? null : (
 					<DialogFooter>
-						{!removed && !transition && canEdit ? (
-							<>
-								<Button
-									type="button"
-									variant="ghost"
-									size="compact"
-									leadingIcon={Trash2}
-									disabled={pending}
-									onClick={askDelete}
-								>
-									Delete event
-								</Button>
-								<Button
-									type="button"
-									variant="secondary"
-									size="compact"
-									leadingIcon={Pencil}
-									disabled={pending}
-									onClick={() => latest !== null && setFormBase(latest)}
-								>
-									Edit event
-								</Button>
-							</>
-						) : !removed && !transition && canDelete ? (
-							<>
-								<Button
-									type="button"
-									variant="ghost"
-									size="compact"
-									leadingIcon={Trash2}
-									disabled={pending}
-									onClick={askDelete}
-								>
-									Delete event
-								</Button>
-								<Button type="button" variant="secondary" size="compact" onClick={onClose}>
-									Close
-								</Button>
-							</>
-						) : (
-							<Button type="button" variant="secondary" size="compact" onClick={onClose}>
-								Close
+						<Button
+							type="button"
+							variant="ghost"
+							size="compact"
+							leadingIcon={Trash2}
+							disabled={pending}
+							onClick={askDelete}
+						>
+							Delete event
+						</Button>
+						{canEdit ? (
+							<Button
+								type="button"
+								variant="secondary"
+								size="compact"
+								leadingIcon={Pencil}
+								disabled={pending}
+								onClick={() => latest !== null && setFormBase(latest)}
+							>
+								Edit event
 							</Button>
-						)}
+						) : null}
 					</DialogFooter>
 				)}
 				{removing === 'confirm' ? (

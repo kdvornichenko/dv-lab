@@ -8,8 +8,11 @@ import { ROOT, STATE_DIR } from './paths.mjs'
 
 const playwright = process.env.PLAYWRIGHT_CORE ?? '/Volumes/T7/personal/ielts/node_modules/playwright-core/index.mjs'
 const loaded: unknown = await import(playwright)
-if (!loaded || typeof loaded !== 'object' || !('chromium' in loaded)) throw new Error('Chromium loader is unavailable')
-const { chromium } = loaded as { chromium: BrowserType }
+const engine = process.env.DEV_CHECK_BROWSER === 'firefox' ? 'firefox' : 'chromium'
+if (!loaded || typeof loaded !== 'object' || !(engine in loaded)) throw new Error(`${engine} loader is unavailable`)
+const browserType = (loaded as Record<string, BrowserType>)[engine]!
+
+export const firefox = engine === 'firefox'
 
 export { ROOT, STATE_DIR }
 export const BASE = 'http://localhost:3000'
@@ -78,7 +81,7 @@ export async function launch({
 	colorScheme?: 'dark' | 'light'
 	timezoneId?: string
 } = {}) {
-	const browser = await chromium.launch()
+	const browser = await browserType.launch()
 	try {
 		const context = await browser.newContext({
 			viewport: { width, height },

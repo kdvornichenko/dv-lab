@@ -248,7 +248,7 @@ export function RecordPaymentDialog({
 				}}
 			>
 				<DialogContent size="lg">
-					<DialogHeader>
+					<DialogHeader className="pr-10">
 						<DialogTitle>Edit payment</DialogTitle>
 						<DialogDescription>The balance is recalculated when you save.</DialogDescription>
 					</DialogHeader>
@@ -256,9 +256,6 @@ export function RecordPaymentDialog({
 						<BannerTitle>This record is no longer available. Open the current records to continue.</BannerTitle>
 					</Banner>
 					<DialogFooter>
-						<Button type="button" variant="secondary" onClick={onClose}>
-							Close
-						</Button>
 						<Button type="button" onClick={onViewPayments ?? onClose}>
 							View payments
 						</Button>
@@ -271,11 +268,12 @@ export function RecordPaymentDialog({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="lg">
+			<DialogContent size="lg" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>{edit ? 'Edit payment' : preset === undefined ? 'Add payment' : 'Record payment'}</DialogTitle>

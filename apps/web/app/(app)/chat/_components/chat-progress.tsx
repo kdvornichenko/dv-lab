@@ -146,14 +146,14 @@ export function ChatProgress({
 					variant="ghost"
 					size="compact"
 					aria-expanded={expanded}
-					className="-ml-2 self-start text-caption text-muted-foreground pointer-coarse:h-8"
+					className="-ml-2 self-start text-caption whitespace-nowrap text-muted-foreground pointer-coarse:h-8"
 					onClick={() => setExpanded((value) => !value)}
 				>
 					{expanded ? 'Hide steps' : 'Show steps'}
 					<ChevronDown
 						size={14}
 						aria-hidden
-						className={cn('transition-transform duration-120', expanded && 'rotate-180')}
+						className={cn('shrink-0 transition-transform duration-120', expanded && 'rotate-180')}
 					/>
 				</Button>
 			) : null}

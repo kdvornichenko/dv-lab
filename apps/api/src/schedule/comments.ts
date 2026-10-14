@@ -1,11 +1,11 @@
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 
-import type { LessonComment } from '@dv-lab/contracts'
-import { type OccurrenceRef, canChange } from '@dv-lab/core'
-import { type DbExecutor, lessonComments, lessonSeries, lessons } from '@dv-lab/db'
+import type { LessonComment, StudentComment } from '@dv-lab/contracts'
+import { type OccurrenceRef, canChange, lessonDay, occurrenceKey } from '@dv-lab/core'
+import { type DbExecutor, lessonComments, lessonSeries, lessons, students } from '@dv-lab/db'
 
 import { lockOccurrence } from './changes.ts'
-import { lockLesson } from './rows.ts'
+import { lockLesson, occurrenceStartsAt } from './rows.ts'
 
 export type CommentAppend = { kind: 'ok'; comment: LessonComment } | { kind: 'not_found' } | { kind: 'not_started' }
 
@@ -121,6 +121,36 @@ export async function listStudentComments(
 		.orderBy(desc(lessonComments.createdAt), desc(lessonComments.id))
 		.limit(limit)
 	return rows.map(toComment)
+}
+
+export async function latestStudentComments(
+	executor: DbExecutor,
+	studentId: string,
+	limit: number,
+	timeZone: string
+): Promise<StudentComment[] | null> {
+	const [card] = await executor.select({ id: students.id }).from(students).where(eq(students.id, studentId))
+	if (!card) return null
+	const rows = await executor
+		.select(columns)
+		.from(lessonComments)
+		.where(and(eq(lessonComments.studentId, studentId), isNull(lessonComments.retractedAt)))
+		.orderBy(desc(lessonComments.createdAt), desc(lessonComments.id))
+		.limit(limit)
+	const comments: StudentComment[] = []
+	for (const row of rows) {
+		const ref = refOf(row)
+		const startsAt = await occurrenceStartsAt(executor, ref)
+		const date = startsAt ? lessonDay(startsAt, timeZone) : ref.kind === 'series' ? ref.originalOn : null
+		if (date === null) continue
+		comments.push({
+			id: row.id,
+			body: row.body,
+			createdAt: row.createdAt.toISOString(),
+			lesson: { key: occurrenceKey(ref), date, startsAt: startsAt ? startsAt.toISOString() : null },
+		})
+	}
+	return comments
 }
 
 export async function retractLessonComment(

@@ -9,7 +9,7 @@ import {
 } from '@dv-lab/contracts'
 import {
 	type BalanceCard,
-	type BalanceLesson,
+	type LedgerLesson,
 	type LessonActions,
 	type LessonOutcome,
 	type MarkKind,
@@ -359,7 +359,7 @@ export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<
 export async function loadMarkRows(
 	executor: DbExecutor,
 	studentIds: readonly string[]
-): Promise<Array<BalanceLesson & { studentId: string }>> {
+): Promise<Array<LedgerLesson & { studentId: string }>> {
 	if (studentIds.length === 0) return []
 	const ids = [...studentIds]
 	const seriesRows = await executor
@@ -389,13 +389,14 @@ export async function loadMarkRows(
 		.innerJoin(lessons, eq(lessonMarks.lessonId, lessons.id))
 		.where(inArray(lessons.studentId, ids))
 
-	const result: Array<BalanceLesson & { studentId: string }> = []
+	const result: Array<LedgerLesson & { studentId: string }> = []
 	for (const row of seriesRows) {
 		if (row.markOn === null) continue
 		const exception = exceptions.get(occurrenceKey({ kind: 'series', seriesId: row.id, originalOn: row.markOn }))
 		const occurrence = occurrenceAt(toSeriesRule(row), row.markOn, exception)
 		if (occurrence === null) continue
 		result.push({
+			key: occurrence.key,
 			studentId: occurrence.studentId,
 			startsAt: occurrence.startsAt,
 			durationMinutes: occurrence.durationMinutes,
@@ -405,6 +406,7 @@ export async function loadMarkRows(
 	for (const row of lessonRows) {
 		const lesson = toSingleLesson(row)
 		result.push({
+			key: occurrenceKey({ kind: 'single', lessonId: lesson.id }),
 			studentId: lesson.studentId,
 			startsAt: lesson.startsAt,
 			durationMinutes: lesson.durationMinutes,

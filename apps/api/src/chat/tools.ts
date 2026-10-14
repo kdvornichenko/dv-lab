@@ -29,9 +29,9 @@ import {
 import { type Weekday, addDays, lessonDay, zonedParts } from '@dv-lab/core'
 import { type Database, type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
+import { isStandardKind, listBlocks } from '../cards/blocks.ts'
 import { listLessonStudents, studentGenders } from '../cards/cards.ts'
 import { listStudentNotes } from '../cards/notes.ts'
-import { listSections } from '../cards/sections.ts'
 import { listStudentComments } from '../schedule/comments.ts'
 import { occurrenceStartsAt } from '../schedule/rows.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
@@ -203,7 +203,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	),
 	tool(
 		'lesson_dates',
-		`Read the dates of the lessons of one student in a period of lesson days (YYYY-MM-DD, teacher time zone, at most ${CHAT_LESSON_DATES_DAYS_MAX} days). from and to null mean the current month. scope: held (marked done), ahead (planned, not started yet), no_show, all (every lesson that was not cancelled). Use it when the teacher asks for the lessons or the dates of one student over a period or for a list of lessons; use lessons for one lesson or one day. show true when the teacher asked for these lessons or dates: the app shows them in a block with a copy button, once per student. Do not list, count or retell these dates in your text: the block shows them.`,
+		`Read the dates of the lessons of one student in a period of lesson days (YYYY-MM-DD, teacher time zone, at most ${CHAT_LESSON_DATES_DAYS_MAX} days). from and to null mean the current month. scope: held (marked done), ahead (planned, not started yet), no_show, all (every lesson that was not cancelled), since_payment (held lessons since the last payment: Done and the No-shows that took lessons off the balance; the app finds the period itself, so from and to are null). Use since_payment when the teacher asks to count the lessons since the last payment. Use it when the teacher asks for the lessons or the dates of one student over a period or for a list of lessons; use lessons for one lesson or one day. show true when the teacher asked for these lessons or dates: the app shows them in a block with a copy button, once per student. Do not list, count or retell these dates in your text: the block shows them.`,
 		{
 			student_id: string,
 			from: nullableString,
@@ -439,7 +439,7 @@ function excerptOf(
 
 async function studentNotes(executor: DbExecutor, context: ToolContext, studentId: string): Promise<ToolOutcome> {
 	const zone = context.chat.defaultTimeZone
-	const sections = await listSections(executor, studentId)
+	const sections = await listBlocks(executor, studentId)
 	const notes = await listStudentNotes(executor, context.chat.accountId, studentId)
 	if (sections === null || notes === null) return failure('student_not_found')
 	const comments = await listStudentComments(executor, context.chat.accountId, studentId, RECORDS_MAX + 1)
@@ -468,19 +468,24 @@ async function studentNotes(executor: DbExecutor, context: ToolContext, studentI
 		})),
 	].sort((left, right) => right.at.localeCompare(left.at))
 	const filled = sections
-		.filter((section) => section.body.trim() !== '')
-		.map((section) => {
-			const id = `${studentId}:${section.kind}`
+		.filter((block) => block.body.trim() !== '')
+		.map((block) => {
+			const id = `${studentId}:${block.key}`
+			const sectionKind = isStandardKind(block.key) ? block.key : undefined
 			const excerpt =
-				section.updatedAt === null
+				block.updatedAt === null
 					? null
-					: excerptOf('section', id, studentId, sectionExcerpt(section.body), section.updatedAt, zone, section.kind)
+					: {
+							...excerptOf('section', id, studentId, sectionExcerpt(block.body), block.updatedAt, zone, sectionKind),
+							blockId: block.id,
+						}
 			return {
 				excerpt,
 				record: {
-					kind: section.kind,
+					kind: block.key,
+					name: block.name,
 					...(excerpt === null ? {} : { cite: `[[section:${id}]]` }),
-					text: clip(section.body),
+					text: clip(block.body),
 				},
 			}
 		})
@@ -558,7 +563,8 @@ async function lessonDates(
 	input: z.infer<(typeof inputs)['lesson_dates']>
 ): Promise<ToolOutcome> {
 	const chat = context.chat
-	const period = lessonDatesPeriod(input.from, input.to, chat.now, chat.defaultTimeZone)
+	const since = input.scope === 'since_payment'
+	const period = lessonDatesPeriod(since ? null : input.from, since ? null : input.to, chat.now, chat.defaultTimeZone)
 	if (period === null) return failure('range_too_long')
 	const key = { kind: 'lesson_dates', studentId: input.student_id, ...period, scope: input.scope } as const
 	let block: Awaited<ReturnType<typeof readChatLessonDates>>

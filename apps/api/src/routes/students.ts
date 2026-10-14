@@ -5,9 +5,14 @@ import { z } from 'zod'
 import {
 	type AccountCandidatesResponse,
 	type CreateStudentAccountResponse,
+	type ReorderBlocksResponse,
 	SECTION_KINDS,
 	type StudentAccountResponse,
+	type StudentBlockResponse,
+	type StudentBlocksResponse,
+	type StudentCommentsResponse,
 	type StudentDetail,
+	type StudentLessonsResponse,
 	type StudentNoteResponse,
 	type StudentNotesResponse,
 	type StudentResponse,
@@ -17,14 +22,22 @@ import {
 	type StudentTermsResponse,
 	type StudentsResponse,
 	addTermRequest,
+	blockRevisionRequest,
 	cardRevisionRequest,
+	createBlockRequest,
 	createStudentAccountRequest,
 	deactivateStudentAccountRequest,
 	linkStudentAccountRequest,
 	openingBalanceRequest,
+	renameBlockRequest,
+	reorderBlocksRequest,
 	retractNoteRequest,
+	saveBlockRequest,
 	saveSectionRequest,
 	saveStudentRequest,
+	studentCommentsQuery,
+	studentLessonsQuery,
+	studentTermsQuery,
 	updateStudentRequest,
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
@@ -32,6 +45,16 @@ import { type Database, type DbExecutor, postgresCode, readSnapshot } from '@dv-
 
 import { type AppEnv, noStore, readJson, readOptionalJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
+import {
+	type BlockNameWrite,
+	createBlock,
+	deleteBlock,
+	listBlocks,
+	renameBlock,
+	reorderBlocks,
+	restoreBlock,
+	saveBlockText,
+} from '../cards/blocks.ts'
 import {
 	cardAccountCandidates,
 	createCardAccount,
@@ -50,10 +73,13 @@ import {
 	setOpeningBalance,
 	updateCard,
 } from '../cards/cards.ts'
+import { readStudentLessons } from '../cards/lessons-range.ts'
+import { readNoteReview } from '../cards/note-reviews.ts'
 import { listStudentNotes, retractStudentNote } from '../cards/notes.ts'
 import { listSections, saveSection } from '../cards/sections.ts'
-import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
+import { addTerm, deleteTerm, listTerms, restoreTerm, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
+import { latestStudentComments } from '../schedule/comments.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
 type StudentRouteDeps = { db: Database }
@@ -78,6 +104,20 @@ function noteIdParam(c: Context<AppEnv>): string | null {
 function termIdParam(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('termId'))
 	return id.success ? id.data : null
+}
+
+function blockIdParam(c: Context<AppEnv>): string | null {
+	const id = z.uuid().safeParse(c.req.param('blockId'))
+	return id.success ? id.data : null
+}
+
+function blockReply(c: Context<AppEnv>, result: BlockNameWrite, status: 200 | 201 = 200) {
+	if (result.kind === 'not_found') return notFound(c)
+	if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The block changed'), 409)
+	if (result.kind === 'name_taken') {
+		return c.json(errorBody('block_name_taken', 'A block with this name already exists'), 409)
+	}
+	return c.json({ block: result.block } satisfies StudentBlockResponse, status)
 }
 
 async function studentResponse(
@@ -280,6 +320,80 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		return c.json({ section } satisfies StudentSectionResponse, 200)
 	})
 
+	routes.get('/:id/blocks', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const read = await readSnapshot(db, async (executor) => {
+			const blocks = await listBlocks(executor, id)
+			return blocks === null ? null : { blocks, review: await readNoteReview(executor, id) }
+		})
+		if (!read) return notFound(c)
+		const { blocks, review } = read
+		const reviewRunning =
+			review.runningConversationId === null ? null : { conversationId: review.runningConversationId }
+		return c.json({ blocks, reviewedAt: review.reviewedAt, reviewRunning } satisfies StudentBlocksResponse, 200)
+	})
+
+	routes.post('/:id/blocks', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, createBlockRequest)
+		if (!input) return invalidRequest(c)
+		const result = await createBlock(db, id, input)
+		return blockReply(c, result, 201)
+	})
+
+	routes.put('/:id/blocks/order', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, reorderBlocksRequest)
+		if (!input) return invalidRequest(c)
+		const result = await db.transaction((tx) => reorderBlocks(tx, id, input.blocks))
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The blocks changed'), 409)
+		return c.json({ blocks: result.blocks } satisfies ReorderBlocksResponse, 200)
+	})
+
+	routes.put('/:id/blocks/:blockId', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, saveBlockRequest)
+		if (!input) return invalidRequest(c)
+		const result = await db.transaction((tx) => saveBlockText(tx, id, blockId, input.body, input.expectedRevision))
+		return blockReply(c, result)
+	})
+
+	routes.patch('/:id/blocks/:blockId', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, renameBlockRequest)
+		if (!input) return invalidRequest(c)
+		const result = await renameBlock(db, id, blockId, input.name, input.expectedRevision)
+		return blockReply(c, result)
+	})
+
+	routes.delete('/:id/blocks/:blockId', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, blockRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await db.transaction((tx) => deleteBlock(tx, id, blockId, input.expectedRevision))
+		return blockReply(c, result)
+	})
+
+	routes.post('/:id/blocks/:blockId/restore', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, blockRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await restoreBlock(db, id, blockId, input.expectedRevision)
+		return blockReply(c, result)
+	})
+
 	routes.get('/:id/notes', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
@@ -306,9 +420,52 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	routes.get('/:id/terms', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const terms = await listTerms(db, id)
+		const query = studentTermsQuery.safeParse(c.req.query())
+		if (!query.success) return invalidRequest(c)
+		const terms = await listTerms(db, id, query.data.view)
 		if (!terms) return notFound(c)
 		return c.json({ terms } satisfies StudentTermsResponse, 200)
+	})
+
+	routes.post('/:id/terms/:termId/restore', async (c) => {
+		const id = cardId(c)
+		const termId = termIdParam(c)
+		if (id === null || termId === null) return notFound(c)
+		const result = await restoreTerm(db, id, termId)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'term_exists') {
+			return c.json(errorBody('term_exists', 'This term is already on the card'), 409)
+		}
+		return c.json({ term: result.term } satisfies StudentTermResponse, 200)
+	})
+
+	routes.get('/:id/comments', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const query = studentCommentsQuery.safeParse(c.req.query())
+		if (!query.success) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const comments = await readSnapshot(db, async (executor) => {
+			const settings = await readTeacherSettings(executor, accountId)
+			return latestStudentComments(executor, id, query.data.limit, settings.defaultTimeZone)
+		})
+		if (!comments) return notFound(c)
+		return c.json({ comments } satisfies StudentCommentsResponse, 200)
+	})
+
+	routes.get('/:id/lessons', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const query = studentLessonsQuery.safeParse(c.req.query())
+		if (!query.success) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const now = new Date()
+		const response = await readSnapshot(db, async (executor) => {
+			const settings = await readTeacherSettings(executor, accountId)
+			return readStudentLessons(executor, id, { accountId, now, defaultTimeZone: settings.defaultTimeZone }, query.data)
+		})
+		if (!response) return notFound(c)
+		return c.json(response satisfies StudentLessonsResponse, 200)
 	})
 
 	routes.post('/:id/terms', async (c) => {

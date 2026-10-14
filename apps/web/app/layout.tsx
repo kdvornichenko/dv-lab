@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from 'react'
 
 import type { Metadata } from 'next'
 
+import { ScrollFadeFallback } from '@/components/app/scroll-fade-fallback'
 import { ThemeProvider } from '@/components/app/theme-provider'
 
 import './globals.css'
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 					<div className="isolate">
 						<Suspense fallback={null}>{children}</Suspense>
 					</div>
+					<ScrollFadeFallback />
 				</ThemeProvider>
 			</body>
 		</html>

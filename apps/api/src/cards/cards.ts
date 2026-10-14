@@ -12,10 +12,11 @@ import type {
 	saveStudentRequest,
 } from '@dv-lab/contracts'
 import { isAfterScheduleToday, lessonsToMinutes } from '@dv-lab/core'
-import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
+import { type Database, type DbExecutor, payments, studentSections, students } from '@dv-lab/db'
 
 import { findStudentAccount } from '../auth/accounts.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
+import { standardBlocks } from './blocks.ts'
 import { cardFacts, type CardFacts, type CardReadContext } from './card-facts.ts'
 import { type CardRecord, cardColumns, toCardRow, toGender, toStudentDetail } from './card-rows.ts'
 
@@ -62,6 +63,7 @@ export async function createCard(
 		.values({ ...cardValues(input), noShowDeducts: input.noShowDeducts ?? true, gender: input.gender ?? null })
 		.returning(cardColumns)
 	if (!row) throw new Error('student card insert returned no row')
+	await executor.insert(studentSections).values(standardBlocks(row.id))
 	return toDetail(executor, row, context)
 }
 
@@ -247,7 +249,10 @@ export async function importCard(
 		.values({ ...values, noShowDeducts: true, importKey })
 		.onConflictDoNothing({ target: students.importKey })
 		.returning({ id: students.id })
-	if (row) return { id: row.id, inserted: true }
+	if (row) {
+		await executor.insert(studentSections).values(standardBlocks(row.id))
+		return { id: row.id, inserted: true }
+	}
 	const [existing] = await executor.select({ id: students.id }).from(students).where(eq(students.importKey, importKey))
 	if (!existing) throw new Error('imported student card is missing after a conflict')
 	return { id: existing.id, inserted: false }

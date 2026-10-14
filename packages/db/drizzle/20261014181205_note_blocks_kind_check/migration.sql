@@ -1,0 +1,1 @@
+ALTER TABLE "student_sections" DROP CONSTRAINT "student_sections_kind_ck";

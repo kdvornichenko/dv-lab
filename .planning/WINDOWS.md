@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 13
+open_count: 15
 waived_count: 0
 fixed_count: 1
-total_count: 14
-last_updated: 2026-10-13T18:48:45.670Z
+total_count: 16
+last_updated: 2026-10-14T15:48:15.330Z
 ---
 
 # Broken Windows Ledger
@@ -29,6 +29,8 @@ last_updated: 2026-10-13T18:48:45.670Z
 | 12 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-15: chat-web.mjs models light\|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000 | open |  | 2026-10-13T18:06:24.770Z |  |
 | 13 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-16: chat-web.mjs delete light\|dark и wait-dev.mjs down не запускались: стенд владельца занимает порты 3000 и 4000, раздел сам поднимает api на 4000; раздел проверен node --check и prettier | open |  | 2026-10-13T18:24:49.766Z |  |
 | 14 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-17: yarn test:e2e, wait-dev.mjs down и все разделы chat-web.mjs (records, conversations, notes, comments, composer, actions, calendar, budget, stream, answers, models, delete) в обеих темах не запускались: стенд владельца занимает порты 3000 и 4000, проверки с этими портами запрещены заданием | open |  | 2026-10-13T18:48:45.670Z |  |
+| 15 | 25.2 | deviation | apps/web/lib/lesson-count-text.ts |  | A4 ключ сравнения названий: отложено, см. 25.2-ARCH-REVIEW.md | open |  | 2026-10-14T15:48:15.232Z |  |
+| 16 | 25.2 | deviation | apps/api/src/calendar/event-titles.ts |  | A5 проекция событий Google: отложено, см. 25.2-ARCH-REVIEW.md | open |  | 2026-10-14T15:48:15.330Z |  |
 
 ````json
 [
@@ -211,6 +213,32 @@ last_updated: 2026-10-13T18:48:45.670Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-13T18:48:45.670Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 15,
+    "kind": "deviation",
+    "phase": "25.2",
+    "file": "apps/web/lib/lesson-count-text.ts",
+    "line": null,
+    "description": "A4 ключ сравнения названий: отложено, см. 25.2-ARCH-REVIEW.md",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-14T15:48:15.232Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 16,
+    "kind": "deviation",
+    "phase": "25.2",
+    "file": "apps/api/src/calendar/event-titles.ts",
+    "line": null,
+    "description": "A5 проекция событий Google: отложено, см. 25.2-ARCH-REVIEW.md",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-14T15:48:15.330Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }

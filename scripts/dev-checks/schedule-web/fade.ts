@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 
-import { BASE, check, failures, shot, signIn, sql } from '../browser-context.ts'
+import { BASE, check, failures, firefox, shot, signIn, sql } from '../browser-context.ts'
 import { withBrowser } from '../browser-journey.ts'
 import { cleanupFixtures } from './fixtures.ts'
 import { setTheme, dark } from './navigation.ts'
@@ -111,6 +111,81 @@ export async function fadeTable(page: Page) {
 	await shot(page, 'sched-fade', 'table')
 }
 
+type FadeReading = { start: string; end: string }
+
+type FadeFollow = {
+	rest: FadeReading
+	moved: FadeReading
+	last: FadeReading
+	mask: string
+} | null
+
+function followed(name: string, result: FadeFollow) {
+	check(`${name} found`, result !== null)
+	if (result === null) return
+	check(`${name} mask-image is set`, result.mask !== '' && result.mask !== 'none', result.mask.slice(0, 40))
+	check(
+		`${name} at rest: start 1, end 0`,
+		result.rest.start === '1' && result.rest.end === '0',
+		JSON.stringify(result.rest)
+	)
+	check(`${name} scrolled one fade length: start 0`, result.moved.start === '0', JSON.stringify(result.moved))
+	check(
+		`${name} scrolled to the end: start 0, end 1`,
+		result.last.start === '0' && result.last.end === '1',
+		JSON.stringify(result.last)
+	)
+}
+
+export async function fadeFollow(page: Page) {
+	await page.locator('[data-slot="table-container"] tbody tr').first().waitFor({ timeout: 15000 })
+	await page.waitForTimeout(500)
+	const horizontal = await page.evaluate(async (): Promise<FadeFollow> => {
+		const container = document.querySelector<HTMLElement>('[data-slot="table-container"]')
+		if (!container) return null
+		const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 200))
+		const read = () => ({
+			start: container.style.getPropertyValue('--sf-start'),
+			end: container.style.getPropertyValue('--sf-end'),
+		})
+		await settle()
+		const rest = read()
+		container.scrollLeft = parseFloat(getComputedStyle(container).getPropertyValue('--scroll-fade-size'))
+		await settle()
+		const moved = read()
+		container.scrollLeft = container.scrollWidth
+		await settle()
+		const last = read()
+		const style = getComputedStyle(container)
+		return { rest, moved, last, mask: style.maskImage || style.webkitMaskImage || '' }
+	})
+	followed('table container follows horizontal scroll', horizontal)
+	const vertical = await page.evaluate(async (): Promise<FadeFollow> => {
+		const viewport = document.querySelector('h1')?.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+		if (!viewport) return null
+		const spacer = document.createElement('div')
+		spacer.style.height = '3000px'
+		viewport.firstElementChild?.append(spacer)
+		const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 200))
+		const read = () => ({
+			start: viewport.style.getPropertyValue('--sf-start'),
+			end: viewport.style.getPropertyValue('--sf-end'),
+		})
+		await settle()
+		const rest = read()
+		viewport.scrollTop = parseFloat(getComputedStyle(viewport).getPropertyValue('--scroll-fade-size'))
+		await settle()
+		const moved = read()
+		viewport.scrollTop = viewport.scrollHeight
+		await settle()
+		const last = read()
+		const style = getComputedStyle(viewport)
+		spacer.remove()
+		return { rest, moved, last, mask: style.maskImage || style.webkitMaskImage || '' }
+	})
+	followed('page body viewport follows vertical scroll', vertical)
+}
+
 export async function fadeFinishAgain(problems: string[]) {
 	check('no console errors', problems.length === 0, problems.slice(0, 2).join(' | '))
 }
@@ -126,6 +201,7 @@ export async function fade() {
 			await fadeSelect(page)
 			await fadeFinish(page)
 			await fadeTable(page)
+			if (firefox) await fadeFollow(page)
 			await fadeFinishAgain(problems)
 		},
 		() => cleanupFixtures('fade end')
