@@ -10,6 +10,10 @@ function seriesCutVectors(expect: Expect): void {
 	)
 
 	const kind = (result: core.CutSeriesResult) => result.kind
+	const startsOn = (result: core.CutSeriesResult) => [
+		result.kind,
+		result.kind === 'ok' ? result.newRule.startsOn : null,
+	]
 	const opened = cut(
 		weekly,
 		[
@@ -34,10 +38,10 @@ function seriesCutVectors(expect: Expect): void {
 	expect(
 		's10 cutSeries checks, old end, new rule and moved lessons',
 		{
-			yesterday: kind(cut(weekly, [], { from: '2026-10-11', weekday: 4, startTime: '17:00' })),
+			yesterday: startsOn(cut(weekly, [], { from: '2026-10-11', weekday: 4, startTime: '17:00' })),
 			repeated: kind(cut(rule({ endsOn: '2026-10-14' }), [], { from: '2026-10-21', weekday: 4, startTime: '17:00' })),
 			sameSlot: kind(cut(weekly, [], { from: '2026-10-21', weekday: 3, startTime: '18:00' })),
-			startedToday: kind(
+			startedToday: startsOn(
 				cut(
 					rule({ weekday: 1, startTime: '00:00', startsOn: '2026-10-05' }),
 					[{ seriesId: 'series-a', originalOn: '2026-10-12', kind: 'cancelled' }],
@@ -50,10 +54,10 @@ function seriesCutVectors(expect: Expect): void {
 			earlierToday: cut(weekly, [], { from: '2026-10-12', weekday: 1, startTime: '09:00' }),
 		},
 		{
-			yesterday: 'invalid',
+			yesterday: ['ok', '2026-10-15'],
 			repeated: 'changed',
 			sameSlot: 'invalid',
-			startedToday: 'today_passed',
+			startedToday: ['ok', '2026-10-13'],
 			opened: {
 				kind: 'ok',
 				oldEndsOn: '2026-10-20',
@@ -108,12 +112,21 @@ function seriesCutVectors(expect: Expect): void {
 					weekday: 1,
 					startTime: '09:00',
 					durationMinutes: 60,
-					startsOn: '2026-10-19',
+					startsOn: '2026-10-12',
 					endsOn: null,
 				},
 				lessons: [],
 			},
 		}
+	)
+	expect(
+		's17 seriesAllFrom is the first series date not before the lowest date and after every held date',
+		{
+			free: core.seriesAllFrom(weekly, new Set(), '2026-10-09'),
+			held: core.seriesAllFrom(weekly, new Set(['2026-10-14', '2026-10-07']), '2026-10-01'),
+			ended: core.seriesAllFrom(rule({ endsOn: '2026-10-14' }), new Set(['2026-10-14']), '2026-10-01'),
+		},
+		{ free: '2026-10-14', held: '2026-10-21', ended: null }
 	)
 }
 

@@ -1010,3 +1010,66 @@ Push работает по HTTPS-пути `/api/google/notifications`, кото�
 ### 13.5. Старые таблицы снимков
 
 Таблицы `google_read_windows`, `google_read_events` и `google_next_lessons` в этом релизе не очищаются и не удаляются: прежний образ после отката читает их. Их удаляет более поздний релиз, когда образ, который их читает, вернуться уже не может.
+
+## 14. Чат (фаза 22)
+
+### 14.1. Переменные
+
+`ANTHROPIC_API_KEY` лежит в `/opt/dv-lab/env/api.env`, файл ставит Server guy; `env_file` сервиса `api` в `deploy/compose.yaml` его подхватывает, правка compose не нужна. Переменную читает только `loadConfig`. Без переменной чат работает без модели: записи по быстрым формам, ответы `/today`, `/tomorrow`, `/payments` и факты карточек идут, свободный вопрос отвечает `model_unavailable`. Пустое значение даёт ошибку запуска `Invalid ANTHROPIC_API_KEY`.
+
+Модели, их порядок, уровни, тарифы, лимиты запроса и месячный предел расхода — настройки учителя в Settings → Assistant (`teacher_settings`). На сервере они не меняются.
+
+### 14.2. Выкатка и миграции
+
+Выкатка идёт по разделу 8.1 или 8.2, образы api и web на одном теге `sha-<полный sha>`. Этап `migrate` применяет миграции фазы под `dvlab_migrator`:
+
+- `20261013113547_lesson_mark_revision` — колонка `lesson_marks.revision` (`DEFAULT 1`).
+- `20261013123301_chat_conversations` и `20261013123305_chat_conversations_revoke_delete` — таблица `chat_conversations`, отзыв `DELETE, TRUNCATE` у `dvlab_app`.
+- `20261013124933_chat_entries` и `20261013124936_chat_entries_revoke_delete` — таблицы `student_notes` и `lesson_comments`, отзыв `DELETE, TRUNCATE`.
+- `20261013130032_chat_settings` — колонки ассистента в `teacher_settings`.
+- `20261013135713_chat_messages_actions` и `20261013135720_chat_messages_actions_revoke_delete` — таблицы `chat_messages` и `chat_actions`, отзыв `DELETE, TRUNCATE`.
+- `20261013161230_chat_budget` и `20261013161237_chat_budget_revoke_delete` — таблицы `chat_budget_periods` и `chat_usage_attempts`, колонки переопределения модели в `chat_conversations`, отзыв `DELETE, TRUNCATE`.
+- `20261013163655_chat_turns` и `20261013163659_chat_turns_revoke_delete` — таблица `chat_turns`, колонка `chat_usage_attempts.turn_id`, отзыв `DELETE, TRUNCATE`.
+- `20261013181712_chat_messages_redacted_body` — ограничение `chat_messages_body_ck` допускает пустой текст стёртого сообщения.
+- `20261013195421_student_gender` — колонка `students.gender` (`female`, `male` или пусто).
+
+Миграции добавляют таблицы, колонки и ограничения; прежний образ api работает на новой схеме. Удаление разговора в приложении — пометка и стирание содержимого, строки не удаляются.
+
+При старте api переводит незавершённые ходы модели в `interrupted` и освобождает их резервы бюджета: строка журнала `chat turns interrupted at start` со счётчиками `turns` и `attempts`. В журнале чата только id, счётчики и коды, без текста сообщений и имён.
+
+### 14.3. Caddy и поток ответа
+
+Поток хода `/api/chat/turns/:id/stream` — `text/event-stream` через `handle_path /api/*` с `flush_interval -1`. Сжатие `encode` стоит за matcher `@compressible`, который исключает этот путь (`path_regexp ^/api/chat/turns/[^/]+/stream$`, путь до срезания `/api`); остальные ответы сжимаются. `deploy.sh` перезагружает Caddy на этапе выкатки.
+
+После выкатки Server guy проверяет под сессией учителя: ответ потока без `Content-Encoding`, события приходят по мере ответа, без задержки до конца хода; соседний путь `/api/*` отдаётся со сжатием. Назад передаются только заголовки и тайминги, без текста ответа.
+
+### 14.4. Проверки после выкатки
+
+Права через `has_table_privilege('dvlab_app', 'public.<таблица>', '<право>')`: `DELETE` и `TRUNCATE` дают `false` для `chat_conversations`, `chat_messages`, `chat_actions`, `chat_turns`, `chat_budget_periods`, `chat_usage_attempts`, `student_notes`, `lesson_comments`.
+
+Владелец открывает Chat и Settings → Assistant после перезагрузки вкладок. Живой вопрос модели и расход по `usage` владелец проверяет сам с ключом.
+
+### 14.5. Откат
+
+Откат образов api и web на один прежний sha по разделу 8.2, миграции не откатываются. Прежний образ не читает таблицы чата; разговоры, заметки и комментарии остаются в базе и возвращаются после повторной выкатки.
+
+## 15. Подтверждаемые изменения из чата и точки входа (фаза 23)
+
+### 15.1. Выкатка и миграции
+
+Выкатка идёт по разделу 8.1 или 8.2, образы api и web на одном теге `sha-<полный sha>`. Этап `migrate` применяет миграции фазы под `dvlab_migrator`:
+
+- `20261014040312_chat_changes` — ограничение `chat_actions_kind_ck` допускает kind `change` (предложения изменений из чата).
+- `20261014044620_card_payment_revision` — колонки `students.revision` и `payments.revision` (`DEFAULT 1`, CHECK `revision >= 1`).
+
+Миграции только расширяют ограничение и добавляют колонки; прежний образ api работает на новой схеме. Новых переменных окружения нет, `deploy/compose.yaml`, поток ответа чата и Caddy не меняются.
+
+### 15.2. Проверки после выкатки
+
+Колонки на месте: `select count(*) from information_schema.columns where table_schema = 'public' and column_name = 'revision' and table_name in ('students', 'payments')` даёт 2. Права `dvlab_app` на таблицы чата прежние (раздел 14.4).
+
+Живые сценарии после выкатки проверяет владелец (`.planning/phases/23-confirmed-chat-changes-and-entry-points/23-PLAN-INDEX.md`, раздел «Живые проверки владельца»): предложения настоящей модели, запись в Google на тестовом аккаунте, экранная клавиатура телефона. Назад передаются только «подтверждено» и счётчики.
+
+### 15.3. Откат
+
+Откат образов api и web на один прежний sha по разделу 8.2, миграции не откатываются. Колонки `revision` остаются со своими значениями. Образ с чатом, но без фазы 23, разбирает блоки сообщений строгой схемой и не знает блоков `change_proposal` и `essay`: разговоры с такими блоками в нём не открываются, пока не вернётся образ фазы 23; строки не теряются. Образ без чата таблицы чата не читает (раздел 14.5).

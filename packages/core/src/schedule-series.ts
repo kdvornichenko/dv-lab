@@ -1,9 +1,8 @@
 import {
-	canChange,
 	emptySeriesEnd,
 	hasOccurrences,
+	isSeriesDate,
 	lastSeriesDateOnOrBefore,
-	nextSeriesDate,
 	occurrenceAt,
 	scheduleDate,
 	scheduleToday,
@@ -39,6 +38,13 @@ type SeriesContext = { now: Date; defaultTimeZone: string }
 const SERIES_SHIFT_DAYS = 366
 
 const laterDate = (left: string, right: string) => (left > right ? left : right)
+
+export function seriesAllFrom(rule: SeriesTiming, held: ReadonlySet<string>, lowest: string): string | null {
+	let start = laterDate(rule.startsOn, lowest)
+	for (const date of held) start = laterDate(start, addDays(date, 1))
+	const first = firstOnOrAfter(start, rule.weekday)
+	return isSeriesDate(rule, first) ? first : null
+}
 
 export function seriesCutBoundary(
 	rule: SeriesRule,
@@ -103,7 +109,6 @@ function lastStartBefore(rule: SeriesTiming, boundary: Date): string | null {
 export type CutSeriesResult =
 	| { kind: 'invalid' }
 	| { kind: 'changed' }
-	| { kind: 'today_passed' }
 	| { kind: 'nonexistent_local_time' }
 	| { kind: 'ends_before_new_day'; endsOn: string }
 	| { kind: 'ok'; oldEndsOn: string; newRule: NewSeriesRule; lessons: CutLesson[] }
@@ -115,17 +120,13 @@ function replacementRule(
 	end: { instant: Date; endsOn: string } | null
 ):
 	| { kind: 'ok'; rule: NewSeriesRule }
-	| { kind: 'invalid' }
 	| { kind: 'nonexistent_local_time' }
 	| { kind: 'ends_before_new_day'; endsOn: string } {
 	const { weekday, startTime } = change
-	const from = change.newStartsOn ?? change.from
-	const candidate = { weekday, startTime, timeZone: context.defaultTimeZone, startsOn: from, endsOn: null }
-	const first = firstOnOrAfter(from, weekday)
-	if (seriesStart(candidate, first) === null) return { kind: 'nonexistent_local_time' }
-	const startsOn = nextSeriesDate(candidate, context.now)
-	if (startsOn === null) return { kind: 'invalid' }
-	const endsOn = end === null ? null : lastStartBefore({ ...candidate, startsOn }, end.instant)
+	const startsOn = firstOnOrAfter(change.newStartsOn ?? change.from, weekday)
+	const candidate = { weekday, startTime, timeZone: context.defaultTimeZone, startsOn, endsOn: null }
+	if (seriesStart(candidate, startsOn) === null) return { kind: 'nonexistent_local_time' }
+	const endsOn = end === null ? null : lastStartBefore(candidate, end.instant)
 	if (end !== null && endsOn === null) return { kind: 'ends_before_new_day', endsOn: end.endsOn }
 	return {
 		kind: 'ok',
@@ -147,9 +148,7 @@ export function cutSeries(
 	marks: ReadonlyMap<string, MarkKind> = new Map<string, MarkKind>()
 ): CutSeriesResult {
 	if (!hasOccurrences(rule)) return { kind: 'changed' }
-	const { now, defaultTimeZone } = context
-	const today = scheduleToday(now, defaultTimeZone)
-	if (change.from < today) return { kind: 'invalid' }
+	const { defaultTimeZone } = context
 	if (
 		change.newStartsOn !== undefined &&
 		(change.newStartsOn < change.from || change.newStartsOn > addDays(change.from, SERIES_SHIFT_DAYS))
@@ -167,8 +166,6 @@ export function cutSeries(
 	) {
 		return { kind: 'invalid' }
 	}
-	const naturalStart = seriesStart(rule, boundary.naturalCutoff)
-	if (change.from === today && naturalStart !== null && !canChange(naturalStart, now)) return { kind: 'today_passed' }
 	const replacement = replacementRule(rule, change, context, end)
 	if (replacement.kind !== 'ok') return replacement
 	return {

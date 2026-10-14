@@ -1,29 +1,33 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { Archive, ArchiveRestore, ArrowLeft, Wallet } from 'lucide-react'
-import Link from 'next/link'
+import { Archive, ArchiveRestore, MessageSquare, Wallet } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
-import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
+import { PageHeader, PageScroll } from '@/components/app/layout-parts'
 import { MoneyText } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { StatusDot } from '@/components/app/status-dot'
 import { NotFoundPage } from '@/components/app/status-pages'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
-import { Skeleton, SkeletonProfileHeader } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
-import { apiRequest } from '@/lib/api-client'
+import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest } from '@/lib/api-client'
+import { withoutSearchParams } from '@/lib/arrival-mark'
 
 import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
+import { BackButton } from './back-button'
+import { LessonsTab } from './lessons-tab'
 import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
+import { initialProfileTab, type ProfileArrival, type ProfileMark } from './profile-arrival'
+import { ProfileLoading } from './profile-loading'
 import { RecordPaymentDialog } from './record-payment-dialog'
 import { VocabularyTab } from './vocabulary-tab'
 
@@ -34,64 +38,6 @@ async function readStudent(id: string): Promise<ReadState> {
 	const result = await apiRequest<StudentResponse>('GET', `/students/${id}`)
 	if (result.ok) return { kind: 'ready', data: result.data }
 	return { kind: result.status === 404 ? 'not_found' : 'error', data: null }
-}
-
-function BackButton() {
-	return (
-		<Button
-			variant="ghost"
-			size="compact"
-			leadingIcon={ArrowLeft}
-			nativeButton={false}
-			render={<Link href="/students" />}
-			className="self-start"
-		>
-			Students
-		</Button>
-	)
-}
-
-function SectionTabs({ children, disabled }: { children: ReactNode; disabled: boolean }) {
-	return (
-		<Tabs defaultValue="overview">
-			<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
-				<TabsList
-					aria-label="Student sections"
-					className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
-				>
-					<TabItem value="overview" label="Overview" disabled={disabled} />
-					<TabItem value="notes" label="Notes" disabled={disabled} />
-					<TabItem value="vocabulary" label="Vocabulary" disabled={disabled} />
-					<TabItem value="payments" label="Payments" disabled={disabled} />
-				</TabsList>
-			</div>
-			<TabPanel value="overview" className="mt-4">
-				{children}
-			</TabPanel>
-		</Tabs>
-	)
-}
-
-function LoadingBody() {
-	return (
-		<div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-			<Panel>
-				<div className="flex flex-col gap-4 p-4">
-					<Skeleton className="h-5 w-24" />
-					<Skeleton className="h-4 w-full" />
-					<Skeleton className="h-4 w-full" />
-					<Skeleton className="h-4 w-3/5" />
-				</div>
-			</Panel>
-			<Panel>
-				<div className="flex flex-col gap-4 p-4">
-					<Skeleton className="h-5 w-32" />
-					<Skeleton className="h-9 w-full" />
-					<Skeleton className="h-9 w-full" />
-				</div>
-			</Panel>
-		</div>
-	)
 }
 
 function SummaryLine({
@@ -130,26 +76,49 @@ function SummaryLine({
 	)
 }
 
-export function StudentProfile({ id }: { id: string }) {
+export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileArrival }) {
+	const router = useRouter()
 	const [state, setState] = useState<ReadState>({ kind: 'loading', data: null })
-	const [tab, setTab] = useState('overview')
-	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
+	const [tab, setTab] = useState<string>(() => initialProfileTab(arrival))
+	const [mark, setMark] = useState<ProfileMark | null>(arrival.mark)
+	const [editRequested, setEditRequested] = useState(false)
+	const [confirm, setConfirm] = useState<{ action: 'archive' | 'restore'; revision: number } | null>(null)
+	const [confirmFailure, setConfirmFailure] = useState<string | null>(null)
+	const [openPayment, setOpenPayment] = useState(arrival.payment)
 	const [recordOpen, setRecordOpen] = useState(false)
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
+	const [lessonsVersion, setLessonsVersion] = useState(0)
 	const [drafts, setDrafts] = useState<SectionDrafts>({})
 	const lessonsInput = useRef<HTMLInputElement>(null)
 	const statusButton = useRef<HTMLButtonElement>(null)
 	const recordButton = useRef<HTMLButtonElement>(null)
 	const requests = useRef(0)
+	const dialogRequest = useRef(arrival.dialog)
 	const toast = useToast()
+
+	const dropParams = useCallback(
+		(names: readonly string[]) => {
+			const next = withoutSearchParams(names)
+			if (next !== undefined) router.replace(next, { scroll: false })
+		},
+		[router]
+	)
 
 	const reload = useCallback(async () => {
 		const requestId = ++requests.current
 		const next = await readStudent(id)
 		if (requestId !== requests.current) return false
 		setState((previous) => (next.kind === 'ready' ? next : { ...next, data: previous.data }))
+		const wanted = dialogRequest.current
+		if (wanted !== null && next.kind !== 'error') {
+			dialogRequest.current = null
+			if (wanted === 'payment' && next.kind === 'ready' && next.data.student.balanceMinutes !== null)
+				setRecordOpen(true)
+			if (wanted === 'details' && next.kind === 'ready') setEditRequested(true)
+			dropParams(['dialog'])
+		}
 		return next.kind === 'ready'
-	}, [id])
+	}, [id, dropParams])
 
 	useEffect(() => {
 		const counter = requests
@@ -159,6 +128,22 @@ export function StudentProfile({ id }: { id: string }) {
 		}
 	}, [reload])
 
+	const refresh = useCallback(async () => {
+		const ready = await reload()
+		if (ready) setLessonsVersion((version) => version + 1)
+		return ready
+	}, [reload])
+
+	useEffect(() => {
+		const changed = () => setLessonsVersion((version) => version + 1)
+		window.addEventListener(API_CACHE_INVALIDATED, changed)
+		DATA_CHANGED_CHANNEL?.addEventListener('message', changed)
+		return () => {
+			window.removeEventListener(API_CACHE_INVALIDATED, changed)
+			DATA_CHANGED_CHANNEL?.removeEventListener('message', changed)
+		}
+	}, [])
+
 	function changeDraft(kind: SectionKind, value: string | undefined) {
 		setDrafts((current) => {
 			const next = { ...current }
@@ -166,6 +151,13 @@ export function StudentProfile({ id }: { id: string }) {
 			else next[kind] = value
 			return next
 		})
+	}
+
+	function changeTab(next: string) {
+		setTab(next)
+		if (mark === null) return
+		setMark(null)
+		dropParams(['entry', 'section'])
 	}
 
 	function focusOpeningBalance() {
@@ -178,21 +170,35 @@ export function StudentProfile({ id }: { id: string }) {
 		requestAnimationFrame(() => recordButton.current?.focus())
 	}
 
+	function openConfirm(action: 'archive' | 'restore', revision: number) {
+		setConfirmFailure(null)
+		setConfirm({ action, revision })
+	}
+
 	function closeConfirm() {
 		setConfirm(null)
 		requestAnimationFrame(() => statusButton.current?.focus())
 	}
 
-	async function changeStatus(action: 'archive' | 'restore') {
-		const result = await apiRequest<StudentResponse>('POST', `/students/${id}/${action}`)
-		if (!result.ok) return false
+	async function changeStatus(action: 'archive' | 'restore', revision: number) {
+		const result = await apiRequest<StudentResponse>('POST', `/students/${id}/${action}`, {
+			expectedRevision: revision,
+		})
+		if (!result.ok) {
+			setConfirmFailure(
+				result.error?.code === 'precondition_failed'
+					? 'This student changed elsewhere. Reload the page and try again.'
+					: null
+			)
+			return false
+		}
 		const name = result.data.student.displayName
 		toast.show(
 			action === 'archive'
 				? { title: 'Student archived', description: `${name} is in the Archived tab.` }
 				: { title: 'Student restored', description: `${name} is back in the Active tab.` }
 		)
-		await reload()
+		await refresh()
 		return true
 	}
 
@@ -205,24 +211,14 @@ export function StudentProfile({ id }: { id: string }) {
 				<ReadError
 					screen="student"
 					onRefresh={async () => {
-						await reload()
+						await refresh()
 					}}
 				/>
 			</PageScroll>
 		)
 	}
 
-	if (state.data === null) {
-		return (
-			<PageScroll>
-				<BackButton />
-				<SkeletonProfileHeader />
-				<SectionTabs disabled>
-					<LoadingBody />
-				</SectionTabs>
-			</PageScroll>
-		)
-	}
+	if (state.data === null) return <ProfileLoading />
 
 	const { student, paysSoonLessons: threshold, defaultTimeZone: mainTimeZone, asOf } = state.data
 	return (
@@ -232,7 +228,7 @@ export function StudentProfile({ id }: { id: string }) {
 				<ReadError
 					screen="student"
 					onRefresh={async () => {
-						await reload()
+						await refresh()
 					}}
 				/>
 			) : null}
@@ -249,10 +245,19 @@ export function StudentProfile({ id }: { id: string }) {
 						<>
 							{student.status === 'active' ? (
 								<Button
+									variant="secondary"
+									leadingIcon={MessageSquare}
+									onClick={() => router.push(`/chat?new=1&student=${id}`)}
+								>
+									Ask in chat
+								</Button>
+							) : null}
+							{student.status === 'active' ? (
+								<Button
 									ref={statusButton}
 									variant="secondary"
 									leadingIcon={Archive}
-									onClick={() => setConfirm('archive')}
+									onClick={() => openConfirm('archive', student.revision)}
 								>
 									Archive
 								</Button>
@@ -261,7 +266,7 @@ export function StudentProfile({ id }: { id: string }) {
 									ref={statusButton}
 									variant="secondary"
 									leadingIcon={ArchiveRestore}
-									onClick={() => setConfirm('restore')}
+									onClick={() => openConfirm('restore', student.revision)}
 								>
 									Restore
 								</Button>
@@ -272,16 +277,17 @@ export function StudentProfile({ id }: { id: string }) {
 						</>
 					}
 				/>
-				<Tabs value={tab} onValueChange={setTab}>
+				<Tabs value={tab} onValueChange={changeTab}>
 					<div className="flex w-fit max-w-full min-w-0 rounded-xl bg-muted">
 						<TabsList
 							aria-label="Student sections"
-							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto"
+							className="scroll-fade-x bg-transparent [--scroll-fade-size:var(--scroll-fade-size-compact)] max-sm:min-w-0 max-sm:flex-1 max-sm:overflow-x-auto pointer-coarse:max-sm:-my-2 pointer-coarse:max-sm:py-2"
 						>
 							<TabItem value="overview" label="Overview" />
+							<TabItem value="lessons" label="Lessons" />
+							<TabItem value="payments" label="Payments" />
 							<TabItem value="notes" label="Notes" />
 							<TabItem value="vocabulary" label="Vocabulary" />
-							<TabItem value="payments" label="Payments" />
 						</TabsList>
 					</div>
 					<TabPanel value="overview" className="mt-4">
@@ -290,17 +296,44 @@ export function StudentProfile({ id }: { id: string }) {
 							mainTimeZone={mainTimeZone}
 							asOf={asOf}
 							lessonsInputRef={lessonsInput}
-							onSaved={reload}
+							onSaved={refresh}
+							autoOpenEdit={editRequested}
+							onAutoOpened={() => setEditRequested(false)}
 						/>
 					</TabPanel>
+					<TabPanel value="lessons" className="mt-4">
+						<LessonsTab student={student} mainTimeZone={mainTimeZone} asOf={asOf} refreshKey={lessonsVersion} />
+					</TabPanel>
 					<TabPanel value="notes" className="mt-4">
-						<NotesTab student={student} drafts={drafts} onDraftChange={changeDraft} />
+						<NotesTab
+							student={student}
+							drafts={drafts}
+							timeZone={mainTimeZone}
+							asOf={asOf}
+							onDraftChange={changeDraft}
+							mark={mark}
+							onMarkDone={() => {
+								setMark(null)
+								dropParams(['entry', 'section'])
+							}}
+						/>
 					</TabPanel>
 					<TabPanel value="vocabulary" className="mt-4">
 						<VocabularyTab student={student} />
 					</TabPanel>
 					<TabPanel value="payments" className="mt-4">
-						<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
+						<PaymentsTab
+							student={student}
+							mainTimeZone={mainTimeZone}
+							asOf={asOf}
+							refreshKey={paymentsVersion}
+							openPaymentId={openPayment}
+							onOpened={() => {
+								setOpenPayment(null)
+								dropParams(['payment'])
+							}}
+							onChanged={() => void refresh()}
+						/>
 					</TabPanel>
 				</Tabs>
 			</div>
@@ -313,16 +346,16 @@ export function StudentProfile({ id }: { id: string }) {
 					onClose={closeRecord}
 					onRefresh={() => {
 						closeRecord()
-						void reload()
+						void refresh()
 					}}
 					onRecorded={() => {
 						closeRecord()
 						setPaymentsVersion((version) => version + 1)
-						void reload()
+						void refresh()
 					}}
 				/>
 			) : null}
-			{confirm === 'archive' ? (
+			{confirm?.action === 'archive' ? (
 				<ConfirmDialog
 					title={`Archive ${student.displayName}?`}
 					body={`${student.displayName} moves to the Archived tab. The account, payments and notes are kept.${student.account?.status === 'active' ? ' The account can still sign in; deactivate it separately.' : ''}`}
@@ -330,12 +363,12 @@ export function StudentProfile({ id }: { id: string }) {
 					confirmLabel="Archive student"
 					pendingLabel="Archiving…"
 					tone="primary"
-					failureText="Could not archive the student. Try again."
-					onConfirm={() => changeStatus('archive')}
+					failureText={confirmFailure ?? 'Could not archive the student. Try again.'}
+					onConfirm={() => changeStatus('archive', confirm.revision)}
 					onClose={closeConfirm}
 				/>
 			) : null}
-			{confirm === 'restore' ? (
+			{confirm?.action === 'restore' ? (
 				<ConfirmDialog
 					title={`Restore ${student.displayName}?`}
 					body={`${student.displayName} returns to the Active tab.`}
@@ -343,8 +376,8 @@ export function StudentProfile({ id }: { id: string }) {
 					confirmLabel="Restore student"
 					pendingLabel="Restoring…"
 					tone="primary"
-					failureText="Could not restore the student. Try again."
-					onConfirm={() => changeStatus('restore')}
+					failureText={confirmFailure ?? 'Could not restore the student. Try again.'}
+					onConfirm={() => changeStatus('restore', confirm.revision)}
 					onClose={closeConfirm}
 				/>
 			) : null}

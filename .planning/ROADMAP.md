@@ -377,7 +377,7 @@ Plans:
 ### Phase 22: Chat with Mentions and Quick Marks
 
 **Goal**: The teacher records lesson outcomes by writing one line in chat and gets answers about any student from stored data, within the monthly budget.
-**Depends on**: Phase 25 (runs after the Google phases by owner decision 2026-10-11); Phase 21
+**Depends on**: Phase 25.1 (runs after the Google phases by owner decision 2026-10-11; Phase 25 is superseded by Phase 25.1); Phase 21
 **Requirements**: CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-07, CHAT-08, CHAT-09, CHAT-11
 **Success Criteria** (what must be TRUE):
 
@@ -387,11 +387,29 @@ Plans:
 4. Questions about a student (what was covered, weak points, next lesson ideas) are answered from stored data, and any balance, count or "pays soon" list in an answer matches the numbers on the Today and Students screens.
 5. Token usage is recorded per conversation, and once the monthly cap is reached chat stops calling the model and says why.
 
-**Plans**: 18 plans / 46 tasks / 18 waves; independently checked; final24/25 and provider execution gates pending
+**Plans**: 18/18 plans executed / 64 tasks / 17 waves; planned 2026-10-13 against the Phase 25.1 code and the owner answers of 2026-10-13 (decisions in 22-CONTEXT); review squad pending
+- [x] 22-01-PLAN.md
+- [x] 22-02-PLAN.md
+- [x] 22-03-PLAN.md
+- [x] 22-04-PLAN.md
+- [x] 22-05-PLAN.md
+- [x] 22-06-PLAN.md
+- [x] 22-07-PLAN.md
+- [x] 22-08-PLAN.md
+- [x] 22-09-PLAN.md
+- [x] 22-10-PLAN.md
+- [x] 22-11-PLAN.md
+- [x] 22-12-PLAN.md
+- [x] 22-13-PLAN.md
+- [x] 22-14-PLAN.md
+- [x] 22-15-PLAN.md
+- [x] 22-16-PLAN.md
+- [x] 22-17-PLAN.md
+- [x] 22-18-PLAN.md
 
 Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md](.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md)
 **UI hint**: yes
-**Notes**: Model `claude-haiku-5-5`. Owner decision 2026-10-10: use the official Anthropic SDK (`@anthropic-ai/sdk`) with a server-side API key from the Console organization already linked to the Claude plan API credits (https://platform.claude.com/docs/en/about-claude/api-credits-for-subscribers); the key lives only on the server (env var, never in the browser or the repository). Vercel AI SDK is dropped unless the spike shows a need. Reference implementation reviewed: github.com/ThariqS/ai-newtab (Claude Managed Agents, beta `managed-agents-2026-04-01`). The spike compares two transports on the same three checks (write-tool call, pause for confirmation, resume after page reload), plus per-conversation token usage and where the student data is stored: (a) Messages API with tool use and our own conversation store; (b) Managed Agents session as in ai-newtab. Lessons from ai-newtab to apply either way: every tool call must always get a result (errors become `is_error` results); open the event stream before sending and dedupe replayed events; idle is not done (stop only on `end_turn`/terminated, not `requires_action`); cache agent and environment IDs and fingerprint the agent definition; keep dangerous built-in tools (bash) off; treat stored student text as untrusted input to the model; delete server-side sessions and files when done. Owner request 2026-10-10: the teacher can choose the chat model (Haiku may not cope with some questions) and the effort level, like the Claude app composer (model menu with a Default mark, effort slider from faster to smarter). The default is a teacher setting in `teacher_settings` and the choice can be overridden per conversation; the list of models comes from configuration, not a constant; token usage is recorded per conversation together with the model and effort. Effort is `output_config.effort` (`low`, `medium`, `high`, `xhigh`, `max`; GA, no beta header) on Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.1; per-message change keeps the prompt cache and needs the beta header `mid-conversation-output-config-2026-07-01`; on Haiku 5.5 `low` skips checks in long tool prompts. Support under Managed Agents is checked in the spike. The API does not expose the remaining credit balance (only Console, Settings > Billing; the Usage & Cost Admin API needs a separate admin key and shows spend with a few minutes lag), so the monthly cap is our own: spend from response `usage` per conversation, the remaining amount shown as an estimate, and the "credit balance too low" API error maps to the "Monthly budget reached" state. Design: artifact v39 (copy in `~/dv-lab-design`): `ChatModelControls` (composer chips, model menu, effort popover with five levels, unavailable model and budget states), Settings > Assistant "Chat model" card; open for the owner: level names and the "Recommended" mark, model order from configuration, optional relative cost like "x3". Credits do not roll over and exhausting them stops API requests; the in-app monthly cap (criterion 5) stays below the credit amount.
+**Notes**: Model `claude-haiku-5-5`. Owner decision 2026-10-10: use the official Anthropic SDK (`@anthropic-ai/sdk`) with a server-side API key from the Console organization already linked to the Claude plan API credits (https://platform.claude.com/docs/en/about-claude/api-credits-for-subscribers); the key lives only on the server (env var, never in the browser or the repository). Vercel AI SDK is dropped unless the spike shows a need. Reference implementation reviewed: github.com/ThariqS/ai-newtab (Claude Managed Agents, beta `managed-agents-2026-04-01`). The spike compares two transports on the same three checks (write-tool call, pause for confirmation, resume after page reload), plus per-conversation token usage and where the student data is stored: (a) Messages API with tool use and our own conversation store; (b) Managed Agents session as in ai-newtab. Lessons from ai-newtab to apply either way: every tool call must always get a result (errors become `is_error` results); open the event stream before sending and dedupe replayed events; idle is not done (stop only on `end_turn`/terminated, not `requires_action`); cache agent and environment IDs and fingerprint the agent definition; keep dangerous built-in tools (bash) off; treat stored student text as untrusted input to the model; delete server-side sessions and files when done. Owner request 2026-10-10: the teacher can choose the chat model (Haiku may not cope with some questions) and the effort level, like the Claude app composer (model menu with a Default mark, effort slider from faster to smarter). The default is a teacher setting in `teacher_settings` and the choice can be overridden per conversation; the list and order of models, their prices, the per-request input and output limits and the monthly cap are teacher settings with defaults (owner decision 2026-10-13), not constants; token usage is recorded per conversation together with the model and effort. Effort is `output_config.effort` (`low`, `medium`, `high`, `xhigh`, `max`; GA, no beta header) on Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.1; per-message change keeps the prompt cache and needs the beta header `mid-conversation-output-config-2026-07-01`; on Haiku 5.5 `low` skips checks in long tool prompts. Support under Managed Agents is checked in the spike. The API does not expose the remaining credit balance (only Console, Settings > Billing; the Usage & Cost Admin API needs a separate admin key and shows spend with a few minutes lag), so the monthly cap is our own: spend from response `usage` per conversation, the remaining amount shown as an estimate, and the "credit balance too low" API error maps to the "Monthly budget reached" state. Design: artifact v39 (copy in `~/dv-lab-design`): `ChatModelControls` (composer chips, model menu, effort popover with five levels, unavailable model and budget states), Settings > Assistant "Chat model" card; open for the owner: level names and the "Recommended" mark, model order from teacher settings, optional relative cost like "x3". Credits do not roll over and exhausting them stops API requests; the in-app monthly cap (criterion 5) stays below the credit amount.
 
 ### Phase 23: Confirmed Chat Changes and Entry Points
 
@@ -406,23 +424,24 @@ Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-mark
 4. A pasted essay gets feedback labeled as an approximate estimate.
 5. The palette finds students and offers "New chat" and "Add payment"; a student profile shows payments, lessons and "Ask in chat"; Today, Schedule and Chat are usable at phone width.
 
-**Plans**: TBD
+**Plans**: 14/14 plans executed / 39 tasks / 9 waves; replanned 2026-10-14 against the Phase 22 code (decisions in 23-CONTEXT, accepted ARCH-A1..A3)
 
-- [ ] 23-01-PLAN.md
-- [ ] 23-02-PLAN.md
-- [ ] 23-03-PLAN.md
-- [ ] 23-04-PLAN.md
-- [ ] 23-05-PLAN.md
-- [ ] 23-06-PLAN.md
-- [ ] 23-07-PLAN.md
-- [ ] 23-08-PLAN.md
-- [ ] 23-09-PLAN.md
-- [ ] 23-10-PLAN.md
-- [ ] 23-11-PLAN.md
-- [ ] 23-12-PLAN.md
-- [ ] 23-13-PLAN.md
-- [ ] 23-14-PLAN.md
-- [ ] 23-15-PLAN.md
+- [x] 23-01-PLAN.md — Tracer: payment proposal in chat → Record payment / Don't record
+- [x] 23-02-PLAN.md — Card and payment revisions, same-row payment correction
+- [x] 23-03-PLAN.md — Input time zone for series moves, separate from the teacher zone
+- [x] 23-04-PLAN.md — Palette (students, New chat, Add payment) and Ask in chat
+- [x] 23-05-PLAN.md — Proposals: new student, rate change, archive instead of deletion
+- [x] 23-06-PLAN.md — Ordinary forms with revisions and Edit payment
+- [x] 23-07-PLAN.md — Deletions: payment, note or comment, end of series; saved Keep
+- [x] 23-08-PLAN.md — Lessons tab in the student profile
+- [x] 23-09-PLAN.md — Bulk move of a student's lessons (CHAT-06)
+- [x] 23-10-PLAN.md — Proposal blocks for all operations and result links
+- [x] 23-11-PLAN.md — Essay feedback labeled as an approximate estimate (api)
+- [x] 23-12-PLAN.md — Phone width: Today, Schedule, Chat, profile, palette
+- [x] 23-13-PLAN.md — Bulk move and essay blocks, /essay command
+- [x] 23-14-PLAN.md — Final checks and documents
+
+Plan graph and ownership: [.planning/phases/23-confirmed-chat-changes-and-entry-points/23-PLAN-INDEX.md](.planning/phases/23-confirmed-chat-changes-and-entry-points/23-PLAN-INDEX.md)
 
 **UI hint**: yes
 
@@ -570,8 +589,8 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 20. Schedule                                     | v2.0      | 10/10          | In Progress |            |
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
-| 22. Chat with Mentions and Quick Marks           | v2.0      | 0/18           | Planned     | -          |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 0/15           | Planned     | -          |
+| 22. Chat with Mentions and Quick Marks           | v2.0      | 18/18 | In Progress|  |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 14/14 | Verification pending|  |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |

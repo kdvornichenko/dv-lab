@@ -24,7 +24,15 @@ import {
 	occurrenceOutcome,
 	scheduleDate,
 } from '@dv-lab/core'
-import { type DbExecutor, lessonExceptions, lessonMarks, lessonSeries, lessons, type students } from '@dv-lab/db'
+import {
+	type DbExecutor,
+	lessonComments,
+	lessonExceptions,
+	lessonMarks,
+	lessonSeries,
+	lessons,
+	type students,
+} from '@dv-lab/db'
 
 import { historyEligibility } from '../calendar/history.ts'
 
@@ -80,7 +88,10 @@ const markColumns = {
 	originalOn: lessonMarks.originalOn,
 	lessonId: lessonMarks.lessonId,
 	kind: lessonMarks.kind,
+	revision: lessonMarks.revision,
 }
+
+export type MarkState = { kind: MarkKind; revision: number }
 
 type SeriesRecord = Pick<typeof lessonSeries.$inferSelect, keyof typeof seriesColumns>
 
@@ -201,6 +212,17 @@ export async function lockLesson(executor: DbExecutor, id: string): Promise<Sing
 	return row ? toSingleLesson(row) : null
 }
 
+export async function occurrenceStartsAt(executor: DbExecutor, ref: OccurrenceRef): Promise<Date | null> {
+	if (ref.kind === 'single') {
+		const [row] = await executor.select(lessonColumns).from(lessons).where(eq(lessons.id, ref.lessonId))
+		return row ? toSingleLesson(row).startsAt : null
+	}
+	const [row] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, ref.seriesId))
+	if (!row) return null
+	const exception = await seriesException(executor, ref.seriesId, ref.originalOn)
+	return occurrenceAt(toSeriesRule(row), ref.originalOn, exception ?? undefined)?.startsAt ?? null
+}
+
 export async function seriesException(
 	executor: DbExecutor,
 	seriesId: string,
@@ -253,6 +275,30 @@ export async function seriesMarksFrom(
 	return marks
 }
 
+export async function heldSeriesDates(executor: DbExecutor, seriesId: string, from?: string): Promise<Set<string>> {
+	const marked = await executor
+		.select({ originalOn: lessonMarks.originalOn })
+		.from(lessonMarks)
+		.where(
+			and(
+				eq(lessonMarks.seriesId, seriesId),
+				inArray(lessonMarks.kind, ['done', 'no_show']),
+				from === undefined ? undefined : gte(lessonMarks.originalOn, from)
+			)
+		)
+	const commented = await executor
+		.select({ originalOn: lessonComments.originalOn })
+		.from(lessonComments)
+		.where(
+			and(
+				eq(lessonComments.seriesId, seriesId),
+				isNull(lessonComments.retractedAt),
+				from === undefined ? undefined : gte(lessonComments.originalOn, from)
+			)
+		)
+	return new Set([...marked, ...commented].flatMap((row) => (row.originalOn === null ? [] : [row.originalOn])))
+}
+
 function markRef(row: MarkRecord): OccurrenceRef {
 	if (row.seriesId !== null && row.originalOn !== null) {
 		return { kind: 'series', seriesId: row.seriesId, originalOn: row.originalOn }
@@ -261,7 +307,10 @@ function markRef(row: MarkRecord): OccurrenceRef {
 	throw new Error('lesson mark has no occurrence')
 }
 
-export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceRef[]): Promise<Map<string, MarkKind>> {
+export async function loadMarkStates(
+	executor: DbExecutor,
+	refs: readonly OccurrenceRef[]
+): Promise<Map<string, MarkState>> {
 	const wanted = new Set(refs.map(occurrenceKey))
 	const seriesIds = [...new Set(refs.flatMap((ref) => (ref.kind === 'series' ? [ref.seriesId] : [])))]
 	const lessonIds = [...new Set(refs.flatMap((ref) => (ref.kind === 'single' ? [ref.lessonId] : [])))]
@@ -275,24 +324,36 @@ export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceR
 				lessonIds.length === 0 ? undefined : inArray(lessonMarks.lessonId, lessonIds)
 			)
 		)
-	const marks = new Map<string, MarkKind>()
+	const marks = new Map<string, MarkState>()
 	for (const row of rows) {
 		const key = occurrenceKey(markRef(row))
-		if (wanted.has(key)) marks.set(key, toMarkKind(row.kind))
+		if (wanted.has(key)) marks.set(key, { kind: toMarkKind(row.kind), revision: row.revision })
 	}
 	return marks
 }
 
-export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<MarkKind | null> {
-	const [row] = await executor
-		.select({ kind: lessonMarks.kind })
+export async function loadMarks(executor: DbExecutor, refs: readonly OccurrenceRef[]): Promise<Map<string, MarkKind>> {
+	const states = await loadMarkStates(executor, refs)
+	return new Map([...states].map(([key, state]) => [key, state.kind]))
+}
+
+export function markKey(ref: OccurrenceRef) {
+	return ref.kind === 'series'
+		? and(eq(lessonMarks.seriesId, ref.seriesId), eq(lessonMarks.originalOn, ref.originalOn))
+		: eq(lessonMarks.lessonId, ref.lessonId)
+}
+
+export async function markStateOf(executor: DbExecutor, ref: OccurrenceRef, lock = false): Promise<MarkState | null> {
+	const query = executor
+		.select({ kind: lessonMarks.kind, revision: lessonMarks.revision })
 		.from(lessonMarks)
-		.where(
-			ref.kind === 'series'
-				? and(eq(lessonMarks.seriesId, ref.seriesId), eq(lessonMarks.originalOn, ref.originalOn))
-				: eq(lessonMarks.lessonId, ref.lessonId)
-		)
-	return row ? toMarkKind(row.kind) : null
+		.where(markKey(ref))
+	const [row] = lock ? await query.for('update') : await query
+	return row ? { kind: toMarkKind(row.kind), revision: row.revision } : null
+}
+
+export async function markOf(executor: DbExecutor, ref: OccurrenceRef): Promise<MarkKind | null> {
+	return (await markStateOf(executor, ref))?.kind ?? null
 }
 
 export async function loadMarkRows(

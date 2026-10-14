@@ -24,7 +24,8 @@ import { type DbExecutor, students } from '@dv-lab/db'
 
 import type { TeacherTimeContext } from '../settings/settings.ts'
 import {
-	loadMarks,
+	type MarkState,
+	loadMarkStates,
 	loadScheduleRows,
 	seriesReferenceExceptions,
 	toBalanceCard,
@@ -82,9 +83,10 @@ export function toWireLesson(lesson: SingleLesson): ScheduleLesson {
 function toWireBlock(
 	block: OutcomeBlock,
 	people: Map<string, BlockStudent>,
-	marks: ReadonlyMap<string, MarkKind>,
+	marks: ReadonlyMap<string, MarkState>,
 	now: Date
 ): WireBlock {
+	const mark = marks.get(block.key) ?? null
 	const student = people.get(block.studentId)
 	if (!student) throw new Error('schedule block student is missing')
 	return {
@@ -106,7 +108,8 @@ function toWireBlock(
 			noShowDeducts: student.card.noShowDeducts,
 			lessonMinutes: student.lessonMinutes,
 		},
-		mark: toWireMark(marks.get(block.key) ?? null),
+		mark: toWireMark(mark?.kind ?? null),
+		markRevision: mark?.revision ?? null,
 	}
 }
 
@@ -162,11 +165,12 @@ export async function readWindow(
 }
 
 export async function wireBlocks(executor: DbExecutor, placed: readonly CoreBlock[], now: Date): Promise<WireBlock[]> {
-	const marks = await loadMarks(
+	const states = await loadMarkStates(
 		executor,
 		placed.map((block) => block.ref)
 	)
+	const marks = new Map<string, MarkKind>([...states].map(([key, state]) => [key, state.kind]))
 	const blocks = withOutcomes(placed, marks)
 	const people = await blockStudents(executor, blocks)
-	return blocks.map((block) => toWireBlock(block, people, marks, now))
+	return blocks.map((block) => toWireBlock(block, people, states, now))
 }

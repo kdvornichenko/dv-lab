@@ -23,25 +23,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { apiRequest } from '@/lib/api-client'
+import { datesPlural, lessonCountText } from '@/lib/lesson-count-text'
+import { copyTooltip, useCopy } from '@/lib/use-copy'
 import { cn } from '@/lib/utils'
 
 import type { CalendarIssue, GoogleScheduleWindow } from '@dv-lab/contracts'
 import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
 
-const MONTHS = [
-	'January',
-	'February',
-	'March',
-	'April',
-	'May',
-	'June',
-	'July',
-	'August',
-	'September',
-	'October',
-	'November',
-	'December',
-]
 const MAX_WEEKS = 53
 const BATCH = 1
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -108,21 +96,6 @@ async function loadEvents(from: string, to: string): Promise<EventDates | { issu
 		}
 	}
 	return events
-}
-
-function lessonCountText(dates: Iterable<string>): string {
-	const byMonth = new Map<string, number[]>()
-	for (const date of [...dates].sort()) {
-		const key = date.slice(0, 7)
-		const days = byMonth.get(key) ?? []
-		days.push(Number(date.slice(8, 10)))
-		byMonth.set(key, days)
-	}
-	return [...byMonth].map(([key, days]) => `${days.join(', ')} - ${MONTHS[Number(key.slice(5, 7)) - 1]}`).join('\n')
-}
-
-function plural(total: number): string {
-	return `${total} ${total === 1 ? 'date' : 'dates'}`
 }
 
 function EventList({
@@ -196,7 +169,7 @@ function EventList({
 									type="button"
 									role="option"
 									aria-selected={chosen}
-									aria-label={`${name}, ${plural(total)}`}
+									aria-label={`${name}, ${datesPlural(total)}`}
 									tabIndex={name === stop ? 0 : -1}
 									title={name}
 									onClick={() => onSelect(name)}
@@ -210,7 +183,7 @@ function EventList({
 										{chosen ? <Check size={14} aria-hidden /> : null}
 									</span>
 									<span className={cn('min-w-0 flex-1 truncate', chosen && 'font-semibold')}>{name}</span>
-									<span className="shrink-0 text-muted-foreground tabular-nums">{plural(total)}</span>
+									<span className="shrink-0 text-muted-foreground tabular-nums">{datesPlural(total)}</span>
 								</button>
 							)
 						})}
@@ -227,7 +200,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 	const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle')
 	const [events, setEvents] = useState<EventDates>(new Map())
 	const [title, setTitle] = useState<string | null>(null)
-	const [copied, setCopied] = useState(false)
+	const { state: copyState, copy, reset: resetCopy } = useCopy()
 	const [issue, setIssue] = useState<CalendarIssue | null>(null)
 	const requests = useRef(0)
 	const showRef = useRef<HTMLButtonElement>(null)
@@ -240,7 +213,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 		setRange(next)
 		setState('idle')
 		setTitle(null)
-		setCopied(false)
+		resetCopy()
 	}
 
 	function show() {
@@ -249,7 +222,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 		const to = isoDay(range.to ?? range.from)
 		const id = ++requests.current
 		setTitle(null)
-		setCopied(false)
+		resetCopy()
 		setState('loading')
 		void loadEvents(from, to).then((result) => {
 			if (id !== requests.current) return
@@ -266,16 +239,6 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 
 	const text = title === null ? '' : lessonCountText(events.get(title) ?? [])
 	const titles = useMemo(() => [...events.keys()].sort((a, b) => a.localeCompare(b)), [events])
-
-	async function copy() {
-		try {
-			await navigator.clipboard.writeText(text)
-			setCopied(true)
-			setTimeout(() => setCopied(false), 1500)
-		} catch {
-			setCopied(false)
-		}
-	}
 
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -364,7 +327,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 									selected={title}
 									onSelect={(name) => {
 										setTitle(name)
-										setCopied(false)
+										resetCopy()
 									}}
 								/>
 								{title === null ? (
@@ -376,19 +339,23 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 							<section aria-label={title} className="flex flex-col gap-2 rounded-lg bg-hover p-3">
 								<div className="flex items-center justify-between gap-3">
 									<p className="min-w-0 truncate text-body font-semibold">{title}</p>
-									<Tooltip side="top" forceOpen={copied ? true : undefined} content={copied ? 'Copied' : 'Copy dates'}>
+									<Tooltip
+										side="top"
+										forceOpen={copyState === 'idle' ? undefined : true}
+										content={copyTooltip(copyState, 'Copy dates')}
+									>
 										<Button
 											variant="secondary"
 											size="icon-compact"
 											className="shrink-0"
 											aria-label="Copy dates"
-											onClick={() => void copy()}
+											onClick={() => void copy(text)}
 										>
-											{copied ? <Check /> : <Copy />}
+											{copyState === 'copied' ? <Check /> : <Copy />}
 										</Button>
 									</Tooltip>
 									<span className="sr-only" aria-live="polite">
-										{copied ? 'Copied' : ''}
+										{copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Could not copy' : ''}
 									</span>
 								</div>
 								<div className="text-body tabular-nums select-all">

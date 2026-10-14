@@ -54,7 +54,22 @@ export type LessonMarkKind = (typeof MARK_KINDS)[number]
 export const markLessonRequest = z.object({
 	kind: z.enum(MARK_KINDS),
 	expectedStartsAt,
+	expectedRevision: z.number().int().min(1).nullable().optional(),
 })
+
+export const COMMENT_MAX_LENGTH = 2000
+
+export const appendLessonCommentRequest = z.strictObject({
+	body: z
+		.string()
+		.transform((value) => value.trim())
+		.refine((value) => {
+			const length = Array.from(value).length
+			return length >= 1 && length <= COMMENT_MAX_LENGTH && !value.includes('\u0000')
+		}),
+})
+
+export const retractCommentRequest = z.strictObject({ expectedRevision: z.number().int().min(1) })
 
 export const moveSeriesRequest = z.object({
 	from: isoDate,
@@ -62,6 +77,7 @@ export const moveSeriesRequest = z.object({
 	startTime: clockTime,
 	durationMinutes: lessonMinutes.optional(),
 	newStartsOn: isoDate.optional(),
+	inputTimeZone: z.string().refine(isTimeZone).optional(),
 	expectedDefaultTimeZone,
 })
 
@@ -97,6 +113,7 @@ export type ScheduleBlock = {
 	actions: ScheduleLessonActions
 	ledger: ScheduleBlockLedger
 	mark: LessonMarkKind | null
+	markRevision: number | null
 }
 
 export type ScheduleSeriesReference = { originalOn: string; actualStartsAt: string; ruleStartsAt: string | null }
@@ -143,8 +160,26 @@ export type ScheduleOccurrence = {
 
 export type ScheduleOccurrenceResponse = { occurrence: ScheduleOccurrence }
 
-export type ScheduleMark = { ref: ScheduleOccurrenceRef; kind: LessonMarkKind; outcome: ScheduleLessonOutcome }
+export type ScheduleMark = {
+	ref: ScheduleOccurrenceRef
+	kind: LessonMarkKind
+	outcome: ScheduleLessonOutcome
+	revision: number
+}
 
 export type ScheduleMarkResponse = { mark: ScheduleMark }
 
 export type ScheduleCreateResponse = ScheduleLessonResponse | ScheduleSeriesResponse
+
+export type LessonComment = {
+	id: string
+	ref: ScheduleOccurrenceRef
+	body: string
+	revision: number
+	createdAt: string
+	retractedAt: string | null
+}
+
+export type LessonCommentsResponse = { comments: LessonComment[] }
+
+export type LessonCommentResponse = { comment: LessonComment }

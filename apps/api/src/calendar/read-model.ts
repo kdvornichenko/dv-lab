@@ -15,9 +15,11 @@ import {
 	type GoogleScheduleWindow,
 	type NextLessonRead,
 } from '@dv-lab/contracts'
-import { seriesStart } from '@dv-lab/core'
-import { googleEventIgnores, type DbExecutor } from '@dv-lab/db'
+import { occurrenceKey, seriesStart, type MarkKind } from '@dv-lab/core'
+import { googleEventIgnores, type DbExecutor, type GoogleLocalRef } from '@dv-lab/db'
 
+import { loadMarks } from '../schedule/rows.ts'
+import { seriesAnchor } from '../schedule/series.ts'
 import { readConnection } from './connection.ts'
 import { bindEvent, loadMappings, type BoundEvent, type MappingSnapshot } from './event-mapping.ts'
 import { findConnection } from './google-access.ts'
@@ -106,11 +108,16 @@ export function eventColor(colorId: string | null, colors: EventColors): Calenda
 	return { id: colorId, background, foreground: null, custom: colors.palette !== null }
 }
 
+function wireMark(mark: MarkKind | undefined): 'done' | 'no_show' | null {
+	return mark === 'done' || mark === 'no_show' ? mark : null
+}
+
 export function eventView(
 	event: ViewEvent,
 	blocked: CalendarIssue | null,
 	editableSeries: ReadonlySet<string>,
-	colors: EventColors = NO_COLORS
+	colors: EventColors = NO_COLORS,
+	marks: ReadonlyMap<string, MarkKind> = new Map()
 ): CalendarEventView | null {
 	if (!event.start || !event.end) return null
 	const when: CalendarEventView['when'] | null =
@@ -125,7 +132,13 @@ export function eventView(
 	if (event.bindingKind === 'transition' && event.commandId)
 		binding = { kind: 'transition', commandId: event.commandId }
 	if (event.bindingKind === 'lesson' && event.localRef && event.studentId)
-		binding = { kind: 'lesson', ref: event.localRef, studentId: event.studentId, version }
+		binding = {
+			kind: 'lesson',
+			ref: event.localRef,
+			studentId: event.studentId,
+			version,
+			mark: wireMark(marks.get(occurrenceKey(event.localRef))),
+		}
 	let editBlock = blocked
 	if (event.eventType !== 'default') editBlock = 'read_only_event'
 	else if (binding.kind === 'transition') editBlock = 'command_pending'
@@ -246,6 +259,7 @@ async function seriesContexts(
 				},
 			},
 			version: opaqueVersion([mapping.id, mapping.representationGeneration, rule.id]),
+			allFrom: await seriesAnchor(executor, rule, connectionId),
 		})
 	}
 	return [...contexts.values()]
@@ -290,12 +304,18 @@ export async function readCalendarWindow(
 		read.state === 'fresh' && !blocked ? await seriesContexts(executor, row.id, context.now, snapshot, events) : []
 	const editableSeries = new Set(series.map((item) => item.series.id))
 	const colors = eventColors(facts)
+	const marks = await loadMarks(
+		executor,
+		events.flatMap((event) => (event.bindingKind === 'lesson' && event.localRef ? [event.localRef] : []))
+	)
 	return googleScheduleWindow.parse({
 		requestedRange,
 		snapshotRange: requestedRange,
 		connection,
 		read: readStatus(read),
-		events: events.map((event) => eventView(event, blocked, editableSeries, colors)).filter((event) => event !== null),
+		events: events
+			.map((event) => eventView(event, blocked, editableSeries, colors, marks))
+			.filter((event) => event !== null),
 		series,
 		write: blocked ? { state: 'blocked', reason: blocked } : { state: 'ready' },
 	})
@@ -337,7 +357,7 @@ export async function readNextLessons(
 	}
 	const snapshot = await loadMappings(executor, context.accountId, row.id)
 	const wanted = new Set(studentIds)
-	const earliest = new Map<string, string>()
+	const earliest = new Map<string, { startsAt: string; ref: GoogleLocalRef }>()
 	for (const item of await nextRows(executor, row.id, context.now, familyIds(snapshot, wanted))) {
 		if (!item.startsAt || item.startsAt >= facts.windowEnd) continue
 		const event = bindEvent(rowEvent(item), snapshot)
@@ -345,14 +365,14 @@ export async function readNextLessons(
 		if (!event.start || !('dateTime' in event.start)) continue
 		const startsAt = item.startsAt.toISOString()
 		const known = earliest.get(event.studentId)
-		if (!known || startsAt < known) earliest.set(event.studentId, startsAt)
+		if (!known || startsAt < known.startsAt) earliest.set(event.studentId, { startsAt, ref: event.localRef })
 	}
 	for (const studentId of studentIds) {
-		const startsAt = earliest.get(studentId)
+		const found = earliest.get(studentId)
 		results.set(
 			studentId,
-			startsAt
-				? { result: 'known', startsAt, status }
+			found
+				? { result: 'known', startsAt: found.startsAt, ref: found.ref, status }
 				: read.state === 'fresh'
 					? { result: 'none', startsAt: null, status }
 					: { result: 'unknown', startsAt: null, status }

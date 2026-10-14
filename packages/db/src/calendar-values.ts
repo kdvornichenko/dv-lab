@@ -106,6 +106,7 @@ export const googleCommandInput = z.discriminatedUnion('operation', [
 		startTime: clock,
 		durationMinutes: z.number().int().min(1).optional(),
 		newStartsOn: isoDate.optional(),
+		inputTimeZone: zone.optional(),
 		expectedDefaultTimeZone: zone,
 	}),
 	z.strictObject({
@@ -185,6 +186,8 @@ const lineage = z.strictObject({
 	beforeDurationMinutes: z.number().int().min(1).optional(),
 	beforeStatus: z.enum(['scheduled', 'cancelled', 'moved']).optional(),
 	status: z.enum(['scheduled', 'cancelled']).optional(),
+	clearMark: z.literal(true).optional(),
+	restoreMark: z.strictObject({ kind: z.literal('no_show'), revision: z.number().int().min(1) }).optional(),
 })
 
 export const GOOGLE_WRITABLE_FIELDS = [

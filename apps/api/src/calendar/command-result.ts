@@ -224,7 +224,7 @@ function verifyStoredCancellation(ack: Extract<WriteAcknowledgement, { kind: 'ca
 	if (
 		request.method === 'patch' &&
 		request.instance &&
-		(!request.instance.lookupVerified || JSON.stringify(ack.instance) !== JSON.stringify(request.instance))
+		(!request.instance.lookupVerified || canonical(ack.instance ?? null) !== canonical(request.instance))
 	)
 		throw new CalendarFault('external_change')
 	if (

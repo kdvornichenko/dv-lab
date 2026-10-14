@@ -72,7 +72,7 @@ export function DateField(props: DateFieldProps) {
 					aria-label={`${label}: ${text}`}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={describedBy}
-					className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-left text-body text-foreground ring-1 ring-input transition-colors duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive pointer-coarse:text-[16px]"
+					className="hit-slop relative flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-left text-body text-foreground ring-1 ring-input transition-colors duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive pointer-coarse:text-[16px]"
 				>
 					<span data-slot="date-field-value" className="min-w-0 truncate leading-5">
 						{text}

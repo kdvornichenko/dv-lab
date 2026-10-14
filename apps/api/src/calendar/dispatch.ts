@@ -1,7 +1,6 @@
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 
-import { canChange } from '@dv-lab/core'
 import {
 	googleCommands,
 	googleCommandStages,
@@ -49,22 +48,7 @@ type DispatchWindow = {
 }
 type ReadyDispatch = { request: PreparedCalendarCommand['request']; companion: StageRow | null }
 
-const LESSON_OPERATIONS: ReadonlySet<string> = new Set([
-	'create',
-	'move',
-	'cancel',
-	'restore',
-	'move_series',
-	'end_series',
-])
 const SQL_ADMITTED: ReadonlySet<string> = new Set(['event_update', 'event_delete', 'assign'])
-
-function lessonStartGate(command: PreparedCalendarCommand, now: Date) {
-	if (!LESSON_OPERATIONS.has(command.operation)) return
-	const start = command.request.payload.start
-	const startsAt = start && 'dateTime' in start ? start.dateTime : command.plan.lineage[0]?.startsAt
-	if (!startsAt || !canChange(new Date(startsAt), now)) throw new CommandFault('not_applied')
-}
 
 async function companionStage(executor: DbExecutor, commandId: string, lock: boolean) {
 	const query = executor
@@ -177,7 +161,6 @@ async function prepareDispatch(
 	access.signal.throwIfAborted()
 	const now = new Date()
 	if (command.dispatchDeadline <= now) throw new CommandFault('not_applied')
-	lessonStartGate(command, now)
 	return access.db.transaction(async (tx) => {
 		const [connection] = await tx
 			.select()
@@ -381,9 +364,6 @@ async function checkDispatchWindow(
 			access.signal
 		)
 		const before = command.plan.preconditions.find((item) => item.eventId === command.request.eventId)
-		const start = observed.event.start
-		if (start && 'dateTime' in start && !canChange(new Date(start.dateTime), new Date()))
-			throw new CommandFault('not_applied')
 		if (
 			!before ||
 			observed.event.etag !== command.request.ifMatch ||

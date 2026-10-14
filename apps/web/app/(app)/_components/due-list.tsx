@@ -9,7 +9,7 @@ import { balancePhrase, balanceState } from '@dv-lab/core'
 import { MoreRow, ROW_LIMIT } from './today-lessons'
 
 interface DueListProps {
-	students: readonly StudentRow[]
+	students: readonly Pick<StudentRow, 'id' | 'displayName' | 'balanceMinutes' | 'defaultLessonMinutes'>[]
 	threshold: number
 	moreHref: string
 }
@@ -27,7 +27,7 @@ export function DueList({ students, threshold, moreHref }: DueListProps) {
 						key={student.id}
 						data-slot="due-row"
 						data-student-id={student.id}
-						className="relative flex h-8 items-center gap-3 rounded-lg px-3 hover:bg-hover"
+						className="relative flex h-8 items-center gap-3 rounded-lg px-3 hover:bg-hover pointer-coarse:h-11"
 					>
 						<Link
 							href={`/students/${student.id}`}

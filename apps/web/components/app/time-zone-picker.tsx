@@ -282,7 +282,7 @@ export function TimeZonePicker({
 				<ComboboxPrimitive.Trigger
 					id={id}
 					aria-describedby={describedBy}
-					className="group inline-flex h-9 w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-body text-foreground ring-1 ring-input transition-all duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive data-[popup-open]:outline-1 data-[popup-open]:outline-offset-2 data-[popup-open]:outline-focus-ring pointer-coarse:text-[16px]"
+					className="group hit-slop relative inline-flex h-9 w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-md bg-transparent px-3 text-body text-foreground ring-1 ring-input transition-all duration-80 ring-inset hover:bg-hover disabled:pointer-events-none disabled:opacity-50 aria-invalid:ring-destructive data-[popup-open]:outline-1 data-[popup-open]:outline-offset-2 data-[popup-open]:outline-focus-ring pointer-coarse:text-[16px]"
 				>
 					<span className="min-w-0 flex-1 truncate text-left leading-5">
 						{value === null ? (

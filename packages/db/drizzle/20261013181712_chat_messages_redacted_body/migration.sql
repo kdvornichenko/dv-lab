@@ -1,0 +1,1 @@
+ALTER TABLE "chat_messages" DROP CONSTRAINT "chat_messages_body_ck", ADD CONSTRAINT "chat_messages_body_ck" CHECK (("role" = 'teacher' and (char_length("body") between 1 and 20000 or ("redacted_at" is not null and "body" = ''))) or ("role" = 'assistant' and char_length("body") <= 200000));

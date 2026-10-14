@@ -161,6 +161,7 @@ export const calendarEventView = z.strictObject({
 			ref: calendarOccurrenceRef,
 			studentId: z.uuid(),
 			version: calendarVersion,
+			mark: z.enum(['done', 'no_show']).nullable(),
 		}),
 		z.strictObject({ kind: z.literal('transition'), commandId: z.uuid() }),
 		z.strictObject({ kind: z.literal('external') }),
@@ -195,10 +196,11 @@ const scheduleSeries = z.strictObject({
 		.nullable(),
 }) satisfies z.ZodType<ScheduleSeries>
 
-export type CalendarSeriesContext = { series: ScheduleSeries; version: string }
+export type CalendarSeriesContext = { series: ScheduleSeries; version: string; allFrom: string | null }
 export const calendarSeriesContext = z.strictObject({
 	series: scheduleSeries,
 	version: calendarVersion,
+	allFrom: calendarDate.nullable(),
 }) satisfies z.ZodType<CalendarSeriesContext>
 
 export const calendarWriteStatus = z.discriminatedUnion('state', [
@@ -229,7 +231,13 @@ export type GoogleScheduleWindow = z.infer<typeof googleScheduleWindow>
 
 export const nextLessonRead = z
 	.discriminatedUnion('result', [
-		z.strictObject({ status: calendarReadStatus, result: z.literal('known'), startsAt: calendarInstant }),
+		z.strictObject({
+			status: calendarReadStatus,
+			result: z.literal('known'),
+			startsAt: calendarInstant,
+			ref: calendarOccurrenceRef.optional(),
+			date: calendarDate.optional(),
+		}),
 		z.strictObject({ status: calendarReadStatus, result: z.literal('none'), startsAt: z.null() }),
 		z.strictObject({ status: calendarReadStatus, result: z.literal('unknown'), startsAt: z.null() }),
 	])
@@ -368,7 +376,12 @@ export type AssignCalendarEventRequest = z.infer<typeof assignCalendarEventReque
 
 export const validatedCalendarCommand = z.discriminatedUnion('operation', [
 	z.strictObject({ operation: z.literal('create'), input: createCalendarLessonRequest }),
-	z.strictObject({ operation: z.literal('move'), ref: calendarOccurrenceRef, input: moveCalendarLessonRequest }),
+	z.strictObject({
+		operation: z.literal('move'),
+		ref: calendarOccurrenceRef,
+		input: moveCalendarLessonRequest,
+		restoreMark: z.strictObject({ kind: z.literal('no_show'), revision: z.number().int().min(1) }).optional(),
+	}),
 	z.strictObject({ operation: z.literal('cancel'), ref: calendarOccurrenceRef, input: calendarLessonActionRequest }),
 	z.strictObject({ operation: z.literal('restore'), ref: calendarOccurrenceRef, input: calendarLessonActionRequest }),
 	z.strictObject({ operation: z.literal('move_series'), seriesId: z.uuid(), input: moveCalendarSeriesRequest }),

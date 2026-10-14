@@ -14,7 +14,7 @@ const fieldRing = 'ring-1 ring-inset ring-input'
 
 const triggerVariants = cva(
 	[
-		'group inline-flex cursor-pointer items-center justify-between rounded-md',
+		'group hit-slop relative inline-flex cursor-pointer items-center justify-between rounded-md',
 		'transition-all duration-80',
 		'disabled:pointer-events-none disabled:opacity-50',
 		'aria-invalid:ring-destructive',

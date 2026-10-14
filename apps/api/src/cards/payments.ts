@@ -9,6 +9,7 @@ import {
 	type PaymentSource,
 	type assignPaymentRequest,
 	type recordPaymentRequest,
+	type updatePaymentRequest,
 } from '@dv-lab/contracts'
 import { creditedMinutes, decimalToHundredths, hundredthsToDecimal, isAfterScheduleToday } from '@dv-lab/core'
 import { type Database, type DbExecutor, payments, students } from '@dv-lab/db'
@@ -21,6 +22,10 @@ type PaymentRecord = typeof payments.$inferSelect
 
 type AssignPaymentInput = z.output<typeof assignPaymentRequest>
 
+type PaymentCard = { id: string; defaultLessonMinutes: number }
+
+type NewPayment = Pick<RecordPaymentInput, 'paidOn' | 'amountMinor' | 'currency' | 'lessonsHundredths' | 'note'>
+
 type RecordPaymentResult =
 	| { kind: 'recorded'; payment: PaymentRow }
 	| { kind: 'not_found' }
@@ -32,6 +37,16 @@ type AssignPaymentResult =
 	| { kind: 'not_found' }
 	| { kind: 'currency_required' }
 	| { kind: 'already_assigned' }
+	| { kind: 'changed' }
+
+type UpdatePaymentInput = z.output<typeof updatePaymentRequest>
+
+type UpdatePaymentResult =
+	| { kind: 'updated'; payment: PaymentRow }
+	| { kind: 'not_found' }
+	| { kind: 'invalid' }
+	| { kind: 'changed' }
+	| { kind: 'default_time_zone_changed' }
 
 type ImportedPayment = {
 	importKey: string
@@ -67,6 +82,7 @@ function toPaymentRow(row: PaymentRecord): PaymentRow {
 		note: row.note,
 		source: toSource(row.source),
 		createdAt: row.createdAt.toISOString(),
+		revision: row.revision,
 	}
 }
 
@@ -98,27 +114,84 @@ export function recordPayment(
 			.where(eq(students.id, input.studentId))
 			.for('share')
 		if (!card) return { kind: 'not_found' }
+		return { kind: 'recorded', payment: await insertPayment(tx, card, input) }
+	})
+}
+
+export async function insertPayment(executor: DbExecutor, card: PaymentCard, input: NewPayment): Promise<PaymentRow> {
+	const [row] = await executor
+		.insert(payments)
+		.values({
+			studentId: card.id,
+			paidOn: input.paidOn,
+			amountMinor: input.amountMinor,
+			currency: input.currency,
+			lessonsCount: input.lessonsHundredths === null ? null : hundredthsToDecimal(input.lessonsHundredths),
+			creditedMinutes: creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes),
+			note: input.note,
+			source: 'manual',
+		})
+		.returning()
+	if (!row) throw new Error('payment insert returned no row')
+	return toPaymentRow(row)
+}
+
+export function updatePayment(
+	db: Database,
+	accountId: string,
+	id: string,
+	input: UpdatePaymentInput
+): Promise<UpdatePaymentResult> {
+	return db.transaction(async (tx): Promise<UpdatePaymentResult> => {
+		const time = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone)
+		if (!time.ok) return { kind: time.error }
+		if (isAfterScheduleToday(input.paidOn, time.context.now, time.context.defaultTimeZone)) return { kind: 'invalid' }
+		const [current] = await tx
+			.select({ studentId: payments.studentId, revision: payments.revision })
+			.from(payments)
+			.where(eq(payments.id, id))
+			.for('update')
+		if (!current) return { kind: 'not_found' }
+		if (current.studentId === null) return { kind: 'invalid' }
+		if (current.revision !== input.expectedRevision) return { kind: 'changed' }
+		const [card] = await tx
+			.select({ defaultLessonMinutes: students.defaultLessonMinutes })
+			.from(students)
+			.where(eq(students.id, current.studentId))
+			.for('share')
+		if (!card) throw new Error('payment card is missing')
 		const [row] = await tx
-			.insert(payments)
-			.values({
-				studentId: card.id,
+			.update(payments)
+			.set({
 				paidOn: input.paidOn,
 				amountMinor: input.amountMinor,
 				currency: input.currency,
 				lessonsCount: input.lessonsHundredths === null ? null : hundredthsToDecimal(input.lessonsHundredths),
 				creditedMinutes: creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes),
 				note: input.note,
-				source: 'manual',
+				revision: sql`${payments.revision} + 1`,
 			})
+			.where(eq(payments.id, id))
 			.returning()
-		if (!row) throw new Error('payment insert returned no row')
-		return { kind: 'recorded', payment: toPaymentRow(row) }
+		if (!row) throw new Error('payment update returned no row')
+		return { kind: 'updated', payment: toPaymentRow(row) }
 	})
 }
 
-export async function deletePayment(executor: DbExecutor, id: string): Promise<'deleted' | 'not_found'> {
-	const [row] = await executor.delete(payments).where(eq(payments.id, id)).returning({ id: payments.id })
-	return row ? 'deleted' : 'not_found'
+export async function deletePayment(
+	executor: DbExecutor,
+	id: string,
+	expectedRevision?: number
+): Promise<'deleted' | 'not_found' | 'changed'> {
+	const [row] = await executor
+		.delete(payments)
+		.where(
+			and(eq(payments.id, id), expectedRevision === undefined ? undefined : eq(payments.revision, expectedRevision))
+		)
+		.returning({ id: payments.id })
+	if (row) return 'deleted'
+	const [current] = await executor.select({ id: payments.id }).from(payments).where(eq(payments.id, id))
+	return current ? 'changed' : 'not_found'
 }
 
 export async function listUnassignedPayments(executor: DbExecutor): Promise<PaymentRow[]> {
@@ -138,8 +211,13 @@ export function assignPayment(db: Database, id: string, input: AssignPaymentInpu
 			.where(eq(students.id, input.studentId))
 			.for('share')
 		if (!card) return { kind: 'not_found' }
-		const [current] = await tx.select({ currency: payments.currency }).from(payments).where(eq(payments.id, id))
+		const [current] = await tx
+			.select({ currency: payments.currency, revision: payments.revision })
+			.from(payments)
+			.where(eq(payments.id, id))
+			.for('update')
 		if (!current) return { kind: 'not_found' }
+		if (input.expectedRevision !== undefined && current.revision !== input.expectedRevision) return { kind: 'changed' }
 		const currency = current.currency ?? input.currency
 		if (input.lessonsHundredths !== null && currency === null) return { kind: 'currency_required' }
 		const [row] = await tx
@@ -149,6 +227,7 @@ export function assignPayment(db: Database, id: string, input: AssignPaymentInpu
 				currency: sql`coalesce(${payments.currency}, ${input.currency})`,
 				lessonsCount: input.lessonsHundredths === null ? null : hundredthsToDecimal(input.lessonsHundredths),
 				creditedMinutes: creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes),
+				revision: sql`${payments.revision} + 1`,
 			})
 			.where(
 				and(

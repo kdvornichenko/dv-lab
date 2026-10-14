@@ -11,10 +11,8 @@ import { CalendarReadNotice, CalendarReadStatusButton } from '@/components/app/g
 import { PageHeader, PageScroll, WorkspacePage } from '@/components/app/layout-parts'
 import { ReadError } from '@/components/app/read-error'
 import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker'
-import { useTopbarSlot } from '@/components/app/topbar-slot'
 import { Button } from '@/components/ui/button'
-import { SkeletonTable } from '@/components/ui/skeleton'
-import { calendarLesson, canEditCalendarEvent, canEditPlainEvent } from '@/lib/lesson-actions'
+import { calendarLesson, canEditCalendarEvent, canEditPlainEvent, changeableLesson } from '@/lib/lesson-actions'
 import { weekRange } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -27,49 +25,27 @@ import { CalendarLessonDialog } from './calendar-lesson-dialog'
 import { LessonCountDialog } from './lesson-count-dialog'
 import { NewLessonDialog, type NewLessonDraft } from './new-lesson-dialog'
 import { useOptimisticWrites, type WriteRunner } from './optimistic-writes'
-import { ScheduleBar, ScheduleToolbar, useScheduleKeys, weekSummary } from './schedule-toolbar'
+import { ScheduleArrival } from './schedule-arrival'
+import {
+	NOTICE_SLOT,
+	STRIP,
+	STRIP_TOOLS,
+	WORKSPACE_BODY,
+	LOADING_BLOCKS,
+	ScheduleLoading,
+	useLaptop,
+} from './schedule-loading'
+import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
+import { arrivalMonday, useDropArrivalParams, type ArrivalParams } from './use-schedule-arrival'
 import { useScheduleWeek } from './use-schedule-week'
 import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
 
-const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
-const MOBILE_FRAME = 'h-112'
-const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2'
-
-function useLaptop() {
-	const left = useTopbarSlot('left')
-	const right = useTopbarSlot('right')
-	return left !== null && right !== null ? { left, right } : null
-}
-
-function ScheduleLoading() {
-	const laptop = useLaptop()
-	if (laptop !== null)
-		return (
-			<WorkspacePage>
-				<div className={WORKSPACE_BODY}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			</WorkspacePage>
-		)
-	return (
-		<PageScroll>
-			<PageHeader title="Schedule" />
-			<div className="space-y-4">
-				<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
-				<div className={MOBILE_FRAME}>
-					<SkeletonTable rows={10} className="h-full" />
-				</div>
-			</div>
-		</PageScroll>
-	)
-}
-
-export function ScheduleScreen() {
+export function ScheduleScreen({ arrival }: { arrival: ArrivalParams }) {
 	const now = useMinuteNow()
 	if (now === null) return <ScheduleLoading />
-	return <LoadedSchedule now={now} />
+	return <LoadedSchedule now={now} arrival={arrival} />
 }
 
 function displayWindow(data: GoogleScheduleWindow | null, query: { monday: string; mainTimeZone: string }, now: Date) {
@@ -89,8 +65,9 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 	}
 }
 
-function LoadedSchedule({ now }: { now: Date }) {
-	const { state: week, reload, navigate } = useScheduleWeek()
+function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams }) {
+	const [initialMonday] = useState(() => arrivalMonday(arrival))
+	const { state: week, reload, navigate } = useScheduleWeek(initialMonday)
 	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
@@ -130,6 +107,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 		setSelection(null)
 		navigate(target, current)
 	}
+	useDropArrivalParams(week.query === null && week.kind === 'error')
 
 	if (week.query === null)
 		return week.kind === 'error' ? (
@@ -173,12 +151,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 	}
 	function canMove(event: CalendarEventView) {
 		if (!editable || data === null || writes.mark(event) !== null) return false
-		if (calendarLesson(event))
-			return (
-				canEditCalendarEvent(event, data) &&
-				event.status !== 'cancelled' &&
-				Date.parse(event.when.startsAt) > Math.max(now.getTime(), Date.now())
-			)
+		if (calendarLesson(event)) return canEditCalendarEvent(event, data) && changeableLesson(event)
 		return canEditPlainEvent(event, data)
 	}
 	function studentName(id: string) {
@@ -209,6 +182,17 @@ function LoadedSchedule({ now }: { now: Date }) {
 	const refreshWeek = async () => {
 		await reload()
 	}
+	const arrived = (
+		<ScheduleArrival
+			{...arrival}
+			failed={week.kind === 'error'}
+			ready={week.kind === 'ready' && data !== null && !loadingFirst && requestedMonday === monday}
+			monday={monday}
+			events={events}
+			mainTimeZone={mainTimeZone}
+			currentYear={currentYear}
+		/>
+	)
 	const grid = (
 		<WeekGrid
 			emptyNote={read.state === 'fresh' && events.length === 0 ? 'No Google Calendar events in this range.' : null}
@@ -234,6 +218,7 @@ function LoadedSchedule({ now }: { now: Date }) {
 			onSlot={(seed) => void openNew(seed)}
 			frame={draft?.seed ?? null}
 			scrollTopRef={scrollTopRef}
+			placeholders={loadingFirst ? LOADING_BLOCKS : undefined}
 		/>
 	)
 	const windowAttributes = {
@@ -273,15 +258,37 @@ function LoadedSchedule({ now }: { now: Date }) {
 				onClose={closeEvent}
 				onMoveDiscard={() => setMoveSeed(undefined)}
 				onRefresh={refreshForms}
+				onMarked={async () => {
+					await reload()
+				}}
 				onWrite={writes.run}
 			/>
 		</>
 	)
 
+	const pendingRecovery =
+		commands.view.entries.some((entry) => entry.command?.state !== 'failed') ||
+		(commands.view.connection?.pendingCommandCount ?? 0) > 0
+	const tools = (
+		<>
+			{loadingFirst ? (
+				<span className="size-7" />
+			) : (
+				<CalendarReadStatusButton
+					read={read}
+					write={write}
+					timeZone={mainTimeZone}
+					onRefresh={refreshWeek}
+					pendingRecovery={pendingRecovery}
+					recovery={<CalendarRecovery showEmpty={false} />}
+				/>
+			)}
+			<ScheduleZone monday={week.query.monday} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
+			<LessonCountDialog iconOnly />
+		</>
+	)
+
 	if (laptop !== null) {
-		const pendingRecovery =
-			commands.view.entries.some((entry) => entry.command?.state !== 'failed') ||
-			(commands.view.connection?.pendingCommandCount ?? 0) > 0
 		return (
 			<>
 				{inBar(
@@ -294,28 +301,11 @@ function LoadedSchedule({ now }: { now: Date }) {
 					/>,
 					laptop.left
 				)}
-				{inBar(
-					<div className="flex items-center gap-2">
-						{loadingFirst ? (
-							<span className="size-7" />
-						) : (
-							<CalendarReadStatusButton
-								read={read}
-								write={write}
-								timeZone={mainTimeZone}
-								onRefresh={refreshWeek}
-								pendingRecovery={pendingRecovery}
-								recovery={<CalendarRecovery showEmpty={false} />}
-							/>
-						)}
-						<ScheduleZone monday={week.query.monday} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
-						<LessonCountDialog iconOnly />
-					</div>,
-					laptop.right
-				)}
+				{inBar(<div className="flex items-center gap-2">{tools}</div>, laptop.right)}
 				<WorkspacePage>
 					<div {...windowAttributes} className={WORKSPACE_BODY}>
-						{loadingFirst ? <SkeletonTable rows={10} className="h-full" /> : grid}
+						{arrived}
+						{grid}
 					</div>
 				</WorkspacePage>
 				{dialogs}
@@ -330,41 +320,33 @@ function LoadedSchedule({ now }: { now: Date }) {
 					titleRef={titleRef}
 					title={weekRange(monday)}
 					actions={
-						<div className="flex items-center gap-2">
-							<LessonCountDialog />
-							<Button
-								leadingIcon={CalendarPlus}
-								disabled={!editable}
-								onClick={() =>
-									openNew(
-										monday === currentMonday
-											? { ...nextWholeHour(now, mainTimeZone), durationMinutes: 60, dragged: false }
-											: { date: monday, time: '09:00', durationMinutes: 60, dragged: false }
-									)
-								}
-							>
-								New event
-							</Button>
-						</div>
+						<Button
+							leadingIcon={CalendarPlus}
+							disabled={!editable}
+							onClick={() =>
+								openNew(
+									monday === currentMonday
+										? { ...nextWholeHour(now, mainTimeZone), durationMinutes: 60, dragged: false }
+										: { date: monday, time: '09:00', durationMinutes: 60, dragged: false }
+								)
+							}
+						>
+							New event
+						</Button>
 					}
 				/>
-				<ScheduleToolbar {...navigation} mainTimeZone={mainTimeZone} zone={zone} onZoneChange={setZone} />
+				<div className={STRIP}>
+					<ScheduleBar {...navigation} onWeek={pickWeek} today={today} titleRef={null} summary={null} heading={false} />
+					<div className={STRIP_TOOLS}>{tools}</div>
+				</div>
 				<div {...windowAttributes} className="space-y-4">
-					{loadingFirst ? (
-						<>
-							<div data-slot="calendar-read-slot" className={NOTICE_SLOT} />
-							<div className={MOBILE_FRAME}>
-								<SkeletonTable rows={10} className="h-full" />
-							</div>
-						</>
-					) : (
-						<>
-							<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
-								<CalendarReadNotice read={read} write={write} timeZone={mainTimeZone} onRefresh={refreshWeek} />
-							</div>
-							{grid}
-						</>
-					)}
+					<div data-slot="calendar-read-slot" className={NOTICE_SLOT}>
+						{loadingFirst ? null : (
+							<CalendarReadNotice read={read} write={write} timeZone={mainTimeZone} onRefresh={refreshWeek} />
+						)}
+					</div>
+					{arrived}
+					{grid}
 				</div>
 				<CalendarRecovery showEmpty={false} />
 			</PageScroll>
@@ -422,6 +404,7 @@ function SelectedEventDialog({
 	onClose,
 	onMoveDiscard,
 	onRefresh,
+	onMarked,
 	onWrite,
 }: {
 	moveSeed?: MoveSeed
@@ -436,6 +419,7 @@ function SelectedEventDialog({
 	onClose: () => void
 	onMoveDiscard: () => void
 	onRefresh: () => void
+	onMarked: () => Promise<void>
 	onWrite: WriteRunner
 }) {
 	if (event === null) return null
@@ -452,6 +436,7 @@ function SelectedEventDialog({
 				onClose={onClose}
 				onMoveDiscard={onMoveDiscard}
 				onRefresh={onRefresh}
+				onMarked={onMarked}
 				onWrite={onWrite}
 			/>
 		)

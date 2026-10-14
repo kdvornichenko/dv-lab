@@ -50,7 +50,7 @@ export function Panel({ title, description, action, children, className, id }: P
 		<Elevated offset={1} shadowLevel={2} className={cn('flex min-w-0 flex-col rounded-2xl', className)}>
 			<section aria-labelledby={id && title ? id : undefined} className="flex min-w-0 flex-col">
 				{title ? (
-					<div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2">
+					<div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 pointer-coarse:pb-3">
 						<div className="flex min-w-0 flex-col gap-1">
 							<h2 id={id} className="text-title font-semibold text-foreground">
 								{title}

@@ -6,10 +6,22 @@ import Link from 'next/link'
 
 import { CalendarFormStatus } from '@/components/app/calendar-command-notice'
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
+import { READ_ISSUES } from '@/components/app/google-calendar-state'
+import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { calendarSeriesFor, canEditCalendarEvent, seriesDateInZone, type CalendarLesson } from '@/lib/lesson-actions'
+import {
+	calendarSeriesFor,
+	canEditCalendarEvent,
+	changeableLesson,
+	seriesDateInZone,
+	seriesScopesFor,
+	startedLesson,
+	writeIssueFor,
+	type CalendarLesson,
+} from '@/lib/lesson-actions'
+import { markHelp } from '@/lib/lesson-mark-text'
 import { cn } from '@/lib/utils'
 
 import type {
@@ -17,8 +29,9 @@ import type {
 	CalendarEventView,
 	CalendarSeriesContext,
 	GoogleScheduleWindow,
+	LessonMarkKind,
 } from '@dv-lab/contracts'
-import { addDays, canChange, nextSeriesDate, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
+import { addDays, canChange, scheduleDate, weekdayOf, zonedInstant } from '@dv-lab/core'
 
 import { useToast } from '../../_components/toasts'
 import { EventTime, eventTitle } from './calendar-event-details'
@@ -26,9 +39,17 @@ import { EndSeriesDialog } from './end-series-dialog'
 import type { DirectState } from './event-form'
 import { LessonDetails } from './lesson-details'
 import { LessonFooter } from './lesson-footer'
+import { LessonMarkRow } from './lesson-mark-row'
 import { LessonMoveForm, type MoveDraft } from './lesson-move-form'
-import { backAt, placedEvent, type WriteRunner } from './optimistic-writes'
-import { useScheduleMutation, type MoveLessonBody, type MoveSeriesBody } from './schedule-mutations'
+import { backAt, codeRefusal, placedEvent, type WriteRunner } from './optimistic-writes'
+import {
+	STALE_LESSON,
+	STALE_TITLE,
+	markLesson,
+	useScheduleMutation,
+	type MoveLessonBody,
+	type MoveSeriesBody,
+} from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 
@@ -43,6 +64,7 @@ type Props = {
 	onClose: () => void
 	onMoveDiscard?: () => void
 	onRefresh: () => void
+	onMarked: () => Promise<void>
 	onWrite: WriteRunner
 }
 
@@ -71,11 +93,14 @@ export function CalendarLessonDialog(props: Props) {
 	return <LessonContent {...props} asOf={asOf} series={currentSeries} onEndSeries={() => setEnding(true)} />
 }
 
+const FAILURE_LINE = 'Could not apply this change. Refresh the calendar before trying again.'
+const MARK_FAILURE = 'Could not save the mark. Try again.'
+
 function dayGap(later: string, earlier: string): number {
 	return Math.round((Date.parse(`${later}T00:00:00Z`) - Date.parse(`${earlier}T00:00:00Z`)) / 86400000)
 }
 
-function lessonMoveBody(event: CalendarLesson, draft: MoveDraft, mainTimeZone: string): MoveLessonBody {
+export function lessonMoveBody(event: CalendarLesson, draft: MoveDraft, mainTimeZone: string): MoveLessonBody {
 	const length = (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000
 	return {
 		date: draft.date,
@@ -91,20 +116,18 @@ function seriesMoveBody(
 	draft: MoveDraft,
 	event: CalendarLesson,
 	context: CalendarSeriesContext,
-	now: Date,
 	mainTimeZone: string
 ): MoveSeriesBody {
 	const rule = context.series
 	const ref = event.binding.ref
-	const today = scheduleDate(now, mainTimeZone)
 	const inZone = (date: string) => seriesDateInZone(rule, date, mainTimeZone) ?? date
 	const opened =
 		ref.kind === 'series' ? inZone(ref.originalOn) : scheduleDate(new Date(event.when.startsAt), mainTimeZone)
-	const natural = scope === 'following' ? opened : nextSeriesDate(rule, now)
-	const cut = natural === null ? today : scope === 'following' ? natural : inZone(natural)
+	const floor = context.allFrom === null ? opened : inZone(context.allFrom)
+	const cut = scope === 'following' ? opened : floor
 	const first = addDays(cut, dayGap(draft.date, opened))
 	const earlier = first < cut ? first : cut
-	const from = earlier < today ? today : earlier
+	const from = earlier < floor ? floor : earlier
 	return {
 		from,
 		weekday: weekdayOf(first),
@@ -115,12 +138,12 @@ function seriesMoveBody(
 	}
 }
 
-function movedBlocks(
+export function movedBlocks(
 	scope: CalendarEditScope,
 	draft: MoveDraft,
 	event: CalendarLesson,
 	events: readonly CalendarEventView[],
-	now: Date,
+	allFrom: string | null,
 	mainTimeZone: string
 ): CalendarEventView[] {
 	const ref = event.binding.ref
@@ -136,9 +159,7 @@ function movedBlocks(
 		if (block.binding.kind !== 'lesson' || block.binding.ref.kind !== 'series') return false
 		if (block.binding.ref.seriesId !== ref.seriesId || block.status === 'cancelled' || block.when.kind !== 'timed')
 			return false
-		return scope === 'following'
-			? block.binding.ref.originalOn >= ref.originalOn
-			: canChange(new Date(block.when.startsAt), now)
+		return block.binding.ref.originalOn >= (scope === 'all' && allFrom !== null ? allFrom : ref.originalOn)
 	})
 	return members.map(place)
 }
@@ -154,6 +175,7 @@ function LessonContent({
 	onClose,
 	onMoveDiscard,
 	onRefresh,
+	onMarked,
 	onWrite,
 	asOf,
 	series,
@@ -176,10 +198,14 @@ function LessonContent({
 	const [direct, setDirect] = useState<DirectState>(moveSeed !== undefined ? 'sending' : 'shown')
 	const [confirming, setConfirming] = useState(false)
 	const [scoping, setScoping] = useState(false)
-	const [failure, setFailure] = useState(false)
+	const [failure, setFailure] = useState<string | null>(null)
+	const [choosing, setChoosing] = useState<LessonMarkKind | null>(null)
+	const [markFailed, setMarkFailed] = useState(false)
+	const [markStale, setMarkStale] = useState(false)
 	const moveButton = useRef<HTMLButtonElement>(null)
 	const editable = canEditCalendarEvent(event, window) && !blocked
 	const pending = command.pending
+	const busy = pending || choosing !== null
 	const details = {
 		startsAt: event.when.startsAt,
 		durationMinutes: (Date.parse(event.when.endsAt) - Date.parse(event.when.startsAt)) / 60000,
@@ -187,16 +213,27 @@ function LessonContent({
 	}
 	const endable =
 		editable && series !== null && event.status !== 'cancelled' && canChange(new Date(event.when.startsAt), now)
+	const mark = event.binding.mark
 	const actions = {
-		move: editable && event.status !== 'cancelled',
-		cancel: editable && event.status !== 'cancelled',
-		restore: editable && event.status === 'cancelled',
+		move: changeableLesson(event),
+		cancel: changeableLesson(event),
+		restore: event.status === 'cancelled' && mark !== 'done',
 	}
+	const unavailable =
+		editable || busy
+			? null
+			: (() => {
+					const issue = writeIssueFor(event, window, blocked)
+					return issue === null ? null : READ_ISSUES[issue]
+				})()
+	const markable = startedLesson(event, now) && event.status !== 'cancelled'
+	const scopes = editable ? seriesScopesFor(initial, series) : (['one'] as const)
 	const title = student?.name ?? eventTitle(event)
-	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'failed' | 'detached'> {
+	async function apply(action: 'cancel' | 'restore'): Promise<'ok' | 'detached' | { failed: string }> {
 		const result = await command.mutate(initial.binding.ref, action, { expectedStartsAt: initial.when.startsAt })
 		if (result.kind === 'detached') return 'detached'
-		if (result.kind !== 'ok') return 'failed'
+		if (result.kind !== 'ok')
+			return { failed: (result.kind === 'failed' ? codeRefusal(result.code) : null) ?? FAILURE_LINE }
 		toast.show({
 			title: action === 'cancel' ? 'Lesson cancelled' : 'Lesson restored',
 			description: `${title}. Google Calendar confirmed the change.`,
@@ -205,12 +242,13 @@ function LessonContent({
 		return 'ok'
 	}
 	async function change(action: 'cancel' | 'restore') {
-		if (pending || !editable) return
-		setFailure(false)
-		if ((await apply(action)) === 'failed') setFailure(true)
+		if (busy || !editable) return
+		setFailure(null)
+		const outcome = await apply(action)
+		if (typeof outcome === 'object') setFailure(outcome.failed)
 	}
 	async function cancelScope(scope: CalendarEditScope): Promise<boolean> {
-		if (pending || !editable) return false
+		if (busy || !editable) return false
 		if (scope === 'one') return (await apply('cancel')) === 'ok'
 		const ref = initial.binding.ref
 		if (series === null || ref.kind !== 'series') return false
@@ -224,46 +262,57 @@ function LessonContent({
 		return true
 	}
 	function save(scope: CalendarEditScope, draft: MoveDraft): Promise<boolean> {
-		if (pending || !editable) return Promise.resolve(false)
+		if (busy || !editable) return Promise.resolve(false)
 		const send =
 			scope === 'one' || series === null
 				? command.prepare(initial.binding.ref, 'move', lessonMoveBody(initial, draft, mainTimeZone), draft.checked)
 				: command.prepare(
 						{ kind: 'rule', seriesId: series.series.id },
 						'move',
-						seriesMoveBody(scope, draft, initial, series, now, mainTimeZone)
+						seriesMoveBody(scope, draft, initial, series, mainTimeZone)
 					)
 		onWrite(
 			{
 				title: 'Could not change the lesson',
 				back: backAt(initial, mainTimeZone),
 				hidden: [],
-				shown: movedBlocks(scope, draft, initial, window.events, now, mainTimeZone),
+				shown: movedBlocks(scope, draft, initial, window.events, series?.allFrom ?? null, mainTimeZone),
 			},
 			send
 		)
 		onClose()
 		return Promise.resolve(true)
 	}
+	async function choose(kind: LessonMarkKind) {
+		if (busy) return
+		setChoosing(kind)
+		setMarkStale(false)
+		setMarkFailed(false)
+		const result = await markLesson({ ref: initial.binding.ref, startsAt: event.when.startsAt }, kind)
+		if (result.kind === 'ok' || result.kind === 'stale') await onMarked()
+		if (result.kind === 'stale') setMarkStale(true)
+		else if (result.kind !== 'ok') setMarkFailed(true)
+		setChoosing(null)
+	}
 	function askCancel() {
-		if (initial.binding.ref.kind === 'series') setScoping(true)
+		if (initial.binding.ref.kind === 'series' && !startedLesson(initial, now)) setScoping(true)
 		else setConfirming(true)
 	}
 	return (
 		<Dialog
 			open
 			onOpenChange={(open) => {
-				if (!open && !pending) onClose()
+				if (!open && !busy) onClose()
 			}}
 		>
 			<DialogContent
 				size="lg"
-				showCloseButton={!pending}
+				showCloseButton={!busy}
 				className={cn('data-[nested-dialog-open]:invisible', direct !== 'shown' && 'invisible')}
 				backdropClassName={direct === 'sending' ? 'invisible' : undefined}
 			>
 				<DialogHeader>
-					<LessonTitle studentId={event.binding.studentId} title={title} pending={pending} />
+					<LessonTitle studentId={event.binding.studentId} title={title} pending={busy} />
 					<DialogDescription>
 						<EventTime
 							event={event}
@@ -277,7 +326,7 @@ function LessonContent({
 					<div className="flex flex-col gap-4 py-1">
 						<div className="flex flex-wrap items-baseline justify-between gap-x-4">
 							<p className="text-body">{event.status === 'cancelled' ? 'Cancelled' : 'Planned'}</p>
-							{!editable && !pending ? <p className="text-body text-muted-foreground">Read-only</p> : null}
+							{!editable && !busy ? <p className="text-body text-muted-foreground">Read-only</p> : null}
 						</div>
 						<CalendarFormStatus
 							entry={command.entry}
@@ -289,29 +338,57 @@ function LessonContent({
 								onClose()
 							}}
 						/>
-						{failure ? (
+						{failure !== null ? (
 							<p role="alert" className="text-body text-destructive">
-								Could not apply this change. Refresh the calendar before trying again.
+								{failure}
 							</p>
+						) : null}
+						{markStale ? (
+							<Banner status="warning" data-slot="lesson-stale">
+								<BannerTitle>{STALE_TITLE}</BannerTitle>
+								<BannerDescription>{STALE_LESSON}</BannerDescription>
+								<Button type="button" variant="ghost" size="compact" disabled={busy} onClick={onRefresh}>
+									Refresh
+								</Button>
+							</Banner>
+						) : null}
+						{markFailed ? (
+							<Banner status="error" data-slot="lesson-mark-failed">
+								<BannerTitle>{MARK_FAILURE}</BannerTitle>
+							</Banner>
+						) : null}
+						{markable ? (
+							<LessonMarkRow
+								mark={mark}
+								available
+								help={mark === null ? markHelp({ kind: 'unmarked' }, 0, null, mainTimeZone) : null}
+								saving={choosing}
+								locked={busy}
+								onChoose={(kind) => void choose(kind)}
+							/>
 						) : null}
 						<LessonDetails
 							block={details}
 							series={series?.series ?? null}
 							mainTimeZone={mainTimeZone}
 							secondZone={secondZone}
+							commentRef={event.binding.ref}
+							started={startedLesson(event, now)}
+							now={now}
 						/>
 						{moving ? (
 							<LessonMoveForm
 								moveSeed={moveSeed}
 								available={editable}
-								scopes={series !== null && editable ? ['one', 'following', 'all'] : ['one']}
+								scopes={scopes}
+								movesAlone={initial.binding.ref.kind === 'series' && series !== null && scopes.length === 1}
 								event={initial}
 								weekEvents={window.events}
 								mainTimeZone={mainTimeZone}
 								currentMainTimeZone={window.requestedRange.timeZone}
 								asOf={asOf}
 								secondZone={secondZone}
-								locked={command.pending}
+								locked={busy}
 								direct={direct !== 'shown'}
 								onDirect={setDirect}
 								onClose={onClose}
@@ -327,11 +404,13 @@ function LessonContent({
 				</ScrollArea>
 				<LessonFooter
 					block={{ startsAt: event.when.startsAt, actions }}
+					mark={mark}
+					unavailable={unavailable}
 					mainTimeZone={mainTimeZone}
 					confirming={confirming}
 					moving={moving}
 					pending={pending}
-					locked={pending}
+					locked={busy || !editable}
 					moveButton={moveButton}
 					onKeep={() => setConfirming(false)}
 					onCancel={() => void change('cancel')}
@@ -340,7 +419,7 @@ function LessonContent({
 					onConfirm={askCancel}
 					onEndSeries={endable ? onEndSeries : undefined}
 				/>
-				{!pending && !moving ? (
+				{!busy && !moving ? (
 					<Button variant="secondary" onClick={onClose}>
 						Close
 					</Button>
@@ -360,10 +439,10 @@ function LessonContent({
 
 function LessonTitle({ studentId, title, pending }: { studentId: string; title: string; pending: boolean }) {
 	return (
-		<DialogTitle>
+		<DialogTitle className="pr-10">
 			<Link
 				href={`/students/${studentId}`}
-				className="block truncate"
+				className="block truncate pointer-coarse:-my-3 pointer-coarse:py-3"
 				onClick={(event) => {
 					if (pending) event.preventDefault()
 				}}

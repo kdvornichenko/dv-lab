@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 
 import { Pencil } from 'lucide-react'
 
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 
 import type { StudentDetail } from '@dv-lab/contracts'
 
-import { StudentFormDialog } from '../../_components/student-form-dialog'
+import { GENDER_LABEL, StudentFormDialog } from '../../_components/student-form-dialog'
 import { AccountPanel } from './account-panel'
 import { OpeningBalancePanel } from './opening-balance-panel'
 
@@ -20,6 +20,8 @@ interface OverviewTabProps {
 	asOf: string
 	lessonsInputRef: RefObject<HTMLInputElement | null>
 	onSaved: () => Promise<boolean>
+	autoOpenEdit: boolean
+	onAutoOpened: () => void
 }
 
 function NotSet() {
@@ -39,10 +41,22 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
 	)
 }
 
-export function OverviewTab({ student, mainTimeZone, asOf, lessonsInputRef, onSaved }: OverviewTabProps) {
-	const [editOpen, setEditOpen] = useState(false)
+export function OverviewTab({
+	student,
+	mainTimeZone,
+	asOf,
+	lessonsInputRef,
+	onSaved,
+	autoOpenEdit,
+	onAutoOpened,
+}: OverviewTabProps) {
+	const [editOpen, setEditOpen] = useState(autoOpenEdit)
 	const [openingVersion, setOpeningVersion] = useState(0)
 	const editButton = useRef<HTMLButtonElement>(null)
+
+	useEffect(() => {
+		if (autoOpenEdit) onAutoOpened()
+	}, [autoOpenEdit, onAutoOpened])
 
 	async function refreshOpening() {
 		if (await onSaved()) setOpeningVersion((version) => version + 1)
@@ -85,6 +99,7 @@ export function OverviewTab({ student, mainTimeZone, asOf, lessonsInputRef, onSa
 							<span className="text-muted-foreground">Deducts nothing</span>
 						)}
 					</DetailRow>
+					<DetailRow label="Gender">{student.gender === null ? <NotSet /> : GENDER_LABEL[student.gender]}</DetailRow>
 					<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
 					<DetailRow label="Level">{textValue(student.level)}</DetailRow>
 					<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>
@@ -93,7 +108,7 @@ export function OverviewTab({ student, mainTimeZone, asOf, lessonsInputRef, onSa
 			</Panel>
 			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
 				<OpeningBalancePanel
-					key={openingVersion}
+					key={`${openingVersion}-${student.revision}`}
 					student={student}
 					mainTimeZone={mainTimeZone}
 					asOf={asOf}

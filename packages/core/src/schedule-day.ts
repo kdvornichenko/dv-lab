@@ -54,6 +54,15 @@ export function startOfLessonDay(day: string, zone: string): Date {
 	return new Date(after)
 }
 
+export function namedDateRange(date: string, now: Date, zone: string): { start: Date; end: Date } {
+	const current = lessonDay(now, zone)
+	const tonight = current !== date && zonedParts(now, zone).date === date
+	return {
+		start: tonight ? startOfLessonDay(current, zone) : startOfZonedDay(date, zone),
+		end: startOfLessonDay(addDays(date, 1), zone),
+	}
+}
+
 export function scheduleWeekRange(monday: string, zone: string): { start: Date; end: Date } {
 	return { start: startOfZonedDay(monday, zone), end: startOfLessonDay(addDays(monday, 7), zone) }
 }

@@ -142,11 +142,13 @@ async function prepare(viewport, { injectLesson = false } = {}) {
 					ref: { kind: 'series', seriesId, originalOn },
 					studentId,
 					version,
+					mark: null,
 				}
 				target.title = null
 				json.series = [
 					{
 						version,
+						allFrom: originalOn,
 						series: {
 							id: seriesId,
 							studentId,
@@ -674,7 +676,9 @@ async function lessonScope(viewport) {
 		check(
 			`${tag} Save of a series lesson asks the scope with three rows and the marks line, nothing sent yet`,
 			(await moveScope.getByRole('radio').count()) === 3 &&
-				(await moveScope.getByText('Past lessons and their marks stay at their old time.').count()) === 1 &&
+				(await moveScope
+					.getByText('Lessons with a mark or a comment, and the lessons before them, stay at their old time.')
+					.count()) === 1 &&
 				calls.filter((call) => call.operation === 'move' || call.operation === 'move_series').length === 0
 		)
 		await shot(page, `calendar-editor-${tag}`, 'lesson-move-scope')

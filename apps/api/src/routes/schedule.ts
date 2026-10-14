@@ -3,6 +3,8 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import {
+	type LessonCommentResponse,
+	type LessonCommentsResponse,
 	type ScheduleMarkResponse,
 	createCalendarLessonRequest,
 	moveCalendarLessonRequest,
@@ -11,6 +13,7 @@ import {
 	endCalendarSeriesRequest,
 	isIsoDate,
 	markLessonRequest,
+	retractCommentRequest,
 	scheduleWeekStart,
 } from '@dv-lab/contracts'
 import { scheduleWeekRange, weekdayOf } from '@dv-lab/core'
@@ -25,6 +28,7 @@ import type { CalendarReadContext, CalendarReadSelection } from '../calendar/rea
 import { listLessonStudents } from '../cards/cards.ts'
 import { errorBody } from '../request-context.ts'
 import type { ChangeFailure } from '../schedule/changes.ts'
+import { listLessonComments, retractLessonComment } from '../schedule/comments.ts'
 import { markLesson, markOccurrence } from '../schedule/marks.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
@@ -73,6 +77,11 @@ function weekStart(value: string | undefined): string | null {
 
 function idParam(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('id'))
+	return id.success ? id.data : null
+}
+
+function commentParam(c: Context<AppEnv>): string | null {
+	const id = z.uuid().safeParse(c.req.param('commentId'))
 	return id.success ? id.data : null
 }
 
@@ -222,6 +231,40 @@ export function scheduleRoutes({ db, calendarCommands }: ScheduleRouteDeps) {
 		const result = await markLesson(db, c.get('session').account.id, id, input, new Date())
 		if (result.kind !== 'ok') return refused(c, result)
 		return c.json({ mark: result.mark } satisfies ScheduleMarkResponse, 200)
+	})
+
+	routes.get('/lessons/:id/comments', async (c) => {
+		const id = idParam(c)
+		if (id === null) return notFound(c)
+		const accountId = c.get('session').account.id
+		const comments = await readSnapshot(db, (executor) =>
+			listLessonComments(executor, accountId, { kind: 'single', lessonId: id })
+		)
+		if (comments === null) return notFound(c)
+		return c.json({ comments } satisfies LessonCommentsResponse, 200)
+	})
+
+	routes.get('/series/:id/occurrences/:originalOn/comments', async (c) => {
+		const occurrence = occurrenceParam(c)
+		if (occurrence === null) return notFound(c)
+		const accountId = c.get('session').account.id
+		const comments = await readSnapshot(db, (executor) =>
+			listLessonComments(executor, accountId, { kind: 'series', ...occurrence })
+		)
+		if (comments === null) return notFound(c)
+		return c.json({ comments } satisfies LessonCommentsResponse, 200)
+	})
+
+	routes.post('/comments/:commentId/retract', async (c) => {
+		const commentId = commentParam(c)
+		if (commentId === null) return notFound(c)
+		const input = await readJson(c, retractCommentRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const result = await db.transaction((tx) => retractLessonComment(tx, accountId, commentId, input.expectedRevision))
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The comment changed'), 409)
+		return c.json({ comment: result.comment } satisfies LessonCommentResponse, 200)
 	})
 
 	return routes

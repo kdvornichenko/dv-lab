@@ -263,6 +263,7 @@ async function transforms() {
 						ref: { kind: 'single', lessonId: randomUUID() },
 						studentId: randomUUID(),
 						version: event.version,
+						mark: null,
 					}
 				if (event.title === 'Synthetic event 07')
 					event.color = { id: '11', background: PALETTE[11], foreground: INK, custom: false }

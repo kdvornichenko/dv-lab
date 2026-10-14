@@ -9,7 +9,7 @@ import { EmptyLine } from '@/components/app/empty-line'
 import { DateText, MoneyText, PaymentLessonsText, PaymentNoteText, describePayment } from '@/components/app/ledger-text'
 import { ReadError } from '@/components/app/read-error'
 import { Button } from '@/components/ui/button'
-import { SkeletonTable } from '@/components/ui/skeleton'
+import { Skeleton, SkeletonLine, SkeletonTable, type SkeletonTableColumn } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
@@ -29,6 +29,26 @@ async function readUnassigned(): Promise<ReadState> {
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
 const cellClass = 'px-4 py-2 align-top text-body'
+const skeletonColumns: SkeletonTableColumn[] = [
+	{ title: 'Date', cellClassName: 'align-top', cell: <SkeletonLine className="w-20" /> },
+	{ title: 'Amount', cellClassName: 'align-top', cell: <SkeletonLine className="w-16" /> },
+	{ title: 'Lessons', cellClassName: 'align-top', cell: <SkeletonLine className="w-10" /> },
+	{ title: 'Note', cellClassName: 'min-w-64 align-top', cell: <SkeletonLine className="w-40" /> },
+	{
+		title: <span className="sr-only">Actions</span>,
+		cellClassName: 'align-top',
+		cell: (
+			<div className="flex h-7 items-center justify-end gap-2">
+				<Skeleton className="h-5 w-14 rounded-md" />
+				<Skeleton className="size-5 rounded-md" />
+			</div>
+		),
+	},
+]
+
+export function UnassignedPaymentsSkeleton() {
+	return <SkeletonTable columns={skeletonColumns} />
+}
 
 interface UnassignedPaymentsProps {
 	students: StudentRow[]
@@ -40,6 +60,7 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
 	const [assigning, setAssigning] = useState<PaymentRow | null>(null)
 	const [removing, setRemoving] = useState<PaymentRow | null>(null)
+	const [removeFailure, setRemoveFailure] = useState<string | null>(null)
 
 	const load = useCallback(async () => {
 		setState(await readUnassigned())
@@ -56,9 +77,16 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 	}, [])
 
 	async function remove(payment: PaymentRow) {
-		const result = await apiRequest<undefined>('DELETE', `/payments/${payment.id}`)
+		const result = await apiRequest<undefined>('DELETE', `/payments/${payment.id}`, {
+			expectedRevision: payment.revision,
+		})
 		if (!result.ok) {
 			if (result.status === 404) void load()
+			setRemoveFailure(
+				result.error?.code === 'precondition_failed'
+					? 'This payment changed elsewhere. Reload the page and try again.'
+					: null
+			)
 			return false
 		}
 		toast.show({ title: 'Payment deleted', description: 'The payment was removed.' })
@@ -69,7 +97,7 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 	}
 
 	let body: ReactNode
-	if (state.kind === 'loading') body = <SkeletonTable />
+	if (state.kind === 'loading') body = <UnassignedPaymentsSkeleton />
 	else if (state.kind === 'error') body = <ReadError screen="payments" onRefresh={load} />
 	else if (state.payments.length === 0) body = <EmptyLine />
 	else {
@@ -117,7 +145,10 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 												variant="ghost"
 												size="icon-compact"
 												aria-label="Delete payment"
-												onClick={() => setRemoving(payment)}
+												onClick={() => {
+													setRemoveFailure(null)
+													setRemoving(payment)
+												}}
 											>
 												<Trash2 />
 											</Button>
@@ -159,7 +190,7 @@ export function UnassignedPayments({ students, onChanged }: UnassignedPaymentsPr
 					confirmLabel="Delete payment"
 					pendingLabel="Deleting…"
 					tone="destructive"
-					failureText="Could not delete the payment. Try again."
+					failureText={removeFailure ?? 'Could not delete the payment. Try again.'}
 					onConfirm={() => remove(removing)}
 					onClose={() => setRemoving(null)}
 				/>

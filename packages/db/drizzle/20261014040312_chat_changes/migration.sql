@@ -1,0 +1,1 @@
+ALTER TABLE "chat_actions" DROP CONSTRAINT "chat_actions_kind_ck", ADD CONSTRAINT "chat_actions_kind_ck" CHECK ("kind" in ('mark', 'note', 'comment', 'calendar', 'change'));

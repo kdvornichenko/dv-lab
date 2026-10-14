@@ -97,7 +97,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
 					onSelect?.()
 				}
 		const itemClassName = cn(
-			`relative z-10 flex ${sizeClasses.control} shrink-0 items-center ${sizeClasses.gap} ${shape.item} ${sizeClasses.itemPx} cursor-pointer outline-none`,
+			`relative z-10 flex ${sizeClasses.control} shrink-0 items-center ${sizeClasses.gap} ${shape.item} ${sizeClasses.itemPx} cursor-pointer outline-none pointer-coarse:min-h-11`,
 			disabled && 'pointer-events-none opacity-50',
 			className
 		)

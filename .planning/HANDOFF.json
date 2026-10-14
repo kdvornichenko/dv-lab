@@ -1,15 +1,29 @@
 {
-	"version": "1.0",
-	"timestamp": "2026-10-12T13:00:00+00:00",
-	"phase": "24-google-calendar-connection-and-outbound-sync",
-	"status": "paused",
-	"next_action": "Rewrite Phase 25 as 25.1 per STATE.md decisions D5-D10; 24-14 live check waits for a local OAuth client on the owner test account.",
-	"decisions": [
-		"Claude only",
-		"Live Google tests only locally on the owner test account",
-		"Prod holds the teacher working calendar; no live writes there",
-		"Lesson length has no upper limit",
-		"Day boundary 02:00"
-	],
-	"uncommitted_files": []
+  "version": "1.0",
+  "timestamp": "2026-10-14T03:55:30.242Z",
+  "phase": "23",
+  "phase_name": "Confirmed Chat Changes and Entry Points",
+  "phase_dir": ".planning/phases/23-confirmed-chat-changes-and-entry-points",
+  "plan": 1,
+  "task": 0,
+  "total_tasks": 39,
+  "status": "paused",
+  "completed_tasks": [],
+  "remaining_tasks": [
+    {"id": 1, "name": "Исполнить 23-01…23-14 по волнам", "status": "not_started"},
+    {"id": 2, "name": "Закрыть фазу 22: браузерная проверка, chat-final.mjs, SHA Server guy", "status": "not_started"}
+  ],
+  "blockers": [],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {"action": "Проверить чат фазы 22 в браузере по ngrok", "context": "почти ничего из UI не проверено глазами", "blocking": false},
+    {"action": "Ключ модели и тестовый аккаунт Google для живых проверок", "context": "NOT RUN в планах 23", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Перепланировать 23 поверх итогового кода 22", "rationale": "старые планы написаны под предполагаемый чат", "phase": "23"},
+    {"decision": "Автономная работа без решений владельца", "rationale": "прямое указание владельца 2026-10-14", "phase": "23"}
+  ],
+  "uncommitted_files": [" M apps/web/next.config.ts", "?? apps/web/AGENTS.md"],
+  "next_action": "/gsd-resume-work, затем bash scripts/gsd/dispatch.sh 23 и /gsd-execute-phase 23 (волна 1: 23-01)",
+  "context_notes": "Ветка gsd/phase-22-chat-replan, HEAD 80fe650 (планы 23), CI зелёный. next.config.ts и apps/web/AGENTS.md локальные, не коммитить."
 }

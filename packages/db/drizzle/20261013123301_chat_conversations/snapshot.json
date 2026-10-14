@@ -1,0 +1,6523 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "40f0147e-ae61-4015-9361-cb1ec28c3e1c",
+  "prevIds": [
+    "021b7d0f-4eb3-4aee-911f-8a0ccf353bce"
+  ],
+  "ddl": [
+    {
+      "isRlsEnabled": false,
+      "name": "accounts",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "app_info",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "lesson_exceptions",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "lesson_marks",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "lesson_series",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "lessons",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "payments",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "sessions",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "sign_in_throttles",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "student_sections",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "student_terms",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "students",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "teacher_settings",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_command_stages",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_commands",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_connections",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_event_mappings",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_oauth_flows",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_next_lessons",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_read_events",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_read_windows",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_calendar_events",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_event_ignores",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "google_sync_state",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "chat_conversations",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "login",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "display_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "role",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'active'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "password_hash",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "auth_epoch",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "app_info"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "value",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "app_info"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "app_info"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "series_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "original_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "duration_minutes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "series_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "original_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "lesson_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "1",
+      "generated": null,
+      "identity": null,
+      "name": "revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "smallint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "weekday",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "time",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start_time",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'Asia/Ho_Chi_Minh'",
+      "generated": null,
+      "identity": null,
+      "name": "time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "duration_minutes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "ends_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'Asia/Ho_Chi_Minh'",
+      "generated": null,
+      "identity": null,
+      "name": "time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "duration_minutes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'scheduled'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "paid_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "amount_minor",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "currency",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "numeric(7,2)",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "lessons_count",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "credited_minutes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "note",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "source",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "import_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "token_hash",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "auth_epoch",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "key_hash",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "failure_count",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_started_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "locked_until",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "body",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "term",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "note",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "display_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'active'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "rate_minor",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "currency",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "60",
+      "generated": null,
+      "identity": null,
+      "name": "default_lesson_minutes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "no_show_deducts",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "parent",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "level",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "goals",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "opening_balance_minutes",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "opening_balance_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "import_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "archived_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "teacher_settings"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "pays_soon_lessons",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "teacher_settings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'Asia/Ho_Chi_Minh'",
+      "generated": null,
+      "identity": null,
+      "name": "default_time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "teacher_settings"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "teacher_settings"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "command_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "stage",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "previous_stage",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "request",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'pending'",
+      "generated": null,
+      "identity": null,
+      "name": "state",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'none'",
+      "generated": null,
+      "identity": null,
+      "name": "effect",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'[]'",
+      "generated": null,
+      "identity": null,
+      "name": "attempts",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "acknowledgement",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "acknowledged_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "request_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "input_hash",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expected_version",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "base_revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "operation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "plan",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'pending'",
+      "generated": null,
+      "identity": null,
+      "name": "state",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'none'",
+      "generated": null,
+      "identity": null,
+      "name": "effect",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "issue",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "confirmed_revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'wait'",
+      "generated": null,
+      "identity": null,
+      "name": "next_action",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "dispatch_deadline",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "dispatched_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "acknowledged_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "applied_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_label",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "history_cutover_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "credential_generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'not_connected'",
+      "generated": null,
+      "identity": null,
+      "name": "state",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "issue",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'none'",
+      "generated": null,
+      "identity": null,
+      "name": "disconnect_resolution",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "encrypted_refresh_token",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "credential_mode",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "revoke_attempt_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "revoke_started_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "revoke_finished_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "revoke_attempt_count",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "snapshot_revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "retired_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "entity_kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "local_entity_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "original_on",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurring_event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "original_start_time",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "representation_generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "command_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'reserved'",
+      "generated": null,
+      "identity": null,
+      "name": "state",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "retired_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "state_digest",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "session_token_hash",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "session_epoch",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "encrypted_verifier",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "consumed_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "as_of",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "result",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "checked_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "complete_prefix",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "end_of_list",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "snapshot_revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "etag",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurring_event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "original_start_time",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "summary",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "end",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "transparency",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "local_ref",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "student_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "representation_generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "command_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "binding_kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "generation",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "snapshot_revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_start",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_end",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "display_time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_time_zone",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "fetched_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'incomplete'",
+      "generated": null,
+      "identity": null,
+      "name": "coverage_state",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "row_kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "etag",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurring_event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "original_start",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "start",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "end",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "starts_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "ends_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "all_day",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "summary",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "location",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "color_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "transparency",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "marker_local_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "marker_kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence_kind",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "smallint",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence_weekday",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence_frequency",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence_interval",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "recurrence_until",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "google_updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "seen_epoch",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "inbound_applied_etag",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "event_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "request_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "connection_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "sync_token",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "epoch",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_start",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_end",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "requested_seq",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "processed_seq",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "claimed_until",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "next_poll_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "next_full_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "full_started_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "last_incremental_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "last_full_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "issue",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "failure_count",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "skipped_count",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "palette",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "palette_fetched_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "calendar_color",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel_resource_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel_token_hash",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel_expires_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "retiring_channel_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "retiring_resource_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "watch_issue",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "account_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "title",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "1",
+      "generated": null,
+      "identity": null,
+      "name": "revision",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "deleted_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"student_id\" is not null and \"status\" = 'active'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "accounts_student_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "login",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"status\" = 'active'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "accounts_active_login_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "role",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"role\" = 'teacher' and \"status\" = 'active'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "accounts_one_active_teacher_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "starts_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"kind\" = 'moved'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "lesson_exceptions_moved_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "series_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "original_on",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "lesson_marks_occurrence_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "lesson_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "lesson_marks_lesson_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "lesson_series_student_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "starts_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "lessons_starts_at_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "starts_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "lessons_student_starts_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "paid_on",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "payments_student_paid_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "sessions_account_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "window_started_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "sign_in_throttles_window_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "lower(\"term\")",
+          "isExpression": true,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "student_terms_term_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"state\" not in ('applied', 'failed')",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_commands_unresolved_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"retired_at\" is null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_connections_current_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "entity_kind",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "local_entity_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"original_on\" is null and \"state\" in ('reserved', 'active')",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_event_mappings_active_entity_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "local_entity_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "original_on",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"entity_kind\" = 'occurrence' and \"state\" in ('reserved', 'active')",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_event_mappings_active_occurrence_uq",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "expires_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_oauth_flows_owner_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "checked_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_next_lessons_student_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "student_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "snapshot_revision",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_read_events_student_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "window_start",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "window_end",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "snapshot_revision",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"coverage_state\" = 'complete'",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_read_windows_complete_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "starts_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_calendar_events_starts_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "recurring_event_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_calendar_events_recurring_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "connection_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "marker_local_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "google_calendar_events_marker_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "account_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "updated_at",
+          "isExpression": false,
+          "asc": false,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"deleted_at\" is null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "chat_conversations_account_updated_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "accounts_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "series_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "lesson_series",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "lesson_exceptions_series_id_lesson_series_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "series_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "lesson_series",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "lesson_marks_series_id_lesson_series_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "lesson_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "lessons",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "lesson_marks_lesson_id_lessons_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "lesson_series_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "lessons_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "payments_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "sessions_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "student_sections_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "student_terms_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "teacher_settings_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "teacher_settings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "command_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_commands",
+      "columnsTo": [
+        "account_id",
+        "connection_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_command_stages_owner_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_commands_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_connections_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_event_mappings_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_event_mappings_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "command_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_commands",
+      "columnsTo": [
+        "account_id",
+        "connection_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_event_mappings_command_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_oauth_flows_owner_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_next_lessons_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_next_lessons_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "student_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "students",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_read_events_student_id_students_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "window_id",
+        "generation",
+        "snapshot_revision"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_read_windows",
+      "columnsTo": [
+        "account_id",
+        "connection_id",
+        "id",
+        "generation",
+        "snapshot_revision"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_read_events_snapshot_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "command_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_commands",
+      "columnsTo": [
+        "account_id",
+        "connection_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_read_events_command_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_read_windows_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_calendar_events_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_event_ignores_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "calendar_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "google_connections",
+      "columnsTo": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "google_sync_state_calendar_fk",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "account_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "accounts",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "name": "chat_conversations_account_id_accounts_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "columns": [
+        "series_id",
+        "original_on"
+      ],
+      "nameExplicit": true,
+      "name": "lesson_exceptions_pk",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "columns": [
+        "student_id",
+        "kind"
+      ],
+      "nameExplicit": true,
+      "name": "student_sections_pk",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "columns": [
+        "connection_id",
+        "event_id"
+      ],
+      "nameExplicit": true,
+      "name": "google_calendar_events_pk",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "accounts_pkey",
+      "schema": "public",
+      "table": "accounts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "key"
+      ],
+      "nameExplicit": false,
+      "name": "app_info_pkey",
+      "schema": "public",
+      "table": "app_info",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "lesson_marks_pkey",
+      "schema": "public",
+      "table": "lesson_marks",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "lesson_series_pkey",
+      "schema": "public",
+      "table": "lesson_series",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "lessons_pkey",
+      "schema": "public",
+      "table": "lessons",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "payments_pkey",
+      "schema": "public",
+      "table": "payments",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "token_hash"
+      ],
+      "nameExplicit": false,
+      "name": "sessions_pkey",
+      "schema": "public",
+      "table": "sessions",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "key_hash"
+      ],
+      "nameExplicit": false,
+      "name": "sign_in_throttles_pkey",
+      "schema": "public",
+      "table": "sign_in_throttles",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "student_terms_pkey",
+      "schema": "public",
+      "table": "student_terms",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "students_pkey",
+      "schema": "public",
+      "table": "students",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "account_id"
+      ],
+      "nameExplicit": false,
+      "name": "teacher_settings_pkey",
+      "schema": "public",
+      "table": "teacher_settings",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_command_stages_pkey",
+      "schema": "public",
+      "table": "google_command_stages",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_commands_pkey",
+      "schema": "public",
+      "table": "google_commands",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_connections_pkey",
+      "schema": "public",
+      "table": "google_connections",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_event_mappings_pkey",
+      "schema": "public",
+      "table": "google_event_mappings",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "state_digest"
+      ],
+      "nameExplicit": false,
+      "name": "google_oauth_flows_pkey",
+      "schema": "public",
+      "table": "google_oauth_flows",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_next_lessons_pkey",
+      "schema": "public",
+      "table": "google_next_lessons",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_read_events_pkey",
+      "schema": "public",
+      "table": "google_read_events",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_read_windows_pkey",
+      "schema": "public",
+      "table": "google_read_windows",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "google_event_ignores_pkey",
+      "schema": "public",
+      "table": "google_event_ignores",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "connection_id"
+      ],
+      "nameExplicit": false,
+      "name": "google_sync_state_pkey",
+      "schema": "public",
+      "table": "google_sync_state",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "chat_conversations_pkey",
+      "schema": "public",
+      "table": "chat_conversations",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "command_id",
+        "stage"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_command_stages_position_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "request_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_commands_request_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_commands_owner_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_connections_owner_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "id",
+        "calendar_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_connections_calendar_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "connection_id",
+        "entity_kind",
+        "local_entity_id",
+        "original_on",
+        "representation_generation"
+      ],
+      "nullsNotDistinct": true,
+      "name": "google_event_mappings_generation_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "connection_id",
+        "calendar_id",
+        "event_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_event_mappings_provider_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "student_id",
+        "generation",
+        "revision",
+        "as_of"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_next_lessons_snapshot_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "window_id",
+        "event_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_read_events_window_event_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "connection_id",
+        "id",
+        "generation",
+        "snapshot_revision"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_read_windows_snapshot_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "connection_id",
+        "window_start",
+        "window_end",
+        "display_time_zone",
+        "snapshot_revision"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_read_windows_revision_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "connection_id",
+        "event_key"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_calendar_events_key_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "connection_id",
+        "event_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_event_ignores_event_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "account_id",
+        "request_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "google_event_ignores_request_uq",
+      "entityType": "uniques",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "import_key"
+      ],
+      "nullsNotDistinct": false,
+      "name": "payments_import_key_uq",
+      "schema": "public",
+      "table": "payments",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "import_key"
+      ],
+      "nullsNotDistinct": false,
+      "name": "students_import_key_uq",
+      "schema": "public",
+      "table": "students",
+      "entityType": "uniques"
+    },
+    {
+      "value": "\"student_id\" is null or \"role\" = 'student'",
+      "name": "accounts_student_role_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "\"role\" in ('teacher', 'student')",
+      "name": "accounts_role_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "\"status\" in ('active', 'deactivated')",
+      "name": "accounts_status_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "\"auth_epoch\" >= 0",
+      "name": "accounts_auth_epoch_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "\"login\" = lower(btrim(\"login\")) and char_length(\"login\") between 3 and 254",
+      "name": "accounts_login_normalized_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "\"role\" <> 'student' or \"login\" ~ '^[a-z0-9._-]{3,32}$'",
+      "name": "accounts_student_login_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "char_length(\"display_name\") between 1 and 80",
+      "name": "accounts_display_name_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "accounts"
+    },
+    {
+      "value": "\"kind\" in ('cancelled', 'moved', 'restored')",
+      "name": "lesson_exceptions_kind_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "value": "(\"kind\" <> 'moved' or \"starts_at\" is not null) and (\"starts_at\" is null) = (\"duration_minutes\" is null)",
+      "name": "lesson_exceptions_moved_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "value": "\"duration_minutes\" is null or \"duration_minutes\" > 0",
+      "name": "lesson_exceptions_minutes_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_exceptions"
+    },
+    {
+      "value": "\"kind\" in ('done', 'no_show', 'none')",
+      "name": "lesson_marks_kind_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "value": "\"revision\" >= 1",
+      "name": "lesson_marks_revision_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "value": "(\"series_id\" is null) = (\"original_on\" is null) and (\"series_id\" is null) <> (\"lesson_id\" is null)",
+      "name": "lesson_marks_ref_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_marks"
+    },
+    {
+      "value": "\"weekday\" between 1 and 7",
+      "name": "lesson_series_weekday_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "value": "extract(isodow from \"starts_on\") = \"weekday\"",
+      "name": "lesson_series_starts_on_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "value": "\"ends_on\" is null or \"ends_on\" >= \"starts_on\" - 1",
+      "name": "lesson_series_ends_on_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "value": "extract(second from \"start_time\") = 0",
+      "name": "lesson_series_start_time_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "value": "\"duration_minutes\" > 0",
+      "name": "lesson_series_minutes_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lesson_series"
+    },
+    {
+      "value": "\"status\" in ('scheduled', 'cancelled')",
+      "name": "lessons_status_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "value": "\"duration_minutes\" > 0",
+      "name": "lessons_minutes_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "lessons"
+    },
+    {
+      "value": "\"amount_minor\" > 0",
+      "name": "payments_amount_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"currency\" is null or \"currency\" ~ '^[A-Z]{3}$'",
+      "name": "payments_currency_format_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"currency\" is not null or (\"lessons_count\" is null and \"credited_minutes\" = 0)",
+      "name": "payments_currency_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"student_id\" is not null or (\"lessons_count\" is null and \"credited_minutes\" = 0)",
+      "name": "payments_unassigned_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"credited_minutes\" >= 0 and (\"lessons_count\" is not null or \"credited_minutes\" = 0)",
+      "name": "payments_credited_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"lessons_count\" is null or \"lessons_count\" >= 0",
+      "name": "payments_lessons_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"note\" is null or char_length(\"note\") between 1 and 500",
+      "name": "payments_note_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"source\" in ('manual', 'vault')",
+      "name": "payments_source_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "payments"
+    },
+    {
+      "value": "\"token_hash\" ~ '^[0-9a-f]{64}$'",
+      "name": "sessions_token_hash_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "sessions"
+    },
+    {
+      "value": "\"key_hash\" ~ '^[0-9a-f]{64}$'",
+      "name": "sign_in_throttles_key_hash_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "value": "\"failure_count\" >= 0",
+      "name": "sign_in_throttles_failure_count_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "sign_in_throttles"
+    },
+    {
+      "value": "\"kind\" in ('general_info', 'interests', 'level', 'goals', 'typical_mistakes', 'lesson_ideas')",
+      "name": "student_sections_kind_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "value": "char_length(\"body\") <= 20000",
+      "name": "student_sections_body_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "student_sections"
+    },
+    {
+      "value": "\"term\" = btrim(\"term\") and char_length(\"term\") between 1 and 200",
+      "name": "student_terms_term_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "value": "\"note\" is null or char_length(\"note\") between 1 and 2000",
+      "name": "student_terms_note_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "student_terms"
+    },
+    {
+      "value": "\"status\" in ('active', 'archived')",
+      "name": "students_status_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "(\"status\" = 'archived') = (\"archived_at\" is not null)",
+      "name": "students_archived_at_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "char_length(\"display_name\") between 1 and 80",
+      "name": "students_display_name_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "(\"rate_minor\" is null) = (\"currency\" is null) and (\"rate_minor\" is null or \"rate_minor\" > 0)",
+      "name": "students_rate_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "\"currency\" is null or \"currency\" ~ '^[A-Z]{3}$'",
+      "name": "students_currency_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "\"default_lesson_minutes\" > 0",
+      "name": "students_lesson_minutes_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "(\"parent\" is null or char_length(\"parent\") between 1 and 200) and (\"level\" is null or char_length(\"level\") between 1 and 200) and (\"goals\" is null or char_length(\"goals\") between 1 and 200)",
+      "name": "students_text_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "\"time_zone\" is null or char_length(\"time_zone\") between 1 and 64",
+      "name": "students_time_zone_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "(\"opening_balance_minutes\" is null) = (\"opening_balance_on\" is null) and (\"opening_balance_minutes\" is null or \"opening_balance_minutes\" >= 0)",
+      "name": "students_opening_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "students"
+    },
+    {
+      "value": "\"pays_soon_lessons\" between 0 and 20",
+      "name": "teacher_settings_pays_soon_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "teacher_settings"
+    },
+    {
+      "value": "\"stage\" >= 0 and (\"previous_stage\" is null or \"previous_stage\" between 0 and \"stage\" - 1) and \"generation\" between 0 and 9007199254740991",
+      "name": "google_command_stages_position_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "value": "\"kind\" in ('write', 'verify', 'trim', 'cancel_tail', 'detach', 'create_master', 'restore_prefix')",
+      "name": "google_command_stages_kind_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "value": "\"state\" in ('pending', 'dispatching', 'outcome_unknown', 'acknowledged', 'failed') and \"effect\" in ('none', 'unknown', 'confirmed')",
+      "name": "google_command_stages_state_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "value": "(\"state\" = 'acknowledged') = (\"acknowledgement\" is not null) and (\"state\" = 'acknowledged') = (\"acknowledged_at\" is not null) and (\"state\" <> 'acknowledged' or \"effect\" = 'confirmed')",
+      "name": "google_command_stages_ack_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "value": "(\"state\" not in ('pending', 'failed') or \"effect\" = 'none') and (\"state\" <> 'outcome_unknown' or \"effect\" = 'unknown')",
+      "name": "google_command_stages_effect_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "value": "jsonb_typeof(\"request\") = 'object' and jsonb_typeof(\"attempts\") = 'array' and (\"acknowledgement\" is null or jsonb_typeof(\"acknowledgement\") = 'object')",
+      "name": "google_command_stages_payload_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_command_stages"
+    },
+    {
+      "value": "\"input_hash\" ~ '^[0-9a-f]{64}$' and char_length(\"expected_version\") between 1 and 2048",
+      "name": "google_commands_identity_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"generation\" between 0 and 9007199254740991 and \"base_revision\" >= 0 and (\"confirmed_revision\" is null or \"confirmed_revision\" >= \"base_revision\")",
+      "name": "google_commands_generation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"operation\" in ('create', 'move', 'cancel', 'restore', 'move_series', 'end_series', 'event_create', 'event_update', 'event_delete', 'assign') and (jsonb_typeof(\"plan\") = 'object' and \"plan\"->>'version' = '1' and \"plan\"->'input'->>'operation' = \"operation\") is true",
+      "name": "google_commands_operation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"state\" in ('pending', 'dispatching', 'outcome_unknown', 'projection_pending', 'applied', 'failed', 'partial_recovery', 'recovery_required') and \"effect\" in ('none', 'unknown', 'partial', 'confirmed')",
+      "name": "google_commands_state_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"issue\" is null or \"issue\" in ('connection_required', 'reconnect_required', 'permission_required', 'provider_unavailable', 'command_pending', 'external_change', 'disconnect_failed', 'invalid_provider_data', 'history_only', 'precondition_failed', 'not_applied')",
+      "name": "google_commands_issue_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"next_action\" in ('wait', 'refresh', 'retry_new_command', 'resume_recovery', 'none')",
+      "name": "google_commands_action_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "(\"state\" = 'applied') = (\"applied_at\" is not null) and (\"state\" = 'applied') = (\"confirmed_revision\" is not null) and (\"state\" <> 'applied' or (\"effect\" = 'confirmed' and \"issue\" is null and \"acknowledged_at\" is not null and \"next_action\" = 'none'))",
+      "name": "google_commands_applied_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "(\"state\" not in ('pending', 'failed') or \"effect\" = 'none') and (\"state\" <> 'projection_pending' or (\"effect\" = 'confirmed' and \"acknowledged_at\" is not null)) and (\"state\" <> 'outcome_unknown' or \"effect\" in ('unknown', 'partial')) and (\"state\" <> 'partial_recovery' or \"effect\" = 'partial')",
+      "name": "google_commands_effect_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"dispatch_deadline\" > \"created_at\" and (\"dispatched_at\" is null or \"dispatched_at\" >= \"created_at\") and (\"acknowledged_at\" is null or (\"dispatched_at\" is not null and \"acknowledged_at\" >= \"dispatched_at\")) and (\"applied_at\" is null or \"applied_at\" >= \"acknowledged_at\")",
+      "name": "google_commands_time_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_commands"
+    },
+    {
+      "value": "\"generation\" between 0 and 9007199254740991 and \"credential_generation\" between 0 and 9007199254740991 and \"snapshot_revision\" >= 0",
+      "name": "google_connections_generation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"state\" in ('not_connected', 'connected', 'reconnect_required', 'permission_required', 'disconnecting', 'disconnect_failed')",
+      "name": "google_connections_state_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"issue\" is null or \"issue\" in ('connection_required', 'reconnect_required', 'permission_required', 'provider_unavailable', 'command_pending', 'external_change', 'disconnect_failed', 'invalid_provider_data', 'history_only')",
+      "name": "google_connections_issue_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "(\"calendar_id\" is null) = (\"calendar_label\" is null) and (\"calendar_id\" is null) = (\"calendar_time_zone\" is null) and (\"calendar_id\" is null) = (\"history_cutover_at\" is null)",
+      "name": "google_connections_target_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "(\"encrypted_refresh_token\" is null) = (\"credential_mode\" is null) and (\"credential_mode\" is null or \"credential_mode\" in ('active', 'revoke_only'))",
+      "name": "google_connections_credentials_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"encrypted_refresh_token\" is null or (jsonb_typeof(\"encrypted_refresh_token\") = 'object' and \"encrypted_refresh_token\" ?& array['keyId', 'nonce', 'tag', 'ciphertext'])",
+      "name": "google_connections_envelope_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"state\" <> 'connected' or (\"calendar_id\" is not null and \"credential_mode\" = 'active' and \"encrypted_refresh_token\" is not null)",
+      "name": "google_connections_connected_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"state\" <> 'not_connected' or \"encrypted_refresh_token\" is null",
+      "name": "google_connections_disconnected_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"state\" not in ('disconnecting', 'disconnect_failed') or (\"credential_mode\" = 'revoke_only' and \"encrypted_refresh_token\" is not null)",
+      "name": "google_connections_revoking_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"disconnect_resolution\" in ('none', 'provider_confirmed', 'operator_confirmed') and (\"disconnect_resolution\" = 'none' or (\"state\" = 'not_connected' and \"encrypted_refresh_token\" is null and (\"revoke_attempt_id\" is null or \"revoke_finished_at\" is not null)))",
+      "name": "google_connections_resolution_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"retired_at\" is null or (\"state\" = 'not_connected' and \"encrypted_refresh_token\" is null and \"retired_at\" >= \"created_at\")",
+      "name": "google_connections_retired_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"revoke_attempt_count\" >= 0 and (\"revoke_attempt_id\" is null) = (\"revoke_started_at\" is null) and (\"revoke_finished_at\" is null or (\"revoke_started_at\" is not null and \"revoke_finished_at\" >= \"revoke_started_at\"))",
+      "name": "google_connections_revoke_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_connections"
+    },
+    {
+      "value": "\"entity_kind\" in ('single', 'series', 'occurrence') and (\"entity_kind\" = 'occurrence') = (\"original_on\" is not null) and (\"entity_kind\" = 'occurrence') = (\"recurring_event_id\" is not null) and (\"entity_kind\" = 'occurrence') = (\"original_start_time\" is not null)",
+      "name": "google_event_mappings_identity_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "value": "\"representation_generation\" between 0 and 9007199254740991",
+      "name": "google_event_mappings_generation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "value": "\"state\" in ('reserved', 'active', 'retired') and (\"state\" = 'retired') = (\"retired_at\" is not null) and (\"retired_at\" is null or \"retired_at\" >= \"created_at\")",
+      "name": "google_event_mappings_state_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_event_mappings"
+    },
+    {
+      "value": "\"state_digest\" ~ '^[0-9a-f]{64}$' and \"session_token_hash\" ~ '^[0-9a-f]{64}$'",
+      "name": "google_oauth_flows_digest_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "value": "\"generation\" between 0 and 9007199254740991 and \"session_epoch\" >= 0",
+      "name": "google_oauth_flows_generation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "value": "\"expires_at\" > \"created_at\" and (\"consumed_at\" is null or \"consumed_at\" >= \"created_at\")",
+      "name": "google_oauth_flows_lifetime_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "value": "(\"consumed_at\" is null) = (\"encrypted_verifier\" is not null) and (\"encrypted_verifier\" is null or (jsonb_typeof(\"encrypted_verifier\") = 'object' and \"encrypted_verifier\" ?& array['keyId', 'nonce', 'tag', 'ciphertext']))",
+      "name": "google_oauth_flows_verifier_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_oauth_flows"
+    },
+    {
+      "value": "\"generation\" between 0 and 9007199254740991 and \"revision\" >= 0",
+      "name": "google_next_lessons_generation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "value": "\"result\" in ('known', 'none', 'unknown') and (\"result\" = 'known') = (\"starts_at\" is not null) and (\"starts_at\" is null or \"starts_at\" >= \"as_of\")",
+      "name": "google_next_lessons_result_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "value": "(\"result\" = 'unknown' or \"complete_prefix\") and (\"result\" <> 'none' or \"end_of_list\") and (not \"end_of_list\" or \"complete_prefix\")",
+      "name": "google_next_lessons_proof_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_next_lessons"
+    },
+    {
+      "value": "\"status\" in ('confirmed', 'tentative', 'cancelled') and \"transparency\" in ('opaque', 'transparent')",
+      "name": "google_read_events_status_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "value": "(\"start\" is null) = (\"end\" is null) and (\"status\" = 'cancelled' or \"start\" is not null) and (\"recurring_event_id\" is null) = (\"original_start_time\" is null)",
+      "name": "google_read_events_time_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "value": "(\"binding_kind\" = 'external' and \"local_ref\" is null and \"student_id\" is null and \"representation_generation\" is null and \"command_id\" is null) or (\"binding_kind\" in ('lesson', 'transition') and \"local_ref\" is not null and \"student_id\" is not null and \"representation_generation\" is not null and (\"binding_kind\" <> 'transition' or \"command_id\" is not null))",
+      "name": "google_read_events_binding_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "value": "\"representation_generation\" is null or \"representation_generation\" between 0 and 9007199254740991",
+      "name": "google_read_events_representation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_events"
+    },
+    {
+      "value": "\"generation\" between 0 and 9007199254740991 and \"snapshot_revision\" >= 0",
+      "name": "google_read_windows_generation_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "value": "\"window_start\" < \"window_end\"",
+      "name": "google_read_windows_range_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "value": "\"coverage_state\" in ('incomplete', 'complete') and (\"coverage_state\" = 'complete') = (\"fetched_at\" is not null)",
+      "name": "google_read_windows_coverage_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_read_windows"
+    },
+    {
+      "value": "\"row_kind\" in ('single', 'instance', 'master') and \"status\" in ('confirmed', 'tentative', 'cancelled') and \"transparency\" in ('opaque', 'transparent')",
+      "name": "google_calendar_events_kind_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "value": "\"status\" = 'cancelled' or (\"start\" is not null and \"end\" is not null and \"starts_at\" is not null and \"ends_at\" is not null)",
+      "name": "google_calendar_events_time_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "value": "\"starts_at\" is null or \"ends_at\" is null or \"starts_at\" < \"ends_at\"",
+      "name": "google_calendar_events_range_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "value": "char_length(\"event_id\") between 1 and 1024 and \"etag\" <> ''",
+      "name": "google_calendar_events_identity_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "value": "(\"description\" is null or char_length(\"description\") <= 8192) and (\"location\" is null or char_length(\"location\") <= 1024)",
+      "name": "google_calendar_events_text_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "value": "(\"row_kind\" = 'master' or (\"recurrence_kind\" is null and \"recurrence_weekday\" is null and \"recurrence_frequency\" is null and \"recurrence_interval\" is null and \"recurrence_until\" is null)) and (\"recurrence_kind\" is null or \"recurrence_kind\" in ('weekly', 'other')) and (\"recurrence_frequency\" is null or \"recurrence_frequency\" in ('daily', 'weekly', 'monthly', 'yearly', 'custom')) and (\"recurrence_weekday\" is null or (\"recurrence_kind\" = 'weekly' and \"recurrence_weekday\" between 1 and 7)) and (\"recurrence_interval\" is null or \"recurrence_interval\" > 0)",
+      "name": "google_calendar_events_recurrence_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_calendar_events"
+    },
+    {
+      "value": "char_length(\"event_id\") between 1 and 1024",
+      "name": "google_event_ignores_event_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_event_ignores"
+    },
+    {
+      "value": "\"processed_seq\" <= \"requested_seq\" and \"processed_seq\" >= 0 and \"revision\" >= 0 and \"epoch\" >= 0 and \"failure_count\" >= 0 and \"skipped_count\" >= 0",
+      "name": "google_sync_state_counters_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "value": "\"window_start\" < \"window_end\"",
+      "name": "google_sync_state_window_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "value": "((\"channel_id\" is null) = (\"channel_resource_id\" is null) and (\"channel_id\" is null) = (\"channel_token_hash\" is null) and (\"channel_id\" is null) = (\"channel_expires_at\" is null)) and (\"retiring_channel_id\" is null) = (\"retiring_resource_id\" is null) and (\"channel_token_hash\" is null or \"channel_token_hash\" ~ '^[0-9a-f]{64}$')",
+      "name": "google_sync_state_channel_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "value": "(\"issue\" is null or \"issue\" in ('provider_unavailable', 'invalid_provider_data', 'reconnect_required', 'permission_required')) and (\"watch_issue\" is null or \"watch_issue\" in ('watch_failed', 'stop_failed'))",
+      "name": "google_sync_state_issue_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "value": "(\"calendar_color\" is null or \"calendar_color\" ~ '^#[0-9a-fA-F]{6}$') and (\"palette\" is null or jsonb_typeof(\"palette\") = 'array')",
+      "name": "google_sync_state_color_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "google_sync_state"
+    },
+    {
+      "value": "char_length(\"title\") between 1 and 160",
+      "name": "chat_conversations_title_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "chat_conversations"
+    },
+    {
+      "value": "\"revision\" >= 1",
+      "name": "chat_conversations_revision_ck",
+      "entityType": "checks",
+      "schema": "public",
+      "table": "chat_conversations"
+    }
+  ],
+  "renames": []
+}

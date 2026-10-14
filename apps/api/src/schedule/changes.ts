@@ -4,9 +4,9 @@ import type { z } from 'zod'
 import type { ScheduleLesson, lessonActionRequest, moveLessonRequest } from '@dv-lab/contracts'
 import {
 	type LessonOutcome,
+	type MarkKind,
 	type Occurrence,
 	type SeriesRule,
-	type SingleLesson,
 	lessonActions,
 	occurrenceAt,
 	occurrenceOutcome,
@@ -56,8 +56,8 @@ function refusal(
 	return lessonActions(outcome, startsAt, now)[change] ? null : CHANGED
 }
 
-async function singleOutcome(executor: DbExecutor, lesson: SingleLesson): Promise<LessonOutcome> {
-	return occurrenceOutcome(lesson, await markOf(executor, { kind: 'single', lessonId: lesson.id }))
+export function clearsMark(change: LessonChange, mark: MarkKind | null, target: Date, now: Date): boolean {
+	return (change === 'move' || change === 'restore') && mark === 'no_show' && canChange(target, now)
 }
 
 type LockedOccurrence = { rule: SeriesRule; occurrence: Occurrence | null }
@@ -97,8 +97,9 @@ export async function prepareLessonChange(
 ) {
 	const lesson = await lockLesson(executor, id)
 	if (!lesson) return NOT_FOUND
-	if (!canChange(lesson.startsAt, now)) return { kind: 'history_only' as const }
-	const outcome = await singleOutcome(executor, lesson)
+	const mark = await markOf(executor, { kind: 'single', lessonId: lesson.id })
+	if (mark === 'done') return { kind: 'lesson_done' as const }
+	const outcome = occurrenceOutcome(lesson, mark)
 	const refused = refusal(change, outcome, lesson.startsAt, input.expectedStartsAt, now)
 	if (refused) return refused
 	let startsAt = lesson.startsAt
@@ -109,10 +110,15 @@ export async function prepareLessonChange(
 		const target = localTimeCandidates(input.date, input.startTime, time.context.defaultTimeZone)[0]
 		if (!target) return { kind: 'nonexistent_local_time' as const }
 		const length = input.durationMinutes ?? lesson.durationMinutes
-		if (!canChange(target, now) || (target.getTime() === startsAt.getTime() && length === lesson.durationMinutes))
-			return INVALID
+		if (target.getTime() === startsAt.getTime() && length === lesson.durationMinutes) return INVALID
 		startsAt = target
 		durationMinutes = length
 	}
-	return { kind: 'ok' as const, lesson, startsAt, durationMinutes }
+	return {
+		kind: 'ok' as const,
+		lesson,
+		startsAt,
+		durationMinutes,
+		clearMark: clearsMark(change, mark, startsAt, now),
+	}
 }

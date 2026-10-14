@@ -5,6 +5,7 @@ import {
 	date,
 	index,
 	integer,
+	jsonb,
 	numeric,
 	pgTable,
 	primaryKey,
@@ -101,6 +102,7 @@ export const students = pgTable(
 		currency: text('currency'),
 		defaultLessonMinutes: integer('default_lesson_minutes').default(60).notNull(),
 		noShowDeducts: boolean('no_show_deducts').default(true).notNull(),
+		gender: text('gender'),
 		parent: text('parent'),
 		level: text('level'),
 		goals: text('goals'),
@@ -108,11 +110,13 @@ export const students = pgTable(
 		openingBalanceMinutes: integer('opening_balance_minutes'),
 		openingBalanceOn: date('opening_balance_on'),
 		importKey: text('import_key').unique('students_import_key_uq'),
+		revision: integer('revision').default(1).notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 		archivedAt: timestamp('archived_at', { withTimezone: true }),
 	},
 	(table) => [
+		check('students_revision_ck', sql`${table.revision} >= 1`),
 		check('students_status_ck', sql`${table.status} in ('active', 'archived')`),
 		check('students_archived_at_ck', sql`(${table.status} = 'archived') = (${table.archivedAt} is not null)`),
 		check('students_display_name_ck', sql`char_length(${table.displayName}) between 1 and 80`),
@@ -127,6 +131,7 @@ export const students = pgTable(
 			sql`(${table.parent} is null or char_length(${table.parent}) between 1 and 200) and (${table.level} is null or char_length(${table.level}) between 1 and 200) and (${table.goals} is null or char_length(${table.goals}) between 1 and 200)`
 		),
 		check('students_time_zone_ck', sql`${table.timeZone} is null or char_length(${table.timeZone}) between 1 and 64`),
+		check('students_gender_ck', sql`${table.gender} is null or ${table.gender} in ('female', 'male')`),
 		check(
 			'students_opening_ck',
 			sql`(${table.openingBalanceMinutes} is null) = (${table.openingBalanceOn} is null) and (${table.openingBalanceMinutes} is null or ${table.openingBalanceMinutes} >= 0)`
@@ -188,10 +193,12 @@ export const payments = pgTable(
 		note: text('note'),
 		source: text('source').notNull(),
 		importKey: text('import_key').unique('payments_import_key_uq'),
+		revision: integer('revision').default(1).notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [
 		index('payments_student_paid_idx').on(table.studentId, table.paidOn),
+		check('payments_revision_ck', sql`${table.revision} >= 1`),
 		check('payments_amount_ck', sql`${table.amountMinor} > 0`),
 		check('payments_currency_format_ck', sql`${table.currency} is null or ${table.currency} ~ '^[A-Z]{3}$'`),
 		check(
@@ -261,10 +268,7 @@ export const lessonExceptions = pgTable(
 			'lesson_exceptions_moved_ck',
 			sql`(${table.kind} <> 'moved' or ${table.startsAt} is not null) and (${table.startsAt} is null) = (${table.durationMinutes} is null)`
 		),
-		check(
-			'lesson_exceptions_minutes_ck',
-			sql`${table.durationMinutes} is null or ${table.durationMinutes} > 0`
-		),
+		check('lesson_exceptions_minutes_ck', sql`${table.durationMinutes} is null or ${table.durationMinutes} > 0`),
 	]
 )
 
@@ -298,6 +302,7 @@ export const lessonMarks = pgTable(
 		originalOn: date('original_on'),
 		lessonId: uuid('lesson_id').references(() => lessons.id, { onDelete: 'restrict' }),
 		kind: text('kind').notNull(),
+		revision: integer('revision').notNull().default(1),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
@@ -305,6 +310,7 @@ export const lessonMarks = pgTable(
 		uniqueIndex('lesson_marks_occurrence_uq').on(table.seriesId, table.originalOn),
 		uniqueIndex('lesson_marks_lesson_uq').on(table.lessonId),
 		check('lesson_marks_kind_ck', sql`${table.kind} in ('done', 'no_show', 'none')`),
+		check('lesson_marks_revision_ck', sql`${table.revision} >= 1`),
 		check(
 			'lesson_marks_ref_ck',
 			sql`(${table.seriesId} is null) = (${table.originalOn} is null) and (${table.seriesId} is null) <> (${table.lessonId} is null)`
@@ -320,7 +326,22 @@ export const teacherSettings = pgTable(
 			.references(() => accounts.id, { onDelete: 'restrict' }),
 		paysSoonLessons: integer('pays_soon_lessons').notNull(),
 		defaultTimeZone: text('default_time_zone').default('Asia/Ho_Chi_Minh').notNull(),
+		chatMonthlyCapUsd: numeric('chat_monthly_cap_usd', { precision: 10, scale: 2 }).default('10.00').notNull(),
+		chatMaxInputTokens: integer('chat_max_input_tokens').default(100000).notNull(),
+		chatMaxOutputTokens: integer('chat_max_output_tokens').default(16000).notNull(),
+		chatModels: jsonb('chat_models').$type<unknown>(),
+		chatModel: text('chat_model'),
+		chatEffort: text('chat_effort'),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 	},
-	(table) => [check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`)]
+	(table) => [
+		check('teacher_settings_pays_soon_ck', sql`${table.paysSoonLessons} between 0 and 20`),
+		check('teacher_settings_chat_cap_ck', sql`${table.chatMonthlyCapUsd} > 0`),
+		check('teacher_settings_chat_input_ck', sql`${table.chatMaxInputTokens} between 1000 and 100000`),
+		check('teacher_settings_chat_output_ck', sql`${table.chatMaxOutputTokens} >= 1000`),
+		check(
+			'teacher_settings_chat_effort_ck',
+			sql`${table.chatEffort} is null or ${table.chatEffort} in ('low', 'medium', 'high', 'xhigh', 'max')`
+		),
+	]
 )

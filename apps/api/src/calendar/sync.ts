@@ -110,7 +110,7 @@ export function createCalendarSync(deps: {
 		}
 	}
 
-	async function masters(current: SyncClaim, read: SyncRead, facts: readonly EventFact[]) {
+	async function masters(current: SyncClaim, read: SyncRead, facts: readonly EventFact[], notBefore: Date) {
 		const families = await masterCandidates(deps.db, current.connectionId, facts, READ_LIMIT)
 		const found: EventFact[] = []
 		for (const family of families) {
@@ -120,7 +120,7 @@ export function createCalendarSync(deps: {
 				if (fact && result.kind === 'event')
 					found.push(
 						fact,
-						...exclusionFacts(fact, result.recurrence, fact.start?.timeZone ?? read.calendarTimeZone, now())
+						...exclusionFacts(fact, result.recurrence, fact.start?.timeZone ?? read.calendarTimeZone, notBefore)
 					)
 			} catch {
 				read.signal.throwIfAborted()
@@ -146,7 +146,7 @@ export function createCalendarSync(deps: {
 		const pages = await collect(read, { timeMin: window.start, timeMax: window.end })
 		const palette = await optional(() => deps.source.palette(read.token, read.signal))
 		const calendarColor = await optional(() => deps.source.calendarColor(read.token, read.calendarId, read.signal))
-		const extra = await masters(started, read, pages.facts)
+		const extra = await masters(started, read, pages.facts, window.start)
 		const result = await applyPass(deps.db, started, {
 			kind: 'full',
 			facts: [...pages.facts, ...extra],
@@ -164,7 +164,7 @@ export function createCalendarSync(deps: {
 
 	async function incrementalPass(current: SyncClaim, read: SyncRead, syncToken: string): Promise<Outcome> {
 		const pages = await collect(read, { syncToken })
-		const extra = await masters(current, read, pages.facts)
+		const extra = await masters(current, read, pages.facts, current.windowStart)
 		const result = await applyPass(deps.db, current, {
 			kind: 'incremental',
 			facts: [...pages.facts, ...extra],

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useCalendarCommands } from '@/components/app/calendar-command-provider'
+import { READ_ISSUES } from '@/components/app/google-calendar-state'
 import { formatWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -29,7 +30,17 @@ export const SYNCING_LINE = 'Syncing with Google Calendar…'
 const NOT_CONFIRMED_LINE = 'This change has not been confirmed. Check its status before trying again.'
 const ACCESS_CODES: readonly ErrorCode[] = ['connection_required', 'reconnect_required', 'permission_required']
 
+export function codeRefusal(code: ErrorCode | null): string | null {
+	if (code === 'lesson_done') return 'This lesson is marked Done, so it stays where it is.'
+	if (code === 'outside_sync_window') return READ_ISSUES.outside_sync_window
+	return null
+}
+
 function refusal(result: CalendarMutationResult): string {
+	if (result.kind === 'failed') {
+		const line = codeRefusal(result.code)
+		if (line !== null) return line
+	}
 	if (result.kind === 'stale') return 'It was changed in Google Calendar meanwhile. The schedule has been refreshed.'
 	if (result.kind === 'failed' && result.retryAfterSeconds !== undefined)
 		return 'Google Calendar is limiting requests. Try again in a minute.'

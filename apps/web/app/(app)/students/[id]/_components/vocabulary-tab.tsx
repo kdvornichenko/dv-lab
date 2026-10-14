@@ -8,7 +8,7 @@ import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyLine } from '@/components/app/empty-line'
 import { ReadError } from '@/components/app/read-error'
 import { Button } from '@/components/ui/button'
-import { SkeletonTable } from '@/components/ui/skeleton'
+import { Skeleton, SkeletonLine, SkeletonTable, type SkeletonTableColumn } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
@@ -28,6 +28,20 @@ async function readTerms(studentId: string): Promise<ReadState> {
 
 const headClass = 'px-4 text-body font-normal text-muted-foreground'
 const cellClass = 'px-4 py-2 align-top text-body wrap-anywhere'
+const skeletonColumns: SkeletonTableColumn[] = [
+	{ title: 'Term', cellClassName: 'min-w-40 align-top', cell: <SkeletonLine className="w-24" /> },
+	{ title: 'Note', cellClassName: 'min-w-64 align-top', cell: <SkeletonLine className="w-48" /> },
+	{
+		title: <span className="sr-only">Actions</span>,
+		cellClassName: 'align-top',
+		cell: (
+			<div className="flex h-7 items-center justify-end gap-1">
+				<Skeleton className="size-5 rounded-md" />
+				<Skeleton className="size-5 rounded-md" />
+			</div>
+		),
+	},
+]
 
 export function VocabularyTab({ student }: { student: StudentDetail }) {
 	const toast = useToast()
@@ -70,21 +84,26 @@ export function VocabularyTab({ student }: { student: StudentDetail }) {
 		return true
 	}
 
-	if (state.kind === 'loading') return <SkeletonTable />
 	if (state.kind === 'error') return <ReadError screen="vocabulary" onRefresh={load} />
 
-	const { terms } = state
+	const terms = state.kind === 'ready' ? state.terms : null
 	return (
 		<div className="flex flex-col gap-4">
 			<div className="flex items-center justify-between gap-2">
-				<p className="text-body text-foreground tabular-nums">
-					{terms.length === 1 ? '1 term' : `${terms.length} terms`}
-				</p>
+				{terms === null ? (
+					<SkeletonLine box="h-5" className="w-16" />
+				) : (
+					<p className="text-body text-foreground tabular-nums">
+						{terms.length === 1 ? '1 term' : `${terms.length} terms`}
+					</p>
+				)}
 				<Button ref={addButton} variant="secondary" leadingIcon={Plus} onClick={() => setAdding(true)}>
 					Add term
 				</Button>
 			</div>
-			{terms.length === 0 ? (
+			{terms === null ? (
+				<SkeletonTable columns={skeletonColumns} />
+			) : terms.length === 0 ? (
 				<EmptyLine />
 			) : (
 				<Elevated offset={1} shadowLevel={2} className="w-0 min-w-full overflow-hidden rounded-2xl">

@@ -8,6 +8,8 @@ import {
 	SECTION_KINDS,
 	type StudentAccountResponse,
 	type StudentDetail,
+	type StudentNoteResponse,
+	type StudentNotesResponse,
 	type StudentResponse,
 	type StudentSectionResponse,
 	type StudentSectionsResponse,
@@ -15,17 +17,20 @@ import {
 	type StudentTermsResponse,
 	type StudentsResponse,
 	addTermRequest,
+	cardRevisionRequest,
 	createStudentAccountRequest,
 	deactivateStudentAccountRequest,
 	linkStudentAccountRequest,
 	openingBalanceRequest,
+	retractNoteRequest,
 	saveSectionRequest,
 	saveStudentRequest,
+	updateStudentRequest,
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
-import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
+import { type Database, type DbExecutor, postgresCode, readSnapshot } from '@dv-lab/db'
 
-import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { type AppEnv, noStore, readJson, readOptionalJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
 import {
 	cardAccountCandidates,
@@ -35,6 +40,7 @@ import {
 } from '../cards/card-account.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
 import {
+	type CardWrite,
 	archiveCard,
 	createCard,
 	getCard,
@@ -44,6 +50,7 @@ import {
 	setOpeningBalance,
 	updateCard,
 } from '../cards/cards.ts'
+import { listStudentNotes, retractStudentNote } from '../cards/notes.ts'
 import { listSections, saveSection } from '../cards/sections.ts'
 import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
@@ -63,6 +70,11 @@ function cardId(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
+function noteIdParam(c: Context<AppEnv>): string | null {
+	const id = z.uuid().safeParse(c.req.param('noteId'))
+	return id.success ? id.data : null
+}
+
 function termIdParam(c: Context<AppEnv>): string | null {
 	const id = z.uuid().safeParse(c.req.param('termId'))
 	return id.success ? id.data : null
@@ -78,13 +90,36 @@ async function studentResponse(
 	return student === null ? null : { student, ...settings, asOf: context.now.toISOString() }
 }
 
-function mutateStudent(
+type StudentMutation = { kind: 'ok'; response: StudentResponse } | { kind: 'not_found' } | { kind: 'changed' }
+
+const SERIALIZATION_FAILURE = '40001'
+
+async function mutateStudent(
 	db: Database,
 	accountId: string,
-	change: (executor: DbExecutor, context: CardReadContext) => Promise<StudentDetail | null>
-): Promise<StudentResponse | null> {
-	const context = { accountId, now: new Date() }
-	return db.transaction((tx) => studentResponse(tx, context, change), { isolationLevel: 'repeatable read' })
+	change: (executor: DbExecutor, context: CardReadContext) => Promise<CardWrite>
+): Promise<StudentMutation> {
+	const now = new Date()
+	try {
+		return await db.transaction(
+			async (tx): Promise<StudentMutation> => {
+				const settings = await readTeacherSettings(tx, accountId)
+				const result = await change(tx, { accountId, now, defaultTimeZone: settings.defaultTimeZone })
+				if (result.kind !== 'ok') return result
+				return { kind: 'ok', response: { student: result.detail, ...settings, asOf: now.toISOString() } }
+			},
+			{ isolationLevel: 'repeatable read' }
+		)
+	} catch (error) {
+		if (postgresCode(error) === SERIALIZATION_FAILURE) return { kind: 'changed' }
+		throw error
+	}
+}
+
+function studentMutationReply(c: Context<AppEnv>, result: StudentMutation) {
+	if (result.kind === 'not_found') return notFound(c)
+	if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The student changed'), 409)
+	return c.json(result.response satisfies StudentResponse, 200)
 }
 
 export function studentRoutes({ db }: StudentRouteDeps) {
@@ -135,29 +170,34 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	routes.patch('/:id', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const input = await readJson(c, saveStudentRequest)
+		const input = await readJson(c, updateStudentRequest)
 		if (!input) return invalidRequest(c)
-		const response = await mutateStudent(db, c.get('session').account.id, (tx, context) =>
-			updateCard(tx, id, input, context)
+		const result = await mutateStudent(db, c.get('session').account.id, (tx, context) =>
+			updateCard(tx, id, input, context, input.expectedRevision)
 		)
-		if (!response) return notFound(c)
-		return c.json(response satisfies StudentResponse, 200)
+		return studentMutationReply(c, result)
 	})
 
 	routes.post('/:id/archive', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const response = await mutateStudent(db, c.get('session').account.id, (tx, context) => archiveCard(tx, id, context))
-		if (!response) return notFound(c)
-		return c.json(response satisfies StudentResponse, 200)
+		const input = await readOptionalJson(c, cardRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await mutateStudent(db, c.get('session').account.id, (tx, context) =>
+			archiveCard(tx, id, context, input.expectedRevision)
+		)
+		return studentMutationReply(c, result)
 	})
 
 	routes.post('/:id/restore', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const response = await mutateStudent(db, c.get('session').account.id, (tx, context) => restoreCard(tx, id, context))
-		if (!response) return notFound(c)
-		return c.json(response satisfies StudentResponse, 200)
+		const input = await readOptionalJson(c, cardRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await mutateStudent(db, c.get('session').account.id, (tx, context) =>
+			restoreCard(tx, id, context, input.expectedRevision)
+		)
+		return studentMutationReply(c, result)
 	})
 
 	routes.put('/:id/opening-balance', async (c) => {
@@ -168,6 +208,7 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const result = await setOpeningBalance(db, c.get('session').account.id, id, input)
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'invalid') return invalidRequest(c)
+		if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The student changed'), 409)
 		if (result.kind === 'default_time_zone_changed')
 			return c.json(errorBody(result.kind, 'Default time zone changed elsewhere. Refresh the page and try again.'), 409)
 		return c.json(result.response satisfies StudentResponse, 200)
@@ -237,6 +278,29 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const section = await saveSection(db, id, kind.data, input.body)
 		if (!section) return notFound(c)
 		return c.json({ section } satisfies StudentSectionResponse, 200)
+	})
+
+	routes.get('/:id/notes', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const notes = await readSnapshot(db, (executor) => listStudentNotes(executor, c.get('session').account.id, id))
+		if (!notes) return notFound(c)
+		return c.json({ notes } satisfies StudentNotesResponse, 200)
+	})
+
+	routes.post('/:id/notes/:noteId/retract', async (c) => {
+		const id = cardId(c)
+		const noteId = noteIdParam(c)
+		if (id === null || noteId === null) return notFound(c)
+		const input = await readJson(c, retractNoteRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const result = await db.transaction((tx) => retractStudentNote(tx, accountId, noteId, input.expectedRevision, id))
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'changed') {
+			return c.json(errorBody('precondition_failed', 'The note changed'), 409)
+		}
+		return c.json({ note: result.note } satisfies StudentNoteResponse, 200)
 	})
 
 	routes.get('/:id/terms', async (c) => {

@@ -45,6 +45,10 @@ export function dayNumber(date: string): number {
 	return dayOf(date)
 }
 
+export function dayMonthShort(date: string): string {
+	return `${dayOf(date)} ${monthShort(date)}`
+}
+
 function twoDigits(date: string): string {
 	return String(dayOf(date)).padStart(2, '0')
 }
@@ -61,17 +65,6 @@ export function weekRange(monday: string): string {
 
 export function weekTitle(monday: string): string {
 	return weekRange(monday)
-}
-
-export function periodTitle(monday: string): string {
-	const sunday = addDays(monday, 6)
-	if (yearOf(monday) !== yearOf(sunday)) {
-		return `${monthShort(monday)} ${yearOf(monday)}${dash}${monthShort(sunday)} ${yearOf(sunday)}`
-	}
-	if (monthShort(monday) !== monthShort(sunday)) {
-		return `${monthShort(monday)}${dash}${monthShort(sunday)} ${yearOf(sunday)}`
-	}
-	return `${monthLong(monday)} ${yearOf(monday)}`
 }
 
 export function formatTime(instant: Date, zone: string): string {

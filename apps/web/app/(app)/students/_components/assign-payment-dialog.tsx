@@ -47,7 +47,7 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 	const [lessonsDraft, setLessonsDraft] = useState<string | null>(null)
 	const [touched, setTouched] = useState({ student: false, currency: false, lessons: false })
 	const [submitted, setSubmitted] = useState(false)
-	const [failed, setFailed] = useState(false)
+	const [failed, setFailed] = useState<string | null>(null)
 	const [pending, setPending] = useState(false)
 	const chosen = useRef('')
 	const studentRef = useRef<HTMLButtonElement>(null)
@@ -81,7 +81,7 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 		event.preventDefault()
 		if (pending) return
 		setSubmitted(true)
-		setFailed(false)
+		setFailed(null)
 		if (studentError) return studentRef.current?.focus()
 		if (currencyError) return currencyRef.current?.focus()
 		if (lessonsError) return lessonsRef.current?.focus()
@@ -90,10 +90,15 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 			studentId,
 			currency: askCurrency ? currency : null,
 			lessonsHundredths: lessons.trim() === '' ? null : parseLessons(lessons),
+			expectedRevision: payment.revision,
 		})
 		setPending(false)
 		if (!result.ok) {
-			setFailed(true)
+			setFailed(
+				result.error?.code === 'precondition_failed'
+					? 'This payment changed elsewhere. Close this dialog and try again.'
+					: 'Could not assign the payment. Try again.'
+			)
 			onFailed()
 			return
 		}
@@ -120,7 +125,7 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 					<div className="flex flex-col gap-4">
 						{failed ? (
 							<Banner status="error">
-								<BannerTitle>Could not assign the payment. Try again.</BannerTitle>
+								<BannerTitle>{failed}</BannerTitle>
 							</Banner>
 						) : null}
 						<div className="flex flex-col gap-2">

@@ -22,7 +22,9 @@ export async function observeSeries(access: CommandAccess, input: SeriesCommand,
 	const mapping = await seriesBinding(access.db, access.connection.accountId, input.seriesId)
 	if (mapping.connectionId !== access.connection.id || mapping.calendarId !== access.connection.calendarId)
 		throw new CommandFault('precondition_failed')
-	const prepared = await access.db.transaction((tx) => prepareSeriesChange(tx, access.connection.accountId, input, now))
+	const prepared = await access.db.transaction((tx) =>
+		prepareSeriesChange(tx, access.connection.accountId, input, now, access.connection.id)
+	)
 	if (opaqueVersion([mapping.id, mapping.representationGeneration, input.seriesId]) !== input.input.expectedVersion)
 		throw new CommandFault('precondition_failed')
 	const known = await masterRow(access.db, mapping.connectionId, mapping.eventId)

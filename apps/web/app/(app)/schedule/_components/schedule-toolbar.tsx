@@ -1,20 +1,19 @@
 'use client'
 
-import { useEffect, useEffectEvent, useMemo, useState, type ReactNode, type Ref } from 'react'
+import { useEffect, useEffectEvent, useState, type ReactNode, type Ref } from 'react'
 import { enUS } from 'react-day-picker/locale'
 
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 
-import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Calendar as DayCalendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipProvider } from '@/components/ui/tooltip'
 import { calendarLesson } from '@/lib/lesson-actions'
-import { dayNumber, periodTitle, weekTitle } from '@/lib/schedule-format'
+import { dayNumber, weekTitle } from '@/lib/schedule-format'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { addDays, lessonDay, mondayOf, zonedInstant } from '@dv-lab/core'
+import { addDays, lessonDay, mondayOf } from '@dv-lab/core'
 
 interface WeekNavigation {
 	monday: string
@@ -22,12 +21,6 @@ interface WeekNavigation {
 	onToday: () => void
 	onPrevious: () => void
 	onNext: () => void
-}
-
-interface ScheduleToolbarProps extends WeekNavigation {
-	mainTimeZone: string
-	zone: string | null
-	onZoneChange: (zone: string | null) => void
 }
 
 const FIELD_SELECTOR = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="combobox"]'
@@ -162,15 +155,17 @@ export function ScheduleBar({
 	onWeek,
 	summary,
 	titleRef,
+	heading = true,
 }: WeekNavigation & {
 	today: string
 	summary: ReactNode
 	titleRef: Ref<HTMLHeadingElement>
+	heading?: boolean
 	onWeek: (monday: string) => void
 }) {
 	return (
 		<TooltipProvider>
-			<div data-slot="schedule-toolbar" className="flex min-w-0 items-center gap-2">
+			<div data-slot="schedule-toolbar" className="flex min-w-0 items-center gap-2 pointer-coarse:gap-4">
 				<BarTip name="Today" shortcut="T">
 					<Button
 						variant="tertiary"
@@ -187,15 +182,21 @@ export function ScheduleBar({
 						<ChevronLeft />
 					</Button>
 				</BarTip>
-				<h1
-					ref={titleRef}
-					tabIndex={-1}
-					aria-label={weekTitle(monday)}
-					data-slot="schedule-period"
-					className="shrink-0 outline-none"
-				>
-					<WeekPicker monday={monday} onWeek={onWeek} />
-				</h1>
+				{heading ? (
+					<h1
+						ref={titleRef}
+						tabIndex={-1}
+						aria-label={weekTitle(monday)}
+						data-slot="schedule-period"
+						className="shrink-0 outline-none"
+					>
+						<WeekPicker monday={monday} onWeek={onWeek} />
+					</h1>
+				) : (
+					<div data-slot="schedule-period" className="shrink-0">
+						<WeekPicker monday={monday} onWeek={onWeek} />
+					</div>
+				)}
 				<BarTip name="Next week" shortcut="J">
 					<Button variant="tertiary" size="icon-compact" aria-label="Next week" onClick={onNext}>
 						<ChevronRight />
@@ -211,63 +212,5 @@ export function ScheduleBar({
 				) : null}
 			</div>
 		</TooltipProvider>
-	)
-}
-
-export function ScheduleToolbar({
-	monday,
-	currentMonday,
-	mainTimeZone,
-	onToday,
-	onPrevious,
-	onNext,
-	zone,
-	onZoneChange,
-}: ScheduleToolbarProps) {
-	const labelAt = useMemo(() => zonedInstant(monday, '12:00', mainTimeZone), [monday, mainTimeZone])
-
-	return (
-		<div data-slot="schedule-toolbar" className="flex flex-wrap items-center gap-2">
-			<Button
-				variant="tertiary"
-				size="compact"
-				className="rounded-full"
-				disabled={monday === currentMonday}
-				onClick={onToday}
-			>
-				Today
-			</Button>
-			<div className="flex items-center gap-1">
-				<Tooltip content="Previous week">
-					<Button
-						variant="ghost"
-						size="icon-compact"
-						className="rounded-full"
-						aria-label="Previous week"
-						onClick={onPrevious}
-					>
-						<ChevronLeft />
-					</Button>
-				</Tooltip>
-				<Tooltip content="Next week">
-					<Button variant="ghost" size="icon-compact" className="rounded-full" aria-label="Next week" onClick={onNext}>
-						<ChevronRight />
-					</Button>
-				</Tooltip>
-			</div>
-			<span data-slot="schedule-period" className="text-title font-semibold text-foreground">
-				{periodTitle(monday)}
-			</span>
-			<div className="ml-auto flex items-center gap-2">
-				<TimeZonePicker
-					trigger="toolbar"
-					value={zone}
-					onChange={onZoneChange}
-					allowNone
-					excludeMain={mainTimeZone}
-					labelAt={labelAt}
-				/>
-			</div>
-		</div>
 	)
 }

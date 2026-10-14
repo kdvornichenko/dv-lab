@@ -8,11 +8,10 @@ import { getMe } from '@/lib/session'
 import { AppShell } from './_components/app-shell'
 import { SessionRenewal } from './_components/session-renewal'
 import { StudentLanding } from './_components/student-landing'
-import Loading from './loading'
 
 export default function AppLayout({ children }: { children: ReactNode }) {
 	return (
-		<Suspense fallback={<Loading />}>
+		<Suspense fallback={null}>
 			<AuthenticatedLayout>{children}</AuthenticatedLayout>
 		</Suspense>
 	)

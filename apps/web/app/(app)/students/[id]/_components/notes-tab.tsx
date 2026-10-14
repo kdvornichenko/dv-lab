@@ -18,12 +18,17 @@ import {
 	SECTION_KINDS,
 	type SectionKind,
 	type StudentDetail,
+	type StudentNote,
+	type StudentNotesResponse,
 	type StudentSection,
 	type StudentSectionResponse,
 	type StudentSectionsResponse,
 } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
+import { NoteEntries, type NotesState } from './note-entries'
+import type { ProfileMark } from './profile-arrival'
+import { useNotesArrival } from './use-notes-arrival'
 
 export type SectionDrafts = Partial<Record<SectionKind, string>>
 
@@ -43,14 +48,27 @@ async function readSections(studentId: string): Promise<ReadState> {
 	return result.ok ? { kind: 'ready', sections: result.data.sections } : { kind: 'error' }
 }
 
+async function readNotes(studentId: string): Promise<NotesState> {
+	const result = await apiRequest<StudentNotesResponse>('GET', `/students/${studentId}/notes`)
+	return result.ok ? { kind: 'ready', notes: result.data.notes } : { kind: 'error' }
+}
+
 function LoadingPanels() {
 	return (
 		<div className="flex flex-col gap-4 md:gap-6">
 			{SECTION_KINDS.map((kind) => (
-				<Panel key={kind} title={TITLES[kind]}>
+				<Panel
+					key={kind}
+					title={TITLES[kind]}
+					action={
+						<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
+							Edit
+						</Button>
+					}
+				>
 					<div className="flex flex-col gap-2 px-4 pb-4">
-						<Skeleton className="h-4 w-full" />
-						<Skeleton className="h-4 w-3/5" />
+						<Skeleton className="h-3 w-full" />
+						<Skeleton className="h-3 w-3/5" />
 					</div>
 				</Panel>
 			))}
@@ -64,9 +82,25 @@ interface SectionPanelProps {
 	draft: string | undefined
 	onDraft: (kind: SectionKind, value: string | undefined) => void
 	onSaved: (section: StudentSection) => void
+	notes: NotesState
+	timeZone: string
+	now: Date
+	onReloadNotes: () => Promise<void>
+	onNoteRemoved: (note: StudentNote) => void
 }
 
-function SectionPanel({ student, section, draft, onDraft, onSaved }: SectionPanelProps) {
+function SectionPanel({
+	student,
+	section,
+	draft,
+	onDraft,
+	onSaved,
+	notes,
+	timeZone,
+	now,
+	onReloadNotes,
+	onNoteRemoved,
+}: SectionPanelProps) {
 	const toast = useToast()
 	const title = TITLES[section.kind]
 	const [pending, setPending] = useState(false)
@@ -115,6 +149,21 @@ function SectionPanel({ student, section, draft, onDraft, onSaved }: SectionPane
 		requestAnimationFrame(() => editButton.current?.focus())
 	}
 
+	const entries = (
+		<NoteEntries
+			studentId={student.id}
+			studentName={student.displayName}
+			sectionKind={section.kind}
+			sectionTitle={title}
+			state={notes}
+			timeZone={timeZone}
+			now={now}
+			onReload={onReloadNotes}
+			onRemoved={onNoteRemoved}
+			onFocusSection={() => (editButton.current ?? textarea.current)?.focus()}
+		/>
+	)
+
 	return (
 		<Panel
 			id={`section-${section.kind}`}
@@ -150,6 +199,9 @@ function SectionPanel({ student, section, draft, onDraft, onSaved }: SectionPane
 							{error}
 						</p>
 					) : null}
+					<p className="text-caption text-muted-foreground">
+						Notes added later are listed under the section. They are not part of this text.
+					</p>
 					<div className="flex justify-end gap-2">
 						<Button type="button" variant="secondary" size="compact" onClick={discard} disabled={pending}>
 							Discard changes
@@ -158,12 +210,14 @@ function SectionPanel({ student, section, draft, onDraft, onSaved }: SectionPane
 							{pending ? 'Saving…' : 'Save section'}
 						</Button>
 					</div>
+					{entries}
 				</div>
 			) : (
-				<div className="px-4 pb-4">
+				<div className="flex flex-col gap-2 px-4 pb-4">
 					<div className="w-0 min-w-full">
 						<MarkdownView body={section.body} />
 					</div>
+					{entries}
 				</div>
 			)}
 		</Panel>
@@ -173,12 +227,31 @@ function SectionPanel({ student, section, draft, onDraft, onSaved }: SectionPane
 interface NotesTabProps {
 	student: StudentDetail
 	drafts: SectionDrafts
+	timeZone: string
+	asOf: string
 	onDraftChange: (kind: SectionKind, value: string | undefined) => void
+	mark: ProfileMark | null
+	onMarkDone: () => void
 }
 
-export function NotesTab({ student, drafts, onDraftChange }: NotesTabProps) {
+export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark, onMarkDone }: NotesTabProps) {
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [notes, setNotes] = useState<NotesState>({ kind: 'loading' })
 	const studentId = student.id
+	const now = new Date(asOf)
+	useNotesArrival(mark, state.kind !== 'loading' && notes.kind !== 'loading', onMarkDone)
+
+	const reloadNotes = useCallback(async () => {
+		setNotes(await readNotes(studentId))
+	}, [studentId])
+
+	function noteRemoved(note: StudentNote) {
+		setNotes((previous) =>
+			previous.kind === 'ready'
+				? { kind: 'ready', notes: previous.notes.filter((item) => item.id !== note.id) }
+				: previous
+		)
+	}
 
 	const load = useCallback(async () => {
 		setState(await readSections(studentId))
@@ -188,6 +261,16 @@ export function NotesTab({ student, drafts, onDraftChange }: NotesTabProps) {
 		let current = true
 		void readSections(studentId).then((next) => {
 			if (current) setState(next)
+		})
+		return () => {
+			current = false
+		}
+	}, [studentId])
+
+	useEffect(() => {
+		let current = true
+		void readNotes(studentId).then((next) => {
+			if (current) setNotes(next)
 		})
 		return () => {
 			current = false
@@ -216,6 +299,11 @@ export function NotesTab({ student, drafts, onDraftChange }: NotesTabProps) {
 					draft={drafts[section.kind]}
 					onDraft={onDraftChange}
 					onSaved={saved}
+					notes={notes}
+					timeZone={timeZone}
+					now={now}
+					onReloadNotes={reloadNotes}
+					onNoteRemoved={noteRemoved}
 				/>
 			))}
 		</div>

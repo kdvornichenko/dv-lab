@@ -89,6 +89,11 @@ export async function syncFacts(executor: DbExecutor, connectionId: string): Pro
 	return row ?? null
 }
 
+export function insideSyncWindow(sync: SyncFacts | null, startsAt: Date, endsAt: Date): boolean {
+	if (!sync) return true
+	return startsAt.getTime() >= sync.windowStart.getTime() && endsAt.getTime() <= sync.windowEnd.getTime()
+}
+
 export async function syncRevision(executor: DbExecutor, connectionId: string): Promise<bigint> {
 	const [row] = await executor
 		.select({ revision: googleSyncState.revision })

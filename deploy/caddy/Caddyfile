@@ -37,7 +37,8 @@ dv-lab.dev {
 		}
 	}
 
-	encode zstd gzip
+	@compressible not path_regexp chat_stream ^/api/chat/turns/[^/]+/stream$
+	encode @compressible zstd gzip
 
 	header {
 		-Server

@@ -14,9 +14,10 @@ import { rowForLocal } from '../calendar/event-mapping.ts'
 import { currentConnection } from '../calendar/google-access.ts'
 import type { InstanceEvidence } from '../calendar/instance-observation.ts'
 import { CommandFault, commandHash, digest, unresolvedCommands } from '../calendar/journal.ts'
-import { syncRevision } from '../calendar/projection.ts'
+import { insideSyncWindow, syncFacts, syncRevision } from '../calendar/projection.ts'
 import { eventVersion, type CalendarReadContext } from '../calendar/read-state.ts'
 import type { PreparedCalendarCommand } from './command-plan.ts'
+import { checkMarkRestore } from './marks.ts'
 import { occurrenceChange } from './occurrence-change.ts'
 import type { SingleCommand } from './single-command.ts'
 
@@ -58,6 +59,19 @@ export async function prepareOccurrenceCommand(
 		throw new CommandFault('precondition_failed')
 	const change = await occurrenceChange(executor, context.accountId, input, context.now)
 	if (JSON.stringify(change.rule) !== JSON.stringify(target.rule)) throw new CommandFault('precondition_failed')
+	const restoreMark = input.operation === 'move' ? input.restoreMark : undefined
+	if (restoreMark) await checkMarkRestore(executor, input.ref, restoreMark, change.startsAt, context.now)
+	const sync = await syncFacts(executor, connection.id)
+	const { occurrence } = change
+	if (
+		!insideSyncWindow(
+			sync,
+			occurrence.startsAt,
+			new Date(occurrence.startsAt.getTime() + occurrence.durationMinutes * 60000)
+		) ||
+		!insideSyncWindow(sync, change.startsAt, new Date(change.startsAt.getTime() + change.durationMinutes * 60000))
+	)
+		throw new CommandFault('outside_sync_window')
 	const [student] = await executor
 		.select({ status: students.status })
 		.from(students)
@@ -93,6 +107,8 @@ export async function prepareOccurrenceCommand(
 				beforeStartsAt: change.occurrence.startsAt.toISOString(),
 				beforeDurationMinutes: change.occurrence.durationMinutes,
 				beforeStatus: change.occurrence.status,
+				...(change.clearMark ? { clearMark: true } : {}),
+				...(restoreMark ? { restoreMark } : {}),
 			},
 		],
 		preconditions: [precondition],

@@ -1,18 +1,32 @@
 import type { Context } from 'hono'
 import { Hono } from 'hono'
 
-import { type SettingsResponse, updateSettingsRequest } from '@dv-lab/contracts'
+import {
+	type AssistantSettingsResponse,
+	type SettingsResponse,
+	saveAssistantSettingsRequest,
+	updateSettingsRequest,
+} from '@dv-lab/contracts'
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
+import { readBudgetSnapshot, usageByConversation } from '../chat/budget.ts'
+import { modelCapabilities } from '../chat/model-config.ts'
 import { errorBody } from '../request-context.ts'
-import { readTeacherSettings, saveTeacherSettings } from '../settings/settings.ts'
+import {
+	readAssistantSettings,
+	readTeacherSettings,
+	saveAssistantSettings,
+	saveTeacherSettings,
+} from '../settings/settings.ts'
 
-type SettingsRouteDeps = { db: Database }
+type SettingsRouteDeps = { db: Database; availability?: (modelId: string) => Promise<boolean> }
+
+const USAGE_ROWS = 5
 
 const invalidRequest = (c: Context<AppEnv>) => c.json(errorBody('invalid_request', 'Invalid request'), 400)
 
-export function settingsRoutes({ db }: SettingsRouteDeps) {
+export function settingsRoutes({ db, availability }: SettingsRouteDeps) {
 	const routes = new Hono<AppEnv>()
 	routes.use('*', noStore, requireSession(db), requireRole('teacher'))
 
@@ -32,6 +46,28 @@ export function settingsRoutes({ db }: SettingsRouteDeps) {
 				409
 			)
 		return c.json({ settings: result.settings } satisfies SettingsResponse, 200)
+	})
+
+	async function assistantResponse(accountId: string): Promise<AssistantSettingsResponse> {
+		const read = await readSnapshot(db, async (executor) => {
+			const settings = await readAssistantSettings(executor, accountId)
+			const { budget, periodId } = await readBudgetSnapshot(executor, accountId)
+			const usage = await usageByConversation(executor, accountId, periodId, USAGE_ROWS)
+			return { settings, budget, usage }
+		})
+		const capabilities = await modelCapabilities(read.settings, availability ?? (async () => false))
+		return { settings: read.settings, capabilities, budget: read.budget, usage: read.usage }
+	}
+
+	routes.get('/assistant', async (c) => c.json(await assistantResponse(c.get('session').account.id), 200))
+
+	routes.patch('/assistant', async (c) => {
+		const input = await readJson(c, saveAssistantSettingsRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const result = await saveAssistantSettings(db, accountId, input)
+		if (!result.ok) return invalidRequest(c)
+		return c.json(await assistantResponse(accountId), 200)
 	})
 
 	return routes

@@ -3,6 +3,7 @@
 import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 
 import { TimePair } from '@/components/app/time-pair'
+import { Skeleton } from '@/components/ui/skeleton'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Elevated } from '@/lib/elevated'
 import { eventPaint } from '@/lib/event-colors'
@@ -21,6 +22,7 @@ import {
 	zonedParts,
 } from '@dv-lab/core'
 
+import { AgendaSkeleton } from './agenda-skeleton'
 import { eventRange, eventTitle } from './calendar-event-details'
 import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
@@ -42,6 +44,12 @@ const FRAME_WIDTH = `calc(100% - ${COLUMN_STRIP + 2}px)`
 export interface SecondZone {
 	id: string
 	caption: string
+}
+
+export interface GridPlaceholder {
+	day: number
+	start: number
+	minutes: number
 }
 
 export interface SlotChoice {
@@ -77,6 +85,8 @@ interface WeekGridProps {
 	mark?: (event: CalendarEventView) => BlockMark | null
 	emptyNote?: string | null
 	scrollTopRef?: { current: number }
+	placeholders?: readonly GridPlaceholder[]
+	zoneKnown?: boolean
 }
 
 function AllDayBand({
@@ -155,7 +165,7 @@ function AgendaRow({
 			data-binding={event.binding.kind}
 			onClick={() => onOpen(event)}
 			className={cn(
-				'flex w-full min-w-0 items-start gap-3 rounded-md p-2 text-left text-body focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
+				'flex w-full min-w-0 items-start gap-3 rounded-xl p-2 text-left text-body focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:outline-none',
 				event.status === 'cancelled' && 'text-muted-foreground line-through'
 			)}
 		>
@@ -212,6 +222,8 @@ function CalendarAgenda({
 								{weekdayCaps(date)}
 							</span>
 							<span
+								data-slot="agenda-date"
+								data-date={date}
 								className={cn(
 									'flex size-11 items-center justify-center rounded-full text-display tabular-nums',
 									date === today && 'bg-gcal-today text-gcal-today-ink'
@@ -418,6 +430,8 @@ export function WeekGrid({
 	mark,
 	emptyNote = null,
 	scrollTopRef,
+	placeholders = [],
+	zoneKnown = true,
 }: WeekGridProps) {
 	const dates = Array.from({ length: 7 }, (_: undefined, index) => addDays(monday, index))
 	const nowParts = zonedParts(now, mainTimeZone)
@@ -502,15 +516,19 @@ export function WeekGrid({
 
 	return (
 		<TooltipProvider>
-			<CalendarAgenda
-				dates={dates}
-				events={events}
-				today={today}
-				mainTimeZone={mainTimeZone}
-				secondZone={secondZone?.id ?? null}
-				emptyNote={emptyNote}
-				onOpen={onOpen}
-			/>
+			{placeholders.length > 0 ? (
+				<AgendaSkeleton />
+			) : (
+				<CalendarAgenda
+					dates={dates}
+					events={events}
+					today={today}
+					mainTimeZone={mainTimeZone}
+					secondZone={secondZone?.id ?? null}
+					emptyNote={emptyNote}
+					onOpen={onOpen}
+				/>
+			)}
 			<Elevated
 				offset={1}
 				shadowLevel={2}
@@ -522,7 +540,7 @@ export function WeekGrid({
 			>
 				<div data-slot="week-grid-head" className={cn(COLUMNS, '[scrollbar-gutter:stable] overflow-y-hidden')}>
 					<div data-slot="week-grid-corner" className="flex items-end justify-end pb-2">
-						<GutterPair local={mainCaption} second={secondZone ? secondZone.caption : null} />
+						{zoneKnown ? <GutterPair local={mainCaption} second={secondZone ? secondZone.caption : null} /> : null}
 					</div>
 					{dates.map((date) => {
 						const isToday = date === today
@@ -574,7 +592,7 @@ export function WeekGrid({
 				>
 					<div className={cn(COLUMNS, 'relative')} style={{ height: HOUR_HEIGHT * 24 }}>
 						<div data-slot="week-grid-gutter" className="relative">
-							{HOURS.map((hour) => (
+							{(zoneKnown ? HOURS : []).map((hour) => (
 								<GutterPair
 									key={hour}
 									local={hourLabel((hour + FIRST_HOUR) % 24)}
@@ -632,6 +650,20 @@ export function WeekGrid({
 											<span className="sr-only">Now {nowParts.time}</span>
 										</div>
 									) : null}
+									{placeholders
+										.filter((placeholder) => placeholder.day === dayIndex)
+										.map((placeholder) => (
+											<Skeleton
+												key={placeholder.start}
+												className="absolute rounded-md"
+												style={{
+													top: placeholder.start * MINUTE_HEIGHT,
+													height: placeholder.minutes * MINUTE_HEIGHT - 2,
+													left: 2,
+													width: FRAME_WIDTH,
+												}}
+											/>
+										))}
 									{placeDay(events, date, mainTimeZone, HOUR_HEIGHT, columnWidth).map(({ event, layout }) => (
 										<EventTooltip
 											editable={canEdit(event)}

@@ -84,7 +84,7 @@ function copyOf(kind: ScopeKind): ScopeCopy {
 			{ scope: 'following', label: 'This and following lessons' },
 			{ scope: 'all', label: 'All lessons' },
 		],
-		note: 'Past lessons and their marks stay at their old time.',
+		note: 'Lessons with a mark or a comment, and the lessons before them, stay at their old time.',
 		safe: 'Back',
 		confirm: 'Save',
 		pending: 'Saving…',

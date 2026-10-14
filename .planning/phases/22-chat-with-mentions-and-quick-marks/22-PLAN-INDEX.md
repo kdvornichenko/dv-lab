@@ -1,700 +1,194 @@
-# Phase 22 — полный executable plan bundle
-
-## Scope Card
-
-Outcome: executable bounded plans закрывают SC1–5, F01–10, CHAT-01/02/03/04/07/08/09/11, ARCH-A1–A3, edge51 и UI61.
-In scope: только новые22-*-PLAN.md, этот INDEX и COVERAGE.md. Source write sets ниже — будущие executor ownership, не текущая запись.
-Out of scope: source22 execution, shared STATE/ROADMAP, другие22 artifacts/фазы, MAIN, Git/stage/commit/branch/push, deletion/agents/runtime/SSH/CUA/DB/env/dependency installs/provider calls/paid spike/eval/newservice/new environment; Phase23/26 capabilities.
-Acceptance: each criterion имеет exact owner/signature/producer order/public durable evidence; native structure/frontmatter valid; edge/UI exact truth equality; no unplanned accepted source items.
-Verification: root-pin, baseline native34 reused; revision native6 changed/new checks, Prettier5 docs, canonical API coverage, bounded semantic dependency/write/criteria/truth/hash audit. Runtime/E2E/quality/provider schema execution **NOT RUN**.
-Work map:01 public useful tracer;02 conversations;03 ARCH-A1;04 ARCH-A3;05 ARCH-A2 и06 comments;07 exact selection;08 local action+Undo;09–12 guarded provider/budget/stream;13 answers;14 Calendar single changes;15 allUI;16 redaction/privacy;17 scoped evidence. Each task closes its stated SC/F/REQ/UI failure criterion.
-Stop: complete native-valid plan bundle + hashes/status/limitations to Parent. Parent independent checker/shared metadata/commits остаются его authority.
-
-### Assumptions and execution gate
-
-A1: source pin913fc5ae9286aca9a48b5ce4272699c846849874 historic valid; final24/25 signatures ещё не execution22 input. Evidence: STATE Phase24 plan10 и25-PLAN-INDEX final24 gate. Falsifier: actual final source rebind disagrees; dependent plan stops instead of guessed types.
-A2: actual key/account model availability/credits/finite cap/profile/paid spike not observed. Evidence:22-CONTEXT A3/AI-SPEC. Falsifier: real authorized config/provider observation. Missing data не numeric default или verified absence.
-A3: tighter input upper bound not proven. Evidence:22-RESEARCH P9/A4. Falsifier: proof for complete actual request. Пока reserve full declared maximum и worst applicable tariff + max output; refusal can occur even with positive remaining estimate.
-A4: v40/61 UI predicates approved; remaining baseline Visuals/Color/Spacing FLAG are nonblocking accepted style observations. Evidence:22-UI-CHECK APPROVED. Falsifier: new semantic UI decision, not formatting/hash alone.
-
-До первой source22 записи Parent связывает final24/25 HEAD, точные Registry/command/projection/inverse/history/cut-remap/refresh signatures и SHA-256 owned owners. Исторический source913fc5ae9286aca9a48b5ce4272699c846849874 не является final dependency proof. Проверить ROOT_PIN_OK в назначенном worktree и existing target lease; missing seam блокирует только dependent source path. MAIN read-only, STATE остаётся24. Ничего из source сейчас не исполнять.
-E2E actual commands требуют существующий attested target dv-lab.dev, build SHA/persistence fingerprint и owned synthetic fixture/runtime lease Parent/Server guy через existing e2e/support/target.ts/data.ts/calendar.ts. No new env/control service/DB/prod data/provider call authority. Provider-dependent cases требуют дополнительный actual key/cap/model/Google evidence, иначе NOT RUN; application synthetic command не provider-quality PASS.
-
-Source tooling paths new PROPOSED until producer creates them. Existing signatures and final25 PROPOSED names distinguished in task read_first. Before final source bind actual generated directory paths/owners and concrete verification commands. No index/role boilerplate creates authority for side effects. Autonomy suppresses repeated engineering approvals; actual unresolved SDK legitimacy is a specific gate09, not model-choice approval.
-
-### Native advisories and factual adjudication
-
-Native context drift: `block:false, skipped:false, action:warn, stale_artifacts:[22-RESEARCH.md]`; exact advisory: “CONTEXT.md decisions are newer than: 22-RESEARCH.md. Regenerate research: /gsd:plan-phase 22 --research. Do not hand-inject the newer decisions into a prompt as a substitute for regenerating — that carries the staleness forward.”
-Disposition: **WARN retained**, not PASS. All nine Locked D-01–D-09 semantic lines identical in current CONTEXT and RESEARCH; Parent changed Status after independent UI preparation. Source unchanged; no repeat research from mtime alone. Actual new contradiction goes to Parent.
-Native codebase drift: `block:false, skipped:true, reason:no-structure-md` — **SKIPPED**, no CodeGraph indexing/freshness claim.
-ROADMAP legacy Notes still map provider credits to cap and mention v39/optional relative x3/admin-only key. Current locked D-07 and checked v40 research explicitly supersede those factual/default notes: distinct credits/app cap, no fabricated relative pricing/admin access. No new locked decision or research conflict introduced.
-Parent formatting25 ARCH/PATTERNS/CHECK/RESEARCH and ROADMAP12 count does not change any25 PLAN semantics/hash or22 scope; preserve current INDEX/final signatures proposal. No repeated review/research.
-Model warning baked5.6 ignored under explicit human6.1-sol. No reinstall/update/GSD metadata policy changes. Native preflight reused, not rerun as fake roles.
-
-Discovery: Level2 research already available/accepted; read exact owner/pattern/current Registry/harness proposals. Context7 unavailable per research; one primary official API inventory read fills full coverage only. .codegraph/.planning/codebase absent, scoped rg used. History digest selected21.1+24;24-07 source/local-disconnected complete but connected-unverified; no connected proof inferred. STATE remains24 plan10.
-
-## Waves, dependency and ownership
-
-18 plans / 46 tasks / 18 waves. Max unique files14 per plan; max5 per task. Serialized concern owners share schemas/Registry/ordinary callers/new durable journey and one node_modules/runtime lease. There is no safe same-target concurrency opportunity in this bundle; do not manufacture parallelism around a shared lease.
-
-| Plan                   | Wave | Dependencies                                                                                                   | Outcome / criteria                                                                                                    | Tasks | Actual planned files |
-| ---------------------- | ---- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----- | -------------------- |
-| [22-01](22-01-PLAN.md) | 1    | —                                                                                                              | Публичный tracer: сохранённые факты одного ученика; SC4/F06/F09/F10/UI3; D-01/D-02/D-08/D-09                          | 2     | 8                    |
-| [22-02](22-02-PLAN.md) | 2    | 22-01                                                                                                          | Conversations: durable create/list/rename/delete; SC1/F02/F03/F08/F09/F10/UI1; D-06/D-08/D-09                         | 3     | 12                   |
-| [22-03](22-03-PLAN.md) | 3    | 22-02                                                                                                          | ARCH-A1: общий SSE transport и data reread; SC1/SC3/F02/F07/F09/F10/ARCH-A1/UI1/UI2; D-03/D-06/D-08                   | 3     | 13                   |
-| [22-04](22-04-PLAN.md) | 4    | 22-03                                                                                                          | ARCH-A3: версии отметок и общая transaction; SC2/SC3/F04/F05/F10/ARCH-A3; D-01/D-03                                   | 3     | 13                   |
-| [22-05](22-05-PLAN.md) | 5    | 22-04                                                                                                          | ARCH-A2: записи notes отдельно от base Markdown; SC3/SC4/F05/F06/F09/F10/ARCH-A2; D-01/D-02/D-03                      | 3     | 10                   |
-| [22-06](22-06-PLAN.md) | 6    | 22-05                                                                                                          | Lesson comments через тот же entry contract; SC3/SC4/F05/F06/F09/F10/ARCH-A2; D-01/D-03/D-08                          | 2     | 6                    |
-| [22-07](22-07-PLAN.md) | 7    | 22-06                                                                                                          | Точные @mentions и один lesson target; SC2/F03/F04/F09/F10/UI1/UI2/UI5; D-01/D-02/D-08                                | 3     | 9                    |
-| [22-08](22-08-PLAN.md) | 8    | 22-07, 22-04, 22-05, 22-06, 22-03                                                                              | Local marks/notes/comments: atomic result и Undo; SC2/SC3/F02/F04/F05/F07/F09/F10/UI2; D-01/D-02/D-03/D-06            | 3     | 12                   |
-| [22-09](22-09-PLAN.md) | 9    | 22-08                                                                                                          | Официальный SDK: provenance и условный legitimacy gate; SC1/SC5/F01/F07/F10; D-04/D-05/D-06/D-09                      | 2     | 0                    |
-| [22-10](22-10-PLAN.md) | 10   | 22-09                                                                                                          | SDK configuration и проверяемые model capabilities; SC1/SC5/F01/F07/F09; D-04/D-05/D-06/D-07                          | 3     | 9                    |
-| [22-11](22-11-PLAN.md) | 11   | 22-10, 22-08, 22-02                                                                                            | Hard monthly cap и usage по conversation; SC5/F01/F07/F08/F09/F10/UI4; D-05/D-07                                      | 3     | 13                   |
-| [22-12](22-12-PLAN.md) | 12   | 22-11, 22-03, 22-08, 22-10                                                                                     | Durable Messages streaming, run и Stop reply; SC1/SC3/SC5/F01/F02/F05/F07/F08/F09/F10/UI1/UI2/UI4; D-04/D-06/D-07     | 3     | 14                   |
-| [22-13](22-13-PLAN.md) | 13   | 22-12, 22-01, 22-05, 22-06                                                                                     | Ответы из records и только code-owned числа; SC4/F02/F06/F09/F10/UI3; D-01/D-02/D-06/D-08                             | 2     | 8                    |
-| [22-14](22-14-PLAN.md) | 14   | 22-13, 22-07, 22-08, 22-03                                                                                     | Single Calendar changes и verified inverse в Chat; SC2/SC3/F02/F04/F05/F07/F09/F10/UI2; D-01/D-03/D-06                | 2     | 10                   |
-| [22-15](22-15-PLAN.md) | 15   | 22-14, 22-11, 22-10                                                                                            | Model/effort controls и все UI considerations v40; SC1/SC2/SC3/SC5/F01/F07/F09/F10/UI1–UI5; D-05/D-07/D-08            | 2     | 9                    |
-| [22-16](22-16-PLAN.md) | 16   | 22-15, 22-12, 22-11, 22-08                                                                                     | Conversation redaction, liability guards и privacy; SC1/SC3/SC5/F02/F05/F07/F08/F09/F10/UI1; D-02/D-03/D-04/D-06/D-07 | 2     | 7                    |
-| [22-18](22-18-PLAN.md) | 17   | 22-16,22-12,22-11,22-10,22-09,22-08                                                                            | P22-PC-01: operator-only Messages/Managed C01–C03 actual comparison before seal; D-06/F01/F10/SC1/SC3/SC5             | 3     | 11                   |
-| [22-17](22-17-PLAN.md) | 18   | 22-18, 22-16, 22-15, 22-14, 22-13, 22-12, 22-11, 22-10, 22-08, 22-07, 22-06, 22-05, 22-04, 22-03, 22-02, 22-01 | Scoped readiness и воспроизводимая приёмка; SC1–SC5/F01–F10/UI1–UI5/ARCH-A1–A3; D-01–D-09                             | 2     | 0                    |
-
-Architecture each has early own producer plan, before feature consumers. First01/T1 is public useful records→existing owners→real persistence tracer;01/T2 visible approved Chat read. No whole-schema-global foundation. Schema tasks within each feature bind only needed vertical expansion; new notes/comment identity schema05 belongs one A2 concern. TDD is public E2E first only, no isolated suites. Config/migrations/docs/read-only gates use static proof; no new functional suite for tooling.
-
-Calibration command `node ~/.claude/gsd-core/bin/gsd-tools.cjs query estimate-calibration` exit0: factor1/sample_count0/confidence low. Raw read+diff+checks projections per bounded plan in frontmatter, calibrated=raw; confidence not self-rated.
-
-## Source audit — no accepted gap
-
-| SOURCE   | ID       | Accepted item                                             | Plan owner                                | Status  |
-| -------- | -------- | --------------------------------------------------------- | ----------------------------------------- | ------- |
-| GOAL     | Phase22  | One-line lesson outcome + stored answers within budget    | 01–17                                     | COVERED |
-| GOAL     | SC1      | Принятый observable success criterion                     | 01/02/03/12/15/16                         | COVERED |
-| GOAL     | SC2      | Принятый observable success criterion                     | 04/07/08/14                               | COVERED |
-| GOAL     | SC3      | Принятый observable success criterion                     | 03/04/05/06/08/14                         | COVERED |
-| GOAL     | SC4      | Принятый observable success criterion                     | 01/05/06/13                               | COVERED |
-| GOAL     | SC5      | Принятый observable success criterion                     | 09/10/11/12/15                            | COVERED |
-| REQ      | CHAT-01  | Exact requirement из REQUIREMENTS:88–100                  | 02/03/12/15/16                            | COVERED |
-| REQ      | CHAT-02  | Exact requirement из REQUIREMENTS:88–100                  | 07/15                                     | COVERED |
-| REQ      | CHAT-03  | Exact requirement из REQUIREMENTS:88–100                  | 04/07/08/14/15                            | COVERED |
-| REQ      | CHAT-04  | Exact requirement из REQUIREMENTS:88–100                  | 03/04/05/06/08/12/14/16                   | COVERED |
-| REQ      | CHAT-07  | Exact requirement из REQUIREMENTS:88–100                  | 01/05/06/13                               | COVERED |
-| REQ      | CHAT-08  | Exact requirement из REQUIREMENTS:88–100                  | 01/13                                     | COVERED |
-| REQ      | CHAT-09  | Exact requirement из REQUIREMENTS:88–100                  | 03/08/10/12/13/14/15                      | COVERED |
-| REQ      | CHAT-11  | Exact requirement из REQUIREMENTS:88–100                  | 09/10/11/12/15/16                         | COVERED |
-| RESEARCH | F01      | Research/UI-SPEC accepted binding                         | 09/10/11/12/15/18 →17 seal                | COVERED |
-| RESEARCH | F02      | Research/UI-SPEC accepted binding                         | 02/03/08/12/16                            | COVERED |
-| RESEARCH | F03      | Research/UI-SPEC accepted binding                         | 02/07/08                                  | COVERED |
-| RESEARCH | F04      | Research/UI-SPEC accepted binding                         | 04/07/08/14                               | COVERED |
-| RESEARCH | F05      | Research/UI-SPEC accepted binding                         | 04/05/06/08/12/14/16                      | COVERED |
-| RESEARCH | F06      | Research/UI-SPEC accepted binding                         | 01/05/06/13                               | COVERED |
-| RESEARCH | F07      | Research/UI-SPEC accepted binding                         | 09/10/11/12/15/16                         | COVERED |
-| RESEARCH | F08      | Research/UI-SPEC accepted binding                         | 02/11/12/16                               | COVERED |
-| RESEARCH | F09      | Research/UI-SPEC accepted binding                         | 01/02/03/05/06/07/08/10/11/12/13/14/15/16 | COVERED |
-| RESEARCH | F10      | Research/UI-SPEC accepted binding                         | 01–17                                     | COVERED |
-| CONTEXT  | D-01     | Locked decision cited in objective/actions                | 01/04/05/06/07/08/13/14                   | COVERED |
-| CONTEXT  | D-02     | Locked decision cited in objective/actions                | 01/05/07/08/13/16                         | COVERED |
-| CONTEXT  | D-03     | Locked decision cited in objective/actions                | 03/04/05/06/08/14/16                      | COVERED |
-| CONTEXT  | D-04     | Locked decision cited in objective/actions                | 09/10/12/16                               | COVERED |
-| CONTEXT  | D-05     | Locked decision cited in objective/actions                | 09/10/11/15                               | COVERED |
-| CONTEXT  | D-06     | Locked decision cited in objective/actions                | 02/03/08/09/10/12/13/14/16/18 →17         | COVERED |
-| CONTEXT  | D-07     | Locked decision cited in objective/actions                | 10/11/12/15/16                            | COVERED |
-| CONTEXT  | D-08     | Locked decision cited in objective/actions                | 01/02/03/05/06/07/13/15                   | COVERED |
-| CONTEXT  | D-09     | Locked decision cited in objective/actions                | 01/02/09; execution gate всех             | COVERED |
-| RESEARCH | P1/P2/P8 | Server identity/run/event/redaction                       | 02/03/08/12/16                            | COVERED |
-| RESEARCH | P3       | Mentions/single natural target/zone                       | 07/14                                     | COVERED |
-| RESEARCH | P4/P5    | Local atomic effect/inverse + verified Calendar           | 04/05/06/08/14                            | COVERED |
-| RESEARCH | P6       | Bounded stored facts/numeric publication                  | 01/13                                     | COVERED |
-| RESEARCH | P7       | v40/shared transport/refresh                              | 03/07/12/15                               | COVERED |
-| RESEARCH | P9       | Actual budget/usage/capability profiles                   | 09/10/11/12/15                            | COVERED |
-| RESEARCH | ARCH-A1  | api-client SSE + existing registered data reread          | 03 before08/12/14                         | COVERED |
-| RESEARCH | ARCH-A2  | Own entry identity/version + base editor separation       | 05, comment expansion06 before08/13       | COVERED |
-| RESEARCH | ARCH-A3  | mark row revision/DbExecutor/all normal cut/remap writers | 04 before08/14                            | COVERED |
-
-Deferred23/26, provider-quality evaluation/judge/dataset/benchmark/new environment/service/admin/credit management remain excluded. D-06 practical transport comparison now has executable operator owner18 after actual gates, evidence consumed17 before seal; current NOT RUN remains truthful, no Managed production adoption.
-
-## Exact signature / producer-before-consumer map
-
-Every path below is owned only by its task; same file may appear in later waves for a later vertical expansion. Existing regular callers identified: mark routes/rows/series, TodayMarkControls, LessonDialogs, common markLesson, fixture helpers; sections PUT/NotesTab; existing provider registration hooks. Final cut/remap or publication move is conditional rebind, not fabricated existing path.
-
-| Owner/task                                                               | Exact paths count | Public/internal interface and consumers                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 22-01/T1: Public records path → existing facts → настоящая база          | 5                 | PROPOSED chatRecordRequest/chatRecordResponse в Registry; chatRoutes({db,calendarReads}) в app.route('/chat', ...); GET /chat/records?studentId=UUID. Existing cardFacts(executor,cards,CardReadContext) и readToday(executor,context,paysSoonLessons) вызываются без изменения.                                                                                                                                                                                                            |
-| 22-01/T2: Показать полученные facts в принятой Chat колонке              | 4                 | Existing ChatPage requireTeacherPage; PROPOSED ChatScreen и Messages props выводятся из chatRecordResponse; существующий apiRequest остаётся transport.                                                                                                                                                                                                                                                                                                                                     |
-| 22-02/T1: Сохранить conversation identity и constraints                  | 5                 | PROPOSED chatConversations table в chat-schema; export из существующего schema owner. Drizzle config перечисляет semantic schema. Generated brace path связывается с actual generator directory, два файла считаются отдельно.                                                                                                                                                                                                                                                              |
-| 22-02/T2: Дать teacher-only CRUD через один owner                        | 4                 | PROPOSED createConversation/listConversations/renameConversation/deleteConversation(DbExecutor,accountId,validated input); wire schema только chat.ts. POST/GET /chat/conversations; PATCH/DELETE /chat/conversations/:id; GET /chat/conversations/:id.                                                                                                                                                                                                                                     |
-| 22-02/T3: Conversation overlay и сохранённый выбор                       | 4                 | PROPOSED useChat conversation metadata/read controller; ConversationList вызывает исключительно Registry-validated CRUD через apiRequest.                                                                                                                                                                                                                                                                                                                                                   |
-| 22-03/T1: Durable event cursor после real conversation commit            | 4                 | PROPOSED chatEvents account/conversation/run cursor и safe payload; generated paths resolver как в22-02.                                                                                                                                                                                                                                                                                                                                                                                    |
-| 22-03/T2: Authenticated event read и persist-before-publish              | 5                 | PROPOSED ChatEvent/chatEvent schema, appendEvent(tx,accountId,conversationId,event), readEvents(executor,accountId,afterCursor), GET /chat/events?afterCursor=..., GET conversation snapshot highWater; единственный Registry.                                                                                                                                                                                                                                                              |
-| 22-03/T3: Расширить api-client и существующую registration               | 5                 | PROPOSED apiEventStream(path,cursor,signal): validated async events/result с Registry parser; subscribeDataChanges/controller publication расширяет existing register(refresh,kind). Existing useCalendarRefresh(reload) Today и useCalendarRefresh(refresh,'window') Schedule сохраняются.                                                                                                                                                                                                 |
-| 22-04/T1: Row revision и единственный mark Registry                      | 5                 | Existing lessonMarks + additive numeric revision; markLessonRequest optional expectedRevision для existing ordinary requests, chat требует validated exact revision; ScheduleMark/blocks несут observed revision или явный absent marker.                                                                                                                                                                                                                                                   |
-| 22-04/T2: Все mark writers используют один DbExecutor owner              | 4                 | Existing markLesson/markOccurrence(Database,accountId,target,input,now) facades сохранены; PROPOSED writeMark(executor:DbExecutor,context,ref,input) для атомарного effect+receipt. markOf/seriesMarksFrom/read mappings включают numeric revision. keepCutLessons и final24/25 remap writer связываются с exact target lineage.                                                                                                                                                            |
-| 22-04/T3: Обычные callers передают observed guard                        | 5                 | Existing web markLesson(block,kind) получает block observed revision; LessonDialogs/TodayMarkControls вызывают тот же port. Fixture mark helpers читают actual mark revision перед public write.                                                                                                                                                                                                                                                                                            |
-| 22-05/T1: Identity notes/comments и base section revision                | 5                 | PROPOSED studentNotes/lessonComments tables в semantic entry-schema экспортированном schema; existing studentSections additive revision. StudentSection base body/revision; StudentNote DTO id/body/revision/retractedAt; wire definitions только students.ts.                                                                                                                                                                                                                              |
-| 22-05/T2: Business notes port и обычный base editor API                  | 4                 | PROPOSED appendStudentNote/readStudentNotes/editStudentNote/retractStudentNote(DbExecutor,accountId,studentId,validated input); saveSection(executor,studentId,kind,body,expectedRevision) → current base-only StudentSection/conflict; only normal caller studentRoutes PUT sections updated.                                                                                                                                                                                              |
-| 22-05/T3: NotesTab редактирует только base, entries показывает отдельно  | 2                 | Existing NotesTab student/drafts props; draft содержит только section.body/revision. Entry list читается отдельным typed API, не включён в base draft.                                                                                                                                                                                                                                                                                                                                      |
-| 22-06/T1: Comments business port и public lesson API                     | 4                 | PROPOSED append/read/edit/retractLessonComment(executor:DbExecutor,accountId,ref,validated input), LessonComment DTO в schedule Registry; exact ref existing ScheduleOccurrenceRef. Public /schedule/.../comments routes следуют existing single/occurrence paths.                                                                                                                                                                                                                          |
-| 22-06/T2: Показать comments в существующем lesson detail                 | 3                 | Existing LessonDetails/LessonDialogs current selected snapshot; typed comment read/reload сохраняет selection guards, exact plural lesson-details.tsx.                                                                                                                                                                                                                                                                                                                                      |
-| 22-07/T1: Registry и public exact lesson resolution                      | 4                 | PROPOSED searchMentionStudents(DbExecutor,accountId,literalQuery), resolveLesson(context:CardReadContext,binding,dateInput) → typed exact target/clarification. MentionBinding schema serverId/textSnapshot/UTF-16 offsets with code-point boundaries. GET /students/mentions; POST /chat/resolve-target safe application operation без model call.                                                                                                                                         |
-| 22-07/T2: Literal student search через cards owner                       | 2                 | PROPOSED searchMentionStudents(DbExecutor,accountId,literalQuery); GET /students/mentions consumes producer Registry T1.                                                                                                                                                                                                                                                                                                                                                                    |
-| 22-07/T3: Composer selection и public resolution journey                 | 4                 | PROPOSED Composer bindings/quick draft intent; useChat validates safe candidates/resolve target with shared Registry/apiRequest; no raw fetch.                                                                                                                                                                                                                                                                                                                                              |
-| 22-08/T1: Durable action/Undo Registry и schema                          | 4                 | PROPOSED chatActions call/request/digest/target/before-after revision/inverse/result; ToolOutcome/UndoReceipt strict Registry, unique account/conversation/call identity.                                                                                                                                                                                                                                                                                                                   |
-| 22-08/T2: Typed local commands и versioned inverse                       | 5                 | PROPOSED executeTool(serverContext,validatedCall), undoAction(serverContext,actionId,expectedRevision), accept/read local command в store; POST /chat/conversations/:id/actions и POST /chat/actions/:id/undo; GET original status. D-03 direct explicit quick command path использует тот же dispatcher, не provider surrogate.                                                                                                                                                            |
-| 22-08/T3: Matching results и shared screen update                        | 4                 | Messages consumes ToolOutcome/UndoReceipt; useChat local command identity/status через apiRequest, account change publication использует owner22-03.                                                                                                                                                                                                                                                                                                                                        |
-| 22-09/T1: Read-only current package legitimacy и capability rebind       | 0                 | No source/public signature changes; candidate @anthropic-ai/sdk0.133.0 — research proposal, не committed resolution.                                                                                                                                                                                                                                                                                                                                                                        |
-| 22-09/T2: Разрешить install только после действительного legitimacy gate | 0                 | No source changes. This is a conditional package safety gate before22-10, не повторный выбор SDK.                                                                                                                                                                                                                                                                                                                                                                                           |
-| 22-10/T1: Установить ровно выбранный official SDK                        | 2                 | Dependency exact pin only @anthropic-ai/sdk; version bound by22-09 current evidence.                                                                                                                                                                                                                                                                                                                                                                                                        |
-| 22-10/T2: Injected model/key profiles и capability errors                | 5                 | Existing loadConfig(env):ApiConfig extends nullable injected chat config; PROPOSED resolveModelChoice(validated profiles,TeacherSettings,conversation override) и safe ModelCapability projection. Env names ANTHROPIC_API_KEY/CHAT_MODEL_PROFILES_JSON only here; server composition22-12 consumes config.                                                                                                                                                                                 |
-| 22-10/T3: Имена configuration в существующем deploy owner                | 2                 | Existing api service env mapping consumes only validated loadConfig names; no public signature.                                                                                                                                                                                                                                                                                                                                                                                             |
-| 22-11/T1: Budget/attempt schema и Registry preferences                   | 5                 | PROPOSED chatBudgetPeriods account+captured period unique, chatUsageAttempts per distinct attempt; nullable teacherSettings model/effort/cap addition through existing schema; BudgetSnapshot/ModelCapability/preferences Registry.                                                                                                                                                                                                                                                         |
-| 22-11/T2: Admission/settlement и public preferences read/write           | 5                 | PROPOSED reserveAttempt/captureUsage/settleAttempt/readBudgetSnapshot in budget/usage; readAssistantSettings/saveAssistantSettings в existing settings owner, TeacherSettings current time-zone contract не меняется. ChatSettings/BudgetSnapshot Registry extends10 producer, /settings/assistant, /settings/assistant/usage; defaults stored teacher_settings.                                                                                                                            |
-| 22-11/T3: Assistant settings и durable budget journey                    | 4                 | Registry barrel exports chat-settings producer before consumers; AssistantCard typed public settings/usage API. Existing SettingsSnapshot private support captures/restores new actual fields without leaking or erasing liability.                                                                                                                                                                                                                                                         |
-| 22-12/T1: Turn/message/mention/run schema и complete event Registry      | 5                 | PROPOSED chatTurns/chatMessages/chatMentions with requestId+digest unique and one active conversation run; full ChatTurn/ChatEvent states after schema validation. existing action/attempt/event owners reused.                                                                                                                                                                                                                                                                             |
-| 22-12/T2: Official provider loop с fresh reservation и every-call result | 5                 | PROPOSED createChat({db,config,logger,queue,calendarCommands})/acceptTurn/readTurn/stopTurn/close, streamAttempt(admittedRequest,signal), persistent event/usage capture. POST /chat/conversations/:id/turns, GET /chat/turns/:id, POST /chat/turns/:id/stop; events via03.                                                                                                                                                                                                                 |
-| 22-12/T3: Composition и browser восстановление одного run                | 5                 | Existing server composition injects AppDeps.chat/createChat resource, Closable registered before pool shutdown; existing lifecycle.ts interface unchanged. useChat opens apiEventStream before explicit Send, validates snapshot high-water with Registry.                                                                                                                                                                                                                                  |
-| 22-13/T1: Reusable records owner и bounded narrative schema              | 4                 | PROPOSED readChatFacts(executor:DbExecutor,context:CardReadContext,selection) → validated facts/source/asOf/coverage; existing /chat/records delegates. Narrative schema reference slots выводится из Registry, не free-form financial text.                                                                                                                                                                                                                                                |
-| 22-13/T2: Validate-before-publish и безопасные recovery actions          | 5                 | Provider receives readChatFacts bounded context/allowed output references; Runs buffers complete validated pedagogical clauses; Messages renders only Registry safe blocks and server template facts. P14 actions share existing composer/record read slots.                                                                                                                                                                                                                                |
-| 22-14/T1: Exact Calendar adapter до tool/Undo consumers                  | 5                 | Current CalendarCommands submitCalendarCommand(context:CalendarReadContext,input:ValidatedCalendarCommand):Promise<CalendarCommandReceipt>, readCalendarCommand(context,id):Promise<CalendarCommandSnapshot>, resumeCalendarCommand(context,id):Promise<CalendarCommandReceipt>. PROPOSED chat/calendar adapter prepare/confirm/status/inverse delegates final signatures.25 proposed resolveProviderTarget/ResolvedProviderTarget and origin-aware admission remain proposal until rebind. |
-| 22-14/T2: Quick move/cancel confirmation и открытые экраны               | 5                 | useChat single action confirmation uses existing CalendarCommandProvider/useCalendarCommands control; messages renders validated CalendarCommandSnapshot-derived ToolOutcome, never recreates enum. Account invalidation via03.                                                                                                                                                                                                                                                             |
-| 22-15/T1: Conversation model/effort overrides из реальных capabilities   | 5                 | PROPOSED ModelControls uses ModelCapability/BudgetSnapshot; conversation override API producer22-12 accepts strict model/effort revision. useChat applies explicit override/reset only after DB result.                                                                                                                                                                                                                                                                                     |
-| 22-15/T2: Preferences и complete focus/state presentation                | 5                 | Existing assistant preferences/user conversation usage endpoints11; Messages and ConversationList reuse typed states/result identities from02/12/13/14, no new wire fields.                                                                                                                                                                                                                                                                                                                 |
-| 22-16/T1: Recheck deletion under actual run/action/budget liabilities    | 5                 | deleteConversation(tx,accountId,id,expectedRevision) locks same conversation/run/action/usage owners; minimal control/usage identifiers retained, redaction covers messages/mentions/events sensitive payload. No business cascades.                                                                                                                                                                                                                                                        |
-| 22-16/T2: Existing public policy reflects real processing                | 2                 | Existing PrivacyPage sections/renderer only; no new policy route, document or retention constant.                                                                                                                                                                                                                                                                                                                                                                                           |
-| 22-17/T1: Simplify и existing scoped quality/static evidence             | 0                 | No new public signatures/files/tests; review owned Phase22 diff only, prior plan owners implement any concrete correction under same scope.                                                                                                                                                                                                                                                                                                                                                 |
-| 22-17/T2: Reuse passing public E01–E14 и name actual external gaps       | 0                 | No new tests/source/runtime service. Existing durable journey owners/filters as INDEX; actual existing target/lease supplied Parent/Server guy.                                                                                                                                                                                                                                                                                                                                             |
-
-### Planned write inventory and conditional paths
-
-86 unique future paths: 68 handwritten TS/TSX tooling/source paths, 14 separately counted generated SQL/snapshot paths, other config/lock owners. Inventory driven criteria, not forced73 PATTERNS rows. No AGENTS edit, lifecycle change, use-today/use-schedule-week edit or new support/chat by default. Existing registration suffices; lifecycle uses current Closable, normal readers preserved. New modules entry-schema/chat-budget-schema justified by cohesive persisted entry/budget ownership and file limits; no mechanical file splitting.
-deploy/env.example/compose only changed if equivalent final injection absent. chat/calendar.ts explicit thin adapter is admitted for exact confirmation/status/inverse semantics, not guessed wire fields. Source10 outside ROOT and missing provider lease remain external gates, not invented tracked files.
-
-Each `packages/db/drizzle/{22-…-generated}/migration.sql` and `snapshot.json` is a **generation binding**, not an existing timestamp or executed migration. Before executor applies, `yarn db:generate` produces actual directory; Parent/executor maps brace name to literal actual paths and fingerprints in same task ownership. Both files counted separately. Registry metadata owner `packages/db/drizzle.config.ts` declared02; current Drizzle v1 has per-directory snapshot, **no invented journal file**. Future generator metadata drift is rebound before edit and counted, not hidden by directory ownership. No manual generated SQL edit, no drizzle push/extension/drop/rename/DELETE grant.
-
-All future write paths, one-line criterion owner:
-
-- 22-01: packages/contracts/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/routes/chat.ts, apps/api/src/app.ts, e2e/chat.spec.ts, apps/web/app/(app)/chat/page.tsx, apps/web/app/(app)/chat/_components/chat-screen.tsx, apps/web/app/(app)/chat/_components/messages.tsx — SC4/F06/F09/F10/UI3; D-01/D-02/D-08/D-09
-- 22-02: packages/db/src/chat-schema.ts, packages/db/src/schema.ts, packages/db/drizzle.config.ts, packages/db/drizzle/{22-conversations-generated}/migration.sql, packages/db/drizzle/{22-conversations-generated}/snapshot.json, packages/contracts/src/chat.ts, apps/api/src/chat/conversations.ts, apps/api/src/routes/chat.ts, e2e/chat.spec.ts, apps/web/app/(app)/chat/_components/conversation-list.tsx, apps/web/app/(app)/chat/_components/chat-screen.tsx, apps/web/app/(app)/chat/_components/use-chat.ts — SC1/F02/F03/F08/F09/F10/UI1; D-06/D-08/D-09
-- 22-03: packages/db/src/chat-schema.ts, packages/db/drizzle/{22-events-generated}/migration.sql, packages/db/drizzle/{22-events-generated}/snapshot.json, e2e/chat.spec.ts, packages/contracts/src/chat-events.ts, packages/contracts/src/index.ts, apps/api/src/chat/events.ts, apps/api/src/chat/conversations.ts, apps/api/src/routes/chat.ts, apps/web/lib/api-client.ts, apps/web/components/app/calendar-command-provider.tsx, apps/web/lib/data-changes.ts, e2e/today.spec.ts — SC1/SC3/F02/F07/F09/F10/ARCH-A1/UI1/UI2; D-03/D-06/D-08
-- 22-04: packages/db/src/schema.ts, packages/db/drizzle/{22-mark-revision-generated}/migration.sql, packages/db/drizzle/{22-mark-revision-generated}/snapshot.json, packages/contracts/src/schedule.ts, e2e/marks.spec.ts, apps/api/src/schedule/marks.ts, apps/api/src/schedule/rows.ts, apps/api/src/schedule/series.ts, apps/api/src/routes/schedule.ts, apps/web/app/(app)/schedule/_components/schedule-mutations.ts, apps/web/app/(app)/schedule/_components/lesson-dialogs.tsx, apps/web/app/(app)/_components/today-mark-controls.tsx, e2e/support/test.ts — SC2/SC3/F04/F05/F10/ARCH-A3; D-01/D-03
-- 22-05: packages/db/src/entry-schema.ts, packages/db/src/schema.ts, packages/db/drizzle/{22-entries-generated}/migration.sql, packages/db/drizzle/{22-entries-generated}/snapshot.json, packages/contracts/src/students.ts, apps/api/src/cards/notes.ts, apps/api/src/cards/sections.ts, apps/api/src/routes/students.ts, e2e/chat.spec.ts, apps/web/app/(app)/students/[id]/_components/notes-tab.tsx — SC3/SC4/F05/F06/F09/F10/ARCH-A2; D-01/D-02/D-03
-- 22-06: packages/contracts/src/schedule.ts, apps/api/src/schedule/comments.ts, apps/api/src/routes/schedule.ts, e2e/chat.spec.ts, apps/web/app/(app)/schedule/_components/lesson-details.tsx, apps/web/app/(app)/schedule/_components/lesson-dialogs.tsx — SC3/SC4/F05/F06/F09/F10/ARCH-A2; D-01/D-03/D-08
-- 22-07: packages/contracts/src/chat.ts, apps/api/src/chat/lesson-target.ts, apps/api/src/routes/chat.ts, e2e/chat.spec.ts, apps/api/src/cards/mentions.ts, apps/api/src/routes/students.ts, apps/web/app/(app)/chat/_components/composer.tsx, apps/web/app/(app)/chat/_components/use-chat.ts, apps/web/app/(app)/chat/_components/chat-screen.tsx — SC2/F03/F04/F09/F10/UI1/UI2/UI5; D-01/D-02/D-08
-- 22-08: packages/contracts/src/chat.ts, packages/db/src/chat-schema.ts, packages/db/drizzle/{22-actions-generated}/migration.sql, packages/db/drizzle/{22-actions-generated}/snapshot.json, apps/api/src/chat/tools.ts, apps/api/src/chat/undo.ts, apps/api/src/chat/store.ts, apps/api/src/routes/chat.ts, e2e/chat.spec.ts, apps/web/app/(app)/chat/_components/messages.tsx, apps/web/app/(app)/chat/_components/use-chat.ts, e2e/today.spec.ts — SC2/SC3/F02/F04/F05/F07/F09/F10/UI2; D-01/D-02/D-03/D-06
-- 22-09: read-only/no writes — SC1/SC5/F01/F07/F10; D-04/D-05/D-06/D-09
-- 22-10: apps/api/package.json, yarn.lock, apps/api/src/config.ts, apps/api/src/chat/model-config.ts, packages/contracts/src/chat-settings.ts, packages/contracts/src/index.ts, e2e/chat.spec.ts, deploy/env.example, deploy/compose.yaml — SC1/SC5/F01/F07/F09; D-04/D-05/D-06/D-07
-- 22-11: packages/db/src/chat-budget-schema.ts, packages/db/src/schema.ts, packages/db/drizzle/{22-budget-generated}/migration.sql, packages/db/drizzle/{22-budget-generated}/snapshot.json, e2e/chat.spec.ts, apps/api/src/chat/budget.ts, apps/api/src/chat/usage.ts, apps/api/src/settings/settings.ts, apps/api/src/routes/settings.ts, packages/contracts/src/chat-settings.ts, apps/web/app/(app)/settings/_components/settings-screen.tsx, apps/web/app/(app)/settings/_components/assistant-card.tsx, e2e/support/data.ts — SC5/F01/F07/F08/F09/F10/UI4; D-05/D-07
-- 22-12: packages/db/src/chat-schema.ts, packages/db/drizzle/{22-turns-generated}/migration.sql, packages/db/drizzle/{22-turns-generated}/snapshot.json, packages/contracts/src/chat.ts, e2e/chat.spec.ts, apps/api/src/chat/runs.ts, apps/api/src/chat/provider.ts, apps/api/src/chat/store.ts, apps/api/src/chat/events.ts, apps/api/src/routes/chat.ts, apps/api/src/server.ts, apps/api/src/app.ts, apps/web/app/(app)/chat/_components/use-chat.ts, apps/api/src/chat/conversations.ts — SC1/SC3/SC5/F01/F02/F05/F07/F08/F09/F10/UI1/UI2/UI4; D-04/D-06/D-07
-- 22-13: apps/api/src/chat/facts.ts, packages/contracts/src/chat.ts, apps/api/src/routes/chat.ts, e2e/chat.spec.ts, apps/api/src/chat/provider.ts, apps/api/src/chat/runs.ts, apps/web/app/(app)/chat/_components/messages.tsx, e2e/today.spec.ts — SC4/F02/F06/F09/F10/UI3; D-01/D-02/D-06/D-08
-- 22-14: apps/api/src/chat/calendar.ts, apps/api/src/chat/tools.ts, apps/api/src/chat/undo.ts, apps/api/src/routes/chat.ts, e2e/calendar.spec.ts, apps/web/app/(app)/chat/_components/messages.tsx, apps/web/app/(app)/chat/_components/use-chat.ts, e2e/move.spec.ts, e2e/chat.spec.ts, e2e/today.spec.ts — SC2/SC3/F02/F04/F05/F07/F09/F10/UI2; D-01/D-03/D-06
-- 22-15: apps/web/app/(app)/chat/_components/model-controls.tsx, apps/web/app/(app)/chat/_components/composer.tsx, apps/web/app/(app)/chat/_components/use-chat.ts, apps/web/app/(app)/chat/_components/chat-screen.tsx, e2e/chat.spec.ts, apps/web/app/(app)/settings/_components/assistant-card.tsx, apps/web/app/(app)/settings/_components/settings-screen.tsx, apps/web/app/(app)/chat/_components/conversation-list.tsx, apps/web/app/(app)/chat/_components/messages.tsx — SC1/SC2/SC3/SC5/F01/F07/F09/F10/UI1–UI5; D-05/D-07/D-08
-- 22-16: apps/api/src/chat/conversations.ts, apps/api/src/chat/store.ts, apps/api/src/chat/events.ts, apps/api/src/routes/chat.ts, e2e/chat.spec.ts, apps/web/app/privacy/page.tsx, e2e/calendar.spec.ts — SC1/SC3/SC5/F02/F05/F07/F08/F09/F10/UI1; D-02/D-03/D-04/D-06/D-07
-- 22-17: read-only/no writes — SC1–SC5/F01–F10/UI1–UI5/ARCH-A1–A3; D-01–D-09
-
-## Durable E01–E14 failure paths and exact evidence
-
-e2e/chat.spec.ts **NEW**, not existing at source pin. One necessary durable journey in existing harness, written before behavior; old tests preserved. Existing marks/move/today/calendar journeys extended at shared owner. Only real public UI/API→app→persistence; no unit/component/contract/integration suites, canned provider success/Google ACK/410, new incident fixture system. Real network delay/continue/interrupt can exercise admitted app flow; it does not prove account/provider quality. Late/unknown provider cases require actual authorized capability, not mocked completion.
-
-| Failure ID | Failure modes → observable owner outcome                              | Task owner                            | Durable journey    |
-| ---------- | --------------------------------------------------------------------- | ------------------------------------- | ------------------ |
-| E01        | CRUD/duplicates/no-paid-read/delete race/focus                        | 02/T2–3,16/T1                         | chat               |
-| E02        | literal/duplicate-name/IME/edited/stale mention                       | 07/T1–3                               | chat               |
-| E03        | local atomic action/lost reply/open-screen update                     | 03/T3 producer;08/T2–3;14/T2          | chat,today         |
-| E04        | ABA/same kind/cut lineage; A/B/base/S′; same-entry edit               | 04/T1–3,05/T2–3,06/T1–2,08/T2–3       | marks,chat         |
-| E05        | zero/many/omitted date/time/DST/natural target/single cancel          | 07/T1–3,14/T2                         | chat,move          |
-| E06        | Google ACK delay/lost response/projection pending/partial/reload      | 14/T1–2                               | calendar,move      |
-| E07        | Google newer edit/unknown inverse and preserved entries/history       | 05/06/08 local;14/T1–2 Calendar       | chat,calendar,move |
-| E08        | code facts/debt/null/zero/coverage/invalid digits+words/recovery      | 01/T1–2,13/T1–2                       | chat,today         |
-| E09        | cursor overlap/malformed/partial JSON/stop/restart/late event         | 03/T1–3,12/T1–3,16/T1                 | chat               |
-| E10        | 80%/cap/missing profile/full bound/race/continuation/unknown usage    | 11/T1–3,12/T1–3,15/T2                 | chat               |
-| E11        | credit refusal != app cap/captured model-effort-price-period          | 11/T1–3,12/T3,15/T2                   | chat               |
-| E12        | configuration/default/recommended/order/unsupported/unavailable/reset | 10/T2,11/T1–3,12/T3,15/T1–2           | chat               |
-| E13        | 320/375px/long content/IME/keyboard/focus/themes/reduced-motion       | 07/T3,15/T1–2;02/05/06/08/13 UI joins | chat               |
-| E14        | student/session/Origin/injection/out-of-scope/public privacy          | 01/07/08/12/13/14,16/T2               | chat,calendar      |
-
-Exact task commands below are future **NOT RUN**; title filters must match at least one actual registered scenario (setup alone never proof). Use original numeric exit and no output-truncation pipe. Failures/expected outcomes in each PLAN before behavior. Functional scenario budget90s existing harness, not fabricated <60s; bounded operations don't cut producer completion.
-
-| Owner    | Exact automated command(s)                                                                                                                                                                                                                                                   | Current status                                                                                                                                                                                          |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 22-01/T1 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E08 records-tracer\\                                                                                                                                                          | \[chat22\] E14 records-authority' --project=light`                                                                                                                                                      | NOT RUN — future execution                                                                                                                                                                              |
-| 22-01/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E08 records-tracer\\                                                                                                                                                          | \[chat22\] E14 records-authority' --project=light --project=dark`                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-02/T1 | `yarn workspace @dv-lab/db typecheck`                                                                                                                                                                                                                                        | NOT RUN — future execution                                                                                                                                                                              |
-| 22-02/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E01 history-crud' --project=light`                                                                                                                                            | NOT RUN — future execution                                                                                                                                                                              |
-| 22-02/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E01 history-crud' --project=light --project=dark`                                                                                                                             | NOT RUN — future execution                                                                                                                                                                              |
-| 22-03/T1 | `yarn workspace @dv-lab/db typecheck`                                                                                                                                                                                                                                        | NOT RUN — future execution                                                                                                                                                                              |
-| 22-03/T2 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-03/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E09 transport-replay' --project=light`<br>`E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/today.spec.ts --grep '\[chat22\] E03 shared-reread' --project=light` | NOT RUN — future execution                                                                                                                                                                              |
-| 22-04/T1 | `yarn workspace @dv-lab/contracts typecheck`                                                                                                                                                                                                                                 | NOT RUN — future execution                                                                                                                                                                              |
-| 22-04/T2 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-04/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/marks.spec.ts --grep '\[chat22\] E04 mark-revision' --project=light --project=dark`                                                                                                                           | NOT RUN — future execution                                                                                                                                                                              |
-| 22-05/T1 | `yarn workspace @dv-lab/db typecheck`                                                                                                                                                                                                                                        | NOT RUN — future execution                                                                                                                                                                              |
-| 22-05/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E04 entry-identity' --project=light`                                                                                                                                          | NOT RUN — future execution                                                                                                                                                                              |
-| 22-05/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E04 entry-identity' --project=light --project=dark`                                                                                                                           | NOT RUN — future execution                                                                                                                                                                              |
-| 22-06/T1 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E04 comment-identity' --project=light`                                                                                                                                        | NOT RUN — future execution                                                                                                                                                                              |
-| 22-06/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E04 comment-identity' --project=light --project=dark`                                                                                                                         | NOT RUN — future execution                                                                                                                                                                              |
-| 22-07/T1 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-07/T2 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-07/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E02 mention-identity\\                                                                                                                                                        | \[chat22\] E05 target-resolution\\                                                                                                                                                                      | \[chat22\] E13 composer-controls\\                                                                                                                                                                      | \[chat22\] E14 mention-authority' --project=light --project=dark` | NOT RUN — future execution |
-| 22-08/T1 | `yarn workspace @dv-lab/contracts typecheck`                                                                                                                                                                                                                                 | NOT RUN — future execution                                                                                                                                                                              |
-| 22-08/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E03 local-apply\\                                                                                                                                                             | \[chat22\] E04 local-undo\\                                                                                                                                                                             | \[chat22\] E14 tool-authority' --project=light`                                                                                                                                                         | NOT RUN — future execution                                        |
-| 22-08/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E03 local-apply\\                                                                                                                                                             | \[chat22\] E04 local-undo' --project=light --project=dark`<br>`E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/today.spec.ts --grep '\[chat22\] E03 shared-reread' --project=light`       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-09/T1 | `yarn npm info @anthropic-ai/sdk@0.133.0 --fields version,repository,dist,time,engines,scripts --json`                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-09/T2 | `yarn npm info @anthropic-ai/sdk@0.133.0 --fields version,repository,dist,time,engines,scripts --json`                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-10/T1 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-10/T2 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-10/T3 | `yarn exec prettier --check deploy/compose.yaml`                                                                                                                                                                                                                             | NOT RUN — future execution                                                                                                                                                                              |
-| 22-11/T1 | `yarn workspace @dv-lab/db typecheck`                                                                                                                                                                                                                                        | NOT RUN — future execution                                                                                                                                                                              |
-| 22-11/T2 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-11/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E10 budget-admission\\                                                                                                                                                        | \[chat22\] E11 credit-attribution\\                                                                                                                                                                     | \[chat22\] E12 model-selection' --project=light --project=dark`                                                                                                                                         | NOT RUN — future execution                                        |
-| 22-12/T1 | `yarn workspace @dv-lab/contracts typecheck`                                                                                                                                                                                                                                 | NOT RUN — future execution                                                                                                                                                                              |
-| 22-12/T2 | `yarn workspace @dv-lab/api typecheck`                                                                                                                                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-12/T3 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E09 messages-recovery\\                                                                                                                                                       | \[chat22\] E10 budget-admission\\                                                                                                                                                                       | \[chat22\] E11 credit-attribution\\                                                                                                                                                                     | \[chat22\] E14 tool-authority' --project=light --project=dark`    | NOT RUN — future execution |
-| 22-13/T1 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E08 records-tracer\\                                                                                                                                                          | \[chat22\] E08 grounded-answer\\                                                                                                                                                                        | \[chat22\] E14 record-injection' --project=light`                                                                                                                                                       | NOT RUN — future execution                                        |
-| 22-13/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E08 grounded-answer\\                                                                                                                                                         | \[chat22\] E14 record-injection' --project=light --project=dark`<br>`E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/today.spec.ts --grep '\[chat22\] E03 shared-reread' --project=light` | NOT RUN — future execution                                                                                                                                                                              |
-| 22-14/T1 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep '\[chat22\] E06 calendar-status\\                                                                                                                                                     | \[chat22\] E07 calendar-inverse\\                                                                                                                                                                       | \[chat22\] E14 calendar-authority' --project=light`                                                                                                                                                     | NOT RUN — future execution                                        |
-| 22-14/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/move.spec.ts --grep '\[chat22\] E05 single-calendar-target\\                                                                                                                                                  | \[chat22\] E06 calendar-status\\                                                                                                                                                                        | \[chat22\] E07 calendar-inverse' --project=light --project=dark`<br>`E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/today.spec.ts --grep '\[chat22\] E03 shared-reread' --project=light` | NOT RUN — future execution                                        |
-| 22-15/T1 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E12 model-selection\\                                                                                                                                                         | \[chat22\] E13 model-controls' --project=light --project=dark`                                                                                                                                          | NOT RUN — future execution                                                                                                                                                                              |
-| 22-15/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E13 presentation\\                                                                                                                                                            | \[chat22\] E10 budget-admission\\                                                                                                                                                                       | \[chat22\] E11 credit-attribution\\                                                                                                                                                                     | \[chat22\] E12 model-selection' --project=light --project=dark`   | NOT RUN — future execution |
-| 22-16/T1 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] E01 history-crud\\                                                                                                                                                            | \[chat22\] E01 deletion-liabilities\\                                                                                                                                                                   | \[chat22\] E09 deletion-race' --project=light`                                                                                                                                                          | NOT RUN — future execution                                        |
-| 22-16/T2 | `E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/calendar.spec.ts --grep '\[chat22\] E14 public-privacy' --project=light --project=dark`                                                                                                                       | NOT RUN — future execution                                                                                                                                                                              |
-| 22-17/T1 | `yarn typecheck`                                                                                                                                                                                                                                                             | NOT RUN — future execution                                                                                                                                                                              |
-| 22-17/T2 | `yarn playwright test e2e/chat.spec.ts --list --grep '\[chat22\] E01\\                                                                                                                                                                                                       | \[chat22\] E02\\                                                                                                                                                                                        | \[chat22\] E03\\                                                                                                                                                                                        | \[chat22\] E04\\                                                  | \[chat22\] E05\\           | \[chat22\] E08\\ | \[chat22\] E09\\ | \[chat22\] E10\\ | \[chat22\] E11\\ | \[chat22\] E12\\ | \[chat22\] E13\\ | \[chat22\] E14'` | NOT RUN — future execution |
-
-Per E2E run retain in existing authorized private result location/stdout: code version/diff fingerprint, scenario+fixture refs, target build+persistence attestation, expected/observed, actual original exit, exact rerun command. No secrets/student content. Reuse passing evidence until relevant input changes. Missing/runtime-provider gate recorded E ID+SC/F, never pass from --list.
-
-### Scoped static and quality gate owners
-
-Each schema plan: `yarn db:generate`, inspect actual additive SQL/snapshot/catalog under existing lease, `yarn db:migrate` with actual migrator; both original exits blocking. Generator sync at last schema owner12 only if schema changed since generation; don't run broad destructive tests or fake production migration proof.
-Registry/API tasks inherit working `yarn workspace @dv-lab/contracts typecheck`, `yarn workspace @dv-lab/db typecheck`, `yarn workspace @dv-lab/api typecheck`.
-Final17 single owner: `yarn typecheck`; `yarn workspace @dv-lab/api build`; `yarn workspace @dv-lab/web build` (one each in wave17).
-Touched web ESLint exact owned paths: `yarn workspace @dv-lab/web exec eslint 'app/(app)/_components/today-mark-controls.tsx' 'app/(app)/chat/_components/chat-screen.tsx' 'app/(app)/chat/_components/composer.tsx' 'app/(app)/chat/_components/conversation-list.tsx' 'app/(app)/chat/_components/messages.tsx' 'app/(app)/chat/_components/model-controls.tsx' 'app/(app)/chat/_components/use-chat.ts' 'app/(app)/chat/page.tsx' 'app/(app)/schedule/_components/lesson-details.tsx' 'app/(app)/schedule/_components/lesson-dialogs.tsx' 'app/(app)/schedule/_components/schedule-mutations.ts' 'app/(app)/settings/_components/assistant-card.tsx' 'app/(app)/settings/_components/settings-screen.tsx' 'app/(app)/students/[id]/_components/notes-tab.tsx' 'app/privacy/page.tsx' 'components/app/calendar-command-provider.tsx' 'lib/api-client.ts' 'lib/data-changes.ts'`.
-Scoped dead code: `yarn exec knip --workspace @dv-lab/api --workspace @dv-lab/web --workspace @dv-lab/contracts --workspace @dv-lab/db --no-progress`; actual preexisting outside-owned findings distinct, owned findings resolved. No global new test layer.
-Metrics command rendering: `node scripts/dev-checks/calendar-quality.ts --base {actual-execution22-40hex-base} --owned 'apps/api/src/app.ts' --owned 'apps/api/src/cards/mentions.ts' --owned 'apps/api/src/cards/notes.ts' --owned 'apps/api/src/cards/sections.ts' --owned 'apps/api/src/chat/budget.ts' --owned 'apps/api/src/chat/calendar.ts' --owned 'apps/api/src/chat/conversations.ts' --owned 'apps/api/src/chat/events.ts' --owned 'apps/api/src/chat/facts.ts' --owned 'apps/api/src/chat/lesson-target.ts' --owned 'apps/api/src/chat/model-config.ts' --owned 'apps/api/src/chat/provider.ts' --owned 'apps/api/src/chat/runs.ts' --owned 'apps/api/src/chat/store.ts' --owned 'apps/api/src/chat/tools.ts' --owned 'apps/api/src/chat/undo.ts' --owned 'apps/api/src/chat/usage.ts' --owned 'apps/api/src/config.ts' --owned 'apps/api/src/routes/chat.ts' --owned 'apps/api/src/routes/schedule.ts' --owned 'apps/api/src/routes/settings.ts' --owned 'apps/api/src/routes/students.ts' --owned 'apps/api/src/schedule/comments.ts' --owned 'apps/api/src/schedule/marks.ts' --owned 'apps/api/src/schedule/rows.ts' --owned 'apps/api/src/schedule/series.ts' --owned 'apps/api/src/server.ts' --owned 'apps/api/src/settings/settings.ts' --owned 'apps/web/app/(app)/_components/today-mark-controls.tsx' --owned 'apps/web/app/(app)/chat/_components/chat-screen.tsx' --owned 'apps/web/app/(app)/chat/_components/composer.tsx' --owned 'apps/web/app/(app)/chat/_components/conversation-list.tsx' --owned 'apps/web/app/(app)/chat/_components/messages.tsx' --owned 'apps/web/app/(app)/chat/_components/model-controls.tsx' --owned 'apps/web/app/(app)/chat/_components/use-chat.ts' --owned 'apps/web/app/(app)/chat/page.tsx' --owned 'apps/web/app/(app)/schedule/_components/lesson-details.tsx' --owned 'apps/web/app/(app)/schedule/_components/lesson-dialogs.tsx' --owned 'apps/web/app/(app)/schedule/_components/schedule-mutations.ts' --owned 'apps/web/app/(app)/settings/_components/assistant-card.tsx' --owned 'apps/web/app/(app)/settings/_components/settings-screen.tsx' --owned 'apps/web/app/(app)/students/[id]/_components/notes-tab.tsx' --owned 'apps/web/app/privacy/page.tsx' --owned 'apps/web/components/app/calendar-command-provider.tsx' --owned 'apps/web/lib/api-client.ts' --owned 'apps/web/lib/data-changes.ts' --owned 'e2e/calendar.spec.ts' --owned 'e2e/chat.spec.ts' --owned 'e2e/marks.spec.ts' --owned 'e2e/move.spec.ts' --owned 'e2e/support/data.ts' --owned 'e2e/support/test.ts' --owned 'e2e/today.spec.ts' --owned 'packages/contracts/src/chat-events.ts' --owned 'packages/contracts/src/chat-settings.ts' --owned 'packages/contracts/src/chat.ts' --owned 'packages/contracts/src/index.ts' --owned 'packages/contracts/src/schedule.ts' --owned 'packages/contracts/src/students.ts' --owned 'packages/db/drizzle.config.ts' --owned 'packages/db/src/chat-budget-schema.ts' --owned 'packages/db/src/chat-schema.ts' --owned 'packages/db/src/entry-schema.ts' --owned 'packages/db/src/schema.ts'`; append `--new <literal path>` for source files absent at that actual base before run. Parent replaces brace base/new-path binding with concrete literals. Do not invoke runner default Phase24 inventory. Method: existing calendar-metrics METHOD + calendar-types, actual tool/TS versions/fingerprints/denominators; CC/cognitive<22, D<80 per function/callback, physical file<500. Halstead DVLab executable AST leaves v1, exact spelling operand/punctuation/keyword operators, trivia/import/type syntax erased, nested function owns tokens once. Unsupported constructs/copiedDS metrics UNVERIFIED, not grandfathered PASS.
-Mandatory simplify final owned diff only; no any, unknown only validated input/errors, no confirmed dead/redundant code. Existing CI boundary invariants web≠api/db, contracts/core pure and auth/client-address trusts preserved by owned lint/type/build/CI steps. No new boundary checker script or full unrelated audit.
-All static/metrics/runtime commands above **NOT RUN** now; documentation-only preparation does not build.
-
-## Exact native predicate lift
-
-51/51 resolved explicit edges;0 unresolved/unclassified. Native historical SC numbering inside predicate text retained byte-for-byte; canonical SC mapping comes from Context/ROWMAP table above and requirement ID, not those historical shorthand digits. No standalone fake SPEC or hidden heuristic fallback; semantic shape overrides the three heuristic recovery misses.
-
-| Requirement/category | Plan/task consumer owner | Exact must_haves truth                                                                                                                                                                                             |
-| -------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CHAT-01/adjacency    | 22-02 tasks              | SC1/F01,F02,F08/E01,E09: Equal titles are separate server conversation IDs; request identity/digest never merges independent conversations.                                                                        |
-| CHAT-01/empty        | 22-02 tasks              | SC1/F01,F02,F08/E01,E09: Empty history/new chat is valid with zero model request; empty/overflow rename is rejected by the finite schema.                                                                          |
-| CHAT-01/encoding     | 22-02 tasks              | SC1/F01,F02,F08/E01,E09: Choose finite title/message bounds and normalization in the shared schema before consumers; Unicode text never becomes identity and overflow is rejected without silent truncation.       |
-| CHAT-01/ordering     | 22-02 tasks              | SC1/F01,F02,F08/E01,E09: Persisted message/event cursor order is stable, and the explicit server conversation-list order has an ID tie-break.                                                                      |
-| CHAT-01/idempotency  | 22-02 tasks              | SC1/F01,F02,F08/E01,E09: Create/rename/delete uses original request identity and revision; same identity/different payload refuses; repetition yields one original result.                                         |
-| CHAT-01/concurrency  | 22-02 tasks              | SC1/F01,F02,F08/E01,E09: One active turn per conversation; rename/delete/late stream races retain account isolation and tombstone/run/budget truth.                                                                |
-| CHAT-02/adjacency    | 22-07 tasks              | SC1/F03/E02,E14: Equal normalized names remain distinct selected student IDs with safe distinguishing data; no first-match binding.                                                                                |
-| CHAT-02/empty        | 22-07 tasks              | SC1/F03/E02,E14: Empty or unresolved @/no matches sends no guessed student binding; zero actual candidates is separate from read failure.                                                                          |
-| CHAT-02/encoding     | 22-07 tasks              | SC1/F03/E02,E14: Literal normalized displayName search and explicit studentId bind mention text/offsets; Unicode/IME edits invalidate affected binding before Send.                                                |
-| CHAT-02/ordering     | 22-07 tasks              | SC1/F03/E02,E14: Search uses stable lower(displayName),ID order and at most six current safe candidates; stale responses never replace the active query.                                                           |
-| CHAT-02/idempotency  | 22-07 tasks              | SC1/F03/E02,E14: Selecting a mention or replaying a stored message does not send, create a student or repeat a business action.                                                                                    |
-| CHAT-02/concurrency  | 22-07 tasks              | SC1/F03/E02,E14: Revalidate card/teacher/binding on Send; rename/inactivation/query races invalidate stale options without private DTO exposure.                                                                   |
-| CHAT-03/boundary     | 22-07 tasks              | SC2/F03,F05/E03,E05,E06: Only the existing owner-defined eligible change window permits a mark/move; ambiguous date, missing time, DST gap/fold or zero/multiple lessons require exact clarification.              |
-| CHAT-03/adjacency    | 22-07 tasks              | SC2/F03,F05/E03,E05,E06: Same student/time or overlapping local/provider targets do not collapse exact occurrence/series/single identities; only one eligible omission target is accepted.                         |
-| CHAT-03/empty        | 22-07 tasks              | SC2/F03,F05/E03,E05,E06: No eligible lesson asks for the date/target with zero business writes; omitted date resolves only when exactly one valid target exists.                                                   |
-| CHAT-03/encoding     | 22-07 tasks              | SC2/F03,F05/E03,E05,E06: Quick-action text/teacher date/time/zone parses into validated exact target; labels or Google suffix guesses never determine identity.                                                    |
-| CHAT-03/ordering     | 22-07 tasks              | SC2/F03,F05/E03,E05,E06: Resolve by existing schedule/confirmed calendar owners; candidate order never grants authority to the first or nearest lesson.                                                            |
-| CHAT-03/precision    | 22-07 tasks              | SC2/F03,F05/E03,E05,E06: Use existing named-zone/core instant conversion and exact timestamps; no guessed offset, DST rounding or model-calculated temporal value.                                                 |
-| CHAT-03/idempotency  | 22-14 tasks              | SC2/F03,F05/E03,E05,E06: Persist exact action identity before dispatch; replay/stream reconnect reads the original effect or Calendar journal.                                                                     |
-| CHAT-03/concurrency  | 22-14 tasks              | SC2/F03,F05/E03,E05,E06: Current target revision is guarded; pending/unknown provider state remains original recovery with zero blind retry or false Saved.                                                        |
-| CHAT-04/adjacency    | 22-08 tasks              | SC2/F04,F05/E03,E04,E06,E07: Identical note/comment text creates distinct entry identities; mark state equality does not replace row revision/ABA proof.                                                           |
-| CHAT-04/empty        | 22-08 tasks              | SC2/F04,F05/E03,E04,E06,E07: Empty append/invalid arguments yields a matching safe tool result with zero effect; no synthetic Undo.                                                                                |
-| CHAT-04/encoding     | 22-08 tasks              | SC2/F04,F05/E03,E04,E06,E07: Stored markdown/plain text is untrusted data; strict shared schema bounds text and never converts HTML/instruction text to tool authority.                                            |
-| CHAT-04/ordering     | 22-08 tasks              | SC2/F04,F05/E03,E04,E06,E07: Append entries preserve established chronological/version order and independent later edits; Undo retracts only its own unchanged entry.                                              |
-| CHAT-04/idempotency  | 22-08 tasks              | SC2/F04,F05/E03,E04,E06,E07: Local effect+receipt is atomic and each tool call gets one stored result; duplicate action or Undo reads its prior outcome.                                                           |
-| CHAT-04/concurrency  | 22-08 tasks              | SC2/F04,F05/E03,E04,E06,E07: All ordinary mark/edit writers participate in actual revisions; stale Undo refuses and preserves later edits, including series-cut lineage.                                           |
-| CHAT-07/adjacency    | 22-13 tasks              | SC3/F06/E08,E14: Stored excerpts, code facts and Suggestions remain distinct; duplicate wording is not another persisted note or fact source.                                                                      |
-| CHAT-07/empty        | 22-13 tasks              | SC3/F06/E08,E14: Absent facts/notes and unavailable reads show their specific status; unknown next lesson is not asserted absent.                                                                                  |
-| CHAT-07/encoding     | 22-13 tasks              | SC3/F06/E08,E14: Student/essay/imported text is untrusted; validated narrative slots and safe rendering preserve text without making it a write instruction.                                                       |
-| CHAT-07/ordering     | 22-13 tasks              | SC3/F06/E08,E14: Authorized context is bounded and traceable to current source/asOf/coverage; no invisible arbitrary ordering or unbounded student scan.                                                           |
-| CHAT-07/concurrency  | 22-13 tasks              | SC3/F06/E08,E14: Read/coverage failure or changed context cannot publish a complete financial claim; safe Refresh records performs no paid call or business mutation.                                              |
-| CHAT-08/boundary     | 22-13 tasks              | SC3/F06/E08,E14: Balances/counts/Pays soon use existing core/card-facts boundary semantics, not new thresholds; unavailable opening/coverage is not zero.                                                          |
-| CHAT-08/adjacency    | 22-13 tasks              | SC3/F06/E08,E14: Same-value facts or overlapping query windows do not double count students, payments, lessons or usage; current exact IDs and owner window rules apply.                                           |
-| CHAT-08/empty        | 22-13 tasks              | SC3/F06/E08,E14: Code-empty list/count is distinct from incomplete/unavailable reads; only observed complete data yields zero or no-next-lesson.                                                                   |
-| CHAT-08/encoding     | 22-13 tasks              | SC3/F06/E08,E14: Server templates/typed slots provide every numeric financial clause; rejected unsupported narrative is withheld before publication.                                                               |
-| CHAT-08/ordering     | 22-13 tasks              | SC3/F06/E08,E14: Pays soon and fact lists use the existing owner ordering and safe typed fields; model narrative cannot reorder facts into a different financial assertion.                                        |
-| CHAT-08/precision    | 22-13 tasks              | SC3/F06/E08,E14: Reuse core integer money/minutes/hundredths and formatters; no model division, floating FX, overflow or second accounting algorithm.                                                              |
-| CHAT-08/concurrency  | 22-13 tasks              | SC3/F06/E08,E14: Numeric publication uses current authorized source/asOf/coverage and validated slots; stale/incomplete context offers explicit safe read recovery.                                                |
-| CHAT-09/adjacency    | 22-12 tasks              | SC1,SC2/F02,F07/E06,E09,E13: Repeated cursors/tool results deduplicate by durable IDs; same-looking token/block never causes another effect or announcement.                                                       |
-| CHAT-09/empty        | 22-12 tasks              | SC1,SC2/F02,F07/E06,E09,E13: No publishable content has working/incomplete state, not a blank successful reply; aborted streams retain persisted status.                                                           |
-| CHAT-09/encoding     | 22-12 tasks              | SC1,SC2/F02,F07/E06,E09,E13: Parse/validate SSE event framing and approved safe text blocks; no partial tool JSON or raw numeric model tokens become publishable facts.                                            |
-| CHAT-09/ordering     | 22-12 tasks              | SC1,SC2/F02,F07/E06,E09,E13: Persist-before-publish and monotonic cursor order preserve exactly one teacher message and the original run across reload/reconnect.                                                  |
-| CHAT-09/idempotency  | 22-12 tasks              | SC1,SC2/F02,F07/E06,E09,E13: Reconnection/reload only reads durable cursor/run state; no new generation, tool dispatch or paid attempt.                                                                            |
-| CHAT-09/concurrency  | 22-12 tasks              | SC1,SC2/F02,F07/E06,E09,E13: Stop reply prevents future dispatch but preserves admitted effects and unknown cost; cross-tab invalidation rereads owners without losing range/draft/focus.                          |
-| CHAT-11/boundary     | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Finite account-period cap and exact captured reservation close Send when not affordable or missing; cap is separate from provider credits.                                                |
-| CHAT-11/adjacency    | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Usage belongs to one account/period/attempt/conversation; overlapping tabs or cumulative snapshots never share another teacher's cap or double sum.                                       |
-| CHAT-11/empty        | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Missing cap/model/pricing/usage proof disables paid Send, while history and safe reads remain available; no invented number or unlimited default.                                         |
-| CHAT-11/ordering     | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Reservations settle once against captured attempt/pricing/period; late response settles original period, not current model or month.                                                      |
-| CHAT-11/precision    | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Use exact category-aware price units and explicit rounding that cannot underreserve; safe declared maximum bound or proven tighter bound before admission, no character/token multiplier. |
-| CHAT-11/idempotency  | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Each admitted paid request/continuation reserves once and settles actual usage once; replay never adds or releases another reservation.                                                   |
-| CHAT-11/concurrency  | 22-11 tasks              | SC5/F07/F10,E10,E11,E12: Account-period locks serialize simultaneous conversations; possibly dispatched unknown usage keeps reservation and admission closed until actual owner evidence.                          |
-
-61/61 UI exact predicates,8surfaces, explicit0unresolved0unclassified. All native exact text appears once in PLAN must_haves.truths; this INDEX repeats provenance, not another wire schema.
-
-| Surface/state             | Plan/task owner | Exact must_haves truth                                                                                                                                    |
-| ------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HISTORY/empty             | 22-02 tasks     | UI1/E01: empty chat/list uses P01 and does not start a model request.                                                                                     |
-| HISTORY/loading           | 22-02 tasks     | UI1/E01: history/list loading uses the specified skeleton and preserves selected chat and draft.                                                          |
-| HISTORY/error             | 22-02 tasks     | UI1/E01: failed history/CRUD uses P02–P05 with safe refresh/status, without repeated Send or business cascade.                                            |
-| HISTORY/populated         | 22-02 tasks     | UI1/E01/E09: the selected conversation and persisted messages appear in the one-column/overlay layout with stable identities.                             |
-| HISTORY/partial           | 22-12 tasks     | UI1/E09: interrupted or incomplete history shows actual status/high-water and never duplicates a message or declares waiting done.                        |
-| HISTORY/overflow          | 22-02 tasks     | UI5/E13: the specified list scroll and fade preserve older-reading position; auto-follow runs only at the bottom.                                         |
-| HISTORY/zero-one-many     | 22-02 tasks     | UI1/E01: zero, one and many conversations/messages keep a readable stable list and do not invent counts or hidden success.                                |
-| HISTORY/long-text         | 22-02 tasks     | UI5/E13: long title/text wraps or truncates with an accessible full label and keeps New chat/All chats usable.                                            |
-| COMPOSER/empty            | 22-07 tasks     | UI1/E01: an empty draft performs no Send or paid admission; placeholder/help follow P06.                                                                  |
-| COMPOSER/loading          | 22-12 tasks     | UI1/E09: accepted/working Send disables the specified controls; the draft and one persisted teacher message remain.                                       |
-| COMPOSER/error            | 22-12 tasks     | UI1/E09: failed admission preserves the draft and the original request outcome; retry does not blindly replay an admitted turn.                           |
-| COMPOSER/partial          | 22-07 tasks     | UI1/UI2/E02/E05: edited mention, incomplete target/date or partial tool arguments require clarification and cause zero guessed write.                     |
-| COMPOSER/long-text        | 22-15 tasks     | UI5/E13: textarea grows to five lines then scrolls inside; Send remains visible at 320/375px, with Enter/Shift+Enter/IME rules.                           |
-| MENTION/empty             | 22-07 tasks     | UI1/E02: no matches uses P07; a literal name does not become a guessed student ID.                                                                        |
-| MENTION/loading           | 22-07 tasks     | UI1/E02: loading student search preserves text/focus and does not select or Send automatically.                                                           |
-| MENTION/error             | 22-07 tasks     | UI1/E02/E14: search/authority failure shows safe P07/P08 and cannot expose private data or reuse an invalid binding.                                      |
-| MENTION/populated         | 22-07 tasks     | UI1/E02: at most the specified six popup rows show safe names/details; explicit selection binds the exact current ID.                                     |
-| MENTION/partial           | 22-07 tasks     | UI1/E02: renamed/inactive/edited mention invalidates binding and requires a new explicit selection before Send.                                           |
-| MENTION/overflow          | 22-07 tasks     | UI5/E13: the popup uses existing ScrollFade and viewport bounds without horizontal page scroll.                                                           |
-| MENTION/zero-one-many     | 22-07 tasks     | UI1/E02: zero/one/duplicate-name/many matches retain exact selection and never choose the first same-name card.                                           |
-| MENTION/long-text         | 22-07 tasks     | UI5/E13: long names/details remain readable and keyboard accessible; Enter/Tab selection and IME do not send.                                             |
-| TARGET/empty              | 22-14 tasks     | UI2/E05: zero eligible lessons or missing date/time asks the specified actual target question with zero writes.                                           |
-| TARGET/loading            | 22-14 tasks     | UI2/E03/E06: resolving/checking a target uses actual stage feedback and disables repeated action dispatch.                                                |
-| TARGET/error              | 22-14 tasks     | UI2/E05/E14: stale/invalid/forbidden target or DST failure keeps the draft and shows clarification/error without a guessed effect.                        |
-| TARGET/populated          | 22-14 tasks     | UI2/E03/E05: Was/Didn't happen/No-show/Moved to and explicit eligible target/date/zone use the stated single-lesson meanings.                             |
-| TARGET/partial            | 22-14 tasks     | UI2/E05: multiple lessons, incomplete move time or ambiguous offset waits for explicit input; no bulk/nearest reinterpretation.                           |
-| TARGET/overflow           | 22-14 tasks     | UI5/E13: target choices/dialog content stay within the narrow viewport and remain scrollable.                                                             |
-| TARGET/zero-one-many      | 22-14 tasks     | UI2/E05: only exactly one eligible target allows omission; zero or multiple targets require explicit choices.                                             |
-| TARGET/long-text          | 22-14 tasks     | UI5/E13: long target/date/TimePair labels wrap while the exact choice and action stay visible.                                                            |
-| RESULT/empty              | 22-14 tasks     | UI2/E03/E06: no committed/matching result has no success block or Undo, even if a model claims completion.                                                |
-| RESULT/loading            | 22-14 tasks     | UI2/E04/E06/E07: pending original/inverse shows actual status, disables duplicate Undo, and keeps the same journal identity.                              |
-| RESULT/error              | 22-14 tasks     | UI2/E04/E07: stale inverse uses P11; unknown Calendar uses P16/Check status without Saved/Undone or a blind new command.                                  |
-| RESULT/populated          | 22-14 tasks     | UI2/E03/E04: a matching committed action shows P10/P15 and only the server-eligible persisted Undo.                                                       |
-| RESULT/partial            | 22-14 tasks     | UI2/E06/E07: unknown/partial/projection_pending remains checking and read-only as specified, not full success.                                            |
-| RESULT/overflow           | 22-14 tasks     | UI5/E13: result/status blocks wrap and stay reachable in the message scroll region.                                                                       |
-| RESULT/zero-one-many      | 22-14 tasks     | UI2/E03/E09: zero/one/many action results are keyed to actual receipts; replay never adds a second effect/result.                                         |
-| RESULT/long-text          | 22-14 tasks     | UI5/E13: long outcome/status copy remains readable with accessible Undo/Check status and one status announcement.                                         |
-| ANSWERS/empty             | 22-13 tasks     | UI3/E08: absent notes/facts use P14; unavailable next lesson is not asserted as no next lesson.                                                           |
-| ANSWERS/loading           | 22-13 tasks     | UI3/E08/E09: reading records/calendar shows actual stages; raw partial model tokens are not financial facts.                                              |
-| ANSWERS/error             | 22-13 tasks     | UI3/E08/E14: read failure offers safe Refresh records; rejected answer offers Ask another question, with a new call only after explicit Send/budget gate. |
-| ANSWERS/populated         | 22-13 tasks     | UI3/E08: code facts equal shared Today/Students/core and show source/asOf/coverage; stored excerpts and Suggestions are distinct.                         |
-| ANSWERS/partial           | 22-13 tasks     | UI3/E08: partial/stale/unrestricted facts or unsupported numerical clauses are held before publication; no false number or complete coverage.             |
-| ANSWERS/overflow          | 22-13 tasks     | UI5/E13: facts/excerpts/suggestions wrap within the message column and preserve reader scroll position.                                                   |
-| ANSWERS/zero-one-many     | 22-13 tasks     | UI3/E08: zero/one/many fact/suggestion rows use actual data, and suggestions create no note or business write.                                            |
-| ANSWERS/long-text         | 22-13 tasks     | UI3/UI5/E08/E13: long narrative uses the validated slots and wraps; raw injected text and financial claims do not bypass the renderer.                    |
-| MODELS/empty              | 22-15 tasks     | UI4/E12: no enabled/available configured model uses Models unavailable; paid Send closes and history remains available.                                   |
-| MODELS/loading            | 22-15 tasks     | UI4/E12: configuration/loading preserves the selected chip and admits no unsupported or unknown paid request.                                             |
-| MODELS/error              | 22-15 tasks     | UI4/E11/E12: model/provider/profile rejection uses the specific configured reason; there is no silent fallback or automatic retry.                        |
-| MODELS/populated          | 22-15 tasks     | UI4/E12: ordered configured rows, Default/check/recommendation and supported effort points follow UD1–UD4 without invented price rank.                    |
-| MODELS/partial            | 22-15 tasks     | UI4/E12: partially known capabilities/availability disable unsupported choices; a five-point display alone proves no entitlement.                         |
-| MODELS/overflow           | 22-15 tasks     | UI5/E13: model menu/effort popover use the stated viewport widths and keep keyboard controls visible.                                                     |
-| MODELS/zero-one-many      | 22-15 tasks     | UI4/E12: zero/one/many configured rows preserve stable order and disabled entries; choices affect only the next explicit Send.                            |
-| MODELS/long-text          | 22-15 tasks     | UI4/UI5/E12/E13: long model/effort captions wrap or truncate accessibly; no x3/message-price promise is invented.                                         |
-| PREFERENCES/empty         | 22-15 tasks     | UI4/E10/E12: missing finite cap/model/rate shows the P20 configuration state, not a numerical default; paid Send stays closed.                            |
-| PREFERENCES/loading       | 22-15 tasks     | UI4/E12: preference save is disabled/aria-busy and cannot announce Saved before its DB result.                                                            |
-| PREFERENCES/error         | 22-15 tasks     | UI4/E10/E11: budget/read/save failure uses safe status/refresh, preserves the saved preference, and does not release unknown reservation.                 |
-| PREFERENCES/populated     | 22-15 tasks     | UI4/E10/E12: model/effort/budget and Usage by conversation show server totals/attribution/estimates; reading them calls no model.                         |
-| PREFERENCES/partial       | 22-15 tasks     | UI4/E10/E11: settled/reserved/unknown are separate; positive estimated remaining does not promise admission or API credit balance.                        |
-| PREFERENCES/overflow      | 22-15 tasks     | UI5/E13: preference/usage lists stay in the approved settings layout with scroll/wrap at narrow width.                                                    |
-| PREFERENCES/zero-one-many | 22-15 tasks     | UI4/E10: zero/one/many conversation-usage rows use actual server data and do not sum cumulative snapshots twice.                                          |
-| PREFERENCES/long-text     | 22-15 tasks     | UI4/UI5/E13: long budget reasons/model/effort/timestamp copy remains readable; stored resetAt is displayed without a guessed reset date.                  |
-
-## Prohibition / assumption-delta / security
-
-Prohibition-probe used as bespoke must-NOT completeness check, not fabricated deterministic engine. Existing accepted constraints close: no new model-written numeric facts (13/E08); no silent wrong-student or nearest target (07/E02/E05); no Saved/Undone from narrative/unknown ACK (08/14/E06/E07); no spent-cap/credit conflation or unknown-cost timeout release (11/E10/E11); no implicit business cascade/paid retry (12/16/E01/E09); no untrusted text/tool authority or Phase23/26 feature adoption (08/13/E14). These are existing public negative failure paths, not a new isolated prohibition suite. Canon auth/injection/privacy remains threat_model/Registry owner; no duplicate canon rule/schema.
-Native assumption-delta scan22 exit0 detected:true (optional relative cost/chosen model). Decision **promote** captured configured model/effort/profile/period as attempt primary identity, account default/conversation override are selection inputs only. Old constantHaiku remains configured accepted default detail, not universal model anchor. Optional relative price omitted per UD4/actual category pricing, no generalization debt. No extra invariant test suite; E11/E12 encode public identity. Decisions emitted in10/11 PLAN blocks.
-Security native config ASVS L1/block high. All18 plans have threat_model trust boundaries/STRIDE severity+disposition, unique54 threat IDs incl unique T-22-NN-SC. High threats mitigated in exact task owner; package gate09 precedes install10. No reused T-22-SC collision. P22-PC-01 appends T-22-52/53/54-SC only; original51 IDs unchanged.
-
-## Input evidence and preparation checks
-
-Native preflight reused: real init context_scope complete/req8; AI-SPEC current research reuse, accepted ARCH-A1–A3, independent approved UI plus61, typed PATTERNS. No new fake four-role research/AI run. These input hashes remain protected; planner owns none of them.
-
-| Protected22 input | SHA-256                                                          |
-| ----------------- | ---------------------------------------------------------------- |
-| 22-AI-SPEC.md     | a399cb8d22a9042f7dfcfd34c710687401f62fe043c36b694709a7e6652709ed |
-| 22-ARCH-REVIEW.md | eb55e8cc42ba98894c76a1b406fc09569cf7ed5909e13579d6b92e910dc1ccc8 |
-| 22-CONTEXT.md     | 51b32662f10e30d607d1d7a9e95c7154767d17a2925f58b91343a1bd416ca7e7 |
-| 22-PATTERNS.md    | 07222884659d31b636a7376a994798b3128117475cca2f0d5d19583b411d7093 |
-| 22-RESEARCH.md    | 38e3a5cfbd03fffbc618886e1fc632aadf6ca417e0f3fa76f3705af09565a708 |
-| 22-UI-CHECK.md    | 4dde843171d28078f5d6b0a9be6653e49b345c3ea4a7cd5e39baeb359e6fd53e |
-| 22-UI-SPEC.md     | 418cf3b3b02ae025f06c6eb52f8338a54813efd460aa779d905f83f1959c9f9a |
-
-Planning checks завершены; это plan validity, не source/runtime readiness:
-
-- Root-pin: exit0 ROOT_PIN_OK.
-- Baseline native frontmatter.validate --schema plan:17/17 exit0 valid:true, missing[]/invalidValue[]. P22-PC-01 changed09/17+new18 validated separately below.
-- Baseline native verify.plan-structure:17/17 exit0 valid:true, errors[]/warnings[],43 tasks. Original15 unmodified plan proofs reused.
-- Baseline COVERAGE was exit0 passed:true49/10/39. Current bounded diagnostic scope49/14/35 validated separately below.
-- Baseline semantic audit:exit0 errors[];51edge/61UI exact equality,8REQ/9D/5SC/10F/3ARCH/14E,17plans/43tasks/17waves, max14files/plan and5/task,51unique threats,14generated paths (7SQL+7snapshot). Current graph18/46/18 and54IDs audited below; exact51/61 unchanged.
-- Locked decisions:delta0;7protected22 hashes unchanged; tracked source diff913fc5a→current docs HEAD unchanged.
-- Baseline Prettier19 owned documents:exit0 “All matched files use Prettier code style!”; повтор после scoped INDEX evidence formatting только для final bytes. Revision formats/checks only5 authorized docs, no style changes to other15plans.
-- Source/E2E/provider/schema/runtime/Git mutation/quality execution:NOT RUN by this preparation contract.
-- Current observed docs HEAD81a11752853260327ba385475547a912b152842b; historical source pin913fc5ae9286aca9a48b5ce4272699c846849874 remains source proof, not final24/25 rebind.
-
-Exact native commands:
-
-```sh
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks
-yarn exec prettier --check '.planning/phases/22-chat-with-mentions-and-quick-marks/22-01-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-02-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-03-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-04-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-05-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-06-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-07-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-08-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-10-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-11-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-12-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-13-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-14-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-15-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-16-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/COVERAGE.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md'
-```
-
-Write/Read named tools не доступны в данном runtime; единственный файловый адаптер apply_patch для net-new owned docs и scoped последующих corrections. Shell/heredoc file creation не использовалась. Parent receives actual hashes externally, including INDEX without self-hash recursion. No Git commit/stage or shared metadata update by planner.
-
-## P22-PC-01 — bounded revision ownership / proof gate
-
-Scope Card revision: only09/17/INDEX/COVERAGE +new18; no upstream22/check/shared metadata/source/runtime/Git writes. Raw checker input SHA-25610fe8ecad407523c6e86e0af342ce0715883ecc35a990415c4da89b60907d689 immutable. Required property: future executable practical D-06 proof owner after actual legitimacy/config/key/grant/pricing/cap/budget/safe-access gates, framework decision before seal. No D-06 change or quality-eval scope.
-
-18 executes wave17 after16 and all actual producers09–12/08. Final17 becomes wave18 and depends18. Other15PLAN files/edges/UI predicates/producer graph/normal callers unchanged. Counts18plans/46tasks/18waves; original51 threats plus52/53/54-SC, original51edge/61UI equality preserved. One API build owner18 only for diagnostic source, no new web build/UI. Reuse its passing build in17 unless inputs change.
-
-18/T1 owns four files: packages/contracts/src/chat-transport-proof.ts,packages/contracts/src/index.ts,e2e/support/chat-transport-proof.ts,e2e/chat.spec.ts. Single Registry/typed diagnostic proof; C01 write,C02 explicit operator control,C03 original reload/resume authored and registered before new behavior in existing durable journey, no standalone suite.
-18/T2 owns five files: apps/api/src/chat/transport-proof.ts,apps/api/src/chat/budget.ts,apps/api/src/chat/usage.ts,apps/api/src/routes/chat-transport-proof.ts,apps/api/src/config.ts. PROPOSED createChatTransportProof/reserveProofAttempt/reconcileProofAttempt/chatTransportProofRoutes; existing business receipt/ledger/journal owners, not a second engine. /chat/transport-proof/runs+status/control are scoped new operator diagnostic application paths, not teacher UI or already implemented routes. Single existing config owner, no new role/credential/grant/access workaround.
-18/T3 owns apps/api/src/app.ts,apps/api/src/server.ts,e2e/chat.spec.ts,e2e/support/chat-transport-proof.ts. Composition after producer, actual public app/persistence checks for both transports and private result consumed17. Existing target and positive lease/build/persistence/fictional fixture authority mandatory. No actual student data/files uploaded to Managed.
-
-Future11unique18paths are listed above;86total future paths/68handwritten,14generated paths unchanged. Final17 explicit metrics --owned inventory additionally includes packages/contracts/src/chat-transport-proof.ts,apps/api/src/chat/transport-proof.ts,apps/api/src/routes/chat-transport-proof.ts,e2e/support/chat-transport-proof.ts with --new when absent at rebound execution base. Other existing18paths already in final quality inventory. No schema/Registry enum duplication or new DB/queue/environment/service required.
-
-Mandatory paid gate: known exact SDK/config/model/access/key/region/category tariffs/finite app cap before calls; Managed envelope includes provider-enforced maximum spend + worst final-request overshoot + proven finite runtime waiting/termination and all other enabled billable charges. Client expiry/abort/budget_reached/session idle cannot prove terminal cost. Missing/unbounded remote liability closes paid step and keeps held reserve/BLOCKED/UNVERIFIED; no invented numeric budget/maxcalls/sessionTTL or credits. Built-ins/bash/server tools/MCP/files off; existing positively attested safe agent/environment only. Current Managed grant and finite enforcement unobserved, not verified unsupported.
-
-Framework production default remains Messages. Actual comparison can report supported/observed-unsupported/blocked/inaccessible/unknown separately, but missing proof cannot silently close D-06/F01 or phase seal. No production Managed adoption, full49capability implementation, quality benchmark/eval/judge/dataset/new grading/SLA/recurring round.
-
-Future exact registered scenarios: [chat22] D06 C01,[chat22] D06 C02,[chat22] D06 C03, each compares both actual transports through existing public application/persistence. Actual command:
-`E2E_TARGET_ORIGIN=https://dv-lab.dev yarn playwright test e2e/chat.spec.ts --grep '\[chat22\] D06 C01|\[chat22\] D06 C02|\[chat22\] D06 C03' --project=light`.
-NOT RUN now. Original exit, per-case status/expected-observed/fixture, actual model/effort/SDK/version/diff, bound derivation/reservation/actual categorized token/runtime usage/pricing/region/storage/retention/provenance, original session/run/receipt/cursor references and literal rerun are saved only in existing private STATE_DIR. Public SUMMARY/check metadata counts/fingerprints only; no contents/keys/raw provider errors.
-
-Revision verification: exit0 native6 on changed09/17/new18, valid:true/errors[]/warnings[]; current graph18/46/18 with proof18 wave17 -> seal17 wave18,51edge/61UI exact equality,54unique threatIDs,15unchanged plans and8protected22/check inputs/source diff unchanged. Native API detector exit0 detected:true/signals3; COVERAGE exit0 passed:true49/14/35. Prettier checks only5authorized docs. Runtime/provider/E2E comparison remains NOT RUN now.
-
-## P22-PC-01 verification commands
-
-Original decisive results: native6 valid:true/errors[]/warnings[]; graph/protection/predicate audit exit0/errors[]; API detector exit0/detected:true/signals3; canonical matrix exit0/passed:true49/14/35. Other15PLAN hashes reuse existing full checker evidence. No source/paid call/DB/runtime/Git operation performed.
-
-```sh
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md --schema plan
-node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure .planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md
-node ~/.claude/gsd-core/bin/gsd-tools.cjs check api-coverage.verify-pre .planning/phases/22-chat-with-mentions-and-quick-marks
-yarn exec prettier --check '.planning/phases/22-chat-with-mentions-and-quick-marks/22-09-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-17-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-18-PLAN.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/COVERAGE.md' '.planning/phases/22-chat-with-mentions-and-quick-marks/22-PLAN-INDEX.md'
-```
-
-Current bounded graph/truth/ownership/protection/source-diff rerun (stdout only; no new test suite/artifact):
-
-```sh
-python3 -c 'import json,re,hashlib,subprocess,sys
-from pathlib import Path
-import yaml,xml.etree.ElementTree as E
-p=Path(".planning/phases/22-chat-with-mentions-and-quick-marks")
-private=Path("/var/folders/_t/fgvwdzzs1394z_82sp4p500h0000gn/T/dvlab-dev-checks")
-before={"22-13-PLAN.md":"285ee4e67ee39579d7892e34385708e684f43cf00facd221710086ac07ee6dbf","22-03-PLAN.md":"0d2acea76703bfd21b965cc6488b24440334182c3a39691e653da4c543bb6386","22-PLAN-CHECK.md":"10fe8ecad407523c6e86e0af342ce0715883ecc35a990415c4da89b60907d689","22-02-PLAN.md":"14bf9679b78c8429740d26cd39e50622715714661e4f892884379707b2bfabe7","22-12-PLAN.md":"3b4b59047086764846f19e3621509d690585276917d249aedf3df2f4d7e0a30a","22-PLAN-INDEX.md":"517431051a214db9086cf86268028048777cf9e35f9fd967731e3a74692b3265","22-10-PLAN.md":"0e6ffbc07fbd14395fa9440d7578f938686d58de93bbb739adcf9daded26dbfc","22-09-PLAN.md":"3573382c7c986be00f1e3dc0306293248cd94fc7f1e15a78591208350b6edbed","22-08-PLAN.md":"e00c1f9a7af5df3b171535a17ff64e3f4863a35a3b73bce0337ee180c08dc08d","22-01-PLAN.md":"3ff08a82f6dd99aa1325591355ae1b61c5dac9b9d89f8fe42639e3067728745c","22-11-PLAN.md":"566aa478262d23edfbdcc730614e37e7d47e11df7bffaaae584024e195f946b9","22-PATTERNS.md":"07222884659d31b636a7376a994798b3128117475cca2f0d5d19583b411d7093","22-14-PLAN.md":"5e6a0272ae2234467d213a4486c5be1eb7c4cadef18d48f97f0ecc9317d5c08d","22-04-PLAN.md":"67fb3b70ad3b11d02d437ba63a70099fcc99f24e452a497628747861f45eee83","22-ARCH-REVIEW.md":"eb55e8cc42ba98894c76a1b406fc09569cf7ed5909e13579d6b92e910dc1ccc8","22-RESEARCH.md":"38e3a5cfbd03fffbc618886e1fc632aadf6ca417e0f3fa76f3705af09565a708","22-05-PLAN.md":"d975646e97abccd731326cc0166a140e3437f8631dd88ff073e1b2ce418e3cb7","22-15-PLAN.md":"fcd1e86d062ee8f8a9d5e378c39267ea460b8010a05fe2d83be982f9c6b8d04c","COVERAGE.md":"e68aaf19abc35bf2f48b8f13b89775f8c77df59f72fc45185c642f3e79049fd4","22-CONTEXT.md":"51b32662f10e30d607d1d7a9e95c7154767d17a2925f58b91343a1bd416ca7e7","22-17-PLAN.md":"28f497c83ec8360648825779c9a5a09e1d2b503558f99c8d67c4f362e85d440a","22-07-PLAN.md":"db215122f6dda84487a54544d25c476bf083454f14f4f65b465db66a64eb0df7","22-UI-SPEC.md":"418cf3b3b02ae025f06c6eb52f8338a54813efd460aa779d905f83f1959c9f9a","22-06-PLAN.md":"faed013ba9a4b06ca9481156480f65f6594666c9ee1695876204dadce37d14a4","22-UI-CHECK.md":"4dde843171d28078f5d6b0a9be6653e49b345c3ea4a7cd5e39baeb359e6fd53e","22-16-PLAN.md":"144df1a6e756599c8644bf5239e8551366b4498c9db5899cf22f4ff9cb9bef75","22-AI-SPEC.md":"a399cb8d22a9042f7dfcfd34c710687401f62fe043c36b694709a7e6652709ed"}
-allowed={"22-09-PLAN.md","22-17-PLAN.md","COVERAGE.md","22-PLAN-INDEX.md"}
-errors=[];frames={};trees={}
-for f in sorted(p.glob("22-*-PLAN.md")):
- s=f.read_text();key=f.stem[:-5];frames[key]=yaml.safe_load(s.split("---",2)[1]);trees[key]=E.fromstring("<plan>"+s.split("---",2)[2]+"</plan>")
-for name,sha in before.items():
- if name not in allowed and hashlib.sha256((p/name).read_bytes()).hexdigest()!=sha:errors.append("unowned:"+name)
-for key,m in frames.items():
- deps=m["depends_on"]
- if any(d not in frames for d in deps):errors.append("missing:"+key);continue
- if m["wave"]!=1+max([frames[d]["wave"] for d in deps],default=0):errors.append("wave:"+key)
- if any(frames[d]["wave"]>=m["wave"] for d in deps):errors.append("dependency:"+key)
- if len(m["files_modified"])>=15:errors.append("files15+:"+key)
- tasks=trees[key].find("tasks").findall("task");owned=set()
- if not 2<=len(tasks)<=3:errors.append("tasks:"+key)
- for task in tasks:
-  raw=task.findtext("files");files=[] if raw.startswith("—") else [x.strip() for x in raw.split(",")]
-  owned.update(files)
-  if len(files)>5:errors.append("task5+:"+key)
-  if not task.find("verify").findall("automated"):errors.append("automated:"+key)
- if owned!=set(m["files_modified"]):errors.append("ownership:"+key)
-for key,m in frames.items():
- for other,n in frames.items():
-  if key<other and m["wave"]==n["wave"] and set(m["files_modified"])&set(n["files_modified"]):errors.append("wave-overlap")
-truths=[s for m in frames.values() for s in m["must_haves"]["truths"]]
-edges=json.loads((private/"22-edge-probe-resolved.json").read_text())["items"]
-ui=[line.split("|")[-2].strip() for line in (p/"22-UI-SPEC.md").read_text().splitlines() if re.match(r"\| (HISTORY|COMPOSER|MENTION|TARGET|RESULT|ANSWERS|MODELS|PREFERENCES) +\|",line)]
-for item in edges:
- if truths.count(item["resolution"])!=1:errors.append("edge:"+item["requirement_id"]+"/"+item["category"])
-for item in ui:
- if truths.count(item)!=1:errors.append("UI:"+item[:50])
-ids=[x for t in trees.values() for x in re.findall(r"\|\s*(T-22-\d+(?:-SC)?)\s*\|",E.tostring(t,encoding="unicode"))]
-if len(ids)!=54 or len(set(ids))!=54:errors.append("threat-ID")
-if "22-18" not in frames["22-17"]["depends_on"] or frames["22-17"]["wave"]!=18:errors.append("seal-dep")
-needed={"22-09","22-10","22-11","22-12","22-16","22-08"}
-if not needed<=set(frames["22-18"]["depends_on"]) or frames["22-18"]["wave"]!=17:errors.append("proof-gates")
-proof=(p/"22-18-PLAN.md").read_text();seal=trees["22-17"].find("tasks").findall("task")[1].findtext("action")
-for needle in ["D-06","F01","C01","C02","C03","STATE_DIR","provider-enforced","reserveProofAttempt","reconcileProofAttempt","actual","storage","retention","BLOCKED","No new role","existing business"]:
- if needle not in proof:errors.append("PC01:"+needle)
-if "Do not launch paid spike" in seal or "Consume actual22-18" not in seal:errors.append("old-prohibition")
-if proof.find("Task 1: Shared diagnostic Registry")>proof.find("Task 2: Gated operator service"):errors.append("scenario-order")
-req=set(r for m in frames.values() for r in m["requirements"])
-if req!={"CHAT-01","CHAT-02","CHAT-03","CHAT-04","CHAT-07","CHAT-08","CHAT-09","CHAT-11"}:errors.append("req")
-changed=subprocess.run(["git","diff","--name-only","913fc5ae9286aca9a48b5ce4272699c846849874","--","apps","packages","scripts","deploy","e2e","package.json","yarn.lock","playwright.config.ts",".github"],capture_output=True,text=True,check=True).stdout.strip()
-if changed:errors.append("source-changed")
-unchanged_plans=sum(hashlib.sha256((p/n).read_bytes()).hexdigest()==h for n,h in before.items() if n.endswith("-PLAN.md"))
-paths=set(x for m in frames.values() for x in m["files_modified"])
-stats={"plans":len(frames),"tasks":sum(len(t.find("tasks").findall("task")) for t in trees.values()),"waves":len(set(m["wave"] for m in frames.values())),"proof_wave":frames["22-18"]["wave"],"seal_wave":frames["22-17"]["wave"],"edge_equality":len(edges),"UI_equality":len(ui),"threat_IDs":len(ids),"unique_threat_IDs":len(set(ids)),"unchanged_plans":unchanged_plans,"protected22_and_checker":"unchanged","max_files":max(len(m["files_modified"]) for m in frames.values()),"new_proof_files":len(frames["22-18"]["files_modified"]),"future_paths":len(paths),"handwritten_paths":sum(bool(re.search(r"\.(tsx?|mjs)$",x)) for x in paths),"source_diff":"unchanged" if not changed else changed,"PC01":"executable owner18 -> seal17" if not errors else "error","errors":errors}
-print(json.dumps(stats,ensure_ascii=False));sys.exit(bool(errors))
-'
-```
-
-Native detector with actual current plan scope (stdout only):
-
-```sh
-python3 -c 'from pathlib import Path
-import subprocess,json,sys
-p=Path(".planning/phases/22-chat-with-mentions-and-quick-marks");scope="\n".join(f.read_text() for f in p.glob("22-*-PLAN.md"))
-r=subprocess.run(["node","~/.claude/gsd-core/bin/lib/api-coverage.cjs","--json"],input=scope,capture_output=True,text=True)
-j=json.loads(r.stdout);print(json.dumps({"exit":r.returncode,"detected":j.get("detected"),"skipped":j.get("skipped"),"signals":len(j.get("signals",[]))}));sys.exit(0 if j.get("detected") is True else 1)
-'
-```
-
-PC01 addressed technically by executable18 -> final17 proof gate; independent Parent/Ohm delta check pending. Unavailable Managed grant or provider-enforced whole-cost maximum remains actual BLOCKED/UNVERIFIED and keeps paid admission/phase seal closed. No automatic access/approval workaround. Today C01–C03 both transports NOT RUN. Public result contains only metadata/fingerprints, private STATE_DIR owns actual evidence/content.
-
-## Actual output manifest
-
-Строки manifest ниже — actual SHA-256 final PLAN/COVERAGE bytes после Prettier/native/semantic checks. INDEX hash передаётся Parent отдельно после final formatting, без самореференции. Revised09/17/COVERAGE hashes and new18 are updated; INDEX fingerprint reported externally.
-
-| Changed file     | Причина                                                             | SHA-256                                                          |
-| ---------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 22-01-PLAN.md    | Публичный tracer: сохранённые факты одного ученика                  | 3ff08a82f6dd99aa1325591355ae1b61c5dac9b9d89f8fe42639e3067728745c |
-| 22-02-PLAN.md    | Conversations: durable create/list/rename/delete                    | 14bf9679b78c8429740d26cd39e50622715714661e4f892884379707b2bfabe7 |
-| 22-03-PLAN.md    | ARCH-A1: общий SSE transport и data reread                          | 0d2acea76703bfd21b965cc6488b24440334182c3a39691e653da4c543bb6386 |
-| 22-04-PLAN.md    | ARCH-A3: версии отметок и общая transaction                         | 67fb3b70ad3b11d02d437ba63a70099fcc99f24e452a497628747861f45eee83 |
-| 22-05-PLAN.md    | ARCH-A2: записи notes отдельно от base Markdown                     | d975646e97abccd731326cc0166a140e3437f8631dd88ff073e1b2ce418e3cb7 |
-| 22-06-PLAN.md    | Lesson comments через тот же entry contract                         | faed013ba9a4b06ca9481156480f65f6594666c9ee1695876204dadce37d14a4 |
-| 22-07-PLAN.md    | Точные @mentions и один lesson target                               | db215122f6dda84487a54544d25c476bf083454f14f4f65b465db66a64eb0df7 |
-| 22-08-PLAN.md    | Local marks/notes/comments: atomic result и Undo                    | e00c1f9a7af5df3b171535a17ff64e3f4863a35a3b73bce0337ee180c08dc08d |
-| 22-09-PLAN.md    | Официальный SDK: provenance и условный legitimacy gate              | 73020e57f05dda13b2202dbda4ecc9b4ccdcbc259aa27e198958696fde3b98a3 |
-| 22-10-PLAN.md    | SDK configuration и проверяемые model capabilities                  | 0e6ffbc07fbd14395fa9440d7578f938686d58de93bbb739adcf9daded26dbfc |
-| 22-11-PLAN.md    | Hard monthly cap и usage по conversation                            | 566aa478262d23edfbdcc730614e37e7d47e11df7bffaaae584024e195f946b9 |
-| 22-12-PLAN.md    | Durable Messages streaming, run и Stop reply                        | 3b4b59047086764846f19e3621509d690585276917d249aedf3df2f4d7e0a30a |
-| 22-13-PLAN.md    | Ответы из records и только code-owned числа                         | 285ee4e67ee39579d7892e34385708e684f43cf00facd221710086ac07ee6dbf |
-| 22-14-PLAN.md    | Single Calendar changes и verified inverse в Chat                   | 5e6a0272ae2234467d213a4486c5be1eb7c4cadef18d48f97f0ecc9317d5c08d |
-| 22-15-PLAN.md    | Model/effort controls и все UI considerations v40                   | fcd1e86d062ee8f8a9d5e378c39267ea460b8010a05fe2d83be982f9c6b8d04c |
-| 22-16-PLAN.md    | Conversation redaction, liability guards и privacy                  | 144df1a6e756599c8644bf5239e8551366b4498c9db5899cf22f4ff9cb9bef75 |
-| 22-17-PLAN.md    | Scoped readiness и воспроизводимая приёмка                          | e8f82b48b18f090e015855d1431506ee0e62c694b33ce90ddaa4db846199b333 |
-| 22-18-PLAN.md    | P22-PC-01 bounded transport comparison                              | 643ba07a16e785c2f01d2985daede37def698be03120443aa959422b7ca92d7d |
-| COVERAGE.md      | Полное explicit API scope решение                                   | 50a014b9eca7768ecb15b2dccc12b096563c45ce996e6ca97f9c308847485418 |
-| 22-PLAN-INDEX.md | Ownership/dependencies/coverage/verification manifest; hash outside | reported externally                                              |
-
-## Bounded semantic audit — exact rerun
-
-Stdout-only audit, не новый source/test/artifact: YAML/XML structure, dependency/wave/write cap, exact truths/requirements/locked decision delta, protected hashes и scoped source diff. Python stdlib + existing PyYAML. Original final exit0/output errors[]; first XML encoding issue corrected locally before final evidence, no source changes.
-
-````sh
-python3 -c 'import json,re,hashlib,subprocess,sys
-from pathlib import Path
-import yaml
-import xml.etree.ElementTree as E
-p=Path(".planning/phases/22-chat-with-mentions-and-quick-marks")
-private=Path("/var/folders/_t/fgvwdzzs1394z_82sp4p500h0000gn/T/dvlab-dev-checks")
-frames={}; trees={}; errors=[]
-for f in sorted(p.glob("22-*-PLAN.md")):
- s=f.read_text(); frames[f.stem[:-5]]=yaml.safe_load(s.split("---",2)[1]); trees[f.stem[:-5]]=E.fromstring("<plan>"+s.split("---",2)[2]+"</plan>")
-for id,m in frames.items():
- if len(m["files_modified"])>=15: errors.append(id+":files15+")
- if m["wave"]!=max([frames[d]["wave"] for d in m["depends_on"]],default=0)+1: errors.append(id+":wave")
- for d in m["depends_on"]:
-  if d not in frames or frames[d]["wave"]>=m["wave"]: errors.append(id+":dependency")
- tasks=trees[id].find("tasks").findall("task")
- if not 2<=len(tasks)<=3: errors.append(id+":tasks")
- actual=set()
- for t in tasks:
-  for tag in ["name","files","read_first","action","behavior","acceptance_criteria","done"]:
-   if t.find(tag) is None: errors.append(id+":"+tag)
-  if not t.find("verify").findall("automated"): errors.append(id+":automated")
-  paths=[] if t.findtext("files").startswith("—") else [s.strip() for s in t.findtext("files").split(",")]
-  actual.update(paths)
-  if len(paths)>5: errors.append(id+":task-files")
-  if not set(paths)<=set(m["files_modified"]): errors.append(id+":write-set")
-  if "```" in t.findtext("action"): errors.append(id+":action-fence")
-  for v in t.find("verify").findall("automated"):
-   if "head " in v.text or "; " in v.text: errors.append(id+":masked-verify")
- if actual!=set(m["files_modified"]): errors.append(id+":unowned-file")
-for id,m in frames.items():
- for other,n in frames.items():
-  if id<other and m["wave"]==n["wave"] and set(m["files_modified"])&set(n["files_modified"]): errors.append(id+":overlap")
-truths=[t for m in frames.values() for t in m["must_haves"]["truths"]]
-edges=json.loads((private/"22-edge-probe-resolved.json").read_text())["items"]
-ui=[]
-for line in (p/"22-UI-SPEC.md").read_text().splitlines():
- if re.match(r"\| (HISTORY|COMPOSER|MENTION|TARGET|RESULT|ANSWERS|MODELS|PREFERENCES) +\|",line): ui.append(line.split("|")[-2].strip())
-for item in edges:
- if truths.count(item["resolution"])!=1: errors.append("edge:"+item["requirement_id"]+"/"+item["category"])
-for item in ui:
- if truths.count(item)!=1: errors.append("UI:"+item[:55])
-if len(edges)!=51 or len(ui)!=61: errors.append("predicate-count")
-reqs=set(r for m in frames.values() for r in m["requirements"])
-expected={"CHAT-01","CHAT-02","CHAT-03","CHAT-04","CHAT-07","CHAT-08","CHAT-09","CHAT-11"}
-if reqs!=expected: errors.append("requirements")
-all_text="\n".join(f.read_text() for f in p.glob("22-*-PLAN.md"))
-for label in [f"D-{i:02}" for i in range(1,10)]+[f"SC{i}" for i in range(1,6)]+[f"F{i:02}" for i in range(1,11)]+[f"ARCH-A{i}" for i in range(1,4)]+[f"E{i:02}" for i in range(1,15)]:
- if label not in all_text: errors.append("coverage:"+label)
-ids=re.findall(r"\|\s*(T-22-\d+(?:-SC)?)\s*\|",all_text)
-if len(ids)!=54 or len(set(ids))!=54: errors.append("threat-IDs")
-if trees["22-01"].find("tasks").find("task").attrib["type"]!="tracer": errors.append("tracer")
-ctx=(p/"22-CONTEXT.md").read_text();research=(p/"22-RESEARCH.md").read_text()
-c=re.findall(r"^- \*\*D-\d+:\*\* (.+)$",ctx,re.M);r=re.findall(r"^- \*\*D-\d+:\*\* (.+)$",research,re.M)
-if c!=r or len(c)!=9: errors.append("locked-decision-delta")
-protected={"22-AI-SPEC.md":"a399cb8d22a9042f7dfcfd34c710687401f62fe043c36b694709a7e6652709ed","22-ARCH-REVIEW.md":"eb55e8cc42ba98894c76a1b406fc09569cf7ed5909e13579d6b92e910dc1ccc8","22-CONTEXT.md":"51b32662f10e30d607d1d7a9e95c7154767d17a2925f58b91343a1bd416ca7e7","22-PATTERNS.md":"07222884659d31b636a7376a994798b3128117475cca2f0d5d19583b411d7093","22-RESEARCH.md":"38e3a5cfbd03fffbc618886e1fc632aadf6ca417e0f3fa76f3705af09565a708","22-UI-CHECK.md":"4dde843171d28078f5d6b0a9be6653e49b345c3ea4a7cd5e39baeb359e6fd53e","22-UI-SPEC.md":"418cf3b3b02ae025f06c6eb52f8338a54813efd460aa779d905f83f1959c9f9a"}
-for name,h in protected.items():
- if hashlib.sha256((p/name).read_bytes()).hexdigest()!=h: errors.append("protected:"+name)
-tracked=["apps","packages","scripts","deploy","e2e","package.json","yarn.lock","playwright.config.ts",".github"]
-changed=subprocess.run(["git","diff","--name-only","913fc5ae9286aca9a48b5ce4272699c846849874","--",*tracked],capture_output=True,text=True,check=True).stdout.strip()
-if changed: errors.append("source-changed:"+changed)
-paths=set(x for m in frames.values() for x in m["files_modified"])
-generated=[x for x in paths if "/drizzle/" in x]
-if len(generated)!=14 or sum(x.endswith("/migration.sql") for x in generated)!=7 or sum(x.endswith("/snapshot.json") for x in generated)!=7: errors.append("generated-path-count")
-stats={"plans":len(frames),"tasks":sum(len(t.find("tasks").findall("task")) for t in trees.values()),"waves":len(set(m["wave"] for m in frames.values())),"max_files":max(len(m["files_modified"]) for m in frames.values()),"future_paths":len(paths),"generated_paths":len(generated),"edge_exact_equality":len(edges),"ui_exact_equality":len(ui),"REQ":len(reqs),"D":len(c),"SC":5,"F":10,"ARCH":3,"E":14,"unique_threats":len(set(ids)),"locked_decision_delta":0,"protected_inputs":len(protected),"source_diff":"unchanged" if not changed else changed,"errors":errors}
-print(json.dumps(stats,ensure_ascii=False));sys.exit(bool(errors))
-'
-````
-
-## Native plan:post completion
-
-Current independent checker and separate risk/design lenses are complete. Static planning outcome CLEAN; raw PC01 and bounded correction remain in PLAN-CHECK. All18 PLAN hashes remain unchanged. Squad report SHA-256: `469b6c493ed85b93e267ad17464728d046662e560227bb8f094926e7033bee5a`.
-
-`node ~/.claude/gsd-core/bin/gsd-tools.cjs check gap-analysis-plan-post .planning/phases/22-chat-with-mentions-and-quick-marks 'CHAT-01,CHAT-02,CHAT-03,CHAT-04,CHAT-07,CHAT-08,CHAT-09,CHAT-11' --raw` — exit0, enabled=true, passed=true, block=false; 17/17 covered (8 REQ +9 decisions), uncovered0. Private existing raw: `22-gap-analysis-plan-post.json`.
-
-Configured html-plan-review: skipped by its explicit autonomous gate. No human response or approval inferred. Final24/25 dependency rebind, SDK legitimacy/freshness, key/cap/model/pricing and finite Managed comparison gates remain pending; source/runtime/provider/C01–C03 NOT RUN.
-
-## Document formatting proof
-
-Whole-bundle Prettier first returned exit1 for these three existing documents. Prettier3.9.9 with repository resolved config normalized only these files. Configured-format equality/idempotence passed; original decisions and raw checker finding/disposition text are retained. All18 PLAN fingerprints remain identical to the independent checker inputs. No source or functional check rerun.
-
-| Document           | Input SHA-256                                                      | Formatted SHA-256                                                  |
-| ------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `22-PATTERNS.md`   | `07222884659d31b636a7376a994798b3128117475cca2f0d5d19583b411d7093` | `615611153a2b4cd2ecb356c5f944940275ee27f1b458cf2abe4bd84e60c2f173` |
-| `22-PLAN-CHECK.md` | `9fd9745f17a07f1613313a627fe994003a3b3641b6c5eb5153b78d936072a45c` | `9f2f6eb30ac280ebed034f8b5e72800276434aa235bbe4a6340a78698c24351c` |
-| `22-RESEARCH.md`   | `38e3a5cfbd03fffbc618886e1fc632aadf6ca417e0f3fa76f3705af09565a708` | `47cf613f9c9e0dc2c58656238acecb75f3ca63abb030f45af5d1fb4443bddb87` |
-
-Exact checks: `yarn prettier --check .planning/phases/22-chat-with-mentions-and-quick-marks .planning/ROADMAP.md` — final exit0, all matched files use Prettier code style. SHA-256 comparison with INDEX — exit0, 18/18 plans matched, stale=[]. Private format proof: `22-document-format-proof.json`. Earlier input hashes in review reports identify the reviewed pre-format bytes; this table binds their current content.
+# Phase 22 — Plan index
+
+## Outcome
+
+Учитель записывает итог урока одной строкой в чате и получает ответы о любом ученике из сохранённых данных в пределах месячного бюджета (ROADMAP Phase 22 goal). Требования CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-07, CHAT-08, CHAT-09, CHAT-11; критерии SC1-SC5; решения D-01..D-09 и решения владельца В1-В9 (`22-CONTEXT.md`, раздел `replan_decisions`).
+
+18 планов, 17 волн, 65 задач. Планы написаны под код 25.1 и ответы владельца 2026-10-13 и сверены с итоговым кодом 25.1 после слияния master (PR 35) (`22-REPLAN-NOTES.md`, итог — `22-REPLAN-RESULT.md`, решения — `22-CONTEXT.md`, раздел `replan_decisions`). Номер плана не совпадает с порядком: 22-18 (серии) исполняется во второй волне.
+
+Режим: `TRACER_MODE=false`, как в 25.1. Сквозные пути (браузер → api → Postgres, api → журнал команд → Google) доказаны фазами 20-25.1; первый путь чата — 22-04 (факты карточки через все слои). Каждый план кончается проверкой своего среза: скрипт `scripts/dev-checks` и браузерный скрипт в обеих темах.
+
+Оценки: `estimate-calibration` factor 1, 0 samples, confidence low; `raw_tokens = tokens`.
+
+## Gate исполнения
+
+- Итоговый код 25.1 в ветке фазы: `git merge-base --is-ancestor e238906 HEAD` (master с PR 35 слит в `gsd/phase-22-chat-replan` 2026-10-13, merge-коммит 94f3c8f). Планы сверены с этим кодом: диалога Move series и файлов `move-series-*` нет, `move_series` несёт `newStartsOn`, снимок команды — `retryAfterSeconds`, записи календаря в web оптимистичные (`optimistic-writes.ts`), блок урока носит цвет события Google.
+- Исполнение разрешено владельцем 2026-10-13 (В8): 25.1 принята после живой проверки, PR 35.
+- Запросы дизайна DR-22-01..05 отправляет ведущая сессия Design dude до волны, в которой их ждут (precondition задач); DR-22-01 — до запуска волны 2, чтобы ответ был готов к 22-02 в волне 3.
+
+## Waves
+
+| Wave | Plan | Builds | Kind | Model | Depends on | Ports / databases |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | [22-01](22-01-PLAN.md) | перенос и отмена начавшегося урока без done, no_show → none при новом начале позже текущего момента, запись отметки закрыта при незавершённой команде ключа, создание урока в прошлом, Google по тому же правилу, отметка в binding недели, `insideSyncWindow`, AGENTS.md | core + contracts + api | opus | — | dvlab_test, без портов dev |
+| 2 | [22-18](22-18-PLAN.md) | серия: «all» и «this and following» с allFrom (начавшиеся неотмеченные после последней отметки переносятся), правка серии из Google по тому же правилу, allFrom в неделе, AGENTS.md | core + contracts + api | opus | 01 | dvlab_test, без портов dev |
+| 3 | [22-02](22-02-PLAN.md) | начавшийся урок в Schedule и Today: перенос (в том числе в прошлое), отмена, перетаскивание, области серии по allFrom, тексты отказов | web | sonnet | 01, 18 | 3000/4000, dvlab_dev |
+| 3 | [22-03](22-03-PLAN.md) | ревизия отметки, `writeMark` для всех писателей, `restoreMark` обратного переноса в журнале команд | db + contracts + api | opus | 01, 18 | dvlab_test, порт 4203; мигрирует dev и test |
+| 4 | [22-04](22-04-PLAN.md) | факты карточки в /chat без модели (`/chat/records`) | contracts + api + web | sonnet | 02, 03 | dvlab_test 4224; 3000/4000 |
+| 5 | [22-05](22-05-PLAN.md) | разговоры: создать, список, переименовать, удалить | db + api + web | sonnet | 04 | мигрирует; 3000/4000 |
+| 6 | [22-06](22-06-PLAN.md) | заметки отдельными записями; таблица комментариев | db + api + web | sonnet | 05 | мигрирует; 3000/4000 |
+| 7 | [22-07](22-07-PLAN.md) | комментарии начавшегося урока; вхождение с комментарием держит разрез серии | api + web | sonnet | 06 | 3000/4000 |
+| 8 | [22-08](22-08-PLAN.md) | упоминания, быстрые формы, `readLessonDay` (день Today и чата), точный урок, цель серии с allFrom | api + web | opus | 07 | 3000/4000 |
+| 9 | [22-09](22-09-PLAN.md) | сообщения и действия, отметки/заметки/комментарии с Undo, обновление экранов между вкладками | db + api + web | opus | 08 | мигрирует; 3000/4000 |
+| 10 | [22-10](22-10-PLAN.md) | перенос и отмена урока и перенос серии из чата через журнал команд, Undo одиночных | api + web | opus | 09 | 3000/4000 |
+| 11 | [22-11](22-11-PLAN.md) | SDK (checkpoint владельца), настройки ассистента в teacher_settings со значениями по умолчанию, выбор модели, `/settings/assistant` | db + contracts + api + deploy | sonnet | 10 | общий node_modules, один в волне; мигрирует |
+| 12 | [22-12](22-12-PLAN.md) | резерв и расход по пределу из настроек, Settings → Budget | db + api + web | opus | 11 | мигрирует; 3000/4000 |
+| 13 | [22-13](22-13-PLAN.md) | цикл Messages, поток, Stop, проверка публикации | db + api + web | opus | 12 | мигрирует; 3000/4000 |
+| 14 | [22-14](22-14-PLAN.md) | ответы из сохранённых данных, блоки фактов, команды чтения | api + web | sonnet | 13 | 3000/4000 |
+| 15 | [22-15](22-15-PLAN.md) | выбор модели и effort, уведомление бюджета, карточки Chat model и Models and limits | api + web | sonnet | 14 | 3000/4000 |
+| 16 | [22-16](22-16-PLAN.md) | удаление разговора с обязательствами, privacy (чат и разделы Google после 25.1) | api + web | sonnet | 15 | 3000/4000 |
+| 17 | [22-17](22-17-PLAN.md) | итоговый прогон, документы, поток хода без сжатия в Caddy, build, test, knip, существующие e2e | gate + docs + deploy | sonnet | 16 | всё; единственные `yarn build` и полный `yarn test` |
+
+Правила волн: не больше одного плана, который правит `apps/api`, и одного web-плана в волне; файлы планов одной волны не пересекаются (проверено скриптом); у каждой задачи не больше пяти файлов, все внутри `files_modified`. Единственная параллельная пара — волна 3: 22-02 (только web и браузерные проверки, dev-стек на dvlab_dev) и 22-03 (api и миграция, проверки на dvlab_test). 22-18 web не правит: вид `today_passed` в web не используется; web-плана в волне 2 нет. `depends_on` кроме реальных зависимостей несёт последовательность api- и web-планов. `yarn build` — только 22-17; тесты api (`yarn workspace @dv-lab/api test`, чистит dvlab_test) — 22-11, один в волне; полный `yarn test` — 22-17.
+
+Промежуточные состояния внутри ветки (выпуска посреди фазы нет): до 22-10 календарные быстрые формы отвечают P12; до 22-13 свободный текст отвечает «Model settings are unavailable» (P20) — так же, как в выпуске без ключа API.
+
+## Contract ownership
+
+- `packages/contracts/src/calendar.ts`: `binding.mark` урока — 22-01; `CalendarSeriesContext.allFrom` — 22-18; `restoreMark` варианта `move` в `validatedCalendarCommand` (только сервер, маршруты schedule его не собирают) — 22-03.
+- `packages/db/src/calendar-values.ts` `lineage`: `clearMark` — 22-01; `restoreMark` — 22-03.
+- `packages/contracts/src/auth.ts`: `lesson_done` — 22-01 (единственный новый HTTP-код фазы; коды чата — не `errorCodes`; `series_today_passed` остаётся в списке, api его не отдаёт).
+- `packages/contracts/src/schedule.ts`: `expectedRevision`, `markRevision`, `revision` — 22-03; комментарии — 22-07.
+- `packages/contracts/src/chat.ts`: создаёт 22-04 (факты); разговоры — 22-05; упоминания, намерение и цель урока (включая `series_marked`) — 22-08; сообщения, блоки и `chatRefusalCode` (все коды отказа чата, включая бюджет и провайдер) — 22-09; блок предложения календаря — 22-10; ход и поток — 22-13; блоки фактов и цитат — 22-14; модель разговора — 22-15.
+- `packages/contracts/src/chat-settings.ts`: `chatEffort`, `chatModelEntry`, `chatModels`, `assistantSettings`, `saveAssistantSettingsRequest`, `modelCapability`, `CHAT_SETTINGS_DEFAULT` — 22-11; `budgetSnapshot`, `conversationUsage` — 22-12.
+- `packages/db/src/schema.ts` `teacher_settings`: колонки настроек ассистента — 22-11 (предел — `chat_monthly_cap_usd numeric(10, 2)`, перевод в нано-доллары только в `chat/budget.ts`, 22-12).
+- `packages/contracts/src/students.ts`: заметки — 22-06.
+
+## Shared owners across plans
+
+| Owner (plan) | Used by |
+| --- | --- |
+| `lessonActions` (core) и приём команд урока, `settleMarkAfterMove` (22-01) | 22-02, 22-03, 22-08, 22-10 |
+| `insideSyncWindow` (`calendar/projection.ts`, 22-01) — граница окна синхронизации | 22-18 (`prepareSeriesChange`), 22-08 (цель переноса), 22-10 (предложение) |
+| `historyEligibility` в режиме записи (22-01): запись отметки закрыта при незавершённой команде ключа | 22-03 (`writeMark`), 22-09, 22-10, 22-13 |
+| `seriesAllFrom` (core), `seriesAnchor` (`schedule/series.ts`), `heldSeriesDates` (`schedule/rows.ts`) (22-18); нижняя граница `from` — `prepareSeriesChange` и `inbound-apply.ts` через `seriesAnchor` | 22-02 (через `allFrom` недели), 22-07 (даты с комментариями), 22-08, 22-10 |
+| `writeMark(executor, …)` с ревизией (22-03) | 22-09, 22-13 |
+| `restoreMark` в журнале команд, `checkMarkRestore`, `restoreMarkAfterMove` (22-03) | 22-10 (Undo переноса, снявшего no_show) |
+| `readLessonDay` (`today/today.ts`, 22-08) — день учителя по правилам Today | `readToday`, 22-08 (`resolveLessonTarget`), 22-14 (`readChatDay`) |
+| `readAssistantSettings` / `saveAssistantSettings`, `resolveModelChoice`, `modelCapabilities` — единственный проверяющий выбор модели (22-11) | 22-12, 22-13, 22-15 |
+| `usdToNano`, `nanoToUsd`, `reserveNano`, `costNano` (`chat/budget.ts`, 22-12) | 22-13, `GET /settings/assistant` |
+| `readChatFacts`, `readChatDay` (22-04, 22-14) | 22-13 (`student_facts`), 22-14 |
+| `appendStudentNote` / `retractStudentNote` (22-06), `appendLessonComment` / `retractLessonComment` (22-07) | 22-09, 22-13 |
+| `resolveLessonTarget`, `parseQuickCommand`, `validateMentions` (22-08) | 22-09, 22-10, 22-13 |
+| `executeIntent` (22-09, выделен в 22-13) | быстрые формы, инструменты модели, календарь |
+| `chat/calendar.ts` поверх `CalendarCommands` (22-10) | 22-13 (`propose_lesson_change`), 22-16 |
+| `reserveAttempt` / `settleAttempt` / `release` (22-12) | 22-13 (цикл и `sweepInterrupted`) |
+| `requireRole('teacher')` один раз на роутер `/chat` (22-04) | маршруты чата 22-05…22-16 |
+| `refreshReaders` и канал `dvlab:data-changed` (22-09) | Today, Schedule, Students, чат |
+| `apiEventStream` (22-13) | поток хода в /chat |
+
+Владельцы 25.1, которые планы используют без изменения сигнатур: `readCalendarWindow(executor, context, selection, students?)` (`calendar/read-model.ts:254`), `readNextLessons` (`read-model.ts:312`), `CalendarCommands.submitCalendarCommand` / `readCalendarCommand` / `resumeCalendarCommand` (`calendar/commands.ts:35,124,127`), `rowForLocal` (`calendar/event-mapping.ts`), `historyEligibility` (`calendar/history.ts:104`), `cardFacts` (`cards/card-facts.ts:50`), `readToday` (`today/today.ts:39`), `readWindow` (`schedule/schedule.ts`), `lockTeacherTimeContext` и `readTeacherSettings` (`settings/settings.ts`), `lifecycle.manage({ server, wss, resources })` (`server.ts`).
+
+## Проверки без Google и Anthropic (В2, 25.1 D-11)
+
+- `calendar-offline.mjs` закрывает хосты Google в каждом процессе проверок; `chat-fake-anthropic.mjs` (22-13) подменяет `fetch` только для `api.anthropic.com` сценарными ответами.
+- `calendar-seed.mjs` даёт синтетическое подключение и проекцию (`Alex Example NNNN`); команды календаря отправляются в процессе с заглушкой шлюза (`dispatchCommand`), как в `calendar-event-commands.mjs`.
+- Проверки api — `schedule-started.mjs` (22-01), `schedule-started-series.mjs` (22-18), `chat-config.mjs` (22-11) и `chat-api.mjs <раздел>` на dvlab_test; браузерные — `chat-web.mjs <раздел> light|dark` и `schedule-started-web.mjs` на localhost, записи перехватываются `page.route`, где нужен синтетический ответ.
+- Существующие проверки, ожидания которых меняют 22-01, 22-18 и 22-02 (`calendar-inbound.mjs`, `schedule-core.mjs`, `schedule-api.mjs changes`, `calendar-web-drag.mjs`, `calendar-web-editor.mjs`, e2e `move.spec.ts`, `marks.spec.ts`), правятся минимально в этих планах. e2e-помощники диалога Move series (`changeSeries`, `cutSeriesToWednesday` в `e2e/support/ui.ts`, `e2e/support/calendar-series-ui.ts`) сломаны удалением диалога в 25.1; 22-02 и 22-17 их не переписывают, а перечисляют падения в SUMMARY.
+- Новых юнит- и e2e-тестов нет; существующие e2e (`yarn test:e2e`, localhost) прогоняет 22-17.
+
+Сессия владельца (не задача плана; локальный стек): вопрос модели с его ключом и сверка расхода по `usage`; перенос и отмена урока и перенос серии из чата с записью в Google на тестовом аккаунте; на сервере — Server guy ставит `ANTHROPIC_API_KEY` в `api.env`, перезагружает Caddy (поток хода исключён из `encode`, 22-17) и проверяет, что поток приходит событиями. Модели, тарифы, лимиты и предел меняются в Settings, на сервере их нет.
+
+## Запросы дизайна (Design dude, отправляет ведущая сессия)
+
+Дизайн: `~/dv-lab-design`, VERSION **v65** (2026-10-13). Планы спланированы под v63 (ответ DR-22-01: 22-02), v64 (ответ DR-22-02: 22-04, 22-05, 22-08, 22-09, 22-10, 22-13, 22-14) и v65 (ответы DR-22-03..05: 22-06, 22-07, 22-12, 22-15); v61 (код 25.1) — одна форма переноса урока без диалога Move series, вопрос области после Save или броска, `OptimisticWrite`, цвет блока из Google. 22-UI-SPEC писалась под v40. Каждый UI-план начинает с записи версии и отличий в SUMMARY и без ответа останавливается (EXECUTOR-RULES 8).
+
+1. **DR-22-01 (для 22-02, третья волна) — ответ получен, дизайн v63 (2026-10-13): Done заморожен (в футере строка вместо Move/Cancel; Done возвращается в Scheduled отметкой), начавшийся без отметки и с No-show двигается и отменяется, строка о судьбе No-show в форме переноса, области серии по allFrom без вопроса, когда их нет, Today без своей кнопки переноса, причины недоступной недели из READ_ISSUES. Диалога Move series в коде 25.1 нет (v61): пункты запроса про поле From закрыты областями ScopeDialog по allFrom и строкой «This lesson moves alone».** LessonDialog и EventDrag под В1: урок с Done не показывает Move lesson и Cancel lesson и не перетаскивается (README сейчас говорит «The mark stays: Done, deducts…» — противоречит В1); урок бросается и в прошедший слот; подписи формы переноса для No-show: снимется, если новое начало позже текущего момента, останется, если не позже; текст отказа `lesson_done`; начавшееся вхождение серии отменяется без ScopeDialog; области переноса начавшегося вхождения: one, following и all, если оно не раньше allFrom (после последнего отмеченного вхождения), иначе только one; Move series: текст причины, когда From раньше allFrom («на эту дату или позже есть отмеченный урок»), и когда allFrom нет; Today: футер Move/Cancel/Return у начавшегося урока и строка причины, когда неделя недоступна.
+2. **DR-22-02 — ответ получен, дизайн v64 (2026-10-13): ChatPage, ChatResult, ChatCalendarChange, ChatNotices, ChatFacts, переписаны ChatComposer и ChatMessage; ChangeCard в фазе 22 не используется. Тексты отказов и подписей придуманы Design dude, ждут подтверждения владельца (lesson_done, lesson_changed, «Google Calendar accepted the change. Updating the schedule…», подпись дублей имён, отказ Google, ошибка чтения чата, «Reply stopped.», тексты quick-кнопок).** Запрос: (для 22-04, 22-05, 22-08, 22-09, 22-10, 22-13, 22-14).** Страница /chat (UD5: одна колонка, шапка с New chat и All chats, список поверх); блок фактов ученика (остаток, следующий урок, Pays soon); вставка упоминания по имени (`displayName`) вместо `@handle` (колонки handle нет); блоки результата с Undo и состояния P10/P11 вместо ChangeCard («Record this line? · commit …» эпохи vault); блок предложения переноса и отмены урока и переноса серии (was → now, Confirm / Keep, pending / unknown / Saved, Check status; у переноса серии Undo нет); тексты отказов чата: `lesson_done`, `outside_sync_window`, `connection_required`, `lesson_not_started` (комментарий к будущему уроку), `series_marked` (серия с даты раньше отмеченного урока), `command_pending`; состояния ответа (thinking, streaming, Stop reply, interrupted, withheld), блоки excerpt и suggestions.
+3. **DR-22-03, DR-22-04, DR-22-05 — ответы получены, дизайн v65 (2026-10-13): NoteEntries, LessonComments, ModelsAndLimits, SettingsAssistant из трёх карточек (Chat model, Models and limits, Budget; лимит всегда заполнен). Тарифы — четыре цены за 1M токенов: input, cache write, cache read, output. Тексты ошибок полей, подтверждений удаления и тосты «Note removed» / «Comment removed» придуманы Design dude, ждут подтверждения владельца.** Запрос: (для 22-06, 22-07). Записи заметок под разделом в профиле (дата, текст, Remove) и комментарии урока в деталях урока.
+4. **DR-22-04 (для 22-12, 22-15).** SettingsAssistant в фазе 22: карточки Chat model, Models and limits (DR-22-05) и Budget; поле предела в Budget заполнено значением настройки ($10 по умолчанию), состояния «предел не задан» нет; строки разрешений и «Ask before writing» — фаза 23 (README помечает их предложением).
+5. **DR-22-05 (для 22-15).** Карточка Models and limits в Settings → Assistant (В9): список моделей в порядке меню (имя, id, уровни effort, уровень по умолчанию и рекомендуемый, тарифы входа, записи кэша, чтения кэша и выхода за 1M токенов в USD), перемещение вверх и вниз, Add model, Remove (последнюю убрать нельзя), правка строки; поля Max input tokens и Max output tokens; подпись источника цен и даты; одна кнопка Save на карточку, ошибки у поля, модель без доступа у провайдера помечена.
+
+AssistantDock на Today есть в дизайне и в UD5, но не в требованиях 22 и не в планах: точки входа — фаза 23 (CHAT-12, SHELL-03/04). Это исключение, не пробел.
+
+## Source coverage audit
+
+### GOAL
+
+| Item | Plans | Status |
+| --- | --- | --- |
+| Итог урока одной строкой; ответы из сохранённых данных; в пределах бюджета | 01-18 | COVERED |
+
+### REQ
+
+| ID | Plans | Status |
+| --- | --- | --- |
+| CHAT-01 разговоры | 05, 13, 15, 16, 17 | COVERED |
+| CHAT-02 упоминание привязывает карточку | 08, 17 | COVERED |
+| CHAT-03 was / didn't happen / no-show / moved to | 01, 02, 03, 08, 09, 10, 18 | COVERED |
+| CHAT-04 отметки, комментарии, заметки сразу с Undo | 03, 06, 07, 09, 13, 16 | COVERED |
+| CHAT-07 ответы из сохранённых данных | 04, 06, 07, 14 | COVERED |
+| CHAT-08 числа считает код | 04, 14 | COVERED |
+| CHAT-09 поток и обновление расписания | 09, 10, 13, 14 | COVERED |
+| CHAT-11 расход по разговору и месячный предел (настройки учителя, В9) | 11, 12, 13, 15, 16 | COVERED |
+
+### ROADMAP success criteria
+
+| SC | Plans |
+| --- | --- |
+| 1 создать, список, переименовать, удалить; поток | 05, 13, 16 |
+| 2 @ и быстрые действия для одного урока | 01, 02, 08, 09, 10, 18 |
+| 3 отметки, комментарии, заметки с Undo; открытые Schedule и Today обновляются | 03, 06, 07, 09, 10 |
+| 4 ответы из данных, числа как на Today и Students | 04, 14 |
+| 5 расход по разговору; предел останавливает вызовы | 12, 13, 15 |
+
+### CONTEXT decisions
+
+| ID | Plans | Status |
+| --- | --- | --- |
+| D-01 ids, история, отметки, учёт сохраняются; календарь через журнал и проекцию 25.1 | 01, 03, 04, 06, 07, 10, 18 | COVERED |
+| D-02 инструменты через владельцев; числа считает код; текст учеников — данные | 04, 09, 13, 14 | COVERED |
+| D-03 Undo; Saved только после проверенной команды | 03, 09, 10 | COVERED |
+| D-04 официальный SDK, ключ на сервере | 11, 13, 16 | COVERED |
+| D-05 Haiku 5.5 по умолчанию (первая в списке настроек), выбор модели и effort | 11, 15 | COVERED |
+| D-06 (редакция В6) Messages API со своим хранилищем; результат каждого инструмента; без повтора эффектов | 11, 13, 17 | COVERED |
+| D-07 предел отдельно от кредитов, расход из usage | 11, 12, 13, 16 | COVERED |
+| D-08 (дизайн v63, v64, v65) вариант A и UI-SPEC | 02, 04, 05, 08, 09, 12, 15 + запросы DR | COVERED |
+| D-09 (редакция В2) автономная работа, проверки только локально | 17, все проверки | COVERED |
+| В1 начавшийся урок; no_show снимается при новом начале позже текущего момента | 01, 02, 08, 10 | COVERED |
+| В2 только локальные проверки | все планы | COVERED |
+| В3 одно вхождение / серия | 08, 10, 18 | COVERED |
+| В4 комментарии только к начавшимся | 07, 08 | COVERED |
+| В5 без Google и вне окна | 01, 08, 10, 18 | COVERED |
+| В6 без сравнения с Managed | 11, 13, 17 | COVERED |
+| В7 BroadcastChannel через useCalendarRefresh | 09 | COVERED |
+| В8 исполнение сейчас, 25.1 принята | gate исполнения | COVERED |
+| В9 предел, модели, порядок, тарифы, лимиты — настройки учителя со значениями по умолчанию | 11, 12, 13, 15 | COVERED |
+| Создание урока в прошлом | 01, 02 | COVERED |
+| «All» с начавшимся вхождением; правка серии из Google для начавшихся без done (25.1 D-21) | 18, 02, 07, 08, 10 | COVERED |
+| Серия из чата через подтверждение; массовые операции — CHAT-06 фазы 23 | 08, 10 | COVERED |
+| Без Undo переноса серии из чата; «didn't happen» = отмена | 10, 08 | COVERED |
+| Today: перенос из диалога урока | 02 | COVERED |
+| Privacy: разделы Google после 25.1 | 16 | COVERED |
+
+Deferred: фаза 23 (оплаты, новые ученики, удаление, ставки, массовые переносы по нескольким сериям и указание зоны в CHAT-06, эссе, палитра и точки входа), фаза 26 (IELTS) — ни в одном плане. Перенос одной серии по формулировке (В3) делает 22-10 через блок подтверждения (решение владельца 2026-10-13).
+
+### RESEARCH и UI-SPEC
+
+| Item | Plans | Status |
+| --- | --- | --- |
+| F01 модели и транспорт | 11, 13, 15 | COVERED (spike снят В6) |
+| F02 ход, поток, восстановление | 13 | COVERED |
+| F03 разговоры и упоминания | 05, 08 | COVERED |
+| F04 точный урок | 08 | COVERED |
+| F05 действия, Undo, календарь | 09, 10 | COVERED |
+| F06 факты кода | 04, 14 | COVERED |
+| F07 бюджет и тарифы (настройки учителя) | 11, 12, 15 | COVERED |
+| F08 удаление и место данных | 05, 16 | COVERED |
+| F09 маршрут /chat и состав | 04-16 | COVERED |
+| F10 публичные e2e | — | ЗАМЕНЕНО В2: локальные скрипты в каждом плане, существующие e2e в 22-17 |
+| ARCH-A1 транспорт в api-client и перечитывание зарегистрированных данных | 09 (`refreshReaders`), 13 (`apiEventStream`) | COVERED |
+| ARCH-A2 записи отдельно от текста раздела | 06, 07 | COVERED |
+| ARCH-A3 ревизия отметки у всех писателей | 03 | COVERED |
+| P1-P9 research | 05, 08, 09, 10, 12, 13, 14, 16 | COVERED |
+
+## Verification of this planning set
+
+- `node ~/.claude/gsd-core/bin/gsd-tools.cjs query frontmatter.validate <PLAN> --schema plan`: 18/18 valid.
+- `node ~/.claude/gsd-core/bin/gsd-tools.cjs query verify.plan-structure <PLAN>`: 18/18 valid, без ошибок и предупреждений; 65 задач (после сверки с кодом 25.1 у 22-02 пять задач).
+- Пути `files_modified`, `<files>` и `read_first` всех планов существуют в коде после слияния master или создаются в фазе раньше по волнам; ссылок на удалённые файлы `move-series-*` нет.
+- Разбор всех планов скриптом: wave = 1 + max(волн зависимостей); пересечений файлов в волне нет; у задач не больше пяти файлов, все в `files_modified`, каждый файл принадлежит задаче (кроме сгенерированных snapshot); CHAT-01/02/03/04/07/08/09/11 и D-01..D-09 процитированы; ссылок на прод, `E2E_TARGET_ORIGIN`, `tdd="true"`, «final24/25», `resolveProviderTarget`, `budget_not_set` нет; угрозы T-22-01..T-22-48 уникальны, `T-22-SC` в каждом плане.
+
+## Handoff
+
+ROADMAP, STATE, коммиты и сквад — ведущая сессия. При планировании ничего не закоммичено; исходный код не менялся.

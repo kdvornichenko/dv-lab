@@ -168,7 +168,7 @@ export function useLessonDrag(
 		const slot = lessonDaySlot(date, minutes)
 		if (current.event.binding.kind === 'lesson') {
 			try {
-				if (zonedInstant(slot.date, slot.time, mainTimeZone).getTime() <= Date.now()) return null
+				zonedInstant(slot.date, slot.time, mainTimeZone)
 			} catch {
 				return null
 			}

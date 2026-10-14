@@ -14,7 +14,7 @@ import { LENGTH_ERROR, LENGTH_HELPER } from '@/lib/lesson-length'
 import { formatDate, formatDay, mainRange, mainWhen } from '@/lib/schedule-format'
 
 import type { CalendarEditScope, CalendarEventView } from '@dv-lab/contracts'
-import { scheduleDate, zonedParts } from '@dv-lab/core'
+import { canChange, scheduleDate, zonedParts } from '@dv-lab/core'
 
 import type { DirectState } from './event-form'
 import {
@@ -36,6 +36,8 @@ interface LessonMoveFormProps extends ScheduleFormContext {
 	weekEvents: readonly CalendarEventView[]
 	available: boolean
 	scopes: readonly CalendarEditScope[]
+	movesAlone?: boolean
+	openingOn?: string | null
 	currentMainTimeZone: string
 	secondZone: string | null
 	locked: boolean
@@ -48,6 +50,11 @@ interface LessonMoveFormProps extends ScheduleFormContext {
 }
 
 type Field = 'date' | 'time' | 'length'
+
+const NO_SHOW_REMOVED =
+	'The no-show is removed: the new start is later than now. The lesson is Scheduled again and nothing is deducted.'
+const NO_SHOW_STAYS = 'The no-show stays: the new start is not later than now.'
+const MOVES_ALONE = 'This lesson moves alone: a lesson of this series on or after it has a mark or a comment.'
 
 function moveErrors(
 	date: string,
@@ -77,6 +84,8 @@ export function LessonMoveForm({
 	weekEvents,
 	available,
 	scopes,
+	movesAlone = false,
+	openingOn = null,
 	mainTimeZone,
 	asOf,
 	currentMainTimeZone,
@@ -147,6 +156,15 @@ export function LessonMoveForm({
 		available: available && !locked && !context.stale,
 	})
 
+	const noShowLine =
+		event.binding.mark !== 'no_show' || target === null
+			? null
+			: canChange(target, context.at)
+				? NO_SHOW_REMOVED
+				: openingOn !== null && date <= openingOn
+					? `The no-show stays but is not counted: the new date is on or before the opening balance date (${formatDate(openingOn, currentYear)}).`
+					: NO_SHOW_STAYS
+
 	async function send(scope: CalendarEditScope): Promise<boolean> {
 		if (time === null || length === null) return false
 		const done = await onSave(scope, {
@@ -166,22 +184,22 @@ export function LessonMoveForm({
 		if (errors.date) return document.getElementById('move-lesson-date')?.focus()
 		if (errors.time || time === null || target === null) return document.getElementById('move-lesson-time')?.focus()
 		if (errors.length || length === null) return lengthRef.current?.focus()
-		if (block.ref.kind === 'series') return setScoping(true)
-		await send('one')
+		if (scopes.length > 1) return setScoping(true)
+		await send(scopes[0] ?? 'one')
 	}
 
 	if (stage === 'start') {
 		const ready =
 			available && !locked && !context.stale && target !== null && !errors.date && !errors.time && !errors.length
-		const series = block.ref.kind === 'series'
-		setStage(!ready ? 'shown' : series ? 'asked' : 'sending')
-		if (ready && series) setScoping(true)
+		const asking = scopes.length > 1
+		setStage(!ready ? 'shown' : asking ? 'asked' : 'sending')
+		if (ready && asking) setScoping(true)
 	}
 
 	useEffect(() => {
 		if (stage !== 'sending' || sent.current) return
 		sent.current = true
-		void send('one').then(() => setStage('shown'))
+		void send(scopes[0] ?? 'one').then(() => setStage('shown'))
 	})
 
 	const directState: DirectState = !quick ? 'shown' : stage === 'asked' ? 'asking' : 'sending'
@@ -268,6 +286,20 @@ export function LessonMoveForm({
 					</p>
 				)}
 			</div>
+			{noShowLine !== null || movesAlone ? (
+				<div aria-live="polite" data-slot="move-lesson-notes" className="flex flex-col gap-1">
+					{noShowLine !== null ? (
+						<p data-slot="move-lesson-mark" className="text-caption text-muted-foreground">
+							{noShowLine}
+						</p>
+					) : null}
+					{movesAlone ? (
+						<p data-slot="move-lesson-alone" className="text-caption text-muted-foreground">
+							{MOVES_ALONE}
+						</p>
+					) : null}
+				</div>
+			) : null}
 			<FormFooter
 				className=""
 				status={

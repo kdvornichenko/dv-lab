@@ -20,6 +20,8 @@ import { createCalendarSync } from './calendar/sync.ts'
 import { createTokenEnvelope } from './calendar/token-envelope.ts'
 import { createCalendarWatch } from './calendar/watch.ts'
 import { createCalendarWorker } from './calendar/worker.ts'
+import { createChatProvider } from './chat/provider.ts'
+import { createChat } from './chat/runs.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
 import { createLogger } from './request-context.ts'
@@ -41,6 +43,15 @@ const housekeeping = createHousekeeping({ db, logger })
 const calendar = config.calendar.enabled ? createCalendar(config.calendar) : undefined
 await calendar?.worker.start()
 calendar?.sync.start()
+const chat = config.chat.enabled
+	? createChat({
+			db,
+			logger,
+			provider: createChatProvider({ apiKey: config.chat.apiKey }),
+			calendarCommands: calendar?.commands,
+		})
+	: undefined
+await chat?.sweepInterrupted()
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)
@@ -92,6 +103,7 @@ const app = createApp({
 	production,
 	isStopping: lifecycle.isStopping,
 	signIn,
+	chat,
 	calendar: calendar?.connection,
 	calendarControl: calendar?.control,
 	calendarCommands: calendar?.commands,
@@ -115,5 +127,10 @@ calendar?.control.start()
 lifecycle.manage({
 	server,
 	wss,
-	resources: [housekeeping, ...(calendar?.resources ?? []), { name: 'pg-pool', close: () => pool.end() }],
+	resources: [
+		housekeeping,
+		...(chat ? [chat] : []),
+		...(calendar?.resources ?? []),
+		{ name: 'pg-pool', close: () => pool.end() },
+	],
 })

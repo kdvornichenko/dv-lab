@@ -222,7 +222,7 @@ async function readConflicts(
 		current.calendarId !== connection.calendarId ||
 		current.generation !== connection.generation ||
 		(await syncRevision(db, connection.id)) !== revision ||
-		timeZoneIdentity(settings.defaultTimeZone) !== timeZoneIdentity(candidate.timeZone)
+		timeZoneIdentity(settings.defaultTimeZone) !== timeZoneIdentity(request.proposal.input.expectedDefaultTimeZone)
 	)
 		throw new CalendarFault('external_change')
 	if (Date.now() >= now.getTime() + 30000) throw new CalendarFault('provider_unavailable')

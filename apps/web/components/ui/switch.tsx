@@ -186,7 +186,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
 					disabled={disabled}
 					tabIndex={0}
 					className={cn(
-						'relative shrink-0 cursor-pointer rounded-full outline-none',
+						'hit-slop relative shrink-0 cursor-pointer rounded-full outline-none',
 						'transition-colors duration-80',
 						'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 					)}

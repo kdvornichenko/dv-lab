@@ -60,7 +60,7 @@ export function cutWrite(
 			: undefined
 	const request = googleStageRequest.parse({
 		method: 'patch',
-		instance,
+		...(instance ? { instance } : {}),
 		eventId: source.event.eventId,
 		ifMatch: source.event.etag,
 		digest: requestDigest,
