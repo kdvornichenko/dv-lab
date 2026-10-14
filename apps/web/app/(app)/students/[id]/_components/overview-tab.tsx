@@ -108,7 +108,7 @@ export function OverviewTab({
 			</Panel>
 			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
 				<OpeningBalancePanel
-					key={openingVersion}
+					key={`${openingVersion}-${student.revision}`}
 					student={student}
 					mainTimeZone={mainTimeZone}
 					asOf={asOf}

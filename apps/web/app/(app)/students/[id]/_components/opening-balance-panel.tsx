@@ -4,6 +4,7 @@ import { useState, type FormEvent, type RefObject } from 'react'
 
 import { DateField } from '@/components/app/date-field'
 import { Panel } from '@/components/app/layout-parts'
+import { ReloadNotice } from '@/components/app/reload-notice'
 import { StudentBalance } from '@/components/app/student-balance'
 import { TextField } from '@/components/app/text-field'
 import { Banner, BannerTitle } from '@/components/ui/banner'
@@ -53,6 +54,8 @@ export function OpeningBalancePanel({
 	const [touched, setTouched] = useState(false)
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
+	const [changed, setChanged] = useState(false)
+	const [revision] = useState(student.revision)
 	const [pending, setPending] = useState(false)
 
 	const { openingBalance } = student
@@ -63,7 +66,7 @@ export function OpeningBalancePanel({
 
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending || context.stale) return
+		if (pending || context.stale || changed) return
 		setSubmitted(true)
 		setFailed(false)
 		if (hundredths === null) {
@@ -76,10 +79,12 @@ export function OpeningBalancePanel({
 			lessonsHundredths: hundredths,
 			on,
 			expectedDefaultTimeZone: context.mainTimeZone,
+			expectedRevision: revision,
 		})
 		setPending(false)
 		if (!result.ok) {
 			if (result.error?.code === 'default_time_zone_changed') return context.markStale()
+			if (result.error?.code === 'precondition_failed') return setChanged(true)
 			setFailed(true)
 			return
 		}
@@ -137,8 +142,16 @@ export function OpeningBalancePanel({
 						Payments dated on or before this date are already counted in the number.
 					</p>
 				</div>
+				{changed ? (
+					<ReloadNotice
+						status="warning"
+						text="This student changed elsewhere. Your draft has been kept. Reload the current details before saving."
+						reloadLabel="Reload student details"
+						onReload={onRefresh}
+					/>
+				) : null}
 				<div>
-					<Button type="submit" loading={pending} disabled={context.stale}>
+					<Button type="submit" loading={pending} disabled={context.stale || changed}>
 						{pending ? 'Saving…' : openingBalance === null ? 'Save opening balance' : 'Update opening balance'}
 					</Button>
 				</div>

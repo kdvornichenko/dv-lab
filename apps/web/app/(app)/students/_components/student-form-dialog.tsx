@@ -8,6 +8,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { LengthField } from '@/components/app/length-field'
+import { ReloadNotice } from '@/components/app/reload-notice'
 import { TextField } from '@/components/app/text-field'
 import { TimeZonePicker } from '@/components/app/time-zone-picker'
 import { Banner, BannerTitle } from '@/components/ui/banner'
@@ -183,8 +184,13 @@ function FieldFrame({
 export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFormDialogProps) {
 	const router = useRouter()
 	const toast = useToast()
+	const [baseline, setBaseline] = useState(student)
 	const [values, setValues] = useState<Values>(() => initialValues(student))
 	const [noShowDeducts, setNoShowDeducts] = useState(student?.noShowDeducts ?? true)
+	const [notice, setNotice] = useState<'changed' | 'lost' | null>(null)
+	const [reloading, setReloading] = useState(false)
+	const [reloadFailed, setReloadFailed] = useState(false)
+	const [formVersion, setFormVersion] = useState(0)
 	const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
 	const [submitted, setSubmitted] = useState(false)
 	const [failed, setFailed] = useState(false)
@@ -204,11 +210,34 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 	const currencyError = submitted || touched.currency || touched.rate ? parsed.errors.currency : undefined
 	const create = mode === 'create'
 
+	async function reload() {
+		if (!baseline || reloading) return
+		setReloading(true)
+		setReloadFailed(false)
+		const result = await apiRequest<StudentResponse>('GET', `/students/${baseline.id}`)
+		setReloading(false)
+		if (!result.ok) {
+			setReloadFailed(true)
+			return
+		}
+		const fresh = result.data.student
+		setBaseline(fresh)
+		setValues(initialValues(fresh))
+		setNoShowDeducts(fresh.noShowDeducts)
+		setTouched({})
+		setSubmitted(false)
+		setFailed(false)
+		setNotice(null)
+		setFormVersion((version) => version + 1)
+		requestAnimationFrame(() => nameRef.current?.focus())
+	}
+
 	async function onSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
-		if (pending) return
+		if (pending || notice !== null) return
 		setSubmitted(true)
 		setFailed(false)
+		setReloadFailed(false)
 		const { errors } = parsed
 		const fields = [
 			{ field: 'name', ref: nameRef },
@@ -237,10 +266,13 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 				goals: nullable(values.goals),
 				timeZone: values.timeZone === SAME_TIME_ZONE ? null : values.timeZone,
 				noShowDeducts,
+				...(create ? {} : { expectedRevision: baseline?.revision }),
 			}
 		)
 		setPending(false)
 		if (!result.ok) {
+			if (!create && result.error?.code === 'precondition_failed') return setNotice('changed')
+			if (!create && (result.status === 0 || result.status >= 500)) return setNotice('lost')
 			setFailed(true)
 			return
 		}
@@ -264,7 +296,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 			<DialogContent size="lg">
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
-						<DialogTitle>{create ? 'New student' : `Edit ${student?.displayName ?? ''}`}</DialogTitle>
+						<DialogTitle>{create ? 'New student' : `Edit ${baseline?.displayName ?? ''}`}</DialogTitle>
 						<DialogDescription>
 							{create
 								? 'Add a card. You can fill in notes, vocabulary and payments after saving.'
@@ -356,7 +388,8 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 								hoursRef={lessonRef}
 								id="student-form-lesson"
 								label="Lesson length"
-								initialMinutes={student?.defaultLessonMinutes ?? LESSON_MINUTES_DEFAULT}
+								key={formVersion}
+								initialMinutes={baseline?.defaultLessonMinutes ?? LESSON_MINUTES_DEFAULT}
 								helper={LENGTH_HELPER}
 								onCommit={(minutes) => {
 									setValues((current) => ({ ...current, lessonMinutes: minutes }))
@@ -430,12 +463,35 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 							disabled={pending}
 							error={shown('goals')}
 						/>
+						{notice === 'changed' ? (
+							<ReloadNotice
+								status="warning"
+								text="This student changed elsewhere. Your draft has been kept. Reload the current details before saving."
+								reloadLabel="Reload student details"
+								pending={reloading}
+								onReload={() => void reload()}
+							/>
+						) : null}
+						{notice === 'lost' ? (
+							<ReloadNotice
+								status="error"
+								text="Could not confirm that the student was saved. Reload the current details before saving again."
+								reloadLabel="Reload student details"
+								pending={reloading}
+								onReload={() => void reload()}
+							/>
+						) : null}
+						{reloadFailed ? (
+							<Banner status="error">
+								<BannerTitle>Could not reload the student. Try again.</BannerTitle>
+							</Banner>
+						) : null}
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
 							Discard changes
 						</Button>
-						<Button type="submit" loading={pending}>
+						<Button type="submit" loading={pending} disabled={notice !== null}>
 							{create ? (pending ? 'Creating…' : 'Create student') : pending ? 'Saving…' : 'Save changes'}
 						</Button>
 					</DialogFooter>
