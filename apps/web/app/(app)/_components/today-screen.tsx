@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarDays, Users, Wallet } from 'lucide-react'
@@ -15,6 +15,7 @@ import { Stat } from '@/components/app/stat'
 import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonCount, SkeletonStat, SkeletonText } from '@/components/ui/skeleton'
+import { withoutSearchParams } from '@/lib/arrival-mark'
 import { occurrenceSlot } from '@/lib/lesson-mark-text'
 import { formatFullDate, formatTime, lessonCount, secondWhen, withSecond } from '@/lib/schedule-format'
 import { spring } from '@/lib/springs'
@@ -304,12 +305,16 @@ export function TodayLoading() {
 	)
 }
 
-export function TodayScreen() {
-	const minuteNow = useMinuteNow()
-	return minuteNow === null ? <TodayLoading /> : <LoadedToday minuteNow={minuteNow} />
+export interface TodayArrival {
+	payment: boolean
 }
 
-function LoadedToday({ minuteNow }: { minuteNow: Date }) {
+export function TodayScreen({ arrival }: { arrival: TodayArrival }) {
+	const minuteNow = useMinuteNow()
+	return minuteNow === null ? <TodayLoading /> : <LoadedToday minuteNow={minuteNow} arrival={arrival} />
+}
+
+function LoadedToday({ minuteNow, arrival }: { minuteNow: Date; arrival: TodayArrival }) {
 	const { state, now, reload, calendar, getData } = useToday(minuteNow)
 	const { data } = state
 	const [zone] = useSecondZone(data?.defaultTimeZone ?? null)
@@ -319,6 +324,19 @@ function LoadedToday({ minuteNow }: { minuteNow: Date }) {
 	const trigger = useRef<HTMLButtonElement | null>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const router = useRouter()
+	const [paymentHandled, setPaymentHandled] = useState(false)
+	const readFailed = state.kind === 'error'
+	const loaded = data !== null
+	if (!arrival.payment && paymentHandled) setPaymentHandled(false)
+	else if (arrival.payment && !paymentHandled && (loaded || readFailed)) {
+		setPaymentHandled(true)
+		if (loaded && !readFailed) setPayment(true)
+	}
+	useEffect(() => {
+		if (!arrival.payment || !paymentHandled) return
+		const href = withoutSearchParams(['dialog'])
+		if (href !== undefined) router.replace(href, { scroll: false })
+	}, [arrival.payment, paymentHandled, router])
 	const openBlock = useMemo(() => {
 		if (selected === null || data === null) return null
 		const block = [...data.lessons, ...data.earlier].find(
