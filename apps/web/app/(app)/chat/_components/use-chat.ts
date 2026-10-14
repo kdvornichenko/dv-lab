@@ -9,7 +9,7 @@ import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiEventStream, apiRequest
 
 import {
 	CHAT_ACTIVE_TURN_STATES,
-	calendarActionResponse,
+	chatActionResponse,
 	chatConversationReadResponse,
 	chatStreamEvent,
 	chatTurnResponse,
@@ -19,6 +19,7 @@ import {
 	type AssistantSettingsResponse,
 	type ChatActionResultBlock,
 	type ChatCalendarProposalBlock,
+	type ChatChangeProposalBlock,
 	type ChatConversation,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
@@ -237,7 +238,7 @@ function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMess
 	return [...current, ...added.filter((message) => !known.has(message.id))]
 }
 
-type ActionBlock = ChatActionResultBlock | ChatCalendarProposalBlock
+type ActionBlock = ChatActionResultBlock | ChatCalendarProposalBlock | ChatChangeProposalBlock
 
 function withBlock(messages: readonly ChatMessage[], next: ActionBlock): ChatMessage[] {
 	return messages.map((message) => ({
@@ -252,6 +253,13 @@ function calendarBlock(messages: readonly ChatMessage[], actionId: string): Chat
 	for (const message of messages)
 		for (const block of message.blocks)
 			if (block.type === 'calendar_proposal' && block.actionId === actionId) return block
+	return null
+}
+
+function changeBlock(messages: readonly ChatMessage[], actionId: string): ChatChangeProposalBlock | null {
+	for (const message of messages)
+		for (const block of message.blocks)
+			if (block.type === 'change_proposal' && block.actionId === actionId) return block
 	return null
 }
 
@@ -753,8 +761,9 @@ export function useChat(initialConversationId: string | null) {
 			updateThread(conversationId, (messages) => withBlock(messages, { ...block, state: 'submitting' }))
 			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/confirm`, {})
 			if (!mounted.current) return
-			const parsed = result.ok ? calendarActionResponse.safeParse(result.data) : null
-			if (parsed?.success) shownCalendar(conversationId, parsed.data.block)
+			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
+			if (parsed?.success && parsed.data.block.type === 'calendar_proposal')
+				shownCalendar(conversationId, parsed.data.block)
 			else updateThread(conversationId, (messages) => withBlock(messages, { ...block, state: 'unknown' }))
 			void calendar.store.refresh()
 		},
@@ -767,10 +776,43 @@ export function useChat(initialConversationId: string | null) {
 			if (conversationId === null) return
 			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/check`, {})
 			if (!mounted.current) return
-			const parsed = result.ok ? calendarActionResponse.safeParse(result.data) : null
-			if (parsed?.success) shownCalendar(conversationId, parsed.data.block)
+			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
+			if (parsed?.success && parsed.data.block.type === 'calendar_proposal')
+				shownCalendar(conversationId, parsed.data.block)
 		},
 		[shownCalendar]
+	)
+
+	const refreshThread = useCallback(async (): Promise<boolean> => {
+		const conversationId = threadRef.current.conversationId
+		if (conversationId === null) return false
+		const read = await readThread(conversationId)
+		if (!mounted.current || threadRef.current.conversationId !== conversationId) return false
+		if (read.state.kind !== 'ready') return false
+		commitThread({ conversationId, state: read.state })
+		return true
+	}, [commitThread])
+
+	const decideChange = useCallback(
+		async (actionId: string, decision: 'confirm' | 'decline'): Promise<boolean> => {
+			const conversationId = threadRef.current.conversationId
+			const current = threadRef.current.state
+			const block = current.kind === 'ready' ? changeBlock(current.messages, actionId) : null
+			if (conversationId === null || block === null || block.state !== 'proposed') return true
+			updateThread(conversationId, (messages) => withBlock(messages, { ...block, state: 'applying' }))
+			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/${decision}`, {})
+			if (!mounted.current) return true
+			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
+			if (parsed?.success && parsed.data.block.type === 'change_proposal') {
+				const shown = parsed.data.block
+				updateThread(conversationId, (messages) => withBlock(messages, shown))
+				return true
+			}
+			if (await refreshThread()) return true
+			updateThread(conversationId, (messages) => withBlock(messages, block))
+			return false
+		},
+		[refreshThread, updateThread]
 	)
 
 	const rename = useCallback(
@@ -828,6 +870,8 @@ export function useChat(initialConversationId: string | null) {
 		undo,
 		confirmCalendar,
 		checkCalendar,
+		decideChange,
+		refreshThread,
 		reloadThread,
 		rename,
 		remove,

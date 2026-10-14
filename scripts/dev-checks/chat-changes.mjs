@@ -323,6 +323,12 @@ async function payment() {
 			actionsOf(proposed.teacherId)[0]?.state === 'applied',
 		JSON.stringify(applied)
 	)
+	const readApplied = await shown(first, block.actionId)
+	check(
+		'after reload the conversation shows the applied block with the payment receipt',
+		readApplied?.state === 'applied' && readApplied.receipt?.paymentId === recorded[0]?.id,
+		JSON.stringify(readApplied)
+	)
 	const profile = await as('GET', `/students/${cardA}`)
 	check(
 		'the profile balance equals the balance after payment in the block',
@@ -383,6 +389,13 @@ async function payment() {
 			paymentsOf(cardC).length === 0 &&
 			actionsOf(kept.teacherId)[0]?.state === 'refused',
 		JSON.stringify(declined.json)
+	)
+
+	const readDeclined = await shown(first, kept.block.actionId)
+	check(
+		'after reload the conversation shows the declined block',
+		readDeclined?.state === 'declined' && readDeclined.receipt === null,
+		JSON.stringify(readDeclined)
 	)
 
 	const nameD = `${PREFIX}4`
@@ -474,6 +487,31 @@ async function payment() {
 		JSON.stringify(spoken.reply)
 	)
 	check('refused and kept proposals left the payments of the card untouched', paymentsOf(cardE).length === 0)
+
+	const second = await conversation()
+	const waiting = await ask(second, cardE, nameE, `@${nameE} заплатил 8000`, {})
+	const current = await as('GET', `/chat/conversations/${second}`)
+	const body = { expectedRevision: current.json.conversation.revision }
+	const removed = await call(api, 'DELETE', `/chat/conversations/${second}`, {
+		cookie,
+		body,
+		headers: { 'content-length': String(Buffer.byteLength(JSON.stringify(body))) },
+	})
+	const left = sql(
+		`select state, result->>'kind' as kind from chat_actions where id = ${quote(waiting.block.actionId)}`
+	).rows[0]
+	const late = await confirm(waiting.block.actionId)
+	const lateDecline = await decline(waiting.block.actionId)
+	check(
+		'deleting the conversation makes its waiting proposal stale and the old id records nothing',
+		removed.status === 204 &&
+			left?.state === 'refused' &&
+			left.kind === 'stale' &&
+			late.status === 404 &&
+			lateDecline.status === 404 &&
+			paymentsOf(cardE).length === 0,
+		JSON.stringify({ removed: removed.status, left, late: late.status })
+	)
 
 	const note = sql(
 		`insert into chat_actions (account_id, conversation_id, message_id, kind, state, result) values (${quote(accountId)}, ${quote(first)}, ${quote(proposed.teacherId)}, 'note', 'applied', '{"kind":"applied"}') returning id`

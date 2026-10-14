@@ -19,7 +19,7 @@ import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
 import { ConversationList } from './conversation-list'
 import { ConversationRail, RAIL_MIN_WIDTH } from './conversation-rail'
-import { type ActiveReply, type CalendarHandlers, Messages, type ReplyHandlers } from './messages'
+import { type ActiveReply, type CalendarHandlers, type ChangeHandlers, Messages, type ReplyHandlers } from './messages'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
 import { useChat, useComposerDraft, useMentionStudents, type ThreadState } from './use-chat'
 
@@ -93,6 +93,7 @@ function Thread({
 	onChoose,
 	onRefresh,
 	calendar,
+	changes,
 	replies,
 	active,
 	empty,
@@ -103,6 +104,7 @@ function Thread({
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	onRefresh: () => void
 	calendar: CalendarHandlers
+	changes: ChangeHandlers
 	replies: ReplyHandlers
 	active: ActiveReply | null
 	empty: boolean
@@ -124,6 +126,7 @@ function Thread({
 			onUndo={onUndo}
 			onChoose={onChoose}
 			calendar={calendar}
+			changes={changes}
 			replies={replies}
 			active={active}
 		/>
@@ -267,6 +270,11 @@ export function ChatScreen({ studentId, conversationId }: { studentId: string | 
 									calendar={{
 										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
 										onCheck: chat.checkCalendar,
+									}}
+									changes={{
+										onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
+										onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
+										onRefresh: chat.refreshThread,
 									}}
 									replies={{
 										onAsk: () => later(() => input.current?.focus()),

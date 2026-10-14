@@ -115,9 +115,11 @@ export function changeView(block: ChatChangeProposalBlock, action: ActionUndo): 
 
 export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<string, ActionUndo>): ChatBlock[] {
 	return blocks.map((block) => {
-		if (block.type !== 'action_result' && block.type !== 'calendar_proposal') return block
+		if (block.type !== 'action_result' && block.type !== 'calendar_proposal' && block.type !== 'change_proposal')
+			return block
 		const action = actions.get(block.actionId)
 		if (!action) return block
+		if (block.type === 'change_proposal') return changeView(block, action)
 		return block.type === 'calendar_proposal' ? calendarView(block, action) : { ...block, undo: undoState(action) }
 	})
 }
@@ -211,7 +213,9 @@ export function blocksOf(row: MessageRow): ChatBlock[] {
 async function actionsOf(executor: DbExecutor, rows: readonly MessageRow[]): Promise<Map<string, ActionUndo>> {
 	const ids = rows.flatMap((row) =>
 		blocksOf(row).flatMap((block) =>
-			block.type === 'action_result' || block.type === 'calendar_proposal' ? [block.actionId] : []
+			block.type === 'action_result' || block.type === 'calendar_proposal' || block.type === 'change_proposal'
+				? [block.actionId]
+				: []
 		)
 	)
 	if (ids.length === 0) return new Map()
@@ -220,6 +224,7 @@ async function actionsOf(executor: DbExecutor, rows: readonly MessageRow[]): Pro
 			id: chatActions.id,
 			state: chatActions.state,
 			result: chatActions.result,
+			after: chatActions.after,
 			undoResult: chatActions.undoResult,
 		})
 		.from(chatActions)
@@ -355,6 +360,17 @@ export async function redactConversationContent(
 				eq(chatActions.accountId, accountId),
 				eq(chatActions.conversationId, conversationId),
 				eq(chatActions.kind, 'calendar'),
+				eq(chatActions.state, 'proposed')
+			)
+		)
+	await executor
+		.update(chatActions)
+		.set({ state: 'refused', result: { kind: 'stale' }, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatActions.accountId, accountId),
+				eq(chatActions.conversationId, conversationId),
+				eq(chatActions.kind, 'change'),
 				eq(chatActions.state, 'proposed')
 			)
 		)

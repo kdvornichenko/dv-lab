@@ -21,6 +21,7 @@ import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 import { ActionLink } from './action-link'
 import { ActionResult } from './action-result'
 import { CalendarProposal } from './calendar-proposal'
+import { ChangeProposal } from './change-proposal'
 import { ChatProgress } from './chat-progress'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
@@ -29,6 +30,12 @@ import { StudentMention } from './student-mention'
 export type CalendarHandlers = {
 	onConfirm: (actionId: string) => void
 	onCheck: (actionId: string) => Promise<void>
+}
+
+export type ChangeHandlers = {
+	onConfirm: (actionId: string) => Promise<boolean>
+	onDecline: (actionId: string) => Promise<boolean>
+	onRefresh: () => Promise<boolean>
 }
 
 export type ReplyHandlers = {
@@ -199,17 +206,20 @@ function Block({
 	onUndo,
 	onChoose,
 	calendar,
+	changes,
 	replies,
 }: {
 	block: ChatBlock
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
+	changes: ChangeHandlers
 	replies: ReplyHandlers
 }) {
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
+	if (block.type === 'change_proposal') return <ChangeProposal block={block} {...changes} />
 	if (block.type === 'refused') return <Refused block={block} />
 	if (isRecordBlock(block)) return <RecordBlockView block={block} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
@@ -327,6 +337,7 @@ export function Messages({
 	onUndo,
 	onChoose,
 	calendar,
+	changes,
 	replies,
 	active,
 }: {
@@ -334,6 +345,7 @@ export function Messages({
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
+	changes: ChangeHandlers
 	replies: ReplyHandlers
 	active: ActiveReply | null
 }) {
@@ -400,7 +412,9 @@ export function Messages({
 							{message.blocks.map((block, index) => (
 								<Block
 									key={
-										block.type === 'action_result' || block.type === 'calendar_proposal'
+										block.type === 'action_result' ||
+										block.type === 'calendar_proposal' ||
+										block.type === 'change_proposal'
 											? block.actionId
 											: `${message.id}-${index}`
 									}
@@ -408,6 +422,7 @@ export function Messages({
 									onUndo={onUndo}
 									onChoose={onChoose}
 									calendar={calendar}
+									changes={changes}
 									replies={replies}
 								/>
 							))}
