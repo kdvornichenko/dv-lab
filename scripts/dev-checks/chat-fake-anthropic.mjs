@@ -93,6 +93,21 @@ function proposalPlan(marker, content, continued, body) {
 			stop: 'end_turn',
 		}
 	}
+	if (marker === 'bulk') {
+		if (continued) return say('I could not prepare that change.')
+		const from = /from:\s*([a-z]+)\s+(\d{1,2}:\d{2})/i.exec(message)
+		const to = /to:\s*([a-z]+)\s+(\d{1,2}:\d{2})/i.exec(message)
+		const zone = /zone:\s*([^;\n]+)/i.exec(message)?.[1]?.trim() ?? null
+		return call('propose_bulk_move', {
+			student_id: studentId,
+			from_weekday: from?.[1]?.toLowerCase() ?? null,
+			from_time: from?.[2] ?? null,
+			to_weekday: to?.[1]?.toLowerCase() ?? null,
+			to_time: to?.[2] ?? null,
+			time_zone: zone,
+			from: null,
+		})
+	}
 	if (marker === 'end') {
 		if (continued) return say('I could not prepare that change.')
 		return call('propose_lesson_change', {

@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 
+import { chatBlock, chatChangeProposalBlock } from '../../packages/contracts/src/chat.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
@@ -32,7 +33,7 @@ function portFree(port) {
 	})
 }
 
-async function startFakeModelApi(port = 4000) {
+async function startFakeModelApi(port = 4000, delay = '20') {
 	if (!(await portFree(port))) throw new Error(`port ${port} is busy: this section starts its own api`)
 	const env = {
 		...process.env,
@@ -40,7 +41,7 @@ async function startFakeModelApi(port = 4000) {
 		APP_ORIGIN: BASE,
 		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
 		LOG_LEVEL: 'info',
-		CHAT_FAKE_DELAY_MS: '20',
+		CHAT_FAKE_DELAY_MS: delay,
 	}
 	delete env.DATABASE_URL
 	delete env.MIGRATOR_DATABASE_URL
@@ -1284,7 +1285,705 @@ async function sectionProposals() {
 	}
 }
 
-const sections = { payment: sectionPayment, forms: sectionForms, proposals: sectionProposals }
+const BULK_PORT = 4253
+const BULK_NAME = 'Alex Example 2388'
+const BULK = '[data-operation="bulk_move"]'
+const ESSAY = '[data-slot="chat-essay"]'
+const STOP = '[data-slot="chat-stop"]'
+const ASSISTANT = '[data-role="assistant"]'
+const ESSAY_LABEL = 'Approximate estimate — not an official IELTS score.'
+const TOO_LONG = 'This essay is too long for the current chat limit. Shorten it before sending.'
+const OUTCOME_LINE = 'I could not prepare that change.'
+const WIDTHS = [390, 375, 320]
+
+function removeBulkCard() {
+	sql(`delete from students where display_name = ${q(BULK_NAME)} and import_key is null`)
+	console.log('fixture card removed')
+}
+
+function readBudget(budgetAccount) {
+	const period = budgetAccount
+		? sql(
+				`select id, spent_nano::text as spent, held_nano::text as held from chat_budget_periods where account_id = '${budgetAccount}' order by starts_on desc limit 1`
+			).rows[0]
+		: undefined
+	return period
+}
+
+function restoreBudget(period) {
+	if (period)
+		sql(
+			`update chat_budget_periods set spent_nano = ${period.spent}, held_nano = ${period.held} where id = '${period.id}'`
+		)
+}
+
+async function newChat(page) {
+	await page.goto(`${BASE}/chat`)
+	await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+	await page.getByRole('button', { name: 'New chat', exact: true }).click()
+	await page.locator(FIELD).waitFor({ timeout: 30000 })
+}
+
+async function typeSend(page, text, mention = null) {
+	await page.locator(FIELD).click()
+	if (mention !== null) {
+		await page.keyboard.type(`@${mention}`)
+		await page.locator(POPUP).waitFor({ timeout: 15000 })
+		await page.keyboard.press('Enter')
+		await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+	}
+	await page.keyboard.type(text)
+	await page.locator(SEND).click()
+}
+
+async function widthFit(page, scope, width) {
+	await page.setViewportSize({ width, height: 844 })
+	await page.waitForTimeout(250)
+	return page.evaluate(
+		({ scope, width }) => {
+			const boxes = [...document.querySelectorAll(`${scope} button, ${scope} a, ${scope} li, ${scope} p`)].map(
+				(node) => {
+					const box = node.getBoundingClientRect()
+					return { x: box.x, right: box.x + box.width, width: box.width, text: (node.textContent ?? '').slice(0, 24) }
+				}
+			)
+			const bad = boxes.filter((box) => box.width > 0 && (box.x < -0.5 || box.right > width + 0.5))
+			return {
+				count: boxes.length,
+				bad: bad.slice(0, 3),
+				overflow: document.documentElement.scrollWidth - window.innerWidth,
+			}
+		},
+		{ scope, width }
+	)
+}
+
+function targetsOf(today, shapes, zone, input) {
+	return shapes.map((shape, index) => {
+		const day = core.addDays(today, 1 + index)
+		return {
+			seriesId: randomUUID(),
+			seriesTimeZone: zone,
+			from: day,
+			wasStartsAt: core.zonedInstant(day, '16:00', zone).toISOString(),
+			nowStartsAt: core.zonedInstant(core.addDays(day, 1), '18:00', input).toISOString(),
+			durationMinutes: 60,
+			state: shape,
+		}
+	})
+}
+
+function bulkBlock(studentId, state, targets, extra = {}) {
+	return chatChangeProposalBlock.parse({
+		type: 'change_proposal',
+		actionId: randomUUID(),
+		state,
+		...(extra.issue ? { issue: extra.issue } : {}),
+		change: {
+			operation: 'bulk_move',
+			studentId,
+			studentName: BULK_NAME,
+			inputTimeZone: extra.input ?? 'Europe/Moscow',
+			zoneNamed: extra.named ?? true,
+			accountTimeZone: extra.account ?? VN,
+			fromWeekday: 2,
+			fromTime: '16:00',
+			toWeekday: 3,
+			toTime: '18:00',
+			targets,
+			singlesLeft: extra.singles ?? 0,
+		},
+		receipt: state === 'applied' ? { studentId } : null,
+	})
+}
+
+const withStates = (targets, states) =>
+	targets.map((target, index) => ({ ...target, state: states[index] ?? target.state }))
+
+async function sectionBulk() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+	const started = await startFakeModelApi(BULK_PORT)
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = readBudget(teacher)
+	try {
+		removeBulkCard()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, BULK_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const created = await call('POST', '/students', {
+					displayName: BULK_NAME,
+					rateMinor: 400000,
+					currency: 'RUB',
+					defaultLessonMinutes: 60,
+					parent: null,
+					level: null,
+					goals: null,
+					timeZone: null,
+				})
+				check('the fixture card is created', created.status === 201, String(created.status))
+				const studentId = created.json.student.id
+				const google = []
+				page.on('request', (request) => {
+					if (request.url().includes('/api/google'))
+						google.push(`${request.method()} ${new URL(request.url()).pathname}`)
+				})
+				const commands = () => Number(sql(`select count(*)::int as n from google_commands`).rows[0]?.n ?? -1)
+
+				await newChat(page)
+				const commandsBefore = commands()
+				await typeSend(page, '[fake:bulk] from: tuesday 16:00 to: wednesday 18:00', BULK_NAME)
+				await page.getByText(OUTCOME_LINE).waitFor({ timeout: 30000 })
+				await page.locator(SEND).waitFor({ timeout: 30000 })
+				const realChat = new URL(page.url()).searchParams.get('c')
+				if (realChat) conversations.push(realChat)
+				check(
+					'with no Google connection the bulk request gives a refusal text, no decision block and no command',
+					(await page.locator(CHANGE).count()) === 0 && commands() === commandsBefore,
+					`${await page.locator(CHANGE).count()} blocks, commands ${commandsBefore} -> ${commands()}`
+				)
+				await page.getByRole('button', { name: 'Show steps' }).click()
+				check(
+					'the step of the bulk tool reads Preparing to move lessons',
+					(await page.getByText('Preparing to move lessons').count()) > 0
+				)
+				check('the api log has no message text', !started.logs().includes('from: tuesday'))
+
+				const today = core.scheduleToday(new Date(), core.SCHEDULE_TIME_ZONE)
+				const planned = (n, zone, input) => targetsOf(today, Array(n).fill('planned'), zone, input)
+				const scripts = new Map()
+				const hits = { confirm: [], decline: [], check: [] }
+				const idOf = (url) => new URL(url).pathname.split('/').at(-2)
+				await page.route('**/api/chat/actions/*/confirm', (route) => {
+					const id = idOf(route.request().url())
+					hits.confirm.push(id)
+					return route.fulfill({ status: 200, json: { block: scripts.get(id).afterConfirm } })
+				})
+				await page.route('**/api/chat/actions/*/decline', (route) => {
+					const id = idOf(route.request().url())
+					hits.decline.push(id)
+					return route.fulfill({ status: 200, json: { block: scripts.get(id).afterDecline } })
+				})
+				await page.route('**/api/chat/actions/*/check', (route) => {
+					const id = idOf(route.request().url())
+					hits.check.push(id)
+					const script = scripts.get(id)
+					return route.fulfill({ status: 200, json: { block: script.checks[script.mode]() } })
+				})
+
+				const as = (block, id) => ({ ...block, actionId: id })
+				const targetsA = planned(4, VN, 'Europe/Moscow')
+				const blockA = bulkBlock(studentId, 'proposed', targetsA)
+				const stateA = (state, list) => as(bulkBlock(studentId, state, withStates(targetsA, list)), blockA.actionId)
+				scripts.set(blockA.actionId, {
+					afterConfirm: stateA('pending', ['pending', 'not_started', 'not_started', 'not_started']),
+					mode: 'mid',
+					checks: {
+						mid: () => stateA('pending', ['applied', 'pending', 'not_started', 'not_started']),
+						done: () => stateA('applied', ['applied', 'applied', 'applied', 'applied']),
+					},
+				})
+
+				const targetsB = planned(3, 'Europe/Moscow', VN)
+				const optionsB = { named: false, input: VN, account: 'Europe/Moscow', singles: 1 }
+				const blockB = bulkBlock(studentId, 'proposed', targetsB, optionsB)
+				const stateB = (state, list, extra = {}) =>
+					as(bulkBlock(studentId, state, withStates(targetsB, list), { ...optionsB, ...extra }), blockB.actionId)
+				scripts.set(blockB.actionId, {
+					afterConfirm: stateB('pending', ['pending', 'not_started', 'not_started']),
+					mode: 'partial',
+					checks: {
+						partial: () => stateB('partial', ['applied', 'failed', 'not_started'], { issue: 'calendar_changed' }),
+					},
+				})
+
+				const targetsC = planned(1, 'America/Argentina/Buenos_Aires', 'Europe/Moscow')
+				const optionsC = { singles: 3, account: 'Europe/Moscow' }
+				const blockC = bulkBlock(studentId, 'proposed', targetsC, optionsC)
+				scripts.set(blockC.actionId, {
+					afterDecline: as(bulkBlock(studentId, 'declined', targetsC, optionsC), blockC.actionId),
+				})
+
+				const targetsD = planned(2, VN, 'Europe/Moscow')
+				const staleD = bulkBlock(studentId, 'stale', targetsD)
+				const failedD = bulkBlock(studentId, 'failed', withStates(targetsD, ['failed', 'not_started']), {
+					issue: 'provider_unavailable',
+				})
+
+				const queue = [[blockA], [blockB], [blockC], [staleD, failedD]]
+				let conversation = null
+				const createdChat = page.waitForResponse(
+					(response) => response.request().method() === 'POST' && response.url().endsWith('/api/chat/conversations')
+				)
+				await page.route('**/api/chat/conversations/*/messages', async (route) => {
+					if (route.request().method() !== 'POST') return route.fallback()
+					conversation ??= (await (await createdChat).json()).conversation
+					if (conversation?.id && !conversations.includes(conversation.id)) conversations.push(conversation.id)
+					const body = route.request().postDataJSON()
+					const blocks = queue.shift() ?? []
+					const reply = syntheticReply(conversation, body, blocks[0])
+					reply.messages[1].blocks = blocks
+					return route.fulfill({ status: 201, json: reply })
+				})
+				await newChat(page)
+				const askSynthetic = async (index) => {
+					await page.locator(FIELD).fill(`synthetic bulk ${index}`)
+					await page.locator(SEND).click()
+					await page.waitForFunction(
+						(count) => document.querySelectorAll('[data-role="assistant"]').length === count,
+						index + 1,
+						{
+							timeout: 15000,
+						}
+					)
+					await page.locator(SEND).waitFor({ timeout: 15000 })
+				}
+				const blockAt = (n) => page.locator(BULK).nth(n)
+				const states = (block) =>
+					block
+						.locator('[data-slot="bulk-target"]')
+						.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-state')))
+				const buttons = async (block) => (await block.getByRole('button').allInnerTexts()).map((text) => text.trim())
+				const dataState = (block) => block.getAttribute('data-state')
+
+				await askSynthetic(0)
+				const a = blockAt(0)
+				let text = await a.innerText()
+				check(
+					'A named-zone proposal shows the student, the input zone MSK, the count, three of four changes and the decisions',
+					text.includes(`Move ${BULK_NAME}'s weekly lessons?`) &&
+						text.includes('Input time zone') &&
+						text.includes('MSK') &&
+						!text.includes('No time zone was named') &&
+						text.includes('4 planned changes: 4 weekly series') &&
+						text.includes('Series zone VN · New rule zone MSK') &&
+						text.includes('And future occurrences') &&
+						text.includes('Lessons with a mark or a comment, and the lessons before them, stay at their old time.') &&
+						(await states(a)).length === 3 &&
+						JSON.stringify(await buttons(a)) ===
+							JSON.stringify(['Show all selected changes', 'Move lessons', 'Keep lesson times']),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-bulk', 'proposed')
+				await a.getByRole('button', { name: 'Show all selected changes' }).click()
+				check(
+					'Show all selected changes opens all four changes in the card',
+					(await states(a)).length === 4 &&
+						(await a.getByRole('button', { name: 'Show fewer selected changes' }).getAttribute('aria-expanded')) ===
+							'true'
+				)
+				await shot(page, 'changes-bulk', 'proposed-open')
+				await a.getByRole('button', { name: 'Show fewer selected changes' }).click()
+				check('Show fewer selected changes folds the list back to three', (await states(a)).length === 3)
+				await a.getByRole('button', { name: 'Move lessons' }).click()
+				await a.locator('[data-slot="bulk-target"][data-state="pending"]').first().waitFor({ timeout: 15000 })
+				text = await a.innerText()
+				check(
+					'after Move lessons the card is busy, waits for Google, shows each change state and offers Check status',
+					(await dataState(a)) === 'pending' &&
+						(await a.getAttribute('aria-busy')) === 'true' &&
+						text.includes('Waiting for Google Calendar to confirm this change…') &&
+						!text.includes('Lessons moved.') &&
+						JSON.stringify(await states(a)) === JSON.stringify(['pending', 'not_started', 'not_started']) &&
+						(await buttons(a)).includes('Check status') &&
+						!(await buttons(a)).includes('Move lessons') &&
+						hits.confirm.length === 1,
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-bulk', 'pending')
+				const deadline = Date.now() + 8000
+				while (hits.check.length === 0 && Date.now() < deadline) await page.waitForTimeout(200)
+				await page.waitForFunction(
+					(index) => {
+						const nodes = document
+							.querySelectorAll('[data-operation="bulk_move"]')
+							[index]?.querySelectorAll('[data-slot="bulk-target"]')
+						return nodes?.[0]?.getAttribute('data-state') === 'applied'
+					},
+					0,
+					{ timeout: 8000 }
+				)
+				check(
+					'the card checks the status by itself: the first change is Confirmed, the second waits, the move is not done',
+					hits.check.length >= 1 &&
+						JSON.stringify(await states(a)) === JSON.stringify(['applied', 'pending', 'not_started']) &&
+						!(await a.innerText()).includes('Lessons moved.')
+				)
+				await shot(page, 'changes-bulk', 'pending-mid')
+				scripts.get(blockA.actionId).mode = 'done'
+				const checksBefore = hits.check.length
+				await a.getByRole('button', { name: 'Check status' }).click()
+				await a.getByText('Lessons moved.').waitFor({ timeout: 15000 })
+				text = await a.innerText()
+				const firstNew = targetsA
+					.map((target) => core.zonedParts(new Date(target.nowStartsAt), 'Europe/Moscow').date)
+					.sort()[0]
+				const link = a.getByRole('link', { name: /^View schedule/ })
+				check(
+					'Check status gets the final state: Lessons moved. only when every change is applied, with View schedule',
+					hits.check.length > checksBefore &&
+						(await dataState(a)) === 'applied' &&
+						text.includes('4 planned changes confirmed in Google Calendar.') &&
+						(await link.getAttribute('href')) === `/schedule?week=${firstNew}&day=${firstNew}`,
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-bulk', 'applied')
+
+				await askSynthetic(1)
+				const b = blockAt(1)
+				text = await b.innerText()
+				check(
+					'B without a named zone says Vietnam time is used, shows the display zone and the single lesson that stays',
+					text.includes('No time zone was named. These times use Vietnam time (VN).') &&
+						text.includes('Display time zone') &&
+						text.includes('3 planned changes: 3 weekly series') &&
+						text.includes('1 single lesson at this time is not moved.') &&
+						!text.includes('Show all selected changes'),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-bulk', 'no-zone')
+				await b.getByRole('button', { name: 'Move lessons' }).click()
+				await b.getByText('Some changes are confirmed. The move is not complete.').waitFor({ timeout: 15000 })
+				text = await b.innerText()
+				check(
+					'a partial result keeps the confirmed change and counts planned changes: confirmed, unconfirmed, not started',
+					(await dataState(b)) === 'partial' &&
+						text.includes('1 planned change confirmed. 1 unconfirmed. 1 not started.') &&
+						text.includes('The remaining lessons changed after you asked. The confirmed changes stay.') &&
+						text.includes('Ask again to move the remaining lessons.') &&
+						!text.includes('Lessons moved.') &&
+						!text.includes('Saved') &&
+						JSON.stringify(await states(b)) === JSON.stringify(['applied', 'failed', 'not_started']) &&
+						(await b.getAttribute('aria-busy')) === 'false' &&
+						(await buttons(b)).includes('Check status'),
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-bulk', 'partial')
+				const sentChecks = hits.check.length
+				await b.getByRole('button', { name: 'Check status' }).click()
+				await page.waitForTimeout(600)
+				check(
+					'Check status on a partial move reads the status again and does not change the counts',
+					hits.check.length === sentChecks + 1 &&
+						(await b.innerText()).includes('1 planned change confirmed. 1 unconfirmed. 1 not started.')
+				)
+
+				await askSynthetic(2)
+				const c = blockAt(2)
+				text = await c.innerText()
+				check(
+					'C shows one change with a long zone name and the plural single lessons line',
+					text.includes('3 single lessons at this time are not moved.') &&
+						text.includes('1 planned change: 1 weekly series') &&
+						text.includes('Series zone BUEN · New rule zone MSK') &&
+						(await states(c)).length === 1,
+					text.replace(/\n/g, ' | ')
+				)
+				await c.getByRole('button', { name: 'Keep lesson times' }).click()
+				await c.getByText('Proposal declined. This proposal made no changes.').waitFor({ timeout: 15000 })
+				check(
+					'Keep lesson times sends decline once, no confirm, and the card is declined',
+					hits.decline.length === 1 &&
+						hits.decline[0] === blockC.actionId &&
+						!hits.confirm.includes(blockC.actionId) &&
+						(await dataState(c)) === 'declined'
+				)
+
+				await askSynthetic(3)
+				const stale = blockAt(3)
+				const failed = blockAt(4)
+				const staleText = await stale.innerText()
+				const failedText = await failed.innerText()
+				check(
+					'a stale proposal says nothing was changed and a failed one lists each change with the Google reason and Ask again',
+					staleText.includes('This proposal is out of date. Nothing was changed.') &&
+						staleText.includes('Ask again to use the current details.') &&
+						failedText.includes('Google Calendar did not accept the change. Nothing was changed.') &&
+						failedText.includes('Google Calendar is unavailable. Calendar changes are disabled.') &&
+						failedText.includes('Ask again to move the remaining lessons.') &&
+						JSON.stringify(await states(failed)) === JSON.stringify(['failed', 'not_started']),
+					failedText.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-bulk', 'failed')
+
+				check(
+					'the browser sent no write to the Google endpoints and the decisions went out once each',
+					google.every((entry) => entry.startsWith('GET ')) && hits.confirm.length === 2 && hits.decline.length === 1,
+					`${[...new Set(google)].join(', ')}; ${hits.confirm.length} confirm, ${hits.decline.length} decline`
+				)
+				await a.getByRole('button', { name: 'Show all selected changes' }).click()
+				for (const width of WIDTHS) {
+					const fit = await widthFit(page, BULK, width)
+					check(
+						`at ${width} px every part of the bulk blocks stays inside the screen and the page does not scroll sideways`,
+						fit.count > 0 && fit.bad.length === 0 && fit.overflow <= 0,
+						JSON.stringify(fit)
+					)
+					await a.scrollIntoViewIfNeeded()
+					await shot(page, 'changes-bulk', `phone-${width}`)
+				}
+				await page.setViewportSize({ width: 1280, height: 800 })
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeConversations(conversations),
+			() => removeBulkCard(),
+			() => restoreBudget(period)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
+function assistantOnly(conversation, body, text, blocks) {
+	const reply = syntheticReply(conversation, body, blocks[0])
+	reply.messages[1].body = text
+	reply.messages[1].blocks = blocks
+	return reply
+}
+
+const ESSAY_TEXT =
+	'Some people think that students should study abroad. Others believe it is better to stay at home. In my opinion, studying abroad brings many benefits because students learn independence.'
+
+async function sectionEssay() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+	const started = await startFakeModelApi(BULK_PORT, '120')
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = readBudget(teacher)
+	try {
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, BULK_PORT)
+				await signIn(page)
+				let conversation = null
+				page.on('response', async (response) => {
+					if (response.request().method() !== 'POST' || !/\/messages$/.test(response.url()) || !response.ok()) return
+					const parsed = await response.json().catch(() => null)
+					if (parsed?.conversation && parsed.turn !== null) conversation = parsed.conversation
+				})
+				const essays = () => page.locator(ESSAY)
+				const assistants = () => page.locator(ASSISTANT)
+				const track = () => {
+					const id = new URL(page.url()).searchParams.get('c')
+					if (id && !conversations.includes(id)) conversations.push(id)
+				}
+
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 30000 })
+				const listText = await page.locator('body').innerText()
+				check(
+					'the commands list of a new chat has /essay with its description',
+					listText.includes('/essay') && listText.includes('Feedback on a pasted essay')
+				)
+				await page.locator(FIELD).click()
+				await page.keyboard.type('/')
+				await page.locator(POPUP).waitFor({ timeout: 15000 })
+				check('typing / offers /essay in the command popup', (await page.locator(POPUP).innerText()).includes('/essay'))
+				await page.keyboard.press('Escape')
+				await page.locator(FIELD).fill('')
+
+				await page.locator(FIELD).fill(`/essay [fake:essay] ${ESSAY_TEXT} ${'x'.repeat(140)}`)
+				await page.locator(SEND).click()
+				await assistants().first().waitFor({ timeout: 30000 })
+				track()
+				await page.waitForTimeout(1800)
+				await page.reload()
+				await essays().first().waitFor({ timeout: 30000 })
+				const early = essays().first()
+				const earlyText = await early.innerText()
+				check(
+					'while the reply is still running (reload mid-reply) the heading, the approximate label and the unassessed task are already there',
+					(await early.getAttribute('data-outcome')) === 'streaming' &&
+						earlyText.startsWith('Essay feedback') &&
+						earlyText.includes(ESSAY_LABEL) &&
+						earlyText.includes('Task criterion not assessed') &&
+						earlyText.includes('No task prompt or task type was supplied.') &&
+						!earlyText.includes('Lexical resource'),
+					earlyText.replace(/\n/g, ' | ')
+				)
+				await page.locator(SEND).waitFor({ timeout: 40000 })
+				const full = await essays().first().innerText()
+				check(
+					'after the reply the label stays above the feedback text, the outcome is complete and no incomplete line',
+					(await essays().first().getAttribute('data-outcome')) === 'complete' &&
+						full.indexOf(ESSAY_LABEL) >= 0 &&
+						full.indexOf(ESSAY_LABEL) < full.indexOf('Coherence and cohesion') &&
+						!full.includes('Feedback incomplete') &&
+						(await essays().count()) === 1,
+					full.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-essay', 'complete')
+				const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+				check(
+					'the long unbroken word of the teacher message wraps and the page does not scroll sideways',
+					overflow <= 0,
+					String(overflow)
+				)
+				await page.getByRole('button', { name: 'Show steps' }).click()
+				check('the essay step reads Reading the essay', (await page.getByText('Reading the essay').count()) > 0)
+				await page.reload()
+				await essays().first().waitFor({ timeout: 30000 })
+				const again = await essays().first().innerText()
+				check(
+					'after a reload the label is still above the feedback',
+					again.startsWith('Essay feedback') &&
+						again.indexOf(ESSAY_LABEL) >= 0 &&
+						again.indexOf(ESSAY_LABEL) < again.indexOf('Coherence and cohesion')
+				)
+
+				await page.locator(FIELD).fill(`/essay [fake:essay] ${ESSAY_TEXT}`)
+				await page.locator(SEND).click()
+				await page.locator(STOP).waitFor({ timeout: 15000 })
+				await page.waitForTimeout(1500)
+				await page.locator(STOP).click()
+				await page.getByText('Feedback incomplete').waitFor({ timeout: 30000 })
+				await page.locator(SEND).waitFor({ timeout: 30000 })
+				const second = essays().nth(1)
+				const stoppedText = await second.innerText()
+				check(
+					'Stop leaves the label and a Feedback incomplete line, never a finished-looking feedback',
+					(await second.getAttribute('data-outcome')) === 'incomplete' &&
+						stoppedText.includes(ESSAY_LABEL) &&
+						stoppedText.includes('Feedback incomplete') &&
+						!stoppedText.includes('Grammatical range and accuracy'),
+					stoppedText.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-essay', 'incomplete')
+				const before = await assistants().count()
+				await second.getByRole('button', { name: 'Ask another question' }).click()
+				await page
+					.waitForFunction(() => document.activeElement?.getAttribute('data-slot') === 'chat-composer-field', null, {
+						timeout: 3000,
+					})
+					.catch(() => undefined)
+				check(
+					'Ask another question puts the cursor in the field and sends nothing',
+					(await page.evaluate(() => document.activeElement?.getAttribute('data-slot'))) === 'chat-composer-field' &&
+						(await assistants().count()) === before
+				)
+
+				await page.locator(FIELD).fill('a'.repeat(20001))
+				await page.getByText(TOO_LONG).waitFor({ timeout: 5000 })
+				await page.locator(FIELD).press('Enter')
+				await page.waitForTimeout(400)
+				check(
+					'an essay over the limit shows the line under the field, Send is off and Enter sends nothing',
+					(await page.locator(SEND).isDisabled()) && (await assistants().count()) === before
+				)
+				await shot(page, 'changes-essay', 'too-long')
+				await page.locator(FIELD).fill('a'.repeat(20000))
+				check(
+					'exactly at the limit the line is gone and Send is on',
+					(await page.getByText(TOO_LONG).count()) === 0 && (await page.locator(SEND).isEnabled())
+				)
+				await page.locator(FIELD).fill('')
+
+				const current = new URL(page.url()).searchParams.get('c')
+				const queue = []
+				await page.route('**/api/chat/conversations/*/messages', async (route) => {
+					if (route.request().method() !== 'POST') return route.fallback()
+					const body = route.request().postDataJSON()
+					const next = queue.shift()
+					return route.fulfill({ status: 201, json: assistantOnly(conversation, body, next.text, next.blocks) })
+				})
+				queue.push({
+					text: '',
+					blocks: [
+						{ type: 'essay', task: 'task2' },
+						{ type: 'refused', code: 'model_refused' },
+					],
+				})
+				queue.push({
+					text: '**Task response** The position is clear and both views are covered.',
+					blocks: [{ type: 'essay', task: 'task2' }],
+				})
+				for (const item of queue) for (const block of item.blocks) chatBlock.parse(block)
+				const count = await essays().count()
+				await page.locator(FIELD).fill('synthetic unavailable')
+				await page.locator(SEND).click()
+				await page.waitForFunction(
+					(n) => document.querySelectorAll('[data-slot="chat-essay"]').length === n,
+					count + 1,
+					{ timeout: 15000 }
+				)
+				const unavailable = essays().nth(count)
+				const unavailableText = await unavailable.innerText()
+				check(
+					'a refused essay reply shows Feedback unavailable with the label, the reason and Ask another question',
+					(await unavailable.getAttribute('data-outcome')) === 'unavailable' &&
+						unavailableText.includes(ESSAY_LABEL) &&
+						unavailableText.includes('Feedback unavailable') &&
+						unavailableText.includes('Could not complete feedback for this essay.') &&
+						unavailableText.includes('Ask another question') &&
+						!unavailableText.includes('Task criterion not assessed'),
+					unavailableText.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-essay', 'unavailable')
+				await page.locator(SEND).waitFor({ timeout: 15000 })
+				await page.locator(FIELD).fill('synthetic task two')
+				await page.locator(SEND).click()
+				await page.waitForFunction(
+					(n) => document.querySelectorAll('[data-slot="chat-essay"]').length === n,
+					count + 2,
+					{ timeout: 15000 }
+				)
+				const known = essays().nth(count + 1)
+				const knownText = await known.innerText()
+				check(
+					'with a known task there is no unassessed line and the label is above the text',
+					!knownText.includes('Task criterion not assessed') &&
+						knownText.indexOf(ESSAY_LABEL) >= 0 &&
+						knownText.indexOf(ESSAY_LABEL) < knownText.indexOf('Task response'),
+					knownText.replace(/\n/g, ' | ')
+				)
+				check(
+					'every essay reply has exactly one approximate label',
+					(await page.locator('[data-slot="chat-essay-label"]').count()) === count + 2
+				)
+				for (const width of WIDTHS) {
+					const fit = await widthFit(page, ESSAY, width)
+					check(
+						`at ${width} px the essay blocks and the teacher message stay inside the screen`,
+						fit.count > 0 && fit.bad.length === 0 && fit.overflow <= 0,
+						JSON.stringify(fit)
+					)
+					await essays().first().scrollIntoViewIfNeeded()
+					await shot(page, 'changes-essay', `phone-${width}`)
+				}
+				await page.setViewportSize({ width: 1280, height: 800 })
+				if (current) conversations.push(current)
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+				check('the api log has no essay text', !started.logs().includes('Some people think'))
+			},
+			() => removeConversations([...new Set(conversations)]),
+			() => restoreBudget(period)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
+const sections = {
+	payment: sectionPayment,
+	forms: sectionForms,
+	proposals: sectionProposals,
+	bulk: sectionBulk,
+	essay: sectionEssay,
+}
 const section = process.argv[2]
 const run = sections[section]
 if (!run) {
