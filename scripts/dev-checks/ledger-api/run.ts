@@ -3,6 +3,7 @@ import { sectionBalance, sectionFlag } from './balance.ts'
 import { PORT, check, failures, recordFailure, removeOwn, removeTails, todayVn } from './context.ts'
 import { sectionCut, sectionRace } from './cut-race.ts'
 import { removeLedgerTails, sectionLedger } from './ledger.ts'
+import { sectionLessons } from './lessons.ts'
 import { sectionMarks } from './marks.ts'
 import { sectionMoves } from './moves.ts'
 import { sectionPast } from './past.ts'
@@ -19,6 +20,7 @@ const SECTIONS: Record<string, (ctx: Context) => Promise<string>> = {
 	flag: sectionFlag,
 	today: sectionToday,
 	ledger: sectionLedger,
+	lessons: sectionLessons,
 }
 
 const section = process.argv[2]

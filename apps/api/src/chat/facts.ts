@@ -13,14 +13,12 @@ import {
 	type ChatStudentFacts,
 	type ScheduleBlock,
 } from '@dv-lab/contracts'
-import { addDays, lessonDay, paysSoonList, scheduleWindow, startOfLessonDay } from '@dv-lab/core'
+import { addDays, lessonDay, paysSoonList, startOfLessonDay } from '@dv-lab/core'
 import { type DbExecutor, students } from '@dv-lab/db'
 
-import { readNextLessons } from '../calendar/read-model.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
 import { getCard, listCards } from '../cards/cards.ts'
-import { filterHistoryBlocks, loadScheduleRows } from '../schedule/rows.ts'
-import { wireBlocks } from '../schedule/schedule.ts'
+import { readWindowBlocks } from '../schedule/window-blocks.ts'
 import { readLessonDay } from '../today/today.ts'
 
 export type ChatRecordsBlock = ChatFactsBlock | ChatLessonsBlock | ChatPaysSoonBlock | ChatLessonDatesBlock
@@ -153,28 +151,17 @@ export async function readChatLessonDates(
 	const zone = context.defaultTimeZone
 	const from = startOfLessonDay(period.from, zone)
 	const to = startOfLessonDay(addDays(period.to, 1), zone)
-	const rows = await loadScheduleRows(executor, { from, to, studentIds: [studentId] })
-	const blocks = (await wireBlocks(executor, scheduleWindow({ ...rows, from, to }), context.now)).filter(
-		(block) => block.studentId === studentId
-	)
-	const past = blocks.filter((block) => Date.parse(block.startsAt) <= context.now.getTime())
-	const kept = new Set((await filterHistoryBlocks(executor, context.accountId, past)).map((block) => block.key))
-	const dropped = past.filter((block) => !kept.has(block.key)).length
-	const read = blocks.filter((block) => Date.parse(block.startsAt) > context.now.getTime() || kept.has(block.key))
+	const window = await readWindowBlocks(executor, context, { from, to, studentIds: [studentId] })
 	const dates = new Set<string>()
 	const leftOut = { noShow: 0, ahead: 0 }
-	for (const block of read) {
+	for (const block of window.blocks) {
 		const kind = dateKind(block, context.now)
 		if (kind === null) continue
 		if (inScope(kind, scope)) dates.add(lessonDay(new Date(block.startsAt), zone))
 		else if (kind === 'no_show') leftOut.noShow += 1
 		else if (kind === 'ahead') leftOut.ahead += 1
 	}
-	let coverage: ChatLessonDatesBlock['coverage'] = 'complete'
-	if (dropped > 0) {
-		const next = (await readNextLessons(executor, context, [studentId])).get(studentId)
-		if (next?.status.state !== 'fresh') coverage = 'partial'
-	}
+	const coverage: ChatLessonDatesBlock['coverage'] = window.coverage === 'complete' ? 'complete' : 'partial'
 	return {
 		type: 'lesson_dates',
 		studentId,

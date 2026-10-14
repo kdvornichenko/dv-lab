@@ -12,6 +12,7 @@ import {
 	type StudentBlocksResponse,
 	type StudentCommentsResponse,
 	type StudentDetail,
+	type StudentLessonsResponse,
 	type StudentNoteResponse,
 	type StudentNotesResponse,
 	type StudentResponse,
@@ -35,6 +36,7 @@ import {
 	saveSectionRequest,
 	saveStudentRequest,
 	studentCommentsQuery,
+	studentLessonsQuery,
 	studentTermsQuery,
 	updateStudentRequest,
 	updateTermNoteRequest,
@@ -71,6 +73,7 @@ import {
 	setOpeningBalance,
 	updateCard,
 } from '../cards/cards.ts'
+import { readStudentLessons } from '../cards/lessons-range.ts'
 import { readNoteReview } from '../cards/note-reviews.ts'
 import { listStudentNotes, retractStudentNote } from '../cards/notes.ts'
 import { listSections, saveSection } from '../cards/sections.ts'
@@ -448,6 +451,21 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		})
 		if (!comments) return notFound(c)
 		return c.json({ comments } satisfies StudentCommentsResponse, 200)
+	})
+
+	routes.get('/:id/lessons', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const query = studentLessonsQuery.safeParse(c.req.query())
+		if (!query.success) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const now = new Date()
+		const response = await readSnapshot(db, async (executor) => {
+			const settings = await readTeacherSettings(executor, accountId)
+			return readStudentLessons(executor, id, { accountId, now, defaultTimeZone: settings.defaultTimeZone }, query.data)
+		})
+		if (!response) return notFound(c)
+		return c.json(response satisfies StudentLessonsResponse, 200)
 	})
 
 	routes.post('/:id/terms', async (c) => {

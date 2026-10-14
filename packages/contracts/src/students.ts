@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { StudentAccount } from './auth.ts'
 import type { NextLessonRead } from './calendar.ts'
 import { isDisplayNameLength, normalizeDisplayName } from './identity.ts'
+import type { LessonMarkKind, ScheduleLessonActions, ScheduleLessonOutcome, ScheduleOccurrenceRef } from './schedule.ts'
 
 export const SECTION_KINDS = [
 	'general_info',
@@ -274,6 +275,78 @@ export type StudentRow = {
 	nextLessonAt: string | null
 	nextLesson: NextLessonRead
 	lastPayment?: StudentLastPayment | null
+}
+
+export const STUDENT_LESSONS_DAYS_MAX = 366
+
+const DAY_MS = 86400000
+
+const daySpan = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / DAY_MS + 1
+
+export const studentLessonsQuery = z.union([
+	z.object({ range: z.literal('since_payment'), from: z.never().optional(), to: z.never().optional() }),
+	z
+		.object({ range: z.never().optional(), from: isoDate, to: isoDate })
+		.refine(({ from, to }) => to >= from && daySpan(from, to) <= STUDENT_LESSONS_DAYS_MAX),
+])
+
+export type StudentLessonsQuery = z.infer<typeof studentLessonsQuery>
+
+export type StudentLessonsCoverage = 'complete' | 'partial' | 'unread'
+
+export type StudentLessonPayment = {
+	id: string
+	paidOn: string
+	amountMinor: number
+	currency: Currency | null
+	paidAfter: boolean
+}
+
+export type StudentLesson = {
+	key: string
+	ref: ScheduleOccurrenceRef
+	date: string
+	startsAt: string
+	timeZone: string
+	durationMinutes: number
+	outcome: ScheduleLessonOutcome
+	movedFrom: string | null
+	movedTo: string | null
+	actions: ScheduleLessonActions
+	mark: LessonMarkKind | null
+	markRevision: number | null
+	counted: boolean
+	deductedMinutes: number
+	balanceAfterMinutes: number | null
+	projected: boolean
+	payment: StudentLessonPayment | null
+	held: boolean
+	sinceLastPayment: boolean
+}
+
+export type StudentLessonsTotals = {
+	planned: number
+	done: number
+	noShow: number
+	cancelled: number
+	moved: number
+	heldCount: number
+	heldMinutes: number
+}
+
+export type StudentLessonsResponse = {
+	studentId: string
+	from: string
+	to: string
+	clipped: boolean
+	coverage: StudentLessonsCoverage
+	asOf: string
+	defaultTimeZone: string
+	defaultLessonMinutes: number
+	lastPayment: StudentLastPayment | null
+	sinceLastPaymentFrom: string | null
+	lessons: StudentLesson[]
+	totals: StudentLessonsTotals
 }
 
 export type StudentsResponse = {
