@@ -107,11 +107,12 @@ export function EndSeriesDialog({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm" showCloseButton={!pending}>
+			<DialogContent size="sm" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle>End this series?</DialogTitle>
 					<DialogDescription>

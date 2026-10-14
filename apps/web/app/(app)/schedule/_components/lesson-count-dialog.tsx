@@ -113,7 +113,7 @@ function EventList({
 	}
 
 	return (
-		<div className="overflow-hidden rounded-lg ring-1 ring-input transition-shadow ring-inset has-[[data-slot=input]:focus-visible]:ring-ring">
+		<div className="min-w-0 overflow-hidden rounded-lg ring-1 ring-input transition-shadow ring-inset has-[[data-slot=input]:focus-visible]:ring-ring">
 			{searchable ? (
 				<div className="group/search flex h-10 items-center gap-2 border-b px-3">
 					<Search
@@ -140,7 +140,7 @@ function EventList({
 					className={cn(searchable && 'max-h-54')}
 					viewportClassName={cn(searchable && 'scroll-fade max-h-54')}
 				>
-					<div ref={listRef} role="listbox" aria-label="Events" onKeyDown={move}>
+					<div ref={listRef} role="listbox" aria-label="Events" className="min-w-0" onKeyDown={move}>
 						{shown.map((name) => {
 							const total = events.get(name)?.size ?? 0
 							const chosen = name === selected
@@ -156,7 +156,7 @@ function EventList({
 									onClick={() => onSelect(name)}
 									className={cn(
 										ROW,
-										'flex w-full items-center gap-2 px-3 text-left text-body transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-none',
+										'flex w-full min-w-0 items-center gap-2 px-3 text-left text-body transition-colors hover:bg-hover focus-visible:bg-hover focus-visible:outline-none',
 										chosen && 'bg-active'
 									)}
 								>
@@ -164,7 +164,7 @@ function EventList({
 										{chosen ? <Check size={14} aria-hidden /> : null}
 									</span>
 									<span className={cn('min-w-0 flex-1 truncate', chosen && 'font-semibold')}>{name}</span>
-									<span className="shrink-0 text-muted-foreground tabular-nums">{datesPlural(total)}</span>
+									<span className="flex-none text-muted-foreground tabular-nums">{datesPlural(total)}</span>
 								</button>
 							)
 						})}
@@ -245,12 +245,15 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 				/>
 			)}
 			<DialogContent size="lg">
-				<DialogHeader>
+				<DialogHeader className="pr-10">
 					<DialogTitle>Count lessons</DialogTitle>
 					<DialogDescription>Pick a date range, then an event, to get its dates by month.</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
-					<div className="flex flex-col gap-4">
+				<ScrollArea
+					className="max-h-[calc(100dvh-14rem)] min-w-0"
+					viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1 [&>div]:min-w-0!"
+				>
+					<div className="flex min-w-0 flex-col gap-4">
 						<div className="flex justify-center rounded-lg ring-1 ring-input ring-inset">
 							<Calendar
 								mode="range"
@@ -319,9 +322,11 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 							</>
 						) : null}
 						{title !== null ? (
-							<section aria-label={title} className="flex flex-col gap-2 rounded-lg bg-hover p-3">
-								<div className="flex items-center justify-between gap-3">
-									<p className="min-w-0 truncate text-body font-semibold">{title}</p>
+							<section aria-label={title} className="flex min-w-0 flex-col gap-2 rounded-lg bg-hover p-3">
+								<div className="flex min-w-0 items-center justify-between gap-3">
+									<p className="min-w-0 flex-1 truncate text-body font-semibold" title={title}>
+										{title}
+									</p>
 									<Tooltip
 										side="top"
 										forceOpen={copyState === 'idle' ? undefined : true}
@@ -330,7 +335,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 										<Button
 											variant="secondary"
 											size="icon-compact"
-											className="shrink-0"
+											className="flex-none"
 											aria-label="Copy dates"
 											onClick={() => void copy(text)}
 										>

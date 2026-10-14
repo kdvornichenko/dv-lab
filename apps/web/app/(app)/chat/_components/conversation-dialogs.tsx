@@ -60,11 +60,12 @@ export function RenameConversationDialog({ conversation, onSave, onClose }: Rena
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm">
+			<DialogContent size="sm" showCloseButton={false}>
 				<form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-4">
 					<DialogHeader>
 						<DialogTitle>Rename conversation</DialogTitle>

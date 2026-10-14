@@ -112,11 +112,12 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="lg">
+			<DialogContent size="lg" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>Assign payment</DialogTitle>

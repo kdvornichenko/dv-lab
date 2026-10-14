@@ -45,11 +45,12 @@ export function DeactivateStudentDialog({ studentId, account, onClose, onDeactiv
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm" showCloseButton={!pending}>
+			<DialogContent size="sm" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle>Deactivate {account.displayName}?</DialogTitle>
 					<DialogDescription>

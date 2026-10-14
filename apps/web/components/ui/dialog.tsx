@@ -28,15 +28,17 @@ interface DialogProps {
 	defaultOpen?: boolean
 	onOpenChange?: (open: boolean) => void
 	modal?: boolean
+	disablePointerDismissal?: boolean
 	children?: ReactNode
 }
-function Dialog({ children, open, defaultOpen, onOpenChange, modal }: DialogProps) {
+function Dialog({ children, open, defaultOpen, onOpenChange, modal, disablePointerDismissal }: DialogProps) {
 	return (
 		<DialogPrimitive.Root
 			open={open}
 			defaultOpen={defaultOpen}
 			onOpenChange={(next) => onOpenChange?.(next)}
 			modal={modal}
+			disablePointerDismissal={disablePointerDismissal}
 		>
 			{children}
 		</DialogPrimitive.Root>

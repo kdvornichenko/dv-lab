@@ -54,11 +54,12 @@ export function ConfirmDialog({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm">
+			<DialogContent size="sm" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{body}</DialogDescription>

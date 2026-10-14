@@ -235,11 +235,12 @@ export function NewLessonDialog({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open) onClose()
 			}}
 		>
-			<DialogContent size="lg">
+			<DialogContent size="lg" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>{eventMode ? 'New event' : 'New lesson'}</DialogTitle>

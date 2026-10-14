@@ -184,11 +184,12 @@ export function LessonDialog({
 	return (
 		<Dialog
 			open
+			disablePointerDismissal={moving || confirming}
 			onOpenChange={(open) => {
 				if (!open && !busy) onClose()
 			}}
 		>
-			<DialogContent size="lg" showCloseButton={!busy}>
+			<DialogContent size="lg" showCloseButton={!busy && !moving && !confirming}>
 				<DialogHeader>
 					<div className="flex min-w-0 items-center gap-2 pr-10">
 						<Avatar name={block.studentName} />

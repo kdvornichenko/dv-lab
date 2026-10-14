@@ -132,11 +132,12 @@ export function AddTermDialog({ student, onClose, onAdded }: AddTermDialogProps)
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm">
+			<DialogContent size="sm" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>Add term</DialogTitle>
@@ -227,11 +228,12 @@ export function EditNoteDialog({ student, term, onClose, onSaved }: EditNoteDial
 	return (
 		<Dialog
 			open
+			disablePointerDismissal
 			onOpenChange={(open) => {
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm">
+			<DialogContent size="sm" showCloseButton={false}>
 				<form noValidate onSubmit={onSubmit}>
 					<DialogHeader>
 						<DialogTitle>Edit note</DialogTitle>
