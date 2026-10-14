@@ -13,6 +13,7 @@ import { CLOCK_TIME_PATTERN, MARK_KINDS } from './schedule.ts'
 import {
 	AMOUNT_MINOR_MAX,
 	CURRENCIES,
+	GENDERS,
 	LESSONS_HUNDREDTHS_MAX,
 	LESSON_MINUTES_MIN,
 	SECTION_KINDS,
@@ -380,7 +381,7 @@ export const chatCalendarProposalBlock = z.strictObject({
 	undoIssue: chatCalendarIssue.optional(),
 })
 
-export const CHAT_CHANGE_OPERATIONS = ['record_payment'] as const
+export const CHAT_CHANGE_OPERATIONS = ['record_payment', 'create_card', 'set_rate', 'archive_card'] as const
 
 export const CHAT_CHANGE_STATES = ['proposed', 'applying', 'applied', 'declined', 'stale', 'failed'] as const
 
@@ -404,7 +405,47 @@ export const chatRecordPaymentChange = z.strictObject({
 	timeZone: calendarTimeZone,
 })
 
-export const chatChange = z.discriminatedUnion('operation', [chatRecordPaymentChange])
+const chatCardRate = z
+	.strictObject({
+		rateMinor: z.number().int().min(1).max(AMOUNT_MINOR_MAX).nullable(),
+		currency: z.enum(CURRENCIES).nullable(),
+	})
+	.refine((value) => (value.rateMinor === null) === (value.currency === null))
+
+export const chatCreateCardChange = z.strictObject({
+	operation: z.literal('create_card'),
+	displayName: z.string(),
+	rateMinor: z.number().int().min(1).max(AMOUNT_MINOR_MAX).nullable(),
+	currency: z.enum(CURRENCIES).nullable(),
+	lessonMinutes: lessonLength,
+	noShowDeducts: z.literal(true),
+	timeZone: z.null(),
+	gender: z.enum(GENDERS).nullable(),
+	duplicateName: z.boolean(),
+})
+
+export const chatSetRateChange = z.strictObject({
+	operation: z.literal('set_rate'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	before: chatCardRate,
+	after: chatCardRate,
+})
+
+export const chatArchiveCardChange = z.strictObject({
+	operation: z.literal('archive_card'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	requestedDeletion: z.boolean(),
+	accountActive: z.boolean(),
+})
+
+export const chatChange = z.discriminatedUnion('operation', [
+	chatRecordPaymentChange,
+	chatCreateCardChange,
+	chatSetRateChange,
+	chatArchiveCardChange,
+])
 
 export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
 
@@ -624,6 +665,9 @@ export const CHAT_STEP_TOOLS = [
 	'add_comment',
 	'propose_lesson_change',
 	'propose_payment',
+	'propose_student',
+	'propose_rate',
+	'propose_archive',
 	'answer',
 ] as const
 

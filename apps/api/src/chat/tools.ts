@@ -12,8 +12,11 @@ import {
 	CHAT_SETTINGS_TABS,
 	CLOCK_TIME_PATTERN,
 	CURRENCIES,
+	GENDERS,
+	LESSON_MINUTES_MIN,
 	type ChatActionLinkBlock,
 	type ChatBlock,
+	type ChatChange,
 	type ChatExcerptBlock,
 	type ChatLessonIntent,
 	type ChatLessonsBlock,
@@ -34,7 +37,7 @@ import { occurrenceStartsAt } from '../schedule/rows.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { readLessonRange } from '../today/today.ts'
 import { type ActionSource, type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
-import { proposeChange } from './changes.ts'
+import { type ChangeRequest, proposeChange } from './changes.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
 import { type Issued, citeKey } from './publish-gate.ts'
 
@@ -54,6 +57,7 @@ const TEXT_MAX = 8000
 const FIELD_MAX = 2000
 const CANDIDATES_MAX = 6
 const RANGE_DAYS_MAX = 31
+const LESSON_MINUTES_TOOL_MAX = 1440
 
 const id = z.uuid()
 const date = calendarDate
@@ -97,6 +101,19 @@ const inputs = {
 		paid_on: nullable(date),
 		lessons_text: nullable(z.string().min(1).max(20)),
 		note: nullable(z.string()),
+	}),
+	propose_student: z.strictObject({
+		display_name: z.string().min(1).max(200),
+		rate_text: nullable(z.string().min(1).max(40)),
+		currency: nullable(z.enum(CURRENCIES)),
+		lesson_minutes: nullable(z.number().int().min(LESSON_MINUTES_MIN).max(LESSON_MINUTES_TOOL_MAX)),
+		gender: nullable(z.enum(GENDERS)),
+	}),
+	propose_rate: z.strictObject({
+		student_id: id,
+		rate_text: nullable(z.string().min(1).max(40)),
+		currency: nullable(z.enum(CURRENCIES)),
+		clear: z.boolean(),
 	}),
 	open_page: z.strictObject({
 		kind: z.string(),
@@ -194,6 +211,27 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 			paid_on: nullableString,
 			lessons_text: nullableString,
 			note: nullableString,
+		}
+	),
+	tool(
+		'propose_student',
+		'Propose creating a new student card. display_name is the full name copied exactly as the teacher wrote it; rate_text is the rate per lesson copied exactly as written, the number without the currency, or null when the teacher gave no rate; currency only when the teacher named it, otherwise null; lesson_minutes only when the teacher wrote the lesson length in minutes, otherwise null; gender female or male only when the teacher said it, otherwise null. Never invent values. Nothing is created until the teacher confirms in the chat.',
+		{
+			display_name: string,
+			rate_text: nullableString,
+			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
+			lesson_minutes: { type: ['integer', 'null'] },
+			gender: { type: ['string', 'null'], enum: [...GENDERS, null] },
+		}
+	),
+	tool(
+		'propose_rate',
+		'Propose changing the rate per lesson of a student. rate_text is the new rate copied exactly as the teacher wrote it, the number without the currency; currency only when the teacher named it, otherwise null (the current currency of the student is kept). clear true removes the rate and then rate_text is null. Payments already recorded keep their lesson credit. Nothing changes until the teacher confirms in the chat.',
+		{
+			student_id: string,
+			rate_text: nullableString,
+			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
+			clear: boolean,
 		}
 	),
 	tool(
@@ -502,6 +540,25 @@ function writeRequest(name: ToolName, input: unknown): LocalRequest | null {
 	return intent === null ? null : { kind: 'lesson', intent }
 }
 
+const CHANGE_NOTE =
+	'Nothing changes until the teacher confirms in the chat. Do not repeat amounts or numbers: the block shows them.'
+
+function changeReceipt(change: ChatChange): unknown {
+	switch (change.operation) {
+		case 'record_payment':
+			return {
+				status: 'proposed',
+				student: change.studentName,
+				paid_on: change.paidOn,
+				note: 'Nothing is recorded until the teacher confirms in the chat. Write one short sentence without the amount, the currency or the number of lessons: the block shows them.',
+			}
+		case 'create_card':
+			return { status: 'proposed', student: change.displayName, note: CHANGE_NOTE }
+		default:
+			return { status: 'proposed', student: change.studentName, note: CHANGE_NOTE }
+	}
+}
+
 function receipt(block: ChatBlock): unknown {
 	switch (block.type) {
 		case 'action_result':
@@ -514,12 +571,7 @@ function receipt(block: ChatBlock): unknown {
 				note: 'The teacher sees these options in the chat. Ask which one they mean.',
 			}
 		case 'change_proposal':
-			return {
-				status: 'proposed',
-				student: block.change.studentName,
-				paid_on: block.change.paidOn,
-				note: 'Nothing is recorded until the teacher confirms in the chat. Write one short sentence without the amount, the currency or the number of lessons: the block shows them.',
-			}
+			return changeReceipt(block.change)
 		case 'calendar_proposal':
 			return {
 				status: 'proposed',
@@ -570,27 +622,47 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
 }
 
-async function proposePayment(
-	context: ToolContext,
-	input: z.infer<(typeof inputs)['propose_payment']>
-): Promise<ToolOutcome> {
-	const outcome = await proposeChange(
-		context.db,
-		context.chat,
-		context.source,
-		{
-			operation: 'record_payment',
-			studentId: input.student_id,
-			amountText: input.amount_text,
-			currency: input.currency,
-			paidOn: input.paid_on,
-			lessonsText: input.lessons_text,
-			note: input.note,
-		},
-		context.persist
-	)
+async function propose(context: ToolContext, request: ChangeRequest): Promise<ToolOutcome> {
+	const outcome = await proposeChange(context.db, context.chat, context.source, request, context.persist)
 	if (outcome.kind === 'refused') return failure(outcome.code)
 	return { content: JSON.stringify(receipt(outcome.block)), isError: false, block: outcome.block }
+}
+
+function changeRequest(name: ToolName, input: unknown): ChangeRequest | null {
+	if (name === 'propose_payment') {
+		const parsed = inputs.propose_payment.parse(input)
+		return {
+			operation: 'record_payment',
+			studentId: parsed.student_id,
+			amountText: parsed.amount_text,
+			currency: parsed.currency,
+			paidOn: parsed.paid_on,
+			lessonsText: parsed.lessons_text,
+			note: parsed.note,
+		}
+	}
+	if (name === 'propose_student') {
+		const parsed = inputs.propose_student.parse(input)
+		return {
+			operation: 'create_card',
+			displayName: parsed.display_name,
+			rateText: parsed.rate_text,
+			currency: parsed.currency,
+			lessonMinutes: parsed.lesson_minutes,
+			gender: parsed.gender,
+		}
+	}
+	if (name === 'propose_rate') {
+		const parsed = inputs.propose_rate.parse(input)
+		return {
+			operation: 'set_rate',
+			studentId: parsed.student_id,
+			rateText: parsed.rate_text,
+			currency: parsed.currency,
+			clear: parsed.clear,
+		}
+	}
+	return null
 }
 
 const WRITES = new Set<ToolName>(['mark_lesson', 'add_note', 'add_comment', 'propose_lesson_change'])
@@ -623,6 +695,7 @@ export async function runTool(context: ToolContext, name: string, input: unknown
 	if (!isTool(name)) return failure('unknown_tool')
 	if (!inputs[name].safeParse(input).success) return failure('invalid_arguments')
 	if (name === 'open_page') return openPage(context, inputs.open_page.parse(input))
-	if (name === 'propose_payment') return proposePayment(context, inputs.propose_payment.parse(input))
+	const change = changeRequest(name, input)
+	if (change !== null) return propose(context, change)
 	return WRITES.has(name) ? write(context, name, input) : read(context, name, input)
 }

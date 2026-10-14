@@ -24,9 +24,17 @@ import { cardFacts } from '../cards/card-facts.ts'
 import { insertPayment } from '../cards/payments.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
+import {
+	type CardChangeRequest,
+	type CardRefusal,
+	type Said,
+	applyCardChange,
+	cardTargets,
+	previewCardChange,
+} from './change-cards.ts'
 import { blocksOf, changeView, insertAction, replyOf } from './messages.ts'
 
-export type ChangeRequest = {
+type PaymentRequest = {
 	operation: 'record_payment'
 	studentId: string
 	amountText: string
@@ -36,6 +44,8 @@ export type ChangeRequest = {
 	note: string | null
 }
 
+export type ChangeRequest = PaymentRequest | CardChangeRequest
+
 export type ChangeRefusal =
 	| 'amount_not_in_message'
 	| 'currency_required'
@@ -44,6 +54,7 @@ export type ChangeRefusal =
 	| 'date_in_future'
 	| 'invalid_note'
 	| 'student_not_found'
+	| CardRefusal
 
 export type ProposeOutcome =
 	{ kind: 'proposed'; block: ChatChangeProposalBlock } | { kind: 'refused'; code: ChangeRefusal }
@@ -53,7 +64,7 @@ export type ChangeOutcome =
 
 type ActionRow = typeof chatActions.$inferSelect
 
-const storedTarget = z.strictObject({
+const paymentTarget = z.strictObject({
 	operation: z.literal('record_payment'),
 	studentId: z.uuid(),
 	amountMinor: z.number().int(),
@@ -67,7 +78,9 @@ const storedTarget = z.strictObject({
 	}),
 })
 
-const legacyTarget = storedTarget.extend({
+const storedTarget = z.discriminatedUnion('operation', [paymentTarget, ...cardTargets])
+
+const legacyTarget = paymentTarget.extend({
 	guard: z.strictObject({
 		lessonMinutes: z.number().int(),
 		rateMinor: z.number().int().nullable(),
@@ -76,7 +89,7 @@ const legacyTarget = storedTarget.extend({
 	}),
 })
 
-type StoredTarget = z.infer<typeof storedTarget>
+type PaymentTarget = z.infer<typeof paymentTarget>
 
 const refused = (code: ChangeRefusal): ProposeOutcome => ({ kind: 'refused', code })
 
@@ -87,6 +100,18 @@ function flat(value: string): string {
 function writtenIn(message: string, part: string): boolean {
 	const piece = flat(part)
 	return piece !== '' && flat(message).includes(piece)
+}
+
+function saidIn(message: string): Said {
+	const folded = flat(message).toLocaleLowerCase()
+	return {
+		has: (part) => writtenIn(message, part),
+		hasName: (name) => {
+			const piece = flat(name).toLocaleLowerCase()
+			return piece !== '' && folded.includes(piece)
+		},
+		hasNumber: (value) => new RegExp(`(?<!\\p{Nd})${value}(?!\\p{Nd})`, 'u').test(message),
+	}
 }
 
 async function teacherText(executor: DbExecutor, accountId: string, messageId: string): Promise<string | null> {
@@ -126,7 +151,7 @@ async function preparePayment(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	request: ChangeRequest
+	request: PaymentRequest
 ): Promise<ProposeOutcome> {
 	const message = await teacherText(tx, context.accountId, source.messageId)
 	if (message === null || !writtenIn(message, request.amountText)) return refused('amount_not_in_message')
@@ -163,7 +188,7 @@ async function preparePayment(
 	const balanceMinutes = facts?.balanceMinutes ?? null
 	const credited = creditedMinutes(input.data.lessonsHundredths, card.defaultLessonMinutes)
 	const counts = card.openingBalanceOn !== null && countsAfterOpening(paidOn, card.openingBalanceOn)
-	const target: StoredTarget = {
+	const target: PaymentTarget = {
 		operation: 'record_payment',
 		studentId: card.id,
 		amountMinor: input.data.amountMinor,
@@ -207,6 +232,29 @@ async function preparePayment(
 	}
 }
 
+async function prepareCard(
+	tx: DbExecutor,
+	context: ChatContext,
+	source: ActionSource,
+	request: CardChangeRequest
+): Promise<ProposeOutcome> {
+	const message = await teacherText(tx, context.accountId, source.messageId)
+	const preview = await previewCardChange(tx, saidIn(message ?? ''), request)
+	if (preview.kind === 'refused') return refused(preview.code)
+	const actionId = await insertAction(tx, {
+		accountId: context.accountId,
+		...source,
+		kind: 'change',
+		state: 'proposed',
+		target: preview.target,
+		result: { kind: 'proposed' },
+	})
+	return {
+		kind: 'proposed',
+		block: { type: 'change_proposal', actionId, state: 'proposed', change: preview.change, receipt: null },
+	}
+}
+
 export function proposeChange(
 	db: Database,
 	context: ChatContext,
@@ -215,7 +263,10 @@ export function proposeChange(
 	persist: (tx: DbExecutor, block: ChatChangeProposalBlock) => Promise<void>
 ): Promise<ProposeOutcome> {
 	return db.transaction(async (tx) => {
-		const outcome = await preparePayment(tx, context, source, request)
+		const outcome =
+			request.operation === 'record_payment'
+				? await preparePayment(tx, context, source, request)
+				: await prepareCard(tx, context, source, request)
 		if (outcome.kind === 'proposed') await persist(tx, outcome.block)
 		return outcome
 	})
@@ -260,14 +311,7 @@ async function settle(
 		.where(eq(chatActions.id, actionId))
 }
 
-async function applyPayment(tx: DbExecutor, context: ChatContext, action: ActionRow) {
-	const parsed = storedTarget.safeParse(action.target)
-	if (!parsed.success) {
-		if (legacyTarget.safeParse(action.target).success)
-			return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'student_changed' })
-		return settle(tx, action.id, 'refused', { kind: 'failed' })
-	}
-	const target = parsed.data
+async function applyPayment(tx: DbExecutor, context: ChatContext, action: ActionRow, target: PaymentTarget) {
 	const time = await lockTeacherTimeContext(tx, context.accountId, target.guard.timeZone, context.now)
 	if (!time.ok) return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'time_zone_changed' })
 	const [card] = await tx
@@ -288,13 +332,27 @@ async function applyPayment(tx: DbExecutor, context: ChatContext, action: Action
 	await settle(tx, action.id, 'applied', { kind: 'applied' }, { paymentId: payment.id })
 }
 
+async function applyChange(tx: DbExecutor, context: ChatContext, action: ActionRow) {
+	const parsed = storedTarget.safeParse(action.target)
+	if (!parsed.success) {
+		if (legacyTarget.safeParse(action.target).success)
+			return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'student_changed' })
+		return settle(tx, action.id, 'refused', { kind: 'failed' })
+	}
+	const target = parsed.data
+	if (target.operation === 'record_payment') return applyPayment(tx, context, action, target)
+	const applied = await applyCardChange(tx, context, target)
+	if (applied.kind === 'applied') return settle(tx, action.id, 'applied', { kind: 'applied' }, applied.after)
+	return settle(tx, action.id, 'refused', applied)
+}
+
 export function confirmChange(db: Database, context: ChatContext, actionId: string): Promise<ChangeOutcome> {
 	return db.transaction(async (tx) => {
 		const action = await actionOf(tx, context.accountId, actionId, true)
 		if (!action) return { kind: 'not_found' }
 		if (action.kind !== 'change') return { kind: 'not_change' }
 		if ((await proposalOf(tx, context.accountId, action)) === null) return { kind: 'not_found' }
-		if (action.state === 'proposed') await applyPayment(tx, context, action)
+		if (action.state === 'proposed') await applyChange(tx, context, action)
 		return presentChange(tx, context.accountId, actionId)
 	})
 }

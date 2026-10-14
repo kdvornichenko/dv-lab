@@ -51,7 +51,7 @@ export const changeProgress = z.object({
 	issue: z.enum(CHAT_CHANGE_ISSUES).optional(),
 })
 
-const changeAfter = z.object({ paymentId: z.uuid().optional() })
+const changeAfter = z.object({ paymentId: z.uuid().optional(), studentId: z.uuid().optional() })
 
 type NewMessage = {
 	accountId: string
@@ -104,10 +104,12 @@ export function changeView(block: ChatChangeProposalBlock, action: ActionUndo): 
 	if (kind === 'applied') {
 		const after = changeAfter.safeParse(action.after ?? {})
 		const paymentId = after.success ? after.data.paymentId : undefined
+		const proposed = 'studentId' in block.change ? block.change.studentId : undefined
+		const studentId = (after.success ? after.data.studentId : undefined) ?? proposed
 		return {
 			...rest,
 			state: 'applied',
-			receipt: { studentId: block.change.studentId, ...(paymentId ? { paymentId } : {}) },
+			receipt: studentId === undefined ? null : { studentId, ...(paymentId ? { paymentId } : {}) },
 		}
 	}
 	return { ...rest, state: kind, ...(kind === 'stale' && issue ? { issue } : {}), receipt: null }
