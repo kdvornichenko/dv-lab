@@ -109,9 +109,10 @@ const SYSTEM = [
 	'To quote a stored note, comment or profile section, put its cite marker from student_notes in your text, for example [[note:ID]]. The app replaces the marker with the stored text. Never retype stored text or invent a marker.',
 	'When the teacher asks for ideas, exercises or a task, write them in your answer as finished sentences: a short paragraph or a short markdown list the teacher can copy.',
 	'mark_lesson, add_note and add_comment change data: use them only when the teacher clearly asks for that change. propose_lesson_change only proposes; the teacher confirms it in the chat.',
+	'To record a payment call propose_payment with the amount and the number of lessons copied exactly as the teacher wrote them; the teacher confirms it in the chat. Never say a payment was recorded.',
 	'When a tool asks which lesson or refuses, tell the teacher in one short sentence and do not guess.',
 	'Students have a gender: female, male or null (not set), given in Mentioned students and by find_students and student_facts. Choose the grammatical gender of words about a student by it: in Russian ученица or ученик, она or он and the past tense of verbs (пришла or пришёл); in English she or he. When the gender is null, word the sentence neutrally (the name, "the student", no gendered pronoun or past-tense ending) and never guess it from the name.',
-	'When the teacher asks for something you have no tool for, such as recording a payment, editing the profile of a student or changing settings, call open_page with the page where the teacher does it and write one short sentence that says you cannot do it from the chat, for example "I can\'t record payments from the chat." (in Russian "Я не могу записать оплату из чата."). Do not tell the teacher to enter it manually, do not explain how, and do not repeat any amount, number or count from the request. If no page fits, write the sentence alone.',
+	'When the teacher asks for something you have no tool for, such as editing the profile of a student or changing settings, call open_page with the page where the teacher does it and write one short sentence that says you cannot do it from the chat, for example "I can\'t edit the profile from the chat." (in Russian "Я не могу изменить профиль из чата."). Do not tell the teacher to enter it manually, do not explain how, and do not repeat any amount, number or count from the request. If no page fits, write the sentence alone.',
 ].join('\n')
 
 const ending = (state: Ending['state'], issue: ChatTurnIssue | null = null, blocks: ChatBlock[] = []): Ending => ({
@@ -140,6 +141,8 @@ function blockNote(block: ChatBlock): string {
 			return `[Saved: ${block.kind}${block.mark ? ` ${block.mark}` : ''} for ${block.studentName}]`
 		case 'calendar_proposal':
 			return `[Proposed calendar change: ${block.operation} for ${block.studentName}]`
+		case 'change_proposal':
+			return `[Proposed: ${block.change.operation} for ${block.change.studentName}]`
 		case 'clarify':
 			return `[Asked which lesson of ${block.studentName}]`
 		case 'refused':

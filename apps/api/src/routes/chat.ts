@@ -4,7 +4,7 @@ import { streamSSE } from 'hono/streaming'
 import { z } from 'zod'
 
 import {
-	type CalendarActionResponse,
+	type ChatActionResponse,
 	type ChatConversationReadResponse,
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
@@ -29,6 +29,7 @@ import { readSession } from '../auth/sessions.ts'
 import type { CalendarCommands } from '../calendar/commands.ts'
 import { type ChatContext, sendMessage, undoAction } from '../chat/actions.ts'
 import { type CalendarOutcome, checkCalendarAction, confirmCalendarChange } from '../chat/calendar.ts'
+import { type ChangeOutcome, confirmChange, declineAction } from '../chat/changes.ts'
 import {
 	createConversation,
 	deleteConversation,
@@ -82,10 +83,15 @@ export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRou
 		}
 	}
 
+	function changeReply(c: Context<AppEnv>, outcome: Exclude<ChangeOutcome, { kind: 'not_change' }>) {
+		if (outcome.kind === 'not_found') return notFound(c)
+		return c.json({ block: outcome.block } satisfies ChatActionResponse, 200)
+	}
+
 	function calendarReply(c: Context<AppEnv>, outcome: CalendarOutcome, status: 200 | 202) {
 		if (outcome.kind === 'not_found') return notFound(c)
 		if (outcome.kind !== 'ok') return c.json(errorBody('precondition_failed', 'The action cannot be changed'), 409)
-		return c.json({ block: outcome.block } satisfies CalendarActionResponse, status)
+		return c.json({ block: outcome.block } satisfies ChatActionResponse, status)
 	}
 
 	routes.get('/records', async (c) => {
@@ -177,8 +183,21 @@ export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRou
 		const id = conversationId(c)
 		if (id === null) return notFound(c)
 		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
-		const outcome = await confirmCalendarChange(db, calendarCommands, await chatContext(c), id)
+		const context = await chatContext(c)
+		const change = await confirmChange(db, context, id)
+		if (change.kind !== 'not_change') return changeReply(c, change)
+		const outcome = await confirmCalendarChange(db, calendarCommands, context, id)
 		return calendarReply(c, outcome, 202)
+	})
+
+	routes.post('/actions/:id/decline', async (c) => {
+		const id = conversationId(c)
+		if (id === null) return notFound(c)
+		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
+		const outcome = await declineAction(db, await chatContext(c), id)
+		if (outcome.kind === 'not_change')
+			return c.json(errorBody('precondition_failed', 'The action cannot be declined'), 409)
+		return changeReply(c, outcome)
 	})
 
 	routes.post('/actions/:id/check', async (c) => {

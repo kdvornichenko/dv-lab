@@ -4,12 +4,14 @@ import { z } from 'zod'
 import {
 	type ChatBlock,
 	type ChatCalendarProposalBlock,
+	type ChatChangeProposalBlock,
 	type ChatMessage,
 	type ChatUndoState,
 	type MentionBinding,
 	type ChatStep,
 	CHAT_ACTIVE_TURN_STATES,
 	CHAT_CALENDAR_STATES,
+	CHAT_CHANGE_ISSUES,
 	CHAT_UNDO_STATES,
 	chatBlock,
 	chatCalendarIssue,
@@ -20,13 +22,13 @@ import { type DbExecutor, chatActions, chatMessages, chatTurns, lessonComments, 
 
 export type MessageRow = typeof chatMessages.$inferSelect
 
-export type ActionUndo = { id: string; state: string; result?: unknown; undoResult: unknown }
+export type ActionUndo = { id: string; state: string; result?: unknown; after?: unknown; undoResult: unknown }
 
 export type NewAction = {
 	accountId: string
 	conversationId: string
 	messageId: string
-	kind: 'mark' | 'note' | 'comment' | 'calendar'
+	kind: 'mark' | 'note' | 'comment' | 'calendar' | 'change'
 	state: 'applied' | 'refused' | 'proposed'
 	target?: unknown
 	before?: unknown
@@ -43,6 +45,13 @@ export const calendarProgress = z.object({
 })
 
 const calendarUndo = z.object({ issue: chatCalendarIssue.optional() }).nullable()
+
+export const changeProgress = z.object({
+	kind: z.enum(['proposed', 'applied', 'declined', 'stale', 'failed']),
+	issue: z.enum(CHAT_CHANGE_ISSUES).optional(),
+})
+
+const changeAfter = z.object({ paymentId: z.uuid().optional() })
 
 type NewMessage = {
 	accountId: string
@@ -85,6 +94,23 @@ export function calendarView(block: ChatCalendarProposalBlock, action: ActionUnd
 		issue,
 		undoIssue: undo !== null && recorded.success ? recorded.data?.issue : undefined,
 	}
+}
+
+export function changeView(block: ChatChangeProposalBlock, action: ActionUndo): ChatChangeProposalBlock {
+	const progress = changeProgress.safeParse(action.result)
+	if (!progress.success) return block
+	const { kind, issue } = progress.data
+	const { issue: _issue, ...rest } = block
+	if (kind === 'applied') {
+		const after = changeAfter.safeParse(action.after ?? {})
+		const paymentId = after.success ? after.data.paymentId : undefined
+		return {
+			...rest,
+			state: 'applied',
+			receipt: { studentId: block.change.studentId, ...(paymentId ? { paymentId } : {}) },
+		}
+	}
+	return { ...rest, state: kind, ...(kind === 'stale' && issue ? { issue } : {}), receipt: null }
 }
 
 export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<string, ActionUndo>): ChatBlock[] {

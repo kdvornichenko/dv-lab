@@ -343,7 +343,7 @@ async function providerSmoke() {
 	check(
 		'the tool list is the phase list, strict, without server tools',
 		tools ===
-			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change,open_page' &&
+			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change,propose_payment,open_page' &&
 			CHAT_TOOLS.every(
 				(item) => item.strict === true && item.input_schema.additionalProperties === false && !('type' in item)
 			)
@@ -1092,7 +1092,7 @@ async function main() {
 		answerRequest.model === choice.model.id &&
 			answerRequest.effort === choice.effort &&
 			answerRequest.maxOutputTokens === 16000 &&
-			answerRequest.tools.length === 10 &&
+			answerRequest.tools.length === 11 &&
 			answerRequest.tools.some((item) => item.name === 'open_page' && item.strict === true)
 	)
 	const firstAttempts = attempts(answered.id)

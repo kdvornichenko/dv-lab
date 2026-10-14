@@ -11,6 +11,7 @@ import {
 	CHAT_LESSON_DATE_SCOPES,
 	CHAT_SETTINGS_TABS,
 	CLOCK_TIME_PATTERN,
+	CURRENCIES,
 	type ChatActionLinkBlock,
 	type ChatBlock,
 	type ChatExcerptBlock,
@@ -33,6 +34,7 @@ import { occurrenceStartsAt } from '../schedule/rows.ts'
 import { readWindow } from '../schedule/schedule.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { type ActionSource, type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
+import { proposeChange } from './changes.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
 import { type Issued, citeKey } from './publish-gate.ts'
 
@@ -87,6 +89,14 @@ const inputs = {
 		new_time: nullable(time),
 		scope: z.enum(['one', 'series']),
 		from: nullable(date),
+	}),
+	propose_payment: z.strictObject({
+		student_id: id,
+		amount_text: z.string().min(1).max(40),
+		currency: nullable(z.enum(CURRENCIES)),
+		paid_on: nullable(date),
+		lessons_text: nullable(z.string().min(1).max(20)),
+		note: nullable(z.string()),
 	}),
 	open_page: z.strictObject({
 		kind: z.string(),
@@ -175,8 +185,20 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 		}
 	),
 	tool(
+		'propose_payment',
+		'Propose recording a payment. amount_text and lessons_text are copied exactly as the teacher wrote them, the number without the currency; currency only when the teacher named it, otherwise null; paid_on YYYY-MM-DD lesson-day date or null for today. Nothing is recorded until the teacher confirms in the chat.',
+		{
+			student_id: string,
+			amount_text: string,
+			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
+			paid_on: nullableString,
+			lessons_text: nullableString,
+			note: nullableString,
+		}
+	),
+	tool(
 		'open_page',
-		'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and null otherwise. dialog is null unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
+		'Show the teacher a link to the page of the app where they can do what you have no tool for. kind: payments (the payments of a student; dialog payment opens Record payment, when the amount is not written in digits or the teacher asks for the form), notes, vocabulary, overview (the profile of a student; dialog details opens Edit details), schedule_day (date is the lesson day YYYY-MM-DD in the Schedule), settings (tab general, calendar or assistant). student_id is required for payments, notes, vocabulary and overview and null otherwise. dialog is null unless that dialog is the place of the request; tab is only for settings. The link never carries values: nothing from the request is filled in. One link per answer.',
 		{
 			kind: { type: 'string', enum: [...CHAT_ACTION_LINK_KINDS] },
 			student_id: nullableString,
@@ -497,6 +519,13 @@ function receipt(block: ChatBlock): unknown {
 				options: block.options.map((option) => ({ date: option.date, time: option.time })),
 				note: 'The teacher sees these options in the chat. Ask which one they mean.',
 			}
+		case 'change_proposal':
+			return {
+				status: 'proposed',
+				student: block.change.studentName,
+				paid_on: block.change.paidOn,
+				note: 'Nothing is recorded until the teacher confirms in the chat. Write one short sentence without the amount, the currency or the number of lessons: the block shows them.',
+			}
 		case 'calendar_proposal':
 			return {
 				status: 'proposed',
@@ -547,6 +576,29 @@ async function openPage(context: ToolContext, input: z.infer<(typeof inputs)['op
 	return { content: JSON.stringify({ status: 'shown', kind, note: PAGE_NOTE }), isError: false, block }
 }
 
+async function proposePayment(
+	context: ToolContext,
+	input: z.infer<(typeof inputs)['propose_payment']>
+): Promise<ToolOutcome> {
+	const outcome = await proposeChange(
+		context.db,
+		context.chat,
+		context.source,
+		{
+			operation: 'record_payment',
+			studentId: input.student_id,
+			amountText: input.amount_text,
+			currency: input.currency,
+			paidOn: input.paid_on,
+			lessonsText: input.lessons_text,
+			note: input.note,
+		},
+		context.persist
+	)
+	if (outcome.kind === 'refused') return failure(outcome.code)
+	return { content: JSON.stringify(receipt(outcome.block)), isError: false, block: outcome.block }
+}
+
 const WRITES = new Set<ToolName>(['mark_lesson', 'add_note', 'add_comment', 'propose_lesson_change'])
 
 function isTool(name: string): name is ToolName {
@@ -577,5 +629,6 @@ export async function runTool(context: ToolContext, name: string, input: unknown
 	if (!isTool(name)) return failure('unknown_tool')
 	if (!inputs[name].safeParse(input).success) return failure('invalid_arguments')
 	if (name === 'open_page') return openPage(context, inputs.open_page.parse(input))
+	if (name === 'propose_payment') return proposePayment(context, inputs.propose_payment.parse(input))
 	return WRITES.has(name) ? write(context, name, input) : read(context, name, input)
 }

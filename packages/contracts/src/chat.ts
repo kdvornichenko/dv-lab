@@ -10,7 +10,14 @@ import {
 } from './calendar.ts'
 import { CHAT_MODEL_ID_MAX_LENGTH, chatEffort } from './chat-settings.ts'
 import { CLOCK_TIME_PATTERN, MARK_KINDS } from './schedule.ts'
-import { LESSON_MINUTES_MIN, SECTION_KINDS, STUDENT_STATUSES } from './students.ts'
+import {
+	AMOUNT_MINOR_MAX,
+	CURRENCIES,
+	LESSONS_HUNDREDTHS_MAX,
+	LESSON_MINUTES_MIN,
+	SECTION_KINDS,
+	STUDENT_STATUSES,
+} from './students.ts'
 
 export const chatRecordsQuery = z.strictObject({ studentId: z.uuid() })
 
@@ -373,6 +380,43 @@ export const chatCalendarProposalBlock = z.strictObject({
 	undoIssue: chatCalendarIssue.optional(),
 })
 
+export const CHAT_CHANGE_OPERATIONS = ['record_payment'] as const
+
+export const CHAT_CHANGE_STATES = ['proposed', 'applying', 'applied', 'declined', 'stale', 'failed'] as const
+
+export const CHAT_CHANGE_ISSUES = ['student_changed', 'time_zone_changed', 'not_found'] as const
+
+export const chatChangeIssue = z.enum(CHAT_CHANGE_ISSUES)
+
+export const chatRecordPaymentChange = z.strictObject({
+	operation: z.literal('record_payment'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	amountMinor: z.number().int().min(1).max(AMOUNT_MINOR_MAX),
+	currency: z.enum(CURRENCIES),
+	paidOn: calendarDate,
+	lessonsHundredths: z.number().int().min(0).max(LESSONS_HUNDREDTHS_MAX).nullable(),
+	creditedMinutes: z.number().int().min(0),
+	lessonMinutes: lessonLength,
+	note: z.string().nullable(),
+	balanceMinutes: z.number().int().nullable(),
+	balanceAfterMinutes: z.number().int().nullable(),
+	timeZone: calendarTimeZone,
+})
+
+export const chatChange = z.discriminatedUnion('operation', [chatRecordPaymentChange])
+
+export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
+
+export const chatChangeProposalBlock = z.strictObject({
+	type: z.literal('change_proposal'),
+	actionId: z.uuid(),
+	state: z.enum(CHAT_CHANGE_STATES),
+	issue: chatChangeIssue.optional(),
+	change: chatChange,
+	receipt: chatChangeReceipt.nullable(),
+})
+
 export const chatWithheldBlock = z.strictObject({ type: z.literal('withheld') })
 
 export const chatStoppedBlock = z.strictObject({ type: z.literal('stopped') })
@@ -517,6 +561,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatClarifyBlock,
 	chatRefusedBlock,
 	chatCalendarProposalBlock,
+	chatChangeProposalBlock,
 	chatWithheldBlock,
 	chatStoppedBlock,
 	chatInterruptedBlock,
@@ -558,6 +603,11 @@ export type ChatClarifyBlock = z.infer<typeof chatClarifyBlock>
 export type ChatRefusedBlock = z.infer<typeof chatRefusedBlock>
 export type ChatCalendarProposalBlock = z.infer<typeof chatCalendarProposalBlock>
 export type ChatCalendarState = (typeof CHAT_CALENDAR_STATES)[number]
+export type ChatChangeProposalBlock = z.infer<typeof chatChangeProposalBlock>
+export type ChatChange = z.infer<typeof chatChange>
+export type ChatChangeState = (typeof CHAT_CHANGE_STATES)[number]
+export type ChatChangeIssue = z.infer<typeof chatChangeIssue>
+export type ChatChangeOperation = (typeof CHAT_CHANGE_OPERATIONS)[number]
 export type ChatCalendarIssue = z.infer<typeof chatCalendarIssue>
 export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 
@@ -679,3 +729,9 @@ export type UndoResponse = z.infer<typeof undoResponse>
 export const calendarActionResponse = z.strictObject({ block: chatCalendarProposalBlock })
 
 export type CalendarActionResponse = z.infer<typeof calendarActionResponse>
+
+export const chatActionResponse = z.strictObject({
+	block: z.discriminatedUnion('type', [chatCalendarProposalBlock, chatChangeProposalBlock]),
+})
+
+export type ChatActionResponse = z.infer<typeof chatActionResponse>

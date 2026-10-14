@@ -21,6 +21,10 @@ type PaymentRecord = typeof payments.$inferSelect
 
 type AssignPaymentInput = z.output<typeof assignPaymentRequest>
 
+type PaymentCard = { id: string; defaultLessonMinutes: number }
+
+type NewPayment = Pick<RecordPaymentInput, 'paidOn' | 'amountMinor' | 'currency' | 'lessonsHundredths' | 'note'>
+
 type RecordPaymentResult =
 	| { kind: 'recorded'; payment: PaymentRow }
 	| { kind: 'not_found' }
@@ -98,22 +102,26 @@ export function recordPayment(
 			.where(eq(students.id, input.studentId))
 			.for('share')
 		if (!card) return { kind: 'not_found' }
-		const [row] = await tx
-			.insert(payments)
-			.values({
-				studentId: card.id,
-				paidOn: input.paidOn,
-				amountMinor: input.amountMinor,
-				currency: input.currency,
-				lessonsCount: input.lessonsHundredths === null ? null : hundredthsToDecimal(input.lessonsHundredths),
-				creditedMinutes: creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes),
-				note: input.note,
-				source: 'manual',
-			})
-			.returning()
-		if (!row) throw new Error('payment insert returned no row')
-		return { kind: 'recorded', payment: toPaymentRow(row) }
+		return { kind: 'recorded', payment: await insertPayment(tx, card, input) }
 	})
+}
+
+export async function insertPayment(executor: DbExecutor, card: PaymentCard, input: NewPayment): Promise<PaymentRow> {
+	const [row] = await executor
+		.insert(payments)
+		.values({
+			studentId: card.id,
+			paidOn: input.paidOn,
+			amountMinor: input.amountMinor,
+			currency: input.currency,
+			lessonsCount: input.lessonsHundredths === null ? null : hundredthsToDecimal(input.lessonsHundredths),
+			creditedMinutes: creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes),
+			note: input.note,
+			source: 'manual',
+		})
+		.returning()
+	if (!row) throw new Error('payment insert returned no row')
+	return toPaymentRow(row)
 }
 
 export async function deletePayment(executor: DbExecutor, id: string): Promise<'deleted' | 'not_found'> {

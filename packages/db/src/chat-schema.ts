@@ -107,7 +107,7 @@ export const chatActions = pgTable(
 		uniqueIndex('chat_actions_undo_calendar_request_uq').on(table.undoCalendarRequestId),
 		index('chat_actions_conversation_idx').on(table.conversationId, table.createdAt),
 		index('chat_actions_message_idx').on(table.messageId),
-		check('chat_actions_kind_ck', sql`${table.kind} in ('mark', 'note', 'comment', 'calendar')`),
+		check('chat_actions_kind_ck', sql`${table.kind} in ('mark', 'note', 'comment', 'calendar', 'change')`),
 		check('chat_actions_state_ck', sql`${table.state} in ('proposed', 'submitted', 'applied', 'refused', 'undone')`),
 	]
 )
