@@ -49,12 +49,13 @@ function Spinner({ size }: { size?: number }) {
 
 function question(block: ChatCalendarProposalBlock): string {
 	if (block.operation === 'move_series') return `Move ${block.studentName}'s weekly lessons?`
+	if (block.operation === 'end_series') return `End ${block.studentName}'s weekly lessons?`
 	if (block.operation === 'cancel') return `Cancel ${block.studentName}'s lesson?`
 	return `Move ${block.studentName}'s lesson?`
 }
 
 function OperationIcon({ block }: { block: ChatCalendarProposalBlock }) {
-	if (block.operation === 'move_series') return <Repeat size={16} aria-hidden />
+	if (block.operation === 'move_series' || block.operation === 'end_series') return <Repeat size={16} aria-hidden />
 	if (block.operation === 'cancel') return <CalendarX2 size={16} aria-hidden />
 	return <CalendarCheck2 size={16} aria-hidden />
 }
@@ -106,7 +107,7 @@ function Rows({
 	year: number
 }) {
 	const zone = block.timeZone
-	const series = block.target.kind === 'series'
+	const series = block.target.kind === 'series' || block.target.kind === 'series_end'
 	return (
 		<>
 			<Place
@@ -118,10 +119,12 @@ function Rows({
 				secondZone={secondZone}
 				year={year}
 			/>
-			{block.target.kind === 'cancelled' ? (
+			{block.target.kind === 'cancelled' || block.target.kind === 'series_end' ? (
 				<div className="grid grid-cols-[40px_1fr] gap-2 pl-6">
 					<p className="pt-0.5 text-caption text-muted-foreground">Now</p>
-					<p className="text-body text-foreground">Cancelled</p>
+					<p className="text-body wrap-anywhere text-foreground">
+						{block.target.kind === 'cancelled' ? 'Cancelled' : `No lessons from ${formatDate(block.target.from, year)}`}
+					</p>
 				</div>
 			) : (
 				<Place
@@ -141,6 +144,8 @@ function Rows({
 function proposalLine(block: ChatCalendarProposalBlock, year: number): string {
 	if (block.target.kind === 'series')
 		return `From ${formatDate(block.target.from, year)}. Lessons with a mark or a comment, and the lessons before them, stay at their old time. A moved series cannot be undone from the chat.`
+	if (block.target.kind === 'series_end')
+		return `Lessons before ${formatDate(block.target.from, year)}, and lessons with a mark or a comment, stay. An ended series cannot be undone from the chat.`
 	if (block.target.kind === 'cancelled') return 'The lesson is cancelled in Google Calendar and deducts nothing.'
 	return block.clearsNoShow
 		? 'The Google Calendar event moves with it. The no-show is removed: the new start is later than now.'
@@ -157,6 +162,8 @@ function savedLine(block: ChatCalendarProposalBlock, secondZone: string | null, 
 		const second = secondZone === null ? '' : ` (${zonedParts(start, secondZone).time} ${zoneLabel(secondZone, start)})`
 		return `Calendar change saved. ${name}'s lessons now run ${main}${second} from ${formatDate(block.target.from, year)}.`
 	}
+	if (block.target.kind === 'series_end')
+		return `Calendar change saved. ${name}'s weekly lessons end: no lessons from ${formatDate(block.target.from, year)}.`
 	if (block.target.kind === 'cancelled') {
 		const start = new Date(block.lesson.startsAt)
 		return `Calendar change saved. ${name}'s lesson on ${formatDay(start, zone, year)}, ${mainRange(start, block.lesson.durationMinutes, zone, secondZone)} is cancelled.`
@@ -172,6 +179,7 @@ function placeHref(block: ChatCalendarProposalBlock): string | null {
 		return date === undefined ? null : dayHref(date)
 	}
 	if (target.kind === 'series') return dayHref(target.from)
+	if (target.kind === 'series_end') return dayHref(target.lastOn)
 	return target.date !== undefined && lesson.ref !== undefined ? lessonHref(target.date, lesson.ref) : null
 }
 
@@ -274,11 +282,12 @@ function Applied({
 export function CalendarProposal({
 	block,
 	onConfirm,
+	onDecline,
 	onCheck,
 	onUndo,
 }: { block: ChatCalendarProposalBlock } & Handlers) {
 	const [secondZone] = useSecondZone(block.timeZone)
-	const [kept, setKept] = useState(false)
+	const [declining, setDeclining] = useState(false)
 	const [checking, setChecking] = useState(false)
 	const year = yearInZone(new Date(), block.timeZone)
 	const waiting = block.state === 'pending' || block.undo === 'pending'
@@ -314,6 +323,13 @@ export function CalendarProposal({
 		)
 	}
 
+	const keep = () => {
+		if (declining) return
+		setDeclining(true)
+		void onDecline(block.actionId).finally(() => setDeclining(false))
+	}
+
+	const ending = block.operation === 'end_series'
 	const name = question(block)
 	return (
 		<Panel>
@@ -322,10 +338,10 @@ export function CalendarProposal({
 				aria-label={name}
 				aria-busy={block.state === 'submitting' || block.state === 'pending'}
 				data-slot="chat-calendar-change"
-				data-state={kept && block.state === 'proposed' ? 'kept' : block.state}
+				data-state={block.state}
 				className="flex flex-col gap-2 px-4 py-3"
 			>
-				{kept && block.state === 'proposed' ? (
+				{block.state === 'declined' ? (
 					<div role="status">
 						<Header icon={<Check size={16} aria-hidden />} text="Kept as it was. Nothing changed." />
 					</div>
@@ -369,19 +385,26 @@ export function CalendarProposal({
 							<Button
 								variant="primary"
 								size="compact"
-								disabled={block.state !== 'proposed'}
+								disabled={block.state !== 'proposed' || declining}
 								leadingIcon={block.state === 'proposed' ? undefined : Spinner}
 								onClick={() => onConfirm(block.actionId)}
 							>
-								{block.state === 'proposed' ? 'Confirm' : 'Confirming…'}
+								{block.state === 'proposed'
+									? ending
+										? 'End series'
+										: 'Confirm'
+									: ending
+										? 'Ending series…'
+										: 'Confirming…'}
 							</Button>
 							<Button
 								variant="ghost"
 								size="compact"
-								disabled={block.state !== 'proposed'}
-								onClick={() => setKept(true)}
+								disabled={block.state !== 'proposed' || declining}
+								leadingIcon={declining ? Spinner : undefined}
+								onClick={keep}
 							>
-								Keep
+								{ending ? 'Keep series' : 'Keep'}
 							</Button>
 						</div>
 					</>

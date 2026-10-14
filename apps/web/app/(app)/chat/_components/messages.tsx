@@ -29,6 +29,7 @@ import { StudentMention } from './student-mention'
 
 export type CalendarHandlers = {
 	onConfirm: (actionId: string) => void
+	onDecline: (actionId: string) => Promise<void>
 	onCheck: (actionId: string) => Promise<void>
 }
 

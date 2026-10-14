@@ -800,6 +800,22 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		return true
 	}, [commitThread])
 
+	const declineAction = useCallback(
+		async (actionId: string) => {
+			const conversationId = threadRef.current.conversationId
+			const current = threadRef.current.state
+			const block = current.kind === 'ready' ? calendarBlock(current.messages, actionId) : null
+			if (conversationId === null || block === null || block.state !== 'proposed') return
+			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/decline`, {})
+			if (!mounted.current) return
+			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
+			if (parsed?.success && parsed.data.block.type === 'calendar_proposal')
+				updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
+			else void refreshThread()
+		},
+		[refreshThread, updateThread]
+	)
+
 	const decideChange = useCallback(
 		async (actionId: string, decision: 'confirm' | 'decline'): Promise<boolean> => {
 			const conversationId = threadRef.current.conversationId
@@ -877,6 +893,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		send,
 		undo,
 		confirmCalendar,
+		declineAction,
 		checkCalendar,
 		decideChange,
 		refreshThread,

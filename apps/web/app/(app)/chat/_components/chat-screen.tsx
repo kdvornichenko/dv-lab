@@ -341,6 +341,7 @@ export function ChatScreen({
 									onRefresh={chat.reloadThread}
 									calendar={{
 										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
+										onDecline: chat.declineAction,
 										onCheck: chat.checkCalendar,
 									}}
 									changes={{

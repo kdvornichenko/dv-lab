@@ -43,6 +43,18 @@ export function stepWords(step: ChatStep): string {
 			return 'Preparing a lesson change'
 		case 'propose_payment':
 			return 'Preparing a payment'
+		case 'student_payments':
+			return step.studentName === undefined ? 'Reading payments' : `Reading ${possessive} payments`
+		case 'propose_payment_delete':
+			return 'Preparing a payment deletion'
+		case 'propose_student':
+			return 'Preparing a student card'
+		case 'propose_rate':
+			return 'Preparing a rate change'
+		case 'propose_archive':
+			return 'Preparing to archive'
+		case 'propose_entry_removal':
+			return 'Preparing to remove an entry'
 		case 'answer':
 			return 'Writing the answer'
 		default:
