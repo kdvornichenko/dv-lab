@@ -35,19 +35,19 @@ type Action =
 	| { type: 'theme'; theme: 'light' | 'dark' | 'system' }
 	| { type: 'sign-out' }
 
+type RowStatus = 'loading' | 'error' | 'empty'
+
 interface Item {
 	value: string
 	label: string
 	icon: LucideIcon | null
-	action: Action
+	action?: Action
+	status?: RowStatus
 }
-
-type GroupStatus = 'loading' | 'error' | 'empty' | null
 
 interface Group {
 	value: 'Actions' | 'Students' | 'Screens'
 	items: Item[]
-	status: GroupStatus
 }
 
 type Roster = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; rows: StudentLessonOption[] }
@@ -107,20 +107,24 @@ async function readRoster(): Promise<Roster> {
 	return parsed.success ? { kind: 'ready', rows: parsed.data.students } : { kind: 'error' }
 }
 
+function statusItem(status: RowStatus): Item {
+	return { value: `status-${status}`, label: '', icon: null, status }
+}
+
 function buildGroups(query: string, roster: Roster): Group[] {
 	const trimmed = query.trim()
 	const studentsOnly = trimmed.startsWith('@')
 	const term = studentsOnly ? trimmed.slice(1).trim() : trimmed
 	const groups: Group[] = []
 	const actions = studentsOnly ? [] : matching(actionItems, term)
-	if (actions.length > 0) groups.push({ value: 'Actions', items: actions, status: null })
+	if (actions.length > 0) groups.push({ value: 'Actions', items: actions })
 	if (roster.kind === 'ready') {
 		const key = searchKey(term)
 		const rows = roster.rows.filter((row) => searchKey(row.displayName).includes(key)).map(studentItem)
-		groups.push({ value: 'Students', items: rows, status: rows.length === 0 ? 'empty' : null })
-	} else groups.push({ value: 'Students', items: [], status: roster.kind })
+		groups.push({ value: 'Students', items: rows.length === 0 ? [statusItem('empty')] : rows })
+	} else groups.push({ value: 'Students', items: [statusItem(roster.kind)] })
 	const screens = studentsOnly ? [] : matching(screenItems, term)
-	if (screens.length > 0) groups.push({ value: 'Screens', items: screens, status: null })
+	if (screens.length > 0) groups.push({ value: 'Screens', items: screens })
 	return groups
 }
 
@@ -140,7 +144,7 @@ function focusHeading(name: string) {
 	window.setTimeout(attempt, 50)
 }
 
-function StatusRow({ status, onRefresh }: { status: Exclude<GroupStatus, null>; onRefresh: () => void }) {
+function StatusRow({ status, onRefresh }: { status: RowStatus; onRefresh: () => void }) {
 	if (status === 'loading') {
 		return (
 			<div role="status" className="flex h-9 items-center gap-2 px-2 text-body text-muted-foreground">
@@ -206,6 +210,7 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 	function run(item: Item) {
 		onOpenChange(false)
 		const action = item.action
+		if (action === undefined) return
 		if (action.type === 'route') router.push(action.href)
 		else if (action.type === 'student') {
 			router.push(action.href)
@@ -251,23 +256,26 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 											{group.value}
 										</Autocomplete.GroupLabel>
 										<Autocomplete.Collection>
-											{(item: Item) => (
-												<Autocomplete.Item
-													key={item.value}
-													value={item}
-													onClick={() => run(item)}
-													className="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-body text-foreground outline-none select-none data-highlighted:bg-active"
-												>
-													{item.icon === null ? (
-														<Avatar name={item.label} />
-													) : (
-														<item.icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-													)}
-													<span className="min-w-0 flex-1 truncate">{item.label}</span>
-												</Autocomplete.Item>
-											)}
+											{(item: Item) =>
+												item.status === undefined ? (
+													<Autocomplete.Item
+														key={item.value}
+														value={item}
+														onClick={() => run(item)}
+														className="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-body text-foreground outline-none select-none data-highlighted:bg-active"
+													>
+														{item.icon === null ? (
+															<Avatar name={item.label} />
+														) : (
+															<item.icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+														)}
+														<span className="min-w-0 flex-1 truncate">{item.label}</span>
+													</Autocomplete.Item>
+												) : (
+													<StatusRow key={item.value} status={item.status} onRefresh={refresh} />
+												)
+											}
 										</Autocomplete.Collection>
-										{group.status === null ? null : <StatusRow status={group.status} onRefresh={refresh} />}
 									</Autocomplete.Group>
 								)}
 							</Autocomplete.List>
