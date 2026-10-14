@@ -569,7 +569,25 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 4. Students shows the four-column table with sorting, filters in the URL and the payment ring; the profile has Overview, Lessons (date range, outcomes, totals) and Payments (Opening balance).
 5. The app installs as a PWA and sends "lesson soon" and "student about to pay" pushes.
 
-**Plans**: not planned yet; context in [25.2-CONTEXT.md](phases/25.2-polish/25.2-CONTEXT.md)
+**Plans**: 18 plans, 50 tasks, 10 waves; execution pending. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
+- [ ] 25.2-01-PLAN.md — dependencies, Firefox for checks, schema M1-M9
+- [ ] 25.2-02-PLAN.md — dialog kinds, Firefox fade, long titles, chat small fixes
+- [ ] 25.2-03-PLAN.md — core: chronological ledger (ARCH-A1), short balance, title matching
+- [ ] 25.2-04-PLAN.md — note blocks with revision (ARCH-A2), vocabulary Removed, recent comments
+- [ ] 25.2-05-PLAN.md — ledger loader, Last payment, Lessons route, since_payment, follow-up
+- [ ] 25.2-06-PLAN.md — Students table: columns, palette, sort and filters in URL, ring
+- [ ] 25.2-07-PLAN.md — chat tool registry (ARCH-A3)
+- [ ] 25.2-08-PLAN.md — profile: Lessons tab, Overview, Opening balance in Payments
+- [ ] 25.2-09-PLAN.md — Details from chat, calendar search, /recap and /essay prompts in the database
+- [ ] 25.2-10-PLAN.md — Notes blocks and Vocabulary Removed (web)
+- [ ] 25.2-11-PLAN.md — notes and vocabulary from chat by the diff rule
+- [ ] 25.2-12-PLAN.md — chat facts v94, follow-up, ChangeCardDetails, Settings prompts and privacy
+- [ ] 25.2-13-PLAN.md — notes review: turn mode, one transaction, review offer
+- [ ] 25.2-14-PLAN.md — ChatNoteChange, empty chat, long essay (web)
+- [ ] 25.2-15-PLAN.md — push: VAPID, subscriptions, presence, scheduler, delivery
+- [ ] 25.2-16-PLAN.md — ChatReview, Review now (web)
+- [ ] 25.2-17-PLAN.md — PWA: manifest, service worker, notification settings, presence
+- [ ] 25.2-18-PLAN.md — docs, build, knip, full check pass
 **UI hint**: yes
 **Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
 
@@ -619,6 +637,6 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 14/14          | Complete    | 2026-10-14 |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
-| 25.2. Polish before IELTS                        | v2.0      | 0/0            | Context     | -          |
+| 25.2. Polish before IELTS                        | v2.0      | 0/18           | Planned     | -          |
 | 25.3. Chat Command Builder                       | v2.0      | 0/0            | Not planned | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
