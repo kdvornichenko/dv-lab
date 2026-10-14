@@ -1299,7 +1299,7 @@ async function main() {
 		`insert into student_notes (student_id, section_kind, body) values (${quote(studentId)}, 'general_info', ${quote(quoteText)})`
 	)
 	sql(
-		`insert into student_sections (student_id, kind, body) values (${quote(studentId)}, 'goals', ${quote(sectionText)})`
+		`update student_sections set body = ${quote(sectionText)} where student_id = ${quote(studentId)} and kind = 'goals'`
 	)
 	const quotedId = sql(
 		`select id from student_notes where student_id = ${quote(studentId)} and body = ${quote(quoteText)}`
