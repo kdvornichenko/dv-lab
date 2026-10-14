@@ -10,6 +10,7 @@ import { CalendarFault, GoogleWriteFault } from './gateway.ts'
 import type { Credentials } from './google-access.ts'
 import { syncFacts, type EventFact } from './projection.ts'
 import { exclusionFacts } from './recurring.ts'
+import { syncFault, type SyncTrace } from './sync-fault.ts'
 import { masterFact, type SyncRead, type SyncSource } from './sync-provider.ts'
 import {
 	applyPass,
@@ -88,15 +89,17 @@ export function createCalendarSync(deps: {
 	let sweep: Promise<void> | undefined
 	const active = () => !stopped.signal.aborted && !deps.isStopping()
 
-	async function collect(read: SyncRead, query: SyncPageQuery): Promise<Pages> {
+	async function collect(read: SyncRead, query: SyncPageQuery, trace: SyncTrace): Promise<Pages> {
 		const facts: EventFact[] = []
 		const seen = new Set<string>()
 		let skipped = 0
 		let truncated = 0
 		let pageToken: string | undefined
+		trace.stage = 'page'
 		for (;;) {
 			read.signal.throwIfAborted()
 			const page = await deps.source.page(read, query, pageToken)
+			trace.pages += 1
 			facts.push(...page.facts)
 			skipped += page.skipped
 			truncated += page.truncated
@@ -137,16 +140,25 @@ export function createCalendarSync(deps: {
 		}
 	}
 
-	async function fullPass(current: SyncClaim, read: SyncRead, tokenGone: boolean): Promise<Outcome | null> {
+	async function fullPass(
+		current: SyncClaim,
+		read: SyncRead,
+		tokenGone: boolean,
+		trace: SyncTrace
+	): Promise<Outcome | null> {
+		trace.stage = 'full_start'
 		const started = await startFull(deps.db, current, { tokenGone })
 		if (!started) return null
 		const at = now()
 		const { defaultTimeZone } = await readTeacherSettings(deps.db, current.accountId)
 		const window = syncWindow(at, defaultTimeZone)
-		const pages = await collect(read, { timeMin: window.start, timeMax: window.end })
+		const pages = await collect(read, { timeMin: window.start, timeMax: window.end }, trace)
+		trace.stage = 'palette'
 		const palette = await optional(() => deps.source.palette(read.token, read.signal))
 		const calendarColor = await optional(() => deps.source.calendarColor(read.token, read.calendarId, read.signal))
+		trace.stage = 'masters'
 		const extra = await masters(started, read, pages.facts, window.start)
+		trace.stage = 'apply'
 		const result = await applyPass(deps.db, started, {
 			kind: 'full',
 			facts: [...pages.facts, ...extra],
@@ -162,9 +174,16 @@ export function createCalendarSync(deps: {
 		return { kind: 'full', claim: started, result, masters: extra.length }
 	}
 
-	async function incrementalPass(current: SyncClaim, read: SyncRead, syncToken: string): Promise<Outcome> {
-		const pages = await collect(read, { syncToken })
+	async function incrementalPass(
+		current: SyncClaim,
+		read: SyncRead,
+		syncToken: string,
+		trace: SyncTrace
+	): Promise<Outcome> {
+		const pages = await collect(read, { syncToken }, trace)
+		trace.stage = 'masters'
 		const extra = await masters(current, read, pages.facts, current.windowStart)
+		trace.stage = 'apply'
 		const result = await applyPass(deps.db, current, {
 			kind: 'incremental',
 			facts: [...pages.facts, ...extra],
@@ -176,14 +195,14 @@ export function createCalendarSync(deps: {
 		return { kind: 'incremental', claim: current, result, masters: extra.length }
 	}
 
-	async function pass(current: SyncClaim, read: SyncRead): Promise<Outcome | null> {
+	async function pass(current: SyncClaim, read: SyncRead, trace: SyncTrace): Promise<Outcome | null> {
 		const syncToken = current.syncToken
-		if (!syncToken || current.nextFullAt <= now()) return fullPass(current, read, false)
+		if (!syncToken || current.nextFullAt <= now()) return fullPass(current, read, false, trace)
 		try {
-			return await incrementalPass(current, read, syncToken)
+			return await incrementalPass(current, read, syncToken, trace)
 		} catch (error) {
 			if (!(error instanceof SyncTokenGone)) throw error
-			return fullPass(current, read, true)
+			return fullPass(current, read, true, trace)
 		}
 	}
 
@@ -242,14 +261,19 @@ export function createCalendarSync(deps: {
 			const notable = counts.applied + counts.skipped_pending + counts.skipped_locked + counts.failed
 			if (notable) deps.logger.info(counts, 'Calendar inbound apply')
 			else deps.logger.debug(counts, 'Calendar inbound apply')
-		} catch {
-			deps.logger.warn({ failed: 1 }, 'Calendar inbound apply failed')
+		} catch (error) {
+			deps.logger.warn(
+				{ failed: 1, stage: 'inbound', ...syncFault(error, { stopped: stopped.signal }) },
+				'Calendar inbound apply failed'
+			)
 		}
 	}
 
 	async function run(current: SyncClaim) {
 		const startedAt = Date.now()
 		const signal = AbortSignal.any([stopped.signal, AbortSignal.timeout(PASS_BUDGET_MS)])
+		const signals = { stopped: stopped.signal, pass: signal }
+		const trace: SyncTrace = { stage: 'token', pages: 0 }
 		let token: string
 		try {
 			const access = await deps.credentials.accessToken(current.accountId, signal)
@@ -261,7 +285,10 @@ export function createCalendarSync(deps: {
 		} catch (error) {
 			if (stopped.signal.aborted) await releaseClaim(deps.db, current)
 			else await recordFailure(deps.db, current, accessIssue(error))
-			deps.logger.warn({ failed: 1 }, 'Calendar sync token unavailable')
+			deps.logger.warn(
+				{ failed: 1, stage: trace.stage, ...syncFault(error, signals) },
+				'Calendar sync token unavailable'
+			)
 			return
 		}
 		const read: SyncRead = {
@@ -272,12 +299,13 @@ export function createCalendarSync(deps: {
 		}
 		let committed = false
 		try {
-			const outcome = await pass(current, read)
+			const outcome = await pass(current, read, trace)
 			committed = Boolean(outcome?.result.applied)
 			if (!outcome || !outcome.result.applied) {
 				await releaseClaim(deps.db, outcome?.claim ?? current)
 				deps.logger.info({ discarded: 1 }, 'Calendar sync pass discarded')
 			} else {
+				trace.stage = 'unseen'
 				const unseen = await readUnseen(outcome.claim, read, outcome.result.unseenBound)
 				const counts = {
 					pass: outcome.kind,
@@ -297,14 +325,26 @@ export function createCalendarSync(deps: {
 			if (error instanceof GoogleWriteFault && error.httpStatus === 401) deps.credentials.evict(current.accountId)
 			if (stopped.signal.aborted) await releaseClaim(deps.db, current)
 			else await recordFailure(deps.db, current, callIssue(error))
-			deps.logger.warn({ failed: 1, durationMs: Date.now() - startedAt }, 'Calendar sync pass failed')
+			deps.logger.warn(
+				{
+					failed: 1,
+					durationMs: Date.now() - startedAt,
+					stage: trace.stage,
+					pages: trace.pages,
+					...syncFault(error, signals),
+				},
+				'Calendar sync pass failed'
+			)
 		}
 		if (committed && active()) await afterPass(current)
 		try {
 			const row = await syncFacts(deps.db, current.connectionId)
 			if (row && active()) await deps.watch.maintain(row, token)
-		} catch {
-			deps.logger.warn({ failed: 1 }, 'Calendar channel maintenance failed')
+		} catch (error) {
+			deps.logger.warn(
+				{ failed: 1, stage: 'channel', ...syncFault(error, signals) },
+				'Calendar channel maintenance failed'
+			)
 		}
 	}
 
