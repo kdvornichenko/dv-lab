@@ -55,11 +55,15 @@ export async function prepareSeriesChange(
 	if (input.operation === 'move_series') await checkSeriesFrom(executor, rule, input.input.from, connectionId)
 	const date = input.operation === 'move_series' ? input.input.from : input.input.lastOn
 	const mode = input.operation === 'move_series' ? 'from' : 'through'
-	const { naturalCutoff } = seriesCutBoundary(rule, date, time.context.defaultTimeZone, mode)
+	const zone =
+		input.operation === 'move_series'
+			? (input.input.inputTimeZone ?? time.context.defaultTimeZone)
+			: time.context.defaultTimeZone
+	const { naturalCutoff } = seriesCutBoundary(rule, date, zone, mode)
 	const exceptions = await seriesExceptionsFrom(executor, rule.id, naturalCutoff)
 	const marks = await seriesMarksFrom(executor, rule.id, naturalCutoff)
 	if (input.operation === 'move_series') {
-		const result = cutSeries(rule, exceptions, input.input, time.context, marks)
+		const result = cutSeries(rule, exceptions, input.input, { now: time.context.now, defaultTimeZone: zone }, marks)
 		if (result.kind !== 'ok')
 			throw new CommandFault(
 				result.kind === 'nonexistent_local_time' ? 'nonexistent_local_time' : 'precondition_failed'

@@ -77,6 +77,7 @@ export const moveSeriesRequest = z.object({
 	startTime: clockTime,
 	durationMinutes: lessonMinutes.optional(),
 	newStartsOn: isoDate.optional(),
+	inputTimeZone: z.string().refine(isTimeZone).optional(),
 	expectedDefaultTimeZone,
 })
 
