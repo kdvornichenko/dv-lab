@@ -424,7 +424,7 @@ Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-mark
 4. A pasted essay gets feedback labeled as an approximate estimate.
 5. The palette finds students and offers "New chat" and "Add payment"; a student profile shows payments, lessons and "Ask in chat"; Today, Schedule and Chat are usable at phone width.
 
-**Plans**: 7/14 plans executed / 39 tasks / 9 waves; replanned 2026-10-14 against the Phase 22 code (decisions in 23-CONTEXT, accepted ARCH-A1..A3)
+**Plans**: 10/14 plans executed / 39 tasks / 9 waves; replanned 2026-10-14 against the Phase 22 code (decisions in 23-CONTEXT, accepted ARCH-A1..A3)
 
 - [x] 23-01-PLAN.md — Tracer: payment proposal in chat → Record payment / Don't record
 - [x] 23-02-PLAN.md — Card and payment revisions, same-row payment correction
@@ -432,10 +432,10 @@ Plan graph and ownership: [.planning/phases/22-chat-with-mentions-and-quick-mark
 - [x] 23-04-PLAN.md — Palette (students, New chat, Add payment) and Ask in chat
 - [x] 23-05-PLAN.md — Proposals: new student, rate change, archive instead of deletion
 - [x] 23-06-PLAN.md — Ordinary forms with revisions and Edit payment
-- [ ] 23-07-PLAN.md — Deletions: payment, note or comment, end of series; saved Keep
+- [x] 23-07-PLAN.md — Deletions: payment, note or comment, end of series; saved Keep
 - [x] 23-08-PLAN.md — Lessons tab in the student profile
-- [ ] 23-09-PLAN.md — Bulk move of a student's lessons (CHAT-06)
-- [ ] 23-10-PLAN.md — Proposal blocks for all operations and result links
+- [x] 23-09-PLAN.md — Bulk move of a student's lessons (CHAT-06)
+- [x] 23-10-PLAN.md — Proposal blocks for all operations and result links
 - [ ] 23-11-PLAN.md — Essay feedback labeled as an approximate estimate (api)
 - [ ] 23-12-PLAN.md — Phone width: Today, Schedule, Chat, profile, palette
 - [ ] 23-13-PLAN.md — Bulk move and essay blocks, /essay command
@@ -590,7 +590,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 21. Lesson Accounting and Today                  | v2.0      | 18/18          | Complete    | 2026-10-11 |
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 18/18 | In Progress|  |
-| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 7/14 | In Progress|  |
+| 23. Confirmed Chat Changes and Entry Points      | v2.0      | 10/14 | In Progress|  |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
