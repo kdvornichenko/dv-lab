@@ -94,6 +94,7 @@ function removeChats(where) {
 function removeCardRows(where) {
 	const cards = `select id from students where ${where}`
 	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from lesson_comments where student_id in (${cards})`)
 	sql(`delete from student_sections where student_id in (${cards})`)
 	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
 	return removeCards(where)
@@ -1193,6 +1194,150 @@ async function deletions() {
 			confirmAfter.json.block.state === 'declined' &&
 			paymentsOf(card1).length === 1,
 		JSON.stringify(declined.json)
+	)
+
+	await entries(chatId, ask)
+}
+
+const noteRow = (id) =>
+	sql(`select revision, retracted_at is not null as retracted from student_notes where id = ${quote(id)}`).rows[0] ??
+	null
+
+const commentRow = (id) =>
+	sql(`select revision, retracted_at is not null as retracted from lesson_comments where id = ${quote(id)}`).rows[0] ??
+	null
+
+async function entries(chatId, ask) {
+	const { appendStudentNote, retractStudentNote } = await import(`${ROOT}/apps/api/src/cards/notes.ts`)
+	const { appendLessonComment } = await import(`${ROOT}/apps/api/src/schedule/comments.ts`)
+	const zone =
+		sql(`select default_time_zone as zone from teacher_settings where account_id = ${quote(accountId)}`).rows[0]
+			?.zone ?? core.SCHEDULE_TIME_ZONE
+	const note = async (studentId, body) => {
+		const saved = await appendStudentNote(db, accountId, studentId, { sectionKind: 'general_info', body })
+		if (saved === null) throw new Error('note append failed')
+		return saved
+	}
+	const comment = async (studentId, body) => {
+		const startsAt = new Date(Date.now() - 3 * 3600000)
+		const lessonId = sql(
+			`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(startsAt.toISOString())}, 60, 'scheduled') returning id`
+		).rows[0].id
+		const saved = await appendLessonComment(db, accountId, { kind: 'single', lessonId }, body, new Date())
+		if (saved.kind !== 'ok') throw new Error(`comment append returned ${saved.kind}`)
+		return { ...saved.comment, lessonId, day: core.lessonDay(startsAt, zone) }
+	}
+	const remove = (studentId, name, entryId) =>
+		ask(studentId, name, 'propose_entry_removal', { entry_id: entryId }, `@${name} удали запись`)
+
+	const name2 = `${PREFIX}2`
+	const card2 = await card(name2)
+	const longBody = `Note of the check ${'x'.repeat(400)}`
+	const kept = await note(card2, longBody)
+	const removal = await remove(card2, name2, kept.id)
+	check(
+		'propose_entry_removal for a note stores one proposed change and keeps the note live',
+		removal.block?.state === 'proposed' &&
+			removal.block.change.operation === 'remove_note' &&
+			removal.block.change.studentId === card2 &&
+			removal.block.change.noteId === kept.id &&
+			removal.block.change.sectionKind === 'general_info' &&
+			Array.from(removal.block.change.body).length === 300 &&
+			removal.block.change.body.endsWith('…') &&
+			removal.block.change.createdAt === kept.createdAt &&
+			actionsOf(removal.teacherId).length === 1 &&
+			noteRow(kept.id)?.retracted === false,
+		JSON.stringify({ block: removal.block, row: noteRow(kept.id) })
+	)
+	const confirmedNote = await confirm(removal.block.actionId)
+	const retractedNote = noteRow(kept.id)
+	check(
+		'Remove note retracts the note through the notes owner and keeps the row',
+		valid(confirmedNote) &&
+			confirmedNote.json.block.state === 'applied' &&
+			confirmedNote.json.block.receipt?.studentId === card2 &&
+			retractedNote?.retracted === true &&
+			retractedNote.revision === kept.revision + 1,
+		JSON.stringify({ block: confirmedNote.json?.block, row: retractedNote })
+	)
+	const twice = await remove(card2, name2, kept.id)
+	check(
+		'a retracted note is not proposed again',
+		refusedWith(twice, 'entry_not_found') && actionsOf(twice.teacherId).length === 0,
+		JSON.stringify(twice.tool)
+	)
+
+	const said = await comment(card2, 'Comment of the check')
+	const commentRemoval = await remove(card2, name2, said.id)
+	check(
+		'propose_entry_removal for a lesson comment shows the lesson and keeps the comment live',
+		commentRemoval.block?.state === 'proposed' &&
+			commentRemoval.block.change.operation === 'remove_comment' &&
+			commentRemoval.block.change.commentId === said.id &&
+			commentRemoval.block.change.lessonRef.kind === 'single' &&
+			commentRemoval.block.change.lessonRef.lessonId === said.lessonId &&
+			commentRemoval.block.change.lessonDate === said.day &&
+			commentRemoval.block.change.body === 'Comment of the check' &&
+			commentRow(said.id)?.retracted === false,
+		JSON.stringify(commentRemoval.block)
+	)
+	const confirmedComment = await confirm(commentRemoval.block.actionId)
+	const retractedComment = commentRow(said.id)
+	check(
+		'Remove comment retracts the comment through the comments owner and keeps the row',
+		valid(confirmedComment) &&
+			confirmedComment.json.block.state === 'applied' &&
+			retractedComment?.retracted === true &&
+			retractedComment.revision === said.revision + 1,
+		JSON.stringify({ block: confirmedComment.json?.block, row: retractedComment })
+	)
+
+	const raced = await note(card2, 'Note retracted before confirm')
+	const racedRemoval = await remove(card2, name2, raced.id)
+	const early = await retractStudentNote(db, accountId, raced.id, raced.revision, card2)
+	const staleNote = await confirm(racedRemoval.block?.actionId)
+	check(
+		'a note retracted between the proposal and confirm makes it stale',
+		early.kind === 'retracted' &&
+			valid(staleNote) &&
+			staleNote.json.block.state === 'stale' &&
+			staleNote.json.block.issue === 'entry_changed' &&
+			noteRow(raced.id)?.revision === raced.revision + 1,
+		JSON.stringify(staleNote.json)
+	)
+	const edited = await comment(card2, 'Comment changed before confirm')
+	const editedRemoval = await remove(card2, name2, edited.id)
+	sql(`update lesson_comments set revision = revision + 1, updated_at = now() where id = ${quote(edited.id)}`)
+	const staleComment = await confirm(editedRemoval.block?.actionId)
+	check(
+		'a comment changed between the proposal and confirm makes it stale and stays live',
+		valid(staleComment) &&
+			staleComment.json.block.state === 'stale' &&
+			staleComment.json.block.issue === 'entry_changed' &&
+			commentRow(edited.id)?.retracted === false,
+		JSON.stringify(staleComment.json)
+	)
+
+	const name3 = `${PREFIX}3`
+	const card3 = await card(name3)
+	const otherNote = await note(card3, 'Note of another student')
+	const otherComment = await comment(card3, 'Comment of another student')
+	const crossedNote = await remove(card2, name2, otherNote.id)
+	const crossedComment = await remove(card2, name2, otherComment.id)
+	check(
+		'an entry of another student refuses with entry_not_found and stays live',
+		refusedWith(crossedNote, 'entry_not_found') &&
+			refusedWith(crossedComment, 'entry_not_found') &&
+			noteRow(otherNote.id)?.retracted === false &&
+			commentRow(otherComment.id)?.retracted === false,
+		JSON.stringify({ note: crossedNote.tool, comment: crossedComment.tool })
+	)
+	const keptRemoval = await remove(card3, name3, otherNote.id)
+	const keptDeclined = await decline(keptRemoval.block?.actionId)
+	check(
+		'Keep entry declines without a retraction',
+		valid(keptDeclined) && keptDeclined.json.block.state === 'declined' && noteRow(otherNote.id)?.retracted === false,
+		JSON.stringify(keptDeclined.json)
 	)
 }
 

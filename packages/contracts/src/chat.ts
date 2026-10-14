@@ -387,11 +387,19 @@ export const CHAT_CHANGE_OPERATIONS = [
 	'set_rate',
 	'archive_card',
 	'delete_payment',
+	'remove_note',
+	'remove_comment',
 ] as const
 
 export const CHAT_CHANGE_STATES = ['proposed', 'applying', 'applied', 'declined', 'stale', 'failed'] as const
 
-export const CHAT_CHANGE_ISSUES = ['student_changed', 'time_zone_changed', 'not_found', 'payment_changed'] as const
+export const CHAT_CHANGE_ISSUES = [
+	'student_changed',
+	'time_zone_changed',
+	'not_found',
+	'payment_changed',
+	'entry_changed',
+] as const
 
 export const chatChangeIssue = z.enum(CHAT_CHANGE_ISSUES)
 
@@ -461,12 +469,37 @@ export const chatDeletePaymentChange = z.strictObject({
 	balanceAfterMinutes: z.number().int().nullable(),
 })
 
+export const CHAT_REMOVED_BODY_MAX = 300
+
+export const chatRemoveNoteChange = z.strictObject({
+	operation: z.literal('remove_note'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	noteId: z.uuid(),
+	sectionKind: z.enum(SECTION_KINDS),
+	body: z.string(),
+	createdAt: calendarInstant,
+})
+
+export const chatRemoveCommentChange = z.strictObject({
+	operation: z.literal('remove_comment'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	commentId: z.uuid(),
+	lessonRef: calendarOccurrenceRef,
+	lessonDate: calendarDate.nullable(),
+	body: z.string(),
+	createdAt: calendarInstant,
+})
+
 export const chatChange = z.discriminatedUnion('operation', [
 	chatRecordPaymentChange,
 	chatCreateCardChange,
 	chatSetRateChange,
 	chatArchiveCardChange,
 	chatDeletePaymentChange,
+	chatRemoveNoteChange,
+	chatRemoveCommentChange,
 ])
 
 export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
@@ -692,6 +725,7 @@ export const CHAT_STEP_TOOLS = [
 	'propose_archive',
 	'student_payments',
 	'propose_payment_delete',
+	'propose_entry_removal',
 	'answer',
 ] as const
 

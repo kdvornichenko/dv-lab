@@ -119,6 +119,7 @@ const inputs = {
 	propose_archive: z.strictObject({ student_id: id, requested_deletion: z.boolean() }),
 	student_payments: z.strictObject({ student_id: id }),
 	propose_payment_delete: z.strictObject({ student_id: id, payment_id: id }),
+	propose_entry_removal: z.strictObject({ student_id: id, entry_id: id }),
 	open_page: z.strictObject({
 		kind: z.string(),
 		student_id: nullable(id),
@@ -193,7 +194,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 	),
 	tool(
 		'propose_lesson_change',
-		'Propose moving or cancelling a lesson in the calendar. Nothing changes until the teacher confirms it in the chat. scope one changes one lesson; series changes the series from the date in from (or all lessons when from is null).',
+		'Propose moving or cancelling a lesson in the calendar. Nothing changes until the teacher confirms it in the chat. scope one changes one lesson; series changes the series from the date in from (or all lessons when from is null). cancel with scope series ends the series from the date in from (all lessons when from is null); history stays.',
 		{
 			student_id: string,
 			operation: { type: 'string', enum: ['move', 'cancel'] },
@@ -252,6 +253,11 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 		'propose_payment_delete',
 		'Propose deleting one payment of a student. payment_id is the exact id from student_payments; when several payments fit the request, ask the teacher which one and do not guess. Lessons and their marks stay. Nothing is deleted until the teacher confirms in the chat.',
 		{ student_id: string, payment_id: string }
+	),
+	tool(
+		'propose_entry_removal',
+		'Propose removing one note or one lesson comment of a student. entry_id is the ID from the cite marker of student_notes ([[note:ID]] or [[comment:ID]]); call student_notes first when you do not have it. The entry is hidden from the profile and the chat, not erased. Nothing is removed until the teacher confirms in the chat.',
+		{ student_id: string, entry_id: string }
 	),
 	tool(
 		'open_page',
@@ -593,6 +599,13 @@ function changeReceipt(change: ChatChange): unknown {
 			}
 		case 'delete_payment':
 			return { status: 'proposed', student: change.studentName, paid_on: change.paidOn, note: DELETE_NOTE }
+		case 'remove_note':
+		case 'remove_comment':
+			return {
+				status: 'proposed',
+				student: change.studentName,
+				note: 'Nothing is removed until the teacher confirms in the chat. Never say it was removed. Do not quote the entry: the block shows it.',
+			}
 		default:
 			return { status: 'proposed', student: change.studentName, note: CHANGE_NOTE }
 	}
@@ -708,6 +721,10 @@ function changeRequest(name: ToolName, input: unknown): ChangeRequest | null {
 	if (name === 'propose_payment_delete') {
 		const parsed = inputs.propose_payment_delete.parse(input)
 		return { operation: 'delete_payment', studentId: parsed.student_id, paymentId: parsed.payment_id }
+	}
+	if (name === 'propose_entry_removal') {
+		const parsed = inputs.propose_entry_removal.parse(input)
+		return { operation: 'remove_entry', studentId: parsed.student_id, entryId: parsed.entry_id }
 	}
 	return null
 }

@@ -274,6 +274,7 @@ async function prepare(
 		case 'record_payment':
 			return preparePayment(tx, context, source, request)
 		case 'delete_payment':
+		case 'remove_entry':
 			return stage(tx, context, source, await previewDeletion(tx, context, request))
 		default: {
 			const message = await teacherText(tx, context.accountId, source.messageId)
@@ -366,7 +367,7 @@ async function applyChange(tx: DbExecutor, context: ChatContext, action: ActionR
 	const target = parsed.data
 	if (target.operation === 'record_payment') return applyPayment(tx, context, action, target)
 	const applied =
-		target.operation === 'delete_payment'
+		target.operation === 'delete_payment' || target.operation === 'remove_note' || target.operation === 'remove_comment'
 			? await applyDeletion(tx, context, target)
 			: await applyCardChange(tx, context, target)
 	if (applied.kind === 'applied') return settle(tx, action.id, 'applied', { kind: 'applied' }, applied.after)
