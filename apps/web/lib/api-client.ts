@@ -120,7 +120,7 @@ const UNCHANGED_PATHS = new Set([
 	'/google/disconnect/confirm-revoked',
 ])
 
-const STATUS_CHECK = /^\/chat\/(?:actions\/[^/]+\/check|turns\/[^/]+\/stop)$/
+const STATUS_CHECK = /^\/chat\/(?:actions\/[^/]+\/(?:check|decline)|turns\/[^/]+\/stop)$/
 
 function notifyCache(response: Response, method: ApiMethod, path: string): void {
 	if (typeof window === 'undefined') return

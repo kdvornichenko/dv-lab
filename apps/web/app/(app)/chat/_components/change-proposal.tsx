@@ -82,7 +82,7 @@ function Balance({ change }: { change: PaymentChange }) {
 			<StudentBalance minutes={change.balanceMinutes} lessonMinutes={change.lessonMinutes} />
 			<ArrowRight size={14} aria-hidden className="shrink-0 text-muted-foreground" />
 			<span className="sr-only">after payment</span>
-			<span className="rounded-md bg-active px-1">
+			<span data-slot="change-balance-after" className="rounded-md bg-active px-1">
 				<StudentBalance minutes={change.balanceAfterMinutes} lessonMinutes={change.lessonMinutes} />
 			</span>
 		</span>

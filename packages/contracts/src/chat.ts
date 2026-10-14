@@ -623,6 +623,7 @@ export const CHAT_STEP_TOOLS = [
 	'add_note',
 	'add_comment',
 	'propose_lesson_change',
+	'propose_payment',
 	'answer',
 ] as const
 

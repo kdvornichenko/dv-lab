@@ -41,8 +41,12 @@ export function stepWords(step: ChatStep): string {
 			return 'Saving a comment on the lesson'
 		case 'propose_lesson_change':
 			return 'Preparing a lesson change'
+		case 'propose_payment':
+			return 'Preparing a payment'
 		case 'answer':
 			return 'Writing the answer'
+		default:
+			return 'Preparing a change'
 	}
 }
 

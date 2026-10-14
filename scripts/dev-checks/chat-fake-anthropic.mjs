@@ -36,6 +36,25 @@ function plan(body) {
 		const id = `toolu_fake_${++state.ids}`
 		return { blocks: [{ kind: 'tool', id, name: 'find_students', input: { query: 'Alex Example' } }], stop: 'tool_use' }
 	}
+	if (marker === 'payment') {
+		if (continued)
+			return { blocks: [{ kind: 'text', sentences: ['I prepared the payment. Confirm it below.'] }], stop: 'end_turn' }
+		const content = asked.at(-1)?.content ?? ''
+		const studentId = /student_id: ([0-9a-f-]{36})/.exec(content)?.[1] ?? null
+		const amount = /amount:\s*(\S+)/.exec(content.slice(content.indexOf('[Message]')))?.[1] ?? null
+		const input = {
+			student_id: studentId,
+			amount_text: amount,
+			currency: null,
+			paid_on: null,
+			lessons_text: null,
+			note: null,
+		}
+		return {
+			blocks: [{ kind: 'tool', id: `toolu_fake_${++state.ids}`, name: 'propose_payment', input }],
+			stop: 'tool_use',
+		}
+	}
 	if (marker === 'hang') return { hang: true }
 	if (marker === 'credits') return { error: 'billing_error' }
 	return { blocks: [{ kind: 'text', sentences: ANSWER }], stop: 'end_turn' }
