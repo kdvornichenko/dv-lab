@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Фаза 25.2: вопросы</title>
+<link rel="stylesheet" href="htmlplan.css">
+<script src="htmlplan.js" defer></script>
+<body>
+
+<header>
+  <h1>Фаза 25.2: вопросы владельцу</h1>
+  <details class="thread"><summary>Откуда вопросы · ваши замечания за сессию</summary>
+    <doc-quote via="prompt" from="владелец">Надо чтобы агент чата редактировал прям полноценно заметки, анализировал что уже записано и не повторялся… это ведь просто заметки, пускай редактирует их спокойно, там тем более просто md формат</doc-quote>
+    <doc-quote via="prompt" from="владелец">ревизия в моем понимании это просто анализ какие заметки были добавлены и не конфликтуют ли они с другими заметками, может где-то ошибки, недоработки и тд</doc-quote>
+    <doc-quote via="prompt" from="владелец">надо сделать поиск без ограничения, давай просто запрос на ивенты в эту дату отправлять</doc-quote>
+    <doc-quote via="prompt" from="владелец">При приближении оплаты статус оставшихся уроков должен анимированно мигать</doc-quote>
+    <doc-quote via="prompt" from="владелец">дать чату возможность редактировать вот эти поля</doc-quote>
+  </details>
+</header>
+
+<main>
+<doc-plan>
+
+<!-- ═════ 1 · Чат читает календарь ═════ -->
+<doc-claim>
+  <p>Чат ищет события в Google Calendar по датам и названию.</p>
+
+  <doc-claim>
+    <p>Модель получает из события только нужные поля.</p>
+    <doc-ask id="cal-fields">
+      <p>Какие поля события Google отдаём модели?</p>
+      <label><input type="radio" name="cal-fields" value="full" checked> Название, дата, время и длительность <small>описание не отдаём</small></label>
+      <label><input type="radio" name="cal-fields" value="min"> Только название и дата</label>
+      <label><input type="radio" name="cal-fields" value="desc"> Всё, включая описание <small>описание может содержать личные данные</small></label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Поиск идёт по названию события, а не по описанию.</p>
+    <doc-ask id="cal-desc">
+      <p>Искать ли ещё и по описанию события?</p>
+      <label><input type="radio" name="cal-desc" value="no" checked> Нет, только по названию</label>
+      <label><input type="radio" name="cal-desc" value="yes"> Да, по названию и описанию</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Диапазон поиска в чате ограничен, как в Count lessons.</p>
+    <doc-ask id="cal-range">
+      <p>Какой максимальный диапазон дат у поиска в чате?</p>
+      <label><input type="radio" name="cal-range" value="400" checked> Около 400 дней, как в Count lessons <small>один запрос к Google, без пачек</small></label>
+      <label><input type="radio" name="cal-range" value="730"> До двух лет <small>несколько запросов, дольше ответ</small></label>
+      <label><input type="radio" name="cal-range" value="none"> Без ограничения <small>риск долгого ответа и лимитов Google</small></label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Settings говорит, что названия событий уходят провайдеру модели.</p>
+    <doc-ask id="cal-privacy">
+      <p>Как предупредить о передаче названий событий модели?</p>
+      <label><input type="radio" name="cal-privacy" value="line" checked> Одна строка в Settings, раздел про приватность <small>без отдельного согласия</small></label>
+      <label><input type="radio" name="cal-privacy" value="switch"> Переключатель в Settings: чат читает календарь, да или нет</label>
+      <label><input type="radio" name="cal-privacy" value="none"> Без предупреждения</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Окно синхронизации Google остаётся 8 недель назад и 53 вперёд.</p>
+    <doc-ask id="sync-window">
+      <p>Расширять ли окно синхронизации Google назад?</p>
+      <label><input type="radio" name="sync-window" value="keep" checked> Нет <small>прошлое читает прямой запрос из Count lessons и чата</small></label>
+      <label><input type="radio" name="sync-window" value="26"> Да, до 26 недель назад <small>больше строк и дольше проход</small></label>
+      <label><input type="radio" name="sync-window" value="setting"> Сделать настройкой в Settings</label>
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 2 · Чат правит заметки и словарь ═════ -->
+<doc-claim>
+  <p>Чат сам правит заметки и словарь ученика и проводит ревизию.</p>
+
+  <doc-claim>
+    <p>Правка текста блока заметок применяется без карточки подтверждения.</p>
+    <doc-ask id="notes-confirm">
+      <p>Нужно ли подтверждение, когда чат правит заметки и слова?</p>
+      <label><input type="radio" name="notes-confirm" value="free" checked> Нет, чат правит сразу <small>в чате квитанция «было → стало» с Undo и ссылкой на блок</small></label>
+      <label><input type="radio" name="notes-confirm" value="rewrite"> Сразу только добавление; замену текста целиком подтверждаю</label>
+      <label><input type="radio" name="notes-confirm" value="all"> Всё через карточку «было → стало» с Confirm и Decline</label>
+    </doc-ask>
+    <div data-if="notes-confirm=free"><doc-note tone="warn"><strong>Риск</strong> Версий нет. Ошибка чата перезапишет текст без возврата. Вы так и решили: версии не нужны.</doc-note></div>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Удаление слов и блоков чат делает только по просьбе учителя.</p>
+    <doc-ask id="notes-delete">
+      <p>Что чат удаляет без подтверждения?</p>
+      <label><input type="radio" name="notes-delete" value="words" checked> Слова словаря и пустые блоки; блок с текстом только с подтверждением</label>
+      <label><input type="radio" name="notes-delete" value="free"> Всё без подтверждения, включая блоки с текстом</label>
+      <label><input type="radio" name="notes-delete" value="confirm"> Любое удаление с подтверждением</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Ревизия исправляет очевидное и отчитывается о спорном.</p>
+    <doc-ask id="review-act">
+      <p>Что чат делает в ревизии с найденными проблемами?</p>
+      <label><input type="radio" name="review-act" value="mixed" checked> Сам убирает дубли и опечатки, о конфликтах пишет в итоге <small>решение по конфликту за вами</small></label>
+      <label><input type="radio" name="review-act" value="report"> Только отчёт, ничего не меняет</label>
+      <label><input type="radio" name="review-act" value="all"> Исправляет всё сам, включая конфликты</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Вопрос о ревизии появляется не чаще, чем нужно.</p>
+    <doc-ask id="review-when">
+      <p>Когда чат спрашивает «провести ревизию?»</p>
+      <label><input type="radio" name="review-when" value="smart" checked> Когда речь о заметках, если ревизии не было 14 дней или заметки менялись; не чаще раза в сутки на ученика</label>
+      <label><input type="radio" name="review-when" value="always"> Каждый раз, когда речь о заметках или об ученике</label>
+      <label><input type="radio" name="review-when" value="cmd"> Только по команде, например <code>/review</code></label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Старые записи «Added notes» уходят в блоки при первой ревизии.</p>
+    <doc-ask id="old-notes">
+      <p>Что делать со старыми отдельными записями «Added notes»?</p>
+      <label><input type="radio" name="old-notes" value="merge" checked> Первая ревизия вливает их в подходящие блоки <small>запись скрывается, не стирается</small></label>
+      <label><input type="radio" name="old-notes" value="keep"> Оставить как есть, новых записей не будет</label>
+      <label><input type="radio" name="old-notes" value="migrate"> Влить одной миграцией сразу в «General info»</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Слова, которые удалил чат или ревизия, лежат в Removed 30 дней.</p>
+    <doc-ask id="removed-words">
+      <p>Как долго хранить удалённые слова словаря?</p>
+      <label><input type="radio" name="removed-words" value="30" checked> 30 дней, потом стирать <small>до этого есть кнопка Restore</small></label>
+      <label><input type="radio" name="removed-words" value="forever"> Хранить, пока учитель не очистит Removed</label>
+      <label><input type="radio" name="removed-words" value="now"> Стирать сразу, без Removed</label>
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 3 · Профиль ученика ═════ -->
+<doc-claim>
+  <p>Профиль ученика собирает данные в блоки и даёт править их чатом.</p>
+
+  <doc-claim>
+    <p>Чат меняет несколько полей карточки одним предложением.</p>
+    <doc-ask id="details-multi">
+      <p>Сколько полей Details чат меняет в одном предложении?</p>
+      <label><input type="radio" name="details-multi" value="many" checked> Несколько полей, одна карточка, один Confirm</label>
+      <label><input type="radio" name="details-multi" value="one"> Только одно поле, остальные отдельными предложениями</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Для пола и часового пояса чат сверяет значение со списком. Level — свободный текст.</p>
+    <doc-ask id="details-dict">
+      <p>Что чат делает со значением вне допустимого списка?</p>
+      <label><input type="radio" name="details-dict" value="ask" checked> Спрашивает, какое значение из списка имеется в виду</label>
+      <label><input type="radio" name="details-dict" value="free"> Записывает как написал учитель <small>для пола и пояса так нельзя</small></label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>В «уроки с последней оплаты» входят проведённые уроки и No-show со списанием.</p>
+    <doc-ask id="lessons-outcomes">
+      <p>Какие исходы входят в список дат для копирования?</p>
+      <label><input type="radio" name="lessons-outcomes" value="both" checked> Done и No-show, который списал минуты <small>как в остатке</small></label>
+      <label><input type="radio" name="lessons-outcomes" value="done"> Только Done</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Любой блок заметок учитель удаляет, и стандартный тоже.</p>
+    <doc-ask id="blocks-default">
+      <p>Что с шестью стандартными блоками заметок?</p>
+      <label><input type="radio" name="blocks-default" value="default" checked> Новая карточка получает все шесть; любой блок можно удалить <small>блок с текстом удаляется после подтверждения</small></label>
+      <label><input type="radio" name="blocks-default" value="empty"> Новая карточка без блоков, учитель добавляет сам</label>
+      <label><input type="radio" name="blocks-default" value="locked"> Стандартные нельзя удалить, свои можно</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>В строке урока вкладки Lessons стоит значок числа комментариев.</p>
+    <doc-ask id="lesson-comments">
+      <p>Нужен ли значок числа комментариев в строке урока (v98, п.88)?</p>
+      <label><input type="radio" name="lesson-comments" value="no" checked> Нет <small>комментарии видны в диалоге урока</small></label>
+      <label><input type="radio" name="lesson-comments" value="yes"> Да, значок с числом, нажатие открывает урок</label>
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 4 · Students ═════ -->
+<doc-claim>
+  <p>Таблица Students показывает, кому скоро платить, цветной точкой.</p>
+
+  <doc-claim>
+    <p>Для состояния plenty точка не рисуется.</p>
+    <doc-ask id="dot-plenty">
+      <p>Как показать, что денег на уроки хватает?</p>
+      <label><input type="radio" name="dot-plenty" value="none" checked> Без точки <small>на большинстве строк зелёная точка — шум</small></label>
+      <label><input type="radio" name="dot-plenty" value="green"> Зелёная точка у всех</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Нулевой остаток пишется числом: «0 left».</p>
+    <doc-ask id="zero-left">
+      <p>Как писать нулевой остаток в таблице?</p>
+      <label><input type="radio" name="zero-left" value="zero" checked> «0 left»</label>
+      <label><input type="radio" name="zero-left" value="none"> «none left»</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Кольцо вокруг точки пульсирует 2–3 раза и затихает.</p>
+    <doc-ask id="blink">
+      <p>Как долго мигает индикатор приближающейся оплаты?</p>
+      <label><input type="radio" name="blink" value="finite" checked> 2–3 пульса, до 5 секунд, один раз за просмотр <small>правило доступности WCAG 2.2.2</small></label>
+      <label><input type="radio" name="blink" value="loop"> Бесконечно, пока оплата не внесена</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Горячая клавиша F открывает фильтры Students.</p>
+    <doc-ask id="hotkey">
+      <p>Нужна ли клавиша F для фильтров?</p>
+      <label><input type="radio" name="hotkey" value="no" checked> Нет, только кнопка Filters</label>
+      <label><input type="radio" name="hotkey" value="yes"> Да, и <kbd>/</kbd> для поиска</label>
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<!-- ═════ 5 · Дизайн-правки ═════ -->
+<doc-claim>
+  <p>Диалоги, подсказки чата и переходы получают единые правила.</p>
+
+  <doc-claim>
+    <p>Блок «Suggestions» в фактах ученика и шаг «Preparing suggestions» убираются.</p>
+    <doc-ask id="suggest">
+      <p>Что делать с советами агента внутри блока фактов?</p>
+      <label><input type="radio" name="suggest" value="drop" checked> Убрать вместе с шагом прогресса <small>вы уже убрали остальные подсказки</small></label>
+      <label><input type="radio" name="suggest" value="keep"> Оставить блок с пометкой «Not saved to the student's notes»</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Переход между разделами идёт через ViewTransition без слайда.</p>
+    <doc-ask id="vt">
+      <p>Берём ли кроссфейд скелетона через ViewTransition (п.6)?</p>
+      <label><input type="radio" name="vt" value="yes" checked> Да: без анимации при reduced motion и без слайда между разделами</label>
+      <label><input type="radio" name="vt" value="no"> Нет, оставляем как построено, п.6 не берём</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>У диалогов два вида: спрашивающий без X и показывающий без Close.</p>
+    <doc-ask id="dialogs">
+      <p>Сколько видов диалога нужно (п.67, v92)?</p>
+      <label><input type="radio" name="dialogs" value="two" checked> Два вида <small>форма: без X, показ: угловой X без Close</small></label>
+      <label><input type="radio" name="dialogs" value="one"> Один вид для всех: X и Close в футере</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>PWA присылает push про урок и оплату.</p>
+    <doc-ask id="push-events">
+      <p>О чём учитель получает push?</p>
+      <label><input type="checkbox" name="push-events" value="lesson" checked> Скоро урок</label>
+      <label><input type="checkbox" name="push-events" value="soon" checked> Ученику скоро платить <small>остаток дошёл до порога</small></label>
+      <label><input type="checkbox" name="push-events" value="owes"> Ученик в долге</label>
+      <label><input type="checkbox" name="push-events" value="sync"> Сбой синхронизации с Google</label>
+    </doc-ask>
+  </doc-claim>
+
+  <doc-claim>
+    <p>Напоминание об уроке приходит за 15 минут.</p>
+    <doc-ask id="push-lead">
+      <p>За сколько минут до урока приходит push?</p>
+      <label><input type="radio" name="push-lead" value="15" checked> 15 минут, значение в Settings</label>
+      <label><input type="radio" name="push-lead" value="30"> 30 минут, значение в Settings</label>
+      <label><input type="radio" name="push-lead" value="60"> 60 минут, значение в Settings</label>
+    </doc-ask>
+  </doc-claim>
+</doc-claim>
+
+<doc-claim aux="scope">
+  <p>Здесь нет вопросов о четырёх темах.</p>
+  <ul>
+    <li><b>Edvibe и /edvibe.</b> Ждём от вас список шаблонов с примерами текста. До этого не строим.</li>
+    <li><b>Overview, Opening balance на Payments, правка полей Details.</b> Ждём ответ Design dude; вопросы по ним пришлю после.</li>
+    <li><b>Конструктор команд.</b> Он в фазе 25.3.</li>
+    <li><b>Уже решено:</b> ручная отметка уроков, fade без scroll-driven animations, колонка Status убрана, длительность урока берётся из календаря.</li>
+  </ul>
+</doc-claim>
+
+</doc-plan>
+</main>
+</body>
+</html>

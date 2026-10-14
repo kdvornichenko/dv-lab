@@ -1,29 +1,40 @@
 {
   "version": "1.0",
-  "timestamp": "2026-10-14T03:55:30.242Z",
-  "phase": "23",
-  "phase_name": "Confirmed Chat Changes and Entry Points",
-  "phase_dir": ".planning/phases/23-confirmed-chat-changes-and-entry-points",
-  "plan": 1,
+  "timestamp": "2026-10-14T15:36:00Z",
+  "phase": "25.2",
+  "phase_name": "Polish before IELTS",
+  "phase_dir": ".planning/phases/25.2-polish",
+  "plan": 0,
   "task": 0,
-  "total_tasks": 39,
+  "total_tasks": 0,
   "status": "paused",
-  "completed_tasks": [],
-  "remaining_tasks": [
-    {"id": 1, "name": "Исполнить 23-01…23-14 по волнам", "status": "not_started"},
-    {"id": 2, "name": "Закрыть фазу 22: браузерная проверка, chat-final.mjs, SHA Server guy", "status": "not_started"}
+  "completed_tasks": [
+    {"id": 1, "name": "Сбор замечаний владельца в 25.2-OWNER-NOTES.md", "status": "done"},
+    {"id": 2, "name": "Дизайн v96-v101 получен от Design dude, дизайн фазы закрыт", "status": "done"},
+    {"id": 3, "name": "Страница вопросов 25.2-QUESTIONS.html, ответы владельца записаны", "status": "done"}
   ],
-  "blockers": [],
+  "remaining_tasks": [
+    {"id": 4, "name": "Влить master в ветку gsd/phase-25.2-polish (sync_with_base_branch): отставание 4 коммита, среди них PR 39", "status": "not_started"},
+    {"id": 5, "name": "Сверка кода с дизайном (scout), затем CONTEXT.md из 25.2-OWNER-NOTES.md", "status": "not_started"},
+    {"id": 6, "name": "Исследование, планы (planner opus, plan-checker, review-squad без code-critic, devils-advocate), показ планов страницей", "status": "not_started"},
+    {"id": 7, "name": "Отметить фазы 22 и 23 выполненными в ROADMAP, добавить фазу 25.3 (конструктор команд) в ROADMAP", "status": "not_started"},
+    {"id": 8, "name": "PWA-планы (установка, push за 30 минут, оплата), планы по заметкам, ревизии и Students", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "/edvibe и шаблоны Edvibe: ждём список шаблонов с примерами от владельца", "type": "human_action", "workaround": "не планировать и не запускать, при подходе к функционалу остановиться и запросить примеры"}
+  ],
   "async_jobs": [],
   "human_actions_pending": [
-    {"action": "Проверить чат фазы 22 в браузере по ngrok", "context": "почти ничего из UI не проверено глазами", "blocking": false},
-    {"action": "Ключ модели и тестовый аккаунт Google для живых проверок", "context": "NOT RUN в планах 23", "blocking": false}
+    {"action": "Живая проверка Count lessons на проде (Ека, июнь-август)", "context": "PR 39 выкачен, не проверен владельцем", "blocking": false},
+    {"action": "Браузерные проверки фаз 22 и 23: changes-web payment|bulk|essay, вкладка Lessons, privacy, поток ответа под сессией учителя, телефон и Google на тестовом аккаунте", "context": "владелец сказал, что проверки в целом прошли хорошо", "blocking": false},
+    {"action": "Прислать список шаблонов Edvibe с примерами", "context": "нужен для /edvibe (25.3)", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Перепланировать 23 поверх итогового кода 22", "rationale": "старые планы написаны под предполагаемый чат", "phase": "23"},
-    {"decision": "Автономная работа без решений владельца", "rationale": "прямое указание владельца 2026-10-14", "phase": "23"}
+    {"decision": "Все решения владельца 25.2: раздел «Ответы владельца» в 25.2-OWNER-NOTES.md и память phase252-owner-decisions", "rationale": "сырьё для CONTEXT", "phase": "25.2"},
+    {"decision": "Мигание в Students бесконечное, WCAG не учитываем", "rationale": "проект личный", "phase": "25.2"},
+    {"decision": "Замена текста блока заметок через карточку Confirm/Decline, добавление сразу с Undo", "rationale": "версий нет", "phase": "25.2"}
   ],
-  "uncommitted_files": [" M apps/web/next.config.ts", "?? apps/web/AGENTS.md"],
-  "next_action": "/gsd-resume-work, затем bash scripts/gsd/dispatch.sh 23 и /gsd-execute-phase 23 (волна 1: 23-01)",
-  "context_notes": "Ветка gsd/phase-22-chat-replan, HEAD 80fe650 (планы 23), CI зелёный. next.config.ts и apps/web/AGENTS.md локальные, не коммитить."
+  "uncommitted_files": ["?? .planning/phases/25.2-polish/"],
+  "next_action": "Прочитать .planning/phases/25.2-polish/.continue-here.md, влить master в ветку, начать с CONTEXT.md фазы 25.2",
+  "context_notes": "Дизайн фазы закрыт (v96-v101, номера пунктов code-sync 76-111). Планирование идёт по gsd-phase-recipe §1-2 в одной сессии на фазу."
 }
