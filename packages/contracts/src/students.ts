@@ -314,7 +314,50 @@ export type StudentNotesResponse = { notes: StudentNote[] }
 
 export type StudentNoteResponse = { note: StudentNote }
 
-export type StudentTerm = { id: string; term: string; note: string | null; createdAt: string }
+export const TERM_ADDED_BY = ['chat', 'review'] as const
+
+export type TermAddedBy = (typeof TERM_ADDED_BY)[number]
+
+export const TERM_REMOVED_BY = ['chat', 'review', 'teacher'] as const
+
+export type TermRemovedBy = (typeof TERM_REMOVED_BY)[number]
+
+export const TERM_VIEWS = ['words', 'removed'] as const
+
+export type TermView = (typeof TERM_VIEWS)[number]
+
+export const studentTermsQuery = z.object({ view: z.enum(TERM_VIEWS).default('words') })
+
+export type StudentTerm = {
+	id: string
+	term: string
+	note: string | null
+	createdAt: string
+	addedBy?: TermAddedBy | null
+	removedAt?: string | null
+	removedBy?: TermRemovedBy | null
+}
+
+export const STUDENT_COMMENTS_MAX = 10
+
+export const STUDENT_COMMENTS_DEFAULT = 3
+
+export const studentCommentsQuery = z.object({
+	limit: z.coerce.number().int().min(1).max(STUDENT_COMMENTS_MAX).default(STUDENT_COMMENTS_DEFAULT),
+})
+
+export const studentComment = z.strictObject({
+	id: z.uuid(),
+	body: z.string(),
+	createdAt: z.string(),
+	lesson: z.strictObject({ key: z.string(), date: z.string(), startsAt: z.string().nullable() }),
+})
+
+export type StudentComment = z.infer<typeof studentComment>
+
+export const studentCommentsResponse = z.strictObject({ comments: z.array(studentComment).max(STUDENT_COMMENTS_MAX) })
+
+export type StudentCommentsResponse = z.infer<typeof studentCommentsResponse>
 
 export type StudentTermsResponse = { terms: StudentTerm[] }
 

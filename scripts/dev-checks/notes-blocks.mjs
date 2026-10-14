@@ -20,7 +20,7 @@ const STANDARD = [
 	['lesson_ideas', 'Lesson ideas'],
 ]
 
-const SECTIONS = { blocks: sectionBlocks, ops: sectionOps }
+const SECTIONS = { blocks: sectionBlocks, ops: sectionOps, terms: sectionTerms, recent: sectionRecent }
 
 let failures = 0
 
@@ -351,6 +351,221 @@ async function sectionOps() {
 	} finally {
 		await pool.end()
 	}
+}
+
+const termRow = (id) =>
+	sql(
+		`select term, note, added_by, removed_at is not null as removed, removed_by from student_terms where id = ${quote(id)}`
+	).rows[0]
+
+async function addWord(id, term, note = null) {
+	const res = await as('POST', `/students/${id}/terms`, { term, note })
+	if (res.status !== 201) throw new Error(`term add returned ${res.status}`)
+	return res.json.term
+}
+
+async function words(id, view) {
+	const res = await as('GET', `/students/${id}/terms${view ? `?view=${view}` : ''}`)
+	if (res.status !== 200) throw new Error(`terms read returned ${res.status}`)
+	return res.json.terms
+}
+
+async function sectionTerms() {
+	const { addTerm, purgeRemovedTerms, removeTerms } = await import(`${ROOT}/apps/api/src/cards/terms.ts`)
+	const id = await card(`${PREFIX}4`)
+	const apple = await addWord(id, 'apple')
+	const banana = await addWord(id, 'banana')
+	const cherry = await addWord(id, 'cherry')
+	const old = await addWord(id, 'damson')
+	const young = await addWord(id, 'elder')
+	const kept = await addWord(id, 'fig')
+	check(
+		'a word added by the teacher has no source and is not removed',
+		apple.addedBy === null && apple.removedAt === null && apple.removedBy === null,
+		JSON.stringify(apple)
+	)
+	sql(
+		`update student_terms set removed_at = now() - interval '2 minutes', removed_by = 'chat' where id = ${quote(apple.id)}`
+	)
+	sql(
+		`update student_terms set removed_at = now() - interval '3 minutes', removed_by = 'review' where id = ${quote(banana.id)}`
+	)
+	const { pool, db } = appDb()
+	try {
+		const removed = await removeTerms(db, id, [cherry.id, apple.id], 'chat')
+		check(
+			'removeTerms marks only live words of the card with removed_at and the source',
+			removed.length === 1 &&
+				removed[0].id === cherry.id &&
+				termRow(cherry.id).removed === true &&
+				termRow(cherry.id).removed_by === 'chat',
+			JSON.stringify(removed.map((term) => term.id))
+		)
+		const live = await words(id)
+		const bin = await words(id, 'removed')
+		const bad = await as('GET', `/students/${id}/terms?view=trash`)
+		check(
+			'Words lists only live words; Removed lists removed words newest first with date and source; a bad view is 400',
+			live.map((term) => term.term).join() === 'damson,elder,fig' &&
+				bin.map((term) => term.id).join() === [cherry.id, apple.id, banana.id].join() &&
+				bin.every((term) => term.removedAt !== null) &&
+				bin.map((term) => term.removedBy).join() === 'chat,chat,review' &&
+				bad.status === 400,
+			JSON.stringify({ live: live.map((term) => term.term), bin: bin.map((term) => term.term), bad: bad.status })
+		)
+
+		const restored = await as('POST', `/students/${id}/terms/${apple.id}/restore`)
+		const restoreLive = await as('POST', `/students/${id}/terms/${old.id}/restore`)
+		const restoreUnknown = await as('POST', `/students/${id}/terms/${randomUUID()}/restore`)
+		check(
+			'Restore returns a removed word to Words; a live or unknown word answers 404',
+			restored.status === 200 &&
+				restored.json.term.id === apple.id &&
+				restored.json.term.removedAt === null &&
+				restored.json.term.removedBy === null &&
+				(await words(id)).some((term) => term.id === apple.id) &&
+				restoreLive.status === 404 &&
+				restoreUnknown.status === 404,
+			`${restored.status} ${restoreLive.status} ${restoreUnknown.status}`
+		)
+
+		const again = await as('POST', `/students/${id}/terms`, { term: 'Banana', note: 'Yellow fruit' })
+		const twice = await as('POST', `/students/${id}/terms`, { term: 'BANANA', note: null })
+		check(
+			'adding a removed word again restores the same row with the new note; adding a live word is 409 term_exists',
+			again.status === 201 &&
+				again.json.term.id === banana.id &&
+				again.json.term.note === 'Yellow fruit' &&
+				again.json.term.removedAt === null &&
+				termRow(banana.id).removed === false &&
+				conflict(twice, 'term_exists'),
+			JSON.stringify({ status: again.status, id: again.json?.term?.id === banana.id, twice: twice.status })
+		)
+		const byChat = await addTerm(db, id, { term: 'cherry', note: null }, { addedBy: 'chat' })
+		const fresh = await addTerm(db, id, { term: 'grape', note: null }, { addedBy: 'review' })
+		check(
+			'addTerm with a source restores a removed word and records the source on a new one',
+			byChat.kind === 'added' &&
+				byChat.restored === true &&
+				byChat.term.id === cherry.id &&
+				byChat.term.addedBy === 'chat' &&
+				fresh.kind === 'added' &&
+				fresh.restored === false &&
+				fresh.term.addedBy === 'review',
+			JSON.stringify({ byChat: byChat.kind, fresh: fresh.kind })
+		)
+
+		sql(
+			`update student_terms set removed_at = now() - interval '31 days', removed_by = 'chat' where id = ${quote(old.id)}`
+		)
+		sql(
+			`update student_terms set removed_at = now() - interval '29 days', removed_by = 'review' where id = ${quote(young.id)}`
+		)
+		const purged = await purgeRemovedTerms(db, new Date())
+		check(
+			'purgeRemovedTerms erases a word removed 31 days ago and keeps one removed 29 days ago and live words',
+			purged >= 1 &&
+				termRow(old.id) === undefined &&
+				termRow(young.id)?.removed === true &&
+				termRow(kept.id)?.removed === false &&
+				termRow(apple.id)?.removed === false,
+			String(purged)
+		)
+
+		const { createHousekeeping } = await import(`${ROOT}/apps/api/src/auth/housekeeping.ts`)
+		const logged = []
+		const logger = {
+			info: (fields, message) => logged.push({ level: 'info', fields, message }),
+			warn: (fields, message) => logged.push({ level: 'warn', fields, message }),
+		}
+		sql(`update student_terms set removed_at = now() - interval '31 days' where id = ${quote(young.id)}`)
+		await createHousekeeping({ db, logger }).runOnce()
+		const line = logged.find((entry) => entry.message === 'removed terms purged')
+		check(
+			'one housekeeping pass erases the old removed word and logs only the count',
+			termRow(young.id) === undefined &&
+				!logged.some((entry) => entry.level === 'warn') &&
+				line !== undefined &&
+				Object.keys(line.fields).join() === 'purgedTerms' &&
+				typeof line.fields.purgedTerms === 'number',
+			JSON.stringify(logged.map((entry) => entry.message))
+		)
+	} finally {
+		await pool.end()
+	}
+
+	const deleted = await call(api, 'DELETE', `/students/${id}/terms/${kept.id}`, { cookie })
+	check(
+		'the teacher deletes a word physically',
+		deleted.status === 204 && termRow(kept.id) === undefined,
+		String(deleted.status)
+	)
+}
+
+async function sectionRecent() {
+	const id = await card(`${PREFIX}5`)
+	const lessons = [1, 2, 3, 4, 5].map(
+		(days) =>
+			sql(
+				`insert into lessons (student_id, starts_at, duration_minutes) values (${quote(id)}, now() - interval '${days} days', 60) returning id, starts_at`
+			).rows[0]
+	)
+	const comment = (lesson, hours, body, retracted = false) =>
+		sql(
+			`insert into lesson_comments (lesson_id, student_id, body, created_at, retracted_at) values (${quote(lesson.id)}, ${quote(id)}, ${quote(body)}, now() - interval '${hours} hours', ${retracted ? 'now()' : 'null'}) returning id`
+		).rows[0].id
+	const hidden = comment(lessons[0], 1, 'Retracted comment', true)
+	const first = comment(lessons[1], 2, 'Comment one')
+	const second = comment(lessons[2], 3, 'Comment two')
+	const third = comment(lessons[3], 4, 'Comment three')
+	const fourth = comment(lessons[4], 5, 'Comment four')
+	const latest = await as('GET', `/students/${id}/comments`)
+	const items = latest.json?.comments ?? []
+	check(
+		'GET comments answers the three newest live comments with the lesson key, date and start',
+		latest.status === 200 &&
+			items.map((item) => item.id).join() === [first, second, third].join() &&
+			!items.some((item) => item.id === hidden) &&
+			items.every((item, index) => {
+				const lesson = lessons[index + 1]
+				return (
+					item.lesson.key === `l:${lesson.id}` &&
+					/^\d{4}-\d{2}-\d{2}$/.test(item.lesson.date) &&
+					new Date(item.lesson.startsAt).getTime() === new Date(lesson.starts_at).getTime()
+				)
+			}) &&
+			items[0].body === 'Comment one',
+		JSON.stringify({ status: latest.status, ids: items.map((item) => item.id) })
+	)
+	const ten = await as('GET', `/students/${id}/comments?limit=10`)
+	const eleven = await as('GET', `/students/${id}/comments?limit=11`)
+	const zero = await as('GET', `/students/${id}/comments?limit=0`)
+	const unknown = await as('GET', `/students/${randomUUID()}/comments`)
+	check(
+		'limit=10 answers all four live comments; limit=11 and limit=0 answer 400; an unknown card answers 404',
+		ten.status === 200 &&
+			ten.json.comments.map((item) => item.id).join() === [first, second, third, fourth].join() &&
+			eleven.status === 400 &&
+			zero.status === 400 &&
+			unknown.status === 404,
+		`${ten.status} ${eleven.status} ${zero.status} ${unknown.status}`
+	)
+
+	const before = await blocks(id)
+	sql(`insert into note_reviews (student_id, reviewed_at) values (${quote(id)}, '2026-10-01T10:00:00Z')`)
+	const after = await blocks(id)
+	const conversation = randomUUID()
+	sql(`update note_reviews set running_conversation_id = ${quote(conversation)} where student_id = ${quote(id)}`)
+	const running = await blocks(id)
+	check(
+		'the review date is null on a new card and read from note_reviews; a running review shows its conversation',
+		before.reviewedAt === null &&
+			before.reviewRunning === null &&
+			after.reviewedAt === '2026-10-01T10:00:00.000Z' &&
+			after.reviewRunning === null &&
+			running.reviewRunning?.conversationId === conversation,
+		JSON.stringify({ before: before.reviewedAt, after: after.reviewedAt, running: running.reviewRunning })
+	)
 }
 
 const wanted = process.argv.slice(2)

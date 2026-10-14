@@ -2,6 +2,7 @@ import type { Logger } from 'pino'
 
 import type { Database } from '@dv-lab/db'
 
+import { purgeRemovedTerms } from '../cards/terms.ts'
 import { pruneExpiredSessions } from './sessions.ts'
 import { pruneSignInThrottles } from './throttle.ts'
 
@@ -23,6 +24,8 @@ export function createHousekeeping({ db, logger, intervalMs = 900_000 }: Houseke
 		try {
 			await pruneSignInThrottles(db)
 			await pruneExpiredSessions(db)
+			const purgedTerms = await purgeRemovedTerms(db, new Date())
+			if (purgedTerms > 0) logger.info({ purgedTerms }, 'removed terms purged')
 		} catch (err) {
 			logger.warn({ err }, 'housekeeping failed')
 		}

@@ -10,6 +10,7 @@ import {
 	type StudentAccountResponse,
 	type StudentBlockResponse,
 	type StudentBlocksResponse,
+	type StudentCommentsResponse,
 	type StudentDetail,
 	type StudentNoteResponse,
 	type StudentNotesResponse,
@@ -33,6 +34,8 @@ import {
 	saveBlockRequest,
 	saveSectionRequest,
 	saveStudentRequest,
+	studentCommentsQuery,
+	studentTermsQuery,
 	updateStudentRequest,
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
@@ -68,10 +71,12 @@ import {
 	setOpeningBalance,
 	updateCard,
 } from '../cards/cards.ts'
+import { readNoteReview } from '../cards/note-reviews.ts'
 import { listStudentNotes, retractStudentNote } from '../cards/notes.ts'
 import { listSections, saveSection } from '../cards/sections.ts'
-import { addTerm, deleteTerm, listTerms, updateTermNote } from '../cards/terms.ts'
+import { addTerm, deleteTerm, listTerms, restoreTerm, updateTermNote } from '../cards/terms.ts'
 import { errorBody } from '../request-context.ts'
+import { latestStudentComments } from '../schedule/comments.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 
 type StudentRouteDeps = { db: Database }
@@ -315,9 +320,15 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	routes.get('/:id/blocks', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const blocks = await readSnapshot(db, (executor) => listBlocks(executor, id))
-		if (!blocks) return notFound(c)
-		return c.json({ blocks, reviewedAt: null, reviewRunning: null } satisfies StudentBlocksResponse, 200)
+		const read = await readSnapshot(db, async (executor) => {
+			const blocks = await listBlocks(executor, id)
+			return blocks === null ? null : { blocks, review: await readNoteReview(executor, id) }
+		})
+		if (!read) return notFound(c)
+		const { blocks, review } = read
+		const reviewRunning =
+			review.runningConversationId === null ? null : { conversationId: review.runningConversationId }
+		return c.json({ blocks, reviewedAt: review.reviewedAt, reviewRunning } satisfies StudentBlocksResponse, 200)
 	})
 
 	routes.post('/:id/blocks', async (c) => {
@@ -406,9 +417,37 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 	routes.get('/:id/terms', async (c) => {
 		const id = cardId(c)
 		if (id === null) return notFound(c)
-		const terms = await listTerms(db, id)
+		const query = studentTermsQuery.safeParse(c.req.query())
+		if (!query.success) return invalidRequest(c)
+		const terms = await listTerms(db, id, query.data.view)
 		if (!terms) return notFound(c)
 		return c.json({ terms } satisfies StudentTermsResponse, 200)
+	})
+
+	routes.post('/:id/terms/:termId/restore', async (c) => {
+		const id = cardId(c)
+		const termId = termIdParam(c)
+		if (id === null || termId === null) return notFound(c)
+		const result = await restoreTerm(db, id, termId)
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'term_exists') {
+			return c.json(errorBody('term_exists', 'This term is already on the card'), 409)
+		}
+		return c.json({ term: result.term } satisfies StudentTermResponse, 200)
+	})
+
+	routes.get('/:id/comments', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const query = studentCommentsQuery.safeParse(c.req.query())
+		if (!query.success) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		const comments = await readSnapshot(db, async (executor) => {
+			const settings = await readTeacherSettings(executor, accountId)
+			return latestStudentComments(executor, id, query.data.limit, settings.defaultTimeZone)
+		})
+		if (!comments) return notFound(c)
+		return c.json({ comments } satisfies StudentCommentsResponse, 200)
 	})
 
 	routes.post('/:id/terms', async (c) => {
