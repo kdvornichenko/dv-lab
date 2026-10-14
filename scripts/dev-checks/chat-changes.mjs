@@ -346,6 +346,59 @@ async function payment() {
 		valid(declinedLate) && declinedLate.json.block.state === 'applied' && paymentsOf(cardA).length === 1
 	)
 
+	const listed = await as('GET', `/payments?student=${cardA}`)
+	const chatPayment = listed.json?.payments?.[0]
+	const corrected = await as('PATCH', `/payments/${chatPayment?.id}`, {
+		paidOn: chatPayment?.paidOn,
+		expectedDefaultTimeZone: zone,
+		amountMinor: 1200000,
+		currency: 'RUB',
+		lessonsHundredths: 300,
+		note: null,
+		expectedRevision: chatPayment?.revision,
+	})
+	const correctedRows = paymentsOf(cardA)
+	const correctedCard = (await as('GET', `/students/${cardA}`)).json?.student
+	const coreBalance = core.studentBalance(
+		{
+			openingMinutes: correctedCard?.openingBalance?.minutes ?? null,
+			openingOn: correctedCard?.openingBalance?.on ?? null,
+			noShowDeducts: correctedCard?.noShowDeducts ?? true,
+		},
+		correctedRows.map((row) => ({ paidOn: row.paid_on, creditedMinutes: Number(row.credited) })),
+		[],
+		zone
+	)
+	check(
+		'the chat payment is corrected by PATCH of the same row and the balance equals core',
+		corrected.status === 200 &&
+			corrected.json.payment.id === recorded[0]?.id &&
+			corrected.json.payment.revision === chatPayment.revision + 1 &&
+			correctedRows.length === 1 &&
+			correctedRows[0].id === recorded[0]?.id &&
+			correctedRows[0].source === 'manual' &&
+			Number(correctedRows[0].amount) === 1200000 &&
+			Number(correctedRows[0].credited) === 180 &&
+			correctedCard?.balanceMinutes === coreBalance &&
+			coreBalance === 300,
+		JSON.stringify({
+			status: corrected.status,
+			rows: correctedRows.length,
+			balance: correctedCard?.balanceMinutes,
+			coreBalance,
+		})
+	)
+	const history = await shown(first, block.actionId)
+	check(
+		'after the correction the chat block stays applied with its original preview',
+		history?.state === 'applied' &&
+			history.receipt?.paymentId === recorded[0]?.id &&
+			history.change.amountMinor === 800000 &&
+			history.change.lessonsHundredths === 200 &&
+			history.change.balanceAfterMinutes === block.change.balanceAfterMinutes,
+		JSON.stringify(history)
+	)
+
 	const nameB = `${PREFIX}2`
 	const cardB = await card(nameB)
 	const raced = await ask(first, cardB, nameB, `@${nameB} заплатил 8000 за 3 урока`, { lessons_text: '3' })
@@ -412,10 +465,20 @@ async function payment() {
 		changed.block?.change.lessonsHundredths === null && changed.block.change.creditedMinutes === 0,
 		JSON.stringify(changed.block)
 	)
-	sql(`update students set default_lesson_minutes = 45 where id = ${quote(cardD)}`)
+	const edited = await as('PATCH', `/students/${cardD}`, {
+		displayName: nameD,
+		rateMinor: null,
+		currency: null,
+		defaultLessonMinutes: 60,
+		parent: null,
+		level: null,
+		goals: 'Goals after the proposal',
+		timeZone: null,
+	})
+	if (edited.status !== 200) throw new Error(`card edit returned ${edited.status}`)
 	const staleCard = await confirm(changed.block.actionId)
 	check(
-		'a changed lesson length makes the proposal stale without a payment',
+		'any card edit between the proposal and Record payment makes it stale without a payment',
 		valid(staleCard) &&
 			staleCard.json.block.state === 'stale' &&
 			staleCard.json.block.issue === 'student_changed' &&
@@ -442,6 +505,21 @@ async function payment() {
 			staleZone.json.block.issue === 'time_zone_changed' &&
 			paymentsOf(cardE).length === 0,
 		JSON.stringify(staleZone.json)
+	)
+
+	const legacy = await ask(first, cardE, nameE, `@${nameE} заплатил 8000`, {})
+	const legacyGuard = { lessonMinutes: 60, rateMinor: 400000, rateCurrency: 'RUB', timeZone: zone }
+	sql(
+		`update chat_actions set target = jsonb_set(target, '{guard}', ${quote(JSON.stringify(legacyGuard))}::jsonb) where id = ${quote(legacy.block.actionId)}`
+	)
+	const staleLegacy = await confirm(legacy.block.actionId)
+	check(
+		'a proposal with the old field guard is stale on confirm without a payment',
+		valid(staleLegacy) &&
+			staleLegacy.json.block.state === 'stale' &&
+			staleLegacy.json.block.issue === 'student_changed' &&
+			paymentsOf(cardE).length === 0,
+		JSON.stringify(staleLegacy.json)
 	)
 
 	const foreign = await ask(first, cardE, nameE, `@${nameE} заплатил 8000`, { amount_text: '9000' })

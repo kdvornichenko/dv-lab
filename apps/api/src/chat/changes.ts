@@ -62,6 +62,13 @@ const storedTarget = z.strictObject({
 	lessonsHundredths: z.number().int().nullable(),
 	note: z.string().nullable(),
 	guard: z.strictObject({
+		cardRevision: z.number().int().min(1),
+		timeZone: z.string(),
+	}),
+})
+
+const legacyTarget = storedTarget.extend({
+	guard: z.strictObject({
 		lessonMinutes: z.number().int(),
 		rateMinor: z.number().int().nullable(),
 		rateCurrency: z.string().nullable(),
@@ -108,6 +115,7 @@ async function cardOf(executor: DbExecutor, studentId: string) {
 			openingBalanceMinutes: students.openingBalanceMinutes,
 			openingBalanceOn: students.openingBalanceOn,
 			noShowDeducts: students.noShowDeducts,
+			revision: students.revision,
 		})
 		.from(students)
 		.where(eq(students.id, studentId))
@@ -163,12 +171,7 @@ async function preparePayment(
 		paidOn: input.data.paidOn,
 		lessonsHundredths: input.data.lessonsHundredths,
 		note: input.data.note,
-		guard: {
-			lessonMinutes: card.defaultLessonMinutes,
-			rateMinor: card.rateMinor,
-			rateCurrency: card.currency,
-			timeZone: zone,
-		},
+		guard: { cardRevision: card.revision, timeZone: zone },
 	}
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
@@ -259,26 +262,21 @@ async function settle(
 
 async function applyPayment(tx: DbExecutor, context: ChatContext, action: ActionRow) {
 	const parsed = storedTarget.safeParse(action.target)
-	if (!parsed.success) return settle(tx, action.id, 'refused', { kind: 'failed' })
+	if (!parsed.success) {
+		if (legacyTarget.safeParse(action.target).success)
+			return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'student_changed' })
+		return settle(tx, action.id, 'refused', { kind: 'failed' })
+	}
 	const target = parsed.data
 	const time = await lockTeacherTimeContext(tx, context.accountId, target.guard.timeZone, context.now)
 	if (!time.ok) return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'time_zone_changed' })
 	const [card] = await tx
-		.select({
-			id: students.id,
-			defaultLessonMinutes: students.defaultLessonMinutes,
-			rateMinor: students.rateMinor,
-			currency: students.currency,
-		})
+		.select({ id: students.id, defaultLessonMinutes: students.defaultLessonMinutes, revision: students.revision })
 		.from(students)
 		.where(eq(students.id, target.studentId))
 		.for('share')
 	if (!card) return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'not_found' })
-	if (
-		card.defaultLessonMinutes !== target.guard.lessonMinutes ||
-		card.rateMinor !== target.guard.rateMinor ||
-		card.currency !== target.guard.rateCurrency
-	)
+	if (card.revision !== target.guard.cardRevision)
 		return settle(tx, action.id, 'refused', { kind: 'stale', issue: 'student_changed' })
 	const payment = await insertPayment(tx, card, {
 		paidOn: target.paidOn,
