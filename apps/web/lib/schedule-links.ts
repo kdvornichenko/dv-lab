@@ -1,4 +1,4 @@
-import type { ChatActionLinkBlock, ScheduleOccurrenceRef } from '@dv-lab/contracts'
+import type { ChatActionLinkBlock, ChatChangeProposalBlock, ScheduleOccurrenceRef } from '@dv-lab/contracts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -47,4 +47,27 @@ export function actionLinkHref(block: ChatActionLinkBlock): string | null {
 	if (block.kind === 'overview')
 		return studentHref(block.studentId, block.dialog === 'details' ? { dialog: 'details' } : undefined)
 	return studentHref(block.studentId, { tab: block.kind })
+}
+
+export function changeReceiptHref(block: ChatChangeProposalBlock): string | null {
+	if (block.state !== 'applied' || block.receipt === null) return null
+	const { change, receipt } = block
+	switch (change.operation) {
+		case 'record_payment':
+			return studentHref(receipt.studentId, {
+				tab: 'payments',
+				...(receipt.paymentId === undefined ? {} : { payment: receipt.paymentId }),
+			})
+		case 'create_card':
+		case 'archive_card':
+			return studentHref(receipt.studentId)
+		case 'set_rate':
+			return studentHref(receipt.studentId, { dialog: 'details' })
+		case 'delete_payment':
+			return studentHref(receipt.studentId, { tab: 'payments' })
+		case 'remove_note':
+			return studentHref(receipt.studentId, { tab: 'notes' })
+		case 'remove_comment':
+			return change.lessonDate === null ? '/schedule' : lessonHref(change.lessonDate, change.lessonRef)
+	}
 }
