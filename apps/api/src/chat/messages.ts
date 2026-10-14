@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import {
 	type ChatBlock,
+	type ChatBulkMoveChange,
 	type ChatCalendarProposalBlock,
 	type ChatChangeProposalBlock,
 	type ChatMessage,
@@ -10,6 +11,7 @@ import {
 	type MentionBinding,
 	type ChatStep,
 	CHAT_ACTIVE_TURN_STATES,
+	CHAT_BULK_TARGET_STATES,
 	CHAT_CALENDAR_STATES,
 	CHAT_CHANGE_ISSUES,
 	CHAT_UNDO_STATES,
@@ -52,6 +54,56 @@ export const changeProgress = z.object({
 })
 
 const changeAfter = z.object({ paymentId: z.uuid().optional(), studentId: z.uuid().optional() })
+
+const bulkChildProgress = z.object({
+	state: z.enum(CHAT_BULK_TARGET_STATES),
+	commandId: z.uuid().nullable(),
+	version: z.string().nullable(),
+	issue: z.enum(CHAT_CHANGE_ISSUES).optional(),
+})
+
+export const bulkProgress = z.object({
+	kind: z.enum(['proposed', 'bulk', 'applied', 'partial', 'failed', 'stale', 'declined']),
+	issue: z.enum(CHAT_CHANGE_ISSUES).optional(),
+	children: z.array(bulkChildProgress).optional(),
+})
+
+export type BulkProgress = z.infer<typeof bulkProgress>
+
+const BULK_STATES = {
+	proposed: 'proposed',
+	bulk: 'pending',
+	applied: 'applied',
+	partial: 'partial',
+	failed: 'failed',
+	stale: 'stale',
+	declined: 'declined',
+} as const satisfies Record<BulkProgress['kind'], ChatChangeProposalBlock['state']>
+
+const ISSUE_STATES: readonly ChatChangeProposalBlock['state'][] = ['stale', 'failed', 'partial']
+
+function bulkView(
+	block: ChatChangeProposalBlock,
+	change: ChatBulkMoveChange,
+	action: ActionUndo
+): ChatChangeProposalBlock {
+	const progress = bulkProgress.safeParse(action.result)
+	if (!progress.success) return block
+	const { kind, issue, children } = progress.data
+	const { issue: _issue, ...rest } = block
+	const state = BULK_STATES[kind]
+	const targets = change.targets.map((target, index) => ({
+		...target,
+		state: children?.[index]?.state ?? (kind === 'proposed' ? 'planned' : 'not_started'),
+	}))
+	return {
+		...rest,
+		state,
+		...(issue !== undefined && ISSUE_STATES.includes(state) ? { issue } : {}),
+		change: { ...change, targets },
+		receipt: kind === 'applied' ? { studentId: change.studentId } : null,
+	}
+}
 
 type NewMessage = {
 	accountId: string
@@ -97,6 +149,7 @@ export function calendarView(block: ChatCalendarProposalBlock, action: ActionUnd
 }
 
 export function changeView(block: ChatChangeProposalBlock, action: ActionUndo): ChatChangeProposalBlock {
+	if (block.change.operation === 'bulk_move') return bulkView(block, block.change, action)
 	const progress = changeProgress.safeParse(action.result)
 	if (!progress.success) return block
 	const { kind, issue } = progress.data

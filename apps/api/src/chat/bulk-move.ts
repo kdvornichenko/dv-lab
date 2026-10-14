@@ -1,8 +1,15 @@
-import { and, asc, eq, gt } from 'drizzle-orm'
+import { and, asc, eq, gt, sql } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
-import { type ChatBulkMoveChange, CLOCK_TIME_PATTERN, calendarDate } from '@dv-lab/contracts'
+import {
+	type ChatBulkMoveChange,
+	type ChatCalendarIssue,
+	type ChatChangeIssue,
+	type ValidatedCalendarCommand,
+	CLOCK_TIME_PATTERN,
+	calendarDate,
+} from '@dv-lab/contracts'
 import {
 	type SeriesRule,
 	type Weekday,
@@ -14,14 +21,19 @@ import {
 	seriesStart,
 	zonedParts,
 } from '@dv-lab/core'
-import { type DbExecutor, lessonSeries, lessons, students } from '@dv-lab/db'
+import { type Database, type DbExecutor, chatActions, lessonSeries, lessons, students } from '@dv-lab/db'
 
+import type { CalendarCommands } from '../calendar/commands.ts'
 import { findConnection } from '../calendar/google-access.ts'
+import { findRequest } from '../calendar/journal.ts'
 import { insideSyncWindow, syncFacts } from '../calendar/projection.ts'
 import { seriesColumns, toSeriesRule } from '../schedule/rows.ts'
 import { seriesAnchor } from '../schedule/series.ts'
+import { readTeacherSettings } from '../settings/settings.ts'
 import type { ChatContext } from './actions.ts'
+import { faultIssue, forwardState, weekWindow, writeIssue } from './calendar.ts'
 import { type CommandZone, resolveCommandZone } from './command-zone.ts'
+import { type BulkProgress, bulkProgress } from './messages.ts'
 
 export type BulkMoveRequest = {
 	operation: 'bulk_move'
@@ -64,7 +76,7 @@ const bulkChild = z.strictObject({
 	requestId: z.uuid(),
 })
 
-export const bulkMoveTarget = z.strictObject({
+const bulkMoveTarget = z.strictObject({
 	operation: z.literal('bulk_move'),
 	studentId: z.uuid(),
 	inputTimeZone: z.string(),
@@ -80,7 +92,7 @@ export const bulkMoveTarget = z.strictObject({
 type BulkTarget = z.infer<typeof bulkMoveTarget>
 type BulkChild = z.infer<typeof bulkChild>
 
-export type BulkPreview =
+type BulkPreview =
 	{ kind: 'ok'; target: BulkTarget; change: ChatBulkMoveChange } | { kind: 'refused'; code: BulkRefusal }
 
 const refused = (code: BulkRefusal): BulkPreview => ({ kind: 'refused', code })
@@ -99,7 +111,7 @@ function snapshotOf(rule: SeriesRule): BulkChild['rule'] {
 	}
 }
 
-export function sameRule(rule: SeriesRule, snapshot: BulkChild['rule']): boolean {
+function sameRule(rule: SeriesRule, snapshot: BulkChild['rule']): boolean {
 	return (
 		rule.weekday === snapshot.weekday &&
 		rule.startTime === snapshot.startTime &&
@@ -109,7 +121,7 @@ export function sameRule(rule: SeriesRule, snapshot: BulkChild['rule']): boolean
 	)
 }
 
-export function cutStart(rule: SeriesRule, from: string, zone: string): Date | null {
+function cutStart(rule: SeriesRule, from: string, zone: string): Date | null {
 	if (!hasOccurrences(rule)) return null
 	const { naturalCutoff } = seriesCutBoundary(rule, from, zone, 'from')
 	if (rule.endsOn !== null && naturalCutoff > rule.endsOn) return null
@@ -217,4 +229,293 @@ export async function proposeBulkMove(
 			singlesLeft: await singlesAt(executor, request, zone.zone, context.now),
 		},
 	}
+}
+
+type ChildProgress = NonNullable<BulkProgress['children']>[number]
+type ActionRow = typeof chatActions.$inferSelect
+
+type Built =
+	| { kind: 'command'; command: ValidatedCalendarCommand; version: string }
+	| { kind: 'refused'; stale: boolean; issue: ChatChangeIssue }
+
+type Step = { kind: 'done' } | { kind: 'submit'; index: number; command: ValidatedCalendarCommand }
+
+const SUBMIT_GRACE_MS = 60_000
+const done: Step = { kind: 'done' }
+const changed: Built = { kind: 'refused', stale: true, issue: 'calendar_changed' }
+
+function changeIssue(issue: ChatCalendarIssue | undefined): ChatChangeIssue {
+	switch (issue) {
+		case 'command_pending':
+		case 'connection_required':
+		case 'outside_sync_window':
+		case 'provider_unavailable':
+			return issue
+		case undefined:
+			return 'provider_unavailable'
+		default:
+			return 'calendar_changed'
+	}
+}
+
+async function actionOf(executor: DbExecutor, accountId: string, actionId: string, lock = false) {
+	const query = executor
+		.select()
+		.from(chatActions)
+		.where(and(eq(chatActions.id, actionId), eq(chatActions.accountId, accountId)))
+	const [row] = lock ? await query.for('update') : await query
+	return row ?? null
+}
+
+async function setProgress(
+	executor: DbExecutor,
+	actionId: string,
+	state: 'submitted' | 'applied' | 'refused',
+	progress: BulkProgress
+) {
+	await executor
+		.update(chatActions)
+		.set({ state, result: progress, updatedAt: sql`now()` })
+		.where(eq(chatActions.id, actionId))
+}
+
+function running(action: ActionRow | null) {
+	if (action === null || action.state !== 'submitted') return null
+	const target = bulkMoveTarget.safeParse(action.target)
+	const progress = bulkProgress.safeParse(action.result)
+	if (!target.success || !progress.success || progress.data.kind !== 'bulk') return null
+	const children = progress.data.children ?? []
+	if (children.length !== target.data.children.length) return null
+	return { action, target: target.data, children: [...children] }
+}
+
+async function buildChild(
+	executor: DbExecutor,
+	context: ChatContext,
+	target: BulkTarget,
+	child: BulkChild,
+	sealed: string | null
+): Promise<Built> {
+	const zone = (await readTeacherSettings(executor, context.accountId)).defaultTimeZone
+	const [row] = await executor.select(seriesColumns).from(lessonSeries).where(eq(lessonSeries.id, child.seriesId))
+	if (!row) return changed
+	const rule = toSeriesRule(row)
+	if (!sameRule(rule, child.rule)) return changed
+	const connection = await findConnection(executor, context.accountId)
+	if (!connection) return { kind: 'refused', stale: false, issue: 'connection_required' }
+	const anchor = await seriesAnchor(executor, rule, connection.id)
+	if (anchor === null || child.from < anchor) return changed
+	const was = cutStart(rule, child.from, target.inputTimeZone)
+	if (was === null) return changed
+	const window = await weekWindow(executor, context.accountId, context.now, was.toISOString(), zone)
+	if (window.write.state !== 'ready')
+		return { kind: 'refused', stale: false, issue: changeIssue(writeIssue(window.write.reason)) }
+	const series = window.series.find((item) => item.series.id === child.seriesId)
+	if (!series || (sealed !== null && series.version !== sealed)) return changed
+	return {
+		kind: 'command',
+		version: series.version,
+		command: {
+			operation: 'move_series',
+			seriesId: child.seriesId,
+			input: {
+				from: child.from,
+				weekday: child.weekday,
+				startTime: child.startTime,
+				durationMinutes: child.durationMinutes,
+				inputTimeZone: target.inputTimeZone,
+				expectedDefaultTimeZone: zone,
+				requestId: child.requestId,
+				expectedVersion: series.version,
+			},
+		},
+	}
+}
+
+async function stop(
+	executor: DbExecutor,
+	actionId: string,
+	children: ChildProgress[],
+	index: number,
+	issue: ChatChangeIssue
+) {
+	const stopped = children.map((child, at) =>
+		at === index
+			? { ...child, state: 'failed' as const, issue }
+			: at > index
+				? { ...child, state: 'not_started' as const }
+				: child
+	)
+	const kind = stopped.some((child) => child.state === 'applied') ? 'partial' : 'failed'
+	await setProgress(executor, actionId, 'refused', { kind, issue, children: stopped })
+}
+
+async function prepareBulk(
+	tx: DbExecutor,
+	commands: CalendarCommands | undefined,
+	context: ChatContext,
+	actionId: string
+): Promise<Step> {
+	const action = await actionOf(tx, context.accountId, actionId, true)
+	if (!action || action.kind !== 'change' || action.state !== 'proposed') return done
+	const target = bulkMoveTarget.safeParse(action.target)
+	if (!target.success) {
+		await setProgress(tx, actionId, 'refused', { kind: 'failed' })
+		return done
+	}
+	if (!commands) {
+		await setProgress(tx, actionId, 'refused', { kind: 'failed', issue: 'connection_required' })
+		return done
+	}
+	const children: ChildProgress[] = []
+	let first: ValidatedCalendarCommand | null = null
+	for (const [index, child] of target.data.children.entries()) {
+		const built = await buildChild(tx, context, target.data, child, null)
+		if (built.kind === 'refused') {
+			await setProgress(tx, actionId, 'refused', { kind: built.stale ? 'stale' : 'failed', issue: built.issue })
+			return done
+		}
+		if (index === 0) first = built.command
+		children.push({ state: index === 0 ? 'pending' : 'not_started', commandId: null, version: built.version })
+	}
+	if (first === null) return done
+	await setProgress(tx, actionId, 'submitted', { kind: 'bulk', children })
+	return { kind: 'submit', index: 0, command: first }
+}
+
+async function recordChild(
+	tx: DbExecutor,
+	context: ChatContext,
+	actionId: string,
+	index: number,
+	commandId: string | null,
+	issue: ChatChangeIssue
+) {
+	const live = running(await actionOf(tx, context.accountId, actionId, true))
+	const child = live?.children[index]
+	if (!live || !child || child.state !== 'pending' || child.commandId !== null) return
+	const requestId = live.target.children[index]!.requestId
+	const found = commandId ?? (await findRequest(tx, context.accountId, requestId))?.id ?? null
+	if (found === null) return stop(tx, actionId, live.children, index, issue)
+	live.children[index] = { ...child, commandId: found }
+	await setProgress(tx, actionId, 'submitted', { kind: 'bulk', children: live.children })
+}
+
+async function submitChild(
+	db: Database,
+	commands: CalendarCommands,
+	context: ChatContext,
+	actionId: string,
+	step: Extract<Step, { kind: 'submit' }>
+) {
+	let commandId: string | null = null
+	let issue: ChatChangeIssue = 'provider_unavailable'
+	try {
+		commandId = (await commands.submitCalendarCommand({ accountId: context.accountId, now: context.now }, step.command))
+			.commandId
+	} catch (error) {
+		issue = changeIssue(faultIssue(error))
+	}
+	await db.transaction((tx) => recordChild(tx, context, actionId, step.index, commandId, issue))
+}
+
+async function advance(
+	tx: DbExecutor,
+	context: ChatContext,
+	actionId: string,
+	index: number,
+	commandId: string
+): Promise<Step> {
+	const live = running(await actionOf(tx, context.accountId, actionId, true))
+	const child = live?.children[index]
+	if (!live || !child || child.state !== 'pending') return done
+	live.children[index] = { ...child, state: 'applied', commandId }
+	const nextIndex = index + 1
+	const next = live.target.children[nextIndex]
+	const sealed = live.children[nextIndex]
+	if (next === undefined || sealed === undefined) {
+		await setProgress(tx, actionId, 'applied', { kind: 'applied', children: live.children })
+		return done
+	}
+	const built = await buildChild(tx, context, live.target, next, sealed.version)
+	if (built.kind === 'refused') {
+		await stop(tx, actionId, live.children, nextIndex, built.issue)
+		return done
+	}
+	live.children[nextIndex] = { ...sealed, state: 'pending', commandId: null }
+	await setProgress(tx, actionId, 'submitted', { kind: 'bulk', children: live.children })
+	return { kind: 'submit', index: nextIndex, command: built.command }
+}
+
+async function failChild(
+	tx: DbExecutor,
+	context: ChatContext,
+	actionId: string,
+	index: number,
+	issue: ChatChangeIssue
+) {
+	const live = running(await actionOf(tx, context.accountId, actionId, true))
+	if (!live || live.children[index]?.state !== 'pending') return
+	await stop(tx, actionId, live.children, index, issue)
+}
+
+async function rememberCommand(
+	tx: DbExecutor,
+	context: ChatContext,
+	actionId: string,
+	index: number,
+	commandId: string
+) {
+	const live = running(await actionOf(tx, context.accountId, actionId, true))
+	const child = live?.children[index]
+	if (!live || !child || child.state !== 'pending' || child.commandId !== null) return
+	live.children[index] = { ...child, commandId }
+	await setProgress(tx, actionId, 'submitted', { kind: 'bulk', children: live.children })
+}
+
+export async function checkBulk(
+	db: Database,
+	commands: CalendarCommands | undefined,
+	context: ChatContext,
+	actionId: string
+): Promise<void> {
+	if (!commands) return
+	for (;;) {
+		const live = running(await actionOf(db, context.accountId, actionId))
+		if (!live) return
+		const index = live.children.findIndex((child) => child.state === 'pending')
+		const child = live.children[index]
+		if (index < 0 || !child) return
+		const requestId = live.target.children[index]!.requestId
+		const commandId = child.commandId ?? (await findRequest(db, context.accountId, requestId))?.id ?? null
+		if (commandId === null) {
+			if (context.now.getTime() - live.action.updatedAt.getTime() < SUBMIT_GRACE_MS) return
+			await db.transaction((tx) => failChild(tx, context, actionId, index, 'provider_unavailable'))
+			return
+		}
+		const next = forwardState(await commands.readCalendarCommand(context, commandId))
+		if (next.state === 'failed') {
+			await db.transaction((tx) => failChild(tx, context, actionId, index, changeIssue(next.issue)))
+			return
+		}
+		if (next.state !== 'applied') {
+			if (child.commandId === null)
+				await db.transaction((tx) => rememberCommand(tx, context, actionId, index, commandId))
+			return
+		}
+		const step = await db.transaction((tx) => advance(tx, context, actionId, index, commandId))
+		if (step.kind === 'done') return
+		await submitChild(db, commands, context, actionId, step)
+	}
+}
+
+export async function confirmBulk(
+	db: Database,
+	commands: CalendarCommands | undefined,
+	context: ChatContext,
+	actionId: string
+): Promise<void> {
+	const step = await db.transaction((tx) => prepareBulk(tx, commands, context, actionId))
+	if (step.kind === 'submit' && commands) await submitChild(db, commands, context, actionId, step)
+	await checkBulk(db, commands, context, actionId)
 }

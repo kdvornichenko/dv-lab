@@ -752,7 +752,6 @@ export type ChatChangeState = (typeof CHAT_CHANGE_STATES)[number]
 export type ChatChangeIssue = z.infer<typeof chatChangeIssue>
 export type ChatChangeOperation = (typeof CHAT_CHANGE_OPERATIONS)[number]
 export type ChatBulkMoveChange = z.infer<typeof chatBulkMoveChange>
-export type ChatBulkTargetState = (typeof CHAT_BULK_TARGET_STATES)[number]
 export type ChatCalendarIssue = z.infer<typeof chatCalendarIssue>
 export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 

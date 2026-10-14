@@ -21,11 +21,19 @@ import {
 } from '@dv-lab/core'
 import { type Database, type DbExecutor, chatActions, chatMessages, students } from '@dv-lab/db'
 
+import type { CalendarCommands } from '../calendar/commands.ts'
 import { cardFacts } from '../cards/card-facts.ts'
 import { insertPayment } from '../cards/payments.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
-import { type BulkMoveRequest, type BulkRefusal, proposeBulkMove } from './bulk-move.ts'
+import {
+	type BulkMoveRequest,
+	type BulkRefusal,
+	checkBulk,
+	confirmBulk,
+	isBulkMove,
+	proposeBulkMove,
+} from './bulk-move.ts'
 import { declineCalendarChange } from './calendar.ts'
 import {
 	type CardChangeRequest,
@@ -384,7 +392,32 @@ async function applyChange(tx: DbExecutor, context: ChatContext, action: ActionR
 	return settle(tx, action.id, 'refused', applied)
 }
 
-export function confirmChange(db: Database, context: ChatContext, actionId: string): Promise<ChangeOutcome> {
+async function bulkAction(db: Database, accountId: string, actionId: string) {
+	const action = await actionOf(db, accountId, actionId)
+	if (!action || action.kind !== 'change' || !isBulkMove(action.target)) return null
+	return (await proposalOf(db, accountId, action)) === null ? null : action
+}
+
+export async function checkChange(
+	db: Database,
+	commands: CalendarCommands | undefined,
+	context: ChatContext,
+	actionId: string
+): Promise<ChangeOutcome> {
+	if ((await bulkAction(db, context.accountId, actionId)) !== null) await checkBulk(db, commands, context, actionId)
+	return presentChange(db, context.accountId, actionId)
+}
+
+export async function confirmChange(
+	db: Database,
+	context: ChatContext,
+	actionId: string,
+	commands?: CalendarCommands
+): Promise<ChangeOutcome> {
+	if ((await bulkAction(db, context.accountId, actionId)) !== null) {
+		await confirmBulk(db, commands, context, actionId)
+		return presentChange(db, context.accountId, actionId)
+	}
 	return db.transaction(async (tx) => {
 		const action = await actionOf(tx, context.accountId, actionId, true)
 		if (!action) return { kind: 'not_found' }

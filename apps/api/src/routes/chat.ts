@@ -29,7 +29,7 @@ import { readSession } from '../auth/sessions.ts'
 import type { CalendarCommands } from '../calendar/commands.ts'
 import { type ChatContext, sendMessage, undoAction } from '../chat/actions.ts'
 import { type CalendarOutcome, checkCalendarAction, confirmCalendarChange } from '../chat/calendar.ts'
-import { type ChangeOutcome, confirmChange, declineAction } from '../chat/changes.ts'
+import { type ChangeOutcome, checkChange, confirmChange, declineAction } from '../chat/changes.ts'
 import {
 	createConversation,
 	deleteConversation,
@@ -184,7 +184,7 @@ export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRou
 		if (id === null) return notFound(c)
 		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
 		const context = await chatContext(c)
-		const change = await confirmChange(db, context, id)
+		const change = await confirmChange(db, context, id, calendarCommands)
 		if (change.kind !== 'not_change') return changeReply(c, change)
 		const outcome = await confirmCalendarChange(db, calendarCommands, context, id)
 		return calendarReply(c, outcome, 202)
@@ -204,7 +204,10 @@ export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRou
 		const id = conversationId(c)
 		if (id === null) return notFound(c)
 		if (!(await readJson(c, emptyRequest))) return invalidRequest(c)
-		const outcome = await checkCalendarAction(db, calendarCommands, await chatContext(c), id)
+		const context = await chatContext(c)
+		const change = await checkChange(db, calendarCommands, context, id)
+		if (change.kind !== 'not_change') return changeReply(c, change)
+		const outcome = await checkCalendarAction(db, calendarCommands, context, id)
 		return calendarReply(c, outcome, 200)
 	})
 
@@ -323,8 +326,10 @@ export function chatRoutes({ db, calendarCommands, chat, availability }: ChatRou
 		if (!input) return invalidRequest(c)
 		const accountId = c.get('session').account.id
 		const context = await chatContext(c)
-		for (const actionId of await unsettledActionIds(db, accountId, id))
-			await checkCalendarAction(db, calendarCommands, context, actionId)
+		for (const actionId of await unsettledActionIds(db, accountId, id)) {
+			const change = await checkChange(db, calendarCommands, context, actionId)
+			if (change.kind === 'not_change') await checkCalendarAction(db, calendarCommands, context, actionId)
+		}
 		const result = await db.transaction((tx) => deleteConversation(tx, accountId, id, input))
 		if (result.kind === 'not_found') return notFound(c)
 		if (result.kind === 'changed') return conversationChanged(c)

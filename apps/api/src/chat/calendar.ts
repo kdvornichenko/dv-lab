@@ -129,18 +129,18 @@ function issueOf(code: string | null): ChatCalendarIssue {
 	return 'precondition_failed'
 }
 
-function faultIssue(error: unknown): ChatCalendarIssue {
+export function faultIssue(error: unknown): ChatCalendarIssue {
 	if (error instanceof CommandFault || error instanceof CalendarFault) return issueOf(error.code)
 	return 'provider_unavailable'
 }
 
-function writeIssue(reason: CalendarIssue): ChatCalendarIssue {
+export function writeIssue(reason: CalendarIssue): ChatCalendarIssue {
 	if (reason === 'outside_sync_window' || reason === 'command_pending') return reason
 	if (CONNECTION.includes(reason)) return 'connection_required'
 	return 'provider_unavailable'
 }
 
-async function weekWindow(
+export async function weekWindow(
 	executor: DbExecutor,
 	accountId: string,
 	now: Date,
@@ -542,7 +542,7 @@ export async function confirmCalendarChange(
 	return checkCalendarAction(db, commands, context, actionId)
 }
 
-function forwardState(snapshot: CalendarCommandSnapshot): Progress {
+export function forwardState(snapshot: CalendarCommandSnapshot): Progress {
 	const base = { commandId: snapshot.commandId }
 	if (snapshot.state === 'applied' && snapshot.confirmedRevision !== null) return { ...base, state: 'applied' }
 	if (snapshot.state === 'failed') return { ...base, state: 'failed', issue: issueOf(snapshot.issue) }
