@@ -777,17 +777,36 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		[calendar, shownCalendar, updateThread]
 	)
 
-	const checkCalendar = useCallback(
+	const landed = useCallback(
+		(before: ChatChangeProposalBlock | null, after: ChatChangeProposalBlock) => {
+			if (after.change.operation !== 'bulk_move' || before?.state === after.state) return
+			if (after.state !== 'applied' && after.state !== 'partial') return
+			announceChange()
+			void calendar.store.refresh()
+		},
+		[calendar]
+	)
+
+	const checkAction = useCallback(
 		async (actionId: string) => {
 			const conversationId = threadRef.current.conversationId
 			if (conversationId === null) return
 			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/check`, {})
 			if (!mounted.current) return
 			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
-			if (parsed?.success && parsed.data.block.type === 'calendar_proposal')
-				shownCalendar(conversationId, parsed.data.block)
+			if (!parsed?.success) return
+			const block = parsed.data.block
+			if (block.type === 'calendar_proposal') {
+				shownCalendar(conversationId, block)
+				return
+			}
+			if (block.type !== 'change_proposal') return
+			const current = threadRef.current.state
+			const before = current.kind === 'ready' ? changeBlock(current.messages, actionId) : null
+			updateThread(conversationId, (messages) => withBlock(messages, block))
+			landed(before, block)
 		},
-		[shownCalendar]
+		[landed, shownCalendar, updateThread]
 	)
 
 	const refreshThread = useCallback(async (): Promise<boolean> => {
@@ -829,13 +848,14 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			if (parsed?.success && parsed.data.block.type === 'change_proposal') {
 				const shown = parsed.data.block
 				updateThread(conversationId, (messages) => withBlock(messages, shown))
+				landed(block, shown)
 				return true
 			}
 			if (await refreshThread()) return true
 			updateThread(conversationId, (messages) => withBlock(messages, block))
 			return false
 		},
-		[refreshThread, updateThread]
+		[landed, refreshThread, updateThread]
 	)
 
 	const rename = useCallback(
@@ -894,7 +914,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		undo,
 		confirmCalendar,
 		declineAction,
-		checkCalendar,
+		checkAction,
 		decideChange,
 		refreshThread,
 		reloadThread,

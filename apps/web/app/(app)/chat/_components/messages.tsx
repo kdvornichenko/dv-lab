@@ -20,6 +20,7 @@ import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { ActionLink } from './action-link'
 import { ActionResult } from './action-result'
+import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
 import { ChatProgress } from './chat-progress'
@@ -220,7 +221,12 @@ function Block({
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
 	if (block.type === 'calendar_proposal') return <CalendarProposal block={block} onUndo={onUndo} {...calendar} />
-	if (block.type === 'change_proposal') return <ChangeProposal block={block} {...changes} />
+	if (block.type === 'change_proposal')
+		return isBulkMove(block) ? (
+			<BulkMoveProposal block={block} {...changes} onCheck={calendar.onCheck} />
+		) : (
+			<ChangeProposal block={block} {...changes} />
+		)
 	if (block.type === 'refused') return <Refused block={block} />
 	if (isRecordBlock(block)) return <RecordBlockView block={block} />
 	if (block.type === 'action_link') return <ActionLink block={block} />

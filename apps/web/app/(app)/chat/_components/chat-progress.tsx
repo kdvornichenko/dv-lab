@@ -55,6 +55,10 @@ export function stepWords(step: ChatStep): string {
 			return 'Preparing to archive'
 		case 'propose_entry_removal':
 			return 'Preparing to remove an entry'
+		case 'propose_bulk_move':
+			return 'Preparing to move lessons'
+		case 'essay_feedback':
+			return 'Reading the essay'
 		case 'answer':
 			return 'Writing the answer'
 		default:

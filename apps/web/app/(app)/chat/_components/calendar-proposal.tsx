@@ -32,7 +32,7 @@ const CHECK_EVERY_MS = 2000
 
 const UNDO_CONFLICT = 'This event changed in Google Calendar after your action. Undo is unavailable.'
 
-const ISSUE_LINES: Partial<Record<ChatCalendarIssue, string>> = {
+export const ISSUE_LINES: Partial<Record<ChatCalendarIssue, string>> = {
 	command_pending: 'Earlier calendar requests need recovery before you can make new changes.',
 	outside_sync_window:
 		'This week is outside the synced range, from 8 weeks back to 53 weeks ahead. Calendar changes are unavailable.',
@@ -43,7 +43,7 @@ const ISSUE_LINES: Partial<Record<ChatCalendarIssue, string>> = {
 
 type Handlers = CalendarHandlers & { onUndo: (actionId: string) => void }
 
-function Spinner({ size }: { size?: number }) {
+export function Spinner({ size }: { size?: number }) {
 	return <LoaderCircle size={size ?? 16} className="animate-spin" aria-hidden />
 }
 
@@ -69,7 +69,7 @@ function lessonMain(start: Date, minutes: number, zone: string, year: number): s
 	return `${formatDay(start, zone, year)}, ${formatRange(start, minutes, zone)} ${zoneLabel(zone, start)}`
 }
 
-function Place({
+export function Place({
 	label,
 	start,
 	minutes,
@@ -77,6 +77,7 @@ function Place({
 	zone,
 	secondZone,
 	year,
+	className = 'pl-6',
 }: {
 	label: string
 	start: Date
@@ -85,12 +86,13 @@ function Place({
 	zone: string
 	secondZone: string | null
 	year: number
+	className?: string
 }) {
 	const main = series ? every(start, zone) : lessonMain(start, minutes, zone, year)
 	const second =
 		secondZone === null ? null : series ? every(start, secondZone) : secondRange(start, minutes, zone, secondZone)
 	return (
-		<div className="grid grid-cols-[40px_1fr] gap-2 pl-6">
+		<div className={`grid grid-cols-[40px_1fr] gap-2 ${className}`}>
 			<p className="pt-0.5 text-caption text-muted-foreground">{label}</p>
 			<TimePair main={main} second={second} mainClassName="text-body text-foreground tabular-nums" />
 		</div>
@@ -183,7 +185,7 @@ function placeHref(block: ChatCalendarProposalBlock): string | null {
 	return target.date !== undefined && lesson.ref !== undefined ? lessonHref(target.date, lesson.ref) : null
 }
 
-function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
+export function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
 	return (
 		<div className="flex items-start gap-2">
 			<span className="flex shrink-0 pt-0.5 text-muted-foreground">{icon}</span>
@@ -193,7 +195,7 @@ function Header({ icon, text, children }: { icon: ReactNode; text: string; child
 	)
 }
 
-function Caption({ children, role }: { children: ReactNode; role?: 'status' }) {
+export function Caption({ children, role }: { children: ReactNode; role?: 'status' }) {
 	return (
 		<p role={role} className="pl-6 text-caption text-muted-foreground tabular-nums">
 			{children}
@@ -201,7 +203,7 @@ function Caption({ children, role }: { children: ReactNode; role?: 'status' }) {
 	)
 }
 
-function useAutoCheck(active: boolean, check: () => Promise<void>) {
+export function useAutoCheck(active: boolean, check: () => Promise<void>) {
 	const latest = useRef(check)
 	useEffect(() => {
 		latest.current = check

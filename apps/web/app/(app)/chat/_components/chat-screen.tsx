@@ -342,7 +342,7 @@ export function ChatScreen({
 									calendar={{
 										onConfirm: (actionId) => void chat.confirmCalendar(actionId),
 										onDecline: chat.declineAction,
-										onCheck: chat.checkCalendar,
+										onCheck: chat.checkAction,
 									}}
 									changes={{
 										onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
