@@ -170,7 +170,7 @@ interface LessonsTabProps {
 
 export function LessonsTab({ student, mainTimeZone, asOf, refreshKey }: LessonsTabProps) {
 	const [secondZone] = useSecondZone(mainTimeZone)
-	const [monday, setMonday] = useState(() => mondayOf(asOf))
+	const [monday, setMonday] = useState(() => mondayOf(scheduleToday(new Date(asOf), mainTimeZone)))
 	const [nonce, setNonce] = useState(0)
 	const [state, setState] = useState<WeekState | null>(null)
 	const version = refreshKey + nonce
