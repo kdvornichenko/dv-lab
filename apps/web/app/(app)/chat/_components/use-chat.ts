@@ -395,6 +395,13 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		}
 	}, [fetchList])
 
+	const readQuietly = useCallback(async () => {
+		const id = requests.current
+		const result = await apiRequest<ChatConversationsResponse>('GET', '/chat/conversations')
+		if (id !== requests.current || !mounted.current || !result.ok) return
+		commit({ kind: 'ready', conversations: result.data.conversations })
+	}, [commit])
+
 	const titleWatch = useRef<{ conversationId: string; timer: number } | null>(null)
 
 	const cancelTitleWatch = useCallback((conversationId?: string) => {
@@ -419,7 +426,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			titleWatch.current = watch
 			const schedule = (step: number) => {
 				watch.timer = window.setTimeout(() => {
-					void fetchList(true).then(() => {
+					void readQuietly().then(() => {
 						if (titleWatch.current !== watch || !mounted.current) return
 						if (hasTitle(conversationId) || step + 1 >= TITLE_CHECK_DELAYS.length) {
 							titleWatch.current = null
@@ -431,7 +438,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			}
 			schedule(0)
 		},
-		[cancelTitleWatch, fetchList, hasTitle]
+		[cancelTitleWatch, hasTitle, readQuietly]
 	)
 
 	const select = useCallback(
