@@ -50,6 +50,7 @@ type RowValues = Omit<
 	| 'eventKey'
 >
 
+const INSERT_CHUNK = 500
 const family = sql<string>`coalesce(${googleCalendarEvents.recurringEventId}, ${googleCalendarEvents.eventId})`
 const NO_RECURRENCE: MasterRecurrence = {
 	recurrenceKind: null,
@@ -341,21 +342,24 @@ async function applyFacts(
 	}
 	let inserted = 0
 	if (created.length) {
-		const rows = await executor
-			.insert(googleCalendarEvents)
-			.values(
-				created.map(({ factAt, ...values }) => ({
-					...values,
-					...target,
-					eventKey: opaqueVersion([target.connectionId, values.eventId]),
-					googleUpdatedAt: factAt,
-					seenEpoch: seenEpoch ?? epoch,
-				}))
-			)
-			.onConflictDoNothing()
-			.returning({ eventId: googleCalendarEvents.eventId })
-		inserted = rows.length
-		const added = new Set(rows.map((row) => row.eventId))
+		const added = new Set<string>()
+		for (let index = 0; index < created.length; index += INSERT_CHUNK) {
+			const rows = await executor
+				.insert(googleCalendarEvents)
+				.values(
+					created.slice(index, index + INSERT_CHUNK).map(({ factAt, ...values }) => ({
+						...values,
+						...target,
+						eventKey: opaqueVersion([target.connectionId, values.eventId]),
+						googleUpdatedAt: factAt,
+						seenEpoch: seenEpoch ?? epoch,
+					}))
+				)
+				.onConflictDoNothing()
+				.returning({ eventId: googleCalendarEvents.eventId })
+			for (const row of rows) added.add(row.eventId)
+		}
+		inserted = added.size
 		const raced = facts.filter(
 			(fact) => created.some((row) => row.eventId === fact.eventId) && !added.has(fact.eventId)
 		)
