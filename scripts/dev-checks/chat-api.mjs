@@ -447,7 +447,130 @@ async function sectionConversations(ctx) {
 	check('the other conversation is intact', conversationRow(b).deleted === false)
 	check('no row appeared or changed in any other table', isDeepStrictEqual(conversationCounts(), before))
 	check('api log has no conversation title', !api.logs().includes(secret))
+	await checkPreviews(ctx, as)
 	return 'CHAT_CONVERSATIONS_OK'
+}
+
+async function checkPreviews(ctx, as) {
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const make = async () => {
+		const res = await as('POST', '/chat/conversations')
+		ctx.conversations.push(res.json.conversation.id)
+		return res.json.conversation.id
+	}
+	let second = 0
+	const message = (conversationId, role, body, redacted = false) => {
+		second++
+		const at = new Date(Date.UTC(2026, 0, 1, 0, 0, second)).toISOString()
+		return sql(
+			`insert into chat_messages (account_id, conversation_id, role, body, created_at, redacted_at) values (${quote(accountId)}, ${quote(conversationId)}, ${quote(role)}, ${quote(body)}, ${quote(at)}, ${redacted ? 'now()' : 'null'}) returning id`
+		).rows[0].id
+	}
+	const action = (conversationId, messageId, kind, state) =>
+		sql(
+			`insert into chat_actions (account_id, conversation_id, message_id, kind, state, result) values (${quote(accountId)}, ${quote(conversationId)}, ${quote(messageId)}, ${quote(kind)}, ${quote(state)}, ${quote(JSON.stringify(kind === 'calendar' ? { state } : { kind: state }))}::jsonb)`
+		)
+	const item = (list, id) => list.json.conversations.find((entry) => entry.id === id)
+
+	const empty = await make()
+	const marked = await make()
+	const long = await make()
+	const redacted = await make()
+	const hidden = await make()
+	const blank = await make()
+	const waiting = await make()
+	const settled = await make()
+
+	message(marked, 'teacher', 'Zeta question about the plan')
+	message(
+		marked,
+		'assistant',
+		`## Covered\n- **Present perfect** with \`since\` and _for_ [[note:${randomUUID()}]]\n> quote [link](https://example.test/x)\n\n1. Last   step`
+	)
+	const words = Array.from({ length: 60 }, (_, index) => `word${index}`).join(' ')
+	message(long, 'assistant', words)
+	message(redacted, 'teacher', 'Visible zeta line')
+	message(redacted, 'assistant', 'Hidden zeta text', true)
+	message(hidden, 'teacher', '', true)
+	message(hidden, 'assistant', 'Hidden zeta reply', true)
+	message(blank, 'teacher', 'Teacher zeta ask')
+	message(blank, 'assistant', '   ')
+	const proposalMessage = message(waiting, 'assistant', 'Proposed zeta change')
+	action(waiting, proposalMessage, 'change', 'proposed')
+	const settledMessage = message(settled, 'assistant', 'Settled zeta change')
+	action(settled, settledMessage, 'change', 'applied')
+	action(settled, settledMessage, 'calendar', 'refused')
+	action(settled, settledMessage, 'mark', 'applied')
+
+	const list = await as('GET', '/chat/conversations')
+	const longItem = item(list, long)
+	check(
+		'list items carry preview and waiting, an empty chat has preview null',
+		list.status === 200 &&
+			list.json.conversations.every(
+				(entry) => (entry.preview === null || typeof entry.preview === 'string') && typeof entry.waiting === 'boolean'
+			) &&
+			item(list, empty).preview === null &&
+			item(list, empty).waiting === false,
+		JSON.stringify(item(list, empty))
+	)
+	check(
+		'preview is the last message without markdown and cite markers, spaces collapsed',
+		item(list, marked).preview === 'Covered Present perfect with since and for quote link Last step',
+		JSON.stringify(item(list, marked).preview)
+	)
+	check(
+		'a long preview is cut to 120 characters at a word boundary with an ellipsis',
+		Array.from(longItem.preview).length <= 120 &&
+			longItem.preview.endsWith('…') &&
+			words.startsWith(`${longItem.preview.slice(0, -1)} `),
+		JSON.stringify(longItem.preview)
+	)
+	check(
+		'a redacted message is skipped, an all-redacted chat has preview null',
+		item(list, redacted).preview === 'Visible zeta line' && item(list, hidden).preview === null,
+		`${item(list, redacted).preview} ${item(list, hidden).preview}`
+	)
+	check('a reply with a blank body is skipped', item(list, blank).preview === 'Teacher zeta ask')
+	check(
+		'waiting is true only with a proposed change or calendar action',
+		item(list, waiting).waiting === true &&
+			item(list, settled).waiting === false &&
+			item(list, marked).waiting === false &&
+			item(list, long).waiting === false
+	)
+	const one = await as('GET', `/chat/conversations/${waiting}`)
+	check(
+		'other conversation responses keep their shape',
+		one.status === 200 && !('preview' in one.json.conversation) && !('waiting' in one.json.conversation)
+	)
+
+	const before = list.json.conversations.length
+	const bulk = sql(
+		`insert into chat_conversations (account_id, title) select ${quote(accountId)}, 'Preview load ' || n from generate_series(1, 80) as n returning id`
+	).rows.map((row) => row.id)
+	ctx.conversations.push(...bulk)
+	sql(
+		`insert into chat_messages (account_id, conversation_id, role, body, created_at) select ${quote(accountId)}, c.id, case when n % 2 = 0 then 'assistant' else 'teacher' end, 'Load zeta message ' || n || ' ' || repeat('text ', 400), now() - make_interval(secs => 100 - n) from chat_conversations c cross join generate_series(1, 40) as n where c.title like 'Preview load %' and c.account_id = ${quote(accountId)}`
+	)
+	const timings = []
+	let loaded = null
+	for (let round = 0; round < 3; round++) {
+		const started = performance.now()
+		loaded = await as('GET', '/chat/conversations')
+		timings.push(performance.now() - started)
+	}
+	const fastest = Math.min(...timings)
+	check(
+		'the list with 80 chats of 40 messages answers fast and holds every preview',
+		loaded.status === 200 &&
+			loaded.json.conversations.length === before + bulk.length &&
+			bulk.every((id) => item(loaded, id).preview?.startsWith('Load zeta message 40 ')) &&
+			fastest < 300,
+		`${Math.round(fastest)}ms`
+	)
+	console.log(`list timings ${timings.map((value) => Math.round(value)).join('/')}ms`)
+	check('api log has no message text', !ctx.api.logs().includes('zeta'))
 }
 
 function removeEntries(where) {

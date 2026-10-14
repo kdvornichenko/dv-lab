@@ -68,7 +68,16 @@ export const chatConversationResponse = z.strictObject({ conversation: chatConve
 
 export type ChatConversationResponse = z.infer<typeof chatConversationResponse>
 
-export const chatConversationsResponse = z.strictObject({ conversations: z.array(chatConversation) })
+export const CHAT_PREVIEW_MAX = 120
+
+export const chatConversationListItem = chatConversation.extend({
+	preview: z.string().nullable(),
+	waiting: z.boolean(),
+})
+
+export type ChatConversationListItem = z.infer<typeof chatConversationListItem>
+
+export const chatConversationsResponse = z.strictObject({ conversations: z.array(chatConversationListItem) })
 
 export type ChatConversationsResponse = z.infer<typeof chatConversationsResponse>
 
