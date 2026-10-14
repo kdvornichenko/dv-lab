@@ -102,6 +102,13 @@ export async function readJson<T extends z.ZodType>(c: Context, schema: T): Prom
 	return parsed.success ? parsed.data : null
 }
 
+export async function readOptionalJson<T extends z.ZodType>(c: Context, schema: T): Promise<z.infer<T> | null> {
+	if (c.req.header('content-type') !== undefined) return readJson(c, schema)
+	if ((await c.req.text()) !== '') return null
+	const parsed = schema.safeParse({})
+	return parsed.success ? parsed.data : null
+}
+
 export function setSessionCookie(c: Context, token: string): void {
 	setCookie(c, SESSION_COOKIE, token, { ...sessionCookie, maxAge: SESSION_TTL_SECONDS })
 }

@@ -28,6 +28,7 @@ export const cardColumns = {
 	noShowDeducts: students.noShowDeducts,
 	gender: students.gender,
 	archivedAt: students.archivedAt,
+	revision: students.revision,
 }
 
 export type CardRecord = Pick<typeof students.$inferSelect, keyof typeof cardColumns>
@@ -80,5 +81,6 @@ export function toStudentDetail(row: CardRecord, facts: CardFacts, account: Stud
 		gender: toGender(row.gender),
 		archivedAt: row.archivedAt === null ? null : row.archivedAt.toISOString(),
 		account,
+		revision: row.revision,
 	}
 }

@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { type SQL, and, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 
 import type {
+	Currency,
 	Gender,
 	StudentDetail,
 	StudentLessonOption,
@@ -113,62 +114,94 @@ export async function studentGenders(
 	return new Map(rows.map((row) => [row.id, toGender(row.gender)]))
 }
 
-export async function updateCard(
+export type CardWrite = { kind: 'ok'; detail: StudentDetail } | { kind: 'not_found' } | { kind: 'changed' }
+
+type CardValues = { [Key in keyof typeof students.$inferInsert]?: (typeof students.$inferInsert)[Key] | SQL }
+
+type CardRate = { rateMinor: number; currency: Currency } | { rateMinor: null; currency: null }
+
+const nextRevision = { revision: sql`${students.revision} + 1`, updatedAt: sql`now()` }
+
+const sameRevision = (expectedRevision: number | undefined) =>
+	expectedRevision === undefined ? undefined : eq(students.revision, expectedRevision)
+
+async function writeCard(
+	executor: DbExecutor,
+	id: string,
+	values: CardValues,
+	context: CardReadContext,
+	expectedRevision: number | undefined,
+	only?: SQL
+): Promise<CardWrite> {
+	const [row] = await executor
+		.update(students)
+		.set({ ...values, ...nextRevision })
+		.where(and(eq(students.id, id), only, sameRevision(expectedRevision)))
+		.returning(cardColumns)
+	if (row) return { kind: 'ok', detail: await toDetail(executor, row, context) }
+	const [current] = await executor.select(cardColumns).from(students).where(eq(students.id, id))
+	if (!current) return { kind: 'not_found' }
+	if (expectedRevision !== undefined && current.revision !== expectedRevision) return { kind: 'changed' }
+	return { kind: 'ok', detail: await toDetail(executor, current, context) }
+}
+
+export function updateCard(
 	executor: DbExecutor,
 	id: string,
 	input: SaveStudentInput,
-	context: CardReadContext
-): Promise<StudentDetail | null> {
-	const [row] = await executor
-		.update(students)
-		.set({
-			...cardValues(input),
-			...(input.noShowDeducts === undefined ? {} : { noShowDeducts: input.noShowDeducts }),
-			...(input.gender === undefined ? {} : { gender: input.gender }),
-			updatedAt: sql`now()`,
-		})
-		.where(eq(students.id, id))
-		.returning(cardColumns)
-	return row ? toDetail(executor, row, context) : null
+	context: CardReadContext,
+	expectedRevision?: number
+): Promise<CardWrite> {
+	const values = {
+		...cardValues(input),
+		...(input.noShowDeducts === undefined ? {} : { noShowDeducts: input.noShowDeducts }),
+		...(input.gender === undefined ? {} : { gender: input.gender }),
+	}
+	return writeCard(executor, id, values, context, expectedRevision)
 }
 
-export async function archiveCard(
+export function setCardRate(
 	executor: DbExecutor,
 	id: string,
+	rate: CardRate,
+	expectedRevision: number,
 	context: CardReadContext
-): Promise<StudentDetail | null> {
-	const [row] = await executor
-		.update(students)
-		.set({ status: 'archived', archivedAt: sql`now()`, updatedAt: sql`now()` })
-		.where(and(eq(students.id, id), eq(students.status, 'active')))
-		.returning(cardColumns)
-	return row ? toDetail(executor, row, context) : getCard(executor, id, context)
+): Promise<CardWrite> {
+	return writeCard(executor, id, { rateMinor: rate.rateMinor, currency: rate.currency }, context, expectedRevision)
 }
 
-export async function restoreCard(
+export function archiveCard(
 	executor: DbExecutor,
 	id: string,
-	context: CardReadContext
-): Promise<StudentDetail | null> {
-	const [row] = await executor
-		.update(students)
-		.set({ status: 'active', archivedAt: null, updatedAt: sql`now()` })
-		.where(and(eq(students.id, id), eq(students.status, 'archived')))
-		.returning(cardColumns)
-	return row ? toDetail(executor, row, context) : getCard(executor, id, context)
+	context: CardReadContext,
+	expectedRevision?: number
+): Promise<CardWrite> {
+	const values = { status: 'archived', archivedAt: sql`now()` }
+	return writeCard(executor, id, values, context, expectedRevision, eq(students.status, 'active'))
+}
+
+export function restoreCard(
+	executor: DbExecutor,
+	id: string,
+	context: CardReadContext,
+	expectedRevision?: number
+): Promise<CardWrite> {
+	const values = { status: 'active', archivedAt: null }
+	return writeCard(executor, id, values, context, expectedRevision, eq(students.status, 'archived'))
 }
 
 type OpeningBalanceResult =
 	| { kind: 'ok'; response: StudentResponse }
 	| { kind: 'not_found' }
 	| { kind: 'invalid' }
+	| { kind: 'changed' }
 	| { kind: 'default_time_zone_changed' }
 
 export function setOpeningBalance(
 	db: Database,
 	accountId: string,
 	id: string,
-	{ lessonsHundredths, on, expectedDefaultTimeZone }: OpeningBalanceInput
+	{ lessonsHundredths, on, expectedDefaultTimeZone, expectedRevision }: OpeningBalanceInput
 ): Promise<OpeningBalanceResult> {
 	return db.transaction(async (tx): Promise<OpeningBalanceResult> => {
 		const time = await lockTeacherTimeContext(tx, accountId, expectedDefaultTimeZone)
@@ -176,17 +209,18 @@ export function setOpeningBalance(
 		const { context, settings } = time
 		if (isAfterScheduleToday(on, context.now, context.defaultTimeZone)) return { kind: 'invalid' }
 		const [locked] = await tx
-			.select({ defaultLessonMinutes: students.defaultLessonMinutes })
+			.select({ defaultLessonMinutes: students.defaultLessonMinutes, revision: students.revision })
 			.from(students)
 			.where(eq(students.id, id))
 			.for('update')
 		if (!locked) return { kind: 'not_found' }
+		if (expectedRevision !== undefined && locked.revision !== expectedRevision) return { kind: 'changed' }
 		const [row] = await tx
 			.update(students)
 			.set({
 				openingBalanceMinutes: lessonsToMinutes(lessonsHundredths, locked.defaultLessonMinutes),
 				openingBalanceOn: on,
-				updatedAt: sql`now()`,
+				...nextRevision,
 			})
 			.where(eq(students.id, id))
 			.returning(cardColumns)

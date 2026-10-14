@@ -99,25 +99,35 @@ const amountMinor = z.number().int().min(1).max(AMOUNT_MINOR_MAX)
 
 const currency = z.enum(CURRENCIES)
 
-export const saveStudentRequest = z
-	.object({
-		displayName: z.string().transform(normalizeDisplayName).refine(isDisplayNameLength),
-		rateMinor: amountMinor.nullable(),
-		currency: currency.nullable(),
-		defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN),
-		parent: optionalText(STUDENT_TEXT_MAX_LENGTH),
-		level: optionalText(STUDENT_TEXT_MAX_LENGTH),
-		goals: optionalText(STUDENT_TEXT_MAX_LENGTH),
-		timeZone: optionalText(TIME_ZONE_MAX_LENGTH).refine((value) => value === null || isTimeZone(value)),
-		noShowDeducts: z.boolean().optional(),
-		gender: z.enum(GENDERS).nullable().optional(),
-	})
-	.refine((value) => (value.rateMinor === null) === (value.currency === null))
+const revision = z.number().int().min(1)
+
+const studentFields = z.object({
+	displayName: z.string().transform(normalizeDisplayName).refine(isDisplayNameLength),
+	rateMinor: amountMinor.nullable(),
+	currency: currency.nullable(),
+	defaultLessonMinutes: z.number().int().min(LESSON_MINUTES_MIN),
+	parent: optionalText(STUDENT_TEXT_MAX_LENGTH),
+	level: optionalText(STUDENT_TEXT_MAX_LENGTH),
+	goals: optionalText(STUDENT_TEXT_MAX_LENGTH),
+	timeZone: optionalText(TIME_ZONE_MAX_LENGTH).refine((value) => value === null || isTimeZone(value)),
+	noShowDeducts: z.boolean().optional(),
+	gender: z.enum(GENDERS).nullable().optional(),
+})
+
+const ratePair = (value: { rateMinor: number | null; currency: Currency | null }) =>
+	(value.rateMinor === null) === (value.currency === null)
+
+export const saveStudentRequest = studentFields.refine(ratePair)
+
+export const updateStudentRequest = studentFields.extend({ expectedRevision: revision.optional() }).refine(ratePair)
+
+export const cardRevisionRequest = z.strictObject({ expectedRevision: revision.optional() })
 
 export const openingBalanceRequest = z.object({
 	lessonsHundredths,
 	on: isoDate,
 	expectedDefaultTimeZone: z.string().refine(isTimeZone),
+	expectedRevision: revision.optional(),
 })
 
 export const saveSectionRequest = z.object({
@@ -159,10 +169,23 @@ export const recordPaymentRequest = z.object({
 	note: optionalText(PAYMENT_NOTE_MAX_LENGTH),
 })
 
+export const updatePaymentRequest = z.object({
+	paidOn: isoDate,
+	expectedDefaultTimeZone: z.string().refine(isTimeZone),
+	amountMinor,
+	currency,
+	lessonsHundredths: lessonsHundredths.nullable(),
+	note: optionalText(PAYMENT_NOTE_MAX_LENGTH),
+	expectedRevision: revision,
+})
+
+export const paymentRevisionRequest = z.strictObject({ expectedRevision: revision.optional() })
+
 export const assignPaymentRequest = z.object({
 	studentId: z.uuid(),
 	currency: currency.nullable(),
 	lessonsHundredths: lessonsHundredths.nullable(),
+	expectedRevision: revision.optional(),
 })
 
 export const linkStudentAccountRequest = z.object({
@@ -203,6 +226,7 @@ export type StudentDetail = StudentRow & {
 	gender: Gender | null
 	archivedAt: string | null
 	account: StudentAccount | null
+	revision: number
 }
 
 export type StudentResponse = {
@@ -248,6 +272,7 @@ export type PaymentRow = {
 	note: string | null
 	source: PaymentSource
 	createdAt: string
+	revision: number
 }
 
 export type PaymentsResponse = { payments: PaymentRow[] }

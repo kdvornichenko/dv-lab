@@ -110,11 +110,13 @@ export const students = pgTable(
 		openingBalanceMinutes: integer('opening_balance_minutes'),
 		openingBalanceOn: date('opening_balance_on'),
 		importKey: text('import_key').unique('students_import_key_uq'),
+		revision: integer('revision').default(1).notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 		archivedAt: timestamp('archived_at', { withTimezone: true }),
 	},
 	(table) => [
+		check('students_revision_ck', sql`${table.revision} >= 1`),
 		check('students_status_ck', sql`${table.status} in ('active', 'archived')`),
 		check('students_archived_at_ck', sql`(${table.status} = 'archived') = (${table.archivedAt} is not null)`),
 		check('students_display_name_ck', sql`char_length(${table.displayName}) between 1 and 80`),
@@ -191,10 +193,12 @@ export const payments = pgTable(
 		note: text('note'),
 		source: text('source').notNull(),
 		importKey: text('import_key').unique('payments_import_key_uq'),
+		revision: integer('revision').default(1).notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => [
 		index('payments_student_paid_idx').on(table.studentId, table.paidOn),
+		check('payments_revision_ck', sql`${table.revision} >= 1`),
 		check('payments_amount_ck', sql`${table.amountMinor} > 0`),
 		check('payments_currency_format_ck', sql`${table.currency} is null or ${table.currency} ~ '^[A-Z]{3}$'`),
 		check(

@@ -71,6 +71,7 @@ function toPaymentRow(row: PaymentRecord): PaymentRow {
 		note: row.note,
 		source: toSource(row.source),
 		createdAt: row.createdAt.toISOString(),
+		revision: row.revision,
 	}
 }
 
