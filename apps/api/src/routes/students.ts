@@ -5,6 +5,7 @@ import { z } from 'zod'
 import {
 	type AccountCandidatesResponse,
 	type CreateStudentAccountResponse,
+	type ReorderBlocksResponse,
 	SECTION_KINDS,
 	type StudentAccountResponse,
 	type StudentBlockResponse,
@@ -19,11 +20,15 @@ import {
 	type StudentTermsResponse,
 	type StudentsResponse,
 	addTermRequest,
+	blockRevisionRequest,
 	cardRevisionRequest,
+	createBlockRequest,
 	createStudentAccountRequest,
 	deactivateStudentAccountRequest,
 	linkStudentAccountRequest,
 	openingBalanceRequest,
+	renameBlockRequest,
+	reorderBlocksRequest,
 	retractNoteRequest,
 	saveBlockRequest,
 	saveSectionRequest,
@@ -35,7 +40,16 @@ import { type Database, type DbExecutor, postgresCode, readSnapshot } from '@dv-
 
 import { type AppEnv, noStore, readJson, readOptionalJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
-import { type BlockWrite, listBlocks, saveBlockText } from '../cards/blocks.ts'
+import {
+	type BlockNameWrite,
+	createBlock,
+	deleteBlock,
+	listBlocks,
+	renameBlock,
+	reorderBlocks,
+	restoreBlock,
+	saveBlockText,
+} from '../cards/blocks.ts'
 import {
 	cardAccountCandidates,
 	createCardAccount,
@@ -89,9 +103,12 @@ function blockIdParam(c: Context<AppEnv>): string | null {
 	return id.success ? id.data : null
 }
 
-function blockReply(c: Context<AppEnv>, result: BlockWrite, status: 200 | 201 = 200) {
+function blockReply(c: Context<AppEnv>, result: BlockNameWrite, status: 200 | 201 = 200) {
 	if (result.kind === 'not_found') return notFound(c)
 	if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The block changed'), 409)
+	if (result.kind === 'name_taken') {
+		return c.json(errorBody('block_name_taken', 'A block with this name already exists'), 409)
+	}
 	return c.json({ block: result.block } satisfies StudentBlockResponse, status)
 }
 
@@ -303,6 +320,26 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		return c.json({ blocks, reviewedAt: null, reviewRunning: null } satisfies StudentBlocksResponse, 200)
 	})
 
+	routes.post('/:id/blocks', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, createBlockRequest)
+		if (!input) return invalidRequest(c)
+		const result = await createBlock(db, id, input)
+		return blockReply(c, result, 201)
+	})
+
+	routes.put('/:id/blocks/order', async (c) => {
+		const id = cardId(c)
+		if (id === null) return notFound(c)
+		const input = await readJson(c, reorderBlocksRequest)
+		if (!input) return invalidRequest(c)
+		const result = await db.transaction((tx) => reorderBlocks(tx, id, input.blocks))
+		if (result.kind === 'not_found') return notFound(c)
+		if (result.kind === 'changed') return c.json(errorBody('precondition_failed', 'The blocks changed'), 409)
+		return c.json({ blocks: result.blocks } satisfies ReorderBlocksResponse, 200)
+	})
+
 	routes.put('/:id/blocks/:blockId', async (c) => {
 		const id = cardId(c)
 		const blockId = blockIdParam(c)
@@ -310,6 +347,36 @@ export function studentRoutes({ db }: StudentRouteDeps) {
 		const input = await readJson(c, saveBlockRequest)
 		if (!input) return invalidRequest(c)
 		const result = await db.transaction((tx) => saveBlockText(tx, id, blockId, input.body, input.expectedRevision))
+		return blockReply(c, result)
+	})
+
+	routes.patch('/:id/blocks/:blockId', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, renameBlockRequest)
+		if (!input) return invalidRequest(c)
+		const result = await renameBlock(db, id, blockId, input.name, input.expectedRevision)
+		return blockReply(c, result)
+	})
+
+	routes.delete('/:id/blocks/:blockId', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, blockRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await db.transaction((tx) => deleteBlock(tx, id, blockId, input.expectedRevision))
+		return blockReply(c, result)
+	})
+
+	routes.post('/:id/blocks/:blockId/restore', async (c) => {
+		const id = cardId(c)
+		const blockId = blockIdParam(c)
+		if (id === null || blockId === null) return notFound(c)
+		const input = await readJson(c, blockRevisionRequest)
+		if (!input) return invalidRequest(c)
+		const result = await restoreBlock(db, id, blockId, input.expectedRevision)
 		return blockReply(c, result)
 	})
 

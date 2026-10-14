@@ -176,6 +176,36 @@ export type StudentBlockResponse = z.infer<typeof studentBlockResponse>
 
 export const saveBlockRequest = z.strictObject({ body: sectionBody, expectedRevision: revision })
 
+export const BLOCK_NAME_MAX_LENGTH = 60
+
+export const BLOCKS_MAX = 200
+
+const blockName = z
+	.string()
+	.transform((value) => value.trim())
+	.refine((value) => {
+		const length = textLength(value)
+		return length >= 1 && length <= BLOCK_NAME_MAX_LENGTH && !value.includes('\u0000')
+	})
+
+export const createBlockRequest = z.strictObject({ name: blockName, body: sectionBody.default('') })
+
+export const renameBlockRequest = z.strictObject({ name: blockName, expectedRevision: revision })
+
+export const blockRevisionRequest = z.strictObject({ expectedRevision: revision })
+
+export const reorderBlocksRequest = z.strictObject({
+	blocks: z
+		.array(z.strictObject({ id: z.uuid(), expectedRevision: revision }))
+		.min(1)
+		.max(BLOCKS_MAX)
+		.refine((blocks) => new Set(blocks.map((block) => block.id)).size === blocks.length),
+})
+
+export const reorderBlocksResponse = z.strictObject({ blocks: z.array(noteBlock) })
+
+export type ReorderBlocksResponse = z.infer<typeof reorderBlocksResponse>
+
 export const addTermRequest = z.object({
 	term: z
 		.string()

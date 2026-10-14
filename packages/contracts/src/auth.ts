@@ -52,6 +52,7 @@ export const errorCodes = [
 	'card_has_account',
 	'account_already_linked',
 	'term_exists',
+	'block_name_taken',
 	'payment_already_assigned',
 	'lesson_changed',
 	'lesson_done',

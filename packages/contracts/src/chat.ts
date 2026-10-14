@@ -651,6 +651,7 @@ export const chatExcerptBlock = z.strictObject({
 	id: z.string().min(1),
 	studentId: z.uuid(),
 	sectionKind: z.enum(SECTION_KINDS).optional(),
+	blockId: z.uuid().optional(),
 	body: z.string(),
 	createdAt: calendarInstant,
 	timeZone: calendarTimeZone,

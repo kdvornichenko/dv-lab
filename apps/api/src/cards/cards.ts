@@ -249,7 +249,10 @@ export async function importCard(
 		.values({ ...values, noShowDeducts: true, importKey })
 		.onConflictDoNothing({ target: students.importKey })
 		.returning({ id: students.id })
-	if (row) return { id: row.id, inserted: true }
+	if (row) {
+		await executor.insert(studentSections).values(standardBlocks(row.id))
+		return { id: row.id, inserted: true }
+	}
 	const [existing] = await executor.select({ id: students.id }).from(students).where(eq(students.importKey, importKey))
 	if (!existing) throw new Error('imported student card is missing after a conflict')
 	return { id: existing.id, inserted: false }

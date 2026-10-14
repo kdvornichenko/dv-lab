@@ -29,9 +29,9 @@ import {
 import { type Weekday, addDays, lessonDay, zonedParts } from '@dv-lab/core'
 import { type Database, type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
+import { isStandardKind, listBlocks } from '../cards/blocks.ts'
 import { listLessonStudents, studentGenders } from '../cards/cards.ts'
 import { listStudentNotes } from '../cards/notes.ts'
-import { listSections } from '../cards/sections.ts'
 import { listStudentComments } from '../schedule/comments.ts'
 import { occurrenceStartsAt } from '../schedule/rows.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
@@ -439,7 +439,7 @@ function excerptOf(
 
 async function studentNotes(executor: DbExecutor, context: ToolContext, studentId: string): Promise<ToolOutcome> {
 	const zone = context.chat.defaultTimeZone
-	const sections = await listSections(executor, studentId)
+	const sections = await listBlocks(executor, studentId)
 	const notes = await listStudentNotes(executor, context.chat.accountId, studentId)
 	if (sections === null || notes === null) return failure('student_not_found')
 	const comments = await listStudentComments(executor, context.chat.accountId, studentId, RECORDS_MAX + 1)
@@ -468,19 +468,24 @@ async function studentNotes(executor: DbExecutor, context: ToolContext, studentI
 		})),
 	].sort((left, right) => right.at.localeCompare(left.at))
 	const filled = sections
-		.filter((section) => section.body.trim() !== '')
-		.map((section) => {
-			const id = `${studentId}:${section.kind}`
+		.filter((block) => block.body.trim() !== '')
+		.map((block) => {
+			const id = `${studentId}:${block.key}`
+			const sectionKind = isStandardKind(block.key) ? block.key : undefined
 			const excerpt =
-				section.updatedAt === null
+				block.updatedAt === null
 					? null
-					: excerptOf('section', id, studentId, sectionExcerpt(section.body), section.updatedAt, zone, section.kind)
+					: {
+							...excerptOf('section', id, studentId, sectionExcerpt(block.body), block.updatedAt, zone, sectionKind),
+							blockId: block.id,
+						}
 			return {
 				excerpt,
 				record: {
-					kind: section.kind,
+					kind: block.key,
+					name: block.name,
 					...(excerpt === null ? {} : { cite: `[[section:${id}]]` }),
-					text: clip(section.body),
+					text: clip(block.body),
 				},
 			}
 		})
