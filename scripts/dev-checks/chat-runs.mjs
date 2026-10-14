@@ -1426,7 +1426,7 @@ async function main() {
 	const recapText = String(recapRequest.messages.at(-1).content)
 	check(
 		'/recap goes to the model as a recap task with the tools',
-		recapText.includes('Prepare a recap for the mentioned student') &&
+		recapText.includes('Prepare a short recap for the mentioned student') &&
 			!recapText.includes('[Message]\n/recap') &&
 			recapRequest.tools.some((item) => item.name === 'student_notes')
 	)
