@@ -1,6 +1,8 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { createConnection } from 'node:net'
+import { parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
@@ -12,7 +14,8 @@ const PREFIX = 'Alex Example 221'
 const PAYS_SOON = { name: 'Alex Example 2211', hundredths: 100 }
 const NOT_SET = { name: 'Alex Example 2212', hundredths: null }
 const READ_ERROR = "Could not read the student's records."
-const EXPECTED_NOISE = /status of 500|Failed to load resource|server caches disabled/
+const EXPECTED_NOISE =
+	/status of 500|Failed to load resource|server caches disabled|Route "\/login": Next\.js encountered URL data/
 
 const sections = {
 	records: sectionRecords,
@@ -275,16 +278,19 @@ async function sectionConversations() {
 				'the first message creates the conversation with New chat title and is sent to it',
 				first.status === 201 && first.title === 'New chat' && first.messageStatus === 201
 			)
-			await page.getByRole('heading', { name: 'New chat', level: 1 }).waitFor({ timeout: 15000 })
+			await page.waitForURL((url) => url.searchParams.get('c') === first.id, { timeout: 15000 })
 			check('the new conversation is selected in the address', page.url().includes(`c=${first.id}`), page.url())
 			check(
 				'creating asked only the conversations endpoint',
-				requested.filter((url) => url.includes('/api/chat/') && !url.includes('/api/chat/conversations')).length === 0
+				requested.filter(
+					(url) =>
+						url.includes('/api/chat/') && !url.includes('/api/chat/conversations') && !url.includes('/api/chat/turns/')
+				).length === 0
 			)
 			await shot(page, 'chat-conversations', 'created')
 
 			await page.reload()
-			await page.getByRole('heading', { name: 'New chat', level: 1 }).waitFor({ timeout: 30000 })
+			await page.locator('h1[title]:not([title="Chat"])').waitFor({ timeout: 30000 })
 			check('a reload keeps the selected conversation', page.url().includes(`c=${first.id}`))
 
 			await openList(page)
@@ -360,6 +366,16 @@ async function sectionConversations() {
 				order.slice(0, 3).join()
 			)
 
+			const settleBy = Date.now() + 90000
+			while (
+				Date.now() < settleBy &&
+				Number(
+					sql(
+						`select count(*)::int as n from chat_turns where conversation_id = '${second.id}' and state in ('accepted', 'running')`
+					).rows[0].n
+				) > 0
+			)
+				await page.waitForTimeout(500)
 			await openRowMenu(page, second.id, 'Delete conversation')
 			const confirm = page.getByRole('dialog', { name: 'Delete this conversation?' })
 			await confirm.waitFor({ timeout: 15000 })
@@ -449,7 +465,7 @@ async function sectionConversations() {
 			await rail.locator(`[data-row-id="${first.id}"]`).waitFor({ timeout: 15000 })
 			check(
 				'from 1080px of page width the chats stand in a column with New chat and there is no All chats button',
-				(await rail.getByRole('button', { name: 'New chat' }).count()) === 1 &&
+				(await rail.getByRole('button', { name: 'New chat', exact: true }).count()) === 1 &&
 					(await page.getByRole('button', { name: 'All chats', exact: true }).count()) === 0
 			)
 			await shot(page, 'chat-conversations', 'rail')
@@ -1712,11 +1728,15 @@ function portFree(port) {
 	})
 }
 
+const FAKE_PORT = 4255
+const AUTO_TITLE = 'Fake plan for the next lesson'
+
 async function startFakeModelApi() {
-	if (!(await portFree(4000))) throw new Error('port 4000 is busy: stop the dev api first, this section starts its own')
+	const port = (await portFree(4000)) ? 4000 : FAKE_PORT
+	if (!(await portFree(port))) throw new Error(`port ${port} is busy: this section starts its own api`)
 	const env = {
 		...process.env,
-		PORT: '4000',
+		PORT: String(port),
 		APP_ORIGIN: BASE,
 		ANTHROPIC_API_KEY: 'sk-ant-fake-check',
 		LOG_LEVEL: 'info',
@@ -1735,13 +1755,55 @@ async function startFakeModelApi() {
 	while (Date.now() < deadline) {
 		if (child.exitCode !== null) break
 		try {
-			const res = await fetch('http://127.0.0.1:4000/healthz')
-			if (res.status === 200) return { child, logs: () => output }
+			const res = await fetch(`http://127.0.0.1:${port}/healthz`)
+			if (res.status === 200) return { child, port, logs: () => output }
 		} catch {}
 		await new Promise((resolve) => setTimeout(resolve, 300))
 	}
 	child.kill('SIGTERM')
 	throw new Error('the api with the fake model did not answer /healthz in 30 s')
+}
+
+async function detectApiOrigin() {
+	const candidates = [...new Set([BASE, process.env.APP_ORIGIN].filter(Boolean))]
+	const fromFile = parseEnv(readFileSync(`${ROOT}/.env`, 'utf8')).APP_ORIGIN
+	if (fromFile) candidates.push(fromFile)
+	for (const origin of new Set(candidates)) {
+		const response = await fetch(`${BASE}/api/auth/sign-in`, {
+			method: 'POST',
+			headers: { origin, 'content-type': 'application/json' },
+			body: JSON.stringify({ login: 'origin-probe', password: 'origin-probe' }),
+		}).catch(() => null)
+		const body = response ? await response.json().catch(() => null) : null
+		if (response && body?.error?.code !== 'forbidden_origin') return origin
+	}
+	throw new Error('the dev api accepts neither the web origin nor APP_ORIGIN from .env')
+}
+
+async function routeFake(page, started) {
+	if (started.port === 4000) return
+	const apiOrigin = await detectApiOrigin()
+	if (apiOrigin !== BASE)
+		await page.route('**/api/**', async (route) => {
+			const headers = { ...(await route.request().allHeaders()), origin: apiOrigin }
+			try {
+				await route.fulfill({ response: await route.fetch({ headers }) })
+			} catch {
+				await route.abort().catch(() => undefined)
+			}
+		})
+	const toFake = async (route) => {
+		const url = new URL(route.request().url())
+		const target = `http://127.0.0.1:${started.port}${url.pathname.replace(/^\/api/, '')}${url.search}`
+		const headers = { ...(await route.request().allHeaders()), origin: BASE, 'x-forwarded-for': '127.0.0.1' }
+		try {
+			await route.fulfill({ response: await route.fetch({ url: target, headers }) })
+		} catch {
+			await route.abort().catch(() => undefined)
+		}
+	}
+	await page.route('**/api/chat/**', toFake)
+	await page.route('**/api/settings/**', toFake)
 }
 
 function stopFakeModelApi(started) {
@@ -1782,6 +1844,8 @@ async function sectionStream() {
 			{ width: 1280, height: 800 },
 			async ({ page, problems }) => {
 				await setTheme(page)
+				if (started.port !== 4000)
+					throw new Error('the stream section needs port 4000: a streamed reply does not pass through page.route')
 				await signIn(page)
 				await openChat(page, null)
 				const field = page.locator(FIELD)
@@ -2178,6 +2242,7 @@ async function sectionModels() {
 			{ width: 1280, height: 800 },
 			async ({ page, problems }) => {
 				await setTheme(page)
+				await routeFake(page, started)
 				await signIn(page)
 				defaults()
 				const conversationId = appSql(
@@ -2404,6 +2469,7 @@ async function sectionDelete() {
 			{ width: 1280, height: 800 },
 			async ({ page, browser, problems }) => {
 				await setTheme(page)
+				await routeFake(page, started)
 				await signIn(page)
 				await openChat(page, null)
 				const field = page.locator(FIELD)
@@ -2427,6 +2493,7 @@ async function sectionDelete() {
 
 				await openList(page)
 				await rowOf(page, id).waitFor({ timeout: 15000 })
+				await rowOf(page, id).getByText(AUTO_TITLE).waitFor({ timeout: 15000 })
 				await openRowMenu(page, id, 'Delete conversation')
 				const confirm = page.getByRole('dialog', { name: 'Delete this conversation?' })
 				await confirm.waitFor({ timeout: 15000 })

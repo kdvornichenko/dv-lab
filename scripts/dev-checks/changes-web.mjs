@@ -1977,12 +1977,235 @@ async function sectionEssay() {
 	}
 }
 
+const TITLE_PORT = 4254
+const AUTO_TITLE = 'Fake plan for the next lesson'
+const LONG_TITLE = 'Fake plan for the next lesson with many'
+const MANUAL_TITLE = 'Chat check Manual title'
+const TITLE_REPLY_TEXT = 'Plan the next lesson for my group'
+
+const conversationRow = (id) => sql(`select title, revision from chat_conversations where id = '${id}'`).rows[0]
+
+function listReads(page) {
+	const reads = { count: 0 }
+	page.on('request', (request) => {
+		if (request.method() === 'GET' && new URL(request.url()).pathname === '/api/chat/conversations') reads.count++
+	})
+	return reads
+}
+
+async function finishTurn(page, text) {
+	await typeSend(page, text)
+	await page.locator(STOP).waitFor({ timeout: 15000 })
+	await page.locator(SEND).waitFor({ timeout: 30000 })
+	return Date.now()
+}
+
+const headerTitle = (page) => page.locator('h1[title]')
+
+async function titleShown(page, id, title) {
+	const row = page.locator('li').filter({ has: page.locator(`[data-row-id="${id}"]`) })
+	return {
+		header: (await headerTitle(page).count()) === 1 && (await headerTitle(page).innerText()) === title,
+		list: (await row.count()) === 1 && (await row.innerText()).includes(title),
+	}
+}
+
+async function sectionTitle() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+	const started = await startFakeModelApi(TITLE_PORT)
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	const period = readBudget(teacher)
+	const idOf = (page) => new URL(page.url()).searchParams.get('c')
+	try {
+		await withBrowser(
+			{ width: 1440, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, TITLE_PORT)
+				await signIn(page)
+				await newChat(page)
+				const reads = listReads(page)
+				let navigations = 0
+				page.on('framenavigated', (frame) => {
+					if (frame === page.mainFrame()) navigations++
+				})
+				await page.evaluate(() => {
+					window.__titleCheck = 'kept'
+				})
+
+				const endedAt = await finishTurn(page, TITLE_REPLY_TEXT)
+				const first = idOf(page)
+				if (first) conversations.push(first)
+				const navigationsAtEnd = navigations
+				const readsAtEnd = reads.count
+				const before = await titleShown(page, first, 'New chat')
+				check('right after the reply the header and the list still say New chat', before.header && before.list)
+				await headerTitle(page).filter({ hasText: AUTO_TITLE }).waitFor({ timeout: 8000 })
+				const elapsed = Date.now() - endedAt
+				const shown = await titleShown(page, first, AUTO_TITLE)
+				check(
+					'the header and the list show the generated title without a reload',
+					shown.header &&
+						shown.list &&
+						navigations === navigationsAtEnd &&
+						(await page.evaluate(() => window.__titleCheck)) === 'kept',
+					JSON.stringify({ shown, navigations })
+				)
+				check(
+					'the title arrives after the first quiet re-read, not instantly',
+					elapsed >= 1000 && elapsed <= 5000,
+					`${elapsed} ms`
+				)
+				check('one quiet list read brought the title', reads.count - readsAtEnd === 1, String(reads.count - readsAtEnd))
+				const stored = conversationRow(first)
+				check(
+					'the stored title and revision match the screen',
+					stored.title === AUTO_TITLE && Number(stored.revision) === 2,
+					JSON.stringify(stored)
+				)
+				await shot(page, 'changes-title', 'generated')
+				const readsAtTitle = reads.count
+				await page.waitForTimeout(7500)
+				check(
+					'after the title arrived no more list reads are made',
+					reads.count === readsAtTitle,
+					String(reads.count - readsAtTitle)
+				)
+
+				await finishTurn(page, 'Another plan please')
+				await page.waitForTimeout(7000)
+				const afterSecond = conversationRow(first)
+				check(
+					'a second turn keeps the title, the revision and makes no extra list reads',
+					afterSecond.title === AUTO_TITLE &&
+						Number(afterSecond.revision) === 2 &&
+						(await titleShown(page, first, AUTO_TITLE)).header &&
+						reads.count === readsAtTitle,
+					JSON.stringify({ afterSecond, extra: reads.count - readsAtTitle })
+				)
+
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 15000 })
+				await finishTurn(page, `[fake:title-slow] ${TITLE_REPLY_TEXT}`)
+				const manual = idOf(page)
+				if (manual) conversations.push(manual)
+				const renamed = await formsApi(page, apiOrigin, 'PATCH', `/chat/conversations/${manual}`, {
+					title: MANUAL_TITLE,
+					expectedRevision: Number(conversationRow(manual).revision),
+				})
+				check('a manual rename before the generated title is accepted', renamed.status === 200, String(renamed.status))
+				await headerTitle(page).filter({ hasText: MANUAL_TITLE }).waitFor({ timeout: 8000 })
+				await page.waitForTimeout(6500)
+				const kept = conversationRow(manual)
+				const keptShown = await titleShown(page, manual, MANUAL_TITLE)
+				check(
+					'the manual title wins on the screen and in the database',
+					kept.title === MANUAL_TITLE && Number(kept.revision) === 2 && keptShown.header && keptShown.list,
+					JSON.stringify({ kept, keptShown })
+				)
+				await shot(page, 'changes-title', 'manual-wins')
+
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 15000 })
+				let blocking = false
+				await page.route('**/api/chat/conversations', async (route) => {
+					if (blocking && route.request().method() === 'GET') return route.abort()
+					return route.fallback()
+				})
+				blocking = true
+				await finishTurn(page, TITLE_REPLY_TEXT)
+				const raced = idOf(page)
+				if (raced) conversations.push(raced)
+				const row = page.locator('li').filter({ has: page.locator(`[data-row-id="${raced}"]`) })
+				await row.hover()
+				await row.getByRole('button', { name: /^More:/ }).click()
+				await page.getByRole('menuitem', { name: 'Rename conversation' }).click()
+				const dialog = page.getByRole('dialog', { name: 'Rename conversation' })
+				await dialog.waitFor({ timeout: 15000 })
+				const field = dialog.getByLabel('Conversation title')
+				check('the dialog opens with New chat while the list is stale', (await field.inputValue()) === 'New chat')
+				await field.fill(MANUAL_TITLE)
+				const deadline = Date.now() + 8000
+				while (Date.now() < deadline && conversationRow(raced).title === 'New chat') await page.waitForTimeout(250)
+				check(
+					'the generated title landed on the server while the screen was stale',
+					conversationRow(raced).title === AUTO_TITLE && (await field.inputValue()) === MANUAL_TITLE
+				)
+				blocking = false
+				await dialog.getByRole('button', { name: 'Save title' }).click()
+				await dialog.waitFor({ state: 'detached', timeout: 15000 })
+				await headerTitle(page).filter({ hasText: MANUAL_TITLE }).waitFor({ timeout: 8000 })
+				const retried = conversationRow(raced)
+				check(
+					'a conflict from the generated title repeats the typed name once and it wins',
+					retried.title === MANUAL_TITLE && Number(retried.revision) === 3,
+					JSON.stringify(retried)
+				)
+				await page.waitForTimeout(6500)
+				check('no later read brings the generated title back', conversationRow(raced).title === MANUAL_TITLE)
+				await shot(page, 'changes-title', 'rename-conflict')
+
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 15000 })
+				await finishTurn(page, `[fake:title-long] ${TITLE_REPLY_TEXT}`)
+				const long = idOf(page)
+				if (long) conversations.push(long)
+				await headerTitle(page).filter({ hasText: LONG_TITLE }).waitFor({ timeout: 8000 })
+				for (const width of WIDTHS) {
+					await page.setViewportSize({ width, height: 844 })
+					await page.goto(`${BASE}/chat?c=${long}`)
+					await headerTitle(page).filter({ hasText: LONG_TITLE }).waitFor({ timeout: 30000 })
+					const open = page.getByRole('button', { name: 'All chats', exact: true })
+					if ((await open.count()) === 1 && (await open.getAttribute('aria-expanded')) !== 'true') await open.click()
+					await page.waitForTimeout(400)
+					const fit = await page.evaluate(
+						({ width, long }) => {
+							const header = document.querySelector('h1[title]')?.getBoundingClientRect()
+							const row = document.querySelector(`[data-row-id="${long}"] span.truncate`)?.getBoundingClientRect()
+							return {
+								header: header ? { x: header.x, right: header.right } : null,
+								row: row ? { x: row.x, right: row.right } : null,
+								overflow: document.documentElement.scrollWidth - window.innerWidth,
+								width,
+							}
+						},
+						{ width, long }
+					)
+					check(
+						`at ${width} px the long title stays inside the screen in the header and the list`,
+						fit.header !== null &&
+							fit.header.x >= 0 &&
+							fit.header.right <= width + 0.5 &&
+							(fit.row === null || (fit.row.x >= 0 && fit.row.right <= width + 0.5)) &&
+							fit.overflow <= 0,
+						JSON.stringify(fit)
+					)
+					await shot(page, 'changes-title', `phone-${width}`)
+				}
+				await page.setViewportSize({ width: 1440, height: 800 })
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+				check('the api log has no message text or title', !started.logs().includes(TITLE_REPLY_TEXT))
+			},
+			() => removeConversations([...new Set(conversations)]),
+			() => restoreBudget(period)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+	}
+}
+
 const sections = {
 	payment: sectionPayment,
 	forms: sectionForms,
 	proposals: sectionProposals,
 	bulk: sectionBulk,
 	essay: sectionEssay,
+	title: sectionTitle,
 }
 const section = process.argv[2]
 const run = sections[section]
