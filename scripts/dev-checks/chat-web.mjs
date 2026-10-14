@@ -2850,7 +2850,7 @@ async function sectionPreviewRows() {
 			const tag = `${width}`
 			await page.setViewportSize({ width, height: 760 })
 			await page.goto(`${BASE}/chat?c=${PREVIEW_ROWS.plain.id}`)
-			await page.locator('h1').waitFor({ timeout: 30000 })
+			await page.locator('h1').first().waitFor({ timeout: 30000 })
 			if (width < 1500) await openList(page)
 			await rowOf(page, PREVIEW_ROWS.plain.id).waitFor({ timeout: 15000 })
 			await page.waitForTimeout(600)
