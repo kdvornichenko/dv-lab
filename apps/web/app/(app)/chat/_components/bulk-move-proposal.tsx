@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { ArrowRight, Check, ChevronDown, ChevronUp, Info, Minus, Repeat, TriangleAlert } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronUp, Info, Minus, RefreshCw, Repeat, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 
 import { Panel } from '@/components/app/layout-parts'
@@ -275,8 +275,9 @@ export function BulkMoveProposal({
 	block,
 	onConfirm,
 	onDecline,
+	onRefresh,
 	onCheck,
-}: { block: BulkBlock } & Pick<ChangeHandlers, 'onConfirm' | 'onDecline'> & {
+}: { block: BulkBlock } & Pick<ChangeHandlers, 'onConfirm' | 'onDecline' | 'onRefresh'> & {
 		onCheck: (actionId: string) => Promise<void>
 	}) {
 	const { change } = block
@@ -284,6 +285,7 @@ export function BulkMoveProposal({
 	const [pending, setPending] = useState<Decision | null>(null)
 	const [checking, setChecking] = useState(false)
 	const [unknown, setUnknown] = useState(false)
+	const [refreshing, setRefreshing] = useState(false)
 	const status = useRef<HTMLDivElement>(null)
 	const previous = useRef(block.state)
 	const listId = `bulk-${block.actionId}`
@@ -309,6 +311,14 @@ export function BulkMoveProposal({
 		const known = await (decision === 'confirm' ? onConfirm : onDecline)(block.actionId)
 		setPending(null)
 		setUnknown(!known)
+	}
+
+	const refresh = async () => {
+		if (refreshing) return
+		setRefreshing(true)
+		const known = await onRefresh()
+		setRefreshing(false)
+		if (known) setUnknown(false)
 	}
 
 	const check = () => {
@@ -354,6 +364,19 @@ export function BulkMoveProposal({
 						text="Could not load this change's status."
 					/>
 					<Scope change={change} secondZone={secondZone} year={year} listId={listId} />
+					<div className="flex flex-wrap gap-2 pl-6">
+						<Button
+							variant="secondary"
+							size="compact"
+							className={TOUCH}
+							disabled={refreshing}
+							aria-busy={refreshing}
+							leadingIcon={refreshing ? Spinner : RefreshCw}
+							onClick={() => void refresh()}
+						>
+							Refresh status
+						</Button>
+					</div>
 				</>
 			)
 		switch (block.state) {
@@ -405,7 +428,6 @@ export function BulkMoveProposal({
 							</p>
 						)}
 						<Caption>{ASK_AGAIN}</Caption>
-						{block.state === 'partial' && summary.unconfirmed > 0 ? checkButton : null}
 					</div>
 				)
 			}

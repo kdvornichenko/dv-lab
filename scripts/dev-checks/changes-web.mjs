@@ -1652,7 +1652,7 @@ async function sectionBulk() {
 				await b.getByText('Some changes are confirmed. The move is not complete.').waitFor({ timeout: 15000 })
 				text = await b.innerText()
 				check(
-					'a partial result keeps the confirmed change and counts planned changes: confirmed, unconfirmed, not started',
+					'a partial result keeps the confirmed change, counts planned changes: confirmed, unconfirmed, not started, and offers no Check status',
 					(await dataState(b)) === 'partial' &&
 						text.includes('1 planned change confirmed. 1 unconfirmed. 1 not started.') &&
 						text.includes('The remaining lessons changed after you asked. The confirmed changes stay.') &&
@@ -1661,18 +1661,10 @@ async function sectionBulk() {
 						!text.includes('Saved') &&
 						JSON.stringify(await states(b)) === JSON.stringify(['applied', 'failed', 'not_started']) &&
 						(await b.getAttribute('aria-busy')) === 'false' &&
-						(await buttons(b)).includes('Check status'),
+						!(await buttons(b)).includes('Check status'),
 					text.replace(/\n/g, ' | ')
 				)
 				await shot(page, 'changes-bulk', 'partial')
-				const sentChecks = hits.check.length
-				await b.getByRole('button', { name: 'Check status' }).click()
-				await page.waitForTimeout(600)
-				check(
-					'Check status on a partial move reads the status again and does not change the counts',
-					hits.check.length === sentChecks + 1 &&
-						(await b.innerText()).includes('1 planned change confirmed. 1 unconfirmed. 1 not started.')
-				)
 
 				await askSynthetic(2)
 				const c = blockAt(2)
