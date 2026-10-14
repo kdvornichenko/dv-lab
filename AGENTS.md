@@ -70,5 +70,5 @@
 
 - Фаза GSD: правила исполнителя — `.planning/EXECUTOR-RULES.md`; охрана корня worktree — `scripts/gsd/root-pin.sh`; режим изоляции перед запуском исполнителей — `scripts/gsd/dispatch.sh <фаза>`.
 - Разовый SQL, фикстуры api, браузерные и приёмочные проверки — `scripts/dev-checks/`, каталог и порядок — `scripts/dev-checks/README.md` (в нём раздел «Проверки фазы 25.2»). Браузерные проверки в Firefox — `DEV_CHECK_BROWSER=firefox`.
-- Проверка коммита на имена учеников и пакеты импорта — `scripts/privacy-check.mjs` (ставится один раз `node scripts/privacy-check.mjs --install`, список имён обновляется `--refresh` и лежит вне репозитория).
+- Проверка коммита на имена учеников, пакеты импорта, частные адреса сетей и хосты ngrok в добавленных строках — `scripts/privacy-check.mjs` (ставится `node scripts/privacy-check.mjs --install`, хук запускает копию в `~/.claude/mods/privacy-check`, после правки скрипта установку повторяют; список имён обновляется `--refresh` и лежит вне репозитория).
 - Подготовка VPS, выкатка, откат, бэкапы и восстановление — `deploy/RUNBOOK.md`.

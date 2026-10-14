@@ -43,33 +43,44 @@ for (const file of stagedFiles) {
 	if (file.endsWith('.vault-import.json')) problems.push(`${file}: import packet must never be committed`)
 }
 
-if (!existsSync(NAMES_FILE)) {
-	if (problems.length === 0) process.exit(0)
-} else {
+const octet = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)'
+const privateAddress = new RegExp(
+	`(?<![\\d.])(?:10\\.${octet}|172\\.(?:1[6-9]|2\\d|3[01])|192\\.168)\\.${octet}\\.${octet}(?![\\d]|\\.\\d)`
+)
+const tunnelHost = /[a-z0-9-]+(?:\.[a-z0-9-]+)*\.ngrok[a-z0-9-]*\.[a-z]{2,}/i
+const checks = [
+	[privateAddress, 'contains a private network address'],
+	[tunnelHost, 'contains an ngrok tunnel host'],
+]
+
+if (existsSync(NAMES_FILE)) {
 	const names = readFileSync(NAMES_FILE, 'utf8')
 		.split('\n')
 		.map((line) => line.trim())
 		.filter((line) => line && !ALLOWED.has(line.toLowerCase()))
 	const escape = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-	const pattern = names.length > 0 ? new RegExp(`(^|[^\\p{L}\\p{N}])(${names.map(escape).join('|')})($|[^\\p{L}\\p{N}])`, 'iu') : null
-	if (pattern) {
-		let file = ''
-		let line = 0
-		for (const row of git('diff', '--cached', '-U0', '--no-color').split('\n')) {
-			if (row.startsWith('+++ b/')) {
-				file = row.slice(6)
-				continue
-			}
-			const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)/.exec(row)
-			if (hunk) {
-				line = Number(hunk[1]) - 1
-				continue
-			}
-			if (!row.startsWith('+') || row.startsWith('+++')) continue
-			line += 1
-			if (pattern.test(row.slice(1))) problems.push(`${file}:${line}: contains a name from the private student list`)
-		}
+	if (names.length > 0)
+		checks.push([
+			new RegExp(`(^|[^\\p{L}\\p{N}])(${names.map(escape).join('|')})($|[^\\p{L}\\p{N}])`, 'iu'),
+			'contains a name from the private student list',
+		])
+}
+
+let file = ''
+let line = 0
+for (const row of git('diff', '--cached', '-U0', '--no-color').split('\n')) {
+	if (row.startsWith('+++ b/')) {
+		file = row.slice(6)
+		continue
 	}
+	const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)/.exec(row)
+	if (hunk) {
+		line = Number(hunk[1]) - 1
+		continue
+	}
+	if (!row.startsWith('+') || row.startsWith('+++')) continue
+	line += 1
+	for (const [pattern, message] of checks) if (pattern.test(row.slice(1))) problems.push(`${file}:${line}: ${message}`)
 }
 
 if (problems.length > 0) {
