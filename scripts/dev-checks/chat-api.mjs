@@ -1427,6 +1427,74 @@ async function sectionActions(ctx) {
 			'api log has no message text',
 			!api.logs().includes(noteText) && !api.logs().includes(commentText) && !api.logs().includes('reading going')
 		)
+
+		const twinName = `${name} Twin`
+		await createCard(ctx, twinName)
+		await createCard(ctx, twinName)
+		const goneName = 'Alex Example 2208 Gone'
+		const typedGone = await createCard(ctx, goneName)
+		const typedArchived = await as('POST', `/students/${typedGone}/archive`)
+		check('the archived fixture card is archived', typedArchived.status === 200, `${typedArchived.status}`)
+		const typedThread = await as('POST', '/chat/conversations')
+		ctx.conversations.push(typedThread.json.conversation.id)
+		const typedPost = (text, mentions = []) =>
+			as('POST', `/chat/conversations/${typedThread.json.conversation.id}/messages`, {
+				requestId: randomUUID(),
+				text,
+				mentions,
+			})
+		const typedStored = (res) => res.json?.messages?.[0]?.mentions
+		const typedLower = name.toLowerCase()
+		const typedText = `/recap @${typedLower}, please`
+		const typed = await typedPost(typedText)
+		check(
+			'a typed @name without a binding is bound by the server in the units of the client, case-insensitive',
+			typed.status === 201 &&
+				isDeepStrictEqual(typedStored(typed), [
+					{ studentId: card, text: typedLower, start: 8, end: 8 + name.length },
+				]) &&
+				typedText.slice(8, 8 + name.length) === typedLower,
+			JSON.stringify(typedStored(typed))
+		)
+		const typedRead = await as('GET', `/chat/conversations/${typedThread.json.conversation.id}`)
+		check(
+			'the server binding is stored with the message',
+			isDeepStrictEqual(typedRead.json.messages.find((item) => item.body === typedText)?.mentions, typedStored(typed))
+		)
+		const typedTwins = await typedPost(`@${twinName} hello`)
+		check(
+			'two active cards with one name are not bound and a shorter name is not taken instead',
+			typedTwins.status === 201 && isDeepStrictEqual(typedStored(typedTwins), []),
+			JSON.stringify(typedStored(typedTwins))
+		)
+		const typedArchivedPost = await typedPost(`@${goneName} hello`)
+		check(
+			'an archived card is not bound',
+			typedArchivedPost.status === 201 && isDeepStrictEqual(typedStored(typedArchivedPost), []),
+			JSON.stringify(typedStored(typedArchivedPost))
+		)
+		const clientText = `@${name} and @${name} again`
+		const typedSecond = clientText.lastIndexOf('@') + 1
+		const typedClient = await typedPost(clientText, [binding])
+		check(
+			'a client binding stays as sent and is not duplicated, another typed @name next to it is bound',
+			typedClient.status === 201 &&
+				isDeepStrictEqual(typedStored(typedClient), [
+					binding,
+					{ studentId: card, text: name, start: typedSecond, end: typedSecond + name.length },
+				]),
+			JSON.stringify(typedStored(typedClient))
+		)
+		const typedInside = await typedPost(`mail@${name} and @${name}x and @${name}`)
+		const typedTail = `mail@${name} and @${name}x and @${name}`.lastIndexOf('@') + 1
+		check(
+			'a name inside a word or followed by a letter is not bound',
+			typedInside.status === 201 &&
+				isDeepStrictEqual(typedStored(typedInside), [
+					{ studentId: card, text: name, start: typedTail, end: typedTail + name.length },
+				]),
+			JSON.stringify(typedStored(typedInside))
+		)
 		return 'CHAT_ACTIONS_OK'
 	} finally {
 		await pool.end()

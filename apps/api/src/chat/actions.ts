@@ -37,7 +37,7 @@ import { type CalendarOutcome, proposeCalendarChange, undoCalendarAction } from 
 import { lockConversation, readConversation, touchConversation } from './conversations.ts'
 import { readChatRecords } from './facts.ts'
 import { resolveLessonTarget } from './lesson-target.ts'
-import { validateMentions } from './mentions.ts'
+import { typedMentions, validateMentions } from './mentions.ts'
 import {
 	blocksOf,
 	findRequest,
@@ -413,13 +413,14 @@ async function respond(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	input: SendMessageRequest
+	input: SendMessageRequest,
+	typed: readonly MentionBinding[]
 ): Promise<Response> {
 	const reading = readCommand(input.text)
 	if (reading !== null) return { blocks: [await readBlock(tx, context, reading)], model: false }
 	const mentions = await validateMentions(tx, context.accountId, input.text, input.mentions)
 	if (mentions.kind === 'stale') return { blocks: [{ type: 'refused', code: 'mention_stale' }], model: false }
-	const request = quickRequest(context, input.text, mentions.bindings)
+	const request = quickRequest(context, input.text, withTyped(mentions.bindings, typed))
 	if (request === null) return { blocks: [], model: true }
 	return { blocks: [await executeIntent(tx, context, source, request)], model: false }
 }
@@ -447,12 +448,17 @@ async function replay(
 
 type SendPlan = { turns: TurnStarter | null; admission: Admission | null; launch: (() => void) | null }
 
+function withTyped(bindings: readonly MentionBinding[], typed: readonly MentionBinding[]): readonly MentionBinding[] {
+	return typed.length === 0 ? bindings : [...bindings, ...typed].sort((left, right) => left.start - right.start)
+}
+
 async function send(
 	tx: DbExecutor,
 	context: ChatContext,
 	conversationId: string,
 	input: SendMessageRequest,
-	plan: SendPlan
+	plan: SendPlan,
+	typed: readonly MentionBinding[]
 ): Promise<SendOutcome> {
 	if ((await lockConversation(tx, context.accountId, conversationId)) === null) return { kind: 'not_found' }
 	const earlier = await replay(tx, context, conversationId, input)
@@ -463,11 +469,11 @@ async function send(
 		conversationId,
 		role: 'teacher',
 		body: input.text,
-		mentions: input.mentions,
+		mentions: withTyped(input.mentions, typed),
 		requestId: input.requestId,
 		requestDigest: requestDigest(conversationId, input),
 	})
-	const response = await respond(tx, context, { conversationId, messageId: teacher.id }, input)
+	const response = await respond(tx, context, { conversationId, messageId: teacher.id }, input, typed)
 	const admission = response.model ? (plan.admission ?? { kind: 'refused', code: 'model_unavailable' }) : null
 	const blocks: ChatBlock[] =
 		admission?.kind === 'refused' ? [{ type: 'refused', code: admission.code }] : response.blocks
@@ -503,7 +509,9 @@ export async function sendMessage(
 	input: SendMessageRequest,
 	turns: TurnStarter | null = null
 ): Promise<SendOutcome> {
-	const freeText = readCommand(input.text) === null && quickRequest(context, input.text, input.mentions) === null
+	const typed = await typedMentions(db, input.text, input.mentions)
+	const freeText =
+		readCommand(input.text) === null && quickRequest(context, input.text, withTyped(input.mentions, typed)) === null
 	const plan: SendPlan = {
 		turns,
 		admission: turns !== null && freeText ? await turns.admit(context, conversationId) : null,
@@ -511,7 +519,7 @@ export async function sendMessage(
 	}
 	let outcome: SendOutcome
 	try {
-		outcome = await db.transaction((tx) => send(tx, context, conversationId, input, plan))
+		outcome = await db.transaction((tx) => send(tx, context, conversationId, input, plan, typed))
 	} catch (error) {
 		if (violatesUnique(error, ACTIVE_TURN_UNIQUE)) return { kind: 'busy' }
 		if (!violatesUnique(error, REQUEST_UNIQUE)) throw error
