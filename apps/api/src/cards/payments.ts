@@ -147,19 +147,29 @@ export function updatePayment(
 		if (!time.ok) return { kind: time.error }
 		if (isAfterScheduleToday(input.paidOn, time.context.now, time.context.defaultTimeZone)) return { kind: 'invalid' }
 		const [current] = await tx
-			.select({ studentId: payments.studentId, revision: payments.revision })
+			.select({
+				studentId: payments.studentId,
+				revision: payments.revision,
+				lessonsCount: payments.lessonsCount,
+				creditedMinutes: payments.creditedMinutes,
+			})
 			.from(payments)
 			.where(eq(payments.id, id))
 			.for('update')
 		if (!current) return { kind: 'not_found' }
 		if (current.studentId === null) return { kind: 'invalid' }
 		if (current.revision !== input.expectedRevision) return { kind: 'changed' }
-		const [card] = await tx
-			.select({ defaultLessonMinutes: students.defaultLessonMinutes })
-			.from(students)
-			.where(eq(students.id, current.studentId))
-			.for('share')
-		if (!card) throw new Error('payment card is missing')
+		const storedHundredths = current.lessonsCount === null ? null : decimalToHundredths(current.lessonsCount)
+		let credited = current.creditedMinutes
+		if (storedHundredths !== input.lessonsHundredths) {
+			const [card] = await tx
+				.select({ defaultLessonMinutes: students.defaultLessonMinutes })
+				.from(students)
+				.where(eq(students.id, current.studentId))
+				.for('share')
+			if (!card) throw new Error('payment card is missing')
+			credited = creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes)
+		}
 		const [row] = await tx
 			.update(payments)
 			.set({
@@ -167,7 +177,7 @@ export function updatePayment(
 				amountMinor: input.amountMinor,
 				currency: input.currency,
 				lessonsCount: input.lessonsHundredths === null ? null : hundredthsToDecimal(input.lessonsHundredths),
-				creditedMinutes: creditedMinutes(input.lessonsHundredths, card.defaultLessonMinutes),
+				creditedMinutes: credited,
 				note: input.note,
 				revision: sql`${payments.revision} + 1`,
 			})
