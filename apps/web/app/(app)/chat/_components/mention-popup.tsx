@@ -146,7 +146,7 @@ export function MentionPopup({
 								aria-selected={index === activeIndex}
 								data-active={index === activeIndex ? '' : undefined}
 								className={cn(
-									'flex min-h-10 shrink-0 cursor-pointer items-center gap-2.5 rounded-md px-3 py-1.5',
+									'flex min-h-10 shrink-0 cursor-pointer items-center gap-2.5 rounded-md px-3 py-1.5 pointer-coarse:min-h-11',
 									index === activeIndex ? 'bg-hover' : 'hover:bg-hover'
 								)}
 								onClick={() => onChoose(index)}

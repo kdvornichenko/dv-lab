@@ -262,7 +262,7 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 														key={item.value}
 														value={item}
 														onClick={() => run(item)}
-														className="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-body text-foreground outline-none select-none data-highlighted:bg-active"
+														className="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-body text-foreground outline-none select-none data-highlighted:bg-active pointer-coarse:h-11"
 													>
 														{item.icon === null ? (
 															<Avatar name={item.label} />
