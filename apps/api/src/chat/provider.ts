@@ -11,6 +11,8 @@ export type ProviderRequest = {
 	messages: Anthropic.MessageParam[]
 }
 
+export type CompleteRequest = Omit<ProviderRequest, 'tools'>
+
 export type ProviderEvent =
 	{ type: 'text'; text: string } | { type: 'text_end' } | { type: 'final'; message: Anthropic.Message }
 
@@ -30,10 +32,12 @@ export class ProviderFault extends Error {
 
 export type ChatProvider = {
 	stream: (request: ProviderRequest, signal: AbortSignal) => AsyncIterable<ProviderEvent>
+	complete: (request: CompleteRequest, signal: AbortSignal) => Promise<Anthropic.Message>
 	availability: (modelId: string) => Promise<boolean>
 }
 
 const AVAILABILITY_TTL_MS = 60 * 60 * 1000
+const COMPLETE_TIMEOUT_MS = 30 * 1000
 
 function faultCode(error: InstanceType<typeof Anthropic.APIError>): ProviderFaultCode {
 	if (error.type === 'billing_error' || error.status === 402) return 'credits_unavailable'
@@ -88,6 +92,23 @@ export function createChatProvider({ apiKey }: { apiKey: string }): ChatProvider
 		}
 	}
 
+	async function complete(request: CompleteRequest, signal: AbortSignal): Promise<Anthropic.Message> {
+		try {
+			return await client.messages.create(
+				{
+					model: request.model,
+					max_tokens: request.maxOutputTokens,
+					output_config: { effort: request.effort },
+					system: request.system,
+					messages: request.messages,
+				},
+				{ signal, timeout: COMPLETE_TIMEOUT_MS }
+			)
+		} catch (error) {
+			throw toFault(error, false)
+		}
+	}
+
 	async function availability(modelId: string): Promise<boolean> {
 		const cached = known.get(modelId)
 		if (cached && Date.now() - cached.at < AVAILABILITY_TTL_MS) return cached.available
@@ -104,5 +125,5 @@ export function createChatProvider({ apiKey }: { apiKey: string }): ChatProvider
 		}
 	}
 
-	return { stream, availability }
+	return { stream, complete, availability }
 }

@@ -15,7 +15,7 @@ import { readAssistantSettings } from '../settings/settings.ts'
 import { redactConversationContent, unsettledActionIds } from './messages.ts'
 import { modelCapabilities, resolveModelChoice, selectionAllowed } from './model-config.ts'
 
-const NEW_CONVERSATION_TITLE = 'New chat'
+export const NEW_CONVERSATION_TITLE = 'New chat'
 const DELETED_CONVERSATION_TITLE = 'Deleted chat'
 
 export type ConversationChange =

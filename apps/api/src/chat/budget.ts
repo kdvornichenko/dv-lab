@@ -1,3 +1,5 @@
+import type Anthropic from '@anthropic-ai/sdk'
+
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { Logger } from 'pino'
 import { z } from 'zod'
@@ -36,6 +38,15 @@ const chatUsage = z.strictObject({
 })
 
 type ChatUsage = z.infer<typeof chatUsage>
+
+export function usageOf(usage: Anthropic.Usage): ChatUsage {
+	return {
+		inputTokens: usage.input_tokens,
+		outputTokens: usage.output_tokens,
+		cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+		cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
+	}
+}
 
 export function usdToNano(text: string): bigint {
 	const match = USD_TEXT.exec(text)

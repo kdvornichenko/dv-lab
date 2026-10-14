@@ -36,7 +36,7 @@ import type { CalendarCommands } from '../calendar/commands.ts'
 import { studentGenders } from '../cards/cards.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
-import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt } from './budget.ts'
+import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
 import { ESSAY_COMMAND, ESSAY_FEEDBACK_TOOL, ESSAY_TASK, ESSAY_TOOL_NAME } from './essay.ts'
 import { lessonDatesPeriod } from './facts.ts'
 import { replyMentions, studentNames } from './mentions.ts'
@@ -55,6 +55,7 @@ import {
 	resolveCites,
 	sentenceSplitter,
 } from './publish-gate.ts'
+import { nameConversation, titleAnswered } from './title.ts'
 import { CHAT_TOOLS, type ToolContext, runTool, weekdayName } from './tools.ts'
 import { type NewTurn, type TurnRow, isActive, insertTurn, readTurn, toTurn } from './turns.ts'
 
@@ -224,15 +225,6 @@ function currentMessage(
 		expandCommand(message.body),
 	]
 	return { role: 'user', content: context.join('\n') }
-}
-
-function usageOf(usage: Anthropic.Usage) {
-	return {
-		inputTokens: usage.input_tokens,
-		outputTokens: usage.output_tokens,
-		cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
-		cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
-	}
 }
 
 function collectIds(text: string, into: Set<string>) {
@@ -806,6 +798,8 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 			result = ending('failed', 'provider_unavailable', [{ type: 'refused', code: 'provider_unavailable' }])
 		}
 		await finish(run, turn, result)
+		if (titleAnswered(result.state, result.issue) && !run.closing)
+			await nameConversation({ db, logger, provider }, turn, run.controller.signal)
 	}
 
 	function launch(turnId: string) {
