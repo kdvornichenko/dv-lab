@@ -90,10 +90,15 @@ function pairOf(rateMinor: number | null, currency: string | null): CardPair {
 	return rateMinor !== null && known !== undefined ? { rateMinor, currency: known } : NO_RATE
 }
 
+export function moneyText(text: string): string {
+	const compact = text.normalize('NFC').replace(/\s+/gu, '')
+	return /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/u.test(compact) ? compact.replaceAll(',', '') : compact
+}
+
 function readRate(said: Said, rateText: string, currency: Currency | null): CardPair | CardRefusal {
 	if (!said.has(rateText)) return 'amount_not_in_message'
 	if (currency === null) return 'currency_required'
-	const rateMinor = parseMoney(rateText.normalize('NFC').trim(), currency)
+	const rateMinor = parseMoney(moneyText(rateText), currency)
 	if (rateMinor === null || rateMinor > AMOUNT_MINOR_MAX) return 'invalid_amount'
 	return { rateMinor, currency }
 }

@@ -42,6 +42,11 @@ function fold(value: string): string {
 	return value.normalize('NFC').replace(/\s+/gu, ' ').trim().toLocaleLowerCase()
 }
 
+function wordIn(text: string, piece: string): boolean {
+	const pattern = piece.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+	return new RegExp(`(?<![\\p{L}\\p{Nd}])${pattern}(?![\\p{L}\\p{Nd}])`, 'u').test(text)
+}
+
 function exactZone(value: string): string | null {
 	if (isTimeZone(value)) return value
 	const identity = timeZoneIdentity(value)
@@ -52,7 +57,7 @@ export function resolveCommandZone(zoneText: string | null, teacherText: string)
 	if (zoneText === null) return { kind: 'ok', zone: SCHEDULE_TIME_ZONE, named: false }
 	const piece = fold(zoneText)
 	if (piece === '') return { kind: 'refused', code: 'zone_unknown' }
-	if (!fold(teacherText).includes(piece)) return { kind: 'refused', code: 'zone_not_in_message' }
+	if (!wordIn(fold(teacherText), piece)) return { kind: 'refused', code: 'zone_not_in_message' }
 	const short = SHORT_NAMES.get(piece)
 	if (short !== undefined) return { kind: 'ok', zone: short, named: true }
 	const zone = exactZone(zoneText.normalize('NFC').trim())

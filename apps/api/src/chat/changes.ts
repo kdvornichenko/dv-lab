@@ -41,6 +41,7 @@ import {
 	type Said,
 	applyCardChange,
 	cardTargets,
+	moneyText,
 	previewCardChange,
 } from './change-cards.ts'
 import {
@@ -119,9 +120,14 @@ function flat(value: string): string {
 	return value.normalize('NFC').replace(/\s+/gu, ' ').trim()
 }
 
+function escaped(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}
+
 function writtenIn(message: string, part: string): boolean {
 	const piece = flat(part)
-	return piece !== '' && flat(message).includes(piece)
+	if (piece === '') return false
+	return new RegExp(`(?<![\\p{Nd}.,])${escaped(piece)}(?![\\p{Nd}]|[.,]\\p{Nd})`, 'u').test(flat(message))
 }
 
 function saidIn(message: string): Said {
@@ -130,7 +136,8 @@ function saidIn(message: string): Said {
 		has: (part) => writtenIn(message, part),
 		hasName: (name) => {
 			const piece = flat(name).toLocaleLowerCase()
-			return piece !== '' && folded.includes(piece)
+			if (piece === '') return false
+			return new RegExp(`(?<![\\p{L}\\p{Nd}])${escaped(piece)}(?![\\p{L}\\p{Nd}])`, 'u').test(folded)
 		},
 		hasNumber: (value) => new RegExp(`(?<!\\p{Nd})${value}(?!\\p{Nd})`, 'u').test(message),
 	}
@@ -182,7 +189,7 @@ async function preparePayment(
 	if (card === null) return refused('student_not_found')
 	const currency = request.currency ?? CURRENCIES.find((item) => item === card.currency) ?? null
 	if (currency === null) return refused('currency_required')
-	const amountMinor = parseMoney(flat(request.amountText), currency)
+	const amountMinor = parseMoney(moneyText(request.amountText), currency)
 	if (amountMinor === null) return refused('invalid_amount')
 	const rate =
 		card.rateMinor !== null && card.currency !== null ? { rateMinor: card.rateMinor, currency: card.currency } : null
