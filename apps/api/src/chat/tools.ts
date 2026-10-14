@@ -26,7 +26,7 @@ import {
 	calendarDate,
 	chatLessonIntent,
 } from '@dv-lab/contracts'
-import { addDays, lessonDay, zonedParts } from '@dv-lab/core'
+import { type Weekday, addDays, lessonDay, zonedParts } from '@dv-lab/core'
 import { type Database, type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
 import { listLessonStudents, studentGenders } from '../cards/cards.ts'
@@ -64,6 +64,8 @@ const id = z.uuid()
 const date = calendarDate
 const time = z.string().regex(CLOCK_TIME_PATTERN)
 const nullable = <T extends z.ZodType>(schema: T) => schema.nullable()
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+const ZONE_TEXT_MAX = 64
 
 const inputs = {
 	find_students: z.strictObject({ query: z.string().min(1).max(200) }),
@@ -120,6 +122,15 @@ const inputs = {
 	student_payments: z.strictObject({ student_id: id }),
 	propose_payment_delete: z.strictObject({ student_id: id, payment_id: id }),
 	propose_entry_removal: z.strictObject({ student_id: id, entry_id: id }),
+	propose_bulk_move: z.strictObject({
+		student_id: id,
+		from_weekday: z.enum(WEEKDAYS),
+		from_time: time,
+		to_weekday: z.enum(WEEKDAYS),
+		to_time: time,
+		time_zone: nullable(z.string().min(1).max(ZONE_TEXT_MAX)),
+		from: nullable(date),
+	}),
 	open_page: z.strictObject({
 		kind: z.string(),
 		student_id: nullable(id),
@@ -258,6 +269,19 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 		'propose_entry_removal',
 		'Propose removing one note or one lesson comment of a student. entry_id is the ID from the cite marker of student_notes ([[note:ID]] or [[comment:ID]]); call student_notes first when you do not have it. The entry is hidden from the profile and the chat, not erased. Nothing is removed until the teacher confirms in the chat.',
 		{ student_id: string, entry_id: string }
+	),
+	tool(
+		'propose_bulk_move',
+		'Propose moving all weekly lessons of one student from one weekday and time to another. Copy the weekdays, times and the time zone exactly as the teacher wrote them; time_zone is null when the teacher named no zone (then Vietnam time is used). Nothing changes until the teacher confirms. from is the first date YYYY-MM-DD to move when the teacher named one, otherwise null.',
+		{
+			student_id: string,
+			from_weekday: { type: 'string', enum: [...WEEKDAYS] },
+			from_time: string,
+			to_weekday: { type: 'string', enum: [...WEEKDAYS] },
+			to_time: string,
+			time_zone: nullableString,
+			from: nullableString,
+		}
 	),
 	tool(
 		'open_page',
@@ -606,6 +630,13 @@ function changeReceipt(change: ChatChange): unknown {
 				student: change.studentName,
 				note: 'Nothing is removed until the teacher confirms in the chat. Never say it was removed. Do not quote the entry: the block shows it.',
 			}
+		case 'bulk_move':
+			return {
+				status: 'proposed',
+				student: change.studentName,
+				series: change.targets.length,
+				note: 'Nothing moves until the teacher confirms in the chat. Never say the lessons were moved. Do not repeat days, times, dates or counts of lessons: the block shows them.',
+			}
 		default:
 			return { status: 'proposed', student: change.studentName, note: CHANGE_NOTE }
 	}
@@ -680,6 +711,10 @@ async function propose(context: ToolContext, request: ChangeRequest): Promise<To
 	return { content: JSON.stringify(receipt(outcome.block)), isError: false, block: outcome.block }
 }
 
+function weekdayNumber(name: (typeof WEEKDAYS)[number]): Weekday {
+	return (WEEKDAYS.indexOf(name) + 1) as Weekday
+}
+
 function changeRequest(name: ToolName, input: unknown): ChangeRequest | null {
 	if (name === 'propose_payment') {
 		const parsed = inputs.propose_payment.parse(input)
@@ -725,6 +760,19 @@ function changeRequest(name: ToolName, input: unknown): ChangeRequest | null {
 	if (name === 'propose_entry_removal') {
 		const parsed = inputs.propose_entry_removal.parse(input)
 		return { operation: 'remove_entry', studentId: parsed.student_id, entryId: parsed.entry_id }
+	}
+	if (name === 'propose_bulk_move') {
+		const parsed = inputs.propose_bulk_move.parse(input)
+		return {
+			operation: 'bulk_move',
+			studentId: parsed.student_id,
+			fromWeekday: weekdayNumber(parsed.from_weekday),
+			fromTime: parsed.from_time,
+			toWeekday: weekdayNumber(parsed.to_weekday),
+			toTime: parsed.to_time,
+			zoneText: parsed.time_zone,
+			from: parsed.from,
+		}
 	}
 	return null
 }

@@ -15,7 +15,7 @@ import {
 } from './calendar-env.mjs'
 
 const TARGET = 'test'
-const SECTIONS = ['zone']
+const SECTIONS = ['zone', 'proposal']
 const section = process.argv[2]
 if (!SECTIONS.includes(section)) {
 	console.log(`usage: node scripts/dev-checks/chat-bulk.mjs ${SECTIONS.join('|')}`)
@@ -54,9 +54,15 @@ const { opaqueVersion } = await import(`${ROOT}/apps/api/src/calendar/read-state
 const { classifyRecurrence } = await import(`${ROOT}/apps/api/src/calendar/recurring.ts`)
 const { checkCalendarConflicts } = await import(`${ROOT}/apps/api/src/schedule/calendar-conflicts.ts`)
 const { markOccurrence } = await import(`${ROOT}/apps/api/src/schedule/marks.ts`)
+const { seriesAnchor } = await import(`${ROOT}/apps/api/src/schedule/series.ts`)
+const { createConversation } = await import(`${ROOT}/apps/api/src/chat/conversations.ts`)
+const { insertMessage } = await import(`${ROOT}/apps/api/src/chat/messages.ts`)
+const { runTool } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
+const { chatBlock } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
 const CARD_NAME = 'Alex Example 2320'
-const CARD_KEY = 'chat-bulk:alex-example-2320'
+const KEY_PREFIX = 'chat-bulk:'
+const CARD_KEY = `${KEY_PREFIX}alex-example-2320`
 const VN = 'Asia/Ho_Chi_Minh'
 const MSK = 'Europe/Moscow'
 const BERLIN = 'Europe/Berlin'
@@ -95,7 +101,7 @@ async function offline() {
 }
 
 function purgeCard() {
-	const card = `(select id from students where import_key = ${quote(CARD_KEY)})`
+	const card = `(select id from students where import_key like ${quote(`${KEY_PREFIX}%`)})`
 	const series = `(select id from lesson_series where student_id in ${card})`
 	const singles = `(select id from lessons where student_id in ${card})`
 	rows(`begin;
@@ -103,7 +109,20 @@ delete from lesson_marks where series_id in ${series} or lesson_id in ${singles}
 delete from lesson_exceptions where series_id in ${series};
 delete from lessons where student_id in ${card};
 delete from lesson_series where student_id in ${card};
-delete from students where import_key = ${quote(CARD_KEY)};
+delete from students where import_key like ${quote(`${KEY_PREFIX}%`)};
+commit;`)
+}
+
+const conversations = []
+
+function purgeChats() {
+	if (conversations.length === 0) return
+	const ids = conversations.map(quote).join(', ')
+	rows(`begin;
+delete from chat_actions where conversation_id in (${ids});
+delete from chat_messages where reply_to is not null and conversation_id in (${ids});
+delete from chat_messages where conversation_id in (${ids});
+delete from chat_conversations where id in (${ids});
 commit;`)
 }
 
@@ -611,6 +630,346 @@ async function sectionZone(pipeline) {
 	return 'CHAT_BULK_ZONE_OK'
 }
 
+const WEEKDAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+let restoreZone = null
+
+function freshAt(fx) {
+	rows(
+		`update google_sync_state set last_full_at = now(), last_incremental_at = now(), issue = null where connection_id = ${quote(fx.connection.id)}`
+	)
+}
+
+function setTeacherZone(fx, zone) {
+	if (restoreZone === null) restoreZone = { accountId: fx.accountId, zone: fx.setting }
+	rows(`update teacher_settings set default_time_zone = ${quote(zone)} where account_id = ${quote(fx.accountId)}`)
+}
+
+function restoreTeacherZone() {
+	if (restoreZone === null || restoreZone.zone === null) return
+	rows(
+		`update teacher_settings set default_time_zone = ${quote(restoreZone.zone)} where account_id = ${quote(restoreZone.accountId)}`
+	)
+}
+
+function bulkCard(n) {
+	const [row] = rows(
+		`insert into students (display_name, status, import_key) values (${quote(`Alex Example ${n}`)}, 'active', ${quote(`${KEY_PREFIX}${n}-${randomUUID()}`)}) returning id`
+	)
+	return { id: row.id, name: `Alex Example ${n}` }
+}
+
+async function chatFixtures(pipeline) {
+	purgeCard()
+	const [connection] = rows(
+		`select id, account_id, calendar_id from google_connections where calendar_id like '${SYNTHETIC_CALENDAR_ID}%' and retired_at is null`
+	)
+	const accountId = connection.account_id
+	const setting = teacherSetting(accountId)
+	const zone = setting ?? VN
+	if (!core.sameTimeZone(zone, VN)) fail(0, `the test teacher zone is ${zone}, expected ${VN}`)
+	const today = core.scheduleToday(new Date(), zone)
+	const next = core.firstOnOrAfter(core.addDays(today, 1), 2)
+	const target = { accountId, connectionId: connection.id, calendarId: connection.calendar_id }
+	const conversation = await createConversation(pipeline.app.db, accountId)
+	conversations.push(conversation.id)
+	return { connection, accountId, zone, setting, today, next, target, conversationId: conversation.id }
+}
+
+async function createLessons(pipeline, fx, student, startsOn, repeats, time = '16:00') {
+	const kind = repeats === 'weekly' ? 'series' : 'single'
+	const table = kind === 'series' ? 'lesson_series' : 'lessons'
+	const listed = () => rows(`select id from ${table} where student_id = ${quote(student.id)}`).map((row) => row.id)
+	const before = new Set(listed())
+	await run(
+		pipeline,
+		fx.accountId,
+		{
+			operation: 'create',
+			input: {
+				studentId: student.id,
+				date: startsOn,
+				startTime: time,
+				durationMinutes: 60,
+				repeats,
+				expectedDefaultTimeZone: fx.zone,
+				requestId: randomUUID(),
+				expectedVersion: 'fixture-version',
+			},
+		},
+		0
+	)
+	const id = listed().find((item) => !before.has(item))
+	if (!id) fail(0, `the fixture ${kind} was not created`)
+	await project(pipeline, fx, mappingEvent(id, kind))
+	freshAt(fx)
+	return id
+}
+
+function chatContext(fx, extra = {}) {
+	return { accountId: fx.accountId, now: new Date(), defaultTimeZone: fx.zone, calendarEnabled: true, ...extra }
+}
+
+function actionCount(messageId) {
+	return rows(`select count(*)::int as n from chat_actions where message_id = ${quote(messageId)}`)[0].n
+}
+
+async function askBulk(pipeline, fx, student, text, input, extra = {}) {
+	const db = pipeline.app.db
+	const teacher = await insertMessage(db, {
+		accountId: fx.accountId,
+		conversationId: fx.conversationId,
+		role: 'teacher',
+		body: `@${student.name} ${text}`,
+		mentions: [{ studentId: student.id, text: student.name, start: 1, end: 1 + student.name.length }],
+	})
+	const persist = async (executor, block) => {
+		await insertMessage(executor, {
+			accountId: fx.accountId,
+			conversationId: fx.conversationId,
+			role: 'assistant',
+			body: '',
+			blocks: [block],
+			replyTo: teacher.id,
+		})
+	}
+	const outcome = await runTool(
+		{
+			db,
+			chat: chatContext(fx, extra),
+			source: { conversationId: fx.conversationId, messageId: teacher.id },
+			persist,
+			issued: new Map(),
+			shown: new Set(),
+		},
+		'propose_bulk_move',
+		{ student_id: student.id, time_zone: null, from: null, ...input }
+	)
+	if (outcome.block !== null && !chatBlock.safeParse(outcome.block).success)
+		fail('shape', 'the proposal block does not match the contract')
+	return { ...outcome, messageId: teacher.id, change: outcome.block?.change ?? null }
+}
+
+function refusedWith(outcome, code) {
+	return outcome.isError === true && outcome.block === null && outcome.content.includes(code)
+}
+
+async function anchorOf(pipeline, fx, seriesId) {
+	const row = rows(
+		`select id, student_id, weekday, time_zone, to_char(start_time, 'HH24:MI') as start_time, duration_minutes, starts_on::text as starts_on, ends_on::text as ends_on from lesson_series where id = ${quote(seriesId)}`
+	)[0]
+	const rule = {
+		id: row.id,
+		studentId: row.student_id,
+		weekday: Number(row.weekday),
+		startTime: row.start_time,
+		timeZone: row.time_zone,
+		durationMinutes: Number(row.duration_minutes),
+		startsOn: row.starts_on,
+		endsOn: row.ends_on,
+	}
+	return seriesAnchor(pipeline.app.db, rule, fx.connection.id)
+}
+
+const moves = (fromDay, fromTime, toDay, toTime) => ({
+	from_weekday: WEEKDAY_NAMES[fromDay - 1],
+	from_time: fromTime,
+	to_weekday: WEEKDAY_NAMES[toDay - 1],
+	to_time: toTime,
+})
+
+async function proposalFixtures(pipeline) {
+	const fx = await chatFixtures(pipeline)
+	const main = bulkCard(2380)
+	const singles = bulkCard(2381)
+	const marked = bulkCard(2382)
+	const mainSeries = await createLessons(pipeline, fx, main, fx.next, 'weekly')
+	await createLessons(pipeline, fx, singles, fx.next, 'weekly')
+	await createLessons(pipeline, fx, singles, core.addDays(fx.next, 7), 'once')
+	const markedStart = core.addDays(fx.next, -21)
+	const markedSeries = await createLessons(pipeline, fx, marked, markedStart, 'weekly')
+	let lastMarked = null
+	for (let date = markedStart; date < fx.next; date = core.addDays(date, 7)) {
+		if (core.zonedInstant(date, '16:00', VN).getTime() >= Date.now()) break
+		const result = await markOccurrence(pipeline.app.db, fx.accountId, markedSeries, date, { kind: 'done' }, new Date())
+		if (result.kind !== 'ok') fail(0, `mark done refused with ${result.kind}`)
+		lastMarked = date
+	}
+	if (lastMarked === null) fail(0, 'no started occurrence to mark')
+	console.log(
+		`FIXTURES cards 3 series ${hash(mainSeries)} ${hash(markedSeries)} next_tuesday ${fx.next} last_marked ${lastMarked} zone ${fx.zone}`
+	)
+	return { ...fx, main, singles, marked, mainSeries, markedSeries, lastMarked }
+}
+
+async function caseNamedProposal(pipeline, fx) {
+	const before = commandCount(fx.accountId)
+	const asked = await askBulk(pipeline, fx, fx.main, 'перенеси все уроки со вторника 12:00 на среду 14:00 MSK', {
+		...moves(2, '12:00', 3, '14:00'),
+		time_zone: 'MSK',
+	})
+	const change = asked.change
+	const target = change?.targets?.[0]
+	const expectedNow = target ? core.zonedInstant(core.firstOnOrAfter(target.from, 3), '14:00', MSK).toISOString() : null
+	const expectedWas = target ? core.zonedInstant(target.from, '16:00', VN).toISOString() : null
+	const ok =
+		asked.block?.type === 'change_proposal' &&
+		asked.block.state === 'proposed' &&
+		change.operation === 'bulk_move' &&
+		change.targets.length === 1 &&
+		target.seriesId === fx.mainSeries &&
+		target.state === 'planned' &&
+		change.inputTimeZone === MSK &&
+		change.zoneNamed === true &&
+		target.nowStartsAt === expectedNow &&
+		target.wasStartsAt === expectedWas &&
+		target.from === fx.next &&
+		change.singlesLeft === 0 &&
+		actionCount(asked.messageId) === 1 &&
+		commandCount(fx.accountId) === before
+	console.log(
+		`case 1 tuesday 12:00 to wednesday 14:00 MSK: targets ${change?.targets?.length} input_zone ${change?.inputTimeZone} named ${change?.zoneNamed} now_is_wednesday_14_msk ${target?.nowStartsAt === expectedNow} was_is_tuesday_16_vn ${target?.wasStartsAt === expectedWas} from_next_tuesday ${target?.from === fx.next} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok) fail(1, 'the named MSK proposal is wrong')
+	const action = rows(`select kind, state, target from chat_actions where message_id = ${quote(asked.messageId)}`)[0]
+	const children = action?.target?.children ?? []
+	const sealed =
+		action?.kind === 'change' &&
+		action.state === 'proposed' &&
+		children.length === 1 &&
+		children[0].seriesId === fx.mainSeries &&
+		children[0].from === fx.next &&
+		children[0].weekday === 3 &&
+		children[0].startTime === '14:00' &&
+		action.target.inputTimeZone === MSK &&
+		typeof children[0].requestId === 'string' &&
+		rows(`select count(*)::int as n from google_commands where request_id = ${quote(children[0].requestId)}`)[0].n === 0
+	console.log(
+		`case 2 sealed target: kind ${action?.kind} state ${action?.state} children ${children.length} request_id_stored ${typeof children[0]?.requestId === 'string'} command_for_request 0`
+	)
+	if (!sealed) fail(2, 'the sealed target does not hold the child command')
+}
+
+async function caseUnnamedZone(pipeline, fx) {
+	setTeacherZone(fx, MSK)
+	const before = commandCount(fx.accountId)
+	const asked = await askBulk(
+		pipeline,
+		fx,
+		fx.main,
+		'move all lessons from Tuesday 16:00 to Wednesday 18:00',
+		moves(2, '16:00', 3, '18:00'),
+		{ defaultTimeZone: MSK }
+	)
+	restoreTeacherZone()
+	const change = asked.change
+	const target = change?.targets?.[0]
+	const expectedNow = target ? core.zonedInstant(core.firstOnOrAfter(target.from, 3), '18:00', VN).toISOString() : null
+	const ok =
+		change?.operation === 'bulk_move' &&
+		change.inputTimeZone === VN &&
+		change.zoneNamed === false &&
+		change.accountTimeZone === MSK &&
+		change.targets.length === 1 &&
+		target.nowStartsAt === expectedNow &&
+		teacherSetting(fx.accountId) === fx.setting &&
+		commandCount(fx.accountId) === before
+	console.log(
+		`case 3 no zone named, teacher setting MSK: input_zone ${change?.inputTimeZone} named ${change?.zoneNamed} account_zone ${change?.accountTimeZone} now_is_wednesday_18_vn ${target?.nowStartsAt === expectedNow} setting_restored ${teacherSetting(fx.accountId) === fx.setting}`
+	)
+	if (!ok) fail(3, 'without a named zone the input zone is not Vietnam')
+}
+
+async function caseRefusals(pipeline, fx) {
+	const before = commandCount(fx.accountId)
+	const none = await askBulk(
+		pipeline,
+		fx,
+		fx.main,
+		'move all lessons from Monday 10:00 to Wednesday 14:00',
+		moves(1, '10:00', 3, '14:00')
+	)
+	const unknown = await askBulk(pipeline, fx, fx.main, 'move all lessons from Tuesday 12:00 to Wednesday 14:00 XYZ', {
+		...moves(2, '12:00', 3, '14:00'),
+		time_zone: 'XYZ',
+	})
+	const absent = await askBulk(pipeline, fx, fx.main, 'move all lessons from Tuesday 12:00 to Wednesday 14:00', {
+		...moves(2, '12:00', 3, '14:00'),
+		time_zone: 'Europe/Berlin',
+	})
+	const ok =
+		refusedWith(none, 'no_matching_lessons') &&
+		actionCount(none.messageId) === 0 &&
+		refusedWith(unknown, 'zone_unknown') &&
+		actionCount(unknown.messageId) === 0 &&
+		refusedWith(absent, 'zone_not_in_message') &&
+		actionCount(absent.messageId) === 0 &&
+		commandCount(fx.accountId) === before
+	console.log(
+		`case 4 refusals: zero_matches ${none.content} unknown_zone ${unknown.content} zone_not_in_text ${absent.content} actions ${actionCount(none.messageId) + actionCount(unknown.messageId) + actionCount(absent.messageId)} commands ${before}->${commandCount(fx.accountId)}`
+	)
+	if (!ok) fail(4, 'a refusal produced a proposal or an action')
+}
+
+async function caseSingles(pipeline, fx) {
+	const asked = await askBulk(
+		pipeline,
+		fx,
+		fx.singles,
+		'move all lessons from Tuesday 16:00 to Wednesday 18:00',
+		moves(2, '16:00', 3, '18:00')
+	)
+	const change = asked.change
+	const ok = change?.operation === 'bulk_move' && change.targets.length === 1 && change.singlesLeft === 1
+	console.log(
+		`case 5 single lesson at the same time: targets ${change?.targets?.length} singles_left ${change?.singlesLeft}`
+	)
+	if (!ok) fail(5, 'the single lesson at the same time is not counted or is moved')
+}
+
+async function caseMarked(pipeline, fx) {
+	const anchor = await anchorOf(pipeline, fx, fx.markedSeries)
+	const asked = await askBulk(
+		pipeline,
+		fx,
+		fx.marked,
+		'move all lessons from Tuesday 16:00 to Wednesday 18:00',
+		moves(2, '16:00', 3, '18:00')
+	)
+	const target = asked.change?.targets?.[0]
+	const early = await askBulk(
+		pipeline,
+		fx,
+		fx.marked,
+		`move all lessons from Tuesday 16:00 to Wednesday 18:00 from ${fx.lastMarked}`,
+		{ ...moves(2, '16:00', 3, '18:00'), from: fx.lastMarked }
+	)
+	const ok =
+		target !== undefined &&
+		anchor !== null &&
+		target.from === anchor &&
+		target.from > fx.lastMarked &&
+		refusedWith(early, 'series_marked') &&
+		actionCount(early.messageId) === 0
+	console.log(
+		`case 6 marked occurrence: from_is_all_from ${target?.from === anchor} after_last_mark ${target ? target.from > fx.lastMarked : false} explicit_marked_from ${early.content}`
+	)
+	if (!ok) fail(6, 'the marked occurrence is inside the move or an earlier from was accepted')
+}
+
+async function sectionProposal(pipeline) {
+	const fx = await proposalFixtures(pipeline)
+	const before = commandCount(fx.accountId)
+	await caseNamedProposal(pipeline, fx)
+	await caseUnnamedZone(pipeline, fx)
+	await caseRefusals(pipeline, fx)
+	await caseSingles(pipeline, fx)
+	await caseMarked(pipeline, fx)
+	const after = commandCount(fx.accountId)
+	console.log(`case 7 commands in the journal before confirm: ${before}->${after}`)
+	if (after !== before) fail(7, 'a proposal sent a command')
+	return 'CHAT_BULK_PROPOSAL_OK'
+}
+
 let pipeline = null
 let exitCode = 0
 let marker = null
@@ -625,6 +984,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	if (!/SEED_UP test week/.test(up)) throw new Error('calendar-seed up did not finish')
 	pipeline = await startPipeline()
 	if (section === 'zone') marker = await sectionZone(pipeline)
+	if (section === 'proposal') marker = await sectionProposal(pipeline)
 } catch (error) {
 	const message = error instanceof Error ? error.message : 'unexpected failure'
 	console.log(`CHAT_BULK_FAILED ${message.replace(/postgres(ql)?:\/\/\S+/g, '<redacted>')}`)
@@ -632,6 +992,8 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 } finally {
 	if (pipeline) await pipeline.close()
 	try {
+		restoreTeacherZone()
+		purgeChats()
 		seed('down', TARGET)
 		purgeCard()
 	} catch (error) {

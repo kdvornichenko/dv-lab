@@ -25,6 +25,7 @@ import { cardFacts } from '../cards/card-facts.ts'
 import { insertPayment } from '../cards/payments.ts'
 import { lockTeacherTimeContext } from '../settings/settings.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
+import { type BulkMoveRequest, type BulkRefusal, proposeBulkMove } from './bulk-move.ts'
 import { declineCalendarChange } from './calendar.ts'
 import {
 	type CardChangeRequest,
@@ -53,7 +54,7 @@ type PaymentRequest = {
 	note: string | null
 }
 
-export type ChangeRequest = PaymentRequest | CardChangeRequest | DeletionRequest
+export type ChangeRequest = PaymentRequest | CardChangeRequest | DeletionRequest | BulkMoveRequest
 
 export type ChangeRefusal =
 	| 'amount_not_in_message'
@@ -65,6 +66,7 @@ export type ChangeRefusal =
 	| 'student_not_found'
 	| CardRefusal
 	| DeletionRefusal
+	| BulkRefusal
 
 export type ProposeOutcome =
 	{ kind: 'proposed'; block: ChatChangeProposalBlock } | { kind: 'refused'; code: ChangeRefusal }
@@ -280,6 +282,10 @@ async function prepare(
 		case 'delete_payment':
 		case 'remove_entry':
 			return stage(tx, context, source, await previewDeletion(tx, context, request))
+		case 'bulk_move': {
+			const message = await teacherText(tx, context.accountId, source.messageId)
+			return stage(tx, context, source, await proposeBulkMove(tx, context, message ?? '', request))
+		}
 		default: {
 			const message = await teacherText(tx, context.accountId, source.messageId)
 			return stage(tx, context, source, await previewCardChange(tx, saidIn(message ?? ''), request))

@@ -391,9 +391,19 @@ export const CHAT_CHANGE_OPERATIONS = [
 	'delete_payment',
 	'remove_note',
 	'remove_comment',
+	'bulk_move',
 ] as const
 
-export const CHAT_CHANGE_STATES = ['proposed', 'applying', 'applied', 'declined', 'stale', 'failed'] as const
+export const CHAT_CHANGE_STATES = [
+	'proposed',
+	'applying',
+	'pending',
+	'applied',
+	'partial',
+	'declined',
+	'stale',
+	'failed',
+] as const
 
 export const CHAT_CHANGE_ISSUES = [
 	'student_changed',
@@ -401,7 +411,14 @@ export const CHAT_CHANGE_ISSUES = [
 	'not_found',
 	'payment_changed',
 	'entry_changed',
+	'calendar_changed',
+	'connection_required',
+	'command_pending',
+	'outside_sync_window',
+	'provider_unavailable',
 ] as const
+
+export const CHAT_BULK_TARGET_STATES = ['planned', 'pending', 'applied', 'failed', 'not_started'] as const
 
 export const chatChangeIssue = z.enum(CHAT_CHANGE_ISSUES)
 
@@ -494,6 +511,33 @@ export const chatRemoveCommentChange = z.strictObject({
 	createdAt: calendarInstant,
 })
 
+const weekdayNumber = z.number().int().min(1).max(7)
+
+export const chatBulkMoveTarget = z.strictObject({
+	seriesId: z.uuid(),
+	seriesTimeZone: calendarTimeZone,
+	from: calendarDate,
+	wasStartsAt: calendarInstant,
+	nowStartsAt: calendarInstant,
+	durationMinutes: lessonLength,
+	state: z.enum(CHAT_BULK_TARGET_STATES),
+})
+
+export const chatBulkMoveChange = z.strictObject({
+	operation: z.literal('bulk_move'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	inputTimeZone: calendarTimeZone,
+	zoneNamed: z.boolean(),
+	accountTimeZone: calendarTimeZone,
+	fromWeekday: weekdayNumber,
+	fromTime: clockTime,
+	toWeekday: weekdayNumber,
+	toTime: clockTime,
+	targets: z.array(chatBulkMoveTarget).min(1),
+	singlesLeft: z.number().int().min(0),
+})
+
 export const chatChange = z.discriminatedUnion('operation', [
 	chatRecordPaymentChange,
 	chatCreateCardChange,
@@ -502,6 +546,7 @@ export const chatChange = z.discriminatedUnion('operation', [
 	chatDeletePaymentChange,
 	chatRemoveNoteChange,
 	chatRemoveCommentChange,
+	chatBulkMoveChange,
 ])
 
 export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
@@ -706,6 +751,8 @@ export type ChatChange = z.infer<typeof chatChange>
 export type ChatChangeState = (typeof CHAT_CHANGE_STATES)[number]
 export type ChatChangeIssue = z.infer<typeof chatChangeIssue>
 export type ChatChangeOperation = (typeof CHAT_CHANGE_OPERATIONS)[number]
+export type ChatBulkMoveChange = z.infer<typeof chatBulkMoveChange>
+export type ChatBulkTargetState = (typeof CHAT_BULK_TARGET_STATES)[number]
 export type ChatCalendarIssue = z.infer<typeof chatCalendarIssue>
 export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 
@@ -728,6 +775,7 @@ export const CHAT_STEP_TOOLS = [
 	'student_payments',
 	'propose_payment_delete',
 	'propose_entry_removal',
+	'propose_bulk_move',
 	'answer',
 ] as const
 
