@@ -185,6 +185,9 @@ type Stream = { turnId: string; controller: AbortController; seq: number }
 
 const ACTIVE_TURN: readonly string[] = CHAT_ACTIVE_TURN_STATES
 const RECONNECTS = 5
+const NEW_CHAT_TITLE = 'New chat'
+const TITLE_CHECK_DELAYS = [1500, 5000] as const
+const TITLED_ISSUES: readonly (string | null)[] = [null, 'max_tokens', 'request_limit']
 
 export function turnActive(turn: ChatTurn): boolean {
 	return ACTIVE_TURN.includes(turn.state)
@@ -392,6 +395,45 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		}
 	}, [fetchList])
 
+	const titleWatch = useRef<{ conversationId: string; timer: number } | null>(null)
+
+	const cancelTitleWatch = useCallback((conversationId?: string) => {
+		const current = titleWatch.current
+		if (current === null || (conversationId !== undefined && current.conversationId !== conversationId)) return
+		window.clearTimeout(current.timer)
+		titleWatch.current = null
+	}, [])
+
+	const hasTitle = useCallback((conversationId: string) => {
+		const current = listRef.current
+		if (current.kind !== 'ready') return false
+		const item = current.conversations.find((conversation) => conversation.id === conversationId)
+		return item === undefined || item.title !== NEW_CHAT_TITLE
+	}, [])
+
+	const watchTitle = useCallback(
+		(conversationId: string) => {
+			cancelTitleWatch()
+			if (hasTitle(conversationId)) return
+			const watch = { conversationId, timer: 0 }
+			titleWatch.current = watch
+			const schedule = (step: number) => {
+				watch.timer = window.setTimeout(() => {
+					void fetchList(true).then(() => {
+						if (titleWatch.current !== watch || !mounted.current) return
+						if (hasTitle(conversationId) || step + 1 >= TITLE_CHECK_DELAYS.length) {
+							titleWatch.current = null
+							return
+						}
+						schedule(step + 1)
+					})
+				}, TITLE_CHECK_DELAYS[step])
+			}
+			schedule(0)
+		},
+		[cancelTitleWatch, fetchList, hasTitle]
+	)
+
 	const select = useCallback(
 		(id: string | null) => {
 			setSelectedId(id)
@@ -468,14 +510,16 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				streamRef.current = null
 				stream.controller.abort()
 				setReply(null)
+				if (event.turn.state === 'completed' && TITLED_ISSUES.includes(event.turn.issue)) watchTitle(conversationId)
 			} else setReply({ conversationId, turn: event.turn, stopping: current?.stopping ?? false })
 		},
-		[calendar, setReply, updateThread]
+		[calendar, setReply, updateThread, watchTitle]
 	)
 
 	const follow = useCallback(
 		(conversationId: string, turn: ChatTurn) => {
 			if (!turnActive(turn) || streamRef.current?.turnId === turn.id) return
+			cancelTitleWatch()
 			streamRef.current?.controller.abort()
 			const stream: Stream = { turnId: turn.id, controller: new AbortController(), seq: -1 }
 			streamRef.current = stream
@@ -504,7 +548,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 					commitThread({ conversationId, state: read.state })
 			})()
 		},
-		[apply, commitThread, setReply]
+		[apply, cancelTitleWatch, commitThread, setReply]
 	)
 
 	useEffect(() => {
@@ -522,14 +566,16 @@ export function useChat(initialConversationId: string | null, options: { startNe
 
 	useEffect(() => {
 		if (replyRef.current !== null && replyRef.current.conversationId !== activeId) unfollow()
-	}, [activeId, unfollow])
+		if (titleWatch.current !== null && titleWatch.current.conversationId !== activeId) cancelTitleWatch()
+	}, [activeId, unfollow, cancelTitleWatch])
 
 	useEffect(
 		() => () => {
 			streamRef.current?.controller.abort()
 			streamRef.current = null
+			cancelTitleWatch()
 		},
-		[]
+		[cancelTitleWatch]
 	)
 
 	const stop = useCallback(async () => {
@@ -648,6 +694,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 	const send = useCallback(
 		async (draft: Draft): Promise<boolean> => {
 			if (sendingRef.current || draft.stale || draft.text.trim() === '') return false
+			cancelTitleWatch()
 			sendingRef.current = true
 			setSending(true)
 			setSendFailed(false)
@@ -686,7 +733,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				if (mounted.current) setSending(false)
 			}
 		},
-		[follow, load, openConversation, putFirst, updateThread]
+		[cancelTitleWatch, follow, load, openConversation, putFirst, updateThread]
 	)
 
 	const activeConversation =
@@ -860,24 +907,41 @@ export function useChat(initialConversationId: string | null, options: { startNe
 
 	const rename = useCallback(
 		async (conversation: ChatConversation, title: string): Promise<RenameOutcome> => {
-			const body: RenameConversationRequest = { title, expectedRevision: conversation.revision }
-			const result = await apiRequest<ChatConversationResponse>('PATCH', `/chat/conversations/${conversation.id}`, body)
-			if (result.ok) {
-				await load(true)
-				return 'saved'
+			const attempt = async (revision: number, retry: boolean): Promise<RenameOutcome> => {
+				const body: RenameConversationRequest = { title, expectedRevision: revision }
+				const result = await apiRequest<ChatConversationResponse>(
+					'PATCH',
+					`/chat/conversations/${conversation.id}`,
+					body
+				)
+				if (result.ok) {
+					cancelTitleWatch(conversation.id)
+					await load(true)
+					return 'saved'
+				}
+				if (result.status === 404) {
+					await load(true)
+					return 'gone'
+				}
+				if (result.status === 409) {
+					await load(true)
+					if (retry && conversation.title === NEW_CHAT_TITLE) {
+						const current = listRef.current
+						const fresh =
+							current.kind === 'ready' ? current.conversations.find((item) => item.id === conversation.id) : undefined
+						if (fresh !== undefined && fresh.revision !== revision) return attempt(fresh.revision, false)
+					}
+				}
+				return 'failed'
 			}
-			if (result.status === 404) {
-				await load(true)
-				return 'gone'
-			}
-			if (result.status === 409) await load(true)
-			return 'failed'
+			return attempt(conversation.revision, true)
 		},
-		[load]
+		[cancelTitleWatch, load]
 	)
 
 	const remove = useCallback(
 		async (conversation: ChatConversation): Promise<DeleteOutcome> => {
+			cancelTitleWatch(conversation.id)
 			const body: DeleteConversationRequest = { expectedRevision: conversation.revision }
 			const result = await apiRequest<void>('DELETE', `/chat/conversations/${conversation.id}`, body)
 			if (!result.ok && result.status !== 404) {
@@ -895,7 +959,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			void load(true)
 			return 'deleted'
 		},
-		[activeId, commit, load, select]
+		[activeId, cancelTitleWatch, commit, load, select]
 	)
 
 	return {

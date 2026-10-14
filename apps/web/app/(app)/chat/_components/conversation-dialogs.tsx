@@ -24,6 +24,7 @@ interface RenameConversationDialogProps {
 export function RenameConversationDialog({ conversation, onSave, onClose }: RenameConversationDialogProps) {
 	const fieldId = useId()
 	const [title, setTitle] = useState(conversation.title)
+	const [opened] = useState(conversation.title)
 	const [pending, setPending] = useState(false)
 	const [failed, setFailed] = useState(false)
 	const [empty, setEmpty] = useState(false)
@@ -44,7 +45,7 @@ export function RenameConversationDialog({ conversation, onSave, onClose }: Rena
 			setEmpty(true)
 			return
 		}
-		if (trimmed === conversation.title) {
+		if (trimmed === conversation.title || trimmed === opened) {
 			onClose()
 			return
 		}
