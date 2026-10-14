@@ -6,7 +6,7 @@ import type { DateRange } from 'react-day-picker'
 import { Check, Copy, ListChecks, Search } from 'lucide-react'
 
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
-import { Banner, BannerTitle } from '@/components/ui/banner'
+import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -23,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { apiRequest } from '@/lib/api-client'
-import { datesPlural, lessonCountText } from '@/lib/lesson-count-text'
+import { datesPlural, eventName, lessonCountText, nameMatches } from '@/lib/lesson-count-text'
 import { copyTooltip, useCopy } from '@/lib/use-copy'
 import { cn } from '@/lib/utils'
 
@@ -38,6 +38,7 @@ const SEARCH_FROM = 6
 const ROW = 'h-9'
 
 type EventDates = Map<string, Set<string>>
+type Loaded = { events: EventDates; outside: boolean }
 
 function isoDay(date: Date): string {
 	const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -71,18 +72,19 @@ function collect(window: GoogleScheduleWindow, from: string, to: string, into: E
 				? lessonDay(new Date(event.when.startsAt), window.requestedRange.timeZone)
 				: event.when.startsOn
 		if (day < from || day > to) continue
-		const title = event.title?.trim() || 'Untitled'
+		const title = eventName(event.title)
 		const dates = into.get(title) ?? new Set<string>()
 		dates.add(day)
 		into.set(title, dates)
 	}
 }
 
-async function loadEvents(from: string, to: string): Promise<EventDates | { issue: CalendarIssue | null }> {
+async function loadEvents(from: string, to: string): Promise<Loaded | { issue: CalendarIssue | null }> {
 	const mondays: string[] = []
 	for (let monday = mondayOf(from); monday <= to; monday = addDays(monday, 7)) mondays.push(monday)
 	if (mondays.length > MAX_WEEKS) return { issue: null }
 	const events: EventDates = new Map()
+	let outside = false
 	for (let index = 0; index < mondays.length; index += BATCH) {
 		const results = await Promise.all(
 			mondays
@@ -92,10 +94,11 @@ async function loadEvents(from: string, to: string): Promise<EventDates | { issu
 		for (const result of results) {
 			if (!result.ok) return { issue: null }
 			if (result.data.read.state === 'unavailable') return { issue: result.data.read.reason }
+			if (result.data.read.state === 'last_known' && result.data.read.reason === 'outside_sync_window') outside = true
 			collect(result.data, from, to, events)
 		}
 	}
-	return events
+	return { events, outside }
 }
 
 function EventList({
@@ -112,8 +115,7 @@ function EventList({
 	const [query, setQuery] = useState('')
 	const listRef = useRef<HTMLDivElement>(null)
 	const searchable = titles.length > SEARCH_FROM
-	const needle = query.trim().toLowerCase()
-	const shown = needle === '' ? titles : titles.filter((name) => name.toLowerCase().includes(needle))
+	const shown = titles.filter((name) => nameMatches(name, query))
 	const stop = selected !== null && shown.includes(selected) ? selected : shown[0]
 
 	function move(event: React.KeyboardEvent) {
@@ -136,16 +138,20 @@ function EventList({
 	}
 
 	return (
-		<div className="overflow-hidden rounded-lg ring-1 ring-input ring-inset">
+		<div className="overflow-hidden rounded-lg ring-1 ring-input transition-shadow ring-inset has-[[data-slot=input]:focus-visible]:ring-ring">
 			{searchable ? (
-				<div className="flex h-10 items-center gap-2 border-b px-3">
-					<Search size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+				<div className="group/search flex h-10 items-center gap-2 border-b px-3">
+					<Search
+						size={14}
+						className="shrink-0 text-muted-foreground transition-colors duration-80 group-focus-within/search:text-foreground"
+						aria-hidden
+					/>
 					<Input
 						value={query}
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Search events"
 						aria-label="Search events"
-						className="h-full rounded-none px-0 ring-0"
+						className="h-full rounded-none px-0 ring-0 outline-none focus-visible:outline-none"
 					/>
 				</div>
 			) : null}
@@ -199,6 +205,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 	const [range, setRange] = useState<DateRange | undefined>()
 	const [state, setState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle')
 	const [events, setEvents] = useState<EventDates>(new Map())
+	const [outside, setOutside] = useState(false)
 	const [title, setTitle] = useState<string | null>(null)
 	const { state: copyState, copy, reset: resetCopy } = useCopy()
 	const [issue, setIssue] = useState<CalendarIssue | null>(null)
@@ -226,13 +233,14 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 		setState('loading')
 		void loadEvents(from, to).then((result) => {
 			if (id !== requests.current) return
-			if (!(result instanceof Map)) {
+			if ('issue' in result) {
 				setIssue(result.issue)
 				setState('error')
 				requestAnimationFrame(() => showRef.current?.focus())
 				return
 			}
-			setEvents(result)
+			setEvents(result.events)
+			setOutside(result.outside)
 			setState('ready')
 		})
 	}
@@ -311,6 +319,15 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 									<Skeleton key={row} className="h-3 rounded-md" />
 								))}
 							</div>
+						) : null}
+						{state === 'ready' && outside ? (
+							<Banner status="info">
+								<BannerTitle>Part of this range is outside the synced weeks.</BannerTitle>
+								<BannerDescription>
+									Google Calendar is synced from 8 weeks back to 53 weeks ahead. Outside that, only lessons with a
+									student are counted.
+								</BannerDescription>
+							</Banner>
 						) : null}
 						{state === 'ready' && titles.length === 0 ? (
 							<div className="flex flex-col items-center gap-1 border-t pt-4 text-center">
