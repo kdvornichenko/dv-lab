@@ -381,11 +381,17 @@ export const chatCalendarProposalBlock = z.strictObject({
 	undoIssue: chatCalendarIssue.optional(),
 })
 
-export const CHAT_CHANGE_OPERATIONS = ['record_payment', 'create_card', 'set_rate', 'archive_card'] as const
+export const CHAT_CHANGE_OPERATIONS = [
+	'record_payment',
+	'create_card',
+	'set_rate',
+	'archive_card',
+	'delete_payment',
+] as const
 
 export const CHAT_CHANGE_STATES = ['proposed', 'applying', 'applied', 'declined', 'stale', 'failed'] as const
 
-export const CHAT_CHANGE_ISSUES = ['student_changed', 'time_zone_changed', 'not_found'] as const
+export const CHAT_CHANGE_ISSUES = ['student_changed', 'time_zone_changed', 'not_found', 'payment_changed'] as const
 
 export const chatChangeIssue = z.enum(CHAT_CHANGE_ISSUES)
 
@@ -440,11 +446,27 @@ export const chatArchiveCardChange = z.strictObject({
 	accountActive: z.boolean(),
 })
 
+export const chatDeletePaymentChange = z.strictObject({
+	operation: z.literal('delete_payment'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	paymentId: z.uuid(),
+	paidOn: calendarDate,
+	amountMinor: z.number().int(),
+	currency: z.enum(CURRENCIES).nullable(),
+	lessonsHundredths: z.number().int().min(0).nullable(),
+	creditedMinutes: z.number().int().min(0),
+	note: z.string().nullable(),
+	balanceMinutes: z.number().int().nullable(),
+	balanceAfterMinutes: z.number().int().nullable(),
+})
+
 export const chatChange = z.discriminatedUnion('operation', [
 	chatRecordPaymentChange,
 	chatCreateCardChange,
 	chatSetRateChange,
 	chatArchiveCardChange,
+	chatDeletePaymentChange,
 ])
 
 export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
@@ -668,6 +690,8 @@ export const CHAT_STEP_TOOLS = [
 	'propose_student',
 	'propose_rate',
 	'propose_archive',
+	'student_payments',
+	'propose_payment_delete',
 	'answer',
 ] as const
 

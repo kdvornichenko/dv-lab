@@ -7,7 +7,7 @@ import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, call, quote, sql, studentCookie, teacherCookie } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
-const SECTIONS = ['payment', 'cards']
+const SECTIONS = ['payment', 'cards', 'deletions']
 const section = process.argv[2]
 if (!SECTIONS.includes(section)) {
 	console.log(`usage: node scripts/dev-checks/chat-changes.mjs ${SECTIONS.join('|')}`)
@@ -26,7 +26,8 @@ const pino = apiRequire('pino')
 const { serve } = apiRequire('@hono/node-server')
 
 const PORT = 4241
-const PREFIX = section === 'cards' ? 'Alex Example 234' : 'Alex Example 230'
+const PREFIXES = { payment: 'Alex Example 230', cards: 'Alex Example 234', deletions: 'Alex Example 235' }
+const PREFIX = PREFIXES[section]
 const ACTIVE = ['accepted', 'running']
 const QUIET = 'I prepared the payment. Confirm it below.'
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -1031,6 +1032,170 @@ async function cards() {
 	)
 }
 
+const QUIET_DELETE = 'I prepared the deletion. Confirm it below.'
+
+function toolRecords(result) {
+	try {
+		return JSON.parse(String(result.tool?.content)).records ?? null
+	} catch {
+		return null
+	}
+}
+
+async function deletions() {
+	const zone =
+		sql(`select default_time_zone as zone from teacher_settings where account_id = ${quote(accountId)}`).rows[0]
+			?.zone ?? core.SCHEDULE_TIME_ZONE
+	const today = core.scheduleToday(new Date(), zone)
+	const opening = { lessonsHundredths: 200, on: core.addDays(today, -1), expectedDefaultTimeZone: zone }
+	const chatId = await conversation()
+	const pay = async (studentId, note = null) => {
+		const res = await as('POST', '/payments', {
+			studentId,
+			paidOn: today,
+			expectedDefaultTimeZone: zone,
+			amountMinor: 800000,
+			currency: 'RUB',
+			lessonsHundredths: 200,
+			note,
+		})
+		if (res.status !== 201) throw new Error(`payment create returned ${res.status}`)
+		return res.json.payment
+	}
+	const ask = (studentId, name, tool, input, text) =>
+		askTool(chatId, tool, { student_id: studentId, ...input }, text, { studentId, name }, QUIET_DELETE)
+
+	const name0 = `${PREFIX}0`
+	const card0 = await card(name0, { opening })
+	const first = await pay(card0)
+	const second = await pay(card0)
+	const listed = await ask(card0, name0, 'student_payments', {}, `@${name0} покажи оплаты`)
+	const records = toolRecords(listed)
+	check(
+		'student_payments returns both payments with the same amount and date under different ids',
+		listed.tool?.is_error !== true &&
+			listed.block === null &&
+			Array.isArray(records) &&
+			records.length === 2 &&
+			records.every((record) => record.paid_on === today && record.amount_minor === 800000) &&
+			new Set(records.map((record) => record.payment_id)).size === 2 &&
+			records.some((record) => record.payment_id === first.id) &&
+			records.some((record) => record.payment_id === second.id),
+		JSON.stringify(records)
+	)
+	const balanceBefore = (await as('GET', `/students/${card0}`)).json?.student?.balanceMinutes
+	const proposed = await ask(card0, name0, 'propose_payment_delete', { payment_id: first.id }, `@${name0} удали оплату`)
+	const block = proposed.block
+	check(
+		'propose_payment_delete stores one proposed change and deletes nothing',
+		actionsOf(proposed.teacherId).length === 1 &&
+			actionsOf(proposed.teacherId)[0].state === 'proposed' &&
+			paymentsOf(card0).length === 2,
+		JSON.stringify(actionsOf(proposed.teacherId))
+	)
+	check(
+		'the preview carries the date, amount, lessons, note and the balance after deletion computed by code',
+		block?.state === 'proposed' &&
+			block.change.operation === 'delete_payment' &&
+			block.change.studentId === card0 &&
+			block.change.studentName === name0 &&
+			block.change.paymentId === first.id &&
+			block.change.paidOn === today &&
+			block.change.amountMinor === 800000 &&
+			block.change.currency === 'RUB' &&
+			block.change.lessonsHundredths === 200 &&
+			block.change.creditedMinutes === 120 &&
+			block.change.note === null &&
+			block.change.balanceMinutes === balanceBefore &&
+			block.change.balanceAfterMinutes === balanceBefore - 120,
+		JSON.stringify({ block, balanceBefore })
+	)
+	check(
+		'the tool result says proposed and carries no amount',
+		proposed.tool?.is_error !== true &&
+			String(proposed.tool?.content).includes('"status":"proposed"') &&
+			!String(proposed.tool?.content).includes('8000'),
+		JSON.stringify(proposed.tool)
+	)
+	const confirmed = await confirm(block.actionId)
+	const left = paymentsOf(card0)
+	const profile = (await as('GET', `/students/${card0}`)).json?.student
+	check(
+		'Delete payment removes only the chosen row through the payments owner',
+		valid(confirmed) &&
+			confirmed.json.block.state === 'applied' &&
+			confirmed.json.block.receipt?.studentId === card0 &&
+			left.length === 1 &&
+			left[0].id === second.id,
+		JSON.stringify({ block: confirmed.json?.block, left })
+	)
+	check(
+		'the profile balance equals the balance after deletion in the block',
+		profile?.balanceMinutes === block.change.balanceAfterMinutes,
+		JSON.stringify(profile?.balanceMinutes)
+	)
+	const again = await confirm(block.actionId)
+	check(
+		'a repeated confirm returns the same block and deletes nothing else',
+		valid(again) &&
+			JSON.stringify(again.json.block) === JSON.stringify(confirmed.json.block) &&
+			paymentsOf(card0).length === 1
+	)
+	const readApplied = await shown(chatId, block.actionId)
+	check('after reload the deletion block is applied', readApplied?.state === 'applied', JSON.stringify(readApplied))
+
+	const edited = await ask(card0, name0, 'propose_payment_delete', { payment_id: second.id }, `@${name0} удали оплату`)
+	const fixed = await as('PATCH', `/payments/${second.id}`, {
+		paidOn: second.paidOn,
+		expectedDefaultTimeZone: zone,
+		amountMinor: second.amountMinor,
+		currency: second.currency,
+		lessonsHundredths: second.lessonsHundredths,
+		note: 'Corrected in the form',
+		expectedRevision: second.revision,
+	})
+	if (fixed.status !== 200) throw new Error(`payment edit returned ${fixed.status}`)
+	const staleEdit = await confirm(edited.block?.actionId)
+	check(
+		'a payment edit between the proposal and Delete payment makes it stale and keeps the row',
+		valid(staleEdit) &&
+			staleEdit.json.block.state === 'stale' &&
+			staleEdit.json.block.issue === 'payment_changed' &&
+			paymentsOf(card0).some((row) => row.id === second.id),
+		JSON.stringify(staleEdit.json)
+	)
+
+	const name1 = `${PREFIX}1`
+	const card1 = await card(name1)
+	const foreign = await pay(card1)
+	const crossed = await ask(
+		card0,
+		name0,
+		'propose_payment_delete',
+		{ payment_id: foreign.id },
+		`@${name0} удали оплату`
+	)
+	check(
+		'a payment of another student refuses with payment_not_found and no action',
+		refusedWith(crossed, 'payment_not_found') &&
+			actionsOf(crossed.teacherId).length === 0 &&
+			paymentsOf(card1).length === 1,
+		JSON.stringify(crossed.tool)
+	)
+	const kept = await ask(card1, name1, 'propose_payment_delete', { payment_id: foreign.id }, `@${name1} удали оплату`)
+	const declined = await decline(kept.block?.actionId)
+	const confirmAfter = await confirm(kept.block?.actionId)
+	check(
+		'Keep payment declines without a deletion and confirm after decline deletes nothing',
+		valid(declined) &&
+			declined.json.block.state === 'declined' &&
+			valid(confirmAfter) &&
+			confirmAfter.json.block.state === 'declined' &&
+			paymentsOf(card1).length === 1,
+		JSON.stringify(declined.json)
+	)
+}
+
 let done = false
 try {
 	cookie = await teacherCookie(api)
@@ -1055,6 +1220,7 @@ try {
 	await readAssistantSettings(db, accountId)
 	if (section === 'payment') await payment()
 	if (section === 'cards') await cards()
+	if (section === 'deletions') await deletions()
 	done = true
 } catch (err) {
 	failures++

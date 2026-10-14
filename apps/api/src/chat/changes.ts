@@ -32,6 +32,13 @@ import {
 	cardTargets,
 	previewCardChange,
 } from './change-cards.ts'
+import {
+	type DeletionRefusal,
+	type DeletionRequest,
+	applyDeletion,
+	deletionTargets,
+	previewDeletion,
+} from './change-deletions.ts'
 import { blocksOf, changeView, insertAction, replyOf } from './messages.ts'
 
 type PaymentRequest = {
@@ -44,7 +51,7 @@ type PaymentRequest = {
 	note: string | null
 }
 
-export type ChangeRequest = PaymentRequest | CardChangeRequest
+export type ChangeRequest = PaymentRequest | CardChangeRequest | DeletionRequest
 
 export type ChangeRefusal =
 	| 'amount_not_in_message'
@@ -55,6 +62,7 @@ export type ChangeRefusal =
 	| 'invalid_note'
 	| 'student_not_found'
 	| CardRefusal
+	| DeletionRefusal
 
 export type ProposeOutcome =
 	{ kind: 'proposed'; block: ChatChangeProposalBlock } | { kind: 'refused'; code: ChangeRefusal }
@@ -78,7 +86,7 @@ const paymentTarget = z.strictObject({
 	}),
 })
 
-const storedTarget = z.discriminatedUnion('operation', [paymentTarget, ...cardTargets])
+const storedTarget = z.discriminatedUnion('operation', [paymentTarget, ...cardTargets, ...deletionTargets])
 
 const legacyTarget = paymentTarget.extend({
 	guard: z.strictObject({
@@ -232,14 +240,15 @@ async function preparePayment(
 	}
 }
 
-async function prepareCard(
+type Preview =
+	{ kind: 'ok'; target: unknown; change: ChatChangeProposalBlock['change'] } | { kind: 'refused'; code: ChangeRefusal }
+
+async function stage(
 	tx: DbExecutor,
 	context: ChatContext,
 	source: ActionSource,
-	request: CardChangeRequest
+	preview: Preview
 ): Promise<ProposeOutcome> {
-	const message = await teacherText(tx, context.accountId, source.messageId)
-	const preview = await previewCardChange(tx, saidIn(message ?? ''), request)
 	if (preview.kind === 'refused') return refused(preview.code)
 	const actionId = await insertAction(tx, {
 		accountId: context.accountId,
@@ -255,6 +264,24 @@ async function prepareCard(
 	}
 }
 
+async function prepare(
+	tx: DbExecutor,
+	context: ChatContext,
+	source: ActionSource,
+	request: ChangeRequest
+): Promise<ProposeOutcome> {
+	switch (request.operation) {
+		case 'record_payment':
+			return preparePayment(tx, context, source, request)
+		case 'delete_payment':
+			return stage(tx, context, source, await previewDeletion(tx, context, request))
+		default: {
+			const message = await teacherText(tx, context.accountId, source.messageId)
+			return stage(tx, context, source, await previewCardChange(tx, saidIn(message ?? ''), request))
+		}
+	}
+}
+
 export function proposeChange(
 	db: Database,
 	context: ChatContext,
@@ -263,10 +290,7 @@ export function proposeChange(
 	persist: (tx: DbExecutor, block: ChatChangeProposalBlock) => Promise<void>
 ): Promise<ProposeOutcome> {
 	return db.transaction(async (tx) => {
-		const outcome =
-			request.operation === 'record_payment'
-				? await preparePayment(tx, context, source, request)
-				: await prepareCard(tx, context, source, request)
+		const outcome = await prepare(tx, context, source, request)
 		if (outcome.kind === 'proposed') await persist(tx, outcome.block)
 		return outcome
 	})
@@ -341,7 +365,10 @@ async function applyChange(tx: DbExecutor, context: ChatContext, action: ActionR
 	}
 	const target = parsed.data
 	if (target.operation === 'record_payment') return applyPayment(tx, context, action, target)
-	const applied = await applyCardChange(tx, context, target)
+	const applied =
+		target.operation === 'delete_payment'
+			? await applyDeletion(tx, context, target)
+			: await applyCardChange(tx, context, target)
 	if (applied.kind === 'applied') return settle(tx, action.id, 'applied', { kind: 'applied' }, applied.after)
 	return settle(tx, action.id, 'refused', applied)
 }

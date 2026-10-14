@@ -37,6 +37,7 @@ import { occurrenceStartsAt } from '../schedule/rows.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { readLessonRange } from '../today/today.ts'
 import { type ActionSource, type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
+import { paymentRecords } from './change-deletions.ts'
 import { type ChangeRequest, proposeChange } from './changes.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
 import { type Issued, citeKey } from './publish-gate.ts'
@@ -116,6 +117,8 @@ const inputs = {
 		clear: z.boolean(),
 	}),
 	propose_archive: z.strictObject({ student_id: id, requested_deletion: z.boolean() }),
+	student_payments: z.strictObject({ student_id: id }),
+	propose_payment_delete: z.strictObject({ student_id: id, payment_id: id }),
 	open_page: z.strictObject({
 		kind: z.string(),
 		student_id: nullable(id),
@@ -239,6 +242,16 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 		'propose_archive',
 		'Propose archiving a student. Archiving keeps the card, its payments, notes and lessons, and the sign-in account of the student. requested_deletion true when the teacher asked to delete or remove the student: permanent deletion is not available and the block offers the archive instead. Nothing changes until the teacher confirms in the chat.',
 		{ student_id: string, requested_deletion: boolean }
+	),
+	tool(
+		'student_payments',
+		'Read the payments of one student, newest first. Each record has its payment_id, the date paid_on, amount_minor, the currency, the number of lessons and the note. Use it to find the exact payment the teacher wants to delete. Never retell amounts or numbers in your text.',
+		{ student_id: string }
+	),
+	tool(
+		'propose_payment_delete',
+		'Propose deleting one payment of a student. payment_id is the exact id from student_payments; when several payments fit the request, ask the teacher which one and do not guess. Lessons and their marks stay. Nothing is deleted until the teacher confirms in the chat.',
+		{ student_id: string, payment_id: string }
 	),
 	tool(
 		'open_page',
@@ -419,6 +432,13 @@ async function studentNotes(executor: DbExecutor, context: ToolContext, studentI
 	return { content: text, isError: false, block: null }
 }
 
+async function studentPayments(executor: DbExecutor, studentId: string): Promise<ToolOutcome> {
+	const records = await paymentRecords(executor, studentId)
+	if (records === null) return failure('student_not_found')
+	const clipped = records.map((record) => ({ ...record, note: record.note === null ? null : clip(record.note) }))
+	return { content: fit(clipped).text, isError: false, block: null }
+}
+
 async function lessons(
 	executor: DbExecutor,
 	context: ChatContext,
@@ -549,6 +569,9 @@ function writeRequest(name: ToolName, input: unknown): LocalRequest | null {
 const CHANGE_NOTE =
 	'Nothing changes until the teacher confirms in the chat. Do not repeat amounts or numbers: the block shows them.'
 
+const DELETE_NOTE =
+	'Nothing is deleted until the teacher confirms in the chat. Never say it was deleted. Do not repeat amounts or numbers: the block shows them.'
+
 function changeReceipt(change: ChatChange): unknown {
 	switch (change.operation) {
 		case 'record_payment':
@@ -568,6 +591,8 @@ function changeReceipt(change: ChatChange): unknown {
 					? `Permanent deletion is not available; the block offers to archive the student instead. ${CHANGE_NOTE}`
 					: CHANGE_NOTE,
 			}
+		case 'delete_payment':
+			return { status: 'proposed', student: change.studentName, paid_on: change.paidOn, note: DELETE_NOTE }
 		default:
 			return { status: 'proposed', student: change.studentName, note: CHANGE_NOTE }
 	}
@@ -680,6 +705,10 @@ function changeRequest(name: ToolName, input: unknown): ChangeRequest | null {
 		const parsed = inputs.propose_archive.parse(input)
 		return { operation: 'archive_card', studentId: parsed.student_id, requestedDeletion: parsed.requested_deletion }
 	}
+	if (name === 'propose_payment_delete') {
+		const parsed = inputs.propose_payment_delete.parse(input)
+		return { operation: 'delete_payment', studentId: parsed.student_id, paymentId: parsed.payment_id }
+	}
 	return null
 }
 
@@ -702,6 +731,7 @@ async function read(context: ToolContext, name: ToolName, input: unknown): Promi
 	const outcome = await readSnapshot(context.db, async (executor) => {
 		if (name === 'find_students') return findStudents(executor, inputs.find_students.parse(input).query)
 		if (name === 'student_notes') return studentNotes(executor, context, inputs.student_notes.parse(input).student_id)
+		if (name === 'student_payments') return studentPayments(executor, inputs.student_payments.parse(input).student_id)
 		return lessons(executor, context.chat, inputs.lessons.parse(input))
 	})
 	if (outcome.block === null || context.shown.has('lessons')) return { ...outcome, block: null }
