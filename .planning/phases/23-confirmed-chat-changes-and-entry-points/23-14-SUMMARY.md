@@ -42,9 +42,9 @@ requirements-completed: [CHAT-05, CHAT-06, CHAT-10, CHAT-12, SHELL-03, SHELL-04,
 actuals:
   tokens: 20300
   tasks: 3
-  commits: 4
+  commits: 6
 plan_head_before: 0372253319d0d7b79b4dd81d71131a24f39656c4
-plan_head_after: 88c3c7aae0d37e290b6bed6ce05bf1d4686ae402
+plan_head_after: 133521b865daffb4c94b6572142a8bd825b9f8f8
 
 duration: 55min
 completed: 2026-10-14
@@ -57,7 +57,7 @@ completed: 2026-10-14
 ## Производительность
 
 - Начало около 15:45 UTC+7, конец около 16:40 UTC+7 (2026-10-14), из них около 15 минут прогон `chat-final.mjs`.
-- Задачи: 3 из 3, коммитов задач 4 (измерено `git rev-list --count 0372253..HEAD`).
+- Задачи: 3 из 3, коммитов 6 (измерено `git rev-list --count 0372253..HEAD`): пять кодовых и документных и первая версия SUMMARY `79bc356`.
 - Изменено файлов: 7.
 
 ## Коммиты
@@ -66,6 +66,8 @@ completed: 2026-10-14
 2. `c872863` docs(23-14): AGENTS.md, README проверок, privacy (задача 1).
 3. `0201f4d` feat(23-14): проверки фазы 23 в `chat-final.mjs`, раздел 15 RUNBOOK (задача 2).
 4. `88c3c7a` fix(23-14): ожидаемый список команд чата под `/essay` в `chat-web.mjs` и README (задача 3).
+5. `79bc356` docs(23-14): первая версия этого SUMMARY.
+6. `133521b` docs(23-14): уточнения после проверки текста: в AGENTS.md пояс учителя сверяет только предложение оплаты, остальные — ревизию цели; в RUNBOOK 15.3 условие отката сформулировано для образа с чатом без фазы 23 (блоки разбирает `z.discriminatedUnion`).
 
 ## Что сделано
 
@@ -163,6 +165,7 @@ completed: 2026-10-14
 
 ### Прочие отклонения
 
+- **Ловушка для следующих исполнителей:** в этом репозитории `yarn test` собирает web в рабочий `apps/web/.next`. Если сборка web запрещена, тесты запускать по пакетам (`yarn workspace @dv-lab/<пакет> test`) или через `turbo run test` с фильтром без web.
 - **`yarn test` собрал web в `apps/web/.next`.** В `turbo.json` задача `test` зависит от `build`, поэтому `yarn test` (команда плана) запустил `@dv-lab/web:build` в рабочем `apps/web/.next`. `next dev` владельца пишет в `apps/web/.next/dev` (Next 16), каталог не тронут, после сборки dev-сервер отвечает 200 на `/login` и `/privacy`, все браузерные разделы после этого прошли на нём. В `apps/web/.next` остались файлы сборки (`BUILD_ID`, `server`, `static`, `standalone`, `types`), они в `.gitignore`; удалять их не стал, решать владельцу. Задание запрещало сборку web в этот каталог; зависимость `test` → `build` в turbo я не учёл до запуска.
 - `chat-tools-schema.mjs` в `chat-final.mjs` не добавлен (см. key-decisions); описан в README и AGENTS.md как отдельная проверка с ключом.
 - Проверка ссылок F-02 сделана разовым скриптом во временной папке на чтении разговора владельца с подменой текста ответа через `page.route`; в репозиторий не добавлена.
@@ -195,6 +198,6 @@ completed: 2026-10-14
 ## Self-Check: PASSED
 
 - Файлы на месте: `AGENTS.md`, `scripts/dev-checks/README.md`, `apps/web/app/privacy/page.tsx`, `scripts/dev-checks/chat-final.mjs`, `deploy/RUNBOOK.md`.
-- Коммиты `886530e`, `c872863`, `0201f4d`, `88c3c7a` — в истории ветки.
+- Коммиты `886530e`, `c872863`, `0201f4d`, `88c3c7a`, `79bc356`, `133521b` — в истории ветки.
 - `grep -n "chat/changes.ts" AGENTS.md`, `grep -n "command-zone.ts" AGENTS.md`, `grep -n "Проверки фазы 23" scripts/dev-checks/README.md`, `grep -n "card_payment_revision" deploy/RUNBOOK.md` находят строки.
 - Файлы владельца (`apps/web/next.config.ts`, `apps/web/AGENTS.md`, `.planning/state.json`, `.planning/milestone.lock`, неотслеживаемые 22-REVIEW*, 22-SECURITY, 23-14-CARRYOVER) не индексировались и не менялись.
