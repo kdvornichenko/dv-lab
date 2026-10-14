@@ -18,8 +18,9 @@ import {
 import { parseMoney } from '@dv-lab/core'
 import { type DbExecutor, students } from '@dv-lab/db'
 
+import { findStudentAccount } from '../auth/accounts.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
-import { type CardWrite, createCard, setCardRate } from '../cards/cards.ts'
+import { type CardWrite, archiveCard, createCard, setCardRate } from '../cards/cards.ts'
 
 export type CardChangeRequest =
 	| {
@@ -31,6 +32,7 @@ export type CardChangeRequest =
 			gender: Gender | null
 	  }
 	| { operation: 'set_rate'; studentId: string; rateText: string | null; currency: Currency | null; clear: boolean }
+	| { operation: 'archive_card'; studentId: string; requestedDeletion: boolean }
 
 export type CardRefusal =
 	| 'name_not_in_message'
@@ -41,6 +43,7 @@ export type CardRefusal =
 	| 'invalid_amount'
 	| 'invalid_card'
 	| 'no_change'
+	| 'already_archived'
 	| 'student_not_found'
 
 export type Said = {
@@ -65,6 +68,7 @@ export const cardTargets = [
 		gender: z.enum(GENDERS).nullable(),
 	}),
 	z.strictObject({ operation: z.literal('set_rate'), studentId: z.uuid(), after: rate, guard }),
+	z.strictObject({ operation: z.literal('archive_card'), studentId: z.uuid(), requestedDeletion: z.boolean(), guard }),
 ] as const
 
 type CardTarget = z.infer<(typeof cardTargets)[number]>
@@ -193,9 +197,36 @@ async function previewRate(
 	}
 }
 
+async function previewArchive(
+	executor: DbExecutor,
+	request: Extract<CardChangeRequest, { operation: 'archive_card' }>
+): Promise<CardPreview> {
+	const card = await cardOf(executor, request.studentId)
+	if (card === null) return refused('student_not_found')
+	if (card.status === 'archived') return refused('already_archived')
+	const account = await findStudentAccount(executor, card.id)
+	return {
+		kind: 'ok',
+		target: {
+			operation: 'archive_card',
+			studentId: card.id,
+			requestedDeletion: request.requestedDeletion,
+			guard: { cardRevision: card.revision },
+		},
+		change: {
+			operation: 'archive_card',
+			studentId: card.id,
+			studentName: card.displayName,
+			requestedDeletion: request.requestedDeletion,
+			accountActive: account?.status === 'active',
+		},
+	}
+}
+
 export function previewCardChange(executor: DbExecutor, said: Said, request: CardChangeRequest): Promise<CardPreview> {
 	if (request.operation === 'create_card') return previewCreate(executor, said, request)
-	return previewRate(executor, said, request)
+	if (request.operation === 'set_rate') return previewRate(executor, said, request)
+	return previewArchive(executor, request)
 }
 
 function written(outcome: CardWrite, studentId: string): CardApplied {
@@ -226,7 +257,11 @@ export async function applyCardChange(
 		const created = await createCard(tx, input.data, context)
 		return { kind: 'applied', after: { studentId: created.id } }
 	}
-	const after = pairOf(target.after.rateMinor, target.after.currency)
-	const outcome = await setCardRate(tx, target.studentId, after, target.guard.cardRevision, context)
+	if (target.operation === 'set_rate') {
+		const after = pairOf(target.after.rateMinor, target.after.currency)
+		const outcome = await setCardRate(tx, target.studentId, after, target.guard.cardRevision, context)
+		return written(outcome, target.studentId)
+	}
+	const outcome = await archiveCard(tx, target.studentId, context, target.guard.cardRevision)
 	return written(outcome, target.studentId)
 }

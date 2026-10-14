@@ -115,6 +115,7 @@ const inputs = {
 		currency: nullable(z.enum(CURRENCIES)),
 		clear: z.boolean(),
 	}),
+	propose_archive: z.strictObject({ student_id: id, requested_deletion: z.boolean() }),
 	open_page: z.strictObject({
 		kind: z.string(),
 		student_id: nullable(id),
@@ -233,6 +234,11 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 			currency: { type: ['string', 'null'], enum: [...CURRENCIES, null] },
 			clear: boolean,
 		}
+	),
+	tool(
+		'propose_archive',
+		'Propose archiving a student. Archiving keeps the card, its payments, notes and lessons, and the sign-in account of the student. requested_deletion true when the teacher asked to delete or remove the student: permanent deletion is not available and the block offers the archive instead. Nothing changes until the teacher confirms in the chat.',
+		{ student_id: string, requested_deletion: boolean }
 	),
 	tool(
 		'open_page',
@@ -554,6 +560,14 @@ function changeReceipt(change: ChatChange): unknown {
 			}
 		case 'create_card':
 			return { status: 'proposed', student: change.displayName, note: CHANGE_NOTE }
+		case 'archive_card':
+			return {
+				status: 'proposed',
+				student: change.studentName,
+				note: change.requestedDeletion
+					? `Permanent deletion is not available; the block offers to archive the student instead. ${CHANGE_NOTE}`
+					: CHANGE_NOTE,
+			}
 		default:
 			return { status: 'proposed', student: change.studentName, note: CHANGE_NOTE }
 	}
@@ -661,6 +675,10 @@ function changeRequest(name: ToolName, input: unknown): ChangeRequest | null {
 			currency: parsed.currency,
 			clear: parsed.clear,
 		}
+	}
+	if (name === 'propose_archive') {
+		const parsed = inputs.propose_archive.parse(input)
+		return { operation: 'archive_card', studentId: parsed.student_id, requestedDeletion: parsed.requested_deletion }
 	}
 	return null
 }
