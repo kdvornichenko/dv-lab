@@ -1,21 +1,21 @@
 ---
-gsd_state_version: '1.0'
+gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 24
-current_phase_name: Google Calendar Connection and Outbound Sync
-status: paused
+current_phase: 23
+current_phase_name: Confirmed Chat Changes and Entry Points
+status: executing
 stopped_at: Phase 25.1 executed, live-checked on the test account and accepted by the owner (2026-10-13); PR open, merge by the owner
-last_updated: '2026-10-12T13:00:00.000Z'
-last_activity: 2026-10-12
-last_activity_desc: Status synced with master after PRs 10-29 made outside GSD plans
-state_head: 09211e81b3037e6b78d10bda00ba2009a96b48af
+last_updated: "2026-10-14T03:58:03.738Z"
+last_activity: 2026-10-14
+last_activity_desc: Phase 23 execution started
+state_head: a9a49652625902e9943b84dfba1bfb010a8f7699
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 6
-  total_plans: 189
-  completed_plans: 103
-  percent: 54
+  total_plans: 188
+  completed_plans: 133
+  percent: 50
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 24 — Google Calendar Connection and Outbound Sync
+**Current focus:** Phase 23 — Confirmed Chat Changes and Entry Points
 
 ## Current Position
 
-Phase: 24 (Google Calendar Connection and Outbound Sync) — PAUSED, 13 of 14 plans done
-Plan: 14 of 14 (13 done; 24-14 is the live Google check)
-Status: Paused; live provider verification pending on the owner test account
-Last activity: 2026-10-12 — status synced with master
+Phase: 23 (Confirmed Chat Changes and Entry Points) — EXECUTING
+Plan: 1 of 14
+Status: Executing Phase 23
+Last activity: 2026-10-14 — Phase 23 execution started
 
-Progress: [█████░░░░░] 54%
+Progress: [█████░░░░░] 50%
 
 ## Deferred Verification
 
