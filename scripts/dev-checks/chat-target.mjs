@@ -699,7 +699,7 @@ where c.state not in ('applied', 'failed') and g.calendar_id not like '${SYNTHET
 	}
 	rows(`update students set display_name = ${quote(`${NAME}9 Renamed`)} where id = ${quote(ids.renamed)}`)
 	const [{ zone: preZone }] = rows(
-		`select coalesce((select s.default_time_zone from teacher_settings s join accounts a on a.id = s.account_id where a.login = ${quote(TEST_TEACHER)}), 'Asia/Ho_Chi_Minh') as zone`
+		`select coalesce((select s.default_time_zone from teacher_settings s join accounts a on a.id = s.account_id where a.login = ${quote(TEST_TEACHER)} and a.role = 'teacher' and a.status = 'active'), 'Asia/Ho_Chi_Minh') as zone`
 	)
 	ids.fDate = core.addDays(core.lessonDay(new Date(), preZone), -70)
 	const [old] = rows(
