@@ -2,10 +2,11 @@ import { spawn } from 'node:child_process'
 import { createConnection } from 'node:net'
 
 import * as core from '../../packages/core/src/index.ts'
-import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
+import { BASE, ROOT, api, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
 
 const NAME = 'Alex Example 2306'
+const FORMS_NAME = 'Alex Example 2360'
 const FIELD = '[data-slot="chat-composer-field"]'
 const POPUP = '[data-slot="mention-popup"]'
 const SEND = '[data-slot="chat-send"]'
@@ -313,7 +314,356 @@ async function sectionPayment() {
 	}
 }
 
-const sections = { payment: sectionPayment }
+const CHANGED_PAYMENT =
+	'This payment changed elsewhere. Your draft has been kept. Reload the current details before saving.'
+const CHANGED_STUDENT =
+	'This student changed elsewhere. Your draft has been kept. Reload the current details before saving.'
+const GONE = 'This record is no longer available. Open the current records to continue.'
+
+function removeFormsCards() {
+	const where = `display_name = '${FORMS_NAME}' and import_key is null`
+	sql(`delete from payments where student_id in (select id from students where ${where})`)
+	const result = sql(`delete from students where ${where}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+async function formsPrepare(page, apiOrigin) {
+	await setTheme(page)
+	if (apiOrigin === BASE) return
+	await page.route('**/api/**', async (route) => {
+		const headers = { ...(await route.request().allHeaders()), origin: apiOrigin }
+		try {
+			const response = await route.fetch({ headers })
+			await route.fulfill({ response })
+		} catch {
+			await route.abort().catch(() => undefined)
+		}
+	})
+}
+
+async function formsApi(page, apiOrigin, method, path, body) {
+	const response = await page.request.fetch(`${BASE}/api${path}`, {
+		method,
+		headers: { origin: apiOrigin, 'content-type': 'application/json' },
+		data: body === undefined ? undefined : JSON.stringify(body),
+	})
+	let json = null
+	try {
+		json = await response.json()
+	} catch {
+		json = null
+	}
+	return { status: response.status(), json }
+}
+
+const paymentRows = (studentId) =>
+	sql(
+		`select id, source, created_at::text as created_at, amount_minor::text as amount, lessons_count::text as lessons, note, revision from payments where student_id = '${studentId}' order by created_at`
+	).rows
+
+async function detectApiOrigin() {
+	const candidates = [...new Set([BASE, env.APP_ORIGIN].filter(Boolean))]
+	for (const origin of candidates) {
+		const response = await fetch(`${BASE}/api/auth/sign-in`, {
+			method: 'POST',
+			headers: { origin, 'content-type': 'application/json' },
+			body: JSON.stringify({ login: 'origin-probe', password: 'origin-probe' }),
+		}).catch(() => null)
+		const body = response ? await response.json().catch(() => null) : null
+		if (response && body?.error?.code !== 'forbidden_origin') return origin
+	}
+	throw new Error('the dev api accepts neither the web origin nor APP_ORIGIN from .env')
+}
+
+async function sectionForms() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+	try {
+		removeFormsCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await formsPrepare(page, apiOrigin)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const created = await call('POST', '/students', {
+					displayName: FORMS_NAME,
+					rateMinor: 400000,
+					currency: 'RUB',
+					defaultLessonMinutes: 60,
+					parent: null,
+					level: null,
+					goals: null,
+					timeZone: null,
+				})
+				check('the fixture card is created', created.status === 201, String(created.status))
+				const studentId = created.json.student.id
+				const profile = await call('GET', `/students/${studentId}`)
+				const zone = profile.json.defaultTimeZone
+				const opening = await call('PUT', `/students/${studentId}/opening-balance`, {
+					lessonsHundredths: 200,
+					on: core.addDays(core.scheduleToday(new Date(), zone), -1),
+					expectedDefaultTimeZone: zone,
+				})
+				check('the opening balance is set', opening.status === 200, String(opening.status))
+
+				await page.goto(`${BASE}/students/${studentId}`)
+				await page.getByRole('heading', { name: FORMS_NAME, level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'Record payment' }).click()
+				const dialog = page.getByRole('dialog')
+				await dialog.getByLabel('Amount').fill('8000')
+				await dialog.getByRole('button', { name: 'Record payment' }).click()
+				await page.getByText('Payment recorded').waitFor({ timeout: 15000 })
+				await dialog.waitFor({ state: 'detached', timeout: 15000 })
+				const recorded = paymentRows(studentId)
+				check('the form records exactly one payment', recorded.length === 1, String(recorded.length))
+				const before = recorded[0]
+
+				await page.getByRole('tab', { name: 'Payments' }).click()
+				const editButton = page.getByRole('button', { name: /^Edit payment of / })
+				await editButton.waitFor({ timeout: 15000 })
+				await editButton.click()
+				await dialog.getByRole('heading', { name: 'Edit payment' }).waitFor({ timeout: 10000 })
+				const amountField = dialog.getByLabel('Amount')
+				const lessonsField = dialog.getByLabel('Lessons')
+				check(
+					'Edit payment shows the student as plain text with the lock caption and the recorded values',
+					(await dialog.innerText()).includes(FORMS_NAME) &&
+						(await dialog.innerText()).includes('A payment stays with its student.') &&
+						(await dialog.getByRole('combobox', { name: 'Student' }).count()) === 0 &&
+						(await amountField.inputValue()) === '8000' &&
+						(await lessonsField.inputValue()) === '2',
+					`${await amountField.inputValue()} / ${await lessonsField.inputValue()}`
+				)
+				check(
+					'the initial focus is on Amount',
+					await page.evaluate(() => document.activeElement?.id === 'record-payment-amount')
+				)
+				await page.waitForTimeout(700)
+				await shot(page, 'changes-forms', 'edit-payment')
+				await amountField.fill('12000')
+				check('Lessons follow the amount only after the amount changed', (await lessonsField.inputValue()) === '3')
+				await lessonsField.fill('2.5')
+				await dialog.getByRole('button', { name: 'Save payment' }).click()
+				await page.getByText('Payment saved').waitFor({ timeout: 15000 })
+				await dialog.waitFor({ state: 'detached', timeout: 15000 })
+				const edited = paymentRows(studentId)
+				check(
+					'Save payment changes the same row: id, source and created_at are the same, no second row',
+					edited.length === 1 &&
+						edited[0].id === before.id &&
+						edited[0].source === before.source &&
+						edited[0].created_at === before.created_at &&
+						edited[0].amount === '1200000' &&
+						Number(edited[0].lessons) === 2.5 &&
+						Number(edited[0].revision) === Number(before.revision) + 1,
+					JSON.stringify(edited[0])
+				)
+				const after = await call('GET', `/students/${studentId}`)
+				const minutes = after.json.student.balanceMinutes
+				const phrase = core.balancePhrase(minutes, 60)
+				const header = await page.locator('#content').innerText()
+				await page.goto(`${BASE}/students`)
+				const row = page.getByRole('row').filter({ hasText: FORMS_NAME })
+				await row.waitFor({ timeout: 30000 })
+				check(
+					'the profile and Students show the same balance after the correction',
+					header.includes(phrase) && (await row.innerText()).includes(phrase),
+					phrase
+				)
+
+				await page.goto(`${BASE}/students/${studentId}?tab=payments`)
+				await page.getByRole('button', { name: /^Edit payment of / }).click()
+				await dialog.getByRole('heading', { name: 'Edit payment' }).waitFor({ timeout: 10000 })
+				await dialog.getByLabel('Note').fill('draft note')
+				const rows = (await call('GET', `/payments?student=${studentId}`)).json.payments
+				const other = await call('PATCH', `/payments/${rows[0].id}`, {
+					paidOn: rows[0].paidOn,
+					expectedDefaultTimeZone: zone,
+					amountMinor: rows[0].amountMinor,
+					currency: rows[0].currency,
+					lessonsHundredths: rows[0].lessonsHundredths,
+					note: 'changed in the other tab',
+					expectedRevision: rows[0].revision,
+				})
+				check('the other tab changes the payment', other.status === 200, String(other.status))
+				const save = dialog.getByRole('button', { name: 'Save payment' })
+				await save.click()
+				await dialog.getByText(CHANGED_PAYMENT).waitFor({ timeout: 15000 })
+				const reloadButton = dialog.getByRole('button', { name: 'Reload payment details' })
+				check(
+					'the conflict keeps the draft, blocks Save and the stale save wrote nothing',
+					(await dialog.getByLabel('Note').inputValue()) === 'draft note' &&
+						(await save.isDisabled()) &&
+						(await reloadButton.isVisible()) &&
+						paymentRows(studentId)[0].note === 'changed in the other tab' &&
+						(await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))),
+					await page.evaluate(() => document.activeElement?.tagName ?? '')
+				)
+				await page.waitForTimeout(700)
+				await shot(page, 'changes-forms', 'payment-conflict')
+				await reloadButton.click()
+				await dialog.getByText(CHANGED_PAYMENT).waitFor({ state: 'detached', timeout: 10000 })
+				check(
+					'Reload payment details loads the current values, enables Save and focuses Amount',
+					(await dialog.getByLabel('Note').inputValue()) === 'changed in the other tab' &&
+						(await amountField.inputValue()) === '12000' &&
+						(await lessonsField.inputValue()) === '2.5' &&
+						!(await save.isDisabled()) &&
+						(await page.evaluate(() => document.activeElement?.id === 'record-payment-amount')),
+					await page.evaluate(() => `${document.activeElement?.tagName}#${document.activeElement?.id}`)
+				)
+				await dialog.getByLabel('Note').fill('second correction')
+				await save.click()
+				await page.getByText('Payment saved').waitFor({ timeout: 15000 })
+				await dialog.waitFor({ state: 'detached', timeout: 15000 })
+				const corrected = paymentRows(studentId)
+				check(
+					'the second save after Reload changes the same row again',
+					corrected.length === 1 && corrected[0].id === before.id && corrected[0].note === 'second correction'
+				)
+
+				await page.goto(`${BASE}/students/${studentId}`)
+				await page.getByRole('button', { name: 'Edit details' }).click()
+				const details = page.getByRole('dialog')
+				await details.getByRole('heading', { name: `Edit ${FORMS_NAME}` }).waitFor({ timeout: 10000 })
+				await details.getByLabel('Goals').fill('draft goals')
+				const current = (await call('GET', `/students/${studentId}`)).json.student
+				const changed = await call('PATCH', `/students/${studentId}`, {
+					displayName: current.displayName,
+					gender: current.gender,
+					rateMinor: current.rateMinor,
+					currency: current.currency,
+					defaultLessonMinutes: current.defaultLessonMinutes,
+					parent: current.parent,
+					level: 'Level B',
+					goals: current.goals,
+					timeZone: current.timeZone,
+					noShowDeducts: current.noShowDeducts,
+					expectedRevision: current.revision,
+				})
+				check('the other tab changes the card', changed.status === 200, String(changed.status))
+				const saveDetails = details.getByRole('button', { name: 'Save changes' })
+				await saveDetails.click()
+				await details.getByText(CHANGED_STUDENT).waitFor({ timeout: 15000 })
+				const reloadStudent = details.getByRole('button', { name: 'Reload student details' })
+				check(
+					'the card conflict keeps the draft and blocks Save',
+					(await details.getByLabel('Goals').inputValue()) === 'draft goals' &&
+						(await saveDetails.isDisabled()) &&
+						(await reloadStudent.isVisible()) &&
+						(await page.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]')))) &&
+						sql(`select level from students where id = '${studentId}'`).rows[0]?.level === 'Level B'
+				)
+				await page.waitForTimeout(700)
+				await shot(page, 'changes-forms', 'student-conflict')
+				await reloadStudent.click()
+				await details.getByText(CHANGED_STUDENT).waitFor({ state: 'detached', timeout: 10000 })
+				check(
+					'Reload student details loads the current card, enables Save and focuses Name',
+					(await details.getByLabel('Level').inputValue()) === 'Level B' &&
+						(await details.getByLabel('Goals').inputValue()) === '' &&
+						!(await saveDetails.isDisabled()) &&
+						(await page.evaluate(() => document.activeElement?.id === 'student-form-name'))
+				)
+				await details.getByLabel('Goals').fill('new goals')
+				await saveDetails.click()
+				await page.getByText('Changes saved').waitFor({ timeout: 15000 })
+				await details.waitFor({ state: 'detached', timeout: 15000 })
+				check(
+					'the second card save after Reload keeps the other tab level',
+					sql(`select level, goals from students where id = '${studentId}'`).rows[0]?.level === 'Level B' &&
+						sql(`select goals from students where id = '${studentId}'`).rows[0]?.goals === 'new goals'
+				)
+
+				const archive = page.getByRole('button', { name: 'Archive', exact: true })
+				await archive.click()
+				await page.getByRole('button', { name: 'Archive student' }).click()
+				await page.getByText('Student archived').waitFor({ timeout: 15000 })
+				await page.getByRole('button', { name: 'Restore', exact: true }).click()
+				await page.getByRole('button', { name: 'Restore student' }).click()
+				await page.getByText('Student restored').waitFor({ timeout: 15000 })
+				check(
+					'archive and restore with a revision work',
+					sql(`select status from students where id = '${studentId}'`).rows[0]?.status === 'active'
+				)
+
+				const extra = await call('POST', '/payments', {
+					studentId,
+					paidOn: core.scheduleToday(new Date(), zone),
+					expectedDefaultTimeZone: zone,
+					amountMinor: 100000,
+					currency: 'RUB',
+					lessonsHundredths: 100,
+					note: 'extra',
+				})
+				check('an extra payment is created for the delete check', extra.status === 201, String(extra.status))
+				await page.goto(`${BASE}/students/${studentId}?tab=payments`)
+				await page.getByText('extra').waitFor({ timeout: 15000 })
+				await page
+					.getByRole('button', { name: /^Delete payment of / })
+					.first()
+					.click()
+				await page.getByRole('button', { name: 'Delete payment', exact: true }).click()
+				await page.getByText('Payment deleted').waitFor({ timeout: 15000 })
+				check('delete with a revision removes exactly one row', paymentRows(studentId).length === 1)
+
+				await page.goto(`${BASE}/students/${studentId}?tab=payments&payment=${before.id}`)
+				await dialog.getByRole('heading', { name: 'Edit payment' }).waitFor({ timeout: 30000 })
+				await page.waitForFunction(() => !location.search.includes('payment='), null, { timeout: 10000 })
+				check(
+					'the link opens Edit payment of that payment and drops payment from the address',
+					(await dialog.getByLabel('Note').inputValue()) === 'second correction' &&
+						new URL(page.url()).searchParams.get('tab') === 'payments'
+				)
+				await dialog.getByRole('button', { name: 'Discard changes' }).click()
+				await dialog.waitFor({ state: 'detached', timeout: 10000 })
+				await page.goto(`${BASE}/students/${studentId}?tab=payments&payment=6f1c2b34-5a7d-4e8f-9b0a-1c2d3e4f5a6b`)
+				await page.getByText(GONE).waitFor({ timeout: 30000 })
+				check(
+					'an unknown payment gives the unavailable line over the list and no editor',
+					(await page.getByRole('dialog').count()) === 0 &&
+						(await page.getByRole('button', { name: /^Edit payment of / }).count()) === 1
+				)
+				await page.waitForTimeout(700)
+				await shot(page, 'changes-forms', 'payment-gone')
+
+				await page.setViewportSize({ width: 390, height: 844 })
+				await page.goto(`${BASE}/students/${studentId}?tab=payments`)
+				await page.getByRole('button', { name: /^Edit payment of / }).click()
+				await dialog.getByRole('heading', { name: 'Edit payment' }).waitFor({ timeout: 10000 })
+				const amountBox = await amountField.boundingBox()
+				const lessonsBox = await lessonsField.boundingBox()
+				const footer = await dialog.getByRole('button', { name: 'Save payment' }).boundingBox()
+				const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+				check(
+					'at 390 px the fields are one column, the footer is visible and the page does not scroll sideways',
+					amountBox !== null &&
+						lessonsBox !== null &&
+						footer !== null &&
+						Math.abs(amountBox.x - lessonsBox.x) < 2 &&
+						footer.x >= 0 &&
+						footer.x + footer.width <= 390 &&
+						footer.y + footer.height <= 844 &&
+						overflow <= 0,
+					JSON.stringify({ amountBox, lessonsBox, footer, overflow })
+				)
+				await page.waitForTimeout(700)
+				await shot(page, 'changes-forms', 'phone')
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeFormsCards()
+		)
+	} finally {
+		removeFormsCards()
+	}
+}
+
+const sections = { payment: sectionPayment, forms: sectionForms }
 const section = process.argv[2]
 const run = sections[section]
 if (!run) {
