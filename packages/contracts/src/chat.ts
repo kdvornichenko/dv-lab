@@ -699,6 +699,13 @@ export const chatActionLinkBlock = z.strictObject({
 	dialog: z.enum(CHAT_ACTION_LINK_DIALOGS).nullable(),
 })
 
+export const CHAT_ESSAY_TASKS = ['task1', 'task2'] as const
+
+export const chatEssayBlock = z.strictObject({
+	type: z.literal('essay'),
+	task: z.enum(CHAT_ESSAY_TASKS).nullable(),
+})
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
@@ -716,6 +723,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatReadFailedBlock,
 	chatLessonDatesBlock,
 	chatActionLinkBlock,
+	chatEssayBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -737,6 +745,7 @@ export type ChatSuggestionsBlock = z.infer<typeof chatSuggestionsBlock>
 export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
 export type ChatLessonDatesBlock = z.infer<typeof chatLessonDatesBlock>
 export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
+export type ChatEssayBlock = z.infer<typeof chatEssayBlock>
 export type ChatActionLinkKind = (typeof CHAT_ACTION_LINK_KINDS)[number]
 export type ChatActionLinkDialog = (typeof CHAT_ACTION_LINK_DIALOGS)[number]
 export type ChatSettingsTab = (typeof CHAT_SETTINGS_TABS)[number]
@@ -775,6 +784,7 @@ export const CHAT_STEP_TOOLS = [
 	'propose_payment_delete',
 	'propose_entry_removal',
 	'propose_bulk_move',
+	'essay_feedback',
 	'answer',
 ] as const
 

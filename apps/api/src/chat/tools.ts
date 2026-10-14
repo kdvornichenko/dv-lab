@@ -39,6 +39,7 @@ import { readLessonRange } from '../today/today.ts'
 import { type ActionSource, type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
 import { paymentRecords } from './change-deletions.ts'
 import { type ChangeRequest, proposeChange } from './changes.ts'
+import { ESSAY_FEEDBACK_TOOL, ESSAY_NOTE, essayFeedbackInput } from './essay.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
 import { type Issued, citeKey } from './publish-gate.ts'
 
@@ -49,6 +50,7 @@ export type ToolContext = {
 	persist: (executor: DbExecutor, block: ChatBlock) => Promise<void>
 	issued: Issued
 	shown: Set<string>
+	essay: boolean
 }
 
 export type ToolOutcome = { content: string; isError: boolean; block: ChatBlock | null }
@@ -138,6 +140,7 @@ const inputs = {
 		tab: nullable(z.enum(CHAT_SETTINGS_TABS)),
 		dialog: nullable(z.enum(CHAT_ACTION_LINK_DIALOGS)),
 	}),
+	essay_feedback: essayFeedbackInput,
 }
 
 type ToolName = keyof typeof inputs
@@ -294,6 +297,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 			dialog: { type: ['string', 'null'], enum: [...CHAT_ACTION_LINK_DIALOGS, null] },
 		}
 	),
+	ESSAY_FEEDBACK_TOOL,
 ]
 
 export function weekdayName(instant: Date, zone: string): string {
@@ -804,9 +808,26 @@ async function read(context: ToolContext, name: ToolName, input: unknown): Promi
 	return show(context, outcome.block, outcome)
 }
 
+function changesData(name: ToolName): boolean {
+	return WRITES.has(name) || name.startsWith('propose_') || name === 'open_page'
+}
+
+async function essayFeedback(
+	context: ToolContext,
+	input: z.infer<(typeof inputs)['essay_feedback']>
+): Promise<ToolOutcome> {
+	context.essay = true
+	if (context.shown.has('essay'))
+		return result({ status: 'not_shown', note: 'The label is already shown in this answer.' })
+	context.shown.add('essay')
+	return show(context, { type: 'essay', task: input.task }, result({ status: 'shown', note: ESSAY_NOTE }))
+}
+
 export async function runTool(context: ToolContext, name: string, input: unknown): Promise<ToolOutcome> {
 	if (!isTool(name)) return failure('unknown_tool')
+	if (context.essay && changesData(name)) return failure('read_only_essay')
 	if (!inputs[name].safeParse(input).success) return failure('invalid_arguments')
+	if (name === 'essay_feedback') return essayFeedback(context, inputs.essay_feedback.parse(input))
 	if (name === 'open_page') return openPage(context, inputs.open_page.parse(input))
 	const change = changeRequest(name, input)
 	if (change !== null) return propose(context, change)

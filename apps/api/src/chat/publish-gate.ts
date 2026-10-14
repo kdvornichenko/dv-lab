@@ -1,15 +1,18 @@
 import type { ChatExcerptBlock } from '@dv-lab/contracts'
 import { zonedParts } from '@dv-lab/core'
 
+import { ESSAY_SCORE_WORDS } from './essay.ts'
+
 export type GateContext = {
 	knownIds: Set<string>
 	dates: Set<string>
 	times: Set<string>
 	names: Set<string>
+	scores?: boolean
 }
 
 export function gateContext(): GateContext {
-	return { knownIds: new Set(), dates: new Set(), times: new Set(), names: new Set() }
+	return { knownIds: new Set(), dates: new Set(), times: new Set(), names: new Set(), scores: false }
 }
 
 export type Issued = Map<string, ChatExcerptBlock>
@@ -313,8 +316,13 @@ function isNumber(word: string): boolean {
 	return DIGIT.test(word) || NUMBER_WORDS.has(word) || NUMBER_STEMS.some((stem) => stem.test(word))
 }
 
-function isLedger(word: string): boolean {
-	return LEDGER_EXACT.has(word) || HOUR_RU.test(word) || LEDGER_PREFIXES.some((prefix) => word.startsWith(prefix))
+function isLedger(word: string, scores: boolean): boolean {
+	return (
+		LEDGER_EXACT.has(word) ||
+		HOUR_RU.test(word) ||
+		LEDGER_PREFIXES.some((prefix) => word.startsWith(prefix)) ||
+		(scores && ESSAY_SCORE_WORDS.has(word))
+	)
 }
 
 function unknownRecord(sentence: string, context: GateContext): boolean {
@@ -328,7 +336,7 @@ export function checkSentence(sentence: string, context: GateContext): GateVerdi
 	const rest = withoutKnownWhen(withoutNames(sentence.replace(UUID, ' ').toLowerCase(), context), context)
 	if (rest === null) return 'withhold'
 	const words = rest.match(WORD) ?? []
-	const ledger = words.map(isLedger)
+	const ledger = words.map((word) => isLedger(word, context.scores === true))
 	for (const [index, word] of words.entries()) {
 		if (!isNumber(word)) continue
 		const from = Math.max(0, index - WINDOW)
