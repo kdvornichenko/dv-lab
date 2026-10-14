@@ -8,6 +8,9 @@
 				"$TURBO_ROOT$/e2e/support/calendar-fault-protocol.ts",
 				"$TURBO_ROOT$/e2e/support/calendar-fault-auth.ts"
 			]
+		},
+		"test": {
+			"dependsOn": ["^build", "build"]
 		}
 	}
 }
