@@ -60,7 +60,7 @@ export async function racePart1(ctx: Context) {
 	)
 
 	const lessonDay = core.addDays(ctx.today, -2)
-	const lessonId = await onceLesson(ctx, studentId, lessonDay, '08:00')
+	const lessonId = onceLesson(studentId, lessonDay, '08:00')
 	const lessonRace = await Promise.all([
 		post(ctx, `/lessons/${lessonId}/mark`, { kind: 'done' }),
 		post(ctx, `/lessons/${lessonId}/cancel`),

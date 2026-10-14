@@ -63,9 +63,9 @@ export async function todayFixtures(ctx: Context) {
 	await setOpening(ctx, card.T, 0, opening)
 	await setOpening(ctx, card.U, 0, opening)
 	await setOpening(ctx, card.O, 1000, core.addDays(ctx.today, -2))
-	const pDone = await onceLesson(ctx, card.P, core.addDays(opening, 1), '10:00')
+	const pDone = onceLesson(card.P, core.addDays(opening, 1), '10:00')
 	await stepOk('done of the P lesson', () => markSingle(ctx, pDone, 'done'))
-	const sDone = await onceLesson(ctx, card.S, core.addDays(opening, 1), '11:00')
+	const sDone = onceLesson(card.S, core.addDays(opening, 1), '11:00')
 	await stepOk('done of the S lesson', () => markSingle(ctx, sDone, 'done'))
 	await stepOk('archive of T', () =>
 		call(ctx.api, 'POST', `/students/${card.T}/archive`, { cookie: ctx.cookie, body: {} })
@@ -74,9 +74,9 @@ export async function todayFixtures(ctx: Context) {
 	const started = insertLesson(card.Q, startedToday(ctx))
 	const upcoming = insertLesson(card.Q, soonToday(ctx))
 	const qSeries = insertSeries(card.Q, core.weekdayOf(yesterday), '10:00', core.addDays(yesterday, -14))
-	const marked = await onceLesson(ctx, card.Q, yesterday, '08:00')
+	const marked = onceLesson(card.Q, yesterday, '08:00')
 	await stepOk('done of the yesterday lesson', () => markSingle(ctx, marked, 'done'))
-	const cancelled = await onceLesson(ctx, card.Q, yesterday, '12:00')
+	const cancelled = onceLesson(card.Q, yesterday, '12:00')
 	await stepOk('cancel of the yesterday lesson', () => post(ctx, `/lessons/${cancelled}/cancel`))
 
 	const rSeries = insertSeries(card.R, core.weekdayOf(ctx.today), '12:00', core.addDays(ctx.today, -14))
@@ -84,12 +84,12 @@ export async function todayFixtures(ctx: Context) {
 		`insert into lesson_exceptions (series_id, original_on, kind, starts_at, duration_minutes) values (${quote(rSeries)}, ${quote(ctx.today)}, 'moved', ${quote(instant(tomorrow, '10:00'))}, 60)`
 	)
 
-	const archivedLesson = await onceLesson(ctx, card.A, yesterday, '14:00')
+	const archivedLesson = onceLesson(card.A, yesterday, '14:00')
 	await stepOk('archive of the card with a lesson', () =>
 		call(ctx.api, 'POST', `/students/${card.A}/archive`, { cookie: ctx.cookie, body: {} })
 	)
-	const openingDayLesson = await onceLesson(ctx, card.O, core.addDays(ctx.today, -2), '15:00')
-	const afterOpeningLesson = await onceLesson(ctx, card.O, yesterday, '15:00')
+	const openingDayLesson = onceLesson(card.O, core.addDays(ctx.today, -2), '15:00')
+	const afterOpeningLesson = onceLesson(card.O, yesterday, '15:00')
 	return {
 		card,
 		yesterday,

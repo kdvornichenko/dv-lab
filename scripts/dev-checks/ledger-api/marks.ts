@@ -110,7 +110,7 @@ async function correctOccurrenceMark(ctx: Context, path: string, date: string, k
 
 async function markPastSingle(ctx: Context, studentId: string) {
 	const pastDay = core.addDays(ctx.today, -3)
-	const pastLesson = await onceLesson(ctx, studentId, pastDay, '09:00')
+	const pastLesson = onceLesson(studentId, pastDay, '09:00')
 	const single = await post(ctx, `/lessons/${pastLesson}/mark`, {
 		kind: 'done',
 		expectedStartsAt: instant(pastDay, '09:00'),
@@ -129,7 +129,7 @@ async function markPastSingle(ctx: Context, studentId: string) {
 
 async function refuseInvalidMarks(ctx: Context, studentId: string, path: string, date: string, seriesId: string) {
 	const futureDay = core.addDays(ctx.today, 3)
-	const futureLesson = await onceLesson(ctx, studentId, futureDay, '09:00')
+	const futureLesson = onceLesson(studentId, futureDay, '09:00')
 	for (const kind of ['done', 'none']) {
 		await expectStatus(
 			`mark ${kind} of a future single lesson`,

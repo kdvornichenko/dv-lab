@@ -39,7 +39,7 @@ export async function pastSeriesOccurrence(ctx: Context, studentId: string) {
 
 export async function pastSingleLesson(ctx: Context, studentId: string) {
 	const date = core.addDays(ctx.today, -4)
-	const lessonId = await onceLesson(ctx, studentId, date, '11:00')
+	const lessonId = onceLesson(studentId, date, '11:00')
 	const startsAt = instant(date, '11:00')
 	const block = async () => (await blockOf(ctx, date, `l:${lessonId}`))[0]
 	const markRow = () => lessonMarks(lessonId)
