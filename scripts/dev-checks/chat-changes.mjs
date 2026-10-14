@@ -1106,7 +1106,7 @@ async function deletions() {
 		JSON.stringify(actionsOf(proposed.teacherId))
 	)
 	check(
-		'the preview carries the date, amount, lessons, note and the balance after deletion computed by code',
+		'the preview carries the date, amount, lessons, the card lesson length, note and the balance after deletion computed by code',
 		block?.state === 'proposed' &&
 			block.change.operation === 'delete_payment' &&
 			block.change.studentId === card0 &&
@@ -1117,6 +1117,7 @@ async function deletions() {
 			block.change.currency === 'RUB' &&
 			block.change.lessonsHundredths === 200 &&
 			block.change.creditedMinutes === 120 &&
+			block.change.lessonMinutes === 60 &&
 			block.change.note === null &&
 			block.change.balanceMinutes === balanceBefore &&
 			block.change.balanceAfterMinutes === balanceBefore - 120,

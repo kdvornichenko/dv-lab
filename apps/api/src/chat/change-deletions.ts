@@ -58,6 +58,7 @@ async function cardOf(executor: DbExecutor, studentId: string) {
 		.select({
 			id: students.id,
 			displayName: students.displayName,
+			defaultLessonMinutes: students.defaultLessonMinutes,
 			openingBalanceMinutes: students.openingBalanceMinutes,
 			openingBalanceOn: students.openingBalanceOn,
 			noShowDeducts: students.noShowDeducts,
@@ -110,6 +111,7 @@ async function previewPayment(
 			currency: payment.currency,
 			lessonsHundredths: payment.lessonsHundredths,
 			creditedMinutes: payment.creditedMinutes,
+			lessonMinutes: card.defaultLessonMinutes,
 			note: payment.note,
 			balanceMinutes,
 			balanceAfterMinutes:

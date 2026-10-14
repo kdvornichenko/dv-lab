@@ -492,6 +492,7 @@ export const chatDeletePaymentChange = z.strictObject({
 	currency: z.enum(CURRENCIES).nullable(),
 	lessonsHundredths: z.number().int().min(0).nullable(),
 	creditedMinutes: z.number().int().min(0),
+	lessonMinutes: lessonLength.optional(),
 	note: z.string().nullable(),
 	balanceMinutes: z.number().int().nullable(),
 	balanceAfterMinutes: z.number().int().nullable(),

@@ -229,6 +229,7 @@ function rateText(rate: { rateMinor: number | null; currency: string | null }): 
 }
 
 function lessonMinutesOf(change: Change<'delete_payment'>): number {
+	if (change.lessonMinutes !== undefined) return change.lessonMinutes
 	if (change.lessonsHundredths === null || change.lessonsHundredths === 0 || change.creditedMinutes === 0)
 		return LESSON_MINUTES_DEFAULT
 	return Math.max(1, Math.round((change.creditedMinutes * 100) / change.lessonsHundredths))
