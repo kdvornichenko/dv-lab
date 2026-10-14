@@ -88,7 +88,7 @@ async function sectionRecords() {
 			await commandList.waitFor({ timeout: 15000 })
 			check(
 				'a new chat shows the command list instead of a greeting',
-				(await commandList.getByRole('button').count()) === 6 && (await page.getByText('Suggestions').count()) === 0,
+				(await commandList.getByRole('button').count()) === 7 && (await page.getByText('Suggestions').count()) === 0,
 				(await commandList.innerText()).replace(/\n/g, ' | ')
 			)
 			await page.waitForTimeout(500)
@@ -1109,9 +1109,9 @@ async function sectionComposer() {
 			await popup.waitFor({ timeout: 5000 })
 			const commands = await popup.getByRole('option').allInnerTexts()
 			check(
-				'/ offers only the phase 22 commands',
-				commands.length === 5 &&
-					['/today', '/tomorrow', '/payments', '/note', '/recap'].every((name) =>
+				'/ offers only the chat commands',
+				commands.length === 6 &&
+					['/today', '/tomorrow', '/payments', '/note', '/recap', '/essay'].every((name) =>
 						commands.some((text) => text.startsWith(name))
 					) &&
 					!commands.some((text) => text.startsWith('/pay ') || text.startsWith('/feedback')),
