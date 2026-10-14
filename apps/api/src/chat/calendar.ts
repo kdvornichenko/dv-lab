@@ -41,6 +41,7 @@ import { findConnection } from '../calendar/google-access.ts'
 import { CommandFault, findRequest } from '../calendar/journal.ts'
 import { insideSyncWindow, syncFacts } from '../calendar/projection.ts'
 import { readCalendarWindow } from '../calendar/read-model.ts'
+import { lockOccurrence } from '../schedule/changes.ts'
 import { markStateOf, seriesColumns, toSeriesRule } from '../schedule/rows.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
@@ -657,6 +658,17 @@ async function prepareUndo(
 	let command: ValidatedCalendarCommand
 	if (target.operation === 'cancel') {
 		if (event.status !== 'cancelled') return staleUndo(tx, context, actionId, input)
+		if (target.ref.kind === 'series') {
+			const locked = await lockOccurrence(tx, target.ref.seriesId, target.ref.originalOn)
+			const natural = locked?.occurrence?.naturalStart
+			if (
+				!locked ||
+				!natural ||
+				natural.getTime() !== Date.parse(before.startsAt) ||
+				locked.rule.durationMinutes !== before.durationMinutes
+			)
+				return staleUndo(tx, context, actionId, input)
+		}
 		command = {
 			operation: 'restore',
 			ref: target.ref,
