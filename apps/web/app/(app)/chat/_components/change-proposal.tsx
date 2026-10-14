@@ -105,6 +105,14 @@ function wordsOf(change: ChatChange): Words {
 				busy: 'Removing comment…',
 				icon: MessageSquare,
 			}
+		case 'bulk_move':
+			return {
+				question: `Move ${change.studentName}'s lessons?`,
+				confirm: 'Move lessons',
+				decline: 'Keep lesson times',
+				busy: 'Moving lessons…',
+				icon: Info,
+			}
 	}
 }
 
@@ -307,6 +315,8 @@ function Rows({ change }: { change: ChatChange }) {
 					</Row>
 				</>
 			)
+		case 'bulk_move':
+			return null
 	}
 }
 
@@ -344,6 +354,8 @@ function Notes({ change }: { change: ChatChange }) {
 			return <Caption>Later notes stay.</Caption>
 		case 'remove_comment':
 			return <Caption>Later comments stay.</Caption>
+		case 'bulk_move':
+			return null
 	}
 }
 
@@ -397,6 +409,8 @@ function appliedTitle(change: ChatChange): string {
 			return 'Note removed.'
 		case 'remove_comment':
 			return 'Comment removed.'
+		case 'bulk_move':
+			return 'Lessons moved.'
 	}
 }
 
@@ -415,6 +429,8 @@ function receiptLabel(change: ChatChange): { label: string; icon: LucideIcon } {
 			return { label: 'View notes', icon: ArrowRight }
 		case 'remove_comment':
 			return { label: change.lessonDate === null ? 'View schedule' : 'View lesson', icon: ArrowRight }
+		case 'bulk_move':
+			return { label: 'View schedule', icon: ArrowRight }
 	}
 }
 
@@ -481,6 +497,8 @@ export function ChangeProposal({
 			</Banner>
 		)
 	}
+
+	if (block.change.operation === 'bulk_move') return null
 
 	const busy = block.state === 'applying' || pending !== null
 	const destructive = block.change.operation === 'delete_payment'

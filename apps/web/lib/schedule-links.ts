@@ -69,5 +69,7 @@ export function changeReceiptHref(block: ChatChangeProposalBlock): string | null
 			return studentHref(receipt.studentId, { tab: 'notes' })
 		case 'remove_comment':
 			return change.lessonDate === null ? '/schedule' : lessonHref(change.lessonDate, change.lessonRef)
+		case 'bulk_move':
+			return null
 	}
 }
