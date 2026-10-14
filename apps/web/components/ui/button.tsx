@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
 	[
-		'group relative isolate inline-flex cursor-pointer items-center justify-center outline-none select-none',
+		'group hit-slop relative isolate inline-flex cursor-pointer items-center justify-center outline-none select-none',
 		'transition-colors duration-80',
 		'disabled:pointer-events-none disabled:opacity-50',
 		'focus-visible:ring-1 focus-visible:ring-[color:var(--focus-ring,#6B97FF)]',

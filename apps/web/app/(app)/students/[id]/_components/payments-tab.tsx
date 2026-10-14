@@ -225,7 +225,7 @@ export function PaymentsTab({
 									<PaymentNoteText note={payment.note} />
 								</TableCell>
 								<TableCell className={cellClass}>
-									<div className="flex justify-end gap-1">
+									<div className="flex justify-end gap-1 pointer-coarse:gap-4">
 										<Tooltip content="Edit payment">
 											<Button
 												id={`edit-payment-${payment.id}`}

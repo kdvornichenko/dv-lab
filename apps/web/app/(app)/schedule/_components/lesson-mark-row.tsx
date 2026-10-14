@@ -18,7 +18,7 @@ interface LessonMarkRowProps {
 }
 
 const PILL_CLASS =
-	'inline-flex h-8 cursor-pointer items-center rounded-md px-3 text-body whitespace-nowrap shadow-[inset_0_0_0_1px_var(--input)] outline-none focus-visible:ring-2 focus-visible:ring-focus-ring data-checked:bg-active data-checked:font-semibold data-checked:shadow-none data-disabled:cursor-default'
+	'inline-flex h-8 pointer-coarse:h-11 cursor-pointer items-center rounded-md px-3 text-body whitespace-nowrap shadow-[inset_0_0_0_1px_var(--input)] outline-none focus-visible:ring-2 focus-visible:ring-focus-ring data-checked:bg-active data-checked:font-semibold data-checked:shadow-none data-disabled:cursor-default'
 
 export function LessonMarkRow({ mark, available, help, saving, locked, onChoose }: LessonMarkRowProps) {
 	const selected: LessonMarkKind = saving ?? mark ?? 'none'
@@ -33,7 +33,7 @@ export function LessonMarkRow({ mark, available, help, saving, locked, onChoose 
 				value={selected}
 				disabled={!available || saving !== null || locked}
 				onValueChange={(value) => onChoose(value)}
-				className={cn('flex gap-2', !available && 'opacity-50')}
+				className={cn('flex flex-wrap gap-2', !available && 'opacity-50')}
 			>
 				{PILL_ORDER.map((kind) => (
 					<Radio.Root key={kind} value={kind} aria-label={markLabel(kind)} className={PILL_CLASS}>

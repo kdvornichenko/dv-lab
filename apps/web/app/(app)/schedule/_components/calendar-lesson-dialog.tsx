@@ -439,10 +439,10 @@ function LessonContent({
 
 function LessonTitle({ studentId, title, pending }: { studentId: string; title: string; pending: boolean }) {
 	return (
-		<DialogTitle>
+		<DialogTitle className="pr-10">
 			<Link
 				href={`/students/${studentId}`}
-				className="block truncate"
+				className="block truncate pointer-coarse:-my-3 pointer-coarse:py-3"
 				onClick={(event) => {
 					if (pending) event.preventDefault()
 				}}

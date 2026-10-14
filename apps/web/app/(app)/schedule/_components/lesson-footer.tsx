@@ -100,7 +100,7 @@ export function LessonFooter({
 							</Button>
 						</div>
 					) : (
-						<div className="flex w-full flex-wrap items-center justify-end gap-2">
+						<div className="flex w-full flex-wrap items-center justify-end gap-2 pointer-coarse:gap-4">
 							{actions.move ? (
 								<Button
 									ref={moveButton}

@@ -165,7 +165,7 @@ export function ScheduleBar({
 }) {
 	return (
 		<TooltipProvider>
-			<div data-slot="schedule-toolbar" className="flex min-w-0 items-center gap-2">
+			<div data-slot="schedule-toolbar" className="flex min-w-0 items-center gap-2 pointer-coarse:gap-4">
 				<BarTip name="Today" shortcut="T">
 					<Button
 						variant="tertiary"

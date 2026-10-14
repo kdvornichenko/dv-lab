@@ -20,8 +20,8 @@ import { WeekGrid, type GridPlaceholder } from './week-grid'
 
 export const NOTICE_SLOT = 'min-h-44 sm:min-h-26'
 export const WORKSPACE_BODY = 'flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2'
-export const STRIP = 'flex min-h-7 flex-wrap items-center gap-2'
-export const STRIP_TOOLS = 'ml-auto flex items-center gap-2'
+export const STRIP = 'flex min-h-7 flex-wrap items-center gap-2 pointer-coarse:gap-4'
+export const STRIP_TOOLS = 'ml-auto flex items-center gap-2 pointer-coarse:gap-4'
 
 const FIRST_HOUR = DAY_START_MINUTES / 60
 

@@ -19,6 +19,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { apiRequest } from '@/lib/api-client'
 
 import {
@@ -282,116 +283,120 @@ export function RecordPaymentDialog({
 							{edit ? 'The balance is recalculated when you save.' : paymentDescription(student, rate)}
 						</DialogDescription>
 					</DialogHeader>
-					<div className="flex flex-col gap-4">
-						<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
-						{edit && student !== null ? (
-							<div className="flex min-w-0 flex-col gap-2">
-								<span className="text-body text-muted-foreground">Student</span>
-								<div className="flex min-w-0 items-center gap-2">
-									<Avatar name={student.displayName} />
-									<span className="min-w-0 flex-1 text-body wrap-anywhere text-foreground">{student.displayName}</span>
-									<Lock aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+					<ScrollArea className="-m-1 max-h-[calc(100dvh-16rem)]" viewportClassName="scroll-fade max-h-[inherit] p-1">
+						<div className="flex flex-col gap-4">
+							<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
+							{edit && student !== null ? (
+								<div className="flex min-w-0 flex-col gap-2">
+									<span className="text-body text-muted-foreground">Student</span>
+									<div className="flex min-w-0 items-center gap-2">
+										<Avatar name={student.displayName} />
+										<span className="min-w-0 flex-1 text-body wrap-anywhere text-foreground">
+											{student.displayName}
+										</span>
+										<Lock aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+									</div>
+									<p className="text-caption text-muted-foreground">A payment stays with its student.</p>
 								</div>
-								<p className="text-caption text-muted-foreground">A payment stays with its student.</p>
+							) : null}
+							{preset === undefined ? <PaymentStudentPicker disabled={pending} onChoose={chooseStudent} /> : null}
+							{failed ? (
+								<Banner status="error">
+									<BannerTitle>
+										{edit ? 'Could not save the payment. Try again.' : 'Could not record the payment. Try again.'}
+									</BannerTitle>
+								</Banner>
+							) : null}
+							<div className="grid gap-4 sm:grid-cols-2">
+								<TextField
+									ref={amountRef}
+									id="record-payment-amount"
+									name="amount"
+									label="Amount"
+									placeholder="0"
+									inputMode="decimal"
+									autoComplete="off"
+									autoFocus={preset !== undefined}
+									value={amount}
+									onChange={(event) => changeAmount(event.target.value)}
+									onBlur={() => touch('amount')}
+									disabled={blocked}
+									error={shown('amount')}
+								/>
+								<CurrencyField
+									id="record-payment-currency"
+									value={currency}
+									onChange={setCurrency}
+									onBlur={() => touch('currency')}
+									error={shown('currency')}
+									disabled={blocked}
+									triggerRef={currencyRef}
+								/>
 							</div>
-						) : null}
-						{preset === undefined ? <PaymentStudentPicker disabled={pending} onChoose={chooseStudent} /> : null}
-						{failed ? (
-							<Banner status="error">
-								<BannerTitle>
-									{edit ? 'Could not save the payment. Try again.' : 'Could not record the payment. Try again.'}
-								</BannerTitle>
-							</Banner>
-						) : null}
-						<div className="grid gap-4 sm:grid-cols-2">
+							<div className="grid items-start gap-4 sm:grid-cols-2">
+								<DateField
+									id="record-payment-date"
+									label="Date"
+									value={paidOn}
+									onChange={setPaidOn}
+									max={today}
+									error={shown('date')}
+									disabled={blocked}
+								/>
+								<TextField
+									ref={lessonsRef}
+									id="record-payment-lessons"
+									name="lessons"
+									label="Lessons"
+									inputMode="decimal"
+									autoComplete="off"
+									helper={lessonsHelper(prefilled)}
+									value={lessons}
+									onChange={(event) => changeLessons(event.target.value)}
+									onBlur={() => touch('lessons')}
+									disabled={blocked}
+									error={shown('lessons')}
+								/>
+							</div>
 							<TextField
-								ref={amountRef}
-								id="record-payment-amount"
-								name="amount"
-								label="Amount"
-								placeholder="0"
-								inputMode="decimal"
+								ref={noteRef}
+								id="record-payment-note"
+								name="note"
+								label="Note"
+								placeholder="For example, transfer for October"
 								autoComplete="off"
-								autoFocus={preset !== undefined}
-								value={amount}
-								onChange={(event) => changeAmount(event.target.value)}
-								onBlur={() => touch('amount')}
+								value={note}
+								onChange={(event) => setNote(event.target.value)}
+								onBlur={() => touch('note')}
 								disabled={blocked}
-								error={shown('amount')}
+								error={shown('note')}
 							/>
-							<CurrencyField
-								id="record-payment-currency"
-								value={currency}
-								onChange={setCurrency}
-								onBlur={() => touch('currency')}
-								error={shown('currency')}
-								disabled={blocked}
-								triggerRef={currencyRef}
-							/>
+							{student !== null ? <BalanceCaption openingBalance={student.openingBalance} paidOn={paidOn} /> : null}
+							{notice === 'changed' ? (
+								<ReloadNotice
+									status="warning"
+									text="This payment changed elsewhere. Your draft has been kept. Reload the current details before saving."
+									reloadLabel="Reload payment details"
+									pending={reloading}
+									onReload={() => void reload()}
+								/>
+							) : null}
+							{notice === 'lost' ? (
+								<ReloadNotice
+									status="error"
+									text="Could not confirm that the payment was saved. Reload the current details before saving again."
+									reloadLabel="Reload payment details"
+									pending={reloading}
+									onReload={() => void reload()}
+								/>
+							) : null}
+							{reloadFailed ? (
+								<Banner status="error">
+									<BannerTitle>Could not reload the payment. Try again.</BannerTitle>
+								</Banner>
+							) : null}
 						</div>
-						<div className="grid items-start gap-4 sm:grid-cols-2">
-							<DateField
-								id="record-payment-date"
-								label="Date"
-								value={paidOn}
-								onChange={setPaidOn}
-								max={today}
-								error={shown('date')}
-								disabled={blocked}
-							/>
-							<TextField
-								ref={lessonsRef}
-								id="record-payment-lessons"
-								name="lessons"
-								label="Lessons"
-								inputMode="decimal"
-								autoComplete="off"
-								helper={lessonsHelper(prefilled)}
-								value={lessons}
-								onChange={(event) => changeLessons(event.target.value)}
-								onBlur={() => touch('lessons')}
-								disabled={blocked}
-								error={shown('lessons')}
-							/>
-						</div>
-						<TextField
-							ref={noteRef}
-							id="record-payment-note"
-							name="note"
-							label="Note"
-							placeholder="For example, transfer for October"
-							autoComplete="off"
-							value={note}
-							onChange={(event) => setNote(event.target.value)}
-							onBlur={() => touch('note')}
-							disabled={blocked}
-							error={shown('note')}
-						/>
-						{student !== null ? <BalanceCaption openingBalance={student.openingBalance} paidOn={paidOn} /> : null}
-						{notice === 'changed' ? (
-							<ReloadNotice
-								status="warning"
-								text="This payment changed elsewhere. Your draft has been kept. Reload the current details before saving."
-								reloadLabel="Reload payment details"
-								pending={reloading}
-								onReload={() => void reload()}
-							/>
-						) : null}
-						{notice === 'lost' ? (
-							<ReloadNotice
-								status="error"
-								text="Could not confirm that the payment was saved. Reload the current details before saving again."
-								reloadLabel="Reload payment details"
-								pending={reloading}
-								onReload={() => void reload()}
-							/>
-						) : null}
-						{reloadFailed ? (
-							<Banner status="error">
-								<BannerTitle>Could not reload the payment. Try again.</BannerTitle>
-							</Banner>
-						) : null}
-					</div>
+					</ScrollArea>
 					<DialogFooter>
 						<Button
 							type="button"

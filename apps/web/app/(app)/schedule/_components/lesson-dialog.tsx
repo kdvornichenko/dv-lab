@@ -190,7 +190,7 @@ export function LessonDialog({
 		>
 			<DialogContent size="lg" showCloseButton={!busy}>
 				<DialogHeader>
-					<div className="flex min-w-0 items-center gap-2 pr-8">
+					<div className="flex min-w-0 items-center gap-2 pr-10">
 						<Avatar name={block.studentName} />
 						<DialogTitle className="min-w-0">
 							<Link
@@ -200,7 +200,7 @@ export function LessonDialog({
 								onClick={(event) => {
 									if (busy) event.preventDefault()
 								}}
-								className="block truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+								className="block truncate rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:-my-3 pointer-coarse:py-3"
 							>
 								{block.studentName}
 							</Link>

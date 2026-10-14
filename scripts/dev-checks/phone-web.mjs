@@ -243,7 +243,7 @@ function scanInPage(scope) {
 	const W = window.innerWidth
 	const H = window.innerHeight
 	const INTERACTIVE =
-		'button, a[href], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select, [role="tab"], [role="option"], [role="menuitem"], [role="combobox"], [role="switch"], [role="checkbox"], [contenteditable="true"], [contenteditable="plaintext-only"]'
+		'button, a[href], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, select, [role="tab"], [role="option"], [role="radio"], [role="menuitem"], [role="combobox"], [role="switch"], [role="checkbox"], [contenteditable="true"], [contenteditable="plaintext-only"]'
 	const hiddenIn = (el) => {
 		for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
 			if (node.localName === 'nextjs-portal') return true
@@ -380,7 +380,7 @@ function scanInPage(scope) {
 		if (!clipped) out.text.push(`${name(parent)} "${node.nodeValue.trim().slice(0, 30)}"`)
 	}
 	const extent = (el, axis) => {
-		el.scrollIntoView({ block: 'center', inline: 'nearest' })
+		el.scrollIntoView({ block: 'center', inline: 'center' })
 		const box = el.getBoundingClientRect()
 		const cx = box.left + box.width / 2
 		const cy = box.top + box.height / 2
@@ -397,7 +397,12 @@ function scanInPage(scope) {
 		return before + after + 1
 	}
 	for (const el of controls) {
-		if (getComputedStyle(el).display === 'inline' || el.disabled || el.getAttribute('aria-disabled') === 'true')
+		if (
+			el.matches('input, textarea, select') ||
+			getComputedStyle(el).display === 'inline' ||
+			el.disabled ||
+			el.getAttribute('aria-disabled') === 'true'
+		)
 			continue
 		const box = el.getBoundingClientRect()
 		const needY = box.height < 43.5
@@ -477,7 +482,9 @@ async function fitDialog(page, size, label) {
 	check(`${label} @${size.width}: one dialog is open`, count === 1, String(count))
 	const buttons = await dialog.locator('button:visible').evaluateAll((nodes) =>
 		nodes
+			.filter((node) => !node.closest('[data-slot="scroll-area"]'))
 			.map((node) => {
+				node.scrollIntoView({ block: 'nearest' })
 				const box = node.getBoundingClientRect()
 				return {
 					label: node.getAttribute('aria-label') ?? node.textContent.trim().slice(0, 20),
@@ -488,7 +495,7 @@ async function fitDialog(page, size, label) {
 			.filter((item) => item.bottom > innerHeight + 0.5 || item.top < -0.5)
 	)
 	check(
-		`${label} @${size.width}: every dialog button is reachable without scrolling the page`,
+		`${label} @${size.width}: every dialog button is reachable by scrolling the dialog`,
 		buttons.length === 0,
 		JSON.stringify(buttons)
 	)

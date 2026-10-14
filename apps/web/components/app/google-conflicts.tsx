@@ -624,7 +624,10 @@ export function FormFooter({
 	className?: string
 }) {
 	return (
-		<div data-slot="form-footer" className={`${className} flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3`}>
+		<div
+			data-slot="form-footer"
+			className={`${className} flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 pointer-coarse:max-sm:gap-4`}
+		>
 			<div className="min-w-0 sm:flex-1">{status}</div>
 			<div className="flex justify-end gap-2 max-sm:*:flex-1">{children}</div>
 		</div>

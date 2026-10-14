@@ -32,7 +32,7 @@ export function MoreRow({ count, href }: { count: number; href: string }) {
 			<Link
 				href={href}
 				data-slot="more-row"
-				className="flex h-8 items-center rounded-lg px-3 text-caption text-muted-foreground outline-none hover:bg-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring"
+				className="flex h-8 items-center rounded-lg px-3 text-caption text-muted-foreground outline-none hover:bg-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-focus-ring pointer-coarse:h-11"
 			>
 				+{count} more
 			</Link>
@@ -105,7 +105,7 @@ function LessonRow({
 			data-status={key}
 			data-next={next ? 'true' : 'false'}
 			className={cn(
-				'relative flex h-10 items-center gap-3 rounded-lg px-3 tabular-nums hover:bg-hover',
+				'relative flex h-10 items-center gap-3 rounded-lg px-3 tabular-nums hover:bg-hover pointer-coarse:h-11',
 				style.muted && 'text-muted-foreground',
 				next && 'bg-active font-semibold'
 			)}

@@ -342,7 +342,7 @@ const TabItem = forwardRef<HTMLButtonElement, TabItemProps>(
 				value={value}
 				data-fluid-hover-index={_index}
 				className={cn(
-					'relative z-10 flex cursor-pointer items-center border-none bg-transparent px-3 outline-none',
+					'hit-slop relative z-10 flex cursor-pointer items-center border-none bg-transparent px-3 outline-none',
 					sizeClasses.segmentItem,
 					sizeClasses.gap,
 					className
