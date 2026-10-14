@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
 
-import type { MentionBinding, StudentLessonOption } from '@dv-lab/contracts'
+import { CHAT_MESSAGE_MAX, type MentionBinding, type StudentLessonOption } from '@dv-lab/contracts'
 
 import { BudgetNotice } from './budget-notice'
 import { MentionPopup, popupOptionId, type PopupItem, type PopupState } from './mention-popup'
@@ -43,6 +43,7 @@ export const COMMANDS = [
 	{ name: '/payments', detail: 'Who pays soon', student: false },
 	{ name: '/note', detail: 'Add a note to a student', student: true },
 	{ name: '/recap', detail: 'Summarise a student', student: true },
+	{ name: '/essay', detail: 'Feedback on a pasted essay', student: false },
 ] as const
 
 export const COMMAND_ROWS = [
@@ -160,7 +161,8 @@ export function Composer({
 	const unavailable = choice !== null && choiceUnavailable(choice)
 	const configFailed = models.assistant.kind === 'failed'
 	const closed = reached || unavailable || configFailed
-	const canSend = !disabled && !replying && !sending && !draft.stale && !closed && draft.text.trim() !== ''
+	const tooLong = Array.from(draft.text).length > CHAT_MESSAGE_MAX
+	const canSend = !disabled && !replying && !sending && !draft.stale && !closed && !tooLong && draft.text.trim() !== ''
 	const listId = useId()
 	const backdrop = useRef<HTMLDivElement>(null)
 	const pendingCaret = useRef<number | null>(null)
@@ -450,6 +452,11 @@ export function Composer({
 					<Button type="button" variant="tertiary" size="compact" leadingIcon={RefreshCw} onClick={models.refresh}>
 						Refresh
 					</Button>
+				</p>
+			) : null}
+			{tooLong ? (
+				<p role="status" data-slot="chat-too-long" className="text-caption text-destructive">
+					This essay is too long for the current chat limit. Shorten it before sending.
 				</p>
 			) : null}
 			{draft.stale ? (

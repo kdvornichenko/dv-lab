@@ -24,6 +24,7 @@ import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
 import { ChatProgress } from './chat-progress'
+import { EssayFeedback, type EssayOutcome } from './essay-feedback'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
 import { StudentMention } from './student-mention'
@@ -339,6 +340,44 @@ function MessageItem({
 	)
 }
 
+function essayOutcome(message: ChatMessage, live: boolean): EssayOutcome {
+	if (live) return 'streaming'
+	const types = new Set(message.blocks.map((block) => block.type))
+	if (types.has('stopped') || types.has('interrupted')) return 'incomplete'
+	if (message.body === '') return 'unavailable'
+	return types.has('refused') || types.has('withheld') ? 'incomplete' : 'complete'
+}
+
+function ReplyText({
+	message,
+	active,
+	onAsk,
+}: {
+	message: ChatMessage
+	active: ActiveReply | null
+	onAsk: () => void
+}) {
+	const live = active?.messageId === message.id
+	const essay = message.blocks.find((block) => block.type === 'essay')
+	const text =
+		message.body === '' ? null : (
+			<MarkdownView
+				body={message.body}
+				chat={{
+					mentions: message.mentions,
+					streaming: live && !active.stopping,
+					renderMention,
+				}}
+			/>
+		)
+	if (essay === undefined) return text
+	return (
+		<EssayFeedback task={essay.task} outcome={essayOutcome(message, live)} onAsk={onAsk}>
+			{text}
+		</EssayFeedback>
+	)
+}
+
 export function Messages({
 	messages,
 	onUndo,
@@ -405,34 +444,27 @@ export function Messages({
 								live={active?.messageId === message.id}
 								hasText={message.body !== ''}
 							/>
-							{message.body === '' ? null : (
-								<MarkdownView
-									body={message.body}
-									chat={{
-										mentions: message.mentions,
-										streaming: active?.messageId === message.id && !active.stopping,
-										renderMention,
-									}}
-								/>
-							)}
+							<ReplyText message={message} active={active} onAsk={replies.onAsk} />
 							{active?.messageId === message.id && active.stopping ? <Working label="Stopping reply…" /> : null}
-							{message.blocks.map((block, index) => (
-								<Block
-									key={
-										block.type === 'action_result' ||
-										block.type === 'calendar_proposal' ||
-										block.type === 'change_proposal'
-											? block.actionId
-											: `${message.id}-${index}`
-									}
-									block={block}
-									onUndo={onUndo}
-									onChoose={onChoose}
-									calendar={calendar}
-									changes={changes}
-									replies={replies}
-								/>
-							))}
+							{message.blocks
+								.filter((block) => block.type !== 'essay')
+								.map((block, index) => (
+									<Block
+										key={
+											block.type === 'action_result' ||
+											block.type === 'calendar_proposal' ||
+											block.type === 'change_proposal'
+												? block.actionId
+												: `${message.id}-${index}`
+										}
+										block={block}
+										onUndo={onUndo}
+										onChoose={onChoose}
+										calendar={calendar}
+										changes={changes}
+										replies={replies}
+									/>
+								))}
 							{active?.messageId === message.id ? null : (
 								<ReplyFooter
 									time={messageTime(message.finishedAt ?? message.createdAt)}
