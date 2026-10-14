@@ -575,7 +575,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 
 ### Phase 25.3: Chat Command Builder
 
-**Goal**: The owner creates chat commands in Settings with their own prompt; built-in prompts live in the database; `/edvibe` produces copy blocks in Edvibe format.
+**Goal**: The owner creates chat commands in Settings with their own prompt and tool set; `/edvibe` produces copy blocks in Edvibe format. The prompt text of built-in `/recap` and `/essay` already moves to the database in Phase 25.2.
 **Depends on**: Phase 25.2
 **Plans**: not planned; waits for the owner's list of Edvibe templates with examples
 **UI hint**: yes
