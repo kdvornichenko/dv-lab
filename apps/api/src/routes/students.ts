@@ -28,7 +28,7 @@ import {
 	updateStudentRequest,
 	updateTermNoteRequest,
 } from '@dv-lab/contracts'
-import { type Database, type DbExecutor, readSnapshot } from '@dv-lab/db'
+import { type Database, type DbExecutor, postgresCode, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, readOptionalJson, requireRole, requireSession } from '../auth/middleware.ts'
 import type { CalendarReadContext } from '../calendar/read-state.ts'
@@ -92,21 +92,28 @@ async function studentResponse(
 
 type StudentMutation = { kind: 'ok'; response: StudentResponse } | { kind: 'not_found' } | { kind: 'changed' }
 
-function mutateStudent(
+const SERIALIZATION_FAILURE = '40001'
+
+async function mutateStudent(
 	db: Database,
 	accountId: string,
 	change: (executor: DbExecutor, context: CardReadContext) => Promise<CardWrite>
 ): Promise<StudentMutation> {
 	const now = new Date()
-	return db.transaction(
-		async (tx): Promise<StudentMutation> => {
-			const settings = await readTeacherSettings(tx, accountId)
-			const result = await change(tx, { accountId, now, defaultTimeZone: settings.defaultTimeZone })
-			if (result.kind !== 'ok') return result
-			return { kind: 'ok', response: { student: result.detail, ...settings, asOf: now.toISOString() } }
-		},
-		{ isolationLevel: 'repeatable read' }
-	)
+	try {
+		return await db.transaction(
+			async (tx): Promise<StudentMutation> => {
+				const settings = await readTeacherSettings(tx, accountId)
+				const result = await change(tx, { accountId, now, defaultTimeZone: settings.defaultTimeZone })
+				if (result.kind !== 'ok') return result
+				return { kind: 'ok', response: { student: result.detail, ...settings, asOf: now.toISOString() } }
+			},
+			{ isolationLevel: 'repeatable read' }
+		)
+	} catch (error) {
+		if (postgresCode(error) === SERIALIZATION_FAILURE) return { kind: 'changed' }
+		throw error
+	}
 }
 
 function studentMutationReply(c: Context<AppEnv>, result: StudentMutation) {

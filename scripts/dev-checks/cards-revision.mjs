@@ -216,6 +216,36 @@ async function cardChecks() {
 				missing: missing.kind,
 			})
 		)
+
+		const raced = await student(first.id)
+		const holder = await pool.connect()
+		let racing = null
+		let waited = false
+		try {
+			await holder.query('begin')
+			await holder.query('update students set revision = revision + 1 where id = $1', [first.id])
+			racing = as('PATCH', `/students/${first.id}`, {
+				...cardBody(first.displayName, { level: 'C1' }),
+				expectedRevision: raced.revision,
+			})
+			const deadline = Date.now() + 5000
+			while (!waited && Date.now() < deadline) {
+				const { rows } = await pool.query(
+					`select count(*)::int as n from pg_stat_activity where wait_event_type = 'Lock' and query ilike 'update "students"%'`
+				)
+				waited = rows[0].n > 0
+				if (!waited) await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			await holder.query('commit')
+		} finally {
+			holder.release()
+		}
+		const racedReply = await racing
+		check(
+			'a PATCH that waits on a concurrent commit of the same card gives 409 changed, not 500',
+			waited && conflict(racedReply) && (await student(first.id)).level !== 'C1',
+			JSON.stringify({ waited, status: racedReply.status, error: racedReply.json?.error?.code })
+		)
 	} finally {
 		await pool.end()
 	}
