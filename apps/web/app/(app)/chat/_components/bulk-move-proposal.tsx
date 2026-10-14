@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { ArrowRight, Check, ChevronDown, Info, Minus, Repeat, TriangleAlert } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, ChevronUp, Info, Minus, Repeat, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 
 import { Panel } from '@/components/app/layout-parts'
@@ -198,16 +198,12 @@ function Targets({
 						variant="ghost"
 						size="compact"
 						className={cn('text-caption text-muted-foreground', TOUCH)}
+						trailingIcon={open ? ChevronUp : ChevronDown}
 						aria-expanded={open}
 						aria-controls={listId}
 						onClick={() => setOpen((value) => !value)}
 					>
 						{open ? 'Show fewer selected changes' : 'Show all selected changes'}
-						<ChevronDown
-							size={14}
-							aria-hidden
-							className={cn('transition-transform duration-120', open && 'rotate-180')}
-						/>
 					</Button>
 				</div>
 			) : null}
