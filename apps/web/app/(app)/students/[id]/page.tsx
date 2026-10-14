@@ -18,7 +18,7 @@ export default async function StudentPage({
 	searchParams,
 }: {
 	params: Promise<{ id: string }>
-	searchParams: Promise<{ tab?: Param; dialog?: Param; entry?: Param; section?: Param }>
+	searchParams: Promise<{ tab?: Param; dialog?: Param; entry?: Param; section?: Param; payment?: Param }>
 }) {
 	await requireTeacherPage()
 	const { id } = await params

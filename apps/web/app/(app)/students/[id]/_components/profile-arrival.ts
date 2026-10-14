@@ -8,7 +8,12 @@ export const PROFILE_DIALOGS = ['payment', 'details'] as const
 export type ProfileTab = (typeof PROFILE_TABS)[number]
 export type ProfileDialog = (typeof PROFILE_DIALOGS)[number]
 export type ProfileMark = { entry: string | null; section: SectionKind | null }
-export type ProfileArrival = { tab: ProfileTab | null; dialog: ProfileDialog | null; mark: ProfileMark | null }
+export type ProfileArrival = {
+	tab: ProfileTab | null
+	dialog: ProfileDialog | null
+	mark: ProfileMark | null
+	payment: string | null
+}
 
 type Param = string | string[] | undefined
 
@@ -21,11 +26,13 @@ export function parseProfileArrival(params: {
 	dialog?: Param
 	entry?: Param
 	section?: Param
+	payment?: Param
 }): ProfileArrival {
 	const tab = single(params.tab)
 	const dialog = single(params.dialog)
 	const entry = single(params.entry)
 	const section = single(params.section)
+	const payment = single(params.payment)
 	const mark = {
 		entry: entry !== null && UUID.test(entry) ? entry : null,
 		section: SECTION_KINDS.find((kind) => kind === section) ?? null,
@@ -34,11 +41,13 @@ export function parseProfileArrival(params: {
 		tab: PROFILE_TABS.find((value) => value === tab) ?? null,
 		dialog: PROFILE_DIALOGS.find((value) => value === dialog) ?? null,
 		mark: mark.entry === null && mark.section === null ? null : mark,
+		payment: payment !== null && UUID.test(payment) ? payment : null,
 	}
 }
 
 export function initialProfileTab(arrival: ProfileArrival): ProfileTab {
 	if (arrival.dialog === 'details') return 'overview'
+	if (arrival.payment !== null) return 'payments'
 	if (arrival.mark !== null) return 'notes'
 	return arrival.tab ?? 'overview'
 }

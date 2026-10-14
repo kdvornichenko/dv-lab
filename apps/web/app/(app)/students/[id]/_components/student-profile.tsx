@@ -81,7 +81,9 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	const [tab, setTab] = useState<string>(() => initialProfileTab(arrival))
 	const [mark, setMark] = useState<ProfileMark | null>(arrival.mark)
 	const [editRequested, setEditRequested] = useState(false)
-	const [confirm, setConfirm] = useState<'archive' | 'restore' | null>(null)
+	const [confirm, setConfirm] = useState<{ action: 'archive' | 'restore'; revision: number } | null>(null)
+	const [confirmFailure, setConfirmFailure] = useState<string | null>(null)
+	const [openPayment, setOpenPayment] = useState(arrival.payment)
 	const [recordOpen, setRecordOpen] = useState(false)
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
 	const [drafts, setDrafts] = useState<SectionDrafts>({})
@@ -150,14 +152,28 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 		requestAnimationFrame(() => recordButton.current?.focus())
 	}
 
+	function openConfirm(action: 'archive' | 'restore', revision: number) {
+		setConfirmFailure(null)
+		setConfirm({ action, revision })
+	}
+
 	function closeConfirm() {
 		setConfirm(null)
 		requestAnimationFrame(() => statusButton.current?.focus())
 	}
 
-	async function changeStatus(action: 'archive' | 'restore') {
-		const result = await apiRequest<StudentResponse>('POST', `/students/${id}/${action}`)
-		if (!result.ok) return false
+	async function changeStatus(action: 'archive' | 'restore', revision: number) {
+		const result = await apiRequest<StudentResponse>('POST', `/students/${id}/${action}`, {
+			expectedRevision: revision,
+		})
+		if (!result.ok) {
+			setConfirmFailure(
+				result.error?.code === 'precondition_failed'
+					? 'This student changed elsewhere. Reload the page and try again.'
+					: null
+			)
+			return false
+		}
 		const name = result.data.student.displayName
 		toast.show(
 			action === 'archive'
@@ -223,7 +239,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 									ref={statusButton}
 									variant="secondary"
 									leadingIcon={Archive}
-									onClick={() => setConfirm('archive')}
+									onClick={() => openConfirm('archive', student.revision)}
 								>
 									Archive
 								</Button>
@@ -232,7 +248,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 									ref={statusButton}
 									variant="secondary"
 									leadingIcon={ArchiveRestore}
-									onClick={() => setConfirm('restore')}
+									onClick={() => openConfirm('restore', student.revision)}
 								>
 									Restore
 								</Button>
@@ -284,7 +300,18 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 						<VocabularyTab student={student} />
 					</TabPanel>
 					<TabPanel value="payments" className="mt-4">
-						<PaymentsTab student={student} refreshKey={paymentsVersion} onChanged={() => void reload()} />
+						<PaymentsTab
+							student={student}
+							mainTimeZone={mainTimeZone}
+							asOf={asOf}
+							refreshKey={paymentsVersion}
+							openPaymentId={openPayment}
+							onOpened={() => {
+								setOpenPayment(null)
+								dropParams(['payment'])
+							}}
+							onChanged={() => void reload()}
+						/>
 					</TabPanel>
 				</Tabs>
 			</div>
@@ -306,7 +333,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 					}}
 				/>
 			) : null}
-			{confirm === 'archive' ? (
+			{confirm?.action === 'archive' ? (
 				<ConfirmDialog
 					title={`Archive ${student.displayName}?`}
 					body={`${student.displayName} moves to the Archived tab. The account, payments and notes are kept.${student.account?.status === 'active' ? ' The account can still sign in; deactivate it separately.' : ''}`}
@@ -314,12 +341,12 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 					confirmLabel="Archive student"
 					pendingLabel="Archiving…"
 					tone="primary"
-					failureText="Could not archive the student. Try again."
-					onConfirm={() => changeStatus('archive')}
+					failureText={confirmFailure ?? 'Could not archive the student. Try again.'}
+					onConfirm={() => changeStatus('archive', confirm.revision)}
 					onClose={closeConfirm}
 				/>
 			) : null}
-			{confirm === 'restore' ? (
+			{confirm?.action === 'restore' ? (
 				<ConfirmDialog
 					title={`Restore ${student.displayName}?`}
 					body={`${student.displayName} returns to the Active tab.`}
@@ -327,8 +354,8 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 					confirmLabel="Restore student"
 					pendingLabel="Restoring…"
 					tone="primary"
-					failureText="Could not restore the student. Try again."
-					onConfirm={() => changeStatus('restore')}
+					failureText={confirmFailure ?? 'Could not restore the student. Try again.'}
+					onConfirm={() => changeStatus('restore', confirm.revision)}
 					onClose={closeConfirm}
 				/>
 			) : null}
