@@ -679,3 +679,103 @@ html.transitioning *::after {
 		animation: none;
 	}
 }
+
+[data-attention] {
+	background: var(--warning);
+	opacity: 0;
+	transform: scale(1);
+}
+[data-attention='owes'] {
+	background: var(--destructive);
+}
+[data-attention-mode='loop'] {
+	--attention-scale: 2.4;
+}
+[data-attention-mode='pulse'] {
+	--attention-scale: 2.6;
+}
+[data-attention-mode='loop'][data-attention='pays_soon'] {
+	--attention-peak: 0.25;
+	animation: attention-loop-slow 3s ease-out infinite;
+}
+[data-attention-mode='loop'][data-attention='none_left'] {
+	--attention-peak: 0.4;
+	animation: attention-loop-mid 2.2s ease-out infinite;
+}
+[data-attention-mode='loop'][data-attention='owes'] {
+	--attention-peak: 0.6;
+	animation: attention-loop-fast 1.6s ease-out infinite;
+}
+[data-attention-mode='pulse'][data-attention='pays_soon'] {
+	--attention-peak: 0.4;
+	animation: attention-pulse-slow 2.2s ease-out 300ms 2;
+}
+[data-attention-mode='pulse'][data-attention='none_left'] {
+	--attention-peak: 0.4;
+	animation: attention-pulse-fast 1.5s ease-out 300ms 3;
+}
+[data-attention-mode='pulse'][data-attention='owes'] {
+	--attention-peak: 0.6;
+	animation: attention-pulse-fast 1.5s ease-out 300ms 3;
+}
+@keyframes attention-loop-slow {
+	0% {
+		transform: scale(1);
+		opacity: var(--attention-peak);
+	}
+	60%,
+	100% {
+		transform: scale(var(--attention-scale));
+		opacity: 0;
+	}
+}
+@keyframes attention-loop-mid {
+	0% {
+		transform: scale(1);
+		opacity: var(--attention-peak);
+	}
+	54.545%,
+	100% {
+		transform: scale(var(--attention-scale));
+		opacity: 0;
+	}
+}
+@keyframes attention-loop-fast {
+	0% {
+		transform: scale(1);
+		opacity: var(--attention-peak);
+	}
+	62.5%,
+	100% {
+		transform: scale(var(--attention-scale));
+		opacity: 0;
+	}
+}
+@keyframes attention-pulse-slow {
+	0% {
+		transform: scale(1);
+		opacity: var(--attention-peak);
+	}
+	81.818%,
+	100% {
+		transform: scale(var(--attention-scale));
+		opacity: 0;
+	}
+}
+@keyframes attention-pulse-fast {
+	0% {
+		transform: scale(1);
+		opacity: var(--attention-peak);
+	}
+	80%,
+	100% {
+		transform: scale(var(--attention-scale));
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-attention] {
+		animation: none;
+		display: none;
+	}
+}
