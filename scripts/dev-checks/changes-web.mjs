@@ -248,7 +248,7 @@ async function sectionPayment() {
 				)
 				check(
 					'the applied line names the balance after payment',
-					(await second.innerText()).includes(`Balance is now ${after}.`),
+					(await second.innerText()).includes(`Balance after this payment: ${after}.`),
 					after
 				)
 				await shot(page, 'changes-payment', 'applied')

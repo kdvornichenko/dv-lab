@@ -379,7 +379,7 @@ function appliedLine(change: ChatChange): string | null {
 			const credit = change.lessonsHundredths === null ? '' : `, ${lessonsText(change.lessonsHundredths)}`
 			const values = `${change.studentName}, ${formatDate(change.paidOn, year)}: ${formatMoney(change.amountMinor, change.currency)}${credit}.`
 			if (change.balanceAfterMinutes === null) return values
-			return `${values} Balance is now ${balancePhrase(change.balanceAfterMinutes, change.lessonMinutes)}.`
+			return `${values} Balance after this payment: ${balancePhrase(change.balanceAfterMinutes, change.lessonMinutes)}.`
 		}
 		case 'create_card':
 			return `${change.displayName}.`
@@ -387,7 +387,7 @@ function appliedLine(change: ChatChange): string | null {
 			const year = yearInZone(new Date(), SCHEDULE_TIME_ZONE)
 			const values = `${change.studentName}, ${formatDate(change.paidOn, year)}: ${formatMoney(change.amountMinor, change.currency)}.`
 			if (change.balanceAfterMinutes === null) return values
-			return `${values} Balance is now ${balancePhrase(change.balanceAfterMinutes, lessonMinutesOf(change))}.`
+			return `${values} Balance after this payment: ${balancePhrase(change.balanceAfterMinutes, lessonMinutesOf(change))}.`
 		}
 		default:
 			return `${change.studentName}.`
