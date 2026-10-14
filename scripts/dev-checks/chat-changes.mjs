@@ -1595,6 +1595,19 @@ async function essay() {
 		JSON.stringify(stoppedReply.blocks)
 	)
 
+	const textOnly = await conversation()
+	fake.script.push(say('The structure is clear and each paragraph has one idea.'))
+	const textOnlyTurn = await settled(await send(textOnly, `/essay ${ESSAY_TEXT}`))
+	const textOnlyReply = replyRow(textOnlyTurn.id)
+	check(
+		'an /essay reply without an essay_feedback call still gets one essay block with task null',
+		textOnlyTurn.state === 'completed' &&
+			textOnlyReply.body.includes('The structure is clear') &&
+			essayBlocks(textOnlyReply).length === 1 &&
+			essayBlocks(textOnlyReply)[0].task === null,
+		JSON.stringify(textOnlyReply.blocks)
+	)
+
 	const periodId = sql(`select period_id from chat_usage_attempts where turn_id = ${quote(stopTurnId)} limit 1`).rows[0]
 		?.period_id
 	if (!periodId) throw new Error('no budget period after the essay turns')

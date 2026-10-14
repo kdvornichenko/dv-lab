@@ -619,7 +619,8 @@ export function createChat({ db, logger, provider, calendarCommands }: ChatDeps)
 				out.withheld > 0 || (out.published === 0 && blocks.length === 0 && !run.wroteBlock)
 					? [{ type: 'withheld' }]
 					: []
-			return ending('completed', issue, [...blocks, ...extra])
+			const label: ChatBlock[] = run.essayTurn && !shown.has('essay') ? [{ type: 'essay', task: null }] : []
+			return ending('completed', issue, [...label, ...blocks, ...extra])
 		}
 
 		for (let request = 0; request < MAX_REQUESTS; request++) {
