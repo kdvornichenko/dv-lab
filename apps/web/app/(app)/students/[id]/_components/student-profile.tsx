@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 
-import { Archive, ArchiveRestore, LoaderCircle, MessageSquare, Wallet } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
@@ -21,7 +20,6 @@ import { withoutSearchParams } from '@/lib/arrival-mark'
 import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
-import { BackButton } from './back-button'
 import { LessonsTab } from './lessons-tab'
 import { NotesTab, type SectionDrafts } from './notes-tab'
 import { OverviewTab, type OverviewTarget } from './overview-tab'
@@ -29,6 +27,7 @@ import { PaymentsTab } from './payments-tab'
 import { initialProfileTab, type ProfileArrival, type ProfileMark } from './profile-arrival'
 import { ProfileLoading } from './profile-loading'
 import { RecordPaymentDialog } from './record-payment-dialog'
+import { StudentActions } from './student-actions'
 import { VocabularyTab } from './vocabulary-tab'
 
 type ReadState =
@@ -106,8 +105,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	const [drafts, setDrafts] = useState<SectionDrafts>({})
 	const [openingRequested, setOpeningRequested] = useState(false)
 	const [openingChat, startOpeningChat] = useTransition()
-	const statusButton = useRef<HTMLButtonElement>(null)
-	const recordButton = useRef<HTMLButtonElement>(null)
+	const actionsButton = useRef<HTMLButtonElement>(null)
 	const requests = useRef(0)
 	const dialogRequest = useRef(arrival.dialog)
 	const toast = useToast()
@@ -200,7 +198,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 
 	function closeRecord() {
 		setRecordOpen(false)
-		requestAnimationFrame(() => recordButton.current?.focus())
+		requestAnimationFrame(() => actionsButton.current?.focus())
 	}
 
 	function openConfirm(action: 'archive' | 'restore', revision: number) {
@@ -210,7 +208,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 
 	function closeConfirm() {
 		setConfirm(null)
-		requestAnimationFrame(() => statusButton.current?.focus())
+		requestAnimationFrame(() => actionsButton.current?.focus())
 	}
 
 	async function changeStatus(action: 'archive' | 'restore', revision: number) {
@@ -240,7 +238,6 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	if (state.kind === 'error' && state.data === null) {
 		return (
 			<PageScroll>
-				<BackButton />
 				<ReadError
 					screen="student"
 					onRefresh={async () => {
@@ -256,7 +253,6 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	const { student, paysSoonLessons: threshold, defaultTimeZone: mainTimeZone, asOf } = state.data
 	return (
 		<PageScroll>
-			<BackButton />
 			{state.kind === 'error' ? (
 				<ReadError
 					screen="student"
@@ -268,57 +264,23 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 			<div className={state.kind === 'error' ? 'hidden' : 'contents'}>
 				<PageHeader
 					title={
-						<span className="flex items-center gap-2">
+						<span className="flex min-w-0 items-center gap-2">
 							<Avatar name={student.displayName} />
-							<span className="min-w-0 wrap-anywhere">{student.displayName}</span>
+							<span className="min-w-0 truncate">{student.displayName}</span>
 						</span>
 					}
 					description={<SummaryLine student={student} threshold={threshold} onSetBalance={focusOpeningBalance} />}
-					actions={
-						<>
-							{student.status === 'active' ? (
-								<Button
-									ref={statusButton}
-									variant="secondary"
-									leadingIcon={Archive}
-									onClick={() => openConfirm('archive', student.revision)}
-								>
-									Archive
-								</Button>
-							) : (
-								<Button
-									ref={statusButton}
-									variant="secondary"
-									leadingIcon={ArchiveRestore}
-									onClick={() => openConfirm('restore', student.revision)}
-								>
-									Restore
-								</Button>
-							)}
-							{student.status === 'active' ? (
-								<Button
-									data-slot="ask-in-chat"
-									variant="secondary"
-									leadingIcon={openingChat ? undefined : MessageSquare}
-									disabled={openingChat}
-									aria-busy={openingChat}
-									className="min-w-36 max-sm:h-11"
-									onClick={askInChat}
-								>
-									{openingChat ? (
-										<span className="inline-flex items-center gap-1.5">
-											<LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
-											Opening chat…
-										</span>
-									) : (
-										'Ask in chat'
-									)}
-								</Button>
-							) : null}
-							<Button ref={recordButton} leadingIcon={Wallet} onClick={() => setRecordOpen(true)}>
-								Record payment
-							</Button>
-						</>
+					aside={
+						<StudentActions
+							student={student}
+							buttonRef={actionsButton}
+							openingChat={openingChat}
+							onRecordPayment={() => setRecordOpen(true)}
+							onAskInChat={askInChat}
+							onArchive={() => openConfirm('archive', student.revision)}
+							onRestore={() => openConfirm('restore', student.revision)}
+							onAccountChanged={() => void refresh()}
+						/>
 					}
 				/>
 				<Tabs value={tab} onValueChange={changeTab}>

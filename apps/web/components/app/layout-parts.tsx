@@ -71,21 +71,35 @@ interface PageHeaderProps {
 	eyebrow?: ReactNode
 	description?: ReactNode
 	actions?: ReactNode
+	aside?: ReactNode
 	titleRef?: Ref<HTMLHeadingElement>
 }
 
-export function PageHeader({ title, eyebrow, description, actions, titleRef }: PageHeaderProps) {
+export function PageHeader({ title, eyebrow, description, actions, aside, titleRef }: PageHeaderProps) {
+	const heading = (
+		<h1
+			ref={titleRef}
+			tabIndex={titleRef === undefined ? undefined : -1}
+			className={cn(
+				'text-display font-semibold tracking-tight text-foreground outline-none',
+				aside !== undefined && 'min-w-0 flex-1'
+			)}
+		>
+			{title}
+		</h1>
+	)
 	return (
 		<header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-			<div className="flex min-w-0 flex-col gap-1">
+			<div className={cn('flex min-w-0 flex-col gap-1', aside !== undefined && 'flex-1')}>
 				{eyebrow ? <p className="text-caption text-muted-foreground">{eyebrow}</p> : null}
-				<h1
-					ref={titleRef}
-					tabIndex={titleRef === undefined ? undefined : -1}
-					className="text-display font-semibold tracking-tight text-foreground outline-none"
-				>
-					{title}
-				</h1>
+				{aside !== undefined ? (
+					<div className="flex min-w-0 items-center gap-2">
+						{heading}
+						{aside}
+					</div>
+				) : (
+					heading
+				)}
 				{description ? <div className="text-body text-muted-foreground">{description}</div> : null}
 			</div>
 			{actions ? <PageActions>{actions}</PageActions> : null}

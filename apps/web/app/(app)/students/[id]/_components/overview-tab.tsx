@@ -36,9 +36,8 @@ import {
 import { balanceState, formatLessons, formatMoney, lessonsPhrase, type BalanceState } from '@dv-lab/core'
 
 import { GENDER_LABEL, StudentFormDialog } from '../../_components/student-form-dialog'
-import { AccountPanel } from './account-panel'
 import { HeldDates } from './held-dates'
-import { OVERVIEW_GRID, OverviewLeftLoading } from './profile-loading'
+import { OverviewLeftLoading } from './profile-loading'
 
 export type OverviewTarget = 'lessons' | 'payments' | 'notes' | 'vocabulary'
 
@@ -127,9 +126,9 @@ function textValue(value: string | null) {
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
 	return (
-		<div className="flex items-baseline justify-between gap-4 px-4 pb-2">
-			<dt className="w-32 shrink-0 text-body text-muted-foreground">{label}</dt>
-			<dd className="min-w-0 text-right text-body wrap-anywhere text-foreground">{children}</dd>
+		<div className="flex min-w-0 flex-col gap-0.5">
+			<dt className="text-caption text-muted-foreground">{label}</dt>
+			<dd className="min-w-0 text-body wrap-anywhere text-foreground">{children}</dd>
 		</div>
 	)
 }
@@ -511,14 +510,14 @@ export function OverviewTab({
 		left = <OverviewLeftLoading studentName={student.displayName} mainTimeZone={mainTimeZone} />
 	} else if (state.kind === 'error') {
 		left = (
-			<div className="flex min-w-0 flex-col gap-unit-1.5">
+			<>
 				{facts}
 				<UnreadPanel onRefresh={load} />
-			</div>
+			</>
 		)
 	} else {
 		left = (
-			<div className="flex min-w-0 flex-col gap-unit-1.5" data-slot="overview-left" data-state="ready">
+			<>
 				{facts}
 				{counted && lessons !== null ? (
 					<HeldDates
@@ -601,58 +600,55 @@ export function OverviewTab({
 						</div>
 					)}
 				</Panel>
-			</div>
+			</>
 		)
 	}
 
 	return (
-		<div className={OVERVIEW_GRID}>
+		<div className="flex min-w-0 flex-col gap-4" data-slot="overview" data-state={state.kind}>
+			<Panel
+				id="student-details"
+				title="Details"
+				action={
+					<Button
+						ref={editButton}
+						variant="secondary"
+						size="compact"
+						leadingIcon={Pencil}
+						onClick={() => setEditOpen(true)}
+					>
+						Edit details
+					</Button>
+				}
+			>
+				<dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 pt-1 pb-4 sm:grid-cols-4">
+					<DetailRow label="Rate">
+						{student.rateMinor === null ? (
+							<NotSet />
+						) : (
+							<>
+								<MoneyText amountMinor={student.rateMinor} currency={student.currency} /> per lesson
+							</>
+						)}
+					</DetailRow>
+					<DetailRow label="Lesson length">
+						<span className="tabular-nums">{student.defaultLessonMinutes} min</span>
+					</DetailRow>
+					<DetailRow label="No-show">
+						{student.noShowDeducts ? (
+							'Deducts a lesson'
+						) : (
+							<span className="text-muted-foreground">Deducts nothing</span>
+						)}
+					</DetailRow>
+					<DetailRow label="Gender">{student.gender === null ? <NotSet /> : GENDER_LABEL[student.gender]}</DetailRow>
+					<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
+					<DetailRow label="Level">{textValue(student.level)}</DetailRow>
+					<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>
+					<DetailRow label="Time zone">{student.timeZone ?? 'Same as teacher'}</DetailRow>
+				</dl>
+			</Panel>
 			{left}
-			<div className="flex min-w-0 flex-col gap-unit-1.5">
-				<Panel
-					id="student-details"
-					title="Details"
-					action={
-						<Button
-							ref={editButton}
-							variant="secondary"
-							size="compact"
-							leadingIcon={Pencil}
-							onClick={() => setEditOpen(true)}
-						>
-							Edit details
-						</Button>
-					}
-				>
-					<dl className="flex flex-col pt-2">
-						<DetailRow label="Rate">
-							{student.rateMinor === null ? (
-								<NotSet />
-							) : (
-								<>
-									<MoneyText amountMinor={student.rateMinor} currency={student.currency} /> per lesson
-								</>
-							)}
-						</DetailRow>
-						<DetailRow label="Lesson length">
-							<span className="tabular-nums">{student.defaultLessonMinutes} min</span>
-						</DetailRow>
-						<DetailRow label="No-show">
-							{student.noShowDeducts ? (
-								'Deducts a lesson'
-							) : (
-								<span className="text-muted-foreground">Deducts nothing</span>
-							)}
-						</DetailRow>
-						<DetailRow label="Gender">{student.gender === null ? <NotSet /> : GENDER_LABEL[student.gender]}</DetailRow>
-						<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
-						<DetailRow label="Level">{textValue(student.level)}</DetailRow>
-						<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>
-						<DetailRow label="Time zone">{student.timeZone ?? 'Same as teacher'}</DetailRow>
-					</dl>
-				</Panel>
-				<AccountPanel student={student} onChanged={onSaved} />
-			</div>
 			{editOpen ? (
 				<StudentFormDialog
 					mode="edit"
