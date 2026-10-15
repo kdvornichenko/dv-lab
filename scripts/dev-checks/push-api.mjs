@@ -3,13 +3,27 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 
-import { ENV_TEST, ROOT, STUDENT_LOGIN, call, quote, sql, startApi, studentCookie, teacherCookie } from './api.mjs'
+import { createRequire } from 'node:module'
+
+import {
+	ENV_TEST,
+	ROOT,
+	STUDENT_LOGIN,
+	TEACHER_LOGIN,
+	call,
+	quote,
+	sql,
+	startApi,
+	studentCookie,
+	teacherCookie,
+} from './api.mjs'
+import { removeCards } from './ledger-api/context.ts'
 
 const PORT = 4271
 const ENDPOINT_HOST = 'push.example.test'
 const ENDPOINT_BASE = `https://${ENDPOINT_HOST}/dvlab-check/`
-const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config']
-const API_SECTIONS = new Set(['routes', 'settings', 'presence', 'config'])
+const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config', 'lessons']
+const API_SECTIONS = new Set(['routes', 'settings', 'presence', 'config', 'lessons'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 let failures = 0
@@ -33,7 +47,163 @@ const send = (api, method, path, cookie, body) =>
 		headers: body === undefined ? {} : { 'content-length': String(Buffer.byteLength(JSON.stringify(body))) },
 	})
 
-const cleanup = () => sql(`delete from push_subscriptions where endpoint like ${quote(`${ENDPOINT_BASE}%`)}`)
+const CARD_PATTERN = 'Alex Example 260%'
+const teacherAccounts = `select id from accounts where login = ${quote(TEACHER_LOGIN)}`
+
+function cleanup() {
+	sql(`delete from push_payment_alerts where account_id in (${teacherAccounts})`)
+	sql(`delete from push_deliveries where account_id in (${teacherAccounts})`)
+	removeCards(`display_name like ${quote(CARD_PATTERN)} and import_key is null`)
+	sql(`delete from push_subscriptions where endpoint like ${quote(`${ENDPOINT_BASE}%`)}`)
+}
+
+const MINUTE = 60_000
+const plus = (at, minutes) => new Date(at.getTime() + minutes * MINUTE)
+
+const cardBody = (displayName) => ({
+	displayName,
+	rateMinor: 400000,
+	currency: 'RUB',
+	defaultLessonMinutes: 60,
+	parent: null,
+	level: null,
+	goals: null,
+	timeZone: null,
+	gender: null,
+})
+
+async function makeCard(ctx, displayName) {
+	const res = await send(ctx.api, 'POST', '/students', ctx.cookie, cardBody(displayName))
+	if (res.status !== 201) throw new Error(`card create returned ${res.status}`)
+	return res.json.student.id
+}
+
+function insertLesson(studentId, startsAt, { status = 'scheduled', minutes = 60 } = {}) {
+	return sql(
+		`insert into lessons (student_id, starts_at, duration_minutes, status) values (${quote(studentId)}, ${quote(startsAt.toISOString())}, ${minutes}, ${quote(status)}) returning id::text as id`
+	).rows[0].id
+}
+
+function teacherAccountId() {
+	const rows = sql(`select id::text as id from accounts where login = ${quote(TEACHER_LOGIN)} and status = 'active'`).rows
+	if (rows.length !== 1) throw new Error('teacher fixture account missing')
+	return rows[0].id
+}
+
+async function patchSettings(ctx, body) {
+	const res = await send(ctx.api, 'PATCH', '/settings', ctx.cookie, body)
+	if (res.status !== 200) throw new Error(`settings patch returned ${res.status}`)
+	return res.json.settings
+}
+
+async function inProcess(ctx) {
+	if (ctx.inProcess) return ctx.inProcess
+	const { createDb } = await import(`${ROOT}/packages/db/src/index.ts`)
+	const scheduler = await import(`${ROOT}/apps/api/src/push/scheduler.ts`)
+	const pino = createRequire(`${ROOT}/apps/api/package.json`)('pino')
+	const { pool, db } = createDb(fileEnv.DATABASE_URL)
+	const logs = []
+	const logger = pino({ level: 'info' }, { write: (line) => logs.push(line) })
+	const sent = []
+	const deliver = async (subscription, payload) => {
+		sent.push({ subscriptionId: subscription.id, payload })
+	}
+	const tick = scheduler.createPushScheduler({ db, logger, deliver, paysEveryMs: 0 })
+	ctx.inProcess = { pool, db, logs, logger, sent, tick, scheduler }
+	return ctx.inProcess
+}
+
+async function ownSubscription(ctx, secondTimeZone) {
+	const endpoint = newEndpoint()
+	const res = await send(ctx.api, 'POST', '/push/subscriptions', ctx.cookie, {
+		endpoint,
+		keys: newKeys(),
+		...(secondTimeZone ? { secondTimeZone } : {}),
+	})
+	if (res.status !== 201) throw new Error(`subscription create returned ${res.status}`)
+	return { id: res.json.id, endpoint }
+}
+
+async function tickAt(ctx, at) {
+	const { sent, tick } = await inProcess(ctx)
+	const before = sent.length
+	await tick.runOnce(at)
+	return sent.slice(before)
+}
+
+const forLesson = (items, lessonId, subscriptionId) =>
+	items.filter((item) => item.payload.url.includes(lessonId) && item.subscriptionId === subscriptionId)
+
+async function lessons(ctx) {
+	const original = (await send(ctx.api, 'GET', '/settings', ctx.cookie)).json.settings
+	const zone = original.defaultTimeZone
+	const links = await import(`${ROOT}/packages/contracts/src/links.ts`)
+	const core = await import(`${ROOT}/packages/core/src/index.ts`)
+	try {
+		await patchSettings(ctx, { notifyLessonSoon: true, notifyLessonMinutes: 30 })
+		const own = await ownSubscription(ctx, 'Europe/Moscow')
+		const card = await makeCard(ctx, 'Alex Example 2600')
+		const now = new Date()
+		const soon = insertLesson(card, plus(now, 25))
+		const later = insertLesson(card, plus(now, 40))
+
+		const first = await tickAt(ctx, now)
+		const soonItems = forLesson(first, soon, own.id)
+		const expectedUrl = links.lessonLink(core.lessonDay(plus(now, 25), zone), { kind: 'single', lessonId: soon })
+		check(
+			'a lesson in 25 minutes with the 30 minute setting gives one delivery with title and link',
+			soonItems.length === 1 &&
+				soonItems[0].payload.title === 'Lesson with Alex Example 2600 in 25 minutes' &&
+				soonItems[0].payload.url === expectedUrl,
+			`count ${soonItems.length}`
+		)
+		check(
+			'the body carries the teacher zone and the second zone of the device',
+			soonItems.length === 1 &&
+				(zone === 'Europe/Moscow'
+					? /^[A-Z][a-z]{2}, \d{2}:\d{2} MSK$/.test(soonItems[0].payload.body)
+					: /^[A-Z][a-z]{2}, \d{2}:\d{2} \S+ · \d{2}:\d{2} MSK$/.test(soonItems[0].payload.body))
+		)
+		check('a lesson in 40 minutes with the 30 minute setting waits', forLesson(first, later, own.id).length === 0)
+
+		const second = await tickAt(ctx, now)
+		check('the second tick sends nothing again', forLesson(second, soon, own.id).length === 0)
+
+		sql(`update lessons set starts_at = starts_at + interval '1 hour', updated_at = now() where id = ${quote(soon)}`)
+		const movedEarly = await tickAt(ctx, now)
+		const movedDue = await tickAt(ctx, plus(now, 60))
+		const movedItems = forLesson(movedDue, soon, own.id)
+		check(
+			'a lesson moved an hour later is reminded again at the new time',
+			forLesson(movedEarly, soon, own.id).length === 0 &&
+				movedItems.length === 1 &&
+				movedItems[0].payload.title === 'Lesson with Alex Example 2600 in 25 minutes',
+			`count ${movedItems.length}`
+		)
+
+		const cancelled = insertLesson(card, plus(now, 20), { status: 'cancelled' })
+		const cancelledTick = await tickAt(ctx, now)
+		check('a cancelled lesson sends nothing', forLesson(cancelledTick, cancelled, own.id).length === 0)
+
+		await patchSettings(ctx, { notifyLessonSoon: false })
+		const muted = insertLesson(card, plus(now, 15))
+		const mutedTick = await tickAt(ctx, now)
+		check('notify_lesson_soon off sends nothing', forLesson(mutedTick, muted, own.id).length === 0)
+
+		await patchSettings(ctx, { notifyLessonSoon: true, notifyLessonMinutes: 45 })
+		const widened = await tickAt(ctx, now)
+		check(
+			'the 45 minute setting saved through PATCH /settings sends the lesson in 40 minutes',
+			forLesson(widened, later, own.id).length === 1
+		)
+	} finally {
+		await patchSettings(ctx, {
+			notifyLessonSoon: original.notifyLessonSoon,
+			notifyLessonMinutes: original.notifyLessonMinutes,
+			notifyPaysSoon: original.notifyPaysSoon,
+		})
+	}
+}
 
 const subscriptionRow = (endpoint) =>
 	sql(
@@ -494,15 +664,15 @@ async function config(ctx) {
 	)
 }
 
-const RUNNERS = { routes, links, settings, presence, config }
+const RUNNERS = { routes, links, settings, presence, config, lessons }
 
 const wanted = process.argv.slice(2)
 const selected = wanted.length === 0 ? SECTIONS : wanted
 for (const name of selected) if (!RUNNERS[name]) throw new Error(`unknown section ${name}`)
 
 let api = null
+const ctx = {}
 try {
-	const ctx = {}
 	if (selected.some((name) => API_SECTIONS.has(name))) {
 		cleanup()
 		api = await startApi({ port: PORT })
@@ -514,6 +684,10 @@ try {
 		await RUNNERS[name](ctx)
 	}
 } finally {
+	if (ctx.inProcess) {
+		await ctx.inProcess.tick.close()
+		await ctx.inProcess.pool.end()
+	}
 	if (api) {
 		await api.stop()
 		cleanup()
