@@ -11,6 +11,7 @@ import { ReadError } from '@/components/app/read-error'
 import { TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker'
 import { calendarLesson, canEditCalendarEvent, canEditPlainEvent, changeableLesson } from '@/lib/lesson-actions'
 import { zoneLabel } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import type { CalendarEventView, GoogleScheduleWindow } from '@dv-lab/contracts'
 import { addDays, lessonDay, mondayOf, scheduleDate, zonedInstant } from '@dv-lab/core'
@@ -31,7 +32,7 @@ import {
 	useLaptop,
 	usePhoneGrid,
 } from './schedule-loading'
-import { ScheduleBar, useScheduleKeys, weekSummary } from './schedule-toolbar'
+import { ScheduleBar, TOOLBAR_BUTTONS, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { arrivalMonday, useDropArrivalParams, type ArrivalParams } from './use-schedule-arrival'
@@ -317,7 +318,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 					/>,
 					laptop.left
 				)}
-				{inBar(<div className="flex items-center gap-2">{tools}</div>, laptop.right)}
+				{inBar(<div className={cn('flex items-center gap-2', TOOLBAR_BUTTONS)}>{tools}</div>, laptop.right)}
 				<WorkspacePage>
 					<div {...windowAttributes} className={phone ? PHONE_BODY : WORKSPACE_BODY}>
 						{body}
@@ -332,7 +333,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		<>
 			<WorkspacePage>
 				<div {...windowAttributes} className={PHONE_BODY}>
-					<div className={PHONE_ROW}>
+					<div className={cn(PHONE_ROW, TOOLBAR_BUTTONS)}>
 						<ScheduleBar
 							{...navigation}
 							compact

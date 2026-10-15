@@ -190,7 +190,7 @@ export function CalendarReadStatusButton({
 					<Tooltip side="bottom" content={label}>
 						<PopoverTrigger
 							render={
-								<Button variant="tertiary" size="icon-compact" aria-label={label} className="text-muted-foreground">
+								<Button variant="tertiary" size="icon-compact" aria-label={label}>
 									<LoaderCircle className="animate-spin" />
 								</Button>
 							}
@@ -222,7 +222,6 @@ export function CalendarReadStatusButton({
 						size="icon-compact"
 						aria-label={label}
 						loading={refreshing}
-						className="text-muted-foreground"
 						onClick={() => void refresh()}
 					>
 						<RefreshCw />

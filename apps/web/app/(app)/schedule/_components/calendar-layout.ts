@@ -3,7 +3,8 @@ import { addDays, lessonDayMinutes, startOfLessonDay } from '@dv-lab/core'
 
 export const COLUMN_STRIP = 12
 const COLUMN_INSET = 2
-const PHONE_INSET = 1
+const PHONE_INSET = 0
+const PHONE_RIGHT = 2
 const LANE_GAP = 2
 const LANE_MIN = 20
 const CASCADE_STEP = 12
@@ -86,7 +87,7 @@ function laneCluster(cluster: Segment[]): { items: Laned[]; lanes: number } {
 function placeCluster(cluster: Segment[], minuteHeight: number, columnWidth: number, phone: boolean) {
 	const { items, lanes } = laneCluster(cluster)
 	const inset = phone ? PHONE_INSET : COLUMN_INSET
-	const room = Math.max(columnWidth - inset - (phone ? inset : COLUMN_STRIP), LANE_MIN)
+	const room = Math.max(columnWidth - inset - (phone ? PHONE_RIGHT : COLUMN_STRIP), LANE_MIN)
 	const fit = Math.max(1, Math.floor((room + LANE_GAP) / (LANE_MIN + LANE_GAP)))
 	const shown = Math.min(lanes, fit)
 	const laneWidth = (room - LANE_GAP * (shown - 1)) / shown

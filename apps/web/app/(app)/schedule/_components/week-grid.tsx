@@ -406,13 +406,14 @@ export function WeekGrid({
 		const column = columnRef.current
 		if (!column) return
 		const measure = () => {
-			if (column.isConnected && column.clientWidth > 0) setColumnWidth(column.clientWidth)
+			if (!column.isConnected || column.clientWidth <= 0) return
+			setColumnWidth(phone ? column.getBoundingClientRect().width - column.clientLeft : column.clientWidth)
 		}
 		measure()
 		const observer = new ResizeObserver(measure)
 		observer.observe(column)
 		return () => observer.disconnect()
-	}, [current.monday])
+	}, [current.monday, phone])
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
 	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, touchEditable, canMove, onMove)
@@ -514,14 +515,14 @@ export function WeekGrid({
 					data-slot="week-grid-day"
 					data-date={date}
 					className={cn(
-						'flex flex-col items-center border-l border-gcal-line',
-						phone ? 'h-16 justify-center gap-0.5' : 'gap-1 pt-2 pb-2'
+						'flex flex-col items-center',
+						phone ? 'h-16 justify-start pt-1' : 'gap-0.5 border-l border-gcal-line pt-2 pb-2.5'
 					)}
 				>
 					<span
 						className={cn(
-							'tracking-wider text-muted-foreground uppercase',
-							phone ? 'text-micro' : 'text-caption',
+							'text-muted-foreground uppercase',
+							phone ? 'text-[11px] leading-4 font-medium' : 'text-[11px] leading-4 font-medium tracking-[0.08em]',
 							isToday && 'text-gcal-today'
 						)}
 					>
@@ -531,7 +532,7 @@ export function WeekGrid({
 						data-slot="week-grid-date"
 						className={cn(
 							'flex items-center justify-center rounded-full tabular-nums',
-							phone ? 'size-9 text-[18px] leading-none font-medium' : 'size-11 text-display font-normal',
+							phone ? 'size-9 text-[18px] leading-6 font-medium' : 'size-11 text-[24px] leading-8 font-normal',
 							isToday ? 'bg-gcal-today text-gcal-today-ink' : 'text-foreground'
 						)}
 					>
@@ -568,7 +569,7 @@ export function WeekGrid({
 					}
 					className={cn(
 						'relative border-l border-gcal-line select-none',
-						isToday && 'bg-hover',
+						isToday && !phone && 'bg-hover',
 						dragging && 'cursor-ns-resize'
 					)}
 				>
@@ -578,7 +579,13 @@ export function WeekGrid({
 							className="pointer-events-none absolute inset-x-0 z-20 h-0.5 -translate-y-1/2 bg-gcal-now"
 							style={{ top: nowMinutes * MINUTE_HEIGHT }}
 						>
-							<span aria-hidden className="absolute top-1/2 left-0 size-3 -translate-y-1/2 rounded-full bg-gcal-now" />
+							<span
+								aria-hidden
+								className={cn(
+									'absolute top-1/2 -translate-y-1/2 rounded-full bg-gcal-now',
+									phone ? '-left-1 size-2' : 'left-0 size-3'
+								)}
+							/>
 							<span className="sr-only">Now {nowParts.time}</span>
 						</div>
 					) : null}
@@ -688,9 +695,14 @@ export function WeekGrid({
 						paged && 'touch-pan-y'
 					)}
 				>
-					<div data-slot="week-grid-corner" className={cn('flex items-end justify-end', phone ? 'pb-3' : 'pb-2')}>
+					<div data-slot="week-grid-corner" className={cn('flex items-end justify-end', phone ? 'pb-1.5' : 'pb-3')}>
 						{zoneKnown ? (
-							<GutterPair phone={phone} local={mainCaption} second={!phone && secondZone ? secondZone.caption : null} />
+							<GutterPair
+								phone={phone}
+								local={mainCaption}
+								second={!phone && secondZone ? secondZone.caption : null}
+								className={phone ? 'font-medium' : undefined}
+							/>
 						) : null}
 					</div>
 					{place(heads, true)}

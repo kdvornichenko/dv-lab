@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 
-import { Check, Copy, ListChecks, Search } from 'lucide-react'
+import { Check, Copy, List, ListChecks, Search } from 'lucide-react'
 
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
 import { Banner, BannerTitle } from '@/components/ui/banner'
@@ -230,7 +230,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 					<DialogTrigger
 						render={
 							<Button variant="tertiary" size="icon-compact" aria-label="Count lessons">
-								<ListChecks />
+								<List />
 							</Button>
 						}
 					/>

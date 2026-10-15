@@ -44,7 +44,7 @@ interface LessonBlockProps extends Omit<ComponentProps<'button'>, 'onClick'> {
 
 function surface(coloured: boolean, ghost: boolean, cancelled: boolean, tentative: boolean): string {
 	if (ghost) return GHOST
-	if (cancelled) return 'text-muted-foreground ring-1 ring-selected ring-inset'
+	if (cancelled) return `text-muted-foreground ring-1 ring-inset ${coloured ? 'ring-(--event-fill)' : 'ring-selected'}`
 	if (coloured)
 		return tentative ? `${HATCH} text-foreground` : 'bg-(--event-fill) text-(--event-ink) ring-1 ring-surface-2'
 	return tentative ? `${LESSON_HATCH} text-foreground` : 'bg-selected text-foreground ring-1 ring-surface-2'
@@ -122,7 +122,8 @@ export function LessonBlock({
 				onOpen(calendarEvent)
 			}}
 			className={cn(
-				'z-10 block overflow-hidden rounded-md text-left focus-visible:outline-none',
+				'z-10 flex flex-col justify-start overflow-hidden text-left focus-visible:outline-none',
+				'rounded-sm',
 				phone && !chip ? 'px-[3px]' : 'px-[6px]',
 				chip ? 'py-[4px]' : 'py-[2px]',
 				plain ? EVENT_FOCUS : LESSON_FOCUS,
@@ -131,6 +132,7 @@ export function LessonBlock({
 				layout?.cutTop && 'rounded-t-none',
 				layout?.cutBottom && 'rounded-b-none',
 				surface(paint !== null, ghost, cancelled, tentative),
+				phone && cancelled && 'text-foreground',
 				dimmed && 'opacity-60',
 				className
 			)}
@@ -151,7 +153,7 @@ export function LessonBlock({
 				<span
 					className={cn(
 						'block truncate text-caption',
-						tentative ? 'font-normal' : 'font-semibold',
+						tentative ? 'font-normal' : 'font-medium',
 						cancelled && 'line-through',
 						suggested && 'pr-[14px]',
 						marker !== null && 'pr-4',
@@ -163,7 +165,9 @@ export function LessonBlock({
 				</span>
 			)}
 			{!phone && !short && !chip ? (
-				<span className={cn('block truncate text-caption tabular-nums', hideText && 'invisible')}>{range}</span>
+				<span className={cn('block truncate text-[11px] leading-[14px] tabular-nums', hideText && 'invisible')}>
+					{range}
+				</span>
 			) : null}
 			{phone && needsMark && !marked && !cancelled ? (
 				<span

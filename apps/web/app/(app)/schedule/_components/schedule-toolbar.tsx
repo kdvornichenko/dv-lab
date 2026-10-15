@@ -25,6 +25,8 @@ interface WeekNavigation {
 	onNext: () => void
 }
 
+export const TOOLBAR_BUTTONS = '[&_button]:rounded-md [&_button]:[--border:var(--input)]'
+
 const FIELD_SELECTOR = 'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="combobox"]'
 
 function typingTarget(target: EventTarget | null): boolean {
@@ -90,7 +92,7 @@ function TodayIcon({ today }: { today: number }) {
 			<Calendar />
 			<span
 				aria-hidden
-				className="absolute inset-x-0 bottom-[1.5px] text-center text-[7px] leading-none font-semibold tabular-nums"
+				className="absolute inset-x-0 top-[7px] text-center text-[8px] leading-[10px] font-bold tabular-nums"
 			>
 				{today}
 			</span>
@@ -222,7 +224,11 @@ export function ScheduleBar({
 		<TooltipProvider>
 			<div
 				data-slot="schedule-toolbar"
-				className={cn('flex min-w-0 items-center', compact ? 'flex-1 gap-1' : 'gap-2 pointer-coarse:gap-4')}
+				className={cn(
+					'flex min-w-0 items-center',
+					TOOLBAR_BUTTONS,
+					compact ? 'flex-1 gap-1' : 'gap-2 pointer-coarse:gap-4'
+				)}
 			>
 				<BarTip name="Today" shortcut="T">
 					<Button
@@ -230,6 +236,7 @@ export function ScheduleBar({
 						size="icon-compact"
 						aria-label="Today"
 						disabled={monday === currentMonday}
+						className={compact ? 'disabled:opacity-100' : undefined}
 						onClick={onToday}
 					>
 						<TodayIcon today={dayNumber(today)} />

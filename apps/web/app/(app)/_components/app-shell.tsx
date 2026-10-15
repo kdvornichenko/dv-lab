@@ -105,7 +105,7 @@ export function AppShell({ account, children }: { account: AccountSummary; child
 							pendingPath={pendingPath}
 							onNavigate={(to) => setNavigation(to === pathname ? null : { from: pathname, to })}
 						/>
-						<SidebarInset className="overflow-hidden">
+						<SidebarInset className="overflow-hidden bg-surface-2">
 							<SurfaceProvider value={2}>
 								<Topbar
 									onOpenSearch={() => openSearch()}
