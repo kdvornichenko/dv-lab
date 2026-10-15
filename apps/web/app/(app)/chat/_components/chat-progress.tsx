@@ -69,6 +69,10 @@ export function stepWords(step: ChatStep): string {
 			return `Checking ${possessive} lessons to move`
 		case 'calendar_events':
 			return 'Searching the calendar'
+		case 'review_read':
+			return `Reading ${possessive} notes and vocabulary`
+		case 'apply_review':
+			return 'Looking for duplicates and conflicts'
 		case 'essay_feedback':
 			return 'Reading the essay'
 		case 'answer':
