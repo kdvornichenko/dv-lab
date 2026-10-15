@@ -1,7 +1,8 @@
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { addDays, lessonDayMinutes, startOfLessonDay } from '@dv-lab/core'
+import { addDays, startOfLessonDay, startOfZonedDay, zonedParts } from '@dv-lab/core'
 
 export const COLUMN_STRIP = 12
+export const GRID_MINUTES = 26 * 60
 const COLUMN_INSET = 2
 const PHONE_INSET = 0
 const PHONE_RIGHT = 2
@@ -10,6 +11,29 @@ const LANE_MIN = 20
 const CASCADE_STEP = 12
 const DAY_MINUTES = 1440
 const MIN_DRAWN_MINUTES = 30
+
+const pad = (value: number) => String(value).padStart(2, '0')
+
+export function gridClock(minutes: number): string {
+	const wall = ((minutes % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES
+	return `${pad(Math.floor(wall / 60))}:${pad(wall % 60)}`
+}
+
+export function gridMinutes(instant: Date, date: string, zone: string): number {
+	const parts = zonedParts(instant, zone)
+	return Math.round((Date.parse(parts.date) - Date.parse(date)) / 86400000) * DAY_MINUTES + parts.minutes
+}
+
+export function gridSlot(date: string, minutes: number): { date: string; time: string } {
+	return { date: addDays(date, Math.floor(minutes / DAY_MINUTES)), time: gridClock(minutes) }
+}
+
+export function gridPlaces(date: string, time: string): { day: string; minutes: number }[] {
+	const wall = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
+	const places = [{ day: date, minutes: wall }]
+	if (wall + DAY_MINUTES < GRID_MINUTES) places.push({ day: addDays(date, -1), minutes: wall + DAY_MINUTES })
+	return places
+}
 
 export interface BlockLayout {
 	top: number
@@ -44,17 +68,18 @@ export function eventsOn(events: readonly CalendarEventView[], date: string, tim
 }
 
 function segments(events: readonly CalendarEventView[], date: string, timeZone: string): Segment[] {
-	const dayStart = startOfLessonDay(date, timeZone).getTime()
+	const dayStart = startOfZonedDay(date, timeZone).getTime()
 	const dayEnd = startOfLessonDay(addDays(date, 1), timeZone).getTime()
 	const result: Segment[] = []
-	for (const event of eventsOn(events, date, timeZone)) {
+	for (const event of events) {
 		if (event.when.kind !== 'timed') continue
 		const first = Date.parse(event.when.startsAt)
 		const last = Date.parse(event.when.endsAt)
+		if (first >= dayEnd || last <= dayStart) continue
 		const cutTop = first < dayStart
 		const cutBottom = last > dayEnd
-		const start = cutTop ? 0 : lessonDayMinutes(new Date(first), timeZone)
-		const end = last >= dayEnd ? DAY_MINUTES : lessonDayMinutes(new Date(last), timeZone)
+		const start = cutTop ? 0 : gridMinutes(new Date(first), date, timeZone)
+		const end = last >= dayEnd ? GRID_MINUTES : gridMinutes(new Date(last), date, timeZone)
 		result.push({ event, start, end: Math.max(end, start + 1), cutTop, cutBottom })
 	}
 	return result.sort(
@@ -101,7 +126,7 @@ function placeCluster(cluster: Segment[], minuteHeight: number, columnWidth: num
 		const left = cascade
 			? Math.min(cascadeStart + (item.lane - (fit - 1)) * CASCADE_STEP, inset + room - width)
 			: inset + lane * (laneWidth + LANE_GAP)
-		const drawnEnd = Math.min(DAY_MINUTES, Math.max(item.end, item.start + MIN_DRAWN_MINUTES))
+		const drawnEnd = Math.min(GRID_MINUTES, Math.max(item.end, item.start + MIN_DRAWN_MINUTES))
 		return {
 			event: item.event,
 			layout: {

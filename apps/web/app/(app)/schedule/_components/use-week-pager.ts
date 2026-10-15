@@ -223,7 +223,7 @@ export function useWeekPager({
 		? {
 				style: { touchAction: 'pan-y' as const },
 				onPointerDown: (event: PointerEvent<HTMLElement>) => {
-					if (event.button !== 0 || gesture.current !== null) return
+					if (event.button !== 0 || !event.isPrimary) return
 					suppress.current = false
 					if (event.clientX < EDGE_ZONE || event.clientX > window.innerWidth - EDGE_ZONE) return
 					stop()

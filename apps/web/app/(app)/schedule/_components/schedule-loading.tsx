@@ -8,7 +8,7 @@ import { useTopbarSlot } from '@/components/app/topbar-slot'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Elevated } from '@/lib/elevated'
 
-import { DAY_START_MINUTES, SCHEDULE_TIME_ZONE, lessonDay, mondayOf } from '@dv-lab/core'
+import { SCHEDULE_TIME_ZONE, lessonDay, mondayOf } from '@dv-lab/core'
 
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { ScheduleBar } from './schedule-toolbar'
@@ -19,10 +19,8 @@ export const PHONE_BODY = 'flex min-h-0 flex-1 flex-col'
 export const PHONE_ROW = 'flex h-9 shrink-0 items-center gap-1 px-3 pt-0.5 pb-1.5'
 const PHONE_QUERY = '(max-width: 1023px)'
 
-const FIRST_HOUR = DAY_START_MINUTES / 60
-
 function block(day: number, hour: number, minutes: number): GridPlaceholder {
-	return { day, start: (hour - FIRST_HOUR) * 60, minutes }
+	return { day, start: hour * 60, minutes }
 }
 
 export const LOADING_BLOCKS: readonly GridPlaceholder[] = [

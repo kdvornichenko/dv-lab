@@ -37,7 +37,7 @@ import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
 import { arrivalMonday, useDropArrivalParams, type ArrivalParams } from './use-schedule-arrival'
 import { useScheduleWeek } from './use-schedule-week'
-import { OPEN_SCROLL_TOP, WeekGrid, type SlotChoice } from './week-grid'
+import { WeekGrid, type SlotChoice } from './week-grid'
 
 export function ScheduleScreen({ arrival }: { arrival: ArrivalParams }) {
 	const now = useMinuteNow()
@@ -65,7 +65,7 @@ function displayWindow(data: GoogleScheduleWindow | null, query: { monday: strin
 function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams }) {
 	const [initialMonday] = useState(() => arrivalMonday(arrival))
 	const { state: week, reload, navigate, peek } = useScheduleWeek(initialMonday)
-	const scrollTopRef = useRef(OPEN_SCROLL_TOP)
+	const scrollTopRef = useRef<number | null>(null)
 	const [selection, setSelection] = useState<CalendarEventView | null>(null)
 	const [moveSeed, setMoveSeed] = useState<MoveSeed | undefined>(undefined)
 	const commands = useCalendarCommands()
@@ -215,6 +215,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 			onSlot={(seed) => void openNew(seed)}
 			frame={draft?.seed ?? null}
 			scrollTopRef={scrollTopRef}
+			onWeekStep={(direction) => (direction > 0 ? navigation.onNext() : navigation.onPrevious())}
 			placeholders={loadingFirst ? LOADING_BLOCKS : undefined}
 			phone={phone}
 			loadingBlocks={LOADING_BLOCKS}

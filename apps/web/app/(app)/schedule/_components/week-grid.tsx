@@ -22,36 +22,26 @@ import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import {
-	DAY_START_MINUTES,
-	addDays,
-	lessonDayMinutes,
-	lessonDayPlace,
-	lessonDaySlot,
-	scheduleDate,
-	zonedInstant,
-	zonedParts,
-} from '@dv-lab/core'
+import { addDays, lessonDayPlace, scheduleDate, zonedInstant, zonedParts } from '@dv-lab/core'
 
 import { eventTitle } from './calendar-event-details'
-import { COLUMN_STRIP, eventsOn, placeDay } from './calendar-layout'
+import { COLUMN_STRIP, GRID_MINUTES, eventsOn, gridPlaces, placeDay } from './calendar-layout'
 import { EventTooltip } from './event-tooltip'
 import type { BlockMark } from './optimistic-writes'
 import { useEventResize } from './use-event-resize'
 import { useLessonDrag, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES, clock, useSlotDrag } from './use-slot-drag'
+import { useTouchHold } from './use-touch-hold'
 import { useWeekPager } from './use-week-pager'
 
 export const HOUR_HEIGHT = 48
-export const OPEN_SCROLL_TOP = 5 * HOUR_HEIGHT
+export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
-const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
+const HOURS = Array.from({ length: GRID_MINUTES / 60 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
 const PHONE_COLUMNS = 'grid grid-cols-[36px_minmax(0,1fr)]'
 const PHONE_FOOT = 16
-const DAY_MINUTES = 24 * 60
 const CHIP_BELOW_MINUTES = 30
-const FIRST_HOUR = DAY_START_MINUTES / 60
 const FRAME_WIDTH = `calc(100% - ${COLUMN_STRIP + 2}px)`
 
 function noTurn() {}
@@ -99,7 +89,8 @@ interface WeekGridProps {
 	placed?: { event: CalendarEventView; seed: MoveSeed } | null
 	mark?: (event: CalendarEventView) => BlockMark | null
 	emptyNote?: string | null
-	scrollTopRef?: { current: number }
+	scrollTopRef?: { current: number | null }
+	onWeekStep?: (direction: 1 | -1) => void
 	placeholders?: readonly GridPlaceholder[]
 	zoneKnown?: boolean
 	phone?: boolean
@@ -166,7 +157,7 @@ function SlotFrameBlock({
 	flip: boolean
 }) {
 	const range = `${clock(start)}–${clock(start + minutes)}`
-	const visible = Math.min(minutes, DAY_MINUTES - start)
+	const visible = Math.min(minutes, GRID_MINUTES - start)
 	return (
 		<div
 			data-slot="week-grid-frame"
@@ -216,6 +207,7 @@ function overlapsOthers(
 }
 
 function MoveFrameBlock({
+	start,
 	event,
 	frame,
 	gesture,
@@ -224,6 +216,7 @@ function MoveFrameBlock({
 	overlap,
 	state,
 }: {
+	start: number
 	event: CalendarEventView
 	frame: SlotFrame
 	gesture: 'move' | 'resize'
@@ -232,18 +225,17 @@ function MoveFrameBlock({
 	overlap: boolean
 	state: 'drag' | 'draft'
 }) {
-	const start = lessonDayPlace(frame.date, frame.time).minutes
 	const range = `${clock(start)}–${clock(start + frame.durationMinutes)}`
 	const sameDay =
 		event.when.kind === 'timed' && scheduleDate(new Date(event.when.startsAt), mainTimeZone) === frame.date
 	const chip = sameDay || gesture === 'resize' ? range : `${formatDate(frame.date, currentYear)}, ${range}`
-	const height = Math.min(frame.durationMinutes, DAY_MINUTES - start) * MINUTE_HEIGHT
+	const height = Math.min(frame.durationMinutes, GRID_MINUTES - start) * MINUTE_HEIGHT
 	const short = height < 34
 	const paint = eventPaint(event.color)
 	const foot = start * MINUTE_HEIGHT + height
 	const chipTop =
 		gesture === 'resize'
-			? start + frame.durationMinutes >= DAY_MINUTES - 25
+			? start + frame.durationMinutes >= GRID_MINUTES - 25
 				? foot - 26
 				: foot + 4
 			: start < 30
@@ -317,18 +309,6 @@ function GutterPair({
 	)
 }
 
-function tapSlot(event: MouseEvent<HTMLDivElement>, date: string) {
-	const rect = event.currentTarget.getBoundingClientRect()
-	const slot = Math.max(
-		0,
-		Math.min(
-			DAY_MINUTES / SLOT_MINUTES - 1,
-			Math.floor((event.clientY - rect.top) / ((HOUR_HEIGHT * SLOT_MINUTES) / 60))
-		)
-	)
-	return { ...lessonDaySlot(date, slot * SLOT_MINUTES), durationMinutes: 60, dragged: false }
-}
-
 function Frame({
 	phone,
 	children,
@@ -377,11 +357,12 @@ export function WeekGrid({
 	phone = false,
 	loadingBlocks = [],
 	pager,
+	onWeekStep,
 }: WeekGridProps) {
 	const paged = phone && pager !== undefined
 	const turning = useWeekPager({ monday, enabled: paged, onTurn: pager?.onTurn ?? noTurn })
 	const columns = phone ? PHONE_COLUMNS : COLUMNS
-	const touchEditable = editable && !phone
+	const mouseEditable = editable && !phone
 	const weekDates = (first: string) => Array.from({ length: 7 }, (_: undefined, index) => addDays(first, index))
 	const pageOf = (first: string, role: GridPage['role']): GridPage => {
 		if (first === monday) return { monday: first, role, dates: weekDates(first), events, placeholders }
@@ -399,7 +380,7 @@ export function WeekGrid({
 		? [pageOf(addDays(current.monday, -7), 'before'), current, pageOf(addDays(current.monday, 7), 'after')]
 		: [current]
 	const nowParts = zonedParts(now, mainTimeZone)
-	const nowMinutes = lessonDayMinutes(now, mainTimeZone)
+	const nowPlaces = gridPlaces(nowParts.date, nowParts.time)
 	const [columnWidth, setColumnWidth] = useState(0)
 	const columnRef = useRef<HTMLDivElement | null>(null)
 	useLayoutEffect(() => {
@@ -416,16 +397,26 @@ export function WeekGrid({
 	}, [current.monday, phone])
 	const mainCaption = zoneLabel(mainTimeZone, zonedInstant(monday, '12:00', mainTimeZone))
 	const bodyRef = useRef<HTMLDivElement | null>(null)
-	const lessonDrag = useLessonDrag(bodyRef, HOUR_HEIGHT, events, mainTimeZone, touchEditable, canMove, onMove)
-	const eventResize = useEventResize(bodyRef, HOUR_HEIGHT, events, mainTimeZone, touchEditable, canMove, onMove)
+	const heldRef = useTouchHold(bodyRef)
+	const lessonDrag = useLessonDrag(
+		bodyRef,
+		HOUR_HEIGHT,
+		events,
+		mainTimeZone,
+		editable,
+		canMove,
+		onMove,
+		heldRef,
+		onWeekStep
+	)
+	const eventResize = useEventResize(bodyRef, HOUR_HEIGHT, events, mainTimeZone, mouseEditable, canMove, onMove)
 	const moving = lessonDrag.drag
 	const resizing = eventResize.resize
 	const live = moving ?? resizing
-	const liveSource = live === null ? null : (events.find((event) => event.eventKey === live.eventKey) ?? null)
 	const moveFrame =
-		live !== null && live.frame !== null && liveSource !== null
+		live !== null && live.frame !== null
 			? {
-					event: liveSource,
+					event: live.event,
 					frame: live.frame,
 					state: 'drag' as const,
 					gesture: moving !== null ? ('move' as const) : ('resize' as const),
@@ -456,8 +447,8 @@ export function WeekGrid({
 			lessonDrag.handlers.onPointerCancelCapture()
 			eventResize.handlers.onPointerCancelCapture()
 		},
-		onLostPointerCapture: () => {
-			lessonDrag.handlers.onLostPointerCapture()
+		onLostPointerCapture: (event: PointerEvent<HTMLDivElement>) => {
+			lessonDrag.handlers.onLostPointerCapture(event)
 			eventResize.handlers.onLostPointerCapture()
 		},
 		onClickCapture: (event: MouseEvent<HTMLDivElement>) => {
@@ -469,17 +460,34 @@ export function WeekGrid({
 		bodyRef,
 		HOUR_HEIGHT,
 		onSlot,
-		touchEditable
+		editable,
+		heldRef
 	)
+	const opening = useRef({ dates: current.dates, nowPlaces })
 	const scroller = useCallback(
 		(node: HTMLDivElement | null) => {
 			bodyRef.current = node
-			if (node) node.scrollTop = scrollTopRef ? scrollTopRef.current : OPEN_SCROLL_TOP
+			if (!node) return
+			if (scrollTopRef && scrollTopRef.current !== null) {
+				node.scrollTop = scrollTopRef.current
+				return
+			}
+			const { dates, nowPlaces: places } = opening.current
+			const shown = places.find((place) => dates.includes(place.day))
+			node.scrollTop = shown === undefined ? OPEN_SCROLL_TOP : shown.minutes * MINUTE_HEIGHT - node.clientHeight / 2
 		},
 		[scrollTopRef]
 	)
+	const pagerProps = paged
+		? {
+				...turning.frameProps,
+				onPointerMove: (event: PointerEvent<HTMLElement>) => {
+					if (!heldRef.current) turning.frameProps.onPointerMove?.(event)
+				},
+			}
+		: {}
 
-	const bodyHeight = HOUR_HEIGHT * 24 + (phone ? PHONE_FOOT : 0)
+	const bodyHeight = HOUR_HEIGHT * HOURS.length + (phone ? PHONE_FOOT : 0)
 	const place = (render: (page: GridPage) => ReactNode, measure = false, height?: number) => {
 		if (!phone) return render(current)
 		if (!paged)
@@ -544,40 +552,37 @@ export function WeekGrid({
 	const cells = (page: GridPage) =>
 		page.dates.map((date, dayIndex) => {
 			const isToday = date === today
-			const live = drag !== null && drag.date === date ? drag : null
-			const framePlace = frame === null ? null : lessonDayPlace(frame.date, frame.time)
-			const shownFrame = editable && !dragging && moveFrame === null && framePlace?.day === date ? framePlace : null
-			const shownMove =
-				moveFrame !== null && lessonDayPlace(moveFrame.frame.date, moveFrame.frame.time).day === date ? moveFrame : null
+			const slotDrag = drag !== null && drag.date === date ? drag : null
+			const framePlace =
+				frame === null ? undefined : gridPlaces(frame.date, frame.time).find((place) => place.day === date)
+			const shownFrame = editable && !dragging && moveFrame === null && framePlace !== undefined ? framePlace : null
+			const movePlace =
+				moveFrame === null
+					? undefined
+					: gridPlaces(moveFrame.frame.date, moveFrame.frame.time).find((place) => place.day === date)
+			const nowPlace = nowPlaces.find((place) => place.day === date)
 			return (
 				<div
 					key={date}
 					ref={page.role === 'current' && dayIndex === 0 ? columnRef : undefined}
 					data-slot="week-grid-column"
 					data-date={date}
+					data-page={page.role}
 					onPointerDown={(event) => pressColumn(event, date)}
 					onPointerMove={moveColumn}
 					onPointerUp={releaseColumn}
 					onPointerCancel={cancelDrag}
-					onClick={
-						phone
-							? (event) => {
-									if (!editable || !onSlot || event.target !== event.currentTarget) return
-									onSlot(tapSlot(event, date))
-								}
-							: undefined
-					}
 					className={cn(
 						'relative border-l border-gcal-line select-none',
 						isToday && !phone && 'bg-hover',
 						dragging && 'cursor-ns-resize'
 					)}
 				>
-					{isToday ? (
+					{nowPlace !== undefined ? (
 						<div
 							data-slot="week-grid-now"
 							className="pointer-events-none absolute inset-x-0 z-20 h-0.5 -translate-y-1/2 bg-gcal-now"
-							style={{ top: nowMinutes * MINUTE_HEIGHT }}
+							style={{ top: nowPlace.minutes * MINUTE_HEIGHT }}
 						>
 							<span
 								aria-hidden
@@ -606,7 +611,7 @@ export function WeekGrid({
 					{placeDay(page.events, date, mainTimeZone, HOUR_HEIGHT, columnWidth, phone).map(({ event, layout }) => (
 						<EventTooltip
 							editable={canEdit(event)}
-							movable={touchEditable && canMove(event)}
+							movable={mouseEditable && canMove(event)}
 							phone={phone}
 							needsMark={
 								event.binding.kind === 'lesson' &&
@@ -625,10 +630,10 @@ export function WeekGrid({
 							onOpen={onOpen}
 						/>
 					))}
-					{live !== null ? (
+					{slotDrag !== null ? (
 						<SlotFrameBlock
-							start={Math.min(live.anchor, live.slot) * SLOT_MINUTES}
-							minutes={(Math.abs(live.slot - live.anchor) + 1) * SLOT_MINUTES}
+							start={slotDrag.start * SLOT_MINUTES}
+							minutes={(slotDrag.end - slotDrag.start) * SLOT_MINUTES}
 							state="drag"
 							flip={dayIndex === 6}
 						/>
@@ -641,15 +646,16 @@ export function WeekGrid({
 							flip={dayIndex === 6}
 						/>
 					) : null}
-					{shownMove !== null ? (
+					{moveFrame !== null && movePlace !== undefined ? (
 						<MoveFrameBlock
-							event={shownMove.event}
-							frame={shownMove.frame}
-							gesture={shownMove.gesture}
+							start={movePlace.minutes}
+							event={moveFrame.event}
+							frame={moveFrame.frame}
+							gesture={moveFrame.gesture}
 							mainTimeZone={mainTimeZone}
 							currentYear={currentYear}
-							state={shownMove.state}
-							overlap={overlapsOthers(events, shownMove.event, shownMove.frame, mainTimeZone)}
+							state={moveFrame.state}
+							overlap={overlapsOthers(events, moveFrame.event, moveFrame.frame, mainTimeZone)}
 						/>
 					) : null}
 				</div>
@@ -672,7 +678,7 @@ export function WeekGrid({
 		<TooltipProvider>
 			<Frame
 				phone={phone}
-				{...(paged ? turning.frameProps : {})}
+				{...pagerProps}
 				data-slot="week-grid"
 				data-phone={phone ? '' : undefined}
 				data-paged={paged ? '' : undefined}
@@ -729,7 +735,10 @@ export function WeekGrid({
 					onScroll={(event) => {
 						if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
 					}}
-					className={cn('scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto', paged && 'touch-pan-y')}
+					className={cn(
+						'scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto [-webkit-touch-callout:none]',
+						paged && 'touch-pan-y'
+					)}
 				>
 					<div className={cn(columns, 'relative')} style={{ height: bodyHeight }}>
 						<div data-slot="week-grid-gutter" className="relative">
@@ -737,15 +746,10 @@ export function WeekGrid({
 								<GutterPair
 									key={hour}
 									phone={phone}
-									local={hourLabel((hour + FIRST_HOUR) % 24)}
+									local={hourLabel(hour % 24)}
 									second={
 										secondZone && !phone
-											? gutterLabel(
-													hour + FIRST_HOUR >= 24 ? addDays(monday, 1) : monday,
-													(hour + FIRST_HOUR) % 24,
-													mainTimeZone,
-													secondZone.id
-												)
+											? gutterLabel(hour >= 24 ? addDays(monday, 1) : monday, hour % 24, mainTimeZone, secondZone.id)
 											: null
 									}
 									top={hour * HOUR_HEIGHT}

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type MouseEvent, type RefObject } from 'react'
 
 import type { CalendarEventView } from '@dv-lab/contracts'
-import { lessonDay, lessonDayMinutes, lessonDaySlot } from '@dv-lab/core'
 
+import { GRID_MINUTES, gridMinutes, gridSlot } from './calendar-layout'
 import { DRAG_THRESHOLD, RESIZE_STRIP_SELECTOR, useEdgeScroll, type MoveSeed } from './use-lesson-drag'
 import { SLOT_MINUTES } from './use-slot-drag'
 import type { SlotFrame } from './week-grid'
-
-const DAY_MINUTES = 1440
 
 type Press = {
 	pointerId: number
@@ -24,7 +22,7 @@ type Press = {
 	footOffset: number
 	started: boolean
 }
-export type EventResize = { eventKey: string; frame: SlotFrame }
+export type EventResize = { eventKey: string; event: CalendarEventView; frame: SlotFrame }
 
 export function useEventResize(
 	bodyRef: RefObject<HTMLDivElement | null>,
@@ -67,8 +65,8 @@ export function useEventResize(
 		const top = current.column.getBoundingClientRect().top
 		const raw = (y - top - current.footOffset) / minuteHeight
 		const snapped = Math.round(raw / SLOT_MINUTES) * SLOT_MINUTES
-		const end = Math.min(Math.max(snapped, current.startMinutes + SLOT_MINUTES), DAY_MINUTES)
-		return { ...lessonDaySlot(current.date, current.startMinutes), durationMinutes: end - current.startMinutes }
+		const end = Math.min(Math.max(snapped, current.startMinutes + SLOT_MINUTES), GRID_MINUTES)
+		return { ...gridSlot(current.date, current.startMinutes), durationMinutes: end - current.startMinutes }
 	}
 
 	const frameRef = useRef(frameAt)
@@ -82,7 +80,7 @@ export function useEventResize(
 		(_x, y) => {
 			const current = press.current
 			if (!current) return
-			setResize({ eventKey: current.event.eventKey, frame: frameRef.current(y, current) })
+			setResize({ eventKey: current.event.eventKey, event: current.event, frame: frameRef.current(y, current) })
 		}
 	)
 
@@ -95,11 +93,11 @@ export function useEventResize(
 		if (!button || !source || source.when.kind !== 'timed' || !canMove(source)) return
 		const column = button.closest<HTMLElement>('[data-slot="week-grid-column"]')
 		const start = new Date(source.when.startsAt)
-		const date = lessonDay(start, mainTimeZone)
-		if (!column || column.dataset.date !== date) return
-		const startMinutes = lessonDayMinutes(start, mainTimeZone)
+		const date = column?.dataset.date
+		if (!column || !date) return
+		const startMinutes = gridMinutes(start, date, mainTimeZone)
 		const durationMinutes = (Date.parse(source.when.endsAt) - start.getTime()) / 60000
-		if (startMinutes + durationMinutes > DAY_MINUTES) return
+		if (startMinutes < 0 || startMinutes + durationMinutes > GRID_MINUTES) return
 		press.current = {
 			pointerId: event.pointerId,
 			button,
@@ -128,7 +126,7 @@ export function useEventResize(
 		current.started = true
 		event.preventDefault()
 		event.stopPropagation()
-		setResize({ eventKey: current.event.eventKey, frame: frameAt(event.clientY, current) })
+		setResize({ eventKey: current.event.eventKey, event: current.event, frame: frameAt(event.clientY, current) })
 	}
 
 	function up(event: PointerEvent<HTMLDivElement>) {
