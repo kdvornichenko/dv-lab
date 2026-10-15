@@ -4,6 +4,7 @@ import {
 	type AssistantSettings,
 	CHAT_SETTINGS_DEFAULT,
 	type ChatModelEntry,
+	NOTIFY_SETTINGS_DEFAULT,
 	type SaveAssistantSettingsRequest,
 	type TeacherSettings,
 	type UpdateSettingsRequest,
@@ -24,12 +25,23 @@ type SaveAssistantResult = { ok: true; settings: AssistantSettings } | { ok: fal
 
 type SaveSettingsResult = { ok: true; settings: TeacherSettings } | TimeContextFailure
 
+const settingsColumns = {
+	paysSoonLessons: teacherSettings.paysSoonLessons,
+	defaultTimeZone: teacherSettings.defaultTimeZone,
+	notifyLessonSoon: teacherSettings.notifyLessonSoon,
+	notifyLessonMinutes: teacherSettings.notifyLessonMinutes,
+	notifyPaysSoon: teacherSettings.notifyPaysSoon,
+}
+
 export async function readTeacherSettings(executor: DbExecutor, accountId: string): Promise<TeacherSettings> {
-	const [row] = await executor
-		.select({ paysSoonLessons: teacherSettings.paysSoonLessons, defaultTimeZone: teacherSettings.defaultTimeZone })
-		.from(teacherSettings)
-		.where(eq(teacherSettings.accountId, accountId))
-	return row ?? { paysSoonLessons: PAYS_SOON_LESSONS_DEFAULT, defaultTimeZone: SCHEDULE_TIME_ZONE }
+	const [row] = await executor.select(settingsColumns).from(teacherSettings).where(eq(teacherSettings.accountId, accountId))
+	return (
+		row ?? {
+			paysSoonLessons: PAYS_SOON_LESSONS_DEFAULT,
+			defaultTimeZone: SCHEDULE_TIME_ZONE,
+			...NOTIFY_SETTINGS_DEFAULT,
+		}
+	)
 }
 
 export async function lockTeacherTimeContext(
@@ -57,25 +69,29 @@ export function saveTeacherSettings(
 	return db.transaction(async (tx): Promise<SaveSettingsResult> => {
 		const locked = await lockTeacherTimeContext(tx, accountId, input.expectedDefaultTimeZone)
 		if (!locked.ok) return locked
+		const notify = {
+			...(input.notifyLessonSoon === undefined ? {} : { notifyLessonSoon: input.notifyLessonSoon }),
+			...(input.notifyLessonMinutes === undefined ? {} : { notifyLessonMinutes: input.notifyLessonMinutes }),
+			...(input.notifyPaysSoon === undefined ? {} : { notifyPaysSoon: input.notifyPaysSoon }),
+		}
 		const [row] = await tx
 			.insert(teacherSettings)
 			.values({
 				accountId,
 				paysSoonLessons: input.paysSoonLessons ?? PAYS_SOON_LESSONS_DEFAULT,
 				defaultTimeZone: input.defaultTimeZone ?? SCHEDULE_TIME_ZONE,
+				...notify,
 			})
 			.onConflictDoUpdate({
 				target: teacherSettings.accountId,
 				set: {
 					...(input.paysSoonLessons === undefined ? {} : { paysSoonLessons: input.paysSoonLessons }),
 					...(input.defaultTimeZone === undefined ? {} : { defaultTimeZone: input.defaultTimeZone }),
+					...notify,
 					updatedAt: sql`now()`,
 				},
 			})
-			.returning({
-				paysSoonLessons: teacherSettings.paysSoonLessons,
-				defaultTimeZone: teacherSettings.defaultTimeZone,
-			})
+			.returning(settingsColumns)
 		if (!row) throw new Error('Teacher settings upsert returned no row')
 		return { ok: true, settings: row }
 	})

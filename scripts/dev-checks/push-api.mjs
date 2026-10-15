@@ -7,8 +7,8 @@ import { ENV_TEST, ROOT, STUDENT_LOGIN, call, quote, sql, startApi, studentCooki
 const PORT = 4271
 const ENDPOINT_HOST = 'push.example.test'
 const ENDPOINT_BASE = `https://${ENDPOINT_HOST}/dvlab-check/`
-const SECTIONS = ['routes', 'links']
-const API_SECTIONS = new Set(['routes'])
+const SECTIONS = ['routes', 'links', 'settings', 'presence']
+const API_SECTIONS = new Set(['routes', 'settings', 'presence'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 let failures = 0
@@ -202,7 +202,164 @@ async function links() {
 	)
 }
 
-const RUNNERS = { routes, links }
+const notifyOf = (settings) => ({
+	notifyLessonSoon: settings?.notifyLessonSoon,
+	notifyLessonMinutes: settings?.notifyLessonMinutes,
+	notifyPaysSoon: settings?.notifyPaysSoon,
+})
+
+async function settings(ctx) {
+	const { api, cookie } = ctx
+	const initial = await send(api, 'GET', '/settings', cookie)
+	if (initial.status !== 200) throw new Error(`settings read returned ${initial.status}`)
+	const original = initial.json.settings
+	check(
+		'GET /settings carries the three notification fields',
+		typeof original.notifyLessonSoon === 'boolean' &&
+			Number.isInteger(original.notifyLessonMinutes) &&
+			typeof original.notifyPaysSoon === 'boolean'
+	)
+	try {
+		const low = await send(api, 'PATCH', '/settings', cookie, { notifyLessonMinutes: 4 })
+		const high = await send(api, 'PATCH', '/settings', cookie, { notifyLessonMinutes: 121 })
+		const fraction = await send(api, 'PATCH', '/settings', cookie, { notifyLessonMinutes: 30.5 })
+		const empty = await send(api, 'PATCH', '/settings', cookie, {})
+		const unchanged = (await send(api, 'GET', '/settings', cookie)).json?.settings
+		check(
+			'minutes 4, 121 and 30.5 and an empty PATCH answer 400 and change nothing',
+			[low, high, fraction, empty].every((res) => res.status === 400) &&
+				JSON.stringify(notifyOf(unchanged)) === JSON.stringify(notifyOf(original)),
+			[low, high, fraction, empty].map((res) => res.status).join(' ')
+		)
+
+		const minutes = await send(api, 'PATCH', '/settings', cookie, { notifyLessonMinutes: 45 })
+		const readMinutes = (await send(api, 'GET', '/settings', cookie)).json?.settings
+		check(
+			'minutes 45 are saved and returned by GET /settings',
+			minutes.status === 200 && minutes.json?.settings?.notifyLessonMinutes === 45 && readMinutes?.notifyLessonMinutes === 45,
+			String(minutes.status)
+		)
+		const flags = await send(api, 'PATCH', '/settings', cookie, { notifyLessonSoon: false, notifyPaysSoon: false })
+		const readFlags = (await send(api, 'GET', '/settings', cookie)).json?.settings
+		check(
+			'both switches are saved without touching the minutes',
+			flags.status === 200 &&
+				readFlags?.notifyLessonSoon === false &&
+				readFlags?.notifyPaysSoon === false &&
+				readFlags?.notifyLessonMinutes === 45,
+			String(flags.status)
+		)
+		const legacy = await send(api, 'PATCH', '/settings', cookie, { paysSoonLessons: original.paysSoonLessons })
+		check(
+			'a PATCH without the new fields works and keeps them',
+			legacy.status === 200 &&
+				legacy.json?.settings?.paysSoonLessons === original.paysSoonLessons &&
+				legacy.json?.settings?.defaultTimeZone === original.defaultTimeZone &&
+				JSON.stringify(notifyOf(legacy.json?.settings)) ===
+					JSON.stringify({ notifyLessonSoon: false, notifyLessonMinutes: 45, notifyPaysSoon: false }),
+			String(legacy.status)
+		)
+	} finally {
+		const restored = await send(api, 'PATCH', '/settings', cookie, notifyOf(original))
+		if (restored.status !== 200) throw new Error(`settings restore returned ${restored.status}`)
+	}
+
+	const { createDb } = await import(`${ROOT}/packages/db/src/index.ts`)
+	const { readTeacherSettings } = await import(`${ROOT}/apps/api/src/settings/settings.ts`)
+	const { pool, db } = createDb(fileEnv.DATABASE_URL)
+	try {
+		const defaults = await readTeacherSettings(db, randomUUID())
+		check(
+			'without a settings row the notifications are on, 30 minutes, on',
+			JSON.stringify(notifyOf(defaults)) ===
+				JSON.stringify({ notifyLessonSoon: true, notifyLessonMinutes: 30, notifyPaysSoon: true })
+		)
+	} finally {
+		await pool.end()
+	}
+}
+
+async function presence(ctx) {
+	const { api, cookie } = ctx
+	const endpoint = newEndpoint()
+	const created = await send(api, 'POST', '/push/subscriptions', cookie, {
+		endpoint,
+		keys: newKeys(),
+		secondTimeZone: 'Europe/Moscow',
+	})
+	if (created.status !== 201) throw new Error(`subscription create returned ${created.status}`)
+
+	const signal = await send(api, 'POST', '/push/presence', cookie, {
+		endpoint,
+		screen: 'schedule',
+		secondTimeZone: 'Asia/Tokyo',
+	})
+	check(
+		'a signal of an own subscription is accepted and updates the second zone',
+		signal.status === 204 && subscriptionRow(endpoint)[0]?.second_time_zone === 'Asia/Tokyo',
+		String(signal.status)
+	)
+	const plain = await send(api, 'POST', '/push/presence', cookie, {
+		endpoint,
+		screen: 'payments',
+		studentId: randomUUID(),
+	})
+	check(
+		'a signal without a zone keeps the stored zone',
+		plain.status === 204 && subscriptionRow(endpoint)[0]?.second_time_zone === 'Asia/Tokyo',
+		String(plain.status)
+	)
+
+	const foreign = foreignSubscription(await otherAccountId(api))
+	const foreignSignal = await send(api, 'POST', '/push/presence', cookie, { endpoint: foreign, screen: 'schedule' })
+	const unknownSignal = await send(api, 'POST', '/push/presence', cookie, { endpoint: newEndpoint(), screen: 'schedule' })
+	check(
+		'a foreign or unknown endpoint answers 404',
+		foreignSignal.status === 404 && unknownSignal.status === 404,
+		`${foreignSignal.status} ${unknownSignal.status}`
+	)
+	const anonymous = await send(api, 'POST', '/push/presence', undefined, { endpoint, screen: 'schedule' })
+	const badScreen = await send(api, 'POST', '/push/presence', cookie, { endpoint, screen: 'today' })
+	check(
+		'without a session 401, an unknown screen 400',
+		anonymous.status === 401 && badScreen.status === 400,
+		`${anonymous.status} ${badScreen.status}`
+	)
+	await send(api, 'DELETE', '/push/subscriptions', cookie, { endpoint })
+	const revoked = await send(api, 'POST', '/push/presence', cookie, { endpoint, screen: 'schedule' })
+	check('a revoked subscription answers 404', revoked.status === 404, String(revoked.status))
+
+	const { isPresent, recordPresence } = await import(`${ROOT}/apps/api/src/push/presence.ts`)
+	const account = randomUUID()
+	const device = newEndpoint()
+	const other = newEndpoint()
+	const studentA = randomUUID()
+	const studentB = randomUUID()
+	const now = Date.now()
+	const at = (offset) => new Date(now + offset)
+	recordPresence(account, device, 'schedule', null, at(0))
+	check(
+		'a fresh schedule signal is present for its device only',
+		isPresent(device, 'schedule', null, at(1000)) === true && isPresent(other, 'schedule', null, at(1000)) === false
+	)
+	check(
+		'the schedule signal does not cover payments',
+		isPresent(device, 'payments', studentA, at(1000)) === false
+	)
+	check(
+		'a signal older than 90 s is not present',
+		isPresent(device, 'schedule', null, at(90_000)) === true && isPresent(device, 'schedule', null, at(91_000)) === false
+	)
+	recordPresence(account, device, 'payments', studentA, at(0))
+	check(
+		'payments of the same student are present, another student is not',
+		isPresent(device, 'payments', studentA, at(1000)) === true &&
+			isPresent(device, 'payments', studentB, at(1000)) === false &&
+			isPresent(device, 'payments', null, at(1000)) === false
+	)
+}
+
+const RUNNERS = { routes, links, settings, presence }
 
 const wanted = process.argv.slice(2)
 const selected = wanted.length === 0 ? SECTIONS : wanted

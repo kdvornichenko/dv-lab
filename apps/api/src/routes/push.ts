@@ -4,13 +4,15 @@ import { Hono } from 'hono'
 import {
 	type PushConfigResponse,
 	type PushSubscribeResponse,
+	pushPresenceRequest,
 	pushSubscribeRequest,
 	pushUnsubscribeRequest,
 } from '@dv-lab/contracts'
 import { type Database, readSnapshot } from '@dv-lab/db'
 
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
-import { listDevices, removeSubscription, saveSubscription } from '../push/subscriptions.ts'
+import { recordPresence } from '../push/presence.ts'
+import { listDevices, removeSubscription, saveSubscription, touchSubscription } from '../push/subscriptions.ts'
 import { errorBody } from '../request-context.ts'
 
 export type PushPublicConfig = { enabled: false } | { enabled: true; publicKey: string }
@@ -44,6 +46,16 @@ export function pushRoutes({ db, push }: PushRouteDeps) {
 		const input = await readJson(c, pushUnsubscribeRequest)
 		if (!input) return invalidRequest(c)
 		await removeSubscription(db, c.get('session').account.id, input.endpoint)
+		return c.body(null, 204)
+	})
+
+	routes.post('/presence', async (c) => {
+		const input = await readJson(c, pushPresenceRequest)
+		if (!input) return invalidRequest(c)
+		const accountId = c.get('session').account.id
+		if (!(await touchSubscription(db, accountId, input.endpoint, input.secondTimeZone)))
+			return c.json(errorBody('not_found', 'Not Found'), 404)
+		recordPresence(accountId, input.endpoint, input.screen, input.studentId ?? null)
 		return c.body(null, 204)
 	})
 
