@@ -91,7 +91,7 @@ export function CalendarCommandNotice({ entry, onViewSchedule }: { entry: Comman
 						</Button>
 					)}
 					{onViewSchedule ? (
-						<Button variant="ghost" size="compact" onClick={onViewSchedule}>
+						<Button variant="secondary" size="compact" onClick={onViewSchedule}>
 							View schedule
 						</Button>
 					) : null}

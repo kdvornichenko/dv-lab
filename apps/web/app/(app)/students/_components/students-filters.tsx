@@ -180,7 +180,7 @@ export function FiltersButton({
 					<p className="text-caption text-muted-foreground tabular-nums">
 						{result.rows.length} of {total} students
 					</p>
-					<Button variant="ghost" size="compact" disabled={count === 0} onClick={() => onChange(FILTER_RESET)}>
+					<Button variant="secondary" size="compact" disabled={count === 0} onClick={() => onChange(FILTER_RESET)}>
 						Reset
 					</Button>
 				</div>
@@ -248,7 +248,7 @@ export function FilterChips({ state, onChange }: { state: StudentsViewState; onC
 					</span>
 				</Button>
 			))}
-			<Button variant="ghost" size="compact" onClick={() => onChange(FILTER_RESET)}>
+			<Button variant="secondary" size="compact" onClick={() => onChange(FILTER_RESET)}>
 				Reset filters
 			</Button>
 		</div>

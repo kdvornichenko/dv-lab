@@ -367,7 +367,7 @@ export function FilterChips({
 					</span>
 				</Button>
 			))}
-			<Button variant="ghost" size="compact" onClick={() => onChange([])}>
+			<Button variant="secondary" size="compact" onClick={() => onChange([])}>
 				Reset filter
 			</Button>
 		</div>

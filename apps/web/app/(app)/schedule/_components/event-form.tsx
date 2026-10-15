@@ -465,7 +465,7 @@ export function ChangedInGoogle({ onRefresh, disabled }: { onRefresh: () => void
 		<Tooltip content={READ_ISSUES.external_change} className="max-w-[280px]">
 			<Button
 				type="button"
-				variant="ghost"
+				variant="secondary"
 				size="compact"
 				leadingIcon={RefreshCw}
 				disabled={disabled}
@@ -491,8 +491,8 @@ export function EventFooter({
 }) {
 	return (
 		<FormFooter status={status}>
-			<Button type="button" variant="ghost" onClick={onDiscard}>
-				Discard changes
+			<Button type="button" variant="secondary" onClick={onDiscard}>
+				Close
 			</Button>
 			<Button type="submit" disabled={disabled}>
 				{label}

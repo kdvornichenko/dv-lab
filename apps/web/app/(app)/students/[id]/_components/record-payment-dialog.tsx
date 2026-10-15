@@ -396,13 +396,8 @@ export function RecordPaymentDialog({
 						</div>
 					</ScrollArea>
 					<DialogFooter>
-						<Button
-							type="button"
-							variant={preset === undefined ? 'ghost' : 'secondary'}
-							onClick={onClose}
-							disabled={pending}
-						>
-							{preset === undefined ? 'Cancel' : 'Discard changes'}
+						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+							{preset === undefined ? 'Cancel' : 'Close'}
 						</Button>
 						<Button type="submit" loading={pending} disabled={saveDisabled}>
 							{pending ? 'Saving…' : preset === undefined || edit ? 'Save payment' : 'Record payment'}

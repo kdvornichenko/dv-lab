@@ -136,7 +136,7 @@ export function ZoneChangeDialog({
 									{error}
 								</p>
 								{stale ? (
-									<Button type="button" variant="ghost" className="mt-2" disabled={pending} onClick={onRefresh}>
+									<Button type="button" variant="secondary" className="mt-2" disabled={pending} onClick={onRefresh}>
 										Refresh
 									</Button>
 								) : null}
@@ -144,15 +144,15 @@ export function ZoneChangeDialog({
 						) : null}
 					</div>
 				</ScrollArea>
-				<DialogFooter className="mt-4 flex-col-reverse sm:flex-row">
+				<DialogFooter className="mt-4 flex-wrap">
 					<Button
 						ref={keepRef}
 						type="button"
-						variant="ghost"
+						variant="secondary"
 						autoFocus
 						disabled={pending}
 						onClick={onClose}
-						className="h-auto min-h-10 w-full py-2 whitespace-normal sm:min-h-9 sm:w-auto"
+						className="h-auto min-h-9 py-2 whitespace-normal"
 					>
 						Keep {oldName}
 					</Button>
@@ -161,7 +161,7 @@ export function ZoneChangeDialog({
 						loading={pending}
 						disabled={pending || stale}
 						onClick={onConfirm}
-						className="h-auto min-h-10 w-full py-2 whitespace-normal sm:min-h-9 sm:w-auto"
+						className="h-auto min-h-9 py-2 whitespace-normal"
 					>
 						{pending ? 'Saving…' : `Change to ${newName}`}
 					</Button>

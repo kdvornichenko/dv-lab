@@ -401,7 +401,7 @@ export function Composer({
 					<span className="min-w-0 flex-1">
 						{choice.model?.name ?? choice.modelId} is not available. Choose another model.
 					</span>
-					<Button type="button" variant="ghost" size="compact" onClick={() => setMenuOpen(true)}>
+					<Button type="button" variant="secondary" size="compact" onClick={() => setMenuOpen(true)}>
 						Choose another model
 					</Button>
 				</p>

@@ -84,7 +84,7 @@ function LoadingBlocks() {
 					<div className="flex min-h-8 items-center gap-2">
 						<Skeleton className="h-4 w-40" />
 						<span className="flex-1" />
-						<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
+						<Button variant="secondary" size="compact" leadingIcon={Pencil} disabled>
 							Edit
 						</Button>
 					</div>

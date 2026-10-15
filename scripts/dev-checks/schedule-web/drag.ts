@@ -90,7 +90,7 @@ export async function dragSteps(
 }
 
 export async function discardNew(page: Page) {
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(250)
 }

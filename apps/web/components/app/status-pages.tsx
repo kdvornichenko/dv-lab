@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 const NOT_FOUND_TITLE = 'Page not found'
 const NOT_FOUND_TEXT = 'This page does not exist or was moved.'
 
-function HomeButton({ variant, hardLink = false }: { variant: 'primary' | 'ghost'; hardLink?: boolean }) {
+function HomeButton({ variant, hardLink = false }: { variant: 'primary' | 'secondary'; hardLink?: boolean }) {
 	if (hardLink) {
 		return (
 			<Button variant={variant} onClick={() => window.location.assign(window.location.origin)}>
@@ -67,7 +67,7 @@ export function ErrorPage({ onRefresh, hardHomeLink = false }: { onRefresh: () =
 			<Button variant="secondary" leadingIcon={RefreshCw} onClick={onRefresh}>
 				Refresh
 			</Button>
-			<HomeButton variant="ghost" hardLink={hardHomeLink} />
+			<HomeButton variant="secondary" hardLink={hardHomeLink} />
 		</StatusPage>
 	)
 }

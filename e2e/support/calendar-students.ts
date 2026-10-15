@@ -66,7 +66,7 @@ export async function studentChoiceJourney(page: Page) {
 		await expect(date).toHaveAccessibleName(`Date: ${selected}`)
 		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
 		const discard = page.getByRole('alertdialog')
-		if (await discard.isVisible()) await discard.getByRole('button', { name: 'Discard changes', exact: true }).click()
+		if (await discard.isVisible()) await discard.getByRole('button', { name: 'Close', exact: true }).click()
 	} finally {
 		await page.unroute('**/api/students/options')
 	}

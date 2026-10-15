@@ -64,7 +64,7 @@ export function TimeZoneStaleNotice({
 			<p className="text-caption text-muted-foreground">
 				Default time zone changed elsewhere. Refresh the page and try again.
 			</p>
-			<Button type="button" variant="ghost" size="compact" disabled={pending} onClick={onRefresh}>
+			<Button type="button" variant="secondary" size="compact" disabled={pending} onClick={onRefresh}>
 				Refresh
 			</Button>
 		</div>

@@ -53,7 +53,7 @@ function EventsGroup({ group, label, year }: { group: ChatCalendarEventsGroup; l
 				))}
 			</div>
 			<Button
-				variant="ghost"
+				variant="secondary"
 				size="compact"
 				aria-expanded={open}
 				trailingIcon={open ? ChevronUp : ChevronDown}

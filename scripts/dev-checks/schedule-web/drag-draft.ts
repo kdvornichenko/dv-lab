@@ -131,7 +131,7 @@ export async function dragDraftChip(
 	facts: Awaited<ReturnType<typeof dialogFacts>>
 ) {
 	await discardNew(page)
-	check('Discard changes removes the frame', (await frameFacts(page)) === null)
+	check('Close removes the frame', (await frameFacts(page)) === null)
 	await dragSteps(page, date, 600, 665)
 	frame = await frameFacts(page)
 	check('flip: 10:00 down to 11:05 reads 10:00–11:15', frame?.range === '10:00–11:15', frame?.range)
@@ -191,7 +191,7 @@ export async function dragDraftChip(
 		JSON.stringify(frame?.range)
 	)
 	await discardNew(page)
-	check('plain click: Discard changes removes the frame', (await frameFacts(page)) === null)
+	check('plain click: Close removes the frame', (await frameFacts(page)) === null)
 	await dragScrollFor(page, 660, 660)
 	const pressPoint = await dragPoint(page, date, 660, 1)
 	await page.mouse.move(pressPoint.x, pressPoint.y)

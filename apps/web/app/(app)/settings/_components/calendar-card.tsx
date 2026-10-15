@@ -302,7 +302,7 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 							<Button
 								ref={refreshButton}
 								type="button"
-								variant="ghost"
+								variant="secondary"
 								disabled={state.pending !== null || snapshot?.state === 'disconnecting'}
 								onClick={() => void state.refresh()}
 							>

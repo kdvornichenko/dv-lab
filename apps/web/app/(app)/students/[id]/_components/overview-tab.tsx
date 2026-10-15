@@ -512,7 +512,7 @@ export function OverviewTab({
 					id="student-recent"
 					title="Recent notes and comments"
 					action={
-						<Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('notes')}>
+						<Button variant="secondary" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('notes')}>
 							{items.length === 0 ? 'Notes' : 'All notes'}
 						</Button>
 					}
@@ -537,7 +537,12 @@ export function OverviewTab({
 					id="student-vocabulary"
 					title="Vocabulary"
 					action={
-						<Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('vocabulary')}>
+						<Button
+							variant="secondary"
+							size="compact"
+							trailingIcon={ArrowRight}
+							onClick={() => onOpenTab('vocabulary')}
+						>
 							All words
 						</Button>
 					}
@@ -576,7 +581,7 @@ export function OverviewTab({
 					action={
 						<Button
 							ref={editButton}
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							leadingIcon={Pencil}
 							onClick={() => setEditOpen(true)}

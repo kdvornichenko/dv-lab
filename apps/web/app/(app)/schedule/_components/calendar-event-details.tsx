@@ -522,7 +522,7 @@ export function CalendarEventDialog({
 					<DialogFooter>
 						<Button
 							type="button"
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							leadingIcon={Trash2}
 							disabled={pending}

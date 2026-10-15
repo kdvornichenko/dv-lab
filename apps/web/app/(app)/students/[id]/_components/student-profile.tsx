@@ -78,7 +78,7 @@ function SummaryLine({
 				/>
 			)}
 			{balance === null ? (
-				<Button variant="ghost" size="compact" onClick={onSetBalance}>
+				<Button variant="secondary" size="compact" onClick={onSetBalance}>
 					Set opening balance
 				</Button>
 			) : null}

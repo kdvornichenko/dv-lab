@@ -348,7 +348,7 @@ function LessonContent({
 							<Banner status="warning" data-slot="lesson-stale">
 								<BannerTitle>{STALE_TITLE}</BannerTitle>
 								<BannerDescription>{STALE_LESSON}</BannerDescription>
-								<Button type="button" variant="ghost" size="compact" disabled={busy} onClick={onRefresh}>
+								<Button type="button" variant="secondary" size="compact" disabled={busy} onClick={onRefresh}>
 									Refresh
 								</Button>
 							</Banner>

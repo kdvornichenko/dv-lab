@@ -916,7 +916,7 @@ async function overviewPart(page: Page, ids: { main: string; bare: string }) {
 		(await selectedTab(page)) === 'Payments' &&
 			(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-lessons'
 	)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await page.locator('[data-slot="opening-balance-unset"]').waitFor({ timeout: 10000 })
 	await page.waitForTimeout(300)
 	check(
@@ -961,11 +961,11 @@ async function paymentsPart(page: Page, id: string) {
 	check('payments: the Lessons left field is 132 px wide', Math.round(width) === 132, String(width))
 	await shot(page, 'ledger-profile', 'payments-form')
 	await page.locator('#opening-balance-lessons').fill('9')
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await row.waitFor({ timeout: 10000 })
 	await page.waitForTimeout(300)
 	check(
-		'payments: Discard changes closes the form without saving and returns focus to the button',
+		'payments: Close closes the form without saving and returns focus to the button',
 		(await read()).openingBalance!.minutes === opening.minutes &&
 			(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-open'
 	)
@@ -1012,7 +1012,7 @@ async function paymentsPart(page: Page, id: string) {
 		(await page.locator('#opening-balance-lessons').inputValue()) === '1' &&
 			(await page.getByRole('button', { name: 'Save opening balance' }).isEnabled())
 	)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await row.waitFor({ timeout: 10000 })
 	const restored = await api(page, 'PUT', `/students/${id}/opening-balance`, {
 		lessonsHundredths: 0,

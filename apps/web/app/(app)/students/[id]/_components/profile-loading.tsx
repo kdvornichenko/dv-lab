@@ -92,7 +92,7 @@ export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName
 				id="student-recent"
 				title="Recent notes and comments"
 				action={
-					<Button variant="ghost" size="compact" disabled>
+					<Button variant="secondary" size="compact" disabled>
 						All notes
 					</Button>
 				}
@@ -103,7 +103,7 @@ export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName
 				id="student-vocabulary"
 				title="Vocabulary"
 				action={
-					<Button variant="ghost" size="compact" disabled>
+					<Button variant="secondary" size="compact" disabled>
 						All words
 					</Button>
 				}
@@ -123,7 +123,7 @@ function OverviewLoading() {
 					id="student-details"
 					title="Details"
 					action={
-						<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
+						<Button variant="secondary" size="compact" leadingIcon={Pencil} disabled>
 							Edit details
 						</Button>
 					}

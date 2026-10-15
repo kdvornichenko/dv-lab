@@ -222,7 +222,7 @@ export async function settingsNarrow(page: Page, search: Locator, dialog: Locato
 		'card form: Esc closes the popup first, the dialog stays',
 		(await search.count()) === 0 && (await dialog.count()) === 1
 	)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.setViewportSize({ width: 320, height: 700 })
 	await page.goto(`${BASE}/settings`)

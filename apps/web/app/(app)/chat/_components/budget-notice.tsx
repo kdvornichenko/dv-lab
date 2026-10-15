@@ -36,7 +36,7 @@ export function BudgetNotice({ budget }: { budget: BudgetSnapshot }) {
 					{usedPercent(budget)}% of the monthly budget is used. {used} of {dollars(toCents(budget.capUsd, false), true)}
 					.
 				</p>
-				<Button type="button" variant="ghost" size="compact" onClick={() => router.push(SETTINGS_HREF)}>
+				<Button type="button" variant="secondary" size="compact" onClick={() => router.push(SETTINGS_HREF)}>
 					Budget
 				</Button>
 			</div>

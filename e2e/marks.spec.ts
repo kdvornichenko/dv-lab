@@ -158,7 +158,7 @@ async function blockedDialog(page: Page, dialog: Locator, fields: boolean): Prom
 		for (const id of ['move-lesson-date', 'move-lesson-time']) await attemptDisabled(page, dialog.locator(`#${id}`))
 		const inputs = dialog.locator('input, textarea, select')
 		for (const input of await inputs.all()) await expect(input).toBeDisabled()
-		await attemptDisabled(page, dialog.getByRole('button', { name: 'Discard changes', exact: true }))
+		await attemptDisabled(page, dialog.getByRole('button', { name: 'Close', exact: true }))
 		await attemptDisabled(
 			page,
 			dialog
@@ -205,7 +205,7 @@ async function pendingDialogMark(page: Page, fx: Fx): Promise<void> {
 				await expect(dialog.getByRole('button', { name: 'Move series', exact: true })).toBeEnabled()
 				if (fields) {
 					await expect(dialog.locator('#move-lesson-date')).toBeEnabled()
-					await dialog.getByRole('button', { name: 'Discard changes', exact: true }).click()
+					await dialog.getByRole('button', { name: 'Close', exact: true }).click()
 				}
 				await expect(dialog.getByRole('button', { name: 'Move lesson', exact: true })).toBeEnabled()
 				await expect(dialog.getByRole('button', { name: 'Cancel lesson', exact: true })).toBeEnabled()

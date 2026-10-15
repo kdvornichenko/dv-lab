@@ -501,7 +501,7 @@ export function StudentFormDialog({ mode, student, onClose, onSaved }: StudentFo
 					</ScrollArea>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending} disabled={notice !== null}>
 							{create ? (pending ? 'Creating…' : 'Create student') : pending ? 'Saving…' : 'Save changes'}

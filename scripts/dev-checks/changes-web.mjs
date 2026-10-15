@@ -617,7 +617,7 @@ async function sectionForms() {
 					(await dialog.getByLabel('Note').inputValue()) === 'second correction' &&
 						new URL(page.url()).searchParams.get('tab') === 'payments'
 				)
-				await dialog.getByRole('button', { name: 'Discard changes' }).click()
+				await dialog.getByRole('button', { name: 'Close', exact: true }).click()
 				await dialog.waitFor({ state: 'detached', timeout: 10000 })
 				await page.goto(`${BASE}/students/${studentId}?tab=payments&payment=6f1c2b34-5a7d-4e8f-9b0a-1c2d3e4f5a6b`)
 				await page.getByText(GONE).waitFor({ timeout: 30000 })

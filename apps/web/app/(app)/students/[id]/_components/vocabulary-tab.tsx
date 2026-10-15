@@ -369,7 +369,7 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 										actions={
 											<Button
 												id={`restore-term-${term.id}`}
-												variant="ghost"
+												variant="secondary"
 												size="compact"
 												leadingIcon={Undo2}
 												aria-label={`Restore ${term.term}`}

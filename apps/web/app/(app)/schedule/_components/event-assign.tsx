@@ -54,7 +54,7 @@ export function SuggestionBox({
 				<p className="min-w-0 flex-1 text-body">
 					This event changed in Google Calendar. Refresh before choosing again.
 				</p>
-				<Button type="button" variant="ghost" size="compact" leadingIcon={RefreshCw} onClick={onRefresh}>
+				<Button type="button" variant="secondary" size="compact" leadingIcon={RefreshCw} onClick={onRefresh}>
 					Refresh
 				</Button>
 			</div>
@@ -76,7 +76,7 @@ export function SuggestionBox({
 					</p>
 				) : null}
 			</div>
-			<div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:*:flex-1">
+			<div className="flex shrink-0 items-center gap-2 max-sm:ml-auto">
 				<Button
 					type="button"
 					variant="secondary"
@@ -90,7 +90,7 @@ export function SuggestionBox({
 				</Button>
 				<Button
 					type="button"
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					loading={busy?.kind === 'ignore'}
 					disabled={busy !== null}
@@ -147,7 +147,7 @@ export function ManualAssign({
 					if (!next) setQuery('')
 				}}
 			>
-				<PopoverTrigger render={<Button type="button" variant="ghost" size="compact" disabled={disabled} />}>
+				<PopoverTrigger render={<Button type="button" variant="secondary" size="compact" disabled={disabled} />}>
 					Assign…
 				</PopoverTrigger>
 				<PopoverContent align="end" className="w-[260px] gap-2 p-2">

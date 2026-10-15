@@ -74,11 +74,11 @@ export async function occurrenceMoveMoveCalendar(
 	fx: Awaited<ReturnType<typeof changesFixtures>>,
 	dialog: Locator
 ) {
-	await dialog.getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click()
 	await page.waitForTimeout(300)
 	const discarded = await dialogButtons(page)
 	check(
-		'move: Discard changes brings the footer back with focus on Move lesson',
+		'move: Close brings the footer back with focus on Move lesson',
 		discarded.includes('Cancel lesson') &&
 			(await moveFormFacts(page)) === null &&
 			(await page.evaluate(() => document.activeElement?.textContent?.trim() === 'Move lesson')),

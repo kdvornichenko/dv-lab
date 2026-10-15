@@ -227,7 +227,7 @@ export async function expectAllDayHints(
 	await dialog.locator('#new-lesson-length').fill('60')
 	for (const candidate of candidates)
 		await expectDraftHint(page, candidate.at, candidate.event, window.requestedRange.timeZone)
-	await dialog.getByRole('button', { name: 'Discard changes', exact: true }).click()
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click()
 }
 
 async function expectDraftHint(page: Page, at: Date, event: CalendarEventView | null, timeZone: string) {

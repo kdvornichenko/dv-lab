@@ -172,7 +172,7 @@ function MentionCard({ studentId, label, touch }: { studentId: string; label: st
 					variant="secondary"
 					size="compact"
 					trailingIcon={ArrowRight}
-					className="w-full"
+					className="self-end"
 					nativeButton={false}
 					render={<Link href={`/students/${studentId}`} />}
 				>

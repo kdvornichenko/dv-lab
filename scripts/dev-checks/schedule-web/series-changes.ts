@@ -230,7 +230,7 @@ export async function seriesChangesEndSeries(
 		facts.error
 	)
 	await page.unroute('**/api/schedule/series/*/move')
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(400)
 	const focusD = await focusedBlock(page)

@@ -280,7 +280,7 @@ async function paymentAfterMidnight(page: Page, card: Card): Promise<string> {
 	await page.evaluate(() => window.dispatchEvent(new Event('focus')))
 	await expect(page.locator('#record-payment-date')).toHaveText(label(today))
 	await pickDate(page, tomorrow, 'record-payment-date')
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes', exact: true }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await expect(page.locator('#opening-balance-on')).toHaveText(opening)
 	await page.getByRole('button', { name: 'Record payment', exact: true }).click()
 	const dialog = page.getByRole('dialog')
