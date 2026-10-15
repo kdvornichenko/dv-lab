@@ -312,8 +312,8 @@ export function LessonMoveForm({
 					/>
 				}
 			>
-				<Button type="button" variant="ghost" size="compact" disabled={disabled} onClick={onDiscard}>
-					Discard changes
+				<Button type="button" variant="secondary" size="compact" disabled={disabled} onClick={onDiscard}>
+					Close
 				</Button>
 				<Button
 					type="button"

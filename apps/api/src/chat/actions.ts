@@ -23,6 +23,7 @@ import {
 	type SendMessageRequest,
 	type UndoRequest,
 	CHAT_FOLLOW_UP_TEXT,
+	HELP_COMMAND_TEXT,
 	MARK_KINDS,
 	appendLessonCommentRequest,
 	appendStudentNoteRequest,
@@ -373,6 +374,10 @@ function readCommand(text: string): ChatRecordsKey | null {
 	return READ_COMMANDS[text.normalize('NFC').trim().toLowerCase()] ?? null
 }
 
+function helpCommand(text: string): boolean {
+	return text.normalize('NFC').trim().toLowerCase() === HELP_COMMAND_TEXT
+}
+
 function commandText(text: string): string {
 	return text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase()
 }
@@ -430,6 +435,7 @@ async function respond(
 	input: SendMessageRequest,
 	typed: readonly MentionBinding[]
 ): Promise<Response> {
+	if (helpCommand(input.text)) return { blocks: [{ type: 'help' }], model: false }
 	const reading = readCommand(input.text)
 	if (reading !== null) return { blocks: [await readBlock(tx, context, reading)], model: false }
 	const mentions = await validateMentions(tx, context.accountId, input.text, input.mentions)
@@ -534,6 +540,7 @@ export async function sendMessage(
 	const typed = await typedMentions(db, input.text, input.mentions)
 	const bindings = withTyped(input.mentions, typed)
 	const freeText =
+		!helpCommand(input.text) &&
 		readCommand(input.text) === null &&
 		followUpCommand(context, input.text, bindings) === null &&
 		quickRequest(context, input.text, bindings) === null

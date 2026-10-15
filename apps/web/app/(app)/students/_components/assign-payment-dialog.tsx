@@ -190,7 +190,7 @@ export function AssignPaymentDialog({ payment, students, onClose, onAssigned, on
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending}>
 							{pending ? 'Assigning…' : 'Assign payment'}

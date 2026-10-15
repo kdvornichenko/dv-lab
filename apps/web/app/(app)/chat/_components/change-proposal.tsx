@@ -22,6 +22,7 @@ import {
 import Link from 'next/link'
 
 import { Panel } from '@/components/app/layout-parts'
+import { MarkdownPreview } from '@/components/app/markdown-view'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -179,8 +180,8 @@ function Muted({ children }: { children: ReactNode }) {
 
 function Quote({ body }: { body: string }) {
 	return (
-		<span title={body} className="line-clamp-3 wrap-anywhere whitespace-pre-line">
-			{body}
+		<span title={body} className="block">
+			<MarkdownPreview body={body} className="line-clamp-3 wrap-anywhere" />
 		</span>
 	)
 }
@@ -693,7 +694,7 @@ export function ChangeProposal({
 						{href === null ? null : (
 							<div className="flex flex-wrap gap-2 pl-6">
 								<Button
-									variant="ghost"
+									variant="secondary"
 									size="compact"
 									className={`${TOUCH} h-auto min-h-7 py-1 whitespace-normal`}
 									leadingIcon={link.icon}
@@ -770,7 +771,7 @@ export function ChangeProposal({
 								{busy && pending !== 'decline' ? words.busy : words.confirm}
 							</Button>
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								className={TOUCH}
 								disabled={busy}

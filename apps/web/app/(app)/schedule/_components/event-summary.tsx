@@ -1,5 +1,6 @@
 'use client'
 
+import { Repeat } from 'lucide-react'
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
@@ -25,16 +26,33 @@ export function eventRange(event: CalendarEventView, timeZone: string): string {
 	return formatRange(start, minutes, timeZone)
 }
 
+function RepeatMark({ repeats }: { repeats: string | null }) {
+	if (repeats === null) return null
+	return (
+		<span
+			role="img"
+			aria-label={repeats}
+			title={repeats}
+			data-slot="event-repeat"
+			className="ml-1.5 inline-flex align-[-2px] text-muted-foreground"
+		>
+			<Repeat size={14} aria-hidden />
+		</span>
+	)
+}
+
 export function EventTime({
 	event,
 	timeZone,
 	secondZone,
 	currentYear,
+	repeats = null,
 }: {
 	event: CalendarEventView
 	timeZone: string
 	secondZone: string | null
 	currentYear: number
+	repeats?: string | null
 }) {
 	if (event.when.kind === 'all_day') {
 		const last = addDays(event.when.endsBefore, -1)
@@ -44,6 +62,7 @@ export function EventTime({
 				<span className="text-muted-foreground">
 					{event.when.startsOn}
 					{last !== event.when.startsOn ? ` – ${last}` : ''}
+					<RepeatMark repeats={repeats} />
 				</span>
 				<span className="text-caption text-muted-foreground">{event.when.timeZone}</span>
 			</>
@@ -59,6 +78,7 @@ export function EventTime({
 			<span className="text-muted-foreground">
 				{firstDay}
 				{lastDay !== firstDay ? ` – ${lastDay}` : ''}
+				<RepeatMark repeats={repeats} />
 			</span>
 			<TimePair
 				as="span"

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 const NOT_FOUND_TITLE = 'Page not found'
 const NOT_FOUND_TEXT = 'This page does not exist or was moved.'
 
-function HomeButton({ variant, hardLink = false }: { variant: 'primary' | 'ghost'; hardLink?: boolean }) {
+function HomeButton({ variant, hardLink = false }: { variant: 'primary' | 'secondary'; hardLink?: boolean }) {
 	if (hardLink) {
 		return (
 			<Button variant={variant} onClick={() => window.location.assign(window.location.origin)}>
@@ -44,7 +44,7 @@ export function NotFoundPage({ inShell = false }: { inShell?: boolean }) {
 			<PageScroll>
 				<PageHeader title={NOT_FOUND_TITLE} />
 				<Panel>
-					<div className="flex flex-col gap-4 p-6">
+					<div className="flex flex-col gap-4 p-unit-1.5">
 						<p className="text-body text-muted-foreground">{NOT_FOUND_TEXT}</p>
 						<div className="flex flex-wrap gap-2">
 							<HomeButton variant="primary" />
@@ -67,7 +67,7 @@ export function ErrorPage({ onRefresh, hardHomeLink = false }: { onRefresh: () =
 			<Button variant="secondary" leadingIcon={RefreshCw} onClick={onRefresh}>
 				Refresh
 			</Button>
-			<HomeButton variant="ghost" hardLink={hardHomeLink} />
+			<HomeButton variant="secondary" hardLink={hardHomeLink} />
 		</StatusPage>
 	)
 }

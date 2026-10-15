@@ -159,7 +159,7 @@ export function ChatProgress({
 		<div data-slot="chat-progress" data-folded={folded ? '' : undefined} className="flex flex-col">
 			{folded ? (
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					aria-expanded={expanded}
 					className="-ml-2 self-start text-caption whitespace-nowrap text-muted-foreground pointer-coarse:h-8"

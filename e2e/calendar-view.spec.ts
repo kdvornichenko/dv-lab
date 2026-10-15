@@ -102,14 +102,14 @@ test('[calendar-view] only a complete fresh empty window shows an empty calendar
 	await expect(page.getByRole('button', { name: 'New lesson', exact: true })).toBeEnabled()
 	await page.getByRole('button', { name: 'New lesson', exact: true }).click()
 	await expect(page.getByRole('dialog', { name: 'New lesson', exact: true })).toBeVisible()
-	await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	const column = page.locator('[data-slot="week-grid-column"]:visible').last()
 	const bounds = await column.boundingBox()
 	const body = await page.locator('[data-slot="week-grid-body"]').boundingBox()
 	if (!bounds || !body) throw new Error('Ready Calendar grid is required')
 	await page.mouse.click(bounds.x + bounds.width - 1, body.y + 100)
 	await expect(page.getByRole('dialog', { name: 'New lesson', exact: true })).toBeVisible()
-	await page.getByRole('button', { name: 'Discard changes', exact: true }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 })
 
 test('[calendar-view] transport failure retains only the checked dates and disables writes', async ({ page }) => {

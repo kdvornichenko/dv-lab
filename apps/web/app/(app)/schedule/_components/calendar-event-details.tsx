@@ -20,6 +20,7 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { eventPaint } from '@/lib/event-colors'
 import { canChangePlainEvent } from '@/lib/lesson-actions'
 import { formatDate, formatWhen, weekdayName } from '@/lib/schedule-format'
@@ -86,6 +87,15 @@ function Dot({ fill }: { fill: string }) {
 			className="mt-1 size-3 shrink-0 rounded-full ring-1 ring-foreground/10 ring-inset"
 			style={{ background: fill }}
 		/>
+	)
+}
+
+function DetailsBody({ fill, children }: { fill: boolean; children: React.ReactNode }) {
+	if (fill) return <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+	return (
+		<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
+			{children}
+		</ScrollArea>
 	)
 }
 
@@ -207,6 +217,7 @@ export function CalendarEventDialog({
 	const transition = event.binding.kind === 'transition'
 	const removed = state.kind === 'removed'
 	const editing = formBase !== null && editShape && !removed
+	const mobile = useIsMobile()
 	const pending = command.pending
 	const tentative = (latest === null ? event.status : event.status) === 'tentative'
 	const repeats = latest === null ? null : repeatLine(latest.repeat)
@@ -300,6 +311,7 @@ export function CalendarEventDialog({
 		>
 			<DialogContent
 				size={editing ? 'lg' : 'sm'}
+				phone={editing ? 'screen' : 'center'}
 				showCloseButton={!editing && !pending}
 				className={cn('overflow-hidden data-[nested-dialog-open]:invisible', quiet !== 'shown' && 'invisible')}
 				backdropClassName={quiet === 'sending' ? 'invisible' : undefined}
@@ -315,7 +327,7 @@ export function CalendarEventDialog({
 							: 'Calendar event details'}
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
+				<DetailsBody fill={editing && mobile}>
 					{editing && latest !== null && window !== null ? (
 						<EventEditForm
 							key={formBase.version}
@@ -364,7 +376,13 @@ export function CalendarEventDialog({
 								/>
 							) : null}
 							<DetailRow icon={Info}>
-								<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
+								<EventTime
+									event={event}
+									timeZone={timeZone}
+									secondZone={secondZone}
+									currentYear={currentYear}
+									repeats={repeats}
+								/>
 							</DetailRow>
 							{placeView(event.location) !== null ? (
 								<DetailRow icon={MapPin}>
@@ -379,7 +397,6 @@ export function CalendarEventDialog({
 							<div className="flex flex-col gap-1 pl-7 text-body text-muted-foreground">
 								<span>{event.blocksTime ? 'Busy' : 'Available'}</span>
 								{calendarLabel !== null ? <span>{calendarLabel}</span> : null}
-								{repeats !== null ? <span>{repeats}</span> : null}
 								{tentative ? <span>Tentative</span> : null}
 							</div>
 							{assignable && !suggestionShown ? (
@@ -415,12 +432,12 @@ export function CalendarEventDialog({
 							) : null}
 						</div>
 					)}
-				</ScrollArea>
+				</DetailsBody>
 				{editing || removed || transition || !(canEdit || canDelete) ? null : (
 					<DialogFooter>
 						<Button
 							type="button"
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							leadingIcon={Trash2}
 							disabled={pending}

@@ -12,7 +12,7 @@ import { refreshGoogleSync, useGoogleSync } from '@/components/app/use-google-sy
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { formatWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 
@@ -155,7 +155,10 @@ function ConnectionDialog({
 }
 
 function useMainTimeZone(fallback: string): string {
-	const [zone, setZone] = useState<string | null>(null)
+	const [zone, setZone] = useState<string | null>(() => {
+		const cached = peekApi<SettingsResponse>('/settings')
+		return cached !== null && cached.ok ? timeZoneIdentity(cached.data.settings.defaultTimeZone) : null
+	})
 	useEffect(() => {
 		let live = true
 		void apiRequest<SettingsResponse>('GET', '/settings').then((result) => {
@@ -302,7 +305,7 @@ export function CalendarCard({ callbackOutcome }: { callbackOutcome: string | nu
 							<Button
 								ref={refreshButton}
 								type="button"
-								variant="ghost"
+								variant="secondary"
 								disabled={state.pending !== null || snapshot?.state === 'disconnecting'}
 								onClick={() => void state.refresh()}
 							>

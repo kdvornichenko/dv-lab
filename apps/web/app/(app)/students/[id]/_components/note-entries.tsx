@@ -105,7 +105,7 @@ function EntryRow({ note, timeZone, now, removing, onRemove }: EntryRowProps) {
 					</span>
 				) : (
 					<Button
-						variant="ghost"
+						variant="secondary"
 						size="compact"
 						leadingIcon={Trash2}
 						data-note-remove={note.id}

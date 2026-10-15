@@ -159,7 +159,7 @@ export function LessonDates({ block }: { block: ChatLessonDatesBlock }) {
 						</div>
 						{folded ? (
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								aria-expanded={all}
 								trailingIcon={all ? ChevronUp : ChevronDown}

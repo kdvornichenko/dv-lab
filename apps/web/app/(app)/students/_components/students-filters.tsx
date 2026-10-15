@@ -7,7 +7,7 @@ import { Check, ListFilter, X } from 'lucide-react'
 import { DotShape } from '@/components/app/status-dot'
 import { BALANCE_STATE_LABELS, balanceTone } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { TabItem, Tabs, TabsList } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
@@ -80,7 +80,7 @@ function OptionRow({
 function Group({ title, children }: { title: string; children: ReactNode }) {
 	return (
 		<div role="group" aria-label={title} className="flex flex-col gap-1">
-			<p className="px-2 pb-1 text-caption font-medium text-muted-foreground">{title}</p>
+			<p className="px-2 pb-1 text-caption font-medium text-muted-foreground max-md:pb-0">{title}</p>
 			{children}
 		</div>
 	)
@@ -124,10 +124,10 @@ export function FiltersButton({
 }) {
 	const count = activeFilterCount(state)
 	return (
-		<Popover>
-			<PopoverTrigger
+		<Dialog>
+			<DialogTrigger
 				render={
-					<Button variant="secondary" leadingIcon={ListFilter} className="shrink-0">
+					<Button variant="secondary" leadingIcon={ListFilter} className="shrink-0" aria-haspopup="dialog">
 						<span className="inline-flex items-center gap-1.5">
 							Filters
 							{count > 0 ? (
@@ -142,50 +142,55 @@ export function FiltersButton({
 					</Button>
 				}
 			/>
-			<PopoverContent align="end" className="w-80 gap-4 p-4 max-sm:w-[calc(100vw-2rem)]" aria-label="Student filters">
-				<Group title="Payment">
-					{BALANCE_STATES.map((item) => (
-						<OptionRow
-							key={item}
-							selected={state.pay.includes(item)}
-							count={result.counts.pay[item]}
-							label={BALANCE_STATE_LABELS[item]}
-							mark={<StateMark state={item} />}
-							onToggle={() => onChange({ pay: toggled(state.pay, item) })}
-						/>
-					))}
-				</Group>
-				{result.currencies.length > 0 ? (
-					<Group title="Currency">
-						{result.currencies.map((item) => (
+			<DialogContent size="sm" phone="center">
+				<DialogHeader>
+					<DialogTitle>Filters</DialogTitle>
+				</DialogHeader>
+				<div className="flex flex-col gap-4 max-md:gap-3">
+					<Group title="Payment">
+						{BALANCE_STATES.map((item) => (
 							<OptionRow
 								key={item}
-								selected={state.cur.includes(item)}
-								count={result.counts.cur[item]}
-								label={currencyLabel(item)}
-								mark={<span aria-hidden className="size-2 shrink-0" />}
-								onToggle={() => onChange({ cur: toggled(state.cur, item) })}
+								selected={state.pay.includes(item)}
+								count={result.counts.pay[item]}
+								label={BALANCE_STATE_LABELS[item]}
+								mark={<StateMark state={item} />}
+								onToggle={() => onChange({ pay: toggled(state.pay, item) })}
 							/>
 						))}
 					</Group>
-				) : null}
-				<PresenceGroup title="Rate" value={state.rate} labels={RATE_LABELS} onChange={(rate) => onChange({ rate })} />
-				<PresenceGroup
-					title="Next lesson"
-					value={state.next}
-					labels={NEXT_LABELS}
-					onChange={(next) => onChange({ next })}
-				/>
-				<div className="flex items-center justify-between gap-2 pt-1">
-					<p className="text-caption text-muted-foreground tabular-nums">
+					{result.currencies.length > 0 ? (
+						<Group title="Currency">
+							{result.currencies.map((item) => (
+								<OptionRow
+									key={item}
+									selected={state.cur.includes(item)}
+									count={result.counts.cur[item]}
+									label={currencyLabel(item)}
+									mark={<span aria-hidden className="size-2 shrink-0" />}
+									onToggle={() => onChange({ cur: toggled(state.cur, item) })}
+								/>
+							))}
+						</Group>
+					) : null}
+					<PresenceGroup title="Rate" value={state.rate} labels={RATE_LABELS} onChange={(rate) => onChange({ rate })} />
+					<PresenceGroup
+						title="Next lesson"
+						value={state.next}
+						labels={NEXT_LABELS}
+						onChange={(next) => onChange({ next })}
+					/>
+				</div>
+				<DialogFooter className="mt-4 flex-nowrap items-center justify-between">
+					<p data-slot="filters-status" className="text-caption text-muted-foreground tabular-nums">
 						{result.rows.length} of {total} students
 					</p>
-					<Button variant="ghost" size="compact" disabled={count === 0} onClick={() => onChange(FILTER_RESET)}>
+					<Button variant="secondary" size="compact" disabled={count === 0} onClick={() => onChange(FILTER_RESET)}>
 						Reset
 					</Button>
-				</div>
-			</PopoverContent>
-		</Popover>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	)
 }
 
@@ -248,7 +253,7 @@ export function FilterChips({ state, onChange }: { state: StudentsViewState; onC
 					</span>
 				</Button>
 			))}
-			<Button variant="ghost" size="compact" onClick={() => onChange(FILTER_RESET)}>
+			<Button variant="secondary" size="compact" onClick={() => onChange(FILTER_RESET)}>
 				Reset filters
 			</Button>
 		</div>

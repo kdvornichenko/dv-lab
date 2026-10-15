@@ -12,6 +12,37 @@ export const SESSION_CACHE_CHANNEL =
 	typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:session-changed')
 export const DATA_CHANGED_CHANNEL = typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:data-changed')
 
+const CACHE_LIMIT = 200
+const UNCACHED = /^\/(?:schedule\/|google\/events\/|healthz$|auth\/)/
+const readCache = new Map<string, unknown>()
+let cacheGeneration = 0
+
+function clearReadCache() {
+	readCache.clear()
+	cacheGeneration++
+}
+
+function keepRead(path: string, data: unknown, generation: number) {
+	if (generation !== cacheGeneration || UNCACHED.test(path)) return
+	readCache.delete(path)
+	readCache.set(path, data)
+	if (readCache.size > CACHE_LIMIT) {
+		const oldest = readCache.keys().next().value
+		if (oldest !== undefined) readCache.delete(oldest)
+	}
+}
+
+if (typeof window !== 'undefined') {
+	window.addEventListener(API_CACHE_INVALIDATED, clearReadCache)
+	DATA_CHANGED_CHANNEL?.addEventListener('message', clearReadCache)
+	SESSION_CACHE_CHANNEL?.addEventListener('message', clearReadCache)
+}
+
+export function peekApi<T>(path: string): ApiResult<T> | null {
+	if (!readCache.has(path)) return null
+	return { ok: true, status: 200, data: readCache.get(path) as T }
+}
+
 export const DEVICE_CACHE_PREFIX = 'dvlab:device:'
 
 let sessionCount = 0
@@ -29,6 +60,7 @@ export async function apiRequest<T>(
 	body?: unknown,
 	options?: { signal?: AbortSignal }
 ): Promise<ApiResult<T>> {
+	const generation = cacheGeneration
 	let response: Response
 	try {
 		response = await fetch(`/api${path}`, {
@@ -47,6 +79,7 @@ export async function apiRequest<T>(
 	if (response.ok) {
 		try {
 			const data: unknown = await response.json()
+			if (method === 'GET') keepRead(path, data, generation)
 			return { ok: true, status: response.status, data: data as T }
 		} catch {
 			return { ok: false, status: response.status, error: null }
@@ -139,6 +172,7 @@ function notifyCache(response: Response, method: ApiMethod, path: string): void 
 	if (typeof window === 'undefined') return
 	if (response.status === 401 && path !== '/auth/sign-in') window.location.replace('/login?reason=expired')
 	if (!response.ok || method === 'GET' || UNCHANGED_PATHS.has(path) || STATUS_CHECK.test(path)) return
+	clearReadCache()
 	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
 		sessionCount += 1
 		if (path === '/auth/sign-out') forgetDevice()

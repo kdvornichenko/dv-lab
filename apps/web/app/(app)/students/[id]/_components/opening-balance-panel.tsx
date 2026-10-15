@@ -138,8 +138,8 @@ function OpeningBalanceForm({
 					/>
 				</div>
 				<div className="ml-auto flex gap-2 max-sm:w-full max-sm:justify-end sm:mt-7">
-					<Button type="button" variant="ghost" disabled={pending} onClick={onClose}>
-						Discard changes
+					<Button type="button" variant="secondary" disabled={pending} onClick={onClose}>
+						Close
 					</Button>
 					<Button type="submit" loading={pending} disabled={context.stale || changed}>
 						{pending ? 'Saving…' : 'Save opening balance'}
@@ -225,7 +225,7 @@ export function OpeningBalanceRow({
 				</div>
 				<Button
 					id="opening-balance-open"
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					leadingIcon={Pencil}
 					onClick={() => setEditing(true)}

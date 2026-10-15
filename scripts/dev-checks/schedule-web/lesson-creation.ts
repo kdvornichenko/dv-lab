@@ -138,7 +138,7 @@ export async function lessonCreationAfterAdd(
 ) {
 	await page.getByRole('button', { name: 'Done' }).click()
 	await page.waitForTimeout(250)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(300)
 	check(
@@ -296,7 +296,7 @@ export async function lessonCreationStudentsError(
 		facts.student
 	)
 	await page.unroute('**/api/schedule/lessons')
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.route('**/api/students', async (route) => {
 		await new Promise((resolve) => setTimeout(resolve, 2500))

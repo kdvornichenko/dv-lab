@@ -500,7 +500,7 @@ async function closeDialog(page) {
 	await page.keyboard.press('Escape')
 	await page.waitForTimeout(500)
 	if ((await page.locator('[role="dialog"]:visible').count()) > 0) {
-		const discard = page.getByRole('button', { name: /Discard/ })
+		const discard = page.getByRole('button', { name: 'Close', exact: true })
 		if (await discard.isVisible().catch(() => false)) await discard.click()
 		await page.waitForTimeout(400)
 	}
@@ -847,7 +847,10 @@ async function sectionSchedule({ page, apiOrigin, problems }) {
 		if (size.width === 320) await page.emulateMedia({ reducedMotion: 'reduce' })
 		mode = 'rows'
 		await page.goto(`${BASE}/schedule`)
-		await page.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key]').first().waitFor({ timeout: 30000 })
+		await page
+			.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key]')
+			.first()
+			.waitFor({ timeout: 30000 })
 		const grid = page.locator('[data-slot="week-grid"]')
 		check(
 			`schedule @${size.width}: the week grid is shown and no day list is drawn`,
@@ -864,12 +867,14 @@ async function sectionSchedule({ page, apiOrigin, problems }) {
 			dates.join(',')
 		)
 		const heading = (await page.locator('[data-slot="schedule-week-picker"]').first().innerText()).trim()
-		const rows = await page.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key]').evaluateAll((nodes) =>
-			nodes.map((node) => {
-				const box = node.getBoundingClientRect()
-				return box.left >= 0 && box.right <= innerWidth
-			})
-		)
+		const rows = await page
+			.locator('[data-slot="week-grid"] [data-page="current"] [data-event-key]')
+			.evaluateAll((nodes) =>
+				nodes.map((node) => {
+					const box = node.getBoundingClientRect()
+					return box.left >= 0 && box.right <= innerWidth
+				})
+			)
 		check(
 			`schedule @${size.width}: every block is inside the window`,
 			rows.length >= 4 && rows.every(Boolean),
@@ -1022,7 +1027,8 @@ async function sectionProfile({ page, apiOrigin, problems }) {
 		await measure(page, 'profile edit details dialog', size)
 		await shot(page, 'phone-profile', `${size.width}-edit-details`)
 		await closeDialog(page)
-		await tap(page, page.getByRole('button', { name: 'Record payment', exact: true }))
+		await tap(page, page.locator('[data-slot="student-actions"]'))
+		await tap(page, page.getByRole('menuitem', { name: 'Record payment', exact: true }))
 		await fitDialog(page, size, 'profile record payment dialog')
 		await measure(page, 'profile record payment dialog', size)
 		await closeDialog(page)

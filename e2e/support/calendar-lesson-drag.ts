@@ -126,7 +126,7 @@ export async function calendarLessonDrag(page: Page) {
 	await expect(form.locator('#move-lesson-time')).toContainText(targetTime)
 	await expect(form.getByRole('button', { name: 'Move lesson', exact: true })).toBeEnabled()
 	expect(writes(), 'Drop only proposes the checked move').toBe(0)
-	await form.getByRole('button', { name: 'Discard changes', exact: true }).click()
+	await form.getByRole('button', { name: 'Close', exact: true }).click()
 	await page.keyboard.press('Escape')
 	expect(writes()).toBe(0)
 	await dragTo(page, block, date, targetTime)

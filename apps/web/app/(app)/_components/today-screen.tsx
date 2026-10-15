@@ -152,7 +152,7 @@ function SkeletonRows({ count, rowClass }: { count: number; rowClass: string }) 
 
 function WeekLink() {
 	return (
-		<Button variant="ghost" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
+		<Button variant="secondary" size="compact" nativeButton={false} render={<Link href={SCHEDULE_HREF} />}>
 			Week
 		</Button>
 	)

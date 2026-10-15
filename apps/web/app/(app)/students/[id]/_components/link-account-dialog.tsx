@@ -154,7 +154,7 @@ export function LinkAccountDialog({ studentId, name, onClose, onLinked, onConfli
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending} disabled={loading || empty}>
 							{pending ? 'Linking…' : 'Link account'}

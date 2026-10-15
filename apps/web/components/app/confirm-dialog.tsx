@@ -59,7 +59,7 @@ export function ConfirmDialog({
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm" showCloseButton={false}>
+			<DialogContent size="sm" phone="sheet" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle>{title}</DialogTitle>
 					<DialogDescription>{body}</DialogDescription>

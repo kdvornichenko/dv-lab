@@ -216,15 +216,12 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 		[controller]
 	)
 
-	const quietRead = useCallback(
-		async (monday: string, signal: AbortSignal) => {
-			const session = sessionEpoch()
-			const data = await readCalendarWeek(monday, signal)
-			if (data === null || signal.aborted || sessionEpoch() !== session) return null
-			return data
-		},
-		[]
-	)
+	const quietRead = useCallback(async (monday: string, signal: AbortSignal) => {
+		const session = sessionEpoch()
+		const data = await readCalendarWeek(monday, signal)
+		if (data === null || signal.aborted || sessionEpoch() !== session) return null
+		return data
+	}, [])
 
 	const warm = useCallback(
 		async (around: WeekQuery, id: number) => {

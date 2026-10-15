@@ -83,7 +83,7 @@ export async function seriesForms(page: Page, fx: Awaited<ReturnType<typeof form
 		`${move.noteClass} ${move.noteSize}`
 	)
 	await shot(page, 'sched-forms', 'move-series')
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(400)
 
@@ -115,7 +115,7 @@ export async function seriesForms(page: Page, fx: Awaited<ReturnType<typeof form
 		`${created.repeat} ${created.repeatClass}`
 	)
 	await shot(page, 'sched-forms', 'new-lesson-repeats')
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(400)
 
@@ -140,7 +140,7 @@ export async function seriesForms(page: Page, fx: Awaited<ReturnType<typeof form
 		facts.text.includes(`${FORMS_B}. Now every Wednesday at 02:00 VN (Tue 22:00 MSK).`),
 		facts.text.slice(0, 140)
 	)
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 
 	await page.evaluate(() => localStorage.setItem('dv-lab.schedule.second-zone', 'Pacific/Auckland'))

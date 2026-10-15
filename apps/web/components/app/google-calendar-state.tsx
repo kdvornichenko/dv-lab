@@ -11,7 +11,7 @@ import { useGoogleSync } from '@/components/app/use-google-sync'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { formatWhen, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
@@ -374,7 +374,11 @@ function disconnectObserved(action: ConnectionAction, snapshot: GoogleConnection
 
 export function useGoogleConnection(callbackOutcome: string | null = null) {
 	const router = useRouter()
-	const [view, setView] = useState<ConnectionView>({ status: 'loading', snapshot: null })
+	const [view, setView] = useState<ConnectionView>(() => {
+		const cached = peekApi<unknown>('/google/connection')
+		const parsed = cached !== null && cached.ok ? googleConnectionSnapshot.safeParse(cached.data) : null
+		return parsed?.success ? { status: 'ready', snapshot: parsed.data } : { status: 'loading', snapshot: null }
+	})
 	const [pending, setPending] = useState<ConnectionAction | null>(null)
 	const [notice, setNotice] = useState(() => callbackMessage(callbackOutcome))
 	const initialCallback = useRef(callbackOutcome)

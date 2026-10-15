@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil, MessageSquare, Wallet } from 'lucide-react'
+import { MoreHorizontal, Pencil } from 'lucide-react'
 
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
 import { Stat } from '@/components/app/stat'
@@ -8,17 +8,14 @@ import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonAvatar, SkeletonLine } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 
-import { BackButton } from './back-button'
 import { HeldDates } from './held-dates'
-
-export const OVERVIEW_GRID = 'grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_21.25rem]'
 
 function ignore() {}
 
 function DetailRowLoading({ label, width }: { label: string; width: string }) {
 	return (
-		<div className="flex items-center justify-between gap-4 px-4 pb-2">
-			<dt className="w-32 shrink-0 text-body text-muted-foreground">{label}</dt>
+		<div className="flex min-w-0 flex-col gap-0.5">
+			<dt className="text-caption text-muted-foreground">{label}</dt>
 			<dd>
 				<SkeletonLine className={width} />
 			</dd>
@@ -69,7 +66,7 @@ function VocabularyLoading() {
 
 export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName: string; mainTimeZone: string }) {
 	return (
-		<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+		<>
 			<div className="grid gap-3 sm:grid-cols-3">
 				<FactLoading label="Lessons left" />
 				<FactLoading label="Next lesson" />
@@ -92,7 +89,7 @@ export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName
 				id="student-recent"
 				title="Recent notes and comments"
 				action={
-					<Button variant="ghost" size="compact" disabled>
+					<Button variant="secondary" size="compact" disabled>
 						All notes
 					</Button>
 				}
@@ -103,55 +100,41 @@ export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName
 				id="student-vocabulary"
 				title="Vocabulary"
 				action={
-					<Button variant="ghost" size="compact" disabled>
+					<Button variant="secondary" size="compact" disabled>
 						All words
 					</Button>
 				}
 			>
 				<VocabularyLoading />
 			</Panel>
-		</div>
+		</>
 	)
 }
 
 function OverviewLoading() {
 	return (
-		<div className={OVERVIEW_GRID}>
+		<div className="flex min-w-0 flex-col gap-4">
+			<Panel
+				id="student-details"
+				title="Details"
+				action={
+					<Button variant="secondary" size="compact" leadingIcon={Pencil} disabled>
+						Edit details
+					</Button>
+				}
+			>
+				<dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 pt-1 pb-4 sm:grid-cols-4">
+					<DetailRowLoading label="Rate" width="w-28" />
+					<DetailRowLoading label="Lesson length" width="w-14" />
+					<DetailRowLoading label="No-show" width="w-28" />
+					<DetailRowLoading label="Gender" width="w-14" />
+					<DetailRowLoading label="Parent" width="w-24" />
+					<DetailRowLoading label="Level" width="w-16" />
+					<DetailRowLoading label="Goals" width="w-40" />
+					<DetailRowLoading label="Time zone" width="w-32" />
+				</dl>
+			</Panel>
 			<OverviewLeftLoading studentName="" mainTimeZone="UTC" />
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
-				<Panel
-					id="student-details"
-					title="Details"
-					action={
-						<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
-							Edit details
-						</Button>
-					}
-				>
-					<dl className="flex flex-col pt-2">
-						<DetailRowLoading label="Rate" width="w-28" />
-						<DetailRowLoading label="Lesson length" width="w-14" />
-						<DetailRowLoading label="No-show" width="w-28" />
-						<DetailRowLoading label="Gender" width="w-14" />
-						<DetailRowLoading label="Parent" width="w-24" />
-						<DetailRowLoading label="Level" width="w-16" />
-						<DetailRowLoading label="Goals" width="w-40" />
-						<DetailRowLoading label="Time zone" width="w-32" />
-					</dl>
-				</Panel>
-				<Panel id="student-account" title="Account" description="Sign-in for this student.">
-					<div className="flex flex-col gap-4 px-4 pb-4">
-						<div className="flex flex-col gap-2">
-							<Skeleton className="h-9 w-full rounded-lg" />
-							<Skeleton className="h-9 w-full rounded-lg" />
-							<Skeleton className="h-9 w-full rounded-lg" />
-						</div>
-						<div>
-							<Skeleton className="h-9 w-37 rounded-md" />
-						</div>
-					</div>
-				</Panel>
-			</div>
 		</div>
 	)
 }
@@ -159,7 +142,6 @@ function OverviewLoading() {
 export function ProfileLoading() {
 	return (
 		<PageScroll>
-			<BackButton />
 			<PageHeader
 				title={
 					<span className="flex h-(--lh-display) items-center gap-2">
@@ -174,14 +156,10 @@ export function ProfileLoading() {
 						<Skeleton className="h-3 w-26" />
 					</div>
 				}
-				actions={
-					<>
-						<Skeleton className="h-9 w-24 rounded-md" />
-						<Button variant="secondary" leadingIcon={MessageSquare} className="min-w-36">
-							Ask in chat
-						</Button>
-						<Button leadingIcon={Wallet}>Record payment</Button>
-					</>
+				aside={
+					<Button variant="tertiary" size="icon" aria-label="Student actions" disabled>
+						<MoreHorizontal />
+					</Button>
 				}
 			/>
 			<Tabs value="overview" onValueChange={ignore}>

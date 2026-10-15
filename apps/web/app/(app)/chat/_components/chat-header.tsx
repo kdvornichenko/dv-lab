@@ -37,7 +37,7 @@ export function ChatHeader({
 				<>
 					<Button
 						data-all-chats=""
-						variant="ghost"
+						variant="secondary"
 						size="compact"
 						leadingIcon={List}
 						active={listOpen}

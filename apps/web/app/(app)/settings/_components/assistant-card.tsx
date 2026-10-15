@@ -10,7 +10,7 @@ import { Panel } from '@/components/app/layout-parts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { dollars, toCents } from '@/lib/usd-text'
 
 import {
@@ -46,8 +46,11 @@ function validCap(text: string): string | null {
 
 function useAssistantSettings() {
 	const router = useRouter()
-	const [data, setData] = useState<AssistantSettingsResponse | null>(null)
-	const [loadState, setLoadState] = useState<LoadState>('loading')
+	const [data, setData] = useState<AssistantSettingsResponse | null>(() => {
+		const cached = peekApi<AssistantSettingsResponse>('/settings/assistant')
+		return cached !== null && cached.ok ? cached.data : null
+	})
+	const [loadState, setLoadState] = useState<LoadState>(() => (data === null ? 'loading' : 'ready'))
 	const [attempt, setAttempt] = useState(0)
 
 	useEffect(() => {

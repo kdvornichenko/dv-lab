@@ -110,7 +110,7 @@ export function ReviewStamp({ studentId, reviewedAt, reviewRunning, timeZone, no
 			<Status reviewedAt={reviewedAt} running={running} timeZone={timeZone} now={now} />
 			{reviewRunning === null ? (
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					data-slot="review-now"
 					nativeButton={false}
@@ -120,7 +120,7 @@ export function ReviewStamp({ studentId, reviewedAt, reviewRunning, timeZone, no
 				</Button>
 			) : (
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					data-slot="review-open-chat"
 					nativeButton={false}

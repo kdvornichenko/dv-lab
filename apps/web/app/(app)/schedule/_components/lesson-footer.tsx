@@ -85,7 +85,7 @@ export function LessonFooter({
 									</span>
 								) : null}
 							</span>
-							<Button type="button" variant="ghost" size="compact" disabled={locked} onClick={onKeep}>
+							<Button type="button" variant="secondary" size="compact" disabled={locked} onClick={onKeep}>
 								Keep
 							</Button>
 							<Button
@@ -117,7 +117,7 @@ export function LessonFooter({
 							{actions.cancel ? (
 								<Button
 									type="button"
-									variant="ghost"
+									variant="secondary"
 									size="compact"
 									leadingIcon={CalendarX2}
 									disabled={locked}
@@ -127,7 +127,7 @@ export function LessonFooter({
 								</Button>
 							) : null}
 							{onEndSeries !== undefined ? (
-								<Button type="button" variant="ghost" size="compact" disabled={locked} onClick={onEndSeries}>
+								<Button type="button" variant="secondary" size="compact" disabled={locked} onClick={onEndSeries}>
 									End series
 								</Button>
 							) : null}
@@ -143,6 +143,7 @@ export function LessonFooter({
 						variant="secondary"
 						size="compact"
 						leadingIcon={CalendarCheck2}
+						className="self-end"
 						loading={pending}
 						disabled={locked}
 						onClick={onRestore}

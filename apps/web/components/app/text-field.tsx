@@ -21,7 +21,7 @@ export function TextField({ id, label, helper, error, trailing, className, ...pr
 	const helperId = `${id}-helper`
 	const describedBy = error ? errorId : helper ? helperId : undefined
 	return (
-		<div className="flex min-w-0 flex-col gap-2">
+		<div className="flex min-w-0 flex-col gap-unit-0.5">
 			<label htmlFor={id} className="text-body text-muted-foreground">
 				{label}
 			</label>

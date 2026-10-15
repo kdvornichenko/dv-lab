@@ -133,7 +133,7 @@ export function CalendarChoice({
 						<CircleAlert size={16} className="shrink-0" aria-hidden />
 						Could not load calendars.
 					</span>
-					<Button type="button" variant="ghost" size="compact" onClick={retry}>
+					<Button type="button" variant="secondary" size="compact" onClick={retry}>
 						Retry
 					</Button>
 				</div>

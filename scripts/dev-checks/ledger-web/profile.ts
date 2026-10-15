@@ -668,7 +668,7 @@ const withYear = (date: string) => {
 	return `${weekday} ${dayOfMonth} ${SHORT_MONTHS[month]} ${year}`
 }
 
-const LEFT = '[data-slot="overview-left"][data-state="ready"]'
+const LEFT = '[data-slot="overview"][data-state="ready"]'
 
 async function openOverview(page: Page, id: string, name: string) {
 	await page.goto(`${BASE}/students/${id}`)
@@ -796,21 +796,29 @@ async function overviewPart(page: Page, ids: { main: string; bare: string }) {
 				(await page.locator('[data-slot="overview-words"] span').allInnerTexts()).map((word) => word.trim()).sort()
 			) === JSON.stringify(terms.map((term) => term.term).sort())
 	)
+	const order = await page
+		.locator('[data-slot="overview"] > *')
+		.evaluateAll((nodes) =>
+			nodes.map((node) => node.querySelector('h2')?.id ?? node.getAttribute('data-slot') ?? node.tagName)
+		)
 	check(
-		'overview: Details and Account stay on the right',
-		(await page.locator('#student-details').count()) === 1 && (await page.locator('#student-account').count()) === 1
+		'overview: one column with Details first and no Account panel',
+		order[0] === 'student-details' && (await page.locator('#student-account').count()) === 0,
+		order.join(',')
 	)
 	await shot(page, 'ledger-profile', 'overview')
 
-	const boxes = await Promise.all(
-		['Archive', 'Ask in chat', 'Record payment'].map(
-			async (name) => (await page.getByRole('button', { name }).boundingBox())?.x ?? -1
-		)
-	)
+	await page.locator('[data-slot="student-actions"]').click()
+	await page.getByRole('menuitem').first().waitFor({ timeout: 5000 })
+	const items = await page
+		.getByRole('menuitem')
+		.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')))
+	await page.keyboard.press('Escape')
 	check(
-		'header: the actions run Archive, Ask in chat, Record payment',
-		boxes[0]! >= 0 && boxes[0]! < boxes[1]! && boxes[1]! < boxes[2]!,
-		boxes.join(',')
+		'header: one Student actions menu with Record payment, Ask in chat, Account and Archive',
+		JSON.stringify(items) === JSON.stringify(['Record payment', 'Ask in chat', 'Account', 'Archive']) &&
+			(await page.getByRole('button', { name: 'Students', exact: true }).count()) === 0,
+		JSON.stringify(items)
 	)
 
 	const goes = [
@@ -870,7 +878,7 @@ async function overviewPart(page: Page, ids: { main: string; bare: string }) {
 	await page.locator('[data-slot="held-dates"][data-state="loading"]').waitFor({ timeout: 10000 })
 	const body = await text(page.locator('#content'))
 	check(
-		'skeleton: real labels, real Ask in chat and Record payment, no Opening balance panel',
+		'skeleton: real labels, the actions button off, no Account and no Opening balance panel',
 		[
 			'Lessons left',
 			'Next lesson',
@@ -879,10 +887,9 @@ async function overviewPart(page: Page, ids: { main: string; bare: string }) {
 			'Recent notes and comments',
 			'Vocabulary',
 			'Details',
-			'Account',
 		].every((label) => body.includes(label)) &&
-			(await page.getByRole('button', { name: 'Ask in chat' }).count()) === 1 &&
-			(await page.getByRole('button', { name: 'Record payment' }).count()) === 1 &&
+			(await page.getByRole('button', { name: 'Student actions' }).isDisabled()) &&
+			(await page.locator('#student-account').count()) === 0 &&
 			(await page.locator('#student-opening-balance').count()) === 0 &&
 			!body.includes('Balance now')
 	)
@@ -916,7 +923,7 @@ async function overviewPart(page: Page, ids: { main: string; bare: string }) {
 		(await selectedTab(page)) === 'Payments' &&
 			(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-lessons'
 	)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await page.locator('[data-slot="opening-balance-unset"]').waitFor({ timeout: 10000 })
 	await page.waitForTimeout(300)
 	check(
@@ -961,11 +968,11 @@ async function paymentsPart(page: Page, id: string) {
 	check('payments: the Lessons left field is 132 px wide', Math.round(width) === 132, String(width))
 	await shot(page, 'ledger-profile', 'payments-form')
 	await page.locator('#opening-balance-lessons').fill('9')
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await row.waitFor({ timeout: 10000 })
 	await page.waitForTimeout(300)
 	check(
-		'payments: Discard changes closes the form without saving and returns focus to the button',
+		'payments: Close closes the form without saving and returns focus to the button',
 		(await read()).openingBalance!.minutes === opening.minutes &&
 			(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-open'
 	)
@@ -1012,7 +1019,7 @@ async function paymentsPart(page: Page, id: string) {
 		(await page.locator('#opening-balance-lessons').inputValue()) === '1' &&
 			(await page.getByRole('button', { name: 'Save opening balance' }).isEnabled())
 	)
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await row.waitFor({ timeout: 10000 })
 	const restored = await api(page, 'PUT', `/students/${id}/opening-balance`, {
 		lessonsHundredths: 0,
@@ -1032,13 +1039,13 @@ async function overviewPhonePart(page: Page, id: string) {
 				Math.round(node.getBoundingClientRect().left)
 			)
 		).size,
-		detailsAfter:
-			(document.getElementById('student-details')?.getBoundingClientRect().top ?? 0) >
-			(document.getElementById('student-vocabulary')?.getBoundingClientRect().top ?? 1e9),
+		detailsFirst:
+			(document.getElementById('student-details')?.getBoundingClientRect().top ?? 1e9) <
+			(document.querySelector('[data-slot="overview-fact"]')?.getBoundingClientRect().top ?? 0),
 	}))
 	check(
-		'375 px: the Overview has no sideways scroll, the facts stack and Details comes after Vocabulary',
-		phone.page <= 0 && phone.columns === 1 && phone.detailsAfter,
+		'375 px: the Overview has no sideways scroll, the facts stack and Details comes first',
+		phone.page <= 0 && phone.columns === 1 && phone.detailsFirst,
 		JSON.stringify(phone)
 	)
 	await shot(page, 'ledger-profile', 'overview-phone')

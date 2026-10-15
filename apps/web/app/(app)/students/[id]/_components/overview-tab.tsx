@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { Panel } from '@/components/app/layout-parts'
 import { MoneyText } from '@/components/app/ledger-text'
+import { MarkdownPreview } from '@/components/app/markdown-view'
 import { Stat } from '@/components/app/stat'
 import { StatusDot } from '@/components/app/status-dot'
 import { balanceTone } from '@/components/app/student-balance'
@@ -16,7 +17,7 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi, type ApiResult } from '@/lib/api-client'
 import { formatDate, formatDay, formatTime, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { dayHref, lessonHref } from '@/lib/schedule-links'
 import { zoneLabel } from '@/lib/time-zones'
@@ -35,9 +36,8 @@ import {
 import { balanceState, formatLessons, formatMoney, lessonsPhrase, type BalanceState } from '@dv-lab/core'
 
 import { GENDER_LABEL, StudentFormDialog } from '../../_components/student-form-dialog'
-import { AccountPanel } from './account-panel'
 import { HeldDates } from './held-dates'
-import { OVERVIEW_GRID, OverviewLeftLoading } from './profile-loading'
+import { OverviewLeftLoading } from './profile-loading'
 
 export type OverviewTarget = 'lessons' | 'payments' | 'notes' | 'vocabulary'
 
@@ -63,15 +63,43 @@ interface Reads {
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; reads: Reads }
 
+function overviewPaths(studentId: string) {
+	return {
+		lessons: `/students/${studentId}/lessons?range=since_payment`,
+		blocks: `/students/${studentId}/blocks`,
+		comments: `/students/${studentId}/comments?limit=3`,
+		terms: `/students/${studentId}/terms`,
+	}
+}
+
 async function readOverview(studentId: string, counted: boolean): Promise<ReadState> {
+	const paths = overviewPaths(studentId)
 	const [lessons, blocks, comments, terms] = await Promise.all([
-		counted
-			? apiRequest<StudentLessonsResponse>('GET', `/students/${studentId}/lessons?range=since_payment`)
-			: Promise.resolve(null),
-		apiRequest<unknown>('GET', `/students/${studentId}/blocks`),
-		apiRequest<unknown>('GET', `/students/${studentId}/comments?limit=3`),
-		apiRequest<StudentTermsResponse>('GET', `/students/${studentId}/terms`),
+		counted ? apiRequest<StudentLessonsResponse>('GET', paths.lessons) : Promise.resolve(null),
+		apiRequest<unknown>('GET', paths.blocks),
+		apiRequest<unknown>('GET', paths.comments),
+		apiRequest<StudentTermsResponse>('GET', paths.terms),
 	])
+	return overviewFrom(lessons, blocks, comments, terms)
+}
+
+function peekOverview(studentId: string, counted: boolean): ReadState | null {
+	const paths = overviewPaths(studentId)
+	const lessons = counted ? peekApi<StudentLessonsResponse>(paths.lessons) : null
+	const blocks = peekApi<unknown>(paths.blocks)
+	const comments = peekApi<unknown>(paths.comments)
+	const terms = peekApi<StudentTermsResponse>(paths.terms)
+	if ((counted && lessons === null) || blocks === null || comments === null || terms === null) return null
+	const state = overviewFrom(lessons, blocks, comments, terms)
+	return state.kind === 'ready' ? state : null
+}
+
+function overviewFrom(
+	lessons: ApiResult<StudentLessonsResponse> | null,
+	blocks: ApiResult<unknown>,
+	comments: ApiResult<unknown>,
+	terms: ApiResult<StudentTermsResponse>
+): ReadState {
 	if ((lessons !== null && !lessons.ok) || !blocks.ok || !comments.ok || !terms.ok) return { kind: 'error' }
 	const parsedBlocks = studentBlocksResponse.safeParse(blocks.data)
 	const parsedComments = studentCommentsResponse.safeParse(comments.data)
@@ -98,9 +126,9 @@ function textValue(value: string | null) {
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
 	return (
-		<div className="flex items-baseline justify-between gap-4 px-4 pb-2">
-			<dt className="w-32 shrink-0 text-body text-muted-foreground">{label}</dt>
-			<dd className="min-w-0 text-right text-body wrap-anywhere text-foreground">{children}</dd>
+		<div className="flex min-w-0 flex-col gap-0.5">
+			<dt className="text-caption text-muted-foreground">{label}</dt>
+			<dd className="min-w-0 text-body wrap-anywhere text-foreground">{children}</dd>
 		</div>
 	)
 }
@@ -350,7 +378,7 @@ function RecentRow({
 				<span className="text-caption text-muted-foreground tabular-nums">
 					{item.label} · {formatDay(new Date(item.at), mainTimeZone, year)}
 				</span>
-				<span className="line-clamp-2 text-body wrap-anywhere text-foreground">{item.body}</span>
+				<MarkdownPreview body={item.body} className="line-clamp-2 text-body wrap-anywhere text-foreground" />
 			</span>
 		</>
 	)
@@ -419,7 +447,12 @@ export function OverviewTab({
 	onSetOpeningBalance,
 }: OverviewTabProps) {
 	const [editOpen, setEditOpen] = useState(autoOpenEdit)
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(
+		() =>
+			peekOverview(student.id, (student.lastPayment ?? null) !== null || student.openingBalance !== null) ?? {
+				kind: 'loading',
+			}
+	)
 	const [secondZone] = useSecondZone(mainTimeZone)
 	const editButton = useRef<HTMLButtonElement>(null)
 	const requests = useRef(0)
@@ -477,14 +510,14 @@ export function OverviewTab({
 		left = <OverviewLeftLoading studentName={student.displayName} mainTimeZone={mainTimeZone} />
 	} else if (state.kind === 'error') {
 		left = (
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+			<>
 				{facts}
 				<UnreadPanel onRefresh={load} />
-			</div>
+			</>
 		)
 	} else {
 		left = (
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6" data-slot="overview-left" data-state="ready">
+			<>
 				{facts}
 				{counted && lessons !== null ? (
 					<HeldDates
@@ -512,7 +545,7 @@ export function OverviewTab({
 					id="student-recent"
 					title="Recent notes and comments"
 					action={
-						<Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('notes')}>
+						<Button variant="secondary" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('notes')}>
 							{items.length === 0 ? 'Notes' : 'All notes'}
 						</Button>
 					}
@@ -537,7 +570,12 @@ export function OverviewTab({
 					id="student-vocabulary"
 					title="Vocabulary"
 					action={
-						<Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('vocabulary')}>
+						<Button
+							variant="secondary"
+							size="compact"
+							trailingIcon={ArrowRight}
+							onClick={() => onOpenTab('vocabulary')}
+						>
 							All words
 						</Button>
 					}
@@ -562,58 +600,55 @@ export function OverviewTab({
 						</div>
 					)}
 				</Panel>
-			</div>
+			</>
 		)
 	}
 
 	return (
-		<div className={OVERVIEW_GRID}>
+		<div className="flex min-w-0 flex-col gap-4" data-slot="overview" data-state={state.kind}>
+			<Panel
+				id="student-details"
+				title="Details"
+				action={
+					<Button
+						ref={editButton}
+						variant="secondary"
+						size="compact"
+						leadingIcon={Pencil}
+						onClick={() => setEditOpen(true)}
+					>
+						Edit details
+					</Button>
+				}
+			>
+				<dl className="grid grid-cols-2 gap-x-6 gap-y-3 px-4 pt-1 pb-4 sm:grid-cols-4">
+					<DetailRow label="Rate">
+						{student.rateMinor === null ? (
+							<NotSet />
+						) : (
+							<>
+								<MoneyText amountMinor={student.rateMinor} currency={student.currency} /> per lesson
+							</>
+						)}
+					</DetailRow>
+					<DetailRow label="Lesson length">
+						<span className="tabular-nums">{student.defaultLessonMinutes} min</span>
+					</DetailRow>
+					<DetailRow label="No-show">
+						{student.noShowDeducts ? (
+							'Deducts a lesson'
+						) : (
+							<span className="text-muted-foreground">Deducts nothing</span>
+						)}
+					</DetailRow>
+					<DetailRow label="Gender">{student.gender === null ? <NotSet /> : GENDER_LABEL[student.gender]}</DetailRow>
+					<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
+					<DetailRow label="Level">{textValue(student.level)}</DetailRow>
+					<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>
+					<DetailRow label="Time zone">{student.timeZone ?? 'Same as teacher'}</DetailRow>
+				</dl>
+			</Panel>
 			{left}
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
-				<Panel
-					id="student-details"
-					title="Details"
-					action={
-						<Button
-							ref={editButton}
-							variant="ghost"
-							size="compact"
-							leadingIcon={Pencil}
-							onClick={() => setEditOpen(true)}
-						>
-							Edit details
-						</Button>
-					}
-				>
-					<dl className="flex flex-col pt-2">
-						<DetailRow label="Rate">
-							{student.rateMinor === null ? (
-								<NotSet />
-							) : (
-								<>
-									<MoneyText amountMinor={student.rateMinor} currency={student.currency} /> per lesson
-								</>
-							)}
-						</DetailRow>
-						<DetailRow label="Lesson length">
-							<span className="tabular-nums">{student.defaultLessonMinutes} min</span>
-						</DetailRow>
-						<DetailRow label="No-show">
-							{student.noShowDeducts ? (
-								'Deducts a lesson'
-							) : (
-								<span className="text-muted-foreground">Deducts nothing</span>
-							)}
-						</DetailRow>
-						<DetailRow label="Gender">{student.gender === null ? <NotSet /> : GENDER_LABEL[student.gender]}</DetailRow>
-						<DetailRow label="Parent">{textValue(student.parent)}</DetailRow>
-						<DetailRow label="Level">{textValue(student.level)}</DetailRow>
-						<DetailRow label="Goals">{textValue(student.goals)}</DetailRow>
-						<DetailRow label="Time zone">{student.timeZone ?? 'Same as teacher'}</DetailRow>
-					</dl>
-				</Panel>
-				<AccountPanel student={student} onChanged={onSaved} />
-			</div>
 			{editOpen ? (
 				<StudentFormDialog
 					mode="edit"

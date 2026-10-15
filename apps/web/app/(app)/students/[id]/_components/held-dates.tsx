@@ -152,7 +152,7 @@ export function HeldDates(props: HeldDatesProps) {
 	const text = heldDatesCopyText({ studentName, dates, period, sincePayment, lastPaidOn, year })
 	const allLessons =
 		short && props.onAllLessons !== undefined ? (
-			<Button variant="ghost" size="compact" onClick={props.onAllLessons}>
+			<Button variant="secondary" size="compact" onClick={props.onAllLessons}>
 				All lessons
 			</Button>
 		) : null
@@ -209,7 +209,7 @@ export function HeldDates(props: HeldDatesProps) {
 						</div>
 						{folded ? (
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								aria-expanded={all}
 								className="-ml-2 self-start text-caption text-muted-foreground pointer-coarse:h-8"

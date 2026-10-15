@@ -134,7 +134,7 @@ export function EndSeriesDialog({
 						<Banner status="warning" data-slot="series-stale">
 							<BannerTitle>{STALE_TITLE}</BannerTitle>
 							<BannerDescription>{STALE_DATE}</BannerDescription>
-							<Button type="button" variant="ghost" size="compact" onClick={onRefresh}>
+							<Button type="button" variant="secondary" size="compact" onClick={onRefresh}>
 								Refresh
 							</Button>
 						</Banner>

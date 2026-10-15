@@ -149,7 +149,7 @@ export function SetCurrencyDialog({ student, payment, onClose, onSaved }: SetCur
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending}>
 							{pending ? 'Saving…' : 'Save currency'}
