@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 import { Tooltip } from '@/components/ui/tooltip'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi, type ApiResult } from '@/lib/api-client'
 import { Elevated } from '@/lib/elevated'
 import { formatDay, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
@@ -47,12 +47,39 @@ function newestFirst(terms: StudentTerm[]): StudentTerm[] {
 	)
 }
 
+function termPaths(studentId: string) {
+	return [
+		`/students/${studentId}/terms`,
+		`/students/${studentId}/terms?view=removed`,
+		`/students/${studentId}/blocks`,
+	] as const
+}
+
 async function readTerms(studentId: string): Promise<ReadState> {
-	const [words, removed, blocks] = await Promise.all([
-		apiRequest<StudentTermsResponse>('GET', `/students/${studentId}/terms`),
-		apiRequest<StudentTermsResponse>('GET', `/students/${studentId}/terms?view=removed`),
-		apiRequest<unknown>('GET', `/students/${studentId}/blocks`),
-	])
+	const [words, removed, blocks] = termPaths(studentId)
+	return termsFrom(
+		...(await Promise.all([
+			apiRequest<StudentTermsResponse>('GET', words),
+			apiRequest<StudentTermsResponse>('GET', removed),
+			apiRequest<unknown>('GET', blocks),
+		]))
+	)
+}
+
+function peekTerms(studentId: string): ReadState {
+	const [wordsPath, removedPath, blocksPath] = termPaths(studentId)
+	const words = peekApi<StudentTermsResponse>(wordsPath)
+	const removed = peekApi<StudentTermsResponse>(removedPath)
+	const blocks = peekApi<unknown>(blocksPath)
+	if (words === null || removed === null || blocks === null) return { kind: 'loading' }
+	return termsFrom(words, removed, blocks)
+}
+
+function termsFrom(
+	words: ApiResult<StudentTermsResponse>,
+	removed: ApiResult<StudentTermsResponse>,
+	blocks: ApiResult<unknown>
+): ReadState {
 	if (!words.ok || !removed.ok || !blocks.ok) return { kind: 'error' }
 	const review = studentBlocksResponse.safeParse(blocks.data)
 	if (!review.success) return { kind: 'error' }
@@ -177,7 +204,7 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 	const toast = useToast()
 	const studentId = student.id
 	const year = yearInZone(new Date(asOf), timeZone)
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(() => peekTerms(student.id))
 	const [view, setView] = useState<View>('words')
 	const [adding, setAdding] = useState(false)
 	const [editing, setEditing] = useState<StudentTerm | null>(null)

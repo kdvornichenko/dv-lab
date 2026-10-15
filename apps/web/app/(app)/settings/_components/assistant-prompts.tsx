@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 
 import {
 	CHAT_PROMPT_MAX_LENGTH,
@@ -50,8 +50,11 @@ function slug(command: ChatPromptCommand): string {
 
 function usePrompts() {
 	const router = useRouter()
-	const [prompts, setPrompts] = useState<CommandPrompt[] | null>(null)
-	const [loadState, setLoadState] = useState<LoadState>('loading')
+	const [prompts, setPrompts] = useState<CommandPrompt[] | null>(() => {
+		const cached = peekApi<CommandPromptsResponse>('/settings/assistant/prompts')
+		return cached !== null && cached.ok ? cached.data.prompts : null
+	})
+	const [loadState, setLoadState] = useState<LoadState>(() => (prompts === null ? 'loading' : 'ready'))
 	const [attempt, setAttempt] = useState(0)
 
 	useEffect(() => {

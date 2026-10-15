@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useCalendarController, useCalendarRefresh } from '@/components/app/calendar-command-provider'
 import { useGoogleSync } from '@/components/app/use-google-sync'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
 
 import type { GoogleScheduleWindow, TodayResponse } from '@dv-lab/contracts'
@@ -17,9 +17,14 @@ type TodayState = {
 }
 
 export function useToday(minuteNow: Date) {
-	const [state, setState] = useState<TodayState>({ kind: 'loading', data: null, receivedAt: 0 })
+	const [state, setState] = useState<TodayState>(() => {
+		const cached = peekApi<TodayResponse>('/today')
+		return cached !== null && cached.ok
+			? { kind: 'ready', data: cached.data, receivedAt: Date.now() }
+			: { kind: 'loading', data: null, receivedAt: 0 }
+	})
 	const requests = useRef(0)
-	const latest = useRef<TodayResponse | null>(null)
+	const latest = useRef<TodayResponse | null>(state.data)
 	const controller = useCalendarController()
 	const [calendar, setCalendar] = useState<GoogleScheduleWindow | null>(null)
 	const handledRevision = useRef<string | null>(null)

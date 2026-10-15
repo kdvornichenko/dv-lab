@@ -15,7 +15,7 @@ import { NotFoundPage } from '@/components/app/status-pages'
 import { StudentBalance } from '@/components/app/student-balance'
 import { Button } from '@/components/ui/button'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
-import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest } from '@/lib/api-client'
+import { API_CACHE_INVALIDATED, DATA_CHANGED_CHANNEL, apiRequest, peekApi } from '@/lib/api-client'
 import { withoutSearchParams } from '@/lib/arrival-mark'
 
 import type { SectionKind, StudentDetail, StudentResponse } from '@dv-lab/contracts'
@@ -88,8 +88,13 @@ function SummaryLine({
 
 export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileArrival }) {
 	const router = useRouter()
-	const [state, setState] = useState<ReadState>({ kind: 'loading', data: null })
+	const [state, setState] = useState<ReadState>(() => {
+		const cached = peekApi<StudentResponse>(`/students/${id}`)
+		return cached !== null && cached.ok ? { kind: 'ready', data: cached.data } : { kind: 'loading', data: null }
+	})
 	const [tab, setTab] = useState<string>(() => initialProfileTab(arrival))
+	const [visited, setVisited] = useState<ReadonlySet<string>>(() => new Set([initialProfileTab(arrival)]))
+	if (!visited.has(tab)) setVisited(new Set([...visited, tab]))
 	const [mark, setMark] = useState<ProfileMark | null>(arrival.mark)
 	const [editRequested, setEditRequested] = useState(false)
 	const [confirm, setConfirm] = useState<{ action: 'archive' | 'restore'; revision: number } | null>(null)
@@ -329,64 +334,72 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 							<TabItem value="vocabulary" label="Vocabulary" />
 						</TabsList>
 					</div>
-					<TabPanel value="overview" className="mt-4">
-						<OverviewTab
-							student={student}
-							mainTimeZone={mainTimeZone}
-							asOf={asOf}
-							threshold={threshold}
-							refreshKey={lessonsVersion}
-							onSaved={refresh}
-							autoOpenEdit={editRequested}
-							onAutoOpened={() => setEditRequested(false)}
-							onOpenTab={openTab}
-							onSetOpeningBalance={focusOpeningBalance}
-						/>
+					<TabPanel value="overview" keepMounted className="mt-4">
+						{visited.has('overview') ? (
+							<OverviewTab
+								student={student}
+								mainTimeZone={mainTimeZone}
+								asOf={asOf}
+								threshold={threshold}
+								refreshKey={lessonsVersion}
+								onSaved={refresh}
+								autoOpenEdit={editRequested}
+								onAutoOpened={() => setEditRequested(false)}
+								onOpenTab={openTab}
+								onSetOpeningBalance={focusOpeningBalance}
+							/>
+						) : null}
 					</TabPanel>
-					<TabPanel value="lessons" className="mt-4">
-						<LessonsTab
-							student={student}
-							mainTimeZone={mainTimeZone}
-							asOf={asOf}
-							refreshKey={lessonsVersion}
-							onOpenPayments={(paymentId) => {
-								changeTab('payments')
-								if (paymentId !== null) setOpenPayment(paymentId)
-							}}
-						/>
+					<TabPanel value="lessons" keepMounted className="mt-4">
+						{visited.has('lessons') ? (
+							<LessonsTab
+								student={student}
+								mainTimeZone={mainTimeZone}
+								asOf={asOf}
+								refreshKey={lessonsVersion}
+								onOpenPayments={(paymentId) => {
+									changeTab('payments')
+									if (paymentId !== null) setOpenPayment(paymentId)
+								}}
+							/>
+						) : null}
 					</TabPanel>
-					<TabPanel value="notes" className="mt-4">
-						<NotesTab
-							student={student}
-							drafts={drafts}
-							timeZone={mainTimeZone}
-							asOf={asOf}
-							onDraftChange={changeDraft}
-							mark={mark}
-							onMarkDone={() => {
-								setMark(null)
-								dropParams(['entry', 'section'])
-							}}
-						/>
+					<TabPanel value="notes" keepMounted className="mt-4">
+						{visited.has('notes') ? (
+							<NotesTab
+								student={student}
+								drafts={drafts}
+								timeZone={mainTimeZone}
+								asOf={asOf}
+								onDraftChange={changeDraft}
+								mark={mark}
+								onMarkDone={() => {
+									setMark(null)
+									dropParams(['entry', 'section'])
+								}}
+							/>
+						) : null}
 					</TabPanel>
-					<TabPanel value="vocabulary" className="mt-4">
-						<VocabularyTab student={student} timeZone={mainTimeZone} asOf={asOf} />
+					<TabPanel value="vocabulary" keepMounted className="mt-4">
+						{visited.has('vocabulary') ? <VocabularyTab student={student} timeZone={mainTimeZone} asOf={asOf} /> : null}
 					</TabPanel>
-					<TabPanel value="payments" className="mt-4">
-						<PaymentsTab
-							student={student}
-							mainTimeZone={mainTimeZone}
-							asOf={asOf}
-							refreshKey={paymentsVersion}
-							openPaymentId={openPayment}
-							onOpened={() => {
-								setOpenPayment(null)
-								dropParams(['payment'])
-							}}
-							onChanged={() => void refresh()}
-							openingRequested={openingRequested}
-							onOpeningOpened={() => setOpeningRequested(false)}
-						/>
+					<TabPanel value="payments" keepMounted className="mt-4">
+						{visited.has('payments') ? (
+							<PaymentsTab
+								student={student}
+								mainTimeZone={mainTimeZone}
+								asOf={asOf}
+								refreshKey={paymentsVersion}
+								openPaymentId={openPayment}
+								onOpened={() => {
+									setOpenPayment(null)
+									dropParams(['payment'])
+								}}
+								onChanged={() => void refresh()}
+								openingRequested={openingRequested}
+								onOpeningOpened={() => setOpeningRequested(false)}
+							/>
+						) : null}
 					</TabPanel>
 				</Tabs>
 			</div>

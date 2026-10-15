@@ -16,7 +16,7 @@ import { useSecondZone } from '@/components/app/time-zone-picker'
 import { Banner, BannerAction, BannerActions, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi, type ApiResult } from '@/lib/api-client'
 import { formatDate, formatDay, formatTime, secondWhen, yearInZone } from '@/lib/schedule-format'
 import { dayHref, lessonHref } from '@/lib/schedule-links'
 import { zoneLabel } from '@/lib/time-zones'
@@ -63,15 +63,43 @@ interface Reads {
 
 type ReadState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; reads: Reads }
 
+function overviewPaths(studentId: string) {
+	return {
+		lessons: `/students/${studentId}/lessons?range=since_payment`,
+		blocks: `/students/${studentId}/blocks`,
+		comments: `/students/${studentId}/comments?limit=3`,
+		terms: `/students/${studentId}/terms`,
+	}
+}
+
 async function readOverview(studentId: string, counted: boolean): Promise<ReadState> {
+	const paths = overviewPaths(studentId)
 	const [lessons, blocks, comments, terms] = await Promise.all([
-		counted
-			? apiRequest<StudentLessonsResponse>('GET', `/students/${studentId}/lessons?range=since_payment`)
-			: Promise.resolve(null),
-		apiRequest<unknown>('GET', `/students/${studentId}/blocks`),
-		apiRequest<unknown>('GET', `/students/${studentId}/comments?limit=3`),
-		apiRequest<StudentTermsResponse>('GET', `/students/${studentId}/terms`),
+		counted ? apiRequest<StudentLessonsResponse>('GET', paths.lessons) : Promise.resolve(null),
+		apiRequest<unknown>('GET', paths.blocks),
+		apiRequest<unknown>('GET', paths.comments),
+		apiRequest<StudentTermsResponse>('GET', paths.terms),
 	])
+	return overviewFrom(lessons, blocks, comments, terms)
+}
+
+function peekOverview(studentId: string, counted: boolean): ReadState | null {
+	const paths = overviewPaths(studentId)
+	const lessons = counted ? peekApi<StudentLessonsResponse>(paths.lessons) : null
+	const blocks = peekApi<unknown>(paths.blocks)
+	const comments = peekApi<unknown>(paths.comments)
+	const terms = peekApi<StudentTermsResponse>(paths.terms)
+	if ((counted && lessons === null) || blocks === null || comments === null || terms === null) return null
+	const state = overviewFrom(lessons, blocks, comments, terms)
+	return state.kind === 'ready' ? state : null
+}
+
+function overviewFrom(
+	lessons: ApiResult<StudentLessonsResponse> | null,
+	blocks: ApiResult<unknown>,
+	comments: ApiResult<unknown>,
+	terms: ApiResult<StudentTermsResponse>
+): ReadState {
 	if ((lessons !== null && !lessons.ok) || !blocks.ok || !comments.ok || !terms.ok) return { kind: 'error' }
 	const parsedBlocks = studentBlocksResponse.safeParse(blocks.data)
 	const parsedComments = studentCommentsResponse.safeParse(comments.data)
@@ -419,7 +447,12 @@ export function OverviewTab({
 	onSetOpeningBalance,
 }: OverviewTabProps) {
 	const [editOpen, setEditOpen] = useState(autoOpenEdit)
-	const [state, setState] = useState<ReadState>({ kind: 'loading' })
+	const [state, setState] = useState<ReadState>(
+		() =>
+			peekOverview(student.id, (student.lastPayment ?? null) !== null || student.openingBalance !== null) ?? {
+				kind: 'loading',
+			}
+	)
 	const [secondZone] = useSecondZone(mainTimeZone)
 	const editButton = useRef<HTMLButtonElement>(null)
 	const requests = useRef(0)

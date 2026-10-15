@@ -9,7 +9,7 @@ import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
 import { commitDefaultZoneChange, TimeZonePicker, useSecondZone } from '@/components/app/time-zone-picker'
 import { Button } from '@/components/ui/button'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
-import { apiRequest } from '@/lib/api-client'
+import { apiRequest, peekApi } from '@/lib/api-client'
 import { formatTime } from '@/lib/schedule-format'
 import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 
@@ -37,8 +37,11 @@ function focusDefaultField() {
 function useSettings() {
 	const router = useRouter()
 	const toast = useToast()
-	const [settings, setSettings] = useState<TeacherSettings | null>(null)
-	const [loadState, setLoadState] = useState<LoadState>('loading')
+	const [settings, setSettings] = useState<TeacherSettings | null>(() => {
+		const cached = peekApi<SettingsResponse>('/settings')
+		return cached !== null && cached.ok ? cached.data.settings : null
+	})
+	const [loadState, setLoadState] = useState<LoadState>(() => (settings === null ? 'loading' : 'ready'))
 	const [readAttempt, setReadAttempt] = useState(0)
 	const [candidate, setCandidate] = useState<string | null>(null)
 	const [pending, setPending] = useState(false)
