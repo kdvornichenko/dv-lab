@@ -71,7 +71,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 	return (
 		<ToastContext.Provider value={api}>
 			{children}
-			<div className="pointer-events-none fixed inset-x-0 top-14 z-50 mx-auto flex w-full max-w-md flex-col gap-2 px-4 md:top-auto md:bottom-6">
+			<div className="pointer-events-none fixed inset-x-0 top-[calc(3.5rem+var(--safe-top))] z-50 mx-auto flex w-full max-w-md flex-col gap-2 px-4 md:top-auto md:bottom-[calc(1.5rem+var(--safe-bottom))]">
 				{toasts.map((toast) => (
 					<div key={toast.id} className="pointer-events-auto rounded-xl bg-background shadow-surface-3">
 						<Banner

@@ -27,7 +27,7 @@ const DIALOG_OFFSET = 4
 type DialogPhone = 'screen' | 'sheet' | 'center'
 const PHONE_POPUP: Record<DialogPhone, string> = {
 	screen:
-		'max-md:inset-0 max-md:flex max-md:h-dvh max-md:max-h-none max-md:w-full max-md:max-w-none max-md:flex-col max-md:rounded-none max-md:pb-0 max-md:[--scroll-fade-size:20px] max-md:[&>form]:contents',
+		'max-md:inset-0 max-md:flex max-md:h-dvh max-md:max-h-none max-md:w-full max-md:max-w-none max-md:flex-col max-md:rounded-none max-md:pt-[calc(var(--unit)*1.5+var(--safe-top))] max-md:pb-0 max-md:[--scroll-fade-size:20px] max-md:[&>form]:contents',
 	sheet:
 		'max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:max-h-[calc(100dvh-3rem)] max-md:w-full max-md:max-w-none max-md:rounded-t-2xl max-md:rounded-b-none max-md:pb-0',
 	center: '',
@@ -35,8 +35,8 @@ const PHONE_POPUP: Record<DialogPhone, string> = {
 const PHONE_FOOTER = cn(
 	'max-md:[&>button]:h-10 max-md:[&>div:last-child>button]:h-10',
 	'max-md:group-data-[phone=screen]/dialog:mt-auto max-md:group-data-[phone=screen]/dialog:shrink-0 max-md:group-data-[phone=screen]/dialog:pt-unit-1.5',
-	'max-md:group-data-[phone=screen]/dialog:pb-[calc(var(--unit)*1.5+env(safe-area-inset-bottom))]',
-	'max-md:group-data-[phone=sheet]/dialog:pb-[calc(var(--unit)*1.5+env(safe-area-inset-bottom))]'
+	'max-md:group-data-[phone=screen]/dialog:pb-[calc(var(--unit)*1.5+var(--safe-bottom))]',
+	'max-md:group-data-[phone=sheet]/dialog:pb-[calc(var(--unit)*1.5+var(--safe-bottom))]'
 )
 interface DialogProps {
 	open?: boolean
@@ -231,7 +231,11 @@ const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
 									{showCloseButton && (
 										<DialogPrimitive.Close
 											render={
-												<Button variant="ghost" size="icon-sm" className="absolute top-3 right-3">
+												<Button
+													variant="ghost"
+													size="icon-sm"
+													className="absolute top-3 right-3 max-md:group-data-[phone=screen]/dialog:top-[calc(0.75rem+var(--safe-top))]"
+												>
 													<XIcon />
 													<span className="sr-only">Close</span>
 												</Button>
