@@ -37,6 +37,13 @@
 - Подтверждение сверяет ревизию цели (карточки, оплаты, заметки или комментария), предложение оплаты — ещё и пояс учителя: изменившаяся цель — `stale`, новое предложение учитель просит новым сообщением.
 - Суммы, числа уроков, имена и пояс модель копирует из сообщения учителя: сервер проверяет, что этот текст есть в сообщении (`saidIn`), и разбирает его кодом (`parseMoney`, `parseLessons`).
 
+## Команды и справка
+
+- Список команд чата один: `CHAT_COMMANDS` в `packages/contracts/src/chat.ts` (имя, описание, нужен ли ученик). Из него строятся меню слэша в `composer.tsx`, список нового чата (`COMMAND_ROWS`, `command-list.tsx`) и блок справки; вставка команды в поле — `commandText` в `composer.tsx` (команда с учеником — `/note @` и список учеников, остальные — команда и пробел).
+- `/help` (`HELP_COMMAND_TEXT`) отвечает приложение без хода модели (`helpCommand` в `actions.ts`, рядом с `/today`, `/tomorrow`, `/payments`): ответ — один блок `help` без текста, без хода в `chat_turns` и без попытки бюджета.
+- Вопрос словами о возможностях: модель вызывает инструмент `show_help` (`effect` `show`, без шага), он кладёт тот же блок `help`; правило в системной подсказке `runs.ts` — текста к блоку не писать.
+- Блок `help` хранит только тип: web рисует его по текущему `CHAT_COMMANDS` и разделам в `chat-help.tsx`, поэтому старые блоки в истории показывают актуальный список. Команды в блоке — кнопки, вставляют команду в поле тем же путём, что список нового чата, и выключены (`aria-disabled`), пока в поле есть текст или идёт ответ.
+
 ## Эссе
 
 Отзыв на эссе — `apps/api/src/chat/essay.ts` (инструмент `essay_feedback`, команда `/essay`): ход `/essay` отправляет модели только этот инструмент, записей не делает (`read_only_essay`), в ответе лежит блок `essay`; подпись о приблизительной оценке в web — `apps/web/app/(app)/chat/_components/essay-feedback.tsx`.
@@ -51,4 +58,4 @@
 
 - `chat-final.mjs` запускает по очереди `schedule-started`, `schedule-started-series`, `schedule-comments-series`, `mark-revision`, `chat-config`, разделы `chat-api.mjs` (`records`, `conversations`, `notes`, `comments`, `target`, `actions`, `calendar`, `budget`, `runs`, `answers`, `models`, `delete`, `title`), `calendar-reads`, `calendar-final`, `cards-revision`, разделы `chat-changes.mjs` (`payment`, `cards`, `deletions`, `essay`) и `chat-bulk.mjs` (`zone`, `proposal`, `children`).
 - Отдельно: `chat-notes.mjs`, `chat-review.mjs`, разделы `chat-api.mjs since|prompts`, `chat-changes.mjs details`, проверки реестра инструментов в `chat-tools-schema.mjs` (с ключом шлёт живой запрос, поэтому в `chat-final.mjs` не входит).
-- Браузер на dev-стеке: `chat-web.mjs`, `changes-web.mjs`, `entry-web.mjs` и `phone-web.mjs` (`<раздел> light|dark`); разделы `changes-web.mjs facts|details|prompts|notes|review`.
+- Браузер на dev-стеке: `chat-web.mjs`, `changes-web.mjs`, `entry-web.mjs` и `phone-web.mjs` (`<раздел> light|dark`); разделы `changes-web.mjs facts|details|prompts|notes|review`; справка — `chat-help-web.mjs light|dark`.
