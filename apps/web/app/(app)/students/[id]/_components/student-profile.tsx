@@ -176,7 +176,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 		setOpeningRequested(true)
 	}
 
-	function openTab(target: OverviewTarget, section?: SectionKind | null) {
+	function openTab(target: OverviewTarget, section?: string | null) {
 		setTab(target)
 		if (target === 'notes' && section !== undefined && section !== null) {
 			setMark({ entry: null, section })

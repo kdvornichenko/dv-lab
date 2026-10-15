@@ -22,12 +22,10 @@ import { dayHref, lessonHref } from '@/lib/schedule-links'
 import { zoneLabel } from '@/lib/time-zones'
 
 import {
-	SECTION_KINDS,
 	studentBlocksResponse,
 	studentCommentsResponse,
 	type NoteBlock,
 	type ScheduleOccurrenceRef,
-	type SectionKind,
 	type StudentComment,
 	type StudentDetail,
 	type StudentLessonsResponse,
@@ -52,7 +50,7 @@ interface OverviewTabProps {
 	onSaved: () => Promise<boolean>
 	autoOpenEdit: boolean
 	onAutoOpened: () => void
-	onOpenTab: (target: OverviewTarget, section?: SectionKind | null) => void
+	onOpenTab: (target: OverviewTarget, section?: string | null) => void
 	onSetOpeningBalance: () => void
 }
 
@@ -115,18 +113,22 @@ function keyRef(key: string): ScheduleOccurrenceRef | null {
 	return null
 }
 
-const SECTION_SET: readonly string[] = SECTION_KINDS
-
 type RecentItem =
-	| { kind: 'note'; id: string; at: string; label: string; body: string; section: SectionKind | null }
+	| { kind: 'note'; id: string; at: string; label: string; body: string; section: string }
 	| { kind: 'comment'; id: string; at: string; label: string; body: string; href: string }
 
 function recentItems(blocks: readonly NoteBlock[], comments: readonly StudentComment[]): RecentItem[] {
 	const items: RecentItem[] = []
 	for (const block of blocks) {
 		if (block.updatedAt === null || block.body.trim() === '') continue
-		const section = SECTION_SET.includes(block.key) ? (block.key as SectionKind) : null
-		items.push({ kind: 'note', id: block.id, at: block.updatedAt, label: block.name, body: block.body, section })
+		items.push({
+			kind: 'note',
+			id: block.id,
+			at: block.updatedAt,
+			label: block.name,
+			body: block.body,
+			section: block.key,
+		})
 	}
 	for (const comment of comments) {
 		const ref = keyRef(comment.lesson.key)
@@ -338,7 +340,7 @@ function RecentRow({
 	item: RecentItem
 	mainTimeZone: string
 	year: number
-	onOpenNote: (section: SectionKind | null) => void
+	onOpenNote: (section: string) => void
 }) {
 	const Icon = item.kind === 'note' ? FileText : MessageSquare
 	const content = (
