@@ -30,10 +30,10 @@ v2.0 replaces the Supabase-era CRM with a new workspace on the own VPS. The orde
 - [x] **Phase 21.1: Default Time Zone** - Account setting, per-lesson and per-series zones, consistent display and accounting dates (completed 2026-10-11)
 - [x] **Phase 22: Chat with Mentions and Quick Marks** - Conversations, `@student` mentions, instant marks with undo, answers from data, budget cap
 - [x] **Phase 23: Confirmed Chat Changes and Entry Points** - Payments, new students, deletions and bulk moves after confirmation; palette, profile and phone layouts
-- [ ] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check (13 of 14 plans; live provider check pending)
+- [x] **Phase 24: Google Calendar Connection and Outbound Sync** - Server-side OAuth, deterministic event ids, one queued writer, paginated conflict check (13 of 14 plans; the live provider check was done in Phase 25.1 on the owner's test account, completed 2026-10-13)
 - [~] **Phase 25: Google Calendar Two-Way Sync** - Superseded by 25.1 (documents archived in `.planning/archive/phase-25-superseded`)
 - [x] **Phase 25.1: Google Calendar Core** - Any event created, moved, resized, edited and deleted in the app; push and incremental sync rewritten as one task per connection; calendar choice; Google wins
-- [ ] **Phase 25.2: Polish before IELTS** - Dialog kinds, Firefox fade, chat fixes, notes/vocabulary/review from chat, card edits from chat, Students table, student profile tabs, installable PWA with push
+- [x] **Phase 25.2: Polish before IELTS** - Dialog kinds, Firefox fade, chat fixes, notes/vocabulary/review from chat, card edits from chat, Students table, student profile tabs, installable PWA with push (completed 2026-10-16)
 - [ ] **Phase 25.3: Chat Command Builder** - Commands stored in the database and edited in Settings, `/edvibe` (waits for the owner's Edvibe template examples)
 - [ ] **Phase 26: IELTS Section** - ielts ported under `/ielts` with its data moved from Neon and Blob
 
@@ -569,7 +569,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 4. Students shows the four-column table with sorting, filters in the URL and the payment ring; the profile has Overview, Lessons (date range, outcomes, totals) and Payments (Opening balance).
 5. The app installs as a PWA and sends "lesson soon" and "student about to pay" pushes.
 
-**Plans**: 29 plans, 72 tasks, 17 waves; all 29 executed. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
+**Plans**: 29/29 plans complete, 72 tasks, 17 waves; all 29 executed. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
 - [x] 25.2-01-PLAN.md — dependencies, Firefox for checks, schema M1-M9
 - [x] 25.2-02-PLAN.md — dialog kinds, Firefox fade, long titles, chat small fixes
 - [x] 25.2-03-PLAN.md — core: chronological ledger (ARCH-A1), short balance, title matching
@@ -599,6 +599,7 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 - [x] 25.2-27-PLAN.md — push: scheduler (lesson soon, pays soon), presence suppression, web-push delivery
 - [x] 25.2-28-PLAN.md — Google event description parsed on the server into blocks, safe links, URL location label (design v104)
 - [x] 25.2-29-PLAN.md — event description blocks, links and one-line URL location in EventDetails (web, design v104)
+
 **UI hint**: yes
 **Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
 
@@ -646,8 +647,9 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 21.1. Default Time Zone                          | v2.0      | 13/13          | Complete    | 2026-10-11 |
 | 22. Chat with Mentions and Quick Marks           | v2.0      | 18/18          | Complete    | 2026-10-14 |
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 14/14          | Complete    | 2026-10-14 |
-| 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
-| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
-| 25.2. Polish before IELTS                        | v2.0      | 29/29          | In Progress | -          |
+| 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | Complete    | 2026-10-13 |
+| 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Superseded  | -          |
+| 25.1. Google Calendar Core                       | v2.0      | 12/12          | Complete    | 2026-10-13 |
+| 25.2. Polish before IELTS                        | v2.0      | 29/29          | Complete    | 2026-10-16 |
 | 25.3. Chat Command Builder                       | v2.0      | 0/0            | Not planned | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |
