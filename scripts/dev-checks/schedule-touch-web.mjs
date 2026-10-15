@@ -448,7 +448,28 @@ async function phoneChecks() {
 	const swipeFrom = { x: 300, y: 500 }
 	const swipeLabel = await weekLabel(page)
 	await touch(cdp, 'touchStart', swipeFrom)
-	await slide(cdp, swipeFrom, { x: 60, y: 505 }, 8)
+	await slide(cdp, swipeFrom, { x: 180, y: 503 }, 6)
+	await wait(150)
+	const layers = await page.evaluate(() => {
+		const body = document.querySelector('[data-slot="week-grid-body"] > div')
+		const line = body.querySelector(':scope > [data-slot="week-grid-line"]')
+		const strip = body.querySelector('[data-page="current"]')?.parentElement
+		return {
+			linesFirst:
+				line !== null &&
+				strip !== null &&
+				(line.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+			isolated: strip !== null && getComputedStyle(strip).isolation === 'isolate',
+			moving: strip !== null && getComputedStyle(strip).transform !== 'none',
+		}
+	})
+	await shot(page, 'touch', 'phone-mid-swipe')
+	check(
+		'phone: mid-swipe the hour lines stay under the blocks of the moving page',
+		layers.linesFirst && layers.isolated && layers.moving,
+		JSON.stringify(layers)
+	)
+	await slide(cdp, { x: 180, y: 503 }, { x: 60, y: 505 }, 4)
 	await touch(cdp, 'touchEnd')
 	await wait(900)
 	check('phone: a swipe still turns the week after the gestures', (await weekLabel(page)) !== swipeLabel)
