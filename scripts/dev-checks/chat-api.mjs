@@ -4,7 +4,12 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
-import { CHAT_FOLLOW_UP_TEXT } from '../../packages/contracts/src/index.ts'
+import {
+	CHAT_FOLLOW_UP_TEXT,
+	CHAT_PROMPT_MAX_LENGTH,
+	commandPromptResponse,
+	commandPromptsResponse,
+} from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
@@ -3339,6 +3344,17 @@ async function sectionPrompts(ctx) {
 		const lastUser = (request) => String(request.messages.at(-1).content)
 		const recap = (id) => turn(id, `/recap @${name}`, [binding])
 
+		const listed = await as('GET', '/settings/assistant/prompts')
+		check(
+			'GET /settings/assistant/prompts gives both commands with the default text and isDefault',
+			listed.status === 200 &&
+				commandPromptsResponse.safeParse(listed.json).success &&
+				listed.json.prompts.map((item) => item.command).join() === '/recap,/essay' &&
+				listed.json.prompts.every((item) => item.isDefault && item.revision === 0) &&
+				listed.json.prompts[0].body === RECAP_TASK &&
+				listed.json.prompts[1].defaultBody === ESSAY_TASK,
+			String(listed.status)
+		)
 		const defaults = await readCommandPrompts(db, accountId)
 		check(
 			'without saved rows both commands read the default text from the code at revision 0',
@@ -3399,9 +3415,93 @@ async function sectionPrompts(ctx) {
 				String(essayResult?.content).includes('read_only_essay'),
 			JSON.stringify(essayResult)
 		)
+		const ROUTE_RECAP = 'Route recap wording for the prompts check: two short points about the mentioned student.'
+		const put = (command, body) => as('PUT', `/settings/assistant/prompts/${command}`, body)
+		const stored = () =>
+			sql(
+				`select command, body, revision from chat_command_prompts where account_id = ${quote(accountId)} order by command`
+			).rows
+		const savedByRoute = await put('recap', { body: ` ${ROUTE_RECAP} `, expectedRevision: 1 })
+		check(
+			'PUT with a text saves it trimmed at the next revision',
+			savedByRoute.status === 200 &&
+				commandPromptResponse.safeParse(savedByRoute.json).success &&
+				savedByRoute.json.prompt.body === ROUTE_RECAP &&
+				savedByRoute.json.prompt.revision === 2 &&
+				!savedByRoute.json.prompt.isDefault,
+			JSON.stringify({ status: savedByRoute.status, revision: savedByRoute.json?.prompt?.revision })
+		)
+		const routed = await recap(await fresh())
+		check(
+			'/recap after PUT sends the saved text to the model',
+			routed.done.state === 'completed' && lastUser(routed.requests[0]).includes(ROUTE_RECAP)
+		)
+		const before = JSON.stringify(stored())
+		const conflict = await put('recap', { body: 'Older tab wording', expectedRevision: 1 })
+		check(
+			'PUT with an old revision is 409 precondition_failed and changes nothing',
+			conflict.status === 409 &&
+				conflict.json?.error?.code === 'precondition_failed' &&
+				JSON.stringify(stored()) === before,
+			String(conflict.status)
+		)
+		const reset = await put('recap', { body: null, expectedRevision: 2 })
+		check(
+			'PUT with null returns the default text at the next revision',
+			reset.status === 200 &&
+				reset.json.prompt.isDefault &&
+				reset.json.prompt.body === RECAP_TASK &&
+				reset.json.prompt.revision === 3,
+			JSON.stringify({ status: reset.status, revision: reset.json?.prompt?.revision })
+		)
+		const afterReset = await recap(await fresh())
+		check(
+			'/recap after the reset sends the default text again',
+			lastUser(afterReset.requests[0]).includes(RECAP_TASK) && !lastUser(afterReset.requests[0]).includes(ROUTE_RECAP)
+		)
+		for (const [label, command, body] of [
+			['a command not allowed in 25.2 (/today)', 'today', { body: 'Today wording', expectedRevision: 0 }],
+			[
+				`a text over ${CHAT_PROMPT_MAX_LENGTH} characters`,
+				'essay',
+				{ body: 'x'.repeat(CHAT_PROMPT_MAX_LENGTH + 1), expectedRevision: 1 },
+			],
+			['a blank text', 'essay', { body: '   ', expectedRevision: 1 }],
+			['a text with NUL', 'essay', { body: 'Bad\u0000text', expectedRevision: 1 }],
+			['a request without a revision', 'essay', { body: 'Some wording' }],
+		]) {
+			const unchanged = JSON.stringify(stored())
+			const res = await put(command, body)
+			check(
+				`PUT with ${label} is 400 and changes nothing`,
+				res.status === 400 && res.json?.error?.code === 'invalid_request' && JSON.stringify(stored()) === unchanged,
+				String(res.status)
+			)
+		}
+		const longest = await put('essay', { body: 'y'.repeat(CHAT_PROMPT_MAX_LENGTH), expectedRevision: 1 })
+		check(
+			`PUT with exactly ${CHAT_PROMPT_MAX_LENGTH} characters is saved`,
+			longest.status === 200 && longest.json.prompt.revision === 2,
+			String(longest.status)
+		)
+		const relisted = await as('GET', '/settings/assistant/prompts')
+		check(
+			'GET after the saves reads the default /recap and the saved /essay',
+			relisted.status === 200 &&
+				relisted.json.prompts[0].isDefault &&
+				relisted.json.prompts[0].revision === 3 &&
+				!relisted.json.prompts[1].isDefault &&
+				relisted.json.prompts[1].revision === 2
+		)
+		const studentCookieValue = await studentCookie(local)
+		const asStudent = await send(local, 'GET', '/settings/assistant/prompts', { cookie: studentCookieValue })
+		check('a student session cannot read the prompts', asStudent.status === 403, String(asStudent.status))
 		check(
 			'the log has no prompt text and no fixture name',
-			!lines.join('').includes(CUSTOM_RECAP) && !lines.join('').includes(CUSTOM_ESSAY) && !lines.join('').includes(name)
+			!lines.join('').includes(CUSTOM_RECAP) &&
+				!lines.join('').includes(CUSTOM_ESSAY) &&
+				!lines.join('').includes(ROUTE_RECAP) &&
+				!lines.join('').includes(name)
 		)
 		return 'CHAT_PROMPTS_OK'
 	} finally {
