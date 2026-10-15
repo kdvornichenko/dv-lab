@@ -150,7 +150,7 @@ async function shown(page, tag) {
 
 function loadWorker() {
 	const listeners = {}
-	const calls = { shown: [], closed: 0, focused: 0, navigated: [], opened: [] }
+	const calls = { shown: [], closed: 0, focused: 0, navigated: [], opened: [], fetched: [], subscribed: [] }
 	const state = { windows: [], navigateFails: false }
 	const self = {
 		location: { origin: BASE },
@@ -168,12 +168,47 @@ function loadWorker() {
 				calls.shown.push({ title, options })
 				return Promise.resolve()
 			},
+			pushManager: {
+				subscribe: (options) => {
+					calls.subscribed.push(options)
+					return Promise.resolve(fakeSubscription('https://push.example.test/new', 'new-p256dh', 'new-auth'))
+				},
+			},
 		},
 		addEventListener: (type, handler) => {
 			listeners[type] = handler
 		},
 	}
-	vm.runInNewContext(readFileSync(`${ROOT}/apps/web/public/sw.js`, 'utf8'), { self, URL, console })
+	const fakeSubscription = (endpoint, p256dh, auth, key) => ({
+		endpoint,
+		options: { applicationServerKey: key ?? null },
+		toJSON: () => ({ endpoint, keys: { p256dh, auth } }),
+	})
+	const network = { failPost: false, publicKey: 'AQID', offline: false }
+	const fetchStub = (url, init = {}) => {
+		if (network.offline) return Promise.reject(new Error('offline'))
+		const method = init.method ?? 'GET'
+		calls.fetched.push({
+			method,
+			url,
+			body: init.body === undefined ? null : JSON.parse(init.body),
+			credentials: init.credentials,
+		})
+		if (url === '/api/push/config')
+			return Promise.resolve({
+				ok: true,
+				json: () => Promise.resolve({ enabled: true, publicKey: network.publicKey, devices: [] }),
+			})
+		return Promise.resolve({ ok: !(network.failPost && method === 'POST') })
+	}
+	vm.runInNewContext(readFileSync(`${ROOT}/apps/web/public/sw.js`, 'utf8'), {
+		self,
+		URL,
+		console,
+		atob,
+		Uint8Array,
+		fetch: fetchStub,
+	})
 	const windowAt = (url) => ({
 		url,
 		focus: () => {
@@ -204,14 +239,28 @@ function loadWorker() {
 		await listeners.push({ data, waitUntil: (promise) => (waiting = promise) })
 		await waiting
 	}
-	return { calls, click, push, listeners }
+	async function change({ previous, next, ...options }) {
+		calls.fetched = []
+		calls.subscribed = []
+		Object.assign(network, { failPost: false, publicKey: 'AQID', offline: false }, options)
+		let waiting = null
+		await listeners.pushsubscriptionchange({
+			oldSubscription: previous ?? null,
+			newSubscription: next ?? null,
+			waitUntil: (promise) => (waiting = promise),
+		})
+		await waiting
+	}
+	return { calls, click, push, change, fakeSubscription, listeners }
 }
 
 async function sectionPush() {
 	const worker = loadWorker()
 	check(
-		'the worker listens to install, activate, push and notificationclick',
-		['install', 'activate', 'push', 'notificationclick'].every((type) => type in worker.listeners)
+		'the worker listens to install, activate, push, notificationclick and pushsubscriptionchange',
+		['install', 'activate', 'push', 'notificationclick', 'pushsubscriptionchange'].every(
+			(type) => type in worker.listeners
+		)
 	)
 	await worker.click(LESSON_URL, [`${BASE}/`])
 	check(
@@ -273,6 +322,52 @@ async function sectionPush() {
 	)
 	await worker.push(null)
 	check('an empty push still shows a notification', worker.calls.shown.at(-1)?.title === 'dv-lab')
+
+	const old = worker.fakeSubscription('https://push.example.test/old', 'old-p256dh', 'old-auth', new Uint8Array([9, 9]))
+	const fresh = worker.fakeSubscription('https://push.example.test/fresh', 'fresh-p256dh', 'fresh-auth')
+	const verbs = () => worker.calls.fetched.map((call) => `${call.method} ${call.url}`).join(', ')
+	await worker.change({ previous: old, next: fresh })
+	check(
+		'a changed subscription is posted and the old one removed, without subscribing again',
+		verbs() === 'POST /api/push/subscriptions, DELETE /api/push/subscriptions' &&
+			worker.calls.subscribed.length === 0 &&
+			worker.calls.fetched[0].body.endpoint === fresh.endpoint &&
+			worker.calls.fetched[0].body.keys.p256dh === 'fresh-p256dh' &&
+			worker.calls.fetched[1].body.endpoint === old.endpoint &&
+			worker.calls.fetched.every((call) => call.credentials === 'same-origin'),
+		verbs()
+	)
+	await worker.change({ previous: old })
+	check(
+		'without a new subscription the worker subscribes with the old key',
+		worker.calls.subscribed.length === 1 &&
+			worker.calls.subscribed[0].userVisibleOnly === true &&
+			worker.calls.subscribed[0].applicationServerKey[0] === 9 &&
+			verbs() === 'POST /api/push/subscriptions, DELETE /api/push/subscriptions',
+		verbs()
+	)
+	await worker.change({})
+	check(
+		'without any subscription the worker reads the public key from the api',
+		verbs() === 'GET /api/push/config, POST /api/push/subscriptions' &&
+			worker.calls.subscribed.length === 1 &&
+			[...worker.calls.subscribed[0].applicationServerKey].join(',') === '1,2,3',
+		verbs()
+	)
+	await worker.change({ publicKey: null })
+	check(
+		'a disabled push config subscribes nothing',
+		worker.calls.subscribed.length === 0 && verbs() === 'GET /api/push/config',
+		verbs()
+	)
+	await worker.change({ previous: old, next: fresh, failPost: true })
+	check(
+		'the old subscription stays when the new one was not saved',
+		verbs() === 'POST /api/push/subscriptions',
+		verbs()
+	)
+	await worker.change({ previous: old, next: fresh, offline: true })
+	check('a network failure ends quietly', worker.calls.fetched.length === 0)
 
 	await withNotifications(async ({ context, page, problems }) => {
 		await context.grantPermissions(['notifications'], { origin: BASE })

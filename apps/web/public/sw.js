@@ -26,6 +26,46 @@ self.addEventListener('push', (event) => {
 	event.waitUntil(self.registration.showNotification(title, options))
 })
 
+const keyBytes = (value) => {
+	const raw = atob(value.replace(/-/g, '+').replace(/_/g, '/'))
+	return Uint8Array.from(raw, (char) => char.charCodeAt(0))
+}
+
+const sendJson = (method, body) =>
+	fetch('/api/push/subscriptions', {
+		method,
+		credentials: 'same-origin',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(body),
+	})
+
+async function resubscribe(event) {
+	try {
+		const previous = event.oldSubscription ?? null
+		let next = event.newSubscription ?? null
+		if (!next) {
+			let key = previous && previous.options ? previous.options.applicationServerKey : null
+			if (!key) {
+				const response = await fetch('/api/push/config', { credentials: 'same-origin' })
+				if (!response.ok) return
+				const config = await response.json()
+				if (typeof config.publicKey !== 'string') return
+				key = keyBytes(config.publicKey)
+			}
+			next = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+		}
+		const { endpoint, keys } = next.toJSON()
+		if (!keys || !keys.p256dh || !keys.auth) return
+		const saved = await sendJson('POST', { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } })
+		if (saved.ok && previous && previous.endpoint !== endpoint)
+			await sendJson('DELETE', { endpoint: previous.endpoint })
+	} catch {}
+}
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+	event.waitUntil(resubscribe(event))
+})
+
 self.addEventListener('notificationclick', (event) => {
 	event.notification.close()
 	const target = new URL(ownPath(event.notification.data && event.notification.data.url), self.location.origin).href
