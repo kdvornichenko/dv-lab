@@ -69,11 +69,28 @@ export type CalendarConfig =
 
 export type ChatConfig = { enabled: false } | { enabled: true; apiKey: string }
 
+export type PushConfig = { enabled: false } | { enabled: true; publicKey: string; privateKey: string; subject: string }
+
 export type ApiConfig = z.infer<typeof schema> & {
 	databaseUrl: string
 	calendar: CalendarConfig
 	chat: ChatConfig
+	push: PushConfig
 }
+
+const PUSH_KEYS = ['PUSH_VAPID_PUBLIC_KEY', 'PUSH_VAPID_PRIVATE_KEY', 'PUSH_VAPID_SUBJECT'] as const
+
+const vapidKey = (bytes: number) =>
+	z
+		.string()
+		.regex(/^[A-Za-z0-9_-]+$/)
+		.refine((value) => Buffer.from(value, 'base64url').length === bytes)
+
+const pushSchema = z.object({
+	PUSH_VAPID_PUBLIC_KEY: vapidKey(65),
+	PUSH_VAPID_PRIVATE_KEY: vapidKey(32),
+	PUSH_VAPID_SUBJECT: z.url({ protocol: /^https$/ }).refine((value) => value.startsWith('https://')),
+})
 
 export function loadConfig(env: NodeJS.ProcessEnv): ApiConfig {
 	const parsed = schema.safeParse(env)
@@ -83,6 +100,19 @@ export function loadConfig(env: NodeJS.ProcessEnv): ApiConfig {
 		databaseUrl: resolveDatabaseUrl('app', env),
 		calendar: loadCalendarConfig(env, parsed.data),
 		chat: loadChatConfig(env),
+		push: loadPushConfig(env),
+	}
+}
+
+function loadPushConfig(env: NodeJS.ProcessEnv): PushConfig {
+	if (PUSH_KEYS.every((key) => env[key] === undefined)) return { enabled: false }
+	const parsed = pushSchema.safeParse(env)
+	if (!parsed.success) throw new Error('Invalid push configuration')
+	return {
+		enabled: true,
+		publicKey: parsed.data.PUSH_VAPID_PUBLIC_KEY,
+		privateKey: parsed.data.PUSH_VAPID_PRIVATE_KEY,
+		subject: parsed.data.PUSH_VAPID_SUBJECT,
 	}
 }
 

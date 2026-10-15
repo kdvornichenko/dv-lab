@@ -27,6 +27,7 @@ import { Banner, BannerDescription, BannerTitle } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { formatDate, formatFullDate, yearInZone } from '@/lib/schedule-format'
 import { changeReceiptHref } from '@/lib/schedule-links'
+import { offsetLabel, zoneName } from '@/lib/time-zones'
 
 import { LESSON_MINUTES_DEFAULT, type ChatChange, type ChatChangeProposalBlock } from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE, balancePhrase, formatHundredths, formatMoney } from '@dv-lab/core'
@@ -41,9 +42,9 @@ type Words = { question: string; confirm: string; decline: string; busy: string;
 
 const WAITING = 'Waiting for your decision.'
 
-const TOUCH = 'pointer-coarse:h-11'
+export const TOUCH = 'pointer-coarse:h-11'
 
-function Spinner({ size }: { size?: number }) {
+export function Spinner({ size }: { size?: number }) {
 	return <LoaderCircle size={size ?? 16} className="animate-spin" aria-hidden />
 }
 
@@ -113,6 +114,26 @@ function wordsOf(change: ChatChange): Words {
 				busy: 'Moving lessons…',
 				icon: Info,
 			}
+		case 'set_details': {
+			const [only] = change.fields
+			if (change.fields.length === 1 && only !== undefined) {
+				const title = DETAIL_TITLES[only.field]
+				return {
+					question: `Change ${change.studentName}'s ${title}?`,
+					confirm: `Save ${title}`,
+					decline: `Keep ${title}`,
+					busy: 'Saving changes…',
+					icon: Pencil,
+				}
+			}
+			return {
+				question: `Change ${change.studentName}'s details?`,
+				confirm: 'Save changes',
+				decline: 'Keep details',
+				busy: 'Saving changes…',
+				icon: Pencil,
+			}
+		}
 	}
 }
 
@@ -120,7 +141,7 @@ function lessonsText(hundredths: number): string {
 	return `${formatHundredths(hundredths)} ${hundredths === 100 ? 'lesson' : 'lessons'}`
 }
 
-function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
+export function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
 	return (
 		<div className="flex items-start gap-2">
 			<span className="flex shrink-0 pt-0.5 text-muted-foreground">{icon}</span>
@@ -130,7 +151,7 @@ function Header({ icon, text, children }: { icon: ReactNode; text: string; child
 	)
 }
 
-function Caption({ children }: { children: ReactNode }) {
+export function Caption({ children }: { children: ReactNode }) {
 	return <p className="pl-6 text-caption wrap-anywhere text-muted-foreground tabular-nums">{children}</p>
 }
 
@@ -239,6 +260,124 @@ function genderText(gender: 'female' | 'male'): string {
 	return gender === 'female' ? 'Female' : 'Male'
 }
 
+type DetailChange = Change<'set_details'>['fields'][number]
+
+const DETAIL_LABELS: Record<DetailChange['field'], string> = {
+	rate: 'Rate',
+	lessonMinutes: 'Lesson length',
+	noShowDeducts: 'No-show',
+	gender: 'Gender',
+	parent: 'Parent',
+	level: 'Level',
+	goals: 'Goals',
+	timeZone: 'Time zone',
+}
+
+const DETAIL_TITLES: Record<DetailChange['field'], string> = {
+	rate: 'rate',
+	lessonMinutes: 'lesson length',
+	noShowDeducts: 'no-show rule',
+	gender: 'gender',
+	parent: 'parent',
+	level: 'level',
+	goals: 'goals',
+	timeZone: 'time zone',
+}
+
+function zoneWithOffset(zone: string): string {
+	const label = offsetLabel(zone, new Date())
+	const match = /^UTC([+-])(\d{2}):(\d{2})$/.exec(label)
+	if (match === null) return `${zoneName(zone)} (${label})`
+	const minutes = match[3] === '00' ? '' : `:${match[3]}`
+	return `${zoneName(zone)} (UTC${match[1]}${Number(match[2])}${minutes})`
+}
+
+function detailValue(change: DetailChange, side: 'before' | 'after'): ReactNode {
+	switch (change.field) {
+		case 'rate':
+			return rateText(change[side])
+		case 'lessonMinutes':
+			return `${change[side]} min`
+		case 'noShowDeducts':
+			return change[side] ? 'Deducts a lesson' : 'Deducts nothing'
+		case 'gender': {
+			const gender = change[side]
+			return gender === null ? <Muted>Not set</Muted> : genderText(gender)
+		}
+		case 'timeZone': {
+			const zone = change[side]
+			return zone === null ? 'Same as teacher' : zoneWithOffset(zone)
+		}
+		default: {
+			const text = change[side]
+			return text === null ? <Muted>Not set</Muted> : text
+		}
+	}
+}
+
+function detailApplied(change: DetailChange): string {
+	const label = DETAIL_LABELS[change.field]
+	switch (change.field) {
+		case 'rate':
+			return change.after.rateMinor === null
+				? `${label} not set`
+				: `${label} ${formatMoney(change.after.rateMinor, change.after.currency)} per lesson`
+		case 'lessonMinutes':
+			return `${label} ${change.after} min`
+		case 'noShowDeducts':
+			return `${label} ${change.after ? 'deducts a lesson' : 'deducts nothing'}`
+		case 'gender':
+			return `${label} ${change.after === null ? 'not set' : genderText(change.after)}`
+		case 'timeZone':
+			return `${label} ${change.after === null ? 'same as teacher' : zoneWithOffset(change.after)}`
+		case 'level':
+			return `${label} ${change.after === null ? 'not set' : change.after}`
+		default:
+			return `${label} ${change.after === null ? 'cleared' : 'updated'}`
+	}
+}
+
+function DetailRows({ fields }: { fields: readonly DetailChange[] }) {
+	return (
+		<>
+			{fields.map((field) => {
+				const label = DETAIL_LABELS[field.field]
+				if (field.field === 'parent' || field.field === 'goals')
+					return (
+						<Row key={field.field} label={label}>
+							<span className="flex flex-col gap-1.5">
+								<span className="flex flex-col">
+									<span className="text-micro text-muted-foreground">Now</span>
+									<span className="whitespace-pre-line">{detailValue(field, 'before')}</span>
+								</span>
+								<span className="flex flex-col">
+									<span className="text-micro text-muted-foreground">New</span>
+									<span data-slot="change-after" className="w-fit rounded-md bg-active px-1 whitespace-pre-line">
+										{detailValue(field, 'after')}
+									</span>
+								</span>
+							</span>
+						</Row>
+					)
+				return (
+					<Row key={field.field} label={label}>
+						<Shift before={detailValue(field, 'before')} after={detailValue(field, 'after')} />
+					</Row>
+				)
+			})}
+		</>
+	)
+}
+
+function detailsNote(fields: readonly DetailChange[]): string {
+	const kinds = new Set(fields.map((field) => field.field))
+	if (kinds.has('noShowDeducts') || kinds.has('lessonMinutes')) return 'The balance is recalculated for all lessons.'
+	if (kinds.has('rate') && fields.length > 1)
+		return 'Existing payment lesson credit stays unchanged. Only the fields above change.'
+	if (fields.length === 1 && kinds.has('timeZone')) return "Lessons do not move. Only the student's local time changes."
+	return 'Only the fields above change. Payments and notes are not touched.'
+}
+
 function Rows({ change }: { change: ChatChange }) {
 	const year = yearInZone(new Date(), SCHEDULE_TIME_ZONE)
 	switch (change.operation) {
@@ -316,6 +455,8 @@ function Rows({ change }: { change: ChatChange }) {
 					</Row>
 				</>
 			)
+		case 'set_details':
+			return <DetailRows fields={change.fields} />
 		case 'bulk_move':
 			return null
 	}
@@ -355,6 +496,8 @@ function Notes({ change }: { change: ChatChange }) {
 			return <Caption>Later notes stay.</Caption>
 		case 'remove_comment':
 			return <Caption>Later comments stay.</Caption>
+		case 'set_details':
+			return <Caption>{detailsNote(change.fields)}</Caption>
 		case 'bulk_move':
 			return null
 	}
@@ -389,6 +532,8 @@ function appliedLine(change: ChatChange): string | null {
 			if (change.balanceAfterMinutes === null) return values
 			return `${values} Balance after this payment: ${balancePhrase(change.balanceAfterMinutes, lessonMinutesOf(change))}.`
 		}
+		case 'set_details':
+			return `${change.studentName}: ${change.fields.map(detailApplied).join(', ')}.`
 		default:
 			return `${change.studentName}.`
 	}
@@ -412,6 +557,12 @@ function appliedTitle(change: ChatChange): string {
 			return 'Comment removed.'
 		case 'bulk_move':
 			return 'Lessons moved.'
+		case 'set_details': {
+			const [only] = change.fields
+			return change.fields.length === 1 && only !== undefined
+				? `${DETAIL_LABELS[only.field]} changed.`
+				: 'Details changed.'
+		}
 	}
 }
 
@@ -423,6 +574,7 @@ function receiptLabel(change: ChatChange): { label: string; icon: LucideIcon } {
 		case 'archive_card':
 			return { label: 'Open student', icon: ArrowRight }
 		case 'set_rate':
+		case 'set_details':
 			return { label: 'Edit details', icon: Pencil }
 		case 'delete_payment':
 			return { label: 'View payments', icon: ArrowRight }
@@ -454,6 +606,7 @@ export function ChangeProposal({
 	const [pending, setPending] = useState<Decision | null>(null)
 	const [unknown, setUnknown] = useState(false)
 	const [refreshing, setRefreshing] = useState(false)
+	const [reviewing, setReviewing] = useState(false)
 	const status = useRef<HTMLDivElement>(null)
 	const previous = useRef(block.state)
 	const words = wordsOf(block.change)
@@ -576,6 +729,22 @@ export function ChangeProposal({
 				)
 			case 'proposed':
 			case 'applying':
+				if (
+					block.state === 'proposed' &&
+					!reviewing &&
+					block.change.operation === 'archive_card' &&
+					block.change.requestedDeletion
+				)
+					return (
+						<>
+							<Lead change={block.change} />
+							<div className="flex flex-wrap gap-2 pl-6">
+								<Button variant="secondary" size="compact" className={TOUCH} onClick={() => setReviewing(true)}>
+									Review archive
+								</Button>
+							</div>
+						</>
+					)
 				return (
 					<>
 						<Header icon={<Icon size={16} aria-hidden />} text={words.question} />

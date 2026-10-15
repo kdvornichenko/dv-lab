@@ -122,6 +122,17 @@ type CardValues = { [Key in keyof typeof students.$inferInsert]?: (typeof studen
 
 type CardRate = { rateMinor: number; currency: Currency } | { rateMinor: null; currency: null }
 
+export type CardDetails = {
+	rate?: CardRate
+	defaultLessonMinutes?: number
+	noShowDeducts?: boolean
+	gender?: Gender | null
+	parent?: string | null
+	level?: string | null
+	goals?: string | null
+	timeZone?: string | null
+}
+
 const nextRevision = { revision: sql`${students.revision} + 1`, updatedAt: sql`now()` }
 
 const sameRevision = (expectedRevision: number | undefined) =>
@@ -170,6 +181,26 @@ export function setCardRate(
 	context: CardReadContext
 ): Promise<CardWrite> {
 	return writeCard(executor, id, { rateMinor: rate.rateMinor, currency: rate.currency }, context, expectedRevision)
+}
+
+export function setCardDetails(
+	executor: DbExecutor,
+	id: string,
+	{ rate, ...details }: CardDetails,
+	expectedRevision: number,
+	context: CardReadContext
+): Promise<CardWrite> {
+	const values: CardValues = {
+		...(rate === undefined ? {} : { rateMinor: rate.rateMinor, currency: rate.currency }),
+		...(details.defaultLessonMinutes === undefined ? {} : { defaultLessonMinutes: details.defaultLessonMinutes }),
+		...(details.noShowDeducts === undefined ? {} : { noShowDeducts: details.noShowDeducts }),
+		...(details.gender === undefined ? {} : { gender: details.gender }),
+		...(details.parent === undefined ? {} : { parent: details.parent }),
+		...(details.level === undefined ? {} : { level: details.level }),
+		...(details.goals === undefined ? {} : { goals: details.goals }),
+		...(details.timeZone === undefined ? {} : { timeZone: details.timeZone }),
+	}
+	return writeCard(executor, id, values, context, expectedRevision)
 }
 
 export function archiveCard(

@@ -1,11 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { parseEnv } from 'node:util'
+import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import { ROOT } from './paths.mjs'
 
-const { CHAT_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
-const { ESSAY_FEEDBACK_TOOL } = await import(`${ROOT}/apps/api/src/chat/essay.ts`)
+const { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, REVIEW_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
+const { isReadOnly, toAnthropicTool } = await import(`${ROOT}/apps/api/src/chat/tool-registry.ts`)
+const { ESSAY_TOOL_NAME } = await import(`${ROOT}/apps/api/src/chat/essay.ts`)
+const { CHAT_STEP_TOOLS } = await import(`${ROOT}/packages/contracts/src/index.ts`)
 
 const apiRequire = createRequire(new URL('../../apps/api/package.json', import.meta.url))
 const Anthropic = apiRequire('@anthropic-ai/sdk').default
@@ -50,9 +52,111 @@ function apiKey() {
 	return parseEnv(readFileSync(file, 'utf8')).ANTHROPIC_API_KEY ?? null
 }
 
+const READ_ONLY_EFFECTS = new Set(['read', 'show', 'feedback'])
+const EFFECTS = new Set([...READ_ONLY_EFFECTS, 'write', 'propose', 'page'])
+
+function sameKeys(left, right) {
+	return isDeepStrictEqual([...left].sort(), [...right].sort())
+}
+
+function entryIssues(entry) {
+	const issues = []
+	const shapeKeys = Object.keys(entry.input?.shape ?? {})
+	const keys = Object.keys(entry.properties)
+	if (!sameKeys(keys, shapeKeys)) issues.push(`json ${keys.join(',')} zod ${shapeKeys.join(',')}`)
+	const strayOptional = entry.optional.filter((key) => !keys.includes(key))
+	if (strayOptional.length > 0) issues.push(`optional not in json ${strayOptional.join(',')}`)
+	for (const key of entry.optional) {
+		const field = entry.input.shape?.[key]
+		if (field && !field.safeParse(undefined).success) issues.push(`optional ${key} is required in zod`)
+	}
+	for (const [key, property] of Object.entries(entry.properties)) {
+		const field = entry.input.shape?.[key]
+		if (!field || !Array.isArray(property.enum)) continue
+		const rejected = property.enum.filter((value) => !field.safeParse(value).success)
+		if (rejected.length > 0) issues.push(`zod rejects json enum ${key}=${rejected.join('|')}`)
+	}
+	const sent = [...CHAT_TOOLS, ...REVIEW_TOOLS].find((tool) => tool.name === entry.name)
+	const required = keys.filter((key) => !entry.optional.includes(key))
+	if (!sent || !isDeepStrictEqual(sent.input_schema.required, required))
+		issues.push(`required in json differs from keys without optional`)
+	return issues
+}
+
+const names = CHAT_TOOL_ENTRIES.map((entry) => entry.name)
+check(
+	'registry: tool names are unique',
+	new Set(names).size === names.length,
+	names.filter((name, index) => names.indexOf(name) !== index).join(',')
+)
+check(
+	'registry: CHAT_TOOLS is the registry without the review tools in the same order',
+	isDeepStrictEqual(CHAT_TOOLS, CHAT_TOOL_ENTRIES.filter((entry) => entry.review !== true).map(toAnthropicTool))
+)
+check(
+	'registry: the review turn tools are review_read and apply_review only, review_read is read-only',
+	isDeepStrictEqual(
+		REVIEW_TOOLS.map((tool) => tool.name),
+		['review_read', 'apply_review']
+	) &&
+		isDeepStrictEqual(REVIEW_TOOLS, CHAT_TOOL_ENTRIES.filter((entry) => entry.review === true).map(toAnthropicTool)) &&
+		isReadOnly(CHAT_TOOL_ENTRIES.find((entry) => entry.name === 'review_read')) &&
+		REVIEW_TOOLS.every((tool) => tool.strict !== true)
+)
+const drift = CHAT_TOOL_ENTRIES.map((entry) => [entry.name, entryIssues(entry)]).filter(
+	([, issues]) => issues.length > 0
+)
+check(
+	'registry: json properties, required and enums match the zod input of every tool',
+	drift.length === 0,
+	drift.map(([name, issues]) => `${name}: ${issues.join('; ')}`).join(' | ')
+)
+const badEffects = CHAT_TOOL_ENTRIES.filter((entry) => !EFFECTS.has(entry.effect)).map((entry) => entry.name)
+check('registry: every tool declares a known effect', badEffects.length === 0, badEffects.join(','))
+const readOnlyDrift = CHAT_TOOL_ENTRIES.filter(
+	(entry) => isReadOnly(entry) !== READ_ONLY_EFFECTS.has(entry.effect)
+).map((entry) => entry.name)
+check('registry: read-only means read, show or feedback', readOnlyDrift.length === 0, readOnlyDrift.join(','))
+const implicitStep = CHAT_TOOL_ENTRIES.filter((entry) => !Object.hasOwn(entry, 'step') || entry.step === undefined).map(
+	(entry) => entry.name
+)
+check('registry: every tool declares its step rule or step null', implicitStep.length === 0, implicitStep.join(','))
+const unnamedStep = CHAT_TOOL_ENTRIES.filter(
+	(entry) => entry.step !== null && entry.step !== undefined && !CHAT_STEP_TOOLS.includes(entry.name)
+).map((entry) => entry.name)
+check(
+	'registry: every tool with a step rule is named in CHAT_STEP_TOOLS',
+	unnamedStep.length === 0,
+	unnamedStep.join(',')
+)
+const lostStep = CHAT_STEP_TOOLS.filter(
+	(name) =>
+		!['answer', 'add_note'].includes(name) && !CHAT_TOOL_ENTRIES.some((entry) => entry.name === name && entry.step)
+)
+check('registry: every step tool of the contract has a registry rule', lostStep.length === 0, lostStep.join(','))
+const badStepKeys = CHAT_TOOL_ENTRIES.filter((entry) => {
+	if (!entry.step) return false
+	const keys = Object.keys(entry.properties)
+	const { student, search, period } = entry.step
+	return (
+		(student !== null && !keys.includes(student)) ||
+		(search !== null && !keys.includes(search)) ||
+		(period !== null && !(keys.includes('from') && keys.includes('to')))
+	)
+}).map((entry) => entry.name)
+check('registry: step rules name inputs the tool has', badStepKeys.length === 0, badStepKeys.join(','))
+const essayEntries = ESSAY_TOOLS.map((tool) => CHAT_TOOL_ENTRIES.find((entry) => entry.name === tool.name))
+check(
+	'registry: the essay turn tools are read-only and include essay_feedback',
+	essayEntries.every((entry) => entry !== undefined && isReadOnly(entry)) &&
+		ESSAY_TOOLS.some((tool) => tool.name === ESSAY_TOOL_NAME),
+	ESSAY_TOOLS.map((tool) => tool.name).join(',')
+)
+
 for (const [label, tools] of [
 	['chat tools', CHAT_TOOLS],
-	['essay turn tools', [ESSAY_FEEDBACK_TOOL]],
+	['essay turn tools', ESSAY_TOOLS],
+	['review turn tools', REVIEW_TOOLS],
 ]) {
 	const found = shape(tools)
 	console.log(
@@ -75,7 +179,8 @@ if (key === null) {
 	const client = new Anthropic({ apiKey: key, maxRetries: 0, timeout: 180000 })
 	for (const [label, tools] of [
 		['chat tools', CHAT_TOOLS],
-		['essay turn tools', [ESSAY_FEEDBACK_TOOL]],
+		['essay turn tools', ESSAY_TOOLS],
+		['review turn tools', REVIEW_TOOLS],
 	]) {
 		try {
 			const message = await client.messages.create({

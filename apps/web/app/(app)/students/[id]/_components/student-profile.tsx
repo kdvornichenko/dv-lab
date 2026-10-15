@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 
-import { Archive, ArchiveRestore, MessageSquare, Wallet } from 'lucide-react'
+import { Archive, ArchiveRestore, LoaderCircle, MessageSquare, Wallet } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 import { Avatar } from '@/components/app/avatar'
@@ -24,7 +24,7 @@ import { useToast } from '../../../_components/toasts'
 import { BackButton } from './back-button'
 import { LessonsTab } from './lessons-tab'
 import { NotesTab, type SectionDrafts } from './notes-tab'
-import { OverviewTab } from './overview-tab'
+import { OverviewTab, type OverviewTarget } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
 import { initialProfileTab, type ProfileArrival, type ProfileMark } from './profile-arrival'
 import { ProfileLoading } from './profile-loading'
@@ -99,7 +99,8 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	const [paymentsVersion, setPaymentsVersion] = useState(0)
 	const [lessonsVersion, setLessonsVersion] = useState(0)
 	const [drafts, setDrafts] = useState<SectionDrafts>({})
-	const lessonsInput = useRef<HTMLInputElement>(null)
+	const [openingRequested, setOpeningRequested] = useState(false)
+	const [openingChat, startOpeningChat] = useTransition()
 	const statusButton = useRef<HTMLButtonElement>(null)
 	const recordButton = useRef<HTMLButtonElement>(null)
 	const requests = useRef(0)
@@ -171,8 +172,25 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 	}
 
 	function focusOpeningBalance() {
-		setTab('overview')
-		requestAnimationFrame(() => lessonsInput.current?.focus())
+		changeTab('payments')
+		setOpeningRequested(true)
+	}
+
+	function openTab(target: OverviewTarget, section?: string | null) {
+		setTab(target)
+		if (target === 'notes' && section !== undefined && section !== null) {
+			setMark({ entry: null, section })
+			return
+		}
+		if (mark === null) return
+		setMark(null)
+		dropParams(['entry', 'section'])
+	}
+
+	function askInChat() {
+		startOpeningChat(() => {
+			router.push(`/chat?new=1&student=${id}`)
+		})
 	}
 
 	function closeRecord() {
@@ -255,15 +273,6 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 						<>
 							{student.status === 'active' ? (
 								<Button
-									variant="secondary"
-									leadingIcon={MessageSquare}
-									onClick={() => router.push(`/chat?new=1&student=${id}`)}
-								>
-									Ask in chat
-								</Button>
-							) : null}
-							{student.status === 'active' ? (
-								<Button
 									ref={statusButton}
 									variant="secondary"
 									leadingIcon={Archive}
@@ -281,6 +290,26 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 									Restore
 								</Button>
 							)}
+							{student.status === 'active' ? (
+								<Button
+									data-slot="ask-in-chat"
+									variant="secondary"
+									leadingIcon={openingChat ? undefined : MessageSquare}
+									disabled={openingChat}
+									aria-busy={openingChat}
+									className="min-w-36 max-sm:h-11"
+									onClick={askInChat}
+								>
+									{openingChat ? (
+										<span className="inline-flex items-center gap-1.5">
+											<LoaderCircle aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+											Opening chat…
+										</span>
+									) : (
+										'Ask in chat'
+									)}
+								</Button>
+							) : null}
 							<Button ref={recordButton} leadingIcon={Wallet} onClick={() => setRecordOpen(true)}>
 								Record payment
 							</Button>
@@ -305,14 +334,26 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 							student={student}
 							mainTimeZone={mainTimeZone}
 							asOf={asOf}
-							lessonsInputRef={lessonsInput}
+							threshold={threshold}
+							refreshKey={lessonsVersion}
 							onSaved={refresh}
 							autoOpenEdit={editRequested}
 							onAutoOpened={() => setEditRequested(false)}
+							onOpenTab={openTab}
+							onSetOpeningBalance={focusOpeningBalance}
 						/>
 					</TabPanel>
 					<TabPanel value="lessons" className="mt-4">
-						<LessonsTab student={student} mainTimeZone={mainTimeZone} asOf={asOf} refreshKey={lessonsVersion} />
+						<LessonsTab
+							student={student}
+							mainTimeZone={mainTimeZone}
+							asOf={asOf}
+							refreshKey={lessonsVersion}
+							onOpenPayments={(paymentId) => {
+								changeTab('payments')
+								if (paymentId !== null) setOpenPayment(paymentId)
+							}}
+						/>
 					</TabPanel>
 					<TabPanel value="notes" className="mt-4">
 						<NotesTab
@@ -329,7 +370,7 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 						/>
 					</TabPanel>
 					<TabPanel value="vocabulary" className="mt-4">
-						<VocabularyTab student={student} />
+						<VocabularyTab student={student} timeZone={mainTimeZone} asOf={asOf} />
 					</TabPanel>
 					<TabPanel value="payments" className="mt-4">
 						<PaymentsTab
@@ -343,6 +384,8 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 								dropParams(['payment'])
 							}}
 							onChanged={() => void refresh()}
+							openingRequested={openingRequested}
+							onOpeningOpened={() => setOpeningRequested(false)}
 						/>
 					</TabPanel>
 				</Tabs>

@@ -569,31 +569,42 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 4. Students shows the four-column table with sorting, filters in the URL and the payment ring; the profile has Overview, Lessons (date range, outcomes, totals) and Payments (Opening balance).
 5. The app installs as a PWA and sends "lesson soon" and "student about to pay" pushes.
 
-**Plans**: 18 plans, 50 tasks, 10 waves; execution pending. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
-- [ ] 25.2-01-PLAN.md — dependencies, Firefox for checks, schema M1-M9
-- [ ] 25.2-02-PLAN.md — dialog kinds, Firefox fade, long titles, chat small fixes
-- [ ] 25.2-03-PLAN.md — core: chronological ledger (ARCH-A1), short balance, title matching
-- [ ] 25.2-04-PLAN.md — note blocks with revision (ARCH-A2), vocabulary Removed, recent comments
-- [ ] 25.2-05-PLAN.md — ledger loader, Last payment, Lessons route, since_payment, follow-up
-- [ ] 25.2-06-PLAN.md — Students table: columns, palette, sort and filters in URL, ring
-- [ ] 25.2-07-PLAN.md — chat tool registry (ARCH-A3)
-- [ ] 25.2-08-PLAN.md — profile: Lessons tab, Overview, Opening balance in Payments
-- [ ] 25.2-09-PLAN.md — Details from chat, calendar search, /recap and /essay prompts in the database
-- [ ] 25.2-10-PLAN.md — Notes blocks and Vocabulary Removed (web)
-- [ ] 25.2-11-PLAN.md — notes and vocabulary from chat by the diff rule
-- [ ] 25.2-12-PLAN.md — chat facts v94, follow-up, ChangeCardDetails, Settings prompts and privacy
-- [ ] 25.2-13-PLAN.md — notes review: turn mode, one transaction, review offer
-- [ ] 25.2-14-PLAN.md — ChatNoteChange, empty chat, long essay (web)
-- [ ] 25.2-15-PLAN.md — push: VAPID, subscriptions, presence, scheduler, delivery
-- [ ] 25.2-16-PLAN.md — ChatReview, Review now (web)
-- [ ] 25.2-17-PLAN.md — PWA: manifest, service worker, notification settings, presence
-- [ ] 25.2-18-PLAN.md — docs, build, knip, full check pass
+**Plans**: 29 plans, 72 tasks, 17 waves; all 29 executed. See [25.2-PLAN-INDEX.md](phases/25.2-polish/25.2-PLAN-INDEX.md).
+- [x] 25.2-01-PLAN.md — dependencies, Firefox for checks, schema M1-M9
+- [x] 25.2-02-PLAN.md — dialog kinds, Firefox fade, long titles, chat small fixes
+- [x] 25.2-03-PLAN.md — core: chronological ledger (ARCH-A1), short balance, title matching
+- [x] 25.2-04-PLAN.md — note blocks with revision (ARCH-A2), vocabulary Removed, recent comments
+- [x] 25.2-05-PLAN.md — ledger loader, Last payment, Lessons route, since_payment, follow-up
+- [x] 25.2-06-PLAN.md — Students table: columns, palette, sort and filters in URL, ring
+- [x] 25.2-07-PLAN.md — chat tool registry (ARCH-A3)
+- [x] 25.2-08-PLAN.md — profile: Lessons tab
+- [x] 25.2-09-PLAN.md — Details from chat, removal phrase (item 52), tool list checked against the registry
+- [x] 25.2-10-PLAN.md — Notes blocks (web)
+- [x] 25.2-11-PLAN.md — notes and vocabulary from chat by the diff rule
+- [x] 25.2-12-PLAN.md — chat facts v94, answer block, follow-up, dates since the last payment
+- [x] 25.2-13-PLAN.md — notes review: turn mode, one transaction, review offer
+- [x] 25.2-14-PLAN.md — ChatNoteChange, empty chat, long essay (web)
+- [x] 25.2-15-PLAN.md — push: VAPID config, subscriptions, link builders, notification settings, presence
+- [x] 25.2-16-PLAN.md — ChatReview, Review now (web)
+- [x] 25.2-17-PLAN.md — PWA: manifest, icons, head, proxy exceptions
+- [x] 25.2-18-PLAN.md — docs, build, knip, full check pass
+- [x] 25.2-19-PLAN.md — profile: Overview, Opening balance in Payments, skeleton, Ask in chat
+- [x] 25.2-20-PLAN.md — calendar search from chat (time, duration, calendar_events)
+- [x] 25.2-21-PLAN.md — /recap and /essay prompts in the database
+- [x] 25.2-22-PLAN.md — Vocabulary Removed and review date line (web)
+- [x] 25.2-23-PLAN.md — ChangeCardDetails, Review archive, step words (web)
+- [x] 25.2-24-PLAN.md — Settings prompts and privacy, Count lessons on core (web)
+- [x] 25.2-25-PLAN.md — service worker: push to a shown notification, tap, resubscribe
+- [x] 25.2-26-PLAN.md — notification settings, subscription client, presence (web)
+- [x] 25.2-27-PLAN.md — push: scheduler (lesson soon, pays soon), presence suppression, web-push delivery
+- [x] 25.2-28-PLAN.md — Google event description parsed on the server into blocks, safe links, URL location label (design v104)
+- [x] 25.2-29-PLAN.md — event description blocks, links and one-line URL location in EventDetails (web, design v104)
 **UI hint**: yes
 **Notes**: `/edvibe` and the command builder are Phase 25.3 and wait for the owner's template examples.
 
 ### Phase 25.3: Chat Command Builder
 
-**Goal**: The owner creates chat commands in Settings with their own prompt and tool set; `/edvibe` produces copy blocks in Edvibe format. The prompt text of built-in `/recap` and `/essay` already moves to the database in Phase 25.2.
+**Goal**: The owner creates chat commands in Settings with their own prompt and tool set; `/edvibe` produces copy blocks in Edvibe format.
 **Depends on**: Phase 25.2
 **Plans**: not planned; waits for the owner's list of Edvibe templates with examples
 **UI hint**: yes
@@ -637,6 +648,6 @@ Superseded by Phase 25.1 (owner decisions D5-D10, 2026-10-12). Its research and 
 | 23. Confirmed Chat Changes and Entry Points      | v2.0      | 14/14          | Complete    | 2026-10-14 |
 | 24. Google Calendar Connection and Outbound Sync | v2.0      | 13/14          | In Progress | -          |
 | 25. Google Calendar Two-Way Sync                 | v2.0      | 0/12           | Planned     | -          |
-| 25.2. Polish before IELTS                        | v2.0      | 0/18           | Planned     | -          |
+| 25.2. Polish before IELTS                        | v2.0      | 29/29          | In Progress | -          |
 | 25.3. Chat Command Builder                       | v2.0      | 0/0            | Not planned | -          |
 | 26. IELTS Section                                | v2.0      | 0/40           | Planned     | -          |

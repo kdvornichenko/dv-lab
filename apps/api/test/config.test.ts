@@ -34,6 +34,7 @@ describe('loadConfig', () => {
 			databaseUrl,
 			calendar: { enabled: false },
 			chat: { enabled: false },
+			push: { enabled: false },
 		})
 	})
 

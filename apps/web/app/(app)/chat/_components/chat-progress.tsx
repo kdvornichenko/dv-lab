@@ -30,33 +30,49 @@ export function stepWords(step: ChatStep): string {
 			return step.studentName === undefined ? 'Reading profile and notes' : `Reading ${possessive} profile and notes`
 		case 'lessons':
 		case 'lesson_dates':
-			return step.from !== undefined && step.to !== undefined
-				? `Reading lessons from ${periodText(step.from, step.to, ' to ')}`
-				: `Reading ${possessive} lessons`
+			if (step.from !== undefined && step.to !== undefined)
+				return `Reading lessons from ${periodText(step.from, step.to, ' to ')}`
+			return step.tool === 'lesson_dates' ? 'Reading lessons since the last payment' : `Reading ${possessive} lessons`
 		case 'mark_lesson':
 			return `Marking ${possessive} lesson`
 		case 'add_note':
-			return `Saving a note on ${possessive} card`
+		case 'note_write':
+			return `Updating ${possessive} notes`
+		case 'note_block_create':
+			return 'Creating a notes block'
+		case 'note_block_delete':
+			return 'Preparing to delete a notes block'
+		case 'vocabulary_add':
+		case 'vocabulary_remove':
+			return `Updating ${possessive} vocabulary`
 		case 'add_comment':
 			return 'Saving a comment on the lesson'
 		case 'propose_lesson_change':
 			return 'Preparing a lesson change'
 		case 'propose_payment':
-			return 'Preparing a payment'
+			return step.studentName === undefined ? 'Preparing a payment' : `Preparing ${possessive} payment`
 		case 'student_payments':
 			return step.studentName === undefined ? 'Reading payments' : `Reading ${possessive} payments`
 		case 'propose_payment_delete':
-			return 'Preparing a payment deletion'
+			return `Preparing to delete ${possessive} payment`
 		case 'propose_student':
-			return 'Preparing a student card'
+			return 'Preparing a new student card'
 		case 'propose_rate':
-			return 'Preparing a rate change'
+			return `Preparing ${possessive} rate change`
+		case 'propose_details':
+			return `Changing ${possessive} details`
 		case 'propose_archive':
-			return 'Preparing to archive'
+			return `Preparing to archive ${name}`
 		case 'propose_entry_removal':
-			return 'Preparing to remove an entry'
+			return 'Preparing to remove a comment'
 		case 'propose_bulk_move':
-			return 'Preparing to move lessons'
+			return `Checking ${possessive} lessons to move`
+		case 'calendar_events':
+			return 'Searching the calendar'
+		case 'review_read':
+			return `Reading ${possessive} notes and vocabulary`
+		case 'apply_review':
+			return 'Looking for duplicates and conflicts'
 		case 'essay_feedback':
 			return 'Reading the essay'
 		case 'answer':
@@ -149,12 +165,14 @@ export function ChatProgress({
 					className="-ml-2 self-start text-caption whitespace-nowrap text-muted-foreground pointer-coarse:h-8"
 					onClick={() => setExpanded((value) => !value)}
 				>
-					{expanded ? 'Hide steps' : 'Show steps'}
-					<ChevronDown
-						size={14}
-						aria-hidden
-						className={cn('shrink-0 transition-transform duration-120', expanded && 'rotate-180')}
-					/>
+					<span className="inline-flex flex-nowrap items-center gap-1 whitespace-nowrap">
+						{expanded ? 'Hide steps' : 'Show steps'}
+						<ChevronDown
+							size={12}
+							aria-hidden
+							className={cn('shrink-0 transition-transform duration-120', expanded && 'rotate-180')}
+						/>
+					</span>
 				</Button>
 			) : null}
 			<div

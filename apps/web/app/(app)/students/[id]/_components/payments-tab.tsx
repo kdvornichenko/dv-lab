@@ -20,6 +20,7 @@ import type { PaymentRow, PaymentsResponse, StudentDetail } from '@dv-lab/contra
 import { formatMoney } from '@dv-lab/core'
 
 import { useToast } from '../../../_components/toasts'
+import { OpeningBalanceRow } from './opening-balance-panel'
 import { RecordPaymentDialog } from './record-payment-dialog'
 import { SetCurrencyDialog } from './set-currency-dialog'
 
@@ -88,6 +89,8 @@ interface PaymentsTabProps {
 	openPaymentId: string | null
 	onOpened: () => void
 	onChanged: () => void
+	openingRequested: boolean
+	onOpeningOpened: () => void
 }
 
 export function PaymentsTab({
@@ -98,6 +101,8 @@ export function PaymentsTab({
 	openPaymentId,
 	onOpened,
 	onChanged,
+	openingRequested,
+	onOpeningOpened,
 }: PaymentsTabProps) {
 	const toast = useToast()
 	const [state, setState] = useState<ReadState>({ kind: 'loading' })
@@ -158,14 +163,32 @@ export function PaymentsTab({
 		requestAnimationFrame(() => document.getElementById(`set-currency-${payment.id}`)?.focus())
 	}
 
+	const openingRow = (
+		<OpeningBalanceRow
+			key="opening-balance"
+			student={student}
+			mainTimeZone={mainTimeZone}
+			asOf={asOf}
+			openRequested={openingRequested}
+			onOpened={onOpeningOpened}
+			onChanged={onChanged}
+		/>
+	)
 	if (state.kind === 'loading')
 		return (
 			<div className="flex flex-col gap-4">
+				{openingRow}
 				<SkeletonLine box="h-5" className="w-36" />
 				<SkeletonTable columns={skeletonColumns} />
 			</div>
 		)
-	if (state.kind === 'error') return <ReadError screen="payments" onRefresh={load} />
+	if (state.kind === 'error')
+		return (
+			<div className="flex flex-col gap-4">
+				{openingRow}
+				<ReadError screen="payments" onRefresh={load} />
+			</div>
+		)
 	const goneRow = missing ? (
 		<Banner status="info" role="alert" dismissible onDismiss={() => setMissing(false)}>
 			<BannerTitle>{GONE_TEXT}</BannerTitle>
@@ -175,6 +198,7 @@ export function PaymentsTab({
 		return (
 			<div className="flex flex-col gap-4">
 				{goneRow}
+				{openingRow}
 				<EmptyLine />
 			</div>
 		)
@@ -182,6 +206,7 @@ export function PaymentsTab({
 	return (
 		<div className="flex flex-col gap-4">
 			{goneRow}
+			{openingRow}
 			<Toolbar payments={state.payments} />
 			<Elevated offset={1} shadowLevel={2} className="w-0 min-w-full overflow-hidden rounded-2xl">
 				<Table className="text-body">

@@ -1,5 +1,3 @@
-import type Anthropic from '@anthropic-ai/sdk'
-
 import { z } from 'zod'
 
 import { CHAT_ESSAY_TASKS } from '@dv-lab/contracts'
@@ -12,19 +10,6 @@ export const essayFeedbackInput = z.strictObject({
 		.nullish()
 		.transform((value) => value ?? null),
 })
-
-export const ESSAY_FEEDBACK_TOOL: Anthropic.Tool = {
-	name: ESSAY_TOOL_NAME,
-	description:
-		'Call first when the teacher pasted an essay or a piece of writing and asks for feedback. task is task1 or task2 only when the teacher named the task or pasted the task prompt; otherwise omit it. The app shows that the feedback is an approximate estimate.',
-	strict: true,
-	input_schema: {
-		type: 'object',
-		properties: { task: { type: 'string', enum: [...CHAT_ESSAY_TASKS] } },
-		required: [],
-		additionalProperties: false,
-	},
-}
 
 export const ESSAY_NOTE =
 	'The app shows the approximate-estimate label. Give qualitative feedback only: no bands, scores or numbers of marks.'

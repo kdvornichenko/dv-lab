@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { parseEnv } from 'node:util'
+import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, call, quote, sql, studentCookie, teacherCookie } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
 
-const SECTIONS = ['payment', 'cards', 'deletions', 'essay']
+const SECTIONS = ['payment', 'cards', 'deletions', 'essay', 'details']
 const section = process.argv[2]
 if (!SECTIONS.includes(section)) {
 	console.log(`usage: node scripts/dev-checks/chat-changes.mjs ${SECTIONS.join('|')}`)
@@ -32,6 +32,7 @@ const PREFIXES = {
 	cards: 'Alex Example 234',
 	deletions: 'Alex Example 235',
 	essay: 'Alex Example 2395',
+	details: 'Alex Example 256',
 }
 const PREFIX = PREFIXES[section]
 const ACTIVE = ['accepted', 'running']
@@ -1044,6 +1045,195 @@ async function cards() {
 	)
 }
 
+const sameFields = (block, fields) => isDeepStrictEqual(block?.change?.fields, fields)
+
+const keptExcept = (before, after, keys) =>
+	Object.keys(before).every((key) => key === 'revision' || keys.includes(key) || before[key] === after[key])
+
+async function details() {
+	const chatId = await conversation()
+	const propose = (studentId, name, text, input) =>
+		askTool(chatId, 'propose_details', { student_id: studentId, ...input }, text, { studentId, name }, QUIET_CARD)
+
+	const name0 = `${PREFIX}0`
+	const card0 = await card(name0)
+	const start0 = cardRow(card0)
+	const level = await propose(card0, name0, `@${name0} уровень B2`, { level_text: 'B2' })
+	check(
+		'one field gives one set_details proposal with the field before and after and changes nothing',
+		level.block?.state === 'proposed' &&
+			level.block.change.operation === 'set_details' &&
+			level.block.change.studentId === card0 &&
+			level.block.change.studentName === name0 &&
+			sameFields(level.block, [{ field: 'level', before: null, after: 'B2' }]) &&
+			actionsOf(level.teacherId).length === 1 &&
+			JSON.stringify(cardRow(card0)) === JSON.stringify(start0),
+		JSON.stringify(level.block)
+	)
+	check(
+		'the tool result says proposed and names the student',
+		level.tool?.is_error !== true &&
+			String(level.tool?.content).includes('"status":"proposed"') &&
+			String(level.tool?.content).includes(name0),
+		JSON.stringify(level.tool)
+	)
+	const levelConfirmed = await confirm(level.block.actionId)
+	const level0 = cardRow(card0)
+	check(
+		'Confirm writes the level only and moves the revision by one',
+		valid(levelConfirmed) &&
+			levelConfirmed.json.block.state === 'applied' &&
+			levelConfirmed.json.block.receipt?.studentId === card0 &&
+			level0.level === 'B2' &&
+			level0.revision === start0.revision + 1 &&
+			keptExcept(start0, level0, ['level']),
+		JSON.stringify({ start0, level0, block: levelConfirmed.json?.block })
+	)
+	const levelAgain = await confirm(level.block.actionId)
+	check(
+		'a repeated confirm writes nothing more',
+		valid(levelAgain) && levelAgain.json.block.state === 'applied' && cardRow(card0).revision === level0.revision,
+		JSON.stringify(levelAgain.json)
+	)
+	const same = await propose(card0, name0, `@${name0} уровень B2`, { level_text: 'B2' })
+	check(
+		'a value equal to the current one refuses with no_change and stores no proposal',
+		refusedWith(same, 'no_change') && actionsOf(same.teacherId).length === 0,
+		JSON.stringify(same.tool)
+	)
+
+	const name1 = `${PREFIX}1`
+	const card1 = await card(name1)
+	const start1 = cardRow(card1)
+	const several = await propose(
+		card1,
+		name1,
+		`@${name1} урок теперь 90 минут, неявки не списывать, цели Exam preparation`,
+		{ lesson_minutes_text: '90', no_show_deducts: false, goals_text: 'Exam preparation' }
+	)
+	check(
+		'several fields come in one card in the Details order',
+		several.block?.change.operation === 'set_details' &&
+			sameFields(several.block, [
+				{ field: 'lessonMinutes', before: 60, after: 90 },
+				{ field: 'noShowDeducts', before: true, after: false },
+				{ field: 'goals', before: null, after: 'Exam preparation' },
+			]) &&
+			actionsOf(several.teacherId).length === 1 &&
+			JSON.stringify(cardRow(card1)) === JSON.stringify(start1),
+		JSON.stringify(several.block)
+	)
+	const severalConfirmed = await confirm(several.block.actionId)
+	const several1 = cardRow(card1)
+	check(
+		'Save changes writes the three fields at once with one revision step',
+		valid(severalConfirmed) &&
+			severalConfirmed.json.block.state === 'applied' &&
+			several1.minutes === 90 &&
+			several1.no_show === false &&
+			several1.goals === 'Exam preparation' &&
+			several1.revision === start1.revision + 1 &&
+			keptExcept(start1, several1, ['minutes', 'no_show', 'goals']),
+		JSON.stringify({ start1, several1 })
+	)
+	const mixed = await propose(card1, name1, `@${name1} ставка 5000, пол женский, урок 90 минут`, {
+		rate_text: '5000',
+		gender: 'female',
+		lesson_minutes_text: '90',
+	})
+	check(
+		'the rate and the gender come with the rate pair and the lesson length equal to the current one is dropped',
+		sameFields(mixed.block, [
+			{ field: 'rate', before: { rateMinor: 400000, currency: 'RUB' }, after: { rateMinor: 500000, currency: 'RUB' } },
+			{ field: 'gender', before: null, after: 'female' },
+		]),
+		JSON.stringify(mixed.block)
+	)
+	const mixedDeclined = await decline(mixed.block?.actionId)
+	check(
+		'Keep details declines and the card stays as it was',
+		valid(mixedDeclined) &&
+			mixedDeclined.json.block.state === 'declined' &&
+			JSON.stringify(cardRow(card1)) === JSON.stringify(several1),
+		JSON.stringify(mixedDeclined.json)
+	)
+
+	const name2 = `${PREFIX}2`
+	const card2 = await card(name2)
+	const start2 = cardRow(card2)
+	const foreignGoals = await propose(card2, name2, `@${name2} поменяй цели`, { goals_text: 'Speaking' })
+	const foreignMinutes = await propose(card2, name2, `@${name2} урок подлиннее`, { lesson_minutes_text: '75' })
+	const foreignRate = await propose(card2, name2, `@${name2} новая ставка`, { rate_text: '6000' })
+	check(
+		'a value that is not in the teacher message refuses without a card',
+		refusedWith(foreignGoals, 'text_not_in_message') &&
+			refusedWith(foreignMinutes, 'lesson_minutes_not_in_message') &&
+			refusedWith(foreignRate, 'amount_not_in_message') &&
+			actionsOf(foreignGoals.teacherId).length === 0 &&
+			actionsOf(foreignMinutes.teacherId).length === 0 &&
+			actionsOf(foreignRate.teacherId).length === 0 &&
+			JSON.stringify(cardRow(card2)) === JSON.stringify(start2),
+		JSON.stringify({ goals: foreignGoals.tool, minutes: foreignMinutes.tool, rate: foreignRate.tool })
+	)
+	const unknownZone = await propose(card2, name2, `@${name2} пояс Hanoy`, { time_zone: 'Asia/Hanoy' })
+	check(
+		'an unknown time zone refuses with unknown_time_zone and no card',
+		refusedWith(unknownZone, 'unknown_time_zone') && actionsOf(unknownZone.teacherId).length === 0,
+		JSON.stringify(unknownZone.tool)
+	)
+	const moscow = await propose(card2, name2, `@${name2} пояс Москва`, { time_zone: 'Europe/Moscow' })
+	check(
+		'the IANA zone Europe/Moscow gives a proposal from Same as teacher',
+		sameFields(moscow.block, [{ field: 'timeZone', before: null, after: 'Europe/Moscow' }]),
+		JSON.stringify(moscow.block)
+	)
+	const moscowConfirmed = await confirm(moscow.block?.actionId)
+	const zone2 = cardRow(card2)
+	check(
+		'Confirm writes the time zone and moves the revision by one',
+		valid(moscowConfirmed) &&
+			moscowConfirmed.json.block.state === 'applied' &&
+			zone2.zone === 'Europe/Moscow' &&
+			zone2.revision === start2.revision + 1 &&
+			keptExcept(start2, zone2, ['zone']),
+		JSON.stringify(zone2)
+	)
+	const cleared = await propose(card2, name2, `@${name2} пояс как у меня`, { time_zone: 'clear' })
+	check(
+		'time_zone clear proposes Same as teacher',
+		sameFields(cleared.block, [{ field: 'timeZone', before: 'Europe/Moscow', after: null }]),
+		JSON.stringify(cleared.block)
+	)
+
+	const name3 = `${PREFIX}3`
+	const card3 = await card(name3)
+	const staleLevel = await propose(card3, name3, `@${name3} уровень C1`, { level_text: 'C1' })
+	const beforeEdit = cardRow(card3)
+	const edited = await as('PATCH', `/students/${card3}`, {
+		...fullBody(beforeEdit, { goals: 'Goals from the form' }),
+		expectedRevision: beforeEdit.revision,
+	})
+	if (edited.status !== 200) throw new Error(`card edit returned ${edited.status}`)
+	const staleConfirmed = await confirm(staleLevel.block?.actionId)
+	const stale3 = cardRow(card3)
+	check(
+		'a form edit between the proposal and Confirm makes it stale and the level is not written',
+		valid(staleConfirmed) &&
+			staleConfirmed.json.block.state === 'stale' &&
+			staleConfirmed.json.block.issue === 'student_changed' &&
+			stale3.level === null &&
+			stale3.goals === 'Goals from the form' &&
+			stale3.revision === beforeEdit.revision + 1,
+		JSON.stringify({ block: staleConfirmed.json?.block, stale3 })
+	)
+	const staleRead = await shown(chatId, staleLevel.block?.actionId)
+	check(
+		'after reload the proposal reads as stale through the conversation contract',
+		staleRead?.state === 'stale' && staleRead.change.operation === 'set_details',
+		JSON.stringify(staleRead)
+	)
+}
+
 const QUIET_DELETE = 'I prepared the deletion. Confirm it below.'
 
 function toolRecords(result) {
@@ -1672,6 +1862,7 @@ try {
 	if (section === 'cards') await cards()
 	if (section === 'deletions') await deletions()
 	if (section === 'essay') await essay()
+	if (section === 'details') await details()
 	done = true
 } catch (err) {
 	failures++

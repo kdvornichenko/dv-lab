@@ -226,7 +226,7 @@ function ModelMenu({
 						/>
 					}
 				>
-					<span className="max-w-36 min-w-0 truncate @max-[376px]:max-w-24">{name}</span>
+					<span className="max-w-36 min-w-0 truncate leading-5 @max-[376px]:max-w-24">{name}</span>
 					<ChevronDown size={12} aria-hidden className="shrink-0" />
 				</DropdownTrigger>
 			</Tooltip>

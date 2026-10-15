@@ -39,6 +39,7 @@ import { cn } from '@/lib/utils'
 import {
 	calendarEventDetails,
 	calendarIssue,
+	placeView,
 	type CalendarEditScope,
 	type CalendarEventDetails as EventDetailsData,
 	type CalendarEventView,
@@ -50,6 +51,7 @@ import { addDays, scheduleDate } from '@dv-lab/core'
 import { useToast } from '../../_components/toasts'
 import { ManualAssign, SuggestionBox, type AssignBusy, type AssignFailure } from './event-assign'
 import { EventEditForm, type DirectState } from './event-form'
+import { EventDescription, EventPlace } from './event-text'
 import type { WriteRunner } from './optimistic-writes'
 import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
 import { ScopeDialog } from './scope-dialog'
@@ -469,14 +471,14 @@ export function CalendarEventDialog({
 							<DetailRow icon={Info}>
 								<EventTime event={event} timeZone={timeZone} secondZone={secondZone} currentYear={currentYear} />
 							</DetailRow>
-							{event.location ? (
+							{placeView(event.location) !== null ? (
 								<DetailRow icon={MapPin}>
-									<span>{event.location}</span>
+									<EventPlace location={event.location} />
 								</DetailRow>
 							) : null}
-							{latest?.description ? (
+							{latest !== null && latest.descriptionBlocks.length > 0 ? (
 								<DetailRow icon={Text}>
-									<div className="scroll-fade max-h-40 overflow-y-auto whitespace-pre-wrap">{latest.description}</div>
+									<EventDescription blocks={latest.descriptionBlocks} />
 								</DetailRow>
 							) : null}
 							<div className="flex flex-col gap-1 pl-7 text-body text-muted-foreground">

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 
-import { RefreshCw } from 'lucide-react'
+import { Info, RefreshCw } from 'lucide-react'
 
 import { DateField } from '@/components/app/date-field'
 import { READ_ISSUES } from '@/components/app/google-calendar-state'
@@ -386,12 +386,14 @@ export function EventExtraRows({
 	palette,
 	custom,
 	disabled,
+	descriptionFormatted = false,
 }: {
 	prefix: string
 	values: EventFields
 	palette: PaletteState
 	custom: { background: string | null } | null
 	disabled: boolean
+	descriptionFormatted?: boolean
 }) {
 	return (
 		<>
@@ -425,18 +427,34 @@ export function EventExtraRows({
 				</div>
 			</div>
 			<div className="flex min-w-0 flex-col gap-2">
-				<label htmlFor={`${prefix}-description`} className="text-body text-muted-foreground">
+				<label
+					htmlFor={descriptionFormatted ? undefined : `${prefix}-description`}
+					className="text-body text-muted-foreground"
+				>
 					Description
 				</label>
-				<Textarea
-					id={`${prefix}-description`}
-					value={values.description}
-					onChange={(event) => values.setDescription(event.target.value)}
-					placeholder="Description"
-					maxLength={8192}
-					disabled={disabled}
-					className="max-h-44 min-h-19 overflow-y-auto pointer-coarse:max-h-52"
-				/>
+				{descriptionFormatted ? (
+					<div
+						data-slot="event-description-note"
+						className="flex items-start gap-3 rounded-lg bg-surface-2 p-3 ring-1 ring-border ring-inset"
+					>
+						<Info size={16} aria-hidden className="mt-0.5 shrink-0 text-muted-foreground" />
+						<p className="min-w-0 text-body text-muted-foreground">
+							This description has formatting, so it can only be edited in Google Calendar. It stays as it is when you
+							save.
+						</p>
+					</div>
+				) : (
+					<Textarea
+						id={`${prefix}-description`}
+						value={values.description}
+						onChange={(event) => values.setDescription(event.target.value)}
+						placeholder="Description"
+						maxLength={8192}
+						disabled={disabled}
+						className="max-h-44 min-h-19 overflow-y-auto pointer-coarse:max-h-52"
+					/>
+				)}
 			</div>
 		</>
 	)
@@ -703,6 +721,7 @@ export function EventEditForm({
 					palette={palette}
 					custom={details.color.custom ? { background: details.color.background } : null}
 					disabled={timeOnly}
+					descriptionFormatted={details.descriptionFormatted}
 				/>
 			</div>
 			<EventFooter

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 
-import { chatBlock, chatChangeProposalBlock } from '../../packages/contracts/src/chat.ts'
+import { CHAT_FOLLOW_UP_TEXT, chatBlock, chatChangeProposalBlock } from '../../packages/contracts/src/chat.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
@@ -99,6 +99,8 @@ function removeCards() {
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${where})`
 	).rows.map((row) => row.id)
 	removeConversations(conversations)
+	sql(`delete from student_notes where student_id in (select id from students where ${where})`)
+	sql(`delete from student_sections where student_id in (select id from students where ${where})`)
 	sql(`delete from payments where student_id in (select id from students where ${where})`)
 	const result = sql(`delete from students where ${where}`)
 	console.log(`fixture cards removed ${result.rowCount}`)
@@ -381,9 +383,9 @@ async function detectApiOrigin() {
 
 async function sectionForms() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	try {
 		removeFormsCards()
 		await withBrowser(
@@ -474,7 +476,7 @@ async function sectionForms() {
 				await row.waitFor({ timeout: 30000 })
 				check(
 					'the profile and Students show the same balance after the correction',
-					header.includes(phrase) && (await row.innerText()).includes(phrase),
+					header.includes(phrase) && (await row.innerText()).includes(core.balancePhrase(minutes, 60, { short: true })),
 					phrase
 				)
 
@@ -689,6 +691,8 @@ function removeProposalCards() {
 	removeConversations(conversations)
 	sql(`delete from student_notes where student_id in (${cards})`)
 	sql(`delete from lesson_comments where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
 	sql(`delete from student_sections where student_id in (${cards})`)
 	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
 	sql(`delete from payments where student_id in (${cards})`)
@@ -821,9 +825,9 @@ async function fitsWidth(page, width) {
 
 async function sectionProposals() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(PROPOSAL_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -1019,8 +1023,15 @@ async function sectionProposals() {
 					(await stateOf(removal)) === 'proposed' &&
 						text.includes('Permanent student deletion is not available. You can archive this student instead.') &&
 						!text.includes('The account can still sign in') &&
-						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Archive student', 'Keep student active']),
+						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Review archive']),
 					text.replace(/\n/g, ' | ')
+				)
+				await removal.getByRole('button', { name: 'Review archive' }).click()
+				check(
+					'Review archive opens the archive card in place',
+					(await removal.getByRole('button', { name: 'Archive student' }).isVisible()) &&
+						(await removal.getByRole('button', { name: 'Review archive' }).count()) === 0 &&
+						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Archive student', 'Keep student active'])
 				)
 				await shot(page, 'changes-proposals', 'delete-student')
 				await removal.getByRole('button', { name: 'Archive student' }).click()
@@ -1299,6 +1310,9 @@ const OUTCOME_LINE = 'I could not prepare that change.'
 const WIDTHS = [390, 375, 320]
 
 function removeBulkCard() {
+	const bulkCards = `select id from students where display_name = ${q(BULK_NAME)} and import_key is null`
+	sql(`delete from student_notes where student_id in (${bulkCards})`)
+	sql(`delete from student_sections where student_id in (${bulkCards})`)
 	sql(`delete from students where display_name = ${q(BULK_NAME)} and import_key is null`)
 	console.log('fixture card removed')
 }
@@ -1404,9 +1418,9 @@ const withStates = (targets, states) =>
 
 async function sectionBulk() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(BULK_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -1452,8 +1466,8 @@ async function sectionBulk() {
 				)
 				await page.getByRole('button', { name: 'Show steps' }).click()
 				check(
-					'the step of the bulk tool reads Preparing to move lessons',
-					(await page.getByText('Preparing to move lessons').count()) > 0
+					'the step of the bulk tool names the lessons to move',
+					(await page.getByText(/Checking .* lessons to move/).count()) > 0
 				)
 				check('the api log has no message text', !started.logs().includes('from: tuesday'))
 
@@ -1747,9 +1761,9 @@ const ESSAY_TEXT =
 
 async function sectionEssay() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(BULK_PORT, '120')
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -2006,9 +2020,9 @@ async function titleShown(page, id, title) {
 
 async function sectionTitle() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(TITLE_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -2193,7 +2207,1625 @@ async function sectionTitle() {
 	}
 }
 
+const FACTS_WHERE = `display_name like 'Alex Example 240_' and import_key is null`
+const FN = { pay: 'Alex Example 2400', none: 'Alex Example 2401' }
+const FACTS = '[data-slot="chat-facts"]'
+const FOLLOW_UP = '[data-slot="chat-follow-up"]'
+const DATES = '[data-slot="chat-lesson-dates"]'
+const REPLY_FOOTER = '[data-slot="chat-reply-footer"]'
+
+function removeFactsCards(conversations = []) {
+	removeConversations(conversations)
+	const cards = `select id from students where ${FACTS_WHERE}`
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${FACTS_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(left)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${FACTS_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+function factsLayout(group) {
+	const grid = group.querySelector('[data-slot="chat-facts-grid"]')
+	const checked = group.querySelector('[data-slot="chat-facts-checked"]')
+	const avatar = group.querySelector('span')
+	const name = group.querySelector('span[title]')
+	const box = group.getBoundingClientRect()
+	const gridBox = grid.getBoundingClientRect()
+	const checkedBox = checked.getBoundingClientRect()
+	const gridStyle = getComputedStyle(grid)
+	const groupStyle = getComputedStyle(group)
+	const checkedStyle = getComputedStyle(checked)
+	const cells = [...grid.children].map((cell) => {
+		const rect = cell.getBoundingClientRect()
+		return { left: rect.left, width: rect.width }
+	})
+	return {
+		padding: groupStyle.paddingLeft,
+		left: box.left,
+		avatarLeft: avatar.getBoundingClientRect().left,
+		cells,
+		columns: gridStyle.gridTemplateColumns.split(' ').length,
+		columnGap: gridStyle.columnGap,
+		rowGap: gridStyle.rowGap,
+		gridBottom: gridBox.bottom,
+		checkedLeft: checkedBox.left,
+		checkedTop: checkedBox.top,
+		checkedBorder: checkedStyle.borderTopWidth,
+		checkedPadding: checkedStyle.paddingTop,
+		title: name?.getAttribute('title') ?? null,
+		truncates: name !== null && getComputedStyle(name).textOverflow === 'ellipsis',
+	}
+}
+
+async function sectionFacts() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	try {
+		removeFactsCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await formsPrepare(page, apiOrigin)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const zone =
+					sql(`select default_time_zone as zone from teacher_settings where account_id = '${teacher}'`).rows[0]?.zone ??
+					core.SCHEDULE_TIME_ZONE
+				const today = core.scheduleToday(new Date(), zone)
+				const make = async (name) => {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+					const id = created.json.student.id
+					const opening = await call('PUT', `/students/${id}/opening-balance`, {
+						lessonsHundredths: 200,
+						on: core.addDays(today, -1),
+						expectedDefaultTimeZone: zone,
+					})
+					check(`the opening balance of ${name} is set`, opening.status === 200, String(opening.status))
+					return id
+				}
+				const ids = { pay: await make(FN.pay), none: await make(FN.none) }
+				const paid = await call('POST', '/payments', {
+					studentId: ids.pay,
+					paidOn: today,
+					expectedDefaultTimeZone: zone,
+					amountMinor: 800000,
+					currency: 'RUB',
+					lessonsHundredths: 200,
+					note: 'facts check payment',
+				})
+				check('the fixture payment is created', paid.status === 201, String(paid.status))
+				const facts = {}
+				for (const key of ['pay', 'none']) {
+					const read = await call('GET', `/chat/records?studentId=${ids[key]}`)
+					facts[key] = chatBlock.parse({ type: 'facts', facts: read.json })
+				}
+				check(
+					'the server offers the follow-up only to the card with a payment',
+					facts.pay.facts.followUp === 'since_payment' && facts.none.facts.followUp === undefined
+				)
+				const months = []
+				for (let step = 7; step >= 0; step -= 1) months.push(core.addDays(today, -31 * step))
+				const longDates = chatBlock.parse({
+					type: 'lesson_dates',
+					studentId: ids.pay,
+					studentName: FN.pay,
+					from: months[0],
+					to: today,
+					scope: 'since_payment',
+					defaultTimeZone: zone,
+					asOf: new Date().toISOString(),
+					dates: months,
+					leftOut: { noShow: 0, ahead: 0 },
+					coverage: 'complete',
+					sinceFrom: months[0],
+					lastPaidOn: months[0],
+				})
+
+				let conversation = null
+				const created = page.waitForResponse(
+					(response) => response.request().method() === 'POST' && response.url().endsWith('/api/chat/conversations')
+				)
+				const followBodies = []
+				let syntheticDates = null
+				await page.route('**/api/chat/conversations/*/messages', async (route) => {
+					if (route.request().method() !== 'POST') return route.fallback()
+					conversation ??= (await (await created).json()).conversation
+					if (conversation?.id && !conversations.includes(conversation.id)) conversations.push(conversation.id)
+					const body = route.request().postDataJSON()
+					if (body.text.endsWith(CHAT_FOLLOW_UP_TEXT)) {
+						followBodies.push(body)
+						await new Promise((resolve) => setTimeout(resolve, 900))
+						if (syntheticDates === null) return route.fallback()
+						return route.fulfill({ status: 201, json: syntheticReply(conversation, body, syntheticDates) })
+					}
+					const key = body.mentions[0]?.studentId === ids.none ? 'none' : 'pay'
+					return route.fulfill({ status: 201, json: syntheticReply(conversation, body, facts[key]) })
+				})
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 30000 })
+
+				await sendIn(page, 0, 'how many lessons are left', FN.pay)
+				await page.locator(FACTS).first().waitFor({ timeout: 30000 })
+				await page.locator(REPLY_FOOTER).first().waitFor({ timeout: 30000 })
+				const wide = await page.locator(FACTS).first().evaluate(factsLayout)
+				const edge = wide.left + 16
+				check(
+					'the facts block has 16 px padding and one left edge for the avatar, the cells and the read time',
+					wide.padding === '16px' &&
+						Math.abs(wide.avatarLeft - edge) < 1.5 &&
+						Math.abs(wide.cells[0].left - edge) < 1.5 &&
+						Math.abs(wide.checkedLeft - edge) < 1.5,
+					JSON.stringify(wide)
+				)
+				check(
+					'the cells are two columns of equal width with 24 px and 12 px gaps',
+					wide.columns === 2 &&
+						Math.abs(wide.cells[0].width - wide.cells[1].width) < 1.5 &&
+						wide.columnGap === '24px' &&
+						wide.rowGap === '12px',
+					JSON.stringify(wide)
+				)
+				check(
+					'Checked sits under a hairline with 8 px of padding below the cells',
+					wide.checkedBorder === '1px' && wide.checkedPadding === '8px' && wide.checkedTop > wide.gridBottom,
+					JSON.stringify(wide)
+				)
+				check(
+					'the name is one line with an ellipsis and the full name in title',
+					wide.title === FN.pay && wide.truncates
+				)
+				const reply = page.locator(ASSISTANT).first()
+				check(
+					'a reply that is only a block has no Copy reply and no sentence',
+					(await reply.getByRole('button', { name: 'Copy reply' }).count()) === 0 &&
+						(await reply.evaluate(
+							(node, selectors) => {
+								const copy = node.cloneNode(true)
+								for (const selector of selectors) for (const part of copy.querySelectorAll(selector)) part.remove()
+								return copy.textContent.trim()
+							},
+							[FACTS, REPLY_FOOTER, FOLLOW_UP]
+						)) === '' &&
+						/^\d{1,2}:\d{2}$/.test((await reply.locator(REPLY_FOOTER).innerText()).trim())
+				)
+				const followText = await page.locator(FOLLOW_UP).first().innerText()
+				check(
+					'the follow-up button carries the contract text, once',
+					(await page.locator(FOLLOW_UP).count()) === 1 && followText.trim() === CHAT_FOLLOW_UP_TEXT,
+					followText
+				)
+				const followRow = await page.locator(FOLLOW_UP).evaluate((button) => {
+					const icon = button.querySelector('svg').getBoundingClientRect()
+					const label = button.querySelector('span[class*="text-box"]').getBoundingClientRect()
+					const frame = button.getBoundingClientRect()
+					return {
+						arrowBeforeText: icon.right <= label.left + 1,
+						sameLine: Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)) < 4,
+						height: frame.height,
+						iconWidth: icon.width,
+					}
+				})
+				check(
+					'the follow-up is one row: the 14 px arrow before the text',
+					followRow.arrowBeforeText && followRow.sameLine && followRow.height <= 32 && followRow.iconWidth === 14,
+					JSON.stringify(followRow)
+				)
+				await shot(page, 'changes-facts', 'desktop')
+
+				await sendIn(page, 0, 'and for the other card', FN.none)
+				await page.locator(FACTS).nth(1).waitFor({ timeout: 30000 })
+				await page.locator(REPLY_FOOTER).nth(1).waitFor({ timeout: 30000 })
+				check(
+					'a card without a payment has no follow-up',
+					(await page.locator(FOLLOW_UP).count()) === 1 &&
+						(await page.locator(ASSISTANT).nth(1).locator(FOLLOW_UP).count()) === 0
+				)
+
+				await page.locator(FOLLOW_UP).click()
+				await page
+					.waitForFunction((selector) => document.querySelector(selector)?.disabled === true, FOLLOW_UP, {
+						timeout: 3000,
+					})
+					.then(
+						() => check('the follow-up is off while the request is sent', true),
+						() => check('the follow-up is off while the request is sent', false)
+					)
+				await page.locator(DATES).first().waitFor({ timeout: 30000 })
+				const sent = followBodies[0]
+				check(
+					'the follow-up sends the contract text with the mention of its student',
+					sent?.text === `@${FN.pay} ${CHAT_FOLLOW_UP_TEXT}` &&
+						sent.mentions.length === 1 &&
+						sent.mentions[0].studentId === ids.pay,
+					JSON.stringify(sent)
+				)
+				check('the follow-up button is gone from that reply', (await page.locator(FOLLOW_UP).count()) === 0)
+				const empty = page.locator(DATES).first()
+				const emptyText = await empty.innerText()
+				check(
+					'nothing since the payment: the head, the empty line and the last payment date, no Copy dates',
+					emptyText.includes(`Lessons of ${FN.pay}`) &&
+						emptyText.includes('No lessons since the last payment.') &&
+						/Last payment: [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} \d{4}\./.test(emptyText) &&
+						(await empty.getByRole('button', { name: 'Copy dates' }).count()) === 0,
+					emptyText
+				)
+				const answer = page.locator(ASSISTANT).last()
+				check(
+					'the dates answer has no Copy reply',
+					(await answer.getByRole('button', { name: 'Copy reply' }).count()) === 0 &&
+						/^\d{1,2}:\d{2}$/.test((await answer.locator(REPLY_FOOTER).innerText()).trim())
+				)
+
+				syntheticDates = longDates
+				await sendIn(page, 0, 'once more', FN.pay)
+				await page.locator(FACTS).nth(2).waitFor({ timeout: 30000 })
+				await page.locator(REPLY_FOOTER).nth(3).waitFor({ timeout: 30000 })
+				check('a later facts reply offers the follow-up again', (await page.locator(FOLLOW_UP).count()) === 1)
+				await page.locator(FOLLOW_UP).click()
+				await page.locator(DATES).nth(1).waitFor({ timeout: 30000 })
+				const long = page.locator(DATES).nth(1)
+				const longText = await long.innerText()
+				check(
+					'the dates block names the payment day in the scope line',
+					/Held lessons since the last payment \([A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}( \d{4})?\) · 8 dates/.test(
+						longText
+					),
+					longText.slice(0, 200)
+				)
+				check(
+					'a long list shows six months and folds the rest',
+					(await long.locator('[data-slot="chat-dates-month"]').count()) === 8 &&
+						(await long.getByRole('button', { name: 'Show all 8 months' }).isVisible()) &&
+						(await long.getByRole('button', { name: 'Copy dates' }).count()) === 1
+				)
+				await long.getByRole('button', { name: 'Show all 8 months' }).click()
+				check(
+					'Show all opens the rest in place',
+					(await long.getByRole('button', { name: 'Show fewer months' }).getAttribute('aria-expanded')) === 'true'
+				)
+				const fold = await long.getByRole('button', { name: 'Show fewer months' }).evaluate((button) => {
+					const icon = button.querySelector('svg').getBoundingClientRect()
+					const label = button.querySelector('span[class*="text-box"]').getBoundingClientRect()
+					return {
+						chevronAfterText: icon.left >= label.right - 1,
+						sameLine: Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)) < 4,
+						height: button.getBoundingClientRect().height,
+					}
+				})
+				check(
+					'the fold button is one row: the chevron after the text',
+					fold.chevronAfterText && fold.sameLine && fold.height <= 32,
+					JSON.stringify(fold)
+				)
+				await shot(page, 'changes-facts', 'dates')
+
+				for (const width of [768, 375]) {
+					await page.setViewportSize({ width, height: width === 375 ? 812 : 1024 })
+					await page.waitForTimeout(400)
+					const narrow = await page.locator(FACTS).first().evaluate(factsLayout)
+					const boxes = await page
+						.locator(`${FACTS} a, ${FOLLOW_UP}, ${DATES} button, ${DATES} a`)
+						.evaluateAll((nodes) =>
+							nodes
+								.map((node) => node.getBoundingClientRect())
+								.map((box) => ({ left: box.left, right: box.right, width: box.width }))
+						)
+					const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+					check(
+						`at ${width} px the facts are ${width === 375 ? 'one column' : 'two columns'}, everything fits and the page does not scroll sideways`,
+						narrow.columns === (width === 375 ? 1 : 2) &&
+							boxes.every((box) => box.width > 0 && box.left >= 0 && box.right <= width) &&
+							overflow <= 0,
+						JSON.stringify({ columns: narrow.columns, overflow, boxes: boxes.length })
+					)
+					if (width === 375) await shot(page, 'changes-facts', 'phone')
+				}
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeFactsCards(conversations)
+		)
+	} finally {
+		removeFactsCards(conversations)
+	}
+}
+
+const DETAILS_PORT = 4257
+const DN = { one: 'Alex Example 2410', many: 'Alex Example 2411', stale: 'Alex Example 2412' }
+const DETAILS_WHERE = `display_name like 'Alex Example 241_' and import_key is null`
+
+function removeDetailsCards(conversations = []) {
+	removeConversations(conversations)
+	const cards = `select id from students where ${DETAILS_WHERE}`
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${DETAILS_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(left)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${DETAILS_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+const detailsRow = (name) =>
+	sql(
+		`select id, level, goals, default_lesson_minutes as minutes, no_show_deducts as deducts, time_zone as zone, revision from students where display_name = ${q(name)} and import_key is null`
+	).rows[0]
+
+async function sectionDetails() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const started = await startFakeModelApi(DETAILS_PORT)
+	const conversations = []
+	try {
+		removeDetailsCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, DETAILS_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				for (const name of Object.values(DN)) {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+				}
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				let shown = 0
+				let chatId = null
+				const ask = async (text, mention) => {
+					const block = await askBlock(page, shown, text, mention)
+					shown++
+					chatId ??= new URL(page.url()).searchParams.get('c')
+					if (chatId && !conversations.includes(chatId)) conversations.push(chatId)
+					return block
+				}
+				const stateOf = (block) => block.getAttribute('data-state')
+				const buttonsOf = async (block) => (await block.getByRole('button').allInnerTexts()).map((text) => text.trim())
+
+				const one = await ask('[fake:details-level] level B2', DN.one)
+				let text = await one.innerText()
+				check(
+					'one field names the card and the buttons and shows the row was to will be',
+					(await stateOf(one)) === 'proposed' &&
+						text.includes(`Change ${DN.one}'s level?`) &&
+						text.includes('Level') &&
+						text.includes('Not set') &&
+						(await one.locator('[data-slot="change-after"]').innerText()).trim() === 'B2' &&
+						text.includes('Only the fields above change. Payments and notes are not touched.') &&
+						JSON.stringify(await buttonsOf(one)) === JSON.stringify(['Save level', 'Keep level']),
+					text.replace(/\n/g, ' | ')
+				)
+				check('a proposal alone writes nothing', detailsRow(DN.one).level === null)
+				await shot(page, 'changes-details', 'one')
+				await one.getByRole('button', { name: 'Save level' }).click()
+				await one.getByText('Level changed.').waitFor({ timeout: 15000 })
+				const href = await one.getByRole('link', { name: /Edit details/ }).getAttribute('href')
+				check(
+					'Save level writes the level and the receipt names the value and links to the details form',
+					detailsRow(DN.one).level === 'B2' &&
+						(await one.innerText()).includes(`${DN.one}: Level B2.`) &&
+						(href ?? '').includes('dialog=details'),
+					href
+				)
+
+				const many = await ask('[fake:details-many] 90 minutes, no-show off, Exam preparation, Asia/Tokyo', DN.many)
+				text = await many.innerText()
+				const labels = (await many.locator('p.text-caption').allInnerTexts()).map((label) => label.trim())
+				check(
+					'several fields come in one card in the Details order with the city and offset of the zone',
+					(await stateOf(many)) === 'proposed' &&
+						text.includes(`Change ${DN.many}'s details?`) &&
+						JSON.stringify(
+							labels.filter((label) => ['Lesson length', 'No-show', 'Goals', 'Time zone'].includes(label))
+						) === JSON.stringify(['Lesson length', 'No-show', 'Goals', 'Time zone']) &&
+						text.includes('60 min') &&
+						text.includes('90 min') &&
+						text.includes('Deducts a lesson') &&
+						text.includes('Deducts nothing') &&
+						text.includes('Same as teacher') &&
+						text.includes('Tokyo (UTC+9)') &&
+						!text.includes('Asia/Tokyo'),
+					text.replace(/\n/g, ' | ')
+				)
+				check(
+					'a long value stacks Now over New and is not struck through',
+					text.includes('Now') &&
+						text.includes('New') &&
+						text.includes('Exam preparation') &&
+						(await many.locator('.line-through').count()) === 0
+				)
+				check(
+					'the one line is the balance line and the buttons are Save changes and Keep details',
+					text.includes('The balance is recalculated for all lessons.') &&
+						JSON.stringify(await buttonsOf(many)) === JSON.stringify(['Save changes', 'Keep details'])
+				)
+				await shot(page, 'changes-details', 'several')
+				await many.getByRole('button', { name: 'Save changes' }).click()
+				await many.getByText('Details changed.').waitFor({ timeout: 15000 })
+				const written = detailsRow(DN.many)
+				const receipt = await many.innerText()
+				check(
+					'Save changes writes the fields and the receipt lists the values',
+					written.minutes === 90 &&
+						written.deducts === false &&
+						written.goals === 'Exam preparation' &&
+						written.zone === 'Asia/Tokyo' &&
+						receipt.includes('Lesson length 90 min') &&
+						receipt.includes('Time zone Tokyo (UTC+9)'),
+					JSON.stringify(written)
+				)
+
+				const staleCard = await ask('[fake:details-level] level B2', DN.stale)
+				sql(
+					`update students set level = 'A1', revision = revision + 1 where display_name = ${q(DN.stale)} and import_key is null`
+				)
+				await staleCard.getByRole('button', { name: 'Save level' }).click()
+				await staleCard.getByText('This proposal is out of date. Nothing was changed.').waitFor({ timeout: 15000 })
+				check(
+					'a card changed after the proposal makes it stale with no buttons and keeps the new value',
+					(await stateOf(staleCard)) === 'stale' &&
+						(await staleCard.getByRole('button').count()) === 0 &&
+						detailsRow(DN.stale).level === 'A1'
+				)
+
+				const stepButtons = page.getByRole('button', { name: 'Show steps' })
+				for (let index = (await stepButtons.count()) - 1; index >= 0; index -= 1) await stepButtons.nth(index).click()
+				check(
+					'the step of the details tool names the student and carries no figure',
+					(await page.getByText(`Changing ${DN.one}'s details`).count()) > 0
+				)
+
+				await page.setViewportSize({ width: 375, height: 812 })
+				await page.reload()
+				await page.locator(CHANGE).first().waitFor({ timeout: 30000 })
+				const rowsBox = await page
+					.locator(CHANGE)
+					.nth(1)
+					.evaluate((node) => {
+						const box = node.getBoundingClientRect()
+						return { left: box.left, right: box.right }
+					})
+				const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+				check(
+					'at 375 px the details card stays inside the screen and the page does not scroll sideways',
+					rowsBox.left >= 0 && rowsBox.right <= 375 && overflow <= 0,
+					JSON.stringify({ rowsBox, overflow })
+				)
+				await page.locator(CHANGE).nth(1).scrollIntoViewIfNeeded()
+				await shot(page, 'changes-details', 'phone')
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeDetailsCards(conversations)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+		removeDetailsCards(conversations)
+	}
+}
+
+const NOTES_PORT = 4260
+const NN = { add: 'Alex Example 2420', rewrite: 'Alex Example 2421' }
+const NOTES_WHERE = `display_name like 'Alex Example 242_' and import_key is null`
+const NOTE_BLOCK = '[data-slot="chat-note-change"]'
+const NOTE_DECLINED = 'Proposal declined. This proposal made no changes.'
+const NOTE_STALE = 'This proposal is out of date. Nothing was changed.'
+const CANT_UNDO = "Can't undo: this block changed after the edit."
+const ESSAY_WORDS = Array.from({ length: 90 }, (_, index) => `word${index + 1}`).join(' ')
+
+function removeNotesCards(conversations = []) {
+	removeConversations(conversations)
+	const cards = `select id from students where ${NOTES_WHERE}`
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${NOTES_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(left)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${NOTES_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+const sectionOf = (name, kind) =>
+	sql(
+		`select id, name, body, revision, deleted_at is not null as deleted from student_sections where kind = ${q(kind)} and student_id in (select id from students where display_name = ${q(name)} and import_key is null)`
+	).rows[0]
+
+const sectionByName = (name, blockName) =>
+	sql(
+		`select id, name, body, revision, deleted_at is not null as deleted from student_sections where name = ${q(blockName)} and student_id in (select id from students where display_name = ${q(name)} and import_key is null)`
+	).rows[0]
+
+const setSection = (name, kind, body) =>
+	sql(
+		`update student_sections set body = ${q(body)}, revision = revision + 1 where kind = ${q(kind)} and student_id in (select id from students where display_name = ${q(name)} and import_key is null)`
+	)
+
+const termIds = (name) =>
+	sql(
+		`select id from student_terms where student_id in (select id from students where display_name = ${q(name)} and import_key is null) order by term`
+	).rows.map((row) => row.id)
+
+async function askNote(page, text, mention) {
+	const before = await page.locator(NOTE_BLOCK).count()
+	await sendIn(page, 0, text, mention)
+	await page.waitForFunction(
+		({ selector, count }) => document.querySelectorAll(selector).length > count,
+		{ selector: NOTE_BLOCK, count: before },
+		{ timeout: 30000 }
+	)
+	await page.locator(SEND).waitFor({ timeout: 30000 })
+	return page.locator(NOTE_BLOCK).nth(before)
+}
+
+const noteHead = (block) => block.locator('p').first().innerText()
+const noteButtons = async (block) => (await block.getByRole('button').allInnerTexts()).map((text) => text.trim())
+const noteLines = (block, kind) => block.locator(`[data-slot="note-diff-line"][data-kind="${kind}"]`)
+const noteAttr = (block, name) => block.getAttribute(name)
+
+async function sectionNotes() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const started = await startFakeModelApi(NOTES_PORT)
+	const conversations = []
+	try {
+		removeNotesCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, NOTES_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				for (const name of Object.values(NN)) {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+				}
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator('[data-slot="chat-commands"]').waitFor({ timeout: 30000 })
+				const centred = await page.evaluate(() => {
+					const list = document.querySelector('[data-slot="chat-commands"]').getBoundingClientRect()
+					const area = document
+						.querySelector('[data-slot="chat-commands"]')
+						.closest('[data-slot="scroll-area-viewport"]')
+						.getBoundingClientRect()
+					return {
+						dy: Math.abs((list.top + list.bottom) / 2 - (area.top + area.bottom) / 2),
+						dx: Math.abs((list.left + list.right) / 2 - (area.left + area.right) / 2),
+					}
+				})
+				check(
+					'the empty new chat shows the commands list centred in the messages area, with no card',
+					centred.dy < 40 && centred.dx < 40,
+					JSON.stringify(centred)
+				)
+
+				let chatId = null
+				const track = () => {
+					chatId ??= new URL(page.url()).searchParams.get('c')
+					if (chatId && !conversations.includes(chatId)) conversations.push(chatId)
+				}
+				let shown = 0
+				const ask = async (text, mention) => {
+					const block = await askNote(page, text, mention)
+					track()
+					shown++
+					return block
+				}
+				const reloaded = async (index) => {
+					await page.reload()
+					await page
+						.locator(NOTE_BLOCK)
+						.nth(shown - 1)
+						.waitFor({ timeout: 30000 })
+					return page.locator(NOTE_BLOCK).nth(index)
+				}
+				const at = (index) => page.locator(NOTE_BLOCK).nth(index)
+
+				setSection(NN.add, 'goals', 'Line one')
+				const goals = sectionOf(NN.add, 'goals')
+				const first = await ask(`[fake:note-write] block: ${goals.id}; text: Line one\\nLine two added`, NN.add)
+				let text = await first.innerText()
+				const firstHref = await first.getByRole('link').first().getAttribute('href')
+				check(
+					'an added line is written at once: receipt with the sentence, one added line, one unchanged line, Undo and the block link',
+					(await noteAttr(first, 'data-mode')) === 'receipt' &&
+						(await noteAttr(first, 'data-change')) === 'updated' &&
+						(await noteAttr(first, 'data-undo')) === 'available' &&
+						/^Updated .+\.$/.test(await noteHead(first)) &&
+						(await noteLines(first, 'added').count()) === 1 &&
+						(await noteLines(first, 'removed').count()) === 0 &&
+						(await noteLines(first, 'same').count()) === 1 &&
+						text.includes('Line two added') &&
+						text.includes('Added 1 line to the block.') &&
+						JSON.stringify(await noteButtons(first)) === JSON.stringify(['Undo']) &&
+						/tab=notes/.test(firstHref ?? '') &&
+						/section=(goals|b_[0-9a-f]{32})/.test(firstHref ?? ''),
+					text.replace(/\n/g, ' | ')
+				)
+				check('the receipt wrote the block', sectionOf(NN.add, 'goals').body === 'Line one\nLine two added')
+				await shot(page, 'changes-notes', 'receipt')
+				let again = await reloaded(0)
+				check(
+					'after a reload the receipt is drawn as the api states it: Undo still available',
+					(await noteAttr(again, 'data-undo')) === 'available' &&
+						JSON.stringify(await noteButtons(again)) === JSON.stringify(['Undo'])
+				)
+				await again.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelector(selector)?.getAttribute('data-undo') === 'undone',
+					NOTE_BLOCK,
+					{ timeout: 15000 }
+				)
+				text = await at(0).innerText()
+				check(
+					'Undo puts the text back and the receipt becomes Change undone. with no diff and no Undo',
+					(await noteHead(at(0))) === 'Change undone.' &&
+						sectionOf(NN.add, 'goals').body === 'Line one' &&
+						(await noteButtons(at(0))).length === 0 &&
+						(await at(0).locator('[data-slot="note-diff"]').count()) === 0,
+					text.replace(/\n/g, ' | ')
+				)
+				again = await reloaded(0)
+				check(
+					'after a reload the undone receipt stays undone with no active button',
+					(await noteAttr(again, 'data-undo')) === 'undone' && (await noteButtons(again)).length === 0
+				)
+
+				const second = await ask(`[fake:note-write] block: ${goals.id}; text: Line one\\nLine two added`, NN.add)
+				check('a second receipt is available', (await noteAttr(second, 'data-undo')) === 'available')
+				setSection(NN.add, 'goals', 'Teacher edit')
+				await second.getByRole('button', { name: /^Undo/ }).click()
+				await second.getByText(CANT_UNDO).waitFor({ timeout: 15000 })
+				check(
+					'Undo after the block was edited elsewhere says it cannot undo, drops the button and leaves the teacher text',
+					(await noteAttr(second, 'data-undo')) === 'unavailable' &&
+						(await noteButtons(second)).length === 0 &&
+						sectionOf(NN.add, 'goals').body === 'Teacher edit'
+				)
+				again = await reloaded(1)
+				check(
+					'after a reload the receipt still says it cannot undo',
+					(await noteAttr(again, 'data-undo')) === 'unavailable' && (await again.innerText()).includes(CANT_UNDO)
+				)
+
+				const created = await ask(`[fake:note-create] name: Exam dates; text: Exam on 5 March`, NN.add)
+				text = await created.innerText()
+				check(
+					'a new block is written at once: receipt with the quoted name, the no-block-fitted line and a link to the block',
+					(await noteAttr(created, 'data-change')) === 'created' &&
+						(await noteHead(created)) === 'Created the block “Exam dates”.' &&
+						text.includes("No block of Alex Example 2420's notes fitted.") &&
+						(await noteLines(created, 'added').count()) === 1 &&
+						/section=b_/.test((await created.getByRole('link').first().getAttribute('href')) ?? ''),
+					text.replace(/\n/g, ' | ')
+				)
+				await created.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelectorAll(selector)[2]?.getAttribute('data-undo') === 'undone',
+					NOTE_BLOCK,
+					{ timeout: 15000 }
+				)
+				check(
+					'Undo of a created block removes it and the link goes to Notes',
+					sectionByName(NN.add, 'Exam dates').deleted === true &&
+						(await created.getByRole('link').first().innerText()) === 'Open Notes'
+				)
+
+				const added = await ask(`[fake:words-add] terms: alpha, beta`, NN.add)
+				text = await added.innerText()
+				check(
+					'words added at once: receipt with the count, the words as chips and a link to the vocabulary',
+					(await noteAttr(added, 'data-change')) === 'words_added' &&
+						(await noteHead(added)) === "Added 2 words to Alex Example 2420's vocabulary." &&
+						(await added.locator('[data-slot="note-words"] li').allInnerTexts()).join(',') === 'alpha,beta' &&
+						(await added.getByRole('link').first().innerText()) === 'Open vocabulary' &&
+						/tab=vocabulary/.test((await added.getByRole('link').first().getAttribute('href')) ?? ''),
+					text.replace(/\n/g, ' | ')
+				)
+				const ids = termIds(NN.add)
+				const removed = await ask(`[fake:words-remove] ids: ${ids.join(', ')}`, NN.add)
+				text = await removed.innerText()
+				check(
+					'words removed at once: receipt with struck chips, the 30 days line and Undo',
+					(await noteAttr(removed, 'data-change')) === 'words_removed' &&
+						(await noteHead(removed)) === "Removed 2 words from Alex Example 2420's vocabulary." &&
+						(await removed.locator('[data-slot="note-words"] li[data-state="removed"]').count()) === 2 &&
+						text.includes('They stay in Removed for 30 days.') &&
+						(await noteAttr(removed, 'data-undo')) === 'available',
+					text.replace(/\n/g, ' | ')
+				)
+
+				setSection(NN.rewrite, 'goals', 'Line one\nLine two')
+				const target = sectionOf(NN.rewrite, 'goals')
+				const rewriteText = (suffix) => `[fake:note-write] block: ${target.id}; text: Line one\\nLine two ${suffix}`
+				const base = shown
+				const update = await ask(rewriteText('changed'), NN.rewrite)
+				text = await update.innerText()
+				check(
+					'a rewrite is proposed, not written: Update card with removed and added lines, the caption and Save to notes / Keep the notes',
+					(await noteAttr(update, 'data-mode')) === 'proposal' &&
+						(await noteAttr(update, 'data-state')) === 'proposed' &&
+						/^Update .+\?$/.test(await noteHead(update)) &&
+						(await noteLines(update, 'removed').allInnerTexts()).join('|').includes('Line two') &&
+						(await noteLines(update, 'added').allInnerTexts()).join('|').includes('Line two changed') &&
+						text.includes('Only this block changes. The old text can be restored with Undo after it is saved.') &&
+						JSON.stringify(await noteButtons(update)) === JSON.stringify(['Save to notes', 'Keep the notes']) &&
+						sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two',
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-notes', 'update')
+				await update.getByRole('button', { name: 'Save to notes' }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-state') === 'applied',
+					{ selector: NOTE_BLOCK, index: base },
+					{ timeout: 15000 }
+				)
+				check(
+					'Save to notes writes the text and the card becomes updated with Undo and Open',
+					sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two changed' &&
+						/ updated\.$/.test(await noteHead(update)) &&
+						(await noteAttr(update, 'data-undo')) === 'available' &&
+						JSON.stringify(await noteButtons(update)) === JSON.stringify(['Undo']) &&
+						(await update.getByRole('link').first().innerText()).startsWith('Open ')
+				)
+				again = await reloaded(base)
+				check(
+					'after a reload the saved card is applied with only Undo active',
+					(await noteAttr(again, 'data-state')) === 'applied' &&
+						JSON.stringify(await noteButtons(again)) === JSON.stringify(['Undo'])
+				)
+				await again.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-undo') === 'undone',
+					{ selector: NOTE_BLOCK, index: base },
+					{ timeout: 15000 }
+				)
+				check(
+					'Undo of the saved rewrite restores the old text',
+					sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two' &&
+						(await noteHead(at(base))) === 'Change undone.'
+				)
+
+				const keep = await ask(rewriteText('kept'), NN.rewrite)
+				await keep.getByRole('button', { name: 'Keep the notes' }).click()
+				await keep.getByText(NOTE_DECLINED).waitFor({ timeout: 15000 })
+				check(
+					'Keep the notes declines: dimmed diff, the declined line, no buttons and no write',
+					(await noteAttr(keep, 'data-state')) === 'declined' &&
+						(await noteButtons(keep)).length === 0 &&
+						sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two'
+				)
+				again = await reloaded(base + 1)
+				check(
+					'after a reload the declined card has no active buttons',
+					(await noteAttr(again, 'data-state')) === 'declined' && (await noteButtons(again)).length === 0
+				)
+
+				const stale = await ask(rewriteText('stale'), NN.rewrite)
+				setSection(NN.rewrite, 'goals', 'Teacher text')
+				await stale.getByRole('button', { name: 'Save to notes' }).click()
+				await page.getByText(NOTE_STALE).waitFor({ timeout: 15000 })
+				const staleCard = page.locator(NOTE_BLOCK).nth(base + 2)
+				check(
+					'a block edited after the proposal makes it stale: warning, no buttons, the teacher text kept',
+					(await noteAttr(staleCard, 'data-state')) === 'stale' &&
+						(await noteButtons(staleCard)).length === 0 &&
+						sectionOf(NN.rewrite, 'goals').body === 'Teacher text'
+				)
+				again = await reloaded(base + 2)
+				check(
+					'after a reload the stale card stays stale with no buttons',
+					(await noteAttr(again, 'data-state')) === 'stale' && (await noteButtons(again)).length === 0
+				)
+
+				await ask(`[fake:note-create] name: Exam dates; text: Exam on 5 March`, NN.rewrite)
+				const exam = sectionByName(NN.rewrite, 'Exam dates')
+				const del = await ask(`[fake:note-delete] block: ${exam.id}`, NN.rewrite)
+				text = await del.innerText()
+				check(
+					'a block with text is not deleted at once: Delete card with the text as removed lines, Keep block first',
+					(await noteAttr(del, 'data-state')) === 'proposed' &&
+						(await noteHead(del)) === 'Delete Exam dates?' &&
+						(await noteLines(del, 'removed').count()) === 1 &&
+						text.includes('The block and its text will be deleted.') &&
+						JSON.stringify(await noteButtons(del)) === JSON.stringify(['Keep block', 'Delete block']) &&
+						sectionByName(NN.rewrite, 'Exam dates').deleted === false,
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-notes', 'delete')
+				const deleteIndex = base + 4
+				await del.getByRole('button', { name: 'Delete block' }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-state') === 'applied',
+					{ selector: NOTE_BLOCK, index: deleteIndex },
+					{ timeout: 15000 }
+				)
+				check(
+					'Delete block removes the block and the card says deleted with Undo and Open Notes',
+					sectionByName(NN.rewrite, 'Exam dates').deleted === true &&
+						(await noteHead(del)) === 'Exam dates deleted.' &&
+						(await del.getByRole('link').first().innerText()) === 'Open Notes' &&
+						(await noteAttr(del, 'data-undo')) === 'available'
+				)
+				again = await reloaded(deleteIndex)
+				check(
+					'after a reload the deleted card is applied with only Undo active',
+					(await noteAttr(again, 'data-state')) === 'applied' &&
+						JSON.stringify(await noteButtons(again)) === JSON.stringify(['Undo'])
+				)
+				await again.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-undo') === 'undone',
+					{ selector: NOTE_BLOCK, index: deleteIndex },
+					{ timeout: 15000 }
+				)
+				check('Undo of the deletion brings the block back', sectionByName(NN.rewrite, 'Exam dates').deleted === false)
+
+				const lines = (prefix) => Array.from({ length: 8 }, (_, index) => `${prefix}${index + 1}`)
+				setSection(NN.rewrite, 'general_info', lines('old').join('\n'))
+				const wide = sectionOf(NN.rewrite, 'general_info')
+				const many = await ask(`[fake:note-write] block: ${wide.id}; text: ${lines('new').join('\\n')}`, NN.rewrite)
+				const changed = (await noteLines(many, 'added').count()) + (await noteLines(many, 'removed').count())
+				const moreText = await many.locator('[data-slot="note-diff-more"]').innerText()
+				check(
+					'a long rewrite draws at most six changed lines and then says how many more changes there are',
+					changed <= 6 && /^\d+ more changes?$/.test(moreText.trim()),
+					JSON.stringify({ changed, moreText })
+				)
+
+				await page.setViewportSize({ width: 375, height: 812 })
+				await page.reload()
+				await page
+					.locator(NOTE_BLOCK)
+					.nth(shown - 1)
+					.waitFor({ timeout: 30000 })
+				const fits = await page.evaluate((selector) => {
+					const boxes = [...document.querySelectorAll(selector)].map((node) => {
+						const box = node.getBoundingClientRect()
+						return { left: Math.round(box.left), right: Math.round(box.right) }
+					})
+					return {
+						count: boxes.length,
+						bad: boxes.filter((box) => box.left < 0 || box.right > 375).length,
+						overflow: document.documentElement.scrollWidth - window.innerWidth,
+					}
+				}, NOTE_BLOCK)
+				check(
+					'at 375 px every note card stays inside the screen and the page does not scroll sideways',
+					fits.count > 0 && fits.bad === 0 && fits.overflow <= 0,
+					JSON.stringify(fits)
+				)
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator('[data-slot="chat-commands"]').waitFor({ timeout: 30000 })
+				await page.locator(FIELD).fill(`/essay [fake:essay] ${ESSAY_WORDS}`)
+				await page.locator(SEND).click()
+				await page.locator('[data-role="teacher"]').first().waitFor({ timeout: 30000 })
+				track()
+				await page.locator(SEND).waitFor({ timeout: 30000 })
+				const bubble = page.locator('[data-role="teacher"] [data-slot="chat-essay-bubble"]').first()
+				await bubble.waitFor({ timeout: 15000 })
+				const essayHeight = await bubble
+					.locator('p')
+					.first()
+					.evaluate((node) => ({
+						box: node.getBoundingClientRect().height,
+						line: Number.parseFloat(getComputedStyle(node).lineHeight),
+					}))
+				const wordsNow = (await bubble.innerText()).match(/(\d+) words/)?.[1]
+				check(
+					'a pasted essay in the teacher bubble is cut to four lines with its word count and Show full text',
+					(await noteAttr(bubble, 'data-clamped')) === 'true' &&
+						Math.abs(essayHeight.box - essayHeight.line * 4) < 4 &&
+						Number(wordsNow) === ESSAY_WORDS.split(' ').length + 1 &&
+						(await bubble.getByRole('button', { name: 'Show full text' }).count()) === 1,
+					JSON.stringify({ essayHeight, wordsNow })
+				)
+				await shot(page, 'changes-notes', 'essay')
+				const bottomGap = await page.evaluate(() => {
+					const viewport = document
+						.querySelector('[data-slot="chat-messages"]')
+						.closest('[data-slot="scroll-area-viewport"]')
+						.getBoundingClientRect()
+					const list = document.querySelector('[data-slot="chat-messages"]').getBoundingClientRect()
+					return Math.round(viewport.bottom - list.bottom)
+				})
+				check(
+					'a short conversation sits against the composer, not at the top of the area',
+					bottomGap < 60,
+					String(bottomGap)
+				)
+				await bubble.getByRole('button', { name: 'Show full text' }).click()
+				check(
+					'Show full text opens the essay in place once',
+					(await bubble.getByRole('button', { name: 'Show full text' }).count()) === 0 &&
+						(await bubble
+							.locator('p')
+							.first()
+							.evaluate((node) => node.getBoundingClientRect().height)) >
+							essayHeight.box + 10
+				)
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeNotesCards(conversations)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+		removeNotesCards(conversations)
+	}
+}
+
+const REVIEW_PORT = 4261
+const RV = {
+	no: 'Alex Example 2430',
+	yes: 'Alex Example 2431',
+	pending: 'Alex Example 2432',
+	variants: 'Alex Example 2433',
+	stamp: 'Alex Example 2434',
+	running: 'Alex Example 2435',
+}
+const REVIEW_WHERE = `display_name like 'Alex Example 243_' and import_key is null`
+const OFFER = '[data-slot="chat-review"][data-state="offer"]'
+const RESULT = '[data-slot="chat-review"][data-state="result"]'
+const FAILED = '[data-slot="chat-review"][data-state="failed"]'
+const TEACHER = '[data-role="teacher"]'
+const DUPLICATED = 'Line one\nLine one\nLine two'
+const DEDUPED = 'Line one\nLine two'
+const REVIEW_CANT_UNDO = "Can't undo: a block changed after the review."
+const REVIEW_UNDONE = 'Changes undone. The notes are as they were before the review.'
+const REVIEW_DAY = /[A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}/
+
+function removeReviewCards(conversations = []) {
+	const cards = `select id from students where ${REVIEW_WHERE}`
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	removeConversations(conversations)
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${REVIEW_WHERE})`
+	).rows.map((row) => row.id)
+	const mentioned = sql(
+		`select distinct m.conversation_id as id from chat_messages m join students s on position(s.id::text in m.mentions::text) > 0 where s.display_name like 'Alex Example 243_' and s.import_key is null`
+	).rows.map((row) => row.id)
+	removeConversations([...new Set([...left, ...mentioned])])
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${REVIEW_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+async function sendReview(page, name, tail = '') {
+	const field = page.locator(FIELD)
+	await field.waitFor({ timeout: 30000 })
+	await field.click()
+	await page.keyboard.type('/review ')
+	await page.keyboard.type(`@${name}`)
+	await page.locator(POPUP).waitFor({ timeout: 15000 })
+	await page.keyboard.press('Enter')
+	await page.locator(POPUP).waitFor({ state: 'detached', timeout: 5000 })
+	if (tail !== '') await page.keyboard.type(tail)
+	await page.locator(SEND).click()
+}
+
+async function sectionReview() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const started = await startFakeModelApi(REVIEW_PORT)
+	const conversations = []
+	try {
+		removeReviewCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, REVIEW_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const ids = {}
+				for (const [key, name] of Object.entries(RV)) {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+					ids[key] = created.json.student.id
+				}
+				const track = () => {
+					const id = new URL(page.url()).searchParams.get('c')
+					if (id && !conversations.includes(id)) conversations.push(id)
+				}
+				const newChat = async () => {
+					await page.goto(`${BASE}/chat?new=1`)
+					await page.locator('[data-slot="chat-commands"]').waitFor({ timeout: 30000 })
+				}
+				const count = (selector) => page.locator(selector).count()
+				const messages = () => count('[data-message-id]')
+				const idle = () => page.locator(SEND).waitFor({ timeout: 30000 })
+				const askAbout = async (key) => {
+					setSection(RV[key], 'goals', 'Line one')
+					const goals = sectionOf(RV[key], 'goals')
+					await newChat()
+					await askNote(page, `[fake:note-write] block: ${goals.id}; text: Line one\\nLine one\\nLine two`, RV[key])
+					track()
+					await page.locator(OFFER).waitFor({ timeout: 20000 })
+					return page.locator(OFFER)
+				}
+				const reviewed = async (selector, total) => {
+					await page.reload()
+					await page.locator(selector).first().waitFor({ timeout: 30000 })
+					return total === undefined ? null : count(selector)
+				}
+
+				const noOffer = await askAbout('no')
+				const never = await noOffer.innerText()
+				const apart = await page.evaluate(() => {
+					const offer = document.querySelector('[data-slot="chat-review"][data-state="offer"]')?.closest('li')
+					const receipt = document.querySelector('[data-slot="chat-note-change"]')?.closest('li')
+					return offer !== null && receipt !== null && offer !== receipt
+				})
+				check(
+					'after a turn about the notes the question is a message of its own: never reviewed, Yes and No',
+					apart &&
+						never.includes(`${RV.no}'s notes and vocabulary have never been reviewed. Run a review?`) &&
+						(await noOffer.getByRole('button', { name: 'Yes', exact: true }).isVisible()) &&
+						(await noOffer.getByRole('button', { name: 'No', exact: true }).isVisible()),
+					never
+				)
+				await shot(page, 'changes-review', 'offer')
+				const before = await messages()
+				await noOffer.getByRole('button', { name: 'No', exact: true }).click()
+				await page.locator(OFFER).waitFor({ state: 'detached', timeout: 15000 })
+				check(
+					'No takes the question away without a trace: no message of its own is left',
+					(await messages()) === before - 1 && (await count(TEACHER)) === 1
+				)
+				await reviewed('[data-slot="chat-note-change"]')
+				check(
+					'after a reload the answered No does not come back',
+					(await count(OFFER)) === 0 && (await messages()) === before - 1
+				)
+
+				const yesOffer = await askAbout('yes')
+				await yesOffer.getByRole('button', { name: 'Yes', exact: true }).click()
+				await page.locator(RESULT).waitFor({ timeout: 40000 })
+				await idle()
+				track()
+				const teacher = await page.locator(TEACHER).allInnerTexts()
+				check(
+					'Yes takes the question away and sends the review command with the student',
+					(await count(OFFER)) === 0 && teacher.some((text) => text.includes('/review') && text.includes(RV.yes)),
+					teacher.join(' | ')
+				)
+				const result = page.locator(RESULT)
+				const body = await result.innerText()
+				const links = await result
+					.getByRole('link')
+					.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href')))
+				const last = await page.evaluate(() => {
+					const items = [...document.querySelectorAll('[data-slot="chat-messages"] > li')]
+					return items.at(-1)?.querySelector('[data-slot="chat-review"][data-state="result"]') !== null
+				})
+				check(
+					'the result names the student with the day, has the three sections, a block link and Undo changes, and is the last message',
+					body.includes('Review finished') &&
+						new RegExp(`${RV.yes}'s notes and vocabulary · ${REVIEW_DAY.source}`).test(body) &&
+						body.includes('Fixed') &&
+						body.includes('Found and left as it is') &&
+						body.includes('Needs your decision') &&
+						links.some((href) => href?.startsWith(`/students/${ids.yes}?tab=notes&section=`)) &&
+						(await result.getByRole('button', { name: 'Undo changes' }).isVisible()) &&
+						last,
+					body
+				)
+				check('the review wrote the block once', sectionOf(RV.yes, 'goals').body === DEDUPED)
+				const progress = page.locator('li', { has: page.locator(RESULT) }).locator('[data-slot="chat-progress"]')
+				await progress.getByRole('button', { name: /Show steps/ }).click()
+				const steps = await progress.innerText()
+				check(
+					'the review steps are named by the design',
+					steps.includes(`Reading ${RV.yes}'s notes and vocabulary`) &&
+						steps.includes('Looking for duplicates and conflicts'),
+					steps
+				)
+				await shot(page, 'changes-review', 'result')
+
+				await page.setViewportSize({ width: 375, height: 800 })
+				const narrow = await page.evaluate(() => ({
+					overflow: document.documentElement.scrollWidth - window.innerWidth,
+					right: document.querySelector('[data-slot="chat-review"][data-state="result"]').getBoundingClientRect().right,
+				}))
+				check(
+					'at 375 px the result stays inside the screen',
+					narrow.overflow <= 0 && narrow.right <= 375,
+					JSON.stringify(narrow)
+				)
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				await reviewed(RESULT)
+				check(
+					'after a reload the answered question does not come back and the result keeps Undo changes',
+					(await count(OFFER)) === 0 &&
+						(await page.locator(RESULT).getByRole('button', { name: 'Undo changes' }).isVisible())
+				)
+				await page.locator(RESULT).getByRole('button', { name: 'Undo changes' }).click()
+				await page.getByText(REVIEW_UNDONE).waitFor({ timeout: 30000 })
+				check(
+					'Undo changes puts the block back and leaves the mark of the rollback without the button',
+					sectionOf(RV.yes, 'goals').body === DUPLICATED &&
+						(await page.locator(RESULT).getByRole('button', { name: 'Undo changes' }).count()) === 0
+				)
+				await reviewed(RESULT)
+				check(
+					'after a reload the rollback mark stays and Undo changes is not offered again',
+					(await page.getByText(REVIEW_UNDONE).count()) === 1 &&
+						(await page.getByRole('button', { name: 'Undo changes' }).count()) === 0
+				)
+
+				await askAbout('pending')
+				await page.reload()
+				await page.locator(OFFER).waitFor({ timeout: 30000 })
+				check(
+					'an unanswered question survives a reload with Yes and No',
+					(await page.locator(OFFER).getByRole('button', { name: 'Yes', exact: true }).isVisible()) &&
+						(await page.locator(OFFER).getByRole('button', { name: 'No', exact: true }).isVisible())
+				)
+				const assistants = await count('[data-role="assistant"]')
+				await page.locator(FIELD).click()
+				await page.keyboard.type('hello')
+				await page.locator(SEND).click()
+				await page.waitForFunction(
+					(total) => document.querySelectorAll('[data-role="assistant"]').length > total,
+					assistants,
+					{ timeout: 30000 }
+				)
+				await idle()
+				check('a new message does not remove the waiting question', (await count(OFFER)) === 1)
+
+				setSection(RV.variants, 'goals', DUPLICATED)
+				await newChat()
+				await sendReview(page, RV.variants, ' [fake:review-clean]')
+				await page.locator(RESULT).waitFor({ timeout: 40000 })
+				await idle()
+				track()
+				const clean = await page.locator(RESULT).last().innerText()
+				check(
+					'a review with nothing to fix says so, names the student and has no Undo',
+					clean.includes(`Nothing to fix. ${RV.variants}'s notes and vocabulary are consistent.`) &&
+						REVIEW_DAY.test(clean) &&
+						(await page.getByRole('button', { name: 'Undo changes' }).count()) === 0,
+					clean
+				)
+				await sendReview(page, RV.variants, ' [fake:review-questions]')
+				await page.waitForFunction(
+					(total) => document.querySelectorAll('[data-slot="chat-review"][data-state="result"]').length > total,
+					1,
+					{
+						timeout: 40000,
+					}
+				)
+				await idle()
+				const questions = await page.locator(RESULT).last().innerText()
+				check(
+					'a review with only questions shows Needs your decision with a block link and no Undo',
+					questions.includes('Needs your decision') &&
+						!questions.includes('Fixed') &&
+						(await page
+							.locator(RESULT)
+							.last()
+							.getByRole('link', { name: /^Open / })
+							.count()) === 1 &&
+						(await page.getByRole('button', { name: 'Undo changes' }).count()) === 0,
+					questions
+				)
+				const asked = await count(TEACHER)
+				await sendReview(page, RV.variants, ' [fake:review-skip]')
+				await page.locator(FAILED).waitFor({ timeout: 40000 })
+				await idle()
+				const failed = await page.locator(FAILED).innerText()
+				check(
+					'a turn that ended without a result says the review did not finish and offers Run again',
+					failed.includes('The review did not finish. Nothing was changed.') &&
+						failed.includes(`${RV.variants}'s notes are as they were.`) &&
+						(await page.locator(FAILED).getByRole('button', { name: 'Run again' }).isVisible()) &&
+						(await count(RESULT)) === 2,
+					failed
+				)
+				await page.locator(FAILED).getByRole('button', { name: 'Run again' }).click()
+				await page.waitForFunction(
+					(total) => document.querySelectorAll('[data-slot="chat-review"][data-state="result"]').length > total,
+					2,
+					{
+						timeout: 40000,
+					}
+				)
+				await idle()
+				check(
+					'Run again sends the review command once more',
+					(await count(TEACHER)) === asked + 2 && sectionOf(RV.variants, 'goals').body === DEDUPED
+				)
+				setSection(RV.variants, 'goals', 'Teacher edit')
+				await page.locator(RESULT).last().getByRole('button', { name: 'Undo changes' }).click()
+				await page.getByText(REVIEW_CANT_UNDO).waitFor({ timeout: 30000 })
+				check(
+					'after a block changed Undo changes is gone with the explanation and the teacher text stays',
+					(await page.locator(RESULT).last().getByRole('button', { name: 'Undo changes' }).count()) === 0 &&
+						sectionOf(RV.variants, 'goals').body === 'Teacher edit'
+				)
+
+				setSection(RV.stamp, 'goals', DUPLICATED)
+				await page.goto(`${BASE}/students/${ids.stamp}?tab=notes`)
+				const stamp = page.locator('[data-slot="review-stamp"]')
+				await stamp.waitFor({ timeout: 30000 })
+				const now = page.locator('[data-slot="review-now"]')
+				check(
+					'the Notes stamp offers Review now beside Never reviewed',
+					(await stamp.innerText()).includes('Never reviewed') &&
+						(await now.getAttribute('href')) === `/chat?new=1&student=${ids.stamp}&review=1`
+				)
+				await now.click()
+				await page.locator(RESULT).waitFor({ timeout: 60000 })
+				await idle()
+				track()
+				const arrival = new URL(page.url())
+				check(
+					'Review now opens a chat with the review already running, without the question, and drops the parameter',
+					arrival.pathname === '/chat' &&
+						!arrival.searchParams.has('review') &&
+						(await count(TEACHER)) === 1 &&
+						(await count(OFFER)) === 0 &&
+						sectionOf(RV.stamp, 'goals').body === DEDUPED,
+					page.url()
+				)
+				await reviewed(RESULT)
+				check('after a reload no second review starts', (await count(TEACHER)) === 1 && (await count(RESULT)) === 1)
+				await page.goto(`${BASE}/students/${ids.stamp}?tab=vocabulary`)
+				await stamp.waitFor({ timeout: 30000 })
+				check(
+					'the Vocabulary tab shows the same stamp with the new date and Review now',
+					(await stamp.innerText()).includes('Reviewed today') &&
+						(await page.locator('[data-slot="review-now"]').isVisible())
+				)
+
+				const made = await call('POST', '/chat/conversations')
+				const conversationId = made.json.conversation.id
+				conversations.push(conversationId)
+				const text = `/review @${RV.running} [fake:review-hang]`
+				const start = '/review @'.length
+				const sent = await call('POST', `/chat/conversations/${conversationId}/messages`, {
+					requestId: randomUUID(),
+					text,
+					mentions: [{ studentId: ids.running, text: RV.running, start, end: start + RV.running.length }],
+				})
+				check(
+					'the long review is started through the chat',
+					sent.status === 200 || sent.status === 201,
+					String(sent.status)
+				)
+				await page.goto(`${BASE}/students/${ids.running}?tab=notes`)
+				await stamp.waitFor({ timeout: 30000 })
+				await page.getByText('Review in progress').waitFor({ timeout: 30000 })
+				const open = page.locator('[data-slot="review-open-chat"]')
+				check(
+					'while the review runs the Notes stamp says Review in progress with Open chat in place of Review now',
+					(await open.getAttribute('href')) === `/chat?c=${conversationId}` &&
+						(await page.locator('[data-slot="review-now"]').count()) === 0
+				)
+				await shot(page, 'changes-review', 'running')
+				await page.goto(`${BASE}/students/${ids.running}?tab=vocabulary`)
+				await page.getByText('Review in progress').waitFor({ timeout: 30000 })
+				check(
+					'the Vocabulary tab shows the same state',
+					(await page.locator('[data-slot="review-open-chat"]').isVisible()) &&
+						(await page.locator('[data-slot="review-now"]').count()) === 0
+				)
+				const stopped = await call('POST', `/chat/turns/${sent.json.turn.id}/stop`, {})
+				check('the long review is stopped', stopped.status === 200, String(stopped.status))
+				await page.locator('[data-slot="review-now"]').waitFor({ timeout: 20000 })
+				check(
+					'when the review ends the stamp comes back by itself with Review now and the old date',
+					(await stamp.innerText()).includes('Never reviewed')
+				)
+				await page.goto(`${BASE}/chat?c=${conversationId}`)
+				await page.locator(FAILED).waitFor({ timeout: 30000 })
+				check(
+					'a stopped review shows the did not finish message with Run again',
+					(await page.locator(FAILED).getByRole('button', { name: 'Run again' }).isVisible()) &&
+						(await count(RESULT)) === 0
+				)
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeReviewCards(conversations)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+		removeReviewCards(conversations)
+	}
+}
+
+const PROMPT_BLOCK = (command) => `[data-slot="command-prompt"][data-command="${command}"]`
+const PROMPT_ACCOUNTS = `select id from accounts where role = 'teacher'`
+const PROMPTS_NOISE = EXPECTED_NOISE
+
+function removePrompts() {
+	const result = sql(`delete from chat_command_prompts where account_id in (${PROMPT_ACCOUNTS})`)
+	console.log(`fixture prompts removed ${result.rowCount}`)
+}
+
+const promptRows = () =>
+	sql(
+		`select command, body, revision from chat_command_prompts where account_id in (${PROMPT_ACCOUNTS}) order by command`
+	).rows
+
+async function sectionPrompts() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	try {
+		removePrompts()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await setTheme(page)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const listed = await call('GET', '/settings/assistant/prompts')
+				const defaults = Object.fromEntries(listed.json.prompts.map((item) => [item.command, item.defaultBody]))
+				await page.goto(`${BASE}/settings?tab=assistant`)
+				const recap = page.locator(PROMPT_BLOCK('/recap'))
+				const essay = page.locator(PROMPT_BLOCK('/essay'))
+				await recap.waitFor({ timeout: 30000 })
+				const field = recap.locator('textarea')
+				const badge = (block) => block.getAttribute('data-badge')
+				const buttons = async (block) => ({
+					restore: await block.getByRole('button', { name: 'Restore default' }).isDisabled(),
+					discard: await block.getByRole('button', { name: 'Discard' }).isDisabled(),
+					save: await block.getByRole('button', { name: 'Save', exact: true }).isDisabled(),
+				})
+
+				check(
+					'the Assistant tab lists Command prompts after Budget and Privacy last',
+					await page.evaluate(() => {
+						const titles = [...document.querySelectorAll('h2')].map((node) => node.textContent?.trim())
+						return (
+							titles.indexOf('Budget') >= 0 &&
+							titles.indexOf('Command prompts') === titles.indexOf('Budget') + 1 &&
+							titles.indexOf('Privacy') === titles.indexOf('Command prompts') + 1 &&
+							titles.at(-1) === 'Privacy'
+						)
+					})
+				)
+				const noteShown = await page.getByText('Only the wording is edited here.').first().isVisible()
+				check('the card says that only the wording is edited', noteShown)
+				check(
+					'nothing saved: both commands read Default with Restore default, Discard and Save off',
+					(await badge(recap)) === 'Default' &&
+						(await badge(essay)) === 'Default' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: true, discard: true, save: true }) &&
+						(await field.inputValue()) === defaults['/recap'] &&
+						(await recap.locator('[data-slot="prompt-counter"]').innerText()).endsWith(' / 8,000') &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'Saved to your account.'
+				)
+				const privacy = page.getByText('sends them to the model provider with your question.')
+				check(
+					'the Privacy line states that event titles go to the model provider',
+					(await privacy.isVisible()) &&
+						(await page.getByText('What leaves the app when you use the assistant.').isVisible())
+				)
+
+				await field.fill(`${defaults['/recap']} Answer in Russian.`)
+				check(
+					'typing marks the command Edited, shows Unsaved changes and turns Discard and Save on',
+					(await badge(recap)) === 'Edited' &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'Unsaved changes' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: false, discard: false, save: false }) &&
+						(await badge(essay)) === 'Default'
+				)
+				await shot(page, 'changes-prompts', 'edited')
+				await recap.getByRole('button', { name: 'Discard' }).click()
+				check(
+					'Discard puts the saved text back',
+					(await field.inputValue()) === defaults['/recap'] && (await badge(recap)) === 'Default'
+				)
+
+				await field.fill('')
+				check(
+					'an empty prompt shows the sentence and keeps Save off, Discard and Restore default on',
+					(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'The prompt cannot be empty.' &&
+						(await field.getAttribute('aria-invalid')) === 'true' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: false, discard: false, save: true })
+				)
+				await field.fill('x'.repeat(8001))
+				check(
+					'a prompt over the limit shows how far over it is and keeps Save off',
+					(await recap.locator(`#settings-prompt-recap-status`).innerText()) ===
+						'The prompt is 1 character over the 8,000 limit.' &&
+						(await recap.locator('[data-slot="prompt-counter"]').innerText()) === '8,001 / 8,000' &&
+						(await buttons(recap)).save === true
+				)
+				await recap.getByRole('button', { name: 'Discard' }).click()
+
+				const custom = 'Summarise the lessons in three sentences. Answer in Russian.'
+				await field.fill(custom)
+				await recap.getByRole('button', { name: 'Save', exact: true }).click()
+				await page.getByText('/recap prompt saved.').waitFor({ timeout: 15000 })
+				const stored = promptRows().find((row) => row.command === '/recap')
+				check(
+					'Save writes the text with revision 1, the badge reads Customised and the buttons turn off',
+					stored?.body === custom &&
+						Number(stored.revision) === 1 &&
+						(await badge(recap)) === 'Customised' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: false, discard: true, save: true }) &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'Saved to your account.' &&
+						(await badge(essay)) === 'Default'
+				)
+				await shot(page, 'changes-prompts', 'customised')
+
+				await recap.getByRole('button', { name: 'Restore default' }).click()
+				check(
+					'Restore default puts the default text in the field without saving',
+					(await field.inputValue()) === defaults['/recap'] &&
+						(await badge(recap)) === 'Edited' &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) ===
+							'Default text restored. Save to use it.' &&
+						promptRows().find((row) => row.command === '/recap')?.body === custom &&
+						(await buttons(recap)).restore === true
+				)
+				await recap.getByRole('button', { name: 'Save', exact: true }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelector(selector)?.getAttribute('data-badge') === 'Default',
+					PROMPT_BLOCK('/recap'),
+					{ timeout: 15000 }
+				)
+				const reset = promptRows().find((row) => row.command === '/recap')
+				check(
+					'Save of the default text stores no text, bumps the revision and the badge reads Default again',
+					reset?.body === null && Number(reset.revision) === 2
+				)
+
+				await field.fill('Draft from this tab.')
+				const rival = await call('PUT', '/settings/assistant/prompts/recap', {
+					body: 'Written in another tab.',
+					expectedRevision: 2,
+				})
+				check('the other tab saves its text', rival.status === 200, String(rival.status))
+				await recap.getByRole('button', { name: 'Save', exact: true }).click()
+				await recap.getByRole('button', { name: 'Reload prompt' }).waitFor({ timeout: 15000 })
+				check(
+					'a competing edit keeps the draft, says the prompt changed elsewhere and turns Save off',
+					(await field.inputValue()) === 'Draft from this tab.' &&
+						(await recap.getByText('This prompt changed elsewhere.').isVisible()) &&
+						(await buttons(recap)).save === true &&
+						promptRows().find((row) => row.command === '/recap')?.body === 'Written in another tab.'
+				)
+				await shot(page, 'changes-prompts', 'conflict')
+				await recap.getByRole('button', { name: 'Reload prompt' }).click()
+				await recap.getByRole('button', { name: 'Reload prompt' }).waitFor({ state: 'detached', timeout: 15000 })
+				check(
+					'Reload prompt shows the saved text and clears the row',
+					(await field.inputValue()) === 'Written in another tab.' && (await badge(recap)) === 'Customised'
+				)
+
+				await essay.locator('textarea').fill('Review the essay briefly.')
+				await essay.getByRole('button', { name: 'Save', exact: true }).click()
+				await page.getByText('/essay prompt saved.').waitFor({ timeout: 15000 })
+				check(
+					'each command saves by itself',
+					promptRows().find((row) => row.command === '/essay')?.body === 'Review the essay briefly.' &&
+						promptRows().find((row) => row.command === '/recap')?.body === 'Written in another tab.'
+				)
+
+				await page.goto(`${BASE}/settings?tab=calendar`)
+				await page.getByRole('tab', { name: 'Google Calendar' }).waitFor({ timeout: 30000 })
+				check('the Google Calendar tab does not repeat the privacy line', !(await privacy.isVisible()))
+
+				await page.setViewportSize({ width: 375, height: 812 })
+				await page.goto(`${BASE}/settings?tab=assistant`)
+				await recap.waitFor({ timeout: 30000 })
+				await recap.locator('textarea').fill('Narrow check.')
+				const narrow = await page.evaluate((selector) => {
+					const block = document.querySelector(selector)
+					const box = block.getBoundingClientRect()
+					const area = block.querySelector('textarea').getBoundingClientRect()
+					return {
+						left: box.left,
+						right: box.right,
+						areaHeight: Math.round(area.height),
+						overflow: document.documentElement.scrollWidth - window.innerWidth,
+					}
+				}, PROMPT_BLOCK('/recap'))
+				check(
+					'at 375 px the block stays inside the screen, the field is 168 px tall and the page does not scroll sideways',
+					narrow.left >= 0 && narrow.right <= 375 && narrow.areaHeight === 168 && narrow.overflow <= 0,
+					JSON.stringify(narrow)
+				)
+				await shot(page, 'changes-prompts', 'phone')
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const unexpected = problems.filter((line) => !PROMPTS_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removePrompts()
+		)
+	} finally {
+		removePrompts()
+	}
+}
+
 const sections = {
+	notes: sectionNotes,
+	review: sectionReview,
+	prompts: sectionPrompts,
+	details: sectionDetails,
+	facts: sectionFacts,
 	payment: sectionPayment,
 	forms: sectionForms,
 	proposals: sectionProposals,

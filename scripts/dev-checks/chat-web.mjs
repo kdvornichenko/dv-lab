@@ -554,24 +554,23 @@ async function sectionNotes() {
 				(await area.inputValue()) === base && !(await area.inputValue()).includes('Note ')
 			)
 			check(
-				'the editor says later notes are not part of the text',
-				(await goals
-					.getByText('Notes added later are listed under the section. They are not part of this text.')
-					.count()) === 1
+				'the editor says Markdown is supported and offers Cancel and Save',
+				(await goals.getByText('Markdown is supported.').count()) === 1 &&
+					(await goals.getByRole('button', { name: 'Cancel' }).count()) === 1
 			)
 			check('the entries stay under the editor', (await goals.getByText('Note beta text').count()) === 1)
 			await area.fill(`${base} edited`)
-			const saving = page.waitForRequest(
-				(request) => request.method() === 'PUT' && request.url().includes('/sections/goals')
-			)
-			await goals.getByRole('button', { name: 'Save section' }).click()
+			const goalsRevision = sql(`select revision from student_sections where student_id = '${id}' and kind = 'goals'`)
+				.rows[0].revision
+			const saving = page.waitForRequest((request) => request.method() === 'PUT' && request.url().includes('/blocks/'))
+			await goals.getByRole('button', { name: 'Save', exact: true }).click()
 			const request = await saving
 			check(
-				'saving sends only the section text',
-				request.postData() === JSON.stringify({ body: `${base} edited` }),
+				'saving sends only the block text and its revision',
+				request.postData() === JSON.stringify({ body: `${base} edited`, expectedRevision: goalsRevision }),
 				request.postData()
 			)
-			await page.getByText('Section saved').waitFor({ timeout: 15000 })
+			await goals.getByText(`${base} edited`).waitFor({ timeout: 15000 })
 			const savedBody = sql(`select body from student_sections where student_id = '${id}' and kind = 'goals'`).rows[0]
 				.body
 			check('the saved section text has no note in it', savedBody === `${base} edited`)

@@ -25,6 +25,8 @@ import { createChatProvider } from './chat/provider.ts'
 import { createChat } from './chat/runs.ts'
 import { loadConfig, type CalendarConfig } from './config.ts'
 import { createLifecycle } from './lifecycle.ts'
+import { createWebPushDeliver } from './push/deliver.ts'
+import { createPushScheduler } from './push/scheduler.ts'
 import { createLogger } from './request-context.ts'
 
 const config = loadConfig(process.env)
@@ -50,9 +52,14 @@ const chat = config.chat.enabled
 			logger,
 			provider: createChatProvider({ apiKey: config.chat.apiKey }),
 			calendarCommands: calendar?.commands,
+			eventTitles: calendar?.eventTitles,
 		})
 	: undefined
 await chat?.sweepInterrupted()
+const pushScheduler =
+	config.push.enabled && config.NODE_ENV !== 'test'
+		? createPushScheduler({ db, logger, deliver: createWebPushDeliver({ push: config.push, db, logger }) })
+		: undefined
 
 function createCalendar(calendarConfig: Extract<CalendarConfig, { enabled: true }>) {
 	const lease = createConnectionLease(pool)
@@ -119,6 +126,7 @@ const app = createApp({
 	calendarCommands: calendar?.commands,
 	eventTitles: calendar?.eventTitles,
 	calendarWake: calendar ? (connectionId) => void calendar.sync.wake(connectionId) : undefined,
+	push: config.push.enabled ? { enabled: true, publicKey: config.push.publicKey } : { enabled: false },
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
@@ -134,12 +142,14 @@ const server = serve(
 
 housekeeping.start()
 calendar?.control.start()
+pushScheduler?.start()
 
 lifecycle.manage({
 	server,
 	wss,
 	resources: [
 		housekeeping,
+		...(pushScheduler ? [pushScheduler] : []),
 		...(chat ? [chat] : []),
 		...(calendar?.resources ?? []),
 		{ name: 'pg-pool', close: () => pool.end() },

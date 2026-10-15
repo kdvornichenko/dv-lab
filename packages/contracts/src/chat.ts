@@ -403,6 +403,7 @@ export const CHAT_CHANGE_OPERATIONS = [
 	'remove_note',
 	'remove_comment',
 	'bulk_move',
+	'set_details',
 ] as const
 
 export const CHAT_CHANGE_STATES = [
@@ -474,6 +475,45 @@ export const chatSetRateChange = z.strictObject({
 	studentName: z.string(),
 	before: chatCardRate,
 	after: chatCardRate,
+})
+
+const CHAT_DETAIL_FIELDS = [
+	'rate',
+	'lessonMinutes',
+	'noShowDeducts',
+	'gender',
+	'parent',
+	'level',
+	'goals',
+	'timeZone',
+] as const
+
+const detailText = z.string().min(1).nullable()
+
+const chatDetailChange = z.discriminatedUnion('field', [
+	z.strictObject({ field: z.literal('rate'), before: chatCardRate, after: chatCardRate }),
+	z.strictObject({ field: z.literal('lessonMinutes'), before: lessonLength, after: lessonLength }),
+	z.strictObject({ field: z.literal('noShowDeducts'), before: z.boolean(), after: z.boolean() }),
+	z.strictObject({
+		field: z.literal('gender'),
+		before: z.enum(GENDERS).nullable(),
+		after: z.enum(GENDERS).nullable(),
+	}),
+	z.strictObject({ field: z.literal('parent'), before: detailText, after: detailText }),
+	z.strictObject({ field: z.literal('level'), before: detailText, after: detailText }),
+	z.strictObject({ field: z.literal('goals'), before: detailText, after: detailText }),
+	z.strictObject({
+		field: z.literal('timeZone'),
+		before: z.string().min(1).nullable(),
+		after: calendarTimeZone.nullable(),
+	}),
+])
+
+export const chatSetDetailsChange = z.strictObject({
+	operation: z.literal('set_details'),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	fields: z.array(chatDetailChange).min(1).max(CHAT_DETAIL_FIELDS.length),
 })
 
 export const chatArchiveCardChange = z.strictObject({
@@ -559,6 +599,7 @@ export const chatChange = z.discriminatedUnion('operation', [
 	chatRemoveNoteChange,
 	chatRemoveCommentChange,
 	chatBulkMoveChange,
+	chatSetDetailsChange,
 ])
 
 export const chatChangeReceipt = z.strictObject({ studentId: z.uuid(), paymentId: z.uuid().optional() })
@@ -570,6 +611,55 @@ export const chatChangeProposalBlock = z.strictObject({
 	issue: chatChangeIssue.optional(),
 	change: chatChange,
 	receipt: chatChangeReceipt.nullable(),
+})
+
+const CHAT_NOTE_CHANGES = [
+	'updated',
+	'created',
+	'deleted',
+	'words_added',
+	'words_removed',
+	'already',
+	'update_block',
+	'delete_block',
+] as const
+
+export const CHAT_NOTE_ISSUES = ['block_changed', 'not_found', 'name_taken', 'words_changed'] as const
+
+export const CHAT_NOTE_CHANGED_LINES_MAX = 6
+
+export const CHAT_NOTE_WORDS_MAX = 20
+
+const chatNoteLine = z.strictObject({ kind: z.enum(['same', 'added', 'removed']), text: z.string() })
+
+const chatNoteWord = z.strictObject({
+	termId: z.uuid(),
+	term: z.string().min(1),
+	state: z.enum(['added', 'restored', 'already', 'removed']),
+})
+
+export const chatNoteChangeBlock = z.strictObject({
+	type: z.literal('note_change'),
+	actionId: z.uuid(),
+	mode: z.enum(['receipt', 'proposal']),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	target: z.discriminatedUnion('kind', [
+		z.strictObject({
+			kind: z.literal('block'),
+			blockId: z.uuid(),
+			blockKey: z.string().min(1),
+			blockName: z.string(),
+		}),
+		z.strictObject({ kind: z.literal('vocabulary') }),
+	]),
+	change: z.enum(CHAT_NOTE_CHANGES),
+	hunks: z.array(z.strictObject({ lines: z.array(chatNoteLine).min(1) })),
+	more: z.number().int().min(0),
+	words: z.array(chatNoteWord),
+	state: z.enum(CHAT_CHANGE_STATES).nullable(),
+	undo: z.enum(['available', 'undone', 'unavailable']).nullable(),
+	issue: z.enum(CHAT_NOTE_ISSUES).optional(),
 })
 
 export const chatWithheldBlock = z.strictObject({ type: z.literal('withheld') })
@@ -723,12 +813,58 @@ export const chatEssayBlock = z.strictObject({
 	task: z.enum(CHAT_ESSAY_TASKS).nullable(),
 })
 
+export const REVIEW_COMMAND_TEXT = '/review'
+
+export const CHAT_REVIEW_UNDO = ['available', 'undone', 'unavailable', 'none'] as const
+
+export const CHAT_REVIEW_ISSUES = ['changed', 'block_changed'] as const
+
+export const CHAT_REVIEW_ITEMS_MAX = 50
+
+export const CHAT_REVIEW_ITEM_MAX_LENGTH = 600
+
+const chatReviewItem = z.strictObject({
+	text: z.string().min(1).max(CHAT_REVIEW_ITEM_MAX_LENGTH),
+	block: z
+		.strictObject({
+			blockId: z.uuid(),
+			blockKey: z.string().min(1),
+			blockName: z.string(),
+		})
+		.optional(),
+})
+
+export const chatReviewResultBlock = z.strictObject({
+	type: z.literal('review_result'),
+	actionId: z.uuid(),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	finishedAt: calendarInstant,
+	fixed: z.array(chatReviewItem).max(CHAT_REVIEW_ITEMS_MAX),
+	found: z.array(chatReviewItem).max(CHAT_REVIEW_ITEMS_MAX),
+	decisions: z.array(chatReviewItem).max(CHAT_REVIEW_ITEMS_MAX * 3),
+	undo: z.enum(CHAT_REVIEW_UNDO),
+	issue: z.enum(CHAT_REVIEW_ISSUES).optional(),
+})
+
+export const CHAT_REVIEW_OFFER_STATES = ['proposed', 'accepted', 'declined'] as const
+
+export const chatReviewOfferBlock = z.strictObject({
+	type: z.literal('review_offer'),
+	actionId: z.uuid(),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	lastReviewedAt: calendarInstant.nullable(),
+	state: z.enum(CHAT_REVIEW_OFFER_STATES),
+})
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
 	chatRefusedBlock,
 	chatCalendarProposalBlock,
 	chatChangeProposalBlock,
+	chatNoteChangeBlock,
 	chatWithheldBlock,
 	chatStoppedBlock,
 	chatInterruptedBlock,
@@ -741,6 +877,8 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatLessonDatesBlock,
 	chatActionLinkBlock,
 	chatEssayBlock,
+	chatReviewResultBlock,
+	chatReviewOfferBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -763,6 +901,9 @@ export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
 export type ChatLessonDatesBlock = z.infer<typeof chatLessonDatesBlock>
 export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
 export type ChatEssayBlock = z.infer<typeof chatEssayBlock>
+export type ChatReviewResultBlock = z.infer<typeof chatReviewResultBlock>
+export type ChatReviewItem = z.infer<typeof chatReviewItem>
+export type ChatReviewOfferBlock = z.infer<typeof chatReviewOfferBlock>
 export type ChatActionLinkKind = (typeof CHAT_ACTION_LINK_KINDS)[number]
 export type ChatActionLinkDialog = (typeof CHAT_ACTION_LINK_DIALOGS)[number]
 export type ChatSettingsTab = (typeof CHAT_SETTINGS_TABS)[number]
@@ -773,11 +914,14 @@ export type ChatRefusedBlock = z.infer<typeof chatRefusedBlock>
 export type ChatCalendarProposalBlock = z.infer<typeof chatCalendarProposalBlock>
 export type ChatCalendarState = (typeof CHAT_CALENDAR_STATES)[number]
 export type ChatChangeProposalBlock = z.infer<typeof chatChangeProposalBlock>
+export type ChatNoteChangeBlock = z.infer<typeof chatNoteChangeBlock>
+export type ChatNoteIssue = (typeof CHAT_NOTE_ISSUES)[number]
 export type ChatChange = z.infer<typeof chatChange>
 export type ChatChangeState = (typeof CHAT_CHANGE_STATES)[number]
 export type ChatChangeIssue = z.infer<typeof chatChangeIssue>
 export type ChatChangeOperation = (typeof CHAT_CHANGE_OPERATIONS)[number]
 export type ChatBulkMoveChange = z.infer<typeof chatBulkMoveChange>
+export type ChatDetailChange = z.infer<typeof chatDetailChange>
 export type ChatCalendarIssue = z.infer<typeof chatCalendarIssue>
 export type ChatUndoState = (typeof CHAT_UNDO_STATES)[number]
 
@@ -791,17 +935,26 @@ export const CHAT_STEP_TOOLS = [
 	'lesson_dates',
 	'mark_lesson',
 	'add_note',
+	'note_write',
+	'note_block_create',
+	'note_block_delete',
+	'vocabulary_add',
+	'vocabulary_remove',
 	'add_comment',
 	'propose_lesson_change',
 	'propose_payment',
 	'propose_student',
 	'propose_rate',
+	'propose_details',
 	'propose_archive',
 	'student_payments',
 	'propose_payment_delete',
 	'propose_entry_removal',
 	'propose_bulk_move',
 	'essay_feedback',
+	'calendar_events',
+	'review_read',
+	'apply_review',
 	'answer',
 ] as const
 
@@ -900,7 +1053,12 @@ export const undoRequest = z.strictObject({ requestId: z.uuid() })
 export type UndoRequest = z.infer<typeof undoRequest>
 
 export const undoResponse = z.strictObject({
-	block: z.discriminatedUnion('type', [chatActionResultBlock, chatCalendarProposalBlock]),
+	block: z.discriminatedUnion('type', [
+		chatActionResultBlock,
+		chatCalendarProposalBlock,
+		chatNoteChangeBlock,
+		chatReviewResultBlock,
+	]),
 })
 
 export type UndoResponse = z.infer<typeof undoResponse>
@@ -910,7 +1068,12 @@ export const calendarActionResponse = z.strictObject({ block: chatCalendarPropos
 export type CalendarActionResponse = z.infer<typeof calendarActionResponse>
 
 export const chatActionResponse = z.strictObject({
-	block: z.discriminatedUnion('type', [chatCalendarProposalBlock, chatChangeProposalBlock]),
+	block: z.discriminatedUnion('type', [
+		chatCalendarProposalBlock,
+		chatChangeProposalBlock,
+		chatNoteChangeBlock,
+		chatReviewOfferBlock,
+	]),
 })
 
 export type ChatActionResponse = z.infer<typeof chatActionResponse>

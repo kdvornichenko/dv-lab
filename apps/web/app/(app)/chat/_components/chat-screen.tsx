@@ -13,9 +13,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 import { withoutSearchParams } from '@/lib/arrival-mark'
 
-import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
+import {
+	CHAT_FOLLOW_UP_TEXT,
+	REVIEW_COMMAND_TEXT,
+	type ChatClarifyBlock,
+	type ChatConversation,
+	type ChatReviewOfferBlock,
+	type ChatStudentFacts,
+} from '@dv-lab/contracts'
 
 import { ChatHeader } from './chat-header'
+import type { ReviewHandlers } from './chat-review'
 import { CommandList } from './command-list'
 import { Composer } from './composer'
 import { DeleteConversationDialog, RenameConversationDialog } from './conversation-dialogs'
@@ -23,7 +31,7 @@ import { ConversationList } from './conversation-list'
 import { ConversationRail, RAIL_MIN_WIDTH } from './conversation-rail'
 import { type ActiveReply, type CalendarHandlers, type ChangeHandlers, Messages, type ReplyHandlers } from './messages'
 import { StudentFacts, StudentFactsSkeleton } from './student-facts'
-import { useChat, useComposerDraft, useMentionStudents, type ThreadState } from './use-chat'
+import { useChat, useComposerDraft, useMentionStudents, type Draft, type ThreadState } from './use-chat'
 
 type ReadState =
 	{ kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; facts: ChatStudentFacts }
@@ -96,6 +104,7 @@ function Thread({
 	onRefresh,
 	calendar,
 	changes,
+	reviews,
 	replies,
 	active,
 	empty,
@@ -107,6 +116,7 @@ function Thread({
 	onRefresh: () => void
 	calendar: CalendarHandlers
 	changes: ChangeHandlers
+	reviews: ReviewHandlers
 	replies: ReplyHandlers
 	active: ActiveReply | null
 	empty: boolean
@@ -129,6 +139,7 @@ function Thread({
 			onChoose={onChoose}
 			calendar={calendar}
 			changes={changes}
+			reviews={reviews}
 			replies={replies}
 			active={active}
 		/>
@@ -169,14 +180,25 @@ const ASK_NOTICES = {
 
 type AskNotice = keyof typeof ASK_NOTICES
 
+function reviewDraft(student: { id: string; name: string }): Draft {
+	const start = REVIEW_COMMAND_TEXT.length + 2
+	return {
+		text: `${REVIEW_COMMAND_TEXT} @${student.name}`,
+		bindings: [{ studentId: student.id, text: student.name, start, end: start + student.name.length }],
+		stale: false,
+	}
+}
+
 export function ChatScreen({
 	studentId,
 	conversationId,
 	startNew,
+	startReview,
 }: {
 	studentId: string | null
 	conversationId: string | null
 	startNew: boolean
+	startReview: boolean
 }) {
 	const router = useRouter()
 	const chat = useChat(conversationId, { startNew })
@@ -203,6 +225,9 @@ export function ChatScreen({
 	const shownId = useRef(chat.selectedId)
 	const [seenNew, setSeenNew] = useState(false)
 	const [pendingAsk, setPendingAsk] = useState<string | null>(null)
+	const [reviewAsk, setReviewAsk] = useState(false)
+	const [reviewStart, setReviewStart] = useState<Draft | null>(null)
+	const reviewSent = useRef<Draft | null>(null)
 	const [askNotice, setAskNotice] = useState<AskNotice | null>(null)
 	const [askFocus, setAskFocus] = useState(0)
 	const setDraft = composer.setDraft
@@ -215,14 +240,18 @@ export function ChatScreen({
 			setAskNotice(null)
 			setDraft({ text: '', bindings: [], stale: false })
 			setPendingAsk(studentId)
+			setReviewAsk(startReview && studentId !== null)
 		}
 	}
 
 	if (pendingAsk !== null && mentionStudents.kind !== 'loading') {
 		setPendingAsk(null)
+		setReviewAsk(false)
 		const row =
 			mentionStudents.kind === 'ready' ? mentionStudents.rows.find((item) => item.id === pendingAsk) : undefined
-		if (mentionStudents.kind === 'error') setAskNotice('failed')
+		if (reviewAsk) {
+			if (row !== undefined) setReviewStart(reviewDraft({ id: row.id, name: row.displayName }))
+		} else if (mentionStudents.kind === 'error') setAskNotice('failed')
 		else if (row === undefined) setAskNotice('unavailable')
 		else {
 			const name = row.displayName
@@ -237,10 +266,21 @@ export function ChatScreen({
 
 	useEffect(() => {
 		if (!startNew) return
-		const href = withoutSearchParams(['new', 'c'])
+		const href = withoutSearchParams(['new', 'c', 'review'])
 		if (href !== undefined) router.replace(href, { scroll: false })
 		later(() => input.current?.focus())
 	}, [startNew, router])
+
+	const sendChat = chat.send
+
+	useEffect(() => {
+		if (reviewStart === null || startReview || reviewSent.current === reviewStart) return
+		reviewSent.current = reviewStart
+		setReviewStart(null)
+		void sendChat(reviewStart).then((sent) => {
+			if (!sent) setDraft(reviewStart)
+		})
+	}, [reviewStart, startReview, sendChat, setDraft])
 
 	useEffect(() => {
 		if (askFocus === 0) return
@@ -292,6 +332,33 @@ export function ChatScreen({
 			field.setSelectionRange(text.length, text.length)
 			field.focus()
 		})
+	}
+
+	async function sendCommand(draft: Draft): Promise<boolean> {
+		if (await chat.send(draft)) return true
+		composer.setDraft(draft)
+		later(() => {
+			const field = input.current
+			if (!field) return
+			field.focus()
+			field.setSelectionRange(field.value.length, field.value.length)
+		})
+		return false
+	}
+
+	function followUp(student: { id: string; displayName: string }) {
+		const name = student.displayName
+		void sendCommand({
+			text: `@${name} ${CHAT_FOLLOW_UP_TEXT}`,
+			bindings: [{ studentId: student.id, text: name, start: 1, end: 1 + name.length }],
+			stale: false,
+		})
+	}
+
+	async function answerReview(block: ChatReviewOfferBlock, yes: boolean): Promise<boolean> {
+		if (!(await chat.answerReview(block.actionId, yes ? 'confirm' : 'decline'))) return false
+		if (yes) await sendCommand(reviewDraft({ id: block.studentId, name: block.studentName }))
+		return true
 	}
 
 	function choose(block: ChatClarifyBlock, reply: string) {
@@ -348,10 +415,18 @@ export function ChatScreen({
 										onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
 										onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
 										onRefresh: chat.refreshThread,
+										onUndo: chat.undo,
+									}}
+									reviews={{
+										onAnswer: answerReview,
+										onRun: (student) => sendCommand(reviewDraft(student)),
+										onUndo: chat.undo,
 									}}
 									replies={{
 										onAsk: () => later(() => input.current?.focus()),
 										onCheckStatus: chat.checkStatus,
+										onFollowUp: (student) => followUp(student),
+										busy: chat.sending || chat.reply !== null,
 									}}
 									active={
 										chat.reply === null

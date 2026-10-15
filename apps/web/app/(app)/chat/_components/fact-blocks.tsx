@@ -33,7 +33,7 @@ import { DueList } from '../../_components/due-list'
 import { MoreRow, ROW_LIMIT } from '../../_components/today-lessons'
 import { CalendarLink, SourceLink } from './agent-links'
 import { LessonDates } from './lesson-dates'
-import { StudentFacts } from './student-facts'
+import { StudentFacts, type FactsFollowUp } from './student-facts'
 
 const STUDENTS_HREF = '/students'
 const SCHEDULE_HREF = '/schedule'
@@ -237,8 +237,8 @@ function ReadFailed({ block }: { block: ChatReadFailedBlock }) {
 	)
 }
 
-export function RecordBlockView({ block }: { block: RecordBlock }) {
-	if (block.type === 'facts') return <StudentFacts facts={block.facts} />
+export function RecordBlockView({ block, followUp }: { block: RecordBlock; followUp?: FactsFollowUp }) {
+	if (block.type === 'facts') return <StudentFacts facts={block.facts} followUp={followUp} />
 	if (block.type === 'lessons') return <Lessons block={block} />
 	if (block.type === 'pays_soon') return <PaysSoon block={block} />
 	if (block.type === 'excerpt') return <Excerpt block={block} />

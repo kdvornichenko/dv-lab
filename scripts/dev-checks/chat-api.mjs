@@ -4,7 +4,12 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { isDeepStrictEqual, parseEnv } from 'node:util'
 
-import { CHAT_FOLLOW_UP_TEXT } from '../../packages/contracts/src/index.ts'
+import {
+	CHAT_FOLLOW_UP_TEXT,
+	CHAT_PROMPT_MAX_LENGTH,
+	commandPromptResponse,
+	commandPromptsResponse,
+} from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { ENV_TEST, ROOT, STUDENT_LOGIN } from './api.mjs'
 import { removeCards } from './ledger-api/context.ts'
@@ -25,6 +30,7 @@ const SECTIONS = {
 	delete: sectionDelete,
 	title: sectionTitle,
 	since: sectionSince,
+	prompts: sectionPrompts,
 }
 
 let failures = 0
@@ -1334,30 +1340,31 @@ async function sectionActions(ctx) {
 		const noteBlock = replyBlock(noted)
 		const twin = await post({ ...noteMessage, requestId: randomUUID() })
 		const twinBlock = replyBlock(twin)
-		const noteRows = () =>
+		const generalText = () =>
 			sql(
-				`select id, revision, retracted_at is not null as retracted, section_kind from student_notes where student_id = ${quote(card)} order by created_at, id`
-			).rows
+				`select body from student_sections where student_id = ${quote(card)} and kind = 'general_info' and deleted_at is null`
+			).rows[0]?.body
+		const noteEntries = () =>
+			sql(`select count(*)::int as n from student_notes where student_id = ${quote(card)}`).rows[0].n
 		check(
-			'/note adds a note record in General info with the text in the result block',
+			'/note adds its line to the General info block with a note_change receipt and no note record',
 			noted.status === 201 &&
-				noteBlock?.type === 'action_result' &&
-				noteBlock.kind === 'note' &&
-				noteBlock.text === noteText &&
-				twinBlock?.type === 'action_result' &&
-				noteRows().length === 2 &&
-				noteRows().every((row) => row.section_kind === 'general_info' && row.revision === 1)
+				noteBlock?.type === 'note_change' &&
+				noteBlock.change === 'updated' &&
+				noteBlock.target.blockKey === 'general_info' &&
+				twinBlock?.type === 'note_change' &&
+				generalText() === `${noteText}\n${noteText}` &&
+				noteEntries() === 0
 		)
-		const noteUndo = await undo(noteBlock.actionId, randomUUID())
-		const [retractedNote, keptNote] = noteRows()
+		const earlierUndo = await undo(noteBlock.actionId, randomUUID())
+		const laterUndo = await undo(twinBlock.actionId, randomUUID())
 		check(
-			'Undo of a note retracts only its own record, the twin with the same text stays',
-			noteUndo.status === 200 &&
-				noteUndo.json.block.undo === 'done' &&
-				retractedNote.retracted === true &&
-				retractedNote.revision === 2 &&
-				keptNote.retracted === false &&
-				keptNote.revision === 1
+			'Undo of the earlier /note after the twin is unavailable; Undo of the twin takes back only its line',
+			earlierUndo.status === 200 &&
+				earlierUndo.json.block.undo === 'unavailable' &&
+				laterUndo.status === 200 &&
+				laterUndo.json.block.undo === 'undone' &&
+				generalText() === noteText
 		)
 
 		const commentText = 'Zeta chat comment body'
@@ -1544,9 +1551,9 @@ async function sectionActions(ctx) {
 			refusals.join(' | ')
 		)
 		check(
-			'action rows keep no student text',
+			'action rows keep no student text, except the earlier block text a notes receipt keeps for Undo',
 			sql(
-				`select count(*)::int as n from chat_actions where conversation_id = ${quote(conversationId)} and (coalesce(target::text, '') || coalesce(before::text, '') || coalesce(after::text, '') || result::text) ~ 'Zeta|Alex'`
+				`select count(*)::int as n from chat_actions where conversation_id = ${quote(conversationId)} and (coalesce(target::text, '') || case when kind = 'note' then '' else coalesce(before::text, '') end || coalesce(after::text, '') || result::text) ~ 'Zeta|Alex'`
 			).rows[0].n === 0
 		)
 		check(
@@ -2665,12 +2672,14 @@ async function sectionDelete(ctx) {
 			marked.status === 201 &&
 				markAction?.type === 'action_result' &&
 				noted.status === 201 &&
-				noted.json.messages[1].blocks[0]?.type === 'action_result' &&
+				noted.json.messages[1].blocks[0]?.type === 'note_change' &&
 				markOf(lessonId)?.kind === 'done',
 			`${marked.status} ${noted.status}`
 		)
 		const noteRows = () =>
-			sql(`select count(*)::int as n from student_notes where student_id = ${quote(card)}`).rows[0].n
+			sql(
+				`select count(*)::int as n from student_sections where student_id = ${quote(card)} and kind = 'general_info' and position(${quote(noteText)} in body) > 0`
+			).rows[0].n
 
 		const hung = await post(id, {
 			requestId: randomUUID(),
@@ -2786,6 +2795,12 @@ async function sectionDelete(ctx) {
 		check(
 			'the receipts of the actions stay as they were',
 			after.actions === before.actions && isDeepStrictEqual(actionsAfter, actionsBefore)
+		)
+		check(
+			'after Delete the notes receipts keep no block text',
+			sql(
+				`select count(*)::int as n from chat_actions where conversation_id = ${quote(id)} and kind = 'note' and (before is not null or after is not null)`
+			).rows[0].n === 0
 		)
 		const voided = sql(`select state, result::text as result from chat_actions where id = ${quote(proposed)}`).rows[0]
 		check(
@@ -3232,6 +3247,282 @@ async function sectionTitle(ctx) {
 			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
 		)
 		console.log(`fixture budget periods removed ${clearBudget()}`)
+	}
+}
+
+const PROMPTS_PORT = 4236
+
+async function sectionPrompts(ctx) {
+	const { createDb } = await import('../../packages/db/src/index.ts')
+	const { createApp } = await import('../../apps/api/src/app.ts')
+	const { createSignIn } = await import('../../apps/api/src/auth/sign-in.ts')
+	const { createChat } = await import('../../apps/api/src/chat/runs.ts')
+	const { ProviderFault } = await import('../../apps/api/src/chat/provider.ts')
+	const { RECAP_TASK, readCommandPrompts, saveCommandPrompt } = await import('../../apps/api/src/chat/prompts.ts')
+	const { ESSAY_TASK } = await import('../../apps/api/src/chat/essay.ts')
+	const apiRequire = createRequire(new URL('../../apps/api/package.json', import.meta.url))
+	const pino = apiRequire('pino')
+	const { serve } = apiRequire('@hono/node-server')
+
+	const reply = (model, content, stop) => ({
+		id: `msg_${randomUUID()}`,
+		type: 'message',
+		role: 'assistant',
+		model,
+		content,
+		stop_reason: stop,
+		stop_sequence: null,
+		usage: { input_tokens: 100, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+	})
+	const say = (text) =>
+		async function* answer(request) {
+			yield { type: 'text', text }
+			yield { type: 'text_end' }
+			yield { type: 'final', message: reply(request.model, [{ type: 'text', text, citations: null }], 'end_turn') }
+		}
+	const use = (name, input) =>
+		async function* toolUse(request) {
+			const block = { type: 'tool_use', id: `toolu_${randomUUID().slice(0, 8)}`, name, input }
+			yield { type: 'final', message: reply(request.model, [block], 'tool_use') }
+		}
+	const fake = {
+		calls: [],
+		script: [],
+		availability: async () => true,
+		async complete() {
+			throw new ProviderFault('model_unavailable', { answered: true })
+		},
+		stream(request, signal) {
+			this.calls.push(request)
+			return (this.script.shift() ?? say('Fine.'))(request, signal)
+		},
+	}
+
+	const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
+	const { pool, db } = createDb(url)
+	const lines = []
+	const logger = pino({ level: 'info' }, { write: (line) => lines.push(line) })
+	const base = `http://127.0.0.1:${PROMPTS_PORT}`
+	const chat = createChat({ db, logger, provider: fake })
+	const app = createApp({
+		logger,
+		db,
+		gitSha: 'check',
+		appOrigin: base,
+		production: false,
+		isStopping: () => false,
+		signIn: createSignIn({ db, logger, requireClientIp: false }),
+		chat,
+	})
+	const server = serve({ fetch: app.fetch, port: PROMPTS_PORT, hostname: '127.0.0.1' })
+	const local = { base, port: PROMPTS_PORT }
+	const accountId = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0].id
+	const original = sql(
+		`select chat_models as models, chat_model as model, chat_effort as effort, chat_monthly_cap_usd::text as cap from teacher_settings where account_id = ${quote(accountId)}`
+	).rows[0]
+	const clearPrompts = () =>
+		sql(`delete from chat_command_prompts where account_id = ${quote(accountId)}`, 'migrator').rowCount
+	try {
+		const cookie = await teacherCookie(local)
+		const as = (method, path, body) => send(local, method, path, { cookie, body })
+		console.log(`fixture prompts removed ${clearPrompts()}`)
+		await as('PATCH', '/settings/assistant', { models: null, model: null, effort: null, monthlyCapUsd: '10.00' })
+		const name = 'Alex Example 2205 Prompts'
+		const card = await createCard(ctx, name)
+		const binding = { studentId: card, text: name, start: 8, end: 8 + name.length }
+		const fresh = async () => {
+			const created = await as('POST', '/chat/conversations')
+			ctx.conversations.push(created.json.conversation.id)
+			return created.json.conversation.id
+		}
+		const settle = async (turnId) => {
+			const deadline = Date.now() + 20000
+			while (Date.now() < deadline) {
+				const res = await as('GET', `/chat/turns/${turnId}`)
+				if (res.status === 200 && !['accepted', 'running'].includes(res.json.turn.state)) return res.json.turn
+				await new Promise((resolve) => setTimeout(resolve, 50))
+			}
+			throw new Error('turn did not finish in time')
+		}
+		const turn = async (id, text, mentions = []) => {
+			const before = fake.calls.length
+			const sent = await as('POST', `/chat/conversations/${id}/messages`, { requestId: randomUUID(), text, mentions })
+			const done = await settle(sent.json.turn.id)
+			return { done, requests: fake.calls.slice(before) }
+		}
+		const lastUser = (request) => String(request.messages.at(-1).content)
+		const recap = (id) => turn(id, `/recap @${name}`, [binding])
+
+		const listed = await as('GET', '/settings/assistant/prompts')
+		check(
+			'GET /settings/assistant/prompts gives both commands with the default text and isDefault',
+			listed.status === 200 &&
+				commandPromptsResponse.safeParse(listed.json).success &&
+				listed.json.prompts.map((item) => item.command).join() === '/recap,/essay' &&
+				listed.json.prompts.every((item) => item.isDefault && item.revision === 0) &&
+				listed.json.prompts[0].body === RECAP_TASK &&
+				listed.json.prompts[1].defaultBody === ESSAY_TASK,
+			String(listed.status)
+		)
+		const defaults = await readCommandPrompts(db, accountId)
+		check(
+			'without saved rows both commands read the default text from the code at revision 0',
+			defaults.length === 2 &&
+				defaults.every((item) => item.isDefault && item.revision === 0 && item.body === item.defaultBody) &&
+				defaults.find((item) => item.command === '/recap')?.body === RECAP_TASK &&
+				defaults.find((item) => item.command === '/essay')?.body === ESSAY_TASK,
+			JSON.stringify(defaults.map((item) => ({ command: item.command, revision: item.revision })))
+		)
+		const plain = await recap(await fresh())
+		check(
+			'/recap without a saved prompt sends the default text with the mention',
+			plain.done.state === 'completed' &&
+				lastUser(plain.requests[0]).includes(RECAP_TASK) &&
+				lastUser(plain.requests[0]).includes(card),
+			plain.done.state
+		)
+
+		const CUSTOM_RECAP = 'Custom recap wording for the prompts check: list three facts about the mentioned student.'
+		const saved = await saveCommandPrompt(db, accountId, '/recap', CUSTOM_RECAP, 0)
+		check(
+			'saveCommandPrompt stores the text at revision 1 and marks it as not default',
+			saved.ok && saved.prompt.revision === 1 && !saved.prompt.isDefault && saved.prompt.body === CUSTOM_RECAP,
+			JSON.stringify(saved)
+		)
+		const custom = await recap(await fresh())
+		check(
+			'/recap with a saved prompt sends the saved text to the model instead of the default',
+			custom.done.state === 'completed' &&
+				lastUser(custom.requests[0]).includes(CUSTOM_RECAP) &&
+				!lastUser(custom.requests[0]).includes(RECAP_TASK)
+		)
+		const stale = await saveCommandPrompt(db, accountId, '/recap', 'Another wording', 0)
+		check('saveCommandPrompt with an old revision is refused as changed', !stale.ok && stale.error === 'changed')
+
+		const history = await fresh()
+		await recap(history)
+		const next = await turn(history, 'And one more thing')
+		check(
+			'an earlier /recap in the history goes to the model with the same saved text',
+			next.requests[0].messages.some(
+				(message) => message.role === 'user' && String(message.content).startsWith(CUSTOM_RECAP)
+			)
+		)
+
+		const CUSTOM_ESSAY = 'Custom essay wording for the prompts check: give short qualitative feedback.'
+		await saveCommandPrompt(db, accountId, '/essay', CUSTOM_ESSAY, 0)
+		fake.script.push(use('propose_payment', { student_id: card, amount_text: '100' }), say('Feedback.'))
+		const essay = await turn(await fresh(), '/essay The essay text written by a student.')
+		const essayResult = essay.requests[1]?.messages.at(-1)?.content?.[0]
+		check(
+			'/essay sends the saved text and stays read-only with essay_feedback as the only tool',
+			essay.done.state === 'completed' &&
+				lastUser(essay.requests[0]).includes(CUSTOM_ESSAY) &&
+				!lastUser(essay.requests[0]).includes(ESSAY_TASK) &&
+				essay.requests.every((request) => request.tools.map((item) => item.name).join() === 'essay_feedback') &&
+				essayResult?.is_error === true &&
+				String(essayResult?.content).includes('read_only_essay'),
+			JSON.stringify(essayResult)
+		)
+		const ROUTE_RECAP = 'Route recap wording for the prompts check: two short points about the mentioned student.'
+		const put = (command, body) => as('PUT', `/settings/assistant/prompts/${command}`, body)
+		const stored = () =>
+			sql(
+				`select command, body, revision from chat_command_prompts where account_id = ${quote(accountId)} order by command`
+			).rows
+		const savedByRoute = await put('recap', { body: ` ${ROUTE_RECAP} `, expectedRevision: 1 })
+		check(
+			'PUT with a text saves it trimmed at the next revision',
+			savedByRoute.status === 200 &&
+				commandPromptResponse.safeParse(savedByRoute.json).success &&
+				savedByRoute.json.prompt.body === ROUTE_RECAP &&
+				savedByRoute.json.prompt.revision === 2 &&
+				!savedByRoute.json.prompt.isDefault,
+			JSON.stringify({ status: savedByRoute.status, revision: savedByRoute.json?.prompt?.revision })
+		)
+		const routed = await recap(await fresh())
+		check(
+			'/recap after PUT sends the saved text to the model',
+			routed.done.state === 'completed' && lastUser(routed.requests[0]).includes(ROUTE_RECAP)
+		)
+		const before = JSON.stringify(stored())
+		const conflict = await put('recap', { body: 'Older tab wording', expectedRevision: 1 })
+		check(
+			'PUT with an old revision is 409 precondition_failed and changes nothing',
+			conflict.status === 409 &&
+				conflict.json?.error?.code === 'precondition_failed' &&
+				JSON.stringify(stored()) === before,
+			String(conflict.status)
+		)
+		const reset = await put('recap', { body: null, expectedRevision: 2 })
+		check(
+			'PUT with null returns the default text at the next revision',
+			reset.status === 200 &&
+				reset.json.prompt.isDefault &&
+				reset.json.prompt.body === RECAP_TASK &&
+				reset.json.prompt.revision === 3,
+			JSON.stringify({ status: reset.status, revision: reset.json?.prompt?.revision })
+		)
+		const afterReset = await recap(await fresh())
+		check(
+			'/recap after the reset sends the default text again',
+			lastUser(afterReset.requests[0]).includes(RECAP_TASK) && !lastUser(afterReset.requests[0]).includes(ROUTE_RECAP)
+		)
+		for (const [label, command, body] of [
+			['a command not allowed in 25.2 (/today)', 'today', { body: 'Today wording', expectedRevision: 0 }],
+			[
+				`a text over ${CHAT_PROMPT_MAX_LENGTH} characters`,
+				'essay',
+				{ body: 'x'.repeat(CHAT_PROMPT_MAX_LENGTH + 1), expectedRevision: 1 },
+			],
+			['a blank text', 'essay', { body: '   ', expectedRevision: 1 }],
+			['a text with NUL', 'essay', { body: 'Bad\u0000text', expectedRevision: 1 }],
+			['a request without a revision', 'essay', { body: 'Some wording' }],
+		]) {
+			const unchanged = JSON.stringify(stored())
+			const res = await put(command, body)
+			check(
+				`PUT with ${label} is 400 and changes nothing`,
+				res.status === 400 && res.json?.error?.code === 'invalid_request' && JSON.stringify(stored()) === unchanged,
+				String(res.status)
+			)
+		}
+		const longest = await put('essay', { body: 'y'.repeat(CHAT_PROMPT_MAX_LENGTH), expectedRevision: 1 })
+		check(
+			`PUT with exactly ${CHAT_PROMPT_MAX_LENGTH} characters is saved`,
+			longest.status === 200 && longest.json.prompt.revision === 2,
+			String(longest.status)
+		)
+		const relisted = await as('GET', '/settings/assistant/prompts')
+		check(
+			'GET after the saves reads the default /recap and the saved /essay',
+			relisted.status === 200 &&
+				relisted.json.prompts[0].isDefault &&
+				relisted.json.prompts[0].revision === 3 &&
+				!relisted.json.prompts[1].isDefault &&
+				relisted.json.prompts[1].revision === 2
+		)
+		const studentCookieValue = await studentCookie(local)
+		const asStudent = await send(local, 'GET', '/settings/assistant/prompts', { cookie: studentCookieValue })
+		check('a student session cannot read the prompts', asStudent.status === 403, String(asStudent.status))
+		check(
+			'the log has no prompt text and no fixture name',
+			!lines.join('').includes(CUSTOM_RECAP) &&
+				!lines.join('').includes(CUSTOM_ESSAY) &&
+				!lines.join('').includes(ROUTE_RECAP) &&
+				!lines.join('').includes(name)
+		)
+		return 'CHAT_PROMPTS_OK'
+	} finally {
+		await chat.close()
+		server.close()
+		console.log(`fixture prompts removed ${clearPrompts()}`)
+		if (original?.cap)
+			sql(`update teacher_settings set chat_monthly_cap_usd = ${original.cap} where account_id = ${quote(accountId)}`)
+		sql(
+			`update teacher_settings set chat_models = ${original?.models == null ? 'null' : `${quote(JSON.stringify(original.models))}::jsonb`}, chat_model = ${original?.model == null ? 'null' : quote(original.model)}, chat_effort = ${original?.effort == null ? 'null' : quote(original.effort)} where account_id = ${quote(accountId)}`
+		)
+		await pool.end()
 	}
 }
 

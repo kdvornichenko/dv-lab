@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react'
 
-import { Check, ChevronDown, Copy, TriangleAlert } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Copy, TriangleAlert } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'
 import { Button } from '@/components/ui/button'
@@ -81,6 +81,7 @@ export function LessonDates({ block }: { block: ChatLessonDatesBlock }) {
 	const total = months.reduce((sum, month) => sum + month.days.length, 0)
 	const year = yearInZone(new Date(), block.defaultTimeZone)
 	const period = periodText(block.from, block.to, '–')
+	const since = block.scope === 'since_payment'
 	const folded = months.length > MONTHS_SHOWN
 	const left = leftOutLine(block.leftOut)
 	return (
@@ -119,11 +120,23 @@ export function LessonDates({ block }: { block: ChatLessonDatesBlock }) {
 					)}
 				</div>
 				{total === 0 ? (
-					<p className="text-body text-muted-foreground">No lessons in this period.</p>
+					since ? (
+						<div className="flex flex-col gap-0.5">
+							<p className="text-body text-muted-foreground">No lessons since the last payment.</p>
+							{block.lastPaidOn ? (
+								<p className="text-caption text-muted-foreground tabular-nums">
+									Last payment: {formatDate(block.lastPaidOn, 0)}.
+								</p>
+							) : null}
+						</div>
+					) : (
+						<p className="text-body text-muted-foreground">No lessons in this period.</p>
+					)
 				) : (
 					<>
 						<p className="text-caption text-muted-foreground tabular-nums">
-							{SCOPE_WORDS[block.scope]} · {datesPlural(total)}
+							{SCOPE_WORDS[block.scope]}
+							{since ? ` (${formatDate(block.sinceFrom ?? block.from, year)})` : ''} · {datesPlural(total)}
 						</p>
 						<div className="rounded-lg bg-hover px-3 py-2 text-body tabular-nums">
 							{months.slice(0, MONTHS_SHOWN).map((month) => (
@@ -149,15 +162,11 @@ export function LessonDates({ block }: { block: ChatLessonDatesBlock }) {
 								variant="ghost"
 								size="compact"
 								aria-expanded={all}
+								trailingIcon={all ? ChevronUp : ChevronDown}
 								className="-ml-2 self-start text-caption text-muted-foreground pointer-coarse:h-8"
 								onClick={() => setAll((value) => !value)}
 							>
 								{all ? 'Show fewer months' : `Show all ${months.length} months`}
-								<ChevronDown
-									size={14}
-									aria-hidden
-									className={cn('transition-transform duration-120', all && 'rotate-180')}
-								/>
 							</Button>
 						) : null}
 					</>

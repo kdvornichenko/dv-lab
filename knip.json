@@ -13,43 +13,25 @@
 			"ignoreDependencies": ["pg"]
 		},
 		"apps/web": {
+			"entry": ["public/sw.js"],
 			"ignore": [
 				"components/ui/**",
-				"components/sidebar-app/**",
-				"components/fluid-hover-highlight.tsx",
-				"hooks/**",
-				"lib/elevated.tsx",
 				"lib/icon-context.tsx",
 				"lib/shape-context.tsx",
 				"lib/size-context.tsx",
-				"lib/surface-context.tsx",
-				"lib/font-weight.ts",
-				"lib/popup.ts",
-				"lib/sidebar-menu-grid.ts",
-				"lib/springs.ts",
-				"lib/surface-classes.ts",
-				"lib/type-scale.ts",
-				"lib/utils.ts"
+				"lib/surface-classes.ts"
 			]
 		},
 		"apps/api": {
-			"entry": ["src/server.ts", "src/migrate.ts", "src/bootstrap-teacher.ts", "src/import-vault.ts"],
-			"project": ["src/**/*.ts"],
-			"ignoreDependencies": ["@types/web-push", "web-push", "diff"],
-			"ignoreIssues": {
-				"src/cards/terms.ts": ["exports"]
-			}
+			"project": ["src/**/*.ts"]
 		},
 		"packages/contracts": {
-			"entry": ["src/index.ts"],
 			"project": ["src/**/*.ts"]
 		},
 		"packages/core": {
-			"entry": ["src/index.ts"],
 			"project": ["src/**/*.ts"]
 		},
 		"packages/db": {
-			"entry": ["src/index.ts", "drizzle.config.ts"],
 			"project": ["src/**/*.ts"]
 		}
 	}

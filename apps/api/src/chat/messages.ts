@@ -7,6 +7,9 @@ import {
 	type ChatCalendarProposalBlock,
 	type ChatChangeProposalBlock,
 	type ChatMessage,
+	type ChatNoteChangeBlock,
+	type ChatReviewOfferBlock,
+	type ChatReviewResultBlock,
 	type ChatUndoState,
 	type MentionBinding,
 	type ChatStep,
@@ -14,6 +17,7 @@ import {
 	CHAT_BULK_TARGET_STATES,
 	CHAT_CALENDAR_STATES,
 	CHAT_CHANGE_ISSUES,
+	CHAT_NOTE_ISSUES,
 	CHAT_UNDO_STATES,
 	chatBlock,
 	chatCalendarIssue,
@@ -168,12 +172,69 @@ export function changeView(block: ChatChangeProposalBlock, action: ActionUndo): 
 	return { ...rest, state: kind, ...(kind === 'stale' && issue ? { issue } : {}), receipt: null }
 }
 
+const noteUndoIssue = z.object({ issue: z.enum(CHAT_NOTE_ISSUES).optional() }).nullable()
+
+function noteUndo(action: ActionUndo): Pick<ChatNoteChangeBlock, 'undo' | 'issue'> {
+	const state = undoState(action)
+	if (state === 'done') return { undo: 'undone' }
+	if (state !== 'stale') return { undo: 'available' }
+	const recorded = noteUndoIssue.safeParse(action.undoResult ?? null)
+	const issue = recorded.success ? recorded.data?.issue : undefined
+	return { undo: 'unavailable', ...(issue === undefined ? {} : { issue }) }
+}
+
+export function noteChangeView(block: ChatNoteChangeBlock, action: ActionUndo): ChatNoteChangeBlock {
+	const { issue: _issue, ...rest } = block
+	if (block.mode === 'receipt') return block.undo === null ? block : { ...rest, ...noteUndo(action) }
+	const progress = changeProgress.safeParse(action.result)
+	if (!progress.success) return block
+	const { kind, issue } = progress.data
+	if (kind === 'applied') return { ...rest, state: 'applied', ...noteUndo(action) }
+	const stale = kind === 'stale' ? (issue === 'not_found' ? 'not_found' : 'block_changed') : undefined
+	return { ...rest, state: kind, undo: null, ...(stale === undefined ? {} : { issue: stale }) }
+}
+
+export function reviewResultView(block: ChatReviewResultBlock, action: ActionUndo): ChatReviewResultBlock {
+	if (block.undo === 'none') return block
+	const { issue: _issue, ...rest } = block
+	const state = undoState(action)
+	if (state === 'done') return { ...rest, undo: 'undone' }
+	if (state === 'stale') return { ...rest, undo: 'unavailable', issue: 'block_changed' }
+	return { ...rest, undo: 'available' }
+}
+
+export function reviewOfferView(block: ChatReviewOfferBlock, action: ActionUndo): ChatReviewOfferBlock {
+	const progress = changeProgress.safeParse(action.result)
+	if (!progress.success) return block
+	const kind = progress.data.kind
+	return { ...block, state: kind === 'proposed' ? 'proposed' : kind === 'applied' ? 'accepted' : 'declined' }
+}
+
+const ACTION_BLOCKS: ReadonlySet<ChatBlock['type']> = new Set([
+	'action_result',
+	'calendar_proposal',
+	'change_proposal',
+	'note_change',
+	'review_result',
+	'review_offer',
+])
+
 export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<string, ActionUndo>): ChatBlock[] {
 	return blocks.map((block) => {
-		if (block.type !== 'action_result' && block.type !== 'calendar_proposal' && block.type !== 'change_proposal')
+		if (
+			block.type !== 'action_result' &&
+			block.type !== 'calendar_proposal' &&
+			block.type !== 'change_proposal' &&
+			block.type !== 'note_change' &&
+			block.type !== 'review_result' &&
+			block.type !== 'review_offer'
+		)
 			return block
 		const action = actions.get(block.actionId)
 		if (!action) return block
+		if (block.type === 'review_offer') return reviewOfferView(block, action)
+		if (block.type === 'review_result') return reviewResultView(block, action)
+		if (block.type === 'note_change') return noteChangeView(block, action)
 		if (block.type === 'change_proposal') return changeView(block, action)
 		return block.type === 'calendar_proposal' ? calendarView(block, action) : { ...block, undo: undoState(action) }
 	})
@@ -267,11 +328,7 @@ export function blocksOf(row: MessageRow): ChatBlock[] {
 
 async function actionsOf(executor: DbExecutor, rows: readonly MessageRow[]): Promise<Map<string, ActionUndo>> {
 	const ids = rows.flatMap((row) =>
-		blocksOf(row).flatMap((block) =>
-			block.type === 'action_result' || block.type === 'calendar_proposal' || block.type === 'change_proposal'
-				? [block.actionId]
-				: []
-		)
+		blocksOf(row).flatMap((block) => ('actionId' in block && ACTION_BLOCKS.has(block.type) ? [block.actionId] : []))
 	)
 	if (ids.length === 0) return new Map()
 	const found = await executor
@@ -382,6 +439,14 @@ export async function replyOf(executor: DbExecutor, accountId: string, messageId
 	return reply ?? null
 }
 
+export function repliesOf(executor: DbExecutor, accountId: string, messageId: string): Promise<MessageRow[]> {
+	return executor
+		.select()
+		.from(chatMessages)
+		.where(and(eq(chatMessages.accountId, accountId), eq(chatMessages.replyTo, messageId)))
+		.orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
+}
+
 export const unsettledCalendarAction = or(
 	eq(chatActions.state, 'submitted'),
 	sql`${chatActions.undoResult}->>'undo' = 'pending'`
@@ -427,6 +492,27 @@ export async function redactConversationContent(
 				eq(chatActions.conversationId, conversationId),
 				eq(chatActions.kind, 'change'),
 				eq(chatActions.state, 'proposed')
+			)
+		)
+	await executor
+		.update(chatActions)
+		.set({ before: null, after: null, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatActions.accountId, accountId),
+				eq(chatActions.conversationId, conversationId),
+				eq(chatActions.kind, 'note')
+			)
+		)
+	await executor
+		.update(chatActions)
+		.set({ before: null, target: sql`${chatActions.target} - 'after'`, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatActions.accountId, accountId),
+				eq(chatActions.conversationId, conversationId),
+				eq(chatActions.kind, 'change'),
+				sql`${chatActions.target}->>'operation' in ('update_block', 'delete_block')`
 			)
 		)
 	await executor

@@ -16,6 +16,9 @@ end if;
 if to_regclass('lesson_series') is not null then
 delete from lesson_series where student_id in (select id from students where ${fixtureWhere(like)});
 end if;
+if to_regclass('student_sections') is not null then
+delete from student_sections where student_id in (select id from students where ${fixtureWhere(like)});
+end if;
 delete from students where ${fixtureWhere(like)};
 end $$`
 

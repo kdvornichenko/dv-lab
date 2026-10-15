@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import type { EventTitleItem, EventTitlesQuery, EventTitlesResponse } from '@dv-lab/contracts'
-import { addDays, lessonDay, startOfLessonDay } from '@dv-lab/core'
+import { addDays, lessonDay, startOfLessonDay, zonedParts } from '@dv-lab/core'
 import type { Database } from '@dv-lab/db'
 
 import { readTeacherSettings } from '../settings/settings.ts'
@@ -20,6 +20,7 @@ const titleItem = z.object({
 	status: z.string().nullish(),
 	summary: z.string().nullish(),
 	start: titleTime.nullish(),
+	end: titleTime.nullish(),
 })
 const titlePage = z.object({
 	items: z.array(z.unknown()).optional(),
@@ -27,6 +28,14 @@ const titlePage = z.object({
 })
 
 export type TitlePage = { events: EventTitleItem[]; nextPageToken?: string }
+
+function timing(start: string | null | undefined, end: string | null | undefined, zone: string) {
+	if (!start) return {}
+	const startsAt = new Date(start)
+	const time = zonedParts(startsAt, zone).time
+	const length = end ? new Date(end).getTime() - startsAt.getTime() : Number.NaN
+	return length >= 0 ? { time, durationMinutes: Math.round(length / 60000) } : { time }
+}
 
 export function parseTitlePage(input: unknown, zone: string, range: EventTitlesQuery): TitlePage {
 	const page = titlePage.safeParse(input)
@@ -39,7 +48,7 @@ export function parseTitlePage(input: unknown, zone: string, range: EventTitlesQ
 		const day = start?.dateTime ? lessonDay(new Date(start.dateTime), zone) : (start?.date ?? null)
 		if (day === null || day < range.from || day > range.to) continue
 		const title = item.data.summary ? [...item.data.summary].slice(0, TITLE_LIMIT).join('') : null
-		events.push({ title, day })
+		events.push({ title, day, ...timing(start?.dateTime, item.data.end?.dateTime, zone) })
 	}
 	return { events, nextPageToken: page.data.nextPageToken }
 }

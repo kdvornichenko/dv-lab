@@ -3,8 +3,11 @@ import { Hono } from 'hono'
 
 import {
 	type AssistantSettingsResponse,
+	type CommandPromptResponse,
+	type CommandPromptsResponse,
 	type SettingsResponse,
 	saveAssistantSettingsRequest,
+	saveCommandPromptRequest,
 	updateSettingsRequest,
 } from '@dv-lab/contracts'
 import { type Database, readSnapshot } from '@dv-lab/db'
@@ -12,6 +15,7 @@ import { type Database, readSnapshot } from '@dv-lab/db'
 import { type AppEnv, noStore, readJson, requireRole, requireSession } from '../auth/middleware.ts'
 import { readBudgetSnapshot, usageByConversation } from '../chat/budget.ts'
 import { modelCapabilities } from '../chat/model-config.ts'
+import { isPromptCommand, readCommandPrompts, saveCommandPrompt } from '../chat/prompts.ts'
 import { errorBody } from '../request-context.ts'
 import {
 	readAssistantSettings,
@@ -68,6 +72,22 @@ export function settingsRoutes({ db, availability }: SettingsRouteDeps) {
 		const result = await saveAssistantSettings(db, accountId, input)
 		if (!result.ok) return invalidRequest(c)
 		return c.json(await assistantResponse(accountId), 200)
+	})
+
+	routes.get('/assistant/prompts', async (c) => {
+		const accountId = c.get('session').account.id
+		const prompts = await readSnapshot(db, (executor) => readCommandPrompts(executor, accountId))
+		return c.json({ prompts } satisfies CommandPromptsResponse, 200)
+	})
+
+	routes.put('/assistant/prompts/:command', async (c) => {
+		const command = `/${c.req.param('command')}`
+		if (!isPromptCommand(command)) return invalidRequest(c)
+		const input = await readJson(c, saveCommandPromptRequest)
+		if (!input) return invalidRequest(c)
+		const result = await saveCommandPrompt(db, c.get('session').account.id, command, input.body, input.expectedRevision)
+		if (!result.ok) return c.json(errorBody('precondition_failed', 'The prompt changed'), 409)
+		return c.json({ prompt: result.prompt } satisfies CommandPromptResponse, 200)
 	})
 
 	return routes

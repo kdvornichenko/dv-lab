@@ -23,6 +23,7 @@ import {
 import type { PreparedCalendarCommand } from '../schedule/command-plan.ts'
 import { lockTeacherTimeContext, readTeacherSettings } from '../settings/settings.ts'
 import type { VerifiedGoogleResult } from './command-result.ts'
+import { readDescription } from './event-description.ts'
 import { bindEvent, loadMappings } from './event-mapping.ts'
 import { currentConnection, findConnection } from './google-access.ts'
 import {
@@ -628,11 +629,14 @@ export async function readEventDetails(
 	else if (sync && row.startsAt && (row.startsAt < sync.windowStart || (row.endsAt ?? row.startsAt) > sync.windowEnd))
 		scopes = blocked('outside_sync_window')
 	else if ((await unresolvedCommands(executor, accountId)).length) scopes = blocked('command_pending')
+	const reading = readDescription(row.description)
 	return calendarEventDetails.parse({
 		eventKey: row.eventKey,
 		version: eventVersion(row),
 		title: row.summary,
 		description: row.description,
+		descriptionBlocks: reading.blocks,
+		descriptionFormatted: reading.formatted,
 		location: row.location,
 		color: eventColor(row.colorId, eventColors(sync)),
 		repeat: repeatOf(target),

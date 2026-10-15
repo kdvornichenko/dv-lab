@@ -1073,3 +1073,49 @@ Push работает по HTTPS-пути `/api/google/notifications`, кото�
 ### 15.3. Откат
 
 Откат образов api и web на один прежний sha по разделу 8.2, миграции не откатываются. Колонки `revision` остаются со своими значениями. Образ с чатом, но без фазы 23, разбирает блоки сообщений строгой схемой и не знает блоков `change_proposal` и `essay`: разговоры с такими блоками в нём не открываются, пока не вернётся образ фазы 23; строки не теряются. Образ без чата таблицы чата не читает (раздел 14.5).
+
+## 16. Заметки блоками, ревизия, тексты команд и push (фаза 25.2)
+
+### 16.1. Переменные push
+
+Три переменные в `/opt/dv-lab/env/api.env`, файл ставит Server guy: `PUSH_VAPID_PUBLIC_KEY`, `PUSH_VAPID_PRIVATE_KEY`, `PUSH_VAPID_SUBJECT`. Читает их только `loadConfig`. Правило «все три или ни одной»: без всех трёх push выключен (настройки уведомлений показывают «Not set up on the server»); одна или две переменные, пустое значение (`PUSH_VAPID_SUBJECT=`) или subject не `https://` — api не стартует с ошибкой `Invalid push configuration`. Пустые строки шаблона `deploy/env.example` в `api.env` не копируются. `PUSH_VAPID_SUBJECT` — `https://`-адрес приложения, не почта.
+
+Пара ключей генерируется на сервере из образа api выкатываемого релиза (пакет `web-push` в образе); вывод — две строки `PUSH_VAPID_PUBLIC_KEY=…` и `PUSH_VAPID_PRIVATE_KEY=…`, они дописываются в `api.env` и назад не присылаются:
+
+```bash
+(
+  set -Eeuo pipefail
+  SHA=
+  case "${SHA:?}" in *[^0-9a-f]*) echo "SHA: 40 hex без sha-" >&2; exit 1 ;; esac
+  [ "${#SHA}" -eq 40 ]
+  sudo docker run --rm --entrypoint node "ghcr.io/kdvornichenko/dv-lab-api:sha-$SHA" -e "const k = require('web-push').generateVAPIDKeys(); console.log('PUSH_VAPID_PUBLIC_KEY=' + k.publicKey); console.log('PUSH_VAPID_PRIVATE_KEY=' + k.privateKey)"
+)
+```
+
+Смена пары ключей отзывает все подписки устройств: push на них больше не доходит, учитель заново включает уведомления на каждом устройстве (Settings → General → Notifications on this device). Ключи без нужды не меняются.
+
+Исходящий HTTPS api к push-сервисам (FCM, Mozilla, Apple) должен быть открыт.
+
+### 16.2. Выкатка и миграции
+
+Порядок: сначала три `PUSH_VAPID_*` в `api.env` (16.1), затем выкатка по разделу 8.1 или 8.2; в `deploy.sh` этап `migrate` идёт до старта api. Без VAPID выкатка тоже проходит, push просто выключен. Миграции фазы под `dvlab_migrator`:
+
+- `20261014181157_note_blocks` — колонки блоков в `student_sections` (`id`, `name`, `position`, `revision`, `deleted_at`) и колонки словаря (`added_by`, `removed_at`, `removed_by`).
+- `20261014181205_note_blocks_kind_check` — снимает `student_sections_kind_ck` (единственное снятие ограничения, решение D-02): ключи своих блоков `b_…` ему не соответствуют, ограничение не возвращается.
+- `20261014181210_note_blocks_backfill` — custom-миграция: каждой карточке шесть стандартных блоков с именами и позициями, сохранённый текст блока не меняется; повтор ничего не добавляет.
+- `20261014181255_review_prompts_settings` — таблицы `note_reviews` и `chat_command_prompts`, колонки уведомлений `teacher_settings` (`notify_lesson_soon`, `notify_lesson_minutes`, `notify_pays_soon`).
+- `20261014181316_push_notifications` — таблицы `push_subscriptions`, `push_deliveries`, `push_payment_alerts`.
+- `20261014181321_notes_push_revoke_delete` — отзыв `DELETE, TRUNCATE` у `dvlab_app` на `note_reviews`, `chat_command_prompts`, `push_subscriptions`, `push_deliveries`, `push_payment_alerts`.
+
+При старте api с VAPID запускается планировщик уведомлений (раз в минуту): «скоро урок» за выбранное учителем число минут и «скоро платить» при достижении порога Pays soon.
+
+### 16.3. Проверки после выкатки
+
+- Права: `has_table_privilege('dvlab_app', 'public.<таблица>', 'DELETE')` и `'TRUNCATE'` дают `false` для пяти таблиц из 16.2; ограничения `student_sections_kind_ck` нет (`select count(*) from pg_constraint where conname = 'student_sections_kind_ck'` даёт 0).
+- Без cookie через Caddy: `curl -sI https://dv-lab.dev/sw.js` — код 200, `Cache-Control: no-cache, no-store, must-revalidate`, тип `application/javascript`; `curl -sI https://dv-lab.dev/manifest.webmanifest` — код 200, без редиректа на `/login`.
+- `GET /api/push/config` под сессией учителя отвечает `enabled: true` после установки VAPID.
+- Владелец на iPhone (iOS 16.4 и новее, только приложение, добавленное на Домашний экран): включает уведомления в Settings → General, получает push урока и переходит по тапу на урок. Назад передаются только «подтверждено» и коды, без адресов подписок и ключей.
+
+### 16.4. Откат
+
+Откат образов api и web на один прежний sha по разделу 8.2, миграции не откатываются, `student_sections_kind_ck` не возвращается. Образ до фазы не знает `deleted_at` и своих блоков `b_…`: мягко удалённые стандартные блоки он показывает как обычные, свои блоки учителя ему неизвестны. Старые api и web не разбирают новые блоки чата (`note_change`, `review_offer`, `review_result`) в сохранённых сообщениях: разговоры с ними не открываются, пока не вернётся образ фазы; строки не теряются. Таблицы `push_*`, `note_reviews`, `chat_command_prompts` и колонки уведомлений остаются и старым образом не читаются; push после отката не отправляется, подписки устройств остаются в базе.

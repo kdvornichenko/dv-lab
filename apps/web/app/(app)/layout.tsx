@@ -7,6 +7,7 @@ import { CalendarCommandProvider } from '@/components/app/calendar-command-provi
 import { getMe } from '@/lib/session'
 
 import { AppShell } from './_components/app-shell'
+import { PushPresence } from './_components/push-presence'
 import { SessionRenewal } from './_components/session-renewal'
 import { StudentLanding } from './_components/student-landing'
 
@@ -34,6 +35,7 @@ async function AuthenticatedLayout({ children }: { children: ReactNode }) {
 			<AppShell key={me.account.id} account={me.account}>
 				<CalendarCommandProvider key={me.account.id} accountId={me.account.id}>
 					<SessionRenewal renewDue={me.renewDue} />
+					<PushPresence />
 					{children}
 				</CalendarCommandProvider>
 			</AppShell>

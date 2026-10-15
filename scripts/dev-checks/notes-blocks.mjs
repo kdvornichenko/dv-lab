@@ -558,12 +558,12 @@ async function sectionRecent() {
 	sql(`update note_reviews set running_conversation_id = ${quote(conversation)} where student_id = ${quote(id)}`)
 	const running = await blocks(id)
 	check(
-		'the review date is null on a new card and read from note_reviews; a running review shows its conversation',
+		'the review date is null on a new card and read from note_reviews; a review conversation without a live turn is not shown as running',
 		before.reviewedAt === null &&
 			before.reviewRunning === null &&
 			after.reviewedAt === '2026-10-01T10:00:00.000Z' &&
 			after.reviewRunning === null &&
-			running.reviewRunning?.conversationId === conversation,
+			running.reviewRunning === null,
 		JSON.stringify({ before: before.reviewedAt, after: after.reviewedAt, running: running.reviewRunning })
 	)
 }

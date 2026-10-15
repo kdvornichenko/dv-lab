@@ -439,7 +439,7 @@ export function createGoogleGateway(config: Extract<CalendarConfig, { enabled: t
 						singleEvents: true,
 						showDeleted: false,
 						maxResults: 2500,
-						fields: 'nextPageToken,items(status,summary,start)',
+						fields: 'nextPageToken,items(status,summary,start,end)',
 					},
 					{ retry: false }
 				)

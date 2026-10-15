@@ -16,7 +16,8 @@ const { createApp } = await import(`${ROOT}/apps/api/src/app.ts`)
 const { createSignIn } = await import(`${ROOT}/apps/api/src/auth/sign-in.ts`)
 const { createChat, inputUpperBound } = await import(`${ROOT}/apps/api/src/chat/runs.ts`)
 const { ProviderFault, createChatProvider } = await import(`${ROOT}/apps/api/src/chat/provider.ts`)
-const { CHAT_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
+const { CHAT_TOOLS, CHAT_TOOL_ENTRIES: REGISTRY } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
+const CHAT_TOOL_ENTRIES = REGISTRY.filter((entry) => entry.review !== true)
 const budget = await import(`${ROOT}/apps/api/src/chat/budget.ts`)
 const { resolveModelChoice } = await import(`${ROOT}/apps/api/src/chat/model-config.ts`)
 const { readAssistantSettings, saveAssistantSettings } = await import(`${ROOT}/apps/api/src/settings/settings.ts`)
@@ -344,16 +345,17 @@ async function providerSmoke() {
 		stopped = error
 	}
 	check('an abort ends the stream as an aborted fault', stopped instanceof ProviderFault && stopped.aborted === true)
-	const tools = CHAT_TOOLS.map((item) => item.name).join(',')
+	const names = (items) => items.map((item) => item.name)
+	const sent = names(CHAT_TOOLS)
+	const strictSent = names(CHAT_TOOLS.filter((item) => item.strict === true))
+	const strictEntries = names(CHAT_TOOL_ENTRIES.filter((entry) => entry.strict))
 	check(
-		'the tool list is the phase list with closed schemas, strict where the grammar fits, without server tools',
-		tools ===
-			'find_students,student_facts,student_notes,lessons,lesson_dates,mark_lesson,add_note,add_comment,propose_lesson_change,propose_payment,propose_student,propose_rate,propose_archive,student_payments,propose_payment_delete,propose_entry_removal,propose_bulk_move,open_page,essay_feedback' &&
-			CHAT_TOOLS.filter((item) => item.strict === true)
-				.map((item) => item.name)
-				.join(',') ===
-				'mark_lesson,add_comment,propose_lesson_change,propose_payment,propose_student,propose_rate,propose_bulk_move,essay_feedback' &&
-			CHAT_TOOLS.every((item) => item.input_schema.additionalProperties === false && !('type' in item))
+		'the tool list is the registry list with closed schemas, strict as the registry says, without server tools',
+		CHAT_TOOL_ENTRIES.length > 0 &&
+			isDeepStrictEqual(sent, names(CHAT_TOOL_ENTRIES)) &&
+			isDeepStrictEqual(strictSent, strictEntries) &&
+			CHAT_TOOLS.every((item) => item.input_schema.additionalProperties === false && !('type' in item)),
+		JSON.stringify({ sent, strictSent, strictEntries })
 	)
 }
 
@@ -1099,7 +1101,7 @@ async function main() {
 		answerRequest.model === choice.model.id &&
 			answerRequest.effort === choice.effort &&
 			answerRequest.maxOutputTokens === 16000 &&
-			answerRequest.tools.length === 19 &&
+			answerRequest.tools.length === CHAT_TOOL_ENTRIES.length &&
 			answerRequest.tools.some((item) => item.name === 'open_page') &&
 			answerRequest.tools.some((item) => item.name === 'propose_payment' && item.strict === true)
 	)
@@ -1321,7 +1323,7 @@ async function main() {
 	check(
 		'the tool result carries cite markers and ids for the kept records',
 		noteView.records?.some((record) => record.cite === `[[note:${quotedId}]]`) &&
-			noteView.sections?.some((record) => record.cite === `[[section:${studentId}:goals]]`)
+			noteView.blocks?.some((record) => record.cite === `[[section:${studentId}:goals]]`)
 	)
 	check(
 		'a cite of an issued note and section is replaced by blocks with the stored text, once each',

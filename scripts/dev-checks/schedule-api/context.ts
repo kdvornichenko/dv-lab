@@ -38,6 +38,7 @@ export function removeCards(where: string) {
 	removed += sql(`delete from lesson_exceptions where series_id in (${series})`).rowCount
 	removed += sql(`delete from lessons where student_id in (${cards})`).rowCount
 	removed += sql(`delete from lesson_series where student_id in (${cards})`).rowCount
+	sql(`delete from student_sections where student_id in (${cards})`)
 	removed += sql(`delete from students where ${where}`).rowCount
 	return removed
 }

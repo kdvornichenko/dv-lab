@@ -15,7 +15,15 @@ import { formatTime, formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/
 import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
-import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, MentionBinding } from '@dv-lab/contracts'
+import {
+	CHAT_FOLLOW_UP_TEXT,
+	REVIEW_COMMAND_TEXT,
+	type ChatBlock,
+	type ChatClarifyBlock,
+	type ChatMessage,
+	type ChatRefusedBlock,
+	type MentionBinding,
+} from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { ActionLink } from './action-link'
@@ -23,10 +31,13 @@ import { ActionResult } from './action-result'
 import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
+import { ChatNoteChange } from './chat-note-change'
 import { ChatProgress } from './chat-progress'
+import { ReviewFailed, ReviewOffer, ReviewResult, type ReviewHandlers } from './chat-review'
 import { EssayFeedback, type EssayOutcome } from './essay-feedback'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
+import type { FactsFollowUp } from './student-facts'
 import { StudentMention } from './student-mention'
 
 export type CalendarHandlers = {
@@ -39,11 +50,25 @@ export type ChangeHandlers = {
 	onConfirm: (actionId: string) => Promise<boolean>
 	onDecline: (actionId: string) => Promise<boolean>
 	onRefresh: () => Promise<boolean>
+	onUndo: (actionId: string) => Promise<void>
 }
 
 export type ReplyHandlers = {
 	onAsk: () => void
 	onCheckStatus: () => Promise<void>
+	onFollowUp: FactsFollowUp['onSend']
+	busy: boolean
+}
+
+function followedUp(messages: readonly ChatMessage[], index: number, studentId: string): boolean {
+	return messages
+		.slice(index + 1)
+		.some(
+			(next) =>
+				next.role === 'teacher' &&
+				next.body.endsWith(CHAT_FOLLOW_UP_TEXT) &&
+				next.mentions.some((binding) => binding.studentId === studentId)
+		)
 }
 
 export type ActiveReply = { messageId: string | null; stopping: boolean }
@@ -210,14 +235,18 @@ function Block({
 	onChoose,
 	calendar,
 	changes,
+	reviews,
 	replies,
+	followUp,
 }: {
 	block: ChatBlock
 	onUndo: (actionId: string) => void
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
 	changes: ChangeHandlers
+	reviews: ReviewHandlers
 	replies: ReplyHandlers
+	followUp?: FactsFollowUp
 }) {
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
@@ -228,8 +257,11 @@ function Block({
 		) : (
 			<ChangeProposal block={block} {...changes} />
 		)
+	if (block.type === 'note_change') return <ChatNoteChange block={block} {...changes} />
+	if (block.type === 'review_offer') return <ReviewOffer block={block} onAnswer={reviews.onAnswer} />
+	if (block.type === 'review_result') return <ReviewResult block={block} {...reviews} />
 	if (block.type === 'refused') return <Refused block={block} />
-	if (isRecordBlock(block)) return <RecordBlockView block={block} />
+	if (isRecordBlock(block)) return <RecordBlockView block={block} followUp={followUp} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
@@ -310,6 +342,94 @@ function TeacherText({ text, mentions }: { text: string; mentions: readonly Ment
 	return <>{parts}</>
 }
 
+const BUBBLE =
+	'rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground'
+
+function reviewTarget(messages: readonly ChatMessage[], index: number): { id: string; name: string } | null {
+	const asked = messages[index - 1]
+	if (asked === undefined || asked.role !== 'teacher') return null
+	const command = asked.body.trimStart().toLowerCase()
+	if (!command.startsWith(REVIEW_COMMAND_TEXT)) return null
+	const [only, ...rest] = asked.mentions
+	if (only === undefined || rest.length > 0) return null
+	return { id: only.studentId, name: only.text }
+}
+
+function UnfinishedReview({
+	messages,
+	index,
+	live,
+	onRun,
+}: {
+	messages: readonly ChatMessage[]
+	index: number
+	live: boolean
+	onRun: ReviewHandlers['onRun']
+}) {
+	const message = messages[index]
+	if (message === undefined || live || message.finishedAt === null) return null
+	if (message.blocks.some((block) => block.type === 'review_result')) return null
+	const student = reviewTarget(messages, index)
+	return student === null ? null : <ReviewFailed student={student} onRun={onRun} />
+}
+
+function answeredOffer(message: ChatMessage): boolean {
+	return (
+		message.role === 'assistant' &&
+		message.body === '' &&
+		message.steps.length === 0 &&
+		message.blocks.length > 0 &&
+		message.blocks.every((block) => block.type === 'review_offer' && block.state !== 'proposed')
+	)
+}
+
+function essayWords(text: string): number {
+	if (!/^\/essay(\s|$)/.test(text)) return 0
+	return text.slice('/essay'.length).split(/\s+/).filter(Boolean).length
+}
+
+function TeacherBubble({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {
+	const words = essayWords(text)
+	const [open, setOpen] = useState(false)
+	const [clamped, setClamped] = useState(false)
+	const body = useRef<HTMLParagraphElement>(null)
+
+	useLayoutEffect(() => {
+		const node = body.current
+		if (words === 0 || open || node === null) return
+		const measure = () => setClamped(node.scrollHeight > node.clientHeight + 1)
+		measure()
+		const observer = new ResizeObserver(measure)
+		observer.observe(node)
+		return () => observer.disconnect()
+	}, [words, open, text])
+
+	if (words === 0)
+		return (
+			<p className={BUBBLE}>
+				<TeacherText text={text} mentions={mentions} />
+			</p>
+		)
+
+	return (
+		<div className={BUBBLE} data-slot="chat-essay-bubble" data-clamped={open ? undefined : clamped}>
+			<p ref={body} className={open ? undefined : 'line-clamp-4'}>
+				<TeacherText text={text} mentions={mentions} />
+			</p>
+			{clamped && !open ? (
+				<div className="mt-1 flex items-center justify-between gap-3 whitespace-normal">
+					<span className="text-caption text-muted-foreground tabular-nums">
+						{words} {words === 1 ? 'word' : 'words'}
+					</span>
+					<Button variant="ghost" size="compact" onClick={() => setOpen(true)}>
+						Show full text
+					</Button>
+				</div>
+			) : null}
+		</div>
+	)
+}
+
 function MessageItem({
 	message,
 	reduceMotion,
@@ -384,6 +504,7 @@ export function Messages({
 	onChoose,
 	calendar,
 	changes,
+	reviews,
 	replies,
 	active,
 }: {
@@ -392,6 +513,7 @@ export function Messages({
 	onChoose: (block: ChatClarifyBlock, reply: string) => void
 	calendar: CalendarHandlers
 	changes: ChangeHandlers
+	reviews: ReviewHandlers
 	replies: ReplyHandlers
 	active: ActiveReply | null
 }) {
@@ -424,12 +546,10 @@ export function Messages({
 	return (
 		<>
 			<ol className="flex flex-col gap-4" data-slot="chat-messages">
-				{messages.map((message) =>
-					message.role === 'teacher' ? (
+				{messages.map((message, messageIndex) =>
+					answeredOffer(message) ? null : message.role === 'teacher' ? (
 						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
-							<p className="rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground">
-								<TeacherText text={message.body} mentions={message.mentions} />
-							</p>
+							<TeacherBubble text={message.body} mentions={message.mentions} />
 							<span className="text-caption text-muted-foreground tabular-nums">{messageTime(message.createdAt)}</span>
 						</MessageItem>
 					) : (
@@ -453,7 +573,10 @@ export function Messages({
 										key={
 											block.type === 'action_result' ||
 											block.type === 'calendar_proposal' ||
-											block.type === 'change_proposal'
+											block.type === 'change_proposal' ||
+											block.type === 'note_change' ||
+											block.type === 'review_offer' ||
+											block.type === 'review_result'
 												? block.actionId
 												: `${message.id}-${index}`
 										}
@@ -462,9 +585,21 @@ export function Messages({
 										onChoose={onChoose}
 										calendar={calendar}
 										changes={changes}
+										reviews={reviews}
 										replies={replies}
+										followUp={
+											block.type === 'facts' && !followedUp(messages, messageIndex, block.facts.student.id)
+												? { busy: replies.busy, onSend: replies.onFollowUp }
+												: undefined
+										}
 									/>
 								))}
+							<UnfinishedReview
+								messages={messages}
+								index={messageIndex}
+								live={active?.messageId === message.id}
+								onRun={reviews.onRun}
+							/>
 							{active?.messageId === message.id ? null : (
 								<ReplyFooter
 									time={messageTime(message.finishedAt ?? message.createdAt)}

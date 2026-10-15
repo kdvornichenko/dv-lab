@@ -25,6 +25,9 @@ import {
 	type ChatConversationResponse,
 	type ChatConversationsResponse,
 	type ChatMessage,
+	type ChatNoteChangeBlock,
+	type ChatReviewOfferBlock,
+	type ChatReviewResultBlock,
 	type ChatStep,
 	type ChatStreamEvent,
 	type ChatEffort,
@@ -242,7 +245,13 @@ function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMess
 	return [...current, ...added.filter((message) => !known.has(message.id))]
 }
 
-type ActionBlock = ChatActionResultBlock | ChatCalendarProposalBlock | ChatChangeProposalBlock
+type ActionBlock =
+	| ChatActionResultBlock
+	| ChatCalendarProposalBlock
+	| ChatChangeProposalBlock
+	| ChatNoteChangeBlock
+	| ChatReviewResultBlock
+	| ChatReviewOfferBlock
 
 function withBlock(messages: readonly ChatMessage[], next: ActionBlock): ChatMessage[] {
 	return messages.map((message) => ({
@@ -260,11 +269,32 @@ function calendarBlock(messages: readonly ChatMessage[], actionId: string): Chat
 	return null
 }
 
-function changeBlock(messages: readonly ChatMessage[], actionId: string): ChatChangeProposalBlock | null {
+function changeBlock(
+	messages: readonly ChatMessage[],
+	actionId: string
+): ChatChangeProposalBlock | ChatNoteChangeBlock | null {
 	for (const message of messages)
 		for (const block of message.blocks)
-			if (block.type === 'change_proposal' && block.actionId === actionId) return block
+			if ((block.type === 'change_proposal' || block.type === 'note_change') && block.actionId === actionId)
+				return block
 	return null
+}
+
+function noteUndoLost(messages: readonly ChatMessage[], actionId: string): ChatMessage[] {
+	return messages.map((message) => ({
+		...message,
+		blocks: message.blocks.map((block) =>
+			block.type === 'note_change' && block.actionId === actionId && block.undo === 'available'
+				? {
+						...block,
+						undo: 'unavailable' as const,
+						issue: block.target.kind === 'vocabulary' ? ('words_changed' as const) : ('block_changed' as const),
+					}
+				: block.type === 'review_result' && block.actionId === actionId && block.undo === 'available'
+					? { ...block, undo: 'unavailable' as const, issue: 'block_changed' as const }
+					: block
+		),
+	}))
 }
 
 function withUndo(messages: readonly ChatMessage[], actionId: string, undo: ChatUndoState): ChatMessage[] {
@@ -474,6 +504,16 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		setReply(null)
 	}, [setReply])
 
+	const mergeThread = useCallback(
+		async (conversationId: string) => {
+			const read = await readThread(conversationId)
+			if (!mounted.current || read.state.kind !== 'ready') return
+			const fresh = read.state.messages
+			updateThread(conversationId, (messages) => mergeMessages(messages, fresh))
+		},
+		[updateThread]
+	)
+
 	const apply = useCallback(
 		(conversationId: string, stream: Stream, event: ChatStreamEvent) => {
 			if (event.type === 'heartbeat') return
@@ -519,10 +559,11 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				stream.controller.abort()
 				setReply(null)
 				void readQuietly()
+				void mergeThread(conversationId)
 				if (event.turn.state === 'completed' && TITLED_ISSUES.includes(event.turn.issue)) watchTitle(conversationId)
 			} else setReply({ conversationId, turn: event.turn, stopping: current?.stopping ?? false })
 		},
-		[calendar, readQuietly, setReply, updateThread, watchTitle]
+		[calendar, mergeThread, readQuietly, setReply, updateThread, watchTitle]
 	)
 
 	const follow = useCallback(
@@ -815,10 +856,12 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				shownCalendar(conversationId, parsed.data.block)
 				void calendar.store.refresh()
 			} else if (parsed?.success) updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
-			else
+			else {
 				updateThread(conversationId, (messages) =>
 					withUndo(messages, actionId, result.status === 409 ? 'stale' : 'available')
 				)
+				if (result.status === 409) updateThread(conversationId, (messages) => noteUndoLost(messages, actionId))
+			}
 		},
 		[calendar, shownCalendar, updateThread]
 	)
@@ -865,11 +908,15 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				shownCalendar(conversationId, block)
 				return
 			}
+			if (block.type === 'note_change') {
+				updateThread(conversationId, (messages) => withBlock(messages, block))
+				return
+			}
 			if (block.type !== 'change_proposal') return
 			const current = threadRef.current.state
 			const before = current.kind === 'ready' ? changeBlock(current.messages, actionId) : null
 			updateThread(conversationId, (messages) => withBlock(messages, block))
-			landed(before, block)
+			landed(before?.type === 'change_proposal' ? before : null, block)
 		},
 		[landed, shownCalendar, updateThread]
 	)
@@ -911,10 +958,14 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/${decision}`, {})
 			if (!mounted.current) return true
 			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
-			if (parsed?.success && parsed.data.block.type === 'change_proposal') {
-				const shown = parsed.data.block
+			const shown = parsed?.success ? parsed.data.block : null
+			if (
+				shown !== null &&
+				(shown.type === 'change_proposal' || shown.type === 'note_change') &&
+				shown.type === block.type
+			) {
 				updateThread(conversationId, (messages) => withBlock(messages, shown))
-				landed(block, shown)
+				if (block.type === 'change_proposal' && shown.type === 'change_proposal') landed(block, shown)
 				void readQuietly()
 				return true
 			}
@@ -923,6 +974,25 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			return false
 		},
 		[landed, readQuietly, refreshThread, updateThread]
+	)
+
+	const answerReview = useCallback(
+		async (actionId: string, decision: 'confirm' | 'decline'): Promise<boolean> => {
+			const conversationId = threadRef.current.conversationId
+			if (conversationId === null) return false
+			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/${decision}`, {})
+			if (!mounted.current) return false
+			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
+			const shown = parsed?.success ? parsed.data.block : null
+			if (shown !== null && shown.type === 'review_offer') {
+				updateThread(conversationId, (messages) => withBlock(messages, shown))
+				void readQuietly()
+				return shown.state === (decision === 'confirm' ? 'accepted' : 'declined')
+			}
+			await refreshThread()
+			return false
+		},
+		[readQuietly, refreshThread, updateThread]
 	)
 
 	const rename = useCallback(
@@ -1000,6 +1070,7 @@ export function useChat(initialConversationId: string | null, options: { startNe
 		declineAction,
 		checkAction,
 		decideChange,
+		answerReview,
 		refreshThread,
 		reloadThread,
 		rename,

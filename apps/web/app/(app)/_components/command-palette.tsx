@@ -2,7 +2,7 @@
 
 import { Autocomplete } from '@base-ui/react/autocomplete'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 import {
 	CircleAlert,
@@ -53,12 +53,13 @@ interface Group {
 type Roster = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; rows: StudentLessonOption[] }
 
 const NEW_CHAT_HREF = '/chat?new=1'
+const NEW_CHAT_VALUE = 'action-new-chat'
 const ADD_PAYMENT_HREF = '/?dialog=payment'
 const HEADING_WAIT_MS = 5000
 
 const actionItems: Item[] = [
 	{
-		value: 'action-new-chat',
+		value: NEW_CHAT_VALUE,
 		label: 'New chat',
 		icon: MessageSquarePlus,
 		action: { type: 'route', href: NEW_CHAT_HREF },
@@ -184,6 +185,14 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 	const [query, setQuery] = useState(initialQuery)
 	const [roster, setRoster] = useState<Roster>({ kind: 'loading' })
 	const requests = useRef(0)
+	const [openingChat, startOpeningChat] = useTransition()
+	const chatStarted = useRef(false)
+
+	useEffect(() => {
+		if (!chatStarted.current || openingChat) return
+		chatStarted.current = false
+		onOpenChange(false)
+	}, [openingChat, onOpenChange])
 
 	const refresh = useCallback(() => {
 		const id = ++requests.current
@@ -208,8 +217,16 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 	const groups = useMemo(() => buildGroups(query, roster), [query, roster])
 
 	function run(item: Item) {
-		onOpenChange(false)
+		if (openingChat) return
 		const action = item.action
+		if (item.value === NEW_CHAT_VALUE && action?.type === 'route') {
+			chatStarted.current = true
+			startOpeningChat(() => {
+				router.push(action.href)
+			})
+			return
+		}
+		onOpenChange(false)
 		if (action === undefined) return
 		if (action.type === 'route') router.push(action.href)
 		else if (action.type === 'student') {
@@ -261,15 +278,23 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 													<Autocomplete.Item
 														key={item.value}
 														value={item}
+														disabled={openingChat && item.value !== NEW_CHAT_VALUE}
 														onClick={() => run(item)}
-														className="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-body text-foreground outline-none select-none data-highlighted:bg-active pointer-coarse:h-11"
+														className="flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-body text-foreground outline-none select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-active pointer-coarse:h-11"
 													>
-														{item.icon === null ? (
+														{openingChat && item.value === NEW_CHAT_VALUE ? (
+															<LoaderCircle
+																className="size-4 shrink-0 animate-spin text-muted-foreground motion-reduce:animate-none"
+																aria-hidden
+															/>
+														) : item.icon === null ? (
 															<Avatar name={item.label} />
 														) : (
 															<item.icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
 														)}
-														<span className="min-w-0 flex-1 truncate">{item.label}</span>
+														<span className="min-w-0 flex-1 truncate">
+															{openingChat && item.value === NEW_CHAT_VALUE ? 'Opening chat…' : item.label}
+														</span>
 													</Autocomplete.Item>
 												) : (
 													<StatusRow key={item.value} status={item.status} onRefresh={refresh} />

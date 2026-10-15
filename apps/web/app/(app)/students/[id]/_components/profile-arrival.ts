@@ -1,13 +1,14 @@
-import { SECTION_KINDS, type SectionKind } from '@dv-lab/contracts'
+import { SECTION_KINDS } from '@dv-lab/contracts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const BLOCK_KEY = /^b_[0-9a-f]{32}$/
 
 export const PROFILE_TABS = ['overview', 'lessons', 'payments', 'notes', 'vocabulary'] as const
 export const PROFILE_DIALOGS = ['payment', 'details'] as const
 
 export type ProfileTab = (typeof PROFILE_TABS)[number]
 export type ProfileDialog = (typeof PROFILE_DIALOGS)[number]
-export type ProfileMark = { entry: string | null; section: SectionKind | null }
+export type ProfileMark = { entry: string | null; section: string | null }
 export type ProfileArrival = {
 	tab: ProfileTab | null
 	dialog: ProfileDialog | null
@@ -35,7 +36,8 @@ export function parseProfileArrival(params: {
 	const payment = single(params.payment)
 	const mark = {
 		entry: entry !== null && UUID.test(entry) ? entry : null,
-		section: SECTION_KINDS.find((kind) => kind === section) ?? null,
+		section:
+			SECTION_KINDS.find((kind) => kind === section) ?? (section !== null && BLOCK_KEY.test(section) ? section : null),
 	}
 	return {
 		tab: PROFILE_TABS.find((value) => value === tab) ?? null,

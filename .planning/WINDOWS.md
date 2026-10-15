@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 15
+open_count: 16
 waived_count: 0
-fixed_count: 1
-total_count: 16
-last_updated: 2026-10-14T15:48:15.330Z
+fixed_count: 2
+total_count: 18
+last_updated: 2026-10-15T08:55:52.736Z
 ---
 
 # Broken Windows Ledger
@@ -31,6 +31,8 @@ last_updated: 2026-10-14T15:48:15.330Z
 | 14 | 22 | unrun-verify | scripts/dev-checks/chat-web.mjs |  | 22-17: yarn test:e2e, wait-dev.mjs down и все разделы chat-web.mjs (records, conversations, notes, comments, composer, actions, calendar, budget, stream, answers, models, delete) в обеих темах не запускались: стенд владельца занимает порты 3000 и 4000, проверки с этими портами запрещены заданием | open |  | 2026-10-13T18:48:45.670Z |  |
 | 15 | 25.2 | deviation | apps/web/lib/lesson-count-text.ts |  | A4 ключ сравнения названий: отложено, см. 25.2-ARCH-REVIEW.md | open |  | 2026-10-14T15:48:15.232Z |  |
 | 16 | 25.2 | deviation | apps/api/src/calendar/event-titles.ts |  | A5 проекция событий Google: отложено, см. 25.2-ARCH-REVIEW.md | open |  | 2026-10-14T15:48:15.330Z |  |
+| 17 | 25.2 | stub | apps/web/app/(app)/chat/_components/change-proposal.tsx |  | set_details: Rows and Notes return null, the field card ChangeCardDetails is built by 25.2-23 | fixed |  | 2026-10-15T07:42:27.755Z | 2026-10-15T08:55:52.736Z |
+| 18 | 21 | deviation | packages/core/src/lessons.ts |  | Две одинаковые формулы минут (creditedMinutes, lessonsToMinutes): отложено, см. 21-ARCH-REVIEW.md | open |  | 2026-10-15T07:44:57.294Z |  |
 
 ````json
 [
@@ -239,6 +241,32 @@ last_updated: 2026-10-14T15:48:15.330Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-10-14T15:48:15.330Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 17,
+    "kind": "stub",
+    "phase": "25.2",
+    "file": "apps/web/app/(app)/chat/_components/change-proposal.tsx",
+    "line": null,
+    "description": "set_details: Rows and Notes return null, the field card ChangeCardDetails is built by 25.2-23",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-10-15T07:42:27.755Z",
+    "resolved_at": "2026-10-15T08:55:52.736Z",
+    "milestone": "v2.0"
+  },
+  {
+    "id": 18,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "packages/core/src/lessons.ts",
+    "line": null,
+    "description": "Две одинаковые формулы минут (creditedMinutes, lessonsToMinutes): отложено, см. 21-ARCH-REVIEW.md",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-10-15T07:44:57.294Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }

@@ -19,6 +19,7 @@ import { useToast } from '../../_components/toasts'
 import { useMinuteNow } from '../../_components/use-minute-now'
 import { AssistantCard } from './assistant-card'
 import { CalendarCard } from './calendar-card'
+import { NotificationsCards } from './notifications-card'
 import { PaymentsCard } from './payments-card'
 import { activeTabOf, resolveTab } from './settings-tabs'
 import { ZoneChangeDialog, type ZoneChangeExample } from './zone-change-dialog'
@@ -85,6 +86,12 @@ function useSettings() {
 	function saveThreshold(value: number) {
 		thresholdRevision.current += 1
 		setSettings((current) => (current === null ? null : { ...current, paysSoonLessons: value }))
+	}
+
+	function saveNotify(
+		fields: Partial<Pick<TeacherSettings, 'notifyLessonSoon' | 'notifyLessonMinutes' | 'notifyPaysSoon'>>
+	) {
+		setSettings((current) => (current === null ? null : { ...current, ...fields }))
 	}
 
 	function refresh() {
@@ -176,7 +183,7 @@ function useSettings() {
 		}
 	}
 
-	return { settings, loadState, candidate, pending, error, saveThreshold, refresh, choose, close, confirm }
+	return { settings, loadState, candidate, pending, error, saveThreshold, saveNotify, refresh, choose, close, confirm }
 }
 
 function useLessonExample(): ZoneChangeExample | null {
@@ -389,6 +396,7 @@ export function SettingsScreen() {
 							disabled={state.pending || state.loadState !== 'ready'}
 						/>
 						<PaymentsCard value={state.settings?.paysSoonLessons ?? null} onSaved={state.saveThreshold} />
+						<NotificationsCards settings={state.settings} onSaved={state.saveNotify} />
 					</div>
 				</TabPanel>
 				<TabPanel value="calendar" keepMounted className="mt-4">

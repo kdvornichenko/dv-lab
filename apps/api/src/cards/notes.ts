@@ -94,3 +94,31 @@ export async function retractStudentNote(
 	if (!row) throw new Error('student note update returned no row')
 	return { kind: 'retracted', note: toNote(row) }
 }
+
+export type NoteRestore = { kind: 'restored'; note: StudentNote } | { kind: 'changed' } | { kind: 'not_found' }
+
+export async function restoreStudentNote(
+	executor: DbExecutor,
+	noteId: string,
+	expectedRevision: number,
+	studentId: string
+): Promise<NoteRestore> {
+	const [locked] = await executor
+		.select({
+			studentId: studentNotes.studentId,
+			revision: studentNotes.revision,
+			retractedAt: studentNotes.retractedAt,
+		})
+		.from(studentNotes)
+		.where(eq(studentNotes.id, noteId))
+		.for('update')
+	if (!locked || locked.studentId !== studentId) return { kind: 'not_found' }
+	if (locked.retractedAt === null || locked.revision !== expectedRevision) return { kind: 'changed' }
+	const [row] = await executor
+		.update(studentNotes)
+		.set({ retractedAt: null, revision: locked.revision + 1, updatedAt: sql`now()` })
+		.where(eq(studentNotes.id, noteId))
+		.returning(columns)
+	if (!row) throw new Error('student note update returned no row')
+	return { kind: 'restored', note: toNote(row) }
+}

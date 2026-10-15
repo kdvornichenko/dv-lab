@@ -1,5 +1,6 @@
 import { check, failures } from './browser-context.ts'
 import { marks } from './ledger-web/marks-dialog.mjs'
+import { profile } from './ledger-web/profile.mjs'
 import { settingsSection } from './ledger-web/settings.mjs'
 import { students } from './ledger-web/students.mjs'
 import { todayMarks } from './ledger-web/today-marks.mjs'
@@ -10,6 +11,7 @@ const section = process.argv[2]
 const sections = {
 	marks,
 	students,
+	profile,
 	settings: settingsSection,
 	today: todaySection,
 	'today-marks': todayMarks,
