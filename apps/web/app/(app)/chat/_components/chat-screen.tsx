@@ -378,7 +378,7 @@ export function ChatScreen({
 
 	return (
 		<div ref={area} className="flex min-h-0 flex-1">
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-4 pb-[max(0.75rem,var(--safe-bottom))] md:px-6 md:pb-6">
 				<div className="mx-auto w-full max-w-180 pb-4">
 					<ChatHeader
 						title={selected?.title ?? 'Chat'}

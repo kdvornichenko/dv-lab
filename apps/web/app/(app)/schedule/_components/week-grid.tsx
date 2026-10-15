@@ -789,7 +789,7 @@ export function WeekGrid({
 							if (scrollTopRef) scrollTopRef.current = event.currentTarget.scrollTop
 						}}
 						className={cn(
-							'scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto [-webkit-touch-callout:none]',
+							'scroll-fade min-h-0 flex-1 [scrollbar-gutter:stable] overflow-y-auto pb-[var(--safe-bottom)] [-webkit-touch-callout:none]',
 							paged && 'touch-pan-y'
 						)}
 					>
