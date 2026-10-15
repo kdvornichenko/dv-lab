@@ -11,6 +11,7 @@ import {
 	CHAT_SETTINGS_TABS,
 	CLOCK_TIME_PATTERN,
 	CURRENCIES,
+	EVENT_TITLES_MAX_DAYS,
 	GENDERS,
 	LESSON_MINUTES_MIN,
 	STUDENT_TEXT_MAX_LENGTH,
@@ -20,15 +21,18 @@ import {
 	type ChatExcerptBlock,
 	type ChatLessonIntent,
 	type ChatLessonsBlock,
+	type EventTitlesResponse,
 	type Gender,
 	appendLessonCommentRequest,
 	appendStudentNoteRequest,
 	calendarDate,
 	chatLessonIntent,
+	eventTitlesQuery,
 } from '@dv-lab/contracts'
-import { type Weekday, addDays, lessonDay, zonedParts } from '@dv-lab/core'
+import { type Weekday, addDays, lessonDay, nameMatches, zonedParts } from '@dv-lab/core'
 import { type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
+import { CalendarFault } from '../calendar/gateway.ts'
 import { isStandardKind, listBlocks } from '../cards/blocks.ts'
 import { listLessonStudents, studentGenders } from '../cards/cards.ts'
 import { listStudentNotes } from '../cards/notes.ts'
@@ -153,6 +157,7 @@ const inputs = {
 		dialog: nullable(z.enum(CHAT_ACTION_LINK_DIALOGS)),
 	}),
 	essay_feedback: essayFeedbackInput,
+	calendar_events: z.strictObject({ from: date, to: date, title: z.string().trim().min(1).max(200) }),
 }
 
 const string = { type: 'string' }
@@ -620,6 +625,46 @@ async function essayFeedback(
 	return show(context, { type: 'essay', task: input.task }, result({ status: 'shown', note: ESSAY_NOTE }))
 }
 
+const CALENDAR_DISCONNECTED: ReadonlySet<string> = new Set([
+	'connection_required',
+	'reconnect_required',
+	'permission_required',
+])
+
+async function calendarEvents(
+	context: ToolContext,
+	input: z.infer<(typeof inputs)['calendar_events']>
+): Promise<ToolOutcome> {
+	const range = eventTitlesQuery.safeParse({ from: input.from, to: input.to })
+	if (!range.success) return failure('range_too_long')
+	if (context.eventTitles === undefined) return failure('calendar_not_connected')
+	let read: EventTitlesResponse
+	try {
+		read = await context.eventTitles(context.chat.accountId, range.data)
+	} catch (error) {
+		if (error instanceof CalendarFault && CALENDAR_DISCONNECTED.has(error.code))
+			return failure('calendar_not_connected')
+		return failure('calendar_unavailable')
+	}
+	const records = read.events
+		.flatMap((event) =>
+			event.title !== null && nameMatches(event.title, input.title)
+				? [
+						{
+							date: event.day,
+							time: event.time ?? null,
+							duration_minutes: event.durationMinutes ?? null,
+							title: event.title,
+						},
+					]
+				: []
+		)
+		.sort((left, right) => `${left.date} ${left.time ?? ''}`.localeCompare(`${right.date} ${right.time ?? ''}`))
+	const head = { time_zone: read.timeZone, from: input.from, to: input.to }
+	const { kept } = fit(records, head)
+	return result({ ...head, records: kept, more: records.length - kept.length })
+}
+
 const studentStep: ToolStep = { student: 'student_id', search: null, period: null }
 const plainStep: ToolStep = { student: null, search: null, period: null }
 
@@ -975,6 +1020,16 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		effect: 'feedback',
 		step: plainStep,
 		run: essayFeedback,
+	}),
+	chatTool({
+		name: 'calendar_events',
+		description: `Find events in the connected Google calendar whose title contains the text in title, between two lesson days from and to (YYYY-MM-DD, teacher time zone, at most ${EVENT_TITLES_MAX_DAYS} days; a lesson day runs from 02:00 to 02:00 of the next date). Read only: nothing changes in the calendar. Each record has the lesson day date, the start time HH:MM in the teacher time zone and duration_minutes (both null for an all-day event) and the title; at most ${RECORDS_MAX} records, more is the number of matching events left out. Name dates and times as they are. The error calendar_not_connected means Google Calendar is not connected.`,
+		input: inputs.calendar_events,
+		properties: { from: string, to: string, title: string },
+		strict: false,
+		effect: 'read',
+		step: { student: null, search: null, period: 'range' },
+		run: calendarEvents,
 	}),
 ]
 

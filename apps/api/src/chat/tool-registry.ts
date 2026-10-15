@@ -5,6 +5,7 @@ import type { z } from 'zod'
 import type { ChatBlock } from '@dv-lab/contracts'
 import type { Database, DbExecutor } from '@dv-lab/db'
 
+import type { EventTitles } from '../calendar/event-titles.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
 import type { Issued } from './publish-gate.ts'
 
@@ -16,6 +17,7 @@ export type ToolContext = {
 	issued: Issued
 	shown: Set<string>
 	essay: boolean
+	eventTitles?: EventTitles
 }
 
 export type ToolOutcome = { content: string; isError: boolean; block: ChatBlock | null }

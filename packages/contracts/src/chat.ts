@@ -845,6 +845,7 @@ export const CHAT_STEP_TOOLS = [
 	'propose_entry_removal',
 	'propose_bulk_move',
 	'essay_feedback',
+	'calendar_events',
 	'answer',
 ] as const
 

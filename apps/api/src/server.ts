@@ -50,6 +50,7 @@ const chat = config.chat.enabled
 			logger,
 			provider: createChatProvider({ apiKey: config.chat.apiKey }),
 			calendarCommands: calendar?.commands,
+			eventTitles: calendar?.eventTitles,
 		})
 	: undefined
 await chat?.sweepInterrupted()
