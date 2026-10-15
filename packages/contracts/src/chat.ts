@@ -839,6 +839,23 @@ export const chatEssayBlock = z.strictObject({
 
 export const REVIEW_COMMAND_TEXT = '/review'
 
+export const HELP_COMMAND_TEXT = '/help'
+
+export const CHAT_COMMANDS = [
+	{ name: '/today', detail: "Today's lessons", student: false },
+	{ name: '/tomorrow', detail: "Tomorrow's lessons", student: false },
+	{ name: '/payments', detail: 'Who pays soon', student: false },
+	{ name: '/note', detail: 'Add a note to a student', student: true },
+	{ name: '/recap', detail: 'Summarise a student', student: true },
+	{ name: '/essay', detail: 'Feedback on a pasted essay', student: false },
+	{ name: REVIEW_COMMAND_TEXT, detail: "Review a student's notes", student: true },
+	{ name: HELP_COMMAND_TEXT, detail: 'What I can do', student: false },
+] as const
+
+export type ChatCommand = (typeof CHAT_COMMANDS)[number]
+
+export const chatHelpBlock = z.strictObject({ type: z.literal('help') })
+
 export const CHAT_REVIEW_UNDO = ['available', 'undone', 'unavailable', 'none'] as const
 
 export const CHAT_REVIEW_ISSUES = ['changed', 'block_changed'] as const
@@ -904,6 +921,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatEssayBlock,
 	chatReviewResultBlock,
 	chatReviewOfferBlock,
+	chatHelpBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })

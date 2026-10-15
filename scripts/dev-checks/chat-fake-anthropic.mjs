@@ -186,6 +186,10 @@ function proposalPlan(marker, content, continued, body) {
 			...(marker === 'calendar-merge' ? { merge: true } : {}),
 		})
 	}
+	if (marker === 'help') {
+		if (continued) return { blocks: [], stop: 'end_turn' }
+		return call('show_help', {})
+	}
 	if (marker === 'end') {
 		if (continued) return say('I could not prepare that change.')
 		return call('propose_lesson_change', {

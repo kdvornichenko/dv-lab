@@ -15,7 +15,7 @@ const browserType = (loaded as Record<string, BrowserType>)[engine]!
 export const firefox = engine === 'firefox'
 
 export { ROOT, STATE_DIR }
-export const BASE = 'http://localhost:3000'
+export const BASE = `http://localhost:${process.env.DEV_CHECK_WEB_PORT ?? '3000'}`
 export const env = parseEnv(readFileSync(`${ROOT}/.env`, 'utf8'))
 export const theme = process.argv.includes('dark') ? 'dark' : 'light'
 

@@ -1097,8 +1097,8 @@ async function sectionComposer() {
 			const commands = await popup.getByRole('option').allInnerTexts()
 			check(
 				'/ offers only the chat commands',
-				commands.length === 6 &&
-					['/today', '/tomorrow', '/payments', '/note', '/recap', '/essay'].every((name) =>
+				commands.length === 8 &&
+					['/today', '/tomorrow', '/payments', '/note', '/recap', '/essay', '/review', '/help'].every((name) =>
 						commands.some((text) => text.startsWith(name))
 					) &&
 					!commands.some((text) => text.startsWith('/pay ') || text.startsWith('/feedback')),
