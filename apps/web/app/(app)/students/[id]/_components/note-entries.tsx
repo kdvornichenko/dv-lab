@@ -12,7 +12,7 @@ import { apiRequest } from '@/lib/api-client'
 import { formatDay, formatDayMonth, yearInZone } from '@/lib/schedule-format'
 import { cn } from '@/lib/utils'
 
-import type { SectionKind, StudentNote, StudentNoteResponse } from '@dv-lab/contracts'
+import type { StudentNote, StudentNoteResponse } from '@dv-lab/contracts'
 
 import { useToast } from '../../../_components/toasts'
 
@@ -21,7 +21,7 @@ export type NotesState = { kind: 'loading' } | { kind: 'error' } | { kind: 'read
 interface NoteEntriesProps {
 	studentId: string
 	studentName: string
-	sectionKind: SectionKind
+	sectionKind: string
 	sectionTitle: string
 	state: NotesState
 	timeZone: string
