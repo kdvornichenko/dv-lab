@@ -9,7 +9,7 @@ import { removeCards } from './ledger-api/context.ts'
 
 const PORT = 4259
 const PREFIX = 'Alex Example 259'
-const SECTIONS = { run: sectionRun, undo: sectionUndo }
+const SECTIONS = { run: sectionRun, undo: sectionUndo, offer: sectionOffer }
 
 let failures = 0
 
@@ -589,6 +589,110 @@ async function sectionUndo(h, ctx) {
 		(await ctx.blocksOfType(second.conversation, 'review_result'))[0]?.undo === 'unavailable'
 	)
 	return { line: 'CHAT_REVIEW_UNDO_OK' }
+}
+
+async function notesTurn(h, ctx, conversation, studentId, name) {
+	const text = `What do the notes of @${name} say?`
+	const start = text.indexOf('@') + 1
+	return ctx.turn(
+		conversation,
+		text,
+		[{ studentId, text: name, start, end: start + name.length }],
+		[h.use('student_notes', { student_id: studentId }), h.say('The notes are short.')]
+	)
+}
+
+const offersIn = (ctx, conversation) => ctx.blocksOfType(conversation, 'review_offer')
+
+async function sectionOffer(h, ctx) {
+	const name = `${PREFIX}6 Offer`
+	const studentId = await ctx.card(name)
+	await setBlock(ctx, studentId, 'general_info', 'Likes chess.')
+	const first = await ctx.fresh()
+	await notesTurn(h, ctx, first, studentId, name)
+	const messages = await ctx.read(first)
+	const holder = messages.find((message) => message.blocks.some((block) => block.type === 'review_offer'))
+	const offer = holder?.blocks.find((block) => block.type === 'review_offer')
+	check(
+		'a turn that read the notes of a never reviewed student ends with a separate review question',
+		messages.length === 3 &&
+			holder?.role === 'assistant' &&
+			holder.body === '' &&
+			holder.blocks.length === 1 &&
+			offer?.studentId === studentId &&
+			offer.state === 'proposed' &&
+			offer.lastReviewedAt === null &&
+			reviewRow(studentId)?.offered_on != null,
+		JSON.stringify({ messages: messages.length, state: offer?.state })
+	)
+	const today = reviewRow(studentId)?.offered_on
+	sql(`update note_reviews set offered_on = ${quote(today)}::date - 1 where student_id = ${quote(studentId)}`)
+	await notesTurn(h, ctx, first, studentId, name)
+	check('a second notes turn in the same conversation asks nothing', (await offersIn(ctx, first)).length === 1)
+	sql(`update note_reviews set offered_on = ${quote(today)}::date where student_id = ${quote(studentId)}`)
+	const second = await ctx.fresh()
+	await notesTurn(h, ctx, second, studentId, name)
+	check('another conversation on the same day asks nothing', (await offersIn(ctx, second)).length === 0)
+
+	const freshName = `${PREFIX}6 Offer Fresh`
+	const freshId = await ctx.card(freshName)
+	await setBlock(ctx, freshId, 'general_info', 'Reads novels.')
+	addTerm(freshId, 'novel', null)
+	sql(`update student_sections set updated_at = now() - interval '2 days' where student_id = ${quote(freshId)}`)
+	sql(`update student_terms set created_at = now() - interval '2 days' where student_id = ${quote(freshId)}`)
+	sql(
+		`insert into note_reviews (student_id, reviewed_at) values (${quote(freshId)}, now() - interval '1 day') on conflict (student_id) do update set reviewed_at = excluded.reviewed_at, offered_on = null`
+	)
+	const stamp = String(reviewRow(freshId).reviewed_at)
+	const third = await ctx.fresh()
+	await notesTurn(h, ctx, third, freshId, freshName)
+	check('a review yesterday with no change since asks nothing', (await offersIn(ctx, third)).length === 0)
+	await setBlock(ctx, freshId, 'interests', 'Plays chess.')
+	const fourth = await ctx.fresh()
+	await notesTurn(h, ctx, fourth, freshId, freshName)
+	const changed = (await offersIn(ctx, fourth))[0]
+	check(
+		'notes changed after the last review bring the question with the date of that review',
+		changed?.state === 'proposed' && changed.lastReviewedAt !== null,
+		JSON.stringify(changed)
+	)
+
+	const quietName = `${PREFIX}6 Offer Quiet`
+	const quietId = await ctx.card(quietName)
+	const quiet = await ctx.fresh()
+	const text = `Hello about @${quietName}`
+	const at = text.indexOf('@') + 1
+	await ctx.turn(
+		quiet,
+		text,
+		[{ studentId: quietId, text: quietName, start: at, end: at + quietName.length }],
+		[h.say('Hello.')]
+	)
+	check('a turn without notes tools asks nothing', (await offersIn(ctx, quiet)).length === 0)
+
+	const unanswered = (await offersIn(ctx, first))[0]
+	const yes = await ctx.decide(offer.actionId, 'confirm')
+	const no = await ctx.decide(changed.actionId, 'decline')
+	check(
+		'Yes answers the question as accepted and No as declined',
+		unanswered?.state === 'proposed' &&
+			yes.status === 200 &&
+			yes.block?.type === 'review_offer' &&
+			yes.block.state === 'accepted' &&
+			no.status === 200 &&
+			no.block?.type === 'review_offer' &&
+			no.block.state === 'declined',
+		JSON.stringify({ yes: yes.status, yesState: yes.block?.state, no: no.status, noState: no.block?.state })
+	)
+	check(
+		'an answer does not change the review date',
+		(reviewRow(studentId)?.reviewed_at ?? null) === null && String(reviewRow(freshId).reviewed_at) === stamp
+	)
+	check(
+		'after a reload the answered questions read as accepted and declined',
+		(await offersIn(ctx, first))[0]?.state === 'accepted' && (await offersIn(ctx, fourth))[0]?.state === 'declined'
+	)
+	return { line: 'CHAT_REVIEW_OFFER_OK' }
 }
 
 function setBlockSql(blockId, body) {

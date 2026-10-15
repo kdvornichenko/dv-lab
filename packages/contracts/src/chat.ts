@@ -847,6 +847,17 @@ export const chatReviewResultBlock = z.strictObject({
 	issue: z.enum(CHAT_REVIEW_ISSUES).optional(),
 })
 
+export const CHAT_REVIEW_OFFER_STATES = ['proposed', 'accepted', 'declined'] as const
+
+export const chatReviewOfferBlock = z.strictObject({
+	type: z.literal('review_offer'),
+	actionId: z.uuid(),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	lastReviewedAt: calendarInstant.nullable(),
+	state: z.enum(CHAT_REVIEW_OFFER_STATES),
+})
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
@@ -867,6 +878,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatActionLinkBlock,
 	chatEssayBlock,
 	chatReviewResultBlock,
+	chatReviewOfferBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -891,6 +903,7 @@ export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
 export type ChatEssayBlock = z.infer<typeof chatEssayBlock>
 export type ChatReviewResultBlock = z.infer<typeof chatReviewResultBlock>
 export type ChatReviewItem = z.infer<typeof chatReviewItem>
+export type ChatReviewOfferBlock = z.infer<typeof chatReviewOfferBlock>
 export type ChatActionLinkKind = (typeof CHAT_ACTION_LINK_KINDS)[number]
 export type ChatActionLinkDialog = (typeof CHAT_ACTION_LINK_DIALOGS)[number]
 export type ChatSettingsTab = (typeof CHAT_SETTINGS_TABS)[number]
@@ -1055,7 +1068,12 @@ export const calendarActionResponse = z.strictObject({ block: chatCalendarPropos
 export type CalendarActionResponse = z.infer<typeof calendarActionResponse>
 
 export const chatActionResponse = z.strictObject({
-	block: z.discriminatedUnion('type', [chatCalendarProposalBlock, chatChangeProposalBlock, chatNoteChangeBlock]),
+	block: z.discriminatedUnion('type', [
+		chatCalendarProposalBlock,
+		chatChangeProposalBlock,
+		chatNoteChangeBlock,
+		chatReviewOfferBlock,
+	]),
 })
 
 export type ChatActionResponse = z.infer<typeof chatActionResponse>

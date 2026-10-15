@@ -36,14 +36,14 @@ import {
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { EventTitles } from '../calendar/event-titles.ts'
 import { studentGenders } from '../cards/cards.ts'
-import { clearReviewRunning, markReviewRunning } from '../cards/note-reviews.ts'
+import { clearReviewRunning, markReviewRunning, recordOffer, shouldOffer } from '../cards/note-reviews.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
 import { ESSAY_COMMAND } from './essay.ts'
 import { lessonDatesPeriod } from './facts.ts'
 import { replyMentions, studentNames } from './mentions.ts'
-import { stepsOf, toMessages } from './messages.ts'
+import { insertAction, insertMessage, stepsOf, toMessages } from './messages.ts'
 import { type ModelOverride, modelCapabilities, resolveModelChoice, selectionAllowed } from './model-config.ts'
 import { type CommandTexts, readCommandTexts } from './prompts.ts'
 import { type ChatProvider, ProviderFault } from './provider.ts'
@@ -91,6 +91,7 @@ type Run = {
 	essay: boolean
 	essayTurn: boolean
 	review: ReviewSession | null
+	noteStudents: Set<string>
 }
 
 type Ending = {
@@ -203,6 +204,8 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 			return block.issue === 'changed'
 				? `[The review of the notes of ${block.studentName} did not finish: the notes changed]`
 				: `[Reviewed the notes of ${block.studentName}]`
+		case 'review_offer':
+			return `[Asked whether to review the notes of ${block.studentName}]`
 	}
 }
 
@@ -259,6 +262,15 @@ function currentMessage(
 function collectIds(text: string, into: Set<string>) {
 	for (const match of text.matchAll(UUID)) into.add(match[0].toLowerCase())
 }
+
+const NOTE_TOOLS: ReadonlySet<string> = new Set([
+	'student_notes',
+	'note_write',
+	'note_block_create',
+	'note_block_delete',
+	'vocabulary_add',
+	'vocabulary_remove',
+])
 
 const STEP_NAME_MAX = 80
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/u
@@ -815,6 +827,9 @@ export function createChat({
 			}
 			const outcome = await runTool(toolContext, use.name, use.input)
 			run.essay = toolContext.essay
+			const noteInput = use.input as { student_id?: unknown } | null
+			if (!outcome.isError && NOTE_TOOLS.has(use.name) && isId(noteInput?.student_id))
+				run.noteStudents.add(noteInput.student_id)
 			if (outcome.block?.type === 'action_link' && run.link === null) {
 				run.link = outcome.block
 				run.wroteBlock = true
@@ -835,6 +850,46 @@ export function createChat({
 		}
 	}
 
+	async function offerReview(run: Run, turn: TurnRow): Promise<void> {
+		const chat = await context(turn.accountId)
+		const today = zonedParts(chat.now, chat.defaultTimeZone).date
+		for (const studentId of run.noteStudents) {
+			const offered = await db.transaction(async (tx) => {
+				const due = await shouldOffer(tx, studentId, turn.conversationId, today, chat.now)
+				const studentName = (await studentNames(tx, [studentId])).get(studentId)
+				if (due === null || studentName === undefined || !(await recordOffer(tx, studentId, today))) return false
+				const actionId = await insertAction(tx, {
+					accountId: turn.accountId,
+					conversationId: turn.conversationId,
+					messageId: turn.teacherMessageId,
+					kind: 'change',
+					state: 'proposed',
+					target: { operation: 'review_offer', studentId },
+					result: { kind: 'proposed' },
+				})
+				await insertMessage(tx, {
+					accountId: turn.accountId,
+					conversationId: turn.conversationId,
+					role: 'assistant',
+					body: '',
+					blocks: [
+						{
+							type: 'review_offer',
+							actionId,
+							studentId,
+							studentName,
+							lastReviewedAt: due.lastReviewedAt,
+							state: 'proposed',
+						},
+					],
+					replyTo: turn.teacherMessageId,
+				})
+				return true
+			})
+			if (offered) return
+		}
+	}
+
 	async function execute(run: Run): Promise<void> {
 		const [turn] = await db
 			.update(chatTurns)
@@ -850,6 +905,10 @@ export function createChat({
 			logger.error({ err, turnId: turn.id }, 'chat turn failed')
 			result = ending('failed', 'provider_unavailable', [{ type: 'refused', code: 'provider_unavailable' }])
 		}
+		if (result.state === 'completed' && run.review === null && run.noteStudents.size > 0 && !run.closing)
+			await offerReview(run, turn).catch((err: unknown) =>
+				logger.error({ err, turnId: turn.id }, 'chat review offer failed')
+			)
 		try {
 			await finish(run, turn, result)
 		} finally {
@@ -878,6 +937,7 @@ export function createChat({
 			essay: false,
 			essayTurn: false,
 			review: null,
+			noteStudents: new Set(),
 		}
 		runs.set(turnId, run)
 		run.done = execute(run)

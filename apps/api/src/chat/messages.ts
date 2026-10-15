@@ -8,6 +8,7 @@ import {
 	type ChatChangeProposalBlock,
 	type ChatMessage,
 	type ChatNoteChangeBlock,
+	type ChatReviewOfferBlock,
 	type ChatReviewResultBlock,
 	type ChatUndoState,
 	type MentionBinding,
@@ -202,12 +203,20 @@ export function reviewResultView(block: ChatReviewResultBlock, action: ActionUnd
 	return { ...rest, undo: 'available' }
 }
 
+export function reviewOfferView(block: ChatReviewOfferBlock, action: ActionUndo): ChatReviewOfferBlock {
+	const progress = changeProgress.safeParse(action.result)
+	if (!progress.success) return block
+	const kind = progress.data.kind
+	return { ...block, state: kind === 'proposed' ? 'proposed' : kind === 'applied' ? 'accepted' : 'declined' }
+}
+
 const ACTION_BLOCKS: ReadonlySet<ChatBlock['type']> = new Set([
 	'action_result',
 	'calendar_proposal',
 	'change_proposal',
 	'note_change',
 	'review_result',
+	'review_offer',
 ])
 
 export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<string, ActionUndo>): ChatBlock[] {
@@ -217,11 +226,13 @@ export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<stri
 			block.type !== 'calendar_proposal' &&
 			block.type !== 'change_proposal' &&
 			block.type !== 'note_change' &&
-			block.type !== 'review_result'
+			block.type !== 'review_result' &&
+			block.type !== 'review_offer'
 		)
 			return block
 		const action = actions.get(block.actionId)
 		if (!action) return block
+		if (block.type === 'review_offer') return reviewOfferView(block, action)
 		if (block.type === 'review_result') return reviewResultView(block, action)
 		if (block.type === 'note_change') return noteChangeView(block, action)
 		if (block.type === 'change_proposal') return changeView(block, action)
@@ -426,6 +437,14 @@ export async function replyOf(executor: DbExecutor, accountId: string, messageId
 		.orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
 		.limit(1)
 	return reply ?? null
+}
+
+export function repliesOf(executor: DbExecutor, accountId: string, messageId: string): Promise<MessageRow[]> {
+	return executor
+		.select()
+		.from(chatMessages)
+		.where(and(eq(chatMessages.accountId, accountId), eq(chatMessages.replyTo, messageId)))
+		.orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
 }
 
 export const unsettledCalendarAction = or(

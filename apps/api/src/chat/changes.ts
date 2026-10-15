@@ -5,7 +5,9 @@ import {
 	type ChatCalendarProposalBlock,
 	type ChatChangeIssue,
 	type ChatChangeProposalBlock,
+	type ChatBlock,
 	type ChatNoteChangeBlock,
+	type ChatReviewOfferBlock,
 	type Currency,
 	CURRENCIES,
 	calendarDate,
@@ -53,7 +55,7 @@ import {
 	previewDeletion,
 } from './change-deletions.ts'
 import { applyNoteChange, noteTargets } from './change-notes.ts'
-import { blocksOf, changeView, insertAction, noteChangeView, replyOf } from './messages.ts'
+import { blocksOf, changeView, insertAction, noteChangeView, repliesOf, reviewOfferView } from './messages.ts'
 
 type PaymentRequest = {
 	operation: 'record_payment'
@@ -83,7 +85,7 @@ export type ProposeOutcome =
 	{ kind: 'proposed'; block: ChatChangeProposalBlock } | { kind: 'refused'; code: ChangeRefusal }
 
 export type ChangeOutcome =
-	| { kind: 'ok'; block: ChatChangeProposalBlock | ChatCalendarProposalBlock | ChatNoteChangeBlock }
+	| { kind: 'ok'; block: ChatChangeProposalBlock | ChatCalendarProposalBlock | ProposalBlock }
 	| { kind: 'not_found' }
 	| { kind: 'not_change' }
 
@@ -103,8 +105,11 @@ const paymentTarget = z.strictObject({
 	}),
 })
 
+const reviewOfferTarget = z.strictObject({ operation: z.literal('review_offer'), studentId: z.uuid() })
+
 const storedTarget = z.discriminatedUnion('operation', [
 	paymentTarget,
+	reviewOfferTarget,
 	...cardTargets,
 	...deletionTargets,
 	...noteTargets,
@@ -338,20 +343,25 @@ async function actionOf(executor: DbExecutor, accountId: string, actionId: strin
 	return row ?? null
 }
 
-async function proposalOf(
-	executor: DbExecutor,
-	accountId: string,
-	action: ActionRow
-): Promise<ChatChangeProposalBlock | ChatNoteChangeBlock | null> {
-	const reply = await replyOf(executor, accountId, action.messageId)
-	const block = reply
-		? blocksOf(reply).find(
-				(item) =>
-					(item.type === 'change_proposal' || (item.type === 'note_change' && item.mode === 'proposal')) &&
-					item.actionId === action.id
-			)
-		: undefined
-	return block?.type === 'change_proposal' || block?.type === 'note_change' ? block : null
+type ProposalBlock = ChatChangeProposalBlock | ChatNoteChangeBlock | ChatReviewOfferBlock
+
+const isProposal = (block: ChatBlock): block is ProposalBlock =>
+	block.type === 'change_proposal' ||
+	block.type === 'review_offer' ||
+	(block.type === 'note_change' && block.mode === 'proposal')
+
+async function proposalOf(executor: DbExecutor, accountId: string, action: ActionRow): Promise<ProposalBlock | null> {
+	for (const reply of await repliesOf(executor, accountId, action.messageId)) {
+		const block = blocksOf(reply).find((item) => isProposal(item) && item.actionId === action.id)
+		if (block !== undefined && isProposal(block)) return block
+	}
+	return null
+}
+
+function proposalView(block: ProposalBlock, action: ActionRow): ProposalBlock {
+	if (block.type === 'note_change') return noteChangeView(block, action)
+	if (block.type === 'review_offer') return reviewOfferView(block, action)
+	return changeView(block, action)
 }
 
 export async function presentChange(executor: DbExecutor, accountId: string, actionId: string): Promise<ChangeOutcome> {
@@ -360,10 +370,7 @@ export async function presentChange(executor: DbExecutor, accountId: string, act
 	if (action.kind !== 'change') return { kind: 'not_change' }
 	const block = await proposalOf(executor, accountId, action)
 	if (block === null) return { kind: 'not_found' }
-	return {
-		kind: 'ok',
-		block: block.type === 'note_change' ? noteChangeView(block, action) : changeView(block, action),
-	}
+	return { kind: 'ok', block: proposalView(block, action) }
 }
 
 async function settle(
@@ -409,6 +416,7 @@ async function applyChange(tx: DbExecutor, context: ChatContext, action: ActionR
 	}
 	const target = parsed.data
 	if (target.operation === 'record_payment') return applyPayment(tx, context, action, target)
+	if (target.operation === 'review_offer') return settle(tx, action.id, 'applied', { kind: 'applied' })
 	const applied =
 		target.operation === 'update_block' || target.operation === 'delete_block'
 			? await applyNoteChange(tx, target)

@@ -26,6 +26,8 @@ import {
 	type ChatConversationsResponse,
 	type ChatMessage,
 	type ChatNoteChangeBlock,
+	type ChatReviewOfferBlock,
+	type ChatReviewResultBlock,
 	type ChatStep,
 	type ChatStreamEvent,
 	type ChatEffort,
@@ -243,7 +245,13 @@ function mergeMessages(current: readonly ChatMessage[], added: readonly ChatMess
 	return [...current, ...added.filter((message) => !known.has(message.id))]
 }
 
-type ActionBlock = ChatActionResultBlock | ChatCalendarProposalBlock | ChatChangeProposalBlock | ChatNoteChangeBlock
+type ActionBlock =
+	| ChatActionResultBlock
+	| ChatCalendarProposalBlock
+	| ChatChangeProposalBlock
+	| ChatNoteChangeBlock
+	| ChatReviewResultBlock
+	| ChatReviewOfferBlock
 
 function withBlock(messages: readonly ChatMessage[], next: ActionBlock): ChatMessage[] {
 	return messages.map((message) => ({
