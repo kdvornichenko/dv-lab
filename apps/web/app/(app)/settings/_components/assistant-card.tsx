@@ -22,6 +22,7 @@ import {
 
 import { useToast } from '../../_components/toasts'
 import { ModelsForm } from './assistant-models'
+import { CommandPromptsCard, PrivacyCard } from './assistant-prompts'
 import { BudgetUsage } from './budget-usage'
 import {
 	BUDGET_DESCRIPTION,
@@ -373,6 +374,8 @@ export function AssistantCard() {
 			<ChatModelCard state={state} />
 			<ModelsCard state={state} />
 			<BudgetCard state={state} />
+			<CommandPromptsCard />
+			<PrivacyCard />
 		</div>
 	)
 }

@@ -2741,7 +2741,218 @@ async function sectionDetails() {
 	}
 }
 
+const PROMPT_BLOCK = (command) => `[data-slot="command-prompt"][data-command="${command}"]`
+const PROMPT_ACCOUNTS = `select id from accounts where role = 'teacher'`
+const PROMPTS_NOISE = EXPECTED_NOISE
+
+function removePrompts() {
+	const result = sql(`delete from chat_command_prompts where account_id in (${PROMPT_ACCOUNTS})`)
+	console.log(`fixture prompts removed ${result.rowCount}`)
+}
+
+const promptRows = () =>
+	sql(
+		`select command, body, revision from chat_command_prompts where account_id in (${PROMPT_ACCOUNTS}) order by command`
+	).rows
+
+async function sectionPrompts() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	try {
+		removePrompts()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await setTheme(page)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const listed = await call('GET', '/settings/assistant/prompts')
+				const defaults = Object.fromEntries(listed.json.prompts.map((item) => [item.command, item.defaultBody]))
+				await page.goto(`${BASE}/settings?tab=assistant`)
+				const recap = page.locator(PROMPT_BLOCK('/recap'))
+				const essay = page.locator(PROMPT_BLOCK('/essay'))
+				await recap.waitFor({ timeout: 30000 })
+				const field = recap.locator('textarea')
+				const badge = (block) => block.getAttribute('data-badge')
+				const buttons = async (block) => ({
+					restore: await block.getByRole('button', { name: 'Restore default' }).isDisabled(),
+					discard: await block.getByRole('button', { name: 'Discard' }).isDisabled(),
+					save: await block.getByRole('button', { name: 'Save', exact: true }).isDisabled(),
+				})
+
+				check(
+					'the Assistant tab lists Command prompts after Budget and Privacy last',
+					await page.evaluate(() => {
+						const titles = [...document.querySelectorAll('h2')].map((node) => node.textContent?.trim())
+						return (
+							titles.indexOf('Budget') >= 0 &&
+							titles.indexOf('Command prompts') === titles.indexOf('Budget') + 1 &&
+							titles.indexOf('Privacy') === titles.indexOf('Command prompts') + 1 &&
+							titles.at(-1) === 'Privacy'
+						)
+					})
+				)
+				const noteShown = await page.getByText('Only the wording is edited here.').first().isVisible()
+				check('the card says that only the wording is edited', noteShown)
+				check(
+					'nothing saved: both commands read Default with Restore default, Discard and Save off',
+					(await badge(recap)) === 'Default' &&
+						(await badge(essay)) === 'Default' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: true, discard: true, save: true }) &&
+						(await field.inputValue()) === defaults['/recap'] &&
+						(await recap.locator('[data-slot="prompt-counter"]').innerText()).endsWith(' / 8,000') &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'Saved to your account.'
+				)
+				const privacy = page.getByText('sends them to the model provider with your question.')
+				check(
+					'the Privacy line states that event titles go to the model provider',
+					(await privacy.isVisible()) &&
+						(await page.getByText('What leaves the app when you use the assistant.').isVisible())
+				)
+
+				await field.fill(`${defaults['/recap']} Answer in Russian.`)
+				check(
+					'typing marks the command Edited, shows Unsaved changes and turns Discard and Save on',
+					(await badge(recap)) === 'Edited' &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'Unsaved changes' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: false, discard: false, save: false }) &&
+						(await badge(essay)) === 'Default'
+				)
+				await shot(page, 'changes-prompts', 'edited')
+				await recap.getByRole('button', { name: 'Discard' }).click()
+				check(
+					'Discard puts the saved text back',
+					(await field.inputValue()) === defaults['/recap'] && (await badge(recap)) === 'Default'
+				)
+
+				await field.fill('')
+				check(
+					'an empty prompt shows the sentence and keeps Save off, Discard and Restore default on',
+					(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'The prompt cannot be empty.' &&
+						(await field.getAttribute('aria-invalid')) === 'true' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: false, discard: false, save: true })
+				)
+				await field.fill('x'.repeat(8001))
+				check(
+					'a prompt over the limit shows how far over it is and keeps Save off',
+					(await recap.locator(`#settings-prompt-recap-status`).innerText()) ===
+						'The prompt is 1 character over the 8,000 limit.' &&
+						(await recap.locator('[data-slot="prompt-counter"]').innerText()) === '8,001 / 8,000' &&
+						(await buttons(recap)).save === true
+				)
+				await recap.getByRole('button', { name: 'Discard' }).click()
+
+				const custom = 'Summarise the lessons in three sentences. Answer in Russian.'
+				await field.fill(custom)
+				await recap.getByRole('button', { name: 'Save', exact: true }).click()
+				await page.getByText('/recap prompt saved.').waitFor({ timeout: 15000 })
+				const stored = promptRows().find((row) => row.command === '/recap')
+				check(
+					'Save writes the text with revision 1, the badge reads Customised and the buttons turn off',
+					stored?.body === custom &&
+						Number(stored.revision) === 1 &&
+						(await badge(recap)) === 'Customised' &&
+						JSON.stringify(await buttons(recap)) === JSON.stringify({ restore: false, discard: true, save: true }) &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) === 'Saved to your account.' &&
+						(await badge(essay)) === 'Default'
+				)
+				await shot(page, 'changes-prompts', 'customised')
+
+				await recap.getByRole('button', { name: 'Restore default' }).click()
+				check(
+					'Restore default puts the default text in the field without saving',
+					(await field.inputValue()) === defaults['/recap'] &&
+						(await badge(recap)) === 'Edited' &&
+						(await recap.locator(`#settings-prompt-recap-status`).innerText()) ===
+							'Default text restored. Save to use it.' &&
+						promptRows().find((row) => row.command === '/recap')?.body === custom &&
+						(await buttons(recap)).restore === true
+				)
+				await recap.getByRole('button', { name: 'Save', exact: true }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelector(selector)?.getAttribute('data-badge') === 'Default',
+					PROMPT_BLOCK('/recap'),
+					{ timeout: 15000 }
+				)
+				const reset = promptRows().find((row) => row.command === '/recap')
+				check(
+					'Save of the default text stores no text, bumps the revision and the badge reads Default again',
+					reset?.body === null && Number(reset.revision) === 2
+				)
+
+				await field.fill('Draft from this tab.')
+				const rival = await call('PUT', '/settings/assistant/prompts/recap', {
+					body: 'Written in another tab.',
+					expectedRevision: 2,
+				})
+				check('the other tab saves its text', rival.status === 200, String(rival.status))
+				await recap.getByRole('button', { name: 'Save', exact: true }).click()
+				await recap.getByRole('button', { name: 'Reload prompt' }).waitFor({ timeout: 15000 })
+				check(
+					'a competing edit keeps the draft, says the prompt changed elsewhere and turns Save off',
+					(await field.inputValue()) === 'Draft from this tab.' &&
+						(await recap.getByText('This prompt changed elsewhere.').isVisible()) &&
+						(await buttons(recap)).save === true &&
+						promptRows().find((row) => row.command === '/recap')?.body === 'Written in another tab.'
+				)
+				await shot(page, 'changes-prompts', 'conflict')
+				await recap.getByRole('button', { name: 'Reload prompt' }).click()
+				await recap.getByRole('button', { name: 'Reload prompt' }).waitFor({ state: 'detached', timeout: 15000 })
+				check(
+					'Reload prompt shows the saved text and clears the row',
+					(await field.inputValue()) === 'Written in another tab.' && (await badge(recap)) === 'Customised'
+				)
+
+				await essay.locator('textarea').fill('Review the essay briefly.')
+				await essay.getByRole('button', { name: 'Save', exact: true }).click()
+				await page.getByText('/essay prompt saved.').waitFor({ timeout: 15000 })
+				check(
+					'each command saves by itself',
+					promptRows().find((row) => row.command === '/essay')?.body === 'Review the essay briefly.' &&
+						promptRows().find((row) => row.command === '/recap')?.body === 'Written in another tab.'
+				)
+
+				await page.goto(`${BASE}/settings?tab=calendar`)
+				await page.getByRole('tab', { name: 'Google Calendar' }).waitFor({ timeout: 30000 })
+				check('the Google Calendar tab does not repeat the privacy line', !(await privacy.isVisible()))
+
+				await page.setViewportSize({ width: 375, height: 812 })
+				await page.goto(`${BASE}/settings?tab=assistant`)
+				await recap.waitFor({ timeout: 30000 })
+				await recap.locator('textarea').fill('Narrow check.')
+				const narrow = await page.evaluate((selector) => {
+					const block = document.querySelector(selector)
+					const box = block.getBoundingClientRect()
+					const area = block.querySelector('textarea').getBoundingClientRect()
+					return {
+						left: box.left,
+						right: box.right,
+						areaHeight: Math.round(area.height),
+						overflow: document.documentElement.scrollWidth - window.innerWidth,
+					}
+				}, PROMPT_BLOCK('/recap'))
+				check(
+					'at 375 px the block stays inside the screen, the field is 168 px tall and the page does not scroll sideways',
+					narrow.left >= 0 && narrow.right <= 375 && narrow.areaHeight === 168 && narrow.overflow <= 0,
+					JSON.stringify(narrow)
+				)
+				await shot(page, 'changes-prompts', 'phone')
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const unexpected = problems.filter((line) => !PROMPTS_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removePrompts()
+		)
+	} finally {
+		removePrompts()
+	}
+}
+
 const sections = {
+	prompts: sectionPrompts,
 	details: sectionDetails,
 	facts: sectionFacts,
 	payment: sectionPayment,
