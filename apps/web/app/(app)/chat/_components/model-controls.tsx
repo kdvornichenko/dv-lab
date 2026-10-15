@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { Check, ChevronDown, Info, RotateCcw } from 'lucide-react'
 
 import { EFFORT_LABEL, EffortMeter, EffortSlider, clampEffort, highestEffort } from '@/components/app/effort-slider'
@@ -297,7 +297,7 @@ function EffortWord({ word }: { word: string }) {
 				<span className="col-start-1 row-start-1">{word}</span>
 			) : (
 				<AnimatePresence initial={false}>
-					<motion.span
+					<m.span
 						key={word}
 						className="col-start-1 row-start-1"
 						initial={{ opacity: 0, filter: 'blur(2px)' }}
@@ -305,7 +305,7 @@ function EffortWord({ word }: { word: string }) {
 						exit={{ opacity: 0, filter: 'blur(2px)', transition: { duration: 0.12, ease: WORD_EASE } }}
 					>
 						{word}
-					</motion.span>
+					</m.span>
 				</AnimatePresence>
 			)}
 		</span>

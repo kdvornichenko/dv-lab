@@ -5,6 +5,7 @@ import { Suspense, type ReactNode } from 'react'
 
 import type { Metadata, Viewport } from 'next'
 
+import { MotionFeatures } from '@/components/app/motion-features'
 import { ScrollFadeFallback } from '@/components/app/scroll-fade-fallback'
 import { ThemeProvider } from '@/components/app/theme-provider'
 
@@ -27,9 +28,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 		<html lang="en" suppressHydrationWarning>
 			<body className="app-scale font-sans antialiased">
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-					<div className="isolate">
-						<Suspense fallback={null}>{children}</Suspense>
-					</div>
+					<MotionFeatures>
+						<div className="isolate">
+							<Suspense fallback={null}>{children}</Suspense>
+						</div>
+					</MotionFeatures>
 					<ScrollFadeFallback />
 				</ThemeProvider>
 			</body>

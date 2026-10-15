@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -68,7 +68,7 @@ const ComboboxContent = forwardRef<HTMLDivElement, ComboboxContentProps>(
 					sideOffset={sideOffset}
 					className="z-50 outline-none"
 				>
-					<motion.div
+					<m.div
 						className={popupMotionClass}
 						initial={{ opacity: 0, y: 'var(--popup-enter-y)', scaleY: 0.96 }}
 						animate={open ? { opacity: 1, y: 0, scaleY: 1 } : { opacity: 0, y: 'var(--popup-enter-y)', scaleY: 0.96 }}
@@ -89,7 +89,7 @@ const ComboboxContent = forwardRef<HTMLDivElement, ComboboxContentProps>(
 						>
 							{children}
 						</ComboboxPrimitive.Popup>
-					</motion.div>
+					</m.div>
 				</ComboboxPrimitive.Positioner>
 			</ComboboxPrimitive.Portal>
 		)

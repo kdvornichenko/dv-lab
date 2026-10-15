@@ -12,7 +12,7 @@ import {
 	type HTMLAttributes,
 } from 'react'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
@@ -72,7 +72,7 @@ function SidebarSheet({ side, open, onClose, children }: SidebarSheetProps) {
 					render={(backdropProps) => {
 						const { style: _style, ...rest } = backdropProps as React.HTMLAttributes<HTMLDivElement>
 						return (
-							<motion.div
+							<m.div
 								{...(rest as MotionSafeDivProps)}
 								className="fixed inset-0 z-40 bg-black/40 dark:bg-black/80"
 								initial={{ opacity: 0 }}
@@ -95,7 +95,7 @@ function SidebarSheet({ side, open, onClose, children }: SidebarSheetProps) {
 							ref?: React.Ref<HTMLDivElement>
 						}
 						return (
-							<motion.div
+							<m.div
 								{...(rest as MotionSafeDivProps)}
 								ref={(node: HTMLDivElement | null) => {
 									panelRef.current = node
@@ -124,7 +124,7 @@ function SidebarSheet({ side, open, onClose, children }: SidebarSheetProps) {
 								}}
 							>
 								<SurfaceProvider value={level}>{children}</SurfaceProvider>
-							</motion.div>
+							</m.div>
 						)
 					}}
 				/>

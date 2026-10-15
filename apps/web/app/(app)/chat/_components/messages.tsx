@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -448,7 +448,7 @@ function MessageItem({
 	children: ReactNode
 }) {
 	return (
-		<motion.li
+		<m.li
 			data-message-id={message.id}
 			data-role={message.role}
 			aria-busy={busy || undefined}
@@ -462,7 +462,7 @@ function MessageItem({
 			transition={{ type: 'spring', duration: spring.moderate.duration, bounce: 0 }}
 		>
 			{children}
-		</motion.li>
+		</m.li>
 	)
 }
 

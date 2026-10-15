@@ -18,6 +18,11 @@ const eslintConfig = defineConfig([
 						{ name: 'cmdk', message: 'cmdk is forbidden: it depends on Radix.' },
 						{ name: 'radix-ui', message: 'Radix is forbidden: use Base UI.' },
 						{ name: 'cn', message: 'Import cn from @/lib/utils.' },
+						{
+							name: 'framer-motion',
+							importNames: ['motion'],
+							message: 'Use m from framer-motion: the app runs under LazyMotion (components/app/motion-features.tsx).',
+						},
 					],
 					patterns: [{ group: ['@radix-ui/*'], message: 'Radix is forbidden: use Base UI.' }],
 				},

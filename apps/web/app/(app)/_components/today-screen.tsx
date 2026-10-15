@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode, type Ref } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 import { CalendarDays, Users, Wallet } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -227,7 +227,7 @@ function Panels({
 			</Panel>
 			<AnimatePresence initial={false}>
 				{earlier.length > 0 ? (
-					<motion.div
+					<m.div
 						key="earlier"
 						initial={false}
 						animate={{ opacity: 1 }}
@@ -253,7 +253,7 @@ function Panels({
 								onOpen={onOpen}
 							/>
 						</Panel>
-					</motion.div>
+					</m.div>
 				) : null}
 			</AnimatePresence>
 			<Panel

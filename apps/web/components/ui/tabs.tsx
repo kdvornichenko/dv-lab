@@ -17,7 +17,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'framer-motion'
 
 import { useFluidHover } from '@/hooks/use-fluid-hover'
 import { fontWeights } from '@/lib/font-weight'
@@ -223,7 +223,7 @@ const TabsList = forwardRef<HTMLDivElement, TabsListProps>(({ children, classNam
 				{...props}
 			>
 				{selectedRect && (
-					<motion.div
+					<m.div
 						className={cn('pointer-events-none absolute', surfaceClasses(indicatorLevel), shape.bg)}
 						initial={false}
 						animate={{
@@ -242,7 +242,7 @@ const TabsList = forwardRef<HTMLDivElement, TabsListProps>(({ children, classNam
 
 				<AnimatePresence>
 					{hoverRect && !isHoveringSelected && selectedRect && (
-						<motion.div
+						<m.div
 							className={cn('pointer-events-none absolute bg-hover', shape.bg)}
 							initial={{
 								left: selectedRect.left,
@@ -283,7 +283,7 @@ const TabsList = forwardRef<HTMLDivElement, TabsListProps>(({ children, classNam
 
 				<AnimatePresence>
 					{focusRect && (
-						<motion.div
+						<m.div
 							className={cn(
 								'pointer-events-none absolute z-20 border border-[color:var(--focus-ring,#6B97FF)]',
 								shape.focusRing

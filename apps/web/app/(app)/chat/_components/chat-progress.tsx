@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'framer-motion'
 import { Check, ChevronDown, CircleAlert, LoaderCircle, Square } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -122,7 +122,7 @@ function Glyph({ state }: { state: LineState }) {
 
 function StepLine({ line, reduceMotion }: { line: Line; reduceMotion: boolean }) {
 	return (
-		<motion.li
+		<m.li
 			data-slot="chat-step"
 			data-state={line.state}
 			className="flex items-start gap-2 text-body"
@@ -136,7 +136,7 @@ function StepLine({ line, reduceMotion }: { line: Line; reduceMotion: boolean })
 				{line.state === 'failed' ? <span className="ml-2 text-caption text-destructive">Failed</span> : null}
 				{line.state === 'stopped' ? <span className="ml-2 text-caption text-muted-foreground">Stopped</span> : null}
 			</span>
-		</motion.li>
+		</m.li>
 	)
 }
 

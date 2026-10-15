@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
 import { forwardRef, useContext, useRef, type HTMLAttributes, type ReactNode } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 
 import { useRegisterFluidHoverItem } from '@/hooks/use-fluid-hover'
 import { type IconComponent } from '@/lib/icon-context'
@@ -67,7 +67,7 @@ const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
 				<span aria-hidden className={cn('shrink-0', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')}>
 					<AnimatePresence initial={false}>
 						{isChecked && (
-							<motion.svg
+							<m.svg
 								key="check"
 								width={sizeClasses.icon}
 								height={sizeClasses.icon}
@@ -82,7 +82,7 @@ const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
 								animate={{ opacity: 1 }}
 								exit={{ opacity: 1 }}
 							>
-								<motion.path
+								<m.path
 									d="M4 12L9 17L20 6"
 									initial={{ pathLength: 0 }}
 									animate={{
@@ -94,7 +94,7 @@ const ComboboxItem = forwardRef<HTMLDivElement, ComboboxItemProps>(
 										transition: { duration: 0.04, ease: 'easeIn' },
 									}}
 								/>
-							</motion.svg>
+							</m.svg>
 						)}
 					</AnimatePresence>
 				</span>

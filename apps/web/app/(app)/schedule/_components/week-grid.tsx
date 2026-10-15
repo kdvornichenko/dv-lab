@@ -11,7 +11,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { motion } from 'framer-motion'
+import { m } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'
@@ -535,10 +535,7 @@ export function WeekGrid({
 			)
 		return (
 			<div ref={measure ? turning.clipRef : undefined} className="relative min-w-0 overflow-x-clip">
-				<motion.div
-					className="isolate -ml-[100%] flex w-[300%]"
-					style={{ x: turning.x, opacity: turning.opacity, height }}
-				>
+				<m.div className="isolate -ml-[100%] flex w-[300%]" style={{ x: turning.x, opacity: turning.opacity, height }}>
 					{pages.map((page) => (
 						<div
 							key={page.monday}
@@ -550,7 +547,7 @@ export function WeekGrid({
 							{render(page)}
 						</div>
 					))}
-				</motion.div>
+				</m.div>
 			</div>
 		)
 	}

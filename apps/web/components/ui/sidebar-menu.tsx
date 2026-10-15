@@ -23,7 +23,7 @@ import {
 } from 'react'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import { motion, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'framer-motion'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { resolveSlotTemplate, SlotElement } from '@/components/ui/sidebar-core'
@@ -358,7 +358,7 @@ function useMenuScope(
 		<>
 			<AnimatePresence>
 				{activeRects.map(({ key, rect }) => (
-					<motion.div
+					<m.div
 						key={key}
 						className={`absolute ${shape.bg} pointer-events-none bg-active`}
 						initial={false}
@@ -386,7 +386,7 @@ function useMenuScope(
 
 			<AnimatePresence>
 				{focusRect && (
-					<motion.div
+					<m.div
 						className={`absolute ${shape.focusRing} pointer-events-none z-20 border border-[color:var(--focus-ring,#6B97FF)]`}
 						initial={false}
 						animate={{
@@ -954,7 +954,7 @@ const SidebarMenuSub = forwardRef<HTMLUListElement, SidebarMenuSubProps>(
 			setToggling(true)
 		}
 		return (
-			<motion.div
+			<m.div
 				data-slot="sidebar-menu-sub-wrapper"
 				className={cn('overflow-hidden', !measured && !open && 'h-0')}
 				initial={false}
@@ -978,7 +978,7 @@ const SidebarMenuSub = forwardRef<HTMLUListElement, SidebarMenuSubProps>(
 				>
 					{children}
 				</ul>
-			</motion.div>
+			</m.div>
 		)
 	}
 )

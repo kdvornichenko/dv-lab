@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, m } from 'framer-motion'
 
 import type { ItemRect } from '@/hooks/use-fluid-hover'
 import { spring } from '@/lib/springs'
@@ -285,7 +285,7 @@ export function SelectionBackgrounds({ blocks }: { blocks: SelBlock[] }) {
 				const corner = b.delayCorners ? { ...mergeSpring, delay: b.cornerDelay ?? cornerDelay } : mergeSpring
 				const opacity = b.opacity ?? 1
 				return (
-					<motion.div
+					<m.div
 						key={b.key}
 						aria-hidden
 						className="pointer-events-none absolute bg-active"

@@ -1,5 +1,5 @@
 'use client'
-import { motion, AnimatePresence, useReducedMotion, type Transition } from 'framer-motion'
+import { m, AnimatePresence, useReducedMotion, type Transition } from 'framer-motion'
 
 import type { ItemRect, UseFluidHoverReturn } from '@/hooks/use-fluid-hover'
 import { spring } from '@/lib/springs'
@@ -54,7 +54,7 @@ export function FluidHoverHighlight(props: FluidHoverHighlightProps) {
 	return (
 		<AnimatePresence>
 			{rect && (
-				<motion.div
+				<m.div
 					key={session}
 					data-slot="fluid-hover-highlight"
 					className={cn('pointer-events-none absolute top-0 left-0 bg-hover', className)}

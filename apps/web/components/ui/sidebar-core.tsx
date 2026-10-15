@@ -20,7 +20,7 @@ import {
 	type Ref,
 } from 'react'
 
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { m, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'
@@ -497,7 +497,7 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 					? spring.slow
 					: spring.slow.exit
 		return (
-			<motion.div
+			<m.div
 				ref={(node: HTMLDivElement | null) => {
 					shellRef.current = node
 					if (typeof ref === 'function') ref(node)
@@ -563,7 +563,7 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 						</button>
 						<AnimatePresence>
 							{isPeeking && (
-								<motion.div
+								<m.div
 									data-sidebar="peek"
 									className={cn(
 										'absolute inset-y-2 z-50 flex flex-col overflow-hidden',
@@ -589,12 +589,12 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 									transition={reduceMotion ? { duration: 0 } : spring.moderate}
 								>
 									<SurfaceProvider value={floatingLevel}>{children}</SurfaceProvider>
-								</motion.div>
+								</m.div>
 							)}
 						</AnimatePresence>
 					</>
 				) : (
-					<motion.div
+					<m.div
 						className={cn(
 							'absolute inset-y-0 flex h-full flex-col',
 							side === 'left' ? 'left-0' : 'right-0',
@@ -645,9 +645,9 @@ const SidebarShell = forwardRef<HTMLDivElement, SidebarShellProps>(
 								}
 							/>
 						)}
-					</motion.div>
+					</m.div>
 				)}
-			</motion.div>
+			</m.div>
 		)
 	}
 )
@@ -979,7 +979,7 @@ const SidebarGroup = forwardRef<HTMLDivElement, SidebarGroupProps>(
 							{kids[labelIdx]}
 							{headerActions}
 						</div>
-						<motion.div
+						<m.div
 							id={contentId}
 							aria-hidden={open ? undefined : true}
 							className={cn(open && settled ? 'overflow-visible' : 'overflow-hidden', !measured && !open && 'h-0')}
@@ -996,7 +996,7 @@ const SidebarGroup = forwardRef<HTMLDivElement, SidebarGroupProps>(
 							<div ref={contentRef} className="flex w-full min-w-0 flex-col">
 								{rest}
 							</div>
-						</motion.div>
+						</m.div>
 					</>
 				)
 			}
@@ -1082,9 +1082,9 @@ const SidebarGroupLabel = forwardRef<HTMLDivElement, SidebarGroupLabelProps>(
 									: 'w-6 opacity-100'
 							)}
 						>
-							<motion.span className="inline-flex" animate={{ rotate: group.open ? 90 : 0 }} transition={spring.fast}>
+							<m.span className="inline-flex" animate={{ rotate: group.open ? 90 : 0 }} transition={spring.fast}>
 								<ChevronRightIcon size={sizeClasses.icon} strokeWidth={1.5} className="shrink-0" />
-							</motion.span>
+							</m.span>
 						</span>
 					</>
 				</SlotElement>

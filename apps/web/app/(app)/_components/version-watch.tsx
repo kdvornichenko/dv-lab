@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
 import { LoaderCircle, RefreshCw, X } from 'lucide-react'
 
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
@@ -124,7 +124,7 @@ function UpdateNotice({ open, onDismiss }: { open: boolean; onDismiss: () => voi
 		<>
 			<AnimatePresence>
 				{open ? (
-					<motion.div
+					<m.div
 						key="update-notice"
 						role="status"
 						aria-live="polite"
@@ -166,7 +166,7 @@ function UpdateNotice({ open, onDismiss }: { open: boolean; onDismiss: () => voi
 								)}
 							</Button>
 						</div>
-					</motion.div>
+					</m.div>
 				) : null}
 			</AnimatePresence>
 			{confirming ? (

@@ -15,7 +15,7 @@ import {
 	AnimatePresence,
 	PresenceContext,
 	animate,
-	motion,
+	m,
 	useMotionValue,
 	usePresence,
 	useReducedMotion,
@@ -196,15 +196,15 @@ function BannerMotion({ fixed, reduceMotion, config, children }: BannerMotionPro
 		}
 	}, [isPresent, reduceMotion, fixed, scaled, slides, row, shown, scale, overflow])
 	return (
-		<motion.div
+		<m.div
 			ref={measure}
 			style={{ gridTemplateRows, marginBottom, overflow }}
 			className={cn('grid w-full', fixed && 'sticky top-0 z-40')}
 		>
 			<div className="min-h-0">
-				<motion.div style={{ opacity: shown, scale, y, pointerEvents, transformOrigin: 'top' }}>{children}</motion.div>
+				<m.div style={{ opacity: shown, scale, y, pointerEvents, transformOrigin: 'top' }}>{children}</m.div>
 			</div>
-		</motion.div>
+		</m.div>
 	)
 }
 interface BannerProps extends HTMLAttributes<HTMLDivElement> {

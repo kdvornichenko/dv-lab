@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from 'react'
 
-import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
+import { AnimatePresence, m, useIsPresent } from 'framer-motion'
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'
@@ -93,7 +93,7 @@ function LessonRow({
 	const style = ROW_STYLE[key]
 	const next = block.key === nextKey && occurrenceSlot(block.outcome) === 'to'
 	return (
-		<motion.li
+		<m.li
 			initial={false}
 			animate={{ opacity: 1 }}
 			exit={showDate ? { opacity: 0 } : undefined}
@@ -160,6 +160,6 @@ function LessonRow({
 					{statusWord(block, now, mainTimeZone)}
 				</span>
 			) : null}
-		</motion.li>
+		</m.li>
 	)
 }
