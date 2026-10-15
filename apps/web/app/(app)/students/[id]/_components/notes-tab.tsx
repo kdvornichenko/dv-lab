@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type Ref } from 'react'
 import { NotebookPen, Pencil, Plus } from 'lucide-react'
 
 import { EmptyState } from '@/components/app/empty-state'
-import { ReadError } from '@/components/app/read-error'
+import { RecordsUnread } from '@/components/app/records-unread'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
@@ -192,7 +192,7 @@ export function NotesTab({ student, drafts, timeZone, asOf, onDraftChange, mark,
 	}
 
 	if (state.kind === 'loading') return <LoadingBlocks />
-	if (state.kind === 'error') return <ReadError screen="notes" onRefresh={load} />
+	if (state.kind === 'error') return <RecordsUnread slot="notes-unread" onRefresh={load} />
 
 	const blocks = state.blocks
 

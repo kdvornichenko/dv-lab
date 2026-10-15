@@ -206,11 +206,16 @@ async function sectionBlocks(page, problems) {
 			: route.continue()
 	)
 	await page.reload()
-	await page.getByRole('button', { name: 'Refresh' }).waitFor({ timeout: 30000 })
-	check('a failed read gives one panel with Refresh', (await page.getByText('Could not load notes').count()) === 1)
+	await page.getByRole('button', { name: 'Refresh records' }).waitFor({ timeout: 30000 })
+	check(
+		'a failed read gives the profile panel with Refresh records',
+		(await page.getByText('Could not read these records.').count()) === 1 &&
+			(await page.getByText('Refresh before continuing.').count()) === 1 &&
+			(await page.getByRole('tab', { name: 'Notes' }).count()) === 1
+	)
 	await shot(page, 'notes-blocks', 'read-error')
 	await page.unroute('**/api/students/*/blocks')
-	await page.getByRole('button', { name: 'Refresh' }).click()
+	await page.getByRole('button', { name: 'Refresh records' }).click()
 	await blockOf(page, 'general_info').waitFor({ timeout: 30000 })
 	check('Refresh after the failure shows the blocks', true)
 
@@ -659,10 +664,14 @@ async function sectionVocabulary(page, problems) {
 		route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'Internal Server Error' } } })
 	)
 	await page.reload()
-	await page.getByText('Could not load vocabulary').waitFor({ timeout: 15000 })
-	check('a read error is one panel with Refresh', await page.getByRole('button', { name: 'Refresh' }).isVisible())
+	await page.getByText('Could not read these records.').waitFor({ timeout: 15000 })
+	check(
+		'a read error is the profile panel with Refresh records',
+		(await page.getByRole('button', { name: 'Refresh records' }).isVisible()) &&
+			(await page.getByText('Refresh before continuing.').count()) === 1
+	)
 	await page.unroute('**/api/students/*/terms*')
-	await page.getByRole('button', { name: 'Refresh' }).click()
+	await page.getByRole('button', { name: 'Refresh records' }).click()
 	await tabNamed(page, 'Words 0').waitFor({ timeout: 30000 })
 	check('Refresh reads the words again', true)
 

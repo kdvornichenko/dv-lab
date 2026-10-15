@@ -6,7 +6,7 @@ import { BookOpen, Pencil, Plus, Trash2, Undo2 } from 'lucide-react'
 
 import { ConfirmDialog } from '@/components/app/confirm-dialog'
 import { EmptyState } from '@/components/app/empty-state'
-import { ReadError } from '@/components/app/read-error'
+import { RecordsUnread } from '@/components/app/records-unread'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
@@ -250,7 +250,7 @@ export function VocabularyTab({ student, timeZone, asOf }: VocabularyTabProps) {
 		})
 	}
 
-	if (state.kind === 'error') return <ReadError screen="vocabulary" onRefresh={load} />
+	if (state.kind === 'error') return <RecordsUnread slot="vocabulary-unread" onRefresh={load} />
 
 	const words = state.kind === 'ready' ? state.words : null
 	const removed = state.kind === 'ready' ? state.removed : null
