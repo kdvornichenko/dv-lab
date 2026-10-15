@@ -770,6 +770,30 @@ export const chatLessonDatesBlock = z.strictObject({
 	lastPaidOn: calendarDate.nullable().optional(),
 })
 
+export const CHAT_CALENDAR_EVENTS_MAX = 400
+
+export const chatCalendarEvent = z.strictObject({
+	date: calendarDate,
+	time: z.string().regex(CLOCK_TIME_PATTERN).nullable(),
+	title: z.string(),
+})
+
+export const chatCalendarEventsGroup = z.strictObject({
+	title: z.string().nullable(),
+	events: z.array(chatCalendarEvent),
+})
+
+export const chatCalendarEventsBlock = z.strictObject({
+	type: z.literal('calendar_events'),
+	from: calendarDate,
+	to: calendarDate,
+	query: z.string().nullable(),
+	merged: z.boolean(),
+	defaultTimeZone: calendarTimeZone,
+	groups: z.array(chatCalendarEventsGroup),
+	more: z.number().int().min(0),
+})
+
 export const CHAT_SUGGESTIONS_MAX = 4
 
 export const CHAT_SUGGESTION_MAX_LENGTH = 200
@@ -875,6 +899,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatSuggestionsBlock,
 	chatReadFailedBlock,
 	chatLessonDatesBlock,
+	chatCalendarEventsBlock,
 	chatActionLinkBlock,
 	chatEssayBlock,
 	chatReviewResultBlock,
@@ -899,6 +924,8 @@ export type ChatExcerptBlock = z.infer<typeof chatExcerptBlock>
 export type ChatSuggestionsBlock = z.infer<typeof chatSuggestionsBlock>
 export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
 export type ChatLessonDatesBlock = z.infer<typeof chatLessonDatesBlock>
+export type ChatCalendarEventsBlock = z.infer<typeof chatCalendarEventsBlock>
+export type ChatCalendarEventsGroup = z.infer<typeof chatCalendarEventsGroup>
 export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
 export type ChatEssayBlock = z.infer<typeof chatEssayBlock>
 export type ChatReviewResultBlock = z.infer<typeof chatReviewResultBlock>

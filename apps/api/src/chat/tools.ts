@@ -5,6 +5,7 @@ import {
 	CHAT_ACTION_LINK_DIALOGS,
 	CHAT_ACTION_LINK_KINDS,
 	CHAT_ACTION_LINK_STUDENT_KINDS,
+	CHAT_CALENDAR_EVENTS_MAX,
 	CHAT_ESSAY_TASKS,
 	CHAT_LESSON_DATES_DAYS_MAX,
 	CHAT_LESSON_DATE_SCOPES,
@@ -17,6 +18,8 @@ import {
 	STUDENT_TEXT_MAX_LENGTH,
 	type ChatActionLinkBlock,
 	type ChatBlock,
+	type ChatCalendarEventsBlock,
+	type ChatCalendarEventsGroup,
 	type ChatChange,
 	type ChatExcerptBlock,
 	type ChatLessonIntent,
@@ -34,7 +37,7 @@ import {
 	chatLessonIntent,
 	eventTitlesQuery,
 } from '@dv-lab/contracts'
-import { type Weekday, addDays, lessonDay, nameMatches, zonedParts } from '@dv-lab/core'
+import { type Weekday, addDays, lessonDay, similarTitle, titleKey, titleText, zonedParts } from '@dv-lab/core'
 import { type DbExecutor, readSnapshot, students } from '@dv-lab/db'
 
 import { CalendarFault } from '../calendar/gateway.ts'
@@ -197,7 +200,12 @@ const inputs = {
 		dialog: nullable(z.enum(CHAT_ACTION_LINK_DIALOGS)),
 	}),
 	essay_feedback: essayFeedbackInput,
-	calendar_events: z.strictObject({ from: date, to: date, title: z.string().trim().min(1).max(200) }),
+	calendar_events: z.strictObject({
+		from: date,
+		to: date,
+		title: nullable(z.string().trim().min(1).max(200)),
+		merge: nullable(z.boolean()),
+	}),
 }
 
 const string = { type: 'string' }
@@ -727,23 +735,81 @@ async function calendarEvents(
 			return failure('calendar_not_connected')
 		return failure('calendar_unavailable')
 	}
-	const records = read.events
-		.flatMap((event) =>
-			event.title !== null && nameMatches(event.title, input.title)
-				? [
+	const query = input.title
+	const found = read.events
+		.flatMap((event) => {
+			if (event.title === null) return []
+			const form = query === null ? event.title : similarTitle(event.title, query)
+			return form === null
+				? []
+				: [
 						{
 							date: event.day,
 							time: event.time ?? null,
-							duration_minutes: event.durationMinutes ?? null,
+							minutes: event.durationMinutes ?? null,
 							title: event.title,
+							form,
 						},
 					]
-				: []
-		)
+		})
 		.sort((left, right) => `${left.date} ${left.time ?? ''}`.localeCompare(`${right.date} ${right.time ?? ''}`))
-	const head = { time_zone: read.timeZone, from: input.from, to: input.to }
-	const { kept } = fit(records, head)
-	return result({ ...head, records: kept, more: records.length - kept.length })
+	const merged = query === null || input.merge === true
+	const kept = found.slice(0, CHAT_CALENDAR_EVENTS_MAX)
+	const groups = new Map<string, ChatCalendarEventsGroup>()
+	for (const event of kept) {
+		const key = merged ? '' : titleKey(event.form)
+		const group = groups.get(key) ?? { title: merged ? query : titleText(event.form), events: [] }
+		group.events.push({ date: event.date, time: event.time, title: event.title })
+		groups.set(key, group)
+	}
+	const records = found.map((event) => ({
+		date: event.date,
+		time: event.time,
+		end_time: event.time === null || event.minutes === null ? null : endTime(event.time, event.minutes),
+		duration_minutes: event.minutes,
+		title: event.title,
+	}))
+	const shown = found.length > 0
+	const head = {
+		time_zone: read.timeZone,
+		from: input.from,
+		to: input.to,
+		shown,
+		groups: [...groups.values()].map((group) => ({ title: group.title })),
+	}
+	const fitted = fit(records, head).kept
+	const outcome = result({
+		...head,
+		records: fitted,
+		more: records.length - fitted.length,
+		note: shown ? (groups.size > 1 ? `${EVENTS_NOTE} ${GROUPS_NOTE}` : EVENTS_NOTE) : 'No events were found.',
+	})
+	const key = `calendar_events:${input.from}:${input.to}:${query ?? ''}:${merged}`
+	if (!shown || context.shown.has(key)) return outcome
+	context.shown.add(key)
+	const block: ChatCalendarEventsBlock = {
+		type: 'calendar_events',
+		from: input.from,
+		to: input.to,
+		query,
+		merged,
+		defaultTimeZone: read.timeZone,
+		groups: [...groups.values()],
+		more: found.length - kept.length,
+	}
+	return show(context, block, outcome)
+}
+
+const EVENTS_NOTE =
+	'The teacher sees these events in a block with a copy button. Answer in one short sentence: do not list, count or retell the events, their dates, times or lengths.'
+
+const GROUPS_NOTE =
+	'The events are grouped by how the title is written. When the teacher asks to combine them, call calendar_events again with merge true.'
+
+function endTime(time: string, minutes: number): string {
+	const [hour = 0, minute = 0] = time.split(':').map(Number)
+	const total = (((hour * 60 + minute + minutes) % 1440) + 1440) % 1440
+	return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
 const studentStep: ToolStep = { student: 'student_id', search: null, period: null }
@@ -1158,11 +1224,12 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 	}),
 	chatTool({
 		name: 'calendar_events',
-		description: `Find events in the connected Google calendar whose title contains the text in title, between two lesson days from and to (YYYY-MM-DD, teacher time zone, at most ${EVENT_TITLES_MAX_DAYS} days; a lesson day runs from 02:00 to 02:00 of the next date). Read only: nothing changes in the calendar. Each record has the lesson day date, the start time HH:MM in the teacher time zone and duration_minutes (both null for an all-day event) and the title; at most ${RECORDS_MAX} records, more is the number of matching events left out. Name dates and times as they are. The error calendar_not_connected means Google Calendar is not connected.`,
+		description: `Read the events of the connected Google calendar between two lesson days from and to (YYYY-MM-DD, teacher time zone, at most ${EVENT_TITLES_MAX_DAYS} days; a lesson day runs from 02:00 to 02:00 of the next date). Use it when the teacher asks about events, ивенты, the calendar or what is in the calendar, not for the lessons of the app. title is a name or a part of the title to look for; omit it to get every event of the period. The search finds other spellings and short forms of a name (Екатерина, Yekaterina, Катя) and groups the events by how the title is written; merge true puts every found event into one group. Read only: nothing changes in the calendar. The app shows the events to the teacher in a block with a copy button. Each record has the lesson day date, the start time and end_time HH:MM in the teacher time zone and duration_minutes (null for an all-day event) and the title; at most ${RECORDS_MAX} records, more is the number of events left out. The error calendar_not_connected means Google Calendar is not connected.`,
 		input: inputs.calendar_events,
-		properties: { from: string, to: string, title: string },
+		properties: { from: string, to: string, title: string, merge: boolean },
+		optional: ['title', 'merge'],
 		strict: false,
-		effect: 'read',
+		effect: 'show',
 		step: { student: null, search: null, period: 'range' },
 		run: calendarEvents,
 	}),

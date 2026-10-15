@@ -59,7 +59,7 @@ const MONTH_DAY = new RegExp(`${START}(${MONTH})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th
 const ISO_DATE = /(?<![\p{L}\p{Nd}])(\d{4})-(\d{2})-(\d{2})(?![\p{L}\p{Nd}])/gu
 const CLOCK = /(?<![\p{Nd}:])(\d{1,2}):(\d{2})(?![\p{Nd}:])/gu
 const INSTANT = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})/gu
-const NAME_KEYS = new Set(['name', 'student', 'studentName', 'displayName'])
+const NAME_KEYS = new Set(['name', 'student', 'studentName', 'displayName', 'title'])
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
