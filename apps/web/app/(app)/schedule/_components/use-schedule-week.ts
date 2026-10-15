@@ -17,10 +17,10 @@ type WeekResult = { query: WeekQuery; data: GoogleScheduleWindow }
 type Cached = { data: GoogleScheduleWindow; at: number }
 type Prefetch = { monday: string; promise: Promise<GoogleScheduleWindow | null>; abort: AbortController }
 
-const FRESH_MS = 60_000
+const FRESH_MS = 5 * 60_000
 const PREFETCH_DELAY_MS = 150
-const NEIGHBOURS = [7, -7] as const
-const WINDOWS_KEPT = 9
+const NEIGHBOURS = [7, -7, 14, -14, 21, -21, 28, -28] as const
+const WINDOWS_KEPT = 13
 
 function weekKey(timeZone: string, monday: string): string {
 	return `${timeZoneIdentity(timeZone) ?? timeZone}|${monday}`

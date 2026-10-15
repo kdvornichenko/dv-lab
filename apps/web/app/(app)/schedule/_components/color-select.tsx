@@ -3,10 +3,11 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { apiRequest } from '@/lib/api-client'
 import type { IconComponentProps } from '@/lib/icon-context'
 
-import { googleEventPalette, type CalendarEventColor, type GoogleEventPalette } from '@dv-lab/contracts'
+import type { CalendarEventColor, GoogleEventPalette } from '@dv-lab/contracts'
+
+import { PALETTE_KEY, keepCache, peekCache, readPalette } from './schedule-prefetch'
 
 export const COLOR_DEFAULT = 'default'
 export const COLOR_CUSTOM = 'custom'
@@ -28,13 +29,18 @@ const COLOR_NAMES: Record<string, string> = {
 export type PaletteState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; palette: GoogleEventPalette }
 
 export function useEventPalette(): PaletteState {
-	const [state, setState] = useState<PaletteState>({ kind: 'loading' })
+	const [state, setState] = useState<PaletteState>(() => {
+		const known = peekCache<GoogleEventPalette>(PALETTE_KEY)
+		return known === undefined ? { kind: 'loading' } : { kind: 'ready', palette: known }
+	})
 	useEffect(() => {
 		const abort = new AbortController()
-		void apiRequest<unknown>('GET', '/google/colors', undefined, { signal: abort.signal }).then((result) => {
+		void readPalette(abort.signal).then((palette) => {
 			if (abort.signal.aborted) return
-			const parsed = result.ok ? googleEventPalette.safeParse(result.data) : null
-			setState(parsed?.success ? { kind: 'ready', palette: parsed.data } : { kind: 'error' })
+			if (palette !== null) keepCache(PALETTE_KEY, palette)
+			setState((previous) =>
+				palette !== null ? { kind: 'ready', palette } : previous.kind === 'ready' ? previous : { kind: 'error' }
+			)
 		})
 		return () => abort.abort()
 	}, [])

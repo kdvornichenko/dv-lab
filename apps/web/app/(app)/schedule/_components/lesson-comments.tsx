@@ -13,26 +13,16 @@ import { formatDayMonth, formatTime, formatWhen, yearInZone } from '@/lib/schedu
 import { zoneLabel } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
-import type {
-	LessonComment,
-	LessonCommentResponse,
-	LessonCommentsResponse,
-	ScheduleOccurrenceRef,
-} from '@dv-lab/contracts'
+import type { LessonComment, LessonCommentResponse, ScheduleOccurrenceRef } from '@dv-lab/contracts'
 
 import { useToast } from '../../_components/toasts'
+import { commentsKey, commentsPath, peekCache, readComments } from './schedule-prefetch'
 
 type CommentsState = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; comments: LessonComment[] }
 
-export function commentsPath(ref: ScheduleOccurrenceRef): string {
-	return ref.kind === 'single'
-		? `/schedule/lessons/${ref.lessonId}/comments`
-		: `/schedule/series/${ref.seriesId}/occurrences/${ref.originalOn}/comments`
-}
-
-async function readComments(path: string): Promise<CommentsState> {
-	const result = await apiRequest<LessonCommentsResponse>('GET', path)
-	return result.ok ? { kind: 'ready', comments: result.data.comments } : { kind: 'error' }
+async function readState(path: string): Promise<CommentsState> {
+	const comments = await readComments(path)
+	return comments === null ? { kind: 'error' } : { kind: 'ready', comments }
 }
 
 function CommentsLoading() {
@@ -129,21 +119,24 @@ interface LessonCommentsProps {
 export function LessonComments({ lessonRef, mainTimeZone, now }: LessonCommentsProps) {
 	const toast = useToast()
 	const heading = useRef<HTMLParagraphElement>(null)
-	const [state, setState] = useState<CommentsState>({ kind: 'loading' })
+	const path = commentsPath(lessonRef)
+	const [state, setState] = useState<CommentsState>(() => {
+		const known = peekCache<LessonComment[]>(commentsKey(path))
+		return known === undefined ? { kind: 'loading' } : { kind: 'ready', comments: known }
+	})
 	const [confirming, setConfirming] = useState<LessonComment | null>(null)
 	const [removingId, setRemovingId] = useState<string | null>(null)
 	const [conflict, setConflict] = useState(false)
-	const path = commentsPath(lessonRef)
 	const currentYear = yearInZone(now, mainTimeZone)
 
 	const reload = useCallback(async () => {
-		setState(await readComments(path))
+		setState(await readState(path))
 	}, [path])
 
 	useEffect(() => {
 		let current = true
-		void readComments(path).then((next) => {
-			if (current) setState(next)
+		void readState(path).then((next) => {
+			if (current) setState((previous) => (next.kind === 'error' && previous.kind === 'ready' ? previous : next))
 		})
 		return () => {
 			current = false

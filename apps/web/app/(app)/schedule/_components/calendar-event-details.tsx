@@ -21,7 +21,6 @@ import {
 	DialogTitle,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { apiRequest } from '@/lib/api-client'
 import { eventPaint } from '@/lib/event-colors'
 import { canChangePlainEvent } from '@/lib/lesson-actions'
 import {
@@ -37,7 +36,6 @@ import { zoneLabel, zoneName } from '@/lib/time-zones'
 import { cn } from '@/lib/utils'
 
 import {
-	calendarEventDetails,
 	calendarIssue,
 	placeView,
 	type CalendarEditScope,
@@ -54,6 +52,7 @@ import { EventEditForm, type DirectState } from './event-form'
 import { EventDescription, EventPlace } from './event-text'
 import type { WriteRunner } from './optimistic-writes'
 import { ignoreEvent, useScheduleMutation } from './schedule-mutations'
+import { detailsKey, dropCache, keepCache, peekCache, readDetails } from './schedule-prefetch'
 import { ScopeDialog } from './scope-dialog'
 import type { MoveSeed } from './use-lesson-drag'
 import type { StudentsState } from './use-lesson-students'
@@ -155,27 +154,21 @@ export function CalendarEventDetails({
 type DetailsState =
 	{ kind: 'loading' } | { kind: 'ready'; data: EventDetailsData } | { kind: 'removed' } | { kind: 'error' }
 
-function useEventDetails(eventKey: string, revision: string) {
-	const [state, setState] = useState<DetailsState>({ kind: 'loading' })
+function useEventDetails(eventKey: string, version: string, revision: string) {
+	const [state, setState] = useState<DetailsState>(() => {
+		const known = peekCache<EventDetailsData>(detailsKey(eventKey, version))
+		return known === undefined ? { kind: 'loading' } : { kind: 'ready', data: known }
+	})
 	useEffect(() => {
 		const abort = new AbortController()
-		void apiRequest<unknown>('GET', `/google/events/${encodeURIComponent(eventKey)}`, undefined, {
-			signal: abort.signal,
-		}).then((result) => {
+		void readDetails(eventKey, abort.signal).then((result) => {
 			if (abort.signal.aborted) return
-			if (!result.ok) {
-				setState((previous) =>
-					result.status === 404 ? { kind: 'removed' } : previous.kind === 'ready' ? previous : { kind: 'error' }
-				)
-				return
-			}
-			const parsed = calendarEventDetails.safeParse(result.data)
-			setState((previous) =>
-				parsed.success ? { kind: 'ready', data: parsed.data } : previous.kind === 'ready' ? previous : { kind: 'error' }
-			)
+			if (result.kind === 'ready') keepCache(detailsKey(eventKey, version), result.data)
+			else if (result.kind === 'removed') dropCache(detailsKey(eventKey, version))
+			setState((previous) => (result.kind === 'error' && previous.kind === 'ready' ? previous : result))
 		})
 		return () => abort.abort()
-	}, [eventKey, revision])
+	}, [eventKey, version, revision])
 	return state
 }
 
@@ -254,7 +247,11 @@ export function CalendarEventDialog({
 	const toast = useToast()
 	const controller = useCalendarCommands()
 	const sync = useGoogleSync()
-	const state = useEventDetails(event.eventKey, `${sync?.revision ?? ''}|${event.version}|${event.binding.kind}`)
+	const state = useEventDetails(
+		event.eventKey,
+		event.version,
+		`${sync?.revision ?? ''}|${event.version}|${event.binding.kind}`
+	)
 	const latest = state.kind === 'ready' ? state.data : null
 	const [formBase, setFormBase] = useState<EventDetailsData | null>(null)
 	const [dirty, setDirty] = useState(false)

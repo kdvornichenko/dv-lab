@@ -8,8 +8,9 @@ import { sameTimeZone, zoneLabel, zoneName } from '@/lib/time-zones'
 import type { ScheduleBlock, ScheduleOccurrenceRef, ScheduleSeries } from '@dv-lab/contracts'
 import { zonedParts } from '@dv-lab/core'
 
-import { LessonComments, commentsPath } from './lesson-comments'
+import { LessonComments } from './lesson-comments'
 import type { PairTarget } from './lesson-dialog'
+import { commentsPath } from './schedule-prefetch'
 
 function Detail({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
 	return (

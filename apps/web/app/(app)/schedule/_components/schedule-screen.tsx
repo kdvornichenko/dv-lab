@@ -32,6 +32,7 @@ import {
 	useLaptop,
 	usePhoneGrid,
 } from './schedule-loading'
+import { useSchedulePrefetch } from './schedule-prefetch'
 import { ScheduleBar, TOOLBAR_BUTTONS, useScheduleKeys, weekSummary } from './schedule-toolbar'
 import type { MoveSeed } from './use-lesson-drag'
 import { useLessonStudents, type StudentsState } from './use-lesson-students'
@@ -44,6 +45,8 @@ export function ScheduleScreen({ arrival }: { arrival: ArrivalParams }) {
 	if (now === null) return <ScheduleLoading />
 	return <LoadedSchedule now={now} arrival={arrival} />
 }
+
+const NO_EVENTS: readonly CalendarEventView[] = []
 
 function displayWindow(data: GoogleScheduleWindow | null, query: { monday: string; mainTimeZone: string }, now: Date) {
 	const range = data?.snapshotRange ?? data?.requestedRange
@@ -80,9 +83,7 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		void reload()
 	}, [reload])
 	const writes = useOptimisticWrites(refused)
-	const students = useLessonStudents(
-		draft !== null || selection !== null || (week.data?.events.some((event) => event.suggestion !== null) ?? false)
-	)
+	const students = useLessonStudents(week.data !== null)
 	const returnFocus = useRef<HTMLElement | null>(null)
 	const titleRef = useRef<HTMLHeadingElement>(null)
 	const [zone, setZone] = useSecondZone(week.query?.mainTimeZone ?? null)
@@ -106,6 +107,12 @@ function LoadedSchedule({ now, arrival }: { now: Date; arrival: ArrivalParams })
 		navigate(target, current)
 	}
 	useDropArrivalParams(week.query === null && week.kind === 'error')
+	useSchedulePrefetch(
+		week.data?.events ?? NO_EVENTS,
+		now,
+		week.data?.requestedRange.timeZone ?? week.query?.mainTimeZone ?? null,
+		week.kind === 'ready'
+	)
 
 	if (week.query === null)
 		return week.kind === 'error' ? (
