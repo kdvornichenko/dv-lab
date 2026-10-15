@@ -13,9 +13,14 @@
 
 `.github/workflows/ci.yml` на каждый pull request и push в `master`:
 
-- job `Verify`: граница web, api, contracts и core (шаг `Web and api boundary`), доверие к адресу клиента в `deploy/` (шаг `Client address trust`), чистота репозитория — нет путей и моделей чужих рантаймов и личных почтовых адресов (шаг `Repository hygiene`, `scripts/hygiene-check.mjs`), версия `turbo` в Dockerfile; поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, typecheck, lint, test, build, knip, `caddy validate` и shellcheck скриптов `deploy/`;
-- job `Base is master` падает на pull request с базой не `master`;
-- job `images` собирает образы после зелёного `Verify`; на push в `master` публикует их в GHCR с тегами `sha-<полный sha>` и `latest`.
+Задачи идут параллельно; зависимости, кеш turbo (`.turbo/cache`) и кеш сборки Next восстанавливает общий шаг `.github/actions/setup`.
+
+- job `Checks`: граница web, api, contracts и core (шаг `Web and api boundary`), доверие к адресу клиента в `deploy/` (шаг `Client address trust`), чистота репозитория — нет путей и моделей чужих рантаймов и личных почтовых адресов (шаг `Repository hygiene`, `scripts/hygiene-check.mjs`), версия `turbo` в Dockerfile; typecheck, lint, knip, `caddy validate` и shellcheck скриптов `deploy/`;
+- job `Test`: поднимает `postgres:18`, готовит роли через `deploy/postgres/ensure-db.sql`, проверяет синхронность схемы и миграций, гоняет миграции, test и сборку пакетов кроме web;
+- job `Image web`: собирает web на раннере (`turbo run build`, кеш `.next/cache`) и кладёт standalone, static и public в образ по `apps/web/Dockerfile.runtime`; `apps/web/Dockerfile` — полная сборка в Docker для ручных сборок, в CI не используется;
+- job `Image api`: образ по `apps/api/Dockerfile` с кешем слоёв GHA;
+- образы на push публикуются с временным тегом `ci-<полный sha>`; job `Publish` после зелёных `Checks`, `Test` и обоих образов ставит тег `sha-<полный sha>`, который ждёт `deploy.sh`, поэтому коммит с красной проверкой не выкатывается;
+- job `Base is master` падает на pull request с базой не `master`.
 
 ## Граница web и api
 

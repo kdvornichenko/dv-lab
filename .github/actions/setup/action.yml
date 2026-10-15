@@ -1,0 +1,33 @@
+name: Setup
+description: Node 24, dependencies restored from cache and the turbo cache of the calling job
+inputs:
+  turbo-scope:
+    description: Name of the turbo cache, one per job
+    required: true
+runs:
+  using: composite
+  steps:
+    - run: corepack enable
+      shell: bash
+
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24
+
+    - uses: actions/cache@v6
+      with:
+        path: |
+          node_modules
+          apps/*/node_modules
+          packages/*/node_modules
+          .yarn/install-state.gz
+        key: modules-${{ runner.os }}-node24-${{ hashFiles('yarn.lock', '.yarnrc.yml', 'package.json', 'apps/*/package.json', 'packages/*/package.json') }}
+
+    - run: yarn install --immutable
+      shell: bash
+
+    - uses: actions/cache@v6
+      with:
+        path: .turbo/cache
+        key: turbo-${{ inputs.turbo-scope }}-${{ github.sha }}
+        restore-keys: turbo-${{ inputs.turbo-scope }}-

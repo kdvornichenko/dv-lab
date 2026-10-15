@@ -254,7 +254,7 @@ TTL — второе поле строки. Если он больше 60 с, TT
 
 ## 4. GHCR
 
-Образы `ghcr.io/kdvornichenko/dv-lab-api` и `ghcr.io/kdvornichenko/dv-lab-web` публикует CI после push в `master`, тег `sha-<полный sha>`. Пакет создаётся приватным. Два варианта; `docker manifest inspect` и `docker pull` в `deploy.sh` работают в обоих без изменений.
+Образы `ghcr.io/kdvornichenko/dv-lab-api` и `ghcr.io/kdvornichenko/dv-lab-web` публикует CI после push в `master`: сначала с временным тегом `ci-<полный sha>`, а тег `sha-<полный sha>`, который ждёт `deploy.sh`, ставит job `Publish` только после зелёных проверок. Пакет создаётся приватным. Два варианта; `docker manifest inspect` и `docker pull` в `deploy.sh` работают в обоих без изменений.
 
 ### 4.1. Вариант A: публичные пакеты
 
