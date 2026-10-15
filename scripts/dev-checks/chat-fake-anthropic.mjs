@@ -108,6 +108,27 @@ function proposalPlan(marker, content, continued, body) {
 			stop: 'end_turn',
 		}
 	}
+	if (['note-write', 'note-create', 'note-delete', 'words-add', 'words-remove'].includes(marker)) {
+		if (continued) return say('Done.')
+		const field = (name) => new RegExp(`${name}:\\s*([^;\\n]+)`).exec(message)?.[1]?.trim() ?? ''
+		const text = (/text:\s*([\s\S]*)$/.exec(message)?.[1] ?? '').trim().replaceAll('\\n', '\n')
+		if (marker === 'note-write') return call('note_write', { student_id: studentId, block_id: field('block'), text })
+		if (marker === 'note-create') return call('note_block_create', { student_id: studentId, name: field('name'), text })
+		if (marker === 'note-delete') return call('note_block_delete', { student_id: studentId, block_id: field('block') })
+		if (marker === 'words-add')
+			return call('vocabulary_add', {
+				student_id: studentId,
+				words: field('terms')
+					.split(',')
+					.map((term) => ({ term: term.trim(), note: null })),
+			})
+		return call('vocabulary_remove', {
+			student_id: studentId,
+			term_ids: field('ids')
+				.split(',')
+				.map((id) => id.trim()),
+		})
+	}
 	if (marker === 'bulk') {
 		if (continued) return say('I could not prepare that change.')
 		const from = /from:\s*([a-z]+)\s+(\d{1,2}:\d{2})/i.exec(message)

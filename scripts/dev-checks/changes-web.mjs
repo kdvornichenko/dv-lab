@@ -2741,6 +2741,476 @@ async function sectionDetails() {
 	}
 }
 
+const NOTES_PORT = 4260
+const NN = { add: 'Alex Example 2420', rewrite: 'Alex Example 2421' }
+const NOTES_WHERE = `display_name like 'Alex Example 242_' and import_key is null`
+const NOTE_BLOCK = '[data-slot="chat-note-change"]'
+const NOTE_DECLINED = 'Proposal declined. This proposal made no changes.'
+const NOTE_STALE = 'This proposal is out of date. Nothing was changed.'
+const CANT_UNDO = "Can't undo: this block changed after the edit."
+const ESSAY_WORDS = Array.from({ length: 90 }, (_, index) => `word${index + 1}`).join(' ')
+
+function removeNotesCards(conversations = []) {
+	removeConversations(conversations)
+	const cards = `select id from students where ${NOTES_WHERE}`
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${NOTES_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(left)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${NOTES_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+const sectionOf = (name, kind) =>
+	sql(
+		`select id, name, body, revision, deleted_at is not null as deleted from student_sections where kind = ${q(kind)} and student_id in (select id from students where display_name = ${q(name)} and import_key is null)`
+	).rows[0]
+
+const sectionByName = (name, blockName) =>
+	sql(
+		`select id, name, body, revision, deleted_at is not null as deleted from student_sections where name = ${q(blockName)} and student_id in (select id from students where display_name = ${q(name)} and import_key is null)`
+	).rows[0]
+
+const setSection = (name, kind, body) =>
+	sql(
+		`update student_sections set body = ${q(body)}, revision = revision + 1 where kind = ${q(kind)} and student_id in (select id from students where display_name = ${q(name)} and import_key is null)`
+	)
+
+const termIds = (name) =>
+	sql(
+		`select id from student_terms where student_id in (select id from students where display_name = ${q(name)} and import_key is null) order by term`
+	).rows.map((row) => row.id)
+
+async function askNote(page, text, mention) {
+	const before = await page.locator(NOTE_BLOCK).count()
+	await sendIn(page, 0, text, mention)
+	await page.waitForFunction(
+		({ selector, count }) => document.querySelectorAll(selector).length > count,
+		{ selector: NOTE_BLOCK, count: before },
+		{ timeout: 30000 }
+	)
+	await page.locator(SEND).waitFor({ timeout: 30000 })
+	return page.locator(NOTE_BLOCK).nth(before)
+}
+
+const noteHead = (block) => block.locator('p').first().innerText()
+const noteButtons = async (block) => (await block.getByRole('button').allInnerTexts()).map((text) => text.trim())
+const noteLines = (block, kind) => block.locator(`[data-slot="note-diff-line"][data-kind="${kind}"]`)
+const noteAttr = (block, name) => block.getAttribute(name)
+
+async function sectionNotes() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const started = await startFakeModelApi(NOTES_PORT)
+	const conversations = []
+	try {
+		removeNotesCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, NOTES_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				for (const name of Object.values(NN)) {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+				}
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator('[data-slot="chat-commands"]').waitFor({ timeout: 30000 })
+				const centred = await page.evaluate(() => {
+					const list = document.querySelector('[data-slot="chat-commands"]').getBoundingClientRect()
+					const area = document
+						.querySelector('[data-slot="chat-commands"]')
+						.closest('[data-slot="scroll-area-viewport"]')
+						.getBoundingClientRect()
+					return {
+						dy: Math.abs((list.top + list.bottom) / 2 - (area.top + area.bottom) / 2),
+						dx: Math.abs((list.left + list.right) / 2 - (area.left + area.right) / 2),
+					}
+				})
+				check(
+					'the empty new chat shows the commands list centred in the messages area, with no card',
+					centred.dy < 40 && centred.dx < 40,
+					JSON.stringify(centred)
+				)
+
+				let chatId = null
+				const track = () => {
+					chatId ??= new URL(page.url()).searchParams.get('c')
+					if (chatId && !conversations.includes(chatId)) conversations.push(chatId)
+				}
+				let shown = 0
+				const ask = async (text, mention) => {
+					const block = await askNote(page, text, mention)
+					track()
+					shown++
+					return block
+				}
+				const reloaded = async (index) => {
+					await page.reload()
+					await page
+						.locator(NOTE_BLOCK)
+						.nth(shown - 1)
+						.waitFor({ timeout: 30000 })
+					return page.locator(NOTE_BLOCK).nth(index)
+				}
+				const at = (index) => page.locator(NOTE_BLOCK).nth(index)
+
+				setSection(NN.add, 'goals', 'Line one')
+				const goals = sectionOf(NN.add, 'goals')
+				const first = await ask(`[fake:note-write] block: ${goals.id}; text: Line one\\nLine two added`, NN.add)
+				let text = await first.innerText()
+				const firstHref = await first.getByRole('link').first().getAttribute('href')
+				check(
+					'an added line is written at once: receipt with the sentence, one added line, one unchanged line, Undo and the block link',
+					(await noteAttr(first, 'data-mode')) === 'receipt' &&
+						(await noteAttr(first, 'data-change')) === 'updated' &&
+						(await noteAttr(first, 'data-undo')) === 'available' &&
+						/^Updated .+\.$/.test(await noteHead(first)) &&
+						(await noteLines(first, 'added').count()) === 1 &&
+						(await noteLines(first, 'removed').count()) === 0 &&
+						(await noteLines(first, 'same').count()) === 1 &&
+						text.includes('Line two added') &&
+						text.includes('Added 1 line to the block.') &&
+						JSON.stringify(await noteButtons(first)) === JSON.stringify(['Undo']) &&
+						/tab=notes/.test(firstHref ?? '') &&
+						/section=(goals|b_[0-9a-f]{32})/.test(firstHref ?? ''),
+					text.replace(/\n/g, ' | ')
+				)
+				check('the receipt wrote the block', sectionOf(NN.add, 'goals').body === 'Line one\nLine two added')
+				await shot(page, 'changes-notes', 'receipt')
+				let again = await reloaded(0)
+				check(
+					'after a reload the receipt is drawn as the api states it: Undo still available',
+					(await noteAttr(again, 'data-undo')) === 'available' &&
+						JSON.stringify(await noteButtons(again)) === JSON.stringify(['Undo'])
+				)
+				await again.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelector(selector)?.getAttribute('data-undo') === 'undone',
+					NOTE_BLOCK,
+					{ timeout: 15000 }
+				)
+				text = await at(0).innerText()
+				check(
+					'Undo puts the text back and the receipt becomes Change undone. with no diff and no Undo',
+					(await noteHead(at(0))) === 'Change undone.' &&
+						sectionOf(NN.add, 'goals').body === 'Line one' &&
+						(await noteButtons(at(0))).length === 0 &&
+						(await at(0).locator('[data-slot="note-diff"]').count()) === 0,
+					text.replace(/\n/g, ' | ')
+				)
+				again = await reloaded(0)
+				check(
+					'after a reload the undone receipt stays undone with no active button',
+					(await noteAttr(again, 'data-undo')) === 'undone' && (await noteButtons(again)).length === 0
+				)
+
+				const second = await ask(`[fake:note-write] block: ${goals.id}; text: Line one\\nLine two added`, NN.add)
+				check('a second receipt is available', (await noteAttr(second, 'data-undo')) === 'available')
+				setSection(NN.add, 'goals', 'Teacher edit')
+				await second.getByRole('button', { name: /^Undo/ }).click()
+				await second.getByText(CANT_UNDO).waitFor({ timeout: 15000 })
+				check(
+					'Undo after the block was edited elsewhere says it cannot undo, drops the button and leaves the teacher text',
+					(await noteAttr(second, 'data-undo')) === 'unavailable' &&
+						(await noteButtons(second)).length === 0 &&
+						sectionOf(NN.add, 'goals').body === 'Teacher edit'
+				)
+				again = await reloaded(1)
+				check(
+					'after a reload the receipt still says it cannot undo',
+					(await noteAttr(again, 'data-undo')) === 'unavailable' && (await again.innerText()).includes(CANT_UNDO)
+				)
+
+				const created = await ask(`[fake:note-create] name: Exam dates; text: Exam on 5 March`, NN.add)
+				text = await created.innerText()
+				check(
+					'a new block is written at once: receipt with the quoted name, the no-block-fitted line and a link to the block',
+					(await noteAttr(created, 'data-change')) === 'created' &&
+						(await noteHead(created)) === 'Created the block “Exam dates”.' &&
+						text.includes("No block of Alex Example 2420's notes fitted.") &&
+						(await noteLines(created, 'added').count()) === 1 &&
+						/section=b_/.test((await created.getByRole('link').first().getAttribute('href')) ?? ''),
+					text.replace(/\n/g, ' | ')
+				)
+				await created.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					(selector) => document.querySelectorAll(selector)[2]?.getAttribute('data-undo') === 'undone',
+					NOTE_BLOCK,
+					{ timeout: 15000 }
+				)
+				check(
+					'Undo of a created block removes it and the link goes to Notes',
+					sectionByName(NN.add, 'Exam dates').deleted === true &&
+						(await created.getByRole('link').first().innerText()) === 'Open Notes'
+				)
+
+				const added = await ask(`[fake:words-add] terms: alpha, beta`, NN.add)
+				text = await added.innerText()
+				check(
+					'words added at once: receipt with the count, the words as chips and a link to the vocabulary',
+					(await noteAttr(added, 'data-change')) === 'words_added' &&
+						(await noteHead(added)) === "Added 2 words to Alex Example 2420's vocabulary." &&
+						(await added.locator('[data-slot="note-words"] li').allInnerTexts()).join(',') === 'alpha,beta' &&
+						(await added.getByRole('link').first().innerText()) === 'Open vocabulary' &&
+						/tab=vocabulary/.test((await added.getByRole('link').first().getAttribute('href')) ?? ''),
+					text.replace(/\n/g, ' | ')
+				)
+				const ids = termIds(NN.add)
+				const removed = await ask(`[fake:words-remove] ids: ${ids.join(', ')}`, NN.add)
+				text = await removed.innerText()
+				check(
+					'words removed at once: receipt with struck chips, the 30 days line and Undo',
+					(await noteAttr(removed, 'data-change')) === 'words_removed' &&
+						(await noteHead(removed)) === "Removed 2 words from Alex Example 2420's vocabulary." &&
+						(await removed.locator('[data-slot="note-words"] li[data-state="removed"]').count()) === 2 &&
+						text.includes('They stay in Removed for 30 days.') &&
+						(await noteAttr(removed, 'data-undo')) === 'available',
+					text.replace(/\n/g, ' | ')
+				)
+
+				setSection(NN.rewrite, 'goals', 'Line one\nLine two')
+				const target = sectionOf(NN.rewrite, 'goals')
+				const rewriteText = (suffix) => `[fake:note-write] block: ${target.id}; text: Line one\\nLine two ${suffix}`
+				const base = shown
+				const update = await ask(rewriteText('changed'), NN.rewrite)
+				text = await update.innerText()
+				check(
+					'a rewrite is proposed, not written: Update card with removed and added lines, the caption and Save to notes / Keep the notes',
+					(await noteAttr(update, 'data-mode')) === 'proposal' &&
+						(await noteAttr(update, 'data-state')) === 'proposed' &&
+						/^Update .+\?$/.test(await noteHead(update)) &&
+						(await noteLines(update, 'removed').allInnerTexts()).join('|').includes('Line two') &&
+						(await noteLines(update, 'added').allInnerTexts()).join('|').includes('Line two changed') &&
+						text.includes('Only this block changes. The old text can be restored with Undo after it is saved.') &&
+						JSON.stringify(await noteButtons(update)) === JSON.stringify(['Save to notes', 'Keep the notes']) &&
+						sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two',
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-notes', 'update')
+				await update.getByRole('button', { name: 'Save to notes' }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-state') === 'applied',
+					{ selector: NOTE_BLOCK, index: base },
+					{ timeout: 15000 }
+				)
+				check(
+					'Save to notes writes the text and the card becomes updated with Undo and Open',
+					sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two changed' &&
+						/ updated\.$/.test(await noteHead(update)) &&
+						(await noteAttr(update, 'data-undo')) === 'available' &&
+						JSON.stringify(await noteButtons(update)) === JSON.stringify(['Undo']) &&
+						(await update.getByRole('link').first().innerText()).startsWith('Open ')
+				)
+				again = await reloaded(base)
+				check(
+					'after a reload the saved card is applied with only Undo active',
+					(await noteAttr(again, 'data-state')) === 'applied' &&
+						JSON.stringify(await noteButtons(again)) === JSON.stringify(['Undo'])
+				)
+				await again.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-undo') === 'undone',
+					{ selector: NOTE_BLOCK, index: base },
+					{ timeout: 15000 }
+				)
+				check(
+					'Undo of the saved rewrite restores the old text',
+					sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two' &&
+						(await noteHead(at(base))) === 'Change undone.'
+				)
+
+				const keep = await ask(rewriteText('kept'), NN.rewrite)
+				await keep.getByRole('button', { name: 'Keep the notes' }).click()
+				await keep.getByText(NOTE_DECLINED).waitFor({ timeout: 15000 })
+				check(
+					'Keep the notes declines: dimmed diff, the declined line, no buttons and no write',
+					(await noteAttr(keep, 'data-state')) === 'declined' &&
+						(await noteButtons(keep)).length === 0 &&
+						sectionOf(NN.rewrite, 'goals').body === 'Line one\nLine two'
+				)
+				again = await reloaded(base + 1)
+				check(
+					'after a reload the declined card has no active buttons',
+					(await noteAttr(again, 'data-state')) === 'declined' && (await noteButtons(again)).length === 0
+				)
+
+				const stale = await ask(rewriteText('stale'), NN.rewrite)
+				setSection(NN.rewrite, 'goals', 'Teacher text')
+				await stale.getByRole('button', { name: 'Save to notes' }).click()
+				await page.getByText(NOTE_STALE).waitFor({ timeout: 15000 })
+				const staleCard = page.locator(NOTE_BLOCK).nth(base + 2)
+				check(
+					'a block edited after the proposal makes it stale: warning, no buttons, the teacher text kept',
+					(await noteAttr(staleCard, 'data-state')) === 'stale' &&
+						(await noteButtons(staleCard)).length === 0 &&
+						sectionOf(NN.rewrite, 'goals').body === 'Teacher text'
+				)
+				again = await reloaded(base + 2)
+				check(
+					'after a reload the stale card stays stale with no buttons',
+					(await noteAttr(again, 'data-state')) === 'stale' && (await noteButtons(again)).length === 0
+				)
+
+				await ask(`[fake:note-create] name: Exam dates; text: Exam on 5 March`, NN.rewrite)
+				const exam = sectionByName(NN.rewrite, 'Exam dates')
+				const del = await ask(`[fake:note-delete] block: ${exam.id}`, NN.rewrite)
+				text = await del.innerText()
+				check(
+					'a block with text is not deleted at once: Delete card with the text as removed lines, Keep block first',
+					(await noteAttr(del, 'data-state')) === 'proposed' &&
+						(await noteHead(del)) === 'Delete Exam dates?' &&
+						(await noteLines(del, 'removed').count()) === 1 &&
+						text.includes('The block and its text will be deleted.') &&
+						JSON.stringify(await noteButtons(del)) === JSON.stringify(['Keep block', 'Delete block']) &&
+						sectionByName(NN.rewrite, 'Exam dates').deleted === false,
+					text.replace(/\n/g, ' | ')
+				)
+				await shot(page, 'changes-notes', 'delete')
+				const deleteIndex = base + 4
+				await del.getByRole('button', { name: 'Delete block' }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-state') === 'applied',
+					{ selector: NOTE_BLOCK, index: deleteIndex },
+					{ timeout: 15000 }
+				)
+				check(
+					'Delete block removes the block and the card says deleted with Undo and Open Notes',
+					sectionByName(NN.rewrite, 'Exam dates').deleted === true &&
+						(await noteHead(del)) === 'Exam dates deleted.' &&
+						(await del.getByRole('link').first().innerText()) === 'Open Notes' &&
+						(await noteAttr(del, 'data-undo')) === 'available'
+				)
+				again = await reloaded(deleteIndex)
+				check(
+					'after a reload the deleted card is applied with only Undo active',
+					(await noteAttr(again, 'data-state')) === 'applied' &&
+						JSON.stringify(await noteButtons(again)) === JSON.stringify(['Undo'])
+				)
+				await again.getByRole('button', { name: /^Undo/ }).click()
+				await page.waitForFunction(
+					({ selector, index }) => document.querySelectorAll(selector)[index]?.getAttribute('data-undo') === 'undone',
+					{ selector: NOTE_BLOCK, index: deleteIndex },
+					{ timeout: 15000 }
+				)
+				check('Undo of the deletion brings the block back', sectionByName(NN.rewrite, 'Exam dates').deleted === false)
+
+				const lines = (prefix) => Array.from({ length: 8 }, (_, index) => `${prefix}${index + 1}`)
+				setSection(NN.rewrite, 'general_info', lines('old').join('\n'))
+				const wide = sectionOf(NN.rewrite, 'general_info')
+				const many = await ask(`[fake:note-write] block: ${wide.id}; text: ${lines('new').join('\\n')}`, NN.rewrite)
+				const changed = (await noteLines(many, 'added').count()) + (await noteLines(many, 'removed').count())
+				const moreText = await many.locator('[data-slot="note-diff-more"]').innerText()
+				check(
+					'a long rewrite draws at most six changed lines and then says how many more changes there are',
+					changed <= 6 && /^\d+ more changes?$/.test(moreText.trim()),
+					JSON.stringify({ changed, moreText })
+				)
+
+				await page.setViewportSize({ width: 375, height: 812 })
+				await page.reload()
+				await page
+					.locator(NOTE_BLOCK)
+					.nth(shown - 1)
+					.waitFor({ timeout: 30000 })
+				const fits = await page.evaluate((selector) => {
+					const boxes = [...document.querySelectorAll(selector)].map((node) => {
+						const box = node.getBoundingClientRect()
+						return { left: Math.round(box.left), right: Math.round(box.right) }
+					})
+					return {
+						count: boxes.length,
+						bad: boxes.filter((box) => box.left < 0 || box.right > 375).length,
+						overflow: document.documentElement.scrollWidth - window.innerWidth,
+					}
+				}, NOTE_BLOCK)
+				check(
+					'at 375 px every note card stays inside the screen and the page does not scroll sideways',
+					fits.count > 0 && fits.bad === 0 && fits.overflow <= 0,
+					JSON.stringify(fits)
+				)
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator('[data-slot="chat-commands"]').waitFor({ timeout: 30000 })
+				await page.locator(FIELD).fill(`/essay [fake:essay] ${ESSAY_WORDS}`)
+				await page.locator(SEND).click()
+				await page.locator('[data-role="teacher"]').first().waitFor({ timeout: 30000 })
+				track()
+				await page.locator(SEND).waitFor({ timeout: 30000 })
+				const bubble = page.locator('[data-role="teacher"] [data-slot="chat-essay-bubble"]').first()
+				await bubble.waitFor({ timeout: 15000 })
+				const essayHeight = await bubble
+					.locator('p')
+					.first()
+					.evaluate((node) => ({
+						box: node.getBoundingClientRect().height,
+						line: Number.parseFloat(getComputedStyle(node).lineHeight),
+					}))
+				const wordsNow = (await bubble.innerText()).match(/(\d+) words/)?.[1]
+				check(
+					'a pasted essay in the teacher bubble is cut to four lines with its word count and Show full text',
+					(await noteAttr(bubble, 'data-clamped')) === 'true' &&
+						Math.abs(essayHeight.box - essayHeight.line * 4) < 4 &&
+						Number(wordsNow) === ESSAY_WORDS.split(' ').length + 1 &&
+						(await bubble.getByRole('button', { name: 'Show full text' }).count()) === 1,
+					JSON.stringify({ essayHeight, wordsNow })
+				)
+				await shot(page, 'changes-notes', 'essay')
+				const bottomGap = await page.evaluate(() => {
+					const viewport = document
+						.querySelector('[data-slot="chat-messages"]')
+						.closest('[data-slot="scroll-area-viewport"]')
+						.getBoundingClientRect()
+					const list = document.querySelector('[data-slot="chat-messages"]').getBoundingClientRect()
+					return Math.round(viewport.bottom - list.bottom)
+				})
+				check(
+					'a short conversation sits against the composer, not at the top of the area',
+					bottomGap < 60,
+					String(bottomGap)
+				)
+				await bubble.getByRole('button', { name: 'Show full text' }).click()
+				check(
+					'Show full text opens the essay in place once',
+					(await bubble.getByRole('button', { name: 'Show full text' }).count()) === 0 &&
+						(await bubble
+							.locator('p')
+							.first()
+							.evaluate((node) => node.getBoundingClientRect().height)) >
+							essayHeight.box + 10
+				)
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeNotesCards(conversations)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+		removeNotesCards(conversations)
+	}
+}
+
 const PROMPT_BLOCK = (command) => `[data-slot="command-prompt"][data-command="${command}"]`
 const PROMPT_ACCOUNTS = `select id from accounts where role = 'teacher'`
 const PROMPTS_NOISE = EXPECTED_NOISE
@@ -2952,6 +3422,7 @@ async function sectionPrompts() {
 }
 
 const sections = {
+	notes: sectionNotes,
 	prompts: sectionPrompts,
 	details: sectionDetails,
 	facts: sectionFacts,

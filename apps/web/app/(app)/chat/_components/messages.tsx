@@ -336,6 +336,56 @@ function TeacherText({ text, mentions }: { text: string; mentions: readonly Ment
 	return <>{parts}</>
 }
 
+const BUBBLE =
+	'rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground'
+
+function essayWords(text: string): number {
+	if (!/^\/essay(\s|$)/.test(text)) return 0
+	return text.slice('/essay'.length).split(/\s+/).filter(Boolean).length
+}
+
+function TeacherBubble({ text, mentions }: { text: string; mentions: readonly MentionBinding[] }) {
+	const words = essayWords(text)
+	const [open, setOpen] = useState(false)
+	const [clamped, setClamped] = useState(false)
+	const body = useRef<HTMLParagraphElement>(null)
+
+	useLayoutEffect(() => {
+		const node = body.current
+		if (words === 0 || open || node === null) return
+		const measure = () => setClamped(node.scrollHeight > node.clientHeight + 1)
+		measure()
+		const observer = new ResizeObserver(measure)
+		observer.observe(node)
+		return () => observer.disconnect()
+	}, [words, open, text])
+
+	if (words === 0)
+		return (
+			<p className={BUBBLE}>
+				<TeacherText text={text} mentions={mentions} />
+			</p>
+		)
+
+	return (
+		<div className={BUBBLE} data-slot="chat-essay-bubble" data-clamped={open ? undefined : clamped}>
+			<p ref={body} className={open ? undefined : 'line-clamp-4'}>
+				<TeacherText text={text} mentions={mentions} />
+			</p>
+			{clamped && !open ? (
+				<div className="mt-1 flex items-center justify-between gap-3 whitespace-normal">
+					<span className="text-caption text-muted-foreground tabular-nums">
+						{words} {words === 1 ? 'word' : 'words'}
+					</span>
+					<Button variant="ghost" size="compact" onClick={() => setOpen(true)}>
+						Show full text
+					</Button>
+				</div>
+			) : null}
+		</div>
+	)
+}
+
 function MessageItem({
 	message,
 	reduceMotion,
@@ -453,9 +503,7 @@ export function Messages({
 				{messages.map((message, messageIndex) =>
 					message.role === 'teacher' ? (
 						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
-							<p className="rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground">
-								<TeacherText text={message.body} mentions={message.mentions} />
-							</p>
+							<TeacherBubble text={message.body} mentions={message.mentions} />
 							<span className="text-caption text-muted-foreground tabular-nums">{messageTime(message.createdAt)}</span>
 						</MessageItem>
 					) : (
