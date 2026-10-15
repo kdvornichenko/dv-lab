@@ -13,7 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { apiRequest } from '@/lib/api-client'
 import { withoutSearchParams } from '@/lib/arrival-mark'
 
-import type { ChatClarifyBlock, ChatConversation, ChatStudentFacts } from '@dv-lab/contracts'
+import {
+	CHAT_FOLLOW_UP_TEXT,
+	type ChatClarifyBlock,
+	type ChatConversation,
+	type ChatStudentFacts,
+} from '@dv-lab/contracts'
 
 import { ChatHeader } from './chat-header'
 import { CommandList } from './command-list'
@@ -294,6 +299,23 @@ export function ChatScreen({
 		})
 	}
 
+	async function followUp(student: { id: string; displayName: string }) {
+		const name = student.displayName
+		const draft = {
+			text: `@${name} ${CHAT_FOLLOW_UP_TEXT}`,
+			bindings: [{ studentId: student.id, text: name, start: 1, end: 1 + name.length }],
+			stale: false,
+		}
+		if (await chat.send(draft)) return
+		composer.setDraft(draft)
+		later(() => {
+			const field = input.current
+			if (!field) return
+			field.focus()
+			field.setSelectionRange(field.value.length, field.value.length)
+		})
+	}
+
 	function choose(block: ChatClarifyBlock, reply: string) {
 		const name = block.studentName
 		composer.setDraft({
@@ -352,6 +374,8 @@ export function ChatScreen({
 									replies={{
 										onAsk: () => later(() => input.current?.focus()),
 										onCheckStatus: chat.checkStatus,
+										onFollowUp: (student) => void followUp(student),
+										busy: chat.sending || chat.reply !== null,
 									}}
 									active={
 										chat.reply === null

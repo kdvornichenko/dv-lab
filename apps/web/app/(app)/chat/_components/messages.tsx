@@ -15,7 +15,14 @@ import { formatTime, formatWhen, mainWhen, secondWhen, yearInZone } from '@/lib/
 import { spring } from '@/lib/springs'
 import { zoneLabel } from '@/lib/time-zones'
 
-import type { ChatBlock, ChatClarifyBlock, ChatMessage, ChatRefusedBlock, MentionBinding } from '@dv-lab/contracts'
+import {
+	CHAT_FOLLOW_UP_TEXT,
+	type ChatBlock,
+	type ChatClarifyBlock,
+	type ChatMessage,
+	type ChatRefusedBlock,
+	type MentionBinding,
+} from '@dv-lab/contracts'
 import { SCHEDULE_TIME_ZONE } from '@dv-lab/core'
 
 import { ActionLink } from './action-link'
@@ -27,6 +34,7 @@ import { ChatProgress } from './chat-progress'
 import { EssayFeedback, type EssayOutcome } from './essay-feedback'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
 import { ReplyFooter } from './reply-footer'
+import type { FactsFollowUp } from './student-facts'
 import { StudentMention } from './student-mention'
 
 export type CalendarHandlers = {
@@ -44,6 +52,19 @@ export type ChangeHandlers = {
 export type ReplyHandlers = {
 	onAsk: () => void
 	onCheckStatus: () => Promise<void>
+	onFollowUp: FactsFollowUp['onSend']
+	busy: boolean
+}
+
+function followedUp(messages: readonly ChatMessage[], index: number, studentId: string): boolean {
+	return messages
+		.slice(index + 1)
+		.some(
+			(next) =>
+				next.role === 'teacher' &&
+				next.body.endsWith(CHAT_FOLLOW_UP_TEXT) &&
+				next.mentions.some((binding) => binding.studentId === studentId)
+		)
 }
 
 export type ActiveReply = { messageId: string | null; stopping: boolean }
@@ -211,6 +232,7 @@ function Block({
 	calendar,
 	changes,
 	replies,
+	followUp,
 }: {
 	block: ChatBlock
 	onUndo: (actionId: string) => void
@@ -218,6 +240,7 @@ function Block({
 	calendar: CalendarHandlers
 	changes: ChangeHandlers
 	replies: ReplyHandlers
+	followUp?: FactsFollowUp
 }) {
 	if (block.type === 'action_result') return <ActionResult block={block} onUndo={onUndo} />
 	if (block.type === 'clarify') return <Clarify block={block} onChoose={onChoose} />
@@ -229,7 +252,7 @@ function Block({
 			<ChangeProposal block={block} {...changes} />
 		)
 	if (block.type === 'refused') return <Refused block={block} />
-	if (isRecordBlock(block)) return <RecordBlockView block={block} />
+	if (isRecordBlock(block)) return <RecordBlockView block={block} followUp={followUp} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
 	if (block.type === 'stopped') return <p className="text-caption text-muted-foreground">Reply stopped.</p>
 	if (block.type === 'withheld') return <Withheld onAsk={replies.onAsk} />
@@ -424,7 +447,7 @@ export function Messages({
 	return (
 		<>
 			<ol className="flex flex-col gap-4" data-slot="chat-messages">
-				{messages.map((message) =>
+				{messages.map((message, messageIndex) =>
 					message.role === 'teacher' ? (
 						<MessageItem key={message.id} message={message} reduceMotion={reduceMotion}>
 							<p className="rounded-2xl bg-active px-3.5 py-2 text-body [overflow-wrap:anywhere] break-words whitespace-pre-wrap text-foreground">
@@ -463,6 +486,11 @@ export function Messages({
 										calendar={calendar}
 										changes={changes}
 										replies={replies}
+										followUp={
+											block.type === 'facts' && !followedUp(messages, messageIndex, block.facts.student.id)
+												? { busy: replies.busy, onSend: replies.onFollowUp }
+												: undefined
+										}
 									/>
 								))}
 							{active?.messageId === message.id ? null : (
