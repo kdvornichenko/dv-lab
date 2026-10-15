@@ -435,6 +435,8 @@ async function readStatus() {
 		try {
 			await signIn(phone.page)
 			await phone.page.goto(`${BASE}/schedule`, { timeout: 120000 })
+			await phone.page.locator('[data-slot="calendar-read-status-button"]').waitFor({ timeout: 60000 })
+			await phone.page.locator('[data-slot="calendar-read-status-button"]').click()
 			const notice = phone.page.locator('[data-slot="calendar-read-status"]').first()
 			await notice.waitFor({ timeout: 60000 })
 			await phone.page.getByText('A full check is running.').waitFor({ timeout: 30000 })
