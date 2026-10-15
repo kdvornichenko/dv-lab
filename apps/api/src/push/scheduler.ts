@@ -43,7 +43,10 @@ const LESSON_LOOKAHEAD_MS = 120 * MINUTE_MS
 const VIETNAM_ZONES = new Set(['Asia/Ho_Chi_Minh', 'Asia/Saigon'])
 const MOSCOW_ZONES = new Set(['Europe/Moscow', 'Europe/Minsk'])
 
-type Delivery = { payload: (subscription: ActiveSubscription) => PushPayload; skip: (subscription: ActiveSubscription) => boolean }
+type Delivery = {
+	payload: (subscription: ActiveSubscription) => PushPayload
+	skip: (subscription: ActiveSubscription) => boolean
+}
 
 function zoneLabel(zone: string, at: Date): string {
 	if (VIETNAM_ZONES.has(zone)) return 'VN'
@@ -56,19 +59,19 @@ function zoneLabel(zone: string, at: Date): string {
 }
 
 function clock(at: Date, zone: string): string {
-	return new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at)
+	return new Intl.DateTimeFormat('en-GB', {
+		timeZone: zone,
+		hour: '2-digit',
+		minute: '2-digit',
+		hourCycle: 'h23',
+	}).format(at)
 }
 
 function weekday(at: Date, zone: string): string {
 	return new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short' }).format(at)
 }
 
-function lessonPayload(
-	block: ScheduleBlock,
-	now: Date,
-	zone: string,
-	secondZone: string | null
-): PushPayload {
+function lessonPayload(block: ScheduleBlock, now: Date, zone: string, secondZone: string | null): PushPayload {
 	const startsAt = new Date(block.startsAt)
 	const minutes = Math.max(1, Math.round((startsAt.getTime() - now.getTime()) / MINUTE_MS))
 	const main = `${weekday(startsAt, zone)}, ${clock(startsAt, zone)} ${zoneLabel(zone, startsAt)}`
@@ -239,7 +242,7 @@ export function createPushScheduler({
 			logger.warn({ err }, 'push scheduler failed')
 			return
 		}
-		const paysDue = lastPaysAt === undefined || now.getTime() - lastPaysAt >= paysEveryMs
+		const paysDue = lastPaysAt === undefined || now.getTime() < lastPaysAt || now.getTime() - lastPaysAt >= paysEveryMs
 		if (paysDue) lastPaysAt = now.getTime()
 		for (const accountId of accountIds) {
 			try {

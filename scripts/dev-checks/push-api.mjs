@@ -1,9 +1,8 @@
 import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { parseEnv } from 'node:util'
-
 import { createRequire } from 'node:module'
+import { parseEnv } from 'node:util'
 
 import {
 	ENV_TEST,
@@ -22,8 +21,17 @@ import { removeCards } from './ledger-api/context.ts'
 const PORT = 4271
 const ENDPOINT_HOST = 'push.example.test'
 const ENDPOINT_BASE = `https://${ENDPOINT_HOST}/dvlab-check/`
-const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config', 'lessons', 'payments', 'suppress']
-const API_SECTIONS = new Set(['routes', 'settings', 'presence', 'config', 'lessons', 'payments', 'suppress'])
+const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config', 'lessons', 'payments', 'suppress', 'delivery']
+const API_SECTIONS = new Set([
+	'routes',
+	'settings',
+	'presence',
+	'config',
+	'lessons',
+	'payments',
+	'suppress',
+	'delivery',
+])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 let failures = 0
@@ -85,7 +93,9 @@ function insertLesson(studentId, startsAt, { status = 'scheduled', minutes = 60 
 }
 
 function teacherAccountId() {
-	const rows = sql(`select id::text as id from accounts where login = ${quote(TEACHER_LOGIN)} and status = 'active'`).rows
+	const rows = sql(
+		`select id::text as id from accounts where login = ${quote(TEACHER_LOGIN)} and status = 'active'`
+	).rows
 	if (rows.length !== 1) throw new Error('teacher fixture account missing')
 	return rows[0].id
 }
@@ -549,13 +559,13 @@ function withoutPush(source) {
 	return env
 }
 
-async function spawnApi(push) {
+async function spawnApi(push, nodeEnv = 'test') {
 	const base = `http://127.0.0.1:${SIDE_PORT}`
 	const env = {
 		...withoutPush(process.env),
 		...withoutPush(fileEnv),
 		...push,
-		NODE_ENV: 'test',
+		NODE_ENV: nodeEnv,
 		PORT: String(SIDE_PORT),
 		APP_ORIGIN: base,
 		LOG_LEVEL: 'info',
@@ -746,7 +756,10 @@ async function payments(ctx) {
 
 		await tools.pay(a, 100)
 		const rearmed = await tickAt(ctx, now())
-		check('a payment back to plenty re-arms without a delivery', ours(rearmed, a).length === 0 && alertRow(a)?.armed === true)
+		check(
+			'a payment back to plenty re-arms without a delivery',
+			ours(rearmed, a).length === 0 && alertRow(a)?.armed === true
+		)
 		await tools.doneLesson(a, 25)
 		const second = await tickAt(ctx, now())
 		check('a new transition to Pays soon gives a new delivery', ours(second, a).length === 1)
@@ -775,7 +788,10 @@ async function payments(ctx) {
 		const quiet = await tickAt(ctx, now())
 		check(
 			'an archived card, a card without opening balance and notify_pays_soon off send nothing',
-			ours(quiet, d).length === 0 && ours(quiet, e).length === 0 && ours(quiet, f).length === 0 && alertRow(e) === undefined
+			ours(quiet, d).length === 0 &&
+				ours(quiet, e).length === 0 &&
+				ours(quiet, f).length === 0 &&
+				alertRow(e) === undefined
 		)
 	} finally {
 		await patchSettings(ctx, {
@@ -792,7 +808,12 @@ async function suppress(ctx) {
 	const original = tools.settings
 	const { recordPresence } = await import(`${ROOT}/apps/api/src/push/presence.ts`)
 	try {
-		await patchSettings(ctx, { paysSoonLessons: 2, notifyPaysSoon: true, notifyLessonSoon: true, notifyLessonMinutes: 30 })
+		await patchSettings(ctx, {
+			paysSoonLessons: 2,
+			notifyPaysSoon: true,
+			notifyLessonSoon: true,
+			notifyLessonMinutes: 30,
+		})
 		const teacher = teacherAccountId()
 		const one = await ownSubscription(ctx)
 		const two = await ownSubscription(ctx)
@@ -843,7 +864,115 @@ async function suppress(ctx) {
 	}
 }
 
-const RUNNERS = { routes, links, settings, presence, config, lessons, payments, suppress }
+const pairEnv = () => Object.fromEntries(PUSH_NAMES.map((name) => [name, fileEnv[name]]))
+
+async function schedulerStarts(push, nodeEnv) {
+	const side = await spawnApi(push, nodeEnv)
+	if (!side.started) return { started: false, scheduler: false }
+	await sleep(500)
+	const scheduler = side.api.logs().includes('push scheduler started')
+	await side.api.stop()
+	return { started: true, scheduler }
+}
+
+async function delivery(ctx) {
+	const { db, logs, logger } = await inProcess(ctx)
+	const { createWebPushDeliver } = await import(`${ROOT}/apps/api/src/push/deliver.ts`)
+	const { activeSubscriptions } = await import(`${ROOT}/apps/api/src/push/subscriptions.ts`)
+	const teacher = teacherAccountId()
+	const ok = await ownSubscription(ctx)
+	const gone = await ownSubscription(ctx)
+	const missing = await ownSubscription(ctx)
+	const broken = await ownSubscription(ctx)
+	const statusFor = new Map([
+		[ok.endpoint, 201],
+		[gone.endpoint, 410],
+		[missing.endpoint, 404],
+		[broken.endpoint, 500],
+	])
+	const calls = []
+	const fakeSend = async (subscription, body, options) => {
+		calls.push({ body: JSON.parse(body), options })
+		const statusCode = statusFor.get(subscription.endpoint)
+		if (statusCode === 201) return { statusCode, body: '', headers: {} }
+		const error = new Error(`Received unexpected response code from ${subscription.endpoint}`)
+		Object.assign(error, { statusCode, endpoint: subscription.endpoint, body: 'push service said no' })
+		throw error
+	}
+	const deliver = createWebPushDeliver({
+		push: {
+			enabled: true,
+			publicKey: fileEnv.PUSH_VAPID_PUBLIC_KEY,
+			privateKey: fileEnv.PUSH_VAPID_PRIVATE_KEY,
+			subject: fileEnv.PUSH_VAPID_SUBJECT,
+		},
+		db,
+		logger,
+		send: fakeSend,
+	})
+	const payload = {
+		title: 'Lesson with Alex Example 2600 in 25 minutes',
+		body: 'Mon, 18:00 VN',
+		tag: 'lesson:check',
+		url: '/schedule?week=2026-10-19',
+	}
+	const logsBefore = logs.length
+	const targets = (await activeSubscriptions(db, teacher)).filter((item) =>
+		[ok.id, gone.id, missing.id, broken.id].includes(item.id)
+	)
+	for (const subscription of targets) await deliver(subscription, payload)
+	const state = (id) =>
+		sql(
+			`select last_success_at is not null as success, failed_at is not null as failed, revoked_at is not null as revoked from push_subscriptions where id = ${quote(id)}`
+		).rows[0]
+	check(
+		'web-push gets the payload with VAPID details, TTL and a timeout',
+		calls.length === 4 &&
+			calls.every(
+				(item) =>
+					item.body.title === payload.title &&
+					item.body.url === payload.url &&
+					item.options.TTL === 600 &&
+					item.options.timeout > 0 &&
+					item.options.vapidDetails?.subject === fileEnv.PUSH_VAPID_SUBJECT
+			),
+		`calls ${calls.length}`
+	)
+	check('201 records last_success_at', state(ok.id)?.success === true && state(ok.id)?.revoked === false)
+	const active = (await activeSubscriptions(db, teacher)).map((item) => item.id)
+	check(
+		'410 and 404 revoke the subscription and it is no longer selected',
+		state(gone.id)?.revoked === true &&
+			state(missing.id)?.revoked === true &&
+			!active.includes(gone.id) &&
+			!active.includes(missing.id) &&
+			active.includes(ok.id)
+	)
+	check(
+		'500 records failed_at and keeps the subscription',
+		state(broken.id)?.failed === true && active.includes(broken.id)
+	)
+	const written = logs.slice(logsBefore).join('\n')
+	check(
+		'the delivery log carries subscription ids and codes, no endpoint, name or service answer',
+		written.includes(gone.id) &&
+			written.includes('"statusCode":410') &&
+			!written.includes(ENDPOINT_HOST) &&
+			!written.includes('Alex Example') &&
+			!written.includes('push service said no')
+	)
+
+	const withPair = await schedulerStarts(pairEnv(), 'development')
+	const withoutPair = await schedulerStarts({}, 'development')
+	check(
+		'api with the pair starts the push scheduler, without the pair it does not',
+		withPair.started && withPair.scheduler && withoutPair.started && !withoutPair.scheduler,
+		JSON.stringify({ withPair, withoutPair })
+	)
+	check('the check api under NODE_ENV test keeps the scheduler off', !ctx.api.logs().includes('push scheduler started'))
+}
+
+const RUNNERS = { routes, links, settings, presence, config, lessons, payments, suppress, delivery }
 
 const wanted = process.argv.slice(2)
 const selected = wanted.length === 0 ? SECTIONS : wanted
