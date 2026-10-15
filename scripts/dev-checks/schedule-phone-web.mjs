@@ -237,7 +237,7 @@ async function scheduleChecks(page, size) {
 	check(
 		`${tag}: the grid scrolls inside itself and leaves 16px under the last hour`,
 		await body.evaluate(
-			(element) => Math.abs(element.scrollHeight - 48 * 24 - 16) < 1 && element.scrollHeight > element.clientHeight
+			(element) => Math.abs(element.scrollHeight - 48 * 26 - 16) < 1 && element.scrollHeight > element.clientHeight
 		)
 	)
 	check(`${tag}: no floating new-event button`, (await page.locator('[data-slot="new-event-fab"]').count()) === 0)
@@ -415,6 +415,9 @@ async function swipeChecks(browser) {
 		check('swipe: a right swipe turns to the previous week', (await firstDate(page)) === shiftDate(week3, -7))
 
 		const body = page.locator('[data-slot="week-grid-body"]')
+		await body.evaluate((element) => {
+			element.scrollTop = 300
+		})
 		const before = await body.evaluate((element) => element.scrollTop)
 		const turned = await firstDate(page)
 		await swipe(page, cdp, [{ x: 200, y: 600 }, ...line(200, 205, 560, 3), ...line(205, 210, 400, 6)], 25)

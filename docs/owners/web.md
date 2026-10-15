@@ -5,6 +5,7 @@
 - UI web — только Base UI и копия компонентов варианта A (`components/ui`, `components/sidebar-app`, `components/fluid-hover-highlight.tsx`, `hooks`, двенадцать файлов `lib`; knip не проверяет `components/ui` и файлы `lib` копии, в которых есть неиспользуемые экспорты: `icon-context.tsx`, `shape-context.tsx`, `size-context.tsx`, `surface-classes.ts`). Импорты `radix-ui`, `@radix-ui/*` и `cmdk` запрещены правилом ESLint. Рукописные части экранов лежат в `apps/web/components/app` и `apps/web/app`.
 - Шрифты Inter Variable и JetBrains Mono Variable из пакетов `@fontsource-variable/inter` и `@fontsource-variable/jetbrains-mono`, без обращения к Google.
 - Дизайн расписания — артефакт дизайн-системы (WeekGrid, ScheduleToolbar, EventColors, EventTooltip, LessonDialog); блок урока и события носит цвет события Google (`eventPaint` из `apps/web/lib/event-colors.ts`), токен `selected` только у блока без цвета Google.
+- Жесты сетки недели — `apps/web/app/(app)/schedule/_components/`: протяжка новой рамки `use-slot-drag.ts`, перенос блока `use-lesson-drag.ts`, растяжение за нижний край `use-event-resize.ts` (только мышь), свайп недели `use-week-pager.ts`. На touch протяжка и перенос начинаются долгим нажатием (`HOLD_MS` в `use-touch-hold.ts`); до него сдвиг пальца — прокрутка или свайп. Перенос, задержанный у левого или правого края колонок, листает неделю (`TURN_MS`), рамка переживает смену недели. Первое открытие текущей недели ставит текущее время в середину сетки. Проверка — `scripts/dev-checks/schedule-touch-web.mjs`.
 
 ## Общие компоненты
 
