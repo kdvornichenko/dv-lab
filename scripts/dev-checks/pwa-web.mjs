@@ -1,4 +1,7 @@
-import { BASE, check, failures } from './browser-context.ts'
+import { BASE, check, failures, shot, signIn, theme } from './browser-context.ts'
+import { withBrowser } from './browser-journey.ts'
+
+const EXPECTED_NOISE = /Failed to load resource|server caches disabled|Route "\/login": Next\.js encountered URL data/
 
 const ICONS = ['/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-icon.png']
 
@@ -42,6 +45,50 @@ async function sectionInstall() {
 		closed.status === 307 && (closed.headers.get('location') ?? '').endsWith('/login'),
 		closed.status
 	)
+	await withBrowser({ width: 1280, height: 800 }, async ({ page, problems }) => {
+		const anonymous = await page.goto(`${BASE}/login`)
+		check(
+			'the sign-in page carries the manifest link',
+			(await page.locator('link[rel="manifest"]').getAttribute('href')) === '/manifest.webmanifest'
+		)
+		check('the sign-in page answers without redirect', anonymous?.status() === 200)
+		await signIn(page)
+		await page.goto(`${BASE}/`)
+		const head = await page.evaluate(() => ({
+			manifest: document.querySelector('link[rel="manifest"]')?.getAttribute('href') ?? null,
+			touch: document.querySelector('link[rel="apple-touch-icon"]')?.getAttribute('href') ?? null,
+			colors: [...document.querySelectorAll('meta[name="theme-color"]')].map((meta) => ({
+				media: meta.getAttribute('media'),
+				content: meta.getAttribute('content'),
+				active: meta.getAttribute('media') ? window.matchMedia(meta.getAttribute('media')).matches : false,
+			})),
+		}))
+		check('the page links the manifest', head.manifest === '/manifest.webmanifest', head.manifest)
+		check('the page links the apple-touch-icon', (head.touch ?? '').startsWith('/apple-icon.png'), head.touch)
+		const light = head.colors.find((color) => color.media === '(prefers-color-scheme: light)')
+		const dark = head.colors.find((color) => color.media === '(prefers-color-scheme: dark)')
+		check('theme-color is #fafafa for the light scheme', light?.content === '#fafafa', light?.content)
+		check('theme-color is #171717 for the dark scheme', dark?.content === '#171717', dark?.content)
+		const active = head.colors.find((color) => color.active)
+		check(
+			`the ${theme} scheme picks its own theme-color`,
+			active?.content === (theme === 'dark' ? '#171717' : '#fafafa'),
+			active?.content
+		)
+		const icons = ['/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', head.touch ?? '/apple-icon.png']
+		await page.setContent(
+			`<body style="margin:0;padding:24px;display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;background:${theme === 'dark' ? '#171717' : '#fafafa'}">${icons
+				.map((src) => `<img src="${BASE}${src}" width="160" height="160">`)
+				.join('')}</body>`
+		)
+		await page.waitForFunction(() => [...document.images].every((image) => image.complete && image.naturalWidth > 0))
+		check('the four icons decode', true)
+		await shot(page, 'pwa-install', 'icons-1280')
+		await page.setViewportSize({ width: 375, height: 800 })
+		await shot(page, 'pwa-install', 'icons-375')
+		const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+		check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+	})
 }
 
 const wanted = process.argv.slice(2).find((value) => value in sections)
