@@ -8,6 +8,7 @@ import {
 	type ChatChangeProposalBlock,
 	type ChatMessage,
 	type ChatNoteChangeBlock,
+	type ChatReviewResultBlock,
 	type ChatUndoState,
 	type MentionBinding,
 	type ChatStep,
@@ -192,11 +193,21 @@ export function noteChangeView(block: ChatNoteChangeBlock, action: ActionUndo): 
 	return { ...rest, state: kind, undo: null, ...(stale === undefined ? {} : { issue: stale }) }
 }
 
+export function reviewResultView(block: ChatReviewResultBlock, action: ActionUndo): ChatReviewResultBlock {
+	if (block.undo === 'none') return block
+	const { issue: _issue, ...rest } = block
+	const state = undoState(action)
+	if (state === 'done') return { ...rest, undo: 'undone' }
+	if (state === 'stale') return { ...rest, undo: 'unavailable', issue: 'block_changed' }
+	return { ...rest, undo: 'available' }
+}
+
 const ACTION_BLOCKS: ReadonlySet<ChatBlock['type']> = new Set([
 	'action_result',
 	'calendar_proposal',
 	'change_proposal',
 	'note_change',
+	'review_result',
 ])
 
 export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<string, ActionUndo>): ChatBlock[] {
@@ -205,11 +216,13 @@ export function withUndo(blocks: readonly ChatBlock[], actions: ReadonlyMap<stri
 			block.type !== 'action_result' &&
 			block.type !== 'calendar_proposal' &&
 			block.type !== 'change_proposal' &&
-			block.type !== 'note_change'
+			block.type !== 'note_change' &&
+			block.type !== 'review_result'
 		)
 			return block
 		const action = actions.get(block.actionId)
 		if (!action) return block
+		if (block.type === 'review_result') return reviewResultView(block, action)
 		if (block.type === 'note_change') return noteChangeView(block, action)
 		if (block.type === 'change_proposal') return changeView(block, action)
 		return block.type === 'calendar_proposal' ? calendarView(block, action) : { ...block, undo: undoState(action) }

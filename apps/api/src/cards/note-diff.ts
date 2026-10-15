@@ -34,6 +34,92 @@ export function isAddition(before: string, after: string): boolean {
 	return at === old.length
 }
 
+export type ReviewKept = { text: string; kept: string[] }
+
+function editDistance(left: readonly string[], right: readonly string[], limit: number): number {
+	if (Math.abs(left.length - right.length) > limit) return limit + 1
+	let previous = Array.from({ length: right.length + 1 }, (_, index) => index)
+	for (let row = 1; row <= left.length; row++) {
+		const current = [row]
+		let best = row
+		for (let column = 1; column <= right.length; column++) {
+			const cost = left[row - 1] === right[column - 1] ? 0 : 1
+			const value = Math.min(
+				(previous[column] ?? 0) + 1,
+				(current[column - 1] ?? 0) + 1,
+				(previous[column - 1] ?? 0) + cost
+			)
+			current.push(value)
+			best = Math.min(best, value)
+		}
+		if (best > limit) return limit + 1
+		previous = current
+	}
+	return previous[right.length] ?? limit + 1
+}
+
+function typoLimit(line: readonly string[]): number {
+	return Math.max(2, Math.floor(line.length / 10))
+}
+
+export function reviewKeptText(before: string, after: string): ReviewKept {
+	const old = noteLines(before)
+	const next = noteLines(after)
+	const mapped: (number | null)[] = old.map(() => null)
+	const accepted = old.map((line) => line === '')
+	const taken = new Set<number>()
+	old.forEach((line, index) => {
+		if (line === '') return
+		const at = next.indexOf(line)
+		if (at < 0) return
+		accepted[index] = true
+		mapped[index] = at
+		taken.add(at)
+	})
+	const oldSet = new Set(old)
+	next.forEach((line, index) => {
+		if (oldSet.has(line)) taken.add(index)
+	})
+	old.forEach((line, index) => {
+		if (accepted[index]) return
+		const chars = Array.from(line)
+		const limit = typoLimit(chars)
+		const at = next.findIndex(
+			(candidate, place) =>
+				!taken.has(place) && candidate !== '' && editDistance(chars, Array.from(candidate), limit) <= limit
+		)
+		if (at < 0) return
+		accepted[index] = true
+		mapped[index] = at
+		taken.add(at)
+	})
+	old.forEach((line, index) => {
+		if (accepted[index]) return
+		const twin = old.findIndex((other, place) => place !== index && other === line && accepted[place])
+		if (twin < 0) return
+		accepted[index] = true
+		mapped[index] = mapped[twin] ?? null
+	})
+	const inserts = new Map<number, string[]>()
+	const kept: string[] = []
+	let anchor = -1
+	old.forEach((line, index) => {
+		const place = mapped[index]
+		if (accepted[index]) {
+			if (place !== null && place !== undefined) anchor = place
+			return
+		}
+		kept.push(line)
+		inserts.set(anchor, [...(inserts.get(anchor) ?? []), line])
+	})
+	if (kept.length === 0) return { text: next.join('\n'), kept }
+	const lines = [...(inserts.get(-1) ?? [])]
+	next.forEach((line, index) => {
+		lines.push(line, ...(inserts.get(index) ?? []))
+	})
+	return { text: lines.join('\n'), kept }
+}
+
 function flatLines(before: string, after: string): NoteLine[] {
 	const asText = (text: string) => {
 		const lines = noteLines(text)

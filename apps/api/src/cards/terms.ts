@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm'
 
 import type { StudentTerm, TermAddedBy, TermRemovedBy, TermView } from '@dv-lab/contracts'
 import { type DbExecutor, studentTerms, students, violatesUnique } from '@dv-lab/db'
@@ -142,6 +142,47 @@ export async function updateTermNote(
 		.where(and(eq(studentTerms.id, termId), eq(studentTerms.studentId, studentId)))
 		.returning(termColumns)
 	return row ? toTerm(row) : null
+}
+
+export type TermState = Pick<StudentTerm, 'term' | 'note' | 'removedAt'>
+
+export type UpdateTermResult =
+	{ kind: 'ok'; term: StudentTerm } | { kind: 'changed' } | { kind: 'not_found' } | { kind: 'term_exists' }
+
+export async function updateTerm(
+	executor: DbExecutor,
+	studentId: string,
+	termId: string,
+	input: TermInput,
+	expected: TermState
+): Promise<UpdateTermResult> {
+	const [locked] = await executor
+		.select({ ...termColumns, studentId: studentTerms.studentId })
+		.from(studentTerms)
+		.where(eq(studentTerms.id, termId))
+		.for('update')
+	if (!locked || locked.studentId !== studentId) return { kind: 'not_found' }
+	const current = toTerm(locked)
+	if (current.term !== expected.term || current.note !== expected.note || current.removedAt !== expected.removedAt)
+		return { kind: 'changed' }
+	const [clash] = await executor
+		.select({ id: studentTerms.id })
+		.from(studentTerms)
+		.where(
+			and(
+				eq(studentTerms.studentId, studentId),
+				sql`lower(${studentTerms.term}) = lower(${input.term})`,
+				ne(studentTerms.id, termId)
+			)
+		)
+	if (clash) return { kind: 'term_exists' }
+	const [row] = await executor
+		.update(studentTerms)
+		.set({ term: input.term, note: input.note })
+		.where(eq(studentTerms.id, termId))
+		.returning(termColumns)
+	if (!row) throw new Error('student term update returned no row')
+	return { kind: 'ok', term: toTerm(row) }
 }
 
 export async function deleteTerm(executor: DbExecutor, studentId: string, termId: string): Promise<boolean> {

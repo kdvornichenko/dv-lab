@@ -55,6 +55,7 @@ import { ESSAY_NOTE, ESSAY_TOOL_NAME, essayFeedbackInput } from './essay.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
 import { type NoteOutcome, addVocabulary, createNoteBlock, removeVocabulary } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
+import { REVIEW_TOOL_ENTRIES } from './review.ts'
 import {
 	type ChatToolEntry,
 	type ToolContext,
@@ -1165,15 +1166,21 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		step: { student: null, search: null, period: 'range' },
 		run: calendarEvents,
 	}),
+
+	...REVIEW_TOOL_ENTRIES,
 ]
 
-export const CHAT_TOOLS = chatTools(CHAT_TOOL_ENTRIES)
+export const CHAT_TOOLS = chatTools(CHAT_TOOL_ENTRIES.filter((entry) => entry.review !== true))
 
 export const ESSAY_TOOLS = chatTools(CHAT_TOOL_ENTRIES.filter((entry) => entry.effect === 'feedback'))
+
+export const REVIEW_TOOLS = chatTools(CHAT_TOOL_ENTRIES.filter((entry) => entry.review === true))
 
 export async function runTool(context: ToolContext, name: string, input: unknown): Promise<ToolOutcome> {
 	const entry = toolEntry(CHAT_TOOL_ENTRIES, name)
 	if (entry === undefined) return failure('unknown_tool')
+	if ((entry.review === true) !== (context.review !== undefined))
+		return failure(context.review === undefined ? 'unknown_tool' : 'read_only_review')
 	if (context.essay && !isReadOnly(entry)) return failure('read_only_essay')
 	if (!entry.input.safeParse(input).success) return failure('invalid_arguments')
 	return entry.run(context, input)

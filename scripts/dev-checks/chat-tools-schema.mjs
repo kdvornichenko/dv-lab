@@ -4,7 +4,7 @@ import { isDeepStrictEqual, parseEnv } from 'node:util'
 
 import { ROOT } from './paths.mjs'
 
-const { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
+const { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, REVIEW_TOOLS } = await import(`${ROOT}/apps/api/src/chat/tools.ts`)
 const { isReadOnly, toAnthropicTool } = await import(`${ROOT}/apps/api/src/chat/tool-registry.ts`)
 const { ESSAY_TOOL_NAME } = await import(`${ROOT}/apps/api/src/chat/essay.ts`)
 const { CHAT_STEP_TOOLS } = await import(`${ROOT}/packages/contracts/src/index.ts`)
@@ -76,7 +76,7 @@ function entryIssues(entry) {
 		const rejected = property.enum.filter((value) => !field.safeParse(value).success)
 		if (rejected.length > 0) issues.push(`zod rejects json enum ${key}=${rejected.join('|')}`)
 	}
-	const sent = CHAT_TOOLS.find((tool) => tool.name === entry.name)
+	const sent = [...CHAT_TOOLS, ...REVIEW_TOOLS].find((tool) => tool.name === entry.name)
 	const required = keys.filter((key) => !entry.optional.includes(key))
 	if (!sent || !isDeepStrictEqual(sent.input_schema.required, required))
 		issues.push(`required in json differs from keys without optional`)
@@ -90,8 +90,18 @@ check(
 	names.filter((name, index) => names.indexOf(name) !== index).join(',')
 )
 check(
-	'registry: CHAT_TOOLS is the registry in the same order',
-	isDeepStrictEqual(CHAT_TOOLS, CHAT_TOOL_ENTRIES.map(toAnthropicTool))
+	'registry: CHAT_TOOLS is the registry without the review tools in the same order',
+	isDeepStrictEqual(CHAT_TOOLS, CHAT_TOOL_ENTRIES.filter((entry) => entry.review !== true).map(toAnthropicTool))
+)
+check(
+	'registry: the review turn tools are review_read and apply_review only, review_read is read-only',
+	isDeepStrictEqual(
+		REVIEW_TOOLS.map((tool) => tool.name),
+		['review_read', 'apply_review']
+	) &&
+		isDeepStrictEqual(REVIEW_TOOLS, CHAT_TOOL_ENTRIES.filter((entry) => entry.review === true).map(toAnthropicTool)) &&
+		isReadOnly(CHAT_TOOL_ENTRIES.find((entry) => entry.name === 'review_read')) &&
+		REVIEW_TOOLS.every((tool) => tool.strict !== true)
 )
 const drift = CHAT_TOOL_ENTRIES.map((entry) => [entry.name, entryIssues(entry)]).filter(
 	([, issues]) => issues.length > 0
@@ -146,6 +156,7 @@ check(
 for (const [label, tools] of [
 	['chat tools', CHAT_TOOLS],
 	['essay turn tools', ESSAY_TOOLS],
+	['review turn tools', REVIEW_TOOLS],
 ]) {
 	const found = shape(tools)
 	console.log(
@@ -169,6 +180,7 @@ if (key === null) {
 	for (const [label, tools] of [
 		['chat tools', CHAT_TOOLS],
 		['essay turn tools', ESSAY_TOOLS],
+		['review turn tools', REVIEW_TOOLS],
 	]) {
 		try {
 			const message = await client.messages.create({

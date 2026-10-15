@@ -45,7 +45,26 @@ const noteTarget = z.discriminatedUnion('op', [
 	z.object({ op: z.literal('block_delete'), ...blockRef }),
 	z.object({ op: z.literal('words_add'), studentId: z.uuid() }),
 	z.object({ op: z.literal('words_remove'), studentId: z.uuid() }),
+	z.object({ op: z.literal('review'), studentId: z.uuid() }),
 ])
+
+const termSnapshot = z.object({ termId: z.uuid(), term: z.string(), note: z.string().nullable() })
+
+const reviewBefore = z.object({
+	blocks: z.array(z.object({ blockId: z.uuid(), body: z.string(), revision: z.number().int().min(1) })),
+	words: z.array(termSnapshot),
+})
+
+const reviewAfter = z.object({
+	blocks: z.array(z.object({ blockId: z.uuid(), revision: z.number().int().min(1) })),
+	words: z.array(termSnapshot),
+	removedWords: z.array(z.uuid()),
+	entries: z.array(z.object({ entryId: z.uuid(), revision: z.number().int().min(1) })),
+})
+
+export type ReviewRecord = { before: z.infer<typeof reviewBefore>; after: z.infer<typeof reviewAfter> }
+
+export type ReviewEnd = 'nothing' | 'changed'
 
 const revisionAfter = z.object({ revision: z.number().int().min(1) })
 
@@ -328,6 +347,26 @@ export async function appendNoteLine(
 	return appendToBlock(executor, context, source, card, block, current === '' ? added : `${current}\n${added}`)
 }
 
+export function reviewAction(
+	executor: DbExecutor,
+	context: ChatContext,
+	source: ActionSource,
+	studentId: string,
+	record: ReviewRecord | ReviewEnd
+): Promise<string> {
+	const target = { op: 'review', studentId }
+	if (typeof record === 'string')
+		return insertAction(executor, {
+			accountId: context.accountId,
+			...source,
+			kind: 'note',
+			state: 'refused',
+			target,
+			result: { kind: record },
+		})
+	return receiptAction(executor, context, source, { target, ...record })
+}
+
 export function isNoteWrite(action: Pick<typeof chatActions.$inferSelect, 'kind' | 'target'>): boolean {
 	return action.kind === 'note' && noteTarget.safeParse(action.target).success
 }
@@ -340,6 +379,7 @@ export async function undoNoteWrite(
 	if (target.op === 'words_add') return undoWordsAdded(executor, target.studentId, wordsAdded.parse(action.after))
 	if (target.op === 'words_remove')
 		return undoWordsRemoved(executor, target.studentId, wordsRemoved.parse(action.after))
+	if (target.op === 'review') return { ok: false, issue: 'block_changed' }
 	const after = revisionAfter.parse(action.after)
 	const outcome =
 		target.op === 'block_text'

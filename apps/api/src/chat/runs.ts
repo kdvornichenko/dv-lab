@@ -36,6 +36,7 @@ import {
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { EventTitles } from '../calendar/event-titles.ts'
 import { studentGenders } from '../cards/cards.ts'
+import { clearReviewRunning, markReviewRunning } from '../cards/note-reviews.ts'
 import { readAssistantSettings, readTeacherSettings } from '../settings/settings.ts'
 import type { Admission, ChatContext, TurnStarter } from './actions.ts'
 import { markDispatched, markUnknown, release, reserveAttempt, settleAttempt, usageOf } from './budget.ts'
@@ -58,9 +59,10 @@ import {
 	resolveCites,
 	sentenceSplitter,
 } from './publish-gate.ts'
+import { REVIEW_ONE_STUDENT, REVIEW_TASK, REVIEW_COMMAND, type ReviewSession, reviewStudent } from './review.ts'
 import { nameConversation, titleAnswered } from './title.ts'
 import { type ToolContext, stepRule } from './tool-registry.ts'
-import { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, runTool, weekdayName } from './tools.ts'
+import { CHAT_TOOLS, CHAT_TOOL_ENTRIES, ESSAY_TOOLS, REVIEW_TOOLS, runTool, weekdayName } from './tools.ts'
 import { type NewTurn, type TurnRow, isActive, insertTurn, readTurn, toTurn } from './turns.ts'
 
 export type ChatListener = (event: ChatStreamEvent) => void
@@ -88,6 +90,7 @@ type Run = {
 	link: ChatActionLinkBlock | null
 	essay: boolean
 	essayTurn: boolean
+	review: ReviewSession | null
 }
 
 type Ending = {
@@ -196,13 +199,17 @@ function blockNote(block: Exclude<ChatBlock, { type: 'suggestions' }>): string {
 			return `[Showed a link to the ${block.kind} page${block.studentName === null ? '' : ` of ${block.studentName}`}]`
 		case 'essay':
 			return '[Gave approximate essay feedback]'
+		case 'review_result':
+			return block.issue === 'changed'
+				? `[The review of the notes of ${block.studentName} did not finish: the notes changed]`
+				: `[Reviewed the notes of ${block.studentName}]`
 	}
 }
 
 function pastMessage(message: ChatMessage, texts: CommandTexts): Anthropic.MessageParam | null {
 	if (message.role === 'teacher') {
 		const lines = mentionLines(message.mentions)
-		const body = expandCommand(message.body, texts)
+		const body = expandCommand(message, texts)
 		const text = lines.length === 0 ? body : `${body}\n\nMentioned:\n${lines.join('\n')}`
 		return { role: 'user', content: text }
 	}
@@ -213,7 +220,13 @@ function pastMessage(message: ChatMessage, texts: CommandTexts): Anthropic.Messa
 
 const RECAP_COMMAND = /^\s*\/recap\b\s*/iu
 
-function expandCommand(body: string, texts: CommandTexts): string {
+function expandCommand(message: Pick<ChatMessage, 'body' | 'mentions'>, texts: CommandTexts): string {
+	const body = message.body
+	if (REVIEW_COMMAND.test(body)) {
+		if (reviewStudent(body, message.mentions) === null) return REVIEW_ONE_STUDENT
+		const rest = body.replace(REVIEW_COMMAND, '').trim()
+		return rest === '' ? REVIEW_TASK : `${REVIEW_TASK}\n\nThe teacher wrote: ${rest}`
+	}
 	const command = RECAP_COMMAND.test(body) ? RECAP_COMMAND : ESSAY_COMMAND.test(body) ? ESSAY_COMMAND : null
 	if (command === null) return body
 	const rest = body.replace(command, '').trim()
@@ -238,7 +251,7 @@ function currentMessage(
 		`Lesson day: ${day} (${weekdayName(new Date(`${day}T12:00:00Z`), 'UTC')})`,
 		...(lines.length === 0 ? [] : ['Mentioned students:', ...lines]),
 		'[Message]',
-		expandCommand(message.body, texts),
+		expandCommand(message, texts),
 	]
 	return { role: 'user', content: context.join('\n') }
 }
@@ -616,7 +629,12 @@ export function createChat({
 			run.essay = true
 			gate.scores = true
 		}
-		const tools = run.essayTurn ? ESSAY_TOOLS : CHAT_TOOLS
+		const reviewed = run.essayTurn ? null : reviewStudent(loaded.current.body, loaded.current.mentions)
+		if (reviewed !== null) {
+			run.review = { studentId: reviewed, read: null, finished: false }
+			await markReviewRunning(db, reviewed, turn.conversationId)
+		}
+		const tools = run.essayTurn ? ESSAY_TOOLS : run.review !== null ? REVIEW_TOOLS : CHAT_TOOLS
 		gate.dates.add(local.date)
 		gate.dates.add(lessonDay(start.now, zone))
 		gate.times.add(local.time)
@@ -773,6 +791,10 @@ export function createChat({
 			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
 			return { content: JSON.stringify({ error: 'read_only_essay' }), isError: true, block: null }
 		}
+		if (run.review !== null && !REVIEW_TOOLS.some((item) => item.name === use.name)) {
+			logger.info({ turnId: turn.id, tool: use.name, isError: true }, 'chat tool finished')
+			return { content: JSON.stringify({ error: 'read_only_review' }), isError: true, block: null }
+		}
 		const chat = await context(turn.accountId)
 		let published: { seq: number; block: ChatBlock } | null = null
 		const step = await stepOf(run, use, zone, chat.now)
@@ -789,6 +811,7 @@ export function createChat({
 				shown: shownFacts,
 				essay: run.essay,
 				eventTitles,
+				...(run.review === null ? {} : { review: run.review }),
 			}
 			const outcome = await runTool(toolContext, use.name, use.input)
 			run.essay = toolContext.essay
@@ -827,7 +850,14 @@ export function createChat({
 			logger.error({ err, turnId: turn.id }, 'chat turn failed')
 			result = ending('failed', 'provider_unavailable', [{ type: 'refused', code: 'provider_unavailable' }])
 		}
-		await finish(run, turn, result)
+		try {
+			await finish(run, turn, result)
+		} finally {
+			if (run.review !== null)
+				await clearReviewRunning(db, run.review.studentId, turn.conversationId).catch((err: unknown) =>
+					logger.error({ err, turnId: turn.id }, 'chat review flag was not cleared')
+				)
+		}
 		if (titleAnswered(result.state, result.issue) && !run.closing)
 			await nameConversation({ db, logger, provider }, turn, run.controller.signal)
 	}
@@ -847,6 +877,7 @@ export function createChat({
 			link: null,
 			essay: false,
 			essayTurn: false,
+			review: null,
 		}
 		runs.set(turnId, run)
 		run.done = execute(run)

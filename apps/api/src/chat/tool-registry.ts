@@ -8,6 +8,7 @@ import type { Database, DbExecutor } from '@dv-lab/db'
 import type { EventTitles } from '../calendar/event-titles.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
 import type { Issued } from './publish-gate.ts'
+import type { ReviewSession } from './review.ts'
 
 export type ToolContext = {
 	db: Database
@@ -18,6 +19,7 @@ export type ToolContext = {
 	shown: Set<string>
 	essay: boolean
 	eventTitles?: EventTitles
+	review?: ReviewSession
 }
 
 export type ToolOutcome = { content: string; isError: boolean; block: ChatBlock | null }
@@ -39,6 +41,7 @@ export type ChatToolEntry = {
 	strict: boolean
 	effect: ToolEffect
 	step: ToolStep | null
+	review?: boolean
 	run: (context: ToolContext, input: unknown) => Promise<ToolOutcome>
 }
 

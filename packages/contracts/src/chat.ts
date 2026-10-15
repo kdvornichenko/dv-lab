@@ -813,6 +813,40 @@ export const chatEssayBlock = z.strictObject({
 	task: z.enum(CHAT_ESSAY_TASKS).nullable(),
 })
 
+export const REVIEW_COMMAND_TEXT = '/review'
+
+export const CHAT_REVIEW_UNDO = ['available', 'undone', 'unavailable', 'none'] as const
+
+export const CHAT_REVIEW_ISSUES = ['changed', 'block_changed'] as const
+
+export const CHAT_REVIEW_ITEMS_MAX = 50
+
+export const CHAT_REVIEW_ITEM_MAX_LENGTH = 600
+
+const chatReviewItem = z.strictObject({
+	text: z.string().min(1).max(CHAT_REVIEW_ITEM_MAX_LENGTH),
+	block: z
+		.strictObject({
+			blockId: z.uuid(),
+			blockKey: z.string().min(1),
+			blockName: z.string(),
+		})
+		.optional(),
+})
+
+export const chatReviewResultBlock = z.strictObject({
+	type: z.literal('review_result'),
+	actionId: z.uuid(),
+	studentId: z.uuid(),
+	studentName: z.string(),
+	finishedAt: calendarInstant,
+	fixed: z.array(chatReviewItem).max(CHAT_REVIEW_ITEMS_MAX),
+	found: z.array(chatReviewItem).max(CHAT_REVIEW_ITEMS_MAX),
+	decisions: z.array(chatReviewItem).max(CHAT_REVIEW_ITEMS_MAX * 3),
+	undo: z.enum(CHAT_REVIEW_UNDO),
+	issue: z.enum(CHAT_REVIEW_ISSUES).optional(),
+})
+
 export const chatBlock = z.discriminatedUnion('type', [
 	chatActionResultBlock,
 	chatClarifyBlock,
@@ -832,6 +866,7 @@ export const chatBlock = z.discriminatedUnion('type', [
 	chatLessonDatesBlock,
 	chatActionLinkBlock,
 	chatEssayBlock,
+	chatReviewResultBlock,
 ])
 
 export const chatRecordsRefreshRequest = z.strictObject({ key: chatRecordsKey })
@@ -854,6 +889,8 @@ export type ChatReadFailedBlock = z.infer<typeof chatReadFailedBlock>
 export type ChatLessonDatesBlock = z.infer<typeof chatLessonDatesBlock>
 export type ChatActionLinkBlock = z.infer<typeof chatActionLinkBlock>
 export type ChatEssayBlock = z.infer<typeof chatEssayBlock>
+export type ChatReviewResultBlock = z.infer<typeof chatReviewResultBlock>
+export type ChatReviewItem = z.infer<typeof chatReviewItem>
 export type ChatActionLinkKind = (typeof CHAT_ACTION_LINK_KINDS)[number]
 export type ChatActionLinkDialog = (typeof CHAT_ACTION_LINK_DIALOGS)[number]
 export type ChatSettingsTab = (typeof CHAT_SETTINGS_TABS)[number]
@@ -903,6 +940,8 @@ export const CHAT_STEP_TOOLS = [
 	'propose_bulk_move',
 	'essay_feedback',
 	'calendar_events',
+	'review_read',
+	'apply_review',
 	'answer',
 ] as const
 
@@ -1001,7 +1040,12 @@ export const undoRequest = z.strictObject({ requestId: z.uuid() })
 export type UndoRequest = z.infer<typeof undoRequest>
 
 export const undoResponse = z.strictObject({
-	block: z.discriminatedUnion('type', [chatActionResultBlock, chatCalendarProposalBlock, chatNoteChangeBlock]),
+	block: z.discriminatedUnion('type', [
+		chatActionResultBlock,
+		chatCalendarProposalBlock,
+		chatNoteChangeBlock,
+		chatReviewResultBlock,
+	]),
 })
 
 export type UndoResponse = z.infer<typeof undoResponse>
