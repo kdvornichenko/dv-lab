@@ -21,6 +21,7 @@ import { chatRoutes } from './routes/chat.ts'
 import { googleNotificationRoutes } from './routes/google-notifications.ts'
 import { googleRoutes } from './routes/google.ts'
 import { paymentRoutes } from './routes/payments.ts'
+import { type PushPublicConfig, pushRoutes } from './routes/push.ts'
 import { scheduleRoutes } from './routes/schedule.ts'
 import { settingsRoutes } from './routes/settings.ts'
 import { studentRoutes } from './routes/students.ts'
@@ -40,6 +41,7 @@ export type AppDeps = {
 	calendarWake?: (connectionId: string) => void
 	eventTitles?: EventTitles
 	chat?: ChatRunner
+	push?: PushPublicConfig
 }
 
 function clientErrorBody(status: number) {
@@ -114,6 +116,7 @@ export function createApp(deps: AppDeps) {
 	)
 	app.route('/settings', settingsRoutes({ db: deps.db, availability: deps.chat?.availability }))
 	app.route('/today', todayRoutes({ db: deps.db }))
+	app.route('/push', pushRoutes({ db: deps.db, push: deps.push }))
 	app.onError((err: Error, c: Context<AppEnv, string, {}>) => {
 		if (err instanceof HTTPException && err.status >= 400 && err.status < 500) {
 			return c.json(clientErrorBody(err.status), err.status)

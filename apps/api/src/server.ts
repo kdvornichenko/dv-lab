@@ -120,6 +120,7 @@ const app = createApp({
 	calendarCommands: calendar?.commands,
 	eventTitles: calendar?.eventTitles,
 	calendarWake: calendar ? (connectionId) => void calendar.sync.wake(connectionId) : undefined,
+	push: config.push.enabled ? { enabled: true, publicKey: config.push.publicKey } : { enabled: false },
 })
 
 const wss = new WebSocketServer({ noServer: true, maxPayload: 65536 })
