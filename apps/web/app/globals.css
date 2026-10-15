@@ -3,7 +3,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @utility no-scrollbar {
-	scrollbar-width: none;
+	scrollbar-width: none !important;
 	&::-webkit-scrollbar {
 		display: none;
 	}
