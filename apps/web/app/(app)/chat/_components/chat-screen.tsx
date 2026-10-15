@@ -370,6 +370,7 @@ export function ChatScreen({
 										onConfirm: (actionId) => chat.decideChange(actionId, 'confirm'),
 										onDecline: (actionId) => chat.decideChange(actionId, 'decline'),
 										onRefresh: chat.refreshThread,
+										onUndo: chat.undo,
 									}}
 									replies={{
 										onAsk: () => later(() => input.current?.focus()),

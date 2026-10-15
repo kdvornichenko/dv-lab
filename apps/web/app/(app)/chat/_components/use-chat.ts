@@ -261,11 +261,30 @@ function calendarBlock(messages: readonly ChatMessage[], actionId: string): Chat
 	return null
 }
 
-function changeBlock(messages: readonly ChatMessage[], actionId: string): ChatChangeProposalBlock | null {
+function changeBlock(
+	messages: readonly ChatMessage[],
+	actionId: string
+): ChatChangeProposalBlock | ChatNoteChangeBlock | null {
 	for (const message of messages)
 		for (const block of message.blocks)
-			if (block.type === 'change_proposal' && block.actionId === actionId) return block
+			if ((block.type === 'change_proposal' || block.type === 'note_change') && block.actionId === actionId)
+				return block
 	return null
+}
+
+function noteUndoLost(messages: readonly ChatMessage[], actionId: string): ChatMessage[] {
+	return messages.map((message) => ({
+		...message,
+		blocks: message.blocks.map((block) =>
+			block.type === 'note_change' && block.actionId === actionId && block.undo === 'available'
+				? {
+						...block,
+						undo: 'unavailable' as const,
+						issue: block.target.kind === 'vocabulary' ? ('words_changed' as const) : ('block_changed' as const),
+					}
+				: block
+		),
+	}))
 }
 
 function withUndo(messages: readonly ChatMessage[], actionId: string, undo: ChatUndoState): ChatMessage[] {
@@ -816,10 +835,12 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				shownCalendar(conversationId, parsed.data.block)
 				void calendar.store.refresh()
 			} else if (parsed?.success) updateThread(conversationId, (messages) => withBlock(messages, parsed.data.block))
-			else
+			else {
 				updateThread(conversationId, (messages) =>
 					withUndo(messages, actionId, result.status === 409 ? 'stale' : 'available')
 				)
+				if (result.status === 409) updateThread(conversationId, (messages) => noteUndoLost(messages, actionId))
+			}
 		},
 		[calendar, shownCalendar, updateThread]
 	)
@@ -866,11 +887,15 @@ export function useChat(initialConversationId: string | null, options: { startNe
 				shownCalendar(conversationId, block)
 				return
 			}
+			if (block.type === 'note_change') {
+				updateThread(conversationId, (messages) => withBlock(messages, block))
+				return
+			}
 			if (block.type !== 'change_proposal') return
 			const current = threadRef.current.state
 			const before = current.kind === 'ready' ? changeBlock(current.messages, actionId) : null
 			updateThread(conversationId, (messages) => withBlock(messages, block))
-			landed(before, block)
+			landed(before?.type === 'change_proposal' ? before : null, block)
 		},
 		[landed, shownCalendar, updateThread]
 	)
@@ -912,10 +937,14 @@ export function useChat(initialConversationId: string | null, options: { startNe
 			const result = await apiRequest<unknown>('POST', `/chat/actions/${actionId}/${decision}`, {})
 			if (!mounted.current) return true
 			const parsed = result.ok ? chatActionResponse.safeParse(result.data) : null
-			if (parsed?.success && parsed.data.block.type === 'change_proposal') {
-				const shown = parsed.data.block
+			const shown = parsed?.success ? parsed.data.block : null
+			if (
+				shown !== null &&
+				(shown.type === 'change_proposal' || shown.type === 'note_change') &&
+				shown.type === block.type
+			) {
 				updateThread(conversationId, (messages) => withBlock(messages, shown))
-				landed(block, shown)
+				if (block.type === 'change_proposal' && shown.type === 'change_proposal') landed(block, shown)
 				void readQuietly()
 				return true
 			}

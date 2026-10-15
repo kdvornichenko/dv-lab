@@ -42,9 +42,9 @@ type Words = { question: string; confirm: string; decline: string; busy: string;
 
 const WAITING = 'Waiting for your decision.'
 
-const TOUCH = 'pointer-coarse:h-11'
+export const TOUCH = 'pointer-coarse:h-11'
 
-function Spinner({ size }: { size?: number }) {
+export function Spinner({ size }: { size?: number }) {
 	return <LoaderCircle size={size ?? 16} className="animate-spin" aria-hidden />
 }
 
@@ -141,7 +141,7 @@ function lessonsText(hundredths: number): string {
 	return `${formatHundredths(hundredths)} ${hundredths === 100 ? 'lesson' : 'lessons'}`
 }
 
-function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
+export function Header({ icon, text, children }: { icon: ReactNode; text: string; children?: ReactNode }) {
 	return (
 		<div className="flex items-start gap-2">
 			<span className="flex shrink-0 pt-0.5 text-muted-foreground">{icon}</span>
@@ -151,7 +151,7 @@ function Header({ icon, text, children }: { icon: ReactNode; text: string; child
 	)
 }
 
-function Caption({ children }: { children: ReactNode }) {
+export function Caption({ children }: { children: ReactNode }) {
 	return <p className="pl-6 text-caption wrap-anywhere text-muted-foreground tabular-nums">{children}</p>
 }
 

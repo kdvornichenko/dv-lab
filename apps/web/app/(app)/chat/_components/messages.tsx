@@ -30,6 +30,7 @@ import { ActionResult } from './action-result'
 import { BulkMoveProposal, isBulkMove } from './bulk-move-proposal'
 import { CalendarProposal } from './calendar-proposal'
 import { ChangeProposal } from './change-proposal'
+import { ChatNoteChange } from './chat-note-change'
 import { ChatProgress } from './chat-progress'
 import { EssayFeedback, type EssayOutcome } from './essay-feedback'
 import { RecordBlockView, isRecordBlock } from './fact-blocks'
@@ -47,6 +48,7 @@ export type ChangeHandlers = {
 	onConfirm: (actionId: string) => Promise<boolean>
 	onDecline: (actionId: string) => Promise<boolean>
 	onRefresh: () => Promise<boolean>
+	onUndo: (actionId: string) => Promise<void>
 }
 
 export type ReplyHandlers = {
@@ -251,6 +253,7 @@ function Block({
 		) : (
 			<ChangeProposal block={block} {...changes} />
 		)
+	if (block.type === 'note_change') return <ChatNoteChange block={block} {...changes} />
 	if (block.type === 'refused') return <Refused block={block} />
 	if (isRecordBlock(block)) return <RecordBlockView block={block} followUp={followUp} />
 	if (block.type === 'action_link') return <ActionLink block={block} />
@@ -476,7 +479,8 @@ export function Messages({
 										key={
 											block.type === 'action_result' ||
 											block.type === 'calendar_proposal' ||
-											block.type === 'change_proposal'
+											block.type === 'change_proposal' ||
+											block.type === 'note_change'
 												? block.actionId
 												: `${message.id}-${index}`
 										}
