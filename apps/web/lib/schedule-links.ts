@@ -1,4 +1,12 @@
-import type { ChatActionLinkBlock, ChatChangeProposalBlock, ScheduleOccurrenceRef } from '@dv-lab/contracts'
+import {
+	encodeLessonRef,
+	lessonLink,
+	type ChatActionLinkBlock,
+	type ChatChangeProposalBlock,
+	type ScheduleOccurrenceRef,
+} from '@dv-lab/contracts'
+
+export { encodeLessonRef }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -7,10 +15,6 @@ export function isCalendarDay(value: string | null | undefined): value is string
 	if (value === null || value === undefined || !DATE.test(value)) return false
 	const parsed = new Date(`${value}T00:00:00Z`)
 	return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
-}
-
-export function encodeLessonRef(ref: ScheduleOccurrenceRef): string {
-	return ref.kind === 'single' ? `single:${ref.lessonId}` : `series:${ref.seriesId}:${ref.originalOn}`
 }
 
 export function parseLessonRef(value: string | null | undefined): ScheduleOccurrenceRef | null {
@@ -23,7 +27,7 @@ export function parseLessonRef(value: string | null | undefined): ScheduleOccurr
 }
 
 export function lessonHref(date: string, ref: ScheduleOccurrenceRef): string {
-	return `/schedule?week=${date}&lesson=${encodeURIComponent(encodeLessonRef(ref))}`
+	return lessonLink(date, ref)
 }
 
 export function dayHref(date: string): string {
