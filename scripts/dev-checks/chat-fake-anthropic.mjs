@@ -60,6 +60,21 @@ function proposalPlan(marker, content, continued, body) {
 		const rate = /rate:\s*(\S+)/.exec(message)?.[1] ?? null
 		return call('propose_rate', { student_id: studentId, rate_text: rate, currency: null, clear: false })
 	}
+	if (marker === 'details-level' || marker === 'details-many') {
+		if (continued) return say('I prepared the change. Confirm it below.')
+		return call(
+			'propose_details',
+			marker === 'details-level'
+				? { student_id: studentId, level_text: 'B2' }
+				: {
+						student_id: studentId,
+						lesson_minutes_text: '90',
+						no_show_deducts: false,
+						goals_text: 'Exam preparation',
+						time_zone: 'Asia/Tokyo',
+					}
+		)
+	}
 	if (marker === 'archive' || marker === 'delete-student') {
 		if (continued) return say('I prepared the change. Confirm it below.')
 		return call('propose_archive', { student_id: studentId, requested_deletion: marker === 'delete-student' })

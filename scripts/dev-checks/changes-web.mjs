@@ -1019,8 +1019,15 @@ async function sectionProposals() {
 					(await stateOf(removal)) === 'proposed' &&
 						text.includes('Permanent student deletion is not available. You can archive this student instead.') &&
 						!text.includes('The account can still sign in') &&
-						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Archive student', 'Keep student active']),
+						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Review archive']),
 					text.replace(/\n/g, ' | ')
+				)
+				await removal.getByRole('button', { name: 'Review archive' }).click()
+				check(
+					'Review archive opens the archive card in place',
+					(await removal.getByRole('button', { name: 'Archive student' }).isVisible()) &&
+						(await removal.getByRole('button', { name: 'Review archive' }).count()) === 0 &&
+						JSON.stringify(await buttonsOf(removal)) === JSON.stringify(['Archive student', 'Keep student active'])
 				)
 				await shot(page, 'changes-proposals', 'delete-student')
 				await removal.getByRole('button', { name: 'Archive student' }).click()
@@ -1452,8 +1459,8 @@ async function sectionBulk() {
 				)
 				await page.getByRole('button', { name: 'Show steps' }).click()
 				check(
-					'the step of the bulk tool reads Preparing to move lessons',
-					(await page.getByText('Preparing to move lessons').count()) > 0
+					'the step of the bulk tool names the lessons to move',
+					(await page.getByText(/Checking .* lessons to move/).count()) > 0
 				)
 				check('the api log has no message text', !started.logs().includes('from: tuesday'))
 
@@ -2539,7 +2546,198 @@ async function sectionFacts() {
 	}
 }
 
+const DETAILS_PORT = 4257
+const DN = { one: 'Alex Example 2410', many: 'Alex Example 2411', stale: 'Alex Example 2412' }
+const DETAILS_WHERE = `display_name like 'Alex Example 241_' and import_key is null`
+
+function removeDetailsCards(conversations = []) {
+	removeConversations(conversations)
+	const cards = `select id from students where ${DETAILS_WHERE}`
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${DETAILS_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(left)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${DETAILS_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+const detailsRow = (name) =>
+	sql(
+		`select id, level, goals, default_lesson_minutes as minutes, no_show_deducts as deducts, time_zone as zone, revision from students where display_name = ${q(name)} and import_key is null`
+	).rows[0]
+
+async function sectionDetails() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const started = await startFakeModelApi(DETAILS_PORT)
+	const conversations = []
+	try {
+		removeDetailsCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await proposalsPrepare(page, apiOrigin, DETAILS_PORT)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				for (const name of Object.values(DN)) {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+				}
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				let shown = 0
+				let chatId = null
+				const ask = async (text, mention) => {
+					const block = await askBlock(page, shown, text, mention)
+					shown++
+					chatId ??= new URL(page.url()).searchParams.get('c')
+					if (chatId && !conversations.includes(chatId)) conversations.push(chatId)
+					return block
+				}
+				const stateOf = (block) => block.getAttribute('data-state')
+				const buttonsOf = async (block) => (await block.getByRole('button').allInnerTexts()).map((text) => text.trim())
+
+				const one = await ask('[fake:details-level] level B2', DN.one)
+				let text = await one.innerText()
+				check(
+					'one field names the card and the buttons and shows the row was to will be',
+					(await stateOf(one)) === 'proposed' &&
+						text.includes(`Change ${DN.one}'s level?`) &&
+						text.includes('Level') &&
+						text.includes('Not set') &&
+						(await one.locator('[data-slot="change-after"]').innerText()).trim() === 'B2' &&
+						text.includes('Only the fields above change. Payments and notes are not touched.') &&
+						JSON.stringify(await buttonsOf(one)) === JSON.stringify(['Save level', 'Keep level']),
+					text.replace(/\n/g, ' | ')
+				)
+				check('a proposal alone writes nothing', detailsRow(DN.one).level === null)
+				await shot(page, 'changes-details', 'one')
+				await one.getByRole('button', { name: 'Save level' }).click()
+				await one.getByText('Level changed.').waitFor({ timeout: 15000 })
+				const href = await one.getByRole('link', { name: /Edit details/ }).getAttribute('href')
+				check(
+					'Save level writes the level and the receipt names the value and links to the details form',
+					detailsRow(DN.one).level === 'B2' &&
+						(await one.innerText()).includes(`${DN.one}: Level B2.`) &&
+						(href ?? '').includes('dialog=details'),
+					href
+				)
+
+				const many = await ask('[fake:details-many] 90 minutes, no-show off, Exam preparation, Asia/Tokyo', DN.many)
+				text = await many.innerText()
+				const labels = (await many.locator('p.text-caption').allInnerTexts()).map((label) => label.trim())
+				check(
+					'several fields come in one card in the Details order with the city and offset of the zone',
+					(await stateOf(many)) === 'proposed' &&
+						text.includes(`Change ${DN.many}'s details?`) &&
+						JSON.stringify(
+							labels.filter((label) => ['Lesson length', 'No-show', 'Goals', 'Time zone'].includes(label))
+						) === JSON.stringify(['Lesson length', 'No-show', 'Goals', 'Time zone']) &&
+						text.includes('60 min') &&
+						text.includes('90 min') &&
+						text.includes('Deducts a lesson') &&
+						text.includes('Deducts nothing') &&
+						text.includes('Same as teacher') &&
+						text.includes('Tokyo (UTC+9)') &&
+						!text.includes('Asia/Tokyo'),
+					text.replace(/\n/g, ' | ')
+				)
+				check(
+					'a long value stacks Now over New and is not struck through',
+					text.includes('Now') &&
+						text.includes('New') &&
+						text.includes('Exam preparation') &&
+						(await many.locator('.line-through').count()) === 0
+				)
+				check(
+					'the one line is the balance line and the buttons are Save changes and Keep details',
+					text.includes('The balance is recalculated for all lessons.') &&
+						JSON.stringify(await buttonsOf(many)) === JSON.stringify(['Save changes', 'Keep details'])
+				)
+				await shot(page, 'changes-details', 'several')
+				await many.getByRole('button', { name: 'Save changes' }).click()
+				await many.getByText('Details changed.').waitFor({ timeout: 15000 })
+				const written = detailsRow(DN.many)
+				const receipt = await many.innerText()
+				check(
+					'Save changes writes the fields and the receipt lists the values',
+					written.minutes === 90 &&
+						written.deducts === false &&
+						written.goals === 'Exam preparation' &&
+						written.zone === 'Asia/Tokyo' &&
+						receipt.includes('Lesson length 90 min') &&
+						receipt.includes('Time zone Tokyo (UTC+9)'),
+					JSON.stringify(written)
+				)
+
+				const staleCard = await ask('[fake:details-level] level B2', DN.stale)
+				sql(
+					`update students set level = 'A1', revision = revision + 1 where display_name = ${q(DN.stale)} and import_key is null`
+				)
+				await staleCard.getByRole('button', { name: 'Save level' }).click()
+				await staleCard.getByText('This proposal is out of date. Nothing was changed.').waitFor({ timeout: 15000 })
+				check(
+					'a card changed after the proposal makes it stale with no buttons and keeps the new value',
+					(await stateOf(staleCard)) === 'stale' &&
+						(await staleCard.getByRole('button').count()) === 0 &&
+						detailsRow(DN.stale).level === 'A1'
+				)
+
+				const stepButtons = page.getByRole('button', { name: 'Show steps' })
+				for (let index = (await stepButtons.count()) - 1; index >= 0; index -= 1) await stepButtons.nth(index).click()
+				check(
+					'the step of the details tool names the student and carries no figure',
+					(await page.getByText(`Changing ${DN.one}'s details`).count()) > 0
+				)
+
+				await page.setViewportSize({ width: 375, height: 812 })
+				await page.reload()
+				await page.locator(CHANGE).first().waitFor({ timeout: 30000 })
+				const rowsBox = await page
+					.locator(CHANGE)
+					.nth(1)
+					.evaluate((node) => {
+						const box = node.getBoundingClientRect()
+						return { left: box.left, right: box.right }
+					})
+				const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+				check(
+					'at 375 px the details card stays inside the screen and the page does not scroll sideways',
+					rowsBox.left >= 0 && rowsBox.right <= 375 && overflow <= 0,
+					JSON.stringify({ rowsBox, overflow })
+				)
+				await page.locator(CHANGE).nth(1).scrollIntoViewIfNeeded()
+				await shot(page, 'changes-details', 'phone')
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeDetailsCards(conversations)
+		)
+	} finally {
+		await stopFakeModelApi(started)
+		removeDetailsCards(conversations)
+	}
+}
+
 const sections = {
+	details: sectionDetails,
 	facts: sectionFacts,
 	payment: sectionPayment,
 	forms: sectionForms,
