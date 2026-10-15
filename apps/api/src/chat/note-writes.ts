@@ -1,18 +1,18 @@
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-import type { ChatNoteChangeBlock, ChatNoteIssue, NoteBlock } from '@dv-lab/contracts'
+import { type ChatNoteChangeBlock, type ChatNoteIssue, type NoteBlock, createBlockRequest } from '@dv-lab/contracts'
 import { type DbExecutor, chatActions, students } from '@dv-lab/db'
 
-import { lockLiveBlock, saveBlockText } from '../cards/blocks.ts'
-import { isAddition, noteHunks, noteText, sameNote } from '../cards/note-diff.ts'
+import { type BlockWrite, createBlock, deleteBlock, restoreBlock, saveBlockText } from '../cards/blocks.ts'
+import { noteHunks, noteText } from '../cards/note-diff.ts'
 import type { ActionSource, ChatContext } from './actions.ts'
 import { insertAction } from './messages.ts'
 import type { ToolContext } from './tool-registry.ts'
 
 export type NoteCard = { id: string; displayName: string }
 
-export type NoteRefusal = 'student_not_found' | 'block_not_found' | 'rewrite_needs_confirmation'
+export type NoteRefusal = 'student_not_found' | 'block_not_found' | 'block_name_taken' | 'invalid_arguments'
 
 export type NoteOutcome = { kind: 'block'; block: ChatNoteChangeBlock } | { kind: 'refused'; code: NoteRefusal }
 
@@ -20,9 +20,13 @@ export type NoteUndo = { ok: true } | { ok: false; issue?: ChatNoteIssue }
 
 type NoteParts = Partial<Pick<ChatNoteChangeBlock, 'hunks' | 'more' | 'words' | 'state' | 'undo'>>
 
-const blockTextTarget = z.object({ op: z.literal('block_text'), studentId: z.uuid(), blockId: z.uuid() })
+const blockRef = { studentId: z.uuid(), blockId: z.uuid() }
 
-const noteTarget = z.discriminatedUnion('op', [blockTextTarget])
+const noteTarget = z.discriminatedUnion('op', [
+	z.object({ op: z.literal('block_text'), ...blockRef }),
+	z.object({ op: z.literal('block_create'), ...blockRef }),
+	z.object({ op: z.literal('block_delete'), ...blockRef }),
+])
 
 const revisionAfter = z.object({ revision: z.number().int().min(1) })
 
@@ -62,6 +66,12 @@ export function noteChange(
 		state: parts.state ?? null,
 		undo: parts.undo === undefined ? (mode === 'receipt' ? 'available' : null) : parts.undo,
 	}
+}
+
+export function blockIssue(outcome: Exclude<BlockWrite['kind'], 'ok'> | 'name_taken'): ChatNoteIssue {
+	if (outcome === 'not_found') return 'not_found'
+	if (outcome === 'name_taken') return 'name_taken'
+	return 'block_changed'
 }
 
 function receiptAction(
@@ -116,25 +126,48 @@ export async function appendToBlock(
 	return noteChange(actionId, 'receipt', card, blockTarget(saved.block), 'updated', noteHunks(block.body, text))
 }
 
-export function writeNoteBlock(
+export async function deleteEmptyBlock(
+	executor: DbExecutor,
+	context: ChatContext,
+	source: ActionSource,
+	card: NoteCard,
+	block: NoteBlock
+): Promise<ChatNoteChangeBlock | null> {
+	const deleted = await deleteBlock(executor, card.id, block.id, block.revision)
+	if (deleted.kind !== 'ok') return null
+	const actionId = await receiptAction(executor, context, source, {
+		target: { op: 'block_delete', studentId: card.id, blockId: block.id },
+		after: { revision: deleted.block.revision },
+	})
+	return noteChange(actionId, 'receipt', card, blockTarget(block), 'deleted')
+}
+
+export function createNoteBlock(
 	context: ToolContext,
 	studentId: string,
-	blockId: string,
+	name: string,
 	text: string
 ): Promise<NoteOutcome> {
 	return context.db.transaction(async (tx): Promise<NoteOutcome> => {
+		const input = createBlockRequest.safeParse({ name, body: noteText(text) })
+		if (!input.success) return { kind: 'refused', code: 'invalid_arguments' }
 		const card = await noteCard(tx, studentId)
 		if (card === null) return { kind: 'refused', code: 'student_not_found' }
-		const block = await lockLiveBlock(tx, studentId, blockId)
-		if (block === null) return { kind: 'refused', code: 'block_not_found' }
-		const next = noteText(text)
-		let shown: ChatNoteChangeBlock | null
-		if (sameNote(block.body, next))
-			shown = await alreadyWritten(tx, context.chat, context.source, card, blockTarget(block))
-		else if (isAddition(block.body, next))
-			shown = await appendToBlock(tx, context.chat, context.source, card, block, next)
-		else return { kind: 'refused', code: 'rewrite_needs_confirmation' }
-		if (shown === null) return { kind: 'refused', code: 'block_not_found' }
+		const created = await createBlock(tx, studentId, input.data)
+		if (created.kind === 'name_taken') return { kind: 'refused', code: 'block_name_taken' }
+		if (created.kind !== 'ok') return { kind: 'refused', code: 'student_not_found' }
+		const actionId = await receiptAction(tx, context.chat, context.source, {
+			target: { op: 'block_create', studentId, blockId: created.block.id },
+			after: { revision: created.block.revision },
+		})
+		const shown = noteChange(
+			actionId,
+			'receipt',
+			card,
+			blockTarget(created.block),
+			'created',
+			noteHunks('', created.block.body)
+		)
 		await context.persist(tx, shown)
 		return { kind: 'block', block: shown }
 	})
@@ -150,8 +183,17 @@ export async function undoNoteWrite(
 ): Promise<NoteUndo> {
 	const target = noteTarget.parse(action.target)
 	const after = revisionAfter.parse(action.after)
-	const before = bodyBefore.parse(action.before)
-	const outcome = await saveBlockText(executor, target.studentId, target.blockId, before.body, after.revision)
-	if (outcome.kind === 'ok') return { ok: true }
-	return { ok: false, issue: outcome.kind === 'not_found' ? 'not_found' : 'block_changed' }
+	const outcome =
+		target.op === 'block_text'
+			? await saveBlockText(
+					executor,
+					target.studentId,
+					target.blockId,
+					bodyBefore.parse(action.before).body,
+					after.revision
+				)
+			: target.op === 'block_create'
+				? await deleteBlock(executor, target.studentId, target.blockId, after.revision)
+				: await restoreBlock(executor, target.studentId, target.blockId, after.revision)
+	return outcome.kind === 'ok' ? { ok: true } : { ok: false, issue: blockIssue(outcome.kind) }
 }

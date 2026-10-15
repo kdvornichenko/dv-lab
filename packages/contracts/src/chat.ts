@@ -886,6 +886,8 @@ export const CHAT_STEP_TOOLS = [
 	'mark_lesson',
 	'add_note',
 	'note_write',
+	'note_block_create',
+	'note_block_delete',
 	'add_comment',
 	'propose_lesson_change',
 	'propose_payment',

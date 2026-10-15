@@ -38,6 +38,7 @@ import { appendLessonComment, retractLessonComment } from '../schedule/comments.
 import { writeMark } from '../schedule/marks.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
 import { type CalendarOutcome, proposeCalendarChange, undoCalendarAction } from './calendar.ts'
+import { isNoteProposal, undoNoteProposal } from './change-notes.ts'
 import { lockConversation, readConversation, touchConversation } from './conversations.ts'
 import { readChatRecords } from './facts.ts'
 import { resolveLessonTarget } from './lesson-target.ts'
@@ -593,6 +594,7 @@ async function inverse(
 	action: typeof chatActions.$inferSelect
 ): Promise<NoteUndo> {
 	if (isNoteWrite(action)) return undoNoteWrite(executor, action)
+	if (isNoteProposal(action)) return undoNoteProposal(executor, action)
 	return (await legacyInverse(executor, context, action)) ? { ok: true } : { ok: false }
 }
 

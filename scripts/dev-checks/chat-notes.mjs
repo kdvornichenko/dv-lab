@@ -9,7 +9,7 @@ import { removeCards } from './ledger-api/context.ts'
 
 const PORT = 4258
 const PREFIX = 'Alex Example 258'
-const SECTIONS = { append: sectionAppend }
+const SECTIONS = { append: sectionAppend, rewrite: sectionRewrite, blocks: sectionBlocks }
 
 let failures = 0
 
@@ -328,6 +328,256 @@ async function sectionAppend(h, ctx) {
 	const refusedUndo = await ctx.undo(already.actionId)
 	check('Undo of an already receipt is refused', refusedUndo.status === 409, String(refusedUndo.status))
 	return 'CHAT_NOTES_APPEND_OK'
+}
+
+const lastToolResult = (h) => {
+	const part = h.fake.calls
+		.at(-1)
+		?.messages.at(-1)
+		?.content?.find?.((item) => item.type === 'tool_result')
+	return { text: typeof part?.content === 'string' ? part.content : '', error: part?.is_error === true }
+}
+
+async function setBlock(ctx, studentId, key, body) {
+	const block = (await ctx.blocks(studentId)).find((item) => item.key === key)
+	const put = await ctx.as('PUT', `/students/${studentId}/blocks/${block.id}`, {
+		body,
+		expectedRevision: block.revision,
+	})
+	if (put.status !== 200) throw new Error(`block save returned ${put.status}`)
+	return put.json.block
+}
+
+async function writeTurn(h, ctx, studentId, blockId, text) {
+	const conversation = await ctx.fresh()
+	await ctx.turn(conversation, 'Update the notes.', [
+		h.use('note_write', { student_id: studentId, block_id: blockId, text }),
+		h.say('Done.'),
+	])
+	const result = lastToolResult(h)
+	return { conversation, block: (await ctx.noteBlocks(conversation))[0], result }
+}
+
+async function sectionRewrite(h, ctx) {
+	const studentId = await ctx.card(`${PREFIX}1 Rewrite`)
+	const original = 'Line one\nLine two\nLine three'
+	const block = await setBlock(ctx, studentId, 'typical_mistakes', original)
+	const cases = [
+		['a removed line', 'Line one\nLine three'],
+		['a changed line', 'Line one\nLine 2\nLine three'],
+		['reordered lines', 'Line two\nLine one\nLine three'],
+		['a word added to the end of a line', 'Line one\nLine two more\nLine three'],
+		['a cleared block', ''],
+	]
+	const proposals = {}
+	for (const [label, text] of cases) {
+		const made = await writeTurn(h, ctx, studentId, block.id, text)
+		const row = blockRow(block.id)
+		proposals[label] = made
+		check(
+			`${label} gives an Update proposal and writes nothing`,
+			made.block?.mode === 'proposal' &&
+				made.block.change === 'update_block' &&
+				made.block.state === 'proposed' &&
+				made.block.undo === null &&
+				linesOf(made.block, 'removed').length > 0 &&
+				row.body === original &&
+				row.revision === block.revision &&
+				made.result.text.includes('"status":"proposed"'),
+			JSON.stringify({ mode: made.block?.mode, state: made.block?.state, revision: row.revision })
+		)
+	}
+	check(
+		'the proposal of a cleared block shows every old line as removed',
+		linesOf(proposals['a cleared block'].block, 'removed')
+			.map((line) => line.text)
+			.join('|') === 'Line one|Line two|Line three'
+	)
+
+	const saved = await ctx.decide(proposals['a removed line'].block.actionId, 'confirm')
+	check(
+		'Save to notes writes the new text and answers applied with Undo available',
+		saved.status === 200 &&
+			saved.block?.type === 'note_change' &&
+			saved.block.state === 'applied' &&
+			saved.block.undo === 'available' &&
+			blockRow(block.id).body === 'Line one\nLine three' &&
+			blockRow(block.id).revision === block.revision + 1,
+		JSON.stringify({ status: saved.status, state: saved.block?.state })
+	)
+	const again = await ctx.decide(proposals['a removed line'].block.actionId, 'confirm')
+	check(
+		'a second Save writes nothing',
+		again.status === 200 && again.block?.state === 'applied' && blockRow(block.id).revision === block.revision + 1
+	)
+	const reloadedSave = await ctx.shown(proposals['a removed line'].conversation, saved.block.actionId)
+	check(
+		'after a reload the saved proposal reads as the endpoint answered',
+		reloadedSave?.state === saved.block.state && reloadedSave.undo === saved.block.undo
+	)
+	const undone = await ctx.undo(saved.block.actionId)
+	check(
+		'Undo of a saved rewrite puts the old text back',
+		undone.status === 200 &&
+			undone.block?.type === 'note_change' &&
+			undone.block.state === 'applied' &&
+			undone.block.undo === 'undone' &&
+			blockRow(block.id).body === original,
+		JSON.stringify({ status: undone.status, undo: undone.block?.undo })
+	)
+	const reloadedUndo = await ctx.shown(proposals['a removed line'].conversation, saved.block.actionId)
+	check(
+		'after a reload the undone rewrite reads as undone',
+		reloadedUndo?.state === 'applied' && reloadedUndo.undo === 'undone'
+	)
+
+	const stale = proposals['a changed line'].block
+	const teacherText = 'Line one\nLine two\nLine three\nTeacher line.'
+	await setBlock(ctx, studentId, 'typical_mistakes', teacherText)
+	const staleAnswer = await ctx.decide(stale.actionId, 'confirm')
+	check(
+		'Save after the teacher edited the block is stale and the text of the teacher stays',
+		staleAnswer.status === 200 &&
+			staleAnswer.block?.state === 'stale' &&
+			staleAnswer.block.issue === 'block_changed' &&
+			staleAnswer.block.undo === null &&
+			blockRow(block.id).body === teacherText,
+		JSON.stringify({ state: staleAnswer.block?.state, issue: staleAnswer.block?.issue })
+	)
+	const reloadedStale = await ctx.shown(proposals['a changed line'].conversation, stale.actionId)
+	check(
+		'after a reload the stale proposal reads as stale',
+		reloadedStale?.state === 'stale' && reloadedStale.issue === 'block_changed'
+	)
+
+	const kept = await ctx.decide(proposals['reordered lines'].block.actionId, 'decline')
+	const keptRow = blockRow(block.id)
+	check(
+		'Keep the notes declines the proposal and writes nothing',
+		kept.status === 200 && kept.block?.state === 'declined' && keptRow.body === teacherText,
+		JSON.stringify({ state: kept.block?.state })
+	)
+	const reloadedKept = await ctx.shown(proposals['reordered lines'].conversation, kept.block.actionId)
+	check('after a reload the declined proposal reads as declined', reloadedKept?.state === 'declined')
+	const lateSave = await ctx.decide(kept.block.actionId, 'confirm')
+	check(
+		'Save after Keep writes nothing',
+		lateSave.block?.state === 'declined' && blockRow(block.id).revision === keptRow.revision
+	)
+	return 'CHAT_NOTES_REWRITE_OK'
+}
+
+async function blockTurn(h, ctx, studentId, name, input) {
+	const conversation = await ctx.fresh()
+	await ctx.turn(conversation, 'Change the notes.', [h.use(name, { student_id: studentId, ...input }), h.say('Done.')])
+	return { conversation, block: (await ctx.noteBlocks(conversation))[0], result: lastToolResult(h) }
+}
+
+const liveBlocks = (studentId) =>
+	sql(`select count(*)::int as n from student_sections where student_id = ${quote(studentId)} and deleted_at is null`)
+		.rows[0].n
+
+async function sectionBlocks(h, ctx) {
+	const studentId = await ctx.card(`${PREFIX}2 Blocks`)
+	const created = await blockTurn(h, ctx, studentId, 'note_block_create', {
+		name: 'Exam dates',
+		text: 'First exam in June.',
+	})
+	const createdRow = created.block ? blockRow(created.block.target.blockId) : null
+	check(
+		'a new block is created at once with a created receipt and Undo',
+		created.block?.mode === 'receipt' &&
+			created.block.change === 'created' &&
+			created.block.target.blockName === 'Exam dates' &&
+			created.block.undo === 'available' &&
+			createdRow?.body === 'First exam in June.' &&
+			createdRow.deleted === false &&
+			liveBlocks(studentId) === 7,
+		JSON.stringify({ change: created.block?.change })
+	)
+	const createdUndo = await ctx.undo(created.block.actionId)
+	check(
+		'Undo of a created block deletes it softly',
+		createdUndo.block?.undo === 'undone' &&
+			blockRow(created.block.target.blockId).deleted === true &&
+			liveBlocks(studentId) === 6
+	)
+	check(
+		'after a reload the created receipt reads as undone',
+		(await ctx.shown(created.conversation, created.block.actionId))?.undo === 'undone'
+	)
+
+	const taken = await blockTurn(h, ctx, studentId, 'note_block_create', { name: 'goals', text: 'Pass the exam.' })
+	check(
+		'a taken name is refused with a hint to write into the existing block and creates nothing',
+		taken.block === undefined &&
+			taken.result.error &&
+			taken.result.text.includes('block_name_taken') &&
+			taken.result.text.includes('note_write') &&
+			liveBlocks(studentId) === 6,
+		taken.result.text
+	)
+
+	const empty = (await ctx.blocks(studentId)).find((item) => item.key === 'lesson_ideas')
+	const emptyPosition = blockRow(empty.id).position
+	const deletedEmpty = await blockTurn(h, ctx, studentId, 'note_block_delete', { block_id: empty.id })
+	check(
+		'an empty block is deleted at once with a deleted receipt and Undo',
+		deletedEmpty.block?.mode === 'receipt' &&
+			deletedEmpty.block.change === 'deleted' &&
+			deletedEmpty.block.undo === 'available' &&
+			blockRow(empty.id).deleted === true,
+		JSON.stringify({ change: deletedEmpty.block?.change })
+	)
+	const emptyUndo = await ctx.undo(deletedEmpty.block.actionId)
+	check(
+		'Undo puts the empty block back in its place',
+		emptyUndo.block?.undo === 'undone' &&
+			blockRow(empty.id).deleted === false &&
+			blockRow(empty.id).position === emptyPosition
+	)
+	check(
+		'after a reload the deleted receipt reads as undone',
+		(await ctx.shown(deletedEmpty.conversation, deletedEmpty.block.actionId))?.undo === 'undone'
+	)
+
+	const filled = await setBlock(ctx, studentId, 'interests', 'Football\nChess')
+	const filledPosition = blockRow(filled.id).position
+	const proposed = await blockTurn(h, ctx, studentId, 'note_block_delete', { block_id: filled.id })
+	check(
+		'a block with text gives a Delete proposal with its lines as removed and deletes nothing',
+		proposed.block?.mode === 'proposal' &&
+			proposed.block.change === 'delete_block' &&
+			proposed.block.state === 'proposed' &&
+			linesOf(proposed.block, 'removed')
+				.map((line) => line.text)
+				.join('|') === 'Football|Chess' &&
+			blockRow(filled.id).deleted === false &&
+			blockRow(filled.id).revision === filled.revision,
+		JSON.stringify({ mode: proposed.block?.mode, change: proposed.block?.change })
+	)
+	const confirmed = await ctx.decide(proposed.block.actionId, 'confirm')
+	check(
+		'Delete block deletes the block softly',
+		confirmed.block?.state === 'applied' &&
+			confirmed.block.undo === 'available' &&
+			blockRow(filled.id).deleted === true &&
+			blockRow(filled.id).body === 'Football\nChess'
+	)
+	const filledUndo = await ctx.undo(proposed.block.actionId)
+	check(
+		'Undo brings the block back with its text and its place',
+		filledUndo.block?.undo === 'undone' &&
+			blockRow(filled.id).deleted === false &&
+			blockRow(filled.id).body === 'Football\nChess' &&
+			blockRow(filled.id).position === filledPosition
+	)
+	const reloaded = await ctx.shown(proposed.conversation, proposed.block.actionId)
+	check(
+		'after a reload the deleted block proposal reads as the endpoint answered',
+		reloaded?.state === 'applied' && reloaded.undo === 'undone'
+	)
+	return 'CHAT_NOTES_BLOCKS_OK'
 }
 
 function notesResultOf(request) {

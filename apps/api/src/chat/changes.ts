@@ -5,6 +5,7 @@ import {
 	type ChatCalendarProposalBlock,
 	type ChatChangeIssue,
 	type ChatChangeProposalBlock,
+	type ChatNoteChangeBlock,
 	type Currency,
 	CURRENCIES,
 	calendarDate,
@@ -51,7 +52,8 @@ import {
 	deletionTargets,
 	previewDeletion,
 } from './change-deletions.ts'
-import { blocksOf, changeView, insertAction, replyOf } from './messages.ts'
+import { applyNoteChange, noteTargets } from './change-notes.ts'
+import { blocksOf, changeView, insertAction, noteChangeView, replyOf } from './messages.ts'
 
 type PaymentRequest = {
 	operation: 'record_payment'
@@ -81,7 +83,7 @@ export type ProposeOutcome =
 	{ kind: 'proposed'; block: ChatChangeProposalBlock } | { kind: 'refused'; code: ChangeRefusal }
 
 export type ChangeOutcome =
-	| { kind: 'ok'; block: ChatChangeProposalBlock | ChatCalendarProposalBlock }
+	| { kind: 'ok'; block: ChatChangeProposalBlock | ChatCalendarProposalBlock | ChatNoteChangeBlock }
 	| { kind: 'not_found' }
 	| { kind: 'not_change' }
 
@@ -101,7 +103,12 @@ const paymentTarget = z.strictObject({
 	}),
 })
 
-const storedTarget = z.discriminatedUnion('operation', [paymentTarget, ...cardTargets, ...deletionTargets])
+const storedTarget = z.discriminatedUnion('operation', [
+	paymentTarget,
+	...cardTargets,
+	...deletionTargets,
+	...noteTargets,
+])
 
 const legacyTarget = paymentTarget.extend({
 	guard: z.strictObject({
@@ -331,12 +338,20 @@ async function actionOf(executor: DbExecutor, accountId: string, actionId: strin
 	return row ?? null
 }
 
-async function proposalOf(executor: DbExecutor, accountId: string, action: ActionRow) {
+async function proposalOf(
+	executor: DbExecutor,
+	accountId: string,
+	action: ActionRow
+): Promise<ChatChangeProposalBlock | ChatNoteChangeBlock | null> {
 	const reply = await replyOf(executor, accountId, action.messageId)
 	const block = reply
-		? blocksOf(reply).find((item) => item.type === 'change_proposal' && item.actionId === action.id)
+		? blocksOf(reply).find(
+				(item) =>
+					(item.type === 'change_proposal' || (item.type === 'note_change' && item.mode === 'proposal')) &&
+					item.actionId === action.id
+			)
 		: undefined
-	return block?.type === 'change_proposal' ? block : null
+	return block?.type === 'change_proposal' || block?.type === 'note_change' ? block : null
 }
 
 export async function presentChange(executor: DbExecutor, accountId: string, actionId: string): Promise<ChangeOutcome> {
@@ -345,7 +360,10 @@ export async function presentChange(executor: DbExecutor, accountId: string, act
 	if (action.kind !== 'change') return { kind: 'not_change' }
 	const block = await proposalOf(executor, accountId, action)
 	if (block === null) return { kind: 'not_found' }
-	return { kind: 'ok', block: changeView(block, action) }
+	return {
+		kind: 'ok',
+		block: block.type === 'note_change' ? noteChangeView(block, action) : changeView(block, action),
+	}
 }
 
 async function settle(
@@ -392,9 +410,13 @@ async function applyChange(tx: DbExecutor, context: ChatContext, action: ActionR
 	const target = parsed.data
 	if (target.operation === 'record_payment') return applyPayment(tx, context, action, target)
 	const applied =
-		target.operation === 'delete_payment' || target.operation === 'remove_note' || target.operation === 'remove_comment'
-			? await applyDeletion(tx, context, target)
-			: await applyCardChange(tx, context, target)
+		target.operation === 'update_block' || target.operation === 'delete_block'
+			? await applyNoteChange(tx, target)
+			: target.operation === 'delete_payment' ||
+				  target.operation === 'remove_note' ||
+				  target.operation === 'remove_comment'
+				? await applyDeletion(tx, context, target)
+				: await applyCardChange(tx, context, target)
 	if (applied.kind === 'applied') return settle(tx, action.id, 'applied', { kind: 'applied' }, applied.after)
 	return settle(tx, action.id, 'refused', applied)
 }

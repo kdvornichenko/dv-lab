@@ -23,6 +23,7 @@ import {
 	type ChatLessonsBlock,
 	type EventTitlesResponse,
 	type Gender,
+	BLOCK_NAME_MAX_LENGTH,
 	SECTION_BODY_MAX_LENGTH,
 	type ChatNoteChangeBlock,
 	appendLessonCommentRequest,
@@ -45,10 +46,11 @@ import { readLessonRange } from '../today/today.ts'
 import { type ChatContext, type LocalRequest, executeIntent } from './actions.ts'
 import { LESSON_MINUTES_CHAT_MAX } from './change-cards.ts'
 import { paymentRecords } from './change-deletions.ts'
+import { removeNoteBlock, writeNoteBlock } from './change-notes.ts'
 import { type ChangeRequest, proposeChange } from './changes.ts'
 import { ESSAY_NOTE, ESSAY_TOOL_NAME, essayFeedbackInput } from './essay.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
-import { type NoteOutcome, writeNoteBlock } from './note-writes.ts'
+import { type NoteOutcome, createNoteBlock } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
 import {
 	type ChatToolEntry,
@@ -76,6 +78,7 @@ const nullable = <T extends z.ZodType>(schema: T) => schema.nullish().transform(
 const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 const ZONE_TEXT_MAX = 64
 const CLEAR = 'clear'
+const blockText = z.string().refine((value) => Array.from(value).length <= SECTION_BODY_MAX_LENGTH)
 
 const inputs = {
 	find_students: z.strictObject({ query: z.string().min(1).max(200) }),
@@ -98,8 +101,17 @@ const inputs = {
 	note_write: z.strictObject({
 		student_id: id,
 		block_id: id,
-		text: z.string().refine((value) => Array.from(value).length <= SECTION_BODY_MAX_LENGTH),
+		text: blockText,
 	}),
+	note_block_create: z.strictObject({
+		student_id: id,
+		name: z
+			.string()
+			.min(1)
+			.max(BLOCK_NAME_MAX_LENGTH * 2),
+		text: blockText,
+	}),
+	note_block_delete: z.strictObject({ student_id: id, block_id: id }),
 	add_comment: z.strictObject({ student_id: id, date: nullable(date), time: nullable(time), text: z.string() }),
 	propose_lesson_change: z.strictObject({
 		student_id: id,
@@ -571,8 +583,13 @@ function noteReceipt(block: ChatNoteChangeBlock): unknown {
 	}
 }
 
+const NAME_TAKEN_NOTE =
+	'A block with this name already exists. Read student_notes and write into that block with note_write instead.'
+
 async function noteWrite(outcome: Promise<NoteOutcome>): Promise<ToolOutcome> {
 	const written = await outcome
+	if (written.kind === 'refused' && written.code === 'block_name_taken')
+		return { content: JSON.stringify({ error: written.code, note: NAME_TAKEN_NOTE }), isError: true, block: null }
 	if (written.kind === 'refused') return failure(written.code)
 	return { content: JSON.stringify(noteReceipt(written.block)), isError: false, block: written.block }
 }
@@ -799,6 +816,28 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		effect: 'write',
 		step: studentStep,
 		run: (context, input) => noteWrite(writeNoteBlock(context, input.student_id, input.block_id, input.text)),
+	}),
+	chatTool({
+		name: 'note_block_create',
+		description:
+			'Create a new notes block of a student with a name and its text, only when no existing block fits; it is saved at once with Undo. Call student_notes first: when a block with that name or that purpose exists, write into it with note_write instead.',
+		input: inputs.note_block_create,
+		properties: { student_id: string, name: string, text: string },
+		strict: false,
+		effect: 'write',
+		step: studentStep,
+		run: (context, input) => noteWrite(createNoteBlock(context, input.student_id, input.name, input.text)),
+	}),
+	chatTool({
+		name: 'note_block_delete',
+		description:
+			'Delete one notes block of a student (block_id from student_notes) only when the teacher asks to delete it. An empty block is deleted at once with Undo; a block with text is shown to the teacher as a proposal and nothing is deleted until the teacher confirms.',
+		input: inputs.note_block_delete,
+		properties: { student_id: string, block_id: string },
+		strict: false,
+		effect: 'write',
+		step: studentStep,
+		run: (context, input) => noteWrite(removeNoteBlock(context, input.student_id, input.block_id)),
 	}),
 	chatTool({
 		name: 'add_comment',
