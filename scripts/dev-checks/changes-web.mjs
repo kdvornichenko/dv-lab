@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createConnection } from 'node:net'
 
-import { chatBlock, chatChangeProposalBlock } from '../../packages/contracts/src/chat.ts'
+import { CHAT_FOLLOW_UP_TEXT, chatBlock, chatChangeProposalBlock } from '../../packages/contracts/src/chat.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
@@ -381,9 +381,9 @@ async function detectApiOrigin() {
 
 async function sectionForms() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	try {
 		removeFormsCards()
 		await withBrowser(
@@ -821,9 +821,9 @@ async function fitsWidth(page, width) {
 
 async function sectionProposals() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(PROPOSAL_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -1404,9 +1404,9 @@ const withStates = (targets, states) =>
 
 async function sectionBulk() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(BULK_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -1747,9 +1747,9 @@ const ESSAY_TEXT =
 
 async function sectionEssay() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(BULK_PORT, '120')
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -2006,9 +2006,9 @@ async function titleShown(page, id, title) {
 
 async function sectionTitle() {
 	const apiOrigin = await detectApiOrigin()
-	const health = await fetch('http://127.0.0.1:4000/healthz').catch(() => null)
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
 	if (!health || health.status !== 200)
-		throw new Error('the dev api does not answer on 4000: this section needs the dev stack')
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
 	const started = await startFakeModelApi(TITLE_PORT)
 	const conversations = []
 	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
@@ -2193,7 +2193,354 @@ async function sectionTitle() {
 	}
 }
 
+const FACTS_WHERE = `display_name like 'Alex Example 240_' and import_key is null`
+const FN = { pay: 'Alex Example 2400', none: 'Alex Example 2401' }
+const FACTS = '[data-slot="chat-facts"]'
+const FOLLOW_UP = '[data-slot="chat-follow-up"]'
+const DATES = '[data-slot="chat-lesson-dates"]'
+const REPLY_FOOTER = '[data-slot="chat-reply-footer"]'
+
+function removeFactsCards(conversations = []) {
+	removeConversations(conversations)
+	const cards = `select id from students where ${FACTS_WHERE}`
+	const left = sql(
+		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${FACTS_WHERE})`
+	).rows.map((row) => row.id)
+	removeConversations(left)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from payments where student_id in (${cards})`)
+	const result = sql(`delete from students where ${FACTS_WHERE}`)
+	console.log(`fixture cards removed ${result.rowCount}`)
+}
+
+function factsLayout(group) {
+	const grid = group.querySelector('[data-slot="chat-facts-grid"]')
+	const checked = group.querySelector('[data-slot="chat-facts-checked"]')
+	const avatar = group.querySelector('span')
+	const name = group.querySelector('span[title]')
+	const box = group.getBoundingClientRect()
+	const gridBox = grid.getBoundingClientRect()
+	const checkedBox = checked.getBoundingClientRect()
+	const gridStyle = getComputedStyle(grid)
+	const groupStyle = getComputedStyle(group)
+	const checkedStyle = getComputedStyle(checked)
+	const cells = [...grid.children].map((cell) => {
+		const rect = cell.getBoundingClientRect()
+		return { left: rect.left, width: rect.width }
+	})
+	return {
+		padding: groupStyle.paddingLeft,
+		left: box.left,
+		avatarLeft: avatar.getBoundingClientRect().left,
+		cells,
+		columns: gridStyle.gridTemplateColumns.split(' ').length,
+		columnGap: gridStyle.columnGap,
+		rowGap: gridStyle.rowGap,
+		gridBottom: gridBox.bottom,
+		checkedLeft: checkedBox.left,
+		checkedTop: checkedBox.top,
+		checkedBorder: checkedStyle.borderTopWidth,
+		checkedPadding: checkedStyle.paddingTop,
+		title: name?.getAttribute('title') ?? null,
+		truncates: name !== null && getComputedStyle(name).textOverflow === 'ellipsis',
+	}
+}
+
+async function sectionFacts() {
+	const apiOrigin = await detectApiOrigin()
+	const health = await fetch(`${BASE}/api/healthz`).catch(() => null)
+	if (!health || health.status !== 200)
+		throw new Error('the dev api does not answer through the web proxy: this section needs the dev stack')
+	const conversations = []
+	const teacher = sql(`select id from accounts where role = 'teacher' and status = 'active'`).rows[0]?.id
+	try {
+		removeFactsCards()
+		await withBrowser(
+			{ width: 1280, height: 800 },
+			async ({ page, problems }) => {
+				await formsPrepare(page, apiOrigin)
+				await signIn(page)
+				const call = (method, path, body) => formsApi(page, apiOrigin, method, path, body)
+				const zone =
+					sql(`select default_time_zone as zone from teacher_settings where account_id = '${teacher}'`).rows[0]?.zone ??
+					core.SCHEDULE_TIME_ZONE
+				const today = core.scheduleToday(new Date(), zone)
+				const make = async (name) => {
+					const created = await call('POST', '/students', {
+						displayName: name,
+						rateMinor: 400000,
+						currency: 'RUB',
+						defaultLessonMinutes: 60,
+						parent: null,
+						level: null,
+						goals: null,
+						timeZone: null,
+					})
+					check(`the fixture card ${name} is created`, created.status === 201, String(created.status))
+					const id = created.json.student.id
+					const opening = await call('PUT', `/students/${id}/opening-balance`, {
+						lessonsHundredths: 200,
+						on: core.addDays(today, -1),
+						expectedDefaultTimeZone: zone,
+					})
+					check(`the opening balance of ${name} is set`, opening.status === 200, String(opening.status))
+					return id
+				}
+				const ids = { pay: await make(FN.pay), none: await make(FN.none) }
+				const paid = await call('POST', '/payments', {
+					studentId: ids.pay,
+					paidOn: today,
+					expectedDefaultTimeZone: zone,
+					amountMinor: 800000,
+					currency: 'RUB',
+					lessonsHundredths: 200,
+					note: 'facts check payment',
+				})
+				check('the fixture payment is created', paid.status === 201, String(paid.status))
+				const facts = {}
+				for (const key of ['pay', 'none']) {
+					const read = await call('GET', `/chat/records?studentId=${ids[key]}`)
+					facts[key] = chatBlock.parse({ type: 'facts', facts: read.json })
+				}
+				check(
+					'the server offers the follow-up only to the card with a payment',
+					facts.pay.facts.followUp === 'since_payment' && facts.none.facts.followUp === undefined
+				)
+				const months = []
+				for (let step = 7; step >= 0; step -= 1) months.push(core.addDays(today, -31 * step))
+				const longDates = chatBlock.parse({
+					type: 'lesson_dates',
+					studentId: ids.pay,
+					studentName: FN.pay,
+					from: months[0],
+					to: today,
+					scope: 'since_payment',
+					defaultTimeZone: zone,
+					asOf: new Date().toISOString(),
+					dates: months,
+					leftOut: { noShow: 0, ahead: 0 },
+					coverage: 'complete',
+					sinceFrom: months[0],
+					lastPaidOn: months[0],
+				})
+
+				let conversation = null
+				const created = page.waitForResponse(
+					(response) => response.request().method() === 'POST' && response.url().endsWith('/api/chat/conversations')
+				)
+				const followBodies = []
+				let syntheticDates = null
+				await page.route('**/api/chat/conversations/*/messages', async (route) => {
+					if (route.request().method() !== 'POST') return route.fallback()
+					conversation ??= (await (await created).json()).conversation
+					if (conversation?.id && !conversations.includes(conversation.id)) conversations.push(conversation.id)
+					const body = route.request().postDataJSON()
+					if (body.text.endsWith(CHAT_FOLLOW_UP_TEXT)) {
+						followBodies.push(body)
+						await new Promise((resolve) => setTimeout(resolve, 900))
+						if (syntheticDates === null) return route.fallback()
+						return route.fulfill({ status: 201, json: syntheticReply(conversation, body, syntheticDates) })
+					}
+					const key = body.mentions[0]?.studentId === ids.none ? 'none' : 'pay'
+					return route.fulfill({ status: 201, json: syntheticReply(conversation, body, facts[key]) })
+				})
+				await page.goto(`${BASE}/chat`)
+				await page.getByRole('heading', { name: 'Chat', level: 1 }).waitFor({ timeout: 30000 })
+				await page.getByRole('button', { name: 'New chat', exact: true }).click()
+				await page.locator(FIELD).waitFor({ timeout: 30000 })
+
+				await sendIn(page, 0, 'how many lessons are left', FN.pay)
+				await page.locator(FACTS).first().waitFor({ timeout: 30000 })
+				await page.locator(REPLY_FOOTER).first().waitFor({ timeout: 30000 })
+				const wide = await page.locator(FACTS).first().evaluate(factsLayout)
+				const edge = wide.left + 16
+				check(
+					'the facts block has 16 px padding and one left edge for the avatar, the cells and the read time',
+					wide.padding === '16px' &&
+						Math.abs(wide.avatarLeft - edge) < 1.5 &&
+						Math.abs(wide.cells[0].left - edge) < 1.5 &&
+						Math.abs(wide.checkedLeft - edge) < 1.5,
+					JSON.stringify(wide)
+				)
+				check(
+					'the cells are two columns of equal width with 24 px and 12 px gaps',
+					wide.columns === 2 &&
+						Math.abs(wide.cells[0].width - wide.cells[1].width) < 1.5 &&
+						wide.columnGap === '24px' &&
+						wide.rowGap === '12px',
+					JSON.stringify(wide)
+				)
+				check(
+					'Checked sits under a hairline with 8 px of padding below the cells',
+					wide.checkedBorder === '1px' && wide.checkedPadding === '8px' && wide.checkedTop > wide.gridBottom,
+					JSON.stringify(wide)
+				)
+				check(
+					'the name is one line with an ellipsis and the full name in title',
+					wide.title === FN.pay && wide.truncates
+				)
+				const reply = page.locator(ASSISTANT).first()
+				check(
+					'a reply that is only a block has no Copy reply and no sentence',
+					(await reply.getByRole('button', { name: 'Copy reply' }).count()) === 0 &&
+						(await reply.evaluate(
+							(node, selectors) => {
+								const copy = node.cloneNode(true)
+								for (const selector of selectors) for (const part of copy.querySelectorAll(selector)) part.remove()
+								return copy.textContent.trim()
+							},
+							[FACTS, REPLY_FOOTER, FOLLOW_UP]
+						)) === '' &&
+						/^\d{1,2}:\d{2}$/.test((await reply.locator(REPLY_FOOTER).innerText()).trim())
+				)
+				const followText = await page.locator(FOLLOW_UP).first().innerText()
+				check(
+					'the follow-up button carries the contract text, once',
+					(await page.locator(FOLLOW_UP).count()) === 1 && followText.trim() === CHAT_FOLLOW_UP_TEXT,
+					followText
+				)
+				const followRow = await page.locator(FOLLOW_UP).evaluate((button) => {
+					const icon = button.querySelector('svg').getBoundingClientRect()
+					const label = button.querySelector('span[class*="text-box"]').getBoundingClientRect()
+					const frame = button.getBoundingClientRect()
+					return {
+						arrowBeforeText: icon.right <= label.left + 1,
+						sameLine: Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)) < 4,
+						height: frame.height,
+						iconWidth: icon.width,
+					}
+				})
+				check(
+					'the follow-up is one row: the 14 px arrow before the text',
+					followRow.arrowBeforeText && followRow.sameLine && followRow.height <= 32 && followRow.iconWidth === 14,
+					JSON.stringify(followRow)
+				)
+				await shot(page, 'changes-facts', 'desktop')
+
+				await sendIn(page, 0, 'and for the other card', FN.none)
+				await page.locator(FACTS).nth(1).waitFor({ timeout: 30000 })
+				await page.locator(REPLY_FOOTER).nth(1).waitFor({ timeout: 30000 })
+				check(
+					'a card without a payment has no follow-up',
+					(await page.locator(FOLLOW_UP).count()) === 1 &&
+						(await page.locator(ASSISTANT).nth(1).locator(FOLLOW_UP).count()) === 0
+				)
+
+				await page.locator(FOLLOW_UP).click()
+				await page
+					.waitForFunction((selector) => document.querySelector(selector)?.disabled === true, FOLLOW_UP, {
+						timeout: 3000,
+					})
+					.then(
+						() => check('the follow-up is off while the request is sent', true),
+						() => check('the follow-up is off while the request is sent', false)
+					)
+				await page.locator(DATES).first().waitFor({ timeout: 30000 })
+				const sent = followBodies[0]
+				check(
+					'the follow-up sends the contract text with the mention of its student',
+					sent?.text === `@${FN.pay} ${CHAT_FOLLOW_UP_TEXT}` &&
+						sent.mentions.length === 1 &&
+						sent.mentions[0].studentId === ids.pay,
+					JSON.stringify(sent)
+				)
+				check('the follow-up button is gone from that reply', (await page.locator(FOLLOW_UP).count()) === 0)
+				const empty = page.locator(DATES).first()
+				const emptyText = await empty.innerText()
+				check(
+					'nothing since the payment: the head, the empty line and the last payment date, no Copy dates',
+					emptyText.includes(`Lessons of ${FN.pay}`) &&
+						emptyText.includes('No lessons since the last payment.') &&
+						/Last payment: [A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2} \d{4}\./.test(emptyText) &&
+						(await empty.getByRole('button', { name: 'Copy dates' }).count()) === 0,
+					emptyText
+				)
+				const answer = page.locator(ASSISTANT).last()
+				check(
+					'the dates answer has no Copy reply',
+					(await answer.getByRole('button', { name: 'Copy reply' }).count()) === 0 &&
+						/^\d{1,2}:\d{2}$/.test((await answer.locator(REPLY_FOOTER).innerText()).trim())
+				)
+
+				syntheticDates = longDates
+				await sendIn(page, 0, 'once more', FN.pay)
+				await page.locator(FACTS).nth(2).waitFor({ timeout: 30000 })
+				await page.locator(REPLY_FOOTER).nth(3).waitFor({ timeout: 30000 })
+				check('a later facts reply offers the follow-up again', (await page.locator(FOLLOW_UP).count()) === 1)
+				await page.locator(FOLLOW_UP).click()
+				await page.locator(DATES).nth(1).waitFor({ timeout: 30000 })
+				const long = page.locator(DATES).nth(1)
+				const longText = await long.innerText()
+				check(
+					'the dates block names the payment day in the scope line',
+					/Held lessons since the last payment \([A-Z][a-z]{2} \d{1,2} [A-Z][a-z]{2}( \d{4})?\) · 8 dates/.test(
+						longText
+					),
+					longText.slice(0, 200)
+				)
+				check(
+					'a long list shows six months and folds the rest',
+					(await long.locator('[data-slot="chat-dates-month"]').count()) === 8 &&
+						(await long.getByRole('button', { name: 'Show all 8 months' }).isVisible()) &&
+						(await long.getByRole('button', { name: 'Copy dates' }).count()) === 1
+				)
+				await long.getByRole('button', { name: 'Show all 8 months' }).click()
+				check(
+					'Show all opens the rest in place',
+					(await long.getByRole('button', { name: 'Show fewer months' }).getAttribute('aria-expanded')) === 'true'
+				)
+				const fold = await long.getByRole('button', { name: 'Show fewer months' }).evaluate((button) => {
+					const icon = button.querySelector('svg').getBoundingClientRect()
+					const label = button.querySelector('span[class*="text-box"]').getBoundingClientRect()
+					return {
+						chevronAfterText: icon.left >= label.right - 1,
+						sameLine: Math.abs(icon.top + icon.height / 2 - (label.top + label.height / 2)) < 4,
+						height: button.getBoundingClientRect().height,
+					}
+				})
+				check(
+					'the fold button is one row: the chevron after the text',
+					fold.chevronAfterText && fold.sameLine && fold.height <= 32,
+					JSON.stringify(fold)
+				)
+				await shot(page, 'changes-facts', 'dates')
+
+				for (const width of [768, 375]) {
+					await page.setViewportSize({ width, height: width === 375 ? 812 : 1024 })
+					await page.waitForTimeout(400)
+					const narrow = await page.locator(FACTS).first().evaluate(factsLayout)
+					const boxes = await page
+						.locator(`${FACTS} a, ${FOLLOW_UP}, ${DATES} button, ${DATES} a`)
+						.evaluateAll((nodes) =>
+							nodes
+								.map((node) => node.getBoundingClientRect())
+								.map((box) => ({ left: box.left, right: box.right, width: box.width }))
+						)
+					const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+					check(
+						`at ${width} px the facts are ${width === 375 ? 'one column' : 'two columns'}, everything fits and the page does not scroll sideways`,
+						narrow.columns === (width === 375 ? 1 : 2) &&
+							boxes.every((box) => box.width > 0 && box.left >= 0 && box.right <= width) &&
+							overflow <= 0,
+						JSON.stringify({ columns: narrow.columns, overflow, boxes: boxes.length })
+					)
+					if (width === 375) await shot(page, 'changes-facts', 'phone')
+				}
+				await page.setViewportSize({ width: 1280, height: 800 })
+
+				const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+				check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			},
+			() => removeFactsCards(conversations)
+		)
+	} finally {
+		removeFactsCards(conversations)
+	}
+}
+
 const sections = {
+	facts: sectionFacts,
 	payment: sectionPayment,
 	forms: sectionForms,
 	proposals: sectionProposals,
