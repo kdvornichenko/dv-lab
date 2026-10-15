@@ -463,6 +463,27 @@ export async function redactConversationContent(
 			)
 		)
 	await executor
+		.update(chatActions)
+		.set({ before: null, after: null, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatActions.accountId, accountId),
+				eq(chatActions.conversationId, conversationId),
+				eq(chatActions.kind, 'note')
+			)
+		)
+	await executor
+		.update(chatActions)
+		.set({ before: null, target: sql`${chatActions.target} - 'after'`, updatedAt: sql`now()` })
+		.where(
+			and(
+				eq(chatActions.accountId, accountId),
+				eq(chatActions.conversationId, conversationId),
+				eq(chatActions.kind, 'change'),
+				sql`${chatActions.target}->>'operation' in ('update_block', 'delete_block')`
+			)
+		)
+	await executor
 		.update(chatMessages)
 		.set({ body: '', mentions: [], blocks: [], steps: [], redactedAt: sql`now()` })
 		.where(

@@ -1340,30 +1340,31 @@ async function sectionActions(ctx) {
 		const noteBlock = replyBlock(noted)
 		const twin = await post({ ...noteMessage, requestId: randomUUID() })
 		const twinBlock = replyBlock(twin)
-		const noteRows = () =>
+		const generalText = () =>
 			sql(
-				`select id, revision, retracted_at is not null as retracted, section_kind from student_notes where student_id = ${quote(card)} order by created_at, id`
-			).rows
+				`select body from student_sections where student_id = ${quote(card)} and kind = 'general_info' and deleted_at is null`
+			).rows[0]?.body
+		const noteEntries = () =>
+			sql(`select count(*)::int as n from student_notes where student_id = ${quote(card)}`).rows[0].n
 		check(
-			'/note adds a note record in General info with the text in the result block',
+			'/note adds its line to the General info block with a note_change receipt and no note record',
 			noted.status === 201 &&
-				noteBlock?.type === 'action_result' &&
-				noteBlock.kind === 'note' &&
-				noteBlock.text === noteText &&
-				twinBlock?.type === 'action_result' &&
-				noteRows().length === 2 &&
-				noteRows().every((row) => row.section_kind === 'general_info' && row.revision === 1)
+				noteBlock?.type === 'note_change' &&
+				noteBlock.change === 'updated' &&
+				noteBlock.target.blockKey === 'general_info' &&
+				twinBlock?.type === 'note_change' &&
+				generalText() === `${noteText}\n${noteText}` &&
+				noteEntries() === 0
 		)
-		const noteUndo = await undo(noteBlock.actionId, randomUUID())
-		const [retractedNote, keptNote] = noteRows()
+		const earlierUndo = await undo(noteBlock.actionId, randomUUID())
+		const laterUndo = await undo(twinBlock.actionId, randomUUID())
 		check(
-			'Undo of a note retracts only its own record, the twin with the same text stays',
-			noteUndo.status === 200 &&
-				noteUndo.json.block.undo === 'done' &&
-				retractedNote.retracted === true &&
-				retractedNote.revision === 2 &&
-				keptNote.retracted === false &&
-				keptNote.revision === 1
+			'Undo of the earlier /note after the twin is unavailable; Undo of the twin takes back only its line',
+			earlierUndo.status === 200 &&
+				earlierUndo.json.block.undo === 'unavailable' &&
+				laterUndo.status === 200 &&
+				laterUndo.json.block.undo === 'undone' &&
+				generalText() === noteText
 		)
 
 		const commentText = 'Zeta chat comment body'
@@ -1550,9 +1551,9 @@ async function sectionActions(ctx) {
 			refusals.join(' | ')
 		)
 		check(
-			'action rows keep no student text',
+			'action rows keep no student text, except the earlier block text a notes receipt keeps for Undo',
 			sql(
-				`select count(*)::int as n from chat_actions where conversation_id = ${quote(conversationId)} and (coalesce(target::text, '') || coalesce(before::text, '') || coalesce(after::text, '') || result::text) ~ 'Zeta|Alex'`
+				`select count(*)::int as n from chat_actions where conversation_id = ${quote(conversationId)} and (coalesce(target::text, '') || case when kind = 'note' then '' else coalesce(before::text, '') end || coalesce(after::text, '') || result::text) ~ 'Zeta|Alex'`
 			).rows[0].n === 0
 		)
 		check(
@@ -2671,12 +2672,14 @@ async function sectionDelete(ctx) {
 			marked.status === 201 &&
 				markAction?.type === 'action_result' &&
 				noted.status === 201 &&
-				noted.json.messages[1].blocks[0]?.type === 'action_result' &&
+				noted.json.messages[1].blocks[0]?.type === 'note_change' &&
 				markOf(lessonId)?.kind === 'done',
 			`${marked.status} ${noted.status}`
 		)
 		const noteRows = () =>
-			sql(`select count(*)::int as n from student_notes where student_id = ${quote(card)}`).rows[0].n
+			sql(
+				`select count(*)::int as n from student_sections where student_id = ${quote(card)} and kind = 'general_info' and position(${quote(noteText)} in body) > 0`
+			).rows[0].n
 
 		const hung = await post(id, {
 			requestId: randomUUID(),
@@ -2792,6 +2795,12 @@ async function sectionDelete(ctx) {
 		check(
 			'the receipts of the actions stay as they were',
 			after.actions === before.actions && isDeepStrictEqual(actionsAfter, actionsBefore)
+		)
+		check(
+			'after Delete the notes receipts keep no block text',
+			sql(
+				`select count(*)::int as n from chat_actions where conversation_id = ${quote(id)} and kind = 'note' and (before is not null or after is not null)`
+			).rows[0].n === 0
 		)
 		const voided = sql(`select state, result::text as result from chat_actions where id = ${quote(proposed)}`).rows[0]
 		check(

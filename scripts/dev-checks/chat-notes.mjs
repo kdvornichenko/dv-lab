@@ -9,7 +9,13 @@ import { removeCards } from './ledger-api/context.ts'
 
 const PORT = 4258
 const PREFIX = 'Alex Example 258'
-const SECTIONS = { append: sectionAppend, rewrite: sectionRewrite, blocks: sectionBlocks }
+const SECTIONS = {
+	append: sectionAppend,
+	rewrite: sectionRewrite,
+	blocks: sectionBlocks,
+	words: sectionWords,
+	note: sectionNote,
+}
 
 let failures = 0
 
@@ -187,7 +193,7 @@ async function context(h) {
 		const parsed = res.status === 200 ? chatActionResponse.safeParse(res.json) : null
 		return { status: res.status, block: parsed?.success ? parsed.data.block : null }
 	}
-	return { as, card, blocks, fresh, turn, read, noteBlocks, shown, undo, decide, conversations }
+	return { as, cookie, card, blocks, fresh, turn, read, noteBlocks, shown, undo, decide, conversations }
 }
 
 const linesOf = (block, kind) => block.hunks.flatMap((hunk) => hunk.lines.filter((line) => line.kind === kind))
@@ -578,6 +584,187 @@ async function sectionBlocks(h, ctx) {
 		reloaded?.state === 'applied' && reloaded.undo === 'undone'
 	)
 	return 'CHAT_NOTES_BLOCKS_OK'
+}
+
+const termRow = (termId) =>
+	sql(
+		`select term, note, added_by, removed_at is not null as removed, removed_by from student_terms where id = ${quote(termId)}`
+	).rows[0]
+
+const termId = (studentId, term) =>
+	sql(`select id from student_terms where student_id = ${quote(studentId)} and lower(term) = lower(${quote(term)})`)
+		.rows[0]?.id
+
+async function sectionWords(h, ctx) {
+	const studentId = await ctx.card(`${PREFIX}3 Words`)
+	for (const term of ['apple', 'banana']) {
+		const res = await ctx.as('POST', `/students/${studentId}/terms`, { term, note: null })
+		if (res.status !== 201 && res.status !== 200) throw new Error(`term add returned ${res.status}`)
+	}
+	sql(
+		`update student_terms set removed_at = now(), removed_by = 'chat' where id = ${quote(termId(studentId, 'banana'))}`
+	)
+	const added = await blockTurn(h, ctx, studentId, 'vocabulary_add', {
+		words: [
+			{ term: 'cherry', note: 'a small fruit' },
+			{ term: 'grape', note: null },
+			{ term: 'apple', note: null },
+			{ term: 'banana', note: null },
+		],
+	})
+	const states = Object.fromEntries((added.block?.words ?? []).map((word) => [word.term, word.state]))
+	check(
+		'new words are added at once, a live word is already written and a removed word comes back from Removed',
+		added.block?.mode === 'receipt' &&
+			added.block.change === 'words_added' &&
+			added.block.target.kind === 'vocabulary' &&
+			added.block.undo === 'available' &&
+			states.cherry === 'added' &&
+			states.grape === 'added' &&
+			states.apple === 'already' &&
+			states.banana === 'restored' &&
+			termRow(termId(studentId, 'cherry'))?.added_by === 'chat' &&
+			termRow(termId(studentId, 'banana'))?.removed === false,
+		JSON.stringify(states)
+	)
+	const cherry = termId(studentId, 'cherry')
+	const edited = await ctx.as('PATCH', `/students/${studentId}/terms/${cherry}`, { note: 'edited by the teacher' })
+	const late = await ctx.undo(added.block.actionId)
+	check(
+		'Undo of added words after the teacher edited one of them is unavailable and removes nothing',
+		edited.status === 200 &&
+			late.block?.undo === 'unavailable' &&
+			late.block.issue === 'words_changed' &&
+			termRow(cherry)?.note === 'edited by the teacher' &&
+			termRow(termId(studentId, 'grape'))?.removed === false,
+		JSON.stringify({ status: edited.status, undo: late.block?.undo, issue: late.block?.issue })
+	)
+	check(
+		'after a reload the refused Undo of words reads as unavailable',
+		(await ctx.shown(added.conversation, added.block.actionId))?.undo === 'unavailable'
+	)
+
+	sql(
+		`update student_terms set removed_at = now(), removed_by = 'chat' where id = ${quote(termId(studentId, 'banana'))}`
+	)
+	const second = await blockTurn(h, ctx, studentId, 'vocabulary_add', {
+		words: [
+			{ term: 'melon', note: null },
+			{ term: 'banana', note: null },
+		],
+	})
+	const melon = termId(studentId, 'melon')
+	const secondUndo = await ctx.undo(second.block.actionId)
+	check(
+		'Undo of added words erases the new word and puts the restored word back into Removed',
+		secondUndo.block?.undo === 'undone' &&
+			melon !== undefined &&
+			termRow(melon) === undefined &&
+			termRow(termId(studentId, 'banana'))?.removed === true,
+		JSON.stringify({ undo: secondUndo.block?.undo })
+	)
+	check(
+		'after a reload the undone words receipt reads as undone',
+		(await ctx.shown(second.conversation, second.block.actionId))?.undo === 'undone'
+	)
+
+	const grape = termId(studentId, 'grape')
+	const apple = termId(studentId, 'apple')
+	const removed = await blockTurn(h, ctx, studentId, 'vocabulary_remove', { term_ids: [grape, apple] })
+	check(
+		'removing two words puts them into Removed at once by the chat',
+		removed.block?.change === 'words_removed' &&
+			removed.block.undo === 'available' &&
+			removed.block.words.length === 2 &&
+			removed.block.words.every((word) => word.state === 'removed') &&
+			termRow(grape)?.removed === true &&
+			termRow(grape)?.removed_by === 'chat' &&
+			termRow(apple)?.removed === true,
+		JSON.stringify({ change: removed.block?.change })
+	)
+	const restored = await ctx.undo(removed.block.actionId)
+	check(
+		'Undo of removed words restores them',
+		restored.block?.undo === 'undone' && termRow(grape)?.removed === false && termRow(apple)?.removed === false
+	)
+	check(
+		'after a reload the removed words receipt reads as undone',
+		(await ctx.shown(removed.conversation, removed.block.actionId))?.undo === 'undone'
+	)
+	return 'CHAT_NOTES_WORDS_OK'
+}
+
+async function noteCommand(ctx, studentId, name, line) {
+	const conversation = await ctx.fresh()
+	const text = `/note @${name} ${line}`
+	const sent = await ctx.as('POST', `/chat/conversations/${conversation}/messages`, {
+		requestId: randomUUID(),
+		text,
+		mentions: [{ studentId, text: name, start: 7, end: 7 + name.length }],
+	})
+	const block = sent.json?.messages?.[1]?.blocks?.[0]
+	return { conversation, status: sent.status, block }
+}
+
+async function sectionNote(h, ctx) {
+	const name = `${PREFIX}4 Note`
+	const studentId = await ctx.card(name)
+	const general = await setBlock(ctx, studentId, 'general_info', 'Lives near the school.')
+	const first = await noteCommand(ctx, studentId, name, 'Likes board games.')
+	check(
+		'/note adds a line to General info at once with a receipt',
+		first.status === 201 &&
+			first.block?.type === 'note_change' &&
+			first.block.change === 'updated' &&
+			first.block.target.blockKey === 'general_info' &&
+			first.block.undo === 'available' &&
+			blockRow(general.id).body === 'Lives near the school.\nLikes board games.' &&
+			noteEntries(studentId) === 0,
+		JSON.stringify({ status: first.status, type: first.block?.type })
+	)
+	const undone = await ctx.undo(first.block.actionId)
+	check(
+		'Undo of /note puts the block text back',
+		undone.block?.undo === 'undone' && blockRow(general.id).body === 'Lives near the school.'
+	)
+	check(
+		'after a reload the /note receipt reads as undone',
+		(await ctx.shown(first.conversation, first.block.actionId))?.undo === 'undone'
+	)
+	const remove = (blockId) => {
+		const body = { expectedRevision: blockRow(blockId).revision }
+		return call(h.api, 'DELETE', `/students/${studentId}/blocks/${blockId}`, {
+			cookie: ctx.cookie,
+			body,
+			headers: { 'content-length': String(Buffer.byteLength(JSON.stringify(body))) },
+		})
+	}
+	const gone = await remove(general.id)
+	const firstLive = (await ctx.blocks(studentId))[0]
+	const second = await noteCommand(ctx, studentId, name, 'Plays chess.')
+	check(
+		'after General info is deleted /note writes into the first live block',
+		gone.status === 200 &&
+			second.block?.type === 'note_change' &&
+			second.block.target.blockId === firstLive.id &&
+			blockRow(firstLive.id).body === 'Plays chess.' &&
+			blockRow(general.id).deleted === true,
+		JSON.stringify({ deleted: gone.status, key: second.block?.target?.blockKey })
+	)
+	for (const block of await ctx.blocks(studentId)) await remove(block.id)
+	const third = await noteCommand(ctx, studentId, name, 'Starts in May.')
+	const live = await ctx.blocks(studentId)
+	check(
+		'without live blocks /note creates General info and writes the line',
+		third.block?.type === 'note_change' &&
+			live.length === 1 &&
+			live[0].name === 'General info' &&
+			live[0].body === 'Starts in May.' &&
+			third.block.target.blockId === live[0].id,
+		JSON.stringify({ live: live.length })
+	)
+	check('no separate note entry was created by /note', noteEntries(studentId) === 0)
+	return 'CHAT_NOTES_NOTE_OK'
 }
 
 function notesResultOf(request) {

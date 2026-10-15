@@ -33,7 +33,7 @@ import { type Database, type DbExecutor, chatActions, chatMessages, students, vi
 
 import type { CalendarCommands } from '../calendar/commands.ts'
 import type { CardReadContext } from '../cards/card-facts.ts'
-import { appendStudentNote, retractStudentNote } from '../cards/notes.ts'
+import { retractStudentNote } from '../cards/notes.ts'
 import { appendLessonComment, retractLessonComment } from '../schedule/comments.ts'
 import { writeMark } from '../schedule/marks.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
@@ -44,7 +44,7 @@ import { readChatRecords } from './facts.ts'
 import { resolveLessonTarget } from './lesson-target.ts'
 import { typedMentions, validateMentions } from './mentions.ts'
 import { blocksOf, findRequest, insertAction, insertMessage, replyOf, toMessages, withUndo } from './messages.ts'
-import { type NoteUndo, isNoteWrite, undoNoteWrite } from './note-writes.ts'
+import { type NoteUndo, appendNoteLine, isNoteWrite, undoNoteWrite } from './note-writes.ts'
 import { parseNoteCommand, parseQuickCommand } from './quick-command.ts'
 import { type NewTurn, type TurnRow, activeTurn, toTurn, turnOfMessage } from './turns.ts'
 
@@ -303,31 +303,12 @@ async function applyNote(
 	studentId: string,
 	body: string
 ): Promise<ChatBlock> {
-	const input = appendStudentNoteRequest.parse({ sectionKind: NOTE_SECTION, body })
-	const card = await cardOf(tx, studentId)
 	const saved = await inSavepoint(tx, async (executor) => {
-		const note = await appendStudentNote(executor, context.accountId, studentId, input)
-		if (note === null) throw new Refusal('not_found')
-		return note
+		const block = await appendNoteLine(executor, context, source, studentId, body)
+		if (block === null) throw new Refusal('not_found')
+		return block
 	})
-	if (saved instanceof Refusal || card === null) return refuse(tx, context, source, 'note', 'not_found')
-	const actionId = await recordAction(tx, context, source, {
-		kind: 'note',
-		state: 'applied',
-		target: { studentId },
-		after: { entryId: saved.id, revision: saved.revision },
-		result: { kind: 'applied' },
-	})
-	return {
-		type: 'action_result',
-		actionId,
-		kind: 'note',
-		studentId,
-		studentName: card.displayName,
-		entryId: saved.id,
-		text: saved.body,
-		undo: 'available',
-	}
+	return saved instanceof Refusal ? refuse(tx, context, source, 'note', 'not_found') : saved
 }
 
 export function executeIntent(

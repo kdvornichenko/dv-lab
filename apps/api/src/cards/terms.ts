@@ -102,6 +102,34 @@ export async function addTerm(
 	}
 }
 
+export async function findLiveTerm(executor: DbExecutor, studentId: string, term: string): Promise<StudentTerm | null> {
+	const [row] = await executor
+		.select(termColumns)
+		.from(studentTerms)
+		.where(
+			and(
+				eq(studentTerms.studentId, studentId),
+				sql`lower(${studentTerms.term}) = lower(${term})`,
+				isNull(studentTerms.removedAt)
+			)
+		)
+	return row ? toTerm(row) : null
+}
+
+export async function lockTerms(
+	executor: DbExecutor,
+	studentId: string,
+	termIds: readonly string[]
+): Promise<StudentTerm[]> {
+	if (termIds.length === 0) return []
+	const rows = await executor
+		.select(termColumns)
+		.from(studentTerms)
+		.where(and(eq(studentTerms.studentId, studentId), inArray(studentTerms.id, [...termIds])))
+		.for('update')
+	return rows.map(toTerm)
+}
+
 export async function updateTermNote(
 	executor: DbExecutor,
 	studentId: string,

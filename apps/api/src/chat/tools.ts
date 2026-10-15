@@ -24,7 +24,10 @@ import {
 	type EventTitlesResponse,
 	type Gender,
 	BLOCK_NAME_MAX_LENGTH,
+	CHAT_NOTE_WORDS_MAX,
 	SECTION_BODY_MAX_LENGTH,
+	TERM_MAX_LENGTH,
+	TERM_NOTE_MAX_LENGTH,
 	type ChatNoteChangeBlock,
 	appendLessonCommentRequest,
 	calendarDate,
@@ -50,7 +53,7 @@ import { removeNoteBlock, writeNoteBlock } from './change-notes.ts'
 import { type ChangeRequest, proposeChange } from './changes.ts'
 import { ESSAY_NOTE, ESSAY_TOOL_NAME, essayFeedbackInput } from './essay.ts'
 import { chatDayLesson, lessonDatesPeriod, readChatFacts, readChatLessonDates } from './facts.ts'
-import { type NoteOutcome, createNoteBlock } from './note-writes.ts'
+import { type NoteOutcome, addVocabulary, createNoteBlock, removeVocabulary } from './note-writes.ts'
 import { citeKey } from './publish-gate.ts'
 import {
 	type ChatToolEntry,
@@ -112,6 +115,22 @@ const inputs = {
 		text: blockText,
 	}),
 	note_block_delete: z.strictObject({ student_id: id, block_id: id }),
+	vocabulary_add: z.strictObject({
+		student_id: id,
+		words: z
+			.array(
+				z.strictObject({
+					term: z
+						.string()
+						.min(1)
+						.max(TERM_MAX_LENGTH * 2),
+					note: nullable(z.string().max(TERM_NOTE_MAX_LENGTH * 2)),
+				})
+			)
+			.min(1)
+			.max(CHAT_NOTE_WORDS_MAX),
+	}),
+	vocabulary_remove: z.strictObject({ student_id: id, term_ids: z.array(id).min(1).max(CHAT_NOTE_WORDS_MAX) }),
 	add_comment: z.strictObject({ student_id: id, date: nullable(date), time: nullable(time), text: z.string() }),
 	propose_lesson_change: z.strictObject({
 		student_id: id,
@@ -838,6 +857,37 @@ export const CHAT_TOOL_ENTRIES: readonly ChatToolEntry[] = [
 		effect: 'write',
 		step: studentStep,
 		run: (context, input) => noteWrite(removeNoteBlock(context, input.student_id, input.block_id)),
+	}),
+	chatTool({
+		name: 'vocabulary_add',
+		description: `Add words to the vocabulary of a student, at most ${CHAT_NOTE_WORDS_MAX} in one call. term is the word or phrase as the teacher wrote it; note is a short explanation or translation, or null. Words already in the vocabulary are left as they are; a word from Removed comes back. Saved at once with Undo.`,
+		input: inputs.vocabulary_add,
+		properties: {
+			student_id: string,
+			words: {
+				type: 'array',
+				items: {
+					type: 'object',
+					properties: { term: string, note: nullableString },
+					required: ['term', 'note'],
+					additionalProperties: false,
+				},
+			},
+		},
+		strict: false,
+		effect: 'write',
+		step: studentStep,
+		run: (context, input) => noteWrite(addVocabulary(context, input.student_id, input.words)),
+	}),
+	chatTool({
+		name: 'vocabulary_remove',
+		description: `Remove words from the vocabulary of a student only when the teacher asks for it, at most ${CHAT_NOTE_WORDS_MAX} in one call. term_ids are the term_id values from student_notes. The words go to Removed for 30 days and the teacher can restore them with Undo.`,
+		input: inputs.vocabulary_remove,
+		properties: { student_id: string, term_ids: { type: 'array', items: string } },
+		strict: false,
+		effect: 'write',
+		step: studentStep,
+		run: (context, input) => noteWrite(removeVocabulary(context, input.student_id, input.term_ids)),
 	}),
 	chatTool({
 		name: 'add_comment',

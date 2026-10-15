@@ -888,6 +888,8 @@ export const CHAT_STEP_TOOLS = [
 	'note_write',
 	'note_block_create',
 	'note_block_delete',
+	'vocabulary_add',
+	'vocabulary_remove',
 	'add_comment',
 	'propose_lesson_change',
 	'propose_payment',
