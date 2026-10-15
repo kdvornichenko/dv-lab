@@ -2,8 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 
 import { describe, expect, it } from 'vitest'
 
-import { ESSAY_FEEDBACK_TOOL } from '../src/chat/essay.ts'
-import { CHAT_TOOLS } from '../src/chat/tools.ts'
+import { CHAT_TOOLS, ESSAY_TOOLS, REVIEW_TOOLS } from '../src/chat/tools.ts'
 
 const STRICT_TOOLS_MAX = 8
 const STRICT_UNIONS_MAX = 16
@@ -28,7 +27,8 @@ type Schema = Record<string, unknown>
 
 const requests: [string, Anthropic.Tool[]][] = [
 	['chat tools', CHAT_TOOLS],
-	['essay turn tools', [ESSAY_FEEDBACK_TOOL]],
+	['essay turn tools', ESSAY_TOOLS],
+	['review turn tools', REVIEW_TOOLS],
 ]
 
 function nodes(schema: unknown, path: string): [string, Schema][] {
