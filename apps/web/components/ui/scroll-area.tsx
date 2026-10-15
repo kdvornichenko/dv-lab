@@ -77,7 +77,7 @@ const ScrollBar = forwardRef<
 			orientation={orientation}
 			data-slot="scroll-area-scrollbar"
 			className={cn(
-				'group/scrollbar absolute z-20 flex touch-none select-none',
+				'group/scrollbar absolute z-20 flex touch-none select-none max-md:hidden',
 				'opacity-0 transition-opacity delay-160 duration-120 ease-out',
 				'data-[hovering]:duration-160 data-[scrolling]:duration-160',
 				'data-[hovering]:opacity-100 data-[scrolling]:opacity-100',
