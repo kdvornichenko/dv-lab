@@ -63,12 +63,39 @@ function events(monday) {
 	}))
 }
 
-async function stub(context) {
+const NOTE = 'Prefetched note'
+
+function details(eventKey) {
+	const plan = PLAN.find(([id]) => eventKey.startsWith(`${id}-`))
+	return {
+		eventKey,
+		version: 'v1',
+		title: plan?.[1] ?? 'Touch today',
+		description: NOTE,
+		descriptionBlocks: [
+			{ kind: 'paragraph', runs: [{ kind: 'text', text: NOTE, bold: false, italic: false, underline: false }] },
+		],
+		descriptionFormatted: false,
+		location: null,
+		color: NO_COLOR,
+		repeat: { kind: 'once' },
+		scopes: { edit: ['one'], delete: ['one'], reason: null },
+	}
+}
+
+async function stub(context, log = []) {
 	const calls = []
+	await context.route(/\/api\/google\/events\/[^/?]+$/, async (route) => {
+		if (route.request().method() !== 'GET') return route.continue()
+		const key = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop())
+		log.push(`details:${key}`)
+		return route.fulfill({ json: details(key) })
+	})
 	await context.route(/\/api\/schedule\/week(\?|$)/, async (route) => {
 		const response = await route.fetch()
 		const body = await response.json()
 		const start = new URL(route.request().url()).searchParams.get('start')
+		log.push(`week:${start}`)
 		return route.fulfill({
 			response,
 			json: {
@@ -76,7 +103,7 @@ async function stub(context) {
 				read: { state: 'fresh', fetchedAt: new Date().toISOString(), revision: '1' },
 				write: { state: 'ready' },
 				snapshotRange: body.requestedRange,
-				events: start === null ? [] : events(start),
+				events: start === null ? [] : [...events(start), ...todayEvent(start)],
 				series: [],
 			},
 		})
@@ -84,7 +111,7 @@ async function stub(context) {
 	const commands = new Map()
 	await context.route(/\/api\/(google\/events|schedule\/(lessons|series))/, async (route) => {
 		const request = route.request()
-		if (request.method() !== 'POST') return route.continue()
+		if (request.method() !== 'POST') return route.fallback()
 		let body = null
 		try {
 			body = request.postDataJSON()
@@ -116,6 +143,70 @@ async function stub(context) {
 		})
 	})
 	return calls
+}
+
+function todayVn() {
+	return new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date(Date.now() - 2 * 3600000))
+}
+
+function todayEvent(monday) {
+	const today = todayVn()
+	if (today < monday || today >= addDays(monday, 7)) return []
+	return [
+		{
+			...events(monday)[0],
+			eventKey: `touch-today-${monday}`,
+			title: 'Touch today',
+			when: {
+				kind: 'timed',
+				startsAt: instantAt(today, 12, 0),
+				endsAt: instantAt(today, 13, 0),
+				timeZone: ZONE,
+			},
+		},
+	]
+}
+
+async function prefetchChecks() {
+	const { browser, context, page } = await launch({ width: 1280, height: 720, timezoneId: ZONE })
+	const log = []
+	await stub(context, log)
+	await signIn(page)
+	await page.goto(`${BASE}/schedule`, { timeout: 120000 })
+	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().waitFor({ timeout: 30000 })
+	await wait(6000)
+	const weeks = new Set(log.filter((entry) => entry.startsWith('week:')).map((entry) => entry.slice(5)))
+	check('prefetch: a month of weeks is read ahead and back', weeks.size >= 9, [...weeks].sort().join(','))
+	const loaded = log.filter((entry) => entry.startsWith('details:')).map((entry) => entry.slice(8))
+	const monday = [...weeks].sort()[4]
+	const todays = PLAN.filter(([, , day]) => addDays(monday, day) === todayVn()).length + 1
+	check(
+		"prefetch: today's events come first, then the rest of the week",
+		loaded.slice(0, todays).some((key) => key.startsWith('touch-today-')) &&
+			loaded.slice(todays).every((key) => !key.startsWith('touch-today-')) &&
+			['touch-a', 'touch-b', 'touch-night'].every((id) => loaded.some((key) => key.startsWith(id))),
+		loaded.join(',')
+	)
+	const before = loaded.length
+	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().click()
+	const dialog = page.getByRole('dialog').last()
+	await dialog.waitFor({ timeout: 8000 })
+	const instant = await dialog.innerText()
+	check('prefetch: an opened event shows its description at once', instant.includes(NOTE), instant.slice(0, 120))
+	await page.keyboard.press('Escape')
+	check(
+		'prefetch: opening refreshes the details once in the background',
+		log.filter((entry) => entry.startsWith('details:')).length <= before + 2
+	)
+	await page.locator('[aria-label="Next week"]').first().click()
+	await wait(4000)
+	const after = new Set(log.filter((entry) => entry.startsWith('week:')).map((entry) => entry.slice(5)))
+	check(
+		'prefetch: turning the week reads one more week at the far end',
+		after.size === weeks.size + 1,
+		[...after].sort().join(',')
+	)
+	await browser.close()
 }
 
 async function columnBox(page, index) {
@@ -174,6 +265,14 @@ async function moveOpened(page, title) {
 	return shown && text.startsWith(title)
 }
 
+async function moveSent(page, calls, count, id) {
+	for (let tries = 0; tries < 40 && calls.length < count; tries++) await wait(200)
+	const last = calls.at(-1)
+	await wait(1500)
+	await page.keyboard.press('Escape')
+	return calls.length === count && last.path.includes(`/google/events/${id}-`)
+}
+
 async function weekLabel(page) {
 	return page.locator('[data-slot="schedule-week-picker"]').first().innerText()
 }
@@ -189,7 +288,7 @@ async function phoneChecks() {
 	const page = await context.newPage()
 	const problems = []
 	page.on('pageerror', (error) => problems.push(String(error).slice(0, 200)))
-	await stub(context)
+	const calls = await stub(context)
 	await signIn(page)
 	await page.goto(`${BASE}/schedule`, { timeout: 120000 })
 	await page.locator(`${COLUMN} [data-event-key^="touch-a"]`).first().waitFor({ timeout: 30000 })
@@ -312,8 +411,10 @@ async function phoneChecks() {
 	)
 	await touch(cdp, 'touchEnd')
 	await wait(800)
-	check('phone: the drop starts the move of that block', await moveOpened(page, 'Touch alpha'))
+	check('phone: the drop sends the move of that block', await moveSent(page, calls, 1, 'touch-a'))
 
+	await page.reload()
+	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().waitFor({ timeout: 30000 })
 	await reveal(page, 15)
 	const week = await weekLabel(page)
 	const bravo = await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().boundingBox()
@@ -331,7 +432,7 @@ async function phoneChecks() {
 	check('phone: leaving the edge stops the turning', (await weekLabel(page)) === turned)
 	const dropAt = await frameRange(page, 'week-grid-move-frame')
 	await touch(cdp, 'touchEnd')
-	check('phone: the drop in the next week starts the move', await moveOpened(page, 'Touch bravo'), String(dropAt))
+	check('phone: the drop in the next week sends the move', await moveSent(page, calls, 2, 'touch-b'), String(dropAt))
 
 	const swipeFrom = { x: 300, y: 500 }
 	const swipeLabel = await weekLabel(page)
@@ -346,7 +447,7 @@ async function phoneChecks() {
 
 async function laptopChecks() {
 	const { browser, context, page, problems } = await launch({ width: 1280, height: 720, timezoneId: ZONE })
-	await stub(context)
+	const calls = await stub(context)
 	await signIn(page)
 	await page.goto(`${BASE}/schedule`, { timeout: 120000 })
 	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().waitFor({ timeout: 30000 })
@@ -394,7 +495,7 @@ async function laptopChecks() {
 	await wait(300)
 	check('laptop: the frame follows into the new week', (await frameRange(page, 'week-grid-move-frame')) !== null)
 	await page.mouse.up()
-	check('laptop: the drop in the next week starts the move', await moveOpened(page, 'Touch bravo'))
+	check('laptop: the drop in the next week sends the move', await moveSent(page, calls, 1, 'touch-b'))
 	const real = problems.filter(
 		(problem) => !problem.includes('server caches disabled') && !problem.includes('status of')
 	)
@@ -402,6 +503,7 @@ async function laptopChecks() {
 	await browser.close()
 }
 
+await prefetchChecks()
 await phoneChecks()
 await laptopChecks()
 
