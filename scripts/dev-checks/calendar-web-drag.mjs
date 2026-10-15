@@ -113,6 +113,7 @@ delete from lesson_marks where series_id in (select id from lesson_series where 
 delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in ${card});
 delete from lessons where student_id in ${card};
 delete from lesson_series where student_id in ${card};
+delete from student_sections where student_id in ${card};
 delete from students where import_key = '${CARD_TWO}';
 commit;`)
 }

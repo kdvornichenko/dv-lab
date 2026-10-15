@@ -99,6 +99,8 @@ function removeCards() {
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${where})`
 	).rows.map((row) => row.id)
 	removeConversations(conversations)
+	sql(`delete from student_notes where student_id in (select id from students where ${where})`)
+	sql(`delete from student_sections where student_id in (select id from students where ${where})`)
 	sql(`delete from payments where student_id in (select id from students where ${where})`)
 	const result = sql(`delete from students where ${where}`)
 	console.log(`fixture cards removed ${result.rowCount}`)
@@ -1306,6 +1308,9 @@ const OUTCOME_LINE = 'I could not prepare that change.'
 const WIDTHS = [390, 375, 320]
 
 function removeBulkCard() {
+	const bulkCards = `select id from students where display_name = ${q(BULK_NAME)} and import_key is null`
+	sql(`delete from student_notes where student_id in (${bulkCards})`)
+	sql(`delete from student_sections where student_id in (${bulkCards})`)
 	sql(`delete from students where display_name = ${q(BULK_NAME)} and import_key is null`)
 	console.log('fixture card removed')
 }
