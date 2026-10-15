@@ -312,7 +312,16 @@ export function StudentProfile({ id, arrival }: { id: string; arrival: ProfileAr
 						/>
 					</TabPanel>
 					<TabPanel value="lessons" className="mt-4">
-						<LessonsTab student={student} mainTimeZone={mainTimeZone} asOf={asOf} refreshKey={lessonsVersion} />
+						<LessonsTab
+							student={student}
+							mainTimeZone={mainTimeZone}
+							asOf={asOf}
+							refreshKey={lessonsVersion}
+							onOpenPayments={(paymentId) => {
+								changeTab('payments')
+								if (paymentId !== null) setOpenPayment(paymentId)
+							}}
+						/>
 					</TabPanel>
 					<TabPanel value="notes" className="mt-4">
 						<NotesTab
