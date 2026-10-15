@@ -67,11 +67,49 @@ export const calendarEventRepeat = z.discriminatedUnion('kind', [
 ])
 export type CalendarEventRepeat = z.infer<typeof calendarEventRepeat>
 
+export const DESCRIPTION_BLOCKS_LIMIT = 4096
+export const DESCRIPTION_RUNS_LIMIT = 8192
+export const DESCRIPTION_ITEMS_LIMIT = 4096
+export const DESCRIPTION_TEXT_LIMIT = 8192
+export const DESCRIPTION_HREF_LIMIT = 2048
+
+export const eventLinkHref = z
+	.string()
+	.max(DESCRIPTION_HREF_LIMIT)
+	.regex(/^(?:https?:\/\/|mailto:|tel:)[^\s\u0000-\u001f\u007f-\u009f]+$/)
+
+const runText = z.string().min(1).max(DESCRIPTION_TEXT_LIMIT)
+const runMarks = { bold: z.boolean(), italic: z.boolean(), underline: z.boolean() }
+
+export const eventTextRun = z.discriminatedUnion('kind', [
+	z.strictObject({ kind: z.literal('text'), text: runText, ...runMarks }),
+	z.strictObject({ kind: z.literal('link'), text: runText, href: eventLinkHref, ...runMarks }),
+	z.strictObject({ kind: z.literal('break') }),
+])
+export type EventTextRun = z.infer<typeof eventTextRun>
+
+const eventTextRuns = z.array(eventTextRun).min(1).max(DESCRIPTION_RUNS_LIMIT)
+
+export const eventDescriptionBlock = z.discriminatedUnion('kind', [
+	z.strictObject({ kind: z.literal('paragraph'), runs: eventTextRuns }),
+	z.strictObject({
+		kind: z.literal('list'),
+		ordered: z.boolean(),
+		items: z.array(eventTextRuns).min(1).max(DESCRIPTION_ITEMS_LIMIT),
+	}),
+	z.strictObject({ kind: z.literal('divider') }),
+])
+export type EventDescriptionBlock = z.infer<typeof eventDescriptionBlock>
+
+export const eventDescriptionBlocks = z.array(eventDescriptionBlock).max(DESCRIPTION_BLOCKS_LIMIT)
+
 export const calendarEventDetails = z.strictObject({
 	eventKey,
 	version: calendarVersion,
 	title: z.string().nullable(),
 	description: eventDescription.nullable(),
+	descriptionBlocks: eventDescriptionBlocks,
+	descriptionFormatted: z.boolean(),
 	location: eventLocation.nullable(),
 	color: calendarEventColor,
 	repeat: calendarEventRepeat,
