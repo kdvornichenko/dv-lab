@@ -423,13 +423,24 @@ async function phoneChecks() {
 	await wait(650)
 	const edge = { x: 386, y: hold.y }
 	await slide(cdp, hold, edge)
-	await wait(1100)
+	await wait(300)
+	await shot(page, 'touch', 'phone-edge')
+	check(
+		'phone: the right edge zone shows its band while a block is held there',
+		(await page.locator('[data-slot="week-grid-edge"][data-side="right"][data-shown]').count()) === 1 &&
+			(await page.locator('[data-slot="week-grid-edge"][data-side="left"][data-shown]').count()) === 0
+	)
+	await wait(800)
 	const turned = await weekLabel(page)
 	check('phone: holding a block at the right edge turns the week', turned !== week, `${week} -> ${turned}`)
 	check('phone: the carried frame survives the turn', (await frameRange(page, 'week-grid-move-frame')) !== null)
 	await slide(cdp, edge, { x: 200, y: hold.y })
 	await wait(700)
 	check('phone: leaving the edge stops the turning', (await weekLabel(page)) === turned)
+	check(
+		'phone: the band goes when the block leaves the edge',
+		(await page.locator('[data-slot="week-grid-edge"][data-shown]').count()) === 0
+	)
 	const dropAt = await frameRange(page, 'week-grid-move-frame')
 	await touch(cdp, 'touchEnd')
 	check('phone: the drop in the next week sends the move', await moveSent(page, calls, 2, 'touch-b'), String(dropAt))
@@ -455,6 +466,21 @@ async function laptopChecks() {
 		() => Array.from(document.querySelectorAll('[data-slot="week-grid-gutter"] > div')).length
 	)
 	check('laptop: the gutter has 26 rows', labels === 26, String(labels))
+	const lit = await page.evaluate(() =>
+		Array.from(document.querySelectorAll('[data-slot="week-grid-day"]'))
+			.filter((day) => day.querySelector('[data-slot="week-grid-date"]')?.className.includes('bg-gcal-today'))
+			.map((day) => day.dataset.date)
+	)
+	const calendarToday = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date())
+	check(
+		'laptop: the filled date in the header is the calendar day',
+		lit.length === 1 && lit[0] === calendarToday,
+		`${lit} vs ${calendarToday}`
+	)
+	check(
+		'laptop: no edge band is drawn while nothing is carried',
+		(await page.locator('[data-slot="week-grid-edge"]').count()) === 0
+	)
 	await reveal(page, 15)
 	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().click()
 	check('laptop: a click on a movable block opens it', await moveOpened(page, 'Touch bravo'))
