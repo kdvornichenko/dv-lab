@@ -26,7 +26,7 @@
 
 - Леджер ученика — `studentLedger` в `packages/core/src/balance.ts` (хронологический проход, покрывающая оплата, остаток после урока, граница «с последней оплаты»); его единственная загрузка в api — `apps/api/src/cards/ledger.ts`.
 - Уроки ученика за период (`GET /students/:id/lessons`) — `cards/lessons-range.ts`.
-- Сравнение названий и имён — `packages/core/src/text-match.ts`.
+- Сравнение названий и имён — `packages/core/src/text-match.ts`: `nameMatches` (начало слова, латинские двойники; Count lessons, упоминания) и `similarTitle` (латинский ключ `latinKey` с транслитерацией, таблица уменьшительных форм, Jaro-Winkler ≥ 0.9 при ключах от 6 букв и одинаковых согласных; поиск событий в чате). Векторы — `scripts/dev-checks/ledger-core/text-match.ts`.
 
 ## Импорт vault
 
