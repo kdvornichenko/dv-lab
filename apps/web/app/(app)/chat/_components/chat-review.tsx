@@ -138,7 +138,7 @@ function UndoChanges({ block, onUndo }: { block: ChatReviewResultBlock; onUndo: 
 	return (
 		<div className="flex flex-wrap gap-2 pl-6">
 			<Button
-				variant="ghost"
+				variant="secondary"
 				size="compact"
 				className={TOUCH}
 				leadingIcon={busy ? Spinner : Undo2}
@@ -269,7 +269,7 @@ export function ReviewOffer({
 						Yes
 					</Button>
 					<Button
-						variant="ghost"
+						variant="secondary"
 						size="compact"
 						className={TOUCH}
 						disabled={busy !== null}

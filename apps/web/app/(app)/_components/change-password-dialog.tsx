@@ -147,7 +147,7 @@ export function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending}>
 							{pending ? 'Changing…' : 'Change password'}

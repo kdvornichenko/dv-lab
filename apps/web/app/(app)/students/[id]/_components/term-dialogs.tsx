@@ -177,7 +177,7 @@ export function AddTermDialog({ student, onClose, onAdded }: AddTermDialogProps)
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending}>
 							{pending ? 'Adding…' : 'Add term'}
@@ -259,7 +259,7 @@ export function EditNoteDialog({ student, term, onClose, onSaved }: EditNoteDial
 					</div>
 					<DialogFooter>
 						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-							Discard changes
+							Close
 						</Button>
 						<Button type="submit" loading={pending}>
 							{pending ? 'Saving…' : 'Save note'}

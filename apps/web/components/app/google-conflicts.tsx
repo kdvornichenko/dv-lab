@@ -7,11 +7,13 @@ import type { z } from 'zod'
 
 import { calendarVersionFor } from '@/app/(app)/schedule/_components/calendar-overlaps'
 import { Button } from '@/components/ui/button'
+import { dialogPhoneFooter } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip } from '@/components/ui/tooltip'
 import { apiRequest } from '@/lib/api-client'
 import { formatDate, formatDay, formatTime, mainRange, yearInZone } from '@/lib/schedule-format'
 import { zoneLabel } from '@/lib/time-zones'
+import { cn } from '@/lib/utils'
 
 import {
 	googleConflictRequest,
@@ -456,7 +458,7 @@ function OverlapDetails({
 					))}
 					{google.length > 2 ? (
 						<div>
-							<Button type="button" variant="ghost" size="compact" onClick={() => setExpanded(!expanded)}>
+							<Button type="button" variant="secondary" size="compact" onClick={() => setExpanded(!expanded)}>
 								{expanded ? 'Show fewer conflicts' : `Show all ${google.length} conflicts`}
 							</Button>
 						</div>
@@ -502,7 +504,7 @@ function OverlapControl({
 					render={
 						<Button
 							type="button"
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							active={open}
 							leadingIcon={TriangleAlert}
@@ -559,7 +561,7 @@ export function ConflictStatus({
 		content = (
 			<Tooltip content={CONNECT_TIP} className="max-w-[280px]">
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					leadingIcon={ExternalLink}
 					nativeButton={false}
@@ -591,7 +593,7 @@ export function ConflictStatus({
 		content = (
 			<Button
 				type="button"
-				variant="ghost"
+				variant="secondary"
 				size="compact"
 				leadingIcon={TriangleAlert}
 				className="[&_svg]:text-warning"
@@ -626,10 +628,14 @@ export function FormFooter({
 	return (
 		<div
 			data-slot="form-footer"
-			className={`${className} flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 pointer-coarse:max-sm:gap-4`}
+			className={cn(
+				className,
+				'flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 pointer-coarse:max-sm:gap-4',
+				dialogPhoneFooter
+			)}
 		>
 			<div className="min-w-0 sm:flex-1">{status}</div>
-			<div className="flex justify-end gap-2 max-sm:*:flex-1">{children}</div>
+			<div className="flex flex-wrap justify-end gap-2">{children}</div>
 		</div>
 	)
 }

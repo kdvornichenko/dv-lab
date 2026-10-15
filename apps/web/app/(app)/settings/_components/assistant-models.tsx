@@ -607,7 +607,7 @@ function ModelRow({
 					{draft.editing ? null : (
 						<Button
 							type="button"
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							leadingIcon={Pencil}
 							aria-label={`Edit ${label}`}

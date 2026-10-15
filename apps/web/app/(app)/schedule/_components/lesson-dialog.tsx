@@ -211,14 +211,17 @@ export function LessonDialog({
 						<TimePair as="span" main={description} second={second} />
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[calc(100dvh-14rem)]" viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1">
+				<ScrollArea
+					className="max-h-[calc(100dvh-14rem)] max-md:max-h-none max-md:min-h-0 max-md:flex-1"
+					viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1"
+				>
 					<div className="flex flex-col gap-4 py-1">
 						<TimeZoneStaleNotice stale={context.stale} pending={busy} onRefresh={onRefresh} />
 						{notice === 'stale' ? (
 							<Banner status="warning" data-slot="lesson-stale">
 								<BannerTitle>{STALE_TITLE}</BannerTitle>
 								<BannerDescription>{STALE_LESSON}</BannerDescription>
-								<Button type="button" variant="ghost" size="compact" disabled={busy} onClick={onRefresh}>
+								<Button type="button" variant="secondary" size="compact" disabled={busy} onClick={onRefresh}>
 									Refresh
 								</Button>
 							</Banner>

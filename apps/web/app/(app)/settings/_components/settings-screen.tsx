@@ -289,7 +289,7 @@ function DefaultZoneCard({ state, now }: { state: ReturnType<typeof useSettings>
 					<p className="text-caption text-muted-foreground">Saved to your account.</p>
 				)}
 				{(failed || stale) && state.candidate === null ? (
-					<Button type="button" variant="ghost" className="mt-2" onClick={state.refresh}>
+					<Button type="button" variant="secondary" className="mt-2" onClick={state.refresh}>
 						Refresh
 					</Button>
 				) : null}

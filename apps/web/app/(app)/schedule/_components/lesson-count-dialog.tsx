@@ -250,7 +250,7 @@ export function LessonCountDialog({ iconOnly = false }: { iconOnly?: boolean }) 
 					<DialogDescription>Pick a date range, then an event, to get its dates by month.</DialogDescription>
 				</DialogHeader>
 				<ScrollArea
-					className="max-h-[calc(100dvh-14rem)] min-w-0"
+					className="max-h-[calc(100dvh-14rem)] min-w-0 max-md:max-h-none max-md:min-h-0 max-md:flex-1"
 					viewportClassName="scroll-fade max-h-[inherit] -m-1 p-1 [&>div]:min-w-0!"
 				>
 					<div className="flex min-w-0 flex-col gap-4">

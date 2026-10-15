@@ -58,7 +58,7 @@ function UndoButton({
 	const pending = block.undo === 'pending'
 	return (
 		<Button
-			variant="ghost"
+			variant="secondary"
 			size="compact"
 			leadingIcon={pending ? Spinner : Undo2}
 			disabled={pending}

@@ -61,7 +61,7 @@ export async function studentsPart3(page: Page) {
 	)
 	await shot(page, 'sched-students', 'zone-search')
 	await page.keyboard.press('Escape')
-	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	check('dialog closed without saving', posts.length === 0, posts.join(' | '))
 	const left = await page.evaluate(() => document.querySelectorAll<HTMLElement>('tbody tr').length)

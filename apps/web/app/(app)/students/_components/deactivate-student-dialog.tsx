@@ -50,7 +50,7 @@ export function DeactivateStudentDialog({ studentId, account, onClose, onDeactiv
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm" showCloseButton={false}>
+			<DialogContent size="sm" phone="sheet" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle>Deactivate {account.displayName}?</DialogTitle>
 					<DialogDescription>

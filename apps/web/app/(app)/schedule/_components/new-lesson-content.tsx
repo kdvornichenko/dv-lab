@@ -82,8 +82,8 @@ export function NewLessonFooter({
 }) {
 	return (
 		<FormFooter status={status}>
-			<Button type="button" variant="ghost" onClick={onClose}>
-				Discard changes
+			<Button type="button" variant="secondary" onClick={onClose}>
+				Close
 			</Button>
 			<Button type="submit" disabled={blocked}>
 				{repeats === 'weekly' ? 'Add series' : 'Add lesson'}

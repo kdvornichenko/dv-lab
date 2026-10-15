@@ -88,7 +88,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 							{toast.action ? (
 								<BannerActions>
 									<BannerAction
-										variant="ghost"
+										variant="secondary"
 										href={toast.action.href}
 										onClick={() => {
 											toast.action?.onClick?.()

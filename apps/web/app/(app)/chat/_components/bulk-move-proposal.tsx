@@ -195,7 +195,7 @@ function Targets({
 			{many ? (
 				<div className="pl-6">
 					<Button
-						variant="ghost"
+						variant="secondary"
 						size="compact"
 						className={cn('text-caption text-muted-foreground', TOUCH)}
 						trailingIcon={open ? ChevronUp : ChevronDown}
@@ -390,7 +390,7 @@ export function BulkMoveProposal({
 						{href === null ? null : (
 							<div className="flex flex-wrap gap-2 pl-6">
 								<Button
-									variant="ghost"
+									variant="secondary"
 									size="compact"
 									className={`${TOUCH} h-auto min-h-7 py-1 whitespace-normal`}
 									leadingIcon={ArrowRight}
@@ -479,7 +479,7 @@ export function BulkMoveProposal({
 								{busy && pending !== 'decline' ? 'Moving lessons…' : 'Move lessons'}
 							</Button>
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								className={TOUCH}
 								disabled={busy}

@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils'
 export function CenteredPanel({ children }: { children: ReactNode }) {
 	return (
 		<main className="grid min-h-svh place-items-center bg-surface-1 px-4 py-8">
-			<Elevated offset={1} shadowLevel={2} className="w-full max-w-sm rounded-2xl p-6">
-				<div className="flex flex-col gap-6">
+			<Elevated offset={1} shadowLevel={2} className="w-full max-w-sm rounded-2xl p-unit-1.5">
+				<div className="flex flex-col gap-unit-1.5">
 					<div className="flex items-center gap-2">
 						<WorkspaceTile>D</WorkspaceTile>
 						<span className="text-title font-semibold text-foreground">dv-lab</span>
@@ -25,7 +25,7 @@ export function CenteredPanel({ children }: { children: ReactNode }) {
 export function PageScroll({ children }: { children: ReactNode }) {
 	return (
 		<ScrollArea className="min-h-0 flex-1" viewportClassName="scroll-fade [&>div]:!min-w-0">
-			<div className="mx-auto flex w-full flex-col gap-4 px-4 pt-4 pb-16 min-[1920px]:max-w-384 md:px-6 md:pb-8">
+			<div className="mx-auto flex w-full flex-col gap-3 px-4 pt-3 pb-16 min-[1920px]:max-w-384 md:gap-4 md:px-6 md:pt-4 md:pb-8">
 				{children}
 			</div>
 		</ScrollArea>

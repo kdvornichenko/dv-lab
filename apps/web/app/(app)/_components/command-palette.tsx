@@ -238,7 +238,14 @@ export function CommandPalette({ open, onOpenChange, initialQuery }: CommandPale
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent size="lg" position="top" showCloseButton={false} className="overflow-hidden p-0" data-palette="">
+			<DialogContent
+				size="lg"
+				position="top"
+				phone="center"
+				showCloseButton={false}
+				className="overflow-hidden p-0"
+				data-palette=""
+			>
 				<DialogTitle className="sr-only">Search</DialogTitle>
 				<DialogDescription className="sr-only">
 					Find a student, go to a screen, start a chat, add a payment, change the theme or sign out.

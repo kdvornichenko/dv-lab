@@ -63,7 +63,7 @@ function EditorFooter({
 		<div className="flex flex-wrap items-center justify-between gap-2">
 			<MarkdownLine>Markdown is supported.</MarkdownLine>
 			<div className="flex gap-2">
-				<Button type="button" variant="ghost" size="compact" onClick={onCancel} disabled={pending}>
+				<Button type="button" variant="secondary" size="compact" onClick={onCancel} disabled={pending}>
 					Cancel
 				</Button>
 				<Button type="button" size="compact" loading={pending} disabled={!canSave} onClick={onSave}>
@@ -353,7 +353,7 @@ export function NoteBlockPanel({
 					{renaming || editing ? null : (
 						<Button
 							ref={editButton}
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							leadingIcon={Pencil}
 							data-block-edit

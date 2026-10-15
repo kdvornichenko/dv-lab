@@ -427,7 +427,7 @@ function TeacherBubble({ text, mentions }: { text: string; mentions: readonly Me
 					<span className="text-caption text-muted-foreground tabular-nums">
 						{words} {words === 1 ? 'word' : 'words'}
 					</span>
-					<Button variant="ghost" size="compact" onClick={() => setOpen(true)}>
+					<Button variant="secondary" size="compact" onClick={() => setOpen(true)}>
 						Show full text
 					</Button>
 				</div>

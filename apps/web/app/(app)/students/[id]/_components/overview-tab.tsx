@@ -477,14 +477,14 @@ export function OverviewTab({
 		left = <OverviewLeftLoading studentName={student.displayName} mainTimeZone={mainTimeZone} />
 	} else if (state.kind === 'error') {
 		left = (
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+			<div className="flex min-w-0 flex-col gap-unit-1.5">
 				{facts}
 				<UnreadPanel onRefresh={load} />
 			</div>
 		)
 	} else {
 		left = (
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6" data-slot="overview-left" data-state="ready">
+			<div className="flex min-w-0 flex-col gap-unit-1.5" data-slot="overview-left" data-state="ready">
 				{facts}
 				{counted && lessons !== null ? (
 					<HeldDates
@@ -512,7 +512,7 @@ export function OverviewTab({
 					id="student-recent"
 					title="Recent notes and comments"
 					action={
-						<Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('notes')}>
+						<Button variant="secondary" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('notes')}>
 							{items.length === 0 ? 'Notes' : 'All notes'}
 						</Button>
 					}
@@ -537,7 +537,12 @@ export function OverviewTab({
 					id="student-vocabulary"
 					title="Vocabulary"
 					action={
-						<Button variant="ghost" size="compact" trailingIcon={ArrowRight} onClick={() => onOpenTab('vocabulary')}>
+						<Button
+							variant="secondary"
+							size="compact"
+							trailingIcon={ArrowRight}
+							onClick={() => onOpenTab('vocabulary')}
+						>
 							All words
 						</Button>
 					}
@@ -569,14 +574,14 @@ export function OverviewTab({
 	return (
 		<div className={OVERVIEW_GRID}>
 			{left}
-			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+			<div className="flex min-w-0 flex-col gap-unit-1.5">
 				<Panel
 					id="student-details"
 					title="Details"
 					action={
 						<Button
 							ref={editButton}
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							leadingIcon={Pencil}
 							onClick={() => setEditOpen(true)}

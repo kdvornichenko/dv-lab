@@ -253,10 +253,16 @@ function PromptBlock({ prompt, onSaved }: { prompt: CommandPrompt; onSaved: (nex
 					</span>
 				</div>
 				<div className="flex shrink-0 gap-2">
-					<Button type="button" variant="ghost" size="compact" disabled={saving || atDefault} onClick={restoreDefault}>
+					<Button
+						type="button"
+						variant="secondary"
+						size="compact"
+						disabled={saving || atDefault}
+						onClick={restoreDefault}
+					>
 						Restore default
 					</Button>
-					<Button type="button" variant="ghost" size="compact" disabled={saving || !edited} onClick={discard}>
+					<Button type="button" variant="secondary" size="compact" disabled={saving || !edited} onClick={discard}>
 						Discard
 					</Button>
 					<Button

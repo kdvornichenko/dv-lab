@@ -90,7 +90,7 @@ export function LengthField({
 	] as const
 
 	return (
-		<div className="flex min-w-0 flex-col gap-2">
+		<div className="flex min-w-0 flex-col gap-unit-0.5">
 			<span id={labelId} className="text-body text-muted-foreground">
 				{label}
 			</span>

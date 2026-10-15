@@ -90,7 +90,7 @@ export async function fieldValues(page: Page, fx: Awaited<ReturnType<typeof form
 	await shot(page, 'sched-forms', 'select-long')
 	await page.keyboard.press('Escape')
 	await page.waitForTimeout(400)
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(300)
 
@@ -146,7 +146,7 @@ export async function fieldValues(page: Page, fx: Awaited<ReturnType<typeof form
 		JSON.stringify(invalid)
 	)
 	await shot(page, 'sched-forms', 'move-series-invalid')
-	await page.getByRole('dialog').getByRole('button', { name: 'Discard changes' }).click()
+	await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
 	await dialog.waitFor({ state: 'detached', timeout: 10000 })
 	await page.waitForTimeout(300)
 
@@ -165,7 +165,7 @@ export async function fieldValues(page: Page, fx: Awaited<ReturnType<typeof form
 		`${moveForm?.vn} | ${moveForm?.second}`
 	)
 	await shot(page, 'sched-forms', 'move-lesson')
-	await dialog.getByRole('button', { name: 'Discard changes' }).click()
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click()
 	await page.waitForTimeout(300)
 	await closeDialog(page)
 	console.log('FORMS_PART2_OK')

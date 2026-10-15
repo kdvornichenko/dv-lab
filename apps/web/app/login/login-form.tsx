@@ -100,7 +100,7 @@ export function LoginForm({ expired }: { expired: boolean }) {
 				disabled={pending}
 				error={passwordError}
 			/>
-			<Button type="submit" className="w-full" loading={pending}>
+			<Button type="submit" className="self-end" loading={pending}>
 				{pending ? 'Signing in…' : 'Sign in to dv-lab'}
 			</Button>
 		</form>

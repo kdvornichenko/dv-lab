@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 export function BackButton() {
 	return (
 		<Button
-			variant="ghost"
+			variant="secondary"
 			size="compact"
 			leadingIcon={ArrowLeft}
 			nativeButton={false}

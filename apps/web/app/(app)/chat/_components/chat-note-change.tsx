@@ -227,7 +227,7 @@ function UndoAndLink({ block, onUndo }: { block: ChatNoteChangeBlock; onUndo: (a
 		<div className="flex flex-wrap gap-2 pl-6">
 			{block.undo === 'available' ? (
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					className={TOUCH}
 					leadingIcon={busy ? Spinner : Undo2}
@@ -241,7 +241,7 @@ function UndoAndLink({ block, onUndo }: { block: ChatNoteChangeBlock; onUndo: (a
 			) : null}
 			{link === null ? null : (
 				<Button
-					variant="ghost"
+					variant="secondary"
 					size="compact"
 					className={`${TOUCH} h-auto min-h-7 py-1 whitespace-normal`}
 					nativeButton={false}
@@ -438,7 +438,7 @@ function Proposal({ block, onConfirm, onDecline, onRefresh, onUndo }: { block: C
 					{removing ? (
 						<>
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								className={TOUCH}
 								disabled={busy}
@@ -470,7 +470,7 @@ function Proposal({ block, onConfirm, onDecline, onRefresh, onUndo }: { block: C
 								{confirming ? busyText : 'Save to notes'}
 							</Button>
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								className={TOUCH}
 								disabled={busy}

@@ -150,7 +150,7 @@ function UpdateNotice({ open, onDismiss }: { open: boolean; onDismiss: () => voi
 						<div className="mt-1.5 pl-6">
 							<Button
 								type="button"
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								className="-ml-2 px-2"
 								disabled={reloading}

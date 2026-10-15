@@ -693,7 +693,7 @@ export function ChangeProposal({
 						{href === null ? null : (
 							<div className="flex flex-wrap gap-2 pl-6">
 								<Button
-									variant="ghost"
+									variant="secondary"
 									size="compact"
 									className={`${TOUCH} h-auto min-h-7 py-1 whitespace-normal`}
 									leadingIcon={link.icon}
@@ -770,7 +770,7 @@ export function ChangeProposal({
 								{busy && pending !== 'decline' ? words.busy : words.confirm}
 							</Button>
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								className={TOUCH}
 								disabled={busy}

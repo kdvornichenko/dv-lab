@@ -258,7 +258,7 @@ function Applied({
 				<CalendarLink href={placeHref(block)} />
 				{undoable ? (
 					<Button
-						variant="ghost"
+						variant="secondary"
 						size="compact"
 						leadingIcon={pending ? Spinner : Undo2}
 						disabled={pending}
@@ -400,7 +400,7 @@ export function CalendarProposal({
 										: 'Confirming…'}
 							</Button>
 							<Button
-								variant="ghost"
+								variant="secondary"
 								size="compact"
 								disabled={block.state !== 'proposed' || declining}
 								leadingIcon={declining ? Spinner : undefined}

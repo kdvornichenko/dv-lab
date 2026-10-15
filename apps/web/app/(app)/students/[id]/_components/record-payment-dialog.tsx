@@ -281,7 +281,10 @@ export function RecordPaymentDialog({
 							{edit ? 'The balance is recalculated when you save.' : paymentDescription(student, rate)}
 						</DialogDescription>
 					</DialogHeader>
-					<ScrollArea className="-m-1 max-h-[calc(100dvh-16rem)]" viewportClassName="scroll-fade max-h-[inherit] p-1">
+					<ScrollArea
+						className="-m-1 max-h-[calc(100dvh-16rem)] max-md:max-h-none max-md:min-h-0 max-md:flex-1"
+						viewportClassName="scroll-fade max-h-[inherit] p-1"
+					>
 						<div className="flex flex-col gap-4">
 							<TimeZoneStaleNotice stale={context.stale} pending={pending} onRefresh={onRefresh} />
 							{edit && student !== null ? (
@@ -396,13 +399,8 @@ export function RecordPaymentDialog({
 						</div>
 					</ScrollArea>
 					<DialogFooter>
-						<Button
-							type="button"
-							variant={preset === undefined ? 'ghost' : 'secondary'}
-							onClick={onClose}
-							disabled={pending}
-						>
-							{preset === undefined ? 'Cancel' : 'Discard changes'}
+						<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+							{preset === undefined ? 'Cancel' : 'Close'}
 						</Button>
 						<Button type="submit" loading={pending} disabled={saveDisabled}>
 							{pending ? 'Saving…' : preset === undefined || edit ? 'Save payment' : 'Record payment'}

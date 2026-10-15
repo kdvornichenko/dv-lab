@@ -95,7 +95,7 @@ function CommentRow({ comment, mainTimeZone, currentYear, removing, onRemove }: 
 					</span>
 				) : (
 					<Button
-						variant="ghost"
+						variant="secondary"
 						size="compact"
 						leadingIcon={Trash2}
 						data-comment-remove={comment.id}

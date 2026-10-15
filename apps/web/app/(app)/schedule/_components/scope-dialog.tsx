@@ -135,7 +135,7 @@ export function ScopeDialog({
 				if (!open && !pending) onClose()
 			}}
 		>
-			<DialogContent size="sm" showCloseButton={false}>
+			<DialogContent size="sm" phone="sheet" showCloseButton={false}>
 				<DialogHeader>
 					<DialogTitle id={titleId}>{copy.title}</DialogTitle>
 					<DialogDescription className="sr-only">Choose which {kind.subject}s this covers.</DialogDescription>
@@ -181,7 +181,7 @@ export function ScopeDialog({
 						{copy.failure}
 					</p>
 				) : null}
-				<DialogFooter className="mt-2 max-sm:flex-col-reverse max-sm:*:h-10 max-sm:*:w-full">
+				<DialogFooter className="mt-2">
 					<Button type="button" variant="secondary" autoFocus onClick={onClose} disabled={pending}>
 						{copy.safe}
 					</Button>

@@ -167,7 +167,7 @@ export function CreateAccountDialog({ studentId, name, onClose, onCreated, onCon
 						</div>
 						<DialogFooter>
 							<Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-								Discard changes
+								Close
 							</Button>
 							<Button type="submit" loading={pending}>
 								{pending ? 'Creating…' : 'Create account'}

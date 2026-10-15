@@ -251,7 +251,7 @@ export function NewLessonDialog({
 						</DialogDescription>
 					</DialogHeader>
 					<ScrollArea
-						className="-m-1 max-h-[calc(100dvh-15rem+8px)] pointer-coarse:-m-2"
+						className="-m-1 max-h-[calc(100dvh-15rem+8px)] max-md:max-h-none max-md:min-h-0 max-md:flex-1 pointer-coarse:-m-2"
 						viewportClassName="scroll-fade max-h-[inherit] p-1 pointer-coarse:p-2"
 					>
 						<div className="flex flex-col gap-3">
