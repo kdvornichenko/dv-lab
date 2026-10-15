@@ -1,5 +1,7 @@
 import { errorCodes, type ErrorResponse } from '@dv-lab/contracts'
 
+import { deviceClear } from './device-store'
+
 export type ApiResult<T> =
 	{ ok: true; status: number; data: T } | { ok: false; status: number; error: ErrorResponse['error'] | null }
 
@@ -9,6 +11,17 @@ export const API_CACHE_INVALIDATED = 'dvlab:cache-invalidated'
 export const SESSION_CACHE_CHANNEL =
 	typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:session-changed')
 export const DATA_CHANGED_CHANNEL = typeof window === 'undefined' ? null : new BroadcastChannel('dvlab:data-changed')
+
+export const DEVICE_CACHE_PREFIX = 'dvlab:device:'
+
+let sessionCount = 0
+SESSION_CACHE_CHANNEL?.addEventListener('message', () => {
+	sessionCount += 1
+})
+
+export function sessionEpoch(): number {
+	return sessionCount
+}
 
 export async function apiRequest<T>(
 	method: ApiMethod,
@@ -127,11 +140,20 @@ function notifyCache(response: Response, method: ApiMethod, path: string): void 
 	if (response.status === 401 && path !== '/auth/sign-in') window.location.replace('/login?reason=expired')
 	if (!response.ok || method === 'GET' || UNCHANGED_PATHS.has(path) || STATUS_CHECK.test(path)) return
 	if (path === '/auth/sign-in' || path === '/auth/sign-out') {
+		sessionCount += 1
+		if (path === '/auth/sign-out') forgetDevice()
 		SESSION_CACHE_CHANNEL?.postMessage('changed')
 	} else {
 		window.dispatchEvent(new Event(API_CACHE_INVALIDATED))
 		DATA_CHANGED_CHANNEL?.postMessage('changed')
 	}
+}
+
+function forgetDevice() {
+	void deviceClear()
+	try {
+		for (const key of Object.keys(localStorage)) if (key.startsWith(DEVICE_CACHE_PREFIX)) localStorage.removeItem(key)
+	} catch {}
 }
 
 function errorFrom(value: unknown): ErrorResponse['error'] | null {

@@ -206,6 +206,17 @@ async function prefetchChecks() {
 		after.size === weeks.size + 1,
 		[...after].sort().join(',')
 	)
+	await page.locator('[aria-label="Today"]').first().click()
+	await wait(2000)
+	await context.route(/\/api\/schedule\/week(\?|$)/, async (route) => {
+		await wait(3000)
+		return route.fallback()
+	})
+	const reopened = Date.now()
+	await page.reload()
+	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().waitFor({ timeout: 10000 })
+	const shownIn = Date.now() - reopened
+	check('device copy: a reopened schedule shows the week before the server answers', shownIn < 2500, `${shownIn} ms`)
 	await browser.close()
 }
 

@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useCalendarController, useCalendarRefresh } from '@/components/app/calendar-command-provider'
-import { readCalendarWeek, sameCalendarAccount } from '@/components/app/calendar-command-transport'
+import { readCalendarWeek } from '@/components/app/calendar-command-transport'
 import { useGoogleSync } from '@/components/app/use-google-sync'
-import { API_CACHE_INVALIDATED, apiRequest } from '@/lib/api-client'
+import { API_CACHE_INVALIDATED, DEVICE_CACHE_PREFIX, sessionEpoch } from '@/lib/api-client'
+import { deviceGet, deviceSet } from '@/lib/device-store'
 import { staleCalendarWindow } from '@/lib/lesson-actions'
 
-import { timeZoneIdentity, type GoogleScheduleWindow, type SettingsResponse } from '@dv-lab/contracts'
-import { addDays, lessonDay, mondayOf, scheduleDate, scheduleWeekRange } from '@dv-lab/core'
+import { googleScheduleWindow, timeZoneIdentity, type GoogleScheduleWindow } from '@dv-lab/contracts'
+import { SCHEDULE_TIME_ZONE, addDays, lessonDay, mondayOf, scheduleDate, scheduleWeekRange } from '@dv-lab/core'
 
 type WeekQuery = { mainTimeZone: string; monday: string; current: boolean }
 type WeekState = { kind: 'loading' | 'error' | 'ready'; query: WeekQuery | null; data: GoogleScheduleWindow | null }
@@ -35,11 +36,48 @@ function pause(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function bootstrap(initialMonday: string | null): Promise<WeekQuery | null> {
-	const result = await apiRequest<SettingsResponse>('GET', '/settings')
-	if (!result.ok) return null
-	const mainTimeZone = timeZoneIdentity(result.data.settings.defaultTimeZone)
-	if (mainTimeZone === null) return null
+const ZONE_KEY = `${DEVICE_CACHE_PREFIX}schedule-zone`
+const DEVICE_WEEKS = 3
+
+function deviceKey(accountId: string): string {
+	return `${DEVICE_CACHE_PREFIX}schedule-weeks:${accountId}`
+}
+
+function knownZone(): string {
+	try {
+		return timeZoneIdentity(localStorage.getItem(ZONE_KEY) ?? SCHEDULE_TIME_ZONE) ?? SCHEDULE_TIME_ZONE
+	} catch {
+		return SCHEDULE_TIME_ZONE
+	}
+}
+
+async function deviceWindows(accountId: string): Promise<GoogleScheduleWindow[]> {
+	const stored = await deviceGet(deviceKey(accountId))
+	if (!Array.isArray(stored)) return []
+	return stored.flatMap((item) => {
+		const parsed = googleScheduleWindow.safeParse(item)
+		return parsed.success ? [parsed.data] : []
+	})
+}
+
+async function keepOnDevice(accountId: string, data: GoogleScheduleWindow) {
+	try {
+		localStorage.setItem(ZONE_KEY, data.requestedRange.timeZone)
+	} catch {}
+	const key = windowKey(data)
+	const kept = [data, ...(await deviceWindows(accountId)).filter((item) => windowKey(item) !== key)]
+	await deviceSet(deviceKey(accountId), kept.slice(0, DEVICE_WEEKS))
+}
+
+function nearToday(data: GoogleScheduleWindow): boolean {
+	const zone = data.requestedRange.timeZone
+	const shown = scheduleDate(new Date(data.requestedRange.start), zone)
+	const current = mondayOf(lessonDay(new Date(), zone))
+	return Math.abs(Date.parse(shown) - Date.parse(current)) <= 7 * 86400000
+}
+
+function bootstrap(initialMonday: string | null): WeekQuery {
+	const mainTimeZone = knownZone()
 	const currentMonday = mondayOf(lessonDay(new Date(), mainTimeZone))
 	const monday = initialMonday ?? currentMonday
 	return { mainTimeZone, monday, current: monday === currentMonday }
@@ -93,7 +131,11 @@ function older(next: GoogleScheduleWindow, previous: GoogleScheduleWindow | null
 export function useScheduleWeek(initialMonday: string | null = null) {
 	const initial = useRef(initialMonday)
 	const controller = useCalendarController()
-	const [state, setState] = useState<WeekState>({ kind: 'loading', query: null, data: null })
+	const [state, setState] = useState<WeekState>(() => ({
+		kind: 'loading',
+		query: bootstrap(initialMonday),
+		data: null,
+	}))
 	const query = useRef<WeekQuery | null>(null)
 	const requests = useRef(0)
 	const latest = useRef<GoogleScheduleWindow | null>(null)
@@ -122,6 +164,23 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 		[]
 	)
 
+	useEffect(() => {
+		let live = true
+		void deviceWindows(controller.accountId).then((saved) => {
+			if (!live || saved.length === 0) return
+			for (const data of [...saved].reverse()) if (!windows.current.has(windowKey(data))) store(data)
+			setState((previous) => {
+				const shown = previous.query
+				if (previous.kind !== 'loading' || previous.data !== null || shown === null) return previous
+				const found = saved.find((data) => matchesQuery(data, shown))
+				return found === undefined ? previous : { ...previous, data: staleCalendarWindow(found) }
+			})
+		})
+		return () => {
+			live = false
+		}
+	}, [controller.accountId, store])
+
 	const remember = useCallback(
 		(data: GoogleScheduleWindow, since: number) => {
 			store(data)
@@ -129,8 +188,9 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 			for (const [key, entry] of cache.current)
 				if (entry.data.connection.generation !== data.connection.generation) cache.current.delete(key)
 			cache.current.set(windowKey(data), { data, at: Date.now() })
+			if (nearToday(data)) void keepOnDevice(controller.accountId, data)
 		},
-		[store]
+		[store, controller.accountId]
 	)
 
 	const stopPrefetch = useCallback((keep?: string) => {
@@ -158,11 +218,12 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 
 	const quietRead = useCallback(
 		async (monday: string, signal: AbortSignal) => {
+			const session = sessionEpoch()
 			const data = await readCalendarWeek(monday, signal)
-			if (data === null || signal.aborted || !(await sameCalendarAccount(controller.accountId))) return null
+			if (data === null || signal.aborted || sessionEpoch() !== session) return null
 			return data
 		},
-		[controller]
+		[]
 	)
 
 	const warm = useCallback(
@@ -192,13 +253,7 @@ export function useScheduleWeek(initialMonday: string | null = null) {
 			const since = epoch.current
 			loading.current = true
 			query.current = requested
-			const target =
-				requested ??
-				(await bootstrap(initial.current).then((known) => {
-					if (known !== null && id === requests.current)
-						setState((previous) => (previous.query === null ? { ...previous, query: known } : previous))
-					return known
-				}))
+			const target = requested ?? bootstrap(initial.current)
 			if (id !== requests.current) return null
 			query.current = target
 			const result = target === null ? null : await readWeek(target, () => id !== requests.current, readWindow)
