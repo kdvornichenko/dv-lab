@@ -1,16 +1,14 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { closeSync, openSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { closeSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { get } from 'node:http'
 import { createConnection } from 'node:net'
 
-import { ROOT, STATE_DIR } from './paths.mjs'
+import { ROOT, STAND_ID, STAND_LAST, STAND_STATE, STATE_DIR } from './paths.mjs'
 
 const usage = 'usage: node scripts/dev-checks/stand.mjs up [--api-port N] [--web-port N] | down | status'
-const ID = createHash('sha1').update(ROOT).digest('hex').slice(0, 8)
-const STATE = `${STATE_DIR}/stand-${ID}.json`
-const API_LOG = `${STATE_DIR}/stand-${ID}-api.log`
-const WEB_LOG = `${STATE_DIR}/stand-${ID}-web.log`
+const STATE = STAND_STATE
+const API_LOG = `${STATE_DIR}/stand-${STAND_ID}-api.log`
+const WEB_LOG = `${STATE_DIR}/stand-${STAND_ID}-web.log`
 const GENERATED = ['apps/web/AGENTS.md']
 const NEXT_LOCK = `${ROOT}/apps/web/.next/dev/lock`
 
@@ -265,7 +263,7 @@ async function down() {
 		return 1
 	}
 	try {
-		unlinkSync(STATE)
+		renameSync(STATE, STAND_LAST)
 	} catch {}
 	console.log(`STAND_DOWN ports ${state.apiPort} ${state.webPort} free`)
 	return 0
