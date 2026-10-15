@@ -1,4 +1,5 @@
 import * as core from '../../../packages/core/src/index.ts'
+import { removeStudentCards } from '../fixture-cleanup.mjs'
 import { call, quote, sql } from '../schedule-api/io.ts'
 import type { WeekPayload, TodayPayload, Refusal } from './types.ts'
 import type { Context, RequestBody, Reply, ScheduleBlock, ScheduleLessonActions } from './types.ts'
@@ -24,20 +25,7 @@ export const todayVn = () => core.zonedParts(new Date(), VN).date
 export const instant = (date: string, time: string) => core.zonedInstant(date, time, VN).toISOString()
 
 export function removeCards(where: string) {
-	const cards = `select id from students where ${where}`
-	const series = `select id from lesson_series where student_id in (${cards})`
-	const singles = `select id from lessons where student_id in (${cards})`
-	let removed = 0
-	removed += sql(`delete from lesson_marks where series_id in (${series}) or lesson_id in (${singles})`).rowCount
-	removed += sql(`delete from payments where student_id in (${cards})`).rowCount
-	removed += sql(`delete from lesson_exceptions where series_id in (${series})`).rowCount
-	removed += sql(`delete from lessons where student_id in (${cards})`).rowCount
-	removed += sql(`delete from lesson_series where student_id in (${cards})`).rowCount
-	removed += sql(`delete from student_sections where student_id in (${cards})`).rowCount
-	removed += sql(`delete from note_reviews where student_id in (${cards})`).rowCount
-	removed += sql(`delete from push_payment_alerts where student_id in (${cards})`).rowCount
-	removed += sql(`delete from students where ${where}`).rowCount
-	return removed
+	return removeStudentCards(sql, where)
 }
 
 export function removeTails() {

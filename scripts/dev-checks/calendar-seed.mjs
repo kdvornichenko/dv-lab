@@ -11,6 +11,7 @@ import {
 	syntheticTokenConfig,
 	targetEnvFile,
 } from './calendar-env.mjs'
+import { studentCleanupSql } from './fixture-cleanup.mjs'
 
 const { addDays, mondayOf, scheduleToday, startOfZonedDay, zonedInstant } = await import(
 	`${ROOT}/packages/core/src/index.ts`
@@ -252,8 +253,7 @@ delete from google_calendar_events where connection_id in ${scope};
 delete from google_event_ignores where connection_id in ${scope};
 delete from google_sync_state where connection_id in ${scope};
 delete from google_connections where id in ${scope};
-delete from student_sections where student_id in (select id from students where import_key = ${quote(CARD_KEY)});
-delete from students where import_key = ${quote(CARD_KEY)};
+${studentCleanupSql(`import_key = ${quote(CARD_KEY)}`)}
 commit;`
 	)
 	const [after] = rows(

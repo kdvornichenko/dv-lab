@@ -13,6 +13,7 @@ import {
 	syntheticTokenConfig,
 	targetEnvFile,
 } from './calendar-env.mjs'
+import { studentCleanupSql } from './fixture-cleanup.mjs'
 
 const TARGET = 'test'
 if (process.env.CALENDAR_EVENT_COMMANDS_OFFLINE !== '1') {
@@ -78,17 +79,7 @@ async function offline() {
 }
 
 function purgeCard() {
-	const card = `(select id from students where import_key = ${quote(CARD_KEY)})`
-	const series = `(select id from lesson_series where student_id in ${card})`
-	const singles = `(select id from lessons where student_id in ${card})`
-	rows(`begin;
-delete from lesson_marks where series_id in ${series} or lesson_id in ${singles};
-delete from lesson_exceptions where series_id in ${series};
-delete from lessons where student_id in ${card};
-delete from lesson_series where student_id in ${card};
-delete from student_sections where student_id in ${card};
-delete from students where import_key = ${quote(CARD_KEY)};
-commit;`)
+	rows(studentCleanupSql(`import_key = ${quote(CARD_KEY)}`))
 }
 
 function localClock(instant, zone) {

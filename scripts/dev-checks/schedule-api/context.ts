@@ -1,4 +1,5 @@
 import * as core from '../../../packages/core/src/index.ts'
+import { removeStudentCards } from '../fixture-cleanup.mjs'
 import { call, quote, sql } from './io.ts'
 import type { WeekPayload, Refusal } from './types.ts'
 import type { Api, ChangeContext, RequestBody, Reply, ScheduleBlock } from './types.ts'
@@ -29,18 +30,7 @@ export const firstAfter = (date: string, weekday: Parameters<typeof core.firstOn
 export const instant = (date: string, time: string) => core.zonedInstant(date, time, VN).toISOString()
 
 export function removeCards(where: string) {
-	const cards = `select id from students where ${where}`
-	const series = `select id from lesson_series where student_id in (${cards})`
-	let removed = 0
-	removed += sql(
-		`delete from lesson_marks where series_id in (${series}) or lesson_id in (select id from lessons where student_id in (${cards}))`
-	).rowCount
-	removed += sql(`delete from lesson_exceptions where series_id in (${series})`).rowCount
-	removed += sql(`delete from lessons where student_id in (${cards})`).rowCount
-	removed += sql(`delete from lesson_series where student_id in (${cards})`).rowCount
-	sql(`delete from student_sections where student_id in (${cards})`)
-	removed += sql(`delete from students where ${where}`).rowCount
-	return removed
+	return removeStudentCards(sql, where)
 }
 
 export function removeTails() {

@@ -153,13 +153,6 @@ function removeChats(where) {
 	return sql(`delete from chat_conversations where ${where}`).rowCount
 }
 
-function removeEntries(where) {
-	const cards = `select id from students where ${where}`
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-}
-
 const lines = []
 const logger = pino({ level: 'info' }, { write: (line) => lines.push(line) })
 const url = parseEnv(readFileSync(ENV_TEST, 'utf8')).DATABASE_URL
@@ -1044,7 +1037,6 @@ async function pageLinks(studentId) {
 }
 
 async function main() {
-	removeEntries(`display_name like ${quote(`${NAME}%`)} and import_key is null`)
 	removeCards(`display_name like ${quote(`${NAME}%`)} and import_key is null`)
 	console.log(`fixture budget periods removed ${clearBudget()}`)
 	await providerSmoke()
@@ -1617,7 +1609,6 @@ try {
 	await chat.close()
 	server.close()
 	if (conversations.length > 0) removeChats(`id in (${conversations.map(quote).join(', ')})`)
-	if (ids.length > 0) removeEntries(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 	if (ids.length > 0) removeCards(`id in (${ids.map(quote).join(', ')}) and import_key is null`)
 	clearBudget()
 	if (original && accountId) {

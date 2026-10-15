@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 
+import { removeStudentCards } from './fixture-cleanup.mjs'
 import { BASE, ROOT, STATE_DIR, check, failures, launch, shot, signIn, sql, theme } from './web.mjs'
 
 const NODE = process.execPath
@@ -107,15 +108,7 @@ function studentId(key) {
 }
 
 function purgeFixtures() {
-	const card = `(select id from students where import_key = '${CARD_TWO}')`
-	sql(`begin;
-delete from lesson_marks where series_id in (select id from lesson_series where student_id in ${card}) or lesson_id in (select id from lessons where student_id in ${card});
-delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in ${card});
-delete from lessons where student_id in ${card};
-delete from lesson_series where student_id in ${card};
-delete from student_sections where student_id in ${card};
-delete from students where import_key = '${CARD_TWO}';
-commit;`)
+	removeStudentCards(sql, `import_key = '${CARD_TWO}'`)
 }
 
 function operationOf(path) {

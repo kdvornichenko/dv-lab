@@ -10,6 +10,7 @@ import type {
 } from '../../../packages/contracts/src/index.ts'
 import * as core from '../../../packages/core/src/index.ts'
 import { BASE, api, check, sql } from '../browser-context.ts'
+import { removeStudentCards } from '../fixture-cleanup.mjs'
 
 export { withTeacherSettings } from '../teacher-settings.ts'
 
@@ -19,31 +20,12 @@ export const VN = core.SCHEDULE_TIME_ZONE
 
 const fixtureWhere = `(display_name like 'Alex Example 215%' or display_name like 'Alex Example 216%' or display_name like 'Alex Example 217%' or display_name like 'Alex Example 218%') and import_key is null`
 
-const cleanupText = (where: string) => `do $$ begin
-if to_regclass('lesson_marks') is not null then
-delete from lesson_marks where lesson_id in (select id from lessons where student_id in (select id from students where ${where}))
-or series_id in (select id from lesson_series where student_id in (select id from students where ${where}));
-end if;
-if to_regclass('lesson_exceptions') is not null then
-delete from lesson_exceptions where series_id in (select id from lesson_series where student_id in (select id from students where ${where}));
-end if;
-if to_regclass('lessons') is not null then
-delete from lessons where student_id in (select id from students where ${where});
-end if;
-if to_regclass('lesson_series') is not null then
-delete from lesson_series where student_id in (select id from students where ${where});
-end if;
-delete from payments where student_id in (select id from students where ${where});
-delete from student_sections where student_id in (select id from students where ${where});
-delete from students where ${where};
-end $$`
-
 export function cleanupFixtures(label: string) {
 	if (ownedCards.size === 0) return 0
 	const where = `${fixtureWhere} and id in (${[...ownedCards].map((id) => `'${id}'`).join(',')})`
 	const before = sql<{ n: number }>(`select count(*)::int as n from students where ${where}`)
 	const found = before.rows?.[0]?.n ?? 0
-	sql(cleanupText(where))
+	removeStudentCards(sql, where)
 	check('fixture cleanup succeeded', true)
 	console.log(`${label}: fixture cards removed ${found}`)
 	ownedCards.clear()

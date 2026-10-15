@@ -6,6 +6,7 @@ import { CHAT_FOLLOW_UP_TEXT, chatBlock, chatChangeProposalBlock } from '../../p
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, api, check, env, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 
 const NAME = 'Alex Example 2306'
 const FORMS_NAME = 'Alex Example 2360'
@@ -99,11 +100,7 @@ function removeCards() {
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${where})`
 	).rows.map((row) => row.id)
 	removeConversations(conversations)
-	sql(`delete from student_notes where student_id in (select id from students where ${where})`)
-	sql(`delete from student_sections where student_id in (select id from students where ${where})`)
-	sql(`delete from payments where student_id in (select id from students where ${where})`)
-	const result = sql(`delete from students where ${where}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, where)}`)
 }
 
 function setTheme(page) {
@@ -326,11 +323,7 @@ const GONE = 'This record is no longer available. Open the current records to co
 
 function removeFormsCards() {
 	const where = `display_name = '${FORMS_NAME}' and import_key is null`
-	sql(`delete from student_notes where student_id in (select id from students where ${where})`)
-	sql(`delete from student_sections where student_id in (select id from students where ${where})`)
-	sql(`delete from payments where student_id in (select id from students where ${where})`)
-	const result = sql(`delete from students where ${where}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, where)}`)
 }
 
 async function formsPrepare(page, apiOrigin) {
@@ -684,20 +677,11 @@ const CALENDAR_CHANGE = '[data-slot="chat-calendar-change"]'
 const q = (value) => `'${String(value).replaceAll("'", "''")}'`
 
 function removeProposalCards() {
-	const cards = `select id from students where ${PROPOSAL_WHERE}`
 	const conversations = sql(
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${PROPOSAL_WHERE})`
 	).rows.map((row) => row.id)
 	removeConversations(conversations)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${PROPOSAL_WHERE}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, PROPOSAL_WHERE)}`)
 }
 
 const cardRow = (name) =>
@@ -1310,10 +1294,7 @@ const OUTCOME_LINE = 'I could not prepare that change.'
 const WIDTHS = [390, 375, 320]
 
 function removeBulkCard() {
-	const bulkCards = `select id from students where display_name = ${q(BULK_NAME)} and import_key is null`
-	sql(`delete from student_notes where student_id in (${bulkCards})`)
-	sql(`delete from student_sections where student_id in (${bulkCards})`)
-	sql(`delete from students where display_name = ${q(BULK_NAME)} and import_key is null`)
+	removeStudentCards(sql, `display_name = ${q(BULK_NAME)} and import_key is null`)
 	console.log('fixture card removed')
 }
 
@@ -2216,16 +2197,11 @@ const REPLY_FOOTER = '[data-slot="chat-reply-footer"]'
 
 function removeFactsCards(conversations = []) {
 	removeConversations(conversations)
-	const cards = `select id from students where ${FACTS_WHERE}`
 	const left = sql(
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${FACTS_WHERE})`
 	).rows.map((row) => row.id)
 	removeConversations(left)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${FACTS_WHERE}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, FACTS_WHERE)}`)
 }
 
 function factsLayout(group) {
@@ -2559,16 +2535,11 @@ const DETAILS_WHERE = `display_name like 'Alex Example 241_' and import_key is n
 
 function removeDetailsCards(conversations = []) {
 	removeConversations(conversations)
-	const cards = `select id from students where ${DETAILS_WHERE}`
 	const left = sql(
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${DETAILS_WHERE})`
 	).rows.map((row) => row.id)
 	removeConversations(left)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${DETAILS_WHERE}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, DETAILS_WHERE)}`)
 }
 
 const detailsRow = (name) =>
@@ -2754,18 +2725,11 @@ const ESSAY_WORDS = Array.from({ length: 90 }, (_, index) => `word${index + 1}`)
 
 function removeNotesCards(conversations = []) {
 	removeConversations(conversations)
-	const cards = `select id from students where ${NOTES_WHERE}`
 	const left = sql(
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${NOTES_WHERE})`
 	).rows.map((row) => row.id)
 	removeConversations(left)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${NOTES_WHERE}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, NOTES_WHERE)}`)
 }
 
 const sectionOf = (name, kind) =>
@@ -3244,13 +3208,7 @@ function removeReviewCards(conversations = []) {
 		`select distinct m.conversation_id as id from chat_messages m join students s on position(s.id::text in m.mentions::text) > 0 where s.display_name like 'Alex Example 243_' and s.import_key is null`
 	).rows.map((row) => row.id)
 	removeConversations([...new Set([...left, ...mentioned])])
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from note_reviews where student_id in (${cards})`)
-	sql(`delete from student_terms where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${REVIEW_WHERE}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, REVIEW_WHERE)}`)
 }
 
 async function sendReview(page, name, tail = '') {

@@ -5,6 +5,7 @@ import { createConnection } from 'node:net'
 import * as contracts from '../../packages/contracts/src/index.ts'
 import * as core from '../../packages/core/src/index.ts'
 import { BASE, ROOT, STATE_DIR, check, env, failures, shot, sql, theme } from './browser-context.ts'
+import { removeStudentCards } from './fixture-cleanup.mjs'
 
 const playwright = process.env.PLAYWRIGHT_CORE ?? '/Volumes/T7/personal/ielts/node_modules/playwright-core/index.mjs'
 const { chromium } = await import(playwright)
@@ -125,18 +126,11 @@ function removeConversations(ids) {
 }
 
 function removeFixtures() {
-	const cards = `select id from students where ${FIXTURES}`
 	const conversations = sql(
 		`select distinct conversation_id as id from chat_actions where target->>'studentId' in (select id::text from students where ${FIXTURES})`
 	).rows.map((row) => row.id)
 	removeConversations(conversations)
-	sql(`delete from student_notes where student_id in (${cards})`)
-	sql(`delete from lesson_comments where student_id in (${cards})`)
-	sql(`delete from student_sections where student_id in (${cards})`)
-	sql(`delete from accounts where student_id in (${cards}) and role = 'student'`)
-	sql(`delete from payments where student_id in (${cards})`)
-	const result = sql(`delete from students where ${FIXTURES}`)
-	console.log(`fixture cards removed ${result.rowCount}`)
+	console.log(`fixture cards removed ${removeStudentCards(sql, FIXTURES)}`)
 }
 
 async function openPhone() {

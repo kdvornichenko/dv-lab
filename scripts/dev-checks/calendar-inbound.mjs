@@ -15,6 +15,7 @@ import {
 	syntheticTokenConfig,
 	targetEnvFile,
 } from './calendar-env.mjs'
+import { studentCleanupSql } from './fixture-cleanup.mjs'
 
 const SECTIONS = ['resolver', 'assign', 'inbound']
 const section = process.argv[2]
@@ -84,6 +85,10 @@ function runScript(name, ...args) {
 }
 
 function purgeLessons(key, dropStudent) {
+	if (dropStudent) {
+		rows(studentCleanupSql(`import_key = ${quote(key)}`))
+		return
+	}
 	const card = `(select id from students where import_key = ${quote(key)})`
 	const series = `(select id from lesson_series where student_id in ${card})`
 	const singles = `(select id from lessons where student_id in ${card})`
@@ -93,7 +98,6 @@ delete from lesson_exceptions where series_id in ${series};
 delete from lessons where student_id in ${card};
 delete from lesson_series where student_id in ${card};
 delete from student_sections where student_id in ${card};
-${dropStudent ? `delete from students where import_key = ${quote(key)};` : ''}
 commit;`)
 }
 

@@ -13,6 +13,7 @@ import {
 	syntheticTokenConfig,
 	targetEnvFile,
 } from './calendar-env.mjs'
+import { studentCleanupSql } from './fixture-cleanup.mjs'
 
 const TARGET = 'test'
 if (process.env.CHAT_TARGET_OFFLINE !== '1') {
@@ -90,19 +91,8 @@ async function offline() {
 }
 
 function purge() {
-	const cards = `(select id from students where import_key like ${quote(`${KEY}%`)})`
-	const series = `(select id from lesson_series where student_id in ${cards})`
-	const singles = `(select id from lessons where student_id in ${cards})`
 	const [before] = rows(`select count(*)::int as n from students where import_key like ${quote(`${KEY}%`)}`)
-	rows(`begin;
-delete from lesson_comments where student_id in ${cards};
-delete from lesson_marks where series_id in ${series} or lesson_id in ${singles};
-delete from lesson_exceptions where series_id in ${series};
-delete from lessons where student_id in ${cards};
-delete from lesson_series where student_id in ${cards};
-delete from student_sections where student_id in ${cards};
-delete from students where import_key like ${quote(`${KEY}%`)};
-commit;`)
+	rows(studentCleanupSql(`import_key like ${quote(`${KEY}%`)}`))
 	return before.n
 }
 
