@@ -23,7 +23,7 @@ import {
 } from 'react'
 
 import { cva, type VariantProps } from 'class-variance-authority'
-import { m, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { resolveSlotTemplate, SlotElement } from '@/components/ui/sidebar-core'

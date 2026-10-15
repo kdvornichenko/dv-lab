@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useState, type ReactNode, type Ref } from 'react'
 import { enUS } from 'react-day-picker/locale'
 
-import { m } from 'framer-motion'
+import { m } from 'motion/react'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'

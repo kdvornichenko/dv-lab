@@ -20,7 +20,7 @@ import {
 	type Ref,
 } from 'react'
 
-import { m, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { m, AnimatePresence, useReducedMotion } from 'motion/react'
 
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { Tooltip } from '@/components/ui/tooltip'

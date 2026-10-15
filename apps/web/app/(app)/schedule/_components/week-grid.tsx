@@ -11,7 +11,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { m } from 'framer-motion'
+import { m } from 'motion/react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Skeleton } from '@/components/ui/skeleton'

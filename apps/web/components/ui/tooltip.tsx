@@ -3,7 +3,7 @@ import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip'
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 
-import { m, useMotionValue } from 'framer-motion'
+import { m, useMotionValue } from 'motion/react'
 
 import { fontWeights } from '@/lib/font-weight'
 import { useShape } from '@/lib/shape-context'

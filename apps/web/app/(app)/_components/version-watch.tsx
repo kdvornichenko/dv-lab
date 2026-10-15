@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { LoaderCircle, RefreshCw, X } from 'lucide-react'
 
 import { ConfirmDialog } from '@/components/app/confirm-dialog'

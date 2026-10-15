@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { AnimatePresence, m } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import type { ItemRect } from '@/hooks/use-fluid-hover'
 import { spring } from '@/lib/springs'

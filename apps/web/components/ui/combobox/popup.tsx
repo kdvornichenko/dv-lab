@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { m } from 'framer-motion'
+import { m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { ScrollArea } from '@/components/ui/scroll-area'

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
-import { m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 import { LoaderCircle } from 'lucide-react'
 import Link from 'next/link'
 

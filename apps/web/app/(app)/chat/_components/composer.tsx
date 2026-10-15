@@ -12,7 +12,7 @@ import {
 	type RefObject,
 } from 'react'
 
-import { AnimatePresence } from 'framer-motion'
+import { AnimatePresence } from 'motion/react'
 import { ArrowUp, Info, RefreshCw, Square } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'

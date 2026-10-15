@@ -10,7 +10,7 @@ import {
 	type HTMLAttributes,
 } from 'react'
 
-import { m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import { useIsMobile } from '@/hooks/use-mobile'

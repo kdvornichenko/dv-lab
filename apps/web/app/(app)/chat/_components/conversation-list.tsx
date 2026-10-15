@@ -1,6 +1,6 @@
 'use client'
 
-import { m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'

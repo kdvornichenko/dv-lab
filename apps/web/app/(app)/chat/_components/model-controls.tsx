@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { AnimatePresence, m, useReducedMotion } from 'framer-motion'
+import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { Check, ChevronDown, Info, RotateCcw } from 'lucide-react'
 
 import { EFFORT_LABEL, EffortMeter, EffortSlider, clampEffort, highestEffort } from '@/components/app/effort-slider'

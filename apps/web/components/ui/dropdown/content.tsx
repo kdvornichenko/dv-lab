@@ -12,7 +12,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { AnimatePresence, m } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { DropdownSearchHostContext, useDropdownSearchHost } from '@/components/ui/dropdown-search'

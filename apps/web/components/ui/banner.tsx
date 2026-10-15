@@ -21,7 +21,7 @@ import {
 	useReducedMotion,
 	useTransform,
 	type ValueAnimationTransition,
-} from 'framer-motion'
+} from 'motion/react'
 
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { fontWeights } from '@/lib/font-weight'

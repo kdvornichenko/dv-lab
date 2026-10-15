@@ -2,7 +2,7 @@
 
 import { forwardRef, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 
-import { AnimatePresence, m } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { DropdownEmpty, DropdownSearch, type DropdownSearchProps } from '@/components/ui/dropdown-search'

@@ -1,5 +1,5 @@
 'use client'
-import { m, AnimatePresence, useReducedMotion, type Transition } from 'framer-motion'
+import { m, AnimatePresence, useReducedMotion, type Transition } from 'motion/react'
 
 import type { ItemRect, UseFluidHoverReturn } from '@/hooks/use-fluid-hover'
 import { spring } from '@/lib/springs'

@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
 import { forwardRef, useCallback, useRef } from 'react'
 
-import { AnimatePresence, animate, m, useMotionValue } from 'framer-motion'
+import { AnimatePresence, animate, m, useMotionValue } from 'motion/react'
 
 import { useIcons } from '@/lib/icon-context'
 import { useShape } from '@/lib/shape-context'

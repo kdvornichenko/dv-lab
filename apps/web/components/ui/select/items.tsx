@@ -4,7 +4,7 @@ import { Select as SelectPrimitive } from '@base-ui/react/select'
 
 import { forwardRef, useContext, useRef, type HTMLAttributes } from 'react'
 
-import { AnimatePresence, m } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { useRegisterFluidHoverItem } from '@/hooks/use-fluid-hover'
 import type { IconComponent } from '@/lib/icon-context'

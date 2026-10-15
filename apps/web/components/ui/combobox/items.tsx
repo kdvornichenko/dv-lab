@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from '@base-ui/react/combobox'
 
 import { forwardRef, useContext, useRef, type HTMLAttributes, type ReactNode } from 'react'
 
-import { AnimatePresence, m } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { useRegisterFluidHoverItem } from '@/hooks/use-fluid-hover'
 import { type IconComponent } from '@/lib/icon-context'

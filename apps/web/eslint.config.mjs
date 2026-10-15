@@ -19,10 +19,11 @@ const eslintConfig = defineConfig([
 						{ name: 'radix-ui', message: 'Radix is forbidden: use Base UI.' },
 						{ name: 'cn', message: 'Import cn from @/lib/utils.' },
 						{
-							name: 'framer-motion',
+							name: 'motion/react',
 							importNames: ['motion'],
-							message: 'Use m from framer-motion: the app runs under LazyMotion (components/app/motion-features.tsx).',
+							message: 'Use m from motion/react: the app runs under LazyMotion (components/app/motion-features.tsx).',
 						},
+						{ name: 'framer-motion', message: 'Import from motion/react.' },
 					],
 					patterns: [{ group: ['@radix-ui/*'], message: 'Radix is forbidden: use Base UI.' }],
 				},

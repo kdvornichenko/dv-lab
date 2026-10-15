@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-import { m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 import { AlertCircle, RefreshCw, Users } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'

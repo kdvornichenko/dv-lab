@@ -12,7 +12,7 @@ import {
 	type HTMLAttributes,
 } from 'react'
 
-import { m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {

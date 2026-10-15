@@ -1,6 +1,6 @@
 import { useState, type MouseEvent } from 'react'
 
-import { AnimatePresence, m, useIsPresent } from 'framer-motion'
+import { AnimatePresence, m, useIsPresent } from 'motion/react'
 import Link from 'next/link'
 
 import { TimePair } from '@/components/app/time-pair'

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-import { m, useReducedMotion } from 'framer-motion'
+import { m, useReducedMotion } from 'motion/react'
 import { Check, ChevronDown, CircleAlert, LoaderCircle, Square } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'

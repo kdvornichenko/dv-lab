@@ -4,7 +4,7 @@ import { Select as SelectPrimitive } from '@base-ui/react/select'
 
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { AnimatePresence, m } from 'framer-motion'
+import { AnimatePresence, m } from 'motion/react'
 
 import { FluidHoverHighlight } from '@/components/fluid-hover-highlight'
 import { ScrollArea } from '@/components/ui/scroll-area'

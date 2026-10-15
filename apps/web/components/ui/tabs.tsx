@@ -17,7 +17,7 @@ import {
 	type ReactNode,
 } from 'react'
 
-import { m, AnimatePresence } from 'framer-motion'
+import { m, AnimatePresence } from 'motion/react'
 
 import { useFluidHover } from '@/hooks/use-fluid-hover'
 import { fontWeights } from '@/lib/font-weight'

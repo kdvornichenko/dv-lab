@@ -13,7 +13,7 @@ import {
 	type PointerEvent as ReactPointerEvent,
 } from 'react'
 
-import { animate, m, useMotionValue, type Transition } from 'framer-motion'
+import { animate, m, useMotionValue, type Transition } from 'motion/react'
 
 import { useSize, type SizeVariant } from '@/lib/size-context'
 import { spring } from '@/lib/springs'
