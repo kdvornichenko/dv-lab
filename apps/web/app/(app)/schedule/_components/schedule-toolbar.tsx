@@ -128,7 +128,7 @@ function WeekPicker({
 				<PopoverTrigger
 					render={
 						<Button
-							variant="ghost"
+							variant="secondary"
 							size="compact"
 							aria-label={`Choose week, ${weekTitle(monday)}`}
 							data-slot="schedule-week-picker"

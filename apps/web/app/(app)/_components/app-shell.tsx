@@ -24,7 +24,7 @@ import { ToastProvider } from './toasts'
 function Topbar({ onOpenSearch, pathname, pending }: { onOpenSearch: () => void; pathname: string; pending: boolean }) {
 	const section = sectionForPath(pathname)
 	return (
-		<SidebarInsetTopbar>
+		<SidebarInsetTopbar className="max-md:px-3">
 			<span
 				aria-busy={pending}
 				className="min-w-0 flex-1 truncate text-body text-foreground [header:has(#topbar-slot:not(:empty))_&]:hidden"
@@ -32,7 +32,7 @@ function Topbar({ onOpenSearch, pathname, pending }: { onOpenSearch: () => void;
 				{section.label}
 			</span>
 			<TopbarSlotTarget side="left" id="topbar-slot" className="flex min-w-0 flex-1 items-center gap-2 empty:hidden" />
-			<div className="flex shrink-0 items-center gap-1 pr-2 md:gap-2 pointer-coarse:gap-4 md:pointer-coarse:gap-4">
+			<div className="flex shrink-0 items-center gap-1 md:gap-2 md:pr-2 pointer-coarse:gap-4 md:pointer-coarse:gap-4">
 				<TopbarSlotTarget side="right" id="topbar-actions" className="flex items-center gap-2 empty:hidden" />
 				<span className="md:hidden">
 					<Tooltip content="Search" delayDuration={200}>

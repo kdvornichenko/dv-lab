@@ -192,7 +192,43 @@ async function scheduleChecks(page, size) {
 	})
 	check(`${tag}: an hour is 48px`, Math.abs(lines - 48) < 0.6, String(lines))
 	const gutter = await page.locator('[data-slot="week-grid-gutter"]').boundingBox()
-	check(`${tag}: the gutter is 36px`, Math.abs(gutter.width - 36) < 0.6, String(gutter.width))
+	check(`${tag}: the gutter is 48px`, Math.abs(gutter.width - 48) < 0.6, String(gutter.width))
+	const inset = await page.evaluate(() => {
+		const body = document.querySelector('[data-slot="week-grid-body"]')
+		const left = body.getBoundingClientRect().left
+		const right = left + body.clientWidth
+		const columns = Array.from(document.querySelectorAll('[data-page="current"] [data-slot="week-grid-column"]'))
+		const line = document.querySelector('[data-slot="week-grid-line"][data-hour="9"]').getBoundingClientRect()
+		const label = document.querySelector('[data-slot="week-grid-gutter"] > div:nth-child(10) > span')
+		const second = document.querySelector('[data-slot="week-grid-gutter"] [data-slot="week-grid-second"]')
+		const corner = document.querySelector('[data-slot="week-grid-corner"]')
+		return {
+			columnsEnd: right - columns[columns.length - 1].getBoundingClientRect().right,
+			lineEnd: right - line.right,
+			lineStart: line.left - left,
+			label: label.getBoundingClientRect().left - left,
+			labelSize: getComputedStyle(label).fontSize,
+			second: second ? [getComputedStyle(second).fontSize, second.textContent] : null,
+			corner: corner.textContent,
+		}
+	})
+	check(
+		`${tag}: the columns end 12px before the edge, the hour lines run to the edge, the hour label starts at 12px`,
+		Math.abs(inset.columnsEnd - 12) < 0.6 &&
+			Math.abs(inset.lineEnd) < 0.6 &&
+			Math.abs(inset.lineStart - 48) < 0.6 &&
+			Math.abs(inset.label - 12) < 0.6 &&
+			inset.labelSize === '11px',
+		JSON.stringify(inset)
+	)
+	check(
+		`${tag}: the second zone is under each hour in 10px and the corner names both zones`,
+		inset.second !== null &&
+			inset.second[0] === '10px' &&
+			/\d{2}:\d{2}/.test(inset.second[1]) &&
+			inset.corner.length > 2,
+		JSON.stringify(inset)
+	)
 	const long = page.locator('[data-page="current"] [data-event-key="phone-long"]')
 	const longStyle = await long.evaluate((element) => {
 		const text = element.firstElementChild
@@ -230,7 +266,9 @@ async function scheduleChecks(page, size) {
 	)
 	check(
 		`${tag}: overlapping blocks share the column and narrow lanes show a letter or colour`,
-		pairs.every((entry) => entry.width < 40) && pairs.some((entry) => entry.text.length <= 1),
+		pairs.every((entry) => entry.width < 40) &&
+			pairs.every((entry) => entry.width >= 28 || entry.text.length <= 1) &&
+			(size.width >= 768 || pairs.some((entry) => entry.text.length <= 1)),
 		JSON.stringify(pairs)
 	)
 	const body = page.locator('[data-slot="week-grid-body"]')

@@ -40,7 +40,7 @@ export const OPEN_SCROLL_TOP = 7 * HOUR_HEIGHT
 const MINUTE_HEIGHT = HOUR_HEIGHT / 60
 const HOURS = Array.from({ length: GRID_MINUTES / 60 }, (_, hour) => hour)
 const COLUMNS = 'grid grid-cols-[100px_repeat(7,minmax(0,1fr))]'
-const PHONE_COLUMNS = 'grid grid-cols-[36px_minmax(0,1fr)]'
+const PHONE_COLUMNS = 'grid grid-cols-[48px_minmax(0,1fr)] pr-3'
 const PHONE_FOOT = 16
 const CHIP_BELOW_MINUTES = 30
 const FRAME_WIDTH = `calc(100% - ${COLUMN_STRIP + 2}px)`
@@ -316,17 +316,33 @@ function GutterPair({
 	top?: number
 	phone?: boolean
 }) {
+	if (phone)
+		return (
+			<div
+				style={top === undefined ? undefined : { top }}
+				className={cn(
+					'flex flex-col items-start pl-3 text-[11px] leading-[14px] whitespace-nowrap text-muted-foreground tabular-nums',
+					className
+				)}
+			>
+				<span>{local}</span>
+				{second !== null ? (
+					<span data-slot="week-grid-second" className="text-[10px] leading-3 font-normal text-muted-foreground/70">
+						{second}
+					</span>
+				) : null}
+			</div>
+		)
 	return (
 		<div
 			style={top === undefined ? undefined : { top }}
 			className={cn(
-				'flex justify-end whitespace-nowrap text-muted-foreground tabular-nums',
-				phone ? 'pr-1 text-micro' : 'gap-2 pr-2 pl-[12px] text-caption',
+				'flex justify-end gap-2 pr-2 pl-[12px] text-caption whitespace-nowrap text-muted-foreground tabular-nums',
 				className
 			)}
 		>
 			{second !== null ? <span className="w-[36px] text-right">{second}</span> : null}
-			<span className={phone ? 'text-right' : 'w-[36px] text-right'}>{local}</span>
+			<span className="w-[36px] text-right">{local}</span>
 		</div>
 	)
 }
@@ -721,12 +737,15 @@ export function WeekGrid({
 						paged && 'touch-pan-y'
 					)}
 				>
-					<div data-slot="week-grid-corner" className={cn('flex items-end justify-end', phone ? 'pb-1.5' : 'pb-3')}>
+					<div
+						data-slot="week-grid-corner"
+						className={cn('flex items-end', phone ? 'justify-start pb-1.5' : 'justify-end pb-3')}
+					>
 						{zoneKnown ? (
 							<GutterPair
 								phone={phone}
 								local={mainCaption}
-								second={!phone && secondZone ? secondZone.caption : null}
+								second={secondZone ? secondZone.caption : null}
 								className={phone ? 'font-medium' : undefined}
 							/>
 						) : null}
@@ -770,12 +789,15 @@ export function WeekGrid({
 										phone={phone}
 										local={hourLabel(hour % 24)}
 										second={
-											secondZone && !phone
+											secondZone
 												? gutterLabel(hour >= 24 ? addDays(monday, 1) : monday, hour % 24, mainTimeZone, secondZone.id)
 												: null
 										}
 										top={hour * HOUR_HEIGHT}
-										className={cn('absolute inset-x-0', hour > 0 && '-translate-y-1/2')}
+										className={cn(
+											'absolute inset-x-0',
+											hour > 0 && (phone ? '-translate-y-[7px]' : '-translate-y-1/2')
+										)}
 									/>
 								))}
 							</div>
@@ -787,7 +809,7 @@ export function WeekGrid({
 									data-hour={hour}
 									className={cn(
 										'pointer-events-none absolute right-0 h-px bg-gcal-line',
-										phone ? 'left-9' : 'left-[100px]'
+										phone ? 'left-12' : 'left-[100px]'
 									)}
 									style={{ top: hour * HOUR_HEIGHT }}
 								/>
@@ -796,7 +818,7 @@ export function WeekGrid({
 					</div>
 					{moving !== null ? (
 						<>
-							<EdgeZone side="left" shown={moving.edge === -1} width={phone ? 36 : 100} />
+							<EdgeZone side="left" shown={moving.edge === -1} width={phone ? 48 : 100} />
 							<EdgeZone side="right" shown={moving.edge === 1} width={Math.max(12, Math.min(32, columnWidth / 4))} />
 						</>
 					) : null}
