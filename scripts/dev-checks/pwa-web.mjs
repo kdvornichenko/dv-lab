@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 
 import { lessonLink, studentPaymentsLink } from '../../packages/contracts/src/links.ts'
-import { BASE, ROOT, check, failures, shot, signIn, theme } from './browser-context.ts'
+import { BASE, ROOT, api, check, failures, shot, signIn, sql, theme } from './browser-context.ts'
 import { withBrowser } from './browser-journey.ts'
 
 const EXPECTED_NOISE = /Failed to load resource|server caches disabled|Route "\/login": Next\.js encountered URL data/
 
 const ICONS = ['/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-icon.png']
 
-const sections = { install: sectionInstall, push: sectionPush }
+const sections = { install: sectionInstall, push: sectionPush, settings: sectionSettings, presence: sectionPresence }
 
 const open = (path) => fetch(`${BASE}${path}`, { redirect: 'manual' })
 
@@ -437,6 +437,527 @@ async function sectionPush() {
 		const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
 		check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
 	})
+}
+
+const FAKE_ENDPOINTS = 'https://push.example.test/dvlab-pwa/%'
+const FIXTURE_PREFIX = 'Alex Example 262'
+
+function installFakes() {
+	const read = (key, fallback) => {
+		try {
+			return sessionStorage.getItem(key) ?? fallback
+		} catch {
+			return fallback
+		}
+	}
+	const write = (key, value) => {
+		try {
+			if (value === null) sessionStorage.removeItem(key)
+			else sessionStorage.setItem(key, value)
+		} catch {}
+	}
+	const random = (size) =>
+		btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(size))))
+			.replace(/\+/g, '-')
+			.replace(/\//g, '_')
+			.replace(/=+$/, '')
+	if (read('fake.unsupported', '') === '1') delete window.PushManager
+	Object.defineProperty(Notification, 'permission', {
+		configurable: true,
+		get: () => read('fake.permission', 'default'),
+	})
+	Notification.requestPermission = async () => {
+		if (read('fake.hold', '') === '1')
+			await new Promise((resolve) => {
+				window.__release = resolve
+			})
+		const answer = read('fake.answer', 'granted')
+		if (answer === 'dismiss') return 'default'
+		write('fake.permission', answer)
+		return answer
+	}
+	const current = () => {
+		const raw = read('fake.sub', '')
+		if (!raw) return null
+		const stored = JSON.parse(raw)
+		return {
+			endpoint: stored.endpoint,
+			options: {},
+			toJSON: () => ({ endpoint: stored.endpoint, keys: { p256dh: stored.p256dh, auth: stored.auth } }),
+			unsubscribe: async () => {
+				write('fake.sub', null)
+				return true
+			},
+		}
+	}
+	if (window.PushManager) {
+		PushManager.prototype.getSubscription = async () => current()
+		PushManager.prototype.subscribe = async () => {
+			if (!read('fake.sub', ''))
+				write(
+					'fake.sub',
+					JSON.stringify({
+						endpoint: `https://push.example.test/dvlab-pwa/${crypto.randomUUID()}`,
+						p256dh: random(65),
+						auth: random(16),
+					})
+				)
+			return current()
+		}
+	}
+}
+
+const routeSafe = (page, pattern, handler) =>
+	page.route(pattern, async (route) => {
+		try {
+			await handler(route)
+		} catch {}
+	})
+
+const setFake = (page, entries) =>
+	page.evaluate((list) => {
+		for (const [key, value] of list) {
+			if (value === null) sessionStorage.removeItem(key)
+			else sessionStorage.setItem(key, value)
+		}
+	}, Object.entries(entries))
+
+const fakeEndpoint = (page) =>
+	page.evaluate(() => {
+		const raw = sessionStorage.getItem('fake.sub')
+		return raw ? JSON.parse(raw).endpoint : null
+	})
+
+const deviceSwitch = (page) => page.getByRole('switch', { name: 'Push notifications' })
+const deviceHint = (page) => page.locator('#settings-notifications-device-hint')
+
+async function openSettings(page) {
+	await page.goto(`${BASE}/settings?tab=general`)
+	await page.getByText('Notifications on this device', { exact: true }).waitFor({ timeout: 30000 })
+	await page.waitForFunction(
+		() => (document.getElementById('settings-notifications-device-hint')?.textContent ?? '') !== '',
+		undefined,
+		{ timeout: 15000 }
+	)
+}
+
+async function hintStarts(page, text, timeout = 8000) {
+	try {
+		await page.waitForFunction(
+			(expected) =>
+				(document.getElementById('settings-notifications-device-hint')?.textContent ?? '').startsWith(expected),
+			text,
+			{ timeout }
+		)
+		return true
+	} catch {
+		return false
+	}
+}
+
+const rows = () =>
+	sql(
+		`select count(*)::int as total, count(revoked_at)::int as revoked from push_subscriptions where endpoint like '${FAKE_ENDPOINTS}'`
+	).rows[0]
+
+function removeFixtures() {
+	const cards = `select id from students where display_name like '${FIXTURE_PREFIX}%' and import_key is null`
+	sql(`delete from push_payment_alerts where student_id in (${cards})`)
+	sql(`delete from student_notes where student_id in (${cards})`)
+	sql(`delete from student_sections where student_id in (${cards})`)
+	sql(`delete from student_terms where student_id in (${cards})`)
+	sql(`delete from note_reviews where student_id in (${cards})`)
+	sql(`delete from students where display_name like '${FIXTURE_PREFIX}%' and import_key is null`)
+	sql(`delete from push_subscriptions where endpoint like '${FAKE_ENDPOINTS}'`)
+}
+
+async function restoreNotifySettings(page) {
+	await api(page, 'PATCH', '/settings', { notifyLessonSoon: true, notifyLessonMinutes: 30, notifyPaysSoon: true })
+}
+
+async function sectionSettings() {
+	removeFixtures()
+	try {
+		await withNotifications(async ({ context, page, problems }) => {
+			await context.grantPermissions(['notifications'], { origin: BASE })
+			await page.addInitScript(installFakes)
+			await signIn(page)
+			await restoreNotifySettings(page)
+			const posts = []
+			page.on('request', (request) => {
+				if (request.method() === 'POST' && request.url().endsWith('/api/push/subscriptions')) posts.push(request.url())
+			})
+
+			await openSettings(page)
+			check('the device card starts off with the device in the hint', await hintStarts(page, 'Off on this device ('))
+			check(
+				'the device is named by browser and system',
+				/^Off on this device \(\w+ on [\w ]+\)\.$/.test(await deviceHint(page).innerText())
+			)
+			check('the card ends with Saved on this device.', (await page.getByText('Saved on this device.').count()) === 1)
+			check(
+				'the events card says to turn on this device',
+				(await page.getByText('Turn on notifications on this device to receive these.').count()) === 1
+			)
+
+			await setFake(page, { 'fake.hold': '1' })
+			await deviceSwitch(page).click()
+			await page.getByText('Waiting for your answer in the browser…').waitFor({ timeout: 5000 })
+			check(
+				'while the browser asks nothing is saved and the switch waits',
+				posts.length === 0 && (await deviceSwitch(page).isDisabled())
+			)
+			await shot(page, 'pwa-settings', 'waiting')
+			await setFake(page, { 'fake.hold': null })
+			await page.evaluate(() => window.__release())
+			check('an allowed permission turns the switch on', await hintStarts(page, 'On for this device ('))
+			check(
+				'the subscription is saved on the server',
+				rows().total === 1 && rows().revoked === 0,
+				JSON.stringify(rows())
+			)
+			check('the switch is on', (await deviceSwitch(page).getAttribute('aria-checked')) === 'true')
+			check(
+				'the muted row is gone while this device is on',
+				(await page.getByText('Turn on notifications on this device to receive these.').count()) === 0
+			)
+			const config = await api(page, 'GET', '/push/config')
+			const device = config.json?.devices?.find((entry) => (entry.deviceLabel ?? '').includes(' on '))
+			check(
+				'the config lists this device with its label and not revoked',
+				device !== undefined && device.revoked === false
+			)
+			await shot(page, 'pwa-settings', 'on')
+
+			await page.locator('#settings-notify-minutes').fill('4')
+			await page.locator('#settings-notify-minutes').blur()
+			await page.getByText('Use a whole number from 5 to 120.').waitFor({ timeout: 5000 })
+			check(
+				'minutes 4 shows the error and the invalid ring',
+				(await page.locator('#settings-notify-minutes').getAttribute('aria-invalid')) === 'true'
+			)
+			check(
+				'nothing is saved for minutes 4',
+				(await api(page, 'GET', '/settings')).json?.settings?.notifyLessonMinutes === 30
+			)
+			await page.waitForFunction(() => document.getElementById('settings-notify-minutes')?.value === '30', undefined, {
+				timeout: 6000,
+			})
+			check('the last saved minutes come back', true)
+			await page.locator('#settings-notify-minutes').fill('45')
+			await page.locator('#settings-notify-minutes').press('Enter')
+			await page.getByText('Saved', { exact: true }).first().waitFor({ timeout: 5000 })
+			check(
+				'minutes 45 are saved on Enter',
+				(await api(page, 'GET', '/settings')).json?.settings?.notifyLessonMinutes === 45
+			)
+			await page.getByRole('switch', { name: 'A student is about to pay' }).click()
+			await page.waitForTimeout(800)
+			check(
+				'the Pays soon notification can be turned off on its own',
+				(await api(page, 'GET', '/settings')).json?.settings?.notifyPaysSoon === false
+			)
+			check(
+				'the lesson notification stayed on',
+				(await api(page, 'GET', '/settings')).json?.settings?.notifyLessonSoon === true
+			)
+
+			const second = await api(page, 'POST', '/push/subscriptions', {
+				endpoint: 'https://push.example.test/dvlab-pwa/other-device',
+				keys: { p256dh: 'BAAA', auth: 'AAAA' },
+				deviceLabel: 'Other device',
+			})
+			check('a second device is subscribed for the check', second.status === 201, String(second.status))
+			await deviceSwitch(page).click()
+			check('turning off says Off on this device', await hintStarts(page, 'Off on this device ('))
+			const left = sql(
+				`select endpoint, revoked_at is not null as revoked from push_subscriptions where endpoint like '${FAKE_ENDPOINTS}' order by endpoint`
+			).rows
+			check(
+				'turning off removes only this device',
+				left.length === 2 &&
+					left.filter((row) => row.revoked).length === 1 &&
+					left.find((row) => !row.revoked)?.endpoint.endsWith('/other-device'),
+				JSON.stringify(left.map((row) => row.revoked))
+			)
+
+			await deviceSwitch(page).click()
+			check('the device turns on again after being off', await hintStarts(page, 'On for this device ('))
+			const endpoint = await fakeEndpoint(page)
+			await api(page, 'DELETE', '/push/subscriptions', { endpoint })
+			check('the server side revoke is visible', rows().revoked >= 1)
+			await page.reload()
+			check(
+				'after a reload the app restores the subscription and the card is on',
+				await hintStarts(page, 'On for this device (')
+			)
+			const restored = sql(`select revoked_at is null as live from push_subscriptions where endpoint = '${endpoint}'`)
+				.rows[0]
+			check('the restored subscription is not revoked on the server', restored?.live === true)
+
+			await routeSafe(page, '**/api/push/config', async (route) => {
+				const response = await route.fetch()
+				const body = await response.json()
+				const id = await page.evaluate(() => localStorage.getItem('dv-lab.push.device-id'))
+				body.devices = body.devices.map((entry) => (entry.id === id ? { ...entry, revoked: true } : entry))
+				await route.fulfill({ response, json: body })
+			})
+			await page.reload()
+			check('a revoked device says Stopped on this device', await hintStarts(page, 'Stopped on this device ('))
+			check(
+				'the revoked card has the warning row and Turn on again',
+				(await page
+					.getByText(
+						'Notifications stopped working on this device. The browser or the system removed the subscription.'
+					)
+					.count()) === 1 && (await page.getByRole('button', { name: 'Turn on again' }).count()) === 1
+			)
+			await page.locator('#settings-notifications-device-hint').scrollIntoViewIfNeeded()
+			const message = await page.getByText('Notifications stopped working on this device.').boundingBox()
+			const action = await page.getByRole('button', { name: 'Turn on again' }).boundingBox()
+			check(
+				'the Turn on again button sits right of the warning text',
+				message !== null &&
+					action !== null &&
+					action.x >= message.x + message.width - 2 &&
+					action.y < message.y + message.height
+			)
+			await shot(page, 'pwa-settings', 'revoked')
+			await routeSafe(page, '**/api/push/subscriptions', async (route) => {
+				if (route.request().method() === 'POST') await route.abort()
+				else await route.continue()
+			})
+			await page.getByRole('button', { name: 'Turn on again' }).click()
+			await page.getByText('Could not turn on notifications. Try again.').waitFor({ timeout: 8000 })
+			check(
+				'a failed Turn on again stays revoked with the error',
+				(await hintStarts(page, 'Stopped on this device (')) &&
+					(await page.getByRole('button', { name: 'Turn on again' }).count()) === 1
+			)
+			await page.unroute('**/api/push/subscriptions')
+			await routeSafe(page, '**/api/push/subscriptions', async (route) => {
+				if (route.request().method() === 'POST') await new Promise((resolve) => setTimeout(resolve, 1200))
+				await route.continue()
+			})
+			await page.unroute('**/api/push/config')
+			await routeSafe(page, '**/api/push/config', async (route) => {
+				const response = await route.fetch()
+				const body = await response.json()
+				const id = await page.evaluate(() => localStorage.getItem('dv-lab.push.device-id'))
+				const reviving = await page.evaluate(() => window.__revived === true)
+				body.devices = body.devices.map((entry) => (entry.id === id ? { ...entry, revoked: !reviving } : entry))
+				await route.fulfill({ response, json: body })
+			})
+			await page.evaluate(() => {
+				window.__revived = true
+			})
+			await page.getByRole('button', { name: 'Turn on again' }).click()
+			await page.getByText('Turning notifications on again…').waitFor({ timeout: 5000 })
+			check('Turn on again shows Turning on… and the caption', (await page.getByText('Turning on…').count()) === 1)
+			check('Turn on again ends in the normal on state', await hintStarts(page, 'On for this device ('))
+			await page.unroute('**/api/push/subscriptions')
+			await page.unroute('**/api/push/config')
+
+			await setFake(page, { 'fake.permission': 'denied' })
+			await page.reload()
+			check('a denied permission is Blocked', await hintStarts(page, 'Blocked in this browser.'))
+			check('the blocked switch cannot be changed', await deviceSwitch(page).isDisabled())
+			check(
+				'the blocked card says where to allow it',
+				(await page
+					.getByText(
+						"Notifications are blocked for this site. Allow them in the browser's site settings, then check again."
+					)
+					.count()) === 1
+			)
+			await shot(page, 'pwa-settings', 'blocked')
+			await setFake(page, { 'fake.permission': 'granted' })
+			await page.getByRole('button', { name: 'Check again' }).click()
+			check('Check again reads the permission again', await hintStarts(page, 'On for this device ('))
+
+			await setFake(page, { 'fake.sub': null, 'fake.permission': 'default', 'fake.answer': 'dismiss' })
+			await page.reload()
+			await hintStarts(page, 'Off on this device (')
+			const before = posts.length
+			await deviceSwitch(page).click()
+			await page.waitForTimeout(500)
+			check(
+				'a dismissed question leaves the switch off without an error',
+				(await hintStarts(page, 'Off on this device (')) &&
+					(await page.getByText('Could not turn on notifications. Try again.').count()) === 0 &&
+					posts.length === before
+			)
+			await setFake(page, { 'fake.answer': 'denied' })
+			await deviceSwitch(page).click()
+			check('a refused permission becomes Blocked', await hintStarts(page, 'Blocked in this browser.'))
+
+			await setFake(page, { 'fake.permission': 'granted', 'fake.answer': 'granted' })
+			await page.reload()
+			await hintStarts(page, 'Off on this device (')
+			await routeSafe(page, '**/api/push/subscriptions', async (route) => {
+				if (route.request().method() === 'POST') await route.abort()
+				else await route.continue()
+			})
+			await deviceSwitch(page).click()
+			await page.getByText('Could not turn on notifications. Try again.').waitFor({ timeout: 8000 })
+			check(
+				'a subscription that could not be saved leaves the switch off with the error',
+				(await deviceSwitch(page).getAttribute('aria-checked')) === 'false' && (await fakeEndpoint(page)) === null
+			)
+			await page.unroute('**/api/push/subscriptions')
+
+			await routeSafe(page, '**/api/push/config', (route) =>
+				route.fulfill({ json: { enabled: false, publicKey: null, devices: [] } })
+			)
+			await page.reload()
+			check('a server without push says Not set up on the server.', await hintStarts(page, 'Not set up on the server.'))
+			check('the not-set-up switch cannot be changed', await deviceSwitch(page).isDisabled())
+			check(
+				'the not-set-up row is the info text with Check again',
+				(await page
+					.getByText('Push notifications are not set up on the server. Once they are, turn them on here.')
+					.count()) === 1 && (await page.getByRole('button', { name: 'Check again' }).count()) === 1
+			)
+			check(
+				'the events card stays usable',
+				(await page.getByRole('switch', { name: 'A lesson starts soon' }).isDisabled()) === false
+			)
+			await shot(page, 'pwa-settings', 'server-off')
+			await page.unroute('**/api/push/config')
+			await page.getByRole('button', { name: 'Check again' }).click()
+			check('Check again asks the server again', await hintStarts(page, 'Off on this device ('))
+
+			await setFake(page, { 'fake.unsupported': '1' })
+			await page.reload()
+			check(
+				'a browser without push says Not available in this browser.',
+				await hintStarts(page, 'Not available in this browser.')
+			)
+			check(
+				'the not-available card explains the Home Screen',
+				(await page
+					.getByText(
+						'This browser cannot show notifications. On iPhone and iPad, add dv-lab to the Home Screen first and open it from there.'
+					)
+					.count()) === 1 && (await deviceSwitch(page).isDisabled())
+			)
+			await setFake(page, { 'fake.unsupported': null })
+
+			await page.setViewportSize({ width: 375, height: 800 })
+			await page.reload()
+			await hintStarts(page, 'Off on this device (')
+			check(
+				'at 375 px the page does not scroll sideways',
+				await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
+			)
+			await page.locator('#settings-notifications-device-hint').scrollIntoViewIfNeeded()
+			await shot(page, 'pwa-settings', 'phone')
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+			await restoreNotifySettings(page)
+		})
+	} finally {
+		removeFixtures()
+	}
+}
+
+async function sectionPresence() {
+	removeFixtures()
+	try {
+		await withNotifications(async ({ context, page, problems }) => {
+			await context.grantPermissions(['notifications'], { origin: BASE })
+			await page.addInitScript(installFakes)
+			await signIn(page)
+			const student = await api(page, 'POST', '/students', {
+				displayName: `${FIXTURE_PREFIX}0`,
+				rateMinor: null,
+				currency: null,
+				defaultLessonMinutes: 60,
+				parent: null,
+				level: null,
+				goals: null,
+				timeZone: null,
+			})
+			const studentId = student.json?.student?.id
+			check('the fixture card is created', student.status === 201 && typeof studentId === 'string')
+			await openSettings(page)
+			await deviceSwitch(page).click()
+			check('the device is subscribed for the check', await hintStarts(page, 'On for this device ('))
+			const endpoint = await fakeEndpoint(page)
+			const signals = []
+			page.on('response', async (response) => {
+				const request = response.request()
+				if (request.method() === 'POST' && request.url().endsWith('/api/push/presence'))
+					signals.push({ body: JSON.parse(request.postData() ?? '{}'), status: response.status() })
+			})
+			let from = 0
+			const mark = () => (from = signals.length)
+			const waitSignal = async (match, timeout = 8000) => {
+				const deadline = Date.now() + timeout
+				while (Date.now() < deadline) {
+					const found = signals.slice(from).find(match)
+					if (found) return found
+					await page.waitForTimeout(150)
+				}
+				return null
+			}
+
+			mark()
+			await page.goto(`${BASE}/schedule`)
+			const schedule = await waitSignal((signal) => signal.body.screen === 'schedule')
+			check(
+				'the Schedule screen reports schedule',
+				schedule !== null && schedule.body.endpoint === endpoint && schedule.status === 204,
+				String(schedule?.status)
+			)
+			check('the signal carries the second time zone', typeof schedule?.body.secondTimeZone === 'string')
+
+			mark()
+			await page.goto(`${BASE}/students/${studentId}?tab=payments`)
+			const payments = await waitSignal((signal) => signal.body.screen === 'payments')
+			check(
+				'Payments of a student reports payments and the student',
+				payments?.body.studentId === studentId && payments.status === 204
+			)
+
+			mark()
+			await page.goto(`${BASE}/students/${studentId}`)
+			const overview = await waitSignal((signal) => signal.body.screen === 'other')
+			check('the profile outside Payments reports other', overview !== null && overview.body.studentId === undefined)
+
+			mark()
+			await page.goto(`${BASE}/schedule`)
+			await waitSignal((signal) => signal.body.screen === 'schedule')
+			mark()
+			await page.evaluate(() => {
+				Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' })
+				document.dispatchEvent(new Event('visibilitychange'))
+			})
+			const hidden = await waitSignal((signal) => signal.body.screen === 'other')
+			check('a hidden page reports other', hidden !== null && hidden.status === 204)
+			const afterHide = signals.length
+			await page.evaluate(() => {
+				Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' })
+				document.dispatchEvent(new Event('visibilitychange'))
+			})
+			await page.waitForTimeout(800)
+			check(
+				'a visible page reports again at once',
+				signals.length > afterHide && signals.at(-1).body.screen === 'schedule'
+			)
+
+			await api(page, 'DELETE', '/push/subscriptions', { endpoint })
+			await page.evaluate(() => sessionStorage.removeItem('fake.sub'))
+			const quiet = signals.length
+			await page.goto(`${BASE}/schedule`)
+			await page.waitForTimeout(1500)
+			check('a device without a subscription sends no signal', signals.length === quiet)
+			const unexpected = problems.filter((line) => !EXPECTED_NOISE.test(line))
+			check('no unexpected console problems', unexpected.length === 0, unexpected.slice(0, 3).join(' | '))
+		})
+	} finally {
+		removeFixtures()
+	}
 }
 
 const wanted = process.argv.slice(2).find((value) => value in sections)
