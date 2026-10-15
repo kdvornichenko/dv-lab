@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 
 import { ArrowUp } from 'lucide-react'
 
@@ -24,6 +24,10 @@ import { TextLink } from './agent-links'
 export type FactsFollowUp = {
 	busy: boolean
 	onSend: (student: { id: string; displayName: string }) => void
+}
+
+function SendArrow(props: ComponentProps<typeof ArrowUp>) {
+	return <ArrowUp {...props} size={14} />
 }
 
 export function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -165,9 +169,9 @@ export function StudentFacts({ facts, followUp }: { facts: ChatStudentFacts; fol
 					data-slot="chat-follow-up"
 					disabled={followUp.busy}
 					className="self-start"
+					leadingIcon={SendArrow}
 					onClick={() => followUp.onSend({ id: student.id, displayName: student.displayName })}
 				>
-					<ArrowUp size={14} aria-hidden />
 					{CHAT_FOLLOW_UP_TEXT}
 				</Button>
 			) : null}

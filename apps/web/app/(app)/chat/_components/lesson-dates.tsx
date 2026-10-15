@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from 'react'
 
-import { Check, ChevronDown, Copy, TriangleAlert } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, Copy, TriangleAlert } from 'lucide-react'
 
 import { Panel } from '@/components/app/layout-parts'
 import { Button } from '@/components/ui/button'
@@ -162,15 +162,11 @@ export function LessonDates({ block }: { block: ChatLessonDatesBlock }) {
 								variant="ghost"
 								size="compact"
 								aria-expanded={all}
+								trailingIcon={all ? ChevronUp : ChevronDown}
 								className="-ml-2 self-start text-caption text-muted-foreground pointer-coarse:h-8"
 								onClick={() => setAll((value) => !value)}
 							>
 								{all ? 'Show fewer months' : `Show all ${months.length} months`}
-								<ChevronDown
-									size={14}
-									aria-hidden
-									className={cn('transition-transform duration-120', all && 'rotate-180')}
-								/>
 							</Button>
 						) : null}
 					</>
