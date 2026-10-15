@@ -217,6 +217,7 @@ async function prefetchChecks() {
 	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().waitFor({ timeout: 10000 })
 	const shownIn = Date.now() - reopened
 	check('device copy: a reopened schedule shows the week before the server answers', shownIn < 2500, `${shownIn} ms`)
+	await context.unrouteAll({ behavior: 'ignoreErrors' })
 	await browser.close()
 }
 
@@ -485,7 +486,75 @@ async function phoneChecks() {
 	await wait(900)
 	check('phone: a swipe still turns the week after the gestures', (await weekLabel(page)) !== swipeLabel)
 	check('phone: no page errors', problems.length === 0, problems.join(' | '))
+	await context.unrouteAll({ behavior: 'ignoreErrors' })
 	await browser.close()
+}
+
+async function scripts(page) {
+	return page.evaluate(() =>
+		performance
+			.getEntriesByType('resource')
+			.filter((entry) => entry.initiatorType === 'script' || /\.js(\?|$)/.test(entry.name))
+			.map((entry) => entry.name)
+	)
+}
+
+async function lazyDialogChecks(page) {
+	await page.evaluate(
+		() => new Promise((resolve) => (window.requestIdleCallback ?? setTimeout)(() => resolve(), { timeout: 5000 }))
+	)
+	await wait(2500)
+	const loaded = await scripts(page)
+	await reveal(page, 15)
+	const free = await columnBox(page, 5)
+	const y = await yAt(page, 5, 14, 5)
+	await page.evaluate(() => {
+		window.__lazyDialog = { clicked: null, shown: null }
+		document.addEventListener('pointerup', () => (window.__lazyDialog.clicked ??= performance.now()), {
+			capture: true,
+			once: true,
+		})
+		const observer = new MutationObserver(() => {
+			const dialog = [...document.querySelectorAll('[role="dialog"]')].at(-1)
+			if (dialog?.textContent?.startsWith('New lesson')) {
+				window.__lazyDialog.shown = performance.now()
+				observer.disconnect()
+			}
+		})
+		observer.observe(document.body, { childList: true, subtree: true })
+	})
+	await page.mouse.click(free.x + free.width / 2, y)
+	const created = page.getByRole('dialog').last()
+	const shown = await created
+		.waitFor({ timeout: 8000 })
+		.then(() => true)
+		.catch(() => false)
+	const timing = await page.evaluate(() => window.__lazyDialog)
+	const fetched = (await scripts(page)).filter((name) => !loaded.includes(name))
+	const delay = timing.clicked === null || timing.shown === null ? null : Math.round(timing.shown - timing.clicked)
+	check(
+		'lazy dialogs: after an idle pause a click on an empty cell opens New lesson within 300 ms',
+		shown && delay !== null && delay <= 300,
+		`${delay} ms`
+	)
+	let holder = null
+	for (const name of loaded) {
+		const body = await page.request
+			.get(name)
+			.then((response) => response.text())
+			.catch(() => '')
+		if (body.includes('_components/new-lesson-dialog.tsx')) {
+			holder = name.split('/').pop()
+			break
+		}
+	}
+	check(
+		'lazy dialogs: the New lesson chunk is loaded before the click',
+		holder !== null && fetched.length === 0,
+		fetched.length === 0 ? String(holder) : fetched.join(',')
+	)
+	await page.keyboard.press('Escape')
+	await created.waitFor({ state: 'detached', timeout: 8000 }).catch(() => undefined)
 }
 
 async function laptopChecks() {
@@ -494,6 +563,7 @@ async function laptopChecks() {
 	await signIn(page)
 	await page.goto(`${BASE}/schedule`, { timeout: 120000 })
 	await page.locator(`${COLUMN} [data-event-key^="touch-b"]`).first().waitFor({ timeout: 30000 })
+	await lazyDialogChecks(page)
 	const labels = await page.evaluate(
 		() => Array.from(document.querySelectorAll('[data-slot="week-grid-gutter"] > div')).length
 	)
@@ -558,6 +628,7 @@ async function laptopChecks() {
 		(problem) => !problem.includes('server caches disabled') && !problem.includes('status of')
 	)
 	check('laptop: no page errors', real.length === 0, real.join(' | '))
+	await context.unrouteAll({ behavior: 'ignoreErrors' })
 	await browser.close()
 }
 
