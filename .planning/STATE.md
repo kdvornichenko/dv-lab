@@ -2,20 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Unified dv-lab (In Progress)
-current_phase: 23
-current_phase_name: Confirmed Chat Changes and Entry Points
-status: executing
-stopped_at: Phase 25.1 executed, live-checked on the test account and accepted by the owner (2026-10-13); PR open, merge by the owner
-last_updated: "2026-10-14T03:58:03.738Z"
-last_activity: 2026-10-14
-last_activity_desc: Phase 23 execution started
-state_head: a9a49652625902e9943b84dfba1bfb010a8f7699
+current_phase: 25.4
+current_phase_name: Local Database
+status: discussed
+stopped_at: Phase 25.2 and the post-phase PRs 42–52 complete (prod 6083d998); Phase 25.4 context gathered in branch gsd/phase-25.4-local-db, plan next
+last_updated: "2026-10-15T17:01:06.676Z"
+last_activity: 2026-10-16
+last_activity_desc: Phase 25.2 closed, Phase 24 closed by the Phase 25.1 live check
+state_head: 6083d9988e1e553cccfe15344281670cc5dfc01e
 progress:
-  total_phases: 12
+  total_phases: 14
   completed_phases: 6
-  total_plans: 188
-  completed_plans: 133
-  percent: 50
+  total_plans: 217
+  completed_plans: 176
+  percent: 38
 ---
 
 # Project State
@@ -25,16 +25,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-09)
 
 **Core value:** The teacher can always see who studies, how many lessons remain for each student, who has to pay soon and what was covered, and can record any of it by writing one line in chat.
-**Current focus:** Phase 23 — Confirmed Chat Changes and Entry Points
+**Current focus:** Phase 25.4 — Local Database (planning next)
 
 ## Current Position
 
-Phase: 23 (Confirmed Chat Changes and Entry Points) — EXECUTING
-Plan: 1 of 14
-Status: Executing Phase 23
-Last activity: 2026-10-14 — Phase 23 execution started
+Phase: 25.4 — Local Database (context in branch gsd/phase-25.4-local-db)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-16 — Phase 25.2 closed (see 25.2-VERIFICATION.md for the post-phase PRs and deferred items)
 
-Progress: [█████░░░░░] 50%
+Progress: [████░░░░░░] 38%
 
 ## Deferred Verification
 
@@ -63,6 +63,7 @@ Phase 17 human items (see 17-VERIFICATION.md): return the apex TTL to 300-3600 i
 | ----- | ----- | ----- | -------- |
 | 21    | 18    | -     | -        |
 | 21.1  | 13    | -     | -        |
+| 25.2 | 29 | - | - |
 
 Phases 1-16 (v1.0, v1.1) are archived in `.planning/milestones/v1.1-ROADMAP.md`.
 **Per-Plan Metrics:**
@@ -130,5 +131,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-12T13:00:00.000Z
-Stopped at: Phase 25.1 executed, live-checked on the test account and accepted by the owner (2026-10-13); PR open, merge by the owner
-Resume file: .planning/phases/24-google-calendar-connection-and-outbound-sync/24-CONTEXT.md
+Stopped at: Phase 25.2 closed; Phase 25.4 context gathered in branch gsd/phase-25.4-local-db, plan next
+Resume file: .planning/phases/25.4-local-database/25.4-CONTEXT.md (branch gsd/phase-25.4-local-db)
