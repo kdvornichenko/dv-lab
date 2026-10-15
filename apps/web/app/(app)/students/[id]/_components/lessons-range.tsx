@@ -101,7 +101,6 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 	const [open, setOpen] = useState(false)
 	const [first, setFirst] = useState<string | null>(null)
 	const [custom, setCustom] = useState(false)
-	const [hover, setHover] = useState<string | null>(null)
 	const shown = fixedBounds(choice, today) ?? resolved ?? (paidOn === null ? null : { from: paidOn, to: today })
 	const sinceBounds =
 		resolved !== null && choice.kind === 'since_payment'
@@ -115,7 +114,6 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 		if (next) return
 		setFirst(null)
 		setCustom(false)
-		setHover(null)
 	}
 
 	function pick(next: RangeChoice) {
@@ -128,7 +126,6 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 		setCustom(true)
 		if (first === null) {
 			setFirst(iso)
-			setHover(null)
 			return
 		}
 		const [from, to] = first <= iso ? [first, iso] : [iso, first]
@@ -137,10 +134,7 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 
 	const selected: DateRange | undefined =
 		first !== null
-			? {
-					from: toDate(first <= (hover ?? first) ? first : (hover ?? first)),
-					to: toDate(first <= (hover ?? first) ? (hover ?? first) : first),
-				}
+				? { from: toDate(first), to: toDate(first) }
 			: shown === null
 				? undefined
 				: { from: toDate(shown.from), to: toDate(shown.to) }
@@ -179,7 +173,7 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 				<div role="group" aria-label="Date range" className="flex flex-col gap-0.5 p-2 sm:w-56">
 					{PRESETS.map((kind) => {
 						const off = kind === 'since_payment' && !hasPayment
-						const active = choice.kind === kind
+						const active = choice.kind === kind && !custom
 						const dates = kind === 'since_payment' ? sinceBounds : fixedBounds({ kind }, today)
 						return (
 							<RangeRow
@@ -217,9 +211,6 @@ export function RangeControl({ choice, today, hasPayment, paidOn, resolved, onCh
 						defaultMonth={toDate(shown?.from ?? today)}
 						disabled={disabled}
 						onDayClick={clickDay}
-						onDayMouseEnter={(day) => {
-							if (first !== null) setHover(fromDate(day))
-						}}
 					/>
 					<p className="px-3 pb-3 text-caption text-muted-foreground" aria-live="polite">
 						{first === null ? '' : 'Choose the last day'}
