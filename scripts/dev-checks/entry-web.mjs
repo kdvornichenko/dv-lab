@@ -199,6 +199,17 @@ async function waitIdle(page) {
 	await page.waitForFunction(() => document.querySelectorAll('[data-palette]').length === 0, null, { timeout: 10000 })
 }
 
+const NEW_CHAT_REQUEST = /\/chat\?.*new=1/
+
+async function holdNewChat(page, ms) {
+	const handler = async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, ms))
+		await route.continue().catch(() => undefined)
+	}
+	await page.route(NEW_CHAT_REQUEST, handler)
+	return () => page.unroute(NEW_CHAT_REQUEST, handler)
+}
+
 async function activeHeading(page) {
 	return page.evaluate(() => {
 		const active = document.activeElement
@@ -292,7 +303,19 @@ async function sectionPalette(page, problems, ids) {
 	await openPalette(page)
 	await type(page, 'New chat')
 	await page.getByRole('option', { name: 'New chat' }).waitFor({ timeout: 5000 })
+	await type(page, '')
+	await page.getByRole('option', { name: 'Add payment' }).waitFor({ timeout: 5000 })
+	await page.waitForTimeout(300)
+	const release = await holdNewChat(page, 2500)
 	await page.keyboard.press('Enter')
+	await page.getByRole('option', { name: 'Opening chat…' }).waitFor({ timeout: 5000 })
+	check(
+		'New chat shows Opening chat… with a spinner while the other actions are off',
+		(await page.getByRole('option', { name: 'Add payment' }).getAttribute('aria-disabled')) === 'true' &&
+			(await page.locator('[data-palette] .animate-spin').count()) === 1
+	)
+	await shot(page, 'entry-palette', 'opening-chat')
+	await release()
 	await waitIdle(page)
 	await page.locator(COMMANDS).waitFor({ timeout: 15000 })
 	await page.waitForFunction(() => !location.search.includes('new=') && !location.search.includes('c='), null, {
@@ -408,7 +431,16 @@ async function sectionAsk(page, problems, ids) {
 	const ask = page.getByRole('button', { name: 'Ask in chat' })
 	await ask.waitFor({ timeout: 15000 })
 	await shot(page, 'entry-ask', 'profile')
+	const release = await holdNewChat(page, 2500)
 	await ask.click()
+	const opening = page.getByRole('button', { name: 'Opening chat…' })
+	await opening.waitFor({ timeout: 5000 })
+	check(
+		'Ask in chat shows Opening chat… at least 144 px wide and cannot be pressed again',
+		(await opening.isDisabled()) && ((await opening.boundingBox())?.width ?? 0) >= 144
+	)
+	await shot(page, 'entry-ask', 'opening')
+	await release()
 	await page.waitForURL(/\/chat/, { timeout: 15000 })
 	const field = page.locator(FIELD)
 	await field.waitFor({ timeout: 30000 })

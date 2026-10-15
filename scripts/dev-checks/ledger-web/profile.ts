@@ -4,8 +4,11 @@ import type {
 	ErrorResponse,
 	ScheduleLessonResponse,
 	StudentLesson,
+	StudentBlocksResponse,
+	StudentCommentsResponse,
 	StudentLessonsResponse,
 	StudentResponse,
+	StudentTermsResponse,
 } from '../../../packages/contracts/src/index.ts'
 import * as core from '../../../packages/core/src/index.ts'
 import { BASE, api, check, failures, shot, signIn, sql } from '../browser-context.ts'
@@ -171,6 +174,17 @@ async function mark(page: Page, lessonId: string, kind: 'done' | 'no_show') {
 	check(`lesson marked ${kind}`, result.status === 200, `${result.status} ${JSON.stringify(result.json).slice(0, 160)}`)
 }
 
+async function writeBlock(page: Page, id: string, key: string, body: string) {
+	const listed = await api<StudentBlocksResponse>(page, 'GET', `/students/${id}/blocks`)
+	const block = listed.json?.blocks.find((item) => item.key === key)
+	check(`block ${key} listed`, block !== undefined, String(listed.status))
+	const saved = await api(page, 'PUT', `/students/${id}/blocks/${block!.id}`, {
+		body,
+		expectedRevision: block!.revision,
+	})
+	check(`block ${key} saved`, saved.status === 200, String(saved.status))
+}
+
 async function fixtures(page: Page) {
 	const main = await card(page, NAMES[0])
 	await opening(page, main, back(-30))
@@ -192,12 +206,13 @@ async function fixtures(page: Page) {
 	lessonAt(main, day(2))
 	lessonAt(main, day(4))
 	exec(
-		`insert into lesson_comments (lesson_id, student_id, body) values (${quote(l6)}, ${quote(main)}, 'Worked on linking words.')`
+		`insert into lesson_comments (lesson_id, student_id, body, created_at) values (${quote(l6)}, ${quote(main)}, 'Worked on linking words.', now() - interval '5 hours'), (${quote(l6)}, ${quote(main)}, 'Repeat the past perfect.', now() - interval '4 hours')`
 	)
+	await writeBlock(page, main, 'general_info', 'Prefers short tasks.')
+	await writeBlock(page, main, 'typical_mistakes', 'Articles with uncountable nouns.')
 	exec(
-		`insert into student_sections (student_id, kind, body) values (${quote(main)}, 'general_info', 'Prefers short tasks.') on conflict (student_id, kind) do update set body = excluded.body`
+		`insert into student_terms (student_id, term, note, added_by) values (${quote(main)}, 'cohesion', null, 'chat'), (${quote(main)}, 'hedging', null, 'chat'), (${quote(main)}, 'tedious', null, 'chat')`
 	)
-	exec(`insert into student_terms (student_id, term, note, added_by) values (${quote(main)}, 'cohesion', null, 'chat')`)
 
 	const bare = await card(page, NAMES[1])
 	lessonAt(bare, back(-1))
@@ -654,6 +669,405 @@ async function statesPart(page: Page, ids: { main: string; bare: string; empty: 
 	check('unread: Refresh records reads the range again', (await page.locator(ROW).count()) > 0)
 }
 
+const withYear = (date: string) => {
+	const { month, day: dayOfMonth, year } = parts(date)
+	const weekday = WEEKDAYS[new Date(`${date}T12:00:00Z`).getUTCDay()]
+	return `${weekday} ${dayOfMonth} ${SHORT_MONTHS[month]} ${year}`
+}
+
+const LEFT = '[data-slot="overview-left"][data-state="ready"]'
+
+async function openOverview(page: Page, id: string, name: string) {
+	await page.goto(`${BASE}/students/${id}`)
+	await page.getByRole('heading', { name, level: 1 }).waitFor({ timeout: 30000 })
+	await page.locator(`${LEFT}, [data-slot="overview-unread"]`).first().waitFor({ timeout: 30000 })
+	await page.waitForTimeout(300)
+}
+
+async function selectedTab(page: Page) {
+	return (await page.locator('[role="tab"][aria-selected="true"]').first().innerText()).trim()
+}
+
+async function overviewPart(page: Page, ids: { main: string; bare: string }) {
+	await openOverview(page, ids.main, NAMES[0])
+	const detail = (await api<StudentResponse>(page, 'GET', `/students/${ids.main}`)).json!.student
+	const since = await readLessons(page, ids.main, 'range=since_payment')
+	const held = heldSince(since)
+	const payment = detail.lastPayment!
+	const fact = (name: string) => page.locator(`[data-fact="${name}"]`)
+	const value = (name: string) => text(fact(name).locator('[data-slot="stat-value"]'))
+	const hint = (name: string) => text(fact(name).locator('[data-slot="stat-hint"]'))
+
+	check(
+		'overview: three facts, in the order Lessons left, Next lesson, Last payment',
+		(
+			await page
+				.locator('[data-slot="overview-fact"]')
+				.evaluateAll((list) => list.map((node) => node.getAttribute('data-fact')))
+		).join(',') === 'lessons-left,next-lesson,last-payment'
+	)
+	check(
+		'overview: Lessons left shows the balance of the api',
+		(await value('lessons-left')) === core.formatLessons(detail.balanceMinutes!, 60),
+		await value('lessons-left')
+	)
+	check(
+		'overview: Last payment shows the date, the amount and the lessons of the api',
+		(await value('last-payment')) === withWeekday(payment.paidOn) &&
+			(await hint('last-payment')) ===
+				`${core.formatMoney(payment.amountMinor, payment.currency)} · ${core.lessonsPhrase(payment.creditedMinutes, 60)}`,
+		`${await value('last-payment')} / ${await hint('last-payment')}`
+	)
+	check(
+		'overview: Next lesson has the corner Open in calendar only when the lesson is known',
+		(await fact('next-lesson').getByRole('link', { name: 'Open in calendar' }).count()) ===
+			(detail.nextLesson.result === 'known' ? 1 : 0),
+		detail.nextLesson.result
+	)
+	check(
+		'overview: Last payment has the corner View payments',
+		(await fact('last-payment').getByRole('button', { name: 'View payments' }).count()) === 1
+	)
+	check(
+		'overview: there is no Opening balance panel and no Balance now row',
+		(await page.locator('#student-opening-balance').count()) === 0 &&
+			!(await text(page.locator('#content'))).includes('Balance now')
+	)
+
+	const dates = held.map((lesson) => lesson.date)
+	const minutes = held.reduce((sum, lesson) => sum + lesson.durationMinutes, 0)
+	const block = page.locator(`${BLOCK}[data-form="short"]`)
+	check(
+		'overview: the short block has the title, the scope line and the dates of the api',
+		(await text(block.locator('p').first())) === 'Held since the last payment' &&
+			(await text(block.locator('[data-slot="held-dates-scope"]'))) ===
+				`Payment of ${withWeekday(payment.paidOn)} · ${dates.length} dates · ${minutes} min` &&
+			JSON.stringify(await blockLines(page)) === JSON.stringify(monthLines(dates)),
+		(await blockLines(page)).join(' | ')
+	)
+	check(
+		'overview: the short block has no note about lessons before the payment',
+		(await page.locator('[data-slot="held-dates-note"]').count()) === 0
+	)
+	const first = dates[0]!
+	const last = dates[dates.length - 1]!
+	const expectedCopy = [
+		`Lessons of ${NAMES[0]}, ${period(first, last)}`,
+		`Held lessons since the last payment (${withWeekday(payment.paidOn)})`,
+		...monthLines(dates),
+	].join('\n')
+	await block.getByRole('button', { name: 'Copy dates' }).click()
+	await page.waitForTimeout(250)
+	const copied = await page.evaluate(() => navigator.clipboard.readText())
+	check('overview: Copy dates inside the short block copies the same text as the Lessons tab', copied === expectedCopy)
+
+	const blocks = (await api<StudentBlocksResponse>(page, 'GET', `/students/${ids.main}/blocks`)).json!.blocks
+	const comments = (await api<StudentCommentsResponse>(page, 'GET', `/students/${ids.main}/comments?limit=3`)).json!
+		.comments
+	const expectedRecent = [
+		...blocks
+			.filter((item) => item.updatedAt !== null && item.body.trim() !== '')
+			.map((item) => ({ kind: 'note', at: Date.parse(item.updatedAt!), body: item.body })),
+		...comments.map((item) => ({ kind: 'comment', at: Date.parse(item.createdAt), body: item.body })),
+	]
+		.sort((left, right) => right.at - left.at)
+		.slice(0, 3)
+	const shown = await page.locator('[data-slot="overview-recent"]').evaluateAll((list) =>
+		list.map((node) => ({
+			kind: node.getAttribute('data-kind'),
+			body: (node.querySelector('.line-clamp-2')?.textContent ?? '').trim(),
+		}))
+	)
+	check(
+		'overview: Recent notes and comments shows the three newest, notes and comments mixed, newest first',
+		shown.length === 3 &&
+			JSON.stringify(shown) ===
+				JSON.stringify(expectedRecent.map((item) => ({ kind: item.kind, body: item.body.trim() }))),
+		JSON.stringify(shown)
+	)
+	check(
+		'overview: a comment says Lesson comment and a note its block name',
+		(await page.locator('[data-slot="overview-recent"][data-kind="comment"]').first().textContent())?.includes(
+			'Lesson comment · '
+		) === true &&
+			(await page.locator('[data-slot="overview-recent"][data-kind="note"]').first().textContent())?.includes(
+				'Typical mistakes · '
+			) === true
+	)
+
+	const terms = (await api<StudentTermsResponse>(page, 'GET', `/students/${ids.main}/terms`)).json!.terms
+	check(
+		'overview: Vocabulary counts the words and shows them as chips',
+		(await text(page.locator('[data-slot="overview-words-count"]'))) === `${terms.length} words · the latest added` &&
+			JSON.stringify(
+				(await page.locator('[data-slot="overview-words"] span').allInnerTexts()).map((word) => word.trim()).sort()
+			) === JSON.stringify(terms.map((term) => term.term).sort())
+	)
+	check(
+		'overview: Details and Account stay on the right',
+		(await page.locator('#student-details').count()) === 1 && (await page.locator('#student-account').count()) === 1
+	)
+	await shot(page, 'ledger-profile', 'overview')
+
+	const boxes = await Promise.all(
+		['Archive', 'Ask in chat', 'Record payment'].map(
+			async (name) => (await page.getByRole('button', { name }).boundingBox())?.x ?? -1
+		)
+	)
+	check(
+		'header: the actions run Archive, Ask in chat, Record payment',
+		boxes[0]! >= 0 && boxes[0]! < boxes[1]! && boxes[1]! < boxes[2]!,
+		boxes.join(',')
+	)
+
+	const goes = [
+		['All lessons', 'Lessons'],
+		['All notes', 'Notes'],
+		['All words', 'Vocabulary'],
+		['View payments', 'Payments'],
+	] as const
+	for (const [button, tab] of goes) {
+		await openOverview(page, ids.main, NAMES[0])
+		await page.getByRole('button', { name: button }).first().click()
+		await page.waitForTimeout(400)
+		check(`overview: ${button} opens the ${tab} tab`, (await selectedTab(page)) === tab, await selectedTab(page))
+	}
+	await openOverview(page, ids.main, NAMES[0])
+	await page.locator('[data-slot="overview-recent"][data-kind="note"]').first().click()
+	await page.waitForTimeout(400)
+	check('overview: a note opens the Notes tab', (await selectedTab(page)) === 'Notes')
+	await openOverview(page, ids.main, NAMES[0])
+	await page.locator('[data-slot="overview-recent"][data-kind="comment"]').first().click()
+	await page.waitForURL(/\/schedule\?/, { timeout: 15000 })
+	check(
+		'overview: a comment opens its lesson in the calendar',
+		new URL(page.url()).searchParams.has('lesson') || new URL(page.url()).searchParams.has('day'),
+		new URL(page.url()).search
+	)
+
+	await openOverview(page, ids.main, NAMES[0])
+	const url = `**/api/students/${ids.main}/comments*`
+	await page.route(url, (route) =>
+		route.fulfill({ status: 500, json: { error: { code: 'internal_error', message: 'x' } } })
+	)
+	await openOverview(page, ids.main, NAMES[0])
+	check(
+		'overview: a failed read gives one panel with Refresh records and keeps the header and the tabs',
+		(await text(page.locator('[data-slot="overview-unread"]'))).includes(
+			'Could not read these records.Refresh before continuing.'
+		) &&
+			(await page.getByRole('button', { name: 'Refresh records' }).count()) === 1 &&
+			(await page.getByRole('tab', { name: 'Payments' }).count()) === 1
+	)
+	await shot(page, 'ledger-profile', 'overview-unread')
+	await page.unroute(url)
+	await page.getByRole('button', { name: 'Refresh records' }).click()
+	await page.locator(LEFT).waitFor({ timeout: 15000 })
+	check(
+		'overview: Refresh records reads the facts again',
+		(await page.locator('[data-slot="overview-fact"]').count()) === 3
+	)
+
+	const studentUrl = `**/api/students/${ids.main}`
+	await page.route(studentUrl, async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 2500))
+		await route.continue().catch(() => undefined)
+	})
+	await page.goto(`${BASE}/students/${ids.main}`)
+	await page.locator('[data-slot="held-dates"][data-state="loading"]').waitFor({ timeout: 10000 })
+	const body = await text(page.locator('#content'))
+	check(
+		'skeleton: real labels, real Ask in chat and Record payment, no Opening balance panel',
+		[
+			'Lessons left',
+			'Next lesson',
+			'Last payment',
+			'Held since the last payment',
+			'Recent notes and comments',
+			'Vocabulary',
+			'Details',
+			'Account',
+		].every((label) => body.includes(label)) &&
+			(await page.getByRole('button', { name: 'Ask in chat' }).count()) === 1 &&
+			(await page.getByRole('button', { name: 'Record payment' }).count()) === 1 &&
+			(await page.locator('#student-opening-balance').count()) === 0 &&
+			!body.includes('Balance now')
+	)
+	await shot(page, 'ledger-profile', 'skeleton')
+	await page.unroute(studentUrl)
+	await page.locator(LEFT).waitFor({ timeout: 30000 })
+
+	await openOverview(page, ids.bare, NAMES[1])
+	check(
+		'empty student: Lessons left says Not set with Set opening balance, Last payment says None',
+		(await value('lessons-left')) === 'Not set' &&
+			(await fact('lessons-left').getByRole('button', { name: 'Set opening balance' }).count()) === 1 &&
+			(await value('last-payment')) === 'None' &&
+			(await hint('last-payment')) === 'No payments yet'
+	)
+	check(
+		'empty student: the info row replaces the dates, notes and words say what is missing',
+		(await text(page.locator('[data-slot="overview-not-counted"]'))).includes(
+			'Held lessons appear here once a payment or an opening balance is recorded.'
+		) &&
+			(await page.getByText('No notes or comments yet.').count()) === 1 &&
+			(await page.getByText('No words yet.').count()) === 1 &&
+			(await page.getByRole('button', { name: 'Notes', exact: true }).count()) === 1
+	)
+	await shot(page, 'ledger-profile', 'overview-empty')
+	await fact('lessons-left').getByRole('button', { name: 'Set opening balance' }).click()
+	await page.locator('[data-slot="opening-balance-form"]').waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	check(
+		'empty student: Set opening balance opens Payments with the form and the cursor in Lessons left',
+		(await selectedTab(page)) === 'Payments' &&
+			(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-lessons'
+	)
+	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await page.locator('[data-slot="opening-balance-unset"]').waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	check(
+		'empty student: Discard closes the form into the info row and focus returns to Set opening balance',
+		(await text(page.locator('[data-slot="opening-balance-unset"]'))).includes(
+			'Opening balance not set. Lessons are counted from it and from the payments after it.'
+		) && (await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-open'
+	)
+	await shot(page, 'ledger-profile', 'payments-unset')
+}
+
+async function paymentsPart(page: Page, id: string) {
+	await page.goto(`${BASE}/students/${id}?tab=payments`)
+	await page.getByRole('heading', { name: NAMES[0], level: 1 }).waitFor({ timeout: 30000 })
+	const row = page.locator('[data-slot="opening-balance-row"]')
+	await row.waitFor({ timeout: 30000 })
+	const read = async () => (await api<StudentResponse>(page, 'GET', `/students/${id}`)).json!.student
+	const before = await read()
+	const opening = before.openingBalance!
+	check(
+		'payments: the Opening balance row sits above the payments and says the lessons and the date',
+		(await text(row.locator('[data-slot="opening-balance-text"]'))) ===
+			`${core.balancePhrase(opening.minutes, 60)} as of ${withYear(opening.on)}` &&
+			(await row.evaluate((node) => {
+				const table = document.querySelector('table')
+				return table === null || node.getBoundingClientRect().bottom <= table.getBoundingClientRect().top
+			})),
+		await text(row)
+	)
+	await shot(page, 'ledger-profile', 'payments-row')
+
+	await row.getByRole('button', { name: 'Update opening balance' }).click()
+	const form = page.locator('[data-slot="opening-balance-form"]')
+	await form.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	check(
+		'payments: Update opening balance turns the row into the form with the cursor in Lessons left',
+		(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-lessons' &&
+			(await page.locator('#opening-balance-lessons').inputValue()) === core.formatLessons(opening.minutes, 60)
+	)
+	const width = (await page.locator('#opening-balance-lessons').boundingBox())?.width ?? 0
+	check('payments: the Lessons left field is 132 px wide', Math.round(width) === 132, String(width))
+	await shot(page, 'ledger-profile', 'payments-form')
+	await page.locator('#opening-balance-lessons').fill('9')
+	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await row.waitFor({ timeout: 10000 })
+	await page.waitForTimeout(300)
+	check(
+		'payments: Discard changes closes the form without saving and returns focus to the button',
+		(await read()).openingBalance!.minutes === opening.minutes &&
+			(await page.evaluate(() => document.activeElement?.id)) === 'opening-balance-open'
+	)
+
+	await row.getByRole('button', { name: 'Update opening balance' }).click()
+	await form.waitFor({ timeout: 10000 })
+	await page.locator('#opening-balance-lessons').fill('3.5')
+	await page.getByRole('button', { name: 'Save opening balance' }).click()
+	await row.waitFor({ timeout: 15000 })
+	await page.waitForTimeout(500)
+	const saved = await read()
+	check(
+		'payments: Save opening balance writes the number and the row follows',
+		saved.openingBalance!.minutes === 210 &&
+			(await text(row.locator('[data-slot="opening-balance-text"]'))) ===
+				`3.5 lessons left as of ${withYear(opening.on)}`,
+		await text(row)
+	)
+
+	await row.getByRole('button', { name: 'Update opening balance' }).click()
+	await form.waitFor({ timeout: 10000 })
+	const competing = await api(page, 'PUT', `/students/${id}/opening-balance`, {
+		lessonsHundredths: 100,
+		on: opening.on,
+		expectedDefaultTimeZone: VN,
+	})
+	check('payments: the competing write is accepted', competing.status === 200, String(competing.status))
+	await page.locator('#opening-balance-lessons').fill('2')
+	await page.getByRole('button', { name: 'Save opening balance' }).click()
+	await page.getByRole('button', { name: 'Reload student details' }).waitFor({ timeout: 10000 })
+	check(
+		'payments: a competing edit shows the warning with Reload student details and Save is off',
+		(await text(form)).includes('This student changed elsewhere. Reload the current details before saving.') &&
+			(await page.getByRole('button', { name: 'Save opening balance' }).isDisabled())
+	)
+	await shot(page, 'ledger-profile', 'payments-conflict')
+	await page.getByRole('button', { name: 'Reload student details' }).click()
+	await page.waitForFunction(() => !document.body.textContent?.includes('This student changed elsewhere'), null, {
+		timeout: 15000,
+	})
+	await page.waitForTimeout(400)
+	check(
+		'payments: Reload student details brings the current values back and Save is on again',
+		(await page.locator('#opening-balance-lessons').inputValue()) === '1' &&
+			(await page.getByRole('button', { name: 'Save opening balance' }).isEnabled())
+	)
+	await page.getByRole('button', { name: 'Discard changes' }).click()
+	await row.waitFor({ timeout: 10000 })
+	const restored = await api(page, 'PUT', `/students/${id}/opening-balance`, {
+		lessonsHundredths: 0,
+		on: opening.on,
+		expectedDefaultTimeZone: VN,
+	})
+	check('payments: the fixture opening balance is restored', restored.status === 200, String(restored.status))
+}
+
+async function overviewPhonePart(page: Page, id: string) {
+	await page.setViewportSize({ width: 375, height: 800 })
+	await openOverview(page, id, NAMES[0])
+	const phone = await page.evaluate(() => ({
+		page: document.documentElement.scrollWidth - window.innerWidth,
+		columns: new Set(
+			Array.from(document.querySelectorAll<HTMLElement>('[data-slot="overview-fact"]')).map((node) =>
+				Math.round(node.getBoundingClientRect().left)
+			)
+		).size,
+		detailsAfter:
+			(document.getElementById('student-details')?.getBoundingClientRect().top ?? 0) >
+			(document.getElementById('student-vocabulary')?.getBoundingClientRect().top ?? 1e9),
+	}))
+	check(
+		'375 px: the Overview has no sideways scroll, the facts stack and Details comes after Vocabulary',
+		phone.page <= 0 && phone.columns === 1 && phone.detailsAfter,
+		JSON.stringify(phone)
+	)
+	await shot(page, 'ledger-profile', 'overview-phone')
+	await page.setViewportSize({ width: 768, height: 900 })
+	await page.waitForTimeout(300)
+	const tablet = await page.evaluate(() => ({
+		page: document.documentElement.scrollWidth - window.innerWidth,
+		columns: new Set(
+			Array.from(document.querySelectorAll<HTMLElement>('[data-slot="overview-fact"]')).map((node) =>
+				Math.round(node.getBoundingClientRect().left)
+			)
+		).size,
+	}))
+	check(
+		'768 px: the Overview has no sideways scroll and the three facts share a row',
+		tablet.page <= 0 && tablet.columns === 3,
+		JSON.stringify(tablet)
+	)
+	await shot(page, 'ledger-profile', 'overview-tablet')
+	await page.setViewportSize({ width: 1280, height: 900 })
+}
+
 async function phonePart(page: Page, id: string) {
 	await page.setViewportSize({ width: 375, height: 800 })
 	await openTab(page, id, NAMES[0])
@@ -704,6 +1118,9 @@ export async function profile() {
 			await openTab(page, ids.main, NAMES[0])
 			await actionsPart(page, main)
 			await statesPart(page, ids)
+			await overviewPart(page, ids)
+			await paymentsPart(page, ids.main)
+			await overviewPhonePart(page, ids.main)
 			await phonePart(page, ids.main)
 			const real = problems.filter(
 				(problem) =>
