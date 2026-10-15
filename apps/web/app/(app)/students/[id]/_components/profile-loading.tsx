@@ -1,15 +1,17 @@
 'use client'
 
-import type { ReactNode } from 'react'
-
-import { Pencil, Wallet } from 'lucide-react'
+import { Pencil, MessageSquare, Wallet } from 'lucide-react'
 
 import { PageHeader, PageScroll, Panel } from '@/components/app/layout-parts'
+import { Stat } from '@/components/app/stat'
 import { Button } from '@/components/ui/button'
 import { Skeleton, SkeletonAvatar, SkeletonLine } from '@/components/ui/skeleton'
 import { TabItem, TabPanel, Tabs, TabsList } from '@/components/ui/tabs'
 
 import { BackButton } from './back-button'
+import { HeldDates } from './held-dates'
+
+export const OVERVIEW_GRID = 'grid gap-4 md:gap-6 lg:grid-cols-[minmax(0,1fr)_21.25rem]'
 
 function ignore() {}
 
@@ -24,59 +26,118 @@ function DetailRowLoading({ label, width }: { label: string; width: string }) {
 	)
 }
 
-function FieldLoading({ label, helper }: { label: string; helper: ReactNode }) {
+function FactLoading({ label }: { label: string }) {
 	return (
-		<div className="flex min-w-0 flex-col gap-2">
-			<span className="text-body text-muted-foreground">{label}</span>
-			<Skeleton className="h-9 w-full rounded-md" />
-			<p className="text-caption text-muted-foreground">{helper}</p>
+		<Stat
+			size="title"
+			label={label}
+			value={<SkeletonLine box="h-6" className="h-4 w-14" />}
+			hint={<SkeletonLine box="h-(--lh-caption)" className="h-2.5 w-24" />}
+			className="px-4 py-3"
+		/>
+	)
+}
+
+function RecentLoading() {
+	return (
+		<ul className="flex flex-col gap-3 px-4 pb-4" aria-hidden>
+			{[0, 1, 2].map((index) => (
+				<li key={index} className="flex items-start gap-3">
+					<Skeleton className="mt-0.5 size-4 shrink-0 rounded-md" />
+					<div className="flex min-w-0 flex-1 flex-col gap-2">
+						<Skeleton className="h-2.5 w-32" />
+						<Skeleton className="h-3 w-full" />
+					</div>
+				</li>
+			))}
+		</ul>
+	)
+}
+
+function VocabularyLoading() {
+	return (
+		<div className="flex flex-col gap-3 px-4 pb-4" aria-hidden>
+			<Skeleton className="h-2.5 w-36" />
+			<div className="flex flex-wrap gap-2">
+				{[16, 20, 14, 24, 18, 20].map((width, index) => (
+					<Skeleton key={index} className="h-7 rounded-md" style={{ width: `${width * 4}px` }} />
+				))}
+			</div>
+		</div>
+	)
+}
+
+export function OverviewLeftLoading({ studentName, mainTimeZone }: { studentName: string; mainTimeZone: string }) {
+	return (
+		<div className="flex min-w-0 flex-col gap-4 md:gap-6">
+			<div className="grid gap-3 sm:grid-cols-3">
+				<FactLoading label="Lessons left" />
+				<FactLoading label="Next lesson" />
+				<FactLoading label="Last payment" />
+			</div>
+			<HeldDates
+				form="short"
+				loading
+				studentName={studentName}
+				dates={[]}
+				minutes={0}
+				period={{ from: '1970-01-01', to: '1970-01-01' }}
+				sincePayment
+				lastPaidOn={null}
+				beforePayment={[]}
+				coverage="complete"
+				mainTimeZone={mainTimeZone}
+			/>
+			<Panel
+				id="student-recent"
+				title="Recent notes and comments"
+				action={
+					<Button variant="ghost" size="compact" disabled>
+						All notes
+					</Button>
+				}
+			>
+				<RecentLoading />
+			</Panel>
+			<Panel
+				id="student-vocabulary"
+				title="Vocabulary"
+				action={
+					<Button variant="ghost" size="compact" disabled>
+						All words
+					</Button>
+				}
+			>
+				<VocabularyLoading />
+			</Panel>
 		</div>
 	)
 }
 
 function OverviewLoading() {
 	return (
-		<div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-			<Panel
-				id="student-details"
-				title="Details"
-				action={
-					<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
-						Edit details
-					</Button>
-				}
-			>
-				<dl className="flex flex-col pt-2">
-					<DetailRowLoading label="Rate" width="w-28" />
-					<DetailRowLoading label="Lesson length" width="w-14" />
-					<DetailRowLoading label="No-show" width="w-28" />
-					<DetailRowLoading label="Gender" width="w-14" />
-					<DetailRowLoading label="Parent" width="w-24" />
-					<DetailRowLoading label="Level" width="w-16" />
-					<DetailRowLoading label="Goals" width="w-40" />
-					<DetailRowLoading label="Time zone" width="w-32" />
-				</dl>
-			</Panel>
+		<div className={OVERVIEW_GRID}>
+			<OverviewLeftLoading studentName="" mainTimeZone="UTC" />
 			<div className="flex min-w-0 flex-col gap-4 md:gap-6">
 				<Panel
-					id="student-opening-balance"
-					title="Opening balance"
-					description="Lessons left on the day you start counting here."
+					id="student-details"
+					title="Details"
+					action={
+						<Button variant="ghost" size="compact" leadingIcon={Pencil} disabled>
+							Edit details
+						</Button>
+					}
 				>
-					<div className="flex flex-col gap-4 px-4 pt-2 pb-4">
-						<div className="flex items-center justify-between gap-4 text-body">
-							<span className="text-muted-foreground">Balance now</span>
-							<SkeletonLine className="w-28" />
-						</div>
-						<FieldLoading label="Lessons left" helper="Up to two decimals, for example 1.5." />
-						<FieldLoading
-							label="As of"
-							helper="Payments dated on or before this date are already counted in the number."
-						/>
-						<div>
-							<Skeleton className="h-9 w-37 rounded-md" />
-						</div>
-					</div>
+					<dl className="flex flex-col pt-2">
+						<DetailRowLoading label="Rate" width="w-28" />
+						<DetailRowLoading label="Lesson length" width="w-14" />
+						<DetailRowLoading label="No-show" width="w-28" />
+						<DetailRowLoading label="Gender" width="w-14" />
+						<DetailRowLoading label="Parent" width="w-24" />
+						<DetailRowLoading label="Level" width="w-16" />
+						<DetailRowLoading label="Goals" width="w-40" />
+						<DetailRowLoading label="Time zone" width="w-32" />
+					</dl>
 				</Panel>
 				<Panel id="student-account" title="Account" description="Sign-in for this student.">
 					<div className="flex flex-col gap-4 px-4 pb-4">
@@ -116,6 +177,9 @@ export function ProfileLoading() {
 				actions={
 					<>
 						<Skeleton className="h-9 w-24 rounded-md" />
+						<Button variant="secondary" leadingIcon={MessageSquare} className="min-w-36">
+							Ask in chat
+						</Button>
 						<Button leadingIcon={Wallet}>Record payment</Button>
 					</>
 				}
