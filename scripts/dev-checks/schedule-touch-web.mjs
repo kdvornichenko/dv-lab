@@ -293,6 +293,11 @@ async function phoneChecks() {
 	await tapped.waitFor({ state: 'detached', timeout: 8000 }).catch(() => undefined)
 
 	await reveal(page, 10)
+	const tapBlock = await page.locator(`${COLUMN} [data-event-key^="touch-a"]`).first().boundingBox()
+	await touch(cdp, 'touchStart', { x: tapBlock.x + tapBlock.width / 2, y: tapBlock.y + 10 })
+	await wait(80)
+	await touch(cdp, 'touchEnd')
+	check('phone: a tap on a block still opens it', await moveOpened(page, 'Touch alpha'))
 	const block = await page.locator(`${COLUMN} [data-event-key^="touch-a"]`).first().boundingBox()
 	const grip = { x: block.x + block.width / 2, y: block.y + 10 }
 	const next = await columnBox(page, 2)
