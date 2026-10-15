@@ -22,8 +22,8 @@ import { removeCards } from './ledger-api/context.ts'
 const PORT = 4271
 const ENDPOINT_HOST = 'push.example.test'
 const ENDPOINT_BASE = `https://${ENDPOINT_HOST}/dvlab-check/`
-const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config', 'lessons']
-const API_SECTIONS = new Set(['routes', 'settings', 'presence', 'config', 'lessons'])
+const SECTIONS = ['routes', 'links', 'settings', 'presence', 'config', 'lessons', 'payments', 'suppress']
+const API_SECTIONS = new Set(['routes', 'settings', 'presence', 'config', 'lessons', 'payments', 'suppress'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 let failures = 0
@@ -664,7 +664,186 @@ async function config(ctx) {
 	)
 }
 
-const RUNNERS = { routes, links, settings, presence, config, lessons }
+async function ledgerTools(ctx) {
+	const settingsNow = (await send(ctx.api, 'GET', '/settings', ctx.cookie)).json.settings
+	const zone = settingsNow.defaultTimeZone
+	const core = await import(`${ROOT}/packages/core/src/index.ts`)
+	const today = core.scheduleToday(new Date(), zone)
+	const opening = async (studentId, lessonsHundredths) => {
+		const res = await send(ctx.api, 'PUT', `/students/${studentId}/opening-balance`, ctx.cookie, {
+			lessonsHundredths,
+			on: core.addDays(today, -3),
+			expectedDefaultTimeZone: zone,
+		})
+		if (res.status !== 200) throw new Error(`opening balance returned ${res.status}`)
+	}
+	const doneLesson = async (studentId, hoursAgo, minutes = 60) => {
+		const lessonId = insertLesson(studentId, new Date(Date.now() - hoursAgo * 60 * MINUTE), { minutes })
+		const res = await send(ctx.api, 'POST', `/schedule/lessons/${lessonId}/mark`, ctx.cookie, { kind: 'done' })
+		if (res.status !== 200) throw new Error(`mark returned ${res.status}`)
+	}
+	const pay = async (studentId, lessonsHundredths) => {
+		const res = await send(ctx.api, 'POST', '/payments', ctx.cookie, {
+			studentId,
+			paidOn: today,
+			expectedDefaultTimeZone: zone,
+			amountMinor: 100000,
+			currency: 'RUB',
+			lessonsHundredths,
+		})
+		if (res.status !== 201) throw new Error(`payment returned ${res.status}`)
+	}
+	return { settings: settingsNow, opening, doneLesson, pay }
+}
+
+const alertRow = (studentId) =>
+	sql(
+		`select armed, last_state from push_payment_alerts where student_id = ${quote(studentId)} and account_id in (${teacherAccounts})`
+	).rows[0]
+
+async function payments(ctx) {
+	const tools = await ledgerTools(ctx)
+	const original = tools.settings
+	try {
+		await patchSettings(ctx, { paysSoonLessons: 2, notifyPaysSoon: true })
+		const own = await ownSubscription(ctx)
+		const a = await makeCard(ctx, 'Alex Example 2601')
+		const b = await makeCard(ctx, 'Alex Example 2602')
+		const c = await makeCard(ctx, 'Alex Example 2603')
+		const d = await makeCard(ctx, 'Alex Example 2604')
+		const e = await makeCard(ctx, 'Alex Example 2605')
+		const f = await makeCard(ctx, 'Alex Example 2606')
+		for (const id of [a, c, d, f]) await tools.opening(id, 300)
+		await tools.opening(b, 100)
+		const now = () => new Date()
+		const ours = (items, id) => forLesson(items, id, own.id)
+
+		const first = await tickAt(ctx, now())
+		check(
+			'the first evaluation sends nothing and only records the state',
+			[a, b, c, d, e, f].every((id) => ours(first, id).length === 0) &&
+				alertRow(a)?.armed === true &&
+				alertRow(a)?.last_state === 'plenty' &&
+				alertRow(b)?.armed === false &&
+				alertRow(b)?.last_state === 'pays_soon' &&
+				alertRow(e) === undefined
+		)
+
+		await tools.doneLesson(a, 26)
+		const reached = await tickAt(ctx, now())
+		const reachedItems = ours(reached, a)
+		check(
+			'an armed student marked down to Pays soon gives one delivery',
+			reachedItems.length === 1 &&
+				reachedItems[0].payload.title === 'Alex Example 2601 has 2 lessons left' &&
+				reachedItems[0].payload.body === 'Pays soon. Open payments to record a payment.' &&
+				reachedItems[0].payload.url === `/students/${a}?tab=payments` &&
+				alertRow(a)?.armed === false,
+			`count ${reachedItems.length}`
+		)
+		const again = await tickAt(ctx, now())
+		check('the next tick sends nothing again', ours(again, a).length === 0 && ours(again, b).length === 0)
+
+		await tools.pay(a, 100)
+		const rearmed = await tickAt(ctx, now())
+		check('a payment back to plenty re-arms without a delivery', ours(rearmed, a).length === 0 && alertRow(a)?.armed === true)
+		await tools.doneLesson(a, 25)
+		const second = await tickAt(ctx, now())
+		check('a new transition to Pays soon gives a new delivery', ours(second, a).length === 1)
+
+		await tools.doneLesson(c, 30, 240)
+		const owes = await tickAt(ctx, now())
+		check(
+			'an armed student going straight to Owes sends nothing and is disarmed',
+			ours(owes, c).length === 0 && alertRow(c)?.armed === false && alertRow(c)?.last_state === 'owes'
+		)
+		await tools.pay(c, 200)
+		const partial = await tickAt(ctx, now())
+		check(
+			'a partial payment from debt up to Pays soon sends nothing',
+			ours(partial, c).length === 0 && alertRow(c)?.last_state === 'pays_soon' && alertRow(c)?.armed === false
+		)
+		await tools.pay(c, 300)
+		const plenty = await tickAt(ctx, now())
+		check('a payment up to plenty arms again', ours(plenty, c).length === 0 && alertRow(c)?.armed === true)
+
+		await tools.opening(d, 100)
+		const archived = await send(ctx.api, 'POST', `/students/${d}/archive`, ctx.cookie)
+		if (archived.status !== 200) throw new Error(`archive returned ${archived.status}`)
+		await patchSettings(ctx, { notifyPaysSoon: false })
+		await tools.opening(f, 100)
+		const quiet = await tickAt(ctx, now())
+		check(
+			'an archived card, a card without opening balance and notify_pays_soon off send nothing',
+			ours(quiet, d).length === 0 && ours(quiet, e).length === 0 && ours(quiet, f).length === 0 && alertRow(e) === undefined
+		)
+	} finally {
+		await patchSettings(ctx, {
+			paysSoonLessons: original.paysSoonLessons,
+			notifyLessonSoon: original.notifyLessonSoon,
+			notifyLessonMinutes: original.notifyLessonMinutes,
+			notifyPaysSoon: original.notifyPaysSoon,
+		})
+	}
+}
+
+async function suppress(ctx) {
+	const tools = await ledgerTools(ctx)
+	const original = tools.settings
+	const { recordPresence } = await import(`${ROOT}/apps/api/src/push/presence.ts`)
+	try {
+		await patchSettings(ctx, { paysSoonLessons: 2, notifyPaysSoon: true, notifyLessonSoon: true, notifyLessonMinutes: 30 })
+		const teacher = teacherAccountId()
+		const one = await ownSubscription(ctx)
+		const two = await ownSubscription(ctx)
+		const card = await makeCard(ctx, 'Alex Example 2607')
+		const now = new Date()
+
+		const watched = insertLesson(card, plus(now, 20))
+		recordPresence(teacher, one.endpoint, 'schedule', null, now)
+		const fresh = await tickAt(ctx, now)
+		check(
+			'a fresh schedule signal mutes the lesson on its device only',
+			forLesson(fresh, watched, one.id).length === 0 && forLesson(fresh, watched, two.id).length === 1
+		)
+		const stale = insertLesson(card, plus(now, 22))
+		recordPresence(teacher, one.endpoint, 'schedule', null, new Date(now.getTime() - 91_000))
+		const staleTick = await tickAt(ctx, now)
+		check(
+			'a signal older than 90 s does not mute',
+			forLesson(staleTick, stale, one.id).length === 1 && forLesson(staleTick, stale, two.id).length === 1
+		)
+
+		const other = await makeCard(ctx, 'Alex Example 2608')
+		const same = await makeCard(ctx, 'Alex Example 2609')
+		await tools.opening(other, 300)
+		await tools.opening(same, 300)
+		await tickAt(ctx, new Date())
+		await tools.opening(other, 100)
+		recordPresence(teacher, one.endpoint, 'payments', same, new Date())
+		const otherTick = await tickAt(ctx, new Date())
+		check(
+			'payments of another student do not mute the payment push',
+			forLesson(otherTick, other, one.id).length === 1 && forLesson(otherTick, other, two.id).length === 1
+		)
+		await tools.opening(same, 100)
+		recordPresence(teacher, one.endpoint, 'payments', same, new Date())
+		const sameTick = await tickAt(ctx, new Date())
+		check(
+			'payments of the same student mute the payment push on that device',
+			forLesson(sameTick, same, one.id).length === 0 && forLesson(sameTick, same, two.id).length === 1
+		)
+	} finally {
+		await patchSettings(ctx, {
+			paysSoonLessons: original.paysSoonLessons,
+			notifyLessonSoon: original.notifyLessonSoon,
+			notifyLessonMinutes: original.notifyLessonMinutes,
+			notifyPaysSoon: original.notifyPaysSoon,
+		})
+	}
+}
+
+const RUNNERS = { routes, links, settings, presence, config, lessons, payments, suppress }
 
 const wanted = process.argv.slice(2)
 const selected = wanted.length === 0 ? SECTIONS : wanted

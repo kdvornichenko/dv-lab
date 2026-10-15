@@ -1,13 +1,22 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { Logger } from 'pino'
 
-import { type ScheduleBlock, type TeacherSettings, lessonLink } from '@dv-lab/contracts'
-import { lessonDay } from '@dv-lab/core'
-import { type Database, type DbExecutor, accounts, pushDeliveries, pushSubscriptions, readSnapshot } from '@dv-lab/db'
+import { type ScheduleBlock, type TeacherSettings, lessonLink, studentPaymentsLink } from '@dv-lab/contracts'
+import { type BalanceState, balanceState, lessonDay, lessonsPhrase } from '@dv-lab/core'
+import {
+	type Database,
+	type DbExecutor,
+	accounts,
+	pushDeliveries,
+	pushPaymentAlerts,
+	pushSubscriptions,
+	readSnapshot,
+} from '@dv-lab/db'
 
-import { listLessonStudents } from '../cards/cards.ts'
+import { listCards, listLessonStudents } from '../cards/cards.ts'
 import { readWindowBlocks } from '../schedule/window-blocks.ts'
 import { readTeacherSettings } from '../settings/settings.ts'
+import { isPresent } from './presence.ts'
 import { type ActiveSubscription, activeSubscriptions } from './subscriptions.ts'
 
 export type PushPayload = { title: string; body: string; tag: string; url: string }
@@ -26,6 +35,7 @@ type PushSchedulerOptions = {
 	logger: Logger
 	deliver: PushDeliver
 	intervalMs?: number
+	paysEveryMs?: number
 }
 
 const MINUTE_MS = 60_000
@@ -110,10 +120,17 @@ export function dueLessons(blocks: readonly ScheduleBlock[], now: Date, minutesB
 	})
 }
 
-export function createPushScheduler({ db, logger, deliver, intervalMs = MINUTE_MS }: PushSchedulerOptions): PushScheduler {
+export function createPushScheduler({
+	db,
+	logger,
+	deliver,
+	intervalMs = MINUTE_MS,
+	paysEveryMs = 5 * MINUTE_MS,
+}: PushSchedulerOptions): PushScheduler {
 	let timer: ReturnType<typeof setInterval> | undefined
 	let current: Promise<void> | undefined
 	let closed = false
+	let lastPaysAt: number | undefined
 
 	async function send(subscriptions: readonly ActiveSubscription[], delivery: Delivery): Promise<number> {
 		let sent = 0
@@ -148,7 +165,67 @@ export function createPushScheduler({ db, logger, deliver, intervalMs = MINUTE_M
 			if (!(await claim(db, accountId, 'lesson_soon', `${block.key}@${block.startsAt}`))) continue
 			sent += await send(subscriptions, {
 				payload: (subscription) => lessonPayload(block, now, settings.defaultTimeZone, subscription.secondTimeZone),
-				skip: () => false,
+				skip: (subscription) => isPresent(subscription.endpoint, 'schedule', null, now),
+			})
+		}
+		return sent
+	}
+
+	async function advanceAlert(
+		accountId: string,
+		studentId: string,
+		state: Exclude<BalanceState, 'not_set'>,
+		notify: boolean,
+		now: Date
+	): Promise<boolean> {
+		return db.transaction(async (tx) => {
+			const [row] = await tx
+				.select({ armed: pushPaymentAlerts.armed, lastState: pushPaymentAlerts.lastState })
+				.from(pushPaymentAlerts)
+				.where(and(eq(pushPaymentAlerts.accountId, accountId), eq(pushPaymentAlerts.studentId, studentId)))
+				.for('update')
+			if (!row) {
+				await tx
+					.insert(pushPaymentAlerts)
+					.values({ accountId, studentId, armed: state === 'plenty', lastState: state })
+					.onConflictDoNothing()
+				return false
+			}
+			const armed = state === 'plenty'
+			const reached = row.armed && state === 'pays_soon'
+			if (armed !== row.armed || state !== row.lastState)
+				await tx
+					.update(pushPaymentAlerts)
+					.set({ armed, lastState: state, updatedAt: sql`now()` })
+					.where(and(eq(pushPaymentAlerts.accountId, accountId), eq(pushPaymentAlerts.studentId, studentId)))
+			if (!reached || !notify) return false
+			return claim(tx, accountId, 'pays_soon', `${studentId}:${now.toISOString()}`)
+		})
+	}
+
+	async function paysPass(
+		accountId: string,
+		settings: TeacherSettings,
+		subscriptions: readonly ActiveSubscription[],
+		now: Date
+	): Promise<number> {
+		const context = { accountId, now, defaultTimeZone: settings.defaultTimeZone }
+		const cards = await readSnapshot(db, async (executor) => (await listCards(executor, context)).students)
+		let sent = 0
+		for (const card of cards) {
+			if (card.status !== 'active') continue
+			const state = balanceState(card.balanceMinutes, card.defaultLessonMinutes, settings.paysSoonLessons)
+			if (state === 'not_set' || card.balanceMinutes === null) continue
+			if (!(await advanceAlert(accountId, card.id, state, settings.notifyPaysSoon, now))) continue
+			const payload: PushPayload = {
+				title: `${card.displayName} has ${lessonsPhrase(card.balanceMinutes, card.defaultLessonMinutes)} left`,
+				body: 'Pays soon. Open payments to record a payment.',
+				tag: `pays:${card.id}`,
+				url: studentPaymentsLink(card.id),
+			}
+			sent += await send(subscriptions, {
+				payload: () => payload,
+				skip: (subscription) => isPresent(subscription.endpoint, 'payments', card.id, now),
 			})
 		}
 		return sent
@@ -162,6 +239,8 @@ export function createPushScheduler({ db, logger, deliver, intervalMs = MINUTE_M
 			logger.warn({ err }, 'push scheduler failed')
 			return
 		}
+		const paysDue = lastPaysAt === undefined || now.getTime() - lastPaysAt >= paysEveryMs
+		if (paysDue) lastPaysAt = now.getTime()
 		for (const accountId of accountIds) {
 			try {
 				const { settings, subscriptions } = await readSnapshot(db, async (executor) => ({
@@ -170,7 +249,8 @@ export function createPushScheduler({ db, logger, deliver, intervalMs = MINUTE_M
 				}))
 				if (subscriptions.length === 0) continue
 				const lessons = await lessonPass(accountId, settings, subscriptions, now)
-				if (lessons > 0) logger.info({ accountId, lessons }, 'push notifications sent')
+				const pays = paysDue ? await paysPass(accountId, settings, subscriptions, now) : 0
+				if (lessons + pays > 0) logger.info({ accountId, lessons, pays }, 'push notifications sent')
 			} catch (err) {
 				logger.warn({ err, accountId }, 'push scheduler pass failed')
 			}
